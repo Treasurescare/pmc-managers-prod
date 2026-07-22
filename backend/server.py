@@ -316,6 +316,15 @@ class TenderIn(BaseModel):
     bid_bond_amount: Optional[float] = None
     # Two-envelope sealed bidding (RFP only)
     two_envelope: bool = False
+    # Multi-level approval workflow (P1)
+    require_approval: bool = False
+    # EMD / Security Deposit (P1)
+    emd_required: bool = False
+    emd_amount: Optional[float] = None
+    emd_currency: str = "USD"
+    # Org / department (P1)
+    org_id: Optional[str] = None
+    department_id: Optional[str] = None
 
 
 class BidIn(BaseModel):
@@ -332,6 +341,9 @@ class BidIn(BaseModel):
     technical_proposal: Optional[str] = None
     commercial_proposal: Optional[str] = None
     team_composition: Optional[str] = None
+    # EMD (P1)
+    emd_reference: Optional[str] = None
+    emd_payment_intent_id: Optional[str] = None
 
 
 class CheckoutRequest(BaseModel):
@@ -340,6 +352,51 @@ class CheckoutRequest(BaseModel):
 
 class RfpScoreRequest(BaseModel):
     scores: Dict[str, float]  # {criterion_name: score(0-100)}
+    notes: Optional[str] = None
+
+
+# P1 — Buyer Org & Department models
+class OrgIn(BaseModel):
+    name: str = Field(min_length=1)
+    code: str = Field(min_length=1)
+    country: Optional[str] = None
+    description: Optional[str] = None
+
+
+class DepartmentIn(BaseModel):
+    org_id: str
+    name: str = Field(min_length=1)
+    code: str = Field(min_length=1)
+    head_user_id: Optional[str] = None
+    # Approval chain rules: [{threshold: <amount over which this level is required>, level: dept_head|finance|contracts_committee}]
+    approval_thresholds: List[dict] = []
+
+
+class DepartmentAssignRequest(BaseModel):
+    department_id: str
+
+
+class TenderApprovalDecision(BaseModel):
+    approved: bool
+    notes: Optional[str] = None
+
+
+class QuestionIn(BaseModel):
+    question: str = Field(min_length=3)
+    anonymous: bool = True
+
+
+class AnswerIn(BaseModel):
+    answer: str = Field(min_length=1)
+
+
+class AddendumIn(BaseModel):
+    title: str = Field(min_length=1)
+    body: str = Field(min_length=1)
+
+
+class EmdRefundIn(BaseModel):
+    forfeit: bool = False
     notes: Optional[str] = None
 
 
@@ -565,29 +622,61 @@ async def create_tender(payload: TenderIn, user: dict = Depends(require_role("bu
         auto = KZ_CATEGORY_LICENSE_MAP.get(doc["category"], [])
         merged = list({*doc.get("required_licenses", []), *auto})
         doc["required_licenses"] = merged
+
+    # P1 — Multi-level approval workflow
+    # Determine approval chain if department has thresholds AND (require_approval OR any budget exceeds a threshold)
+    approval_chain: List[dict] = []
+    dept_id = doc.get("department_id")
+    if dept_id:
+        dept = await db.departments.find_one({"_id": ObjectId(dept_id)})
+        if dept:
+            budget = float(doc.get("budget_amount") or 0)
+            thresholds = sorted((dept.get("approval_thresholds") or []),
+                                key=lambda t: float(t.get("threshold") or 0))
+            for step in thresholds:
+                if budget >= float(step.get("threshold") or 0):
+                    approval_chain.append({
+                        "level": step.get("level"),
+                        "threshold": step.get("threshold"),
+                        "decision": None,
+                        "approver_user_id": None,
+                        "decided_at": None,
+                        "notes": None,
+                    })
+
+    needs_approval = doc.get("require_approval") or bool(approval_chain)
+    initial_status = "pending_approval" if needs_approval else "open"
+    approval_state = "pending" if needs_approval else "not_required"
+
     doc.update({
-        "status": "open", "created_by": user["id"],
+        "status": initial_status,
+        "approval_state": approval_state,
+        "approval_chain": approval_chain,
+        "created_by": user["id"],
         "created_by_name": user.get("name"), "created_by_email": user.get("email"),
         "created_at": now_iso(), "awarded_bid_id": None,
+        # P1 — Q&A/addenda default containers
+        "addenda": [],
     })
     res = await db.tenders.insert_one(doc)
     doc["_id"] = res.inserted_id
 
-    # Broadcast SSE event to any live subscribers
-    await broker.broadcast({"type": "tender.created", "payload": {
-        "id": str(res.inserted_id),
-        "title": doc.get("title"),
-        "description": (doc.get("description") or "")[:220],
-        "document_type": doc.get("document_type") or "tender",
-        "category": doc.get("category"),
-        "status": doc.get("status"),
-        "budget_currency": doc.get("budget_currency"),
-        "budget_amount": doc.get("budget_amount"),
-        "submission_deadline": doc.get("submission_deadline"),
-        "delivery_country": doc.get("delivery_country"),
-        "created_by_name": doc.get("created_by_name"),
-        "created_at": doc.get("created_at"),
-    }})
+    # Broadcast SSE event to any live subscribers (only if not gated by approval)
+    if initial_status == "open":
+        await broker.broadcast({"type": "tender.created", "payload": {
+            "id": str(res.inserted_id),
+            "title": doc.get("title"),
+            "description": (doc.get("description") or "")[:220],
+            "document_type": doc.get("document_type") or "tender",
+            "category": doc.get("category"),
+            "status": doc.get("status"),
+            "budget_currency": doc.get("budget_currency"),
+            "budget_amount": doc.get("budget_amount"),
+            "submission_deadline": doc.get("submission_deadline"),
+            "delivery_country": doc.get("delivery_country"),
+            "created_by_name": doc.get("created_by_name"),
+            "created_at": doc.get("created_at"),
+        }})
 
     # Notify approved vendors matching category / no filter — quick MVP fan-out
     # Emails go out in a background task so the POST doesn't block on Resend latency.
@@ -606,6 +695,15 @@ async def create_tender(payload: TenderIn, user: dict = Depends(require_role("bu
                 pass
 
     asyncio.create_task(_fanout_new_tender(str(res.inserted_id), doc["title"], doc["category"], doc["submission_deadline"]))
+
+    # If pending approval — notify admins as approvers
+    if initial_status == "pending_approval":
+        async def _notify_approvers(tid: str, title: str):
+            async for a in db.users.find({"role": "admin"}):
+                await create_notification(str(a["_id"]), "Tender awaits approval",
+                                          f"Approve: {title}", f"/tenders/{tid}")
+        asyncio.create_task(_notify_approvers(str(res.inserted_id), doc["title"]))
+
     return _tender_out(doc)
 
 
@@ -738,11 +836,17 @@ async def create_bid(payload: BidIn, user: dict = Depends(require_role("vendor")
     if await db.bids.find_one({"tender_id": payload.tender_id, "vendor_id": user["id"]}):
         raise HTTPException(status_code=400, detail="You have already submitted a bid for this tender")
 
+    # EMD requirement gate
+    if tender.get("emd_required"):
+        if not (payload.emd_reference or payload.emd_payment_intent_id):
+            raise HTTPException(status_code=400, detail="This tender requires an Earnest Money Deposit. Provide EMD reference or payment intent id.")
+
     doc = payload.model_dump()
     doc.update({
         "vendor_id": user["id"], "vendor_email": user.get("email"),
         "vendor_company": (u.get("vendor_profile") or {}).get("company_name"),
         "status": "submitted", "created_at": now_iso(),
+        "emd_status": "held" if tender.get("emd_required") else None,
     })
     res = await db.bids.insert_one(doc)
     doc["_id"] = res.inserted_id
@@ -849,6 +953,14 @@ async def award_bid(bid_id: str, user: dict = Depends(require_role("buyer", "adm
     await db.bids.update_one({"_id": ObjectId(bid_id)}, {"$set": {"status": "awarded"}})
     await db.bids.update_many({"tender_id": bid["tender_id"], "_id": {"$ne": ObjectId(bid_id)}},
                               {"$set": {"status": "rejected"}})
+    # EMD: mark losing bids' EMD as refundable (buyer/admin can then trigger refund via /emd-refund)
+    if tender.get("emd_required"):
+        await db.bids.update_many(
+            {"tender_id": bid["tender_id"], "_id": {"$ne": ObjectId(bid_id)}, "emd_status": {"$nin": ["refunded", "forfeited", "refund_pending"]}},
+            {"$set": {"emd_status": "refundable"}}
+        )
+        # Winner's EMD gets held (converts to performance security typically)
+        await db.bids.update_one({"_id": ObjectId(bid_id)}, {"$set": {"emd_status": "held_as_security"}})
     await broker.broadcast({"type": "tender.updated", "payload": {"id": bid["tender_id"], "status": "awarded"}})
 
     # Notify + email winner
@@ -1061,6 +1173,257 @@ async def qualify_bid(bid_id: str, payload: QualifyBidRequest, user: dict = Depe
     return {"ok": True, "qualified": bool(payload.qualified)}
 
 
+# ---------- P1: Buyer Orgs & Departments ----------
+def _org_out(doc: dict) -> dict:
+    doc = dict(doc); doc["id"] = str(doc.pop("_id")); return doc
+
+
+@api.post("/orgs")
+async def create_org(payload: OrgIn, user: dict = Depends(require_role("admin"))):
+    if await db.orgs.find_one({"code": payload.code}):
+        raise HTTPException(status_code=400, detail="Org code already exists.")
+    doc = payload.model_dump()
+    doc.update({"created_by": user["id"], "created_at": now_iso()})
+    res = await db.orgs.insert_one(doc)
+    doc["_id"] = res.inserted_id
+    return _org_out(doc)
+
+
+@api.get("/orgs")
+async def list_orgs(user: dict = Depends(get_current_user)):
+    return [_org_out(o) async for o in db.orgs.find({}).sort("name", 1)]
+
+
+@api.post("/departments")
+async def create_department(payload: DepartmentIn, user: dict = Depends(require_role("admin"))):
+    org = await db.orgs.find_one({"_id": ObjectId(payload.org_id)})
+    if not org:
+        raise HTTPException(status_code=404, detail="Org not found")
+    if await db.departments.find_one({"org_id": payload.org_id, "code": payload.code}):
+        raise HTTPException(status_code=400, detail="Department code already exists in this org.")
+    # Validate thresholds
+    for t in payload.approval_thresholds:
+        if t.get("level") not in ("dept_head", "finance", "contracts_committee"):
+            raise HTTPException(status_code=400, detail=f"Invalid approval level {t.get('level')}")
+    doc = payload.model_dump()
+    doc.update({"created_by": user["id"], "created_at": now_iso()})
+    res = await db.departments.insert_one(doc)
+    doc["_id"] = res.inserted_id
+    return _org_out(doc)
+
+
+@api.get("/departments")
+async def list_departments(org_id: Optional[str] = None, user: dict = Depends(get_current_user)):
+    q = {"org_id": org_id} if org_id else {}
+    return [_org_out(d) async for d in db.departments.find(q).sort("name", 1)]
+
+
+@api.post("/users/me/department")
+async def assign_my_department(payload: DepartmentAssignRequest, user: dict = Depends(require_role("buyer", "admin"))):
+    dept = await db.departments.find_one({"_id": ObjectId(payload.department_id)})
+    if not dept:
+        raise HTTPException(status_code=404, detail="Department not found")
+    await db.users.update_one({"_id": ObjectId(user["id"])},
+                              {"$set": {"department_id": payload.department_id, "org_id": dept.get("org_id")}})
+    return {"ok": True, "department_id": payload.department_id, "org_id": dept.get("org_id")}
+
+
+# ---------- P1: Tender approval workflow ----------
+@api.post("/tenders/{tender_id}/approve")
+async def approve_tender(tender_id: str, payload: TenderApprovalDecision, user: dict = Depends(require_role("admin"))):
+    t = await db.tenders.find_one({"_id": ObjectId(tender_id)})
+    if not t:
+        raise HTTPException(status_code=404, detail="Tender not found")
+    if t.get("status") != "pending_approval":
+        raise HTTPException(status_code=400, detail="Tender is not awaiting approval")
+    chain = t.get("approval_chain") or []
+    # Find first undecided step
+    idx = next((i for i, s in enumerate(chain) if not s.get("decision")), -1)
+    if chain and idx == -1:
+        raise HTTPException(status_code=400, detail="Approval chain already complete")
+    ts = now_iso()
+    updates: dict = {}
+    if chain:
+        chain[idx].update({
+            "decision": "approved" if payload.approved else "rejected",
+            "approver_user_id": user["id"],
+            "approver_name": user.get("name"),
+            "decided_at": ts,
+            "notes": payload.notes,
+        })
+        updates["approval_chain"] = chain
+        remaining = [s for s in chain if not s.get("decision")]
+        if not payload.approved:
+            updates["approval_state"] = "rejected"
+            updates["status"] = "rejected"
+        elif not remaining:
+            updates["approval_state"] = "approved"
+            updates["status"] = "open"
+    else:
+        # No chain — simple flat approve
+        if not payload.approved:
+            updates["approval_state"] = "rejected"; updates["status"] = "rejected"
+        else:
+            updates["approval_state"] = "approved"; updates["status"] = "open"
+    await db.tenders.update_one({"_id": ObjectId(tender_id)}, {"$set": updates})
+    # Broadcast if opened
+    if updates.get("status") == "open":
+        await broker.broadcast({"type": "tender.created", "payload": {
+            "id": tender_id,
+            "title": t.get("title"),
+            "description": (t.get("description") or "")[:220],
+            "document_type": t.get("document_type") or "tender",
+            "category": t.get("category"),
+            "status": "open",
+            "budget_currency": t.get("budget_currency"),
+            "budget_amount": t.get("budget_amount"),
+            "submission_deadline": t.get("submission_deadline"),
+            "delivery_country": t.get("delivery_country"),
+            "created_by_name": t.get("created_by_name"),
+            "created_at": t.get("created_at"),
+        }})
+    return {"ok": True, "status": updates.get("status"), "approval_state": updates.get("approval_state")}
+
+
+# ---------- P1: Q&A / Clarifications ----------
+def _qa_out(doc: dict, viewer_role: str, viewer_id: str) -> dict:
+    d = dict(doc)
+    d["id"] = str(d.pop("_id"))
+    # Anonymize vendor identity unless viewer is buyer/admin OR author themselves
+    is_author = d.get("asked_by_user_id") == viewer_id
+    if viewer_role not in ("buyer", "admin") and not is_author:
+        d.pop("asked_by_user_id", None)
+        d.pop("asked_by_name", None)
+    return d
+
+
+@api.post("/tenders/{tender_id}/questions")
+async def ask_question(tender_id: str, payload: QuestionIn, user: dict = Depends(get_current_user)):
+    t = await db.tenders.find_one({"_id": ObjectId(tender_id)})
+    if not t:
+        raise HTTPException(status_code=404, detail="Tender not found")
+    doc = {
+        "tender_id": tender_id,
+        "question": payload.question,
+        "anonymous": payload.anonymous,
+        "asked_by_user_id": user["id"],
+        "asked_by_name": user.get("name"),
+        "asked_by_role": user["role"],
+        "answer": None,
+        "answered_by": None,
+        "answered_at": None,
+        "published": False,  # only visible publicly after buyer answers
+        "created_at": now_iso(),
+    }
+    res = await db.tender_questions.insert_one(doc)
+    doc["_id"] = res.inserted_id
+    # Notify buyer/admin owner
+    if t.get("created_by"):
+        await create_notification(t["created_by"], "New tender question",
+                                  f"A vendor asked a question on '{t['title']}'.",
+                                  f"/tenders/{tender_id}")
+    return _qa_out(doc, user["role"], user["id"])
+
+
+@api.get("/tenders/{tender_id}/questions")
+async def list_questions(tender_id: str, user: dict = Depends(get_current_user)):
+    q: dict = {"tender_id": tender_id}
+    # Vendors see only published (answered) questions + their own
+    if user["role"] == "vendor":
+        q = {"$and": [{"tender_id": tender_id}, {"$or": [{"published": True}, {"asked_by_user_id": user["id"]}]}]}
+    return [_qa_out(d, user["role"], user["id"]) async for d in db.tender_questions.find(q).sort("created_at", -1)]
+
+
+@api.post("/questions/{qid}/answer")
+async def answer_question(qid: str, payload: AnswerIn, user: dict = Depends(require_role("buyer", "admin"))):
+    q = await db.tender_questions.find_one({"_id": ObjectId(qid)})
+    if not q:
+        raise HTTPException(status_code=404, detail="Question not found")
+    t = await db.tenders.find_one({"_id": ObjectId(q["tender_id"])})
+    if not t:
+        raise HTTPException(status_code=404, detail="Tender not found")
+    if user["role"] != "admin" and t.get("created_by") != user["id"]:
+        raise HTTPException(status_code=403, detail="Not your tender")
+    await db.tender_questions.update_one({"_id": ObjectId(qid)}, {"$set": {
+        "answer": payload.answer,
+        "answered_by": user["id"],
+        "answered_by_name": user.get("name"),
+        "answered_at": now_iso(),
+        "published": True,
+    }})
+    # Broadcast an update (SSE could carry Q&A later)
+    # Notify original asker
+    if q.get("asked_by_user_id"):
+        await create_notification(q["asked_by_user_id"], "Your question was answered",
+                                  f"'{t['title']}' — see the answer.", f"/tenders/{q['tender_id']}")
+    return {"ok": True}
+
+
+@api.post("/tenders/{tender_id}/addenda")
+async def publish_addendum(tender_id: str, payload: AddendumIn, user: dict = Depends(require_role("buyer", "admin"))):
+    t = await db.tenders.find_one({"_id": ObjectId(tender_id)})
+    if not t:
+        raise HTTPException(status_code=404, detail="Tender not found")
+    if user["role"] != "admin" and t.get("created_by") != user["id"]:
+        raise HTTPException(status_code=403, detail="Not your tender")
+    addendum = {
+        "id": uuid.uuid4().hex,
+        "title": payload.title,
+        "body": payload.body,
+        "published_by": user["id"],
+        "published_by_name": user.get("name"),
+        "published_at": now_iso(),
+    }
+    await db.tenders.update_one({"_id": ObjectId(tender_id)}, {"$push": {"addenda": addendum}})
+    # Notify all vendors who have already submitted bids on this tender
+    async for b in db.bids.find({"tender_id": tender_id}, {"vendor_id": 1, "vendor_email": 1}):
+        await create_notification(b["vendor_id"], "Addendum published",
+                                  f"'{t['title']}' — {payload.title}", f"/tenders/{tender_id}")
+    return {"ok": True, "addendum": addendum}
+
+
+# ---------- P1: EMD refund ----------
+@api.post("/bids/{bid_id}/emd-refund")
+async def emd_refund(bid_id: str, payload: EmdRefundIn, user: dict = Depends(require_role("buyer", "admin"))):
+    bid = await db.bids.find_one({"_id": ObjectId(bid_id)})
+    if not bid:
+        raise HTTPException(status_code=404, detail="Bid not found")
+    t = await db.tenders.find_one({"_id": ObjectId(bid["tender_id"])})
+    if not t:
+        raise HTTPException(status_code=404, detail="Tender not found")
+    if user["role"] != "admin" and t.get("created_by") != user["id"]:
+        raise HTTPException(status_code=403, detail="Not your tender")
+    if not t.get("emd_required"):
+        raise HTTPException(status_code=400, detail="EMD not required on this tender")
+    current = bid.get("emd_status") or "held"
+    if current in ("refunded", "forfeited"):
+        raise HTTPException(status_code=400, detail=f"EMD already {current}")
+
+    new_status = "forfeited" if payload.forfeit else "refunded"
+    stripe_refund_id = None
+    # Attempt Stripe refund if we have a payment_intent_id and it's an actual refund
+    if not payload.forfeit and bid.get("emd_payment_intent_id"):
+        try:
+            refund = stripe.Refund.create(payment_intent=bid["emd_payment_intent_id"])
+            stripe_refund_id = refund.get("id")
+        except Exception as e:
+            logging.warning(f"Stripe EMD refund failed for bid {bid_id}: {e}")
+            # Continue — mark as refund_pending so ops can retry
+            new_status = "refund_pending"
+
+    await db.bids.update_one({"_id": ObjectId(bid_id)}, {"$set": {
+        "emd_status": new_status,
+        "emd_refund_id": stripe_refund_id,
+        "emd_refund_notes": payload.notes,
+        "emd_refunded_at": now_iso(),
+    }})
+    await create_notification(bid["vendor_id"], f"EMD {new_status}",
+                              f"Your EMD for '{t['title']}' has been {new_status}.",
+                              f"/tenders/{bid['tender_id']}")
+    return {"ok": True, "emd_status": new_status, "stripe_refund_id": stripe_refund_id}
+
+
+
 # ---------- SSE broadcaster ----------
 class _SseBroker:
     def __init__(self):
@@ -1237,6 +1600,38 @@ async def seed_admin_and_demo():
                 "vendor_status": "pending" if extra["role"] == "vendor" else None,
                 "vendor_profile": None, "registration_fee_paid": False,
                 "created_at": now_iso(),
+            })
+
+    # Seed default Buyer Org + Departments for P1 approval workflow
+    org = await db.orgs.find_one({"code": "PMC-GLOBAL"})
+    if not org:
+        r = await db.orgs.insert_one({
+            "name": "PMC Managers Global", "code": "PMC-GLOBAL", "country": "KZ",
+            "description": "Default org for demo tenders.",
+            "created_by": None, "created_at": now_iso(),
+        })
+        org_id = str(r.inserted_id)
+    else:
+        org_id = str(org["_id"])
+
+    default_depts = [
+        {"code": "MED", "name": "Medical Facilities",
+         "approval_thresholds": [
+             {"threshold": 10000, "level": "dept_head"},
+             {"threshold": 100000, "level": "contracts_committee"},
+         ]},
+        {"code": "GEN", "name": "General Procurement",
+         "approval_thresholds": [
+             {"threshold": 50000, "level": "dept_head"},
+             {"threshold": 250000, "level": "contracts_committee"},
+         ]},
+    ]
+    for d in default_depts:
+        if not await db.departments.find_one({"org_id": org_id, "code": d["code"]}):
+            await db.departments.insert_one({
+                "org_id": org_id, "code": d["code"], "name": d["name"],
+                "head_user_id": None, "approval_thresholds": d["approval_thresholds"],
+                "created_by": None, "created_at": now_iso(),
             })
 
 

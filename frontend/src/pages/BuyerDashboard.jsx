@@ -97,8 +97,8 @@ export default function BuyerDashboard() {
                         #{b.tender_id.slice(-6).toUpperCase()}
                       </Link>
                     </Td>
-                    <Td className="font-mono">{b.price_currency} {b.price_amount.toLocaleString()}</Td>
-                    <Td className="font-mono">{b.delivery_days}d</Td>
+                    <Td className="font-mono">{b.price_amount != null ? `${b.price_currency} ${b.price_amount.toLocaleString()}` : "SEALED"}</Td>
+                    <Td className="font-mono">{b.delivery_days != null ? `${b.delivery_days}d` : "—"}</Td>
                     <Td><StatusBadge status={b.status} /></Td>
                   </tr>
                 ))}

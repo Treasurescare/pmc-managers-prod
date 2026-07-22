@@ -1739,3 +1739,355 @@ class TestV16TwoEnvelope:
         assert not b.get("_commercial_sealed")
         assert b.get("price_amount") == 120000
         assert b.get("technical_proposal") == "tech"
+
+
+# ================================================================
+# P1: Orgs / Departments / Approval / EMD / Q&A / Addenda (iter8)
+# ================================================================
+class TestV17P1:
+    """Buyer Orgs & Departments, multi-level approval, Q&A + addenda, EMD refund."""
+
+    _S = {}  # class-local shared state so xdist loadscope keeps it on one worker
+
+    # -- sessions & seed vendors -------------------------------------------------
+    def test_00_login_admin_buyer(self):
+        a = _session(); _login(a, ADMIN); self._S["admin"] = a
+        me_a = a.get(f"{API}/auth/me", timeout=10).json()
+        self._S["admin_id"] = me_a["id"]
+        b = _session(); _login(b, BUYER); self._S["buyer"] = b
+        me_b = b.get(f"{API}/auth/me", timeout=10).json()
+        self._S["buyer_id"] = me_b["id"]
+
+    def test_01_register_two_vendors(self):
+        for slot, tag in [("vA", "P1A"), ("vB", "P1B")]:
+            s = _session()
+            email = f"TEST_v17_{tag}_{uuid.uuid4().hex[:6]}@example.com"
+            r = s.post(f"{API}/auth/register", json={
+                "email": email, "password": "Passw0rd!", "name": f"P1 Vendor {tag}", "role": "vendor",
+            }, timeout=15)
+            assert r.status_code == 200, r.text
+            uid = r.json()["id"]
+            _DB.users.update_one({"_id": _ObjectId(uid)},
+                                 {"$set": {"vendor_status": "approved", "registration_fee_paid": True,
+                                           "vendor_profile": {"company_name": f"P1 Co {tag}", "kz_licenses": []}}})
+            # relogin to refresh cookie
+            _login(s, {"email": email, "password": "Passw0rd!"})
+            self._S[slot] = s
+            self._S[slot + "_email"] = email
+            self._S[slot + "_id"] = uid
+
+    # -- Orgs & Departments ------------------------------------------------------
+    def test_10_create_org_admin(self):
+        s = self._S["admin"]
+        code = f"TEST_P1_{uuid.uuid4().hex[:6].upper()}"
+        r = s.post(f"{API}/orgs", json={"name": f"Test Org {code}", "code": code, "country": "KZ"}, timeout=15)
+        assert r.status_code == 200, r.text
+        o = r.json()
+        assert o["code"] == code
+        assert "id" in o
+        self._S["org_id"] = o["id"]
+        self._S["org_code"] = code
+
+    def test_11_create_org_duplicate_code_returns_400(self):
+        s = self._S["admin"]
+        r = s.post(f"{API}/orgs", json={"name": "Dup", "code": self._S["org_code"], "country": "KZ"}, timeout=15)
+        assert r.status_code == 400
+
+    def test_12_list_orgs(self):
+        s = self._S["admin"]
+        r = s.get(f"{API}/orgs", timeout=15)
+        assert r.status_code == 200
+        assert any(o["id"] == self._S["org_id"] for o in r.json())
+
+    def test_13_create_department_admin(self):
+        s = self._S["admin"]
+        code = f"DPT{uuid.uuid4().hex[:4].upper()}"
+        r = s.post(f"{API}/departments", json={
+            "org_id": self._S["org_id"], "name": f"Dept {code}", "code": code,
+            "approval_thresholds": [
+                {"threshold": 10000, "level": "dept_head"},
+                {"threshold": 100000, "level": "contracts_committee"},
+            ],
+        }, timeout=15)
+        assert r.status_code == 200, r.text
+        self._S["dept_id"] = r.json()["id"]
+
+    def test_14_create_department_invalid_level_400(self):
+        s = self._S["admin"]
+        r = s.post(f"{API}/departments", json={
+            "org_id": self._S["org_id"], "name": "Bad", "code": f"BAD{uuid.uuid4().hex[:4]}",
+            "approval_thresholds": [{"threshold": 1, "level": "ceo"}],
+        }, timeout=15)
+        assert r.status_code == 400
+
+    def test_15_list_departments_filtered_by_org(self):
+        s = self._S["admin"]
+        r = s.get(f"{API}/departments?org_id={self._S['org_id']}", timeout=15)
+        assert r.status_code == 200
+        arr = r.json()
+        assert all(d["org_id"] == self._S["org_id"] for d in arr)
+        assert any(d["id"] == self._S["dept_id"] for d in arr)
+
+    def test_16_assign_buyer_to_department(self):
+        s = self._S["buyer"]
+        r = s.post(f"{API}/users/me/department", json={"department_id": self._S["dept_id"]}, timeout=15)
+        assert r.status_code == 200, r.text
+        # Verify server-side that user has dept + org
+        u = _DB.users.find_one({"_id": _ObjectId(self._S["buyer_id"])})
+        assert u.get("department_id") == self._S["dept_id"]
+        assert u.get("org_id") == self._S["org_id"]
+
+    # -- Approval workflow -------------------------------------------------------
+    def _mk_tender(self, budget, **extra):
+        s = self._S["buyer"]
+        deadline = (datetime.now(timezone.utc) + timedelta(days=14)).isoformat()
+        body = {
+            "title": f"TEST_P1_T_{uuid.uuid4().hex[:6]}",
+            "description": "P1 approval test tender",
+            "category": "Land survey & demarcation",
+            "budget_currency": "USD",
+            "budget_amount": budget,
+            "submission_deadline": deadline,
+            "attachments": [],
+        }
+        body.update(extra)
+        r = s.post(f"{API}/tenders", json=body, timeout=20)
+        return r
+
+    def test_20_tender_budget_under_threshold_opens_directly(self):
+        r = self._mk_tender(5000, department_id=self._S["dept_id"])
+        assert r.status_code == 200, r.text
+        t = r.json()
+        assert t["status"] == "open"
+        assert t.get("approval_state") == "not_required"
+        assert t.get("approval_chain") == []
+
+    def test_21_tender_one_step_chain(self):
+        r = self._mk_tender(50000, department_id=self._S["dept_id"])
+        assert r.status_code == 200, r.text
+        t = r.json()
+        assert t["status"] == "pending_approval"
+        assert t.get("approval_state") == "pending"
+        chain = t.get("approval_chain") or []
+        assert len(chain) == 1
+        assert chain[0]["level"] == "dept_head"
+        assert chain[0]["threshold"] == 10000
+        assert chain[0]["decision"] in (None,)
+        self._S["one_step_tender_id"] = t["id"]
+
+    def test_22_tender_two_step_chain(self):
+        r = self._mk_tender(200000, department_id=self._S["dept_id"])
+        assert r.status_code == 200, r.text
+        t = r.json()
+        assert t["status"] == "pending_approval"
+        chain = t.get("approval_chain") or []
+        assert len(chain) == 2
+        levels = [c["level"] for c in chain]
+        assert "dept_head" in levels and "contracts_committee" in levels
+        self._S["two_step_tender_id"] = t["id"]
+
+    def test_23_tender_require_approval_no_dept(self):
+        r = self._mk_tender(1000, require_approval=True)
+        assert r.status_code == 200, r.text
+        t = r.json()
+        assert t["status"] == "pending_approval"
+        assert t.get("approval_state") == "pending"
+        assert t.get("approval_chain") == []
+        self._S["flat_pending_tender_id"] = t["id"]
+
+    def test_24_vendor_list_hides_pending_approval(self):
+        s = self._S["vA"]
+        r = s.get(f"{API}/tenders", timeout=15)
+        assert r.status_code == 200
+        vendor_ids = {t["id"] for t in r.json()}
+        assert self._S["one_step_tender_id"] not in vendor_ids
+        assert self._S["two_step_tender_id"] not in vendor_ids
+        assert self._S["flat_pending_tender_id"] not in vendor_ids
+
+    def test_25_approve_two_step_walks_chain(self):
+        s = self._S["admin"]
+        tid = self._S["two_step_tender_id"]
+        # Step 1
+        r = s.post(f"{API}/tenders/{tid}/approve", json={"approved": True, "notes": "ok"}, timeout=15)
+        assert r.status_code == 200, r.text
+        got = s.get(f"{API}/tenders/{tid}", timeout=15).json()
+        assert got["status"] == "pending_approval"  # still pending
+        chain = got["approval_chain"]
+        assert chain[0]["decision"] == "approved"
+        assert chain[1]["decision"] is None
+        # Step 2
+        r2 = s.post(f"{API}/tenders/{tid}/approve", json={"approved": True}, timeout=15)
+        assert r2.status_code == 200
+        got2 = s.get(f"{API}/tenders/{tid}", timeout=15).json()
+        assert got2["status"] == "open"
+        assert got2["approval_state"] == "approved"
+
+    def test_26_reject_immediately_sets_rejected(self):
+        s = self._S["admin"]
+        tid = self._S["one_step_tender_id"]
+        r = s.post(f"{API}/tenders/{tid}/approve", json={"approved": False, "notes": "no budget"}, timeout=15)
+        assert r.status_code == 200
+        got = s.get(f"{API}/tenders/{tid}", timeout=15).json()
+        assert got["status"] == "rejected"
+        assert got["approval_state"] == "rejected"
+
+    def test_27_flat_pending_approve_opens(self):
+        s = self._S["admin"]
+        tid = self._S["flat_pending_tender_id"]
+        r = s.post(f"{API}/tenders/{tid}/approve", json={"approved": True}, timeout=15)
+        assert r.status_code == 200
+        got = s.get(f"{API}/tenders/{tid}", timeout=15).json()
+        assert got["status"] == "open"
+
+    def test_28_regression_no_dept_no_approval_opens(self):
+        r = self._mk_tender(9999)
+        assert r.status_code == 200
+        t = r.json()
+        assert t["status"] == "open"
+        assert t.get("approval_state") == "not_required"
+
+    # -- Q&A ---------------------------------------------------------------------
+    def test_30_vendor_creates_question(self):
+        # Use the two-step tender which is now open
+        tid = self._S["two_step_tender_id"]
+        rv = self._S["vA"].post(f"{API}/tenders/{tid}/questions",
+                                json={"question": "P1 - what is scope?", "anonymous": True}, timeout=15)
+        assert rv.status_code == 200, rv.text
+        q = rv.json()
+        assert q.get("published") is False
+        self._S["q_id"] = q["id"]
+
+    def test_31_author_vendor_sees_own_q(self):
+        tid = self._S["two_step_tender_id"]
+        r = self._S["vA"].get(f"{API}/tenders/{tid}/questions", timeout=15)
+        assert r.status_code == 200
+        assert any(q["id"] == self._S["q_id"] for q in r.json())
+
+    def test_32_other_vendor_does_not_see_unpublished(self):
+        tid = self._S["two_step_tender_id"]
+        r = self._S["vB"].get(f"{API}/tenders/{tid}/questions", timeout=15)
+        assert r.status_code == 200
+        assert not any(q["id"] == self._S["q_id"] for q in r.json())
+
+    def test_33_buyer_sees_unpublished_and_asker_info(self):
+        tid = self._S["two_step_tender_id"]
+        r = self._S["buyer"].get(f"{API}/tenders/{tid}/questions", timeout=15)
+        assert r.status_code == 200
+        target = next((q for q in r.json() if q["id"] == self._S["q_id"]), None)
+        assert target is not None
+        assert target.get("asked_by_user_id") == self._S["vA_id"]
+        assert target.get("asked_by_name") is not None
+
+    def test_34_answer_question_publishes(self):
+        r = self._S["buyer"].post(f"{API}/questions/{self._S['q_id']}/answer",
+                                  json={"answer": "The scope covers land survey work."}, timeout=15)
+        assert r.status_code == 200
+        # Verify vendor B now sees it
+        tid = self._S["two_step_tender_id"]
+        rb = self._S["vB"].get(f"{API}/tenders/{tid}/questions", timeout=15)
+        target = next((q for q in rb.json() if q["id"] == self._S["q_id"]), None)
+        assert target is not None
+        assert target.get("published") is True
+        # Anonymization: vendor B must NOT see asker identity
+        assert "asked_by_user_id" not in target
+        assert "asked_by_name" not in target
+        assert target.get("answer") == "The scope covers land survey work."
+
+    # -- Addenda -----------------------------------------------------------------
+    def test_40_publish_addendum(self):
+        tid = self._S["two_step_tender_id"]
+        r = self._S["buyer"].post(f"{API}/tenders/{tid}/addenda",
+                                  json={"title": "Addendum 1", "body": "Clarification body"}, timeout=15)
+        assert r.status_code == 200, r.text
+        ad = r.json()["addendum"]
+        assert "id" in ad and len(ad["id"]) >= 8
+        assert ad["title"] == "Addendum 1"
+        assert ad.get("published_by_name")
+        # Confirm persisted in tender.addenda
+        got = self._S["buyer"].get(f"{API}/tenders/{tid}", timeout=15).json()
+        assert any(a["id"] == ad["id"] for a in got.get("addenda", []))
+
+    # -- EMD flow ----------------------------------------------------------------
+    def test_50_create_emd_tender(self):
+        r = self._mk_tender(20000, emd_required=True, emd_amount=1000, emd_currency="USD")
+        # budget=20000 > dept_head 10000 threshold → pending approval; simplify: no dept
+        # Actually the _mk_tender doesn't add dept by default → status=open
+        assert r.status_code == 200, r.text
+        t = r.json()
+        assert t["status"] == "open"
+        assert t.get("emd_required") is True
+        assert t.get("emd_amount") == 1000
+        self._S["emd_tender_id"] = t["id"]
+
+    def test_51_bid_without_emd_returns_400(self):
+        tid = self._S["emd_tender_id"]
+        r = self._S["vA"].post(f"{API}/bids", json={
+            "tender_id": tid, "price_currency": "USD", "price_amount": 15000,
+            "delivery_days": 30, "proposal": "no emd",
+        }, timeout=15)
+        assert r.status_code == 400
+        assert "EMD" in (r.text or "") or "deposit" in (r.text or "").lower()
+
+    def test_52_bid_with_emd_reference_ok(self):
+        tid = self._S["emd_tender_id"]
+        r = self._S["vA"].post(f"{API}/bids", json={
+            "tender_id": tid, "price_currency": "USD", "price_amount": 15000,
+            "delivery_days": 30, "proposal": "with emd ref", "emd_reference": "EMD-REF-A-001",
+        }, timeout=15)
+        assert r.status_code == 200, r.text
+        bid = r.json()
+        assert bid.get("emd_status") == "held"
+        assert bid.get("emd_reference") == "EMD-REF-A-001"
+        self._S["emd_bid_A"] = bid["id"]
+
+    def test_53_second_vendor_bid_with_emd(self):
+        tid = self._S["emd_tender_id"]
+        r = self._S["vB"].post(f"{API}/bids", json={
+            "tender_id": tid, "price_currency": "USD", "price_amount": 18000,
+            "delivery_days": 40, "proposal": "vB bid", "emd_reference": "EMD-REF-B-001",
+        }, timeout=15)
+        assert r.status_code == 200, r.text
+        self._S["emd_bid_B"] = r.json()["id"]
+
+    def test_54_award_marks_emd_states(self):
+        # Award vA's bid → winner emd_status=held_as_security; loser=refundable
+        r = self._S["buyer"].post(f"{API}/bids/{self._S['emd_bid_A']}/award", timeout=20)
+        assert r.status_code == 200, r.text
+        # Fetch bids as buyer for this tender
+        tid = self._S["emd_tender_id"]
+        rb = self._S["buyer"].get(f"{API}/bids?tender_id={tid}", timeout=15)
+        assert rb.status_code == 200
+        bids = {b["id"]: b for b in rb.json()}
+        assert bids[self._S["emd_bid_A"]].get("emd_status") == "held_as_security"
+        assert bids[self._S["emd_bid_B"]].get("emd_status") == "refundable"
+
+    def test_55_refund_loser_emd(self):
+        r = self._S["buyer"].post(f"{API}/bids/{self._S['emd_bid_B']}/emd-refund",
+                                  json={"forfeit": False, "notes": "loser refund"}, timeout=20)
+        assert r.status_code == 200, r.text
+        data = r.json()
+        # No PI id on this bid → no stripe call → status refunded
+        assert data.get("emd_status") == "refunded"
+
+    def test_56_refund_again_returns_400(self):
+        r = self._S["buyer"].post(f"{API}/bids/{self._S['emd_bid_B']}/emd-refund",
+                                  json={"forfeit": False}, timeout=15)
+        assert r.status_code == 400
+
+    def test_57_forfeit_winner_emd(self):
+        r = self._S["buyer"].post(f"{API}/bids/{self._S['emd_bid_A']}/emd-refund",
+                                  json={"forfeit": True, "notes": "performance failure"}, timeout=15)
+        assert r.status_code == 200
+        assert r.json().get("emd_status") == "forfeited"
+
+    def test_58_emd_refund_on_non_emd_tender_returns_400(self):
+        # Create a non-EMD tender + bid, try refund → 400
+        r = self._mk_tender(3000)
+        tid = r.json()["id"]
+        rb = self._S["vA"].post(f"{API}/bids", json={
+            "tender_id": tid, "price_currency": "USD", "price_amount": 2000, "delivery_days": 10, "proposal": "x",
+        }, timeout=15)
+        assert rb.status_code == 200
+        bid_id = rb.json()["id"]
+        rf = self._S["buyer"].post(f"{API}/bids/{bid_id}/emd-refund", json={"forfeit": False}, timeout=15)
+        assert rf.status_code == 400

@@ -186,6 +186,19 @@ export default function TenderDetail() {
             )}
           </div>
 
+          {/* P1 — Approval workflow panel (admin) */}
+          {tender.status === "pending_approval" && (
+            <ApprovalPanel tender={tender} user={user} onChanged={load} />
+          )}
+
+          {/* P1 — Addenda list */}
+          {(tender.addenda || []).length > 0 && (
+            <AddendaList tender={tender} />
+          )}
+
+          {/* P1 — Q&A section */}
+          <QaPanel tender={tender} user={user} canManage={canManage} />
+
           {/* Vendor bid area */}
           {user?.role === "vendor" && (
             <VendorBidSection tender={tender} myBid={myBid} canBid={canBid} profileStatus={profileStatus} onSubmitted={load} />
@@ -194,6 +207,11 @@ export default function TenderDetail() {
           {/* Buyer/Admin bid comparison */}
           {(user?.role === "admin" || user?.role === "buyer") && (
             <BidsComparison bids={bids} tender={tender} canManage={canManage} onAward={award} onScored={load} />
+          )}
+
+          {/* P1 — Buyer addenda publisher */}
+          {canManage && (
+            <AddendaPublisher tender={tender} onChanged={load} />
           )}
         </div>
 
@@ -234,6 +252,8 @@ function VendorBidSection({ tender, myBid, canBid, profileStatus, onSubmitted })
     technical_proposal: "",
     commercial_proposal: "",
     team_composition: "",
+    emd_reference: "",
+    emd_payment_intent_id: "",
   });
   const [busy, setBusy] = useState(false);
   const set = (k) => (e) => setForm((s) => ({ ...s, [k]: e.target.value }));
@@ -255,6 +275,10 @@ function VendorBidSection({ tender, myBid, canBid, profileStatus, onSubmitted })
     e.preventDefault();
     if (isRFP && !form.technical_proposal) { toast.error("Technical proposal is required for RFP responses."); return; }
     if (isRFQ && form.line_item_prices.some((li) => li.unit_price === "" || li.unit_price === null)) { toast.error("Enter a unit price for every line item."); return; }
+    if (tender.emd_required && !form.emd_reference && !form.emd_payment_intent_id) {
+      toast.error("This tender requires an EMD. Enter a payment reference or Stripe payment intent id.");
+      return;
+    }
     setBusy(true);
     try {
       const payload = {
@@ -401,6 +425,30 @@ function VendorBidSection({ tender, myBid, canBid, profileStatus, onSubmitted })
         </div>
       )}
 
+      {tender.emd_required && (
+        <div className="mt-5 border border-l-4 border-warning bg-warning/[0.06] p-4" data-testid="bid-emd-block">
+          <div className="pmc-label text-warning">Earnest Money Deposit required</div>
+          <div className="text-sm mt-1 text-foreground/80">
+            {tender.emd_amount ? `Amount: ${tender.emd_currency} ${Number(tender.emd_amount).toLocaleString()}. ` : ""}
+            Provide a payment reference or Stripe payment intent id. Losing bidders are automatically refunded after award.
+          </div>
+          <div className="grid md:grid-cols-2 gap-4 mt-3">
+            <div>
+              <label className="pmc-label block mb-1">EMD reference (bank / wire)</label>
+              <input data-testid="bid-emd-reference" value={form.emd_reference} onChange={set("emd_reference")}
+                placeholder="e.g. TRXN-2026-4498"
+                className="w-full h-10 px-3 border border-input bg-white text-sm focus:border-primary focus:outline-none" />
+            </div>
+            <div>
+              <label className="pmc-label block mb-1">Stripe payment intent id (optional)</label>
+              <input data-testid="bid-emd-pi" value={form.emd_payment_intent_id} onChange={set("emd_payment_intent_id")}
+                placeholder="pi_..."
+                className="w-full h-10 px-3 border border-input bg-white text-sm focus:border-primary focus:outline-none font-mono" />
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="mt-5">
         <label className="pmc-label block mb-2">Attachments</label>
         <label className="block border border-dashed border-input hover:border-primary p-4 text-center cursor-pointer text-sm">
@@ -532,7 +580,8 @@ function TwoEnvelopePanel({ tender, bids, canManage, onChanged }) {
 }
 
 function FlatBidTable({ bids, tender, canManage, onAward }) {
-  const min = Math.min(...bids.map((b) => b.price_amount));
+  const valid = bids.filter((b) => b.price_amount != null);
+  const min = valid.length ? Math.min(...valid.map((b) => b.price_amount)) : null;
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm pmc-table" data-testid="bids-comparison-table">
@@ -543,7 +592,7 @@ function FlatBidTable({ bids, tender, canManage, onAward }) {
         </thead>
         <tbody>
           {bids.map((b) => {
-            const isLowest = b.price_amount === min;
+            const isLowest = b.price_amount != null && b.price_amount === min;
             return (
               <tr key={b.id} className={`border-b ${isLowest ? "bg-primary/5" : "hover:bg-muted/40"}`}>
                 <Td>
@@ -552,10 +601,10 @@ function FlatBidTable({ bids, tender, canManage, onAward }) {
                 </Td>
                 <Td className="font-mono">
                   {isLowest && <span className="mr-2 pmc-label text-primary">LOWEST</span>}
-                  {b.price_currency} {b.price_amount.toLocaleString()}
+                  {b.price_amount != null ? `${b.price_currency} ${b.price_amount.toLocaleString()}` : <span className="pmc-label text-muted-foreground">SEALED</span>}
                 </Td>
-                <Td className="font-mono">{b.delivery_days}d</Td>
-                <Td className="max-w-md truncate" title={b.proposal}>{b.proposal}</Td>
+                <Td className="font-mono">{b.delivery_days != null ? `${b.delivery_days}d` : "—"}</Td>
+                <Td className="max-w-md truncate" title={b.proposal || ""}>{b.proposal || ""}</Td>
                 <Td><StatusBadge status={b.status} /></Td>
                 <Td>
                   {canManage && tender.status === "open" && (
@@ -573,7 +622,8 @@ function FlatBidTable({ bids, tender, canManage, onAward }) {
 
 function RfqLineItemMatrix({ bids, tender, canManage, onAward }) {
   const items = tender.line_items || [];
-  const totalMin = Math.min(...bids.map((b) => b.price_amount));
+  const validPrices = bids.map((b) => b.price_amount).filter((v) => v != null);
+  const totalMin = validPrices.length ? Math.min(...validPrices) : null;
 
   const getUnit = (bid, idx) => {
     const lip = (bid.line_item_prices || [])[idx];
@@ -627,10 +677,10 @@ function RfqLineItemMatrix({ bids, tender, canManage, onAward }) {
             <td className="px-3 py-3 pmc-label sticky left-0 bg-muted/40">Total</td>
             <td className="px-3 py-3"></td>
             {bids.map((b) => {
-              const isLowTotal = b.price_amount === totalMin;
+              const isLowTotal = b.price_amount != null && b.price_amount === totalMin;
               return (
                 <td key={b.id} className={`px-3 py-3 font-mono font-bold ${isLowTotal ? "bg-primary text-white" : ""}`}>
-                  {b.price_currency} {Number(b.price_amount).toLocaleString()}
+                  {b.price_amount != null ? `${b.price_currency} ${Number(b.price_amount).toLocaleString()}` : "SEALED"}
                   {isLowTotal && <div className="text-[10px] tracking-widest mt-0.5">LOWEST</div>}
                 </td>
               );
@@ -639,7 +689,7 @@ function RfqLineItemMatrix({ bids, tender, canManage, onAward }) {
           <tr className="border-t bg-white">
             <td className="px-3 py-2 pmc-label sticky left-0 bg-white">Delivery</td>
             <td></td>
-            {bids.map((b) => (<td key={b.id} className="px-3 py-2 font-mono text-xs">{b.delivery_days}d</td>))}
+            {bids.map((b) => (<td key={b.id} className="px-3 py-2 font-mono text-xs">{b.delivery_days != null ? `${b.delivery_days}d` : "—"}</td>))}
           </tr>
           <tr className="border-t bg-white">
             <td className="px-3 py-2 pmc-label sticky left-0 bg-white">Status</td>
@@ -859,3 +909,279 @@ function RfpScoringMatrix({ bids, tender, canManage, onAward, onScored }) {
 
 function Th({ children }) { return <th className="text-left px-4 py-3 pmc-label border-b">{children}</th>; }
 function Td({ children, className = "" }) { return <td className={`px-4 py-3 ${className}`}>{children}</td>; }
+
+// ---------- P1: Approval Panel ----------
+function ApprovalPanel({ tender, user, onChanged }) {
+  const [notes, setNotes] = useState("");
+  const [busy, setBusy] = useState(false);
+  const chain = tender.approval_chain || [];
+  const currentStep = chain.find((s) => !s.decision);
+  const isAdmin = user?.role === "admin";
+
+  const decide = async (approved) => {
+    setBusy(true);
+    try {
+      await api.post(`/tenders/${tender.id}/approve`, { approved, notes });
+      toast.success(approved ? "Approved & published" : "Rejected");
+      setNotes("");
+      onChanged && onChanged();
+    } catch (e) { toast.error(formatApiError(e)); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div className="border border-l-4 border-warning bg-warning/[0.06] p-5" data-testid="approval-panel">
+      <div className="pmc-label text-warning">Pending approval</div>
+      <div className="font-serif text-xl mt-1">This tender awaits Contracts Committee sign-off</div>
+      <div className="text-sm text-foreground/80 mt-2">
+        Vendors will not see this tender in the live feed until every approval step is signed off. Reject to send back to the buyer.
+      </div>
+
+      {chain.length > 0 && (
+        <ol className="mt-4 border bg-white divide-y" data-testid="approval-chain">
+          {chain.map((step, i) => (
+            <li key={i} className="p-3 flex items-start gap-3">
+              <span className={`h-6 w-6 flex items-center justify-center text-xs font-bold border ${step.decision === "approved" ? "bg-success text-white border-success" : step.decision === "rejected" ? "bg-destructive text-white border-destructive" : "border-muted-foreground text-muted-foreground"}`}>
+                {i + 1}
+              </span>
+              <div className="flex-1 text-sm">
+                <div className="font-semibold uppercase tracking-widest text-xs">{(step.level || "").replace("_", " ")}</div>
+                <div className="text-muted-foreground text-xs mt-0.5">
+                  Threshold: {step.threshold ? `USD ${Number(step.threshold).toLocaleString()}+` : "—"}
+                </div>
+                {step.decision ? (
+                  <div className="mt-1 text-xs">
+                    <span className={step.decision === "approved" ? "text-success font-bold" : "text-destructive font-bold"}>
+                      {step.decision.toUpperCase()}
+                    </span>
+                    {" · "}{step.approver_name || step.approver_user_id} · {step.decided_at ? new Date(step.decided_at).toLocaleString() : ""}
+                    {step.notes && <div className="text-muted-foreground mt-0.5">"{step.notes}"</div>}
+                  </div>
+                ) : (
+                  <div className="mt-1 text-xs text-muted-foreground">Awaiting decision</div>
+                )}
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+
+      {isAdmin && currentStep && (
+        <div className="mt-4 space-y-3">
+          <textarea
+            data-testid="approval-notes"
+            placeholder="Notes for the record (optional)"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={2}
+            className="w-full px-3 py-2 border border-input bg-white text-sm focus:border-primary focus:outline-none"
+          />
+          <div className="flex gap-2">
+            <button
+              data-testid="approve-btn"
+              onClick={() => decide(true)}
+              disabled={busy}
+              className="text-sm bg-success text-white px-4 py-2 hover:-translate-y-0.5 transition-transform disabled:opacity-60"
+            >
+              {busy ? "Signing..." : `Approve · ${(currentStep.level || "").replace("_", " ")}`}
+            </button>
+            <button
+              data-testid="reject-btn"
+              onClick={() => decide(false)}
+              disabled={busy}
+              className="text-sm border border-destructive text-destructive px-4 py-2 hover:bg-destructive hover:text-white transition-colors disabled:opacity-60"
+            >
+              Reject
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------- P1: Q&A Panel ----------
+function QaPanel({ tender, user, canManage }) {
+  const [items, setItems] = useState([]);
+  const [q, setQ] = useState("");
+  const [answers, setAnswers] = useState({});
+  const [busy, setBusy] = useState(false);
+
+  const load = async () => {
+    try {
+      const { data } = await api.get(`/tenders/${tender.id}/questions`);
+      setItems(data);
+    } catch {}
+  };
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [tender.id]);
+
+  const ask = async (e) => {
+    e.preventDefault();
+    if (!q.trim()) return;
+    setBusy(true);
+    try {
+      await api.post(`/tenders/${tender.id}/questions`, { question: q, anonymous: true });
+      toast.success("Question submitted");
+      setQ("");
+      load();
+    } catch (e) { toast.error(formatApiError(e)); }
+    finally { setBusy(false); }
+  };
+
+  const answer = async (qid) => {
+    const a = (answers[qid] || "").trim();
+    if (!a) return;
+    try {
+      await api.post(`/questions/${qid}/answer`, { answer: a });
+      toast.success("Answer published");
+      setAnswers((s) => ({ ...s, [qid]: "" }));
+      load();
+    } catch (e) { toast.error(formatApiError(e)); }
+  };
+
+  return (
+    <div className="border" data-testid="qa-panel">
+      <div className="p-4 border-b bg-muted/30 flex items-center justify-between">
+        <div>
+          <div className="pmc-label">Pre-bid clarifications</div>
+          <div className="font-serif text-2xl mt-1">Questions & Answers</div>
+        </div>
+        <div className="text-xs text-muted-foreground font-mono">{items.length} thread{items.length !== 1 ? "s" : ""}</div>
+      </div>
+
+      {user?.role === "vendor" && tender.status === "open" && (
+        <form onSubmit={ask} className="border-b p-4 bg-white space-y-2" data-testid="qa-ask-form">
+          <div className="pmc-label text-xs">Ask a question (published anonymously)</div>
+          <textarea
+            data-testid="qa-question-input"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            rows={2}
+            placeholder="e.g. Is remote work allowed for the design phase?"
+            className="w-full px-3 py-2 border border-input focus:border-primary focus:outline-none"
+          />
+          <button data-testid="qa-submit-question" type="submit" disabled={busy || !q.trim()}
+            className="text-sm bg-primary text-white px-4 py-2 hover:-translate-y-0.5 transition-transform disabled:opacity-60">
+            {busy ? "Sending..." : "Submit question"}
+          </button>
+        </form>
+      )}
+
+      {items.length === 0 ? (
+        <div className="p-8 text-center text-sm text-muted-foreground">No clarifications posted yet.</div>
+      ) : (
+        <ul>
+          {items.map((it) => (
+            <li key={it.id} className="border-b p-4" data-testid={`qa-item-${it.id}`}>
+              <div className="text-xs text-muted-foreground font-mono mb-1">
+                {new Date(it.created_at).toLocaleString()}
+                {" · "}
+                {(canManage || it.asked_by_user_id === user?.id) ? (
+                  <span>{it.asked_by_name || "Vendor"}</span>
+                ) : (
+                  <span className="italic">Anonymous vendor</span>
+                )}
+                {!it.published && <span className="ml-2 pmc-label text-warning">UNPUBLISHED</span>}
+              </div>
+              <div className="text-sm whitespace-pre-line">{it.question}</div>
+              {it.answer ? (
+                <div className="mt-3 border-l-2 border-primary pl-3">
+                  <div className="pmc-label text-primary text-xs">Answer · {it.answered_by_name || "Buyer"}</div>
+                  <div className="text-sm mt-1 whitespace-pre-line">{it.answer}</div>
+                </div>
+              ) : canManage ? (
+                <div className="mt-3 flex gap-2">
+                  <input
+                    data-testid={`qa-answer-input-${it.id}`}
+                    value={answers[it.id] || ""}
+                    onChange={(e) => setAnswers((s) => ({ ...s, [it.id]: e.target.value }))}
+                    placeholder="Publish an answer to all vendors…"
+                    className="flex-1 h-9 px-3 border border-input bg-white text-sm focus:border-primary focus:outline-none"
+                  />
+                  <button
+                    data-testid={`qa-answer-submit-${it.id}`}
+                    onClick={() => answer(it.id)}
+                    disabled={!(answers[it.id] || "").trim()}
+                    className="text-sm border border-foreground px-3 py-1.5 hover:bg-foreground hover:text-white transition-colors disabled:opacity-60">
+                    Publish
+                  </button>
+                </div>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// ---------- P1: Addenda ----------
+function AddendaList({ tender }) {
+  const items = tender.addenda || [];
+  return (
+    <div className="border border-l-4 border-primary" data-testid="addenda-list">
+      <div className="p-4 border-b bg-primary/[0.06]">
+        <div className="pmc-label text-primary">Corrigendum & Addenda</div>
+        <div className="font-serif text-xl mt-1">{items.length} update{items.length !== 1 ? "s" : ""} published</div>
+      </div>
+      <ol className="divide-y">
+        {items.map((a) => (
+          <li key={a.id} className="p-4" data-testid={`addendum-${a.id}`}>
+            <div className="text-xs text-muted-foreground font-mono">
+              {new Date(a.published_at).toLocaleString()} · {a.published_by_name}
+            </div>
+            <div className="font-serif text-lg mt-1">{a.title}</div>
+            <div className="text-sm mt-2 whitespace-pre-line">{a.body}</div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function AddendaPublisher({ tender, onChanged }) {
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [busy, setBusy] = useState(false);
+  const publish = async () => {
+    if (!title.trim() || !body.trim()) return;
+    setBusy(true);
+    try {
+      await api.post(`/tenders/${tender.id}/addenda`, { title, body });
+      toast.success("Addendum published — bidders notified");
+      setTitle(""); setBody(""); setOpen(false);
+      onChanged && onChanged();
+    } catch (e) { toast.error(formatApiError(e)); }
+    finally { setBusy(false); }
+  };
+  if (!open) {
+    return (
+      <button
+        data-testid="addenda-open-btn"
+        onClick={() => setOpen(true)}
+        className="text-sm border border-primary text-primary px-4 py-2 hover:bg-primary hover:text-white transition-colors"
+      >
+        Publish addendum / corrigendum
+      </button>
+    );
+  }
+  return (
+    <div className="border p-4 space-y-3" data-testid="addenda-publisher">
+      <div className="pmc-label">New addendum</div>
+      <input data-testid="addenda-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title, e.g. Corrigendum 1"
+        className="w-full h-10 px-3 border border-input bg-white text-sm focus:border-primary focus:outline-none" />
+      <textarea data-testid="addenda-body" value={body} onChange={(e) => setBody(e.target.value)} rows={4}
+        placeholder="Describe what changes — deadline extension, spec change, etc."
+        className="w-full px-3 py-2 border border-input bg-white text-sm focus:border-primary focus:outline-none" />
+      <div className="flex gap-2">
+        <button data-testid="addenda-publish-btn" onClick={publish} disabled={busy || !title.trim() || !body.trim()}
+          className="text-sm bg-primary text-white px-4 py-2 hover:-translate-y-0.5 transition-transform disabled:opacity-60">
+          {busy ? "Publishing..." : "Publish & notify bidders"}
+        </button>
+        <button onClick={() => setOpen(false)} className="text-sm border border-input px-4 py-2 hover:border-foreground">Cancel</button>
+      </div>
+    </div>
+  );
+}
+

@@ -38,6 +38,12 @@ const empty = {
   pre_bid_meeting_date: "",
   bid_bond_amount: "",
   two_envelope: false,
+  // P1
+  require_approval: false,
+  emd_required: false,
+  emd_amount: "",
+  emd_currency: "USD",
+  department_id: "",
 };
 
 export default function CreateTender() {
@@ -69,6 +75,12 @@ export default function CreateTender() {
       setKzMap(data.category_map || {});
       setKzLicenses(data.licenses || []);
     }).catch(() => {});
+  }, []);
+
+  // P1 — Load departments for approval workflow assignment
+  const [departments, setDepartments] = useState([]);
+  useEffect(() => {
+    api.get("/departments").then(({ data }) => setDepartments(data)).catch(() => {});
   }, []);
 
   const set = (k) => (e) => setForm((s) => ({ ...s, [k]: e.target.value }));
@@ -127,6 +139,8 @@ export default function CreateTender() {
         ...form,
         budget_amount: form.budget_amount ? Number(form.budget_amount) : null,
         bid_bond_amount: form.bid_bond_amount ? Number(form.bid_bond_amount) : null,
+        emd_amount: form.emd_amount ? Number(form.emd_amount) : null,
+        department_id: form.department_id || null,
         submission_deadline: new Date(form.submission_deadline).toISOString(),
         line_items: form.line_items.map((li) => ({ ...li, qty: Number(li.qty) || 1, target_unit_price: li.target_unit_price ? Number(li.target_unit_price) : null })),
         evaluation_criteria: form.evaluation_criteria.map((c) => ({ ...c, weight: Number(c.weight) || 0 })),
@@ -372,6 +386,56 @@ export default function CreateTender() {
           <label className="pmc-label block mb-2">Eligibility criteria <span className="text-muted-foreground normal-case tracking-normal ml-2">(optional)</span></label>
           <textarea data-testid="ct-eligibility" value={form.eligibility_criteria} onChange={set("eligibility_criteria")} rows={3}
             className="w-full px-4 py-3 border border-input focus:border-primary focus:outline-none bg-white" />
+        </div>
+
+        {/* P1 — Governance: department + approval + EMD */}
+        <div className="border p-5 space-y-4" data-testid="ct-governance">
+          <div className="pmc-label">Governance</div>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <label className="pmc-label block mb-1">Department <span className="text-muted-foreground normal-case tracking-normal ml-2">(optional)</span></label>
+              <select data-testid="ct-department" value={form.department_id} onChange={set("department_id")}
+                className="w-full h-11 px-3 border border-input bg-white">
+                <option value="">— None —</option>
+                {departments.map((d) => <option key={d.id} value={d.id}>{d.name} ({d.code})</option>)}
+              </select>
+              <div className="text-xs text-muted-foreground mt-1">Approval chain is inherited from the department's budget thresholds.</div>
+            </div>
+            <div className="flex flex-col justify-center">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input type="checkbox" data-testid="ct-require-approval" checked={form.require_approval}
+                  onChange={(e) => setForm((s) => ({ ...s, require_approval: e.target.checked }))} className="mt-1 h-4 w-4 accent-primary" />
+                <div>
+                  <div className="pmc-label">Force Contracts Committee approval</div>
+                  <div className="text-xs text-muted-foreground">Even if the department has no thresholds, force admin sign-off before publish.</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <label className="flex items-start gap-3 cursor-pointer border-t pt-4">
+            <input type="checkbox" data-testid="ct-emd-required" checked={form.emd_required}
+              onChange={(e) => setForm((s) => ({ ...s, emd_required: e.target.checked }))} className="mt-1 h-4 w-4 accent-primary" />
+            <div className="flex-1">
+              <div className="pmc-label">Earnest Money Deposit (EMD)</div>
+              <div className="text-xs text-muted-foreground">Vendors must submit an EMD before bidding. Losing bidders auto-refunded on award.</div>
+            </div>
+          </label>
+          {form.emd_required && (
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <label className="pmc-label block mb-1">EMD amount</label>
+                <input data-testid="ct-emd-amount" type="number" min="0" value={form.emd_amount} onChange={set("emd_amount")}
+                  className="w-full h-11 px-3 border border-input bg-white focus:border-primary focus:outline-none" />
+              </div>
+              <div>
+                <label className="pmc-label block mb-1">Currency</label>
+                <select data-testid="ct-emd-currency" value={form.emd_currency} onChange={set("emd_currency")} className="w-full h-11 px-3 border border-input bg-white">
+                  {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            </div>
+          )}
         </div>
 
         {form.delivery_country === "KZ" && (

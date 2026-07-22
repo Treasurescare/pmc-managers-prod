@@ -95,8 +95,8 @@ export default function VendorDashboard() {
                 {bids.map((b) => (
                   <tr key={b.id} className="border-b hover:bg-muted/40 transition-colors">
                     <Td><Link className="text-primary underline underline-offset-4" to={`/tenders/${b.tender_id}`}>{b.tender_id?.slice(-8)}</Link></Td>
-                    <Td className="font-mono">{b.price_currency} {b.price_amount.toLocaleString()}</Td>
-                    <Td className="font-mono">{b.delivery_days}d</Td>
+                    <Td className="font-mono">{b.price_amount != null ? `${b.price_currency} ${b.price_amount.toLocaleString()}` : "SEALED"}</Td>
+                    <Td className="font-mono">{b.delivery_days != null ? `${b.delivery_days}d` : "—"}</Td>
                     <Td><StatusBadge status={b.status} /></Td>
                   </tr>
                 ))}
