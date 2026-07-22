@@ -22,6 +22,10 @@ import AdminDashboard from "@/pages/AdminDashboard";
 import AdminVendors from "@/pages/AdminVendors";
 import AdminUsers from "@/pages/AdminUsers";
 import AdminRfpRfq from "@/pages/AdminRfpRfq";
+import AdminOrgs from "@/pages/AdminOrgs";
+import AdminAudit from "@/pages/AdminAudit";
+import AdminSbd from "@/pages/AdminSbd";
+import VendorKpi from "@/pages/VendorKpi";
 import Notifications from "@/pages/Notifications";
 
 function RootRedirect() {
@@ -61,6 +65,7 @@ function App() {
                 <Route path="/vendor/payment/success" element={<ProtectedRoute roles={["vendor"]}><VendorPayment /></ProtectedRoute>} />
                 <Route path="/vendor/payment/cancel" element={<ProtectedRoute roles={["vendor"]}><VendorPayment /></ProtectedRoute>} />
                 <Route path="/vendor/bids" element={<ProtectedRoute roles={["vendor"]}><MyBids /></ProtectedRoute>} />
+                <Route path="/vendor/kpi" element={<ProtectedRoute roles={["vendor"]}><VendorKpi /></ProtectedRoute>} />
 
                 <Route path="/buyer" element={<ProtectedRoute roles={["buyer"]}><BuyerDashboard /></ProtectedRoute>} />
                 <Route path="/buyer/create" element={<ProtectedRoute roles={["buyer", "admin"]}><CreateTender /></ProtectedRoute>} />
@@ -70,6 +75,9 @@ function App() {
                 <Route path="/admin/users" element={<ProtectedRoute roles={["admin"]}><AdminUsers /></ProtectedRoute>} />
                 <Route path="/admin/rfp-rfq" element={<ProtectedRoute roles={["admin"]}><AdminRfpRfq /></ProtectedRoute>} />
                 <Route path="/admin/rfp-rfq/new" element={<ProtectedRoute roles={["admin"]}><CreateTender /></ProtectedRoute>} />
+                <Route path="/admin/orgs" element={<ProtectedRoute roles={["admin"]}><AdminOrgs /></ProtectedRoute>} />
+                <Route path="/admin/audit" element={<ProtectedRoute roles={["admin"]}><AdminAudit /></ProtectedRoute>} />
+                <Route path="/admin/sbd" element={<ProtectedRoute roles={["admin"]}><AdminSbd /></ProtectedRoute>} />
 
                 <Route path="/tenders" element={<ProtectedRoute><TenderList /></ProtectedRoute>} />
                 <Route path="/tenders/:id" element={<ProtectedRoute><TenderDetail /></ProtectedRoute>} />

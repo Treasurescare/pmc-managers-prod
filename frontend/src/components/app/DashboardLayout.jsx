@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { LayoutDashboard, FileStack, Gavel, Users, Bell, LogOut, Building2, PlusSquare, ShieldCheck, CreditCard, ClipboardList } from "lucide-react";
+import { LayoutDashboard, FileStack, Gavel, Users, Bell, LogOut, Building2, PlusSquare, ShieldCheck, CreditCard, ClipboardList, TrendingUp, Scroll, BookOpen } from "lucide-react";
 import PmcLogo from "./PmcLogo";
 import LangSwitcher from "./LangSwitcher";
 import TenderFeed from "./TenderFeed";
@@ -14,6 +14,9 @@ function navFor(role) {
       { to: "/admin/vendors", label: "Vendor Approvals", icon: ShieldCheck, testid: "nav-admin-vendors" },
       { to: "/admin/rfp-rfq", label: "RFP / RFQ", icon: ClipboardList, testid: "nav-admin-rfp-rfq" },
       { to: "/tenders", label: "All Tenders", icon: FileStack, testid: "nav-admin-tenders" },
+      { to: "/admin/orgs", label: "Orgs & Departments", icon: Building2, testid: "nav-admin-orgs" },
+      { to: "/admin/sbd", label: "SBD Templates", icon: BookOpen, testid: "nav-admin-sbd" },
+      { to: "/admin/audit", label: "Audit Trail", icon: Scroll, testid: "nav-admin-audit" },
       { to: "/admin/users", label: "Users", icon: Users, testid: "nav-admin-users" },
       { to: "/notifications", label: "Notifications", icon: Bell, testid: "nav-notifications" },
     ];
@@ -32,6 +35,7 @@ function navFor(role) {
     { to: "/vendor/payment", label: "Registration Fee", icon: CreditCard, testid: "nav-vendor-payment" },
     { to: "/tenders", label: "Open Tenders", icon: FileStack, testid: "nav-vendor-tenders" },
     { to: "/vendor/bids", label: "My Bids", icon: Gavel, testid: "nav-vendor-bids" },
+    { to: "/vendor/kpi", label: "Performance", icon: TrendingUp, testid: "nav-vendor-kpi" },
     { to: "/notifications", label: "Notifications", icon: Bell, testid: "nav-notifications" },
   ];
 }

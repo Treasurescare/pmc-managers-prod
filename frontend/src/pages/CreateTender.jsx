@@ -44,6 +44,7 @@ const empty = {
   emd_amount: "",
   emd_currency: "USD",
   department_id: "",
+  sbd_template_id: "",
 };
 
 export default function CreateTender() {
@@ -78,11 +79,14 @@ export default function CreateTender() {
   }, []);
 
   // P1 — Load departments for approval workflow assignment
+  // P1 — Load departments for approval workflow assignment
   const [departments, setDepartments] = useState([]);
   const [orgs, setOrgs] = useState([]);
+  const [sbdTemplates, setSbdTemplates] = useState([]);
   useEffect(() => {
     api.get("/departments").then(({ data }) => setDepartments(data)).catch(() => {});
     api.get("/orgs").then(({ data }) => setOrgs(data)).catch(() => {});
+    api.get("/sbd/templates").then(({ data }) => setSbdTemplates(data)).catch(() => {});
   }, []);
   const orgMap = orgs.reduce((m, o) => { m[o.id] = o; return m; }, {});
 
@@ -144,6 +148,7 @@ export default function CreateTender() {
         bid_bond_amount: form.bid_bond_amount ? Number(form.bid_bond_amount) : null,
         emd_amount: form.emd_amount ? Number(form.emd_amount) : null,
         department_id: form.department_id || null,
+        sbd_template_id: form.sbd_template_id || null,
         submission_deadline: new Date(form.submission_deadline).toISOString(),
         line_items: form.line_items.map((li) => ({ ...li, qty: Number(li.qty) || 1, target_unit_price: li.target_unit_price ? Number(li.target_unit_price) : null })),
         evaluation_criteria: form.evaluation_criteria.map((c) => ({ ...c, weight: Number(c.weight) || 0 })),
@@ -408,16 +413,27 @@ export default function CreateTender() {
               </select>
               <div className="text-xs text-muted-foreground mt-1">Approval chain is inherited from the department's budget thresholds.</div>
             </div>
-            <div className="flex flex-col justify-center">
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input type="checkbox" data-testid="ct-require-approval" checked={form.require_approval}
-                  onChange={(e) => setForm((s) => ({ ...s, require_approval: e.target.checked }))} className="mt-1 h-4 w-4 accent-primary" />
-                <div>
-                  <div className="pmc-label">Force Contracts Committee approval</div>
-                  <div className="text-xs text-muted-foreground">Even if the department has no thresholds, force admin sign-off before publish.</div>
-                </div>
-              </label>
+            <div>
+              <label className="pmc-label block mb-1">SBD template <span className="text-muted-foreground normal-case tracking-normal ml-2">(optional)</span></label>
+              <select data-testid="ct-sbd-template" value={form.sbd_template_id} onChange={set("sbd_template_id")}
+                className="w-full h-11 px-3 border border-input bg-white">
+                <option value="">— No template —</option>
+                {sbdTemplates
+                  .filter((t) => !form.document_type || t.document_type === form.document_type)
+                  .map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+              <div className="text-xs text-muted-foreground mt-1">Auto-attaches Standard Bidding Document to this tender.</div>
             </div>
+          </div>
+          <div>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input type="checkbox" data-testid="ct-require-approval" checked={form.require_approval}
+                onChange={(e) => setForm((s) => ({ ...s, require_approval: e.target.checked }))} className="mt-1 h-4 w-4 accent-primary" />
+              <div>
+                <div className="pmc-label">Force Contracts Committee approval</div>
+                <div className="text-xs text-muted-foreground">Even if the department has no thresholds, force admin sign-off before publish.</div>
+              </div>
+            </label>
           </div>
 
           <label className="flex items-start gap-3 cursor-pointer border-t pt-4">

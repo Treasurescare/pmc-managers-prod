@@ -221,6 +221,7 @@ export default function TenderDetail() {
           <div className="border p-6 border-l-4 border-primary bg-muted/20">
             <div className="pmc-label mb-1">Budget</div>
             <div className="font-mono text-2xl">{tender.budget_amount ? `${tender.budget_currency} ${tender.budget_amount.toLocaleString()}` : "Undisclosed"}</div>
+            {tender.budget_amount && <FxChip amount={tender.budget_amount} source={tender.budget_currency} />}
           </div>
           <div className="border p-6">
             <div className="pmc-label mb-1">Deadline</div>
@@ -1181,6 +1182,37 @@ function AddendaPublisher({ tender, onChanged }) {
           {busy ? "Publishing..." : "Publish & notify bidders"}
         </button>
         <button onClick={() => setOpen(false)} className="text-sm border border-input px-4 py-2 hover:border-foreground">Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+
+// ---------- P2: FX chip ----------
+const TARGET_CURRENCIES = ["KZT", "EUR", "RUB", "GBP", "AED", "INR"];
+
+function FxChip({ amount, source }) {
+  const [rates, setRates] = useState(null);
+  const [target, setTarget] = useState(() => {
+    try { return localStorage.getItem("pmc.fx.target") || (source === "USD" ? "KZT" : "USD"); } catch { return "USD"; }
+  });
+  useEffect(() => {
+    api.get(`/fx/rates?base=${encodeURIComponent(source || "USD")}`).then(({ data }) => setRates(data.rates || {})).catch(() => setRates({}));
+  }, [source]);
+  useEffect(() => { try { localStorage.setItem("pmc.fx.target", target); } catch { /* ignore */ } }, [target]);
+  if (!rates) return null;
+  const rate = rates[target];
+  if (!rate) return null;
+  const converted = Math.round(amount * rate);
+  return (
+    <div className="mt-3 text-xs" data-testid="fx-chip">
+      <div className="pmc-label text-muted-foreground mb-1">≈ Local (live rate)</div>
+      <div className="flex items-center gap-2 font-mono">
+        <span className="text-lg">{target} {converted.toLocaleString()}</span>
+        <select value={target} onChange={(e) => setTarget(e.target.value)} data-testid="fx-target"
+          className="h-7 px-2 border border-input bg-white text-xs">
+          {TARGET_CURRENCIES.filter((c) => c !== source && rates[c]).map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
       </div>
     </div>
   );

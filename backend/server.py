@@ -16,6 +16,7 @@ from typing import List, Optional, Literal, Dict, Any
 import bcrypt
 import jwt
 import httpx
+import hashlib
 import stripe
 from bson import ObjectId
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, UploadFile, File
@@ -325,6 +326,8 @@ class TenderIn(BaseModel):
     # Org / department (P1)
     org_id: Optional[str] = None
     department_id: Optional[str] = None
+    # SBD template reference (P2)
+    sbd_template_id: Optional[str] = None
 
 
 class BidIn(BaseModel):
@@ -625,6 +628,21 @@ async def create_tender(payload: TenderIn, user: dict = Depends(require_role("bu
         merged = list({*doc.get("required_licenses", []), *auto})
         doc["required_licenses"] = merged
 
+    # P2 — SBD template attachment (auto-inject file into attachments)
+    if doc.get("sbd_template_id"):
+        try:
+            tpl = await db.sbd_templates.find_one({"_id": ObjectId(doc["sbd_template_id"])})
+            if tpl and tpl.get("file"):
+                doc["attachments"] = [*(doc.get("attachments") or []), {
+                    "name": tpl["file"].get("name") or f"{tpl.get('name')}.docx",
+                    "data": tpl["file"].get("data"),
+                    "sbd_template": True,
+                    "sbd_template_id": str(tpl["_id"]),
+                }]
+                doc["sbd_template_name"] = tpl.get("name")
+        except Exception as e:
+            logging.warning(f"Failed to attach SBD template {doc.get('sbd_template_id')}: {e}")
+
     # P1 — Multi-level approval workflow
     # Determine approval chain if department has thresholds AND (require_approval OR any budget exceeds a threshold)
     approval_chain: List[dict] = []
@@ -700,6 +718,14 @@ async def create_tender(payload: TenderIn, user: dict = Depends(require_role("bu
                 pass
 
     asyncio.create_task(_fanout_new_tender(str(res.inserted_id), doc["title"], doc["category"], doc["submission_deadline"]))
+
+    # Audit trail
+    await audit_log("tender.create", user, "tender", str(res.inserted_id),
+                    {"title": doc["title"], "document_type": doc.get("document_type"),
+                     "budget_amount": doc.get("budget_amount"),
+                     "budget_currency": doc.get("budget_currency"),
+                     "status": initial_status, "two_envelope": doc.get("two_envelope"),
+                     "department_id": doc.get("department_id")})
 
     # If pending approval — notify admins as approvers
     if initial_status == "pending_approval":
@@ -974,6 +1000,10 @@ async def award_bid(bid_id: str, user: dict = Depends(require_role("buyer", "adm
         # Winner's EMD gets held (converts to performance security typically)
         await db.bids.update_one({"_id": ObjectId(bid_id)}, {"$set": {"emd_status": "held_as_security"}})
     await broker.broadcast({"type": "tender.updated", "payload": {"id": bid["tender_id"], "status": "awarded"}})
+    await audit_log("bid.award", user, "bid", bid_id,
+                    {"tender_id": bid["tender_id"], "vendor_id": bid.get("vendor_id"),
+                     "price_amount": bid.get("price_amount"),
+                     "price_currency": bid.get("price_currency")})
 
     # Notify + email winner
     await create_notification(bid["vendor_id"], "Congratulations — Bid awarded",
@@ -1278,6 +1308,10 @@ async def approve_tender(tender_id: str, payload: TenderApprovalDecision, user: 
         else:
             updates["approval_state"] = "approved"; updates["status"] = "open"
     await db.tenders.update_one({"_id": ObjectId(tender_id)}, {"$set": updates})
+    await audit_log("tender.approve" if payload.approved else "tender.reject", user, "tender",
+                    tender_id, {"notes": payload.notes,
+                                "new_status": updates.get("status"),
+                                "approval_state": updates.get("approval_state")})
     # Broadcast if opened
     if updates.get("status") == "open":
         await broker.broadcast({"type": "tender.created", "payload": {
@@ -1368,6 +1402,7 @@ async def answer_question(qid: str, payload: AnswerIn, user: dict = Depends(requ
     if q.get("asked_by_user_id"):
         await create_notification(q["asked_by_user_id"], "Your question was answered",
                                   f"'{t['title']}' — see the answer.", f"/tenders/{q['tender_id']}")
+    await audit_log("tender.qa_answer", user, "tender", q["tender_id"], {"question_id": qid})
     return {"ok": True}
 
 
@@ -1387,6 +1422,8 @@ async def publish_addendum(tender_id: str, payload: AddendumIn, user: dict = Dep
         "published_at": now_iso(),
     }
     await db.tenders.update_one({"_id": ObjectId(tender_id)}, {"$push": {"addenda": addendum}})
+    await audit_log("tender.addendum", user, "tender", tender_id,
+                    {"title": payload.title, "addendum_id": addendum["id"]})
     # Notify all vendors who have already submitted bids on this tender
     async for b in db.bids.find({"tender_id": tender_id}, {"vendor_id": 1, "vendor_email": 1}).limit(500):
         await create_notification(b["vendor_id"], "Addendum published",
@@ -1432,7 +1469,232 @@ async def emd_refund(bid_id: str, payload: EmdRefundIn, user: dict = Depends(req
     await create_notification(bid["vendor_id"], f"EMD {new_status}",
                               f"Your EMD for '{t['title']}' has been {new_status}.",
                               f"/tenders/{bid['tender_id']}")
+    await audit_log("bid.emd_refund", user, "bid", bid_id,
+                    {"new_status": new_status, "stripe_refund_id": stripe_refund_id,
+                     "forfeit": payload.forfeit, "notes": payload.notes})
     return {"ok": True, "emd_status": new_status, "stripe_refund_id": stripe_refund_id}
+
+
+# ==========================================================================
+# P2 — Immutable hash-chained audit trail
+# ==========================================================================
+_AUDIT_LOCK = asyncio.Lock()
+
+
+async def audit_log(action: str, actor: dict, target_type: str, target_id: str,
+                    details: Optional[dict] = None) -> str:
+    """Append an entry to the audit_events collection with a SHA-256 hash chain.
+
+    Each row: {previous_hash, event_hash, seq, ...}
+    event_hash = sha256(previous_hash || canonical_json(payload))
+    """
+    async with _AUDIT_LOCK:
+        prev = await db.audit_events.find_one(sort=[("seq", -1)])
+        prev_hash = (prev or {}).get("event_hash", "GENESIS")
+        seq = ((prev or {}).get("seq") or 0) + 1
+        payload = {
+            "seq": seq,
+            "action": action,
+            "actor_id": actor.get("id") if actor else None,
+            "actor_email": actor.get("email") if actor else None,
+            "actor_role": actor.get("role") if actor else None,
+            "target_type": target_type,
+            "target_id": target_id,
+            "details": details or {},
+            "created_at": now_iso(),
+        }
+        blob = _json.dumps(payload, sort_keys=True, ensure_ascii=False).encode("utf-8")
+        event_hash = hashlib.sha256(prev_hash.encode("utf-8") + blob).hexdigest()
+        doc = {**payload, "previous_hash": prev_hash, "event_hash": event_hash}
+        res = await db.audit_events.insert_one(doc)
+        return str(res.inserted_id)
+
+
+def _audit_out(doc: dict) -> dict:
+    d = dict(doc); d["id"] = str(d.pop("_id")); return d
+
+
+@api.get("/admin/audit")
+async def list_audit(action: Optional[str] = None, target_id: Optional[str] = None,
+                     limit: int = 200, user: dict = Depends(require_role("admin"))):
+    q: dict = {}
+    if action: q["action"] = action
+    if target_id: q["target_id"] = target_id
+    limit = max(1, min(int(limit), 500))
+    return [_audit_out(d) async for d in db.audit_events.find(q).sort("seq", -1).limit(limit)]
+
+
+@api.get("/admin/audit/verify")
+async def verify_audit(user: dict = Depends(require_role("admin"))):
+    """Walk every event in seq order, recompute the SHA-256 chain, and report tampering."""
+    prev = "GENESIS"
+    checked = 0
+    tampered: List[dict] = []
+    async for row in db.audit_events.find({}, sort=[("seq", 1)]):
+        checked += 1
+        payload = {k: row.get(k) for k in ("seq", "action", "actor_id", "actor_email",
+                                            "actor_role", "target_type", "target_id",
+                                            "details", "created_at")}
+        blob = _json.dumps(payload, sort_keys=True, ensure_ascii=False).encode("utf-8")
+        expected = hashlib.sha256(prev.encode("utf-8") + blob).hexdigest()
+        if expected != row.get("event_hash") or row.get("previous_hash") != prev:
+            tampered.append({"seq": row.get("seq"), "id": str(row["_id"])})
+        prev = row.get("event_hash", "")
+    return {"ok": len(tampered) == 0, "checked": checked, "tampered": tampered, "head_hash": prev}
+
+
+# ==========================================================================
+# P2 — FX conversion (exchangerate.host, no API key required)
+# ==========================================================================
+_FX_CACHE: dict = {"rates": {}, "base": "USD", "fetched_at": None}
+_FX_TTL_SECONDS = 60 * 60 * 6  # 6 hours
+
+
+async def _fetch_fx_rates(base: str = "USD") -> dict:
+    now = datetime.now(timezone.utc)
+    fetched = _FX_CACHE.get("fetched_at")
+    if _FX_CACHE.get("base") == base and fetched and (now - fetched).total_seconds() < _FX_TTL_SECONDS:
+        return _FX_CACHE["rates"]
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as http:
+            # Free, no-key provider (Open ExchangeRate API)
+            r = await http.get(f"https://open.er-api.com/v6/latest/{base}")
+            data = r.json()
+            if data.get("result") == "success" and data.get("rates"):
+                _FX_CACHE["rates"] = data["rates"]
+                _FX_CACHE["base"] = base
+                _FX_CACHE["fetched_at"] = now
+    except Exception as e:
+        logging.warning(f"FX fetch failed: {e}")
+    return _FX_CACHE.get("rates") or {}
+
+
+@api.get("/fx/rates")
+async def fx_rates(base: str = "USD", user: dict = Depends(get_current_user)):
+    base = (base or "USD").upper()
+    rates = await _fetch_fx_rates(base)
+    return {"base": base, "rates": rates,
+            "fetched_at": _FX_CACHE.get("fetched_at").isoformat() if _FX_CACHE.get("fetched_at") else None}
+
+
+@api.get("/fx/convert")
+async def fx_convert(amount: float, source: str = "USD", target: str = "USD", user: dict = Depends(get_current_user)):
+    source = source.upper(); target = target.upper()
+    if source == target:
+        return {"amount": amount, "source": source, "target": target, "converted": amount, "rate": 1.0}
+    rates = await _fetch_fx_rates(source)
+    rate = rates.get(target)
+    if rate is None:
+        raise HTTPException(status_code=400, detail=f"No FX rate for {source}->{target}")
+    return {"amount": amount, "source": source, "target": target, "converted": round(amount * rate, 2), "rate": rate}
+
+
+# ==========================================================================
+# P2 — Vendor KPI dashboard
+# ==========================================================================
+@api.get("/vendor/kpi")
+async def vendor_kpi(user: dict = Depends(require_role("vendor"))):
+    vid = user["id"]
+    total_bids = await db.bids.count_documents({"vendor_id": vid})
+    awarded = await db.bids.count_documents({"vendor_id": vid, "status": "awarded"})
+    rejected = await db.bids.count_documents({"vendor_id": vid, "status": "rejected"})
+    submitted = await db.bids.count_documents({"vendor_id": vid, "status": "submitted"})
+    win_rate = round((awarded / total_bids) * 100, 1) if total_bids else 0.0
+
+    pipeline = [
+        {"$match": {"vendor_id": vid, "price_amount": {"$ne": None}}},
+        {"$group": {
+            "_id": None,
+            "avg_price": {"$avg": "$price_amount"},
+            "avg_delivery_days": {"$avg": "$delivery_days"},
+        }},
+    ]
+    agg = [x async for x in db.bids.aggregate(pipeline)]
+    stats = agg[0] if agg else {}
+
+    since = (datetime.now(timezone.utc) - timedelta(days=365)).isoformat()
+    cat_pipeline = [
+        {"$match": {"vendor_id": vid, "created_at": {"$gte": since}}},
+        {"$addFields": {"tender_oid": {"$toObjectId": "$tender_id"}}},
+        {"$lookup": {"from": "tenders", "localField": "tender_oid", "foreignField": "_id", "as": "tender"}},
+        {"$unwind": "$tender"},
+        {"$group": {
+            "_id": "$tender.category",
+            "bids": {"$sum": 1},
+            "wins": {"$sum": {"$cond": [{"$eq": ["$status", "awarded"]}, 1, 0]}},
+        }},
+        {"$sort": {"bids": -1}},
+        {"$limit": 10},
+    ]
+    by_category = [{"category": r["_id"], "bids": r["bids"], "wins": r["wins"]}
+                   async for r in db.bids.aggregate(cat_pipeline)]
+
+    emd_forfeited = await db.bids.count_documents({"vendor_id": vid, "emd_status": "forfeited"})
+    emd_refunded = await db.bids.count_documents({"vendor_id": vid, "emd_status": "refunded"})
+
+    return {
+        "total_bids": total_bids,
+        "awarded": awarded,
+        "submitted": submitted,
+        "rejected": rejected,
+        "win_rate": win_rate,
+        "avg_price_amount": round(stats.get("avg_price", 0) or 0, 2),
+        "avg_delivery_days": round(stats.get("avg_delivery_days", 0) or 0, 1),
+        "by_category": by_category,
+        "emd_forfeited": emd_forfeited,
+        "emd_refunded": emd_refunded,
+    }
+
+
+# ==========================================================================
+# P2 — Standard Bidding Documents (SBD) template library
+# ==========================================================================
+class SbdTemplateIn(BaseModel):
+    name: str = Field(min_length=1)
+    document_type: Literal["tender", "rfp", "rfq"]
+    category: Optional[str] = None
+    description: Optional[str] = None
+    file: dict  # {name, mime, size, data (base64 data URL)}
+
+
+def _sbd_out(doc: dict) -> dict:
+    d = dict(doc); d["id"] = str(d.pop("_id")); return d
+
+
+@api.post("/sbd/templates")
+async def create_sbd_template(payload: SbdTemplateIn, user: dict = Depends(require_role("admin"))):
+    doc = payload.model_dump()
+    doc.update({"created_by": user["id"], "created_by_name": user.get("name"),
+                "created_at": now_iso(), "active": True})
+    res = await db.sbd_templates.insert_one(doc)
+    doc["_id"] = res.inserted_id
+    await audit_log("sbd.template.create", user, "sbd_template", str(res.inserted_id),
+                    {"name": payload.name, "document_type": payload.document_type})
+    return _sbd_out(doc)
+
+
+@api.get("/sbd/templates")
+async def list_sbd_templates(document_type: Optional[str] = None, user: dict = Depends(get_current_user)):
+    q: dict = {"active": True}
+    if document_type: q["document_type"] = document_type
+    return [_sbd_out(d) async for d in db.sbd_templates.find(q).sort("created_at", -1).limit(200)]
+
+
+@api.get("/sbd/templates/{tid}")
+async def get_sbd_template(tid: str, user: dict = Depends(get_current_user)):
+    doc = await db.sbd_templates.find_one({"_id": ObjectId(tid)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return _sbd_out(doc)
+
+
+@api.delete("/sbd/templates/{tid}")
+async def archive_sbd_template(tid: str, user: dict = Depends(require_role("admin"))):
+    await db.sbd_templates.update_one({"_id": ObjectId(tid)}, {"$set": {"active": False, "archived_at": now_iso()}})
+    await audit_log("sbd.template.archive", user, "sbd_template", tid)
+    return {"ok": True}
+
+
 
 
 
