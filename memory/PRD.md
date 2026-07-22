@@ -22,6 +22,14 @@ Build a global tender management application titled **PMC Managers Limited**. Ve
 - In-app notifications for state changes
 - Public landing page with live stats
 
+## v1.1 additions (2026-02)
+- **Resend transactional emails** — welcome, vendor approve/reject, tender publish, bid received, bid awarded/rejected (Emergent-managed).
+- **Emergent Google OAuth** — second sign-in path. New Google users pick vendor/buyer role at /auth/choose-role.
+- **Stripe payment for registration fee** — USD 100 one-time non-refundable via Stripe Checkout. Vendors must pay before submitting KYC (backend enforces via 402).
+- **KZ license gates** — 6 Kazakhstan licence types. Vendors declare held licences in Section B (KZ only). Buyers select delivery_country=KZ and required_licenses on tender creation. Bidding is blocked for vendors missing required licences.
+- **CSV export of bid comparison** — GET /api/tenders/{id}/bids/export streams CSV for buyer/admin.
+- **Multi-language (EN/RU/KK)** — Landing, Login, Register, top-level nav labels translated. LangSwitcher persists selection in localStorage.
+
 ## v1 implemented (2026-02)
 - Backend (FastAPI + Mongo)
   - Auth: register/login/logout/me (bcrypt + JWT httpOnly cookies)

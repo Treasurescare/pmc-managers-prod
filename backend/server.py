@@ -749,11 +749,16 @@ async def create_checkout(payload: CheckoutRequest, request: Request, user: dict
     u = await db.users.find_one({"_id": ObjectId(user["id"])})
     if u.get("registration_fee_paid"):
         raise HTTPException(status_code=400, detail="Registration fee already paid.")
+    # Whitelist origin_url to FRONTEND_URL to prevent open-redirect via success_url
+    allowed_origin = os.environ.get("FRONTEND_URL", "").rstrip("/")
+    origin = payload.origin_url.rstrip("/")
+    if allowed_origin and origin != allowed_origin:
+        origin = allowed_origin
     host_url = str(request.base_url)
     webhook_url = f"{host_url.rstrip('/')}/api/webhook/stripe"
     checkout = StripeCheckout(api_key=os.environ.get("STRIPE_API_KEY", "sk_test_emergent"), webhook_url=webhook_url)
-    success_url = f"{payload.origin_url}/vendor/payment/success?session_id={{CHECKOUT_SESSION_ID}}"
-    cancel_url = f"{payload.origin_url}/vendor/payment/cancel"
+    success_url = f"{origin}/vendor/payment/success?session_id={{CHECKOUT_SESSION_ID}}"
+    cancel_url = f"{origin}/vendor/payment/cancel"
     req = CheckoutSessionRequest(
         amount=float(REGISTRATION_FEE_USD),
         currency="usd",
@@ -817,8 +822,8 @@ async def stripe_webhook(request: Request):
             if uid:
                 await db.users.update_one({"_id": ObjectId(uid)}, {"$set": {"registration_fee_paid": True}})
     except Exception as e:
+        # Log but still ACK with 200 so Stripe doesn't retry forever on transient issues
         logging.exception(f"stripe webhook failed: {e}")
-        raise HTTPException(status_code=400, detail="Invalid webhook")
     return {"status": "ok"}
 
 
