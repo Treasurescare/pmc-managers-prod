@@ -106,6 +106,9 @@ class TestAuth:
         CTX["buyer_session"] = s
 
     def test_vendor_pending_login(self):
+        # Reset vendor@example.com to pending — prior iterations may have approved it
+        _DB.users.update_one({"email": VENDOR_PENDING["email"]},
+                             {"$set": {"vendor_status": "pending"}})
         s = _session()
         user = _login(s, VENDOR_PENDING)
         assert user["role"] == "vendor"
@@ -881,3 +884,171 @@ class TestRfpRfqBackend:
         assert r2.status_code == 403
         assert "missing required licenses" in r2.text.lower()
 
+
+# =========================================================================
+# ITERATION 4 (v1.3) — RFP scoring & evaluation-weight server-side validation
+# =========================================================================
+
+
+class TestV13RfpScoring:
+    """RFP bid scoring: POST /api/bids/{id}/score + weight validation."""
+
+    def _register_and_approve_vendor(self, tag: str):
+        """Helper: register a vendor, approve them, mark fee-paid."""
+        uniq = uuid.uuid4().hex[:6]
+        creds = {"email": f"TEST_v13_{tag}_{uniq}@example.com", "password": "Vendor@123",
+                 "name": f"V13 {tag}", "role": "vendor"}
+        vs = _session()
+        r = vs.post(f"{API}/auth/register", json=creds, timeout=15)
+        assert r.status_code == 200, r.text
+        vid = r.json()["id"]
+        # approve via admin
+        admin = CTX["admin_session"]
+        admin.post(f"{API}/admin/vendors/{vid}/approve", timeout=10)
+        _mark_fee_paid(vid)
+        # relogin so session cookie reflects role/approval
+        vs2 = _session()
+        _login(vs2, creds)
+        return vs2, vid, creds
+
+    def test_a_create_rfp_with_valid_weights(self):
+        """Create an RFP with Technical=60 / Commercial=40 (sums to 100)."""
+        s = CTX["buyer_session"]
+        deadline = (datetime.now(timezone.utc) + timedelta(days=14)).isoformat()
+        payload = {
+            "document_type": "rfp",
+            "title": f"TEST_V13_RFPScore_{uuid.uuid4().hex[:6]}",
+            "description": "RFP for scoring test",
+            "category": "Consulting & Advisory",
+            "submission_deadline": deadline,
+            "budget_currency": "USD",
+            "budget_amount": 200000,
+            "delivery_location": "Astana",
+            "scope_of_work": "Master plan",
+            "evaluation_criteria": [
+                {"name": "Technical", "weight": 60, "description": "Methodology"},
+                {"name": "Commercial", "weight": 40, "description": "Price"},
+            ],
+        }
+        r = s.post(f"{API}/tenders", json=payload, timeout=15)
+        assert r.status_code == 200, r.text
+        CTX["v13_rfp_id"] = r.json()["id"]
+
+    def test_b_create_rfp_bad_weight_sum_returns_400(self):
+        """Weights not summing to 100 must be rejected server-side."""
+        s = CTX["buyer_session"]
+        deadline = (datetime.now(timezone.utc) + timedelta(days=14)).isoformat()
+        payload = {
+            "document_type": "rfp",
+            "title": f"TEST_V13_BadWeight_{uuid.uuid4().hex[:6]}",
+            "description": "should fail",
+            "category": "Consulting & Advisory",
+            "submission_deadline": deadline,
+            "budget_currency": "USD",
+            "evaluation_criteria": [
+                {"name": "Technical", "weight": 70, "description": "x"},
+                {"name": "Commercial", "weight": 40, "description": "y"},  # sums to 110
+            ],
+        }
+        r = s.post(f"{API}/tenders", json=payload, timeout=15)
+        assert r.status_code == 400, f"expected 400, got {r.status_code}: {r.text}"
+        assert "weight" in r.text.lower()
+
+    def test_c_submit_two_rfp_bids(self):
+        """Two vendors submit RFP bids so we can score them."""
+        vs1, vid1, _ = self._register_and_approve_vendor("v1")
+        vs2, vid2, _ = self._register_and_approve_vendor("v2")
+        CTX["v13_vs1"] = vs1
+        CTX["v13_vs2"] = vs2
+        CTX["v13_vid1"] = vid1
+        CTX["v13_vid2"] = vid2
+
+        rfp_id = CTX["v13_rfp_id"]
+        # Vendor 1
+        r1 = vs1.post(f"{API}/bids", json={
+            "tender_id": rfp_id, "price_currency": "USD", "price_amount": 180000, "delivery_days": 90,
+            "proposal": "V1 proposal",
+            "technical_proposal": "V1 tech", "commercial_proposal": "V1 comm", "team_composition": "PM+3",
+        }, timeout=15)
+        assert r1.status_code == 200, r1.text
+        CTX["v13_bid1"] = r1.json()["id"]
+        # Vendor 2
+        r2 = vs2.post(f"{API}/bids", json={
+            "tender_id": rfp_id, "price_currency": "USD", "price_amount": 170000, "delivery_days": 100,
+            "proposal": "V2 proposal",
+            "technical_proposal": "V2 tech", "commercial_proposal": "V2 comm", "team_composition": "PM+2",
+        }, timeout=15)
+        assert r2.status_code == 200, r2.text
+        CTX["v13_bid2"] = r2.json()["id"]
+
+    def test_d_score_bid_as_buyer_returns_weighted_total(self):
+        """Buyer scores bid1 with Technical=80, Commercial=70 → 60*.8 + 40*.7 = 76.0"""
+        s = CTX["buyer_session"]
+        r = s.post(f"{API}/bids/{CTX['v13_bid1']}/score",
+                   json={"scores": {"Technical": 80, "Commercial": 70}, "notes": "Solid team"},
+                   timeout=15)
+        assert r.status_code == 200, r.text
+        data = r.json()
+        assert data.get("ok") is True
+        assert abs(data["weighted_total"] - 76.0) < 0.01, f"expected 76.0 got {data['weighted_total']}"
+
+    def test_e_scored_bid_persists_fields_on_get_bids(self):
+        """GET /api/bids?tender_id=... now includes rfp_scores + rfp_weighted_total for scored bid."""
+        s = CTX["buyer_session"]
+        r = s.get(f"{API}/bids?tender_id={CTX['v13_rfp_id']}", timeout=10)
+        assert r.status_code == 200, r.text
+        bids = r.json()
+        scored = [b for b in bids if b["id"] == CTX["v13_bid1"]]
+        assert len(scored) == 1
+        b = scored[0]
+        assert "rfp_scores" in b and b["rfp_scores"]["Technical"] == 80
+        assert "rfp_weighted_total" in b
+        assert abs(b["rfp_weighted_total"] - 76.0) < 0.01
+
+    def test_f_score_non_rfp_returns_400(self):
+        """Scoring a plain-tender/RFQ bid returns 400."""
+        s = CTX["buyer_session"]
+        # Use rfq_bid_id from earlier tests (RFQ) — it's a bid on an RFQ tender
+        rfq_bid = CTX.get("rfq_bid_id")
+        assert rfq_bid, "prerequisite RFQ bid must exist"
+        r = s.post(f"{API}/bids/{rfq_bid}/score", json={"scores": {"x": 50}}, timeout=15)
+        assert r.status_code == 400, f"expected 400 got {r.status_code}: {r.text}"
+        assert "rfp" in r.text.lower()
+
+    def test_g_score_forbidden_for_non_owner_buyer(self):
+        """Buyer who doesn't own the RFP tender gets 403."""
+        uniq = uuid.uuid4().hex[:6]
+        creds = {"email": f"TEST_v13_otherbuyer_{uniq}@example.com", "password": "Buyer@123",
+                 "name": "Other Buyer", "role": "buyer"}
+        s = _session()
+        assert s.post(f"{API}/auth/register", json=creds, timeout=15).status_code == 200
+        r = s.post(f"{API}/bids/{CTX['v13_bid1']}/score",
+                   json={"scores": {"Technical": 50, "Commercial": 60}}, timeout=15)
+        assert r.status_code == 403, f"expected 403 got {r.status_code}: {r.text}"
+
+    def test_h_admin_can_score_any_rfp_bid(self):
+        """Admin can score even when they don't own the tender."""
+        s = CTX["admin_session"]
+        r = s.post(f"{API}/bids/{CTX['v13_bid2']}/score",
+                   json={"scores": {"Technical": 90, "Commercial": 60}},
+                   timeout=15)
+        assert r.status_code == 200, r.text
+        data = r.json()
+        # 60*.9 + 40*.6 = 54 + 24 = 78
+        assert abs(data["weighted_total"] - 78.0) < 0.01
+
+    def test_i_score_not_found_bid_returns_404(self):
+        s = CTX["admin_session"]
+        fake_id = "652f0b3c1e5c2b6a1a000000"  # valid ObjectId shape, but no such bid
+        r = s.post(f"{API}/bids/{fake_id}/score", json={"scores": {}}, timeout=10)
+        assert r.status_code == 404
+
+    def test_j_score_clamps_out_of_range(self):
+        """Score above 100 is clamped to 100 in weighted total."""
+        s = CTX["buyer_session"]
+        # Score bid1 again with Technical=150 (clamped to 100), Commercial=0 → 60*1.0 + 40*0 = 60
+        r = s.post(f"{API}/bids/{CTX['v13_bid1']}/score",
+                   json={"scores": {"Technical": 150, "Commercial": 0}},
+                   timeout=15)
+        assert r.status_code == 200, r.text
+        assert abs(r.json()["weighted_total"] - 60.0) < 0.01

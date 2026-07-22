@@ -186,7 +186,7 @@ export default function TenderDetail() {
 
           {/* Buyer/Admin bid comparison */}
           {(user?.role === "admin" || user?.role === "buyer") && (
-            <BidsComparison bids={bids} tender={tender} canManage={canManage} onAward={award} />
+            <BidsComparison bids={bids} tender={tender} canManage={canManage} onAward={award} onScored={load} />
           )}
         </div>
 
@@ -423,15 +423,17 @@ function VendorBidSection({ tender, myBid, canBid, profileStatus, onSubmitted })
   );
 }
 
-function BidsComparison({ bids, tender, canManage, onAward }) {
+function BidsComparison({ bids, tender, canManage, onAward, onScored }) {
   if (!bids.length) return <div className="border p-8 text-center text-sm text-muted-foreground">No bids received yet.</div>;
-  const min = Math.min(...bids.map((b) => b.price_amount));
   const csvUrl = `${BACKEND_URL}/api/tenders/${tender.id}/bids/export`;
+  const isRFQ = tender.document_type === "rfq";
+  const isRFP = tender.document_type === "rfp";
+
   return (
     <div className="border">
       <div className="p-4 border-b bg-muted/30 flex items-center justify-between gap-4">
         <div>
-          <div className="pmc-label">Bids received</div>
+          <div className="pmc-label">Bids received · {tender.document_type?.toUpperCase() || "TENDER"}</div>
           <div className="font-serif text-2xl mt-1">{bids.length} vendor{bids.length > 1 ? "s" : ""} responded</div>
         </div>
         {canManage && (
@@ -440,40 +442,265 @@ function BidsComparison({ bids, tender, canManage, onAward }) {
           </a>
         )}
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm pmc-table" data-testid="bids-comparison-table">
-          <thead>
-            <tr className="border-b bg-muted/30">
-              <Th>Vendor</Th><Th>Price</Th><Th>Delivery</Th><Th>Proposal</Th><Th>Status</Th><Th></Th>
+
+      {isRFP ? (
+        <RfpScoringMatrix bids={bids} tender={tender} canManage={canManage} onAward={onAward} onScored={onScored} />
+      ) : isRFQ && (tender.line_items || []).length > 0 ? (
+        <RfqLineItemMatrix bids={bids} tender={tender} canManage={canManage} onAward={onAward} />
+      ) : (
+        <FlatBidTable bids={bids} tender={tender} canManage={canManage} onAward={onAward} />
+      )}
+    </div>
+  );
+}
+
+function FlatBidTable({ bids, tender, canManage, onAward }) {
+  const min = Math.min(...bids.map((b) => b.price_amount));
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm pmc-table" data-testid="bids-comparison-table">
+        <thead>
+          <tr className="border-b bg-muted/30">
+            <Th>Vendor</Th><Th>Price</Th><Th>Delivery</Th><Th>Proposal</Th><Th>Status</Th><Th></Th>
+          </tr>
+        </thead>
+        <tbody>
+          {bids.map((b) => {
+            const isLowest = b.price_amount === min;
+            return (
+              <tr key={b.id} className={`border-b ${isLowest ? "bg-primary/5" : "hover:bg-muted/40"}`}>
+                <Td>
+                  <div className="font-medium">{b.vendor_company || b.vendor_email}</div>
+                  <div className="text-xs text-muted-foreground">{b.vendor_email}</div>
+                </Td>
+                <Td className="font-mono">
+                  {isLowest && <span className="mr-2 pmc-label text-primary">LOWEST</span>}
+                  {b.price_currency} {b.price_amount.toLocaleString()}
+                </Td>
+                <Td className="font-mono">{b.delivery_days}d</Td>
+                <Td className="max-w-md truncate" title={b.proposal}>{b.proposal}</Td>
+                <Td><StatusBadge status={b.status} /></Td>
+                <Td>
+                  {canManage && tender.status === "open" && (
+                    <button data-testid={`award-bid-${b.id}`} onClick={() => onAward(b.id)} className="text-sm bg-primary text-white px-3 py-1.5 hover:-translate-y-0.5 transition-transform">Award</button>
+                  )}
+                </Td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function RfqLineItemMatrix({ bids, tender, canManage, onAward }) {
+  const items = tender.line_items || [];
+  const totalMin = Math.min(...bids.map((b) => b.price_amount));
+
+  const getUnit = (bid, idx) => {
+    const lip = (bid.line_item_prices || [])[idx];
+    return lip && lip.unit_price !== undefined && lip.unit_price !== "" ? Number(lip.unit_price) : null;
+  };
+
+  // per-row min across bids
+  const rowMins = items.map((_, rowIdx) => {
+    const vals = bids.map((b) => getUnit(b, rowIdx)).filter((v) => v !== null && !isNaN(v));
+    return vals.length ? Math.min(...vals) : null;
+  });
+
+  return (
+    <div className="overflow-x-auto" data-testid="rfq-matrix">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b bg-muted/30">
+            <th className="pmc-label text-left px-3 py-2 sticky left-0 bg-muted/30 min-w-[240px]">Line item</th>
+            <th className="pmc-label text-left px-3 py-2">Qty × Unit</th>
+            {bids.map((b) => (
+              <th key={b.id} className="pmc-label text-left px-3 py-2 min-w-[160px]">
+                <div>{b.vendor_company || b.vendor_email}</div>
+                <div className="text-[10px] text-muted-foreground normal-case tracking-normal">{b.vendor_email}</div>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((it, rowIdx) => (
+            <tr key={rowIdx} className="border-b">
+              <td className="px-3 py-2 sticky left-0 bg-white">
+                <div className="font-mono text-xs text-muted-foreground">{String(rowIdx + 1).padStart(2, "0")}</div>
+                <div>{it.item}</div>
+              </td>
+              <td className="px-3 py-2 font-mono text-xs">{it.qty} × {it.unit}</td>
+              {bids.map((b) => {
+                const v = getUnit(b, rowIdx);
+                const isMin = v !== null && rowMins[rowIdx] !== null && v === rowMins[rowIdx];
+                return (
+                  <td key={b.id} className={`px-3 py-2 font-mono ${isMin ? "bg-primary/10 text-primary font-bold" : ""}`} data-testid={`matrix-${rowIdx}-${b.id}`}>
+                    {v === null ? "—" : v.toLocaleString()}
+                    {isMin && <span className="ml-2 text-[10px] tracking-widest">LOW</span>}
+                  </td>
+                );
+              })}
             </tr>
-          </thead>
-          <tbody>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr className="border-t-2 border-foreground bg-muted/40">
+            <td className="px-3 py-3 pmc-label sticky left-0 bg-muted/40">Total</td>
+            <td className="px-3 py-3"></td>
             {bids.map((b) => {
-              const isLowest = b.price_amount === min;
+              const isLowTotal = b.price_amount === totalMin;
               return (
-                <tr key={b.id} className={`border-b ${isLowest ? "bg-primary/5" : "hover:bg-muted/40"}`}>
-                  <Td>
-                    <div className="font-medium">{b.vendor_company || b.vendor_email}</div>
-                    <div className="text-xs text-muted-foreground">{b.vendor_email}</div>
-                  </Td>
-                  <Td className="font-mono">
-                    {isLowest && <span className="mr-2 pmc-label text-primary">LOWEST</span>}
-                    {b.price_currency} {b.price_amount.toLocaleString()}
-                  </Td>
-                  <Td className="font-mono">{b.delivery_days}d</Td>
-                  <Td className="max-w-md truncate" title={b.proposal}>{b.proposal}</Td>
-                  <Td><StatusBadge status={b.status} /></Td>
-                  <Td>
-                    {canManage && tender.status === "open" && (
-                      <button data-testid={`award-bid-${b.id}`} onClick={() => onAward(b.id)} className="text-sm bg-primary text-white px-3 py-1.5 hover:-translate-y-0.5 transition-transform">Award</button>
-                    )}
-                  </Td>
-                </tr>
+                <td key={b.id} className={`px-3 py-3 font-mono font-bold ${isLowTotal ? "bg-primary text-white" : ""}`}>
+                  {b.price_currency} {Number(b.price_amount).toLocaleString()}
+                  {isLowTotal && <div className="text-[10px] tracking-widest mt-0.5">LOWEST</div>}
+                </td>
               );
             })}
-          </tbody>
-        </table>
-      </div>
+          </tr>
+          <tr className="border-t bg-white">
+            <td className="px-3 py-2 pmc-label sticky left-0 bg-white">Delivery</td>
+            <td></td>
+            {bids.map((b) => (<td key={b.id} className="px-3 py-2 font-mono text-xs">{b.delivery_days}d</td>))}
+          </tr>
+          <tr className="border-t bg-white">
+            <td className="px-3 py-2 pmc-label sticky left-0 bg-white">Status</td>
+            <td></td>
+            {bids.map((b) => (<td key={b.id} className="px-3 py-2"><StatusBadge status={b.status} /></td>))}
+          </tr>
+          {canManage && tender.status === "open" && (
+            <tr className="border-t bg-white">
+              <td className="px-3 py-2 pmc-label sticky left-0 bg-white">Award</td>
+              <td></td>
+              {bids.map((b) => (
+                <td key={b.id} className="px-3 py-2">
+                  <button data-testid={`award-bid-${b.id}`} onClick={() => onAward(b.id)} className="text-xs bg-primary text-white px-3 py-1.5">Award</button>
+                </td>
+              ))}
+            </tr>
+          )}
+        </tfoot>
+      </table>
+    </div>
+  );
+}
+
+function RfpScoringMatrix({ bids, tender, canManage, onAward, onScored }) {
+  const criteria = tender.evaluation_criteria || [];
+  const [drafts, setDrafts] = useState({});
+  const [saving, setSaving] = useState({});
+
+  const draftFor = (bid) => drafts[bid.id] || bid.rfp_scores || {};
+  const setScore = (bidId, name, val) => setDrafts((s) => ({ ...s, [bidId]: { ...(s[bidId] || {}), [name]: val } }));
+
+  const weightedTotal = (scores) => criteria.reduce((sum, c) => {
+    const s = Number(scores[c.name] || 0);
+    return sum + (Number(c.weight) || 0) * (isNaN(s) ? 0 : s) / 100;
+  }, 0);
+
+  const saveScore = async (bidId) => {
+    setSaving((s) => ({ ...s, [bidId]: true }));
+    try {
+      const scores = draftFor({ id: bidId });
+      const { data } = await api.post(`/bids/${bidId}/score`, { scores });
+      toast.success(`Bid scored · Weighted total: ${data.weighted_total}`);
+      onScored && onScored();
+    } catch (err) { toast.error(formatApiError(err)); }
+    finally { setSaving((s) => ({ ...s, [bidId]: false })); }
+  };
+
+  const bestBidId = bids.reduce((best, b) => {
+    const wt = b.rfp_weighted_total || 0;
+    if (!best || wt > (best.wt || 0)) return { id: b.id, wt };
+    return best;
+  }, null)?.id;
+
+  if (!criteria.length) {
+    return <div className="p-6 text-sm text-muted-foreground">This RFP has no evaluation criteria defined — please add them before scoring bids.</div>;
+  }
+
+  return (
+    <div className="overflow-x-auto" data-testid="rfp-scoring-matrix">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b bg-muted/30">
+            <th className="pmc-label text-left px-3 py-2 sticky left-0 bg-muted/30 min-w-[220px]">Criterion (weight)</th>
+            {bids.map((b) => (
+              <th key={b.id} className="pmc-label text-left px-3 py-2 min-w-[180px]">
+                <div>{b.vendor_company || b.vendor_email}</div>
+                <div className="text-[10px] text-muted-foreground normal-case tracking-normal">{b.vendor_email}</div>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {criteria.map((c, idx) => (
+            <tr key={idx} className="border-b" data-testid={`crit-row-${idx}`}>
+              <td className="px-3 py-2 sticky left-0 bg-white">
+                <div>{c.name}</div>
+                <div className="text-xs text-muted-foreground">{c.description}</div>
+                <div className="pmc-label mt-1 text-primary">{c.weight}%</div>
+              </td>
+              {bids.map((b) => {
+                const val = draftFor(b)[c.name] ?? "";
+                return (
+                  <td key={b.id} className="px-3 py-2">
+                    {canManage ? (
+                      <input
+                        data-testid={`score-${idx}-${b.id}`}
+                        type="number" min="0" max="100" value={val}
+                        onChange={(e) => setScore(b.id, c.name, e.target.value)}
+                        placeholder="0–100"
+                        className="w-20 h-9 px-2 border border-input bg-white font-mono focus:border-primary focus:outline-none"
+                      />
+                    ) : (
+                      <span className="font-mono">{val || "—"}</span>
+                    )}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr className="border-t-2 border-foreground bg-muted/40">
+            <td className="px-3 py-3 pmc-label sticky left-0 bg-muted/40">Weighted total</td>
+            {bids.map((b) => {
+              const wt = weightedTotal(draftFor(b));
+              const isBest = b.id === bestBidId;
+              return (
+                <td key={b.id} className={`px-3 py-3 font-mono font-bold ${isBest && b.rfp_weighted_total ? "bg-primary text-white" : ""}`} data-testid={`total-${b.id}`}>
+                  {wt.toFixed(2)} / 100
+                  {isBest && b.rfp_weighted_total > 0 && <div className="text-[10px] tracking-widest mt-0.5">TOP</div>}
+                </td>
+              );
+            })}
+          </tr>
+          <tr className="border-t bg-white">
+            <td className="px-3 py-2 pmc-label sticky left-0 bg-white">Commercial (price)</td>
+            {bids.map((b) => (
+              <td key={b.id} className="px-3 py-2 font-mono text-xs">{b.price_currency} {Number(b.price_amount).toLocaleString()} · {b.delivery_days}d</td>
+            ))}
+          </tr>
+          {canManage && (
+            <tr className="border-t bg-white">
+              <td className="px-3 py-2 pmc-label sticky left-0 bg-white">Actions</td>
+              {bids.map((b) => (
+                <td key={b.id} className="px-3 py-2 flex gap-2">
+                  <button data-testid={`save-score-${b.id}`} onClick={() => saveScore(b.id)} disabled={saving[b.id]}
+                    className="text-xs border border-foreground px-3 py-1.5 hover:bg-foreground hover:text-white disabled:opacity-60">
+                    {saving[b.id] ? "Saving..." : "Save score"}
+                  </button>
+                  {tender.status === "open" && (
+                    <button data-testid={`award-bid-${b.id}`} onClick={() => onAward(b.id)} className="text-xs bg-primary text-white px-3 py-1.5">Award</button>
+                  )}
+                </td>
+              ))}
+            </tr>
+          )}
+        </tfoot>
+      </table>
     </div>
   );
 }

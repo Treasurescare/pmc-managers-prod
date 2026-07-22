@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import DashboardLayout from "@/components/app/DashboardLayout";
+import DateTimePicker from "@/components/app/DateTimePicker";
 import api, { formatApiError } from "@/lib/api";
 import { toast } from "sonner";
-import { CURRENCIES, TENDER_CATEGORY_FLAT, COUNTRIES } from "@/data/countries";
+import { CURRENCIES, TENDER_CATEGORY_FLAT, GENERAL_CATEGORIES, COUNTRIES } from "@/data/countries";
 import { Upload, X, ShieldAlert, Plus, Trash2 } from "lucide-react";
 
 const DOC_TYPES = [
@@ -49,6 +50,18 @@ export default function CreateTender() {
   const [form, setForm] = useState({ ...empty, document_type: initialType });
 
   useEffect(() => { setForm((s) => ({ ...s, document_type: initialType })); }, [initialType]);
+  // Category mode: "kz" (industry) or "general". Default to general for RFP, kz for tender/rfq.
+  const [categoryMode, setCategoryMode] = useState(initialType === "rfp" ? "general" : "kz");
+  useEffect(() => {
+    setCategoryMode(initialType === "rfp" ? "general" : "kz");
+  }, [initialType]);
+  const currentCategoryList = categoryMode === "kz" ? TENDER_CATEGORY_FLAT : GENERAL_CATEGORIES;
+  useEffect(() => {
+    if (!currentCategoryList.includes(form.category)) {
+      setForm((s) => ({ ...s, category: currentCategoryList[0] }));
+    }
+    // eslint-disable-next-line
+  }, [categoryMode]);
 
   useEffect(() => {
     api.get("/reference/kz-licenses").then(({ data }) => {
@@ -104,6 +117,11 @@ export default function CreateTender() {
     }
     setBusy(true);
     try {
+      if (!form.submission_deadline) {
+        toast.error("Please pick a submission deadline.");
+        setBusy(false);
+        return;
+      }
       const payload = {
         ...form,
         budget_amount: form.budget_amount ? Number(form.budget_amount) : null,
@@ -164,14 +182,28 @@ export default function CreateTender() {
         <div className="grid md:grid-cols-2 gap-5">
           <div>
             <label className="pmc-label block mb-2">Category</label>
+            <div className="grid grid-cols-2 gap-0 border mb-2 max-w-xs">
+              <button type="button" data-testid="catmode-kz" onClick={() => setCategoryMode("kz")}
+                className={`px-3 py-1.5 text-xs border-r transition-colors ${categoryMode === "kz" ? "bg-primary text-white" : "hover:bg-muted/40"}`}>
+                KZ Industry
+              </button>
+              <button type="button" data-testid="catmode-general" onClick={() => setCategoryMode("general")}
+                className={`px-3 py-1.5 text-xs transition-colors ${categoryMode === "general" ? "bg-primary text-white" : "hover:bg-muted/40"}`}>
+                General / Consulting
+              </button>
+            </div>
             <select data-testid="ct-category" value={form.category} onChange={set("category")} className="w-full h-12 px-4 border border-input bg-white focus:border-primary focus:outline-none">
-              {TENDER_CATEGORY_FLAT.map((c) => <option key={c} value={c}>{c}</option>)}
+              {currentCategoryList.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
           <div>
             <label className="pmc-label block mb-2">Submission deadline</label>
-            <input data-testid="ct-deadline" type="datetime-local" required min={minDate} value={form.submission_deadline} onChange={set("submission_deadline")}
-              className="w-full h-12 px-4 border border-input focus:border-primary focus:outline-none bg-white" />
+            <DateTimePicker
+              value={form.submission_deadline}
+              onChange={(v) => setForm((s) => ({ ...s, submission_deadline: v }))}
+              min={new Date(Date.now() + 24 * 3600 * 1000)}
+              testid="ct-deadline"
+            />
           </div>
           <div>
             <label className="pmc-label block mb-2">Budget currency</label>
@@ -308,8 +340,7 @@ export default function CreateTender() {
             <div className="grid md:grid-cols-2 gap-4 mt-4">
               <div>
                 <label className="pmc-label block mb-1">Pre-bid meeting date</label>
-                <input data-testid="rfp-prebid" type="datetime-local" value={form.pre_bid_meeting_date} onChange={set("pre_bid_meeting_date")}
-                  className="w-full h-11 px-3 border border-input bg-white focus:border-primary focus:outline-none" />
+                <DateTimePicker value={form.pre_bid_meeting_date} onChange={(v) => setForm((s) => ({ ...s, pre_bid_meeting_date: v }))} testid="rfp-prebid" />
               </div>
               <div>
                 <label className="pmc-label block mb-1">Bid bond amount (USD)</label>

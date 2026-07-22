@@ -4,7 +4,7 @@ import DashboardLayout from "@/components/app/DashboardLayout";
 import api from "@/lib/api";
 import StatusBadge from "@/components/app/StatusBadge";
 import { useAuth } from "@/context/AuthContext";
-import { BUSINESS_CATEGORIES, TENDER_CATEGORY_FLAT } from "@/data/countries";
+import { BUSINESS_CATEGORIES, ALL_CATEGORY_FLAT } from "@/data/countries";
 
 export default function TenderList() {
   const { user } = useAuth();
@@ -49,7 +49,7 @@ export default function TenderList() {
           <label className="pmc-label mb-2 block">Category</label>
           <select data-testid="tender-filter-category" value={category} onChange={(e) => setCategory(e.target.value)} className="w-full h-10 px-3 border border-input bg-white text-sm">
             <option value="all">All</option>
-            {TENDER_CATEGORY_FLAT.map((c) => <option key={c} value={c}>{c}</option>)}
+            {ALL_CATEGORY_FLAT.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </FilterCell>
         <FilterCell>

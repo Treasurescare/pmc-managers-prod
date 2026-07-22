@@ -264,8 +264,32 @@ export const TENDER_CATEGORIES = [
   ]},
 ];
 
+// General tender categories for consulting, services, IT, and non-KZ-industry work
+export const GENERAL_CATEGORIES = [
+  "Consulting & Advisory",
+  "Legal & Compliance",
+  "Software Development",
+  "IT Services & Maintenance (AMC)",
+  "Cloud & Infrastructure",
+  "Cybersecurity Services",
+  "Marketing & Communications",
+  "Human Resources / Recruitment",
+  "Training & Learning",
+  "Design & Branding",
+  "Event Management",
+  "Office Supplies & Stationery",
+  "Corporate Travel",
+  "Insurance Services",
+  "Financial Audit & Assurance",
+  "Translation & Localization",
+  "Research & Data Services",
+  "General Services",
+  "Other",
+];
+
 // Flat array for the tender-create dropdown.
 export const TENDER_CATEGORY_FLAT = TENDER_CATEGORIES.flatMap((g) => g.items);
+export const ALL_CATEGORY_FLAT = [...TENDER_CATEGORY_FLAT, ...GENERAL_CATEGORIES];
 
 export const DECLARATIONS = [
   {

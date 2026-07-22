@@ -334,6 +334,11 @@ class CheckoutRequest(BaseModel):
     origin_url: str
 
 
+class RfpScoreRequest(BaseModel):
+    scores: Dict[str, float]  # {criterion_name: score(0-100)}
+    notes: Optional[str] = None
+
+
 # ---------- Auth ----------
 @api.post("/auth/register")
 async def register(payload: RegisterUserRequest, response: Response):
@@ -700,6 +705,36 @@ async def list_bids(tender_id: Optional[str] = None, user: dict = Depends(get_cu
             my_tender_ids = [str(t["_id"]) async for t in db.tenders.find({"created_by": user["id"]}, {"_id": 1})]
             q["tender_id"] = {"$in": my_tender_ids}
     return [_bid_out(b) async for b in db.bids.find(q).sort("created_at", -1)]
+
+
+@api.post("/bids/{bid_id}/score")
+async def score_bid(bid_id: str, payload: RfpScoreRequest, user: dict = Depends(require_role("buyer", "admin"))):
+    bid = await db.bids.find_one({"_id": ObjectId(bid_id)})
+    if not bid:
+        raise HTTPException(status_code=404, detail="Bid not found")
+    tender = await db.tenders.find_one({"_id": ObjectId(bid["tender_id"])})
+    if not tender:
+        raise HTTPException(status_code=404, detail="Tender not found")
+    if user["role"] != "admin" and tender.get("created_by") != user["id"]:
+        raise HTTPException(status_code=403, detail="Not your tender")
+    if tender.get("document_type") != "rfp":
+        raise HTTPException(status_code=400, detail="Scoring is only available for RFP")
+
+    criteria = tender.get("evaluation_criteria") or []
+    # Compute weighted total: sum(weight * score / 100)
+    weighted_total = 0.0
+    for c in criteria:
+        s = float(payload.scores.get(c["name"], 0) or 0)
+        s = max(0.0, min(100.0, s))
+        weighted_total += float(c.get("weight") or 0) * s / 100.0
+    await db.bids.update_one({"_id": ObjectId(bid_id)}, {"$set": {
+        "rfp_scores": payload.scores,
+        "rfp_notes": payload.notes,
+        "rfp_weighted_total": round(weighted_total, 2),
+        "scored_by": user["id"],
+        "scored_at": now_iso(),
+    }})
+    return {"ok": True, "weighted_total": round(weighted_total, 2)}
 
 
 @api.post("/bids/{bid_id}/award")
