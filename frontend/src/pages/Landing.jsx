@@ -47,7 +47,7 @@ export default function Landing() {
           <div className="mt-24 lg:mt-0 space-y-8" data-testid="landing-hero">
             <div className="pmc-pill pmc-pill-navy" data-testid="landing-hero-pill">
               <span>Est. 2026</span>
-              <span className="opacity-40">•</span>
+              <span className="opacity-40">·</span>
               <span>30+ Jurisdictions</span>
             </div>
 
@@ -93,7 +93,7 @@ export default function Landing() {
 
             <div className="space-y-6" data-testid="landing-stats">
               <StatRow label="Open Tenders" value={stats?.tenders_open ?? "—"} testid="stat-tenders" />
-              <StatRow label="Vetted Vendors" value={stats?.vendors_total ?? "—"} testid="stat-vendors" />
+              <StatRow label="Vetted Vendors" value={stats?.vendors_approved ?? "—"} testid="stat-vendors" />
               <StatRow label="Board Liquidity" value={stats?.board_liquidity || "$4.2B"} testid="stat-liquidity" />
             </div>
 
