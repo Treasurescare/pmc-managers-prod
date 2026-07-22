@@ -549,8 +549,11 @@ def _tender_out(doc: dict) -> dict:
 async def create_tender(payload: TenderIn, user: dict = Depends(require_role("buyer", "admin"))):
     doc = payload.model_dump()
     # Server-side validation for RFP evaluation weights
-    if doc.get("document_type") == "rfp" and doc.get("evaluation_criteria"):
-        total = sum(float(c.get("weight") or 0) for c in doc["evaluation_criteria"])
+    if doc.get("document_type") == "rfp":
+        criteria = doc.get("evaluation_criteria") or []
+        if len(criteria) == 0:
+            raise HTTPException(status_code=400, detail="RFP must have at least one evaluation criterion.")
+        total = sum(float(c.get("weight") or 0) for c in criteria)
         if abs(total - 100) > 0.001:
             raise HTTPException(status_code=400, detail=f"Evaluation criteria weights must sum to 100 (got {total}).")
     # Auto-attach required KZ licenses from map if delivery_country=KZ

@@ -61,7 +61,7 @@ export default function DateTimePicker({ value, onChange, min, testid, placehold
             type="time" value={timeString} onChange={(e) => setTime(e.target.value)}
             className="h-10 px-3 border border-input font-mono text-sm bg-white"
           />
-          <button type="button" onClick={() => setOpen(false)} className="ml-auto text-xs px-3 py-1.5 bg-foreground text-white">Done</button>
+          <button type="button" data-testid={`${testid}-done`} onClick={() => setOpen(false)} className="ml-auto text-xs px-3 py-1.5 bg-foreground text-white">Done</button>
         </div>
       </PopoverContent>
     </Popover>
