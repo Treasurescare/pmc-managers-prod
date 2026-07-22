@@ -79,9 +79,12 @@ export default function CreateTender() {
 
   // P1 — Load departments for approval workflow assignment
   const [departments, setDepartments] = useState([]);
+  const [orgs, setOrgs] = useState([]);
   useEffect(() => {
     api.get("/departments").then(({ data }) => setDepartments(data)).catch(() => {});
+    api.get("/orgs").then(({ data }) => setOrgs(data)).catch(() => {});
   }, []);
+  const orgMap = orgs.reduce((m, o) => { m[o.id] = o; return m; }, {});
 
   const set = (k) => (e) => setForm((s) => ({ ...s, [k]: e.target.value }));
   const suggestedKz = form.delivery_country === "KZ" ? (kzMap[form.category] || []) : [];
@@ -397,7 +400,11 @@ export default function CreateTender() {
               <select data-testid="ct-department" value={form.department_id} onChange={set("department_id")}
                 className="w-full h-11 px-3 border border-input bg-white">
                 <option value="">— None —</option>
-                {departments.map((d) => <option key={d.id} value={d.id}>{d.name} ({d.code})</option>)}
+                {departments.map((d) => {
+                  const org = orgMap[d.org_id];
+                  const label = org ? `${org.code} · ${d.name} (${d.code})` : `${d.name} (${d.code})`;
+                  return <option key={d.id} value={d.id}>{label}</option>;
+                })}
               </select>
               <div className="text-xs text-muted-foreground mt-1">Approval chain is inherited from the department's budget thresholds.</div>
             </div>
