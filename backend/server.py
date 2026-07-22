@@ -548,8 +548,9 @@ async def get_vendor_profile(user: dict = Depends(require_role("vendor"))):
 
 # ---------- Admin: vendor mgmt ----------
 @api.get("/admin/vendors")
-async def list_vendors(user: dict = Depends(require_role("admin"))):
-    return [_serialize_user(u) async for u in db.users.find({"role": "vendor"}).sort("created_at", -1)]
+async def list_vendors(limit: int = 200, user: dict = Depends(require_role("admin"))):
+    limit = max(1, min(int(limit), 500))
+    return [_serialize_user(u) async for u in db.users.find({"role": "vendor"}).sort("created_at", -1).limit(limit)]
 
 
 @api.post("/admin/vendors/{vendor_id}/approve")
@@ -681,7 +682,10 @@ async def create_tender(payload: TenderIn, user: dict = Depends(require_role("bu
     # Notify approved vendors matching category / no filter — quick MVP fan-out
     # Emails go out in a background task so the POST doesn't block on Resend latency.
     async def _fanout_new_tender(tender_id: str, title: str, category: str, deadline: str):
-        async for v in db.users.find({"role": "vendor", "vendor_status": "approved"}):
+        async for v in db.users.find(
+            {"role": "vendor", "vendor_status": "approved"},
+            {"_id": 1, "email": 1}
+        ).limit(500):
             await create_notification(str(v["_id"]), "New tender published",
                                       f"{title} — {category}", f"/tenders/{tender_id}")
             try:
@@ -708,7 +712,7 @@ async def create_tender(payload: TenderIn, user: dict = Depends(require_role("bu
 
 
 @api.get("/tenders")
-async def list_tenders(mine: bool = False, document_type: Optional[str] = None, user: dict = Depends(get_current_user)):
+async def list_tenders(mine: bool = False, document_type: Optional[str] = None, limit: int = 200, user: dict = Depends(get_current_user)):
     q: dict = {}
     if document_type:
         q["document_type"] = document_type
@@ -716,7 +720,8 @@ async def list_tenders(mine: bool = False, document_type: Optional[str] = None, 
         q["created_by"] = user["id"]
     elif user["role"] == "vendor":
         q["status"] = "open"
-    return [_tender_out(t) async for t in db.tenders.find(q).sort("created_at", -1)]
+    limit = max(1, min(int(limit), 500))
+    return [_tender_out(t) async for t in db.tenders.find(q).sort("created_at", -1).limit(limit)]
 
 
 @api.get("/tenders/{tender_id}")
@@ -864,7 +869,7 @@ async def create_bid(payload: BidIn, user: dict = Depends(require_role("vendor")
 
 
 @api.get("/bids")
-async def list_bids(tender_id: Optional[str] = None, user: dict = Depends(get_current_user)):
+async def list_bids(tender_id: Optional[str] = None, limit: int = 500, user: dict = Depends(get_current_user)):
     q: dict = {}
     tender_map: dict = {}
     if tender_id:
@@ -882,14 +887,20 @@ async def list_bids(tender_id: Optional[str] = None, user: dict = Depends(get_cu
         if user["role"] == "vendor":
             q["vendor_id"] = user["id"]
         elif user["role"] == "buyer":
-            my_tender_ids = [str(t["_id"]) async for t in db.tenders.find({"created_by": user["id"]}, {"_id": 1})]
+            my_tender_ids = [str(t["_id"]) async for t in db.tenders.find({"created_by": user["id"]}, {"_id": 1}).limit(500)]
             q["tender_id"] = {"$in": my_tender_ids}
+    limit = max(1, min(int(limit), 1000))
+    # First, gather bid docs
+    bid_docs: List[dict] = [b async for b in db.bids.find(q).sort("created_at", -1).limit(limit)]
+    # Pre-fetch all needed tenders in one query to avoid N+1
+    missing_tids = list({b.get("tender_id") for b in bid_docs if b.get("tender_id") and b["tender_id"] not in tender_map})
+    if missing_tids:
+        async for t in db.tenders.find({"_id": {"$in": [ObjectId(x) for x in missing_tids]}}):
+            tender_map[str(t["_id"])] = t
     out = []
-    async for b in db.bids.find(q).sort("created_at", -1):
+    for b in bid_docs:
         tid = b.get("tender_id")
-        t = tender_map.get(tid) or await db.tenders.find_one({"_id": ObjectId(tid)}) if tid else None
-        if tid and t:
-            tender_map[tid] = t
+        t = tender_map.get(tid) if tid else None
         if t and t.get("two_envelope"):
             is_owner = user["role"] == "vendor" and b.get("vendor_id") == user["id"]
             out.append(_mask_bid_for_two_envelope(b, t, user["role"], is_owner))
@@ -1507,14 +1518,14 @@ async def feed_tenders(
 @api.get("/feed/unread-count")
 async def feed_unread_count(user: dict = Depends(get_current_user)):
     u = await db.users.find_one({"_id": ObjectId(user["id"])}, {"read_tender_ids": 1})
-    read_set = set((u or {}).get("read_tender_ids") or [])
+    read_ids = [x for x in ((u or {}).get("read_tender_ids") or []) if ObjectId.is_valid(x)]
     total_open = await db.tenders.count_documents({"status": {"$in": ["open", "awarded"]}})
-    # Count how many tender ids exist that are NOT read
-    unread = 0
-    if total_open:
-        async for t in db.tenders.find({"status": {"$in": ["open", "awarded"]}}, {"_id": 1}):
-            if str(t["_id"]) not in read_set:
-                unread += 1
+    # Count via NOT-in-read set (single count query — no Python-side loop)
+    read_object_ids = [ObjectId(x) for x in read_ids]
+    unread = await db.tenders.count_documents({
+        "status": {"$in": ["open", "awarded"]},
+        "_id": {"$nin": read_object_ids},
+    }) if total_open else 0
     return {"unread": unread, "total": total_open}
 
 
