@@ -1,148 +1,122 @@
 {
-  "project_name": "PMC Managers Limited",
-  "design_archetype": "Swiss & High-Contrast + Old Money Tech Hybrid",
-  "theme": "Light mode primary for dashboards (dense data legibility) with striking Dark Mode hero on Landing Page.",
+  "theme": "institutional_enterprise",
   "typography": {
-    "strategy": "Old Money Tech. Classic Serif for authority and trust, paired with highly readable sterile sans-serif for dense procurement tables.",
     "fonts": {
-      "headings": {
-        "family": "Playfair Display, serif",
-        "weights": ["400", "600", "900"],
-        "usage": "H1, H2, Dashboard Main Titles, Landing Page Hero."
-      },
-      "body": {
-        "family": "IBM Plex Sans, sans-serif",
-        "weights": ["400", "500", "600"],
-        "usage": "Forms, tooltips, paragraphs, table data, general UI."
-      },
-      "mono": {
-        "family": "JetBrains Mono, monospace",
-        "weights": ["400", "700"],
-        "usage": "Tender IDs, Countdown Timers, Currencies, Pricing."
-      }
+      "display": "'Libre Baskerville', serif",
+      "body": "'IBM Plex Sans', sans-serif"
     },
-    "hierarchy": {
-      "h1": "text-5xl sm:text-6xl tracking-tighter leading-none font-black",
-      "h2": "text-3xl sm:text-4xl tracking-tight leading-tight",
-      "h3": "text-xl sm:text-2xl tracking-tight",
-      "h4": "text-lg sm:text-xl font-semibold",
-      "body": "text-base leading-relaxed",
-      "small_labels": "text-xs tracking-[0.2em] uppercase font-semibold text-muted-foreground",
-      "tender_id": "font-mono text-sm tracking-tight text-primary"
-    }
-  },
-  "colors": {
-    "strategy": "Authority, Clarity, Truth. High contrast monochrome core with one striking brand color and semantic status colors.",
-    "palette": {
-      "background": {
-        "light": "#FDFDFD",
-        "dark": "#050505",
-        "muted_light": "#F4F4F5",
-        "muted_dark": "#121212"
-      },
-      "foreground": {
-        "light": "#09090B",
-        "dark": "#FAFAFA",
-        "muted_light": "#52525B",
-        "muted_dark": "#A1A1AA"
-      },
-      "primary": {
-        "DEFAULT": "#0033A0",
-        "hover": "#00267D",
-        "foreground": "#FFFFFF",
-        "description": "Deep Sapphire Blue - instills global trust and corporate stability."
-      },
-      "border": {
-        "light": "#E4E4E7",
-        "dark": "#27272A"
-      },
-      "status": {
-        "success": "#10B981",
-        "warning": "#F59E0B",
-        "destructive": "#EF4444",
-        "info": "#3B82F6"
-      }
+    "scale": {
+      "h1_hero": "text-5xl lg:text-6xl font-normal tracking-tight font-display",
+      "h1_page": "text-4xl font-normal tracking-tight font-display",
+      "h2": "text-2xl lg:text-3xl font-normal tracking-tight font-display",
+      "h3": "text-xl font-normal font-display",
+      "body": "text-sm lg:text-base leading-relaxed font-body",
+      "kicker": "text-[0.625rem] md:text-xs uppercase tracking-[0.15em] lg:tracking-[0.25em] font-body font-medium text-brand-navy-soft",
+      "stat_number": "text-4xl lg:text-5xl font-light font-display"
     },
     "rules": [
-      "Never use pure black or white; always tint slightly with the base neutral (Zinc).",
-      "Use #0033A0 strictly for primary CTAs and active states.",
-      "No full-screen gradients. Use solid colors or very subtle noise textures.",
-      "Forbidden colors: Teal Blue (#1B93A4) and AI Purple (#7351B7)."
+      "Use font-style: italic for accent phrases in headlines (e.g., 'Procurement that *travels borders*').",
+      "Kickers and pills must be strictly uppercase with heavy letter-spacing.",
+      "Stats and big numbers use Libre Baskerville weight 300.",
+      "Tables must use monospaced numbers (font-variant-numeric: tabular-nums) within IBM Plex Sans.",
+      "Never use Inter or Roboto."
     ]
   },
-  "visual_enhancers": {
-    "surfaces": "Sharp edges, cardless design. 0px border-radius globally for a Brutalist/Swiss functional aesthetic.",
-    "borders": "1px solid #E4E4E7 everywhere. Expose the grid in dashboards (Grid Borders pattern).",
-    "shadows": "None. Rely on 1px borders for separation. If floating (e.g., dropdowns), use a sharp hard shadow: shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]",
-    "textures": "Use subtle SVG noise overlays on the dark landing page hero to kill digital flatness.",
-    "glassmorphism": "Only use for sticky dashboard headers: backdrop-blur-xl bg-white/70 with a 1px border-b."
+  "colors": {
+    "brand_navy": "#0f1b3d",
+    "brand_navy_deep": "#1e3a5f",
+    "brand_navy_soft": "#3b6fa0",
+    "brand_pale": "#e8edf3",
+    "brand_surface": "#ffffff",
+    "success_dot": "#22c55e",
+    "success_label": "#4ade80",
+    "warning": "#f59e0b",
+    "destructive": "#ef4444",
+    "usage": [
+      "No purple/violet gradients. No AI-slop color palettes.",
+      "Sidebar and hero left-split MUST use brand_navy (#0f1b3d).",
+      "Main content background uses brand_pale (#e8edf3) for a newspaper-like contrast.",
+      "Cards and widgets use brand_surface (#ffffff).",
+      "Accents, active borders, and primary buttons use brand_navy_soft (#3b6fa0)."
+    ]
   },
-  "grids_and_layouts": {
-    "spacing_scale": "Generous. p-6, p-8, p-12. Containers must have internal padding (p-8).",
-    "landing_page": "Bento 'Tetris' Grid. Asymmetrical grid-cols-12 layout. Massive typography overlapping structural grid lines.",
-    "dashboard": {
-      "structure": "Sidebar left (w-64, dark mode surface), Main content right (light mode surface).",
-      "data_tables": "High-density. sticky header, sticky first column (Tender ID). Right-align numeric columns. Compact row height (h-10). Cardless rows with border-b.",
-      "bid_comparison": "Horizontal scroll container. Vendor columns max-w-[300px]. Highlight 'Lowest Bid' with a subtle primary background tint."
-    },
-    "forms": "Multi-step registration. Vertical minimal stepper on the left, large cardless form fields on the right. 1-column on mobile, 2-column grid for standard inputs on desktop."
-  },
-  "component_strategies": {
-    "buttons": "Sharp corners (rounded-none). Primary: bg-primary text-white hover:-translate-y-0.5 transition-transform. Secondary: bg-transparent border border-primary text-primary.",
-    "inputs": "Shadcn based. rounded-none, h-12, focus:ring-2 focus:ring-primary focus:border-transparent.",
-    "tables": "Shadcn Table heavily customized. Remove outside borders, keep only horizontal row dividers. Use small caps for column headers.",
-    "cards": "Do not use standard elevated cards. Use flat div containers with border-l-4 border-primary bg-muted/30 for emphasis, or standard 1px borders.",
-    "badges": "Square corners, text-xs tracking-wider uppercase. E.g., bg-success/10 text-success border border-success/20.",
-    "modals_dialogs": "Shadcn Dialog. Sharp corners, backdrop-blur-sm on the overlay."
-  },
-  "motion_and_interactions": {
-    "hover_states": "Buttons lift slightly (-translate-y-0.5) with a hard drop shadow appearing.",
-    "page_transitions": "Framer Motion: subtle fade and slide up (y: 10, opacity: 0 -> y: 0, opacity: 1).",
-    "data_tables": "Hovering a row slightly darkens the background (bg-muted/50).",
-    "loading": "Use a sharp horizontal progress bar fixed to the top of the screen instead of generic spinners."
-  },
-  "media_and_images": {
-    "rules": "High-quality, realistic corporate and logistics photography. Do not use generic 3D illustrations.",
-    "image_urls": {
-      "hero_background": {
-        "url": "https://images.unsplash.com/photo-1494412519320-aa613dfb7738?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1OTV8MHwxfHNlYXJjaHw0fHxnbG9iYWwlMjBsb2dpc3RpY3MlMjBzaGlwcGluZyUyMGNvbnRhaW5lcnMlMjBjYXJnb3xlbnwwfHx8fDE3ODQ3MDc2Njh8MA&ixlib=rb-4.1.0&q=85",
-        "description": "Aerial view of shipping container yard. Use with heavy dark overlay (bg-black/60) for landing page hero."
-      },
-      "registration_sidebar": {
-        "url": "https://images.unsplash.com/photo-1623051786552-e46ef84e6c07?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzh8MHwxfHNlYXJjaHw0fHxtb2Rlcm4lMjBjb3Jwb3JhdGUlMjBvZmZpY2UlMjBnbGFzcyUyMGFyY2hpdGVjdHVyZXxlbnwwfHx8fDE3ODQ3MDc2Njd8MA&ixlib=rb-4.1.0&q=85",
-        "description": "Modern corporate glass office. Use as a sticky visual on the left side of the multi-step registration flow."
-      },
-      "about_us": {
-        "url": "https://images.unsplash.com/photo-1622675363311-3e1904dc1885?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODh8MHwxfHNlYXJjaHwxfHxidXNpbmVzcyUyMHByb2Zlc3Npb25hbHMlMjBtZWV0aW5nJTIwZGl2ZXJzZXxlbnwwfHx8fDE3ODQ3MDc2Njh8MA&ixlib=rb-4.1.0&q=85",
-        "description": "Diverse professionals meeting. Use for trust-building sections on the marketing site."
-      }
+  "spacing_and_layout": {
+    "scale": "Compact enterprise spacing: use Tailwind standard 4, 8, 16, 24, 48, 96, but apply padding heavily to containers and sparingly to dense data.",
+    "borders": "Sharp corners everywhere (rounded-none). The ONLY exception is pill badges which are rounded-full.",
+    "shadows": {
+      "primary_btn": "0 10px 25px -5px rgba(15,27,61,0.25)",
+      "card_ambient": "0 4px 6px -1px rgba(15,27,61,0.05), 0 2px 4px -1px rgba(15,27,61,0.03)"
     }
   },
-  "accessibility": {
-    "contrast": "Strict APCA/WCAG AA compliance. Dark text on light backgrounds.",
-    "focus": "All interactive elements MUST have focus:ring-2 focus:ring-primary focus:outline-none.",
-    "testing_attributes": "All interactive and key informational elements MUST include a data-testid attribute (e.g., data-testid='tender-submit-btn').",
-    "aria": "Use aria-live for the countdown timer. aria-hidden on purely decorative images."
+  "component_patterns": {
+    "buttons": {
+      "primary": "bg-brand-navy-soft text-white shadow-[0_10px_25px_-5px_rgba(15,27,61,0.25)] hover:bg-opacity-90 rounded-none inline-flex items-center gap-3 px-6 py-3 font-body font-medium uppercase tracking-wider text-sm",
+      "secondary": "bg-transparent text-white border border-brand-navy-soft/50 hover:bg-brand-navy-soft/10 rounded-none inline-flex items-center gap-3 px-6 py-3 font-body uppercase tracking-wider text-sm",
+      "dark": "bg-brand-navy text-white hover:bg-brand-navy-deep rounded-none inline-flex items-center gap-3 px-6 py-3 font-body uppercase tracking-wider text-sm"
+    },
+    "cards": {
+      "default": "bg-white border border-gray-200 rounded-none hover:border-brand-navy-soft transition-colors duration-300 shadow-sm",
+      "frosted_live_card": "backdrop-blur-xl bg-brand-navy/80 border border-white/10 rounded-none absolute z-10 p-6 md:p-8 shadow-2xl"
+    },
+    "pills": "rounded-full uppercase text-[0.625rem] tracking-[0.15em] px-3 py-1 bg-gray-100 text-brand-navy font-medium border border-gray-200",
+    "tables": "Dense, sharp borders, sticky headers. th: bg-gray-50 text-xs uppercase tracking-wider text-gray-500 font-body. td: text-sm text-gray-900 border-b border-gray-100 hover:bg-brand-navy/[0.04] tabular-nums",
+    "stat_blocks": "Kicker/label above in uppercase. Big number in Libre Baskerville 300. Optional left border color-bar (4px wide)."
+  },
+  "micro_motion": {
+    "live_pulse": "Green dot pulses using 2s cubic-bezier. Animate a ring expanding and fading.",
+    "scroll_reveal": "Live card fades up on scroll (opacity 0 -> 1, translateY 1.5rem -> 0 over 0.8s).",
+    "hover_states": "Cards border-color transition to navy-soft. Table rows get 4% navy tint. Keep transition durations under 300ms."
+  },
+  "page_layouts": {
+    "landing_page": {
+      "hero": "Split layout. Left: brand_navy, logo top-left, pill 'Est. 2026 · 30+ Jurisdictions', serif headline 'Procurement that *travels borders*.', body text, dual CTAs. Right: full-bleed image (hero-containers.jpg) with linear-gradient(to right, #0f1b3d, #0f1b3d 20%, transparent) overlay.",
+      "frosted_card": "Absolutely positioned over the hero image. 3 stat rows (Open Tenders, Vetted Vendors, Board Liquidity), large Libre Baskerville numbers, green pulsing LIVE badge.",
+      "section_2": "Grid cols 4fr/8fr. Left: kicker + serif title 'One board. Every jurisdiction.' + body. Right: 3 feature cards with icons (1px borders, hover border-color navy-soft).",
+      "section_3": "Grid cols 4fr/8fr. Left: primary CTA. Right: numbered step-list 'From registration to award, in four moves.' (01/02/03/04 in accent color).",
+      "footer": "brand_navy background. Centered serif title 'Ready to bid across borders?', body text, dual CTAs."
+    },
+    "auth_pages": {
+      "layout": "Split layout. Left: brand_navy, logo lockup, tagline 'Global Tender Board', subtle image excerpt, testimonial. Right: form on brand_pale, sharp inputs, serif headline 'Welcome back.' with italic."
+    },
+    "dashboard_shell": {
+      "sidebar": "Left sidebar, 280px width, brand_navy background. Logo + role at top. Nav items: icon + label, active state gets 4px left border brand_navy_soft + slight pale-gray text lift. Bottom: 'Signed in as' + logout.",
+      "header": "Top header, white bg, pmc-label kicker + serif page title + primary action button. Subtle bottom border.",
+      "right_rail": "TenderFeed component. 280-320px width, white bg, border-l border-gray-200, navy accents on badges. Use green #22c55e for live pulse."
+    },
+    "tender_detail": {
+      "layout": "Two-column. Main: doc-type + status pill, kicker + serif H1, description, RFP evaluation framework, addenda accordion, Q&A thread, dense bid comparison table. Right rail: Budget card (FX chip), deadline, attachments.",
+      "comparison_table": "Sticky left column, monospaced numbers, LOWEST/TOP labels in brand_navy_soft uppercase 10px, SEALED cell shows pmc-label muted uppercase.",
+      "panels": "Two-envelope panel and approval panel styled as bordered blocks with left-4-color-bar (warning for pending, primary for two-envelope)."
+    },
+    "dashboards": {
+      "layout": "4-column KPI/stat grid at top (each: pmc-label kicker + Libre Baskerville big number + tiny sub-text + optional left color-bar). Below: data table for recent activity.",
+      "buyer": "Primary CTA 'New Tender' in header (big navy-soft button).",
+      "vendor": "Registration-status banner if not yet approved."
+    }
   },
   "instructions_to_main_agent": {
-    "1": "Initialize a React + Tailwind + Vite/Next.js environment. Add Framer Motion and Lucide React (or Phosphor Icons).",
-    "2": "Setup routing for Landing, Login, Registration, Admin Dashboard, Buyer Dashboard, Vendor Dashboard.",
-    "3": "Implement custom typography configuration in tailwind.config.js (Playfair Display, IBM Plex Sans, JetBrains Mono).",
-    "4": "Build pure HTML/Tailwind for the Marketing pages to allow asymmetric layouts.",
-    "5": "Install Shadcn UI primitives for Dashboard elements (Table, Dialog, Tabs, Form, Select). Customize to remove border-radius.",
-    "6": "Implement the multi-step registration form using complex state management, ensuring country-specific ID fields conditionally render based on the selected country.",
-    "7": "Build high-density data tables for the Tender listings and Bid comparisons. Ensure sticky headers and left-aligned identifiers.",
-    "8": "Use 'lucide-react' for all iconography. Keep icons functional and sparse.",
-    "9": "Ensure all form actions, buttons, and navigation links include standard data-testid attributes."
+    "assets": "Ensure logo is placed at /frontend/public/pmc-logo.png and hero image at /frontend/public/hero-containers.jpg. Reference these directly in img tags.",
+    "fonts": "You MUST add `<link href='https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap' rel='stylesheet'>` to /frontend/public/index.html inside the <head> tag.",
+    "tailwind_config": "Update tailwind.config.js to include colors: brand-navy (#0f1b3d), brand-navy-deep (#1e3a5f), brand-navy-soft (#3b6fa0), brand-pale (#e8edf3), brand-surface (#ffffff). Extend fonts with 'display': ['Libre Baskerville', 'serif'] and 'body': ['IBM Plex Sans', 'sans-serif'].",
+    "css_globals": "In index.css, set body { font-family: 'IBM Plex Sans', sans-serif; background-color: #e8edf3; }. Create utility classes `.btn-primary`, `.btn-secondary`, `.btn-dark` with exactly the requested shadow and sharp borders.",
+    "components_ui": "When using Shadcn components (Cards, Buttons, Inputs, Tables), manually strip out 'rounded-md', 'rounded-lg', etc., and replace with 'rounded-none'. Replace any default 'font-sans' or 'Inter' with our typography tokens.",
+    "testing": "CRITICAL: DO NOT REMOVE ANY `data-testid` ATTRIBUTES on any element. This is a visual UI redesign only; the test suite relies on these attributes.",
+    "routing_api": "Preserve all existing routing and API contracts exactly as they are.",
+    "dark_mode": "DO NOT add a user-facing dark-mode toggle. The aesthetic relies on the sidebar being strictly dark (#0f1b3d) and the content area being strictly light."
   },
-  "universal_guidelines": [
-    "You tend to converge toward generic outputs. Break the mold. Make this look like a high-end financial/procurement terminal, not a generic SaaS.",
-    "Create depth through layered design elements with z-index hierarchy, NOT drop shadows.",
-    "You MUST NOT apply universal transition (transition: all). Target specific properties.",
-    "You MUST NOT center align the app container. Text alignment should naturally flow left-to-right.",
-    "Never use AI assistant Emoji characters (🤖🧠💭).",
-    "Every interaction needs micro-animations - hover states, selection states.",
-    "Use 2-3x more spacing than feels comfortable in marketing sections, but use extremely dense, functional spacing in data tables.",
-    "Always use 'sonner' for toasts."
+  "UNIVERSAL_GUIDELINES_FOR_MAIN_AGENT": [
+    "You tend to converge toward generic, 'on distribution' outputs. In frontend design, this creates what users call the 'AI slop' aesthetic. Avoid this: make creative, distinctive frontends that surprise and delight.",
+    "Institutional gravitas means taking inspiration from Bloomberg Terminals and Financial Times: dense information, muted sophisticated palettes, explicit hierarchy.",
+    "Dark colors look good when used independently without gradients. DO NOT use dark colors as gradients.",
+    "Don't make generic centered layouts, simplistic gradients, and uniform styling. Use asymmetric split layouts to create visual tension.",
+    "Create depth through layered design elements with z-index hierarchy (like the frosted Live Tenders card).",
+    "Use glass-morphism effects with backdrop filters (12-24px blur), but never over complex typography where contrast fails.",
+    "You MUST NOT apply universal transition (e.g., transition: all). Apply specific transitions (colors, transform).",
+    "You MUST NOT center align the app container. No '.App { text-align: center; }'.",
+    "Always use SHARP button styles with interaction animations & color relevant to the app style. ONLY use rounded-full for pills/badges.",
+    "NEVER use AI assistant Emoji characters like 🤖🧠💭💡🔮🎯 for icons. Rely exclusively on lucide-react.",
+    "Every interaction needs micro-animations - hover states, transitions, parallax effects, and entrance animations. Static = dead.",
+    "Data tables must be dense and use tabular monospaced numbers. Do not over-pad tables.",
+    "All interactive and key informational elements MUST include a data-testid attribute."
   ]
 }

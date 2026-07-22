@@ -1,82 +1,87 @@
 # PMC Managers Limited — Tender Management Platform (PRD)
 
 ## Original problem statement
-Build a global tender management application titled **PMC Managers Limited**. Vendors register through a Pre-Tender Registration Form (Sections A–E). Solution serves multiple countries with country-specific IDs (Kazakhstan as primary jurisdiction).
+Global tender management application titled **PMC Managers Limited**. Vendors register through a Pre-Tender Registration Form (Sections A–E). Multi-country support with Kazakhstan as primary jurisdiction.
 
 ## User personas
-- **Vendor** — Bidder. Completes KYC. Bids on tenders after approval.
-- **Buyer** — Publishes tenders, evaluates bids, awards contracts.
-- **Admin / Contracts Committee** — PMC Compliance / Procurement office. Approves vendors, signs off tenders, oversees the whole board.
+- **Vendor** — bidder, completes KYC, bids on tenders after approval.
+- **Buyer** — publishes tenders, evaluates bids, awards contracts.
+- **Admin / Contracts Committee** — PMC procurement office. Approves vendors, signs off tenders, manages orgs & departments, audits the ledger.
 
-## Core requirements (static)
+## Deployment
+- Preview: `https://tender-hub-57.preview.emergentagent.com`
+- Production (deployed): `https://tender-hub-57.emergent.host`
+
+## Core requirements
 - Multi-role auth (JWT httpOnly + Emergent Google OAuth)
-- Vendor Pre-Tender Registration Form aligned to Sections A–E of the supplied docx
-- Country-aware Tax/Business ID capture (30 countries, Kazakhstan default)
-- 6 declarations + electronic signature block
-- KYC document uploads (tagged to the required document list)
+- Vendor Pre-Tender Registration (Sections A–E per source docx)
+- 30 countries, KZ tax/business ID default
+- 6 declarations + electronic signature
+- KYC uploads
 - Tender lifecycle: draft → pending_approval → open → closed/awarded/rejected
-- Buyer creates tenders with 200+ pre-classified categories from PMC Works List
-- Vendor bidding with price + currency + delivery + attachments
-- Bid comparison with "lowest bid" highlight
-- Admin vendor approval workflow with inspector panel
-- In-app notifications for state changes
+- 200+ pre-classified categories
+- Bidding + comparison + lowest-bid highlight
+- Admin vendor approval + inspector panel
+- Notifications (in-app + Resend email)
 - Public landing page with live stats
 
-## v1.1 (2026-02)
-- Resend transactional emails, Emergent Google OAuth, Stripe registration fee, KZ license gate, CSV bid export, Multi-language EN/RU/KK.
+## Version history
 
-## v1.5 (2026-02) — Live Feed
-- Right-rail Tender Feed switched from 15s polling → **Server-Sent Events (SSE)** at `/api/feed/stream`
-- Filter chips: All / RFP / RFQ / Tender / My country / Unread
-- Per-user read/unread state (`read_tender_ids` on user doc); mark-read + mark-all-read
-- Higher-contrast time-remaining badge (destructive under 24h)
-- Async email fan-out on POST /api/tenders to keep responses fast
+### v1.1
+Resend emails, Google OAuth, Stripe fee, KZ licenses, CSV export, EN/RU/KK i18n.
 
-## v1.6 (2026-02) — Two-envelope Sealed Bidding
-- RFP `two_envelope: bool`. Technical + Commercial envelopes remain sealed to buyer until explicitly opened
-- Backend masking: hides technical_proposal until `technical_opened_at`, hides commercial (price/proposal/attachments) until `commercial_opened_at` AND bid is `technical_qualified=True`
-- New endpoints: POST /tenders/{id}/open-technical, /open-commercial, /bids/{id}/qualify
-- Award blocked on two-envelope until commercial opened AND bid qualified
-- UI: TwoEnvelopePanel with 3-stage indicator, Qualify/Reject buttons, sealed price cells
+### v1.5 — Live Feed
+- Right-rail Tender Feed on **Server-Sent Events** (`/api/feed/stream`)
+- Filter chips: All/RFP/RFQ/Tender/My country/Unread
+- Per-user read/unread + mark-all-read
+- Higher-contrast time-remaining chip
+- Async email fan-out
 
-## v1.7 (2026-02) — Governance & Collaboration (P1 batch)
-### Multi-level Approval Workflow
-- Tender `approval_state: not_required|pending|approved|rejected` + `approval_chain: [{level, threshold, decision, approver_user_id, decided_at, notes}]`
-- Approval chain auto-derived from department budget thresholds
-- `require_approval` flag forces admin sign-off even without department
-- POST /api/tenders/{id}/approve walks chain; pending tenders hidden from vendors until fully approved
-- SSE broadcast fired only when a tender finally becomes open
+### v1.6 — Two-envelope Sealed Bidding
+- RFP `two_envelope: bool`; commercial fields hidden until buyer opens envelopes
+- `/tenders/{id}/open-technical`, `/open-commercial`, `/bids/{id}/qualify`
+- Award blocked on 2-envelope until commercial opened AND bid qualified
+- UI: 3-stage envelope panel + qualify/reject + sealed price cells
 
-### Buyer Orgs & Departments
-- `orgs` collection: {name, code, country}
-- `departments` collection: {org_id, name, code, approval_thresholds: [{threshold, level}]}
-- Seed on startup: PMC Managers Global org + Medical Facilities (10k/100k) + General Procurement (50k/250k)
-- POST /api/orgs, /api/departments, /api/users/me/department
+### v1.7 — Governance & Collaboration (P1)
+- Multi-level approval workflow driven by department budget thresholds
+- Buyer Orgs + Departments hierarchy (seeded PMC-GLOBAL, MED, GEN)
+- Pre-bid Q&A with vendor anonymization + buyer-published answers
+- Corrigendum / Addenda publisher with vendor notifications
+- EMD (Earnest Money Deposit) with real Stripe refund on losing bids
+- 42/42 backend tests pass
 
-### EMD (Earnest Money Deposit) + Stripe Refund
-- Tender fields `emd_required`, `emd_amount`, `emd_currency`
-- Bid fields `emd_reference`, `emd_payment_intent_id`, `emd_status`
-- Auto-transition on award: winner → `held_as_security`, losers → `refundable`
-- POST /api/bids/{id}/emd-refund (buyer/admin) triggers actual Stripe refund when `emd_payment_intent_id` is set; falls back to `refund_pending` on Stripe failure
+### v1.8 — Code Quality Pass
+- TenderFeed split into FeedFilters + FeedItem sub-components
+- All empty catches now log via `console.warn`
+- All useEffect hook-dep warnings resolved
+- Frontend compiles with **0 eslint warnings**
 
-### Pre-bid Q&A + Corrigendum / Addenda
-- `tender_questions` collection with anonymization
-- Vendors only see published (buyer-answered) questions from other vendors + their own
-- Buyer/admin answer publishes to all vendors
-- Addenda pushed onto tender.addenda[]; auto-notifies existing bidders
+### v1.9 — Deploy Hardening
+- All list endpoints have `limit` (default 200, max 500)
+- N+1 removed from `/api/bids` (single `$in` batch)
+- Feed unread-count uses single count query (no Python loop)
+- CORS env-driven (`CORS_ORIGINS=*`)
+- Deployment agent: **PASS**
 
-## Backlog (P2)
-- Standard Bidding Documents (SBD) template library
-- Vendor performance scoring / KPI dashboard
-- SMS + WhatsApp notifications (Twilio)
-- DSC/eSign integration + watermarking
-- Immutable hash-chained audit trail
-- Foreign currency conversion display (Central Bank rate)
-- Approver as its own role (currently piggybacks on admin)
-- Refactor server.py into /app/backend/routers/{tenders,bids,orgs,qa,payments}
+### v2.0 — P2 Green + Orange
+- **SBD Template Library**: admin uploads .docx/.pdf templates at `/admin/sbd`; buyers pick via `ct-sbd-template` dropdown; auto-attaches to tender.
+- **FX Conversion**: `/api/fx/rates`, `/api/fx/convert` (open.er-api.com, no API key, 6h cache). `FxChip` on TenderDetail shows budget in local currency with selectable target.
+- **Immutable Audit Trail**: SHA-256 hash-chained `audit_events` collection. Hooks: tender.create, tender.approve, tender.reject, tender.addendum, tender.qa_answer, bid.award, bid.emd_refund, sbd.template.create, sbd.template.archive. Admin viewer at `/admin/audit` + `Verify chain integrity` button. Tampering detection verified via Mongo mutation + rollback (28/28 tests).
+- **Vendor KPI Dashboard** at `/vendor/kpi`: win-rate, total bids, avg price, avg delivery, EMD forfeit/refund count, by-category last-12-months bar chart, suggestions.
+- **Admin UI for Orgs & Departments** at `/admin/orgs`: create orgs, create departments with budget-driven approval thresholds.
+
+## Test status
+- Latest run: `iteration_10.json` — 28/28 P2 backend + full P2 frontend + 9/9 auth/health regression
+- Full history: `iteration_1.json` … `iteration_10.json`
+
+## Backlog (remaining P2 items)
+- **Twilio SMS + WhatsApp** — needs Twilio Account SID + Auth Token + WhatsApp sender
+- **DSC / eSign + PDF watermarking** — X.509 signing + PDF-lib (own iteration)
+- **server.py refactor into /app/backend/routers/*** — mentioned but deferred until server.py > 2500 lines (currently 1948)
+- **Approver as its own role** (currently piggybacks on admin)
+- **Two-envelope SSE events** — broadcast envelope state changes so all viewers see live
+- **Public tender board** (no login) with SSE + SEO
 
 ## Test credentials
 See `/app/memory/test_credentials.md`.
-
-## Test coverage
-- `/app/test_reports/iteration_1.json` … `iteration_8.json` — iter 6 SSE, iter 7 two-envelope, iter 8 P1 governance batch (100% pass)
