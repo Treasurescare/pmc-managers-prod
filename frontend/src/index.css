@@ -1,68 +1,47 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;900&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* PMC Managers - Swiss / Old Money Tech Hybrid theme */
+/* PMC Managers — Navy Trust (institutional / enterprise procurement) */
 @layer base {
   :root {
-    --background: 0 0% 99%;
-    --foreground: 240 6% 6%;
+    /* Content background: pale for newspaper contrast */
+    --background: 220 22% 94%;         /* #e8edf3 brand-pale */
+    --foreground: 224 62% 15%;         /* #0f1b3d brand-navy */
 
     --card: 0 0% 100%;
-    --card-foreground: 240 6% 6%;
+    --card-foreground: 224 62% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 240 6% 6%;
+    --popover-foreground: 224 62% 15%;
 
-    /* Deep Sapphire Blue - #0033A0 */
-    --primary: 219 100% 31%;
+    /* Brand: Navy Trust — primary is the mid navy for actionable elements */
+    --primary: 210 47% 43%;            /* #3b6fa0 brand-navy-soft */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 5% 96%;
-    --secondary-foreground: 240 6% 10%;
+    --secondary: 220 22% 94%;
+    --secondary-foreground: 224 62% 15%;
 
-    --muted: 240 5% 96%;
-    --muted-foreground: 240 4% 33%;
+    --muted: 220 22% 94%;
+    --muted-foreground: 218 20% 38%;
 
-    --accent: 240 5% 96%;
-    --accent-foreground: 240 6% 10%;
+    --accent: 218 43% 25%;             /* brand-navy-deep for panels */
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 0 74% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 158 74% 40%;
+    --success: 142 71% 45%;            /* #22c55e */
     --warning: 38 92% 50%;
-    --info: 217 91% 60%;
+    --info: 210 47% 43%;
 
-    --border: 240 5% 89%;
-    --input: 240 5% 89%;
-    --ring: 219 100% 31%;
+    --border: 218 25% 86%;
+    --input: 218 25% 86%;
+    --ring: 210 47% 43%;
 
     --radius: 0rem;
-  }
-
-  .dark {
-    --background: 240 6% 3%;
-    --foreground: 0 0% 98%;
-    --card: 240 6% 7%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 6% 7%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 219 100% 55%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 240 4% 12%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 4% 12%;
-    --muted-foreground: 240 5% 65%;
-    --accent: 240 4% 12%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62% 45%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 4% 15%;
-    --input: 240 4% 15%;
-    --ring: 219 100% 55%;
   }
 }
 
@@ -75,42 +54,119 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-  h1, h2, h3, .font-serif { font-family: 'Playfair Display', Georgia, serif; letter-spacing: -0.02em; }
-  .font-mono, code { font-family: 'JetBrains Mono', ui-monospace, monospace; }
-}
-
-/* Reusable design tokens */
-.pmc-hard-shadow { box-shadow: 4px 4px 0px 0px rgba(0,0,0,1); }
-.pmc-hard-shadow-primary { box-shadow: 4px 4px 0px 0px hsl(var(--primary)); }
-.pmc-noise {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.15 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
+  h1, h2, h3, .font-serif, .font-display {
+    font-family: 'Libre Baskerville', Georgia, serif;
+    letter-spacing: -0.005em;
+  }
+  .font-mono, code {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  ::selection { background: #3b6fa0; color: white; }
 }
 
 /* Focus */
 :focus-visible {
-  outline: 2px solid hsl(var(--primary));
+  outline: 2px solid #3b6fa0;
   outline-offset: 2px;
 }
 
-/* Small caps label */
+/* Design tokens */
 .pmc-label {
-  font-size: 0.7rem;
+  font-size: 0.6875rem;
   font-weight: 600;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: hsl(var(--muted-foreground));
+  color: #3b6fa0;
+}
+.pmc-kicker { @apply pmc-label; }
+
+.pmc-table th {
+  position: sticky;
+  top: 0;
+  background: #f7f9fc;
+  font-size: 0.6875rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: #64748b;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid #d9dfe8;
+}
+.pmc-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e8edf3;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.875rem;
+}
+.pmc-table tbody tr:hover { background: rgba(15,27,61,0.04); }
+
+/* Big stat number (Libre Baskerville light) */
+.pmc-stat {
+  font-family: 'Libre Baskerville', Georgia, serif;
+  font-weight: 400;
+  font-size: 2.25rem;
+  line-height: 1.1;
+  color: #0f1b3d;
+  letter-spacing: -0.015em;
+}
+.pmc-stat-lg {
+  font-family: 'Libre Baskerville', Georgia, serif;
+  font-weight: 400;
+  font-size: 3rem;
+  line-height: 1.05;
+  color: #0f1b3d;
 }
 
-/* Sticky table header helper */
-.pmc-table th { position: sticky; top: 0; background: hsl(var(--background)); }
+/* Italic accent in headlines */
+.pmc-italic-accent {
+  font-style: italic;
+  color: #3b6fa0;
+  font-weight: 400;
+}
 
-/* animated top progress bar */
+/* Pill */
+.pmc-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  padding: 0.375rem 0.875rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  border: 1px solid #d9dfe8;
+  background: #ffffff;
+  color: #0f1b3d;
+}
+.pmc-pill-navy {
+  background: #1e3a5f;
+  color: #ffffff;
+  border-color: rgba(59,111,160,0.4);
+}
+.pmc-pill-navy span { color: #3b6fa0; }
+
+/* Frosted glass live card */
+.pmc-glass {
+  background: rgba(15, 27, 61, 0.8);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Loading bar */
 @keyframes pmc-loading {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(100%); }
 }
 .pmc-progress {
   position: fixed; top: 0; left: 0; right: 0; height: 2px; z-index: 100;
-  background: linear-gradient(90deg, transparent, hsl(var(--primary)), transparent);
+  background: linear-gradient(90deg, transparent, #3b6fa0, transparent);
   animation: pmc-loading 1.2s ease-in-out infinite;
 }
+
+/* Legacy compatibility (in case any old code references pmc-hard-shadow) */
+.pmc-hard-shadow { box-shadow: 0 10px 25px -5px rgba(15,27,61,0.25); }
+.pmc-hard-shadow-primary { box-shadow: 0 10px 25px -5px rgba(15,27,61,0.25); }

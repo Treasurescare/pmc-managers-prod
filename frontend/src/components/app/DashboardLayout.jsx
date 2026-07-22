@@ -75,11 +75,15 @@ export default function DashboardLayout({ children, title, subtitle, actions }) 
   return (
     <div className={`min-h-screen grid grid-cols-1 bg-background ${feedCollapsed ? "lg:grid-cols-[280px_1fr_40px]" : "lg:grid-cols-[280px_1fr_320px]"}`}>
       {/* Sidebar */}
-      <aside className="hidden lg:flex flex-col bg-[#050505] text-white border-r border-white/10">
-        <div className="p-6 border-b border-white/10">
-          <PmcLogo variant="dark" />
+      <aside className="hidden lg:flex flex-col bg-brand-navy text-white border-r border-brand-navy-deep">
+        <div className="p-6 border-b border-white/10 flex items-center gap-3">
+          <img src="/pmc-logo.png" alt="PMC" className="h-10 w-10" />
+          <div>
+            <div className="text-[0.6875rem] font-semibold tracking-[0.2em] uppercase">PMC Managers</div>
+            <div className="text-[0.625rem] tracking-[0.15em] uppercase text-white/50">Global Tender Board</div>
+          </div>
         </div>
-        <nav className="flex-1 p-3 space-y-1">
+        <nav className="flex-1 p-3 space-y-0.5">
           {items.map((it) => (
             <NavLink
               key={it.to}
@@ -87,27 +91,29 @@ export default function DashboardLayout({ children, title, subtitle, actions }) 
               end
               data-testid={it.testid}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 text-sm border-l-2 transition-colors ${
-                  isActive ? "border-primary bg-white/5 text-white" : "border-transparent text-white/70 hover:text-white hover:bg-white/5"
+                `flex items-center gap-3 px-4 py-3 text-sm border-l-2 transition-all ${
+                  isActive
+                    ? "border-brand-navy-soft bg-white/[0.06] text-white"
+                    : "border-transparent text-white/60 hover:text-white hover:bg-white/[0.04]"
                 }`
               }
             >
               <it.icon className="h-4 w-4" />
               <span className="font-medium">{it.label}</span>
               {it.to === "/notifications" && unread > 0 && (
-                <span className="ml-auto font-mono text-[10px] bg-primary text-white px-2 py-0.5">{unread}</span>
+                <span className="ml-auto font-mono text-[10px] bg-brand-navy-soft text-white px-2 py-0.5">{unread}</span>
               )}
             </NavLink>
           ))}
         </nav>
         <div className="p-4 border-t border-white/10 space-y-2">
-          <div className="text-xs text-white/60">Signed in as</div>
-          <div className="text-sm text-white truncate" data-testid="sidebar-user-email">{user?.email}</div>
-          <div className="pmc-label text-white/50">{user?.role}</div>
+          <div className="text-[0.625rem] tracking-[0.2em] uppercase text-white/40">Signed in as</div>
+          <div className="text-sm text-white truncate font-medium" data-testid="sidebar-user-email">{user?.email}</div>
+          <div className="pmc-label" style={{ color: "#3b6fa0" }}>{user?.role}</div>
           <button
             data-testid="logout-btn"
             onClick={doLogout}
-            className="mt-3 w-full flex items-center justify-center gap-2 border border-white/20 py-2 text-xs hover:bg-white/10 transition-colors"
+            className="mt-3 w-full flex items-center justify-center gap-2 border border-white/20 py-2 text-[0.6875rem] tracking-widest uppercase hover:bg-white/10 transition-colors"
           >
             <LogOut className="h-3.5 w-3.5" /> Log out
           </button>
@@ -115,19 +121,22 @@ export default function DashboardLayout({ children, title, subtitle, actions }) 
       </aside>
 
       {/* Content */}
-      <div className="flex flex-col">
+      <div className="flex flex-col bg-brand-pale">
         {/* Mobile top nav */}
         <div className="lg:hidden flex items-center justify-between border-b bg-white px-4 py-3">
-          <PmcLogo />
+          <div className="flex items-center gap-2">
+            <img src="/pmc-logo.png" alt="PMC" className="h-8 w-8" />
+            <span className="font-display text-lg">PMC</span>
+          </div>
           <button data-testid="mobile-logout-btn" onClick={doLogout} className="text-xs border px-3 py-2">Log out</button>
         </div>
 
-        <header className="bg-white/70 backdrop-blur-xl border-b sticky top-0 z-30 px-6 lg:px-10 py-6">
+        <header className="bg-white/80 backdrop-blur-xl border-b border-brand-navy/10 sticky top-0 z-30 px-6 lg:px-10 py-6">
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
             <div>
               <div className="pmc-label mb-2">{user?.role?.toUpperCase() || ""} · PMC Global Board</div>
-              <h1 className="font-serif text-3xl md:text-4xl tracking-tight">{title}</h1>
-              {subtitle && <p className="text-sm text-muted-foreground mt-2 max-w-2xl">{subtitle}</p>}
+              <h1 className="font-display text-3xl md:text-4xl leading-tight text-brand-navy">{title}</h1>
+              {subtitle && <p className="text-sm text-brand-navy/70 mt-2 max-w-2xl">{subtitle}</p>}
             </div>
             {actions && <div className="flex flex-wrap gap-2 items-center">{actions}<LangSwitcher testid="header-lang" /></div>}
             {!actions && <LangSwitcher testid="header-lang" />}

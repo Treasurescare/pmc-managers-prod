@@ -1,0 +1,52 @@
+{
+  "summary": "Navy Trust visual redesign — frontend-only regression validated end-to-end via Playwright on public preview URL. Landing, Login, Buyer Dashboard, Vendor Dashboard, Vendor KPI, Admin (Orgs/SBD/Audit), Tender Detail, and Create Tender all render cleanly with the new palette (#0f1b3d navy / #3b6fa0 navy-soft / #e8edf3 pale), Libre Baskerville display serif, IBM Plex mono, sharp corners, and rounded pills. Every previously-defined data-testid still resolves. Frontend compiles clean (Compiled successfully! — no ESLint warnings in latest tail). Only issue found is a minor data-mapping bug on the new Landing live-stats card: it reads stats.vendors_total but /api/public/stats actually returns vendors_approved, so the 'Vetted Vendors' stat renders '—' instead of 36.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Landing live-stats card (stat-vendors)", "issue": "Reads stats.vendors_total which does not exist in /api/public/stats response. API returns {tenders_open:78, vendors_approved:36, total_tenders:100}. Result: 'Vetted Vendors' always displays em-dash '—' even though 36 vendors are approved. One-line fix in /app/frontend/src/pages/Landing.jsx L96: change stats?.vendors_total to stats?.vendors_approved.", "selector": "[data-testid=stat-vendors]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Landing hero pill", "issues": ["Pill text renders as 'Est. 2026•30+ Jurisdictions' with a bullet, while review_request spec calls for 'Est. 2026 · 30+ Jurisdictions' with a middle-dot. Visually acceptable but slightly off-spec."]}
+    ]
+  },
+  "testid_verification": {
+    "landing": {"landing-hero": "FOUND", "landing-hero-pill": "FOUND", "landing-register-btn": "FOUND", "landing-login-btn": "FOUND", "landing-live-card": "FOUND", "stat-tenders": "FOUND (78)", "stat-vendors": "FOUND (renders — due to bug)", "stat-liquidity": "FOUND ($4.2B)"},
+    "login": {"login-email": "FOUND", "login-password": "FOUND", "login-submit": "FOUND", "login-google": "FOUND", "login-register-link": "FOUND"},
+    "buyer_dashboard": {"sidebar-user-email": "FOUND (buyer@pmcmanagers.com)", "nav-buyer-overview": "FOUND", "nav-buyer-create": "FOUND", "tender-feed": "FOUND", "feed-filter-all": "FOUND", "feed-filter-rfp": "FOUND"},
+    "buyer_create_tender": {"ct-governance": "FOUND", "ct-sbd-template": "FOUND", "two-envelope-panel": "N/A (only rendered inside TenderDetail when tender.is_two_envelope=true — code path verified at TenderDetail.jsx L543)"},
+    "buyer_tender_detail_open_non2env": {"qa-panel": "FOUND", "addenda-open-btn": "FOUND", "fx-chip": "FOUND", "approval-panel": "not rendered (only for approvers, expected)", "bid-emd-block": "not rendered (only for vendor viewer, expected)"},
+    "vendor_dashboard": {"nav-vendor-kpi": "FOUND", "sidebar-user-email": "FOUND"},
+    "vendor_kpi": {"vendor-kpi-grid": "FOUND (4 cards: Win Rate 0%, Total Bids 3, Avg Bid $40,521, Avg Delivery 38.3 days)"},
+    "admin": {"nav-admin-orgs": "FOUND", "nav-admin-sbd": "FOUND", "nav-admin-audit": "FOUND", "verify-chain": "FOUND", "verify-result": "'Chain intact · 14 events checked · Head hash: 49c47741…'"}
+  },
+  "design_compliance": {
+    "palette": "navy #0f1b3d + navy-soft #3b6fa0 + pale #e8edf3 all applied correctly (dashboard sidebar, hero, login split panel)",
+    "typography": "Page titles ('Welcome, Sarah Buyer', 'Vendor Performance', 'Audit Trail') use Libre Baskerville — confirmed. KPI numbers use serif with tabular-nums — confirmed. IBM Plex mono used for meta text.",
+    "sharp_corners": "confirmed — no rounded-lg on cards/tables/inputs. Only pills (data-testid=landing-hero-pill, feed-filter-* pills, budget FxChip) are rounded.",
+    "split_hero": "Landing left-navy + right-port-image split renders correctly at 1920x1000. Frosted-glass live-card overlays cleanly on the port image.",
+    "login_split": "Left navy panel with logo + port image bg + right pale form panel — renders correctly."
+  },
+  "test_report_links": [],
+  "action_items": [
+    "MEDIUM — Fix /app/frontend/src/pages/Landing.jsx L96: change `stats?.vendors_total` to `stats?.vendors_approved` so 'Vetted Vendors' stat renders the actual count (36) instead of '—'.",
+    "LOW — Hero pill text separator: change '•' to '·' if strict middle-dot compliance is required by /app/design_guidelines.md.",
+    "LOW (pre-existing from iter 10) — Emergent preview devtools inject <span> children into <option> elements causing React hydration warning on admin org select. Preview-only artifact; ignore."
+  ],
+  "critical_code_review_comments": [
+    "Landing.jsx uses `stats?.vendors_total` but the public-stats API returns `vendors_approved` — verified via curl: {\"tenders_open\":78,\"vendors_approved\":36,\"total_tenders\":100}. This is a copy-paste regression from the redesign. Simple 1-line fix.",
+    "DashboardLayout.jsx correctly wires font-display class → Libre Baskerville for title (L138) and 'PMC' logo (L129).",
+    "TenderDetail.jsx L543: two-envelope-panel testid is correctly scoped to render only when tender.is_two_envelope — no code path change needed.",
+    "All Playwright navigations to /buyer, /vendor/kpi, /admin/audit timed out on wait_until='networkidle' because of the persistent SSE stream at /api/feed/stream. Recommend future test scripts use wait_until='domcontentloaded' + explicit selector waits (as done in iter11). Not an app bug — SSE is intentional.",
+    "Frontend log-tail shows earlier compile errors from stale hot-reload before the pages moved (@/pages/AdminOrgs etc.), then 'Compiled successfully!' repeatedly — clean at time of testing.",
+    "No console errors beyond the known Emergent-devtools <option> hydration warning + expected 401s on /api/auth/me before login."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (frontend-only iteration per review_request)", "frontend": "~98% — every testid resolves; only cosmetic bug is the vendors_total→vendors_approved key mismatch on landing"},
+  "test_credentials": "admin@pmcmanagers.com/Admin@123, buyer@pmcmanagers.com/Buyer@123, vendor@example.com/Vendor@123 — validated from /app/memory/test_credentials.md.",
+  "seed_data_creation": "None — no new data created.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Navy Trust redesign is visually complete and all data-testids resolve. Only functional bug is Landing.jsx L96 vendors_total→vendors_approved. If retesting after fix, look at [data-testid=stat-vendors] — should now show 36 instead of '—'. When writing Playwright tests, always use wait_until='domcontentloaded' + explicit selector waits — never 'networkidle' — because the SSE tender-feed stream keeps the network active permanently. Backend has not been re-tested this iteration; iter 10 covered 28/28 P2 tests. If backend logic changes are made in the future, re-run /app/backend/tests/test_p2_green_orange.py with `pytest -n 0`.",
+  "rca of the issue": "Landing.jsx stat-vendors bug — during the redesign the developer wrote value={stats?.vendors_total ?? '—'} but the /api/public/stats endpoint returns the key `vendors_approved`. The nullish-coalescing operator masked the undefined result so no runtime error was thrown. Reproduction: open https://tender-hub-57.preview.emergentagent.com/ → the middle row of the live-stats card labeled 'Vetted Vendors' shows em-dash '—' instead of a number. curl https://tender-hub-57.preview.emergentagent.com/api/public/stats confirms the correct key is `vendors_approved` = 36. Mitigation: sed 's/vendors_total/vendors_approved/' in Landing.jsx L96, hot-reload picks it up."
+}
