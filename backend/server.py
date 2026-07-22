@@ -571,6 +571,22 @@ async def create_tender(payload: TenderIn, user: dict = Depends(require_role("bu
     res = await db.tenders.insert_one(doc)
     doc["_id"] = res.inserted_id
 
+    # Broadcast SSE event to any live subscribers
+    await broker.broadcast({"type": "tender.created", "payload": {
+        "id": str(res.inserted_id),
+        "title": doc.get("title"),
+        "description": (doc.get("description") or "")[:220],
+        "document_type": doc.get("document_type") or "tender",
+        "category": doc.get("category"),
+        "status": doc.get("status"),
+        "budget_currency": doc.get("budget_currency"),
+        "budget_amount": doc.get("budget_amount"),
+        "submission_deadline": doc.get("submission_deadline"),
+        "delivery_country": doc.get("delivery_country"),
+        "created_by_name": doc.get("created_by_name"),
+        "created_at": doc.get("created_at"),
+    }})
+
     # Notify approved vendors matching category / no filter — quick MVP fan-out
     async for v in db.users.find({"role": "vendor", "vendor_status": "approved"}):
         await create_notification(str(v["_id"]), "New tender published",
@@ -616,6 +632,7 @@ async def close_tender(tender_id: str, user: dict = Depends(require_role("buyer"
     if user["role"] != "admin" and t.get("created_by") != user["id"]:
         raise HTTPException(status_code=403, detail="Not your tender")
     await db.tenders.update_one({"_id": ObjectId(tender_id)}, {"$set": {"status": "closed"}})
+    await broker.broadcast({"type": "tender.updated", "payload": {"id": tender_id, "status": "closed"}})
     return {"ok": True}
 
 
@@ -758,6 +775,7 @@ async def award_bid(bid_id: str, user: dict = Depends(require_role("buyer", "adm
     await db.bids.update_one({"_id": ObjectId(bid_id)}, {"$set": {"status": "awarded"}})
     await db.bids.update_many({"tender_id": bid["tender_id"], "_id": {"$ne": ObjectId(bid_id)}},
                               {"$set": {"status": "rejected"}})
+    await broker.broadcast({"type": "tender.updated", "payload": {"id": bid["tender_id"], "status": "awarded"}})
 
     # Notify + email winner
     await create_notification(bid["vendor_id"], "Congratulations — Bid awarded",

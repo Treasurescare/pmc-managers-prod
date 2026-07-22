@@ -1,7 +1,8 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { Radio, ChevronRight, ChevronLeft, RefreshCw } from "lucide-react";
-import api from "@/lib/api";
+import { Radio, ChevronRight, ChevronLeft, RefreshCw, CheckCheck, Filter as FilterIcon } from "lucide-react";
+import api, { API_BASE } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 function timeLeft(iso) {
   if (!iso) return "—";
@@ -27,29 +28,90 @@ function timeAgo(iso) {
   return `${d}d ago`;
 }
 
+const FILTERS = [
+  { key: "all", label: "All" },
+  { key: "rfp", label: "RFP" },
+  { key: "rfq", label: "RFQ" },
+  { key: "tender", label: "Tender" },
+  { key: "mine", label: "My country" },
+  { key: "unread", label: "Unread" },
+];
+
 export default function TenderFeed({ collapsed, onToggle }) {
+  const { user } = useAuth();
   const [items, setItems] = useState([]);
   const [refreshedAt, setRefreshedAt] = useState(null);
   const [loading, setLoading] = useState(false);
   const [tick, setTick] = useState(0);
+  const [live, setLive] = useState(false);
+  const [filter, setFilter] = useState(() => {
+    try { return localStorage.getItem("pmc.feed.filter") || "all"; } catch { return "all"; }
+  });
+  const esRef = useRef(null);
 
-  const load = async () => {
+  const userCountry = (user && (user.vendor_profile?.country || user.country)) || null;
+
+  const queryParams = useMemo(() => {
+    const p = new URLSearchParams({ limit: "25" });
+    if (filter === "rfp" || filter === "rfq" || filter === "tender") p.set("document_type", filter);
+    if (filter === "mine" && userCountry) p.set("country", userCountry);
+    if (filter === "unread") p.set("unread_only", "true");
+    return p.toString();
+  }, [filter, userCountry]);
+
+  const load = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await api.get("/feed/tenders?limit=25");
+      const { data } = await api.get(`/feed/tenders?${queryParams}`);
       setItems(data);
       setRefreshedAt(new Date());
     } catch {}
     setLoading(false);
-  };
+  }, [queryParams]);
 
-  useEffect(() => { load(); }, []);
+  // Initial + filter-driven load
+  useEffect(() => { load(); }, [load]);
 
-  // Poll every 15 seconds
+  // Persist filter
+  useEffect(() => { try { localStorage.setItem("pmc.feed.filter", filter); } catch {} }, [filter]);
+
+  // SSE stream for real-time push
   useEffect(() => {
-    const iv = setInterval(load, 15000);
-    return () => clearInterval(iv);
-  }, []);
+    if (!user) return;
+    // EventSource uses cookies from same origin — backend & frontend share the ingress
+    const url = `${API_BASE}/feed/stream`;
+    let es;
+    try {
+      es = new EventSource(url, { withCredentials: true });
+    } catch {
+      return;
+    }
+    esRef.current = es;
+    es.addEventListener("connected", () => setLive(true));
+    es.addEventListener("tender.created", (e) => {
+      try {
+        const payload = JSON.parse(e.data);
+        // Client-side filter matching
+        if (filter === "rfp" && payload.document_type !== "rfp") return;
+        if (filter === "rfq" && payload.document_type !== "rfq") return;
+        if (filter === "tender" && payload.document_type !== "tender") return;
+        if (filter === "mine" && userCountry && payload.delivery_country !== userCountry) return;
+        setItems((prev) => {
+          if (prev.some((x) => x.id === payload.id)) return prev;
+          return [{ ...payload, unread: true }, ...prev].slice(0, 30);
+        });
+        setRefreshedAt(new Date());
+      } catch {}
+    });
+    es.addEventListener("tender.updated", (e) => {
+      try {
+        const payload = JSON.parse(e.data);
+        setItems((prev) => prev.map((x) => x.id === payload.id ? { ...x, ...payload } : x));
+      } catch {}
+    });
+    es.onerror = () => { setLive(false); };
+    return () => { setLive(false); try { es.close(); } catch {} };
+  }, [user, filter, userCountry]);
 
   // Re-render every 30s so countdowns update
   useEffect(() => {
@@ -57,25 +119,37 @@ export default function TenderFeed({ collapsed, onToggle }) {
     return () => clearInterval(iv);
   }, []);
 
-  // Detect newly added items since last render
-  const newestId = items[0]?.id;
-  const [seenTopId, setSeenTopId] = useState(null);
-  useEffect(() => {
-    if (newestId && seenTopId === null) setSeenTopId(newestId);
-  }, [newestId, seenTopId]);
-  const hasNew = newestId && seenTopId && newestId !== seenTopId;
+  const unreadCount = items.filter((t) => t.unread).length;
+
+  const markRead = async (tid) => {
+    setItems((prev) => prev.map((x) => x.id === tid ? { ...x, unread: false } : x));
+    try { await api.post(`/feed/mark-read/${tid}`); } catch {}
+  };
+
+  const markAllRead = async () => {
+    setItems((prev) => prev.map((x) => ({ ...x, unread: false })));
+    try { await api.post("/feed/mark-all-read"); } catch {}
+    if (filter === "unread") load();
+  };
 
   if (collapsed) {
     return (
       <button
         data-testid="tender-feed-expand"
         onClick={onToggle}
-        className="w-10 border-l bg-white flex flex-col items-center py-4 gap-3 hover:bg-muted/50 transition-colors"
+        className="w-10 border-l bg-white flex flex-col items-center py-4 gap-3 hover:bg-muted/50 transition-colors relative"
         aria-label="Expand tender feed"
       >
         <ChevronLeft className="h-4 w-4 text-muted-foreground" />
         <span className="rotate-180 pmc-label" style={{ writingMode: "vertical-rl" }}>Live Tender Feed</span>
-        {hasNew && <span className="h-2 w-2 rounded-full bg-primary animate-pulse" aria-label="New tender" />}
+        {unreadCount > 0 && (
+          <span
+            data-testid="feed-unread-badge-collapsed"
+            className="absolute top-2 right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center"
+          >
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        )}
       </button>
     );
   }
@@ -83,14 +157,25 @@ export default function TenderFeed({ collapsed, onToggle }) {
   return (
     <aside data-testid="tender-feed" className="w-[320px] border-l bg-white flex flex-col h-full">
       <div className="border-b p-4 flex items-center gap-3">
-        <span className="relative flex h-2 w-2">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+        <span className="relative flex h-2 w-2" title={live ? "Live" : "Reconnecting…"}>
+          <span className={`absolute inline-flex h-full w-full rounded-full ${live ? "bg-emerald-500 animate-ping" : "bg-muted-foreground"} opacity-75`}></span>
+          <span className={`relative inline-flex rounded-full h-2 w-2 ${live ? "bg-emerald-500" : "bg-muted-foreground"}`}></span>
         </span>
         <div className="flex-1 min-w-0">
-          <div className="pmc-label">Live board</div>
+          <div className="pmc-label">{live ? "Live · SSE" : "Idle"}</div>
           <div className="font-serif text-lg leading-tight">Tender feed</div>
         </div>
+        {unreadCount > 0 && (
+          <button
+            data-testid="feed-mark-all-read"
+            onClick={markAllRead}
+            title="Mark all read"
+            className="text-muted-foreground hover:text-foreground"
+            aria-label="Mark all read"
+          >
+            <CheckCheck className="h-4 w-4" />
+          </button>
+        )}
         <button data-testid="tender-feed-refresh" onClick={load} className="text-muted-foreground hover:text-foreground" aria-label="Refresh">
           <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
         </button>
@@ -99,8 +184,35 @@ export default function TenderFeed({ collapsed, onToggle }) {
         </button>
       </div>
 
+      <div className="border-b px-3 py-2 flex flex-wrap gap-1" data-testid="feed-filters">
+        {FILTERS.map((f) => {
+          const disabled = f.key === "mine" && !userCountry;
+          const active = filter === f.key;
+          return (
+            <button
+              key={f.key}
+              onClick={() => !disabled && setFilter(f.key)}
+              disabled={disabled}
+              data-testid={`feed-filter-${f.key}`}
+              className={`text-[11px] tracking-widest uppercase px-2 py-1 border transition-colors ${
+                active
+                  ? "bg-foreground text-white border-foreground"
+                  : disabled
+                    ? "border-muted text-muted-foreground/50 cursor-not-allowed"
+                    : "border-muted-foreground/30 text-muted-foreground hover:border-foreground hover:text-foreground"
+              }`}
+            >
+              {f.label}
+              {f.key === "unread" && unreadCount > 0 && !active && (
+                <span className="ml-1 text-primary font-bold">{unreadCount}</span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
       <div className="px-4 py-2 border-b bg-muted/20 text-[11px] text-muted-foreground flex items-center justify-between">
-        <span data-testid="tender-feed-count">{items.length} shown · auto-refreshes</span>
+        <span data-testid="tender-feed-count">{items.length} shown{unreadCount > 0 ? ` · ${unreadCount} unread` : ""}</span>
         {refreshedAt && <span className="font-mono">updated {timeAgo(refreshedAt.toISOString())}</span>}
       </div>
 
@@ -108,35 +220,48 @@ export default function TenderFeed({ collapsed, onToggle }) {
         {items.length === 0 && !loading && (
           <div className="p-6 text-center text-sm text-muted-foreground">
             <Radio className="mx-auto h-6 w-6 mb-3 opacity-40" />
-            No open tenders on the board yet.
+            {filter === "unread" ? "No unread tenders." : "No open tenders on the board yet."}
           </div>
         )}
-        {items.map((t, idx) => {
-          const isNew = idx === 0 && hasNew;
+        {items.map((t) => {
           const dt = (t.document_type || "tender").toUpperCase();
+          const deadlineMs = new Date(t.submission_deadline) - Date.now();
+          const closing = deadlineMs < 86400000 && deadlineMs > 0;
+          const closed = deadlineMs <= 0;
           return (
             <Link
               to={`/tenders/${t.id}`}
-              key={t.id + tick}
-              onClick={() => setSeenTopId(newestId)}
+              key={t.id + "_" + tick}
+              onClick={() => t.unread && markRead(t.id)}
               data-testid={`feed-item-${t.id}`}
-              className={`block border-b px-4 py-3 hover:bg-primary/5 transition-colors ${isNew ? "bg-primary/10 border-l-2 border-l-primary" : ""}`}
+              className={`block border-b px-4 py-3 hover:bg-primary/5 transition-colors ${t.unread ? "bg-primary/[0.06] border-l-2 border-l-primary" : ""}`}
             >
               <div className="flex items-center gap-2">
                 <span className={`text-[10px] font-semibold tracking-widest px-1.5 py-0.5 border ${
                   dt === "RFP" ? "border-primary text-primary" : dt === "RFQ" ? "border-warning text-warning" : "border-foreground text-foreground"
                 }`}>{dt}</span>
                 {t.status === "awarded" && <span className="text-[10px] font-semibold tracking-widest px-1.5 py-0.5 bg-success text-white">AWARDED</span>}
-                {isNew && <span className="text-[10px] font-semibold tracking-widest px-1.5 py-0.5 bg-primary text-white">NEW</span>}
+                {t.unread && <span data-testid={`feed-unread-dot-${t.id}`} className="ml-auto h-2 w-2 rounded-full bg-primary" aria-label="Unread" />}
               </div>
               <div className="font-serif text-[15px] leading-tight mt-2 line-clamp-2">{t.title}</div>
-              <div className="text-[11px] text-muted-foreground mt-1 truncate">{t.category}</div>
+              <div className="text-[11px] text-muted-foreground mt-1 truncate">
+                {t.category}{t.delivery_country ? ` · ${t.delivery_country}` : ""}
+              </div>
               {t.description && (
                 <p className="text-xs text-muted-foreground mt-2 line-clamp-2 leading-relaxed">{t.description}</p>
               )}
               <div className="flex items-center justify-between mt-3 text-[11px] font-mono">
-                <span>{t.budget_amount ? `${t.budget_currency} ${Number(t.budget_amount).toLocaleString()}` : "—"}</span>
-                <span className={new Date(t.submission_deadline) - Date.now() < 86400000 ? "text-destructive" : "text-muted-foreground"}>
+                <span className="text-foreground/80">{t.budget_amount ? `${t.budget_currency} ${Number(t.budget_amount).toLocaleString()}` : "—"}</span>
+                <span
+                  data-testid={`feed-time-${t.id}`}
+                  className={
+                    closed
+                      ? "px-1.5 py-0.5 bg-muted text-foreground/80 font-semibold"
+                      : closing
+                        ? "px-1.5 py-0.5 bg-destructive text-white font-semibold"
+                        : "px-1.5 py-0.5 bg-foreground/[0.06] text-foreground font-semibold"
+                  }
+                >
                   {timeLeft(t.submission_deadline)}
                 </span>
               </div>

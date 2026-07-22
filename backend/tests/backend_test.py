@@ -1158,3 +1158,299 @@ class TestV14TenderFeed:
         # Verify description truncated to 220 chars max
         item = next(it for it in feed if it["id"] == new_id)
         assert len(item["description"]) <= 220
+
+
+
+# =========================================================================
+# ITERATION 6 (v1.5) — SSE stream + filters + read/unread state
+# =========================================================================
+
+
+class TestV15FeedFilters:
+    """Query-param filters: document_type, country, unread_only."""
+
+    def test_filter_by_document_type_rfp(self):
+        s = CTX["admin_session"]
+        r = s.get(f"{API}/feed/tenders?document_type=rfp&limit=50", timeout=10)
+        assert r.status_code == 200
+        data = r.json()
+        assert len(data) >= 1
+        assert all(d["document_type"] == "rfp" for d in data), \
+            f"non-rfp items in filter: {[d['document_type'] for d in data]}"
+
+    def test_filter_by_document_type_rfq(self):
+        s = CTX["admin_session"]
+        r = s.get(f"{API}/feed/tenders?document_type=rfq&limit=50", timeout=10)
+        assert r.status_code == 200
+        data = r.json()
+        assert len(data) >= 1
+        assert all(d["document_type"] == "rfq" for d in data)
+
+    def test_filter_by_document_type_tender(self):
+        s = CTX["admin_session"]
+        r = s.get(f"{API}/feed/tenders?document_type=tender&limit=50", timeout=10)
+        assert r.status_code == 200
+        data = r.json()
+        # legacy tenders default to "tender"
+        assert all(d["document_type"] == "tender" for d in data)
+
+    def test_filter_by_country_kz(self):
+        s = CTX["admin_session"]
+        r = s.get(f"{API}/feed/tenders?country=KZ&limit=50", timeout=10)
+        assert r.status_code == 200
+        data = r.json()
+        # from prior v1.2 tests we created KZ tenders
+        assert len(data) >= 1
+        for d in data:
+            assert (d.get("delivery_country") or "").upper() == "KZ", d
+
+    def test_filter_invalid_document_type_ignored(self):
+        s = CTX["admin_session"]
+        r = s.get(f"{API}/feed/tenders?document_type=garbage&limit=10", timeout=10)
+        # should still return 200 - server ignores unknown types
+        assert r.status_code == 200
+
+
+class TestV15UnreadReadState:
+    """Read/unread tracking: /feed/unread-count, /feed/mark-read, /feed/mark-all-read, unread_only."""
+
+    def _fresh_buyer(self, tag: str):
+        """Register a brand-new buyer so read_tender_ids starts empty."""
+        uniq = uuid.uuid4().hex[:6]
+        creds = {"email": f"TEST_v15_{tag}_{uniq}@example.com", "password": "Buyer@123",
+                 "name": f"V15 {tag}", "role": "buyer"}
+        s = _session()
+        r = s.post(f"{API}/auth/register", json=creds, timeout=15)
+        assert r.status_code == 200
+        return s, r.json()["id"]
+
+    def test_unread_count_requires_auth(self):
+        r = requests.get(f"{API}/feed/unread-count", timeout=10)
+        assert r.status_code == 401
+
+    def test_unread_count_shape(self):
+        s, _ = self._fresh_buyer("countshape")
+        r = s.get(f"{API}/feed/unread-count", timeout=10)
+        assert r.status_code == 200, r.text
+        d = r.json()
+        assert "unread" in d and "total" in d
+        assert isinstance(d["unread"], int)
+        assert isinstance(d["total"], int)
+        # fresh user has no read_tender_ids, so unread == total
+        assert d["unread"] == d["total"] > 0
+
+    def test_feed_marks_items_as_unread_for_fresh_user(self):
+        s, _ = self._fresh_buyer("freshunread")
+        r = s.get(f"{API}/feed/tenders?limit=10", timeout=10)
+        assert r.status_code == 200
+        data = r.json()
+        assert len(data) >= 1
+        # every item should have unread=True for a brand new user
+        assert all(d["unread"] is True for d in data), \
+            f"some items not unread: {[d['unread'] for d in data]}"
+
+    def test_mark_read_flips_unread_flag(self):
+        s, _ = self._fresh_buyer("markread")
+        # Grab one tender id
+        r = s.get(f"{API}/feed/tenders?limit=5", timeout=10)
+        items = r.json()
+        assert items, "need at least one item"
+        target = items[0]
+        assert target["unread"] is True
+
+        # mark that specific tender read
+        mr = s.post(f"{API}/feed/mark-read/{target['id']}", timeout=10)
+        assert mr.status_code == 200, mr.text
+        assert mr.json()["ok"] is True
+
+        # re-fetch — that item should now be unread=False
+        r2 = s.get(f"{API}/feed/tenders?limit=5", timeout=10)
+        items2 = {i["id"]: i for i in r2.json()}
+        assert items2[target["id"]]["unread"] is False
+
+        # Other items should still be unread
+        others = [it for tid, it in items2.items() if tid != target["id"]]
+        if others:
+            assert any(it["unread"] for it in others)
+
+    def test_unread_only_filter_returns_only_unread(self):
+        s, _ = self._fresh_buyer("unreadonly")
+        # First fetch to get some items
+        r = s.get(f"{API}/feed/tenders?limit=10", timeout=10)
+        items = r.json()
+        assert len(items) >= 2, "need at least 2 items"
+        # mark first two as read
+        to_mark = [items[0]["id"], items[1]["id"]]
+        for tid in to_mark:
+            m = s.post(f"{API}/feed/mark-read/{tid}", timeout=10)
+            assert m.status_code == 200
+
+        # Now unread_only=true should NOT include those
+        r2 = s.get(f"{API}/feed/tenders?unread_only=true&limit=50", timeout=10)
+        assert r2.status_code == 200
+        remaining_ids = {i["id"] for i in r2.json()}
+        for tid in to_mark:
+            assert tid not in remaining_ids, f"{tid} was marked read but appeared in unread_only feed"
+        # All returned items must have unread=True
+        for it in r2.json():
+            assert it["unread"] is True
+
+    def test_mark_all_read_zeros_unread_count(self):
+        s, _ = self._fresh_buyer("markallread")
+        # sanity: unread count > 0
+        pre = s.get(f"{API}/feed/unread-count", timeout=10).json()
+        assert pre["unread"] > 0
+
+        r = s.post(f"{API}/feed/mark-all-read", timeout=10)
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["ok"] is True
+        assert isinstance(body.get("marked"), int)
+        assert body["marked"] >= pre["unread"]
+
+        post = s.get(f"{API}/feed/unread-count", timeout=10).json()
+        assert post["unread"] == 0, f"unread count not zero after mark-all-read: {post}"
+        # total unchanged
+        assert post["total"] == pre["total"]
+
+    def test_mark_read_idempotent(self):
+        s, _ = self._fresh_buyer("idempotent")
+        r = s.get(f"{API}/feed/tenders?limit=1", timeout=10)
+        tid = r.json()[0]["id"]
+        for _ in range(3):
+            m = s.post(f"{API}/feed/mark-read/{tid}", timeout=10)
+            assert m.status_code == 200
+        # After 3 marks — no error, unread is False
+        r2 = s.get(f"{API}/feed/tenders?limit=5", timeout=10)
+        item = next(it for it in r2.json() if it["id"] == tid)
+        assert item["unread"] is False
+
+
+class TestV15SSEStream:
+    """SSE stream: auth, connected event, tender.created broadcast."""
+
+    def test_stream_requires_auth(self):
+        r = requests.get(f"{API}/feed/stream", timeout=10, stream=True)
+        assert r.status_code == 401, f"expected 401 got {r.status_code}"
+
+    def test_stream_connected_event(self):
+        """Connect with cookie and read the initial 'connected' event."""
+        s = CTX["admin_session"]
+        # Requests streams cookies from the session automatically
+        with s.get(f"{API}/feed/stream", timeout=8, stream=True) as r:
+            assert r.status_code == 200, r.text
+            assert "text/event-stream" in r.headers.get("content-type", ""), r.headers
+            # Read first chunk (should contain 'event: connected')
+            buf = b""
+            for chunk in r.iter_content(chunk_size=256):
+                buf += chunk
+                if b"event: connected" in buf:
+                    break
+                if len(buf) > 4096:
+                    break
+            text = buf.decode("utf-8", errors="ignore")
+            assert "event: connected" in text, f"no connected event, got: {text[:500]}"
+
+    def test_stream_receives_tender_created_event(self):
+        """Open stream as admin, then buyer creates a tender in another thread -> event arrives."""
+        import threading
+        s_admin = CTX["admin_session"]
+        buyer = CTX["buyer_session"]
+
+        received = {"event": None, "raw": ""}
+
+        def _reader():
+            try:
+                with s_admin.get(f"{API}/feed/stream", timeout=15, stream=True) as r:
+                    if r.status_code != 200:
+                        return
+                    buf = b""
+                    for chunk in r.iter_content(chunk_size=256):
+                        buf += chunk
+                        if b"event: tender.created" in buf:
+                            received["event"] = "tender.created"
+                            received["raw"] = buf.decode("utf-8", errors="ignore")
+                            return
+                        if len(buf) > 16384:
+                            received["raw"] = buf.decode("utf-8", errors="ignore")
+                            return
+            except Exception as e:
+                received["raw"] = f"ERROR: {e}"
+
+        t = threading.Thread(target=_reader, daemon=True)
+        t.start()
+        # allow subscription to be established + connected event flushed
+        import time
+        time.sleep(2)
+
+        deadline = (datetime.now(timezone.utc) + timedelta(days=5)).isoformat()
+        title = f"TEST_v15_SSE_{uuid.uuid4().hex[:6]}"
+        rc = buyer.post(f"{API}/tenders", json={
+            "title": title,
+            "description": "SSE broadcast test tender",
+            "category": "Consulting & Advisory",
+            "budget_currency": "USD",
+            "budget_amount": 5000,
+            "submission_deadline": deadline,
+            "delivery_location": "Astana",
+        }, timeout=15)
+        assert rc.status_code == 200, rc.text
+        new_id = rc.json()["id"]
+
+        # wait up to 10s for the event
+        t.join(timeout=10)
+        assert received["event"] == "tender.created", \
+            f"tender.created event not received. raw: {received['raw'][:600]}"
+        assert new_id in received["raw"], f"new tender id {new_id} not in SSE payload"
+
+    def test_stream_receives_tender_updated_on_close(self):
+        """Buyer creates then closes a tender -> tender.updated arrives."""
+        import threading, time
+        s_admin = CTX["admin_session"]
+        buyer = CTX["buyer_session"]
+
+        # Create a fresh tender to close
+        deadline = (datetime.now(timezone.utc) + timedelta(days=3)).isoformat()
+        rc = buyer.post(f"{API}/tenders", json={
+            "title": f"TEST_v15_ToClose_{uuid.uuid4().hex[:6]}",
+            "description": "will be closed",
+            "category": "Consulting & Advisory",
+            "budget_currency": "USD",
+            "budget_amount": 1000,
+            "submission_deadline": deadline,
+            "delivery_location": "Astana",
+        }, timeout=15)
+        assert rc.status_code == 200
+        tid = rc.json()["id"]
+
+        received = {"raw": "", "got": False}
+
+        def _reader():
+            try:
+                with s_admin.get(f"{API}/feed/stream", timeout=15, stream=True) as r:
+                    if r.status_code != 200:
+                        return
+                    buf = b""
+                    for chunk in r.iter_content(chunk_size=256):
+                        buf += chunk
+                        if b"event: tender.updated" in buf and tid.encode() in buf:
+                            received["got"] = True
+                            received["raw"] = buf.decode("utf-8", errors="ignore")
+                            return
+                        if len(buf) > 32768:
+                            received["raw"] = buf.decode("utf-8", errors="ignore")
+                            return
+            except Exception as e:
+                received["raw"] = f"ERROR: {e}"
+
+        t = threading.Thread(target=_reader, daemon=True)
+        t.start()
+        time.sleep(2)
+
+        cr = buyer.post(f"{API}/tenders/{tid}/close", timeout=10)
+        assert cr.status_code == 200
+
+        t.join(timeout=10)
+        assert received["got"], f"tender.updated not received. raw: {received['raw'][:600]}"
+        assert '"status": "closed"' in received["raw"] or '"status":"closed"' in received["raw"], \
+            f"payload missing status=closed: {received['raw'][:400]}"
