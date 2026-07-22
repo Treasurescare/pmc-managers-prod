@@ -1,7 +1,8 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { LayoutDashboard, FileStack, Gavel, Users, Bell, LogOut, Building2, PlusSquare, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, FileStack, Gavel, Users, Bell, LogOut, Building2, PlusSquare, ShieldCheck, CreditCard } from "lucide-react";
 import PmcLogo from "./PmcLogo";
+import LangSwitcher from "./LangSwitcher";
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/api";
 
@@ -24,6 +25,7 @@ function navFor(role) {
   return [
     { to: "/vendor", label: "Overview", icon: LayoutDashboard, testid: "nav-vendor-overview" },
     { to: "/vendor/profile", label: "Company Profile", icon: Building2, testid: "nav-vendor-profile" },
+    { to: "/vendor/payment", label: "Registration Fee", icon: CreditCard, testid: "nav-vendor-payment" },
     { to: "/tenders", label: "Open Tenders", icon: FileStack, testid: "nav-vendor-tenders" },
     { to: "/vendor/bids", label: "My Bids", icon: Gavel, testid: "nav-vendor-bids" },
     { to: "/notifications", label: "Notifications", icon: Bell, testid: "nav-notifications" },
@@ -108,7 +110,8 @@ export default function DashboardLayout({ children, title, subtitle, actions }) 
               <h1 className="font-serif text-3xl md:text-4xl tracking-tight">{title}</h1>
               {subtitle && <p className="text-sm text-muted-foreground mt-2 max-w-2xl">{subtitle}</p>}
             </div>
-            {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+            {actions && <div className="flex flex-wrap gap-2 items-center">{actions}<LangSwitcher testid="header-lang" /></div>}
+            {!actions && <LangSwitcher testid="header-lang" />}
           </div>
         </header>
 

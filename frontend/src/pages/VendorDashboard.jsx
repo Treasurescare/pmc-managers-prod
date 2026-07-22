@@ -20,6 +20,7 @@ export default function VendorDashboard() {
 
   const status = profile?.vendor_status || "pending";
   const profileComplete = !!profile?.vendor_profile;
+  const feePaid = !!profile?.registration_fee_paid;
 
   return (
     <DashboardLayout
@@ -27,6 +28,19 @@ export default function VendorDashboard() {
       subtitle="Bidder workspace. Track your KYC status, browse tenders, and manage submitted bids."
       actions={<StatusBadge status={status} testid="vendor-status-badge" />}
     >
+      {!feePaid && (
+        <div data-testid="vendor-fee-banner" className="mb-8 border-l-4 border-primary bg-primary/5 p-5 flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <div className="pmc-label text-primary">Payment pending</div>
+            <div className="mt-2 font-serif text-2xl">Complete your registration fee to submit KYC</div>
+            <p className="text-sm text-muted-foreground mt-2 max-w-2xl">One-time non-refundable fee of USD 100 unlocks profile submission.</p>
+          </div>
+          <Link to="/vendor/payment" data-testid="vendor-pay-cta" className="inline-flex items-center gap-2 text-sm bg-primary text-white px-4 py-2 hover:-translate-y-0.5 transition-transform">
+            Pay now <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      )}
+
       {status !== "approved" && (
         <div data-testid="vendor-approval-banner" className="mb-8 border-l-4 border-warning bg-warning/10 p-5">
           <div className="pmc-label text-warning">Action required</div>

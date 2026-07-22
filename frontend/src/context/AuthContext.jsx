@@ -8,6 +8,11 @@ export function AuthProvider({ children }) {
   const [checking, setChecking] = useState(true);
 
   const refresh = useCallback(async () => {
+    // If returning from Google OAuth, skip /me check — AuthCallback handles it
+    if (typeof window !== "undefined" && window.location.hash?.includes("session_id=")) {
+      setChecking(false);
+      return null;
+    }
     try {
       const { data } = await api.get("/auth/me");
       setUser(data);

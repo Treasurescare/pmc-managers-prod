@@ -5,8 +5,9 @@ import api, { formatApiError } from "@/lib/api";
 import StatusBadge from "@/components/app/StatusBadge";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { Upload, X, ArrowLeft, Timer, Building, MapPin } from "lucide-react";
+import { Upload, X, ArrowLeft, Timer, Building, MapPin, Download, ShieldAlert } from "lucide-react";
 import { CURRENCIES } from "@/data/countries";
+import { BACKEND_URL } from "@/lib/api";
 
 function countdown(iso) {
   const diff = new Date(iso).getTime() - Date.now();
@@ -90,6 +91,13 @@ export default function TenderDetail() {
                 <div className="pmc-label mt-6 mb-2">Eligibility criteria</div>
                 <p className="whitespace-pre-line text-sm leading-relaxed">{tender.eligibility_criteria}</p>
               </>
+            )}
+
+            {(tender.required_licenses || []).length > 0 && (
+              <div className="mt-6 border border-l-4 border-primary bg-primary/5 p-4" data-testid="tender-required-licenses">
+                <div className="pmc-label text-primary flex items-center gap-2"><ShieldAlert className="h-3.5 w-3.5" /> Required licenses (Kazakhstan)</div>
+                <div className="text-sm mt-2">Bidders must hold: <span className="font-mono">{tender.required_licenses.join(", ")}</span></div>
+              </div>
             )}
 
             {tender.attachments?.length > 0 && (
@@ -258,13 +266,19 @@ function VendorBidSection({ tender, myBid, canBid, profileStatus, onSubmitted })
 function BidsComparison({ bids, tender, canManage, onAward }) {
   if (!bids.length) return <div className="border p-8 text-center text-sm text-muted-foreground">No bids received yet.</div>;
   const min = Math.min(...bids.map((b) => b.price_amount));
+  const csvUrl = `${BACKEND_URL}/api/tenders/${tender.id}/bids/export`;
   return (
     <div className="border">
-      <div className="p-4 border-b bg-muted/30 flex items-center justify-between">
+      <div className="p-4 border-b bg-muted/30 flex items-center justify-between gap-4">
         <div>
           <div className="pmc-label">Bids received</div>
           <div className="font-serif text-2xl mt-1">{bids.length} vendor{bids.length > 1 ? "s" : ""} responded</div>
         </div>
+        {canManage && (
+          <a data-testid="export-csv" href={csvUrl} className="inline-flex items-center gap-2 text-sm border border-foreground px-3 py-2 hover:bg-foreground hover:text-white transition-colors">
+            <Download className="h-4 w-4" /> Export CSV
+          </a>
+        )}
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm pmc-table" data-testid="bids-comparison-table">

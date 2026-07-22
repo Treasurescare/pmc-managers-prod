@@ -2,9 +2,12 @@ import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { ArrowUpRight, Globe2, ShieldCheck, Gavel, ArrowRight } from "lucide-react";
 import PmcLogo from "@/components/app/PmcLogo";
+import LangSwitcher from "@/components/app/LangSwitcher";
 import api from "@/lib/api";
+import { useI18n } from "@/context/I18nContext";
 
 export default function Landing() {
+  const { t } = useI18n();
   const [stats, setStats] = useState({ tenders_open: 0, vendors_approved: 0, total_tenders: 0 });
   useEffect(() => {
     api.get("/public/stats").then(({ data }) => setStats(data)).catch(() => {});
@@ -17,16 +20,17 @@ export default function Landing() {
         <div className="max-w-[1400px] mx-auto px-6 lg:px-12 py-5 flex items-center justify-between">
           <PmcLogo />
           <nav className="hidden md:flex items-center gap-8 text-sm">
-            <a href="#how" className="text-muted-foreground hover:text-foreground">How it works</a>
-            <a href="#pillars" className="text-muted-foreground hover:text-foreground">Platform</a>
-            <a href="#trust" className="text-muted-foreground hover:text-foreground">Trust</a>
+            <a href="#how" className="text-muted-foreground hover:text-foreground">{t("nav.how")}</a>
+            <a href="#pillars" className="text-muted-foreground hover:text-foreground">{t("nav.platform")}</a>
+            <a href="#trust" className="text-muted-foreground hover:text-foreground">{t("nav.trust")}</a>
           </nav>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <LangSwitcher testid="landing-lang" />
             <Link data-testid="landing-login-btn" to="/login" className="text-sm px-4 py-2 border border-foreground hover:bg-foreground hover:text-white transition-colors">
-              Log in
+              {t("nav.login")}
             </Link>
             <Link data-testid="landing-register-btn" to="/register" className="text-sm px-4 py-2 bg-primary text-white hover:-translate-y-0.5 transition-transform inline-flex items-center gap-2">
-              Register
+              {t("nav.register")}
               <ArrowUpRight className="h-4 w-4" />
             </Link>
           </div>
@@ -49,20 +53,20 @@ export default function Landing() {
 
         <div className="relative max-w-[1400px] mx-auto px-6 lg:px-12 pt-24 pb-32 grid grid-cols-12 gap-6 text-white">
           <div className="col-span-12 md:col-span-8">
-            <div className="pmc-label text-white/70 mb-6">Est. 2026 · Global Procurement · 30+ Jurisdictions</div>
+            <div className="pmc-label text-white/70 mb-6">{t("landing.hero.tag")}</div>
             <h1 className="font-serif font-black text-[clamp(3rem,7vw,6.5rem)] leading-[0.95] tracking-tighter">
-              Procurement that <br /> travels borders.
+              {t("landing.hero.title.1")} <br /> {t("landing.hero.title.2")}
             </h1>
             <p className="mt-8 text-white/70 max-w-xl text-base md:text-lg leading-relaxed">
-              PMC Managers Limited is the global tender board for enterprises and vetted vendors. Register once, comply with jurisdiction-specific IDs, and bid across continents from a single dashboard.
+              {t("landing.hero.body")}
             </p>
             <div className="mt-10 flex flex-wrap gap-3">
               <Link data-testid="hero-register-btn" to="/register" className="inline-flex items-center gap-3 bg-white text-black px-6 py-4 text-sm font-medium hover:-translate-y-0.5 transition-transform">
-                Register as vendor
+                {t("landing.hero.cta.register")}
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link data-testid="hero-login-btn" to="/login" className="inline-flex items-center gap-3 border border-white/40 text-white px-6 py-4 text-sm font-medium hover:bg-white/10 transition-colors">
-                Access dashboard
+                {t("landing.hero.cta.login")}
               </Link>
             </div>
           </div>
@@ -71,9 +75,9 @@ export default function Landing() {
             <div className="w-full md:w-[280px] mt-4 md:mt-0 border border-white/20 backdrop-blur-sm bg-white/5 p-6 self-start">
               <div className="pmc-label text-white/60 mb-4">Live board</div>
               <div className="space-y-4">
-                <StatRow label="Open tenders" value={stats.tenders_open} testid="stat-open-tenders" />
-                <StatRow label="Vetted vendors" value={stats.vendors_approved} testid="stat-vetted-vendors" />
-                <StatRow label="Total tenders" value={stats.total_tenders} testid="stat-total-tenders" />
+                <StatRow label={t("landing.stats.open")} value={stats.tenders_open} testid="stat-open-tenders" />
+                <StatRow label={t("landing.stats.vetted")} value={stats.vendors_approved} testid="stat-vetted-vendors" />
+                <StatRow label={t("landing.stats.total")} value={stats.total_tenders} testid="stat-total-tenders" />
               </div>
             </div>
           </div>

@@ -1,0 +1,51 @@
+{
+  "summary": "Iteration 2 review — 6 new features (Resend email, Google OAuth, Stripe registration fee, KZ license gate, CSV bid export, EN/RU/KK i18n). Backend pytest suite extended from 30 → 44 tests, ALL 44 PASSED. Frontend Playwright verified: landing/login/register lang switcher (KK & RU translations render), Google buttons present and redirect to auth.emergentagent.com, vendor fee banner + Pay CTA, /vendor/payment amount + Stripe button, vendor profile fee-banner + KZ license block (6 buttons on step 4 when country=KZ), buyer /buyer/create KZ block with 6 license buttons. No blocking issues.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/payments/status/{session_id}", "issue": "Endpoint is public (no auth dependency) — any user knowing a session_id can read status/payment_status. Low risk since session_ids are opaque but consider requiring vendor auth."},
+      {"endpoint": "POST /api/webhook/stripe", "issue": "handle_webhook raises => endpoint returns 400 for any failure including replay/dup; Stripe may retry indefinitely. Consider idempotent 200 on already-processed events."},
+      {"endpoint": "POST /api/vendor/profile fee gate", "issue": "Gate only triggers when ALL 6 declarations are True. Sending decl_fee=False bypasses the gate entirely and lets vendor save profile without paying. Consider always requiring fee_paid regardless of decl toggle, or forcing decl_fee=True on submit."},
+      {"endpoint": "POST /api/payments/checkout", "issue": "origin_url is taken from request body — a malicious vendor could pass any URL and cause success_url to redirect to attacker-controlled domain after payment. Consider whitelisting against FRONTEND_URL."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "CreateTender", "issues": ["Still uses native browser datetime-local picker (same as iter1 note) — inconsistent with shadcn design system."]},
+      {"screen": "VendorProfile stepper", "issues": ["'Next step' remains unconditional; users can skip required fields and only see failure on final submit."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/iter2_results.xml"
+  ],
+  "action_items": [
+    "(Optional / security) Require vendor auth on GET /api/payments/status/{session_id}, or at minimum enforce user_id match.",
+    "(Optional / security) Whitelist origin_url in POST /api/payments/checkout against FRONTEND_URL to prevent open-redirect via success/cancel URLs.",
+    "(Optional / correctness) Make Stripe webhook idempotent — return 200 on already-paid transactions instead of raising 400.",
+    "(Optional / UX) Force decl_fee logically or always require fee_paid regardless of decl toggle so vendors can't save profile bypass by unchecking a declaration.",
+    "(Carry-over from iter1) Replace native datetime input with shadcn DatePicker on CreateTender.",
+    "(Carry-over from iter1) Per-step validation on VendorProfile 'Next step'."
+  ],
+  "critical_code_review_comments": [
+    "server.py is now 902 lines — routers/models split is overdue. Consider splitting payments, auth (google+password), reference data, and email helper into modules.",
+    "STRIPE_API_KEY default 'sk_test_emergent' hardcoded in 3 places — extract to a module-level constant or single wrapper.",
+    "list_bids buyer branch when mine=false still computes my_tender_ids list even when tender_id is given (dead branch preserved from iter1).",
+    "Google callback: when the user is new and role is None, endpoint returns {needs_role: true} but does NOT set any cookie or short-lived token — the second call must resubmit the same session_id and pray it's still valid on Emergent's side. Consider storing a temporary bridge token.",
+    "Payment webhook returns 400 on Exception — Stripe will retry forever on transient DB errors. Return 200 for anything that's not a signature failure and log the internal error.",
+    "csv_export writes proposal after .replace('\\n', ' ') but does not strip carriage returns or handle embedded quotes explicitly (csv.writer does escape quotes, so OK). No CSV-injection guard for values starting with =, +, -, @ — a malicious vendor could inject formulas. Consider prefixing suspicious cells with '.",
+    "seed_admin_and_demo silently reseeds only admin password; buyer/vendor passwords never rotate."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py (extended: added iter2 tests for kz-licenses, fee gate, payments, kz license gate on bids, CSV export, google-callback, admin stats fees_collected — 14 new tests). Also added pymongo helpers to flip registration_fee_paid without going through Stripe."
+  ],
+  "success_rate": {"backend": "100% (44/44)", "frontend": "100% of iter2 flows verified"},
+  "test_credentials": "Admin admin@pmcmanagers.com/Admin@123, Buyer buyer@pmcmanagers.com/Buyer@123, Vendor(pending) vendor@example.com/Vendor@123. TEST_-prefixed accounts created during runs; test_vendor_submit_full_profile now flips registration_fee_paid via direct pymongo before submitting.",
+  "seed_data_creation": "New KZ tender 'TEST_KZ_Medgas_*' with required_licenses=['Medical gas installation'] created via buyer for gate testing. A bid on it was submitted by the approved TEST_ vendor after direct kz_licenses grant. Two Stripe checkout sessions created (real Stripe test-mode sessions — URLs like checkout.stripe.com). payment_transactions has 2+ new records with status=initiated.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run backend suite: `cd /app/backend && REACT_APP_BACKEND_URL=https://tender-hub-57.preview.emergentagent.com python -m pytest tests/backend_test.py -v -n 0` (must pass -n 0 due to shared CTX dict). Vendor profile field data-testids: `vp-country` is on STEP 1 (Identity & Basics), NOT step 2. Step 4 is Business Capability where `vp-kz-license-block` appears when country=KZ. Buyer CreateTender: `ct-kz-licenses` block appears when `ct-delivery-country` = KZ, and 6 `ct-lic-*` toggle buttons render. Google OAuth login-google button uses window.location assignment to `https://auth.emergentagent.com/?redirect=<frontend>/auth/callback` — verified by observing network navigation to that URL then Google account picker. Stripe checkout returns valid checkout.stripe.com URLs in test mode via emergentintegrations. i18n keys: RU 'Войти', KK 'Кіру' confirmed on login submit / landing.",
+  "rca of the issue": "No blocking bugs. Findings are hardening/security suggestions only — see backend_issues.minor and action_items."
+}

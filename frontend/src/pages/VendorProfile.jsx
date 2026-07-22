@@ -55,6 +55,7 @@ const empty = {
   licenses_permits: "",
   insurance_details: "",
   litigation_history: "",
+  kz_licenses: [],
   documents: [],
   decl_conflict_of_interest: false,
   decl_integrity: false,
@@ -67,10 +68,20 @@ const empty = {
   signature_date: "",
 };
 
+const KZ_LICENSE_TYPES = [
+  "Construction (1st category)",
+  "Electrical installation",
+  "Mechanical works",
+  "Plumbing & firefighting",
+  "Medical gas installation",
+  "HSE compliance",
+];
+
 export default function VendorProfile() {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState(empty);
   const [status, setStatus] = useState("pending");
+  const [feePaid, setFeePaid] = useState(false);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [regionInput, setRegionInput] = useState("");
@@ -78,9 +89,14 @@ export default function VendorProfile() {
   useEffect(() => {
     api.get("/vendor/profile").then(({ data }) => {
       setStatus(data.vendor_status || "pending");
+      setFeePaid(!!data.registration_fee_paid);
       if (data.vendor_profile) setForm({ ...empty, ...data.vendor_profile });
     }).catch(() => {});
   }, []);
+
+  const toggleKzLicense = (l) => setForm((s) => ({
+    ...s, kz_licenses: s.kz_licenses.includes(l) ? s.kz_licenses.filter((x) => x !== l) : [...s.kz_licenses, l],
+  }));
 
   const set = (k) => (e) => setForm((s) => ({ ...s, [k]: e.target?.value ?? e }));
   const setBool = (k) => (e) => setForm((s) => ({ ...s, [k]: e.target.checked }));
@@ -161,6 +177,16 @@ export default function VendorProfile() {
         All information must be true, accurate, and verifiable. After approval you will receive
         access to the tendering portal. A non-refundable registration fee is payable per PMC instructions.
       </div>
+
+      {!feePaid && (
+        <div data-testid="fee-banner" className="mb-6 border border-l-4 border-warning bg-warning/10 p-4 text-sm flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="pmc-label text-warning">Fee required</div>
+            <div className="mt-1">Your registration fee (USD 100, one-time) must be paid before your profile can be submitted for review.</div>
+          </div>
+          <a data-testid="fee-banner-cta" href="/vendor/payment" className="bg-primary text-white px-4 py-2 text-sm inline-flex items-center gap-2">Pay registration fee</a>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-8">
         <ol className="space-y-0 border-l" data-testid="vendor-stepper">
@@ -352,6 +378,28 @@ export default function VendorProfile() {
                   <TextArea label="Insurance / liability coverage" optional rows={2} value={form.insurance_details} onChange={set("insurance_details")} testid="vp-insurance" />
                   <TextArea label="Litigation / disputes / bankruptcy history (past 5 years)" required rows={2} value={form.litigation_history} onChange={set("litigation_history")} testid="vp-litigation" hint="Write 'None' if not applicable" />
                 </div>
+
+                {form.country === "KZ" && (
+                  <div className="border border-l-4 border-primary bg-primary/5 p-5" data-testid="vp-kz-license-block">
+                    <div className="pmc-label text-primary mb-2">Kazakhstan-specific licenses</div>
+                    <h4 className="font-serif text-xl mb-2">Select all licenses you currently hold</h4>
+                    <p className="text-sm text-muted-foreground mb-4">These map to specialised tender categories (medical gas, electrical, plumbing, etc.). Tenders requiring these will only accept bids from vendors holding the matching licence.</p>
+                    <div className="flex flex-wrap gap-2">
+                      {KZ_LICENSE_TYPES.map((l) => {
+                        const on = form.kz_licenses.includes(l);
+                        return (
+                          <button
+                            key={l} type="button" onClick={() => toggleKzLicense(l)}
+                            data-testid={`vp-kzlic-${l.replace(/[^a-z0-9]/gi, "-").toLowerCase()}`}
+                            className={`px-3 py-2 text-xs border transition-colors ${on ? "bg-primary text-white border-primary" : "border-input hover:border-foreground"}`}
+                          >
+                            {on && <Check className="inline h-3 w-3 mr-1" />} {l}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </>
             )}
 

@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "@/components/app/DashboardLayout";
 import api, { formatApiError } from "@/lib/api";
 import { toast } from "sonner";
-import { CURRENCIES, TENDER_CATEGORY_FLAT } from "@/data/countries";
-import { Upload, X } from "lucide-react";
+import { CURRENCIES, TENDER_CATEGORY_FLAT, COUNTRIES } from "@/data/countries";
+import { Upload, X, ShieldAlert } from "lucide-react";
 
 export default function CreateTender() {
   const nav = useNavigate();
@@ -17,11 +17,27 @@ export default function CreateTender() {
     budget_amount: "",
     submission_deadline: "",
     delivery_location: "",
+    delivery_country: "",
+    required_licenses: [],
     eligibility_criteria: "",
     attachments: [],
   });
   const [uploading, setUploading] = useState(false);
+  const [kzMap, setKzMap] = useState({});
+  const [kzLicenses, setKzLicenses] = useState([]);
+  useEffect(() => {
+    api.get("/reference/kz-licenses").then(({ data }) => {
+      setKzMap(data.category_map || {});
+      setKzLicenses(data.licenses || []);
+    }).catch(() => {});
+  }, []);
   const set = (k) => (e) => setForm((s) => ({ ...s, [k]: e.target.value }));
+
+  const suggestedKz = (form.delivery_country === "KZ") ? (kzMap[form.category] || []) : [];
+
+  const toggleLicense = (l) => setForm((s) => ({
+    ...s, required_licenses: s.required_licenses.includes(l) ? s.required_licenses.filter((x) => x !== l) : [...s.required_licenses, l],
+  }));
 
   const onUpload = async (e) => {
     const files = Array.from(e.target.files || []);
@@ -98,6 +114,38 @@ export default function CreateTender() {
           <input data-testid="ct-location" value={form.delivery_location} onChange={set("delivery_location")}
             className="w-full h-12 px-4 border border-input focus:border-primary focus:outline-none bg-white" />
         </div>
+        <div>
+          <label className="pmc-label block mb-2">Delivery country</label>
+          <select data-testid="ct-delivery-country" value={form.delivery_country} onChange={set("delivery_country")}
+            className="w-full h-12 px-4 border border-input focus:border-primary focus:outline-none bg-white">
+            <option value="">Any / not specified</option>
+            {COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+          </select>
+        </div>
+
+        {form.delivery_country === "KZ" && (
+          <div className="border border-l-4 border-primary bg-primary/5 p-5" data-testid="ct-kz-licenses">
+            <div className="flex items-center gap-2 pmc-label text-primary">
+              <ShieldAlert className="h-4 w-4" /> Kazakhstan license gate
+            </div>
+            <div className="text-sm mt-2 mb-4">Only vendors holding these Kazakhstani licenses will be able to bid.</div>
+            {suggestedKz.length > 0 && (
+              <div className="text-xs mb-3 text-muted-foreground">Recommended for <span className="font-mono">{form.category}</span>: {suggestedKz.join(", ")}</div>
+            )}
+            <div className="flex flex-wrap gap-2">
+              {kzLicenses.map((l) => {
+                const on = form.required_licenses.includes(l);
+                return (
+                  <button key={l} type="button" onClick={() => toggleLicense(l)}
+                    data-testid={`ct-lic-${l.replace(/[^a-z0-9]/gi, "-").toLowerCase()}`}
+                    className={`px-3 py-2 text-xs border transition-colors ${on ? "bg-primary text-white border-primary" : "border-input hover:border-foreground"}`}>
+                    {l}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
         <div>
           <label className="pmc-label block mb-2">Eligibility criteria <span className="text-muted-foreground normal-case tracking-normal ml-2">(optional)</span></label>
           <textarea data-testid="ct-eligibility" value={form.eligibility_criteria} onChange={set("eligibility_criteria")}

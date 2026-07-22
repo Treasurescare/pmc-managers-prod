@@ -2,14 +2,39 @@
 
 Covers: health, public stats, auth (login/register/me), vendor profile submission,
 admin approve, tender CRUD, bids (submit/duplicate/award), notifications, uploads.
+
+Iteration 2 additions: KZ license reference & gating, Stripe payments checkout,
+Google OAuth callback, CSV bid export, admin stats fees_collected.
 """
 import io
 import os
+import sys
 import uuid
 from datetime import datetime, timezone, timedelta
 
 import pytest
 import requests
+
+# Direct pymongo helper for flipping registration_fee_paid without going through Stripe
+from pymongo import MongoClient
+from bson import ObjectId as _ObjectId
+
+# Load backend env for mongo access
+sys.path.insert(0, "/app/backend")
+from dotenv import load_dotenv as _load_dotenv  # type: ignore
+_load_dotenv("/app/backend/.env")
+
+_MONGO = MongoClient(os.environ["MONGO_URL"])
+_DB = _MONGO[os.environ["DB_NAME"]]
+
+
+def _mark_fee_paid(user_id: str):
+    _DB.users.update_one({"_id": _ObjectId(user_id)}, {"$set": {"registration_fee_paid": True}})
+
+
+def _set_kz_licenses(user_id: str, licenses):
+    _DB.users.update_one({"_id": _ObjectId(user_id)},
+                         {"$set": {"vendor_profile.kz_licenses": licenses}})
 
 BASE_URL = os.environ["REACT_APP_BACKEND_URL"].rstrip("/") if os.environ.get("REACT_APP_BACKEND_URL") else None
 if not BASE_URL:
@@ -138,6 +163,8 @@ class TestVendorLifecycle:
     def test_vendor_submit_full_profile(self):
         s = CTX.get("new_vendor_session")
         assert s is not None, "prerequisite registration test must run first"
+        # Iteration 2: registration fee gate — pre-flip fee_paid to allow full-decl submit
+        _mark_fee_paid(CTX["new_vendor_id"])
         payload = {
             "company_name": "TEST_Global Trading LLC",
             "trade_name": "GTL",
@@ -416,3 +443,224 @@ class TestNotifications:
         # verify all unread now 0
         notifs = s.get(f"{API}/notifications", timeout=10).json()
         assert all(n["read"] is True for n in notifs)
+
+
+# =========================================================================
+# ITERATION 2 — new feature tests (KZ licenses, payments, google, CSV, i18n)
+# =========================================================================
+
+# ---------- KZ licenses reference ----------
+class TestKZLicensesReference:
+    def test_kz_licenses_endpoint(self):
+        r = requests.get(f"{API}/reference/kz-licenses", timeout=10)
+        assert r.status_code == 200
+        data = r.json()
+        assert "licenses" in data and "category_map" in data
+        for expected in ["Medical gas installation", "Electrical installation", "Construction (1st category)"]:
+            assert expected in data["licenses"], f"missing {expected}"
+        assert len(data["licenses"]) == 6
+        # spot-check map
+        assert data["category_map"]["Medical gas pipeline systems"] == ["Medical gas installation"]
+
+
+# ---------- Fee gate on vendor profile ----------
+class TestRegistrationFeeGate:
+    def test_402_when_all_decls_true_and_fee_not_paid(self):
+        # Register a fresh vendor (no fee paid)
+        uniq = uuid.uuid4().hex[:8]
+        creds = {"email": f"TEST_feegate_{uniq}@example.com", "password": "Vendor@123",
+                 "name": "Fee Gate Vendor", "role": "vendor"}
+        s = _session()
+        r = s.post(f"{API}/auth/register", json=creds, timeout=15)
+        assert r.status_code == 200
+        vid = r.json()["id"]
+        CTX["feegate_vendor_id"] = vid
+        CTX["feegate_vendor_session"] = s
+
+        payload = {
+            "company_name": f"TEST_FG_{uniq}", "registered_address": "x", "country": "US",
+            "registration_number": "R1", "legal_entity_type": "LLC",
+            "contact_name": "c", "contact_title": "CEO", "contact_office_phone": "+1",
+            "contact_email": "c@example.com",
+            "signatory_name": "s", "signatory_title": "CEO",
+            "bank_name": "b", "bank_account_number": "1", "bank_swift": "SW",
+            "primary_sector": "General", "business_description": "d",
+            "decl_conflict_of_interest": True, "decl_integrity": True, "decl_accuracy": True,
+            "decl_data_consent": True, "decl_fee": True, "decl_notification": True,
+        }
+        rr = s.post(f"{API}/vendor/profile", json=payload, timeout=15)
+        assert rr.status_code == 402, f"expected 402, got {rr.status_code}: {rr.text}"
+        assert "registration fee" in rr.text.lower()
+
+    def test_profile_submit_ok_after_fee_paid(self):
+        vid = CTX["feegate_vendor_id"]
+        _mark_fee_paid(vid)
+        s = CTX["feegate_vendor_session"]
+        payload = {
+            "company_name": "TEST_FGPaid", "registered_address": "x", "country": "US",
+            "registration_number": "R1", "legal_entity_type": "LLC",
+            "contact_name": "c", "contact_title": "CEO", "contact_office_phone": "+1",
+            "contact_email": "c@example.com",
+            "signatory_name": "s", "signatory_title": "CEO",
+            "bank_name": "b", "bank_account_number": "1", "bank_swift": "SW",
+            "primary_sector": "General", "business_description": "d",
+            "decl_conflict_of_interest": True, "decl_integrity": True, "decl_accuracy": True,
+            "decl_data_consent": True, "decl_fee": True, "decl_notification": True,
+        }
+        rr = s.post(f"{API}/vendor/profile", json=payload, timeout=15)
+        assert rr.status_code == 200, rr.text
+        assert rr.json().get("vendor_status") == "pending"
+
+
+# ---------- Payments (Stripe Flow B) ----------
+class TestPayments:
+    def test_checkout_returns_url_and_session(self):
+        # Use a fresh vendor that has NOT paid
+        uniq = uuid.uuid4().hex[:8]
+        creds = {"email": f"TEST_pay_{uniq}@example.com", "password": "Vendor@123",
+                 "name": "Pay Vendor", "role": "vendor"}
+        s = _session()
+        r = s.post(f"{API}/auth/register", json=creds, timeout=15)
+        assert r.status_code == 200
+        CTX["pay_vendor_id"] = r.json()["id"]
+        CTX["pay_vendor_session"] = s
+
+        r2 = s.post(f"{API}/payments/checkout",
+                    json={"origin_url": "https://tender-hub-57.preview.emergentagent.com"},
+                    timeout=25)
+        assert r2.status_code == 200, f"checkout failed: {r2.status_code} {r2.text}"
+        data = r2.json()
+        assert "checkout_url" in data and "session_id" in data
+        assert data["checkout_url"].startswith("http")
+        CTX["pay_session_id"] = data["session_id"]
+
+        # Verify payment_transactions record inserted with status=initiated
+        rec = _DB.payment_transactions.find_one({"session_id": data["session_id"]})
+        assert rec is not None, "payment_transactions record missing"
+        assert rec["status"] == "initiated"
+        assert rec["payment_status"] == "pending"
+        assert rec["user_id"] == CTX["pay_vendor_id"]
+        assert float(rec["amount"]) == 100.0
+
+    def test_payment_status_returns_shape(self):
+        sid = CTX["pay_session_id"]
+        s = CTX["pay_vendor_session"]
+        r = s.get(f"{API}/payments/status/{sid}", timeout=25)
+        # Might return 200 with pending; endpoint is public per code (no auth dep) but let's just check status shape
+        assert r.status_code == 200, r.text
+        d = r.json()
+        assert d["session_id"] == sid
+        assert "status" in d and "payment_status" in d
+
+    def test_checkout_400_when_already_paid(self):
+        # Mark the pay-vendor as already paid
+        _mark_fee_paid(CTX["pay_vendor_id"])
+        s = CTX["pay_vendor_session"]
+        r = s.post(f"{API}/payments/checkout",
+                   json={"origin_url": "https://tender-hub-57.preview.emergentagent.com"},
+                   timeout=15)
+        assert r.status_code == 400
+        assert "already paid" in r.text.lower()
+
+
+# ---------- KZ tender + license gating on bid ----------
+class TestKZLicenseGate:
+    def test_buyer_kz_tender_auto_attaches_licenses(self):
+        s = CTX["buyer_session"]
+        deadline = (datetime.now(timezone.utc) + timedelta(days=14)).isoformat()
+        payload = {
+            "title": f"TEST_KZ_Medgas_{uuid.uuid4().hex[:6]}",
+            "description": "Medical gas pipeline works for hospital block A.",
+            "category": "Medical gas pipeline systems",
+            "budget_currency": "USD",
+            "budget_amount": 250000,
+            "submission_deadline": deadline,
+            "delivery_country": "KZ",
+            "delivery_location": "Astana, KZ",
+            "required_licenses": [],  # server should auto-attach
+        }
+        r = s.post(f"{API}/tenders", json=payload, timeout=15)
+        assert r.status_code == 200, r.text
+        t = r.json()
+        assert "Medical gas installation" in (t.get("required_licenses") or []), t
+        CTX["kz_tender_id"] = t["id"]
+
+    def test_vendor_without_licenses_gets_403(self):
+        # new_vendor_session vendor is approved but has empty kz_licenses (profile above set none)
+        s = CTX["new_vendor_session"]
+        r = s.post(f"{API}/bids", json={
+            "tender_id": CTX["kz_tender_id"],
+            "price_currency": "USD",
+            "price_amount": 200000,
+            "delivery_days": 90,
+            "proposal": "We will do medical gas.",
+        }, timeout=15)
+        assert r.status_code == 403, r.text
+        assert "missing required licenses" in r.text.lower()
+
+    def test_vendor_with_licenses_can_bid(self):
+        # Grant the license via direct DB write
+        _set_kz_licenses(CTX["new_vendor_id"], ["Medical gas installation"])
+        s = CTX["new_vendor_session"]
+        r = s.post(f"{API}/bids", json={
+            "tender_id": CTX["kz_tender_id"],
+            "price_currency": "USD",
+            "price_amount": 210000,
+            "delivery_days": 88,
+            "proposal": "Fully licensed medgas contractor.",
+        }, timeout=15)
+        assert r.status_code == 200, r.text
+        b = r.json()
+        assert b["status"] == "submitted"
+        CTX["kz_bid_id"] = b["id"]
+
+
+# ---------- CSV export ----------
+class TestCSVExport:
+    def test_owner_buyer_can_export(self):
+        s = CTX["buyer_session"]
+        r = s.get(f"{API}/tenders/{CTX['kz_tender_id']}/bids/export", timeout=15)
+        assert r.status_code == 200, r.text
+        assert "text/csv" in r.headers.get("content-type", "")
+        text = r.text
+        # Verify header row columns
+        header = text.splitlines()[0]
+        for col in ["Tender ID", "Tender Title", "Vendor Company", "Vendor Email",
+                    "Currency", "Price", "Delivery Days", "Status", "Submitted At", "Proposal"]:
+            assert col in header, f"missing column {col} in {header}"
+        # Verify at least one data row (our KZ bid)
+        assert len(text.splitlines()) >= 2
+
+    def test_non_owner_buyer_gets_403(self):
+        uniq = uuid.uuid4().hex[:8]
+        creds = {"email": f"TEST_csv_buyer_{uniq}@example.com", "password": "Buyer@123",
+                 "name": "csvbuyer", "role": "buyer"}
+        s = _session()
+        assert s.post(f"{API}/auth/register", json=creds, timeout=15).status_code == 200
+        r = s.get(f"{API}/tenders/{CTX['kz_tender_id']}/bids/export", timeout=15)
+        assert r.status_code == 403
+
+    def test_admin_can_export(self):
+        s = CTX["admin_session"]
+        r = s.get(f"{API}/tenders/{CTX['kz_tender_id']}/bids/export", timeout=15)
+        assert r.status_code == 200
+
+
+# ---------- Google OAuth callback ----------
+class TestGoogleCallback:
+    def test_invalid_session_id_returns_401(self):
+        r = requests.post(f"{API}/auth/google-callback",
+                          json={"session_id": "invalid_session_totally_fake"}, timeout=15)
+        assert r.status_code == 401, f"expected 401, got {r.status_code}: {r.text}"
+
+
+# ---------- Admin stats — fees_collected ----------
+class TestAdminStatsFeesCollected:
+    def test_admin_stats_has_fees_collected(self):
+        s = CTX["admin_session"]
+        r = s.get(f"{API}/admin/stats", timeout=10)
+        assert r.status_code == 200
+        d = r.json()
+        assert "fees_collected" in d
+        assert isinstance(d["fees_collected"], int)
+
