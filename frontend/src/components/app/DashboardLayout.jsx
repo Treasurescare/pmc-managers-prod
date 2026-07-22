@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { LayoutDashboard, FileStack, Gavel, Users, Bell, LogOut, Building2, PlusSquare, ShieldCheck, CreditCard, ClipboardList } from "lucide-react";
 import PmcLogo from "./PmcLogo";
 import LangSwitcher from "./LangSwitcher";
+import TenderFeed from "./TenderFeed";
 import { useAuth } from "@/context/AuthContext";
 import api from "@/lib/api";
 
@@ -55,9 +56,20 @@ export default function DashboardLayout({ children, title, subtitle, actions }) 
 
   const doLogout = async () => { await logout(); navigate("/login"); };
   const items = navFor(user?.role);
+  const [feedCollapsed, setFeedCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("pmc_feed_collapsed") === "1";
+  });
+  const toggleFeed = () => {
+    setFeedCollapsed((v) => {
+      const next = !v;
+      localStorage.setItem("pmc_feed_collapsed", next ? "1" : "0");
+      return next;
+    });
+  };
 
   return (
-    <div className="min-h-screen grid grid-cols-1 lg:grid-cols-[280px_1fr] bg-background">
+    <div className={`min-h-screen grid grid-cols-1 bg-background ${feedCollapsed ? "lg:grid-cols-[280px_1fr_40px]" : "lg:grid-cols-[280px_1fr_320px]"}`}>
       {/* Sidebar */}
       <aside className="hidden lg:flex flex-col bg-[#050505] text-white border-r border-white/10">
         <div className="p-6 border-b border-white/10">
@@ -119,6 +131,11 @@ export default function DashboardLayout({ children, title, subtitle, actions }) 
         </header>
 
         <main className="flex-1 p-6 lg:p-10 min-w-0">{children}</main>
+      </div>
+
+      {/* Right rail — Live Tender Feed */}
+      <div className="hidden lg:block sticky top-0 h-screen">
+        <TenderFeed collapsed={feedCollapsed} onToggle={toggleFeed} />
       </div>
     </div>
   );

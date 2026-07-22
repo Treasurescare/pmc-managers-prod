@@ -908,6 +908,30 @@ async def public_stats():
     }
 
 
+@api.get("/feed/tenders")
+async def feed_tenders(limit: int = 30, user: dict = Depends(get_current_user)):
+    """Real-time cross-role feed of the latest tenders (any doc type). Only open + awarded shown."""
+    q = {"status": {"$in": ["open", "awarded"]}}
+    limit = max(1, min(int(limit), 100))
+    out = []
+    async for t in db.tenders.find(q).sort("created_at", -1).limit(limit):
+        out.append({
+            "id": str(t["_id"]),
+            "title": t.get("title"),
+            "description": (t.get("description") or "")[:220],
+            "document_type": t.get("document_type") or "tender",
+            "category": t.get("category"),
+            "status": t.get("status"),
+            "budget_currency": t.get("budget_currency"),
+            "budget_amount": t.get("budget_amount"),
+            "submission_deadline": t.get("submission_deadline"),
+            "delivery_country": t.get("delivery_country"),
+            "created_by_name": t.get("created_by_name"),
+            "created_at": t.get("created_at"),
+        })
+    return out
+
+
 @api.get("/health")
 async def health():
     return {"ok": True, "service": "pmc-tender-api"}

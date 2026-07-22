@@ -1052,3 +1052,109 @@ class TestV13RfpScoring:
                    timeout=15)
         assert r.status_code == 200, r.text
         assert abs(r.json()["weighted_total"] - 60.0) < 0.01
+
+
+# =========================================================================
+# ITERATION 5 (v1.4) — Real-time tender feed
+# =========================================================================
+
+
+class TestV14TenderFeed:
+    """GET /api/feed/tenders — auth-gated feed of open + awarded tenders."""
+
+    def test_feed_requires_auth(self):
+        r = requests.get(f"{API}/feed/tenders", timeout=10)
+        assert r.status_code == 401, f"expected 401, got {r.status_code}: {r.text}"
+
+    def test_feed_returns_list_for_admin(self):
+        s = CTX["admin_session"]
+        r = s.get(f"{API}/feed/tenders", timeout=10)
+        assert r.status_code == 200, r.text
+        data = r.json()
+        assert isinstance(data, list)
+        # We've created lots of tenders in prior tests
+        assert len(data) >= 1
+        # Field shape check for first item
+        item = data[0]
+        for k in ("id", "title", "description", "document_type", "category", "status",
+                  "budget_currency", "budget_amount", "submission_deadline",
+                  "delivery_country", "created_by_name", "created_at"):
+            assert k in item, f"missing {k} in feed item: {item.keys()}"
+        # description <= 220 chars
+        assert len(item["description"] or "") <= 220
+        # status must be open or awarded
+        assert item["status"] in ("open", "awarded")
+        # sorted by created_at desc — verify by pairwise compare (strings ISO sortable)
+        for i in range(len(data) - 1):
+            a = data[i].get("created_at") or ""
+            b = data[i + 1].get("created_at") or ""
+            assert a >= b, f"feed not sorted desc: {a} < {b}"
+
+    def test_feed_returns_list_for_buyer(self):
+        s = CTX["buyer_session"]
+        r = s.get(f"{API}/feed/tenders", timeout=10)
+        assert r.status_code == 200
+        assert isinstance(r.json(), list)
+
+    def test_feed_returns_list_for_vendor(self):
+        s = CTX["new_vendor_session"]
+        r = s.get(f"{API}/feed/tenders", timeout=10)
+        assert r.status_code == 200
+        assert isinstance(r.json(), list)
+
+    def test_feed_limit_param_respected(self):
+        s = CTX["admin_session"]
+        r = s.get(f"{API}/feed/tenders?limit=5", timeout=10)
+        assert r.status_code == 200
+        data = r.json()
+        assert len(data) <= 5
+
+    def test_feed_limit_clamped_to_100(self):
+        s = CTX["admin_session"]
+        r = s.get(f"{API}/feed/tenders?limit=500", timeout=10)
+        assert r.status_code == 200
+        data = r.json()
+        assert len(data) <= 100
+
+    def test_feed_limit_min_clamped_to_1(self):
+        s = CTX["admin_session"]
+        r = s.get(f"{API}/feed/tenders?limit=0", timeout=10)
+        assert r.status_code == 200
+        data = r.json()
+        # 0 must clamp to at least 1
+        assert len(data) >= 1
+
+    def test_feed_excludes_closed_tenders(self):
+        """Any tender with status=closed must NOT appear in the feed."""
+        s = CTX["admin_session"]
+        r = s.get(f"{API}/feed/tenders?limit=100", timeout=10)
+        assert r.status_code == 200
+        statuses = {item["status"] for item in r.json()}
+        assert statuses.issubset({"open", "awarded"}), f"unexpected statuses: {statuses}"
+
+    def test_feed_reflects_new_tender_creation(self):
+        """Create a tender and verify it appears at top of feed."""
+        buyer = CTX["buyer_session"]
+        deadline = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
+        title = f"TEST_v14_FeedTop_{uuid.uuid4().hex[:6]}"
+        r = buyer.post(f"{API}/tenders", json={
+            "title": title,
+            "description": "Feed liveness test tender." * 3,  # verify truncation works too
+            "category": "Consulting & Advisory",
+            "budget_currency": "USD",
+            "budget_amount": 12345,
+            "submission_deadline": deadline,
+            "delivery_location": "Astana",
+        }, timeout=15)
+        assert r.status_code == 200
+        new_id = r.json()["id"]
+
+        # Now the admin fetches feed with limit=5 — the new tender should be within the first entries
+        s = CTX["admin_session"]
+        feed = s.get(f"{API}/feed/tenders?limit=5", timeout=10).json()
+        top_ids = [it["id"] for it in feed]
+        assert new_id in top_ids, f"new tender {new_id} not in top-5 feed ids: {top_ids}"
+
+        # Verify description truncated to 220 chars max
+        item = next(it for it in feed if it["id"] == new_id)
+        assert len(item["description"]) <= 220
