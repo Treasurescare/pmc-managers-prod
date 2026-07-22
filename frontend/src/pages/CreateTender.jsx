@@ -37,6 +37,7 @@ const empty = {
   evaluation_committee: [],
   pre_bid_meeting_date: "",
   bid_bond_amount: "",
+  two_envelope: false,
 };
 
 export default function CreateTender() {
@@ -348,6 +349,22 @@ export default function CreateTender() {
                   className="w-full h-11 px-3 border border-input bg-white focus:border-primary focus:outline-none" />
               </div>
             </div>
+
+            <label className="mt-5 flex items-start gap-3 border border-dashed border-primary/40 bg-primary/[0.04] p-4 cursor-pointer hover:bg-primary/[0.07] transition-colors">
+              <input
+                type="checkbox"
+                data-testid="rfp-two-envelope"
+                checked={form.two_envelope}
+                onChange={(e) => setForm((s) => ({ ...s, two_envelope: e.target.checked }))}
+                className="mt-1 h-4 w-4 accent-primary"
+              />
+              <div>
+                <div className="pmc-label text-primary">Two-envelope sealed bidding</div>
+                <div className="text-sm mt-1 text-foreground/80">
+                  Vendors submit technical and commercial proposals as sealed envelopes. Buyer opens technical envelopes first and scores them, then only technically-qualified bids reveal their commercial envelope for award.
+                </div>
+              </div>
+            </label>
           </div>
         )}
 

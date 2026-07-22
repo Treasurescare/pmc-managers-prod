@@ -134,9 +134,16 @@ export default function TenderDetail() {
 
             {tender.document_type === "rfp" && (
               <div className="mt-6 border" data-testid="tender-rfp-block">
-                <div className="p-4 border-b bg-muted/30">
-                  <div className="pmc-label text-primary">RFP · Evaluation framework</div>
-                  <div className="font-serif text-xl mt-1">How your proposal will be judged</div>
+                <div className="p-4 border-b bg-muted/30 flex items-center justify-between gap-3">
+                  <div>
+                    <div className="pmc-label text-primary">RFP · Evaluation framework</div>
+                    <div className="font-serif text-xl mt-1">How your proposal will be judged</div>
+                  </div>
+                  {tender.two_envelope && (
+                    <span data-testid="rfp-two-envelope-badge" className="text-[10px] font-semibold tracking-widest px-2 py-1 border border-primary text-primary">
+                      TWO-ENVELOPE
+                    </span>
+                  )}
                 </div>
                 <div className="p-4 space-y-4 text-sm">
                   {tender.scope_of_work && (<div><div className="pmc-label mb-1">Full scope of work</div><p className="whitespace-pre-line">{tender.scope_of_work}</p></div>)}
@@ -433,7 +440,7 @@ function BidsComparison({ bids, tender, canManage, onAward, onScored }) {
     <div className="border">
       <div className="p-4 border-b bg-muted/30 flex items-center justify-between gap-4">
         <div>
-          <div className="pmc-label">Bids received · {tender.document_type?.toUpperCase() || "TENDER"}</div>
+          <div className="pmc-label">Bids received · {tender.document_type?.toUpperCase() || "TENDER"}{tender.two_envelope ? " · TWO-ENVELOPE" : ""}</div>
           <div className="font-serif text-2xl mt-1">{bids.length} vendor{bids.length > 1 ? "s" : ""} responded</div>
         </div>
         {canManage && (
@@ -443,6 +450,10 @@ function BidsComparison({ bids, tender, canManage, onAward, onScored }) {
         )}
       </div>
 
+      {tender.two_envelope && (
+        <TwoEnvelopePanel tender={tender} bids={bids} canManage={canManage} onChanged={onScored} />
+      )}
+
       {isRFP ? (
         <RfpScoringMatrix bids={bids} tender={tender} canManage={canManage} onAward={onAward} onScored={onScored} />
       ) : isRFQ && (tender.line_items || []).length > 0 ? (
@@ -450,6 +461,72 @@ function BidsComparison({ bids, tender, canManage, onAward, onScored }) {
       ) : (
         <FlatBidTable bids={bids} tender={tender} canManage={canManage} onAward={onAward} />
       )}
+    </div>
+  );
+}
+
+function TwoEnvelopePanel({ tender, bids, canManage, onChanged }) {
+  const [busy, setBusy] = useState(null);
+  const techOpen = !!tender.technical_opened_at;
+  const commOpen = !!tender.commercial_opened_at;
+  const qualified = bids.filter((b) => b.technical_qualified === true).length;
+  const disqualified = bids.filter((b) => b.technical_qualified === false).length;
+  const pending = bids.length - qualified - disqualified;
+
+  const openTech = async () => {
+    setBusy("tech");
+    try { await api.post(`/tenders/${tender.id}/open-technical`); toast.success("Technical envelopes opened"); onChanged && onChanged(); }
+    catch (e) { toast.error(formatApiError(e)); }
+    finally { setBusy(null); }
+  };
+  const openComm = async () => {
+    setBusy("comm");
+    try { await api.post(`/tenders/${tender.id}/open-commercial`); toast.success("Commercial envelopes opened"); onChanged && onChanged(); }
+    catch (e) { toast.error(formatApiError(e)); }
+    finally { setBusy(null); }
+  };
+
+  const stage = commOpen ? 3 : techOpen ? 2 : 1;
+  const stageLabels = ["Sealed", "Technical open · Qualifying", "Commercial open · Awarding"];
+
+  return (
+    <div className="border-b bg-primary/[0.04] p-4" data-testid="two-envelope-panel">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <div className="pmc-label text-primary">Two-envelope evaluation</div>
+          <div className="font-serif text-lg mt-1" data-testid="te-stage-label">Stage {stage} · {stageLabels[stage - 1]}</div>
+          <div className="text-xs text-muted-foreground mt-1 font-mono">
+            {qualified} qualified · {disqualified} disqualified · {pending} pending
+          </div>
+        </div>
+        {canManage && (
+          <div className="flex gap-2">
+            {!techOpen && (
+              <button data-testid="te-open-technical" onClick={openTech} disabled={busy === "tech"}
+                className="text-sm bg-primary text-white px-4 py-2 hover:-translate-y-0.5 transition-transform disabled:opacity-60">
+                {busy === "tech" ? "Opening..." : "Open Technical Envelopes"}
+              </button>
+            )}
+            {techOpen && !commOpen && (
+              <button data-testid="te-open-commercial" onClick={openComm} disabled={busy === "comm" || qualified === 0}
+                title={qualified === 0 ? "Qualify at least one bid first" : ""}
+                className="text-sm bg-primary text-white px-4 py-2 hover:-translate-y-0.5 transition-transform disabled:opacity-60">
+                {busy === "comm" ? "Opening..." : `Open Commercial Envelopes (${qualified})`}
+              </button>
+            )}
+            {commOpen && (
+              <div className="text-sm px-4 py-2 border border-primary text-primary">
+                Ready to award qualified bids
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        {[1,2,3].map((n) => (
+          <div key={n} className={`h-1.5 ${n <= stage ? "bg-primary" : "bg-muted"}`} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -590,6 +667,12 @@ function RfpScoringMatrix({ bids, tender, canManage, onAward, onScored }) {
   const criteria = tender.evaluation_criteria || [];
   const [drafts, setDrafts] = useState({});
   const [saving, setSaving] = useState({});
+  const [qualBusy, setQualBusy] = useState({});
+
+  const isTwoEnv = !!tender.two_envelope;
+  const techOpen = !!tender.technical_opened_at;
+  const commOpen = !!tender.commercial_opened_at;
+  const scoringLocked = isTwoEnv && !techOpen;
 
   const draftFor = (bid) => drafts[bid.id] || bid.rfp_scores || {};
   const setScore = (bidId, name, val) => setDrafts((s) => ({ ...s, [bidId]: { ...(s[bidId] || {}), [name]: val } }));
@@ -610,6 +693,16 @@ function RfpScoringMatrix({ bids, tender, canManage, onAward, onScored }) {
     finally { setSaving((s) => ({ ...s, [bidId]: false })); }
   };
 
+  const qualifyBid = async (bidId, qualified) => {
+    setQualBusy((s) => ({ ...s, [bidId]: true }));
+    try {
+      await api.post(`/bids/${bidId}/qualify`, { qualified });
+      toast.success(qualified ? "Bid marked qualified" : "Bid marked disqualified");
+      onScored && onScored();
+    } catch (err) { toast.error(formatApiError(err)); }
+    finally { setQualBusy((s) => ({ ...s, [bidId]: false })); }
+  };
+
   const bestBidId = bids.reduce((best, b) => {
     const wt = b.rfp_weighted_total || 0;
     if (!best || wt > (best.wt || 0)) return { id: b.id, wt };
@@ -620,15 +713,35 @@ function RfpScoringMatrix({ bids, tender, canManage, onAward, onScored }) {
     return <div className="p-6 text-sm text-muted-foreground">This RFP has no evaluation criteria defined — please add them before scoring bids.</div>;
   }
 
+  const priceCell = (b) => {
+    if (isTwoEnv && (!commOpen || b.technical_qualified !== true)) {
+      return <span className="pmc-label text-muted-foreground">SEALED</span>;
+    }
+    return <>{b.price_currency} {Number(b.price_amount).toLocaleString()} · {b.delivery_days}d</>;
+  };
+
   return (
     <div className="overflow-x-auto" data-testid="rfp-scoring-matrix">
+      {scoringLocked && (
+        <div className="px-4 py-3 bg-muted/40 border-b text-sm text-muted-foreground" data-testid="rfp-scoring-locked">
+          Scoring is locked until Technical envelopes are opened above.
+        </div>
+      )}
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b bg-muted/30">
             <th className="pmc-label text-left px-3 py-2 sticky left-0 bg-muted/30 min-w-[220px]">Criterion (weight)</th>
             {bids.map((b) => (
               <th key={b.id} className="pmc-label text-left px-3 py-2 min-w-[180px]">
-                <div>{b.vendor_company || b.vendor_email}</div>
+                <div className="flex items-center gap-2">
+                  <span>{b.vendor_company || b.vendor_email}</span>
+                  {isTwoEnv && b.technical_qualified === true && (
+                    <span data-testid={`qual-badge-${b.id}`} className="text-[9px] tracking-widest px-1.5 py-0.5 bg-success text-white">QUALIFIED</span>
+                  )}
+                  {isTwoEnv && b.technical_qualified === false && (
+                    <span data-testid={`disq-badge-${b.id}`} className="text-[9px] tracking-widest px-1.5 py-0.5 bg-destructive text-white">DISQUALIFIED</span>
+                  )}
+                </div>
                 <div className="text-[10px] text-muted-foreground normal-case tracking-normal">{b.vendor_email}</div>
               </th>
             ))}
@@ -652,7 +765,8 @@ function RfpScoringMatrix({ bids, tender, canManage, onAward, onScored }) {
                         type="number" min="0" max="100" value={val}
                         onChange={(e) => setScore(b.id, c.name, e.target.value)}
                         placeholder="0–100"
-                        className="w-20 h-9 px-2 border border-input bg-white font-mono focus:border-primary focus:outline-none"
+                        disabled={scoringLocked}
+                        className="w-20 h-9 px-2 border border-input bg-white font-mono focus:border-primary focus:outline-none disabled:bg-muted disabled:cursor-not-allowed"
                       />
                     ) : (
                       <span className="font-mono">{val || "—"}</span>
@@ -680,23 +794,61 @@ function RfpScoringMatrix({ bids, tender, canManage, onAward, onScored }) {
           <tr className="border-t bg-white">
             <td className="px-3 py-2 pmc-label sticky left-0 bg-white">Commercial (price)</td>
             {bids.map((b) => (
-              <td key={b.id} className="px-3 py-2 font-mono text-xs">{b.price_currency} {Number(b.price_amount).toLocaleString()} · {b.delivery_days}d</td>
+              <td key={b.id} className="px-3 py-2 font-mono text-xs" data-testid={`price-cell-${b.id}`}>{priceCell(b)}</td>
             ))}
           </tr>
+          {canManage && isTwoEnv && techOpen && !commOpen && (
+            <tr className="border-t bg-white">
+              <td className="px-3 py-2 pmc-label sticky left-0 bg-white">Qualification</td>
+              {bids.map((b) => (
+                <td key={b.id} className="px-3 py-2">
+                  <div className="flex gap-1">
+                    <button
+                      data-testid={`qualify-${b.id}`}
+                      onClick={() => qualifyBid(b.id, true)}
+                      disabled={qualBusy[b.id]}
+                      className={`text-xs px-2 py-1 border transition-colors ${b.technical_qualified === true ? "bg-success text-white border-success" : "border-input hover:bg-success/10"}`}
+                    >
+                      Qualify
+                    </button>
+                    <button
+                      data-testid={`disqualify-${b.id}`}
+                      onClick={() => qualifyBid(b.id, false)}
+                      disabled={qualBusy[b.id]}
+                      className={`text-xs px-2 py-1 border transition-colors ${b.technical_qualified === false ? "bg-destructive text-white border-destructive" : "border-input hover:bg-destructive/10"}`}
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </td>
+              ))}
+            </tr>
+          )}
           {canManage && (
             <tr className="border-t bg-white">
               <td className="px-3 py-2 pmc-label sticky left-0 bg-white">Actions</td>
-              {bids.map((b) => (
-                <td key={b.id} className="px-3 py-2 flex gap-2">
-                  <button data-testid={`save-score-${b.id}`} onClick={() => saveScore(b.id)} disabled={saving[b.id]}
-                    className="text-xs border border-foreground px-3 py-1.5 hover:bg-foreground hover:text-white disabled:opacity-60">
-                    {saving[b.id] ? "Saving..." : "Save score"}
-                  </button>
-                  {tender.status === "open" && (
-                    <button data-testid={`award-bid-${b.id}`} onClick={() => onAward(b.id)} className="text-xs bg-primary text-white px-3 py-1.5">Award</button>
-                  )}
-                </td>
-              ))}
+              {bids.map((b) => {
+                const awardBlocked = isTwoEnv && (!commOpen || b.technical_qualified !== true);
+                return (
+                  <td key={b.id} className="px-3 py-2 flex gap-2">
+                    <button data-testid={`save-score-${b.id}`} onClick={() => saveScore(b.id)} disabled={saving[b.id] || scoringLocked}
+                      className="text-xs border border-foreground px-3 py-1.5 hover:bg-foreground hover:text-white disabled:opacity-60 disabled:cursor-not-allowed">
+                      {saving[b.id] ? "Saving..." : "Save score"}
+                    </button>
+                    {tender.status === "open" && (
+                      <button
+                        data-testid={`award-bid-${b.id}`}
+                        onClick={() => onAward(b.id)}
+                        disabled={awardBlocked}
+                        title={awardBlocked ? (commOpen ? "Not technically qualified" : "Open commercial envelopes first") : ""}
+                        className="text-xs bg-primary text-white px-3 py-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        Award
+                      </button>
+                    )}
+                  </td>
+                );
+              })}
             </tr>
           )}
         </tfoot>

@@ -1,0 +1,43 @@
+{
+  "summary": "P1 Two-envelope sealed bidding — end-to-end backend + frontend verified. Backend: 21 new tests in TestV16TwoEnvelope + 9 baseline (TestHealth + TestAuth) = 30/30 PASS in 11.32s. Coverage: create RFP with two_envelope=true (persistence via GET), non-two-envelope regression, 2 vendors submit sealed bids, GET /api/bids masking (buyer sees _technical_sealed & _commercial_sealed with all commercial + technical fields null pre-open), vendor sees own bid unmasked, score/qualify/award/open-commercial all correctly blocked before technical opened, open-technical 400 on non-two-envelope, 403 for non-owner buyer, open-technical unseals technical fields but keeps commercial sealed, open-commercial requires ≥1 qualified bid (400 otherwise), qualify bid A=true / B=false, open-commercial success (returns qualified_bids count), post-open masking shows bid A price 190000 revealed while bid B still sealed (not qualified), qualification locked after commercial opened (400), award bid B blocked (not qualified), award bid A succeeds → tender status=awarded. Frontend (Playwright, buyer session): (STAGE1) rfp-two-envelope checkbox on /buyer/create?type=rfp with proper label 'TWO-ENVELOPE SEALED BIDDING', on /tenders/{id} rfp-two-envelope-badge, two-envelope-panel with te-stage-label='Stage 1 · Sealed', te-open-technical button visible, te-open-commercial hidden, rfp-scoring-locked shown 'Scoring is locked until Technical envelopes are opened above.', both price-cell-{id} = 'SEALED', all score inputs disabled=true, all Award buttons disabled=true. (STAGE2) after clicking te-open-technical: stage='Stage 2 · Technical open · Qualifying', te-open-technical removed, te-open-commercial visible & disabled (qualified=0), rfp-scoring-locked removed, 2× qualify-{id} + 2× disqualify-{id} buttons appear, price cells still 'SEALED'. (STAGE3) after qualify+disqualify+open-commercial: stage='Stage 3 · Commercial open · Awarding', qualified bid price-cell shows 'USD 175,000 · 100d', other still 'SEALED', qualified bid Award button disabled=false, disqualified bid Award button disabled=true. Regression: non-two-envelope RFP shows no badge/panel/locked state, price visible ('USD 120,000 · 60d'), scoring inputs enabled. Perf fix verified: POST /api/tenders now returns fast (~0.5s) — email fan-out moved to asyncio.create_task at server.py L608; no 15s timeouts observed across 30 tests.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/iter7_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py L594-608 email fan-out is now correctly moved to asyncio.create_task — POST /api/tenders returns fast. Good fix; unblocks TestV13/V14 latent timeouts.",
+    "server.py L679-708 _mask_bid_for_two_envelope correctly zeros commercial fields including price_amount/price_currency/delivery_days/proposal/commercial_proposal/line_item_prices AND attachments (attachments emptied). Vendors always get unmasked view (skipped at L686-688). Symmetric with spec.",
+    "server.py L807-810 score endpoint blocks scoring on two-envelope pre-tech-open. But it does NOT block scoring an un-qualified bid post-tech-open — buyer can still score bids they later disqualify. That's actually correct behavior since scoring feeds qualification decisions.",
+    "server.py L841-845 award endpoint has proper double-gate (commercial_opened_at AND technical_qualified=true). Awards on non-two-envelope RFPs bypass both gates — regression-safe.",
+    "server.py L1054-1055 qualify endpoint correctly locks after commercial_opened_at is set (400 'qualification is locked'). This prevents mid-award qualification changes.",
+    "server.py L1023-1026 open-commercial requires qualified_count > 0 — good UX gate. But if buyer qualifies 1 bid then later disqualifies it, they still cannot un-open commercial (irreversible). Acceptable but worth documenting for buyer runbook.",
+    "TenderDetail.jsx L505-511 te-open-technical only rendered when !techOpen; te-open-commercial only when techOpen && !commOpen. Correct per spec. `disabled={busy==='comm' || qualified===0}` — properly gates the button.",
+    "TenderDetail.jsx L797 price-cell-{id} uses priceCell(b) helper which returns 'SEALED' pmc-label when _commercial_sealed, else '{ccy} {amount} · {days}d'. Verified both states in UI.",
+    "CreateTender.jsx L353-367 two-envelope checkbox is only inside the RFP-only block (guarded by document_type === 'rfp' in enclosing conditional at L332ish) — correct.",
+    "Minor code smell: TenderDetail.jsx has 862 lines — TwoEnvelopePanel (~65 lines) + RfpScoringMatrix (~200 lines) could be extracted into components/tender/ for maintainability. Non-blocking.",
+    "server.py two-envelope endpoints do not broadcast a distinct SSE event type — they reuse 'tender.updated' with technical_opened_at/commercial_opened_at payload. Consumers (feed) currently look at status only, so this is fine for now; document if any client wants live envelope-state UI without polling."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py — added TestV16TwoEnvelope class (21 tests) covering create, masking (buyer + vendor views), pre-open guards (score/qualify/award/open-commercial 400s), open-technical (200/400/403), post-tech masking, open-commercial (400 no qualified / success), qualify (200 + post-commercial lock 400), award (400 not qualified / 200 qualified), and non-two-envelope regression."
+  ],
+  "success_rate": {
+    "backend": "100% (21/21 new two-envelope tests + 9/9 baseline auth/health = 30/30 in 11.32s)",
+    "frontend": "100% of two-envelope UI acceptance criteria verified across 3 stages + regression on non-two-envelope RFP"
+  },
+  "test_credentials": "admin@pmcmanagers.com/Admin@123, buyer@pmcmanagers.com/Buyer@123, vendor@example.com/Vendor@123 — from /app/memory/test_credentials.md",
+  "seed_data_creation": "Backend created: TEST_V16_TE_* two-envelope RFP + TEST_V16_Regular_* regular RFP + TEST_v16_A_* / TEST_v16_B_* approved vendors + 2 bids (awarded flow). Playwright UI created: TEST_UI_TE_FRESH_fc28ec two-envelope RFP + 2 UI vendors (TEST_UI_V16_A_*, TEST_UI_V16_B_*) + 2 sealed bids — walked through Stage 1→2→3 end-to-end.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "P1 two-envelope sealed bidding is fully working end-to-end. Backend tests: `cd /app/backend && python -m pytest tests/backend_test.py -v -k 'TestHealth or TestAuth or TestV16TwoEnvelope' -n 0 --junitxml=/app/test_reports/pytest/iter7_results.xml` (11s, 30 pass). IMPORTANT: pytest.ini forces `-n 2 --dist loadscope` which distributes classes to workers and breaks the module-level CTX pattern; always add `-n 0` for serial runs when the target tests depend on CTX['buyer_session']/CTX['admin_session']. Email fan-out is now background (asyncio.create_task) so POST /api/tenders is fast — the iter6 minor 'slow tender creation' issue is resolved. If retesting UI, the fresh v16 tender id (TEST_UI_TE_FRESH_fc28ec = 6a609b82b7f27e67b6cb237f) has already been AWARDED; create a new one via UI or API before testing pre-open UI states.",
+  "rca of the issue": "No issues found. All P1 acceptance criteria met."
+}

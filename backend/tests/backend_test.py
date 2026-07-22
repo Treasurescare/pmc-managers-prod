@@ -1454,3 +1454,288 @@ class TestV15SSEStream:
         assert received["got"], f"tender.updated not received. raw: {received['raw'][:600]}"
         assert '"status": "closed"' in received["raw"] or '"status":"closed"' in received["raw"], \
             f"payload missing status=closed: {received['raw'][:400]}"
+
+
+
+# ---------- Two-envelope sealed bidding (P1) ----------
+class TestV16TwoEnvelope:
+    """Two-envelope sealed bidding — masking, open-technical, open-commercial,
+    qualify, and end-to-end happy path."""
+
+    def _register_and_approve_vendor(self, tag: str):
+        uniq = uuid.uuid4().hex[:6]
+        creds = {"email": f"TEST_v16_{tag}_{uniq}@example.com", "password": "Vendor@123",
+                 "name": f"V16 {tag}", "role": "vendor"}
+        vs = _session()
+        r = vs.post(f"{API}/auth/register", json=creds, timeout=15)
+        assert r.status_code == 200, r.text
+        vid = r.json()["id"]
+        admin = CTX["admin_session"]
+        admin.post(f"{API}/admin/vendors/{vid}/approve", timeout=10)
+        _mark_fee_paid(vid)
+        vs2 = _session()
+        _login(vs2, creds)
+        return vs2, vid, creds
+
+    def _create_two_envelope_rfp(self, buyer, two_envelope=True, title_tag="TE"):
+        deadline = (datetime.now(timezone.utc) + timedelta(days=14)).isoformat()
+        payload = {
+            "document_type": "rfp",
+            "title": f"TEST_V16_{title_tag}_{uuid.uuid4().hex[:6]}",
+            "description": "Two-envelope RFP for testing",
+            "category": "Consulting & Advisory",
+            "submission_deadline": deadline,
+            "budget_currency": "USD",
+            "budget_amount": 250000,
+            "delivery_location": "Astana",
+            "scope_of_work": "Master plan",
+            "evaluation_criteria": [
+                {"name": "Technical", "weight": 60, "description": "Methodology"},
+                {"name": "Commercial", "weight": 40, "description": "Price"},
+            ],
+            "two_envelope": two_envelope,
+        }
+        r = buyer.post(f"{API}/tenders", json=payload, timeout=20)
+        assert r.status_code == 200, r.text
+        return r.json()
+
+    # ---- Basic creation + persistence ----
+    def test_a_create_two_envelope_rfp(self):
+        buyer = CTX["buyer_session"]
+        t = self._create_two_envelope_rfp(buyer)
+        assert t.get("two_envelope") is True
+        # not opened yet
+        assert t.get("technical_opened_at") in (None, "")
+        assert t.get("commercial_opened_at") in (None, "")
+        # persist via GET
+        rg = buyer.get(f"{API}/tenders/{t['id']}", timeout=10)
+        assert rg.status_code == 200
+        got = rg.json()
+        assert got.get("two_envelope") is True
+        assert got.get("technical_opened_at") is None
+        assert got.get("commercial_opened_at") is None
+        CTX["v16_rfp_id"] = t["id"]
+
+    def test_b_create_non_two_envelope_rfp_regression(self):
+        buyer = CTX["buyer_session"]
+        t = self._create_two_envelope_rfp(buyer, two_envelope=False, title_tag="Regular")
+        assert t.get("two_envelope") in (False, None)
+        CTX["v16_regular_rfp_id"] = t["id"]
+
+    def test_c_two_vendors_submit_bids(self):
+        vs1, vid1, _ = self._register_and_approve_vendor("A")
+        vs2, vid2, _ = self._register_and_approve_vendor("B")
+        CTX["v16_vsA"] = vs1
+        CTX["v16_vsB"] = vs2
+
+        rfp_id = CTX["v16_rfp_id"]
+        r1 = vs1.post(f"{API}/bids", json={
+            "tender_id": rfp_id, "price_currency": "USD", "price_amount": 190000, "delivery_days": 90,
+            "proposal": "A proposal",
+            "technical_proposal": "A tech proposal", "commercial_proposal": "A commercial",
+            "team_composition": "PM+4",
+        }, timeout=20)
+        assert r1.status_code == 200, r1.text
+        CTX["v16_bidA"] = r1.json()["id"]
+
+        r2 = vs2.post(f"{API}/bids", json={
+            "tender_id": rfp_id, "price_currency": "USD", "price_amount": 175000, "delivery_days": 100,
+            "proposal": "B proposal",
+            "technical_proposal": "B tech proposal", "commercial_proposal": "B commercial",
+            "team_composition": "PM+3",
+        }, timeout=20)
+        assert r2.status_code == 200, r2.text
+        CTX["v16_bidB"] = r2.json()["id"]
+
+    # ---- Masking: before any envelope opened ----
+    def test_d_buyer_sees_both_envelopes_sealed(self):
+        buyer = CTX["buyer_session"]
+        r = buyer.get(f"{API}/bids?tender_id={CTX['v16_rfp_id']}", timeout=15)
+        assert r.status_code == 200, r.text
+        bids = r.json()
+        assert len(bids) == 2
+        for b in bids:
+            assert b.get("_technical_sealed") is True, f"tech should be sealed: {b}"
+            assert b.get("_commercial_sealed") is True, f"comm should be sealed: {b}"
+            assert b.get("technical_proposal") is None
+            assert b.get("team_composition") is None
+            assert b.get("price_amount") is None
+            assert b.get("price_currency") is None
+            assert b.get("commercial_proposal") is None
+            assert b.get("delivery_days") is None
+            assert b.get("proposal") is None
+
+    def test_e_vendor_sees_own_bid_unmasked(self):
+        vsA = CTX["v16_vsA"]
+        r = vsA.get(f"{API}/bids?tender_id={CTX['v16_rfp_id']}", timeout=15)
+        assert r.status_code == 200, r.text
+        bids = r.json()
+        assert len(bids) == 1
+        b = bids[0]
+        # Vendor sees their own full bid
+        assert b.get("technical_proposal") == "A tech proposal"
+        assert b.get("price_amount") == 190000
+        assert not b.get("_technical_sealed")
+        assert not b.get("_commercial_sealed")
+
+    # ---- Guards before opening envelopes ----
+    def test_f_score_blocked_before_technical_opened(self):
+        buyer = CTX["buyer_session"]
+        r = buyer.post(f"{API}/bids/{CTX['v16_bidA']}/score",
+                       json={"scores": {"Technical": 80, "Commercial": 70}}, timeout=10)
+        assert r.status_code == 400, r.text
+        assert "technical" in r.text.lower()
+
+    def test_g_qualify_blocked_before_technical_opened(self):
+        buyer = CTX["buyer_session"]
+        r = buyer.post(f"{API}/bids/{CTX['v16_bidA']}/qualify",
+                       json={"qualified": True}, timeout=10)
+        assert r.status_code == 400, r.text
+
+    def test_h_award_blocked_before_commercial_opened(self):
+        buyer = CTX["buyer_session"]
+        r = buyer.post(f"{API}/bids/{CTX['v16_bidA']}/award", timeout=10)
+        assert r.status_code == 400, r.text
+        assert "commercial" in r.text.lower()
+
+    def test_i_open_commercial_before_technical_returns_400(self):
+        buyer = CTX["buyer_session"]
+        r = buyer.post(f"{API}/tenders/{CTX['v16_rfp_id']}/open-commercial", timeout=10)
+        assert r.status_code == 400, r.text
+        assert "technical" in r.text.lower()
+
+    # ---- open-technical guards ----
+    def test_j_open_technical_400_on_non_two_envelope(self):
+        buyer = CTX["buyer_session"]
+        r = buyer.post(f"{API}/tenders/{CTX['v16_regular_rfp_id']}/open-technical", timeout=10)
+        assert r.status_code == 400, r.text
+
+    def test_k_open_technical_403_when_not_owner(self):
+        # A different buyer (register new one) tries to open envelopes
+        uniq = uuid.uuid4().hex[:6]
+        other = {"email": f"TEST_v16_otherbuyer_{uniq}@example.com", "password": "Buyer@123",
+                 "name": "Other Buyer", "role": "buyer"}
+        s = _session()
+        rr = s.post(f"{API}/auth/register", json=other, timeout=15)
+        assert rr.status_code == 200, rr.text
+        r = s.post(f"{API}/tenders/{CTX['v16_rfp_id']}/open-technical", timeout=10)
+        assert r.status_code == 403, r.text
+
+    # ---- open technical envelope ----
+    def test_l_open_technical_success(self):
+        buyer = CTX["buyer_session"]
+        r = buyer.post(f"{API}/tenders/{CTX['v16_rfp_id']}/open-technical", timeout=10)
+        assert r.status_code == 200, r.text
+        data = r.json()
+        assert data.get("ok") is True
+        assert data.get("technical_opened_at")
+
+    def test_m_bids_show_technical_unsealed_commercial_still_sealed(self):
+        buyer = CTX["buyer_session"]
+        r = buyer.get(f"{API}/bids?tender_id={CTX['v16_rfp_id']}", timeout=15)
+        assert r.status_code == 200, r.text
+        bids = r.json()
+        for b in bids:
+            # technical now visible
+            assert b.get("_technical_sealed") is not True
+            assert b.get("technical_proposal") is not None
+            # commercial still sealed
+            assert b.get("_commercial_sealed") is True
+            assert b.get("price_amount") is None
+
+    # ---- open-commercial blocked without qualified bids ----
+    def test_n_open_commercial_blocked_no_qualified_bids(self):
+        buyer = CTX["buyer_session"]
+        r = buyer.post(f"{API}/tenders/{CTX['v16_rfp_id']}/open-commercial", timeout=10)
+        assert r.status_code == 400, r.text
+        assert "qualif" in r.text.lower()
+
+    # ---- qualify bids ----
+    def test_o_qualify_bid_A_true_and_bid_B_false(self):
+        buyer = CTX["buyer_session"]
+        r1 = buyer.post(f"{API}/bids/{CTX['v16_bidA']}/qualify",
+                       json={"qualified": True, "notes": "Excellent methodology"}, timeout=10)
+        assert r1.status_code == 200, r1.text
+        assert r1.json().get("qualified") is True
+
+        r2 = buyer.post(f"{API}/bids/{CTX['v16_bidB']}/qualify",
+                       json={"qualified": False, "notes": "Weak on delivery"}, timeout=10)
+        assert r2.status_code == 200, r2.text
+        assert r2.json().get("qualified") is False
+
+    # ---- open-commercial success ----
+    def test_p_open_commercial_success(self):
+        buyer = CTX["buyer_session"]
+        r = buyer.post(f"{API}/tenders/{CTX['v16_rfp_id']}/open-commercial", timeout=10)
+        assert r.status_code == 200, r.text
+        data = r.json()
+        assert data.get("commercial_opened_at")
+        assert data.get("qualified_bids") >= 1
+
+    def test_q_bids_after_commercial_open_masking(self):
+        """bid A (qualified) should reveal price; bid B (not qualified) still sealed on commercial."""
+        buyer = CTX["buyer_session"]
+        r = buyer.get(f"{API}/bids?tender_id={CTX['v16_rfp_id']}", timeout=15)
+        assert r.status_code == 200
+        bids = {b["id"]: b for b in r.json()}
+        bidA = bids[CTX["v16_bidA"]]
+        bidB = bids[CTX["v16_bidB"]]
+        # bidA - fully revealed
+        assert bidA.get("_technical_sealed") is not True
+        assert bidA.get("_commercial_sealed") is not True
+        assert bidA.get("price_amount") == 190000
+        assert bidA.get("price_currency") == "USD"
+        # bidB - technical visible, commercial still sealed (because not qualified)
+        assert bidB.get("_technical_sealed") is not True
+        assert bidB.get("technical_proposal") is not None
+        assert bidB.get("_commercial_sealed") is True
+        assert bidB.get("price_amount") is None
+
+    # ---- qualification is locked after commercial opened ----
+    def test_r_qualify_locked_after_commercial_opened(self):
+        buyer = CTX["buyer_session"]
+        r = buyer.post(f"{API}/bids/{CTX['v16_bidA']}/qualify",
+                       json={"qualified": False}, timeout=10)
+        assert r.status_code == 400, r.text
+        assert "lock" in r.text.lower() or "already" in r.text.lower()
+
+    # ---- award ----
+    def test_s_award_bid_B_blocked_not_qualified(self):
+        buyer = CTX["buyer_session"]
+        r = buyer.post(f"{API}/bids/{CTX['v16_bidB']}/award", timeout=10)
+        assert r.status_code == 400, r.text
+        assert "qualif" in r.text.lower()
+
+    def test_t_award_bid_A_success(self):
+        buyer = CTX["buyer_session"]
+        r = buyer.post(f"{API}/bids/{CTX['v16_bidA']}/award", timeout=15)
+        assert r.status_code == 200, r.text
+        assert r.json().get("ok") is True
+        # tender status → awarded
+        rt = buyer.get(f"{API}/tenders/{CTX['v16_rfp_id']}", timeout=10)
+        assert rt.status_code == 200
+        assert rt.json().get("status") == "awarded"
+
+    # ---- regression: non-two-envelope still works ----
+    def test_u_regular_rfp_bids_not_masked(self):
+        """Non-two-envelope RFP: buyer sees full bids without masking."""
+        buyer = CTX["buyer_session"]
+        # Submit a bid to the regular RFP
+        vs = CTX["v16_vsA"]
+        r = vs.post(f"{API}/bids", json={
+            "tender_id": CTX["v16_regular_rfp_id"], "price_currency": "USD",
+            "price_amount": 120000, "delivery_days": 60,
+            "proposal": "regular", "technical_proposal": "tech",
+            "commercial_proposal": "comm", "team_composition": "PM+2",
+        }, timeout=20)
+        assert r.status_code == 200, r.text
+        # buyer view
+        rb = buyer.get(f"{API}/bids?tender_id={CTX['v16_regular_rfp_id']}", timeout=15)
+        assert rb.status_code == 200
+        bids = rb.json()
+        assert len(bids) == 1
+        b = bids[0]
+        assert not b.get("_technical_sealed")
+        assert not b.get("_commercial_sealed")
+        assert b.get("price_amount") == 120000
+        assert b.get("technical_proposal") == "tech"

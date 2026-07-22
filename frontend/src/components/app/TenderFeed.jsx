@@ -259,7 +259,7 @@ export default function TenderFeed({ collapsed, onToggle }) {
                       ? "px-1.5 py-0.5 bg-muted text-foreground/80 font-semibold"
                       : closing
                         ? "px-1.5 py-0.5 bg-destructive text-white font-semibold"
-                        : "px-1.5 py-0.5 bg-foreground/[0.06] text-foreground font-semibold"
+                        : "px-1.5 py-0.5 bg-foreground/10 text-foreground font-semibold"
                   }
                 >
                   {timeLeft(t.submission_deadline)}

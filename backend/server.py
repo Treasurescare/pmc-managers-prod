@@ -314,6 +314,8 @@ class TenderIn(BaseModel):
     evaluation_committee: List[dict] = []  # [{name, role}]
     pre_bid_meeting_date: Optional[str] = None
     bid_bond_amount: Optional[float] = None
+    # Two-envelope sealed bidding (RFP only)
+    two_envelope: bool = False
 
 
 class BidIn(BaseModel):
@@ -588,19 +590,22 @@ async def create_tender(payload: TenderIn, user: dict = Depends(require_role("bu
     }})
 
     # Notify approved vendors matching category / no filter — quick MVP fan-out
-    async for v in db.users.find({"role": "vendor", "vendor_status": "approved"}):
-        await create_notification(str(v["_id"]), "New tender published",
-                                  f"{doc['title']} — {doc['category']}", f"/tenders/{res.inserted_id}")
-        # Best-effort email (don't await queue for very long)
-        try:
-            await send_email(v["email"], f"PMC · New tender: {doc['title']}",
-                             _email_wrap(doc["title"],
-                                         f"<p>A new tender has been published on the PMC Global Tender Board.</p>"
-                                         f"<p><strong>Category:</strong> {doc['category']}<br/>"
-                                         f"<strong>Deadline:</strong> {doc['submission_deadline']}</p>",
-                                         "View tender", os.environ.get("FRONTEND_URL", "") + f"/tenders/{res.inserted_id}"))
-        except Exception:
-            pass
+    # Emails go out in a background task so the POST doesn't block on Resend latency.
+    async def _fanout_new_tender(tender_id: str, title: str, category: str, deadline: str):
+        async for v in db.users.find({"role": "vendor", "vendor_status": "approved"}):
+            await create_notification(str(v["_id"]), "New tender published",
+                                      f"{title} — {category}", f"/tenders/{tender_id}")
+            try:
+                await send_email(v["email"], f"PMC · New tender: {title}",
+                                 _email_wrap(title,
+                                             f"<p>A new tender has been published on the PMC Global Tender Board.</p>"
+                                             f"<p><strong>Category:</strong> {category}<br/>"
+                                             f"<strong>Deadline:</strong> {deadline}</p>",
+                                             "View tender", os.environ.get("FRONTEND_URL", "") + f"/tenders/{tender_id}"))
+            except Exception:
+                pass
+
+    asyncio.create_task(_fanout_new_tender(str(res.inserted_id), doc["title"], doc["category"], doc["submission_deadline"]))
     return _tender_out(doc)
 
 
@@ -666,6 +671,51 @@ def _bid_out(doc: dict) -> dict:
     return doc
 
 
+# ---------- Two-envelope masking ----------
+_COMMERCIAL_KEYS = ("price_amount", "price_currency", "commercial_proposal",
+                    "line_item_prices", "delivery_days", "proposal")
+
+
+def _mask_bid_for_two_envelope(bid: dict, tender: dict, viewer_role: str, is_owner: bool) -> dict:
+    """Mask commercial/technical envelopes for buyer/admin on two-envelope RFPs.
+    Vendors always see their OWN full bid.
+    """
+    bid = _bid_out(bid)
+    if not tender.get("two_envelope"):
+        return bid
+    if viewer_role == "vendor":
+        # Vendors only see their own bids anyway; nothing to mask.
+        return bid
+
+    tech_opened = tender.get("technical_opened_at") is not None
+    comm_opened = tender.get("commercial_opened_at") is not None
+    qualified = bid.get("technical_qualified") is True
+
+    # Technical envelope still sealed → hide technical proposal
+    if not tech_opened:
+        bid["technical_proposal"] = None
+        bid["team_composition"] = None
+        bid["_technical_sealed"] = True
+
+    # Commercial envelope conditions:
+    # - Never opened → hide commercial for everyone
+    # - Opened → only qualified bids reveal commercial
+    if not comm_opened or not qualified:
+        for k in _COMMERCIAL_KEYS:
+            bid[k] = None
+        bid["attachments"] = []
+        bid["_commercial_sealed"] = True
+    return bid
+
+
+def _envelope_state(tender: dict) -> dict:
+    return {
+        "two_envelope": bool(tender.get("two_envelope")),
+        "technical_opened_at": tender.get("technical_opened_at"),
+        "commercial_opened_at": tender.get("commercial_opened_at"),
+    }
+
+
 @api.post("/bids")
 async def create_bid(payload: BidIn, user: dict = Depends(require_role("vendor"))):
     u = await db.users.find_one({"_id": ObjectId(user["id"])})
@@ -712,11 +762,15 @@ async def create_bid(payload: BidIn, user: dict = Depends(require_role("vendor")
 @api.get("/bids")
 async def list_bids(tender_id: Optional[str] = None, user: dict = Depends(get_current_user)):
     q: dict = {}
+    tender_map: dict = {}
     if tender_id:
         q["tender_id"] = tender_id
+        t = await db.tenders.find_one({"_id": ObjectId(tender_id)})
+        if not t:
+            raise HTTPException(status_code=404, detail="Tender not found")
+        tender_map[tender_id] = t
         if user["role"] == "buyer":
-            t = await db.tenders.find_one({"_id": ObjectId(tender_id)})
-            if not t or t.get("created_by") != user["id"]:
+            if t.get("created_by") != user["id"]:
                 raise HTTPException(status_code=403, detail="Not your tender")
         elif user["role"] == "vendor":
             q["vendor_id"] = user["id"]
@@ -726,7 +780,18 @@ async def list_bids(tender_id: Optional[str] = None, user: dict = Depends(get_cu
         elif user["role"] == "buyer":
             my_tender_ids = [str(t["_id"]) async for t in db.tenders.find({"created_by": user["id"]}, {"_id": 1})]
             q["tender_id"] = {"$in": my_tender_ids}
-    return [_bid_out(b) async for b in db.bids.find(q).sort("created_at", -1)]
+    out = []
+    async for b in db.bids.find(q).sort("created_at", -1):
+        tid = b.get("tender_id")
+        t = tender_map.get(tid) or await db.tenders.find_one({"_id": ObjectId(tid)}) if tid else None
+        if tid and t:
+            tender_map[tid] = t
+        if t and t.get("two_envelope"):
+            is_owner = user["role"] == "vendor" and b.get("vendor_id") == user["id"]
+            out.append(_mask_bid_for_two_envelope(b, t, user["role"], is_owner))
+        else:
+            out.append(_bid_out(b))
+    return out
 
 
 @api.post("/bids/{bid_id}/score")
@@ -741,6 +806,8 @@ async def score_bid(bid_id: str, payload: RfpScoreRequest, user: dict = Depends(
         raise HTTPException(status_code=403, detail="Not your tender")
     if tender.get("document_type") != "rfp":
         raise HTTPException(status_code=400, detail="Scoring is only available for RFP")
+    if tender.get("two_envelope") and not tender.get("technical_opened_at"):
+        raise HTTPException(status_code=400, detail="Open technical envelopes before scoring.")
 
     criteria = tender.get("evaluation_criteria") or []
     # Compute weighted total: sum(weight * score / 100)
@@ -769,6 +836,13 @@ async def award_bid(bid_id: str, user: dict = Depends(require_role("buyer", "adm
         raise HTTPException(status_code=404, detail="Tender not found")
     if user["role"] != "admin" and tender.get("created_by") != user["id"]:
         raise HTTPException(status_code=403, detail="Not your tender")
+
+    # Two-envelope gate: commercial envelope must be opened and bid must be technically qualified.
+    if tender.get("two_envelope"):
+        if not tender.get("commercial_opened_at"):
+            raise HTTPException(status_code=400, detail="Cannot award — commercial envelopes have not been opened yet.")
+        if bid.get("technical_qualified") is not True:
+            raise HTTPException(status_code=400, detail="Cannot award — this bid was not technically qualified.")
 
     await db.tenders.update_one({"_id": ObjectId(bid["tender_id"])},
                                 {"$set": {"status": "awarded", "awarded_bid_id": bid_id}})
@@ -916,6 +990,75 @@ async def stripe_webhook(request: Request):
 @api.get("/reference/kz-licenses")
 async def get_kz_licenses():
     return {"licenses": KZ_LICENSE_TYPES, "category_map": KZ_CATEGORY_LICENSE_MAP}
+
+
+# ---------- Two-envelope endpoints (RFP only) ----------
+async def _require_two_envelope_owner(tender_id: str, user: dict) -> dict:
+    t = await db.tenders.find_one({"_id": ObjectId(tender_id)})
+    if not t:
+        raise HTTPException(status_code=404, detail="Tender not found")
+    if user["role"] != "admin" and t.get("created_by") != user["id"]:
+        raise HTTPException(status_code=403, detail="Not your tender")
+    if not t.get("two_envelope"):
+        raise HTTPException(status_code=400, detail="This tender is not a two-envelope RFP")
+    return t
+
+
+@api.post("/tenders/{tender_id}/open-technical")
+async def open_technical(tender_id: str, user: dict = Depends(require_role("buyer", "admin"))):
+    t = await _require_two_envelope_owner(tender_id, user)
+    if t.get("technical_opened_at"):
+        return {"ok": True, "already_opened": True, "technical_opened_at": t["technical_opened_at"]}
+    ts = now_iso()
+    await db.tenders.update_one({"_id": ObjectId(tender_id)}, {"$set": {"technical_opened_at": ts}})
+    await broker.broadcast({"type": "tender.updated", "payload": {"id": tender_id, "technical_opened_at": ts}})
+    return {"ok": True, "technical_opened_at": ts}
+
+
+@api.post("/tenders/{tender_id}/open-commercial")
+async def open_commercial(tender_id: str, user: dict = Depends(require_role("buyer", "admin"))):
+    t = await _require_two_envelope_owner(tender_id, user)
+    if not t.get("technical_opened_at"):
+        raise HTTPException(status_code=400, detail="Open technical envelopes first.")
+    # Require at least one bid to have been qualified.
+    qualified_count = await db.bids.count_documents({"tender_id": tender_id, "technical_qualified": True})
+    if qualified_count == 0:
+        raise HTTPException(status_code=400, detail="Qualify at least one bid before opening commercial envelopes.")
+    if t.get("commercial_opened_at"):
+        return {"ok": True, "already_opened": True, "commercial_opened_at": t["commercial_opened_at"]}
+    ts = now_iso()
+    await db.tenders.update_one({"_id": ObjectId(tender_id)}, {"$set": {"commercial_opened_at": ts}})
+    await broker.broadcast({"type": "tender.updated", "payload": {"id": tender_id, "commercial_opened_at": ts}})
+    return {"ok": True, "commercial_opened_at": ts, "qualified_bids": qualified_count}
+
+
+class QualifyBidRequest(BaseModel):
+    qualified: bool
+    notes: Optional[str] = None
+
+
+@api.post("/bids/{bid_id}/qualify")
+async def qualify_bid(bid_id: str, payload: QualifyBidRequest, user: dict = Depends(require_role("buyer", "admin"))):
+    bid = await db.bids.find_one({"_id": ObjectId(bid_id)})
+    if not bid:
+        raise HTTPException(status_code=404, detail="Bid not found")
+    t = await db.tenders.find_one({"_id": ObjectId(bid["tender_id"])})
+    if not t:
+        raise HTTPException(status_code=404, detail="Tender not found")
+    if user["role"] != "admin" and t.get("created_by") != user["id"]:
+        raise HTTPException(status_code=403, detail="Not your tender")
+    if not t.get("two_envelope"):
+        raise HTTPException(status_code=400, detail="Not a two-envelope RFP")
+    if not t.get("technical_opened_at"):
+        raise HTTPException(status_code=400, detail="Technical envelopes are not open yet.")
+    if t.get("commercial_opened_at"):
+        raise HTTPException(status_code=400, detail="Commercial envelopes already opened — qualification is locked.")
+    await db.bids.update_one({"_id": ObjectId(bid_id)}, {"$set": {
+        "technical_qualified": bool(payload.qualified),
+        "technical_qualified_at": now_iso(),
+        "technical_qualified_notes": payload.notes,
+    }})
+    return {"ok": True, "qualified": bool(payload.qualified)}
 
 
 # ---------- SSE broadcaster ----------
