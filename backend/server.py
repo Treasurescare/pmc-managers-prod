@@ -320,7 +320,7 @@ class BidIn(BaseModel):
     price_currency: str = "USD"
     price_amount: float
     delivery_days: int
-    proposal: str
+    proposal: Optional[str] = ""
     attachments: List[dict] = []
     # RFQ-specific
     line_item_prices: List[dict] = []  # [{item, unit_price, subtotal}]
@@ -543,6 +543,11 @@ def _tender_out(doc: dict) -> dict:
 @api.post("/tenders")
 async def create_tender(payload: TenderIn, user: dict = Depends(require_role("buyer", "admin"))):
     doc = payload.model_dump()
+    # Server-side validation for RFP evaluation weights
+    if doc.get("document_type") == "rfp" and doc.get("evaluation_criteria"):
+        total = sum(float(c.get("weight") or 0) for c in doc["evaluation_criteria"])
+        if abs(total - 100) > 0.001:
+            raise HTTPException(status_code=400, detail=f"Evaluation criteria weights must sum to 100 (got {total}).")
     # Auto-attach required KZ licenses from map if delivery_country=KZ
     if (doc.get("delivery_country") or "").upper() == "KZ":
         auto = KZ_CATEGORY_LICENSE_MAP.get(doc["category"], [])
