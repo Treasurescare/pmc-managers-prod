@@ -389,8 +389,8 @@ async def list_tenders(mine: bool = False, user: dict = Depends(get_current_user
     if mine and user["role"] in ("buyer", "admin"):
         q["created_by"] = user["id"]
     elif user["role"] == "vendor":
-        # vendors only see open tenders (they can still see historical for their bids elsewhere)
-        pass
+        # vendors only see open tenders in the general list
+        q["status"] = "open"
     out = []
     async for t in db.tenders.find(q).sort("created_at", -1):
         out.append(_tender_out(t))

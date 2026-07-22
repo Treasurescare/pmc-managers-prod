@@ -167,7 +167,7 @@ export default function VendorProfile() {
           {STEPS.map((s) => (
             <li key={s.id}>
               <button
-                data-testid={`vendor-step-${s.id}`}
+                data-testid={`vp-step-${s.id}`}
                 onClick={() => setStep(s.id)}
                 className={`w-full text-left flex items-center gap-3 pl-6 pr-4 py-4 border-b transition-colors ${
                   step === s.id ? "bg-primary/5 text-foreground" : "hover:bg-muted/50 text-muted-foreground"
