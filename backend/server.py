@@ -583,8 +583,9 @@ async def reject_vendor(vendor_id: str, user: dict = Depends(require_role("admin
 
 
 @api.get("/admin/users")
-async def list_users(user: dict = Depends(require_role("admin"))):
-    return [_serialize_user(u) async for u in db.users.find().sort("created_at", -1)]
+async def list_users(limit: int = 200, user: dict = Depends(require_role("admin"))):
+    limit = max(1, min(int(limit), 500))
+    return [_serialize_user(u) async for u in db.users.find().sort("created_at", -1).limit(limit)]
 
 
 @api.get("/admin/stats")
@@ -703,7 +704,7 @@ async def create_tender(payload: TenderIn, user: dict = Depends(require_role("bu
     # If pending approval — notify admins as approvers
     if initial_status == "pending_approval":
         async def _notify_approvers(tid: str, title: str):
-            async for a in db.users.find({"role": "admin"}):
+            async for a in db.users.find({"role": "admin"}, {"_id": 1}).limit(50):
                 await create_notification(str(a["_id"]), "Tender awaits approval",
                                           f"Approve: {title}", f"/tenders/{tid}")
         asyncio.create_task(_notify_approvers(str(res.inserted_id), doc["title"]))
@@ -1387,7 +1388,7 @@ async def publish_addendum(tender_id: str, payload: AddendumIn, user: dict = Dep
     }
     await db.tenders.update_one({"_id": ObjectId(tender_id)}, {"$push": {"addenda": addendum}})
     # Notify all vendors who have already submitted bids on this tender
-    async for b in db.bids.find({"tender_id": tender_id}, {"vendor_id": 1, "vendor_email": 1}):
+    async for b in db.bids.find({"tender_id": tender_id}, {"vendor_id": 1, "vendor_email": 1}).limit(500):
         await create_notification(b["vendor_id"], "Addendum published",
                                   f"'{t['title']}' — {payload.title}", f"/tenders/{tender_id}")
     return {"ok": True, "addendum": addendum}
@@ -1664,12 +1665,22 @@ async def on_stop():
 # ---------- Register router & CORS ----------
 app.include_router(api)
 
+_cors_env = os.environ.get("CORS_ORIGINS", "").strip()
+if _cors_env == "*":
+    _cors_config = {"allow_origins": ["*"], "allow_credentials": False}
+elif _cors_env:
+    _cors_config = {"allow_origins": [o.strip() for o in _cors_env.split(",") if o.strip()], "allow_credentials": True}
+else:
+    _cors_config = {
+        "allow_origins": [os.environ.get("FRONTEND_URL", "http://localhost:3000"), "http://localhost:3000"],
+        "allow_credentials": True,
+    }
+
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=[os.environ.get("FRONTEND_URL", "http://localhost:3000"), "http://localhost:3000"],
     allow_methods=["*"],
     allow_headers=["*"],
+    **_cors_config,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
