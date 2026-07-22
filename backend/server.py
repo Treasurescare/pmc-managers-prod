@@ -19,7 +19,9 @@ import httpx
 import stripe
 from bson import ObjectId
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, UploadFile, File
-from fastapi.responses import StreamingResponse
+import asyncio
+import json as _json
+from fastapi.responses import StreamingResponse, JSONResponse
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, EmailStr, ConfigDict
 from starlette.middleware.cors import CORSMiddleware
@@ -898,6 +900,33 @@ async def get_kz_licenses():
     return {"licenses": KZ_LICENSE_TYPES, "category_map": KZ_CATEGORY_LICENSE_MAP}
 
 
+# ---------- SSE broadcaster ----------
+class _SseBroker:
+    def __init__(self):
+        self.subscribers: List[asyncio.Queue] = []
+
+    async def subscribe(self) -> asyncio.Queue:
+        q: asyncio.Queue = asyncio.Queue(maxsize=100)
+        self.subscribers.append(q)
+        return q
+
+    def unsubscribe(self, q: asyncio.Queue) -> None:
+        try:
+            self.subscribers.remove(q)
+        except ValueError:
+            pass
+
+    async def broadcast(self, event: dict) -> None:
+        for q in list(self.subscribers):
+            try:
+                q.put_nowait(event)
+            except asyncio.QueueFull:
+                pass
+
+
+broker = _SseBroker()
+
+
 # ---------- Public ----------
 @api.get("/public/stats")
 async def public_stats():
@@ -909,14 +938,30 @@ async def public_stats():
 
 
 @api.get("/feed/tenders")
-async def feed_tenders(limit: int = 30, user: dict = Depends(get_current_user)):
+async def feed_tenders(
+    limit: int = 30,
+    document_type: Optional[str] = None,
+    country: Optional[str] = None,
+    unread_only: bool = False,
+    user: dict = Depends(get_current_user),
+):
     """Real-time cross-role feed of the latest tenders (any doc type). Only open + awarded shown."""
-    q = {"status": {"$in": ["open", "awarded"]}}
+    q: dict = {"status": {"$in": ["open", "awarded"]}}
+    if document_type and document_type in ("rfp", "rfq", "tender"):
+        q["document_type"] = document_type
+    if country:
+        q["delivery_country"] = country.upper()
     limit = max(1, min(int(limit), 100))
+    u = await db.users.find_one({"_id": ObjectId(user["id"])}, {"read_tender_ids": 1})
+    read_set = set((u or {}).get("read_tender_ids") or [])
     out = []
-    async for t in db.tenders.find(q).sort("created_at", -1).limit(limit):
+    async for t in db.tenders.find(q).sort("created_at", -1).limit(limit * 3 if unread_only else limit):
+        tid = str(t["_id"])
+        is_unread = tid not in read_set
+        if unread_only and not is_unread:
+            continue
         out.append({
-            "id": str(t["_id"]),
+            "id": tid,
             "title": t.get("title"),
             "description": (t.get("description") or "")[:220],
             "document_type": t.get("document_type") or "tender",
@@ -928,8 +973,76 @@ async def feed_tenders(limit: int = 30, user: dict = Depends(get_current_user)):
             "delivery_country": t.get("delivery_country"),
             "created_by_name": t.get("created_by_name"),
             "created_at": t.get("created_at"),
+            "unread": is_unread,
         })
+        if len(out) >= limit:
+            break
     return out
+
+
+@api.get("/feed/unread-count")
+async def feed_unread_count(user: dict = Depends(get_current_user)):
+    u = await db.users.find_one({"_id": ObjectId(user["id"])}, {"read_tender_ids": 1})
+    read_set = set((u or {}).get("read_tender_ids") or [])
+    total_open = await db.tenders.count_documents({"status": {"$in": ["open", "awarded"]}})
+    # Count how many tender ids exist that are NOT read
+    unread = 0
+    if total_open:
+        async for t in db.tenders.find({"status": {"$in": ["open", "awarded"]}}, {"_id": 1}):
+            if str(t["_id"]) not in read_set:
+                unread += 1
+    return {"unread": unread, "total": total_open}
+
+
+@api.post("/feed/mark-read/{tender_id}")
+async def feed_mark_read(tender_id: str, user: dict = Depends(get_current_user)):
+    await db.users.update_one({"_id": ObjectId(user["id"])}, {"$addToSet": {"read_tender_ids": tender_id}})
+    return {"ok": True}
+
+
+@api.post("/feed/mark-all-read")
+async def feed_mark_all_read(user: dict = Depends(get_current_user)):
+    ids = [str(t["_id"]) async for t in db.tenders.find({"status": {"$in": ["open", "awarded"]}}, {"_id": 1})]
+    await db.users.update_one({"_id": ObjectId(user["id"])}, {"$addToSet": {"read_tender_ids": {"$each": ids}}})
+    return {"ok": True, "marked": len(ids)}
+
+
+@api.get("/feed/stream")
+async def feed_stream(request: Request):
+    """Server-Sent Events stream for real-time tender feed updates."""
+    # Auth from cookie or query token (EventSource can't set headers reliably)
+    token = request.cookies.get("access_token") or request.query_params.get("token")
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    try:
+        payload = jwt.decode(token, get_jwt_secret(), algorithms=[JWT_ALGORITHM])
+        user_id = payload["sub"]
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    q = await broker.subscribe()
+
+    async def gen():
+        try:
+            # Initial hello
+            yield f"event: connected\ndata: {_json.dumps({'user_id': user_id})}\n\n"
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    ev = await asyncio.wait_for(q.get(), timeout=25.0)
+                    yield f"event: {ev.get('type', 'message')}\ndata: {_json.dumps(ev.get('payload'))}\n\n"
+                except asyncio.TimeoutError:
+                    # keep-alive
+                    yield ": keep-alive\n\n"
+        finally:
+            broker.unsubscribe(q)
+
+    return StreamingResponse(gen(), media_type="text/event-stream", headers={
+        "Cache-Control": "no-cache",
+        "X-Accel-Buffering": "no",
+        "Connection": "keep-alive",
+    })
 
 
 @api.get("/health")
