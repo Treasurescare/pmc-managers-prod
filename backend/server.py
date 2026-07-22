@@ -288,6 +288,8 @@ class VendorProfileIn(BaseModel):
 
 
 class TenderIn(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    document_type: Literal["tender", "rfp", "rfq"] = "tender"
     title: str
     description: str
     category: str
@@ -297,17 +299,35 @@ class TenderIn(BaseModel):
     delivery_location: Optional[str] = None
     delivery_country: Optional[str] = None
     eligibility_criteria: Optional[str] = None
-    required_licenses: List[str] = []  # KZ license types required
+    required_licenses: List[str] = []
     attachments: List[dict] = []
+    # RFQ-specific
+    line_items: List[dict] = []  # [{item, qty, unit, target_unit_price}]
+    payment_terms: Optional[str] = None
+    delivery_date: Optional[str] = None
+    # RFP-specific
+    scope_of_work: Optional[str] = None
+    expected_deliverables: Optional[str] = None
+    evaluation_criteria: List[dict] = []  # [{name, weight, description}]
+    evaluation_committee: List[dict] = []  # [{name, role}]
+    pre_bid_meeting_date: Optional[str] = None
+    bid_bond_amount: Optional[float] = None
 
 
 class BidIn(BaseModel):
+    model_config = ConfigDict(extra="allow")
     tender_id: str
     price_currency: str = "USD"
     price_amount: float
     delivery_days: int
     proposal: str
     attachments: List[dict] = []
+    # RFQ-specific
+    line_item_prices: List[dict] = []  # [{item, unit_price, subtotal}]
+    # RFP-specific
+    technical_proposal: Optional[str] = None
+    commercial_proposal: Optional[str] = None
+    team_composition: Optional[str] = None
 
 
 class CheckoutRequest(BaseModel):
@@ -554,8 +574,10 @@ async def create_tender(payload: TenderIn, user: dict = Depends(require_role("bu
 
 
 @api.get("/tenders")
-async def list_tenders(mine: bool = False, user: dict = Depends(get_current_user)):
+async def list_tenders(mine: bool = False, document_type: Optional[str] = None, user: dict = Depends(get_current_user)):
     q: dict = {}
+    if document_type:
+        q["document_type"] = document_type
     if mine and user["role"] in ("buyer", "admin"):
         q["created_by"] = user["id"]
     elif user["role"] == "vendor":

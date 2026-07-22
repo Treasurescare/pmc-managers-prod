@@ -664,3 +664,220 @@ class TestAdminStatsFeesCollected:
         assert "fees_collected" in d
         assert isinstance(d["fees_collected"], int)
 
+
+# =========================================================================
+# ITERATION 3 (v1.2) — RFP / RFQ module tests
+# =========================================================================
+
+
+class TestRfpRfqBackend:
+    """Verify document_type support on POST/GET /tenders and dynamic bid fields."""
+
+    def test_create_rfp_returns_persisted_fields(self):
+        s = CTX["buyer_session"]
+        deadline = (datetime.now(timezone.utc) + timedelta(days=14)).isoformat()
+        payload = {
+            "document_type": "rfp",
+            "title": f"TEST_RFP_{uuid.uuid4().hex[:6]}",
+            "description": "Consulting services for hospital IT master plan.",
+            "category": "Consulting",
+            "submission_deadline": deadline,
+            "budget_currency": "USD",
+            "budget_amount": 150000,
+            "delivery_location": "Astana",
+            "scope_of_work": "Design and roadmap for hospital IT.",
+            "expected_deliverables": "Final report + roadmap.",
+            "evaluation_criteria": [
+                {"name": "Technical", "weight": 60, "description": "Methodology"},
+                {"name": "Commercial", "weight": 40, "description": "Price"},
+            ],
+            "evaluation_committee": [
+                {"name": "Alia", "role": "CTO"},
+                {"name": "Ivan", "role": "CFO"},
+            ],
+            "pre_bid_meeting_date": deadline,
+            "bid_bond_amount": 5000,
+        }
+        r = s.post(f"{API}/tenders", json=payload, timeout=15)
+        assert r.status_code == 200, r.text
+        t = r.json()
+        assert t["document_type"] == "rfp"
+        assert t["scope_of_work"] == "Design and roadmap for hospital IT."
+        assert len(t["evaluation_criteria"]) == 2
+        assert t["evaluation_criteria"][0]["weight"] == 60
+        assert len(t["evaluation_committee"]) == 2
+        CTX["rfp_tender_id"] = t["id"]
+
+        # GET by id returns all fields
+        r2 = s.get(f"{API}/tenders/{t['id']}", timeout=10)
+        assert r2.status_code == 200
+        got = r2.json()
+        assert got["document_type"] == "rfp"
+        assert got["scope_of_work"] == payload["scope_of_work"]
+        assert len(got["evaluation_criteria"]) == 2
+
+    def test_create_rfq_returns_persisted_fields(self):
+        s = CTX["buyer_session"]
+        deadline = (datetime.now(timezone.utc) + timedelta(days=10)).isoformat()
+        payload = {
+            "document_type": "rfq",
+            "title": f"TEST_RFQ_{uuid.uuid4().hex[:6]}",
+            "description": "Quotation for cabling supplies.",
+            "category": "Supplies",
+            "submission_deadline": deadline,
+            "budget_currency": "USD",
+            "budget_amount": 20000,
+            "delivery_location": "Astana",
+            "delivery_country": "KZ",
+            "line_items": [
+                {"item": "CAT6 cable", "qty": 500, "unit": "m", "target_unit_price": 2.5},
+                {"item": "RJ45 connector", "qty": 200, "unit": "pcs", "target_unit_price": 0.4},
+            ],
+            "payment_terms": "30 days net",
+            "delivery_date": "2026-06-01",
+        }
+        r = s.post(f"{API}/tenders", json=payload, timeout=15)
+        assert r.status_code == 200, r.text
+        t = r.json()
+        assert t["document_type"] == "rfq"
+        assert len(t["line_items"]) == 2
+        assert t["line_items"][0]["item"] == "CAT6 cable"
+        assert t["payment_terms"] == "30 days net"
+        assert t["delivery_date"] == "2026-06-01"
+        CTX["rfq_tender_id"] = t["id"]
+
+    def test_create_rfq_kz_auto_attaches_no_licenses_for_generic_category(self):
+        # For "Supplies" category we do not expect KZ auto-attach — required_licenses stays empty
+        s = CTX["buyer_session"]
+        t = s.get(f"{API}/tenders/{CTX['rfq_tender_id']}", timeout=10).json()
+        assert t.get("required_licenses") in (None, [], [""])
+
+    def test_filter_tenders_by_document_type_rfp(self):
+        s = CTX["buyer_session"]
+        r = s.get(f"{API}/tenders?document_type=rfp", timeout=10)
+        assert r.status_code == 200
+        docs = r.json()
+        assert len(docs) >= 1
+        assert all(d.get("document_type") == "rfp" for d in docs)
+        assert CTX["rfp_tender_id"] in [d["id"] for d in docs]
+
+    def test_filter_tenders_by_document_type_rfq(self):
+        s = CTX["buyer_session"]
+        r = s.get(f"{API}/tenders?document_type=rfq", timeout=10)
+        assert r.status_code == 200
+        docs = r.json()
+        assert len(docs) >= 1
+        assert all(d.get("document_type") == "rfq" for d in docs)
+        assert CTX["rfq_tender_id"] in [d["id"] for d in docs]
+
+    def test_list_all_tenders_backcompat(self):
+        # No filter — should include our RFP, RFQ, and legacy tenders
+        s = CTX["buyer_session"]
+        r = s.get(f"{API}/tenders", timeout=10)
+        assert r.status_code == 200
+        ids = [d["id"] for d in r.json()]
+        assert CTX["rfp_tender_id"] in ids
+        assert CTX["rfq_tender_id"] in ids
+
+    def test_get_legacy_tender_still_works(self):
+        # tender_id was created without document_type in TestTenders — must still return
+        s = CTX["buyer_session"]
+        r = s.get(f"{API}/tenders/{CTX['tender_id']}", timeout=10)
+        assert r.status_code == 200
+        got = r.json()
+        # Either missing (legacy) or defaulted to "tender"
+        assert got.get("document_type", "tender") in ("tender", None)
+
+    def test_bid_on_rfq_with_line_item_prices(self):
+        # approved vendor already granted "Medical gas installation" earlier — RFQ needs no licenses
+        s = CTX["new_vendor_session"]
+        payload = {
+            "tender_id": CTX["rfq_tender_id"],
+            "price_currency": "USD",
+            "price_amount": 1330.0,  # 500*2.5 + 200*0.4 = 1330
+            "delivery_days": 30,
+            "proposal": "Full RFQ quotation.",
+            "line_item_prices": [
+                {"item": "CAT6 cable", "qty": 500, "unit": "m", "unit_price": 2.4, "subtotal": 1200.0},
+                {"item": "RJ45 connector", "qty": 200, "unit": "pcs", "unit_price": 0.65, "subtotal": 130.0},
+            ],
+        }
+        r = s.post(f"{API}/bids", json=payload, timeout=15)
+        assert r.status_code == 200, r.text
+        b = r.json()
+        assert b["status"] == "submitted"
+        assert len(b.get("line_item_prices", [])) == 2
+        assert b["line_item_prices"][0]["unit_price"] == 2.4
+        CTX["rfq_bid_id"] = b["id"]
+
+    def test_bid_on_rfp_with_technical_commercial_team(self):
+        s = CTX["new_vendor_session"]
+        payload = {
+            "tender_id": CTX["rfp_tender_id"],
+            "price_currency": "USD",
+            "price_amount": 140000,
+            "delivery_days": 90,
+            "proposal": "Overall proposal summary.",
+            "technical_proposal": "Deep technical write-up: phased delivery, team, methodology.",
+            "commercial_proposal": "Payment 30/40/30. Total 140k USD.",
+            "team_composition": "PM + 2 architects + 4 engineers.",
+        }
+        r = s.post(f"{API}/bids", json=payload, timeout=15)
+        assert r.status_code == 200, r.text
+        b = r.json()
+        assert b["status"] == "submitted"
+        assert b.get("technical_proposal", "").startswith("Deep technical write-up")
+        assert b.get("commercial_proposal", "").startswith("Payment 30/40/30")
+        assert "PM" in b.get("team_composition", "")
+
+    def test_kz_license_gate_still_enforced_on_rfp(self):
+        """Create an RFP with delivery_country=KZ + required_licenses.
+        A vendor without matching kz_licenses must get 403."""
+        # 1) buyer creates KZ RFP requiring 'Electrical installation'
+        s = CTX["buyer_session"]
+        deadline = (datetime.now(timezone.utc) + timedelta(days=14)).isoformat()
+        rfp_payload = {
+            "document_type": "rfp",
+            "title": f"TEST_KZ_RFP_{uuid.uuid4().hex[:6]}",
+            "description": "Electrical works consulting.",
+            "category": "Substation works (HT/LT)",  # maps to Electrical installation
+            "submission_deadline": deadline,
+            "budget_currency": "USD",
+            "budget_amount": 90000,
+            "delivery_country": "KZ",
+            "delivery_location": "Astana",
+            "scope_of_work": "HT/LT substation design",
+            "evaluation_criteria": [
+                {"name": "Technical", "weight": 70, "description": "Design"},
+                {"name": "Commercial", "weight": 30, "description": "Price"},
+            ],
+        }
+        r = s.post(f"{API}/tenders", json=rfp_payload, timeout=15)
+        assert r.status_code == 200, r.text
+        rfp = r.json()
+        assert "Electrical installation" in (rfp.get("required_licenses") or [])
+        kz_rfp_id = rfp["id"]
+
+        # 2) Register a fresh approved vendor that does NOT have Electrical installation
+        uniq = uuid.uuid4().hex[:8]
+        creds = {"email": f"TEST_norfp_{uniq}@example.com", "password": "Vendor@123",
+                 "name": "No License", "role": "vendor"}
+        vs = _session()
+        rr = vs.post(f"{API}/auth/register", json=creds, timeout=15)
+        assert rr.status_code == 200
+        new_vid = rr.json()["id"]
+        # Mark fee-paid so admin can approve after profile submit; but faster to directly approve
+        admin_s = CTX["admin_session"]
+        admin_s.post(f"{API}/admin/vendors/{new_vid}/approve", timeout=10)
+
+        r2 = vs.post(f"{API}/bids", json={
+            "tender_id": kz_rfp_id,
+            "price_currency": "USD",
+            "price_amount": 80000,
+            "delivery_days": 60,
+            "proposal": "We'll do it.",
+            "technical_proposal": "Yes",
+        }, timeout=15)
+        assert r2.status_code == 403
+        assert "missing required licenses" in r2.text.lower()
+

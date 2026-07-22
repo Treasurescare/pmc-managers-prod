@@ -62,16 +62,17 @@ export default function TenderList() {
         <table className="w-full text-sm pmc-table" data-testid="tenders-table">
           <thead>
             <tr className="border-b bg-muted/30">
-              <Th>ID</Th><Th>Title</Th><Th>Category</Th><Th>Budget</Th><Th>Deadline</Th><Th>Status</Th><Th>Publisher</Th><Th></Th>
+              <Th>ID</Th><Th>Type</Th><Th>Title</Th><Th>Category</Th><Th>Budget</Th><Th>Deadline</Th><Th>Status</Th><Th>Publisher</Th><Th></Th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 && (
-              <tr><td colSpan={8} className="text-center text-muted-foreground py-10">No tenders match your filter.</td></tr>
+              <tr><td colSpan={9} className="text-center text-muted-foreground py-10">No tenders match your filter.</td></tr>
             )}
             {filtered.map((t) => (
               <tr key={t.id} className="border-b hover:bg-muted/40 transition-colors">
                 <Td className="font-mono text-primary">#{t.id.slice(-6).toUpperCase()}</Td>
+                <Td><span className="pmc-label text-primary">{(t.document_type || "tender").toUpperCase()}</span></Td>
                 <Td>{t.title}</Td>
                 <Td>{t.category}</Td>
                 <Td className="font-mono">{t.budget_amount ? `${t.budget_currency} ${t.budget_amount.toLocaleString()}` : "—"}</Td>

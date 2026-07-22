@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { LayoutDashboard, FileStack, Gavel, Users, Bell, LogOut, Building2, PlusSquare, ShieldCheck, CreditCard } from "lucide-react";
+import { LayoutDashboard, FileStack, Gavel, Users, Bell, LogOut, Building2, PlusSquare, ShieldCheck, CreditCard, ClipboardList } from "lucide-react";
 import PmcLogo from "./PmcLogo";
 import LangSwitcher from "./LangSwitcher";
 import { useAuth } from "@/context/AuthContext";
@@ -11,6 +11,7 @@ function navFor(role) {
     return [
       { to: "/admin", label: "Overview", icon: LayoutDashboard, testid: "nav-admin-overview" },
       { to: "/admin/vendors", label: "Vendor Approvals", icon: ShieldCheck, testid: "nav-admin-vendors" },
+      { to: "/admin/rfp-rfq", label: "RFP / RFQ", icon: ClipboardList, testid: "nav-admin-rfp-rfq" },
       { to: "/tenders", label: "All Tenders", icon: FileStack, testid: "nav-admin-tenders" },
       { to: "/admin/users", label: "Users", icon: Users, testid: "nav-admin-users" },
       { to: "/notifications", label: "Notifications", icon: Bell, testid: "nav-notifications" },
@@ -19,6 +20,8 @@ function navFor(role) {
     return [
       { to: "/buyer", label: "Overview", icon: LayoutDashboard, testid: "nav-buyer-overview" },
       { to: "/buyer/create", label: "New Tender", icon: PlusSquare, testid: "nav-buyer-create" },
+      { to: "/buyer/create?type=rfp", label: "New RFP", icon: ClipboardList, testid: "nav-buyer-new-rfp" },
+      { to: "/buyer/create?type=rfq", label: "New RFQ", icon: ClipboardList, testid: "nav-buyer-new-rfq" },
       { to: "/tenders?mine=1", label: "My Tenders", icon: FileStack, testid: "nav-buyer-mine" },
       { to: "/notifications", label: "Notifications", icon: Bell, testid: "nav-notifications" },
     ];

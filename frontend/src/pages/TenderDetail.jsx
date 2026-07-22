@@ -67,7 +67,12 @@ export default function TenderDetail() {
     <DashboardLayout
       title={tender.title}
       subtitle={`Published by ${tender.created_by_name || tender.created_by_email}`}
-      actions={<StatusBadge status={tender.status} testid="tender-detail-status" />}
+      actions={
+        <div className="flex items-center gap-2">
+          <span data-testid="tender-doctype" className="pmc-label px-2 py-1 border border-primary text-primary">{(tender.document_type || "tender").toUpperCase()}</span>
+          <StatusBadge status={tender.status} testid="tender-detail-status" />
+        </div>
+      }
     >
       <button onClick={() => nav(-1)} className="mb-6 text-sm text-muted-foreground inline-flex items-center gap-2 hover:text-foreground">
         <ArrowLeft className="h-4 w-4" /> Back
@@ -97,6 +102,65 @@ export default function TenderDetail() {
               <div className="mt-6 border border-l-4 border-primary bg-primary/5 p-4" data-testid="tender-required-licenses">
                 <div className="pmc-label text-primary flex items-center gap-2"><ShieldAlert className="h-3.5 w-3.5" /> Required licenses (Kazakhstan)</div>
                 <div className="text-sm mt-2">Bidders must hold: <span className="font-mono">{tender.required_licenses.join(", ")}</span></div>
+              </div>
+            )}
+
+            {tender.document_type === "rfq" && (tender.line_items || []).length > 0 && (
+              <div className="mt-6 border" data-testid="tender-line-items">
+                <div className="p-4 border-b bg-muted/30">
+                  <div className="pmc-label text-primary">RFQ · Line items to quote</div>
+                  <div className="font-serif text-xl mt-1">Itemised quotation table</div>
+                </div>
+                <table className="w-full text-sm">
+                  <thead><tr className="border-b bg-muted/20"><th className="pmc-label text-left px-3 py-2">#</th><th className="pmc-label text-left px-3 py-2">Item</th><th className="pmc-label text-left px-3 py-2">Qty</th><th className="pmc-label text-left px-3 py-2">Unit</th><th className="pmc-label text-left px-3 py-2">Target price</th></tr></thead>
+                  <tbody>
+                    {tender.line_items.map((li, i) => (
+                      <tr key={i} className="border-b">
+                        <td className="px-3 py-2 font-mono text-xs">{String(i + 1).padStart(2, "0")}</td>
+                        <td className="px-3 py-2">{li.item}</td>
+                        <td className="px-3 py-2 font-mono">{li.qty}</td>
+                        <td className="px-3 py-2 font-mono">{li.unit}</td>
+                        <td className="px-3 py-2 font-mono">{li.target_unit_price ? `${tender.budget_currency} ${Number(li.target_unit_price).toLocaleString()}` : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className="grid md:grid-cols-2 gap-4 p-4 border-t text-sm">
+                  {tender.payment_terms && (<div><div className="pmc-label mb-1">Payment terms</div><div>{tender.payment_terms}</div></div>)}
+                  {tender.delivery_date && (<div><div className="pmc-label mb-1">Required delivery</div><div className="font-mono">{tender.delivery_date}</div></div>)}
+                </div>
+              </div>
+            )}
+
+            {tender.document_type === "rfp" && (
+              <div className="mt-6 border" data-testid="tender-rfp-block">
+                <div className="p-4 border-b bg-muted/30">
+                  <div className="pmc-label text-primary">RFP · Evaluation framework</div>
+                  <div className="font-serif text-xl mt-1">How your proposal will be judged</div>
+                </div>
+                <div className="p-4 space-y-4 text-sm">
+                  {tender.scope_of_work && (<div><div className="pmc-label mb-1">Full scope of work</div><p className="whitespace-pre-line">{tender.scope_of_work}</p></div>)}
+                  {tender.expected_deliverables && (<div><div className="pmc-label mb-1">Expected deliverables</div><p className="whitespace-pre-line">{tender.expected_deliverables}</p></div>)}
+                  {(tender.evaluation_criteria || []).length > 0 && (
+                    <div>
+                      <div className="pmc-label mb-1">Evaluation criteria</div>
+                      <table className="w-full border">
+                        <thead><tr className="border-b bg-muted/20"><th className="pmc-label text-left px-3 py-2">Criterion</th><th className="pmc-label text-left px-3 py-2">Weight</th><th className="pmc-label text-left px-3 py-2">Description</th></tr></thead>
+                        <tbody>{tender.evaluation_criteria.map((c, i) => (
+                          <tr key={i} className="border-b"><td className="px-3 py-2">{c.name}</td><td className="px-3 py-2 font-mono">{c.weight}%</td><td className="px-3 py-2 text-muted-foreground">{c.description}</td></tr>
+                        ))}</tbody>
+                      </table>
+                    </div>
+                  )}
+                  {(tender.evaluation_committee || []).length > 0 && (
+                    <div>
+                      <div className="pmc-label mb-1">Evaluation committee</div>
+                      <ul className="text-sm">{tender.evaluation_committee.map((m, i) => (<li key={i}>· {m.name} — <span className="text-muted-foreground">{m.role}</span></li>))}</ul>
+                    </div>
+                  )}
+                  {tender.pre_bid_meeting_date && (<div><div className="pmc-label mb-1">Pre-bid meeting</div><div className="font-mono">{new Date(tender.pre_bid_meeting_date).toLocaleString()}</div></div>)}
+                  {tender.bid_bond_amount && (<div><div className="pmc-label mb-1">Bid bond</div><div className="font-mono">USD {Number(tender.bid_bond_amount).toLocaleString()}</div></div>)}
+                </div>
               </div>
             )}
 
@@ -150,14 +214,49 @@ export default function TenderDetail() {
 }
 
 function VendorBidSection({ tender, myBid, canBid, profileStatus, onSubmitted }) {
-  const [form, setForm] = useState({ price_currency: tender.budget_currency || "USD", price_amount: "", delivery_days: 30, proposal: "", attachments: [] });
+  const isRFQ = tender.document_type === "rfq";
+  const isRFP = tender.document_type === "rfp";
+  const initialLineItemPrices = isRFQ ? (tender.line_items || []).map((li) => ({ item: li.item, qty: li.qty, unit: li.unit, unit_price: "", subtotal: 0 })) : [];
+  const [form, setForm] = useState({
+    price_currency: tender.budget_currency || "USD",
+    price_amount: "",
+    delivery_days: 30,
+    proposal: "",
+    attachments: [],
+    line_item_prices: initialLineItemPrices,
+    technical_proposal: "",
+    commercial_proposal: "",
+    team_composition: "",
+  });
   const [busy, setBusy] = useState(false);
   const set = (k) => (e) => setForm((s) => ({ ...s, [k]: e.target.value }));
 
+  const updateLineItemPrice = (i, unit_price) => {
+    setForm((s) => {
+      const list = s.line_item_prices.map((li, idx) => {
+        if (idx !== i) return li;
+        const p = Number(unit_price);
+        const q = Number(li.qty) || 0;
+        return { ...li, unit_price, subtotal: !isNaN(p) ? p * q : 0 };
+      });
+      const total = list.reduce((sum, x) => sum + (Number(x.subtotal) || 0), 0);
+      return { ...s, line_item_prices: list, price_amount: total };
+    });
+  };
+
   const submit = async (e) => {
-    e.preventDefault(); setBusy(true);
+    e.preventDefault();
+    if (isRFP && !form.technical_proposal) { toast.error("Technical proposal is required for RFP responses."); return; }
+    if (isRFQ && form.line_item_prices.some((li) => li.unit_price === "" || li.unit_price === null)) { toast.error("Enter a unit price for every line item."); return; }
+    setBusy(true);
     try {
-      await api.post("/bids", { ...form, tender_id: tender.id, price_amount: Number(form.price_amount), delivery_days: Number(form.delivery_days) });
+      const payload = {
+        ...form, tender_id: tender.id,
+        price_amount: Number(form.price_amount),
+        delivery_days: Number(form.delivery_days),
+        proposal: form.proposal || (isRFP ? form.technical_proposal : isRFQ ? `RFQ response: ${form.line_item_prices.length} line items` : ""),
+      };
+      await api.post("/bids", payload);
       toast.success("Bid submitted");
       onSubmitted();
     } catch (err) { toast.error(formatApiError(err)); }
@@ -187,8 +286,17 @@ function VendorBidSection({ tender, myBid, canBid, profileStatus, onSubmitted })
           <div><div className="pmc-label mb-1">Delivery</div><div className="font-mono text-xl">{myBid.delivery_days} days</div></div>
           <div><div className="pmc-label mb-1">Submitted</div><div className="font-mono text-xs">{new Date(myBid.created_at).toLocaleString()}</div></div>
         </div>
-        <div className="pmc-label mt-6 mb-2">Proposal</div>
-        <p className="whitespace-pre-line text-sm">{myBid.proposal}</p>
+        {(myBid.line_item_prices || []).length > 0 && (
+          <>
+            <div className="pmc-label mt-6 mb-2">Line items</div>
+            <table className="w-full text-sm border"><thead><tr className="bg-muted/30 border-b"><th className="pmc-label text-left px-3 py-2">Item</th><th className="pmc-label text-left px-3 py-2">Qty</th><th className="pmc-label text-left px-3 py-2">Unit price</th><th className="pmc-label text-left px-3 py-2">Subtotal</th></tr></thead><tbody>
+              {myBid.line_item_prices.map((li, i) => (<tr key={i} className="border-b"><td className="px-3 py-2">{li.item}</td><td className="px-3 py-2 font-mono">{li.qty} {li.unit}</td><td className="px-3 py-2 font-mono">{myBid.price_currency} {Number(li.unit_price).toLocaleString()}</td><td className="px-3 py-2 font-mono">{myBid.price_currency} {Number(li.subtotal).toLocaleString()}</td></tr>))}
+            </tbody></table>
+          </>
+        )}
+        {myBid.technical_proposal && (<><div className="pmc-label mt-6 mb-2">Technical proposal</div><p className="whitespace-pre-line text-sm">{myBid.technical_proposal}</p></>)}
+        {myBid.commercial_proposal && (<><div className="pmc-label mt-6 mb-2">Commercial proposal</div><p className="whitespace-pre-line text-sm">{myBid.commercial_proposal}</p></>)}
+        {myBid.proposal && !myBid.technical_proposal && (<><div className="pmc-label mt-6 mb-2">Proposal</div><p className="whitespace-pre-line text-sm">{myBid.proposal}</p></>)}
       </div>
     );
   }
@@ -210,8 +318,55 @@ function VendorBidSection({ tender, myBid, canBid, profileStatus, onSubmitted })
 
   return (
     <form onSubmit={submit} className="border p-6 md:p-8" data-testid="bid-form">
-      <div className="pmc-label mb-2">Submit your bid</div>
-      <h3 className="font-serif text-2xl mb-4">Your proposal</h3>
+      <div className="pmc-label mb-2">Submit your {isRFP ? "proposal" : isRFQ ? "quotation" : "bid"}</div>
+      <h3 className="font-serif text-2xl mb-4">{isRFP ? "Your RFP response" : isRFQ ? "Your quotation" : "Your bid"}</h3>
+
+      {/* RFQ line-item pricing */}
+      {isRFQ && (
+        <div className="mb-6">
+          <div className="pmc-label mb-2">Line items · enter unit prices</div>
+          <table className="w-full text-sm border" data-testid="bid-line-items-table">
+            <thead><tr className="border-b bg-muted/30"><th className="pmc-label text-left px-3 py-2">#</th><th className="pmc-label text-left px-3 py-2">Item</th><th className="pmc-label text-left px-3 py-2">Qty</th><th className="pmc-label text-left px-3 py-2">Unit</th><th className="pmc-label text-left px-3 py-2">Your unit price ({form.price_currency})</th><th className="pmc-label text-left px-3 py-2">Subtotal</th></tr></thead>
+            <tbody>
+              {form.line_item_prices.map((li, i) => (
+                <tr key={i} className="border-b" data-testid={`bid-li-${i}`}>
+                  <td className="px-3 py-2 font-mono text-xs">{String(i + 1).padStart(2, "0")}</td>
+                  <td className="px-3 py-2">{li.item}</td>
+                  <td className="px-3 py-2 font-mono">{li.qty}</td>
+                  <td className="px-3 py-2 font-mono">{li.unit}</td>
+                  <td className="px-2 py-1 w-40">
+                    <input data-testid={`bid-li-${i}-price`} type="number" min="0" step="any" value={li.unit_price} onChange={(e) => updateLineItemPrice(i, e.target.value)} className="w-full h-9 px-2 border border-input bg-white" />
+                  </td>
+                  <td className="px-3 py-2 font-mono">{Number(li.subtotal || 0).toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="bg-muted/30"><td colSpan={5} className="px-3 py-2 text-right pmc-label">Total</td><td className="px-3 py-2 font-mono font-bold" data-testid="bid-total">{form.price_currency} {Number(form.price_amount || 0).toLocaleString()}</td></tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+
+      {/* RFP technical + commercial */}
+      {isRFP && (
+        <div className="space-y-5 mb-6">
+          <div>
+            <label className="pmc-label block mb-2">Technical proposal <span className="text-destructive">*</span></label>
+            <textarea data-testid="bid-technical" required rows={6} value={form.technical_proposal} onChange={set("technical_proposal")} className="w-full px-4 py-3 border border-input bg-white focus:border-primary focus:outline-none" />
+          </div>
+          <div>
+            <label className="pmc-label block mb-2">Commercial proposal / pricing narrative</label>
+            <textarea data-testid="bid-commercial" rows={4} value={form.commercial_proposal} onChange={set("commercial_proposal")} className="w-full px-4 py-3 border border-input bg-white focus:border-primary focus:outline-none" />
+          </div>
+          <div>
+            <label className="pmc-label block mb-2">Team composition / key personnel</label>
+            <textarea data-testid="bid-team" rows={3} value={form.team_composition} onChange={set("team_composition")} className="w-full px-4 py-3 border border-input bg-white focus:border-primary focus:outline-none" />
+          </div>
+        </div>
+      )}
+
+      {/* Common price / delivery */}
       <div className="grid md:grid-cols-3 gap-5">
         <div>
           <label className="pmc-label block mb-2">Currency</label>
@@ -220,9 +375,9 @@ function VendorBidSection({ tender, myBid, canBid, profileStatus, onSubmitted })
           </select>
         </div>
         <div>
-          <label className="pmc-label block mb-2">Price</label>
-          <input data-testid="bid-amount" required type="number" min="0" step="any" value={form.price_amount} onChange={set("price_amount")}
-            className="w-full h-12 px-4 border border-input bg-white focus:border-primary focus:outline-none" />
+          <label className="pmc-label block mb-2">{isRFQ ? "Total (auto)" : "Price"}</label>
+          <input data-testid="bid-amount" required={!isRFQ} readOnly={isRFQ} type="number" min="0" step="any" value={form.price_amount} onChange={set("price_amount")}
+            className={`w-full h-12 px-4 border border-input focus:border-primary focus:outline-none ${isRFQ ? "bg-muted" : "bg-white"}`} />
         </div>
         <div>
           <label className="pmc-label block mb-2">Delivery days</label>
@@ -230,11 +385,15 @@ function VendorBidSection({ tender, myBid, canBid, profileStatus, onSubmitted })
             className="w-full h-12 px-4 border border-input bg-white focus:border-primary focus:outline-none" />
         </div>
       </div>
-      <div className="mt-5">
-        <label className="pmc-label block mb-2">Proposal</label>
-        <textarea data-testid="bid-proposal" required rows={5} value={form.proposal} onChange={set("proposal")}
-          className="w-full px-4 py-3 border border-input bg-white focus:border-primary focus:outline-none" />
-      </div>
+
+      {!isRFP && (
+        <div className="mt-5">
+          <label className="pmc-label block mb-2">{isRFQ ? "Notes to buyer" : "Proposal"}</label>
+          <textarea data-testid="bid-proposal" required={!isRFQ} rows={isRFQ ? 3 : 5} value={form.proposal} onChange={set("proposal")}
+            className="w-full px-4 py-3 border border-input bg-white focus:border-primary focus:outline-none" />
+        </div>
+      )}
+
       <div className="mt-5">
         <label className="pmc-label block mb-2">Attachments</label>
         <label className="block border border-dashed border-input hover:border-primary p-4 text-center cursor-pointer text-sm">
@@ -254,9 +413,10 @@ function VendorBidSection({ tender, myBid, canBid, profileStatus, onSubmitted })
           </ul>
         )}
       </div>
+
       <div className="mt-6 flex justify-end border-t pt-4">
         <button data-testid="bid-submit" disabled={busy} className="bg-primary text-white px-6 py-3 text-sm hover:-translate-y-0.5 transition-transform disabled:opacity-60">
-          {busy ? "Submitting..." : "Submit bid"}
+          {busy ? "Submitting..." : `Submit ${isRFP ? "proposal" : isRFQ ? "quotation" : "bid"}`}
         </button>
       </div>
     </form>

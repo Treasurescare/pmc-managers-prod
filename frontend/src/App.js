@@ -21,6 +21,7 @@ import TenderDetail from "@/pages/TenderDetail";
 import AdminDashboard from "@/pages/AdminDashboard";
 import AdminVendors from "@/pages/AdminVendors";
 import AdminUsers from "@/pages/AdminUsers";
+import AdminRfpRfq from "@/pages/AdminRfpRfq";
 import Notifications from "@/pages/Notifications";
 
 function RootRedirect() {
@@ -67,6 +68,8 @@ function App() {
                 <Route path="/admin" element={<ProtectedRoute roles={["admin"]}><AdminDashboard /></ProtectedRoute>} />
                 <Route path="/admin/vendors" element={<ProtectedRoute roles={["admin"]}><AdminVendors /></ProtectedRoute>} />
                 <Route path="/admin/users" element={<ProtectedRoute roles={["admin"]}><AdminUsers /></ProtectedRoute>} />
+                <Route path="/admin/rfp-rfq" element={<ProtectedRoute roles={["admin"]}><AdminRfpRfq /></ProtectedRoute>} />
+                <Route path="/admin/rfp-rfq/new" element={<ProtectedRoute roles={["admin"]}><CreateTender /></ProtectedRoute>} />
 
                 <Route path="/tenders" element={<ProtectedRoute><TenderList /></ProtectedRoute>} />
                 <Route path="/tenders/:id" element={<ProtectedRoute><TenderDetail /></ProtectedRoute>} />
