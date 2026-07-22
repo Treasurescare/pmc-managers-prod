@@ -1,0 +1,47 @@
+{
+  "summary": "First-iteration full-stack review of the PMC Managers Tender Management app. 30 backend pytest cases (auth, vendor lifecycle, tenders, bids, uploads, admin, notifications) — 30/30 PASSED. Frontend Playwright coverage of landing, register, vendor profile 6-step stepper, admin/vendors, notifications, buyer create-tender — all critical selectors and navigations work. No blocking issues.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/tenders (vendor)", "issue": "Vendor sees ALL tenders (open/closed/awarded), no filter to only open. The inline comment ('vendors only see open tenders') is not enforced in code — the branch is a pass."},
+      {"endpoint": "backend .env CORS", "issue": "CORS_ORIGINS='*' is defined in .env but ignored by server.py (uses FRONTEND_URL directly). Dead env var — remove or wire it up."},
+      {"endpoint": "POST /api/auth/register", "issue": "Sets auth cookies immediately after signup. Fine for UX, but no email verification — acceptable per PRD."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Buyer /buyer/create", "issues": ["Uses native browser datetime-local picker for 'Submission deadline' instead of a shadcn Calendar/DatePicker. Inconsistent with rest of the design language."]},
+      {"screen": "VendorProfile stepper", "issues": ["Task spec expected data-testids named vp-step-1..vp-step-6 but implementation uses vendor-step-1..vendor-step-6. Functionally identical but the naming diverges from the review request — align if strict."]},
+      {"screen": "VendorProfile navigation", "issues": ["'Next step' button is unconditional — it never validates required fields on the current step, so a user can walk to step 6 empty and only find out on submit. Consider per-step required validation."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/backend_results.xml"
+  ],
+  "action_items": [
+    "(Nice-to-have) Enforce open-only tender filter for vendor role in GET /api/tenders.",
+    "(Nice-to-have) Replace native datetime input on CreateTender with shadcn calendar/date-time picker.",
+    "(Optional) Rename vendor-step-N testids to vp-step-N to match spec, or update spec to match code.",
+    "(Optional) Per-step field validation in VendorProfile so 'Next' cannot skip incomplete required fields."
+  ],
+  "critical_code_review_comments": [
+    "server.py is 630 lines and contains ALL routes, models, seeds and helpers in one file — split into routers/auth.py, routers/vendors.py, routers/tenders.py, routers/bids.py plus a models.py and seed.py once it grows further.",
+    "list_bids branch when mine=true and user.role == 'buyer' incorrectly sets q['vendor_id']=None (line ~477) — dead branch but confusing; also duplicated computation with the tender_id list path.",
+    "list_tenders vendor branch is a no-op — either remove the comment or actually restrict to open tenders.",
+    "seed_admin_and_demo does NOT reseed buyer/vendor passwords if changed via env (only admin gets password sync). Minor.",
+    "Auth cookies set with secure=False — acceptable for preview but must be secure=True in production; add a config toggle.",
+    "No refresh-token endpoint despite issuing refresh_token cookie — token silently dies after 24h forcing re-login. Add POST /api/auth/refresh or drop the refresh cookie."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py (new — comprehensive pytest suite)"
+  ],
+  "success_rate": {"backend": "100% (30/30)", "frontend": "100% of critical flows"},
+  "test_credentials": "Admin admin@pmcmanagers.com/Admin@123, Buyer buyer@pmcmanagers.com/Buyer@123, Vendor(pending) vendor@example.com/Vendor@123. Also created TEST_vendor_*/TEST_buyer_* accounts during runs.",
+  "seed_data_creation": "backend_test.py registers throwaway TEST_-prefixed vendor + buyer accounts on each run (no cleanup — safe due to prefix). Also created one approved vendor + one open→awarded tender + one awarded bid + associated notifications during testing.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Run backend suite with: `cd /app/backend && REACT_APP_BACKEND_URL=<url> python -m pytest tests/backend_test.py -v -n 0` — MUST pass -n 0 because pytest.ini forces xdist parallelism which breaks the shared CTX dict across workers. Front-end vendor profile testids are `vendor-step-N` NOT `vp-step-N`. Tender status flow verified end-to-end (open→awarded). Vendor `vendor@example.com` is intentionally left in pending state (test relies on this)."
+}
