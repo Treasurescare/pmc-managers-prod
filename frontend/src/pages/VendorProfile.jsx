@@ -188,30 +188,40 @@ export default function VendorProfile() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-8">
-        <ol className="space-y-0 border-l" data-testid="vendor-stepper">
-          {STEPS.map((s) => (
-            <li key={s.id}>
-              <button
-                data-testid={`vp-step-${s.id}`}
-                onClick={() => setStep(s.id)}
-                className={`w-full text-left flex items-center gap-3 pl-6 pr-4 py-4 border-b transition-colors ${
-                  step === s.id ? "bg-primary/5 text-foreground" : "hover:bg-muted/50 text-muted-foreground"
-                }`}
-              >
-                <span className={`font-mono text-xs ${step === s.id ? "text-primary" : ""}`}>0{s.id}</span>
-                <div>
-                  <div className="text-sm">{s.label}</div>
-                  <div className="pmc-label mt-0.5">Section {s.section}</div>
-                </div>
-                {step === s.id && <span className="ml-auto h-1.5 w-1.5 bg-primary" />}
-              </button>
-            </li>
-          ))}
+      <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-8">
+        <ol className="space-y-0 bg-white border border-brand-navy/10" data-testid="vendor-stepper">
+          {STEPS.map((s) => {
+            const isActive = step === s.id;
+            const isPast = step > s.id;
+            return (
+              <li key={s.id}>
+                <button
+                  data-testid={`vp-step-${s.id}`}
+                  onClick={() => setStep(s.id)}
+                  className={`w-full text-left flex items-center gap-4 px-5 py-4 border-b border-brand-navy/10 last:border-b-0 transition-all relative ${
+                    isActive ? "bg-brand-pale text-brand-navy" : "hover:bg-brand-pale/50 text-brand-navy/60"
+                  }`}
+                >
+                  {isActive && <span className="absolute left-0 top-0 bottom-0 w-1 bg-brand-navy-soft" />}
+                  <span className={`h-8 w-8 flex items-center justify-center border font-mono text-[0.6875rem] shrink-0 ${
+                    isPast ? "bg-brand-navy-soft border-brand-navy-soft text-white"
+                    : isActive ? "border-brand-navy-soft text-brand-navy-soft bg-white"
+                    : "border-brand-navy/20 text-brand-navy/50"
+                  }`}>
+                    {isPast ? "✓" : `0${s.id}`}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className={`text-sm ${isActive ? "font-semibold" : "font-medium"}`}>{s.label}</div>
+                    <div className="pmc-label mt-0.5">Section {s.section}</div>
+                  </div>
+                </button>
+              </li>
+            );
+          })}
         </ol>
 
         <div className="min-w-0">
-          <div className="border p-6 md:p-10 space-y-6">
+          <div className="border border-brand-navy/10 bg-white p-6 md:p-10 space-y-6">
             {step === 1 && (
               <>
                 <Head n="01" title="Identity & basic information" caption="Section A" />

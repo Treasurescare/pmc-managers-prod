@@ -81,21 +81,28 @@ export default function TenderDetail() {
 
       <div className="grid lg:grid-cols-[1fr_320px] gap-8">
         <div className="min-w-0 space-y-8">
-          <div className="border p-6 md:p-8">
-            <div className="pmc-label mb-3">Tender ID <span className="font-mono normal-case tracking-normal ml-2 text-primary">#{tender.id.slice(-6).toUpperCase()}</span></div>
-            <h2 className="font-serif text-3xl mb-2 tracking-tight">{tender.title}</h2>
-            <div className="flex flex-wrap gap-6 text-sm text-muted-foreground mb-6">
+          <div className="border border-brand-navy/10 bg-white p-6 md:p-10">
+            <div className="flex flex-wrap items-center gap-2 mb-6">
+              <span className="pmc-pill" data-testid="tender-doctype-pill">
+                <span>{(tender.document_type || "tender").toUpperCase()}</span>
+              </span>
+              <StatusBadge status={tender.status} testid="tender-status" />
+              {tender.two_envelope && <span className="pmc-pill" style={{ borderColor: "#3b6fa0", color: "#3b6fa0" }}>Two-envelope</span>}
+              <span className="ml-auto pmc-label">#{tender.id.slice(-6).toUpperCase()}</span>
+            </div>
+            <h2 className="font-display text-4xl md:text-5xl leading-[1.1] text-brand-navy mb-4">{tender.title}</h2>
+            <div className="flex flex-wrap gap-6 text-sm text-brand-navy/70 mb-8">
               <span className="inline-flex items-center gap-2"><Building className="h-4 w-4" />{tender.category}</span>
               {tender.delivery_location && <span className="inline-flex items-center gap-2"><MapPin className="h-4 w-4" />{tender.delivery_location}</span>}
               <span className="inline-flex items-center gap-2 font-mono"><Timer className="h-4 w-4" />{countdown(tender.submission_deadline)}{tick && ""}</span>
             </div>
             <div className="pmc-label mb-2">Scope of work</div>
-            <p className="whitespace-pre-line text-sm leading-relaxed">{tender.description}</p>
+            <p className="whitespace-pre-line text-sm leading-relaxed text-brand-navy/80">{tender.description}</p>
 
             {tender.eligibility_criteria && (
               <>
                 <div className="pmc-label mt-6 mb-2">Eligibility criteria</div>
-                <p className="whitespace-pre-line text-sm leading-relaxed">{tender.eligibility_criteria}</p>
+                <p className="whitespace-pre-line text-sm leading-relaxed text-brand-navy/80">{tender.eligibility_criteria}</p>
               </>
             )}
 
@@ -218,19 +225,49 @@ export default function TenderDetail() {
 
         {/* Right rail */}
         <aside className="space-y-4">
-          <div className="border p-6 border-l-4 border-primary bg-muted/20">
-            <div className="pmc-label mb-1">Budget</div>
-            <div className="font-mono text-2xl">{tender.budget_amount ? `${tender.budget_currency} ${tender.budget_amount.toLocaleString()}` : "Undisclosed"}</div>
+          <div className="border border-brand-navy/10 border-l-4 border-l-brand-navy-soft bg-white p-6" data-testid="rail-budget">
+            <div className="pmc-label mb-2">Budget</div>
+            <div className="pmc-stat">{tender.budget_amount ? `${tender.budget_currency} ${tender.budget_amount.toLocaleString()}` : "Undisclosed"}</div>
             {tender.budget_amount && <FxChip amount={tender.budget_amount} source={tender.budget_currency} />}
           </div>
-          <div className="border p-6">
-            <div className="pmc-label mb-1">Deadline</div>
-            <div className="font-mono text-sm">{new Date(tender.submission_deadline).toLocaleString()}</div>
-            <div className="pmc-label mt-4 mb-1">Time remaining</div>
-            <div data-testid="tender-countdown" className="font-mono text-2xl">{countdown(tender.submission_deadline)}</div>
+
+          <div className="border border-brand-navy/10 bg-white p-6" data-testid="rail-deadline">
+            <div className="pmc-label mb-2">Deadline</div>
+            <div className="font-mono text-sm text-brand-navy/80">{new Date(tender.submission_deadline).toLocaleString()}</div>
+            <div className="pmc-label mt-5 mb-2">Time remaining</div>
+            <div data-testid="tender-countdown" className="pmc-stat">{countdown(tender.submission_deadline)}</div>
           </div>
+
+          {tender.emd_required && (
+            <div className="border border-brand-navy/10 border-l-4 border-l-warning bg-white p-6" data-testid="rail-emd">
+              <div className="pmc-label" style={{ color: "hsl(var(--warning))" }}>EMD required</div>
+              <div className="pmc-stat mt-2">
+                {tender.emd_amount ? `${tender.emd_currency} ${Number(tender.emd_amount).toLocaleString()}` : "Required"}
+              </div>
+              <div className="text-xs text-brand-navy/60 mt-2">Refunded automatically to losing bidders on award.</div>
+            </div>
+          )}
+
+          {tender.two_envelope && (
+            <div className="border border-brand-navy/10 border-l-4 border-l-brand-navy-soft bg-white p-6" data-testid="rail-two-envelope">
+              <div className="pmc-label">Two-envelope RFP</div>
+              <div className="mt-2 text-sm text-brand-navy/80">Technical opens first. Commercial reveals only for qualified bids.</div>
+            </div>
+          )}
+
+          {(tender.required_licenses || []).length > 0 && (
+            <div className="border border-brand-navy/10 bg-white p-6" data-testid="rail-licenses">
+              <div className="pmc-label mb-3">Required licenses</div>
+              <ul className="space-y-1.5 text-xs">
+                {tender.required_licenses.map((l) => (
+                  <li key={l} className="font-mono text-brand-navy/80">· {l}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {canManage && tender.status === "open" && (
-            <button data-testid="tender-close-btn" onClick={closeTender} className="w-full border border-destructive text-destructive py-3 text-sm hover:bg-destructive hover:text-white transition-colors">
+            <button data-testid="tender-close-btn" onClick={closeTender} className="w-full border border-destructive text-destructive py-3 text-[0.8125rem] uppercase tracking-widest font-semibold hover:bg-destructive hover:text-white transition-colors">
               Close tender
             </button>
           )}

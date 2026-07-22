@@ -1,0 +1,86 @@
+{
+  "summary": "Navy Trust polish pass (iter 12) — frontend-only regression validated via Playwright. All three targeted refinements pass: (1) /register split-navy layout renders correctly with aside visible at lg (1920x1080) — all 9 register testids resolve, VENDOR/BUYER toggle correctly swaps bg-brand-navy-soft styling; (2) /vendor/profile new chip-based stepper resolves — data-testid=vendor-stepper is a 6-row list, all vp-step-1..6 resolve, active step 1 has bg-brand-pale + navy-soft left border, past steps show ✓ chips after navigating forward, clicking each step navigates correctly (step 3→bank form, step 6→signature form); (3) /tenders/{id} new header pills + rail cards all resolve — tender-doctype-pill shows 'RFP' in caps, tender-status pill inside main card, font-display serif title present. Right rail cards verified across 4 tender types: rail-budget (with fx-chip FX conversion to KZT), rail-deadline (with tender-countdown showing '9d 23h 11m'), rail-emd shows 'USD 1,000' on EMD tender, rail-two-envelope on two-envelope RFP, rail-licenses on KZ tender lists 'Electrical installation'. Spot-check of all previously verified testids (landing, buyer nav, admin nav) confirms every testid still resolves. Landing bug from iter 11 (vendors_total→vendors_approved) is FIXED — stat-vendors now correctly renders '36'. Frontend log tail shows only 'Compiled successfully!' repeatedly; older react-hooks warnings in log are stale (from earlier compile cycles when @/pages/VendorKpi/AdminSbd were mid-move) — current TenderDetail.jsx L52 & L1055 useEffect calls both carry eslint-disable-line comments.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "testid_verification": {
+    "register": {
+      "register-role-vendor": "FOUND",
+      "register-role-buyer": "FOUND",
+      "register-google": "FOUND",
+      "register-name": "FOUND",
+      "register-email": "FOUND",
+      "register-password": "FOUND",
+      "register-submit": "FOUND",
+      "register-login-link": "FOUND",
+      "register-lang": "FOUND",
+      "split-navy-aside": "FOUND (visible at 1920x1080)",
+      "toggle-vendor→buyer": "OK — bg-brand-navy-soft moves to buyer, vendor loses it",
+      "toggle-back-to-vendor": "OK"
+    },
+    "vendor_profile": {
+      "vendor-stepper": "FOUND (6 li rows)",
+      "vp-step-1..6": "ALL 6 FOUND",
+      "active-step-1-styling": "OK — bg-brand-pale + navy-soft left border",
+      "click-step-3→bank-form": "OK — vp-bank_name visible",
+      "click-step-6→signature": "OK — vp-signature_name visible",
+      "past-step-checkmark": "OK — vp-step-1 shows ✓ after navigating to step 6"
+    },
+    "tender_detail_regular_rfp": {
+      "tender-doctype-pill": "FOUND text='RFP' (caps)",
+      "tender-status": "FOUND (pill inside main card)",
+      "font-display-title": "FOUND (Libre Baskerville serif)",
+      "rail-budget": "FOUND (USD 50,000)",
+      "fx-chip": "FOUND (KZT 23,424,781 live FX)",
+      "rail-deadline": "FOUND",
+      "tender-countdown": "FOUND (9d 23h 11m)"
+    },
+    "tender_detail_emd": {"rail-emd": "FOUND text='EMD required USD 1,000 Refunded automatically to losing bidders on award.'"},
+    "tender_detail_two_envelope": {"rail-two-envelope": "FOUND"},
+    "tender_detail_kz_licenses": {"rail-licenses": "FOUND text='Required licenses · Electrical installation'"},
+    "landing_spotcheck": {
+      "landing-hero": "FOUND",
+      "landing-live-card": "FOUND",
+      "stat-vendors": "FOUND — text 'Vetted Vendors 36' (iter 11 bug FIXED)",
+      "stat-tenders": "FOUND",
+      "stat-liquidity": "FOUND"
+    },
+    "buyer_dashboard_spotcheck": {
+      "nav-buyer-overview": "FOUND",
+      "sidebar-user-email": "FOUND",
+      "logout-btn": "FOUND",
+      "tender-feed": "FOUND",
+      "feed-filter-all": "FOUND"
+    },
+    "admin_spotcheck": {
+      "nav-admin-orgs": "FOUND",
+      "nav-admin-audit": "FOUND",
+      "nav-admin-sbd": "FOUND"
+    }
+  },
+  "compile_health": {
+    "current_state": "Compiled successfully! (repeated tail)",
+    "note": "Stale react-hooks/exhaustive-deps warnings in older log entries are from earlier compile cycles (during @/pages/VendorKpi + @/pages/AdminSbd module moves). Current TenderDetail.jsx L52 (`useEffect(load, [id, user?.role])`) and L1055 (`useEffect(load, [tender.id])`) both carry `// eslint-disable-line react-hooks/exhaustive-deps`. No active warnings in latest compile cycle."
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "TenderDetail.jsx header now correctly has doctype-pill + status pill inside the main card (L86–91). Redundant `data-testid=tender-doctype` still exists in the DashboardLayout `actions` slot (L73) alongside `tender-detail-status` — both are duplicates of the new pills inside the card. Not a bug, but consider removing the header-actions duplicates in a future pass to reduce visual noise on the top-right of the page (they compete with the fresh doctype-pill inside the card body).",
+    "VendorProfile stepper renders 'Section D/E' as `Section D/E` (from the STEPS array) — visually OK but the slash between D and E might merit a middle-dot for consistency with the rest of the design system (e.g. `Section D · E`). Cosmetic only.",
+    "Register.jsx: form submit correctly wires to `useAuth().register()` which POSTs to `/api/auth/register` (unchanged from prior iterations). Split-navy layout uses the shared /hero-containers.jpg image with 30% opacity + navy gradient overlay — matches the Login split panel.",
+    "FxChip persists chosen target currency to localStorage under `pmc.fx.target` — nice UX detail preserved.",
+    "No console errors during navigation beyond expected 401s on `/api/auth/me` while logged out.",
+    "Compile is clean; SSE stream at /api/feed/stream is still up so any future Playwright authors must use `wait_until='domcontentloaded'` + explicit selector waits (not `networkidle`)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested per review_request (frontend-only iteration)", "frontend": "100% — every testid in the review_request resolves; visual redesign matches spec; iter11 landing bug is FIXED"},
+  "test_credentials": "admin@pmcmanagers.com/Admin@123, buyer@pmcmanagers.com/Buyer@123, vendor@example.com/Vendor@123 — validated from /app/memory/test_credentials.md",
+  "seed_data_creation": "None — used existing tenders (regular RFP 6a60b4e57a68c4eb6d83cef5, EMD 6a60aa31e3d7008b1c7ae15a, two-envelope 6a60aa21e3d7008b1c7ae0c7, KZ-licenses 6a609727f6cedc75f8ba70d7).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Navy Trust polish pass (iter 12) is visually + functionally complete. All new testids from this iteration resolve: register-* (9 testids on split-navy layout), vendor-stepper + vp-step-1..6 (chip-based numbered stepper with past/active/future states), tender-doctype-pill + tender-status inside card, rail-budget/rail-deadline/rail-emd/rail-two-envelope/rail-licenses on right rail, fx-chip + tender-countdown. The iter11 Landing bug (stats.vendors_total → stats.vendors_approved) is fixed and stat-vendors now shows the real count (36). If retesting after future changes, use `wait_until='domcontentloaded'` + explicit selector waits (never `networkidle` — SSE keeps network active). Backend not re-tested this iteration; if any backend changes are made, run `/app/backend/tests/test_p2_green_orange.py` with `pytest -n 0`. Consider tidying the redundant `data-testid=tender-doctype` in the DashboardLayout actions slot at TenderDetail.jsx L73 — it duplicates the new tender-doctype-pill inside the card.",
+  "rca of the issue": "No issues to report — all three targeted refinements land cleanly. Iter 11's Landing.jsx L96 vendors_total→vendors_approved bug is fixed (verified via `grep -n vendors_ /app/frontend/src/pages/Landing.jsx` → L96 now uses `stats?.vendors_approved ?? '—'`, and Playwright confirmed stat-vendors renders '36' on the live URL)."
+}
