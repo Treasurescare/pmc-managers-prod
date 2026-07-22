@@ -40,7 +40,7 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
-    try { await api.post("/auth/logout"); } catch {}
+    try { await api.post("/auth/logout"); } catch (e) { console.warn("Logout call failed", e); }
     setUser(false);
   };
 

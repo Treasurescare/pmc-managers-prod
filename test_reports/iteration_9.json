@@ -1,0 +1,42 @@
+{
+  "summary": "Refactor-only regression sweep for TenderFeed sub-component extraction (FeedFilters + FeedItem + helpers filterBtnClass/timeChipClass/dtBadgeClass), catch-block console.warn logging in TenderDetail/AuthContext/etc., and useEffect eslint-disable-line fixes. Frontend compiles cleanly (0 warnings). Feed/SSE/QA/Addenda/Governance/Two-envelope panels render correctly with 0 non-network console errors. Backend was untouched — TestHealth+TestAuth 9/9 pass; TestV17P1 standalone 33/33 pass; combined run reproduces the previously-documented flaky test-isolation issue (7 EMD/SSE tests failing intermittently based on cross-class ordering) which is pre-existing (see iter8 context notes on pytest.ini/-n 0 CTX pattern).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "TestV17P1::test_52..test_58 (EMD flow)", "issue": "In combined run `pytest -k 'TestHealth or TestAuth or TestV15 or TestV16TwoEnvelope or TestV17P1' -n 0`, tests 52-58 intermittently KeyError on `_S['emd_tender_id']` / `_S['emd_bid_A']` — test_50 & test_51 succeed with the key, but by test_52 the class-level dict appears reset. Standalone `pytest TestV17P1 -n 0` = 33/33 PASS. Not caused by refactor (backend untouched)."},
+      {"endpoint": "TestV15SSEStream::test_stream_receives_tender_created_event", "issue": "Intermittent ReadTimeout on preview URL (network flakiness). Passed on second run."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/iter9_results.xml"
+  ],
+  "action_items": [
+    "(non-blocking) Investigate why TestV17P1._S loses `emd_tender_id` after test_51 when run inside the combined -k filter but not standalone. Likely a pytest instance-vs-class attribute assignment somewhere between test_51 and test_52, or an interaction with TestV16TwoEnvelope teardown. Fix suggestion: change `_S = {}` to a module-level dict `V17_STATE = {}` referenced by all methods, or move setup into a session-scoped fixture."
+  ],
+  "critical_code_review_comments": [
+    "TenderFeed.jsx: refactor is CLEAN. `FeedFilters` (L217-239) and `FeedItem` (L254-290) extracted with clear props. Helper fns `filterBtnClass` (L211), `dtBadgeClass` (L241), `timeChipClass` (L247) replace nested ternaries and are exhaustive (all class variants preserved). No behavior drift observed in UI.",
+    "TenderFeed.jsx: All catch blocks now log: L68 'Feed fetch failed', L87 'SSE unavailable', L105/L111 'SSE tender.created/updated parse failed', L127 'mark-read failed', L132 'mark-all-read failed'. L76 has `/* storage disabled */` comment for intentional localStorage swallow. L114 has `/* already closed */` for EventSource close idempotency. Consistent with the stated refactor goal.",
+    "TenderDetail.jsx L52/L1017: `useEffect(() => { load(); }, [id, user?.role])` and `[tender.id]` have `// eslint-disable-line react-hooks/exhaustive-deps` — behavior preserved (deliberate omission of unstable `load` reference). L46/L49/L1015 catch blocks log via console.warn.",
+    "Frontend compilation: final webpack output shows 'Compiled successfully!' with 0 eslint warnings after refactor applied (see /var/log/supervisor/frontend.out.log).",
+    "No regressions observed in: buyer login, tender feed (LIVE·SSE badge + 6 filter chips), ALL/RFP/UNREAD filter switching, click-to-mark-read, mark-all-read, SSE real-time push (verified 0.5s latency for tender.created event), CreateTender governance panel (ct-department/ct-require-approval/ct-emd-required + reveal of ct-emd-amount/ct-emd-currency), TenderDetail two-envelope-panel + te-stage-label, qa-panel, addenda-open-btn → addenda-publisher → addendum-{id} publish flow, VendorDashboard, MyBids, BuyerDashboard (no crash with sealed/null-price bids).",
+    "Minor observation (non-blocking, not from refactor): the buyer's freshly-created OPEN two-envelope tender did not surface te-open-technical/te-open-commercial buttons because the tender was auto-progressed past 'sealed' stage (0 bids yet, commOpen already true in test data). This matches the previous iteration's finding and is not a refactor regression.",
+    "Minor observation (non-blocking, not from refactor): logging out and navigating unauthenticated to /admin/vendors did NOT surface a 'Failed to load' console.warn because the route guard redirects to /login BEFORE the KYC fetch fires. If the intent is to observe catch-block warnings in real deployments, the useEffect for the fetch would need to run before the guard kicks in — currently the guard is faster. Not a blocker."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "9/9 (TestHealth+TestAuth) + 33/33 (TestV17P1 standalone) = 100% on unaffected suites; combined run 71-73/79 (flaky, pre-existing)",
+    "frontend": "100% — TenderFeed regression, SSE end-to-end, QA/Addenda, Governance panel, 2E panel/stage-label, dashboards all pass with 0 console warnings"
+  },
+  "test_credentials": "admin@pmcmanagers.com/Admin@123, buyer@pmcmanagers.com/Buyer@123, vendor@example.com/Vendor@123 — from /app/memory/test_credentials.md",
+  "seed_data_creation": "Created 1 tender via SSE test: TEST_REFACTOR_SSE_* (USD 3000, category Land survey & demarcation, buyer session). Published 1 addendum TEST_ADD_REFACTOR on the same tender. Vendor asked 1 QA question on TEST_V16_TE_15b09d ('REFACTOR TEST: Are specs finalized?') — visible in existing DB.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Frontend refactor iteration 9 (TenderFeed extraction + catch-block logging + useEffect eslint fixes) verified with zero regressions and clean compile (0 warnings). The pre-existing flaky test-isolation issue in TestV17P1 EMD subtests (test_52..test_58 fail intermittently under combined -k filter, but standalone 33/33) remains unresolved and is orthogonal to this refactor. See iter8's context_for_next_testing_agent for the root cause hypothesis (pytest.ini -n 2 --dist loadscope + class-local _S dict). Recommend fixing by moving TestV17P1 state to a session-scoped fixture or a module-level dict. For UI: pages use SSE stream — always use `wait_until='domcontentloaded'` + `wait_for_selector` on data-testid, never `networkidle` (feed keeps the connection open).",
+  "rca of the issue": "N/A — refactor iteration completed with no regressions. The 7 flaky backend failures are pre-existing (documented in iter8) and unrelated to the frontend-only refactor. Reproduction: `cd /app/backend && python -m pytest tests/backend_test.py -v -k 'TestHealth or TestAuth or TestV15 or TestV16TwoEnvelope or TestV17P1' -n 0` — 71-73/79 pass. Mitigation: run TestV17P1 in isolation (`pytest tests/backend_test.py::TestV17P1 -n 0` = 33/33 pass) OR migrate its class-level `_S = {}` to a module-level state dict / session fixture."
+}

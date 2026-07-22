@@ -7,8 +7,8 @@ import { Link } from "react-router-dom";
 export default function Notifications() {
   const [rows, setRows] = useState([]);
 
-  const load = async () => { try { const { data } = await api.get("/notifications"); setRows(data); } catch {} };
-  useEffect(() => { load(); }, []);
+  const load = async () => { try { const { data } = await api.get("/notifications"); setRows(data); } catch (e) { console.warn("Failed to load notifications", e); } };
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const markAll = async () => { await api.post("/notifications/mark-all-read"); load(); };
 

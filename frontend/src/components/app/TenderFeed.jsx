@@ -65,7 +65,7 @@ export default function TenderFeed({ collapsed, onToggle }) {
       const { data } = await api.get(`/feed/tenders?${queryParams}`);
       setItems(data);
       setRefreshedAt(new Date());
-    } catch {}
+    } catch (e) { console.warn("Feed fetch failed", e); }
     setLoading(false);
   }, [queryParams]);
 
@@ -73,7 +73,7 @@ export default function TenderFeed({ collapsed, onToggle }) {
   useEffect(() => { load(); }, [load]);
 
   // Persist filter
-  useEffect(() => { try { localStorage.setItem("pmc.feed.filter", filter); } catch {} }, [filter]);
+  useEffect(() => { try { localStorage.setItem("pmc.feed.filter", filter); } catch (e) { /* storage disabled */ } }, [filter]);
 
   // SSE stream for real-time push
   useEffect(() => {
@@ -83,7 +83,8 @@ export default function TenderFeed({ collapsed, onToggle }) {
     let es;
     try {
       es = new EventSource(url, { withCredentials: true });
-    } catch {
+    } catch (err) {
+      console.warn("SSE unavailable", err);
       return;
     }
     esRef.current = es;
@@ -101,16 +102,16 @@ export default function TenderFeed({ collapsed, onToggle }) {
           return [{ ...payload, unread: true }, ...prev].slice(0, 30);
         });
         setRefreshedAt(new Date());
-      } catch {}
+      } catch (err) { console.warn("SSE tender.created parse failed", err); }
     });
     es.addEventListener("tender.updated", (e) => {
       try {
         const payload = JSON.parse(e.data);
         setItems((prev) => prev.map((x) => x.id === payload.id ? { ...x, ...payload } : x));
-      } catch {}
+      } catch (err) { console.warn("SSE tender.updated parse failed", err); }
     });
     es.onerror = () => { setLive(false); };
-    return () => { setLive(false); try { es.close(); } catch {} };
+    return () => { setLive(false); try { es.close(); } catch (err) { /* already closed */ } };
   }, [user, filter, userCountry]);
 
   // Re-render every 30s so countdowns update
@@ -123,12 +124,12 @@ export default function TenderFeed({ collapsed, onToggle }) {
 
   const markRead = async (tid) => {
     setItems((prev) => prev.map((x) => x.id === tid ? { ...x, unread: false } : x));
-    try { await api.post(`/feed/mark-read/${tid}`); } catch {}
+    try { await api.post(`/feed/mark-read/${tid}`); } catch (e) { console.warn("mark-read failed", e); }
   };
 
   const markAllRead = async () => {
     setItems((prev) => prev.map((x) => ({ ...x, unread: false })));
-    try { await api.post("/feed/mark-all-read"); } catch {}
+    try { await api.post("/feed/mark-all-read"); } catch (e) { console.warn("mark-all-read failed", e); }
     if (filter === "unread") load();
   };
 
@@ -184,32 +185,7 @@ export default function TenderFeed({ collapsed, onToggle }) {
         </button>
       </div>
 
-      <div className="border-b px-3 py-2 flex flex-wrap gap-1" data-testid="feed-filters">
-        {FILTERS.map((f) => {
-          const disabled = f.key === "mine" && !userCountry;
-          const active = filter === f.key;
-          return (
-            <button
-              key={f.key}
-              onClick={() => !disabled && setFilter(f.key)}
-              disabled={disabled}
-              data-testid={`feed-filter-${f.key}`}
-              className={`text-[11px] tracking-widest uppercase px-2 py-1 border transition-colors ${
-                active
-                  ? "bg-foreground text-white border-foreground"
-                  : disabled
-                    ? "border-muted text-muted-foreground/50 cursor-not-allowed"
-                    : "border-muted-foreground/30 text-muted-foreground hover:border-foreground hover:text-foreground"
-              }`}
-            >
-              {f.label}
-              {f.key === "unread" && unreadCount > 0 && !active && (
-                <span className="ml-1 text-primary font-bold">{unreadCount}</span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      <FeedFilters filter={filter} onFilter={setFilter} unreadCount={unreadCount} userCountry={userCountry} />
 
       <div className="px-4 py-2 border-b bg-muted/20 text-[11px] text-muted-foreground flex items-center justify-between">
         <span data-testid="tender-feed-count">{items.length} shown{unreadCount > 0 ? ` · ${unreadCount} unread` : ""}</span>
@@ -223,52 +199,92 @@ export default function TenderFeed({ collapsed, onToggle }) {
             {filter === "unread" ? "No unread tenders." : "No open tenders on the board yet."}
           </div>
         )}
-        {items.map((t) => {
-          const dt = (t.document_type || "tender").toUpperCase();
-          const deadlineMs = new Date(t.submission_deadline) - Date.now();
-          const closing = deadlineMs < 86400000 && deadlineMs > 0;
-          const closed = deadlineMs <= 0;
-          return (
-            <Link
-              to={`/tenders/${t.id}`}
-              key={t.id + "_" + tick}
-              onClick={() => t.unread && markRead(t.id)}
-              data-testid={`feed-item-${t.id}`}
-              className={`block border-b px-4 py-3 hover:bg-primary/5 transition-colors ${t.unread ? "bg-primary/[0.06] border-l-2 border-l-primary" : ""}`}
-            >
-              <div className="flex items-center gap-2">
-                <span className={`text-[10px] font-semibold tracking-widest px-1.5 py-0.5 border ${
-                  dt === "RFP" ? "border-primary text-primary" : dt === "RFQ" ? "border-warning text-warning" : "border-foreground text-foreground"
-                }`}>{dt}</span>
-                {t.status === "awarded" && <span className="text-[10px] font-semibold tracking-widest px-1.5 py-0.5 bg-success text-white">AWARDED</span>}
-                {t.unread && <span data-testid={`feed-unread-dot-${t.id}`} className="ml-auto h-2 w-2 rounded-full bg-primary" aria-label="Unread" />}
-              </div>
-              <div className="font-serif text-[15px] leading-tight mt-2 line-clamp-2">{t.title}</div>
-              <div className="text-[11px] text-muted-foreground mt-1 truncate">
-                {t.category}{t.delivery_country ? ` · ${t.delivery_country}` : ""}
-              </div>
-              {t.description && (
-                <p className="text-xs text-muted-foreground mt-2 line-clamp-2 leading-relaxed">{t.description}</p>
-              )}
-              <div className="flex items-center justify-between mt-3 text-[11px] font-mono">
-                <span className="text-foreground/80">{t.budget_amount ? `${t.budget_currency} ${Number(t.budget_amount).toLocaleString()}` : "—"}</span>
-                <span
-                  data-testid={`feed-time-${t.id}`}
-                  className={
-                    closed
-                      ? "px-1.5 py-0.5 bg-muted text-foreground/80 font-semibold"
-                      : closing
-                        ? "px-1.5 py-0.5 bg-destructive text-white font-semibold"
-                        : "px-1.5 py-0.5 bg-foreground/10 text-foreground font-semibold"
-                  }
-                >
-                  {timeLeft(t.submission_deadline)}
-                </span>
-              </div>
-            </Link>
-          );
-        })}
+        {items.map((t) => (
+          <FeedItem key={t.id + "_" + tick} t={t} onMarkRead={markRead} />
+        ))}
       </div>
     </aside>
+  );
+}
+
+// ---------- Sub-components (extracted for readability) ----------
+function filterBtnClass(active, disabled) {
+  if (active) return "bg-foreground text-white border-foreground";
+  if (disabled) return "border-muted text-muted-foreground/50 cursor-not-allowed";
+  return "border-muted-foreground/30 text-muted-foreground hover:border-foreground hover:text-foreground";
+}
+
+function FeedFilters({ filter, onFilter, unreadCount, userCountry }) {
+  return (
+    <div className="border-b px-3 py-2 flex flex-wrap gap-1" data-testid="feed-filters">
+      {FILTERS.map((f) => {
+        const disabled = f.key === "mine" && !userCountry;
+        const active = filter === f.key;
+        const showUnreadCount = f.key === "unread" && unreadCount > 0 && !active;
+        return (
+          <button
+            key={f.key}
+            onClick={() => !disabled && onFilter(f.key)}
+            disabled={disabled}
+            data-testid={`feed-filter-${f.key}`}
+            className={`text-[11px] tracking-widest uppercase px-2 py-1 border transition-colors ${filterBtnClass(active, disabled)}`}
+          >
+            {f.label}
+            {showUnreadCount && <span className="ml-1 text-primary font-bold">{unreadCount}</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function dtBadgeClass(dt) {
+  if (dt === "RFP") return "border-primary text-primary";
+  if (dt === "RFQ") return "border-warning text-warning";
+  return "border-foreground text-foreground";
+}
+
+function timeChipClass(deadlineIso) {
+  const diff = new Date(deadlineIso) - Date.now();
+  if (diff <= 0) return "px-1.5 py-0.5 bg-muted text-foreground/80 font-semibold";
+  if (diff < 86400000) return "px-1.5 py-0.5 bg-destructive text-white font-semibold";
+  return "px-1.5 py-0.5 bg-foreground/10 text-foreground font-semibold";
+}
+
+function FeedItem({ t, onMarkRead }) {
+  const dt = (t.document_type || "tender").toUpperCase();
+  const handleClick = () => { if (t.unread) onMarkRead(t.id); };
+  return (
+    <Link
+      to={`/tenders/${t.id}`}
+      onClick={handleClick}
+      data-testid={`feed-item-${t.id}`}
+      className={`block border-b px-4 py-3 hover:bg-primary/5 transition-colors ${t.unread ? "bg-primary/[0.06] border-l-2 border-l-primary" : ""}`}
+    >
+      <div className="flex items-center gap-2">
+        <span className={`text-[10px] font-semibold tracking-widest px-1.5 py-0.5 border ${dtBadgeClass(dt)}`}>{dt}</span>
+        {t.status === "awarded" && (
+          <span className="text-[10px] font-semibold tracking-widest px-1.5 py-0.5 bg-success text-white">AWARDED</span>
+        )}
+        {t.unread && (
+          <span data-testid={`feed-unread-dot-${t.id}`} className="ml-auto h-2 w-2 rounded-full bg-primary" aria-label="Unread" />
+        )}
+      </div>
+      <div className="font-serif text-[15px] leading-tight mt-2 line-clamp-2">{t.title}</div>
+      <div className="text-[11px] text-muted-foreground mt-1 truncate">
+        {t.category}{t.delivery_country ? ` · ${t.delivery_country}` : ""}
+      </div>
+      {t.description && (
+        <p className="text-xs text-muted-foreground mt-2 line-clamp-2 leading-relaxed">{t.description}</p>
+      )}
+      <div className="flex items-center justify-between mt-3 text-[11px] font-mono">
+        <span className="text-foreground/80">
+          {t.budget_amount ? `${t.budget_currency} ${Number(t.budget_amount).toLocaleString()}` : "—"}
+        </span>
+        <span data-testid={`feed-time-${t.id}`} className={timeChipClass(t.submission_deadline)}>
+          {timeLeft(t.submission_deadline)}
+        </span>
+      </div>
+    </Link>
   );
 }

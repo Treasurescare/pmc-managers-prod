@@ -91,8 +91,8 @@ export default function VendorProfile() {
       setStatus(data.vendor_status || "pending");
       setFeePaid(!!data.registration_fee_paid);
       if (data.vendor_profile) setForm({ ...empty, ...data.vendor_profile });
-    }).catch(() => {});
-  }, []);
+    }).catch((e) => console.warn("Failed to load vendor profile", e));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleKzLicense = (l) => setForm((s) => ({
     ...s, kz_licenses: s.kz_licenses.includes(l) ? s.kz_licenses.filter((x) => x !== l) : [...s.kz_licenses, l],

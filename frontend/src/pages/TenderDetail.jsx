@@ -43,12 +43,13 @@ export default function TenderDetail() {
         const { data } = await api.get(`/bids?tender_id=${id}`);
         setBids(data);
       }
-    } catch {}
+    } catch (e) { console.warn("Failed to load bids", e); }
     if (user?.role === "vendor") {
-      try { const { data } = await api.get("/vendor/profile"); setProfileStatus(data.vendor_status); } catch {}
+      try { const { data } = await api.get("/vendor/profile"); setProfileStatus(data.vendor_status); }
+      catch (e) { console.warn("Failed to load vendor profile", e); }
     }
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [id, user?.role]);
+  useEffect(() => { load(); }, [id, user?.role]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const closeTender = async () => {
     try { await api.post(`/tenders/${id}/close`); toast.success("Tender closed"); load(); } catch (e) { toast.error(formatApiError(e)); }
@@ -1011,9 +1012,9 @@ function QaPanel({ tender, user, canManage }) {
     try {
       const { data } = await api.get(`/tenders/${tender.id}/questions`);
       setItems(data);
-    } catch {}
+    } catch (e) { console.warn("Failed to load Q&A", e); }
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [tender.id]);
+  useEffect(() => { load(); }, [tender.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const ask = async (e) => {
     e.preventDefault();

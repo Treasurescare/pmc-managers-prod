@@ -13,10 +13,10 @@ export default function VendorDashboard() {
   const [profile, setProfile] = useState(null);
 
   useEffect(() => {
-    api.get("/tenders").then(({ data }) => setTenders(data.filter((t) => t.status === "open").slice(0, 5))).catch(() => {});
-    api.get("/bids").then(({ data }) => setBids(data.slice(0, 5))).catch(() => {});
-    api.get("/vendor/profile").then(({ data }) => setProfile(data)).catch(() => {});
-  }, []);
+    api.get("/tenders").then(({ data }) => setTenders(data.filter((t) => t.status === "open").slice(0, 5))).catch((e) => console.warn("Failed to load tenders", e));
+    api.get("/bids").then(({ data }) => setBids(data.slice(0, 5))).catch((e) => console.warn("Failed to load bids", e));
+    api.get("/vendor/profile").then(({ data }) => setProfile(data)).catch((e) => console.warn("Failed to load profile", e));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const status = profile?.vendor_status || "pending";
   const profileComplete = !!profile?.vendor_profile;

@@ -1,0 +1,963 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="6" skipped="0" tests="79" time="67.388" timestamp="2026-07-22T11:31:32.621609+00:00" hostname="agent-env-843f5ef2-9372-4466-88f7-ae88a9044606"><testcase classname="tests.backend_test.TestHealth" name="test_health" time="0.133" /><testcase classname="tests.backend_test.TestHealth" name="test_public_stats" time="0.130" /><testcase classname="tests.backend_test.TestAuth" name="test_admin_login_and_me" time="0.369" /><testcase classname="tests.backend_test.TestAuth" name="test_buyer_login" time="0.332" /><testcase classname="tests.backend_test.TestAuth" name="test_vendor_pending_login" time="0.323" /><testcase classname="tests.backend_test.TestAuth" name="test_login_wrong_password" time="0.329" /><testcase classname="tests.backend_test.TestAuth" name="test_register_vendor_self" time="2.597" /><testcase classname="tests.backend_test.TestAuth" name="test_register_buyer_self" time="0.329" /><testcase classname="tests.backend_test.TestAuth" name="test_register_admin_blocked" time="0.109" /><testcase classname="tests.backend_test.TestV15FeedFilters" name="test_filter_by_document_type_rfp" time="0.048" /><testcase classname="tests.backend_test.TestV15FeedFilters" name="test_filter_by_document_type_rfq" time="0.048" /><testcase classname="tests.backend_test.TestV15FeedFilters" name="test_filter_by_document_type_tender" time="0.106" /><testcase classname="tests.backend_test.TestV15FeedFilters" name="test_filter_by_country_kz" time="0.047" /><testcase classname="tests.backend_test.TestV15FeedFilters" name="test_filter_invalid_document_type_ignored" time="0.051" /><testcase classname="tests.backend_test.TestV15UnreadReadState" name="test_unread_count_requires_auth" time="0.135" /><testcase classname="tests.backend_test.TestV15UnreadReadState" name="test_unread_count_shape" time="0.447" /><testcase classname="tests.backend_test.TestV15UnreadReadState" name="test_feed_marks_items_as_unread_for_fresh_user" time="0.415" /><testcase classname="tests.backend_test.TestV15UnreadReadState" name="test_mark_read_flips_unread_flag" time="0.541" /><testcase classname="tests.backend_test.TestV15UnreadReadState" name="test_unread_only_filter_returns_only_unread" time="0.694" /><testcase classname="tests.backend_test.TestV15UnreadReadState" name="test_mark_all_read_zeros_unread_count" time="0.584" /><testcase classname="tests.backend_test.TestV15UnreadReadState" name="test_mark_read_idempotent" time="0.794" /><testcase classname="tests.backend_test.TestV15SSEStream" name="test_stream_requires_auth" time="0.158" /><testcase classname="tests.backend_test.TestV15SSEStream" name="test_stream_connected_event" time="0.050" /><testcase classname="tests.backend_test.TestV15SSEStream" name="test_stream_receives_tender_created_event" time="2.051" /><testcase classname="tests.backend_test.TestV15SSEStream" name="test_stream_receives_tender_updated_on_close" time="2.153" /><testcase classname="tests.backend_test.TestV16TwoEnvelope" name="test_a_create_two_envelope_rfp" time="0.096" /><testcase classname="tests.backend_test.TestV16TwoEnvelope" name="test_b_create_non_two_envelope_rfp_regression" time="0.076" /><testcase classname="tests.backend_test.TestV16TwoEnvelope" name="test_c_two_vendors_submit_bids" time="3.078" /><testcase classname="tests.backend_test.TestV16TwoEnvelope" name="test_d_buyer_sees_both_envelopes_sealed" time="0.109" /><testcase classname="tests.backend_test.TestV16TwoEnvelope" name="test_e_vendor_sees_own_bid_unmasked" time="0.047" /><testcase classname="tests.backend_test.TestV16TwoEnvelope" name="test_f_score_blocked_before_technical_opened" time="0.048" /><testcase classname="tests.backend_test.TestV16TwoEnvelope" name="test_g_qualify_blocked_before_technical_opened" time="0.079" /><testcase classname="tests.backend_test.TestV16TwoEnvelope" name="test_h_award_blocked_before_commercial_opened" time="0.045" /><testcase classname="tests.backend_test.TestV16TwoEnvelope" name="test_i_open_commercial_before_technical_returns_400" time="0.049" /><testcase classname="tests.backend_test.TestV16TwoEnvelope" name="test_j_open_technical_400_on_non_two_envelope" time="0.089" /><testcase classname="tests.backend_test.TestV16TwoEnvelope" name="test_k_open_technical_403_when_not_owner" time="0.455" /><testcase classname="tests.backend_test.TestV16TwoEnvelope" name="test_l_open_technical_success" time="0.046" /><testcase classname="tests.backend_test.TestV16TwoEnvelope" name="test_m_bids_show_technical_unsealed_commercial_still_sealed" time="0.046" /><testcase classname="tests.backend_test.TestV16TwoEnvelope" name="test_n_open_commercial_blocked_no_qualified_bids" time="0.101" /><testcase classname="tests.backend_test.TestV16TwoEnvelope" name="test_o_qualify_bid_A_true_and_bid_B_false" time="0.101" /><testcase classname="tests.backend_test.TestV16TwoEnvelope" name="test_p_open_commercial_success" time="0.130" /><testcase classname="tests.backend_test.TestV16TwoEnvelope" name="test_q_bids_after_commercial_open_masking" time="0.047" /><testcase classname="tests.backend_test.TestV16TwoEnvelope" name="test_r_qualify_locked_after_commercial_opened" time="0.048" /><testcase classname="tests.backend_test.TestV16TwoEnvelope" name="test_s_award_bid_B_blocked_not_qualified" time="0.099" /><testcase classname="tests.backend_test.TestV16TwoEnvelope" name="test_t_award_bid_A_success" time="0.432" /><testcase classname="tests.backend_test.TestV16TwoEnvelope" name="test_u_regular_rfp_bids_not_masked" time="0.361" /><testcase classname="tests.backend_test.TestV17P1" name="test_00_login_admin_buyer" time="0.743" /><testcase classname="tests.backend_test.TestV17P1" name="test_01_register_two_vendors" time="1.539" /><testcase classname="tests.backend_test.TestV17P1" name="test_10_create_org_admin" time="0.047" /><testcase classname="tests.backend_test.TestV17P1" name="test_11_create_org_duplicate_code_returns_400" time="0.045" /><testcase classname="tests.backend_test.TestV17P1" name="test_12_list_orgs" time="0.041" /><testcase classname="tests.backend_test.TestV17P1" name="test_13_create_department_admin" time="0.044" /><testcase classname="tests.backend_test.TestV17P1" name="test_14_create_department_invalid_level_400" time="0.045" /><testcase classname="tests.backend_test.TestV17P1" name="test_15_list_departments_filtered_by_org" time="0.043" /><testcase classname="tests.backend_test.TestV17P1" name="test_16_assign_buyer_to_department" time="0.047" /><testcase classname="tests.backend_test.TestV17P1" name="test_20_tender_budget_under_threshold_opens_directly" time="0.066" /><testcase classname="tests.backend_test.TestV17P1" name="test_21_tender_one_step_chain" time="0.053" /><testcase classname="tests.backend_test.TestV17P1" name="test_22_tender_two_step_chain" time="6.800" /><testcase classname="tests.backend_test.TestV17P1" name="test_23_tender_require_approval_no_dept" time="0.045" /><testcase classname="tests.backend_test.TestV17P1" name="test_24_vendor_list_hides_pending_approval" time="0.066" /><testcase classname="tests.backend_test.TestV17P1" name="test_25_approve_two_step_walks_chain" time="0.177" /><testcase classname="tests.backend_test.TestV17P1" name="test_26_reject_immediately_sets_rejected" time="0.128" /><testcase classname="tests.backend_test.TestV17P1" name="test_27_flat_pending_approve_opens" time="0.088" /><testcase classname="tests.backend_test.TestV17P1" name="test_28_regression_no_dept_no_approval_opens" time="0.043" /><testcase classname="tests.backend_test.TestV17P1" name="test_30_vendor_creates_question" time="0.048" /><testcase classname="tests.backend_test.TestV17P1" name="test_31_author_vendor_sees_own_q" time="0.051" /><testcase classname="tests.backend_test.TestV17P1" name="test_32_other_vendor_does_not_see_unpublished" time="0.051" /><testcase classname="tests.backend_test.TestV17P1" name="test_33_buyer_sees_unpublished_and_asker_info" time="0.045" /><testcase classname="tests.backend_test.TestV17P1" name="test_34_answer_question_publishes" time="0.098" /><testcase classname="tests.backend_test.TestV17P1" name="test_40_publish_addendum" time="0.087" /><testcase classname="tests.backend_test.TestV17P1" name="test_50_create_emd_tender" time="0.048" /><testcase classname="tests.backend_test.TestV17P1" name="test_51_bid_without_emd_returns_400" time="0.050" /><testcase classname="tests.backend_test.TestV17P1" name="test_52_bid_with_emd_reference_ok" time="15.014"><failure message="requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='tender-hub-57.preview.emergentagent.com', port=443): Read timed out. (read timeout=15)">self = &lt;urllib3.connectionpool.HTTPSConnectionPool object at 0xf92e20761e50&gt;
+conn = &lt;HTTPSConnection(host='tender-hub-57.preview.emergentagent.com', port=443) at 0xf92e20762710&gt;
+method = 'POST', url = '/api/bids'
+body = b'{"tender_id": "6a60aa31e3d7008b1c7ae15a", "price_currency": "USD", "price_amount": 15000, "delivery_days": 30, "proposal": "with emd ref", "emd_reference": "EMD-REF-A-001"}'
+headers = {'User-Agent': 'python-requests/2.34.2', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-aliv...Po03ezM4Q2yPtnkOER22Kp.o_v5brVHh8cW63bVYLCmmABsIq83wI8iBQSLYT_aEST_.jQJOYsmn_IhkT.ere.Z.1iL5', 'Content-Length': '172'}
+retries = Retry(total=0, connect=None, read=False, redirect=None, status=None)
+timeout = Timeout(connect=15, read=15, total=None), chunked = False
+response_conn = &lt;HTTPSConnection(host='tender-hub-57.preview.emergentagent.com', port=443) at 0xf92e20762710&gt;
+preload_content = False, decode_content = False, enforce_content_length = True
+
+    def _make_request(
+        self,
+        conn: BaseHTTPConnection,
+        method: str,
+        url: str,
+        body: _TYPE_BODY | None = None,
+        headers: typing.Mapping[str, str] | None = None,
+        retries: Retry | None = None,
+        timeout: _TYPE_TIMEOUT = _DEFAULT_TIMEOUT,
+        chunked: bool = False,
+        response_conn: BaseHTTPConnection | None = None,
+        preload_content: bool = True,
+        decode_content: bool = True,
+        enforce_content_length: bool = True,
+    ) -&gt; BaseHTTPResponse:
+        """
+        Perform a request on a given urllib connection object taken from our
+        pool.
+    
+        :param conn:
+            a connection from one of our connection pools
+    
+        :param method:
+            HTTP request method (such as GET, POST, PUT, etc.)
+    
+        :param url:
+            The URL to perform the request on.
+    
+        :param body:
+            Data to send in the request body, either :class:`str`, :class:`bytes`,
+            an iterable of :class:`str`/:class:`bytes`, or a file-like object.
+    
+        :param headers:
+            Dictionary of custom headers to send, such as User-Agent,
+            If-None-Match, etc. If None, pool headers are used. If provided,
+            these headers completely replace any pool-specific headers.
+    
+        :param retries:
+            Configure the number of retries to allow before raising a
+            :class:`~urllib3.exceptions.MaxRetryError` exception.
+    
+            Pass ``None`` to retry until you receive a response. Pass a
+            :class:`~urllib3.util.retry.Retry` object for fine-grained control
+            over different types of retries.
+            Pass an integer number to retry connection errors that many times,
+            but no other types of errors. Pass zero to never retry.
+    
+            If ``False``, then retries are disabled and any exception is raised
+            immediately. Also, instead of raising a MaxRetryError on redirects,
+            the redirect response will be returned.
+    
+        :type retries: :class:`~urllib3.util.retry.Retry`, False, or an int.
+    
+        :param timeout:
+            If specified, overrides the default timeout for this one
+            request. It may be a float (in seconds) or an instance of
+            :class:`urllib3.util.Timeout`.
+    
+        :param chunked:
+            If True, urllib3 will send the body using chunked transfer
+            encoding. Otherwise, urllib3 will send the body using the standard
+            content-length form. Defaults to False.
+    
+        :param response_conn:
+            Set this to ``None`` if you will handle releasing the connection or
+            set the connection to have the response release it.
+    
+        :param preload_content:
+          If True, the response's body will be preloaded during construction.
+    
+        :param decode_content:
+            If True, will attempt to decode the body based on the
+            'content-encoding' header.
+    
+        :param enforce_content_length:
+            Enforce content length checking. Body returned by server must match
+            value of Content-Length header, if present. Otherwise, raise error.
+        """
+        self.num_requests += 1
+    
+        timeout_obj = self._get_timeout(timeout)
+        timeout_obj.start_connect()
+        conn.timeout = Timeout.resolve_default_timeout(timeout_obj.connect_timeout)
+    
+        try:
+            # Trigger any extra validation we need to do.
+            try:
+                self._validate_conn(conn)
+            except (SocketTimeout, BaseSSLError) as e:
+                self._raise_timeout(err=e, url=url, timeout_value=conn.timeout)
+                raise
+    
+        # _validate_conn() starts the connection to an HTTPS proxy
+        # so we need to wrap errors with 'ProxyError' here too.
+        except (
+            OSError,
+            NewConnectionError,
+            TimeoutError,
+            BaseSSLError,
+            CertificateError,
+            SSLError,
+        ) as e:
+            new_e: Exception = e
+            if isinstance(e, (BaseSSLError, CertificateError)):
+                new_e = SSLError(e)
+            # If the connection didn't successfully connect to it's proxy
+            # then there
+            if isinstance(
+                new_e, (OSError, NewConnectionError, TimeoutError, SSLError)
+            ) and (conn and conn.proxy and not conn.has_connected_to_proxy):
+                new_e = _wrap_proxy_error(new_e, conn.proxy.scheme)
+            raise new_e
+    
+        # conn.request() calls http.client.*.request, not the method in
+        # urllib3.request. It also calls makefile (recv) on the socket.
+        try:
+            conn.request(
+                method,
+                url,
+                body=body,
+                headers=headers,
+                chunked=chunked,
+                preload_content=preload_content,
+                decode_content=decode_content,
+                enforce_content_length=enforce_content_length,
+            )
+    
+        # We are swallowing BrokenPipeError (errno.EPIPE) since the server is
+        # legitimately able to close the connection after sending a valid response.
+        # With this behaviour, the received response is still readable.
+        except BrokenPipeError:
+            pass
+        except OSError as e:
+            # MacOS/Linux
+            # EPROTOTYPE and ECONNRESET are needed on macOS
+            # https://erickt.github.io/blog/2014/11/19/adventures-in-debugging-a-potential-osx-kernel-bug/
+            # Condition changed later to emit ECONNRESET instead of only EPROTOTYPE.
+            if e.errno != errno.EPROTOTYPE and e.errno != errno.ECONNRESET:
+                raise
+    
+        # Reset the timeout for the recv() on the socket
+        read_timeout = timeout_obj.read_timeout
+    
+        if not conn.is_closed:
+            # In Python 3 socket.py will catch EAGAIN and return None when you
+            # try and read into the file pointer created by http.client, which
+            # instead raises a BadStatusLine exception. Instead of catching
+            # the exception and assuming all BadStatusLine exceptions are read
+            # timeouts, check for a zero timeout before making the request.
+            if read_timeout == 0:
+                raise ReadTimeoutError(
+                    self, url, f"Read timed out. (read timeout={read_timeout})"
+                )
+            conn.timeout = read_timeout
+    
+        # Receive the response from the server
+        try:
+&gt;           response = conn.getresponse()
+                       ^^^^^^^^^^^^^^^^^^
+
+/root/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py:534: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/urllib3/connection.py:571: in getresponse
+    httplib_response = super().getresponse()
+                       ^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/http/client.py:1415: in getresponse
+    response.begin()
+/usr/local/lib/python3.11/http/client.py:330: in begin
+    version, status, reason = self._read_status()
+                              ^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/http/client.py:291: in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/socket.py:718: in readinto
+    return self._sock.recv_into(b)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/ssl.py:1314: in recv_into
+    return self.read(nbytes, buffer)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;ssl.SSLSocket [closed] fd=-1, family=2, type=1, proto=6&gt;, len = 8192
+buffer = &lt;memory at 0xf92e21aca800&gt;
+
+    def read(self, len=1024, buffer=None):
+        """Read up to LEN bytes and return them.
+        Return zero-length string on EOF."""
+    
+        self._checkClosed()
+        if self._sslobj is None:
+            raise ValueError("Read on closed or unwrapped SSL socket.")
+        try:
+            if buffer is not None:
+&gt;               return self._sslobj.read(len, buffer)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               TimeoutError: The read operation timed out
+
+/usr/local/lib/python3.11/ssl.py:1166: TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+self = &lt;requests.adapters.HTTPAdapter object at 0xf92e20749890&gt;
+request = &lt;PreparedRequest [POST]&gt;, stream = False, timeout = 15, verify = True
+cert = None, proxies = OrderedDict()
+
+    def send(
+        self,
+        request: PreparedRequest,
+        stream: bool = False,
+        timeout: _t.TimeoutType = None,
+        verify: _t.VerifyType = True,
+        cert: _t.CertType = None,
+        proxies: dict[str, str] | None = None,
+    ) -&gt; Response:
+        """Sends PreparedRequest object. Returns Response object.
+    
+        :param request: The :class:`PreparedRequest &lt;PreparedRequest&gt;` being sent.
+        :param stream: (optional) Whether to stream the request content.
+        :param timeout: (optional) How long to wait for the server to send
+            data before giving up, as a float, or a :ref:`(connect timeout,
+            read timeout) &lt;timeouts&gt;` tuple.
+        :type timeout: float or tuple or urllib3 Timeout object
+        :param verify: (optional) Either a boolean, in which case it controls whether
+            we verify the server's TLS certificate, or a string, in which case it
+            must be a path to a CA bundle to use
+        :param cert: (optional) Any user-provided SSL certificate to be trusted.
+        :param proxies: (optional) The proxies dictionary to apply to the request.
+        :rtype: requests.Response
+        """
+    
+        assert _is_prepared(request)
+    
+        try:
+            conn = self.get_connection_with_tls_context(
+                request, verify, proxies=proxies, cert=cert
+            )
+        except LocationValueError as e:
+            raise InvalidURL(e, request=request)
+    
+        self.cert_verify(conn, request.url, verify, cert)
+        url = self.request_url(request, proxies)
+        self.add_headers(
+            request,
+            stream=stream,
+            timeout=timeout,
+            verify=verify,
+            cert=cert,
+            proxies=proxies,
+        )
+    
+        chunked = not (request.body is None or "Content-Length" in request.headers)
+    
+        if isinstance(timeout, tuple):
+            try:
+                connect, read = timeout
+                resolved_timeout = TimeoutSauce(connect=connect, read=read)
+            except ValueError:
+                raise ValueError(
+                    f"Invalid timeout {timeout}. Pass a (connect, read) timeout tuple, "
+                    f"or a single float to set both timeouts to the same value."
+                )
+        elif isinstance(timeout, TimeoutSauce):
+            resolved_timeout = timeout
+        else:
+            resolved_timeout = TimeoutSauce(connect=timeout, read=timeout)
+    
+        try:
+&gt;           resp = conn.urlopen(
+                method=request.method,
+                url=url,
+                body=request.body,  # type: ignore[arg-type]  # urllib3 stubs don't accept Iterable[bytes | str]
+                headers=request.headers,  # type: ignore[arg-type]  # urllib3#3072
+                redirect=False,
+                assert_same_host=False,
+                preload_content=False,
+                decode_content=False,
+                retries=self.max_retries,
+                timeout=resolved_timeout,
+                chunked=chunked,
+            )
+
+/root/.venv/lib/python3.11/site-packages/requests/adapters.py:696: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py:842: in urlopen
+    retries = retries.increment(
+/root/.venv/lib/python3.11/site-packages/urllib3/util/retry.py:498: in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/urllib3/util/util.py:39: in reraise
+    raise value
+/root/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/root/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py:536: in _make_request
+    self._raise_timeout(err=e, url=url, timeout_value=read_timeout)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;urllib3.connectionpool.HTTPSConnectionPool object at 0xf92e20761e50&gt;
+err = TimeoutError('The read operation timed out'), url = '/api/bids'
+timeout_value = 15
+
+    def _raise_timeout(
+        self,
+        err: BaseSSLError | OSError | SocketTimeout,
+        url: str,
+        timeout_value: _TYPE_TIMEOUT | None,
+    ) -&gt; None:
+        """Is the error actually a timeout? Will raise a ReadTimeout or pass"""
+    
+        if isinstance(err, SocketTimeout):
+&gt;           raise ReadTimeoutError(
+                self, url, f"Read timed out. (read timeout={timeout_value})"
+            ) from err
+E           urllib3.exceptions.ReadTimeoutError: HTTPSConnectionPool(host='tender-hub-57.preview.emergentagent.com', port=443): Read timed out. (read timeout=15)
+
+/root/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py:367: ReadTimeoutError
+
+During handling of the above exception, another exception occurred:
+
+self = &lt;backend_test.TestV17P1 object at 0xf92e2190ed90&gt;
+
+    def test_52_bid_with_emd_reference_ok(self):
+        tid = self._S["emd_tender_id"]
+&gt;       r = self._S["vA"].post(f"{API}/bids", json={
+            "tender_id": tid, "price_currency": "USD", "price_amount": 15000,
+            "delivery_days": 30, "proposal": "with emd ref", "emd_reference": "EMD-REF-A-001",
+        }, timeout=15)
+
+tests/backend_test.py:2033: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:712: in post
+    return self.request("POST", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:651: in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:784: in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;requests.adapters.HTTPAdapter object at 0xf92e20749890&gt;
+request = &lt;PreparedRequest [POST]&gt;, stream = False, timeout = 15, verify = True
+cert = None, proxies = OrderedDict()
+
+    def send(
+        self,
+        request: PreparedRequest,
+        stream: bool = False,
+        timeout: _t.TimeoutType = None,
+        verify: _t.VerifyType = True,
+        cert: _t.CertType = None,
+        proxies: dict[str, str] | None = None,
+    ) -&gt; Response:
+        """Sends PreparedRequest object. Returns Response object.
+    
+        :param request: The :class:`PreparedRequest &lt;PreparedRequest&gt;` being sent.
+        :param stream: (optional) Whether to stream the request content.
+        :param timeout: (optional) How long to wait for the server to send
+            data before giving up, as a float, or a :ref:`(connect timeout,
+            read timeout) &lt;timeouts&gt;` tuple.
+        :type timeout: float or tuple or urllib3 Timeout object
+        :param verify: (optional) Either a boolean, in which case it controls whether
+            we verify the server's TLS certificate, or a string, in which case it
+            must be a path to a CA bundle to use
+        :param cert: (optional) Any user-provided SSL certificate to be trusted.
+        :param proxies: (optional) The proxies dictionary to apply to the request.
+        :rtype: requests.Response
+        """
+    
+        assert _is_prepared(request)
+    
+        try:
+            conn = self.get_connection_with_tls_context(
+                request, verify, proxies=proxies, cert=cert
+            )
+        except LocationValueError as e:
+            raise InvalidURL(e, request=request)
+    
+        self.cert_verify(conn, request.url, verify, cert)
+        url = self.request_url(request, proxies)
+        self.add_headers(
+            request,
+            stream=stream,
+            timeout=timeout,
+            verify=verify,
+            cert=cert,
+            proxies=proxies,
+        )
+    
+        chunked = not (request.body is None or "Content-Length" in request.headers)
+    
+        if isinstance(timeout, tuple):
+            try:
+                connect, read = timeout
+                resolved_timeout = TimeoutSauce(connect=connect, read=read)
+            except ValueError:
+                raise ValueError(
+                    f"Invalid timeout {timeout}. Pass a (connect, read) timeout tuple, "
+                    f"or a single float to set both timeouts to the same value."
+                )
+        elif isinstance(timeout, TimeoutSauce):
+            resolved_timeout = timeout
+        else:
+            resolved_timeout = TimeoutSauce(connect=timeout, read=timeout)
+    
+        try:
+            resp = conn.urlopen(
+                method=request.method,
+                url=url,
+                body=request.body,  # type: ignore[arg-type]  # urllib3 stubs don't accept Iterable[bytes | str]
+                headers=request.headers,  # type: ignore[arg-type]  # urllib3#3072
+                redirect=False,
+                assert_same_host=False,
+                preload_content=False,
+                decode_content=False,
+                retries=self.max_retries,
+                timeout=resolved_timeout,
+                chunked=chunked,
+            )
+    
+        except (ProtocolError, OSError) as err:
+            raise ConnectionError(err, request=request)
+    
+        except MaxRetryError as e:
+            if isinstance(e.reason, ConnectTimeoutError):
+                # TODO: Remove this in 3.0.0: see #2811
+                if not isinstance(e.reason, NewConnectionError):
+                    raise ConnectTimeout(e, request=request)
+    
+            if isinstance(e.reason, ResponseError):
+                raise RetryError(e, request=request)
+    
+            if isinstance(e.reason, _ProxyError):
+                raise ProxyError(e, request=request)
+    
+            if isinstance(e.reason, _SSLError):
+                # This branch is for urllib3 v1.22 and later.
+                raise SSLError(e, request=request)
+    
+            raise ConnectionError(e, request=request)
+    
+        except ClosedPoolError as e:
+            raise ConnectionError(e, request=request)
+    
+        except _ProxyError as e:
+            raise ProxyError(e)
+    
+        except (_SSLError, _HTTPError) as e:
+            if isinstance(e, _SSLError):
+                # This branch is for urllib3 versions earlier than v1.22
+                raise SSLError(e, request=request)
+            elif isinstance(e, ReadTimeoutError):
+&gt;               raise ReadTimeout(e, request=request)
+E               requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='tender-hub-57.preview.emergentagent.com', port=443): Read timed out. (read timeout=15)
+
+/root/.venv/lib/python3.11/site-packages/requests/adapters.py:742: ReadTimeout</failure></testcase><testcase classname="tests.backend_test.TestV17P1" name="test_53_second_vendor_bid_with_emd" time="15.013"><failure message="requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='tender-hub-57.preview.emergentagent.com', port=443): Read timed out. (read timeout=15)">self = &lt;urllib3.connectionpool.HTTPSConnectionPool object at 0xf92e20766210&gt;
+conn = &lt;HTTPSConnection(host='tender-hub-57.preview.emergentagent.com', port=443) at 0xf92e20766450&gt;
+method = 'POST', url = '/api/bids'
+body = b'{"tender_id": "6a60aa31e3d7008b1c7ae15a", "price_currency": "USD", "price_amount": 18000, "delivery_days": 40, "proposal": "vB bid", "emd_reference": "EMD-REF-B-001"}'
+headers = {'User-Agent': 'python-requests/2.34.2', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-aliv...CggMZxdjXYwLI4z0SGmLwPM.2bdhB7.SQmL0zOV5gdi9PyyuMmaTQkIa8ri0oshBI6yK9R7pOcgbS5Dd9BYXQRukhNid', 'Content-Length': '166'}
+retries = Retry(total=0, connect=None, read=False, redirect=None, status=None)
+timeout = Timeout(connect=15, read=15, total=None), chunked = False
+response_conn = &lt;HTTPSConnection(host='tender-hub-57.preview.emergentagent.com', port=443) at 0xf92e20766450&gt;
+preload_content = False, decode_content = False, enforce_content_length = True
+
+    def _make_request(
+        self,
+        conn: BaseHTTPConnection,
+        method: str,
+        url: str,
+        body: _TYPE_BODY | None = None,
+        headers: typing.Mapping[str, str] | None = None,
+        retries: Retry | None = None,
+        timeout: _TYPE_TIMEOUT = _DEFAULT_TIMEOUT,
+        chunked: bool = False,
+        response_conn: BaseHTTPConnection | None = None,
+        preload_content: bool = True,
+        decode_content: bool = True,
+        enforce_content_length: bool = True,
+    ) -&gt; BaseHTTPResponse:
+        """
+        Perform a request on a given urllib connection object taken from our
+        pool.
+    
+        :param conn:
+            a connection from one of our connection pools
+    
+        :param method:
+            HTTP request method (such as GET, POST, PUT, etc.)
+    
+        :param url:
+            The URL to perform the request on.
+    
+        :param body:
+            Data to send in the request body, either :class:`str`, :class:`bytes`,
+            an iterable of :class:`str`/:class:`bytes`, or a file-like object.
+    
+        :param headers:
+            Dictionary of custom headers to send, such as User-Agent,
+            If-None-Match, etc. If None, pool headers are used. If provided,
+            these headers completely replace any pool-specific headers.
+    
+        :param retries:
+            Configure the number of retries to allow before raising a
+            :class:`~urllib3.exceptions.MaxRetryError` exception.
+    
+            Pass ``None`` to retry until you receive a response. Pass a
+            :class:`~urllib3.util.retry.Retry` object for fine-grained control
+            over different types of retries.
+            Pass an integer number to retry connection errors that many times,
+            but no other types of errors. Pass zero to never retry.
+    
+            If ``False``, then retries are disabled and any exception is raised
+            immediately. Also, instead of raising a MaxRetryError on redirects,
+            the redirect response will be returned.
+    
+        :type retries: :class:`~urllib3.util.retry.Retry`, False, or an int.
+    
+        :param timeout:
+            If specified, overrides the default timeout for this one
+            request. It may be a float (in seconds) or an instance of
+            :class:`urllib3.util.Timeout`.
+    
+        :param chunked:
+            If True, urllib3 will send the body using chunked transfer
+            encoding. Otherwise, urllib3 will send the body using the standard
+            content-length form. Defaults to False.
+    
+        :param response_conn:
+            Set this to ``None`` if you will handle releasing the connection or
+            set the connection to have the response release it.
+    
+        :param preload_content:
+          If True, the response's body will be preloaded during construction.
+    
+        :param decode_content:
+            If True, will attempt to decode the body based on the
+            'content-encoding' header.
+    
+        :param enforce_content_length:
+            Enforce content length checking. Body returned by server must match
+            value of Content-Length header, if present. Otherwise, raise error.
+        """
+        self.num_requests += 1
+    
+        timeout_obj = self._get_timeout(timeout)
+        timeout_obj.start_connect()
+        conn.timeout = Timeout.resolve_default_timeout(timeout_obj.connect_timeout)
+    
+        try:
+            # Trigger any extra validation we need to do.
+            try:
+                self._validate_conn(conn)
+            except (SocketTimeout, BaseSSLError) as e:
+                self._raise_timeout(err=e, url=url, timeout_value=conn.timeout)
+                raise
+    
+        # _validate_conn() starts the connection to an HTTPS proxy
+        # so we need to wrap errors with 'ProxyError' here too.
+        except (
+            OSError,
+            NewConnectionError,
+            TimeoutError,
+            BaseSSLError,
+            CertificateError,
+            SSLError,
+        ) as e:
+            new_e: Exception = e
+            if isinstance(e, (BaseSSLError, CertificateError)):
+                new_e = SSLError(e)
+            # If the connection didn't successfully connect to it's proxy
+            # then there
+            if isinstance(
+                new_e, (OSError, NewConnectionError, TimeoutError, SSLError)
+            ) and (conn and conn.proxy and not conn.has_connected_to_proxy):
+                new_e = _wrap_proxy_error(new_e, conn.proxy.scheme)
+            raise new_e
+    
+        # conn.request() calls http.client.*.request, not the method in
+        # urllib3.request. It also calls makefile (recv) on the socket.
+        try:
+            conn.request(
+                method,
+                url,
+                body=body,
+                headers=headers,
+                chunked=chunked,
+                preload_content=preload_content,
+                decode_content=decode_content,
+                enforce_content_length=enforce_content_length,
+            )
+    
+        # We are swallowing BrokenPipeError (errno.EPIPE) since the server is
+        # legitimately able to close the connection after sending a valid response.
+        # With this behaviour, the received response is still readable.
+        except BrokenPipeError:
+            pass
+        except OSError as e:
+            # MacOS/Linux
+            # EPROTOTYPE and ECONNRESET are needed on macOS
+            # https://erickt.github.io/blog/2014/11/19/adventures-in-debugging-a-potential-osx-kernel-bug/
+            # Condition changed later to emit ECONNRESET instead of only EPROTOTYPE.
+            if e.errno != errno.EPROTOTYPE and e.errno != errno.ECONNRESET:
+                raise
+    
+        # Reset the timeout for the recv() on the socket
+        read_timeout = timeout_obj.read_timeout
+    
+        if not conn.is_closed:
+            # In Python 3 socket.py will catch EAGAIN and return None when you
+            # try and read into the file pointer created by http.client, which
+            # instead raises a BadStatusLine exception. Instead of catching
+            # the exception and assuming all BadStatusLine exceptions are read
+            # timeouts, check for a zero timeout before making the request.
+            if read_timeout == 0:
+                raise ReadTimeoutError(
+                    self, url, f"Read timed out. (read timeout={read_timeout})"
+                )
+            conn.timeout = read_timeout
+    
+        # Receive the response from the server
+        try:
+&gt;           response = conn.getresponse()
+                       ^^^^^^^^^^^^^^^^^^
+
+/root/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py:534: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/urllib3/connection.py:571: in getresponse
+    httplib_response = super().getresponse()
+                       ^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/http/client.py:1415: in getresponse
+    response.begin()
+/usr/local/lib/python3.11/http/client.py:330: in begin
+    version, status, reason = self._read_status()
+                              ^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/http/client.py:291: in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/socket.py:718: in readinto
+    return self._sock.recv_into(b)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/ssl.py:1314: in recv_into
+    return self.read(nbytes, buffer)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;ssl.SSLSocket [closed] fd=-1, family=2, type=1, proto=6&gt;, len = 8192
+buffer = &lt;memory at 0xf92e21ac9c00&gt;
+
+    def read(self, len=1024, buffer=None):
+        """Read up to LEN bytes and return them.
+        Return zero-length string on EOF."""
+    
+        self._checkClosed()
+        if self._sslobj is None:
+            raise ValueError("Read on closed or unwrapped SSL socket.")
+        try:
+            if buffer is not None:
+&gt;               return self._sslobj.read(len, buffer)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               TimeoutError: The read operation timed out
+
+/usr/local/lib/python3.11/ssl.py:1166: TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+self = &lt;requests.adapters.HTTPAdapter object at 0xf92e20763ed0&gt;
+request = &lt;PreparedRequest [POST]&gt;, stream = False, timeout = 15, verify = True
+cert = None, proxies = OrderedDict()
+
+    def send(
+        self,
+        request: PreparedRequest,
+        stream: bool = False,
+        timeout: _t.TimeoutType = None,
+        verify: _t.VerifyType = True,
+        cert: _t.CertType = None,
+        proxies: dict[str, str] | None = None,
+    ) -&gt; Response:
+        """Sends PreparedRequest object. Returns Response object.
+    
+        :param request: The :class:`PreparedRequest &lt;PreparedRequest&gt;` being sent.
+        :param stream: (optional) Whether to stream the request content.
+        :param timeout: (optional) How long to wait for the server to send
+            data before giving up, as a float, or a :ref:`(connect timeout,
+            read timeout) &lt;timeouts&gt;` tuple.
+        :type timeout: float or tuple or urllib3 Timeout object
+        :param verify: (optional) Either a boolean, in which case it controls whether
+            we verify the server's TLS certificate, or a string, in which case it
+            must be a path to a CA bundle to use
+        :param cert: (optional) Any user-provided SSL certificate to be trusted.
+        :param proxies: (optional) The proxies dictionary to apply to the request.
+        :rtype: requests.Response
+        """
+    
+        assert _is_prepared(request)
+    
+        try:
+            conn = self.get_connection_with_tls_context(
+                request, verify, proxies=proxies, cert=cert
+            )
+        except LocationValueError as e:
+            raise InvalidURL(e, request=request)
+    
+        self.cert_verify(conn, request.url, verify, cert)
+        url = self.request_url(request, proxies)
+        self.add_headers(
+            request,
+            stream=stream,
+            timeout=timeout,
+            verify=verify,
+            cert=cert,
+            proxies=proxies,
+        )
+    
+        chunked = not (request.body is None or "Content-Length" in request.headers)
+    
+        if isinstance(timeout, tuple):
+            try:
+                connect, read = timeout
+                resolved_timeout = TimeoutSauce(connect=connect, read=read)
+            except ValueError:
+                raise ValueError(
+                    f"Invalid timeout {timeout}. Pass a (connect, read) timeout tuple, "
+                    f"or a single float to set both timeouts to the same value."
+                )
+        elif isinstance(timeout, TimeoutSauce):
+            resolved_timeout = timeout
+        else:
+            resolved_timeout = TimeoutSauce(connect=timeout, read=timeout)
+    
+        try:
+&gt;           resp = conn.urlopen(
+                method=request.method,
+                url=url,
+                body=request.body,  # type: ignore[arg-type]  # urllib3 stubs don't accept Iterable[bytes | str]
+                headers=request.headers,  # type: ignore[arg-type]  # urllib3#3072
+                redirect=False,
+                assert_same_host=False,
+                preload_content=False,
+                decode_content=False,
+                retries=self.max_retries,
+                timeout=resolved_timeout,
+                chunked=chunked,
+            )
+
+/root/.venv/lib/python3.11/site-packages/requests/adapters.py:696: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py:842: in urlopen
+    retries = retries.increment(
+/root/.venv/lib/python3.11/site-packages/urllib3/util/retry.py:498: in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/urllib3/util/util.py:39: in reraise
+    raise value
+/root/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py:788: in urlopen
+    response = self._make_request(
+/root/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py:536: in _make_request
+    self._raise_timeout(err=e, url=url, timeout_value=read_timeout)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;urllib3.connectionpool.HTTPSConnectionPool object at 0xf92e20766210&gt;
+err = TimeoutError('The read operation timed out'), url = '/api/bids'
+timeout_value = 15
+
+    def _raise_timeout(
+        self,
+        err: BaseSSLError | OSError | SocketTimeout,
+        url: str,
+        timeout_value: _TYPE_TIMEOUT | None,
+    ) -&gt; None:
+        """Is the error actually a timeout? Will raise a ReadTimeout or pass"""
+    
+        if isinstance(err, SocketTimeout):
+&gt;           raise ReadTimeoutError(
+                self, url, f"Read timed out. (read timeout={timeout_value})"
+            ) from err
+E           urllib3.exceptions.ReadTimeoutError: HTTPSConnectionPool(host='tender-hub-57.preview.emergentagent.com', port=443): Read timed out. (read timeout=15)
+
+/root/.venv/lib/python3.11/site-packages/urllib3/connectionpool.py:367: ReadTimeoutError
+
+During handling of the above exception, another exception occurred:
+
+self = &lt;backend_test.TestV17P1 object at 0xf92e2190f310&gt;
+
+    def test_53_second_vendor_bid_with_emd(self):
+        tid = self._S["emd_tender_id"]
+&gt;       r = self._S["vB"].post(f"{API}/bids", json={
+            "tender_id": tid, "price_currency": "USD", "price_amount": 18000,
+            "delivery_days": 40, "proposal": "vB bid", "emd_reference": "EMD-REF-B-001",
+        }, timeout=15)
+
+tests/backend_test.py:2045: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:712: in post
+    return self.request("POST", url, data=data, json=json, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:651: in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/root/.venv/lib/python3.11/site-packages/requests/sessions.py:784: in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = &lt;requests.adapters.HTTPAdapter object at 0xf92e20763ed0&gt;
+request = &lt;PreparedRequest [POST]&gt;, stream = False, timeout = 15, verify = True
+cert = None, proxies = OrderedDict()
+
+    def send(
+        self,
+        request: PreparedRequest,
+        stream: bool = False,
+        timeout: _t.TimeoutType = None,
+        verify: _t.VerifyType = True,
+        cert: _t.CertType = None,
+        proxies: dict[str, str] | None = None,
+    ) -&gt; Response:
+        """Sends PreparedRequest object. Returns Response object.
+    
+        :param request: The :class:`PreparedRequest &lt;PreparedRequest&gt;` being sent.
+        :param stream: (optional) Whether to stream the request content.
+        :param timeout: (optional) How long to wait for the server to send
+            data before giving up, as a float, or a :ref:`(connect timeout,
+            read timeout) &lt;timeouts&gt;` tuple.
+        :type timeout: float or tuple or urllib3 Timeout object
+        :param verify: (optional) Either a boolean, in which case it controls whether
+            we verify the server's TLS certificate, or a string, in which case it
+            must be a path to a CA bundle to use
+        :param cert: (optional) Any user-provided SSL certificate to be trusted.
+        :param proxies: (optional) The proxies dictionary to apply to the request.
+        :rtype: requests.Response
+        """
+    
+        assert _is_prepared(request)
+    
+        try:
+            conn = self.get_connection_with_tls_context(
+                request, verify, proxies=proxies, cert=cert
+            )
+        except LocationValueError as e:
+            raise InvalidURL(e, request=request)
+    
+        self.cert_verify(conn, request.url, verify, cert)
+        url = self.request_url(request, proxies)
+        self.add_headers(
+            request,
+            stream=stream,
+            timeout=timeout,
+            verify=verify,
+            cert=cert,
+            proxies=proxies,
+        )
+    
+        chunked = not (request.body is None or "Content-Length" in request.headers)
+    
+        if isinstance(timeout, tuple):
+            try:
+                connect, read = timeout
+                resolved_timeout = TimeoutSauce(connect=connect, read=read)
+            except ValueError:
+                raise ValueError(
+                    f"Invalid timeout {timeout}. Pass a (connect, read) timeout tuple, "
+                    f"or a single float to set both timeouts to the same value."
+                )
+        elif isinstance(timeout, TimeoutSauce):
+            resolved_timeout = timeout
+        else:
+            resolved_timeout = TimeoutSauce(connect=timeout, read=timeout)
+    
+        try:
+            resp = conn.urlopen(
+                method=request.method,
+                url=url,
+                body=request.body,  # type: ignore[arg-type]  # urllib3 stubs don't accept Iterable[bytes | str]
+                headers=request.headers,  # type: ignore[arg-type]  # urllib3#3072
+                redirect=False,
+                assert_same_host=False,
+                preload_content=False,
+                decode_content=False,
+                retries=self.max_retries,
+                timeout=resolved_timeout,
+                chunked=chunked,
+            )
+    
+        except (ProtocolError, OSError) as err:
+            raise ConnectionError(err, request=request)
+    
+        except MaxRetryError as e:
+            if isinstance(e.reason, ConnectTimeoutError):
+                # TODO: Remove this in 3.0.0: see #2811
+                if not isinstance(e.reason, NewConnectionError):
+                    raise ConnectTimeout(e, request=request)
+    
+            if isinstance(e.reason, ResponseError):
+                raise RetryError(e, request=request)
+    
+            if isinstance(e.reason, _ProxyError):
+                raise ProxyError(e, request=request)
+    
+            if isinstance(e.reason, _SSLError):
+                # This branch is for urllib3 v1.22 and later.
+                raise SSLError(e, request=request)
+    
+            raise ConnectionError(e, request=request)
+    
+        except ClosedPoolError as e:
+            raise ConnectionError(e, request=request)
+    
+        except _ProxyError as e:
+            raise ProxyError(e)
+    
+        except (_SSLError, _HTTPError) as e:
+            if isinstance(e, _SSLError):
+                # This branch is for urllib3 versions earlier than v1.22
+                raise SSLError(e, request=request)
+            elif isinstance(e, ReadTimeoutError):
+&gt;               raise ReadTimeout(e, request=request)
+E               requests.exceptions.ReadTimeout: HTTPSConnectionPool(host='tender-hub-57.preview.emergentagent.com', port=443): Read timed out. (read timeout=15)
+
+/root/.venv/lib/python3.11/site-packages/requests/adapters.py:742: ReadTimeout</failure></testcase><testcase classname="tests.backend_test.TestV17P1" name="test_54_award_marks_emd_states" time="0.001"><failure message="KeyError: 'emd_bid_A'">self = &lt;backend_test.TestV17P1 object at 0xf92e2190f890&gt;
+
+    def test_54_award_marks_emd_states(self):
+        # Award vA's bid → winner emd_status=held_as_security; loser=refundable
+&gt;       r = self._S["buyer"].post(f"{API}/bids/{self._S['emd_bid_A']}/award", timeout=20)
+                                                ^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'emd_bid_A'
+
+tests/backend_test.py:2054: KeyError</failure></testcase><testcase classname="tests.backend_test.TestV17P1" name="test_55_refund_loser_emd" time="0.000"><failure message="KeyError: 'emd_bid_B'">self = &lt;backend_test.TestV17P1 object at 0xf92e2190fe90&gt;
+
+    def test_55_refund_loser_emd(self):
+&gt;       r = self._S["buyer"].post(f"{API}/bids/{self._S['emd_bid_B']}/emd-refund",
+                                                ^^^^^^^^^^^^^^^^^^^^
+                                  json={"forfeit": False, "notes": "loser refund"}, timeout=20)
+E       KeyError: 'emd_bid_B'
+
+tests/backend_test.py:2065: KeyError</failure></testcase><testcase classname="tests.backend_test.TestV17P1" name="test_56_refund_again_returns_400" time="0.000"><failure message="KeyError: 'emd_bid_B'">self = &lt;backend_test.TestV17P1 object at 0xf92e21914550&gt;
+
+    def test_56_refund_again_returns_400(self):
+&gt;       r = self._S["buyer"].post(f"{API}/bids/{self._S['emd_bid_B']}/emd-refund",
+                                                ^^^^^^^^^^^^^^^^^^^^
+                                  json={"forfeit": False}, timeout=15)
+E       KeyError: 'emd_bid_B'
+
+tests/backend_test.py:2073: KeyError</failure></testcase><testcase classname="tests.backend_test.TestV17P1" name="test_57_forfeit_winner_emd" time="0.000"><failure message="KeyError: 'emd_bid_A'">self = &lt;backend_test.TestV17P1 object at 0xf92e21914bd0&gt;
+
+    def test_57_forfeit_winner_emd(self):
+&gt;       r = self._S["buyer"].post(f"{API}/bids/{self._S['emd_bid_A']}/emd-refund",
+                                                ^^^^^^^^^^^^^^^^^^^^
+                                  json={"forfeit": True, "notes": "performance failure"}, timeout=15)
+E       KeyError: 'emd_bid_A'
+
+tests/backend_test.py:2078: KeyError</failure></testcase><testcase classname="tests.backend_test.TestV17P1" name="test_58_emd_refund_on_non_emd_tender_returns_400" time="7.667" /></testsuite></testsuites>

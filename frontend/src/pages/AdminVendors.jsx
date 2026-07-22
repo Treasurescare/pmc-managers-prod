@@ -10,8 +10,8 @@ export default function AdminVendors() {
   const [vendors, setVendors] = useState([]);
   const [selected, setSelected] = useState(null);
 
-  const load = async () => { try { const { data } = await api.get("/admin/vendors"); setVendors(data); } catch {} };
-  useEffect(() => { load(); }, []);
+  const load = async () => { try { const { data } = await api.get("/admin/vendors"); setVendors(data); } catch (e) { console.warn("Failed to load vendors", e); } };
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const act = async (id, kind) => {
     try { await api.post(`/admin/vendors/${id}/${kind}`); toast.success(`Vendor ${kind}d`); load(); setSelected(null); }

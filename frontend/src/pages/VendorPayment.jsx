@@ -14,8 +14,8 @@ export default function VendorPayment() {
   const path = window.location.pathname;
 
   useEffect(() => {
-    api.get("/vendor/profile").then(({ data }) => setProfile(data)).catch(() => {});
-  }, []);
+    api.get("/vendor/profile").then(({ data }) => setProfile(data)).catch((e) => console.warn("Failed to load profile", e));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Polling for success
   useEffect(() => {
@@ -30,7 +30,7 @@ export default function VendorPayment() {
           toast.success("Registration fee received. Thank you.");
           setTimeout(() => navigate("/vendor/profile"), 800);
         }
-      } catch {}
+      } catch (e) { console.warn("Failed to check payment status", e); }
       if (tries > 15) clearInterval(iv);
     }, 2000);
     return () => clearInterval(iv);
