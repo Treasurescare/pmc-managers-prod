@@ -170,3 +170,28 @@
 /* Legacy compatibility (in case any old code references pmc-hard-shadow) */
 .pmc-hard-shadow { box-shadow: 0 10px 25px -5px rgba(15,27,61,0.25); }
 .pmc-hard-shadow-primary { box-shadow: 0 10px 25px -5px rgba(15,27,61,0.25); }
+
+/* Print-friendly notice detail page */
+@media print {
+  header, footer, nav,
+  [data-testid="back-to-list"],
+  [data-testid="detail-cta-register"],
+  [data-testid="print-notice"] {
+    display: none !important;
+  }
+  body, .App { background: white !important; }
+  main { padding: 0 !important; }
+  article {
+    border: none !important;
+    padding: 0 !important;
+    page-break-inside: auto;
+  }
+  aside {
+    border: 1px solid #cbd2dd !important;
+    padding: 1rem !important;
+    page-break-inside: avoid;
+  }
+  h1 { font-size: 22pt !important; }
+  h2 { font-size: 16pt !important; }
+  .pmc-label { font-size: 8pt !important; letter-spacing: 0.15em !important; }
+}

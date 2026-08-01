@@ -53,9 +53,21 @@ export default function NoticeDetail() {
     <div className="min-h-screen bg-brand-pale flex flex-col">
       <TopBar />
       <main className="flex-1 max-w-7xl mx-auto w-full px-6 lg:px-10 py-10">
-        <Link to="/notices" className="text-xs uppercase tracking-widest text-brand-navy/60 hover:text-brand-navy inline-flex items-center gap-2" data-testid="back-to-list">
-          ← {t("notice.back_to_list")}
-        </Link>
+        <div className="flex items-center justify-between gap-4">
+          <Link to="/notices" className="text-xs uppercase tracking-widest text-brand-navy/60 hover:text-brand-navy inline-flex items-center gap-2" data-testid="back-to-list">
+            ← {t("notice.back_to_list")}
+          </Link>
+          {notice && (
+            <button
+              type="button"
+              onClick={() => window.print()}
+              data-testid="print-notice"
+              className="px-4 py-2 text-[11px] font-semibold uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5"
+            >
+              Print / Save as PDF
+            </button>
+          )}
+        </div>
 
         {loading && <div className="text-brand-navy/60 py-16 text-center">{t("common.loading")}</div>}
 

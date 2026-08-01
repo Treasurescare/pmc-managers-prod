@@ -11,7 +11,7 @@ from starlette.middleware.cors import CORSMiddleware
 import config
 from db import db, create_indexes
 from security import hash_password
-from routers import notices, registrations, packages, admin_auth, uploads, audit_routes, meta
+from routers import notices, registrations, packages, admin_auth, uploads, audit_routes, meta, vendors
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -26,6 +26,7 @@ app.include_router(packages.router)
 app.include_router(admin_auth.router)
 app.include_router(uploads.router)
 app.include_router(audit_routes.router)
+app.include_router(vendors.router)
 
 
 # ---------- CORS ----------

@@ -5,10 +5,12 @@ import { useI18n } from "@/context/I18nContext";
 import TopBar from "@/apps/shared/TopBar";
 import { toast } from "sonner";
 import KanbanColumn from "./packages/KanbanColumn";
+import VendorsPanel from "./VendorsPanel";
 
 function TabBar({ tab, setTab }) {
   const tabs = [
     ["registrations", "Registrations"],
+    ["vendors", "Vendors"],
     ["notices", "Notices"],
     ["packages", "Packages"],
     ["audit", "Audit"],
@@ -40,6 +42,7 @@ function RegistrationsPanel() {
   const [status, setStatus] = useState("submitted");
   const [selected, setSelected] = useState(null);
   const [notes, setNotes] = useState("");
+  const [sendingReminders, setSendingReminders] = useState(false);
 
   const load = useCallback(() => {
     adminApi.listRegistrations({ status })
@@ -47,6 +50,18 @@ function RegistrationsPanel() {
       .catch((e) => toast.error(formatApiError(e)));
   }, [status]);
   useEffect(() => { load(); }, [load]);
+
+  const sendReminders = async () => {
+    setSendingReminders(true);
+    try {
+      const r = await api.post("/api/v1/registrations/admin/send-reminders");
+      toast.success(`Reminders sent to ${r.data.reminded} of ${r.data.checked} stale drafts`);
+    } catch (err) {
+      toast.error(formatApiError(err));
+    } finally {
+      setSendingReminders(false);
+    }
+  };
 
   const decide = async (action) => {
     if (!selected) return;
@@ -66,12 +81,22 @@ function RegistrationsPanel() {
   return (
     <div className="grid gap-6 lg:grid-cols-[5fr_7fr]" data-testid="admin-registrations-panel">
       <div>
-        <div className="flex items-center gap-2 mb-3">
-          {["submitted", "under_review", "needs_clarification", "approved", "rejected"].map((s) => (
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
+          {["submitted", "under_review", "needs_clarification", "approved", "rejected", "draft"].map((s) => (
             <button key={s} onClick={() => setStatus(s)} data-testid={`reg-filter-${s}`}
               className={"px-3 py-1.5 text-[10px] uppercase tracking-widest border " +
                 (status === s ? "bg-brand-navy text-white border-brand-navy" : "bg-white text-brand-navy/70 border-brand-navy/20")}>{s}</button>
           ))}
+          <button
+            type="button"
+            onClick={sendReminders}
+            disabled={sendingReminders}
+            data-testid="reg-send-reminders"
+            className="ml-auto px-3 py-1.5 text-[10px] uppercase tracking-widest border border-brand-navy-soft/50 text-brand-navy-soft hover:bg-brand-navy-soft hover:text-white transition-colors disabled:opacity-50"
+            title="Email everyone whose draft is more than 7 days old"
+          >
+            {sendingReminders ? "Sending…" : "Nudge stale drafts"}
+          </button>
         </div>
         <div className="border border-brand-navy/10 bg-white">
           {items.length === 0 && <div className="p-6 text-brand-navy/50 text-sm">No registrations at this status.</div>}
@@ -460,6 +485,7 @@ export default function AdminDashboard() {
 
         <div className="mt-8">
           {tab === "registrations" && <RegistrationsPanel />}
+          {tab === "vendors" && <VendorsPanel />}
           {tab === "notices" && <NoticesPanel />}
           {tab === "packages" && <PackagesPanel />}
           {tab === "audit" && <AuditPanel />}

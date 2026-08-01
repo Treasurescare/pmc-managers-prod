@@ -137,6 +137,46 @@ async def status_by_token(token: str):
 
 # ---------- ADMIN queue + decisions ----------
 
+@router.post("/admin/send-reminders")
+async def admin_send_reminders(admin: dict = Depends(require_role("admin"))) -> dict:
+    """Send reminder emails to vendors with drafts older than 7 days.
+
+    A vendor only receives one reminder every 7 days (via `reminder_sent_at`).
+    Returns { checked, reminded }.
+    """
+    from datetime import datetime, timezone, timedelta
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    q = {
+        "status": {"$in": ["draft", "needs_clarification"]},
+        "created_at": {"$lt": cutoff},
+        "$or": [
+            {"reminder_sent_at": {"$exists": False}},
+            {"reminder_sent_at": {"$lt": cutoff}},
+        ],
+    }
+    checked = 0
+    reminded = 0
+    async for reg in db.registrations.find(q):
+        checked += 1
+        resume_url = f"{config.FRONTEND_URL}/register/resume?token={reg['magic_token']}"
+        asyncio.create_task(send_email(
+            reg["email"],
+            "PMC Managers — Your registration is still open",
+            wrap("Continue your registration",
+                 f"<p>You started a PMC Managers vendor registration but haven't finished it yet. "
+                 f"Your progress is saved — pick up right where you left off:</p>",
+                 "Resume registration", resume_url)))
+        await db.registrations.update_one(
+            {"_id": reg["_id"]},
+            {"$set": {"reminder_sent_at": now_iso()}},
+        )
+        reminded += 1
+
+    await audit_log("registration.reminders_sent", admin, "registration_batch", "reminders",
+                    {"checked": checked, "reminded": reminded})
+    return {"ok": True, "checked": checked, "reminded": reminded}
+
+
 @router.get("")
 async def admin_list(status: Optional[str] = None, limit: int = 50,
                      admin=Depends(require_role("admin", "reviewer"))):
