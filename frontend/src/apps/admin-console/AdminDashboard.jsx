@@ -4,6 +4,7 @@ import { adminApi, api, formatApiError } from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import TopBar from "@/apps/shared/TopBar";
 import { toast } from "sonner";
+import KanbanColumn from "./packages/KanbanColumn";
 
 function TabBar({ tab, setTab }) {
   const tabs = [
@@ -403,45 +404,17 @@ function PackagesPanel() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3" data-testid="pkg-board">
-        {columns.map((col) => {
-          const items = grouped[col.code] || [];
-          return (
-            <div
-              key={col.code}
-              onDragOver={onDragOver}
-              onDrop={(e) => onDrop(e, col.code)}
-              data-testid={`pkg-col-${col.code}`}
-              className="border border-brand-navy/10 bg-white/60 min-h-[280px]"
-            >
-              <div className="px-3 py-2 bg-brand-navy text-white flex items-center justify-between">
-                <span className="text-[10px] uppercase tracking-widest font-semibold">{col.label}</span>
-                <span className="text-[10px] font-mono tabular-nums text-white/70">{items.length}</span>
-              </div>
-              <div className="p-2 space-y-2">
-                {items.length === 0 && (
-                  <div className="text-[11px] text-brand-navy/40 text-center py-6 border border-dashed border-brand-navy/10">Drop here</div>
-                )}
-                {items.map((p) => (
-                  <div
-                    key={p.id}
-                    draggable
-                    onDragStart={(e) => onDragStart(e, p)}
-                    data-testid={`pkg-card-${p.package_ref}`}
-                    className="border border-brand-navy/15 bg-white p-3 cursor-grab active:cursor-grabbing hover:border-brand-navy-soft/60 hover:shadow-sm transition-all"
-                  >
-                    <div className="text-[9px] font-mono uppercase tracking-widest text-brand-navy-soft">{p.package_ref}</div>
-                    <div className="text-[13px] font-semibold text-brand-navy mt-1 leading-tight">{p.title}</div>
-                    <div className="text-[11px] text-brand-navy/60 mt-1">{p.category}</div>
-                    <div className="flex items-center justify-between mt-2 text-[10px] font-mono">
-                      <span className="text-brand-navy/70">{fmt(p.value, p.currency)}</span>
-                      {p.float_target_date && <span className="text-brand-navy/50">{p.float_target_date.slice(0, 10)}</span>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })}
+        {columns.map((col) => (
+          <KanbanColumn
+            key={col.code}
+            column={col}
+            items={grouped[col.code] || []}
+            onDragOver={onDragOver}
+            onDrop={onDrop}
+            onDragStart={onDragStart}
+            fmt={fmt}
+          />
+        ))}
       </div>
     </div>
   );

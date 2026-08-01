@@ -1,3 +1,4 @@
+import asyncio
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, Query
 from bson import ObjectId
@@ -48,12 +49,13 @@ async def create_draft(payload: RegistrationDraftIn):
         rid = str(res.inserted_id)
 
     resume_url = f"{config.FRONTEND_URL}/register/resume?token={token}"
-    # Fire magic-link email (best-effort)
-    await send_email(payload.email, "PMC Managers — Continue your registration",
-                     wrap("Continue your PMC registration",
-                          f"<p>Use the link below to resume your Pre-Tender Registration Form. "
-                          f"This link is unique to you — do not share.</p><p>Link expires in 72 hours.</p>",
-                          "Resume registration", resume_url))
+    # Fire magic-link email in the background — never block the API response on SMTP.
+    asyncio.create_task(send_email(
+        payload.email, "PMC Managers — Continue your registration",
+        wrap("Continue your PMC registration",
+             f"<p>Use the link below to resume your Pre-Tender Registration Form. "
+             f"This link is unique to you — do not share.</p><p>Link expires in 72 hours.</p>",
+             "Resume registration", resume_url)))
     return {"id": rid, "magic_token": token, "resume_url": resume_url}
 
 
@@ -111,11 +113,12 @@ async def submit_registration(registration_id: str,
     )
     await audit_log("registration.submit", None, "registration", registration_id,
                     {"email": doc["email"], "company_name": doc.get("company_name")})
-    # Confirm to vendor
-    await send_email(doc["email"], "PMC Managers — Registration submitted",
-                     wrap("Registration submitted",
-                          f"<p>Thank you. Your registration has been received and will be reviewed by our team. "
-                          f"You will receive an update once a decision is made.</p>"))
+    # Confirm to vendor — fire-and-forget.
+    asyncio.create_task(send_email(
+        doc["email"], "PMC Managers — Registration submitted",
+        wrap("Registration submitted",
+             f"<p>Thank you. Your registration has been received and will be reviewed by our team. "
+             f"You will receive an update once a decision is made.</p>")))
     return {"ok": True, "status": "submitted"}
 
 
@@ -184,20 +187,22 @@ async def admin_decide(registration_id: str, payload: RegistrationDecisionIn,
         if not payload.notes:
             raise HTTPException(status_code=400, detail="Notes required when rejecting")
         updates["status"] = "rejected"
-        await send_email(doc["email"], "PMC Managers — Registration update",
-                         wrap("Registration update",
-                              f"<p>Thank you for your interest. Unfortunately your registration was not approved at this time.</p>"
-                              f"<p><em>Reason:</em> {payload.notes}</p>"))
+        asyncio.create_task(send_email(
+            doc["email"], "PMC Managers — Registration update",
+            wrap("Registration update",
+                 f"<p>Thank you for your interest. Unfortunately your registration was not approved at this time.</p>"
+                 f"<p><em>Reason:</em> {payload.notes}</p>")))
     elif payload.action == "clarify":
         if not payload.notes:
             raise HTTPException(status_code=400, detail="Notes required when requesting clarification")
         updates["status"] = "needs_clarification"
         resume_url = f"{config.FRONTEND_URL}/register/resume?token={doc['magic_token']}"
-        await send_email(doc["email"], "PMC Managers — Clarification needed",
-                         wrap("Clarification needed on your registration",
-                              f"<p>We reviewed your submission and need some clarification before approving.</p>"
-                              f"<p><em>Reviewer notes:</em> {payload.notes}</p>",
-                              "Resume registration", resume_url))
+        asyncio.create_task(send_email(
+            doc["email"], "PMC Managers — Clarification needed",
+            wrap("Clarification needed on your registration",
+                 f"<p>We reviewed your submission and need some clarification before approving.</p>"
+                 f"<p><em>Reviewer notes:</em> {payload.notes}</p>",
+                 "Resume registration", resume_url)))
     else:
         raise HTTPException(status_code=400, detail="Invalid action")
 

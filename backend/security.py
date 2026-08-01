@@ -34,6 +34,11 @@ def new_magic_token() -> str:
     return secrets.token_urlsafe(32)
 
 
+def new_csrf_token() -> str:
+    """Double-submit CSRF token — sent as both cookie (JS-readable) AND header."""
+    return secrets.token_urlsafe(24)
+
+
 async def current_admin(request: Request) -> dict:
     """Auth dependency for admin/reviewer routes."""
     token = request.cookies.get("access_token")
@@ -63,9 +68,26 @@ async def current_admin(request: Request) -> dict:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
+async def require_csrf(request: Request) -> None:
+    """Double-submit CSRF check. Enforced on state-changing admin endpoints.
+
+    Rejects the request unless the `csrf_token` cookie matches the
+    `X-CSRF-Token` header. Because attackers cannot read the cookie from a
+    cross-site page (browser same-origin policy on document.cookie), they
+    cannot forge the header.
+    """
+    if request.method in ("GET", "HEAD", "OPTIONS"):
+        return
+    cookie_val = request.cookies.get("csrf_token")
+    header_val = request.headers.get("x-csrf-token") or request.headers.get("X-CSRF-Token")
+    if not cookie_val or not header_val or not secrets.compare_digest(cookie_val, header_val):
+        raise HTTPException(status_code=403, detail="CSRF token missing or invalid")
+
+
 def require_role(*roles: str):
-    async def _dep(admin: dict = Depends(current_admin)) -> dict:
+    async def _dep(admin: dict = Depends(current_admin), _csrf: None = Depends(require_csrf)) -> dict:
         if admin.get("role") not in roles:
             raise HTTPException(status_code=403, detail="Insufficient permissions")
         return admin
     return _dep
+

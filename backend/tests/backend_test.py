@@ -18,8 +18,11 @@ def admin_session():
     s = requests.Session()
     r = s.post(f"{API}/admin/auth/login", json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD}, timeout=15)
     assert r.status_code == 200, f"admin login failed: {r.status_code} {r.text}"
-    token = r.json().get("token")
-    s.headers.update({"Authorization": f"Bearer {token}"})
+    body = r.json()
+    # Attach both bearer token AND CSRF header for state-changing calls.
+    csrf = body.get("csrf_token") or s.cookies.get("csrf_token")
+    assert csrf, "login did not return csrf_token"
+    s.headers.update({"Authorization": f"Bearer {body['token']}", "X-CSRF-Token": csrf})
     return s
 
 

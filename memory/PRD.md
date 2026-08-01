@@ -49,6 +49,8 @@ Every endpoint is prefixed `/api` (Kubernetes ingress). Contract mirrors Build S
 - `POST /api/v1/notices` — create/publish
 - `GET  /api/v1/audit-events` — verify chain
 
+**csrf_token cookie is JS-readable** (`httpOnly=false`) by design so JS can echo it to `X-CSRF-Token`. This is the double-submit-cookie pattern.
+
 ## Phase-1 Build Sequence
 
 1. ✅ Repo bootstrap · scaffold · Domain_Spec extracted

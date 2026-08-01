@@ -1,14 +1,38 @@
 // PMC v2 API client — Build Sheet v2 Part 4 contract.
 // Auth: session is carried by an httpOnly cookie set by /api/v1/admin/auth/login.
-// The frontend NEVER stores the JWT in localStorage/sessionStorage (mitigates XSS token theft).
+// CSRF: a companion non-httpOnly `csrf_token` cookie is echoed on every non-GET
+// request as `X-CSRF-Token` header (double-submit-cookie pattern).
 import axios from "axios";
 
 export const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "";
 
 export const api = axios.create({
   baseURL: BACKEND_URL,
-  withCredentials: true, // send httpOnly access_token cookie with every request
+  withCredentials: true, // send httpOnly access_token + csrf_token cookies
   headers: { "Content-Type": "application/json" },
+});
+
+function readCookie(name) {
+  try {
+    const match = document.cookie
+      .split(";")
+      .map((c) => c.trim())
+      .find((c) => c.startsWith(`${name}=`));
+    return match ? decodeURIComponent(match.split("=").slice(1).join("=")) : null;
+  } catch (err) {
+    console.warn("Cookie read failed:", err);
+    return null;
+  }
+}
+
+// Attach X-CSRF-Token header on state-changing calls (double-submit-cookie).
+api.interceptors.request.use((cfg) => {
+  const method = (cfg.method || "get").toLowerCase();
+  if (method !== "get" && method !== "head" && method !== "options") {
+    const csrf = readCookie("csrf_token");
+    if (csrf) cfg.headers["X-CSRF-Token"] = csrf;
+  }
+  return cfg;
 });
 
 export function formatApiError(err) {
