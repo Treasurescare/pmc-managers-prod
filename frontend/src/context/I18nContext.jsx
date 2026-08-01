@@ -1,180 +1,45 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { STRINGS } from "@/lib/i18n-strings";
 
-const TRANSLATIONS = {
-  en: {
-    "brand.name": "PMC Managers",
-    "brand.tagline": "Global Tender Board",
-    "nav.how": "How it works",
-    "nav.platform": "Platform",
-    "nav.trust": "Trust",
-    "nav.login": "Log in",
-    "nav.register": "Register",
-    "landing.hero.tag": "Est. 2026 · Global Procurement · 30+ Jurisdictions",
-    "landing.hero.title.1": "Procurement that",
-    "landing.hero.title.2": "travels borders.",
-    "landing.hero.body": "PMC Managers Limited is the global tender board for enterprises and vetted vendors. Register once, comply with jurisdiction-specific IDs, and bid across continents from a single dashboard.",
-    "landing.hero.cta.register": "Register as vendor",
-    "landing.hero.cta.login": "Access dashboard",
-    "landing.stats.open": "Open tenders",
-    "landing.stats.vetted": "Vetted vendors",
-    "landing.stats.total": "Total tenders",
-    "landing.pillars.title.1": "One board.",
-    "landing.pillars.title.2": "Every jurisdiction.",
-    "landing.pillars.global": "Global by default",
-    "landing.pillars.global.body": "Country-aware KYC captures EIN, GSTIN, BIN, VAT, UEN, CNPJ, CR, CAC — whatever your jurisdiction requires.",
-    "landing.pillars.vetted": "Vetted supply",
-    "landing.pillars.vetted.body": "Every vendor is reviewed by our compliance desk before they can bid. No open marketplace roulette.",
-    "landing.pillars.fair": "Fair award",
-    "landing.pillars.fair.body": "Side-by-side bid comparison with currency normalization, delivery windows, and evidence trails.",
-    "login.title": "Access the board",
-    "login.subtitle": "Use your registered credentials to continue.",
-    "login.email": "Email",
-    "login.password": "Password",
-    "login.submit": "Sign in",
-    "login.submitting": "Signing in...",
-    "login.google": "Continue with Google",
-    "login.no_account": "No account?",
-    "login.register_link": "Register a new entity",
-    "register.title": "Create an account",
-    "register.subtitle": "Choose whether you're joining as a vendor (bidder) or buyer (issuer).",
-    "register.role.vendor": "Vendor",
-    "register.role.buyer": "Buyer",
-    "register.name.vendor": "Company / Contact name",
-    "register.name.buyer": "Full name",
-    "register.email": "Work email",
-    "register.password": "Password",
-    "register.password.hint": "Minimum 6 characters.",
-    "register.submit": "Continue",
-    "register.submitting": "Creating...",
-    "register.have_account": "Already registered?",
-    "register.login_link": "Sign in",
-    "vendor.profile.title": "Pre-Tender Registration Form",
-    "vendor.profile.subtitle": "Expression of interest only · Submission does not guarantee bidding eligibility.",
-    "common.language": "Language",
-    "common.back": "Back",
-    "common.next": "Next step",
-  },
-  ru: {
-    "brand.name": "PMC Managers",
-    "brand.tagline": "Глобальная тендерная площадка",
-    "nav.how": "Как это работает",
-    "nav.platform": "Платформа",
-    "nav.trust": "Доверие",
-    "nav.login": "Войти",
-    "nav.register": "Регистрация",
-    "landing.hero.tag": "С 2026 · Глобальные закупки · 30+ юрисдикций",
-    "landing.hero.title.1": "Закупки без",
-    "landing.hero.title.2": "границ.",
-    "landing.hero.body": "PMC Managers Limited — глобальная тендерная площадка для предприятий и проверенных поставщиков. Зарегистрируйтесь один раз, укажите идентификаторы своей юрисдикции и подавайте заявки на континенты с одной панели.",
-    "landing.hero.cta.register": "Регистрация поставщика",
-    "landing.hero.cta.login": "Войти в панель",
-    "landing.stats.open": "Открытые тендеры",
-    "landing.stats.vetted": "Проверенные поставщики",
-    "landing.stats.total": "Всего тендеров",
-    "landing.pillars.title.1": "Одна платформа.",
-    "landing.pillars.title.2": "Любая юрисдикция.",
-    "landing.pillars.global": "Глобальный формат",
-    "landing.pillars.global.body": "KYC с учётом страны собирает БИН, ИНН, VAT, EIN, GSTIN и другие идентификаторы вашей юрисдикции.",
-    "landing.pillars.vetted": "Проверенное предложение",
-    "landing.pillars.vetted.body": "Каждый поставщик проверяется службой комплаенса до допуска к торгам.",
-    "landing.pillars.fair": "Честная награда",
-    "landing.pillars.fair.body": "Сравнение заявок бок о бок с нормализацией валют, сроками поставки и аудитом.",
-    "login.title": "Вход в панель",
-    "login.subtitle": "Используйте зарегистрированные учётные данные, чтобы продолжить.",
-    "login.email": "Электронная почта",
-    "login.password": "Пароль",
-    "login.submit": "Войти",
-    "login.submitting": "Вход...",
-    "login.google": "Войти через Google",
-    "login.no_account": "Нет аккаунта?",
-    "login.register_link": "Зарегистрировать новую организацию",
-    "register.title": "Создать аккаунт",
-    "register.subtitle": "Выберите, регистрируетесь ли вы как поставщик (участник торгов) или покупатель (заказчик).",
-    "register.role.vendor": "Поставщик",
-    "register.role.buyer": "Покупатель",
-    "register.name.vendor": "Название компании / контактное лицо",
-    "register.name.buyer": "Полное имя",
-    "register.email": "Рабочий email",
-    "register.password": "Пароль",
-    "register.password.hint": "Минимум 6 символов.",
-    "register.submit": "Продолжить",
-    "register.submitting": "Создание...",
-    "register.have_account": "Уже зарегистрированы?",
-    "register.login_link": "Войти",
-    "vendor.profile.title": "Форма предварительной регистрации",
-    "vendor.profile.subtitle": "Только заявление о заинтересованности · Подача не гарантирует право на участие в торгах.",
-    "common.language": "Язык",
-    "common.back": "Назад",
-    "common.next": "Следующий шаг",
-  },
-  kk: {
-    "brand.name": "PMC Managers",
-    "brand.tagline": "Жаһандық тендерлік алаң",
-    "nav.how": "Қалай жұмыс істейді",
-    "nav.platform": "Платформа",
-    "nav.trust": "Сенім",
-    "nav.login": "Кіру",
-    "nav.register": "Тіркелу",
-    "landing.hero.tag": "2026 жылдан · Жаһандық сатып алулар · 30+ юрисдикция",
-    "landing.hero.title.1": "Шекарасыз",
-    "landing.hero.title.2": "сатып алулар.",
-    "landing.hero.body": "PMC Managers Limited — кәсіпорындар мен тексерілген жеткізушілерге арналған жаһандық тендерлік алаң. Бір рет тіркеліңіз, юрисдикцияңыздың сәйкестендіргіштерін көрсетіңіз және бірыңғай панельден құрлықтарда өтінім беріңіз.",
-    "landing.hero.cta.register": "Жеткізуші ретінде тіркелу",
-    "landing.hero.cta.login": "Панельге кіру",
-    "landing.stats.open": "Ашық тендерлер",
-    "landing.stats.vetted": "Мақұлданған жеткізушілер",
-    "landing.stats.total": "Барлық тендерлер",
-    "landing.pillars.title.1": "Бір алаң.",
-    "landing.pillars.title.2": "Әр юрисдикция.",
-    "landing.pillars.global": "Жаһандық стандарт",
-    "landing.pillars.global.body": "Ел ерекшелігін ескеретін KYC БСН, EIN, GSTIN, VAT, UEN, CNPJ, CR, CAC — қажет барлық сәйкестендіргіштерді жинайды.",
-    "landing.pillars.vetted": "Тексерілген жеткізушілер",
-    "landing.pillars.vetted.body": "Әр жеткізуші өтінім бермес бұрын комплаенс тексеруінен өтеді.",
-    "landing.pillars.fair": "Әділ шешім",
-    "landing.pillars.fair.body": "Валюта, жеткізу мерзімі және аудит іздері бойынша қатар салыстыру.",
-    "login.title": "Панельге кіру",
-    "login.subtitle": "Жалғастыру үшін тіркелген деректеріңізді пайдаланыңыз.",
-    "login.email": "Электрондық пошта",
-    "login.password": "Құпиясөз",
-    "login.submit": "Кіру",
-    "login.submitting": "Кіру...",
-    "login.google": "Google арқылы жалғастыру",
-    "login.no_account": "Аккаунтыңыз жоқ па?",
-    "login.register_link": "Жаңа компанияны тіркеу",
-    "register.title": "Аккаунт жасау",
-    "register.subtitle": "Жеткізуші (өтінім беруші) немесе сатып алушы (тапсырыс беруші) ретінде тіркелгеніңізді таңдаңыз.",
-    "register.role.vendor": "Жеткізуші",
-    "register.role.buyer": "Сатып алушы",
-    "register.name.vendor": "Компания / байланыс тұлғасы",
-    "register.name.buyer": "Толық аты-жөні",
-    "register.email": "Жұмыс электрондық поштасы",
-    "register.password": "Құпиясөз",
-    "register.password.hint": "Кемінде 6 таңба.",
-    "register.submit": "Жалғастыру",
-    "register.submitting": "Жасалуда...",
-    "register.have_account": "Тіркелдіңіз бе?",
-    "register.login_link": "Кіру",
-    "vendor.profile.title": "Тендерге дейінгі тіркеу формасы",
-    "vendor.profile.subtitle": "Тек мүдделілік білдіру · Өтінім беру торыққа қатысу құқығына кепілдік бермейді.",
-    "common.language": "Тіл",
-    "common.back": "Артқа",
-    "common.next": "Келесі қадам",
-  },
-};
-
-const I18nContext = createContext({ lang: "en", t: (k) => k, setLang: () => {} });
+const I18nContext = createContext({ lang: "en", setLang: () => {}, t: (k) => k });
 
 export function I18nProvider({ children }) {
-  const [lang, setLang] = useState(() => localStorage.getItem("pmc_lang") || "en");
-  useEffect(() => { localStorage.setItem("pmc_lang", lang); }, [lang]);
-  const t = (key) => TRANSLATIONS[lang]?.[key] || TRANSLATIONS.en[key] || key;
-  return <I18nContext.Provider value={{ lang, t, setLang }}>{children}</I18nContext.Provider>;
+  const [lang, setLangState] = useState(() => {
+    try {
+      return localStorage.getItem("pmc_lang") || "en";
+    } catch {
+      return "en";
+    }
+  });
+
+  const setLang = (v) => {
+    setLangState(v);
+    try { localStorage.setItem("pmc_lang", v); } catch { /* noop */ }
+  };
+
+  useEffect(() => {
+    document.documentElement.setAttribute("lang", lang);
+  }, [lang]);
+
+  const value = useMemo(() => {
+    const bundle = STRINGS[lang] || STRINGS.en;
+    return {
+      lang, setLang,
+      t: (key, fallback) => {
+        const parts = key.split(".");
+        let cur = bundle;
+        for (const p of parts) {
+          if (cur && typeof cur === "object" && p in cur) cur = cur[p];
+          else return fallback ?? key;
+        }
+        return typeof cur === "string" ? cur : (fallback ?? key);
+      },
+    };
+  }, [lang]);
+
+  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 
-export function useI18n() { return useContext(I18nContext); }
-
-export const AVAILABLE_LANGS = [
-  { code: "en", label: "EN" },
-  { code: "ru", label: "RU" },
-  { code: "kk", label: "KK" },
-];
+export function useI18n() {
+  return useContext(I18nContext);
+}

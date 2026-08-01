@@ -1,87 +1,77 @@
-# PMC Managers Limited — Tender Management Platform (PRD)
+# PMC Managers Limited — v2 Product Requirements Document
 
-## Original problem statement
-Global tender management application titled **PMC Managers Limited**. Vendors register through a Pre-Tender Registration Form (Sections A–E). Multi-country support with Kazakhstan as primary jurisdiction.
+**Legacy:** v1 archived at GitHub `pmc-tender-v1-legacy` tag `v1.0`
+**Current build:** v2 (this workspace) → target repo `Treasurescare/pmc-tender-v2-aws`
+**Strategy:** "Build for Portability" — build on Emergent stack now, structure exactly per AWS Build Sheet v2 for a low-cost Phase 2 migration to PostgreSQL + Cognito + S3 Object Lock + Fargate.
 
-## User personas
-- **Vendor** — bidder, completes KYC, bids on tenders after approval.
-- **Buyer** — publishes tenders, evaluates bids, awards contracts.
-- **Admin / Contracts Committee** — PMC procurement office. Approves vendors, signs off tenders, manages orgs & departments, audits the ledger.
+---
 
-## Deployment
-- Preview: `https://tender-hub-57.preview.emergentagent.com`
-- Production (deployed): `https://tender-hub-57.emergent.host`
+## Governing documents
 
-## Core requirements
-- Multi-role auth (JWT httpOnly + Emergent Google OAuth)
-- Vendor Pre-Tender Registration (Sections A–E per source docx)
-- 30 countries, KZ tax/business ID default
-- 6 declarations + electronic signature
-- KYC uploads
-- Tender lifecycle: draft → pending_approval → open → closed/awarded/rejected
-- 200+ pre-classified categories
-- Bidding + comparison + lowest-bid highlight
-- Admin vendor approval + inspector panel
-- Notifications (in-app + Resend email)
-- Public landing page with live stats
+1. **PMC Transaction Structure & Funds-Flow Report** (24 Jul 2026) — legal/commercial two-category-money framework
+2. **PMC Build Sheet v2 AWS** (24 Jul 2026) — technical architecture (4 apps + 1 API)
+3. **Domain_Spec.md** (this repo) — extracted business rules from v1
+4. **BA_Gap_Analysis.pdf** (this repo) — comparison of v1 vs new scope for client discussion
+5. **design_guidelines.md** (this repo) — Navy Trust visual language, retained verbatim from v1
 
-## Version history
+## The four apps (Build Sheet Part 6)
 
-### v1.1
-Resend emails, Google OAuth, Stripe fee, KZ licenses, CSV export, EN/RU/KK i18n.
+| App | Name | Stack (v2 Phase-1 pilot) | Stack (Phase 2 AWS) |
+|---|---|---|---|
+| **App 1** | Milestone Evidence Capture (mobile) | **Deferred** — needs S3 Object Lock | React Native + SQLite + S3 |
+| **App 2** | Package Tracker (internal) | React admin panel | Retool + RDS or same |
+| **App 3** | Pre-Tender Registration Portal | React + FastAPI + MongoDB | React + FastAPI + RDS + Cognito |
+| **App 4** | Public Tender Notice Board | React SPA | Next.js SSR + RDS |
 
-### v1.5 — Live Feed
-- Right-rail Tender Feed on **Server-Sent Events** (`/api/feed/stream`)
-- Filter chips: All/RFP/RFQ/Tender/My country/Unread
-- Per-user read/unread + mark-all-read
-- Higher-contrast time-remaining chip
-- Async email fan-out
+## API contract (per Build Sheet Part 4)
 
-### v1.6 — Two-envelope Sealed Bidding
-- RFP `two_envelope: bool`; commercial fields hidden until buyer opens envelopes
-- `/tenders/{id}/open-technical`, `/open-commercial`, `/bids/{id}/qualify`
-- Award blocked on 2-envelope until commercial opened AND bid qualified
-- UI: 3-stage envelope panel + qualify/reject + sealed price cells
+Every endpoint is prefixed `/api` (Kubernetes ingress). Contract mirrors Build Sheet v2 Part 4 exactly so Phase 2 is a stack swap, not a rewrite.
 
-### v1.7 — Governance & Collaboration (P1)
-- Multi-level approval workflow driven by department budget thresholds
-- Buyer Orgs + Departments hierarchy (seeded PMC-GLOBAL, MED, GEN)
-- Pre-bid Q&A with vendor anonymization + buyer-published answers
-- Corrigendum / Addenda publisher with vendor notifications
-- EMD (Earnest Money Deposit) with real Stripe refund on losing bids
-- 42/42 backend tests pass
+### Public
+- `GET  /api/v1/notices`
+- `GET  /api/v1/notices/{notice_ref}`
+- `POST /api/v1/registrations` — create draft
+- `PATCH /api/v1/registrations/{id}` — update draft (magic-link token)
+- `POST /api/v1/registrations/{id}/submit`
+- `POST /api/v1/registrations/{id}/status` — status check (magic-link token)
+- `POST /api/v1/uploads/presign` — presigned upload URL (S3 in Phase 2, direct upload endpoint in Phase 1)
 
-### v1.8 — Code Quality Pass
-- TenderFeed split into FeedFilters + FeedItem sub-components
-- All empty catches now log via `console.warn`
-- All useEffect hook-dep warnings resolved
-- Frontend compiles with **0 eslint warnings**
+### Authenticated (admin/reviewer)
+- `GET  /api/v1/registrations` — admin queue with status filter
+- `GET  /api/v1/registrations/{id}`
+- `POST /api/v1/registrations/{id}/decision` — approve | reject | clarify
+- `GET  /api/v1/vendors` — list, search
+- `GET  /api/v1/vendors/{id}`
+- `GET  /api/v1/packages` — filter project/status/phase
+- `POST /api/v1/packages`
+- `PATCH /api/v1/packages/{id}`
+- `POST /api/v1/packages/import` — CSV bulk load
+- `POST /api/v1/notices` — create/publish
+- `GET  /api/v1/audit-events` — verify chain
 
-### v1.9 — Deploy Hardening
-- All list endpoints have `limit` (default 200, max 500)
-- N+1 removed from `/api/bids` (single `$in` batch)
-- Feed unread-count uses single count query (no Python loop)
-- CORS env-driven (`CORS_ORIGINS=*`)
-- Deployment agent: **PASS**
+## Phase-1 Build Sequence
 
-### v2.0 — P2 Green + Orange
-- **SBD Template Library**: admin uploads .docx/.pdf templates at `/admin/sbd`; buyers pick via `ct-sbd-template` dropdown; auto-attaches to tender.
-- **FX Conversion**: `/api/fx/rates`, `/api/fx/convert` (open.er-api.com, no API key, 6h cache). `FxChip` on TenderDetail shows budget in local currency with selectable target.
-- **Immutable Audit Trail**: SHA-256 hash-chained `audit_events` collection. Hooks: tender.create, tender.approve, tender.reject, tender.addendum, tender.qa_answer, bid.award, bid.emd_refund, sbd.template.create, sbd.template.archive. Admin viewer at `/admin/audit` + `Verify chain integrity` button. Tampering detection verified via Mongo mutation + rollback (28/28 tests).
-- **Vendor KPI Dashboard** at `/vendor/kpi`: win-rate, total bids, avg price, avg delivery, EMD forfeit/refund count, by-category last-12-months bar chart, suggestions.
-- **Admin UI for Orgs & Departments** at `/admin/orgs`: create orgs, create departments with budget-driven approval thresholds.
+1. ✅ Repo bootstrap · scaffold · Domain_Spec extracted
+2. **App 4 Public Notice Board** — visible win, no auth, SEO-flavor
+3. **App 3 Pre-Tender Registration Portal** — bilingual EN/RU/KK, Sections A–E, magic-link resume
+4. **App 2 Package Tracker (admin console)** — CSV import, status board, notice publisher
+5. Admin auth (JWT) + admin queue for registration review
+6. Audit trail (SHA-256 hash chain — carries over from v1)
+7. i18n (EN/RU baseline; KK for App 3)
 
-## Test status
-- Latest run: `iteration_10.json` — 28/28 P2 backend + full P2 frontend + 9/9 auth/health regression
-- Full history: `iteration_1.json` … `iteration_10.json`
+## Explicitly out of scope (Phase-1)
 
-## Backlog (remaining P2 items)
-- **Twilio SMS + WhatsApp** — needs Twilio Account SID + Auth Token + WhatsApp sender
-- **DSC / eSign + PDF watermarking** — X.509 signing + PDF-lib (own iteration)
-- **server.py refactor into /app/backend/routers/*** — mentioned but deferred until server.py > 2500 lines (currently 1948)
-- **Approver as its own role** (currently piggybacks on admin)
-- **Two-envelope SSE events** — broadcast envelope state changes so all viewers see live
-- **Public tender board** (no login) with SSE + SEO
+Per Build Sheet Part 5:
+- Bid submission / opening
+- Evaluation scoring
+- Contract award
+- Payment processing (fee flow is "pilot mode")
+- Encryption / KMS
+- S3 Object Lock
+- AWS Cognito
+- PostgreSQL RLS enforcement
+- App 1 (Milestone Evidence — needs Object Lock)
 
 ## Test credentials
+
 See `/app/memory/test_credentials.md`.
