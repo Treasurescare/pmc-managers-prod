@@ -1,0 +1,31 @@
+{
+  "summary": "PMC Managers v2 (fresh Emergent build) — comprehensive backend + frontend testing complete. 35/35 pytest cases pass covering public notices, registration flow (draft→resume→patch→submit with declaration/signature validation), admin auth, admin decisions (approve/reject/clarify), notice creation with KZ auto-license attach, publish, package listing/status-move/CSV import, and audit chain verification. Frontend flows verified end-to-end: public notice board renders 5 notice cards + stats (5 notices / 2 suppliers / 34 packages) + filter chips + country dropdown + EN/RU/KK language switcher; notice detail page loads; /register creates draft and auto-navigates to /register/resume?token=... with tab-based Section A-E stepper (A shown by default, B/C/D/E accessible via tab clicks) — all f-* test IDs present in their respective sections; submit-for-review button correctly disabled until declarations are checked; admin login works, 4 tabs render, Packages tab shows 6-column kanban with 34 draggable cards (draggable='true'), Audit tab lists events with all columns and Verify Chain button returns 'Chain verified · 29 events'.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin Packages", "issues": ["Native HTML5 drag not tested (only DOM verified per instructions) — recommend cursor-grab styling for better affordance"]},
+      {"screen": "RegistrationResume", "issues": ["Section D KZ license checkboxes not tested — only appear when country=KZ + sector chosen; non-blocking"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py uses deprecated @app.on_event('startup'/'shutdown') — should migrate to lifespan context manager (FastAPI recommended since 0.93+).",
+    "admin_auth.py sets cookie with secure=False — acceptable for pilot but must be True in production behind HTTPS.",
+    "registrations.py update_draft has a very long inline list of fields inside model_dump filter — extract constant for readability.",
+    "packages.py CSV import has no size/row limit — recommend cap at e.g. 1000 rows to avoid DoS."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py"],
+  "success_rate": {"backend": "100% (35/35)", "frontend": "100% (all critical flows verified)"},
+  "test_credentials": "admin@pmcmanagers.com / Admin@123 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Test created a few TEST_ prefixed registrations, one TEST_ notice (PMC-NOT-2026-0005 auto-published), and 2 TEST_Pkg_* packages via CSV import. These are additive and do not break other tests.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend & frontend fully passing on iteration 13. Regression tests live at /app/backend/tests/backend_test.py — safe to re-run any time (uses uuid-based test emails so no collisions). Registration form uses tab-based navigation (buttons whose text starts with 'A ·', 'B ·' etc), NOT a linear stepper — click each tab to access section-specific test IDs. Packages kanban uses native HTML5 drag (draggable=true attributes on pkg-card-* elements); Playwright cannot reliably simulate native drag so we only verified DOM. Frontend URL is https://tender-hub-57.preview.emergentagent.com.",
+  "rca of the issue": "No issues found requiring RCA."
+}

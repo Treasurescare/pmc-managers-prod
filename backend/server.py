@@ -137,6 +137,31 @@ async def on_start() -> None:
     await create_indexes()
     await _seed_admin()
     await _seed_demo_notices()
+    await _seed_packages()
+
+
+async def _seed_packages() -> None:
+    if await db.packages.count_documents({}) > 0:
+        return
+    from kz_packages import KZ_PACKAGES
+    from db import next_sequence
+    from datetime import datetime, timezone
+    year = datetime.now(timezone.utc).year
+    inserted = 0
+    for p in KZ_PACKAGES:
+        seq = await next_sequence("package_seq")
+        pkg = dict(p)
+        pkg.update({
+            "package_ref": f"PMC-PKG-{year}-{seq:04d}",
+            "currency": "USD",
+            "attached_documents": [],
+            "tenant_id": config.DEFAULT_TENANT_ID,
+            "created_by": None,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+        await db.packages.insert_one(pkg)
+        inserted += 1
+    logging.info(f"Seeded {inserted} KZ packages")
 
 
 @app.on_event("shutdown")

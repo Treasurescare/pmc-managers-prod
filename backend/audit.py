@@ -15,7 +15,7 @@ async def audit_log(event_type: str, actor: Optional[dict], target_type: str,
     """Append-only SHA-256 hash-chained ledger. Same design as v1."""
     seq = await next_sequence("audit_seq")
     last = await db.audit_events.find_one(sort=[("seq", -1)])
-    previous_hash = last["current_hash"] if last else "GENESIS"
+    previous_hash = (last or {}).get("current_hash", "GENESIS")
 
     body = {
         "seq": seq,
