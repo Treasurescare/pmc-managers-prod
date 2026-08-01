@@ -40,6 +40,6 @@ export default [
     },
   },
   {
-    ignores: ["build/**", "node_modules/**", "public/**", "**/*.config.js"],
+    ignores: ["build/**", "node_modules/**", "public/**", "**/*.config.js", "src/components/ui/**"],
   },
 ];

@@ -41,7 +41,7 @@ function RegistrationsPanel() {
   const [notes, setNotes] = useState("");
 
   const load = () => adminApi.listRegistrations({ status }).then(setItems).catch((e) => toast.error(formatApiError(e)));
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [status]);
+  useEffect(() => { load(); }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const decide = async (action) => {
     if (!selected) return;

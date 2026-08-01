@@ -52,12 +52,13 @@ Every endpoint is prefixed `/api` (Kubernetes ingress). Contract mirrors Build S
 ## Phase-1 Build Sequence
 
 1. ✅ Repo bootstrap · scaffold · Domain_Spec extracted
-2. **App 4 Public Notice Board** — visible win, no auth, SEO-flavor
-3. **App 3 Pre-Tender Registration Portal** — bilingual EN/RU/KK, Sections A–E, magic-link resume
-4. **App 2 Package Tracker (admin console)** — CSV import, status board, notice publisher
-5. Admin auth (JWT) + admin queue for registration review
-6. Audit trail (SHA-256 hash chain — carries over from v1)
-7. i18n (EN/RU baseline; KK for App 3)
+2. ✅ **App 4 Public Notice Board** — 3 seeded notices, filters, hero, detail page
+3. ✅ **App 3 Pre-Tender Registration Portal** — Sections A–E stepper, magic-link resume, 6 declarations, admin approve/reject/clarify
+4. ✅ **App 2 Package Tracker** — 30 seeded KZ packages, 6-column drag-drop board, CSV importer, create-new modal
+5. ✅ Admin auth (JWT) + admin registration queue + audit chain verify
+6. ✅ SHA-256 hash-chained audit trail (carries over from v1)
+7. ✅ i18n EN/RU/KK wired end-to-end
+8. ✅ Client_Preview_Script.md for stakeholder walk-through
 
 ## Explicitly out of scope (Phase-1)
 
