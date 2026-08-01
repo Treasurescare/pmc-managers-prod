@@ -9,8 +9,8 @@ import requests
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL", "https://tender-hub-57.preview.emergentagent.com").rstrip("/")
 API = f"{BASE_URL}/api/v1"
 
-ADMIN_EMAIL = "admin@pmcmanagers.com"
-ADMIN_PASSWORD = "Admin@123"
+ADMIN_EMAIL = os.environ.get("PMC_TEST_ADMIN_EMAIL", "admin@pmcmanagers.com")
+ADMIN_PASSWORD = os.environ.get("PMC_TEST_ADMIN_PASSWORD", "Admin@123")
 
 
 @pytest.fixture(scope="session")
@@ -328,5 +328,5 @@ class TestAudit:
         r = admin_session.get(f"{API}/audit-events/verify", timeout=15)
         assert r.status_code == 200
         d = r.json()
-        assert d.get("ok") is True
+        assert d.get("ok") == True  # noqa: E712
         assert "events_checked" in d

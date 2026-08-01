@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { registrationApi, formatApiError } from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
@@ -13,7 +13,7 @@ export default function RegistrationStatus() {
   const [status, setStatus] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  const check = async (tk) => {
+  const check = useCallback(async (tk) => {
     if (!tk) return;
     setBusy(true);
     try {
@@ -25,9 +25,12 @@ export default function RegistrationStatus() {
     } finally {
       setBusy(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { if (params.get("token")) check(params.get("token")); }, [params]);
+  useEffect(() => {
+    const initial = params.get("token");
+    if (initial) check(initial);
+  }, [params, check]);
 
   return (
     <div className="min-h-screen bg-brand-pale flex flex-col">

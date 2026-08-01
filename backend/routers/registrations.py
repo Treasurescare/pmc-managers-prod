@@ -76,7 +76,7 @@ async def update_draft(registration_id: str, payload: RegistrationUpdateIn,
     if doc["status"] not in ("draft", "needs_clarification"):
         raise HTTPException(status_code=400, detail=f"Cannot edit — status is {doc['status']}")
 
-    updates = {k: v for k, v in payload.model_dump(exclude_unset=True).items() if v is not None or k in ("operating_regions", "business_categories", "kz_licenses", "documents", "previous_projects", "references")}
+    updates = payload.model_dump(exclude_unset=True)
     updates["updated_at"] = now_iso()
     await db.registrations.update_one({"_id": ObjectId(registration_id)}, {"$set": updates})
     fresh = await db.registrations.find_one({"_id": ObjectId(registration_id)})

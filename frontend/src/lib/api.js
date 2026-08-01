@@ -1,21 +1,14 @@
-// PMC v2 API client — Build Sheet v2 Part 4 contract
+// PMC v2 API client — Build Sheet v2 Part 4 contract.
+// Auth: session is carried by an httpOnly cookie set by /api/v1/admin/auth/login.
+// The frontend NEVER stores the JWT in localStorage/sessionStorage (mitigates XSS token theft).
 import axios from "axios";
 
 export const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "";
 
 export const api = axios.create({
   baseURL: BACKEND_URL,
-  withCredentials: true,
+  withCredentials: true, // send httpOnly access_token cookie with every request
   headers: { "Content-Type": "application/json" },
-});
-
-// Attach admin token if cached
-api.interceptors.request.use((config) => {
-  try {
-    const token = localStorage.getItem("pmc_admin_token");
-    if (token) config.headers.Authorization = `Bearer ${token}`;
-  } catch { /* noop */ }
-  return config;
 });
 
 export function formatApiError(err) {
@@ -48,13 +41,8 @@ export const registrationApi = {
 
 export const adminApi = {
   login: (email, password) =>
-    api.post("/api/v1/admin/auth/login", { email, password }).then((r) => {
-      try { localStorage.setItem("pmc_admin_token", r.data.token); } catch { /* noop */ }
-      return r.data;
-    }),
-  logout: () => api.post("/api/v1/admin/auth/logout").then(() => {
-    try { localStorage.removeItem("pmc_admin_token"); } catch { /* noop */ }
-  }),
+    api.post("/api/v1/admin/auth/login", { email, password }).then((r) => r.data),
+  logout: () => api.post("/api/v1/admin/auth/logout"),
   me: () => api.get("/api/v1/admin/auth/me").then((r) => r.data),
   listRegistrations: (params = {}) => api.get("/api/v1/registrations", { params }).then((r) => r.data),
   getRegistration: (id) => api.get(`/api/v1/registrations/${id}`).then((r) => r.data),

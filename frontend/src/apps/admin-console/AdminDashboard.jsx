@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { adminApi, api, formatApiError } from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
@@ -40,8 +40,12 @@ function RegistrationsPanel() {
   const [selected, setSelected] = useState(null);
   const [notes, setNotes] = useState("");
 
-  const load = () => adminApi.listRegistrations({ status }).then(setItems).catch((e) => toast.error(formatApiError(e)));
-  useEffect(() => { load(); }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
+  const load = useCallback(() => {
+    adminApi.listRegistrations({ status })
+      .then(setItems)
+      .catch((e) => toast.error(formatApiError(e)));
+  }, [status]);
+  useEffect(() => { load(); }, [load]);
 
   const decide = async (action) => {
     if (!selected) return;
@@ -124,12 +128,13 @@ function NoticesPanel() {
     budget_amount: null, is_published: true,
   });
 
-  useEffect(() => {
-    // Public listing suffices here (only published shows on board); admin
-    // uses this to see what's live. Extra endpoint for drafts left for later.
+  const load = useCallback(() => {
     fetch(`${process.env.REACT_APP_BACKEND_URL}/api/v1/notices?limit=100`)
-      .then((r) => r.json()).then((d) => setItems(d.items || [])).catch(() => {});
+      .then((r) => r.json())
+      .then((d) => setItems(d.items || []))
+      .catch((err) => console.warn("Failed to load notices:", err));
   }, []);
+  useEffect(() => { load(); }, [load]);
 
   const create = async () => {
     if (!draft.title || !draft.description || !draft.category || !draft.submission_deadline) {
@@ -142,8 +147,7 @@ function NoticesPanel() {
       setShowNew(false);
       setDraft({ ...draft, title: "", description: "" });
       // Reload
-      const r = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/v1/notices?limit=100`);
-      const d = await r.json(); setItems(d.items || []);
+      load();
     } catch (err) { toast.error(formatApiError(err)); }
   };
 
@@ -215,7 +219,9 @@ function AuditPanel() {
   const [verifyResult, setVerifyResult] = useState(null);
 
   useEffect(() => {
-    adminApi.audit({ limit: 100 }).then(setEvents).catch(() => {});
+    adminApi.audit({ limit: 100 })
+      .then(setEvents)
+      .catch((err) => console.warn("Failed to load audit events:", err));
   }, []);
 
   const verify = async () => {
@@ -269,14 +275,14 @@ function PackagesPanel() {
   const [showNew, setShowNew] = useState(false);
   const [newDraft, setNewDraft] = useState({ title: "", category: "", phase: "", value: "", float_target_date: "", status: "backlog" });
 
-  const load = () => {
+  const load = useCallback(() => {
     setLoading(true);
     adminApi.listPackages({ limit: 1000 })
       .then((d) => setPackages(d.items || []))
       .catch((e) => toast.error(formatApiError(e)))
       .finally(() => setLoading(false));
-  };
-  useEffect(() => { load(); }, []);
+  }, []);
+  useEffect(() => { load(); }, [load]);
 
   const columns = [
     { code: "backlog", label: "Backlog" },
@@ -449,7 +455,9 @@ export default function AdminDashboard() {
   const [tab, setTab] = useState("registrations");
 
   useEffect(() => {
-    adminApi.me().then(setMe).catch(() => { navigate("/admin/login"); });
+    adminApi.me()
+      .then(setMe)
+      .catch(() => { navigate("/admin/login"); });
   }, [navigate, location.pathname]);
 
   const logout = async () => { await adminApi.logout(); navigate("/admin/login"); };
