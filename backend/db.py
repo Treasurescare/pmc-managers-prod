@@ -22,7 +22,7 @@ _INDEX_SPECS = [
     ("notices", "notice_ref", {"unique": True, "sparse": True, "name": "notice_ref_unique"}),
     ("notices", [("is_published", 1), ("published_at", -1)], {}),
     ("registrations", "email", {}),
-    ("registrations", "magic_token", {"sparse": True}),
+    ("registrations", "magic_token", {"sparse": True, "name": "magic_token_sparse"}),
     ("registrations", [("status", 1), ("submitted_at", -1)], {}),
     ("packages", "package_ref", {"unique": True, "sparse": True, "name": "package_ref_unique"}),
     ("packages", [("status", 1), ("float_target_date", 1)], {}),

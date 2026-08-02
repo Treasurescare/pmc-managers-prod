@@ -22,10 +22,13 @@ async def dashboard(admin=Depends(require_role("admin", "reviewer", "auditor")))
     vendors = await db.vendors.count_documents({})
     active_contracts = await db.contracts.count_documents({"status": "active"})
 
-    # EMD collected (sum of paid transactions)
-    emd_collected = 0.0
-    async for tx in db.payment_transactions.find({"payment_status": "paid"}):
-        emd_collected += float(tx.get("amount") or 0)
+    # EMD collected — aggregate in MongoDB (unbounded find would degrade badly)
+    emd_pipeline = [
+        {"$match": {"payment_status": "paid"}},
+        {"$group": {"_id": None, "total": {"$sum": "$amount"}}},
+    ]
+    agg = await db.payment_transactions.aggregate(emd_pipeline).to_list(length=1)
+    emd_collected = float(agg[0]["total"]) if agg else 0.0
 
     # Pipeline funnel
     funnel = {}
