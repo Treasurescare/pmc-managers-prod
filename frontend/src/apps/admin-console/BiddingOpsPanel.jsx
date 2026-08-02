@@ -183,6 +183,7 @@ export default function BiddingOpsPanel() {
               <th className="px-3 py-2">Bid ref</th><th className="px-3 py-2">Notice</th>
               <th className="px-3 py-2">Vendor</th><th className="px-3 py-2">Price</th>
               <th className="px-3 py-2">EMD</th><th className="px-3 py-2">Status</th>
+              <th className="px-3 py-2">Next step (matrix)</th>
               <th className="px-3 py-2">Actions</th>
             </tr>
           </thead>
@@ -198,8 +199,23 @@ export default function BiddingOpsPanel() {
                   {b.emd_paid_at && <div className="text-emerald-600">✓ paid</div>}
                 </td>
                 <td className="px-3 py-2 text-xs">{STATUS_LABELS[b.status] || b.status}</td>
+                <td className="px-3 py-2 text-xs" data-testid={`bid-active-step-${b.bid_ref}`}>
+                  {b.active_step?.role_code ? (
+                    <>
+                      <div className="font-semibold text-brand-navy">{b.active_step.label}</div>
+                      <div className="text-brand-navy/50">
+                        Role: <span className="font-mono">{b.active_step.role_code}</span>
+                        {b.active_step.step_number && b.active_step.total_steps && (
+                          <> · step {b.active_step.step_number}/{b.active_step.total_steps}</>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <span className="text-brand-navy/40">{b.active_step?.label || "—"}</span>
+                  )}
+                </td>
                 <td className="px-3 py-2 flex gap-1 flex-wrap">
-                  {b.status === "escrow_accepted" && (
+                  {b.status === "escrow_accepted" && b.active_step?.role_code === "admin" && (
                     <button onClick={() => doAdminFlag(b)} data-testid={`admin-flag-${b.bid_ref}`}
                       className="text-[10px] bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">Flag→Certifier</button>
                   )}
@@ -215,7 +231,7 @@ export default function BiddingOpsPanel() {
               </tr>
             ))}
             {bids.length === 0 && (
-              <tr><td colSpan={7} className="px-3 py-8 text-center text-brand-navy/40">No bids yet.</td></tr>
+              <tr><td colSpan={8} className="px-3 py-8 text-center text-brand-navy/40">No bids yet.</td></tr>
             )}
           </tbody>
         </table>

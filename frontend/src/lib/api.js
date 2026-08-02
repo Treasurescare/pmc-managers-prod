@@ -225,6 +225,16 @@ export const mastersApi = {
 export const analyticsApi = {
   dashboard: () => api.get("/api/v1/analytics/dashboard").then((r) => r.data),
   bidAnomaly: (bid_id) => api.post(`/api/v1/analytics/ai/bid-anomaly/${bid_id}`).then((r) => r.data),
+  auditCopilot: (bid_id) => api.post(`/api/v1/analytics/ai/audit-copilot/${bid_id}`).then((r) => r.data),
+};
+
+// ---------- Wave 8: KYC ----------
+export const kycApi = {
+  start: (vendor_ref, level = "basic") =>
+    api.post("/api/v1/kyc/start", { vendor_ref, level }).then((r) => r.data),
+  get: (case_id) => api.get(`/api/v1/kyc/${case_id}`).then((r) => r.data),
+  listForVendor: (vendor_ref) =>
+    api.get(`/api/v1/kyc/vendor/${vendor_ref}`).then((r) => r.data),
 };
 
 // ---------- Wave 6: Auctions + Helpdesk ----------
@@ -261,11 +271,14 @@ export const tenantApi = {
   list: () => api.get("/api/v1/tenants").then((r) => r.data),
   create: (p) => api.post("/api/v1/tenants", p).then((r) => r.data),
   update: (id, p) => api.patch(`/api/v1/tenants/${id}`, p).then((r) => r.data),
+  publicGet: (code) => api.get(`/api/v1/tenants/public/${code}`).then((r) => r.data),
 };
 
 export const gdprApi = {
   forget: (registration_id) =>
     api.post(`/api/v1/registrations/${registration_id}/gdpr-forget`).then((r) => r.data),
+  vendorSelfForget: (password) =>
+    api.post("/api/v1/vendor/gdpr-forget", { password }).then((r) => r.data),
 };
 
 // ---------- Notifications ----------

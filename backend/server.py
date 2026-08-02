@@ -15,7 +15,7 @@ from routers import (
     notices, registrations, packages, admin_auth, uploads, audit_routes, meta, vendors,
     staff_auth, vendor_auth, bids, payments, committee, tasks, chat, inspections, masters,
     evaluations, boqs, vendor_intel, analytics, governance, notifications, payments_sandbox,
-    mfa, tenants,
+    mfa, tenants, kyc,
 )
 
 
@@ -53,6 +53,8 @@ app.include_router(payments_sandbox.router)
 # Wave 7 — MFA + Tenants
 app.include_router(mfa.router)
 app.include_router(tenants.router)
+# Wave 8 — KYC (stub → live via KYC-Checks / Sumsub / Onfido)
+app.include_router(kyc.router)
 
 
 # ---------- CORS ----------

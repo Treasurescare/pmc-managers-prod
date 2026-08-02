@@ -1,0 +1,51 @@
+{
+  "summary": "Regression test for Wave 7-8 (5 newly injected features). Backend: 13/13 pytest passing in /app/backend/tests/wave7_8_test.py — AI Audit Copilot returns verdict {ok|review} + 404 on unknown bid; high-risk role MFA gate rejects escrow_agent/legal_counsel/accounting with 403 'MFA is required for X', admin login unaffected; Bidding-Ops /api/v1/bids includes active_step with role_code+label+step_number/total_steps for each row; Public tenant endpoint returns {code,name,kind,country,branding_color} for PMC-KZ-01 and DEMO-CORP (seeded on the fly); KYC stub POST /kyc/start returns {case_id,risk_score,status,flags} + GET /kyc/{case_id} persists; GDPR /api/v1/vendor/gdpr-forget requires password match, redacts vendor record, disables login. Frontend UI verified via Playwright: (1) AI COPILOT button in Admin header opens modal, bid dropdown populates, Run copilot returns 'OK' verdict badge — WORKS. (2) Bidding Ops table shows 'Next step (matrix)' column with 'Admin flag to Certifier — Role: admin · step 2/6' AND Flag→Certifier buttons appear ONLY on rows with active_step.role_code==='admin' — WORKS (2 flag buttons on 2 escrow_accepted rows, no flag buttons on awarded rows). (3) Vendor GDPR self-service: 'Delete my data' button visible in vendor header → modal opens → password + acknowledgement → success toast 'Your profile has been anonymised' + auto sign-out to /vendor/login — WORKS. (4) Tenant skin ?tenant=DEMO-CORP — PARTIALLY BROKEN (see frontend_issues). MFA staff login rejection confirmed at backend layer with proper 403 detail message.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "useTenantSkin.js + AdminLogin.jsx",
+        "issue": "Tenant skin does NOT apply on /admin/login?tenant=DEMO-CORP. Two root causes: (a) AdminLogin.jsx never calls useTenantSkin() — only AdminDashboard does. (b) useTenantSkin only reads window.location.search — never falls back to sessionStorage. So even if the login page called it, after successful login the router redirects to /admin (no query string) and the hook returns without applying anything, so --brand-navy stays at default #0b1e3f and the 'Portal · Demo Corporate Client' tenant chip never renders. Verified: getComputedStyle(documentElement).getPropertyValue('--brand-navy') === '' on login page, and admin-tenant-chip data-testid not present on dashboard after login-with-tenant flow.",
+        "selector": "[data-testid=\"admin-tenant-chip\"] / CSS var --brand-navy",
+        "priority": "HIGH"
+      },
+      {
+        "component": "AnalyticsPanel option rendering",
+        "issue": "React hydration warning: <span> cannot be a child of <option>. Cosmetic dev-mode warning caused by ve-dynamic instrumentation wrapping option text in <span>. Not user-facing.",
+        "selector": "AnalyticsPanel.jsx line ~92",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/wave7_8_test.py",
+    "/app/test_reports/pytest/wave7_8_results.xml"
+  ],
+  "action_items": [
+    "Fix useTenantSkin.js: (1) On mount, if URL has ?tenant=CODE, fetch + apply + store in sessionStorage as today. (2) Otherwise, if sessionStorage.getItem('pmc.tenant') exists, hydrate from it and re-apply --brand-navy so the skin survives the login redirect. (3) Wire useTenantSkin() into AdminLogin.jsx (and VendorLogin.jsx if not already) so the purple background applies on the login page itself, per the spec: 'Visiting /admin/login?tenant=DEMO-CORP applies a purple skin'."
+  ],
+  "critical_code_review_comments": [
+    "useTenantSkin.js stores tenant to sessionStorage but never reads it back — dead code path unless callers rehydrate.",
+    "AdminLogin.jsx should invoke useTenantSkin() so tenants can preview their portal branding BEFORE authenticating.",
+    "matrix_helper.active_step performs an extra db.notices lookup per bid inside list_all_bids (N+1). Consider a $lookup or precomputing active_step on status transitions.",
+    "vendor_auth.gdpr-forget accepts arbitrary dict payload — no pydantic model; if password key is missing the endpoint 401s but a stricter model with password: str (min_length=1) would be better.",
+    "audit-copilot swallows LLM exceptions silently into a '(AI narrative unavailable: TypeName)' string — good for UX, but a WARN-level log would help ops.",
+    "staff_auth HIGH_RISK_ROLES enforcement is correct, but the message 'Sign in as admin first and enable Two-Factor' assumes the same user also holds admin role — for a pure escrow_agent this instruction is confusing. Consider softening to 'Contact your administrator to enable MFA'.",
+    "KYC stub's deterministic risk_score (hash % 100) is fine for demo, but the endpoint should reject empty vendor_ref before calling verification (currently .encode() on empty string still works and returns risk 68)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/wave7_8_test.py"
+  ],
+  "success_rate": {"backend": "100% (13/13)", "frontend": "80% (4/5 features fully working — tenant skin broken)"},
+  "test_credentials": "Master admin adminsupport@pmcmanagers.com/Admin@123 confirmed working. Staff MFA-blocked accounts confirmed. Test vendor for GDPR seeded directly via motor at test_gdpr_ui@example.com/Vendor@123 (now anonymised).",
+  "seed_data_creation": "Backend test seeds: PMC-KZ-01 + DEMO-CORP tenants if missing (via /api/v1/tenants POST), 1 test vendor (test_gdpr_*) per GDPR run via direct motor insert, 1 KYC case per run. All additive & safe.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Test file /app/backend/tests/wave7_8_test.py must run with -n 0 (existing pytest.ini forces -n 2 which breaks sessionScope fixture). All 13 tests currently pass. Backend URL used: process.env.REACT_APP_BACKEND_URL. The GDPR test seeds a fresh vendor via motor + hash_password each run to avoid polluting production vendors. Note DEMO-CORP tenant was seeded during initial admin test run — check db.tenants if state matters. Tenants list should now contain PMC-KZ-01 and DEMO-CORP.",
+  "rca of the issue": "Tenant skin bug: useTenantSkin.js reads only from URL query string. On /admin/login?tenant=DEMO-CORP the AdminLogin component does not invoke the hook, so login page shows default PMC navy. After successful auth, react-router navigates to /admin (WITHOUT preserving ?tenant=), AdminDashboard mounts and calls useTenantSkin, but new URL has no tenant param → hook early-returns and never reads sessionStorage.getItem('pmc.tenant'). Fix: (a) add sessionStorage rehydrate fallback in the useEffect; (b) call useTenantSkin() in AdminLogin.jsx (and vendor/staff logins if desired). Verified reproduction: Playwright evaluated getComputedStyle var --brand-navy == '' on login page and admin-tenant-chip element not found on /admin after tenant-scoped login."
+}

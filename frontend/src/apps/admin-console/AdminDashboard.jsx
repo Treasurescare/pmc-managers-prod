@@ -14,6 +14,8 @@ import MastersPanel from "./MastersPanel";
 import AnalyticsPanel from "./AnalyticsPanel";
 import NotificationBell from "./NotificationBell";
 import MFASetupModal from "./MFASetupModal";
+import AuditCopilotButton from "./AuditCopilotButton";
+import useTenantSkin from "@/apps/shared/useTenantSkin";
 
 function TabBar({ tab, setTab }) {
   const tabs = [
@@ -491,6 +493,7 @@ export default function AdminDashboard() {
   const [me, setMe] = useState(null);
   const [tab, setTab] = useState("analytics");
   const [mfaOpen, setMfaOpen] = useState(false);
+  const tenant = useTenantSkin();
 
   useEffect(() => {
     adminApi.me()
@@ -512,7 +515,14 @@ export default function AdminDashboard() {
             <h1 className="font-display text-3xl lg:text-4xl mt-2 text-brand-navy">{t("admin.dash_title")}</h1>
           </div>
           <div className="flex items-center gap-4">
+            {tenant && (
+              <div className="text-xs px-2 py-1 border border-brand-navy/20 text-brand-navy/70"
+                   data-testid="admin-tenant-chip">
+                Portal · {tenant.name}
+              </div>
+            )}
             <NotificationBell />
+            <AuditCopilotButton />
             <button type="button" onClick={() => setMfaOpen(true)} data-testid="admin-mfa-open"
               className="px-3 py-1.5 text-[11px] uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5">
               Security · 2FA

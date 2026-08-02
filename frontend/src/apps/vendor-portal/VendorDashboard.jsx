@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { vendorApi, publicApi, bidApi, formatApiError } from "@/lib/api";
+import VendorGdprButton from "./VendorGdprButton";
+import useTenantSkin from "@/apps/shared/useTenantSkin";
 
 const STATUS_LABELS = {
   draft: "Draft", submitted: "Submitted", emd_pending: "EMD Pending", emd_paid: "EMD Paid",
@@ -19,6 +21,7 @@ export default function VendorDashboard() {
   const [notices, setNotices] = useState([]);
   const [bids, setBids] = useState([]);
   const [tab, setTab] = useState("tenders");
+  const tenant = useTenantSkin();
 
   useEffect(() => {
     (async () => {
@@ -44,14 +47,17 @@ export default function VendorDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50" data-testid="vendor-dashboard">
-      <header className="bg-[#0b1e3f] text-white">
+      <header className="text-white" style={{ backgroundColor: tenant?.branding_color || "#0b1e3f" }}>
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div>
-            <div className="text-xs tracking-widest uppercase text-amber-300">Vendor Portal</div>
+            <div className="text-xs tracking-widest uppercase text-amber-300">
+              {tenant ? `${tenant.name} · Vendor Portal` : "Vendor Portal"}
+            </div>
             <h1 className="text-lg font-serif">{vendor.company_name || vendor.email}</h1>
           </div>
           <div className="text-sm flex items-center gap-4">
             <span className="text-white/70">{vendor.vendor_ref}</span>
+            <VendorGdprButton onSuccess={() => nav("/vendor/login")} />
             <button onClick={logout} className="text-white/80 hover:text-white underline"
               data-testid="vendor-logout">Sign out</button>
           </div>

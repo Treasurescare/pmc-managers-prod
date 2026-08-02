@@ -50,6 +50,18 @@ async def list_tenants(admin=Depends(require_role("admin", "reviewer", "auditor"
     return [_out(t) async for t in db.tenants.find({}).sort("name", 1)]
 
 
+@router.get("/public/{code}")
+async def public_tenant(code: str):
+    """Public tenant lookup used to skin the vendor portal via ?tenant=CODE.
+    Returns only the safe, non-sensitive fields."""
+    t = await db.tenants.find_one({"code": code, "is_active": True})
+    if not t:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    return {"code": t.get("code"), "name": t.get("name"),
+            "kind": t.get("kind"), "country": t.get("country"),
+            "branding_color": t.get("branding_color")}
+
+
 @router.patch("/{tenant_id}")
 async def update_tenant(tenant_id: str, payload: TenantIn,
                         admin=Depends(require_role("admin"))):
