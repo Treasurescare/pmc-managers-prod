@@ -42,11 +42,13 @@ Reverse/forward/live/sealed Auction module (create + place-bid with min-decremen
 7. Master admin: `adminsupport@pmcmanagers.com` / `Admin@123`
 
 ## Deferred (P2 backlog)
-- PayPal + Kaspi payment integrations
 - MFA (TOTP)
 - GDPR consent tracking + right-to-be-forgotten
 - Sanctions screening / duplicate-bid ML detection
 - Subscription & Monetisation
 - Sandbox + Training environment
-- Configurable workflow engine UI (backend approval_matrix already exists)
 - Government / Corporate CRM tenant portals
+
+## Feb 2026 — Post-Wave-6 enhancements shipped
+- **Approval Matrix editor**: full drag-lite reorder (↑ / ↓), add step, delete step, editable role dropdown + action label + SLA hours per row in the Admin console → Masters → Approval Matrix tab
+- **EMD gateway selector**: vendor bid submit page now offers **Stripe · PayPal · Kaspi Pay**. Stripe stays live; PayPal + Kaspi ship as in-app sandbox demos that advance the bid to `emd_paid` end-to-end so escrow/certifier/legal/accounting demos can be walked through on any gateway. Real PayPal/Kaspi live-mode remains on the P2 backlog and will replace the sandbox endpoints without vendor-facing contract changes.

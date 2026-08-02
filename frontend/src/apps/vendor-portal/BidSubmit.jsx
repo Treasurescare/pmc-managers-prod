@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { publicApi, vendorApi, bidApi, paymentApi, uploadsApi, formatApiError } from "@/lib/api";
+import { publicApi, vendorApi, bidApi, paymentApi, uploadsApi, sandboxPayApi, formatApiError } from "@/lib/api";
+
+const GATEWAYS = [
+  { id: "stripe", label: "Stripe", note: "Card · Live sandbox" },
+  { id: "paypal", label: "PayPal", note: "Sandbox demo" },
+  { id: "kaspi",  label: "Kaspi Pay", note: "KZ · Sandbox demo" },
+];
 
 export default function BidSubmit() {
   const { noticeRef } = useParams();
@@ -11,7 +17,8 @@ export default function BidSubmit() {
   const [price, setPrice] = useState("");
   const [technical, setTechnical] = useState("");
   const [commercial, setCommercial] = useState("");
-  const [docs, setDocs] = useState([]); // {kind, key, filename, size_bytes, uploaded_at}
+  const [docs, setDocs] = useState([]);
+  const [gateway, setGateway] = useState("stripe");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -53,10 +60,15 @@ export default function BidSubmit() {
         documents: docs,
       });
       toast.success(`Bid ${bid.bid_ref} submitted`);
-      // If EMD due, immediately go to Stripe
+      // If EMD due, immediately go to selected gateway
       if ((bid.emd_due_amount || 0) > 0) {
-        const chk = await paymentApi.checkout(bid.id, window.location.origin);
-        window.location.href = chk.checkout_url;
+        if (gateway === "stripe") {
+          const chk = await paymentApi.checkout(bid.id, window.location.origin);
+          window.location.href = chk.checkout_url;
+        } else {
+          const chk = await sandboxPayApi.checkout(bid.id, gateway, window.location.origin);
+          window.location.href = chk.checkout_url;
+        }
       } else {
         nav("/vendor");
       }
@@ -141,6 +153,24 @@ export default function BidSubmit() {
               </div>
             )}
           </div>
+
+          {emdDue > 0 && (
+            <div>
+              <div className="text-sm font-semibold mb-2">EMD payment gateway</div>
+              <div className="grid grid-cols-3 gap-2" data-testid="gateway-selector">
+                {GATEWAYS.map((g) => (
+                  <label key={g.id}
+                    className={`border rounded-md p-3 cursor-pointer text-center text-xs ${gateway === g.id ? "border-slate-900 bg-slate-50 ring-1 ring-slate-900" : "hover:border-slate-400"}`}
+                    data-testid={`gateway-${g.id}`}>
+                    <input type="radio" name="gateway" value={g.id} checked={gateway === g.id}
+                      onChange={(e) => setGateway(e.target.value)} className="sr-only" />
+                    <div className="font-semibold text-slate-900">{g.label}</div>
+                    <div className="text-slate-500 mt-1">{g.note}</div>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
 
           <button type="submit" disabled={busy}
             className="w-full bg-slate-900 text-white rounded-md py-3 text-sm hover:bg-slate-800 disabled:opacity-60"

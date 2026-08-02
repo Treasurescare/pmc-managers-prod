@@ -22,6 +22,7 @@ import VendorChangePassword from "@/apps/vendor-portal/VendorChangePassword";
 import VendorDashboard from "@/apps/vendor-portal/VendorDashboard";
 import BidSubmit from "@/apps/vendor-portal/BidSubmit";
 import PaymentResult from "@/apps/vendor-portal/PaymentResult";
+import SandboxCheckout from "@/apps/vendor-portal/SandboxCheckout";
 
 // Wave 1 — Staff Portal (multi-role: Escrow/Certifier/Legal/Accounting/Committee)
 import StaffLogin from "@/apps/staff-portal/StaffLogin";
@@ -53,6 +54,7 @@ export default function App() {
             <Route path="/vendor/bid/new/:noticeRef" element={<BidSubmit />} />
             <Route path="/vendor/payment/success" element={<PaymentResult outcome="success" />} />
             <Route path="/vendor/payment/cancel" element={<PaymentResult outcome="cancel" />} />
+            <Route path="/vendor/payment/sandbox" element={<SandboxCheckout />} />
 
             {/* Staff Portal */}
             <Route path="/staff/login" element={<StaffLogin />} />

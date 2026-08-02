@@ -14,7 +14,7 @@ from security import hash_password
 from routers import (
     notices, registrations, packages, admin_auth, uploads, audit_routes, meta, vendors,
     staff_auth, vendor_auth, bids, payments, committee, tasks, chat, inspections, masters,
-    evaluations, boqs, vendor_intel, analytics, governance, notifications,
+    evaluations, boqs, vendor_intel, analytics, governance, notifications, payments_sandbox,
 )
 
 
@@ -48,6 +48,7 @@ app.include_router(vendor_intel.router)
 app.include_router(analytics.router)
 app.include_router(governance.router)
 app.include_router(notifications.router)
+app.include_router(payments_sandbox.router)
 
 
 # ---------- CORS ----------

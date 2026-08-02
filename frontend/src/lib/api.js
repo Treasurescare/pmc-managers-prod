@@ -241,6 +241,14 @@ export const supportApi = {
   close: (id) => api.post(`/api/v1/support/tickets/${id}/close`).then((r) => r.data),
 };
 
+// ---------- Wave 5 (extended): Sandbox EMD gateways (PayPal / Kaspi) ----------
+export const sandboxPayApi = {
+  checkout: (bid_id, gateway, origin_url) =>
+    api.post("/api/v1/payments/sandbox/checkout", { bid_id, gateway, origin_url }).then((r) => r.data),
+  session: (sid) => api.get(`/api/v1/payments/sandbox/session/${sid}`).then((r) => r.data),
+  confirm: (session_id) => api.post("/api/v1/payments/sandbox/confirm", { session_id }).then((r) => r.data),
+};
+
 // ---------- Notifications ----------
 export const notifyApi = {
   list: () => api.get("/api/v1/notifications").then((r) => r.data),
