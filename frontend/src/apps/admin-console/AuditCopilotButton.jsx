@@ -98,7 +98,7 @@ export default function AuditCopilotButton() {
                 {(result.flags?.length || 0) > 0 ? (
                   <ul className="text-sm space-y-1 list-disc pl-5" data-testid="copilot-flags">
                     {result.flags.map((f, i) => (
-                      <li key={i} className="text-amber-800">{f}</li>
+                      <li key={`flag-${f}-${i}`} className="text-amber-800">{f}</li>
                     ))}
                   </ul>
                 ) : (

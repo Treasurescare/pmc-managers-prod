@@ -209,7 +209,7 @@ export default function MastersPanel() {
               </thead>
               <tbody>
                 {matrixDraft.steps.map((s, i) => (
-                  <tr key={i} className="border-t" data-testid={`matrix-step-${i}`}>
+                    <tr key={`step-${s.role_code}-${s.order ?? i}`} className="border-t" data-testid={`matrix-step-${i}`}>
                     <td className="py-1">{s.order}</td>
                     <td className="py-1">
                       <select value={s.role_code}

@@ -142,6 +142,26 @@ function RegistrationsPanel() {
               <div><dt className="pmc-label">KZ licenses</dt><dd className="text-brand-navy">{(selected.kz_licenses || []).join(", ") || "—"}</dd></div>
               <div className="col-span-2"><dt className="pmc-label">Business description</dt><dd className="text-brand-navy whitespace-pre-wrap">{selected.business_description || "—"}</dd></div>
             </dl>
+            {selected.document_slots && Object.keys(selected.document_slots).length > 0 && (
+              <div className="mt-6 border-t border-brand-navy/10 pt-4" data-testid="reg-documents">
+                <div className="pmc-label mb-2">Uploaded documents ({Object.keys(selected.document_slots).length})</div>
+                <ul className="grid gap-2 md:grid-cols-2">
+                  {Object.entries(selected.document_slots).map(([slot, meta]) => (
+                    <li key={slot} className="border border-brand-navy/10 p-2 text-xs bg-slate-50"
+                        data-testid={`reg-doc-${slot}`}>
+                      <div className="font-semibold text-brand-navy">{slot.replace(/_/g, " ")}</div>
+                      <div className="text-brand-navy/60 mt-0.5 truncate">{meta.file_name}</div>
+                      <div className="mt-1 flex gap-1">
+                        <a href={`${process.env.REACT_APP_BACKEND_URL}${meta.url}`} target="_blank" rel="noreferrer"
+                           className="text-[10px] uppercase tracking-widest px-2 py-1 border border-brand-navy/20 text-brand-navy hover:bg-white">View</a>
+                        <a href={`${process.env.REACT_APP_BACKEND_URL}${meta.url}`} download={meta.file_name}
+                           className="text-[10px] uppercase tracking-widest px-2 py-1 border border-brand-navy/20 text-brand-navy hover:bg-white">Download</a>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="mt-6">
               <label className="pmc-label">Reviewer notes (required for reject / clarify)</label>
               <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} data-testid="reg-notes"

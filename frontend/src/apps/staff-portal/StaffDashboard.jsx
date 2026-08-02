@@ -193,7 +193,7 @@ export default function StaffDashboard() {
                   {ins.media?.length > 0 && (
                     <div className="mt-3 grid grid-cols-4 gap-2 text-xs">
                       {ins.media.map((m, i) => (
-                        <div key={i} className="border rounded p-2 bg-slate-50">
+                        <div key={`media-${m.filename || i}`} className="border rounded p-2 bg-slate-50">
                           <div className="truncate">{m.kind === "video" ? "🎥" : "📷"} {m.filename}</div>
                         </div>
                       ))}

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { api, vendorInviteApi, formatApiError } from "@/lib/api";
+import BulkInviteModal from "./BulkInviteModal";
 
 function KpiTile({ label, value }) {
   return (
@@ -18,6 +19,7 @@ export default function VendorsPanel() {
   const [kpi, setKpi] = useState(null);
   const [loadingKpi, setLoadingKpi] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
+  const [showBulk, setShowBulk] = useState(false);
   const [inviteDraft, setInviteDraft] = useState({ email: "", company_name: "", country: "KZ", contact_name: "" });
   const [templateMeta, setTemplateMeta] = useState({ available: false });
 
@@ -79,6 +81,10 @@ export default function VendorsPanel() {
                className="text-xs underline text-brand-navy/70"
                data-testid="vendor-template-download">Download current ({templateMeta.file_name})</a>
           )}
+          <button onClick={() => setShowBulk(true)} data-testid="vendor-bulk-invite-open"
+                  className="px-4 py-2 text-[11px] uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5">
+            Bulk invite (CSV)
+          </button>
           <button onClick={() => setShowInvite(!showInvite)}
                   data-testid="vendor-invite-toggle"
                   className="px-5 py-2 text-[11px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep">
@@ -86,6 +92,8 @@ export default function VendorsPanel() {
           </button>
         </div>
       </div>
+
+      <BulkInviteModal open={showBulk} onClose={() => setShowBulk(false)} onDone={load} />
 
       {showInvite && (
         <div className="border border-brand-navy-soft/40 bg-white p-6 grid gap-3 md:grid-cols-4"

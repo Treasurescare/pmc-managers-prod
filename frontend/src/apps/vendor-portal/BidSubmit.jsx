@@ -144,7 +144,7 @@ export default function BidSubmit() {
             {docs.length > 0 && (
               <div className="mt-2 text-xs space-y-1">
                 {docs.map((d, i) => (
-                  <div key={i} className="flex justify-between bg-slate-50 px-2 py-1 rounded">
+                  <div key={`bid-att-${d.filename || d.kind || i}`} className="flex justify-between bg-slate-50 px-2 py-1 rounded">
                     <span>{d.kind}: {d.filename} ({Math.round((d.size_bytes || 0) / 1024)} KB)</span>
                     <button type="button" onClick={() => removeDoc(i)}
                       className="text-red-600 hover:underline">Remove</button>

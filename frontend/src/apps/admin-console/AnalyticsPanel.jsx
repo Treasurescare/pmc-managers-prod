@@ -103,7 +103,7 @@ export default function AnalyticsPanel() {
             <div>Anomaly score: <strong>{anomaly.score}%</strong> · Deviation {anomaly.deviation_pct}%</div>
             {anomaly.flags?.length > 0 && (
               <ul className="mt-2 list-disc pl-5 text-red-700 text-xs">
-                {anomaly.flags.map((f, i) => <li key={i}>{f}</li>)}
+                {anomaly.flags.map((f, i) => <li key={`anom-${f}-${i}`}>{f}</li>)}
               </ul>
             )}
             {anomaly.narrative && (

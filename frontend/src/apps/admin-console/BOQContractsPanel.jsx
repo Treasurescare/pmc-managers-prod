@@ -151,7 +151,7 @@ export default function BOQContractsPanel() {
                 </thead>
                 <tbody>
                   {(selectedTmpl.items || []).map((it, i) => (
-                    <tr key={i} className="border-t">
+                    <tr key={`boq-item-${it.sl_no ?? i}`} className="border-t">
                       <td className="py-1">{it.sl_no}</td><td>{it.description}</td>
                       <td className="text-center">{it.unit}</td>
                       <td className="text-center">{it.quantity}</td>

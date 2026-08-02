@@ -85,6 +85,65 @@ async def invite_vendor(payload: VendorInviteIn, admin=Depends(require_role("adm
     return {"vendor_ref": vendor_ref, "email": payload.email, "verify_url": verify_url}
 
 
+class BulkInviteIn(BaseModel):
+    csv_text: str  # newline-separated "email,company_name,country,contact_name"
+
+
+@router.post("/invite-bulk")
+async def invite_vendors_bulk(payload: BulkInviteIn, admin=Depends(require_role("admin"))):
+    """Parse a CSV of vendor rows and invite each one. Returns per-row status."""
+    import csv, io
+    results = []
+    reader = csv.DictReader(io.StringIO(payload.csv_text))
+    if not reader.fieldnames or "email" not in [f.lower().strip() for f in reader.fieldnames]:
+        raise HTTPException(status_code=400,
+                             detail="CSV must have header row with at least an 'email' column")
+    header_map = {name.lower().strip(): name for name in reader.fieldnames}
+    def col(row, k):
+        real = header_map.get(k)
+        return (row.get(real) or "").strip() if real else ""
+    for i, row in enumerate(reader, start=2):
+        email = col(row, "email").lower()
+        if not email or "@" not in email:
+            results.append({"row": i, "email": email, "status": "skipped", "reason": "invalid email"})
+            continue
+        existing = await db.vendors.find_one({"email": email})
+        if existing and existing.get("is_active"):
+            results.append({"row": i, "email": email, "status": "skipped", "reason": "already active"})
+            continue
+        token = new_magic_token()
+        seq = await next_sequence("vendor_seq")
+        vendor_ref = f"PMC-SUP-{seq:06d}"
+        doc = {
+            "vendor_ref": vendor_ref, "email": email,
+            "company_name": col(row, "company_name") or col(row, "company") or None,
+            "country": col(row, "country") or "KZ",
+            "contact_name": col(row, "contact_name") or None,
+            "tenant_id": admin["tenant_id"],
+            "invited_by": admin["id"], "invited_at": now_iso(),
+            "email_verified": False, "magic_token": token,
+            "is_active": False, "created_at": now_iso(),
+        }
+        if existing:
+            await db.vendors.update_one({"_id": existing["_id"]}, {"$set": doc})
+        else:
+            await db.vendors.insert_one(doc)
+        verify_url = f"{config.FRONTEND_URL}/vendor/verify/{token}"
+        asyncio.create_task(send_email(
+            email, "PMC Managers — You've been invited as a vendor",
+            wrap(f"Welcome to PMC · {vendor_ref}",
+                 f"<p>You've been pre-registered as a vendor. Please verify your email and set a password.</p>",
+                 "Verify email & set password", verify_url)))
+        results.append({"row": i, "email": email, "status": "invited", "vendor_ref": vendor_ref})
+    await audit_log("vendor.invite_bulk", admin, "vendor", "csv",
+                    {"total": len(results),
+                     "invited": sum(1 for r in results if r["status"] == "invited")})
+    return {"total": len(results),
+            "invited": sum(1 for r in results if r["status"] == "invited"),
+            "skipped": sum(1 for r in results if r["status"] == "skipped"),
+            "results": results}
+
+
 class VerifySetPasswordIn(BaseModel):
     password: str = Field(min_length=8)
 

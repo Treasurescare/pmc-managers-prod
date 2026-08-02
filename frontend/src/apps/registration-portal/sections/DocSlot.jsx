@@ -91,11 +91,29 @@ export default function DocSlot({ regId, token, slot, label, required, existing,
 }
 
 export function DocSlotsBlock({ regId, token, slots, existing, onChange, title = "Required documents" }) {
+  const required = slots.filter(([, m]) => m.required);
+  const requiredDone = required.filter(([slot]) => !!existing?.[slot]).length;
+  const requiredTotal = required.length;
+  const optionalDone = slots.filter(([slot, m]) => !m.required && !!existing?.[slot]).length;
+  const pct = requiredTotal === 0 ? 100 : Math.round((requiredDone / requiredTotal) * 100);
   return (
     <div className="mt-8 border-t border-brand-navy/10 pt-6"
          data-testid="docslots-block">
-      <div className="pmc-label">{title}</div>
-      <div className="text-xs text-brand-navy/60 mt-1">
+      <div className="flex items-baseline justify-between flex-wrap gap-2">
+        <div className="pmc-label">{title}</div>
+        <div className="text-xs" data-testid="docslots-meter">
+          <span className={requiredDone === requiredTotal ? "text-emerald-700 font-semibold" : "text-amber-700 font-semibold"}>
+            {requiredDone} / {requiredTotal} required
+          </span>
+          {optionalDone > 0 && <span className="text-brand-navy/50"> · {optionalDone} optional</span>}
+        </div>
+      </div>
+      <div className="mt-2 h-1.5 w-full bg-brand-navy/10 overflow-hidden rounded-full"
+           data-testid="docslots-progress">
+        <div className={"h-full transition-all " + (requiredDone === requiredTotal ? "bg-emerald-600" : "bg-amber-500")}
+             style={{ width: `${pct}%` }} />
+      </div>
+      <div className="text-xs text-brand-navy/60 mt-2">
         Upload once — you can replace or delete anytime before submitting.
       </div>
       <div className="grid gap-3 md:grid-cols-2 mt-4">
