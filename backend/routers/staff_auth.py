@@ -51,6 +51,14 @@ async def staff_login(payload: StaffLoginIn, response: Response) -> Dict[str, An
     if not user.get("is_active", True):
         raise HTTPException(status_code=403, detail="Account disabled")
 
+    # Wave 7 — MFA gate. If the user has MFA enabled we require an OTP.
+    if user.get("mfa_enabled"):
+        if not payload.otp_code:
+            return {"mfa_required": True, "email": user["email"]}
+        import pyotp
+        if not pyotp.TOTP(user.get("mfa_secret") or "").verify(payload.otp_code, valid_window=1):
+            raise HTTPException(status_code=401, detail="Invalid OTP")
+
     token = create_admin_token(str(user["_id"]), user["email"], payload.active_role)
     csrf = _set_session_cookies(response, token)
     await audit_log("staff.login", {"id": str(user["_id"]), "email": user["email"]},

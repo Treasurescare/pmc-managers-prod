@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { mastersApi, staffApi, formatApiError } from "@/lib/api";
+import { mastersApi, staffApi, tenantApi, formatApiError } from "@/lib/api";
 
 const ROLE_LABELS = {
   admin: "Admin", reviewer: "Reviewer", escrow_agent: "Escrow Agent",
@@ -14,6 +14,8 @@ export default function MastersPanel() {
   const [staff, setStaff] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [matrices, setMatrices] = useState([]);
+  const [tenants, setTenants] = useState([]);
+  const [tenantDraft, setTenantDraft] = useState({ code: "", name: "", kind: "corporate", country: "KZ" });
   const [showStaffNew, setShowStaffNew] = useState(false);
   const [staffDraft, setStaffDraft] = useState({
     email: "", name: "", password: "Welcome@123",
@@ -35,10 +37,11 @@ export default function MastersPanel() {
 
   const load = useCallback(async () => {
     try {
-      const [s, c, m] = await Promise.all([
-        staffApi.listStaff(), mastersApi.listCompanies(), mastersApi.listMatrices(),
+      const [s, c, m, t] = await Promise.all([
+        staffApi.listStaff(), mastersApi.listCompanies(),
+        mastersApi.listMatrices(), tenantApi.list().catch(() => []),
       ]);
-      setStaff(s); setCompanies(c); setMatrices(m);
+      setStaff(s); setCompanies(c); setMatrices(m); setTenants(t);
     } catch (e) { toast.error(formatApiError(e)); }
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -82,7 +85,7 @@ export default function MastersPanel() {
   return (
     <div data-testid="admin-masters-panel">
       <div className="flex gap-2 mb-4 border-b">
-        {[["staff", "Staff Master"], ["companies", "Companies"], ["matrix", "Approval Matrix"], ["hierarchy", "Hierarchy"]].map(([k, l]) => (
+        {[["staff", "Staff Master"], ["companies", "Companies"], ["tenants", "Tenants"], ["matrix", "Approval Matrix"], ["hierarchy", "Hierarchy"]].map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)}
             className={`px-4 py-2 text-xs uppercase tracking-widest ${tab === k ? "border-b-2 border-brand-navy font-semibold" : "text-slate-500"}`}
             data-testid={`masters-tab-${k}`}>{l}</button>
@@ -316,6 +319,49 @@ export default function MastersPanel() {
             </div>
           ))}
         </div>
+      )}
+
+      {tab === "tenants" && (
+        <>
+          <div className="bg-white border p-4 mb-4 grid gap-2 md:grid-cols-5" data-testid="tenant-new">
+            <input placeholder="Code" value={tenantDraft.code}
+              onChange={(e) => setTenantDraft({ ...tenantDraft, code: e.target.value.toUpperCase() })}
+              className="px-3 py-2 border" data-testid="tenant-code" />
+            <input placeholder="Name" value={tenantDraft.name}
+              onChange={(e) => setTenantDraft({ ...tenantDraft, name: e.target.value })}
+              className="px-3 py-2 border md:col-span-2" data-testid="tenant-name" />
+            <select value={tenantDraft.kind}
+              onChange={(e) => setTenantDraft({ ...tenantDraft, kind: e.target.value })}
+              className="px-3 py-2 border bg-white" data-testid="tenant-kind">
+              <option value="pmc">PMC (internal)</option>
+              <option value="corporate">Corporate Client</option>
+              <option value="government">Government Department</option>
+            </select>
+            <button onClick={async () => {
+              if (!tenantDraft.code || !tenantDraft.name) return toast.error("Code + name required");
+              try {
+                await tenantApi.create(tenantDraft);
+                toast.success("Tenant added");
+                setTenantDraft({ code: "", name: "", kind: "corporate", country: "KZ" });
+                load();
+              } catch (e) { toast.error(formatApiError(e)); }
+            }} data-testid="tenant-create"
+              className="px-4 py-2 text-[11px] uppercase tracking-widest bg-brand-navy text-white">
+              Add Tenant
+            </button>
+          </div>
+          <div className="bg-white border">
+            {tenants.map((t) => (
+              <div key={t.id} className="border-b p-3 text-sm" data-testid={`tenant-row-${t.code}`}>
+                <span className="font-mono text-xs mr-3">{t.code}</span>
+                <strong>{t.name}</strong>
+                <span className="ml-3 text-xs bg-slate-100 px-2 py-0.5 rounded">{t.kind}</span>
+                <span className="ml-2 text-xs text-slate-500">{t.country}</span>
+              </div>
+            ))}
+            {tenants.length === 0 && <div className="p-6 text-sm text-slate-500">No tenants yet — add Corporate Client / Government Department here.</div>}
+          </div>
+        </>
       )}
     </div>
   );

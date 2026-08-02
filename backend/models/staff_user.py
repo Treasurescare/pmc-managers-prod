@@ -24,6 +24,7 @@ class StaffLoginIn(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6)
     active_role: StaffRole
+    otp_code: Optional[str] = None  # required when the user has mfa_enabled
 
 
 class StaffCreateIn(BaseModel):

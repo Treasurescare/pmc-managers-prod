@@ -24,7 +24,11 @@ class NoticeIn(BaseModel):
     contact_name: Optional[str] = None
     is_published: bool = False
     # EMD (Earnest Money Deposit) config — vendors pay this on bid submission
-    emd_config: Optional[dict] = None  # {"fixed_amount": 5000, "percentage": 2.5, "currency": "USD"}
+    emd_config: Optional[dict] = None
+    # Wave 7 — optional approval matrix for this tender (falls back to default pipeline)
+    approval_matrix_id: Optional[str] = None
+    # Wave 7 — tenant assignment (defaults to config.DEFAULT_TENANT_ID)
+    tenant_id: Optional[str] = None
 
 
 class NoticePublic(BaseModel):

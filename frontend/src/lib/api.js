@@ -81,8 +81,8 @@ export const adminApi = {
 
 // ---------- Wave 1: Staff (multi-role) ----------
 export const staffApi = {
-  login: (email, password, active_role) =>
-    api.post("/api/v1/staff/auth/login", { email, password, active_role }).then((r) => r.data),
+  login: (email, password, active_role, otp_code) =>
+    api.post("/api/v1/staff/auth/login", { email, password, active_role, otp_code }).then((r) => r.data),
   logout: () => api.post("/api/v1/staff/auth/logout"),
   me: () => api.get("/api/v1/staff/auth/me").then((r) => r.data),
   roleChoices: () => api.get("/api/v1/staff/roles").then((r) => r.data),
@@ -247,6 +247,25 @@ export const sandboxPayApi = {
     api.post("/api/v1/payments/sandbox/checkout", { bid_id, gateway, origin_url }).then((r) => r.data),
   session: (sid) => api.get(`/api/v1/payments/sandbox/session/${sid}`).then((r) => r.data),
   confirm: (session_id) => api.post("/api/v1/payments/sandbox/confirm", { session_id }).then((r) => r.data),
+};
+
+// ---------- Wave 7: MFA + Tenants + GDPR ----------
+export const mfaApi = {
+  status: () => api.get("/api/v1/staff/mfa/status").then((r) => r.data),
+  enroll: () => api.post("/api/v1/staff/mfa/enroll").then((r) => r.data),
+  verify: (otp_code) => api.post("/api/v1/staff/mfa/verify", { otp_code }).then((r) => r.data),
+  disable: (otp_code) => api.post("/api/v1/staff/mfa/disable", { otp_code }).then((r) => r.data),
+};
+
+export const tenantApi = {
+  list: () => api.get("/api/v1/tenants").then((r) => r.data),
+  create: (p) => api.post("/api/v1/tenants", p).then((r) => r.data),
+  update: (id, p) => api.patch(`/api/v1/tenants/${id}`, p).then((r) => r.data),
+};
+
+export const gdprApi = {
+  forget: (registration_id) =>
+    api.post(`/api/v1/registrations/${registration_id}/gdpr-forget`).then((r) => r.data),
 };
 
 // ---------- Notifications ----------

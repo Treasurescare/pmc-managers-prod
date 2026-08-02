@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { adminApi, api, formatApiError } from "@/lib/api";
+import { adminApi, api, mastersApi, formatApiError } from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import TopBar from "@/apps/shared/TopBar";
 import { toast } from "sonner";
@@ -13,6 +13,7 @@ import VendorIntelPanel from "./VendorIntelPanel";
 import MastersPanel from "./MastersPanel";
 import AnalyticsPanel from "./AnalyticsPanel";
 import NotificationBell from "./NotificationBell";
+import MFASetupModal from "./MFASetupModal";
 
 function TabBar({ tab, setTab }) {
   const tabs = [
@@ -161,11 +162,13 @@ function RegistrationsPanel() {
 function NoticesPanel() {
   const [items, setItems] = useState([]);
   const [showNew, setShowNew] = useState(false);
+  const [matrices, setMatrices] = useState([]);
   const [draft, setDraft] = useState({
     title: "", description: "", document_type: "tender", category: "",
     delivery_country: "KZ", submission_deadline: "", budget_currency: "USD",
     budget_amount: null, is_published: true,
     emd_config: { fixed_amount: 0, percentage: 0, currency: "USD" },
+    approval_matrix_id: "",
   });
 
   const load = useCallback(() => {
@@ -174,7 +177,10 @@ function NoticesPanel() {
       .then((d) => setItems(d.items || []))
       .catch((err) => console.warn("Failed to load notices:", err));
   }, []);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    mastersApi.listMatrices().then(setMatrices).catch(() => {});
+  }, [load]);
 
   const create = async () => {
     if (!draft.title || !draft.description || !draft.category || !draft.submission_deadline) {
@@ -238,6 +244,15 @@ function NoticesPanel() {
               onChange={(e) => setDraft({ ...draft, emd_config: { ...draft.emd_config, percentage: parseFloat(e.target.value) || 0, currency: draft.budget_currency } })}
               data-testid="notice-emd-percentage"
               className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
+          <label className="md:col-span-2"><span className="pmc-label">Approval Matrix (Masters)</span>
+            <select value={draft.approval_matrix_id || ""}
+              onChange={(e) => setDraft({ ...draft, approval_matrix_id: e.target.value })}
+              data-testid="notice-matrix"
+              className="mt-1 w-full px-4 py-3 border border-brand-navy/20">
+              <option value="">Default pipeline (Escrow → Admin → Certifier → Legal → Accounting → Committee)</option>
+              {matrices.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
+          </label>
           <label className="col-span-2 flex items-center gap-2 text-sm">
             <input type="checkbox" checked={draft.is_published} onChange={(e) => setDraft({ ...draft, is_published: e.target.checked })} data-testid="notice-publish" />
             Publish immediately (visible on public board)
@@ -475,6 +490,7 @@ export default function AdminDashboard() {
   const location = useLocation();
   const [me, setMe] = useState(null);
   const [tab, setTab] = useState("analytics");
+  const [mfaOpen, setMfaOpen] = useState(false);
 
   useEffect(() => {
     adminApi.me()
@@ -497,6 +513,10 @@ export default function AdminDashboard() {
           </div>
           <div className="flex items-center gap-4">
             <NotificationBell />
+            <button type="button" onClick={() => setMfaOpen(true)} data-testid="admin-mfa-open"
+              className="px-3 py-1.5 text-[11px] uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5">
+              Security · 2FA
+            </button>
             <div className="text-right">
               <div className="pmc-label">Signed in</div>
               <div className="text-sm text-brand-navy">{me.email}</div>
@@ -504,6 +524,7 @@ export default function AdminDashboard() {
             <button type="button" onClick={logout} data-testid="admin-logout"
               className="px-4 py-2 text-[11px] font-semibold uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5">Sign out</button>
           </div>
+          <MFASetupModal open={mfaOpen} onClose={() => setMfaOpen(false)} />
         </div>
 
         <div className="mt-8"><TabBar tab={tab} setTab={setTab} /></div>

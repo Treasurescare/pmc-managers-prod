@@ -152,6 +152,31 @@ async def decide_bid(bid_id: str, payload: BidDecisionIn,
     prev_status = b.get("status")
     expected, next_status = _ROLE_TO_TARGET_STATUS.get(payload.role, (None, None))
 
+    # ---- Matrix-driven override: if the notice references an approval matrix,
+    # resolve the *next* status from the matrix ordering instead of the hard-
+    # coded fallback above. This lets admins reconfigure pipelines without code.
+    notice = await db.notices.find_one({"notice_ref": b.get("notice_ref")})
+    matrix_id = (notice or {}).get("approval_matrix_id")
+    if matrix_id and payload.action == "accept":
+        try:
+            matrix = await db.approval_matrices.find_one({"_id": ObjectId(matrix_id)})
+        except Exception:
+            matrix = None
+        steps = sorted((matrix or {}).get("steps", []), key=lambda s: s.get("order", 0))
+        # Find the step matching the acting role, then advance to the next step's role
+        for i, s in enumerate(steps):
+            if s.get("role_code") == payload.role:
+                # Next-status naming convention: "<role>_cleared" for intermediate
+                # steps, "awarded" if this is the terminal committee step.
+                if i + 1 < len(steps):
+                    next_status = f"{payload.role}_cleared" if payload.role != "escrow_agent" else "escrow_accepted"
+                    if payload.role == "admin":
+                        next_status = "admin_flagged"
+                else:
+                    next_status = "awarded" if payload.role in ("committee", "committee_member") else f"{payload.role}_cleared"
+                expected = None  # matrix ordering supersedes fixed prev-status check
+                break
+
     if payload.action == "reject":
         next_status = "rejected"
     elif payload.action == "flag":

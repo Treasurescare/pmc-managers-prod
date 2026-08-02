@@ -17,6 +17,8 @@ export default function StaffLogin() {
   const [role, setRole] = useState("admin");
   const [roles, setRoles] = useState(Object.keys(ROLE_LABELS));
   const [loading, setLoading] = useState(false);
+  const [otpRequired, setOtpRequired] = useState(false);
+  const [otp, setOtp] = useState("");
 
   useEffect(() => {
     staffApi.roleChoices().then((r) => setRoles(r.roles || [])).catch(() => {});
@@ -26,9 +28,14 @@ export default function StaffLogin() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await staffApi.login(email, password, role);
+      const res = await staffApi.login(email, password, role, otp || undefined);
+      if (res.mfa_required) {
+        setOtpRequired(true);
+        toast.message("Enter your 6-digit code");
+        setLoading(false);
+        return;
+      }
       toast.success(`Signed in as ${ROLE_LABELS[role] || role}`);
-      // Route to role-specific home
       if (["admin", "reviewer"].includes(res.active_role)) nav("/admin");
       else nav("/staff");
     } catch (err) {
@@ -74,6 +81,18 @@ export default function StaffLogin() {
               {roles.map((r) => <option key={r} value={r}>{ROLE_LABELS[r] || r}</option>)}
             </select>
           </label>
+          {otpRequired && (
+            <label className="block text-sm" data-testid="staff-mfa-block">
+              <span>Authenticator code</span>
+              <input value={otp} onChange={(e) => setOtp(e.target.value)}
+                required autoFocus inputMode="numeric" maxLength={8}
+                className="mt-1 w-full border rounded-md px-3 py-2 text-sm tracking-widest text-center font-mono"
+                placeholder="123 456" data-testid="staff-login-otp" />
+              <span className="block text-[11px] text-slate-500 mt-1">
+                Enter the 6-digit code from your authenticator app.
+              </span>
+            </label>
+          )}
           <button type="submit" disabled={loading}
             className="w-full bg-slate-900 text-white rounded-md py-2.5 text-sm hover:bg-slate-800 disabled:opacity-60"
             data-testid="staff-login-submit">

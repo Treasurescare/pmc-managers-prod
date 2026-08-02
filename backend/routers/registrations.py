@@ -43,6 +43,9 @@ async def create_draft(payload: RegistrationDraftIn):
             "status": "draft",
             "tenant_id": config.DEFAULT_TENANT_ID,
             "magic_token": token,
+            "data_processing_consent": payload.data_processing_consent,
+            "marketing_consent": payload.marketing_consent,
+            "consent_at": now_iso() if payload.data_processing_consent else None,
             "created_at": now_iso(),
         }
         res = await db.registrations.insert_one(doc)
@@ -263,3 +266,33 @@ async def admin_decide(registration_id: str, payload: RegistrationDecisionIn,
     await audit_log(f"registration.{payload.action}", admin, "registration", registration_id,
                     {"notes": payload.notes, "vendor_ref": updates.get("vendor_ref")})
     return {"ok": True, "status": updates["status"]}
+
+
+# ---------- Wave 7 — GDPR right-to-be-forgotten ----------
+
+@router.post("/{registration_id}/gdpr-forget")
+async def gdpr_forget(registration_id: str, admin=Depends(require_role("admin"))):
+    """Anonymise a registration + linked vendor. Retains the audit trail
+    (hash chain preserved) but strips personal data per GDPR Art. 17."""
+    reg = await db.registrations.find_one({"_id": ObjectId(registration_id)})
+    if not reg:
+        raise HTTPException(status_code=404, detail="Not found")
+    email = reg.get("email")
+    anon = {
+        "email": f"anonymised+{registration_id}@example.invalid",
+        "company_name": "[REDACTED]",
+        "contact_name": None, "contact_email": None, "contact_mobile": None,
+        "contact_office_phone": None, "signatory_name": None,
+        "signatory_contact": None, "signature_name": None,
+        "registered_address": None, "mailing_address": None,
+        "bank_account_number": None, "bank_swift": None,
+        "documents": [], "previous_projects": [], "references": [],
+        "gdpr_forgotten_at": now_iso(), "gdpr_forgotten_by": admin["email"],
+    }
+    await db.registrations.update_one({"_id": ObjectId(registration_id)}, {"$set": anon})
+    if email:
+        await db.vendors.update_many({"email": email},
+                                     {"$set": {**anon, "is_active": False}})
+    await audit_log("gdpr.forget", admin, "registration", registration_id,
+                    {"original_email": email})
+    return {"ok": True}

@@ -11,6 +11,9 @@ class RegistrationDraftIn(BaseModel):
     email: EmailStr
     company_name: Optional[str] = None
     country: str = "KZ"
+    # Wave 7 — GDPR consent captured up-front
+    data_processing_consent: bool = False
+    marketing_consent: bool = False
 
 
 class RegistrationUpdateIn(BaseModel):
