@@ -4,6 +4,7 @@ import { adminApi, formatApiError } from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import TopBar from "@/apps/shared/TopBar";
 import { toast } from "sonner";
+import useTenantSkin from "@/apps/shared/useTenantSkin";
 
 export default function AdminLogin() {
   const { t } = useI18n();
@@ -11,6 +12,7 @@ export default function AdminLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  useTenantSkin();
 
   const submit = async (e) => {
     e.preventDefault();
