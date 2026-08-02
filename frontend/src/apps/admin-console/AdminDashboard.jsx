@@ -474,7 +474,7 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const [me, setMe] = useState(null);
-  const [tab, setTab] = useState("registrations");
+  const [tab, setTab] = useState("analytics");
 
   useEffect(() => {
     adminApi.me()
