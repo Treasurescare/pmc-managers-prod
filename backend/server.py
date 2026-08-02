@@ -15,7 +15,7 @@ from routers import (
     notices, registrations, packages, admin_auth, uploads, audit_routes, meta, vendors,
     staff_auth, vendor_auth, bids, payments, committee, tasks, chat, inspections, masters,
     evaluations, boqs, vendor_intel, analytics, governance, notifications, payments_sandbox,
-    mfa, tenants, kyc,
+    mfa, tenants, kyc, vendor_invites, permissions,
 )
 
 
@@ -31,6 +31,9 @@ app.include_router(packages.router)
 app.include_router(admin_auth.router)
 app.include_router(uploads.router)
 app.include_router(audit_routes.router)
+# Wave 9 vendor_invites must register BEFORE vendors.router so its specific
+# `/registration-template` path wins over vendors.py `/{vendor_ref}` catch-all
+app.include_router(vendor_invites.router)
 app.include_router(vendors.router)
 # Wave 1 — Bidding, EMD, multi-role pipeline, CRM
 app.include_router(staff_auth.router)
@@ -55,6 +58,8 @@ app.include_router(mfa.router)
 app.include_router(tenants.router)
 # Wave 8 — KYC (stub → live via KYC-Checks / Sumsub / Onfido)
 app.include_router(kyc.router)
+# Wave 9 — Admin vendor invites + Permissions matrix
+app.include_router(permissions.router)
 
 
 # ---------- CORS ----------

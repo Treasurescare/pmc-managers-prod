@@ -23,10 +23,14 @@ import VendorDashboard from "@/apps/vendor-portal/VendorDashboard";
 import BidSubmit from "@/apps/vendor-portal/BidSubmit";
 import PaymentResult from "@/apps/vendor-portal/PaymentResult";
 import SandboxCheckout from "@/apps/vendor-portal/SandboxCheckout";
+import VendorVerifyEmail from "@/apps/vendor-portal/VendorVerifyEmail";
 
 // Wave 1 — Staff Portal (multi-role: Escrow/Certifier/Legal/Accounting/Committee)
 import StaffLogin from "@/apps/staff-portal/StaffLogin";
 import StaffDashboard from "@/apps/staff-portal/StaffDashboard";
+
+// Wave 9 — External Committee Invite
+import CommitteeAccept from "@/apps/committee-portal/CommitteeAccept";
 
 export default function App() {
   return (
@@ -55,10 +59,14 @@ export default function App() {
             <Route path="/vendor/payment/success" element={<PaymentResult outcome="success" />} />
             <Route path="/vendor/payment/cancel" element={<PaymentResult outcome="cancel" />} />
             <Route path="/vendor/payment/sandbox" element={<SandboxCheckout />} />
+            <Route path="/vendor/verify/:token" element={<VendorVerifyEmail />} />
 
             {/* Staff Portal */}
             <Route path="/staff/login" element={<StaffLogin />} />
             <Route path="/staff" element={<StaffDashboard />} />
+
+            {/* External Committee accept/decline */}
+            <Route path="/committee/accept/:token" element={<CommitteeAccept />} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

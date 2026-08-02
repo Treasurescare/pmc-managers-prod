@@ -125,6 +125,7 @@ async def create_staff(payload: StaffCreateIn, admin=Depends(require_role("admin
         "hierarchy_level": payload.hierarchy_level,
         "company_id": payload.company_id,
         "reports_to": payload.reports_to,
+        "designation": payload.designation,
         "tenant_id": admin["tenant_id"],
         "is_active": True,
         "created_at": datetime.now(timezone.utc).isoformat(),

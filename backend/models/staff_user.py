@@ -35,6 +35,7 @@ class StaffCreateIn(BaseModel):
     hierarchy_level: int = 1
     company_id: Optional[str] = None
     reports_to: Optional[str] = None  # staff_id of manager
+    designation: Optional[str] = None  # e.g. "Chief Procurement Officer"
 
 
 class StaffUpdateIn(BaseModel):
@@ -42,6 +43,7 @@ class StaffUpdateIn(BaseModel):
     roles: Optional[List[StaffRole]] = None
     hierarchy_level: Optional[int] = None
     reports_to: Optional[str] = None
+    designation: Optional[str] = None
     is_active: Optional[bool] = None
 
 

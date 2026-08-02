@@ -19,7 +19,9 @@ class NoticeIn(BaseModel):
     budget_currency: str = "USD"
     budget_amount: Optional[float] = None
     required_licenses: List[str] = []
-    attachments: List[dict] = []
+    # Primary tender/RFP/RFQ document (single canonical PDF/DOCX)
+    primary_document: Optional[dict] = None  # {file_name, url, content_type, size_bytes}
+    attachments: List[dict] = []  # supplementary: BOQ, drawings, addenda, etc.
     contact_email: Optional[EmailStr] = None
     contact_name: Optional[str] = None
     is_published: bool = False

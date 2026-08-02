@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { adminApi, api, mastersApi, formatApiError } from "@/lib/api";
+import { adminApi, api, mastersApi, noticeDocsApi, formatApiError } from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import TopBar from "@/apps/shared/TopBar";
 import { toast } from "sonner";
@@ -15,6 +15,7 @@ import AnalyticsPanel from "./AnalyticsPanel";
 import NotificationBell from "./NotificationBell";
 import MFASetupModal from "./MFASetupModal";
 import AuditCopilotButton from "./AuditCopilotButton";
+import PermissionsPanel from "./PermissionsPanel";
 import useTenantSkin from "@/apps/shared/useTenantSkin";
 
 function TabBar({ tab, setTab }) {
@@ -28,6 +29,7 @@ function TabBar({ tab, setTab }) {
     ["boq", "BOQ & Contracts"],
     ["vintel", "Vendor Intel"],
     ["masters", "Masters"],
+    ["permissions", "Permissions"],
     ["packages", "Packages"],
     ["audit", "Audit"],
   ];
@@ -165,6 +167,8 @@ function NoticesPanel() {
   const [items, setItems] = useState([]);
   const [showNew, setShowNew] = useState(false);
   const [matrices, setMatrices] = useState([]);
+  const [primaryFile, setPrimaryFile] = useState(null);
+  const [attachmentFiles, setAttachmentFiles] = useState([]);
   const [draft, setDraft] = useState({
     title: "", description: "", document_type: "tender", category: "",
     delivery_country: "KZ", submission_deadline: "", budget_currency: "USD",
@@ -190,11 +194,22 @@ function NoticesPanel() {
       return;
     }
     try {
-      await adminApi.createNotice(draft);
-      toast.success("Notice created");
+      const created = await adminApi.createNotice(draft);
+      // Upload primary document + attachments if provided
+      if (primaryFile) {
+        try {
+          await noticeDocsApi.uploadPrimary(created.notice_ref, primaryFile);
+        } catch (e) { toast.error(`Primary doc upload failed: ${formatApiError(e)}`); }
+      }
+      for (const f of attachmentFiles) {
+        try {
+          await noticeDocsApi.uploadAttachment(created.notice_ref, f);
+        } catch (e) { toast.error(`Attachment "${f.name}" failed: ${formatApiError(e)}`); }
+      }
+      toast.success(`Notice created · ${created.notice_ref}`);
       setShowNew(false);
       setDraft({ ...draft, title: "", description: "" });
-      // Reload
+      setPrimaryFile(null); setAttachmentFiles([]);
       load();
     } catch (err) { toast.error(formatApiError(err)); }
   };
@@ -259,6 +274,33 @@ function NoticesPanel() {
             <input type="checkbox" checked={draft.is_published} onChange={(e) => setDraft({ ...draft, is_published: e.target.checked })} data-testid="notice-publish" />
             Publish immediately (visible on public board)
           </label>
+
+          <div className="col-span-2 border-t border-brand-navy/10 pt-4 mt-2">
+            <div className="pmc-label mb-2">Tender / RFP / RFQ documents</div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="text-sm">
+                <span className="text-brand-navy/70">Primary document (PDF/DOCX, single)</span>
+                <input type="file" accept=".pdf,.doc,.docx"
+                       onChange={(e) => setPrimaryFile(e.target.files?.[0] || null)}
+                       data-testid="notice-primary-file"
+                       className="mt-1 w-full text-sm" />
+                {primaryFile && <div className="mt-1 text-xs text-brand-navy/60">Selected: {primaryFile.name}</div>}
+              </label>
+              <label className="text-sm">
+                <span className="text-brand-navy/70">Additional attachments (BOQ, drawings, addenda…)</span>
+                <input type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.dwg,.jpg,.png"
+                       onChange={(e) => setAttachmentFiles(Array.from(e.target.files || []))}
+                       data-testid="notice-attachments"
+                       className="mt-1 w-full text-sm" />
+                {attachmentFiles.length > 0 && (
+                  <div className="mt-1 text-xs text-brand-navy/60">
+                    {attachmentFiles.length} file(s): {attachmentFiles.map(f => f.name).join(", ")}
+                  </div>
+                )}
+              </label>
+            </div>
+          </div>
+
           <div className="col-span-2 flex justify-end">
             <button type="button" onClick={create} data-testid="notice-create"
               className="px-8 py-3 text-[12px] font-semibold uppercase tracking-widest bg-brand-navy-soft text-white hover:bg-brand-navy-soft/90">Create notice</button>
@@ -269,10 +311,22 @@ function NoticesPanel() {
       <div className="border border-brand-navy/10 bg-white">
         {items.length === 0 && <div className="p-6 text-brand-navy/50 text-sm">No published notices yet.</div>}
         {items.map((n) => (
-          <div key={n.id} className="p-4 border-b border-brand-navy/10 flex items-baseline gap-4" data-testid={`notice-row-${n.notice_ref}`}>
+          <div key={n.id} className="p-4 border-b border-brand-navy/10 flex items-baseline gap-4 flex-wrap" data-testid={`notice-row-${n.notice_ref}`}>
             <span className="font-mono text-xs text-brand-navy-soft">{n.notice_ref}</span>
             <span className="pmc-pill uppercase text-[10px]">{n.document_type}</span>
             <span className="text-sm font-semibold text-brand-navy flex-1">{n.title}</span>
+            {n.primary_document && (
+              <a href={`${process.env.REACT_APP_BACKEND_URL}${n.primary_document.url}`} target="_blank" rel="noreferrer"
+                 data-testid={`notice-primary-${n.notice_ref}`}
+                 className="text-xs underline text-brand-navy/70">
+                📎 {n.primary_document.file_name}
+              </a>
+            )}
+            {(n.attachments || []).length > 0 && (
+              <span className="text-xs text-brand-navy/50" data-testid={`notice-attach-count-${n.notice_ref}`}>
+                +{n.attachments.length} attachment(s)
+              </span>
+            )}
             <span className="text-xs text-brand-navy/50 font-mono">{n.submission_deadline?.slice(0, 10)}</span>
           </div>
         ))}
@@ -549,6 +603,7 @@ export default function AdminDashboard() {
           {tab === "boq" && <BOQContractsPanel />}
           {tab === "vintel" && <VendorIntelPanel />}
           {tab === "masters" && <MastersPanel />}
+          {tab === "permissions" && <PermissionsPanel />}
           {tab === "packages" && <PackagesPanel />}
           {tab === "audit" && <AuditPanel />}
         </div>

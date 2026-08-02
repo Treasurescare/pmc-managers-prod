@@ -1,13 +1,16 @@
 """Bid Committee router — per-tender committee, formed from admin pool."""
+import asyncio
 from typing import List
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends
 from bson import ObjectId
 
+import config
 from db import db
 from models.committee import CommitteeCreateIn, CommitteeVoteIn, CommitteeCloseIn
 from models.base import BaseDocument, now_iso
-from security import require_role
+from security import require_role, new_magic_token
+from emails import send_email, wrap
 from audit import audit_log
 
 router = APIRouter(prefix="/api/v1/committees", tags=["committees"])
@@ -36,27 +39,106 @@ async def create_committee(payload: CommitteeCreateIn,
             roles.append("committee_member")
             await db.admin_users.update_one({"_id": s["_id"]}, {"$set": {"roles": roles}})
 
+    # Build external invitee records with per-invitee accept tokens
+    ext_records = []
+    for inv in (payload.external_invitees or []):
+        tok = new_magic_token()
+        ext_records.append({
+            "email": inv.email.lower(), "name": inv.name,
+            "designation": inv.designation,
+            "accept_token": tok, "status": "invited",
+            "invited_at": now_iso(),
+        })
+
     doc = {
         "notice_ref": payload.notice_ref,
         "chairperson_id": payload.chairperson_id,
         "member_ids": payload.member_ids,
+        "external_invitees": ext_records,
         "quorum": payload.quorum,
         "notes": payload.notes,
-        "votes": [],  # [{bid_id, staff_id, vote, remarks, at}]
+        "votes": [],
         "status": "open",
         "created_by": admin["id"],
         "created_at": now_iso(),
     }
     res = await db.committees.insert_one(doc)
     doc["_id"] = res.inserted_id
+
+    # Fire acceptance emails to external invitees (best-effort, non-blocking)
+    tender_title = notice.get("title", "")
+    tender_budget = f"{notice.get('budget_currency', '')} {notice.get('budget_amount') or ''}"
+    deadline = (notice.get("submission_deadline") or "")[:10]
+    for inv in ext_records:
+        accept_url = f"{config.FRONTEND_URL}/committee/accept/{inv['accept_token']}"
+        body_html = (
+            f"<p>You have been invited to sit on the evaluation committee for the following procurement:</p>"
+            f"<table style='width:100%;font-size:13px'>"
+            f"<tr><td><strong>Tender Ref</strong></td><td>{payload.notice_ref}</td></tr>"
+            f"<tr><td><strong>Title</strong></td><td>{tender_title}</td></tr>"
+            f"<tr><td><strong>Budget</strong></td><td>{tender_budget}</td></tr>"
+            f"<tr><td><strong>Submission deadline</strong></td><td>{deadline}</td></tr>"
+            f"</table>"
+            f"<p style='margin-top:16px'>Please accept or decline this invitation using the link below.</p>"
+        )
+        asyncio.create_task(send_email(
+            inv["email"],
+            f"PMC Managers — Committee invitation for {payload.notice_ref}",
+            wrap(f"Committee invitation · {payload.notice_ref}",
+                 body_html, "Accept or decline", accept_url),
+        ))
+
     await audit_log("committee.create", admin, "committee", payload.notice_ref,
-                    {"chair": payload.chairperson_id, "members": payload.member_ids})
+                    {"chair": payload.chairperson_id,
+                     "members": payload.member_ids,
+                     "external_count": len(ext_records)})
     return _out(doc)
 
 
 @router.get("")
 async def list_committees(admin=Depends(require_role("admin", "committee_member", "reviewer", "auditor"))) -> List[dict]:
     return [_out(c) async for c in db.committees.find({}).sort("created_at", -1).limit(200)]
+
+
+# ---------- External invitee accept/decline (PUBLIC by token) ----------
+
+@router.get("/external/{token}")
+async def external_invite_meta(token: str):
+    """PUBLIC — resolve accept token to a snapshot of the invitation."""
+    c = await db.committees.find_one({"external_invitees.accept_token": token})
+    if not c:
+        raise HTTPException(status_code=404, detail="Invitation not found or expired")
+    inv = next((i for i in c.get("external_invitees", []) if i.get("accept_token") == token), None)
+    notice = await db.notices.find_one({"notice_ref": c["notice_ref"]})
+    return {
+        "notice_ref": c["notice_ref"],
+        "tender_title": (notice or {}).get("title"),
+        "budget_currency": (notice or {}).get("budget_currency"),
+        "budget_amount": (notice or {}).get("budget_amount"),
+        "submission_deadline": (notice or {}).get("submission_deadline"),
+        "invitee": {"email": inv.get("email"), "name": inv.get("name"),
+                    "designation": inv.get("designation"),
+                    "status": inv.get("status")} if inv else None,
+    }
+
+
+@router.post("/external/{token}/decision")
+async def external_decision(token: str, payload: dict):
+    """PUBLIC — external invitee accepts or declines. `payload` = {decision: 'accepted'|'declined'}."""
+    decision = payload.get("decision")
+    if decision not in ("accepted", "declined"):
+        raise HTTPException(status_code=400, detail="decision must be 'accepted' or 'declined'")
+    c = await db.committees.find_one({"external_invitees.accept_token": token})
+    if not c:
+        raise HTTPException(status_code=404, detail="Invitation not found or expired")
+    await db.committees.update_one(
+        {"_id": c["_id"], "external_invitees.accept_token": token},
+        {"$set": {"external_invitees.$.status": decision,
+                  "external_invitees.$.decided_at": now_iso()}},
+    )
+    await audit_log(f"committee.external.{decision}", None, "committee",
+                    c.get("notice_ref"), {"token_tail": token[-6:]})
+    return {"ok": True, "decision": decision}
 
 
 @router.post("/vote")

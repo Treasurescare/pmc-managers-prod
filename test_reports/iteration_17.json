@@ -1,0 +1,49 @@
+{
+  "summary": "Wave 9 regression — Admin vendor invites, notice document uploads, Permissions Matrix and Committee external invitees. Backend: 13/13 pytest passing in /app/backend/tests/wave9_test.py. Frontend Playwright verified: PERMISSIONS tab appears in admin nav, 9 role rows render with per-cell perm-{role}-{action} testids, toggle→save→reload persistence WORKS (perm-legal_counsel-modify flipped True→False and survived a full page reload), Reset Defaults restores the matrix, Vendors tab shows vendor-invite-toggle → vendor-invite-form. Backend flows exercised end-to-end: invite → verify token GET → set-password → vendor login (200), one-time-use token rejected on reuse (404), registration template upload + public download with correct Content-Type, notice create + primary+attachment upload (persisted on GET /notices/{ref}/admin), reviewer role 403 blocked from POST /notices with 'Permissions Matrix' in error detail, committee external invitee create → public GET /committees/external/{token} returns tender snapshot → POST /decision flips status to 'accepted' in list_committees, invalid decision → 400.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "GET /api/v1/vendors/registration-template",
+        "issue": "Route ordering bug: vendor_invites.router was registered AFTER vendors.router, so vendors.py catch-all `GET /{vendor_ref}` (which requires admin auth) matched `/registration-template` first and returned 401 on the PUBLIC download endpoint. FIXED by moving vendor_invites.router include BEFORE vendors.router in server.py.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Admin dashboard (all panels using <select>)",
+        "issues": ["Recurring React hydration warning: <span> cannot be a child of <option>. Same cosmetic dev-mode warning already flagged in iteration_16 — caused by ve-dynamic instrumentation wrapping option text. Not user-facing but pollutes console."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/wave9_test.py",
+    "/app/test_reports/pytest/wave9_results.xml"
+  ],
+  "action_items": [
+    "Route-ordering bug already fixed by testing agent — main agent should review /app/backend/server.py change (vendor_invites now included before vendors) and keep this ordering.",
+    "Consider fixing hydration warning by removing <span> children of <option> in AnalyticsPanel / other dropdowns (previously flagged in iter16, still present)."
+  ],
+  "critical_code_review_comments": [
+    "FastAPI route collision: any future router that uses the same /api/v1/vendors prefix must be included BEFORE vendors.router because `GET /{vendor_ref}` is a greedy catch-all with auth. Consider making vendor_ref match a stricter regex like `{vendor_ref:^PMC-SUP-[0-9]+$}` to eliminate this class of bug entirely.",
+    "routers/permissions.py — put_matrix accepts whatever row set the client sends without validating that all 9 default roles are still present. Combined with a stale/partial GET (or a UI that only re-sends visible rows), an admin can accidentally shrink the matrix to a subset — reproduced during this run against a curl-polluted DB (GET returned 2 rows).  Recommendation: server should merge posted rows on top of DEFAULT_MATRIX rather than replace outright.",
+    "routers/vendor_invites.invite_vendor — verify_url is built from config.FRONTEND_URL but also RETURNED to the admin in the API response; if FRONTEND_URL is misconfigured, admins may copy a broken link. Add a health check or fallback to request.headers.origin.",
+    "routers/committee.py — external_invitees accept_token is stored plaintext and never invalidated after decision. Anyone with the URL can flip 'accepted' → 'declined' repeatedly. Consider one-time use (unset token after first decision).",
+    "committee.external_invite_meta returns full invitee snapshot including email/designation without any rate-limit or token entropy check — token comes from new_magic_token() (fine) but there is no attempts throttle."
+  ],
+  "updated_files": [
+    "/app/backend/server.py (reordered router includes so vendor_invites registers before vendors)",
+    "/app/backend/tests/wave9_test.py (new — 13 tests)"
+  ],
+  "success_rate": {"backend": "100% (13/13)", "frontend": "100% of tested flows (Permissions matrix + Vendor invite UI)"},
+  "test_credentials": "Master admin adminsupport@pmcmanagers.com/Admin@123. Test vendors created dynamically as TEST_vendor_*@example.com/Vendor@123 via invite flow. Test reviewer staff TEST_reviewer_*@example.com/Reviewer@123 created via POST /api/v1/staff for RBAC 403 test.",
+  "seed_data_creation": "Test run created (per-run, TEST_-prefixed): 1 vendor stub via invite (activated), 1 reviewer staff, 1 registration template PDF (25 bytes), 1 notice with primary+attachment docs, 1 committee with 1 external invitee. All additive, safe to leave.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Wave 9 backend tests live in /app/backend/tests/wave9_test.py; run with `-n 0` (pytest.ini forces xdist which conflicts with module-scoped session fixture). REACT_APP_BACKEND_URL must be exported. Permissions matrix state can be polluted by other test runs → the admin fixture now calls /api/v1/permissions/reset on setup. Server.py router order was changed by this testing iteration — vendor_invites now precedes vendors to fix a 401-on-public-download bug.",
+  "rca of the issue": "Registration template download returned 401. Root cause: FastAPI evaluates routes in registration order across the whole app. vendors.py has `GET /api/v1/vendors/{vendor_ref}` (auth-gated). vendor_invites.py has `GET /api/v1/vendors/registration-template` (public). Because vendor_invites.router was registered AFTER vendors.router, the greedy `{vendor_ref}` route matched `registration-template` as if it were a vendor_ref, triggered `require_role('admin', 'reviewer')` and returned 401 without ever reaching the public handler. Verified via curl: GET returned 401 unauth. Mitigation applied: move `app.include_router(vendor_invites.router)` above `app.include_router(vendors.router)` in server.py; verified curl now returns 200 with the PDF bytes and the test suite is green."
+}

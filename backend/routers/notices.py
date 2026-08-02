@@ -1,12 +1,14 @@
 from typing import Optional, List
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
 from bson import ObjectId
+import base64, uuid
 
 import config
 from db import db, next_sequence
 from models import NoticeIn
 from models.base import BaseDocument, now_iso
 from security import require_role
+from routers.permissions import require_notice_permission
 from audit import audit_log
 
 router = APIRouter(prefix="/api/v1/notices", tags=["notices"])
@@ -54,8 +56,12 @@ async def get_notice(notice_ref: str):
 
 
 @router.post("")
-async def create_notice(payload: NoticeIn, admin=Depends(require_role("admin"))):
-    """ADMIN — create + optionally publish a notice."""
+async def create_notice(payload: NoticeIn, admin=Depends(require_role(
+        "admin", "reviewer", "legal_counsel", "committee_member"))):
+    """Create + optionally publish a notice. Permissions Matrix enforced."""
+    await require_notice_permission(admin, "create", payload.document_type)
+    if payload.is_published:
+        await require_notice_permission(admin, "publish", payload.document_type)
     seq = await next_sequence("notice_seq")
     from datetime import datetime, timezone
     year = datetime.now(timezone.utc).year
@@ -84,6 +90,56 @@ async def create_notice(payload: NoticeIn, admin=Depends(require_role("admin")))
         {"title": doc["title"], "category": doc.get("category"), "is_published": doc.get("is_published")},
     )
     return _out(doc)
+
+
+@router.post("/{notice_ref}/document")
+async def upload_notice_document(notice_ref: str,
+                                   kind: str = Form("primary"),
+                                   file: UploadFile = File(...),
+                                   admin=Depends(require_role(
+                                       "admin", "reviewer", "legal_counsel"))):
+    """Upload the primary tender/RFP/RFQ document, or an additional attachment.
+    kind: 'primary' (single canonical doc, overwrites) | 'attachment' (appended)."""
+    notice = await db.notices.find_one({"notice_ref": notice_ref})
+    if not notice:
+        raise HTTPException(status_code=404, detail="Notice not found")
+    await require_notice_permission(admin, "modify", notice.get("document_type", "*"))
+
+    body = await file.read()
+    if len(body) > config.MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="File exceeds pilot upload limit")
+    key = f"notice-docs/{notice_ref}/{uuid.uuid4().hex}_{file.filename}"
+    await db.uploads.insert_one({
+        "key": key, "content_type": file.content_type,
+        "size_bytes": len(body),
+        "data_b64": base64.b64encode(body).decode("ascii"),
+        "created_at": now_iso(),
+    })
+    meta = {"file_name": file.filename, "url": f"/api/v1/uploads/files/{key}",
+            "content_type": file.content_type or "application/octet-stream",
+            "size_bytes": len(body), "uploaded_at": now_iso(),
+            "uploaded_by": admin["email"]}
+    if kind == "primary":
+        await db.notices.update_one({"notice_ref": notice_ref},
+                                     {"$set": {"primary_document": meta}})
+    else:
+        await db.notices.update_one({"notice_ref": notice_ref},
+                                     {"$push": {"attachments": meta}})
+    await audit_log("notice.document_upload", admin, "notice", notice_ref,
+                    {"kind": kind, "file_name": file.filename})
+    return {"ok": True, "kind": kind, **meta}
+
+
+@router.delete("/{notice_ref}")
+async def delete_notice(notice_ref: str,
+                         admin=Depends(require_role("admin"))):
+    notice = await db.notices.find_one({"notice_ref": notice_ref})
+    if not notice:
+        raise HTTPException(status_code=404, detail="Notice not found")
+    await require_notice_permission(admin, "delete", notice.get("document_type", "*"))
+    await db.notices.delete_one({"notice_ref": notice_ref})
+    await audit_log("notice.delete", admin, "notice", notice_ref, {})
+    return {"ok": True}
 
 
 @router.get("/{notice_ref}/admin")

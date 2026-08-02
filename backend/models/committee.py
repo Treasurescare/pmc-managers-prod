@@ -6,10 +6,17 @@ from pydantic import BaseModel
 CommitteeDecision = Literal["open", "closed_awarded", "closed_rejected", "closed_no_award"]
 
 
+class ExternalInviteeIn(BaseModel):
+    email: str
+    name: str
+    designation: Optional[str] = None
+
+
 class CommitteeCreateIn(BaseModel):
     notice_ref: str
     chairperson_id: str  # staff_id
     member_ids: List[str]
+    external_invitees: List[ExternalInviteeIn] = []
     quorum: int = 3
     notes: Optional[str] = None
 

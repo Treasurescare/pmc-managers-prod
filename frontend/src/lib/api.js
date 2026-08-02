@@ -237,6 +237,47 @@ export const kycApi = {
     api.get(`/api/v1/kyc/vendor/${vendor_ref}`).then((r) => r.data),
 };
 
+// ---------- Wave 9: Admin vendor invite + Permissions Matrix ----------
+export const vendorInviteApi = {
+  invite: (payload) => api.post("/api/v1/vendors/invite", payload).then((r) => r.data),
+  verifyMeta: (token) => api.get(`/api/v1/vendors/verify/${token}`).then((r) => r.data),
+  complete: (token, password) =>
+    api.post(`/api/v1/vendors/verify/${token}/complete`, { password }).then((r) => r.data),
+  uploadTemplate: (file) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return api.post("/api/v1/vendors/registration-template", fd,
+      { headers: { "Content-Type": "multipart/form-data" } }).then((r) => r.data);
+  },
+  templateMeta: () => api.get("/api/v1/vendors/registration-template/meta").then((r) => r.data),
+  templateDownloadUrl: () =>
+    `${process.env.REACT_APP_BACKEND_URL}/api/v1/vendors/registration-template`,
+};
+
+export const permissionsApi = {
+  get: () => api.get("/api/v1/permissions").then((r) => r.data),
+  put: (rows) => api.put("/api/v1/permissions", { rows }).then((r) => r.data),
+  reset: () => api.post("/api/v1/permissions/reset").then((r) => r.data),
+};
+
+export const noticeDocsApi = {
+  uploadPrimary: (notice_ref, file) => {
+    const fd = new FormData();
+    fd.append("kind", "primary");
+    fd.append("file", file);
+    return api.post(`/api/v1/notices/${notice_ref}/document`, fd,
+      { headers: { "Content-Type": "multipart/form-data" } }).then((r) => r.data);
+  },
+  uploadAttachment: (notice_ref, file) => {
+    const fd = new FormData();
+    fd.append("kind", "attachment");
+    fd.append("file", file);
+    return api.post(`/api/v1/notices/${notice_ref}/document`, fd,
+      { headers: { "Content-Type": "multipart/form-data" } }).then((r) => r.data);
+  },
+  delete: (notice_ref) => api.delete(`/api/v1/notices/${notice_ref}`).then((r) => r.data),
+};
+
 // ---------- Wave 6: Auctions + Helpdesk ----------
 export const auctionApi = {
   create: (p) => api.post("/api/v1/auctions", p).then((r) => r.data),

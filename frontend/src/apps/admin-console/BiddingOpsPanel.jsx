@@ -18,7 +18,9 @@ export default function BiddingOpsPanel() {
   const [filter, setFilter] = useState("");
   const [committees, setCommittees] = useState([]);
   const [showCom, setShowCom] = useState(false);
-  const [comDraft, setComDraft] = useState({ notice_ref: "", chair: "", members: [], quorum: 3 });
+  const [comDraft, setComDraft] = useState({ notice_ref: "", chair: "", members: [], quorum: 3,
+                                              external_invitees: [] });
+  const [extDraft, setExtDraft] = useState({ email: "", name: "", designation: "" });
   const [assignFor, setAssignFor] = useState(null); // bid we're assigning certifier to
   const [inspDraft, setInspDraft] = useState({ certifier_id: "", scheduled_at: "", location: "" });
 
@@ -82,13 +84,26 @@ export default function BiddingOpsPanel() {
         notice_ref: comDraft.notice_ref,
         chairperson_id: comDraft.chair,
         member_ids: comDraft.members,
+        external_invitees: comDraft.external_invitees,
         quorum: Number(comDraft.quorum) || 3,
       });
-      toast.success("Committee formed");
+      toast.success(`Committee formed${comDraft.external_invitees.length ? ` · ${comDraft.external_invitees.length} external invited by email` : ""}`);
       setShowCom(false);
-      setComDraft({ notice_ref: "", chair: "", members: [], quorum: 3 });
+      setComDraft({ notice_ref: "", chair: "", members: [], quorum: 3, external_invitees: [] });
       await load();
     } catch (e) { toast.error(formatApiError(e)); }
+  };
+
+  const addExtInvitee = () => {
+    if (!extDraft.email || !extDraft.name) return toast.error("External invitee name and email required");
+    setComDraft({ ...comDraft,
+      external_invitees: [...comDraft.external_invitees, { ...extDraft }] });
+    setExtDraft({ email: "", name: "", designation: "" });
+  };
+  const removeExtInvitee = (i) => {
+    const copy = [...comDraft.external_invitees];
+    copy.splice(i, 1);
+    setComDraft({ ...comDraft, external_invitees: copy });
   };
 
   const certifiers = staffList.filter((s) => (s.roles || []).includes("certifier"));
@@ -141,7 +156,7 @@ export default function BiddingOpsPanel() {
               className="mt-1 w-full px-3 py-2 border border-brand-navy/20" />
           </label>
           <label className="md:col-span-4 text-sm">
-            <span className="pmc-label">Members (hold Ctrl/Cmd to multi-select)</span>
+            <span className="pmc-label">Members (hold Ctrl/Cmd to multi-select) · shows designation</span>
             <select multiple value={comDraft.members}
               onChange={(e) => setComDraft({
                 ...comDraft,
@@ -149,9 +164,51 @@ export default function BiddingOpsPanel() {
               })}
               className="mt-1 w-full px-3 py-2 border border-brand-navy/20 h-32"
               data-testid="committee-members">
-              {admins.map((a) => <option key={a.id} value={a.id}>{a.email}</option>)}
+              {staffList.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.email} — {a.designation || (a.roles || []).join(", ")}
+                </option>
+              ))}
             </select>
           </label>
+
+          <div className="md:col-span-4 border-t border-brand-navy/10 pt-3">
+            <div className="pmc-label">External invitees (optional — will receive email invite with tender & bid summary)</div>
+            <div className="grid gap-2 md:grid-cols-4 mt-2">
+              <input value={extDraft.name}
+                     onChange={(e) => setExtDraft({ ...extDraft, name: e.target.value })}
+                     placeholder="Full name" data-testid="ext-invite-name"
+                     className="px-3 py-2 border border-brand-navy/20 text-sm" />
+              <input value={extDraft.email}
+                     onChange={(e) => setExtDraft({ ...extDraft, email: e.target.value })}
+                     placeholder="Email" type="email" data-testid="ext-invite-email"
+                     className="px-3 py-2 border border-brand-navy/20 text-sm" />
+              <input value={extDraft.designation}
+                     onChange={(e) => setExtDraft({ ...extDraft, designation: e.target.value })}
+                     placeholder="Designation (e.g. Independent Engineer)"
+                     data-testid="ext-invite-designation"
+                     className="px-3 py-2 border border-brand-navy/20 text-sm" />
+              <button type="button" onClick={addExtInvitee}
+                      data-testid="ext-invite-add"
+                      className="px-4 py-2 text-[11px] uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5">
+                Add invitee
+              </button>
+            </div>
+            {comDraft.external_invitees.length > 0 && (
+              <ul className="mt-2 text-sm space-y-1" data-testid="ext-invitees-list">
+                {comDraft.external_invitees.map((inv, i) => (
+                  <li key={`${inv.email}-${i}`} className="flex items-center gap-2">
+                    <span className="flex-1">
+                      <strong>{inv.name}</strong> · {inv.email}
+                      {inv.designation && <span className="text-brand-navy/60"> · {inv.designation}</span>}
+                    </span>
+                    <button type="button" onClick={() => removeExtInvitee(i)}
+                            className="text-xs text-red-600 hover:underline">Remove</button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
           <div className="md:col-span-4 flex justify-end">
             <button onClick={submitCommittee} data-testid="committee-create-submit"
               className="px-8 py-3 text-[12px] font-semibold uppercase tracking-widest bg-brand-navy-soft text-white hover:bg-brand-navy-soft/90">
