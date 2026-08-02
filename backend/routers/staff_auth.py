@@ -51,6 +51,14 @@ async def staff_login(payload: StaffLoginIn, response: Response) -> Dict[str, An
     if not user.get("is_active", True):
         raise HTTPException(status_code=403, detail="Account disabled")
 
+    # Wave 8 — Force MFA on high-risk roles
+    HIGH_RISK_ROLES = {"escrow_agent", "legal_counsel", "accounting"}
+    if payload.active_role in HIGH_RISK_ROLES and not user.get("mfa_enabled"):
+        raise HTTPException(
+            status_code=403,
+            detail=f"MFA is required for {payload.active_role}. Sign in as 'admin' first and enable Two-Factor from the Security · 2FA button, then retry.",
+        )
+
     # Wave 7 — MFA gate. If the user has MFA enabled we require an OTP.
     if user.get("mfa_enabled"):
         if not payload.otp_code:

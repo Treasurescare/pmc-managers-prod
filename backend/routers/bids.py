@@ -120,12 +120,18 @@ async def list_all_bids(
     admin=Depends(require_role("admin", "reviewer", "escrow_agent", "certifier",
                                "legal_counsel", "accounting", "committee_member", "auditor")),
 ) -> List[dict]:
+    from matrix_helper import active_step
     q: dict = {}
     if notice_ref:
         q["notice_ref"] = notice_ref
     if status:
         q["status"] = status
-    return [_out(b) async for b in db.bids.find(q).sort("created_at", -1).limit(300)]
+    rows: List[dict] = []
+    async for b in db.bids.find(q).sort("created_at", -1).limit(300):
+        row = _out(b)
+        row["active_step"] = await active_step(b)
+        rows.append(row)
+    return rows
 
 
 _ROLE_TO_TARGET_STATUS = {

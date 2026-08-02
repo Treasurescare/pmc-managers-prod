@@ -54,6 +54,67 @@ async def dashboard(admin=Depends(require_role("admin", "reviewer", "auditor")))
     }
 
 
+@router.post("/ai/audit-copilot/{bid_id}")
+async def audit_copilot(bid_id: str,
+                        admin=Depends(require_role("admin", "committee_member", "auditor"))):
+    """LLM reviews the bid's workflow_history and flags anomalies + issues an OK/REVIEW verdict.
+    Falls back to a deterministic rule-based verdict if the Emergent LLM key is unavailable."""
+    bid = await db.bids.find_one({"_id": ObjectId(bid_id)})
+    if not bid:
+        raise HTTPException(status_code=404, detail="Bid not found")
+    history = bid.get("workflow_history") or []
+    # Deterministic quick-checks
+    verdict = "ok"
+    flags = []
+    if bid.get("emd_paid_at") and bid.get("status") == "escrow_accepted":
+        # Time between EMD paid and escrow accept
+        try:
+            from datetime import datetime
+            t1 = datetime.fromisoformat(bid["emd_paid_at"].replace("Z", ""))
+            for h in history:
+                if h.get("action") == "accept" and h.get("role") == "escrow_agent":
+                    t2 = datetime.fromisoformat(h["at"].replace("Z", ""))
+                    delta = (t2 - t1).total_seconds() / 60
+                    if delta < 2:
+                        flags.append(f"Escrow accepted only {delta:.1f} min after EMD paid — very fast, verify manually")
+                    break
+        except Exception:
+            pass
+    # Legal cleared without any KYC evidence?
+    if any(h.get("role") == "legal_counsel" and h.get("action") == "accept" for h in history):
+        kyc = await db.kyc_cases.find_one({"vendor_ref": bid.get("vendor_ref")})
+        if not kyc:
+            flags.append("Legal cleared but no KYC case on file for this vendor — needs review")
+            verdict = "review"
+    if flags:
+        verdict = "review"
+
+    # Try LLM narrative
+    narrative = ""
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        key = os.environ.get("EMERGENT_LLM_KEY", "")
+        if key:
+            chat = LlmChat(api_key=key, session_id=f"copilot-{bid_id}",
+                           system_message=("You are a procurement audit copilot. "
+                                            "Read the workflow history of a bid and reply "
+                                            "in 2 short lines: (1) OK or REVIEW, "
+                                            "(2) one-sentence rationale."))
+            chat.with_model("openai", "gpt-4o-mini")
+            hist_short = [{"role": h.get("role"), "action": h.get("action"),
+                           "to": h.get("to_status"), "at": h.get("at")} for h in history[-10:]]
+            msg = (f"Bid {bid.get('bid_ref')} vendor={bid.get('company_name')} "
+                   f"price={bid.get('price_amount')} status={bid.get('status')}. "
+                   f"History: {hist_short}. Rule flags: {flags}. Verdict?")
+            resp = await chat.send_message(UserMessage(text=msg))
+            narrative = str(resp)[:400]
+    except Exception as e:
+        narrative = f"(AI narrative unavailable: {type(e).__name__})"
+
+    return {"verdict": verdict, "flags": flags, "narrative": narrative,
+            "history_length": len(history), "generated_at": now_iso()}
+
+
 @router.post("/ai/bid-anomaly/{bid_id}")
 async def bid_anomaly_check(bid_id: str,
                              admin=Depends(require_role("admin", "committee_member"))):

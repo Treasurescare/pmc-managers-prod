@@ -9,6 +9,7 @@ from db import db
 from models.vendor_user import VendorLoginIn, VendorPasswordChangeIn
 from security import verify_password, hash_password, new_csrf_token
 from audit import audit_log
+from models.base import now_iso
 import config
 
 router = APIRouter(prefix="/api/v1/vendor", tags=["vendor-auth"])
@@ -90,6 +91,30 @@ async def vendor_logout(response: Response) -> Dict[str, bool]:
 @router.get("/auth/me")
 async def vendor_me(vendor=Depends(current_vendor)) -> Dict[str, Any]:
     return vendor
+
+
+@router.post("/gdpr-forget")
+async def vendor_self_forget(payload: dict, vendor=Depends(current_vendor)):
+    """Vendor self-service GDPR forget — requires current password to confirm."""
+    v = await db.vendors.find_one({"_id": ObjectId(vendor["id"])})
+    if not v or not verify_password(payload.get("password", ""), v.get("password_hash", "")):
+        raise HTTPException(status_code=401, detail="Password does not match")
+    anon = {
+        "email": f"anonymised+{vendor['id']}@example.invalid",
+        "company_name": "[REDACTED]", "profile": {},
+        "is_active": False,
+        "gdpr_forgotten_at": now_iso(),
+        "gdpr_forgotten_by": "self",
+    }
+    await db.vendors.update_one({"_id": ObjectId(vendor["id"])}, {"$set": anon})
+    if v.get("email"):
+        await db.registrations.update_many(
+            {"email": v["email"]},
+            {"$set": {**anon, "gdpr_forgotten_by": "self"}},
+        )
+    await audit_log("gdpr.self_forget", None, "vendor", vendor["id"],
+                    {"original_email": v.get("email")})
+    return {"ok": True}
 
 
 @router.post("/auth/change-password")
