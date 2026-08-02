@@ -1,8 +1,12 @@
-from typing import Optional, Literal
+from typing import Optional, Literal, List
 from pydantic import BaseModel, EmailStr, Field
 
 
-AdminRole = Literal["admin", "reviewer"]
+AdminRole = Literal[
+    "admin", "reviewer",
+    "escrow_agent", "certifier", "legal_counsel", "accounting",
+    "committee_member", "auditor", "support",
+]
 
 
 class AdminLoginIn(BaseModel):
@@ -15,5 +19,7 @@ class AdminUser(BaseModel):
     email: str
     name: str
     role: AdminRole
+    roles: List[AdminRole] = []
     tenant_id: str
+    hierarchy_level: int = 1
     created_at: str

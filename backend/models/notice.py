@@ -23,6 +23,8 @@ class NoticeIn(BaseModel):
     contact_email: Optional[EmailStr] = None
     contact_name: Optional[str] = None
     is_published: bool = False
+    # EMD (Earnest Money Deposit) config — vendors pay this on bid submission
+    emd_config: Optional[dict] = None  # {"fixed_amount": 5000, "percentage": 2.5, "currency": "USD"}
 
 
 class NoticePublic(BaseModel):

@@ -209,6 +209,10 @@ async def admin_decide(registration_id: str, payload: RegistrationDecisionIn,
         seq = await next_sequence("vendor_seq")
         vendor_ref = f"PMC-SUP-{seq:06d}"
         updates.update({"status": "approved", "vendor_ref": vendor_ref})
+        # Generate a temporary password so the vendor can log in.
+        import secrets
+        from security import hash_password
+        temp_password = secrets.token_urlsafe(9)
         await db.vendors.insert_one({
             "vendor_ref": vendor_ref,
             "email": doc["email"],
@@ -217,12 +221,21 @@ async def admin_decide(registration_id: str, payload: RegistrationDecisionIn,
             "kz_licenses": doc.get("kz_licenses") or [],
             "profile": {k: doc.get(k) for k in doc.keys() if k not in ("_id", "magic_token", "status")},
             "tenant_id": doc.get("tenant_id", config.DEFAULT_TENANT_ID),
+            "password_hash": hash_password(temp_password),
+            "must_change_password": True,
+            "is_active": True,
             "created_at": now_iso(),
         })
-        await send_email(doc["email"], "PMC Managers — Registration approved",
+        login_url = f"{config.FRONTEND_URL}/vendor/login"
+        await send_email(doc["email"], "PMC Managers — Registration approved · Login details",
                          wrap(f"You're approved · {vendor_ref}",
                               f"<p>Congratulations. Your PMC Managers vendor registration has been approved. "
-                              f"Your supplier reference is <strong>{vendor_ref}</strong>.</p>"))
+                              f"Your supplier reference is <strong>{vendor_ref}</strong>.</p>"
+                              f"<p>You can now log in to the Vendor Portal to browse tenders and submit bids.</p>"
+                              f"<p><strong>Email:</strong> {doc['email']}<br/>"
+                              f"<strong>Temporary password:</strong> <code>{temp_password}</code></p>"
+                              f"<p>You will be asked to set a new password on your first login.</p>",
+                              "Sign in to the Vendor Portal", login_url))
     elif payload.action == "reject":
         if not payload.notes:
             raise HTTPException(status_code=400, detail="Notes required when rejecting")

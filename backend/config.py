@@ -19,8 +19,17 @@ MAGIC_LINK_TTL_HOURS = 72
 DEFAULT_TENANT_ID = "PMC-KZ-01"
 
 # Admin seed
-ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@pmcmanagers.com").lower()
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "kannan@emeraldcorporates.com").lower()
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "Admin@123")
+
+# Wave 1 — seeded staff accounts for the multi-role pipeline demo.
+STAFF_SEEDS = [
+    ("escrow@pmcmanagers.com",   "Escrow@123", "Escrow Agent",    ["escrow_agent"]),
+    ("certifier@pmcmanagers.com","Certify@123","Site Certifier",  ["certifier"]),
+    ("legal@pmcmanagers.com",    "Legal@123",  "Legal Counsel",   ["legal_counsel"]),
+    ("accounts@pmcmanagers.com", "Accts@123",  "Accounting Team", ["accounting"]),
+    ("committee@pmcmanagers.com","Bid@1234",   "Committee Chair", ["committee_member", "admin"]),
+]
 
 # Email (Resend via Emergent proxy)
 EMAIL_KEY = os.environ.get("EMERGENT_EMAIL_KEY", "")

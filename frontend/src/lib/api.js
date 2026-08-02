@@ -1,14 +1,13 @@
 // PMC v2 API client — Build Sheet v2 Part 4 contract.
-// Auth: session is carried by an httpOnly cookie set by /api/v1/admin/auth/login.
-// CSRF: a companion non-httpOnly `csrf_token` cookie is echoed on every non-GET
-// request as `X-CSRF-Token` header (double-submit-cookie pattern).
+// Auth: httpOnly cookies set by /api/v1/{admin|staff|vendor}/auth/login.
+// CSRF: double-submit-cookie pattern (X-CSRF-Token header on non-GET).
 import axios from "axios";
 
 export const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "";
 
 export const api = axios.create({
   baseURL: BACKEND_URL,
-  withCredentials: true, // send httpOnly access_token + csrf_token cookies
+  withCredentials: true,
   headers: { "Content-Type": "application/json" },
 });
 
@@ -25,7 +24,6 @@ function readCookie(name) {
   }
 }
 
-// Attach X-CSRF-Token header on state-changing calls (double-submit-cookie).
 api.interceptors.request.use((cfg) => {
   const method = (cfg.method || "get").toLowerCase();
   if (method !== "get" && method !== "head" && method !== "options") {
@@ -79,6 +77,95 @@ export const adminApi = {
   updatePackage: (id, payload) => api.patch(`/api/v1/packages/${id}`, payload).then((r) => r.data),
   audit: (params = {}) => api.get("/api/v1/audit-events", { params }).then((r) => r.data),
   verifyAudit: () => api.get("/api/v1/audit-events/verify").then((r) => r.data),
+};
+
+// ---------- Wave 1: Staff (multi-role) ----------
+export const staffApi = {
+  login: (email, password, active_role) =>
+    api.post("/api/v1/staff/auth/login", { email, password, active_role }).then((r) => r.data),
+  logout: () => api.post("/api/v1/staff/auth/logout"),
+  me: () => api.get("/api/v1/staff/auth/me").then((r) => r.data),
+  roleChoices: () => api.get("/api/v1/staff/roles").then((r) => r.data),
+  listStaff: () => api.get("/api/v1/staff").then((r) => r.data),
+  createStaff: (p) => api.post("/api/v1/staff", p).then((r) => r.data),
+  updateStaff: (id, p) => api.patch(`/api/v1/staff/${id}`, p).then((r) => r.data),
+};
+
+// ---------- Wave 1: Vendor ----------
+export const vendorApi = {
+  login: (email, password) =>
+    api.post("/api/v1/vendor/auth/login", { email, password }).then((r) => r.data),
+  logout: () => api.post("/api/v1/vendor/auth/logout"),
+  me: () => api.get("/api/v1/vendor/auth/me").then((r) => r.data),
+  changePassword: (current_password, new_password) =>
+    api.post("/api/v1/vendor/auth/change-password", { current_password, new_password }).then((r) => r.data),
+};
+
+// ---------- Wave 1: Bids ----------
+export const bidApi = {
+  create: (p) => api.post("/api/v1/bids", p).then((r) => r.data),
+  mine: () => api.get("/api/v1/bids/mine").then((r) => r.data),
+  get: (id) => api.get(`/api/v1/bids/${id}`).then((r) => r.data),
+  withdraw: (id) => api.post(`/api/v1/bids/${id}/withdraw`).then((r) => r.data),
+  list: (params = {}) => api.get("/api/v1/bids", { params }).then((r) => r.data),
+  decide: (id, payload) => api.post(`/api/v1/bids/${id}/decision`, payload).then((r) => r.data),
+  assignCertifier: (id, certifierId) =>
+    api.post(`/api/v1/bids/${id}/assign-certifier`, null, { params: { certifier_id: certifierId } }).then((r) => r.data),
+};
+
+// ---------- Wave 1: Payments (Stripe EMD) ----------
+export const paymentApi = {
+  checkout: (bid_id, origin_url) =>
+    api.post("/api/v1/payments/emd/checkout", { bid_id, origin_url }).then((r) => r.data),
+  status: (session_id) => api.get(`/api/v1/payments/status/${session_id}`).then((r) => r.data),
+  refund: (bid_id, reason) =>
+    api.post("/api/v1/payments/emd/refund", { bid_id, reason }).then((r) => r.data),
+};
+
+// ---------- Wave 1: Committee ----------
+export const committeeApi = {
+  create: (p) => api.post("/api/v1/committees", p).then((r) => r.data),
+  list: () => api.get("/api/v1/committees").then((r) => r.data),
+  vote: (p) => api.post("/api/v1/committees/vote", p).then((r) => r.data),
+  close: (p) => api.post("/api/v1/committees/close", p).then((r) => r.data),
+};
+
+// ---------- Wave 1: Tasks + Chat ----------
+export const taskApi = {
+  list: (params = {}) => api.get("/api/v1/tasks", { params }).then((r) => r.data),
+  create: (p) => api.post("/api/v1/tasks", p).then((r) => r.data),
+  update: (id, p) => api.patch(`/api/v1/tasks/${id}`, p).then((r) => r.data),
+  addFollowup: (id, p) => api.post(`/api/v1/tasks/${id}/followups`, p).then((r) => r.data),
+};
+
+export const chatApi = {
+  list: (context_type, context_id) =>
+    api.get("/api/v1/chat/messages", { params: { context_type, context_id } }).then((r) => r.data),
+  send: (p) => api.post("/api/v1/chat/messages", p).then((r) => r.data),
+  del: (id) => api.delete(`/api/v1/chat/messages/${id}`).then((r) => r.data),
+};
+
+// ---------- Wave 1: Inspections ----------
+export const inspectionApi = {
+  list: (params = {}) => api.get("/api/v1/inspections", { params }).then((r) => r.data),
+  assign: (p) => api.post("/api/v1/inspections", p).then((r) => r.data),
+  update: (id, p) => api.patch(`/api/v1/inspections/${id}`, p).then((r) => r.data),
+  addMedia: (id, item) => api.post(`/api/v1/inspections/${id}/media`, item).then((r) => r.data),
+  deleteMedia: (id, index) => api.delete(`/api/v1/inspections/${id}/media/${index}`).then((r) => r.data),
+};
+
+// ---------- Wave 1: Uploads ----------
+export const uploadsApi = {
+  presign: (file_name, content_type, scope, size_bytes) =>
+    api.post("/api/v1/uploads/presign", { file_name, content_type, scope, size_bytes }).then((r) => r.data),
+  direct: (key, file) => {
+    const fd = new FormData();
+    fd.append("key", key);
+    fd.append("file", file);
+    return api.post("/api/v1/uploads/direct", fd, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }).then((r) => r.data);
+  },
 };
 
 export default api;

@@ -55,11 +55,16 @@ async def current_admin(request: Request) -> dict:
         user = await db.admin_users.find_one({"_id": ObjectId(payload["sub"])})
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
+        # Return the active role from the JWT (multi-role support), and
+        # ALL roles the user actually holds — useful for role-switching UIs.
+        active_role = payload.get("role") or user.get("role") or "admin"
         return {
             "id": str(user["_id"]),
             "email": user["email"],
             "name": user.get("name"),
-            "role": user.get("role", "admin"),
+            "role": active_role,
+            "roles": user.get("roles") or [user.get("role") or "admin"],
+            "hierarchy_level": user.get("hierarchy_level", 1),
             "tenant_id": user.get("tenant_id", config.DEFAULT_TENANT_ID),
         }
     except jwt.ExpiredSignatureError:

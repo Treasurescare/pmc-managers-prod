@@ -6,12 +6,14 @@ import TopBar from "@/apps/shared/TopBar";
 import { toast } from "sonner";
 import KanbanColumn from "./packages/KanbanColumn";
 import VendorsPanel from "./VendorsPanel";
+import BiddingOpsPanel from "./BiddingOpsPanel";
 
 function TabBar({ tab, setTab }) {
   const tabs = [
     ["registrations", "Registrations"],
     ["vendors", "Vendors"],
     ["notices", "Notices"],
+    ["bidding", "Bidding Ops"],
     ["packages", "Packages"],
     ["audit", "Audit"],
   ];
@@ -152,6 +154,7 @@ function NoticesPanel() {
     title: "", description: "", document_type: "tender", category: "",
     delivery_country: "KZ", submission_deadline: "", budget_currency: "USD",
     budget_amount: null, is_published: true,
+    emd_config: { fixed_amount: 0, percentage: 0, currency: "USD" },
   });
 
   const load = useCallback(() => {
@@ -213,6 +216,16 @@ function NoticesPanel() {
               className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
           <label><span className="pmc-label">Budget amount</span>
             <input type="number" value={draft.budget_amount || ""} onChange={(e) => setDraft({ ...draft, budget_amount: parseFloat(e.target.value) || null })} data-testid="notice-budget"
+              className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
+          <label><span className="pmc-label">EMD — Fixed amount ({draft.budget_currency})</span>
+            <input type="number" min="0" value={draft.emd_config.fixed_amount || 0}
+              onChange={(e) => setDraft({ ...draft, emd_config: { ...draft.emd_config, fixed_amount: parseFloat(e.target.value) || 0, currency: draft.budget_currency } })}
+              data-testid="notice-emd-fixed"
+              className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
+          <label><span className="pmc-label">EMD — % of budget</span>
+            <input type="number" step="0.01" min="0" max="100" value={draft.emd_config.percentage || 0}
+              onChange={(e) => setDraft({ ...draft, emd_config: { ...draft.emd_config, percentage: parseFloat(e.target.value) || 0, currency: draft.budget_currency } })}
+              data-testid="notice-emd-percentage"
               className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
           <label className="col-span-2 flex items-center gap-2 text-sm">
             <input type="checkbox" checked={draft.is_published} onChange={(e) => setDraft({ ...draft, is_published: e.target.checked })} data-testid="notice-publish" />
@@ -487,6 +500,7 @@ export default function AdminDashboard() {
           {tab === "registrations" && <RegistrationsPanel />}
           {tab === "vendors" && <VendorsPanel />}
           {tab === "notices" && <NoticesPanel />}
+          {tab === "bidding" && <BiddingOpsPanel />}
           {tab === "packages" && <PackagesPanel />}
           {tab === "audit" && <AuditPanel />}
         </div>

@@ -11,7 +11,10 @@ from starlette.middleware.cors import CORSMiddleware
 import config
 from db import db, create_indexes
 from security import hash_password
-from routers import notices, registrations, packages, admin_auth, uploads, audit_routes, meta, vendors
+from routers import (
+    notices, registrations, packages, admin_auth, uploads, audit_routes, meta, vendors,
+    staff_auth, vendor_auth, bids, payments, committee, tasks, chat, inspections, masters,
+)
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -27,6 +30,16 @@ app.include_router(admin_auth.router)
 app.include_router(uploads.router)
 app.include_router(audit_routes.router)
 app.include_router(vendors.router)
+# Wave 1 — Bidding, EMD, multi-role pipeline, CRM
+app.include_router(staff_auth.router)
+app.include_router(vendor_auth.router)
+app.include_router(bids.router)
+app.include_router(payments.router)
+app.include_router(committee.router)
+app.include_router(tasks.router)
+app.include_router(chat.router)
+app.include_router(inspections.router)
+app.include_router(masters.router)
 
 
 # ---------- CORS ----------
@@ -47,12 +60,42 @@ async def _seed_admin() -> None:
         await db.admin_users.insert_one({
             "email": config.ADMIN_EMAIL,
             "password_hash": hash_password(config.ADMIN_PASSWORD),
-            "name": "PMC Administrator",
+            "name": "PMC Owner (Kannan)",
             "role": "admin",
+            "roles": ["admin", "committee_member"],
+            "hierarchy_level": 10,
             "tenant_id": config.DEFAULT_TENANT_ID,
+            "is_active": True,
             "created_at": datetime.now(timezone.utc).isoformat(),
         })
         logging.info(f"Seeded admin user {config.ADMIN_EMAIL}")
+    else:
+        # Backfill roles list on legacy single-role docs
+        if not existing.get("roles"):
+            await db.admin_users.update_one(
+                {"_id": existing["_id"]},
+                {"$set": {"roles": [existing.get("role") or "admin"],
+                          "is_active": True}},
+            )
+
+
+async def _seed_staff() -> None:
+    """Seed the 4 specialist role accounts + committee chair."""
+    for email, pw, name, roles in config.STAFF_SEEDS:
+        if await db.admin_users.find_one({"email": email}):
+            continue
+        await db.admin_users.insert_one({
+            "email": email,
+            "password_hash": hash_password(pw),
+            "name": name,
+            "role": roles[0],
+            "roles": roles,
+            "hierarchy_level": 5,
+            "tenant_id": config.DEFAULT_TENANT_ID,
+            "is_active": True,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+        logging.info(f"Seeded staff {email} with roles {roles}")
 
 
 async def _seed_demo_notices() -> None:
@@ -137,6 +180,7 @@ async def _seed_demo_notices() -> None:
 async def on_start() -> None:
     await create_indexes()
     await _seed_admin()
+    await _seed_staff()
     await _seed_demo_notices()
     await _seed_packages()
 
