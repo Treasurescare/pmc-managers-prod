@@ -168,4 +168,84 @@ export const uploadsApi = {
   },
 };
 
+// ---------- Wave 2: Evaluations ----------
+export const evalApi = {
+  lockEnvelope: (notice_ref, kind) =>
+    api.post("/api/v1/evaluations/lock-envelope", { notice_ref, kind }).then((r) => r.data),
+  saveRubric: (p) => api.post("/api/v1/evaluations/rubric", p).then((r) => r.data),
+  getRubric: (ref) => api.get(`/api/v1/evaluations/rubric/${ref}`).then((r) => r.data),
+  declareCOI: (p) => api.post("/api/v1/evaluations/coi", p).then((r) => r.data),
+  listCOI: (ref) => api.get(`/api/v1/evaluations/coi/${ref}`).then((r) => r.data),
+  score: (p) => api.post("/api/v1/evaluations/score", p).then((r) => r.data),
+  awardReport: (ref) => api.get(`/api/v1/evaluations/award-report/${ref}`).then((r) => r.data),
+};
+
+// ---------- Wave 3: BOQ + Contracts ----------
+export const boqApi = {
+  createTemplate: (p) => api.post("/api/v1/boq/templates", p).then((r) => r.data),
+  listTemplates: () => api.get("/api/v1/boq/templates").then((r) => r.data),
+  getTemplate: (id) => api.get(`/api/v1/boq/templates/${id}`).then((r) => r.data),
+  importExcel: (id, file) => {
+    const fd = new FormData(); fd.append("file", file);
+    return api.post(`/api/v1/boq/templates/${id}/import-excel`, fd,
+      { headers: { "Content-Type": "multipart/form-data" } }).then((r) => r.data);
+  },
+  compare: (id) => api.get(`/api/v1/boq/compare/${id}`).then((r) => r.data),
+};
+
+export const contractApi = {
+  create: (p) => api.post("/api/v1/contracts", p).then((r) => r.data),
+  list: () => api.get("/api/v1/contracts").then((r) => r.data),
+  get: (id) => api.get(`/api/v1/contracts/${id}`).then((r) => r.data),
+  completeMilestone: (id, order) =>
+    api.post(`/api/v1/contracts/${id}/milestones/${order}/complete`).then((r) => r.data),
+  addVariation: (p) => api.post("/api/v1/contracts/variations", p).then((r) => r.data),
+};
+
+// ---------- Wave 4: Vendor Intelligence + Masters ----------
+export const vendorIntelApi = {
+  rate: (p) => api.post("/api/v1/vendor-intel/ratings", p).then((r) => r.data),
+  blacklist: (p) => api.post("/api/v1/vendor-intel/blacklist", p).then((r) => r.data),
+  unblacklist: (ref) => api.delete(`/api/v1/vendor-intel/blacklist/${ref}`).then((r) => r.data),
+  watchlist: (p) => api.post("/api/v1/vendor-intel/watchlist", p).then((r) => r.data),
+  esg: (p) => api.post("/api/v1/vendor-intel/esg", p).then((r) => r.data),
+  summary: () => api.get("/api/v1/vendor-intel/summary").then((r) => r.data),
+};
+
+export const mastersApi = {
+  listCompanies: () => api.get("/api/v1/masters/companies").then((r) => r.data),
+  createCompany: (p) => api.post("/api/v1/masters/companies", p).then((r) => r.data),
+  listRoles: () => api.get("/api/v1/masters/roles").then((r) => r.data),
+  createRole: (p) => api.post("/api/v1/masters/roles", p).then((r) => r.data),
+  listMatrices: () => api.get("/api/v1/masters/approval-matrices").then((r) => r.data),
+  createMatrix: (p) => api.post("/api/v1/masters/approval-matrices", p).then((r) => r.data),
+};
+
+// ---------- Wave 5: Analytics + AI ----------
+export const analyticsApi = {
+  dashboard: () => api.get("/api/v1/analytics/dashboard").then((r) => r.data),
+  bidAnomaly: (bid_id) => api.post(`/api/v1/analytics/ai/bid-anomaly/${bid_id}`).then((r) => r.data),
+};
+
+// ---------- Wave 6: Auctions + Helpdesk ----------
+export const auctionApi = {
+  create: (p) => api.post("/api/v1/auctions", p).then((r) => r.data),
+  list: () => api.get("/api/v1/auctions").then((r) => r.data),
+  bid: (p) => api.post("/api/v1/auctions/bid", p).then((r) => r.data),
+};
+
+export const supportApi = {
+  create: (p) => api.post("/api/v1/support/tickets", p).then((r) => r.data),
+  list: () => api.get("/api/v1/support/tickets").then((r) => r.data),
+  reply: (p) => api.post("/api/v1/support/tickets/reply", p).then((r) => r.data),
+  close: (id) => api.post(`/api/v1/support/tickets/${id}/close`).then((r) => r.data),
+};
+
+// ---------- Notifications ----------
+export const notifyApi = {
+  list: () => api.get("/api/v1/notifications").then((r) => r.data),
+  markRead: (id) => api.post(`/api/v1/notifications/${id}/read`).then((r) => r.data),
+  markAllRead: () => api.post("/api/v1/notifications/read-all").then((r) => r.data),
+};
+
 export default api;

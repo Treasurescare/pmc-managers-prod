@@ -125,6 +125,13 @@ async def _mark_paid(session_id: str, payment_status: str = "paid") -> None:
         )
         await audit_log("bid.emd_paid", None, "bid", bid_id,
                         {"session_id": session_id, "amount": tx.get("amount")})
+        # Notify Escrow that a new EMD-paid bid is ready
+        try:
+            from notify import notify_bid_transition
+            b = await db.bids.find_one({"_id": ObjectId(bid_id)})
+            await notify_bid_transition(b, "emd_paid")
+        except Exception:
+            pass
 
 
 @router.post("/webhook/stripe")

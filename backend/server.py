@@ -14,6 +14,7 @@ from security import hash_password
 from routers import (
     notices, registrations, packages, admin_auth, uploads, audit_routes, meta, vendors,
     staff_auth, vendor_auth, bids, payments, committee, tasks, chat, inspections, masters,
+    evaluations, boqs, vendor_intel, analytics, governance, notifications,
 )
 
 
@@ -40,6 +41,13 @@ app.include_router(tasks.router)
 app.include_router(chat.router)
 app.include_router(inspections.router)
 app.include_router(masters.router)
+# Wave 2-6 — Evaluation, BOQ+Contracts, Vendor Intel, Analytics+AI, Governance, Notifications
+app.include_router(evaluations.router)
+app.include_router(boqs.router)
+app.include_router(vendor_intel.router)
+app.include_router(analytics.router)
+app.include_router(governance.router)
+app.include_router(notifications.router)
 
 
 # ---------- CORS ----------
@@ -60,15 +68,15 @@ async def _seed_admin() -> None:
         await db.admin_users.insert_one({
             "email": config.ADMIN_EMAIL,
             "password_hash": hash_password(config.ADMIN_PASSWORD),
-            "name": "PMC Owner (Kannan)",
+            "name": "PMC Master Admin",
             "role": "admin",
-            "roles": ["admin", "committee_member"],
+            "roles": ["admin", "committee_member", "support"],
             "hierarchy_level": 10,
             "tenant_id": config.DEFAULT_TENANT_ID,
             "is_active": True,
             "created_at": datetime.now(timezone.utc).isoformat(),
         })
-        logging.info(f"Seeded admin user {config.ADMIN_EMAIL}")
+        logging.info(f"Seeded master admin {config.ADMIN_EMAIL}")
     else:
         # Backfill roles list on legacy single-role docs
         if not existing.get("roles"):

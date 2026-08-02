@@ -7,13 +7,24 @@ import { toast } from "sonner";
 import KanbanColumn from "./packages/KanbanColumn";
 import VendorsPanel from "./VendorsPanel";
 import BiddingOpsPanel from "./BiddingOpsPanel";
+import EvaluationPanel from "./EvaluationPanel";
+import BOQContractsPanel from "./BOQContractsPanel";
+import VendorIntelPanel from "./VendorIntelPanel";
+import MastersPanel from "./MastersPanel";
+import AnalyticsPanel from "./AnalyticsPanel";
+import NotificationBell from "./NotificationBell";
 
 function TabBar({ tab, setTab }) {
   const tabs = [
+    ["analytics", "Dashboard"],
     ["registrations", "Registrations"],
     ["vendors", "Vendors"],
     ["notices", "Notices"],
     ["bidding", "Bidding Ops"],
+    ["evaluation", "Evaluation"],
+    ["boq", "BOQ & Contracts"],
+    ["vintel", "Vendor Intel"],
+    ["masters", "Masters"],
     ["packages", "Packages"],
     ["audit", "Audit"],
   ];
@@ -485,6 +496,7 @@ export default function AdminDashboard() {
             <h1 className="font-display text-3xl lg:text-4xl mt-2 text-brand-navy">{t("admin.dash_title")}</h1>
           </div>
           <div className="flex items-center gap-4">
+            <NotificationBell />
             <div className="text-right">
               <div className="pmc-label">Signed in</div>
               <div className="text-sm text-brand-navy">{me.email}</div>
@@ -497,10 +509,15 @@ export default function AdminDashboard() {
         <div className="mt-8"><TabBar tab={tab} setTab={setTab} /></div>
 
         <div className="mt-8">
+          {tab === "analytics" && <AnalyticsPanel />}
           {tab === "registrations" && <RegistrationsPanel />}
           {tab === "vendors" && <VendorsPanel />}
           {tab === "notices" && <NoticesPanel />}
           {tab === "bidding" && <BiddingOpsPanel />}
+          {tab === "evaluation" && <EvaluationPanel />}
+          {tab === "boq" && <BOQContractsPanel />}
+          {tab === "vintel" && <VendorIntelPanel />}
+          {tab === "masters" && <MastersPanel />}
           {tab === "packages" && <PackagesPanel />}
           {tab === "audit" && <AuditPanel />}
         </div>

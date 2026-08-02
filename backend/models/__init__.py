@@ -14,6 +14,10 @@ from .task import TaskCreateIn, TaskUpdateIn, FollowupIn
 from .chat import ChatMessageIn
 from .inspection import InspectionAssignIn, InspectionUpdateIn
 from .masters import CompanyIn, RoleIn, ApprovalMatrixIn, ApprovalStepIn
+from .evaluation import EnvelopeLockIn, COIDeclarationIn, ScoringRubricIn, ScoreEntryIn, ScoreCriterionIn
+from .boq import BOQTemplateIn, BOQItemIn, BOQVendorSubmissionIn, ContractIn, ContractMilestoneIn, VariationOrderIn
+from .vendor_intel import VendorRatingIn, BlacklistIn, WatchlistIn, ESGDeclarationIn
+from .auction import AuctionIn, AuctionBidIn, TicketIn, TicketReplyIn
 
 __all__ = [
     "PyObjectId", "BaseDocument", "now_iso",
@@ -30,4 +34,8 @@ __all__ = [
     "ChatMessageIn",
     "InspectionAssignIn", "InspectionUpdateIn",
     "CompanyIn", "RoleIn", "ApprovalMatrixIn", "ApprovalStepIn",
+    "EnvelopeLockIn", "COIDeclarationIn", "ScoringRubricIn", "ScoreEntryIn", "ScoreCriterionIn",
+    "BOQTemplateIn", "BOQItemIn", "BOQVendorSubmissionIn", "ContractIn", "ContractMilestoneIn", "VariationOrderIn",
+    "VendorRatingIn", "BlacklistIn", "WatchlistIn", "ESGDeclarationIn",
+    "AuctionIn", "AuctionBidIn", "TicketIn", "TicketReplyIn",
 ]

@@ -180,6 +180,13 @@ async def decide_bid(bid_id: str, payload: BidDecisionIn,
          "$push": {"workflow_history": entry}},
     )
     await audit_log(f"bid.{payload.role}.{payload.action}", admin, "bid", b.get("bid_ref"), entry)
+    # Fire in-app + email notification to the NEXT role in the pipeline.
+    try:
+        from notify import notify_bid_transition
+        b_updated = await db.bids.find_one({"_id": ObjectId(bid_id)})
+        await notify_bid_transition(b_updated, next_status)
+    except Exception as _e:
+        pass
     return {"ok": True, "status": next_status}
 
 

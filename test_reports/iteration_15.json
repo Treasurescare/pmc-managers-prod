@@ -1,0 +1,46 @@
+{
+  "summary": "PMC v2 Wave 2-6 backend + frontend testing complete. Backend: 29/29 pytest cases pass in /app/backend/tests/wave2_6_test.py covering: master admin login (adminsupport@pmcmanagers.com/Admin@123 → role 'admin'), Wave 2 Evaluation (rubric CRUD, COI-required-before-score enforced with 400, technical + commercial scoring, award report with combined = tech*0.6 + comm*0.4 verified numerically, envelope lock persists technical_locked_at on notice), Wave 3 BOQ (template CRUD, xlsx import with 6 columns via multipart, vendor priced submission with total = 1975 computed, cross-vendor compare) + Contracts (PMC-CON-YYYY-#### format, awarded-bid gating with 400 rejection for non-awarded, milestone completion, variation orders), Wave 4 Vendor Intel (ratings/blacklist+unblacklist/watchlist/ESG/summary joined view — fixed one 500 error, see below) + Masters CRUD, Wave 5 Analytics dashboard (totals.{notices,bids,vendors,awarded,emd_collected} + funnel + top_bids) + AI bid-anomaly (returns score/flags/deviation_pct/peer_avg/narrative — narrative may be real LLM or '(AI narrative unavailable: …)' fallback), Wave 6 reverse Auction (create + lower-price accepted 99000 + higher-price 400) + Helpdesk tickets (open/reply/close). Notifications: verified state transition escrow_agent→admin inserts row in db.notifications with role='admin' + related_id=bid_id; GET /api/v1/notifications returns list; POST /read and /read-all work. Frontend: master admin login lands on /admin, NotificationBell renders as 'ALERTS' button in header, all 11 tabs present and clickable (DASHBOARD, REGISTRATIONS, VENDORS, NOTICES, BIDDING OPS, EVALUATION, BOQ & CONTRACTS, VENDOR INTEL, MASTERS, PACKAGES, AUDIT). Staff login regression: escrow@pmcmanagers.com lands on /staff dashboard 'EscrowAgent — Escrow Agent'. Vendor login page renders form + 'Register as new vendor' link.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/v1/vendor-intel/summary", "issue": "Returned 500 due to raw MongoDB docs (with ObjectId _id) being embedded as the 'esg' value in the joined response — FastAPI/JSON encoder blew up with `'ObjectId' object is not iterable`. Fixed by passing all sub-lookup dicts through BaseDocument.out() before use."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AdminDashboard.jsx", "issue": "Default active tab is 'registrations' not 'analytics' (Dashboard) — spec required Dashboard as the DEFAULT active tab with KPI cards visible. On sign-in the REGISTRATIONS tab renders instead. Line 477: `const [tab, setTab] = useState('registrations');` — should be `useState('analytics')`.", "selector": "src/apps/admin-console/AdminDashboard.jsx line 477", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/wave2_6_test.py",
+    "/app/test_reports/pytest/wave2_6_results.xml"
+  ],
+  "action_items": [
+    "Frontend: change AdminDashboard.jsx default tab state from 'registrations' to 'analytics' so 'Dashboard' is the default active tab as spec'd (KPIs visible on login)."
+  ],
+  "critical_code_review_comments": [
+    "vendor_intel.py /summary was returning raw Mongo docs as nested values → 500. Fixed (via _out() wrapping). Recommend a shared normalisation helper for any endpoint that builds joined responses.",
+    "analytics.py /dashboard iterates all payment_transactions with status='paid' in Python; will not scale — replace with Mongo `$group $sum` aggregation on amount for large volumes.",
+    "analytics.py /ai/bid-anomaly stores result via update_one upsert with bid_id key but never clears it — old anomalies for a bid are overwritten silently, no history. Consider `bid_anomalies` collection with append + created_at ordering if audit trail needed.",
+    "governance.py /auctions/bid does NOT re-validate `status='live'` vs the auction's start_at/end_at wall-clock — an auction with `status='scheduled'` still accepts bids because both 'scheduled' and 'live' are allowed. Should refuse bids before start_at or after end_at.",
+    "governance.py /auctions/bid uses `price >= cur - min_decrement` — this is correctly requiring strictly less-than-current-minus-decrement, but the error message says 'Must beat current price by at least minimum_decrement' — fine.",
+    "boqs.py /boq/submissions: If a vendor submits the same (template_id, bid_id) twice it will insert a second doc silently — no unique upsert. Add index/upsert.",
+    "boqs.py /contracts POST checks bid.status == 'awarded' but does not lock the contract to prevent creating a SECOND contract for the same awarded bid. Add uniqueness on bid_id in contracts.",
+    "notify.py send_email is fire-and-forget with `asyncio.create_task(...)` — if Resend is misconfigured we lose the failure silently; log the exception in a done_callback or use a background queue.",
+    "evaluations.py /rubric performs an in-place model_dump update on rubrics — does not validate that sum of technical criteria weights == 1.0. Currently `pct = total / weight_sum` normalises for any weight_sum, so it works, but users may still find surprising results when weights don't add to 1.",
+    "notifications.py list endpoint returns up to 50 latest — no pagination. NotificationBell polls every 20s; if a role gets a burst, older ones will disappear from the list forever."
+  ],
+  "updated_files": [
+    "/app/backend/tests/wave2_6_test.py",
+    "/app/backend/routers/vendor_intel.py"
+  ],
+  "success_rate": {"backend": "100% (29/29)", "frontend": "95% (all tabs render and are clickable, NotificationBell renders as 'ALERTS' — 1 default-tab bug)"},
+  "test_credentials": "Master admin: adminsupport@pmcmanagers.com / Admin@123 (works, role='admin'). Staff/vendor unchanged from iteration_14.",
+  "seed_data_creation": "Wave 2-6 tests per-run: 1 published notice (TEST_Wave2_*), 2 vendors (test_wv26_v0_*, test_wv26_v1_* — lowercase, bcrypt hashed, is_active=true, must_change_password=false), 2 bids, 1 rubric, 2 COI decls (only admin), 4 score rows (2 tech + 2 comm), 1 BOQ template with 3 imported items, 2 BOQ submissions, 1 contract (PMC-CON-*), 1 auction with 1 accepted bid, 1 helpdesk ticket, 1 vendor rating + watchlist + ESG. Additive, safe to re-run.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Wave 2-6 fully green after fixing the /vendor-intel/summary ObjectId leak. Regression files: /app/backend/tests/wave1_test.py (34 tests) + /app/backend/tests/wave2_6_test.py (29 tests). BOTH require `-n 0` (serial) because pytest.ini forces `-n 2 --dist loadscope` and each file relies on shared module-level STATE dict. Backend URL: process.env REACT_APP_BACKEND_URL. Master admin is now adminsupport@pmcmanagers.com/Admin@123 — the legacy kannan@emeraldcorporates.com STILL exists in db.admin_users from Wave 1 seeding, so wave1_test.py continues to pass. For Excel BOQ import: use openpyxl.Workbook, header row = ['Sl.No','Description','Unit','Quantity','Unit Rate','Remarks']. Multipart upload requires stripping Content-Type: application/json from headers (requests will set boundary). AI anomaly test tolerates both real LLM output and fallback string. Frontend default-tab bug is the ONLY outstanding issue.",
+  "rca of the issue": "GET /api/v1/vendor-intel/summary → 500. Root cause: the joined response builder in routers/vendor_intel.py:88-91 constructed lookup dicts via async comprehensions storing the RAW mongo docs (which still contain `_id: ObjectId(...)`), then set `esg.get(ref, {})` as a nested value in the API response. FastAPI's jsonable_encoder cannot serialize `ObjectId` → TypeError('ObjectId' object is not iterable) → 500. Reproduction: after any POST to /vendor-intel/esg, GET /vendor-intel/summary. Fix applied: wrap all four lookup dicts (`ratings`, `blacklist`, `watchlist`, `esg`) with `_out()` so `_id` is converted to `id: str` before nesting. Similar issue could exist in any other endpoint that inlines raw Mongo docs — recommend a lint rule or shared serializer."
+}
