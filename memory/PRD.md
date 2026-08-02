@@ -4,77 +4,74 @@
 **Current build:** v2 (this workspace) → target repo `Treasurescare/pmc-tender-v2-aws`
 **Strategy:** "Build for Portability" — build on Emergent stack now, structure exactly per AWS Build Sheet v2 for a low-cost Phase 2 migration to PostgreSQL + Cognito + S3 Object Lock + Fargate.
 
+**Scope pivot (Feb 2026):** User adopted Option C — build the **full enterprise CRM + e-Tender platform** per the revised report `PMC_Managers_Enterprise_CRM_eTender_Revised_Integrated_Report.pdf`. See `/app/memory/ENTERPRISE_ROADMAP.md` for the 6-wave delivery plan.
+
 ---
 
 ## Governing documents
 
-1. **PMC Transaction Structure & Funds-Flow Report** (24 Jul 2026) — legal/commercial two-category-money framework
-2. **PMC Build Sheet v2 AWS** (24 Jul 2026) — technical architecture (4 apps + 1 API)
-3. **Domain_Spec.md** (this repo) — extracted business rules from v1
-4. **BA_Gap_Analysis.pdf** (this repo) — comparison of v1 vs new scope for client discussion
-5. **design_guidelines.md** (this repo) — Navy Trust visual language, retained verbatim from v1
+1. **PMC Enterprise CRM & e-Tender Revised Integrated Report** (Feb 2026) — full-scope target
+2. **PMC Transaction Structure & Funds-Flow Report** (Jul 2026) — funds-flow legal framework
+3. **PMC Build Sheet v2 AWS** (Jul 2026) — technical architecture (portability target)
+4. **Domain_Spec.md** — extracted business rules from v1
+5. **BA_Gap_Analysis.pdf** — v1 vs v2 gap comparison for client
+6. **design_guidelines.md** — Navy Trust visual language
 
-## The four apps (Build Sheet Part 6)
+## Core apps
 
 | App | Name | Stack (v2 Phase-1 pilot) | Stack (Phase 2 AWS) |
 |---|---|---|---|
-| **App 1** | Milestone Evidence Capture (mobile) | **Deferred** — needs S3 Object Lock | React Native + SQLite + S3 |
-| **App 2** | Package Tracker (internal) | React admin panel | Retool + RDS or same |
-| **App 3** | Pre-Tender Registration Portal | React + FastAPI + MongoDB | React + FastAPI + RDS + Cognito |
+| **App 1** | Milestone Evidence Capture (mobile) | Deferred | React Native + S3 |
+| **App 2** | Package Tracker + Admin Console (BIDDING OPS) | React admin panel | Retool + RDS |
+| **App 3** | Pre-Tender Registration Portal | React + FastAPI + Mongo | React + FastAPI + RDS + Cognito |
 | **App 4** | Public Tender Notice Board | React SPA | Next.js SSR + RDS |
+| **App 5** | Vendor Portal (Wave 1) | React + cookie auth | + Cognito |
+| **App 6** | Staff Portal — multi-role (Wave 1) | React + cookie auth | + Cognito |
 
-## API contract (per Build Sheet Part 4)
+## Roles (Wave 1)
 
-Every endpoint is prefixed `/api` (Kubernetes ingress). Contract mirrors Build Sheet v2 Part 4 exactly so Phase 2 is a stack swap, not a rewrite.
+`admin`, `reviewer`, `escrow_agent`, `certifier`, `legal_counsel`, `accounting`, `committee_member`, `auditor`, `support`. Staff records hold a LIST of roles; on login user picks active role.
 
-### Public
-- `GET  /api/v1/notices`
-- `GET  /api/v1/notices/{notice_ref}`
-- `POST /api/v1/registrations` — create draft
-- `PATCH /api/v1/registrations/{id}` — update draft (magic-link token)
-- `POST /api/v1/registrations/{id}/submit`
-- `POST /api/v1/registrations/{id}/status` — status check (magic-link token)
-- `POST /api/v1/uploads/presign` — presigned upload URL (S3 in Phase 2, direct upload endpoint in Phase 1)
+## Wave-1 API endpoints (added Feb 2026)
 
-### Authenticated (admin/reviewer)
-- `GET  /api/v1/registrations` — admin queue with status filter
-- `GET  /api/v1/registrations/{id}`
-- `POST /api/v1/registrations/{id}/decision` — approve | reject | clarify
-- `GET  /api/v1/vendors` — list, search
-- `GET  /api/v1/vendors/{id}`
-- `GET  /api/v1/packages` — filter project/status/phase
-- `POST /api/v1/packages`
-- `PATCH /api/v1/packages/{id}`
-- `POST /api/v1/packages/import` — CSV bulk load
-- `POST /api/v1/notices` — create/publish
-- `GET  /api/v1/audit-events` — verify chain
+- `POST /api/v1/staff/auth/{login,logout}`, `GET /api/v1/staff/auth/me`, `GET /api/v1/staff/roles`
+- `GET|POST|PATCH /api/v1/staff/{id?}` — staff master
+- `POST /api/v1/vendor/auth/{login,logout,change-password}`, `GET /me`
+- `POST|GET /api/v1/bids`, `GET /api/v1/bids/mine`, `POST /api/v1/bids/{id}/decision`, `POST /api/v1/bids/{id}/assign-certifier`, `POST /api/v1/bids/{id}/withdraw`
+- `POST /api/v1/payments/emd/checkout`, `GET /api/v1/payments/status/{sid}`, `POST /api/webhook/stripe`, `POST /api/v1/payments/emd/refund`
+- `POST|GET /api/v1/committees`, `POST /vote`, `POST /close`, `POST /{id}/deadline-close`
+- `CRUD /api/v1/tasks` + `/api/v1/tasks/{id}/followups`
+- `POST|GET|DELETE /api/v1/chat/messages`
+- `POST|GET|PATCH /api/v1/inspections` + `/media` add/delete
+- `CRUD /api/v1/masters/{companies,roles,approval-matrices}`
 
-**csrf_token cookie is JS-readable** (`httpOnly=false`) by design so JS can echo it to `X-CSRF-Token`. This is the double-submit-cookie pattern.
+## What's been implemented
 
-## Phase-1 Build Sequence
+**2026-01 — v2 foundation:** Modular routers, httpOnly cookies + CSRF, App 3 (Sections A–E), App 4 (Notice Board), App 2 (Kanban + CSV importer), Vendor KPI dashboard, i18n EN/RU/KK, audit chain.
 
-1. ✅ Repo bootstrap · scaffold · Domain_Spec extracted
-2. ✅ **App 4 Public Notice Board** — 3 seeded notices, filters, hero, detail page
-3. ✅ **App 3 Pre-Tender Registration Portal** — Sections A–E stepper, magic-link resume, 6 declarations, admin approve/reject/clarify
-4. ✅ **App 2 Package Tracker** — 30 seeded KZ packages, 6-column drag-drop board, CSV importer, create-new modal
-5. ✅ Admin auth (JWT) + admin registration queue + audit chain verify
-6. ✅ SHA-256 hash-chained audit trail (carries over from v1)
-7. ✅ i18n EN/RU/KK wired end-to-end
-8. ✅ Client_Preview_Script.md for stakeholder walk-through
+**2026-02 — Wave 1 (Bidding & Financial Core):**
+- 9 new backend routers + 9 new Pydantic model files
+- Vendor Portal (5 screens): login, change-password, dashboard, bid submit, payment result
+- Staff Portal (2 screens): unified login with role dropdown, role-aware dashboard (bid queue + certifier inspection panel)
+- Admin Console: new **Bidding Ops** tab with bid queue, filter, committee builder, certifier assignment modal
+- Notice creation: added EMD Fixed + Percentage fields
+- Stripe Flow B integration (`sk_test_emergent`, webhook `/api/webhook/stripe`)
+- Sequential approval pipeline enforced by state machine + role guard
+- Bid Committee (per-tender, chair + members + quorum + vote + close)
+- Site Inspection (assign, schedule, media upload, pass/fail)
+- CRM Tasks + Followups + Internal Chat with attachments
+- Masters: Company, Role, Approval Matrix CRUD
+- Owner account switched to `kannan@emeraldcorporates.com`
+- 34/34 backend pytest passing (wave1_test.py); frontend flows verified
 
-## Explicitly out of scope (Phase-1)
+## Backlog (P0 → P3)
 
-Per Build Sheet Part 5:
-- Bid submission / opening
-- Evaluation scoring
-- Contract award
-- Payment processing (fee flow is "pilot mode")
-- Encryption / KMS
-- S3 Object Lock
-- AWS Cognito
-- PostgreSQL RLS enforcement
-- App 1 (Milestone Evidence — needs Object Lock)
+- **P0 · Wave 2:** Multi-envelope bidding, evaluation scoring, award recommendation
+- **P1 · Wave 3:** BOQ builder, contract management, multi-currency
+- **P1 · Wave 4:** CRM masters UI, Vendor Intelligence, workflow engine, helpdesk
+- **P2 · Wave 5:** BI/AI, integration gateway, PayPal + Kaspi
+- **P2 · Wave 6:** MFA, GDPR, auctions, subscription, sandbox
 
 ## Test credentials
 
-See `/app/memory/test_credentials.md`.
+See `/app/memory/test_credentials.md`. Owner: `kannan@emeraldcorporates.com / Admin@123`.

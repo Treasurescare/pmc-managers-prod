@@ -33,7 +33,7 @@ export default function PaymentResult({ outcome }) {
           clearInterval(timer);
           setState({ label: "Still processing — refresh in a minute", status: "pending", details: r });
         }
-      } catch (e) {
+      } catch {
         if (attempts >= 5) {
           clearInterval(timer);
           setState({ label: "Could not confirm status", status: "error", details: null });

@@ -35,6 +35,7 @@ export default function StaffDashboard() {
         nav("/staff/login");
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nav]);
 
   const refresh = async (m = me) => {

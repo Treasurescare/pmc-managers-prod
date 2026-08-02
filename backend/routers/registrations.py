@@ -215,7 +215,7 @@ async def admin_decide(registration_id: str, payload: RegistrationDecisionIn,
         temp_password = secrets.token_urlsafe(9)
         await db.vendors.insert_one({
             "vendor_ref": vendor_ref,
-            "email": doc["email"],
+            "email": (doc["email"] or "").lower(),
             "company_name": doc.get("company_name"),
             "country": doc.get("country"),
             "kz_licenses": doc.get("kz_licenses") or [],
