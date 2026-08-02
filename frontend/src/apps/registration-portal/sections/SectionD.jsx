@@ -1,6 +1,11 @@
 import { Field, Input } from "./FormPrimitives";
+import { DocSlotsBlock } from "./DocSlot";
 
-export default function SectionD({ reg, update, kzMeta }) {
+const SECTION_D_SLOTS = [
+  ["signed_declaration", { label: "Signed Declarations & Consent (PDF)", required: false }],
+];
+
+export default function SectionD({ reg, update, kzMeta, regId, token, onDocChange }) {
   return (
     <div className="grid gap-5">
       <Field label="Primary sector">
@@ -50,6 +55,13 @@ export default function SectionD({ reg, update, kzMeta }) {
         <textarea data-testid="f-litigation" rows={2} value={reg.litigation_history || ""} onChange={(e) => update({ litigation_history: e.target.value })}
           className="mt-1 w-full px-4 py-3 border border-brand-navy/20 focus:outline-none focus:border-brand-navy-soft text-brand-navy bg-white" />
       </Field>
+      <DocSlotsBlock
+        title="Signed declarations upload (Section D)"
+        regId={regId} token={token}
+        slots={SECTION_D_SLOTS}
+        existing={reg.document_slots || {}}
+        onChange={onDocChange}
+      />
     </div>
   );
 }

@@ -151,11 +151,25 @@ export default function RegistrationResume() {
         </ol>
 
         <div className="mt-8 bg-white border border-brand-navy/10 p-8 lg:p-10 grid gap-5" data-testid={`section-${step}`}>
-          {step === "a" && <SectionA reg={reg} update={update} countries={countries} />}
-          {step === "b" && <SectionB reg={reg} update={update} />}
-          {step === "c" && <SectionC reg={reg} update={update} />}
-          {step === "d" && <SectionD reg={reg} update={update} kzMeta={kzMeta} />}
-          {step === "e" && <SectionE reg={reg} update={update} />}
+          {(() => {
+            const docProps = {
+              regId: reg.id,
+              token: token,
+              onDocChange: (slot, meta) => {
+                setReg((prev) => {
+                  const slots = { ...(prev.document_slots || {}) };
+                  if (meta) slots[slot] = meta; else delete slots[slot];
+                  return { ...prev, document_slots: slots };
+                });
+              },
+            };
+            if (step === "a") return <SectionA reg={reg} update={update} countries={countries} {...docProps} />;
+            if (step === "b") return <SectionB reg={reg} update={update} {...docProps} />;
+            if (step === "c") return <SectionC reg={reg} update={update} {...docProps} />;
+            if (step === "d") return <SectionD reg={reg} update={update} kzMeta={kzMeta} {...docProps} />;
+            if (step === "e") return <SectionE reg={reg} update={update} />;
+            return null;
+          })()}
         </div>
 
         <div className="mt-6 flex items-center justify-between flex-wrap gap-3">

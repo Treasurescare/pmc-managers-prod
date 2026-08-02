@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { publicApi, registrationApi, formatApiError } from "@/lib/api";
+import { publicApi, registrationApi, vendorInviteApi, formatApiError } from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import TopBar from "@/apps/shared/TopBar";
 import Footer from "@/apps/shared/Footer";
@@ -15,9 +15,11 @@ export default function RegistrationStart() {
   const [countries, setCountries] = useState([{ code: "KZ", name: "Kazakhstan" }]);
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(null);
+  const [template, setTemplate] = useState({ available: false });
 
   useEffect(() => {
     publicApi.countries().then(setCountries).catch(() => {});
+    vendorInviteApi.templateMeta().then(setTemplate).catch(() => {});
   }, []);
 
   const submit = async (e) => {
@@ -44,6 +46,24 @@ export default function RegistrationStart() {
         <div className="pmc-label">Sections A–E · Pre-Tender Registration</div>
         <h1 className="font-display text-4xl lg:text-5xl mt-2 text-brand-navy leading-tight">{t("register.title")}</h1>
         <p className="text-brand-navy/70 mt-3 max-w-2xl">{t("register.lede")}</p>
+
+        {template.available && (
+          <div className="mt-6 flex flex-wrap items-center gap-3 p-4 border border-brand-navy/10 bg-white max-w-2xl"
+               data-testid="reg-template-block">
+            <div className="flex-1">
+              <div className="pmc-label">Blank registration form</div>
+              <div className="text-sm text-brand-navy/70 mt-1">
+                Download the printable form to preview the fields and documents you'll need
+                before starting online.
+              </div>
+            </div>
+            <a href={vendorInviteApi.templateDownloadUrl()} target="_blank" rel="noreferrer"
+               data-testid="reg-template-download"
+               className="px-5 py-2.5 text-[11px] font-semibold uppercase tracking-widest border border-brand-navy text-brand-navy hover:bg-brand-navy hover:text-white">
+              Download blank form
+            </a>
+          </div>
+        )}
 
         <form onSubmit={submit} className="mt-10 bg-white border border-brand-navy/10 p-8 lg:p-10 grid gap-6 max-w-2xl" data-testid="registration-start-form">
           <div>

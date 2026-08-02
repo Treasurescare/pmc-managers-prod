@@ -85,17 +85,37 @@ export default function NoticeDetail() {
                 <p className="whitespace-pre-wrap text-brand-navy/85 text-[15px] leading-7 mt-2">{notice.description}</p>
               </div>
 
+              {notice.primary_document && (
+                <div className="mt-8" data-testid="notice-primary-document">
+                  <div className="pmc-label">Tender / RFP / RFQ document</div>
+                  <a href={`${process.env.REACT_APP_BACKEND_URL}${notice.primary_document.url}`}
+                     target="_blank" rel="noreferrer"
+                     data-testid="notice-primary-download"
+                     className="mt-2 inline-flex items-center gap-2 px-4 py-3 border border-brand-navy text-brand-navy hover:bg-brand-navy hover:text-white transition-colors text-sm">
+                    📄 <span>{notice.primary_document.file_name}</span>
+                    <span className="text-xs text-brand-navy/50">
+                      ({Math.round((notice.primary_document.size_bytes || 0) / 1024)} KB)
+                    </span>
+                  </a>
+                </div>
+              )}
+
               {notice.attachments?.length > 0 && (
                 <div className="mt-8">
-                  <div className="pmc-label">{t("notice.attachments")}</div>
+                  <div className="pmc-label">{t("notice.attachments")} ({notice.attachments.length})</div>
                   <ul className="mt-2 text-sm text-brand-navy-soft space-y-1">
-                    {notice.attachments.map((a, i) => (
-                      <li key={a.key || a.url || i} data-testid={`attachment-${i}`}>
-                        <a href={a.url ? `${process.env.REACT_APP_BACKEND_URL}${a.url}` : "#"} target="_blank" rel="noreferrer" className="hover:underline">
-                          → {a.name || a.key || "attachment"}
-                        </a>
-                      </li>
-                    ))}
+                    {notice.attachments.map((a, i) => {
+                      const href = a.url ? `${process.env.REACT_APP_BACKEND_URL}${a.url}` : "#";
+                      const label = a.file_name || a.name || a.key || "attachment";
+                      const sizeKb = a.size_bytes ? ` (${Math.round(a.size_bytes / 1024)} KB)` : "";
+                      return (
+                        <li key={a.key || a.url || i} data-testid={`attachment-${i}`}>
+                          <a href={href} target="_blank" rel="noreferrer" className="hover:underline">
+                            → {label}<span className="text-brand-navy/40">{sizeKb}</span>
+                          </a>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               )}

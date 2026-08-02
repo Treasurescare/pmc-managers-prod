@@ -59,6 +59,16 @@ export const registrationApi = {
   submit: (id, token) =>
     api.post(`/api/v1/registrations/${id}/submit`, {}, { params: { token } }).then((r) => r.data),
   status: (token) => api.get(`/api/v1/registrations/status/${token}`).then((r) => r.data),
+  slotSchema: () => api.get("/api/v1/registrations/document-slots/schema").then((r) => r.data),
+  uploadDocument: (registration_id, token, slot, file) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("token", token);
+    return api.post(`/api/v1/registrations/${registration_id}/documents/${slot}`, fd,
+      { headers: { "Content-Type": "multipart/form-data" } }).then((r) => r.data);
+  },
+  deleteDocument: (registration_id, token, slot) =>
+    api.delete(`/api/v1/registrations/${registration_id}/documents/${slot}`, { params: { token } }).then((r) => r.data),
 };
 
 export const adminApi = {

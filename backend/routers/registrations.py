@@ -1,6 +1,8 @@
 import asyncio
+import base64
+import uuid
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, UploadFile, File, Form
 from bson import ObjectId
 
 import config
@@ -18,6 +20,91 @@ def _out(doc: dict) -> dict:
     d = BaseDocument.out(doc)
     d.pop("magic_token", None)  # never leak
     return d
+
+
+# ---------- Wave 10 — Per-section document slots ----------
+
+# Slot definitions — each slot is a canonical "kind" of document a vendor must
+# attach. The exact list is derived from the Registration Form Draft.docx.
+DOC_SLOTS = {
+    # Page 1 — Identity & Basic Info
+    "incorporation_certificate": {"label": "Incorporation Certificate", "section": "a", "required": True},
+    "address_proof": {"label": "Address Proof (utility bill / lease deed)", "section": "a", "required": True},
+    "tin_proof": {"label": "TIN / VAT Proof", "section": "a", "required": True},
+    "audited_financials": {"label": "Audited Financial Statements (last 3 years)", "section": "a", "required": False},
+    # Page 2 — Business Profile
+    "previous_works": {"label": "Previous Works Completed", "section": "b", "required": True},
+    "iso_certificates": {"label": "ISO / Quality Certifications", "section": "b", "required": False},
+    "licenses_permits": {"label": "Licenses / Permits / Regulatory Authorizations", "section": "b", "required": True},
+    # Page 3 — Documents to be Attached
+    "articles_of_incorporation": {"label": "Articles of Incorporation / Charter / Bylaws", "section": "c", "required": True},
+    "bank_reference": {"label": "Bank Reference / Statement", "section": "c", "required": True},
+    "power_of_attorney": {"label": "Power of Attorney for Signatory", "section": "c", "required": False},
+    "other_supporting": {"label": "Other Supporting Documents", "section": "c", "required": False},
+    # Page 4 — Signed declaration
+    "signed_declaration": {"label": "Signed Declarations & Consent (PDF)", "section": "d", "required": False},
+}
+
+
+@router.get("/document-slots/schema")
+async def get_slot_schema():
+    """PUBLIC — returns the canonical slot list so the frontend renders the correct uploaders."""
+    return {"slots": DOC_SLOTS}
+
+
+@router.post("/{registration_id}/documents/{slot}")
+async def upload_registration_doc(registration_id: str, slot: str,
+                                    file: UploadFile = File(...),
+                                    token: str = Form(...)):
+    """PUBLIC (token-authed) — upload a document into a specific slot on this registration."""
+    if slot not in DOC_SLOTS:
+        raise HTTPException(status_code=400, detail=f"Unknown slot '{slot}'")
+    reg = await db.registrations.find_one({"_id": ObjectId(registration_id), "magic_token": token})
+    if not reg:
+        raise HTTPException(status_code=404, detail="Registration not found or token invalid")
+    if reg["status"] not in ("draft", "needs_clarification"):
+        raise HTTPException(status_code=400, detail=f"Cannot edit — status is {reg['status']}")
+
+    body = await file.read()
+    if len(body) > config.MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="File exceeds pilot upload limit")
+    key = f"registration-docs/{registration_id}/{slot}/{uuid.uuid4().hex}_{file.filename}"
+    await db.uploads.insert_one({
+        "key": key, "content_type": file.content_type or "application/octet-stream",
+        "size_bytes": len(body),
+        "data_b64": base64.b64encode(body).decode("ascii"),
+        "created_at": now_iso(),
+    })
+    meta = {"slot": slot, "file_name": file.filename,
+            "content_type": file.content_type or "application/octet-stream",
+            "size_bytes": len(body),
+            "url": f"/api/v1/uploads/files/{key}",
+            "uploaded_at": now_iso(), "key": key}
+    await db.registrations.update_one(
+        {"_id": ObjectId(registration_id)},
+        {"$set": {f"document_slots.{slot}": meta, "updated_at": now_iso()}},
+    )
+    await audit_log("registration.document_upload", None, "registration", registration_id,
+                    {"slot": slot, "file_name": file.filename})
+    return meta
+
+
+@router.delete("/{registration_id}/documents/{slot}")
+async def delete_registration_doc(registration_id: str, slot: str,
+                                    token: str = Query(...)):
+    """PUBLIC (token-authed) — delete a slot's document."""
+    reg = await db.registrations.find_one({"_id": ObjectId(registration_id), "magic_token": token})
+    if not reg:
+        raise HTTPException(status_code=404, detail="Registration not found or token invalid")
+    if reg["status"] not in ("draft", "needs_clarification"):
+        raise HTTPException(status_code=400, detail=f"Cannot edit — status is {reg['status']}")
+    await db.registrations.update_one(
+        {"_id": ObjectId(registration_id)},
+        {"$unset": {f"document_slots.{slot}": ""}, "$set": {"updated_at": now_iso()}},
+    )
+    await audit_log("registration.document_delete", None, "registration", registration_id,
+                    {"slot": slot})
+    return {"ok": True}
 
 
 # ---------- PUBLIC (draft/resume/submit) ----------

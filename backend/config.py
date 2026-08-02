@@ -41,6 +41,12 @@ FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 # Uploads
 MAX_UPLOAD_BYTES = 5 * 1024 * 1024
 
+# KYC provider (KYC-Checks / Sumsub / Onfido). Blank = falls back to deterministic stub.
+KYC_PROVIDER = os.environ.get("KYC_PROVIDER", "stub").lower()
+KYC_BASE_URL = os.environ.get("KYC_BASE_URL", "")
+KYC_API_KEY = os.environ.get("KYC_API_KEY", "")
+KYC_WEBHOOK_SECRET = os.environ.get("KYC_WEBHOOK_SECRET", "")
+
 # CORS
 CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "*").strip()
 
