@@ -12,8 +12,8 @@ import pytest
 import requests
 
 BASE = os.environ.get("REACT_APP_BACKEND_URL", "https://tender-hub-57.preview.emergentagent.com").rstrip("/")
-ADMIN_EMAIL = "adminsupport@pmcmanagers.com"
-ADMIN_PASSWORD = "Admin@123"
+ADMIN_EMAIL = os.environ.get("PMC_TEST_ADMIN_EMAIL", "adminsupport@pmcmanagers.com")
+ADMIN_PASSWORD = os.environ.get("PMC_TEST_ADMIN_PASSWORD", "Admin@123")
 
 
 # ---------- Fixtures ----------
@@ -146,7 +146,7 @@ class TestGdprSelfForget:
         ok = vs.post(f"{BASE}/api/v1/vendor/gdpr-forget",
                      json={"password": current_pw})
         assert ok.status_code == 200, ok.text
-        assert ok.json().get("ok") is True
+        assert ok.json().get("ok") == True
 
         # Vendor should now be unable to log in (is_active=false)
         rr = requests.post(f"{BASE}/api/v1/vendor/auth/login",

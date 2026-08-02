@@ -12,8 +12,8 @@ import pytest
 import requests
 
 BASE = os.environ.get("REACT_APP_BACKEND_URL", "").rstrip("/")
-ADMIN_EMAIL = "adminsupport@pmcmanagers.com"
-ADMIN_PASSWORD = "Admin@123"
+ADMIN_EMAIL = os.environ.get("PMC_TEST_ADMIN_EMAIL", "adminsupport@pmcmanagers.com")
+ADMIN_PASSWORD = os.environ.get("PMC_TEST_ADMIN_PASSWORD", "Admin@123")
 
 
 @pytest.fixture(scope="module")
@@ -72,7 +72,7 @@ class TestVendorInvite:
         assert r.status_code == 200, r.text
         d = r.json()
         assert d["vendor_ref"] == TestVendorInvite._state["vendor_ref"]
-        assert d["email_verified"] is False
+        assert d["email_verified"] == False
 
     def test_verify_bad_token_404(self):
         r = requests.get(f"{BASE}/api/v1/vendors/verify/not-a-real-token")
@@ -83,7 +83,7 @@ class TestVendorInvite:
         r = requests.post(f"{BASE}/api/v1/vendors/verify/{tok}/complete",
                           json={"password": "Vendor@123"})
         assert r.status_code == 200, r.text
-        assert r.json().get("ok") is True
+        assert r.json().get("ok") == True
 
         s = requests.Session()
         lr = s.post(f"{BASE}/api/v1/vendor/auth/login",
@@ -108,7 +108,7 @@ class TestRegistrationTemplate:
         assert r.json()["file_name"] == "blank_reg_form.pdf"
 
         meta = requests.get(f"{BASE}/api/v1/vendors/registration-template/meta")
-        assert meta.status_code == 200 and meta.json()["available"] is True
+        assert meta.status_code == 200 and meta.json()["available"] == True
 
         dl = requests.get(f"{BASE}/api/v1/vendors/registration-template")
         assert dl.status_code == 200
@@ -143,7 +143,7 @@ class TestPermissionsMatrix:
 
         r2 = admin.get(f"{BASE}/api/v1/permissions")
         legal = next(x for x in r2.json()["rows"] if x["role"] == "legal_counsel")
-        assert legal["modify"] is False
+        assert legal["modify"] == False
 
     def test_reset(self, admin):
         r = admin.post(f"{BASE}/api/v1/permissions/reset")

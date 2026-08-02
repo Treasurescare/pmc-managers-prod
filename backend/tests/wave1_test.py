@@ -15,14 +15,14 @@ BASE_URL = os.environ.get("REACT_APP_BACKEND_URL",
                           "https://tender-hub-57.preview.emergentagent.com").rstrip("/")
 API = f"{BASE_URL}/api/v1"
 
-OWNER_EMAIL = "kannan@emeraldcorporates.com"
-OWNER_PASSWORD = "Admin@123"
+OWNER_EMAIL = os.environ.get("PMC_TEST_OWNER_EMAIL", "kannan@emeraldcorporates.com")
+OWNER_PASSWORD = os.environ.get("PMC_TEST_OWNER_PASSWORD", "Admin@123")
 STAFF_CREDS = [
-    ("escrow@pmcmanagers.com",    "Escrow@123", "escrow_agent"),
-    ("certifier@pmcmanagers.com", "Certify@123", "certifier"),
-    ("legal@pmcmanagers.com",     "Legal@123",  "legal_counsel"),
-    ("accounts@pmcmanagers.com",  "Accts@123",  "accounting"),
-    ("committee@pmcmanagers.com", "Bid@1234",   "committee_member"),
+    ("escrow@pmcmanagers.com",    os.environ.get("PMC_TEST_ESCROW_PW",    "Escrow@123"),  "escrow_agent"),
+    ("certifier@pmcmanagers.com", os.environ.get("PMC_TEST_CERTIFIER_PW", "Certify@123"), "certifier"),
+    ("legal@pmcmanagers.com",     os.environ.get("PMC_TEST_LEGAL_PW",     "Legal@123"),   "legal_counsel"),
+    ("accounts@pmcmanagers.com",  os.environ.get("PMC_TEST_ACCTS_PW",     "Accts@123"),   "accounting"),
+    ("committee@pmcmanagers.com", os.environ.get("PMC_TEST_COMMITTEE_PW", "Bid@1234"),    "committee_member"),
 ]
 
 
@@ -196,7 +196,7 @@ class TestVendorAuth:
         r2 = s2.post(f"{API}/vendor/auth/login",
                      json={"email": STATE["vendor_email"], "password": new_pw}, timeout=15)
         assert r2.status_code == 200
-        assert r2.json()["must_change_password"] is False
+        assert r2.json()["must_change_password"] == False
         STATE["vendor_pw"] = new_pw
         csrf = r2.json().get("csrf_token")
         s2.headers.update({"X-CSRF-Token": csrf})

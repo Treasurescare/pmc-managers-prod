@@ -20,8 +20,8 @@ BASE_URL = os.environ.get("REACT_APP_BACKEND_URL",
                           "https://tender-hub-57.preview.emergentagent.com").rstrip("/")
 API = f"{BASE_URL}/api/v1"
 
-ADMIN_EMAIL = "adminsupport@pmcmanagers.com"
-ADMIN_PASSWORD = "Admin@123"
+ADMIN_EMAIL = os.environ.get("PMC_TEST_ADMIN_EMAIL", "adminsupport@pmcmanagers.com")
+ADMIN_PASSWORD = os.environ.get("PMC_TEST_ADMIN_PASSWORD", "Admin@123")
 
 
 # ---------- Helpers ----------
@@ -215,7 +215,7 @@ class TestWave2Evaluation:
         assert d["ranking"][0]["combined"] >= d["ranking"][1]["combined"]
         # Recommendation qualifies flag
         if d["recommendation"]:
-            assert d["recommendation"]["qualifies"] is True
+            assert d["recommendation"]["qualifies"] == True
 
     def test_envelope_lock(self, admin_session, mongo_db):
         r = admin_session.post(f"{API}/evaluations/lock-envelope", json={
@@ -402,7 +402,7 @@ class TestWave4VendorIntel:
         assert v0 is not None
         assert v0.get("rating") == 82.5
         assert v0.get("band") == "good"
-        assert v0.get("watchlisted") is True
+        assert v0.get("watchlisted") == True
 
 
 class TestWave4Masters:

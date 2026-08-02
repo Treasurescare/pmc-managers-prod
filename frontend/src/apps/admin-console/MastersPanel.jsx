@@ -18,7 +18,7 @@ export default function MastersPanel() {
   const [tenantDraft, setTenantDraft] = useState({ code: "", name: "", kind: "corporate", country: "KZ" });
   const [showStaffNew, setShowStaffNew] = useState(false);
   const [staffDraft, setStaffDraft] = useState({
-    email: "", name: "", password: "Welcome@123",
+    email: "", name: "", password: "",
     roles: ["reviewer"], hierarchy_level: 3,
   });
   const [companyDraft, setCompanyDraft] = useState({ name: "", code: "", country: "KZ" });
@@ -52,7 +52,7 @@ export default function MastersPanel() {
       await staffApi.createStaff(staffDraft);
       toast.success("Staff created");
       setShowStaffNew(false);
-      setStaffDraft({ email: "", name: "", password: "Welcome@123", roles: ["reviewer"], hierarchy_level: 3 });
+      setStaffDraft({ email: "", name: "", password: "", roles: ["reviewer"], hierarchy_level: 3 });
       load();
     } catch (e) { toast.error(formatApiError(e)); }
   };

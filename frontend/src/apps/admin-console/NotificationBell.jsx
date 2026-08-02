@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { notifyApi, formatApiError } from "@/lib/api";
 import { toast } from "sonner";
 
+const stripHtml = (s) => (s || "").replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+
 export default function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
@@ -46,7 +48,7 @@ export default function NotificationBell() {
             <div key={n.id} className={`p-3 border-b text-sm ${n.read ? "opacity-60" : "bg-blue-50/30"}`}
               data-testid={`notif-${n.id}`}>
               <div className="font-semibold text-xs">{n.subject}</div>
-              <div className="text-xs text-slate-500 mt-1" dangerouslySetInnerHTML={{ __html: n.body }} />
+              <div className="text-xs text-slate-500 mt-1 whitespace-pre-line">{stripHtml(n.body)}</div>
               <div className="text-[10px] text-slate-400 mt-1">
                 {new Date(n.created_at).toLocaleString()}
                 {!n.read && (
