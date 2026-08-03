@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { adminApi, mastersApi, noticeDocsApi, formatApiError } from "@/lib/api";
+import { adminApi, mastersApi, noticeDocsApi, tenderTemplateApi, formatApiError } from "@/lib/api";
 
 export default function NoticesPanel() {
   const [items, setItems] = useState([]);
   const [showNew, setShowNew] = useState(false);
   const [matrices, setMatrices] = useState([]);
+  const [templates, setTemplates] = useState([]);
   const [primaryFile, setPrimaryFile] = useState(null);
   const [attachmentFiles, setAttachmentFiles] = useState([]);
   const [draft, setDraft] = useState({
@@ -14,6 +15,7 @@ export default function NoticesPanel() {
     budget_amount: null, is_published: true,
     emd_config: { fixed_amount: 0, percentage: 0, currency: "USD" },
     approval_matrix_id: "",
+    tender_template_id: "",
   });
 
   const load = useCallback(() => {
@@ -25,6 +27,7 @@ export default function NoticesPanel() {
   useEffect(() => {
     load();
     mastersApi.listMatrices().then(setMatrices).catch(() => {});
+    tenderTemplateApi.list().then(setTemplates).catch(() => {});
   }, [load]);
 
   const create = async () => {
@@ -106,6 +109,22 @@ export default function NoticesPanel() {
               {matrices.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
           </label>
+          <label className="md:col-span-2"><span className="pmc-label">Tender template (Tender Builder)</span>
+            <select value={draft.tender_template_id || ""}
+              onChange={(e) => setDraft({ ...draft, tender_template_id: e.target.value })}
+              data-testid="notice-tender-template"
+              className="mt-1 w-full px-4 py-3 border border-brand-navy/20">
+              <option value="">No linked template — public page shows only the primary PDF</option>
+              {templates.map((tpl) => (
+                <option key={tpl.id} value={tpl.id}>
+                  {tpl.is_master ? "📚 " : "✏ "}{tpl.name} · {(tpl.sections || []).length} sections
+                </option>
+              ))}
+            </select>
+            <span className="text-xs text-brand-navy/50 mt-1 block">
+              Linking a template exposes the "Download PDF (watermarked)" and "Download all documents (.zip)" buttons on the public Notice page.
+            </span>
+          </label>
           <label className="col-span-2 flex items-center gap-2 text-sm">
             <input type="checkbox" checked={draft.is_published} onChange={(e) => setDraft({ ...draft, is_published: e.target.checked })} data-testid="notice-publish" />
             Publish immediately (visible on public board)
@@ -151,6 +170,12 @@ export default function NoticesPanel() {
             <span className="font-mono text-xs text-brand-navy-soft">{n.notice_ref}</span>
             <span className="pmc-pill uppercase text-[10px]">{n.document_type}</span>
             <span className="text-sm font-semibold text-brand-navy flex-1">{n.title}</span>
+            {n.tender_template_id && (
+              <span className="text-[10px] uppercase tracking-widest text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5"
+                    data-testid={`notice-template-badge-${n.notice_ref}`}>
+                📐 template linked
+              </span>
+            )}
             {n.primary_document && (
               <a href={`${process.env.REACT_APP_BACKEND_URL}${n.primary_document.url}`} target="_blank" rel="noreferrer"
                  data-testid={`notice-primary-${n.notice_ref}`}
@@ -163,6 +188,12 @@ export default function NoticesPanel() {
                 +{n.attachments.length} attachment(s)
               </span>
             )}
+            <a href={`/notices/${n.notice_ref}`} target="_blank" rel="noreferrer"
+               data-testid={`notice-preview-${n.notice_ref}`}
+               title="Open the public notice page in a new tab — exactly what bidders see"
+               className="text-xs uppercase tracking-widest px-2 py-1 border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white">
+              Preview as bidder ↗
+            </a>
             <span className="text-xs text-brand-navy/50 font-mono">{n.submission_deadline?.slice(0, 10)}</span>
           </div>
         ))}

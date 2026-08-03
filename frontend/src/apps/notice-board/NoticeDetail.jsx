@@ -103,11 +103,18 @@ export default function NoticeDetail() {
               {notice.tender_template_id && (
                 <div className="mt-8" data-testid="notice-composed-pdf">
                   <div className="pmc-label">Composed tender document</div>
-                  <a href={`${process.env.REACT_APP_BACKEND_URL}/api/v1/tender-templates/${notice.tender_template_id}/public/pdf?notice_ref=${encodeURIComponent(notice.notice_ref)}`}
-                     data-testid="notice-composed-download"
-                     className="mt-2 inline-flex items-center gap-2 px-4 py-3 border border-brand-navy bg-brand-navy text-white hover:bg-brand-navy-deep transition-colors text-sm">
-                    ⬇ <span>Download the full tender (PDF, watermarked)</span>
-                  </a>
+                  <div className="mt-2 flex flex-wrap gap-3">
+                    <a href={`${process.env.REACT_APP_BACKEND_URL}/api/v1/tender-templates/${notice.tender_template_id}/public/pdf?notice_ref=${encodeURIComponent(notice.notice_ref)}`}
+                       data-testid="notice-composed-download"
+                       className="inline-flex items-center gap-2 px-4 py-3 border border-brand-navy bg-brand-navy text-white hover:bg-brand-navy-deep transition-colors text-sm">
+                      ⬇ <span>Download PDF (watermarked)</span>
+                    </a>
+                    <a href={`${process.env.REACT_APP_BACKEND_URL}/api/v1/tender-templates/${notice.tender_template_id}/public/zip?notice_ref=${encodeURIComponent(notice.notice_ref)}`}
+                       data-testid="notice-composed-zip"
+                       className="inline-flex items-center gap-2 px-4 py-3 border border-brand-navy text-brand-navy hover:bg-brand-navy hover:text-white transition-colors text-sm">
+                      🗂 <span>Download all documents (.zip)</span>
+                    </a>
+                  </div>
                   <div className="mt-1 text-[11px] text-brand-navy/50">
                     Rendered live from the Tender Builder — includes every annexure and template attachment.
                   </div>

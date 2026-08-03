@@ -404,6 +404,75 @@ def _render_tender_html(doc: dict) -> str:
 </body></html>"""
 
 
+# ---------- Public full-docs ZIP bundle ----------
+
+@router.get("/{tid}/public/zip")
+async def public_export_tender_zip(tid: str, notice_ref: Optional[str] = None):
+    """PUBLIC — bundle the composed PDF + every section attachment into one .zip
+    so bidders can pull the whole packet in a single click. Gated by a
+    published notice being linked, exactly like the /public/pdf endpoint."""
+    if notice_ref:
+        n = await db.notices.find_one({"notice_ref": notice_ref, "is_published": True,
+                                         "tender_template_id": tid})
+        if not n:
+            raise HTTPException(status_code=404, detail="Tender not available")
+    try:
+        doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
+    except Exception:
+        raise HTTPException(status_code=400, detail="Malformed template id")
+    if not doc:
+        raise HTTPException(status_code=404, detail="Template not found")
+    if not notice_ref and not doc.get("is_master") and not doc.get("public"):
+        raise HTTPException(status_code=403, detail="This template is not public")
+
+    from weasyprint import HTML
+    import io
+    import zipfile
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in (doc.get("name") or "tender"))[:60]
+        # 1. Composed PDF at the root
+        pdf_bytes = HTML(string=_render_tender_html(doc)).write_pdf()
+        zf.writestr(f"{safe_name}.pdf", pdf_bytes)
+        # 2. Each section attachment under attachments/
+        for s in sorted(doc.get("sections") or [], key=lambda x: x.get("order", 0)):
+            att = s.get("attachment")
+            if not att:
+                continue
+            # Pull the raw bytes from the uploads collection.
+            key = att.get("url", "").split("/api/v1/uploads/files/", 1)[-1]
+            up = await db.uploads.find_one({"key": key})
+            if not up or not up.get("data_b64"):
+                continue
+            safe_att = "".join(c if c.isalnum() or c in "-_." else "_" for c in att.get("file_name", "attachment"))
+            zf.writestr(f"attachments/{s['code']}__{safe_att}", base64.b64decode(up["data_b64"]))
+        # 3. A README index so bidders know what's inside
+        lines = [
+            f"# {doc.get('name')}",
+            f"Kind: {doc.get('kind')}",
+            f"Issued: {(doc.get('updated_at') or '')[:10]}",
+            "",
+            "## Contents",
+            f"- {safe_name}.pdf  — the composed tender document",
+        ]
+        for s in sorted(doc.get("sections") or [], key=lambda x: x.get("order", 0)):
+            if s.get("attachment"):
+                lines.append(f"- attachments/{s['code']}__{s['attachment'].get('file_name')}"
+                              f"  — {s.get('title')}")
+        zf.writestr("README.txt", "\n".join(lines).encode("utf-8"))
+    buf.seek(0)
+    safe_zip = "".join(c if c.isalnum() or c in "-_" else "_" for c in (doc.get("name") or "tender"))[:60]
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{safe_zip}.zip"',
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
 # ---------- Public notice-linked PDF export ----------
 
 @router.get("/{tid}/public/pdf")

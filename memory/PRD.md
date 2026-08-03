@@ -19,6 +19,12 @@ Emergent MVP now, AWS Phase 2 later; also shipped as PWA + Capacitor mobile app.
 ## Roadmap
 
 ### P0 — Verified this session ✅
+- **Wave 30 (Tender Builder v4 — 2026-08-03)** — the next 4 backlog items shipped:
+  1. **Section Diff Viewer** — `diff@9` word-level diffs with red-strike / green-highlight; the `AiDiffModal` appears whenever AI is re-run on a section that already has body content, with `+N / −N words` stats, Keep-current vs Replace-with-AI actions. Only fires when body is non-empty (empty sections auto-apply).
+  2. **Public Full-Docs Zip** — new endpoint `GET /api/v1/tender-templates/{id}/public/zip?notice_ref=…` (`zipfile` from stdlib) bundles the composed PDF + every section attachment + `README.txt` index. Public gated by the linked notice being published. Verified: 33 KB zip with `Standard_..pdf` + 3 attachments + README.
+  3. **Tone Presets in UI** — new `AiDraftMenu` popover replaces the plain ✨ button. Grid of Formal / Plain / Strict tones × Short / Medium / Long lengths (~120/240/420 words), a purple "Draft with AI" CTA, escape-on-outside-click. Verified via Playwright: all 6 knobs + go button render for every section.
+  4. **Vendor Portal Preview** — added a "Preview as bidder ↗" link on every row of the admin Notices panel that opens the public `/notices/{ref}` page in a new tab (`target=_blank`). Also added a "Tender template" dropdown to the New-notice form so admins wire the template + notice together at creation time. A subtle "📐 template linked" badge appears on rows that already have one.
+  - `diff@9.0.0` frozen into `frontend/package.json`.
 - **Wave 29 (Tender Builder v3 — 2026-08-03)** — the 4 backlog items shipped:
   1. **Notice PDF Wire-Up** — `NoticeIn.tender_template_id` added; new public endpoint `GET /api/v1/tender-templates/{tid}/public/pdf?notice_ref=…` gated by the linked notice being published; the Notice Detail page now shows a prominent navy "Download the full tender (PDF, watermarked)" CTA. Verified 200 · `%PDF-1.7` · 3 pages.
   2. **Bulk Section Upload** — `POST /api/v1/tender-templates/{tid}/attachments/bulk` (multipart, N files). Filename→section matcher now prefers exact code → exact title-slug → longest-code prefix → longest substring, so `annex-VIII_bank.pdf` correctly matches `annex-VIII` (not `annex-V`). Frontend dropzone with per-file green/red report.

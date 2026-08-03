@@ -3,6 +3,8 @@ import { toast } from "sonner";
 import { tenderTemplateApi, formatApiError } from "@/lib/api";
 import TenderHeaderForm from "./tender/TenderHeaderForm";
 import RichEditor from "./tender/RichEditor";
+import AiDraftMenu from "./tender/AiDraftMenu";
+import AiDiffModal from "./tender/AiDiffModal";
 import { exportTenderPdf } from "./tender/tenderPdf";
 
 /**
@@ -93,17 +95,33 @@ export default function TenderBuilderPanel() {
   };
 
   const [aiBusyCode, setAiBusyCode] = useState(null);
-  const aiDraftSection = async (idx) => {
+  const [diffState, setDiffState] = useState(null); // { idx, oldBody, newBody, title }
+  const runAiDraft = async (idx, opts) => {
     if (!doc?.id) return;
     const s = doc.sections[idx];
-    if (s.body && !confirm(`Replace the current draft of "${s.title}" with an AI-generated one?`)) return;
     setAiBusyCode(s.code);
     try {
-      const r = await tenderTemplateApi.aiDraftSection(doc.id, s.code, { tone: "formal", length: "medium" });
-      patchSection(idx, { body: r.body || "" });
-      toast.success(`Draft filled by AI · ${s.code}`);
+      const r = await tenderTemplateApi.aiDraftSection(doc.id, s.code, opts);
+      const newBody = r.body || "";
+      if (s.body && s.body.trim()) {
+        // Section already has content — show the diff modal before applying.
+        setDiffState({ idx, oldBody: s.body, newBody, title: s.title });
+      } else {
+        patchSection(idx, { body: newBody });
+        toast.success(`Draft filled by AI · ${s.code}`);
+      }
     } catch (e) { toast.error(formatApiError(e)); }
     finally { setAiBusyCode(null); }
+  };
+  const acceptAiDraft = () => {
+    if (!diffState) return;
+    patchSection(diffState.idx, { body: diffState.newBody });
+    toast.success("AI draft applied");
+    setDiffState(null);
+  };
+  const rejectAiDraft = () => {
+    toast.info("AI draft discarded");
+    setDiffState(null);
   };
 
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -350,13 +368,12 @@ export default function TenderBuilderPanel() {
                         data-testid={`tb-section-title-${s.code}`}
                         className="mt-1 w-full px-3 py-2 border border-current/20 bg-white text-brand-navy font-serif text-lg" />
                     </div>
-                    <div className="flex gap-1">
-                      <button onClick={() => aiDraftSection(i)} disabled={aiBusyCode === s.code}
-                        data-testid={`tb-ai-draft-${s.code}`}
-                        title="Ask the AI copilot to draft this section body using the tender header context"
-                        className="px-2 py-1 text-xs border border-purple-500 text-purple-700 bg-white hover:bg-purple-50 disabled:opacity-40">
-                        {aiBusyCode === s.code ? "…" : "✨ AI"}
-                      </button>
+                    <div className="flex gap-1 items-start">
+                      <AiDraftMenu
+                        code={s.code}
+                        busy={aiBusyCode === s.code}
+                        onDraft={(opts) => runAiDraft(i, opts)}
+                      />
                       <button onClick={() => move(i, -1)} data-testid={`tb-up-${s.code}`}
                         className="px-2 py-1 text-xs border border-current/30 bg-white hover:bg-brand-pale">↑</button>
                       <button onClick={() => move(i, +1)} data-testid={`tb-down-${s.code}`}
@@ -424,6 +441,14 @@ export default function TenderBuilderPanel() {
           </div>
         )}
       </section>
+      <AiDiffModal
+        open={!!diffState}
+        sectionTitle={diffState?.title || ""}
+        oldBody={diffState?.oldBody || ""}
+        newBody={diffState?.newBody || ""}
+        onAccept={acceptAiDraft}
+        onReject={rejectAiDraft}
+      />
     </div>
   );
 }
