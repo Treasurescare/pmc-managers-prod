@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { tenderTemplateApi, formatApiError } from "@/lib/api";
 
@@ -129,6 +129,13 @@ export default function TenderBuilderPanel() {
 
   const masters = list.filter((x) => x.is_master);
   const drafts = list.filter((x) => !x.is_master);
+  // Memoize the ordered sections so an unrelated re-render doesn't sort the
+  // whole list again (sort() is in-place; using a slice+sort keeps referential
+  // integrity for React's reconciler when only header meta changes).
+  const orderedSections = useMemo(
+    () => [...(doc?.sections || [])].sort((a, b) => (a.order || 0) - (b.order || 0)),
+    [doc?.sections],
+  );
 
   return (
     <div data-testid="tender-builder-panel" className="grid gap-6 lg:grid-cols-[300px_1fr]">
@@ -275,7 +282,7 @@ export default function TenderBuilderPanel() {
 
             {/* Sections */}
             <div className="space-y-4">
-              {(doc.sections || []).sort((a, b) => (a.order || 0) - (b.order || 0)).map((s, i) => (
+              {orderedSections.map((s, i) => (
                 <article key={`${s.code}-${i}`} className={`border p-5 ${KIND_TONE[s.kind] || KIND_TONE.section}`}
                          data-testid={`tb-section-${s.code}`}>
                   <div className="flex items-baseline justify-between gap-3 flex-wrap">

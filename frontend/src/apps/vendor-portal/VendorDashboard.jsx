@@ -41,7 +41,10 @@ export default function VendorDashboard() {
   }, []);
 
   const logout = async () => {
-    try { await vendorApi.logout(); } catch { /* ignore */ }
+    try { await vendorApi.logout(); }
+    catch (err) {
+      if (process.env.NODE_ENV !== "production") console.debug("vendor logout skipped:", err?.response?.status);
+    }
     nav("/vendor/login");
   };
 

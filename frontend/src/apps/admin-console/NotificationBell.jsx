@@ -9,7 +9,10 @@ export default function NotificationBell() {
   const [items, setItems] = useState([]);
 
   const refresh = async () => {
-    try { setItems(await notifyApi.list()); } catch { /* silent */ }
+    try { setItems(await notifyApi.list()); }
+    catch (err) {
+      if (process.env.NODE_ENV !== "production") console.debug("notifications poll failed:", err?.response?.status);
+    }
   };
   useEffect(() => {
     refresh();

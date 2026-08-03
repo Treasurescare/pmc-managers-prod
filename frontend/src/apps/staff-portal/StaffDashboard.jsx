@@ -50,7 +50,10 @@ export default function StaffDashboard() {
   };
 
   const logout = async () => {
-    try { await staffApi.logout(); } catch { /* ignore */ }
+    try { await staffApi.logout(); }
+    catch (err) {
+      if (process.env.NODE_ENV !== "production") console.debug("staff logout skipped:", err?.response?.status);
+    }
     nav("/staff/login");
   };
 

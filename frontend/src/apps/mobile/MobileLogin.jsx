@@ -35,17 +35,23 @@ export default function MobileLogin() {
     try {
       const r = await staffApi.login(email, password, role, undefined);
       if (r && !r.mfa_required) return { kind: "staff", role: r.active_role };
-    } catch { /* try next */ }
+    } catch (err) {
+      if (process.env.NODE_ENV !== "production") console.debug("mobile staff login skipped:", err?.response?.status);
+    }
     // 2. Admin-only fallback
     try {
       await adminApi.login(email, password);
       return { kind: "admin", role: "admin" };
-    } catch { /* try next */ }
+    } catch (err) {
+      if (process.env.NODE_ENV !== "production") console.debug("mobile admin login skipped:", err?.response?.status);
+    }
     // 3. Vendor
     try {
       await vendorApi.login(email, password);
       return { kind: "vendor", role: "vendor" };
-    } catch { /* fail */ }
+    } catch (err) {
+      if (process.env.NODE_ENV !== "production") console.debug("mobile vendor login skipped:", err?.response?.status);
+    }
     throw new Error("No matching account for that email + password");
   };
 

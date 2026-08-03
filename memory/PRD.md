@@ -19,10 +19,13 @@ Emergent MVP now, AWS Phase 2 later; also shipped as PWA + Capacitor mobile app.
 ## Roadmap
 
 ### P0 — Verified this session ✅
-- **Wave 22 (this iteration)** — **Sign-in hub redesign**: `/login` now shows **two clearly labelled cards**: a navy "PMC TEAM · Employee sign-in" (Admin + Escrow + Certifier + Legal + Accounting + Committee + Reviewer + Auditor + Support) and a green "VENDOR / SUPPLIER · Vendor sign-in" with a prominent Register-your-company link. TopBar nav renamed the old **Admin** entry to **Sign in** pointing at `/login`. Full trilingual (EN/RU/KK) copy for badges, card titles, sub-copy, submit buttons and role list. Playwright screenshots confirm desktop side-by-side + mobile stacked.
-- **Wave 21** — Upload 500 fixed + admin-side uploads inside "Add & Fill Vendor" with draft banner
-- **Wave 20** — Tender / RFP / RFQ Template Builder with 18 seeded PSU sections
-- **Wave 18/19** — Mobile hamburger drawer + Sign Out + CNAME multi-tenant + code review r2
+- **Wave 23 (this iteration)** — code review round 3:
+  - Empty-catch dev-mode logs added to `NotificationBell.jsx`, `VendorDashboard.jsx::logout`, `StaffDashboard.jsx::logout`, `MobileLogin.jsx::tryDetect` (3).
+  - Perf win in `TenderBuilderPanel.jsx`: sections list now `useMemo`'d — avoids `sort()` on every re-render + preserves referential identity for React reconciler.
+  - Skipped (same false-positive family as prior waves): the recurring "hardcoded secrets" flags at i18n-strings.js lines 199/252/753/806 (translation labels for the *password field*, already annotated), and I18nContext `useMemo` "missing STRINGS in deps" (ESLint says otherwise — STRINGS is a module-level constant).
+- **Wave 22** — Sign-in Hub redesign (Employee / Vendor two-card split)
+- **Wave 21** — Upload 500 fix + admin-side uploads
+- **Wave 20** — Tender / RFP / RFQ Template Builder
 
 ### P1 (Next)
 - **Deploy Refresh** — user needs to click "Save to Github" + "Deploy" so Waves 15–18 land in production, then hit `POST /api/v1/admin/heal/rename-admin` once to purge the legacy `admin@pmcmanagers.com` row from prod
