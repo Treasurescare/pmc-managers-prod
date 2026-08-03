@@ -253,8 +253,15 @@ export default function TenderBuilderPanel() {
                   </button>
                   <button onClick={() => exportTenderPdf(doc)} disabled={!doc}
                     data-testid="tb-export-pdf"
+                    title="Opens the browser print dialog — pick 'Save as PDF'"
                     className="px-4 py-2 text-[12px] uppercase tracking-widest border border-brand-navy text-brand-navy hover:bg-brand-navy hover:text-white">
-                    Export PDF
+                    Print / PDF
+                  </button>
+                  <button onClick={() => exportTenderPdf(doc, { download: true })} disabled={!doc}
+                    data-testid="tb-download-html"
+                    title="Downloads a self-contained .html copy — open in any browser"
+                    className="px-4 py-2 text-[12px] uppercase tracking-widest border border-brand-navy/40 text-brand-navy hover:bg-brand-navy/10">
+                    Download
                   </button>
                   {!doc.is_master && (
                     <button onClick={removeDraft} data-testid="tb-delete"
@@ -305,7 +312,9 @@ export default function TenderBuilderPanel() {
                   <div className="mt-3 border-t border-current/10 pt-3 flex items-center gap-3 flex-wrap">
                     <span className="text-[10px] uppercase tracking-widest opacity-60">Template attachment</span>
                     {s.attachment ? (
-                      <a href={`${process.env.REACT_APP_BACKEND_URL}${s.attachment.url}`} target="_blank" rel="noreferrer"
+                      <a href={`${process.env.REACT_APP_BACKEND_URL}${s.attachment.url}`}
+                         target="_blank" rel="noreferrer"
+                         download={s.attachment.file_name}
                          data-testid={`tb-attach-dl-${s.code}`}
                          className="text-xs underline text-brand-navy">
                         📎 {s.attachment.file_name} ({Math.round((s.attachment.size_bytes || 0) / 1024)} KB)

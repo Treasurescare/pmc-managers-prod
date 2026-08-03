@@ -19,6 +19,10 @@ Emergent MVP now, AWS Phase 2 later; also shipped as PWA + Capacitor mobile app.
 ## Roadmap
 
 ### P0 — Verified this session ✅
+- **Wave 26 (Tender PDF UX fix — 2026-08-03)**:
+  - `Export PDF` split into **two robust buttons**: `Print / PDF` (hidden iframe + `iframe.contentWindow.print()` — popup-blocker-proof) and `Download` (self-contained `.html` file via `<a download>`). Verified: Playwright caught the download event (7,560-byte file, safe filename slug) and confirmed the iframe injection (0 → 1) on Print / PDF click.
+  - Backend `/api/v1/uploads/files/{key}` now sets `Content-Disposition: inline; filename="..."` (strips the uuid_ prefix) + `X-Content-Type-Options: nosniff` so browsers preview PDFs and users get a sensible name when they Save-As.
+  - Section attachment `<a>` in Tender Builder gained the `download={file_name}` attribute so right-click / cmd-click stores it cleanly instead of trying to render.
 - **Wave 25 (code-review fixes — 2026-08-03)**:
   - **XSS defence in Tender Builder**: `RichEditor.jsx` now sanitises every HTML string on the way in AND out with **DOMPurify** (allowlist: p/br/b/strong/i/em/u/h2/h3/ul/ol/li/blockquote/code/pre/span/div/a); paste handler forces plain-text so no `<script>`/`onerror` survives. `tenderPdf.js` sanitises each section body before composing, drops `document.write` in favour of a **Blob URL + `window.open`**, and revokes the URL after 60 s. Verified via runtime injection test — the injected `<script>window.__pwned=true</script>` was blocked (pwned=false).
   - Added dev-mode warns to empty catches in `mobileBridge.js::saveSecure`/`clearSecure` and `tenderPdf.js::print`.

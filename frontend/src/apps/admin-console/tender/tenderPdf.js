@@ -129,27 +129,49 @@ export function buildTenderHtml(doc) {
 </body></html>`;
 }
 
-export function exportTenderPdf(doc) {
+export function exportTenderPdf(doc, { download = false } = {}) {
   const html = buildTenderHtml(doc);
-  // Hand the HTML off via a Blob URL instead of `document.write` so the new
-  // window loads it as a normal document with a fresh Trusted Types boundary.
-  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const w = window.open(url, "_blank");
-  if (!w) {
-    URL.revokeObjectURL(url);
+  const filename = `${(doc?.name || "tender").replace(/[^a-z0-9-_]+/gi, "_").slice(0, 60)}.html`;
+
+  // ---- Download-as-file mode (robust — always works, no popup blocker) ----
+  if (download) {
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5_000);
     return;
   }
+
+  // ---- Print / Save-as-PDF mode ----
+  // Use an in-app hidden iframe (srcdoc). This is popup-blocker-proof, works
+  // on desktop Chrome/Firefox/Safari and mobile Safari, and doesn't need
+  // Trusted Types / blob-URL exemptions in strict CSP environments.
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0"; iframe.style.bottom = "0";
+  iframe.style.width = "0"; iframe.style.height = "0";
+  iframe.style.border = "0"; iframe.style.opacity = "0";
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.setAttribute("tabindex", "-1");
+  iframe.srcdoc = html;
+
   const cleanup = () => {
-    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    setTimeout(() => { try { iframe.remove(); } catch { /* noop */ } }, 60_000);
   };
-  w.onload = () => {
+
+  iframe.onload = () => {
+    // Give the layout engine one paint tick to render fonts/tables before print.
     setTimeout(() => {
-      try { w.focus(); w.print(); }
-      catch (e) {
+      try {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+      } catch (e) {
         if (process.env.NODE_ENV !== "production") console.warn("tenderPdf print failed", e);
       }
       cleanup();
-    }, 250);
+    }, 300);
   };
+  document.body.appendChild(iframe);
 }
