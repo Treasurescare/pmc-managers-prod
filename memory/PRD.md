@@ -20,12 +20,8 @@ Emergent MVP now, AWS Phase 2 later; also shipped as PWA + Capacitor mobile app.
 
 ### P0 — Verified this session ✅
 - Unified `/login` on web · legacy admin removal · Admin fills full A–E form
-- **Wave 15** — trilingual form fields · **Wave 16** — code review round 1 · **Wave 17** — countries trilingual + panel splits · **Wave 18** — mobile hamburger drawer + Sign Out + CNAME multi-tenant
-- **Wave 19 (this iteration)** — code review round 2:
-  - Empty-catch cleanups with dev-mode `console.debug` in `TopBar.jsx` (3 catches), `UnifiedLogin.jsx` (3 catches), `useTenantSkin.js` (2 catches).
-  - Backend deep-nesting flattened: `db.py::create_indexes` now delegates recovery to `_recover_unique_index` helper; `analytics_helpers.py::deterministic_flags` extracts `_escrow_speed_flag`.
-  - Backend complexity reductions: new `routers/boqs_helpers.py::rows_to_items` used by `boqs.py::import_boq_excel`; new `routers/registrations_helpers.py` (`approve_and_create_vendor`, `dispatch_rejection_email`, `dispatch_clarification_email`) used by `registrations.py::admin_decide` — reduced from 66 → 37 LOC.
-  - "Hardcoded secrets" in `i18n-strings.js` are literal translation strings for the password *label* — already annotated at the top of the file (false positive).
+- **Wave 15/16/17/18/19** — trilingual · code review r1 · country i18n + panel splits · mobile hamburger + CNAME multi-tenant · code review r2
+- **Wave 20 (this iteration)** — **Tender / RFP / RFQ Template Builder**: new `routers/tender_templates.py` with CRUD + auto-seeded "Standard PSU e-Tender (GFR 2017, QCBS 70/30)" master carrying 18 blank sections (Sections 1-4, Annexures I-VIII, Forms A-F) modelled from the ESIC Idukki tender. New admin tab **Tender Builder** with left-column library (masters + drafts) and section-by-section editor: header meta form (work title, budget/currency, period, evaluation method, eligibility) + one blank textarea per section, reorderable, deletable, extensible via "+ Section / + Annexure / + Form" buttons. Verified end-to-end: master → clone → 18 sections rendered → edit + save → toast. Screenshot ✓.
 
 ### P1 (Next)
 - **Deploy Refresh** — user needs to click "Save to Github" + "Deploy" so Waves 15–18 land in production, then hit `POST /api/v1/admin/heal/rename-admin` once to purge the legacy `admin@pmcmanagers.com` row from prod

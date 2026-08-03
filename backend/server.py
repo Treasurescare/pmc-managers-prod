@@ -16,6 +16,7 @@ from routers import (
     staff_auth, vendor_auth, bids, payments, committee, tasks, chat, inspections, masters,
     evaluations, boqs, vendor_intel, analytics, governance, notifications, payments_sandbox,
     mfa, tenants, kyc, vendor_invites, permissions, admin_heal, vendor_full_invite,
+    tender_templates,
 )
 
 
@@ -64,6 +65,8 @@ app.include_router(permissions.router)
 # Wave 14 — Admin heal + admin creates full vendor
 app.include_router(admin_heal.router)
 app.include_router(vendor_full_invite.router)
+# Wave 20 — Tender / RFP / RFQ template builder
+app.include_router(tender_templates.router)
 
 
 # ---------- CORS ----------
@@ -207,6 +210,10 @@ async def on_start() -> None:
     await _seed_staff()
     await _seed_demo_notices()
     await _seed_packages()
+    from routers.tender_templates import seed_master_templates
+    seeded = await seed_master_templates()
+    if seeded:
+        logging.info(f"Seeded {seeded} tender template masters")
 
 
 async def _seed_packages() -> None:

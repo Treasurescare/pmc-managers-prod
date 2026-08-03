@@ -18,6 +18,7 @@ import RegistrationsPanel from "./RegistrationsPanel";
 import NoticesPanel from "./NoticesPanel";
 import AuditPanel from "./AuditPanel";
 import PackagesPanel from "./PackagesPanel";
+import TenderBuilderPanel from "./TenderBuilderPanel";
 import useTenantSkin from "@/apps/shared/useTenantSkin";
 
 function TabBar({ tab, setTab }) {
@@ -26,6 +27,7 @@ function TabBar({ tab, setTab }) {
     ["registrations", "Registrations"],
     ["vendors", "Vendors"],
     ["notices", "Notices"],
+    ["tender-builder", "Tender Builder"],
     ["bidding", "Bidding Ops"],
     ["evaluation", "Evaluation"],
     ["boq", "BOQ & Contracts"],
@@ -115,6 +117,7 @@ export default function AdminDashboard() {
           {tab === "registrations" && <RegistrationsPanel />}
           {tab === "vendors" && <VendorsPanel />}
           {tab === "notices" && <NoticesPanel />}
+          {tab === "tender-builder" && <TenderBuilderPanel />}
           {tab === "bidding" && <BiddingOpsPanel />}
           {tab === "evaluation" && <EvaluationPanel />}
           {tab === "boq" && <BOQContractsPanel />}

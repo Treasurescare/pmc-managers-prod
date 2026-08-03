@@ -329,6 +329,16 @@ export const tenantApi = {
     api.get("/api/v1/tenants/by-host", { params: { host } }).then((r) => r.data),
 };
 
+export const tenderTemplateApi = {
+  list: (kind) =>
+    api.get("/api/v1/tender-templates", { params: kind ? { kind } : {} }).then((r) => r.data),
+  get: (id) => api.get(`/api/v1/tender-templates/${id}`).then((r) => r.data),
+  create: (p) => api.post("/api/v1/tender-templates", p).then((r) => r.data),
+  update: (id, p) => api.patch(`/api/v1/tender-templates/${id}`, p).then((r) => r.data),
+  remove: (id) => api.delete(`/api/v1/tender-templates/${id}`).then((r) => r.data),
+  reseed: () => api.post("/api/v1/tender-templates/seed").then((r) => r.data),
+};
+
 export const gdprApi = {
   forget: (registration_id) =>
     api.post(`/api/v1/registrations/${registration_id}/gdpr-forget`).then((r) => r.data),
