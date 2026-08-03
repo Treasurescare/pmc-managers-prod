@@ -11,12 +11,17 @@ Wire:
 * GET  /api/v1/tender-templates/{id}       fetch full sections
 * PATCH /api/v1/tender-templates/{id}      update section bodies / metadata
 * POST /api/v1/tender-templates/seed       (admin) re-seed the master library
+* POST /api/v1/tender-templates/{id}/sections/{code}/attachment   upload a per-section template file
+* DELETE /api/v1/tender-templates/{id}/sections/{code}/attachment
 """
+import base64
+import uuid
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from pydantic import BaseModel, Field
 from bson import ObjectId
 
+import config
 from db import db
 from models.base import BaseDocument, now_iso
 from security import require_role
@@ -32,6 +37,7 @@ class SectionBlock(BaseModel):
     hint: Optional[str] = None
     body: Optional[str] = ""
     order: int
+    attachment: Optional[dict] = None  # {file_name, url, content_type, size_bytes, uploaded_at, uploaded_by}
 
 
 class TenderTemplateIn(BaseModel):
@@ -210,3 +216,57 @@ async def reseed(admin=Depends(require_role("admin"))):
     """Admin-triggered re-seed of the master template library."""
     n = await seed_master_templates(force=True)
     return {"ok": True, "created": n}
+
+
+@router.post("/{tid}/sections/{code}/attachment")
+async def upload_section_attachment(tid: str, code: str,
+                                     file: UploadFile = File(...),
+                                     admin=Depends(require_role("admin"))):
+    """Attach a per-section template file (e.g. Annexure VIII bank cert layout).
+    Bidders can download the exact required format from the Notice detail page."""
+    doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Template not found")
+    sections = doc.get("sections", [])
+    idx = next((i for i, s in enumerate(sections) if s.get("code") == code), -1)
+    if idx < 0:
+        raise HTTPException(status_code=404, detail="Section not found")
+    body = await file.read()
+    if len(body) > config.MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="File exceeds pilot upload limit")
+    key = f"tender-section-attachments/{tid}/{code}/{uuid.uuid4().hex}_{file.filename}"
+    await db.uploads.insert_one({
+        "key": key, "content_type": file.content_type, "size_bytes": len(body),
+        "data_b64": base64.b64encode(body).decode("ascii"),
+        "created_at": now_iso(),
+    })
+    meta = {
+        "file_name": file.filename, "url": f"/api/v1/uploads/files/{key}",
+        "content_type": file.content_type or "application/octet-stream",
+        "size_bytes": len(body), "uploaded_at": now_iso(),
+        "uploaded_by": admin["email"],
+    }
+    sections[idx]["attachment"] = meta
+    await db.tender_templates.update_one({"_id": ObjectId(tid)},
+                                          {"$set": {"sections": sections, "updated_at": now_iso()}})
+    await audit_log("tender_template.section_attachment", admin, "tender_template", tid,
+                    {"code": code, "file_name": file.filename})
+    return _out(await db.tender_templates.find_one({"_id": ObjectId(tid)}))
+
+
+@router.delete("/{tid}/sections/{code}/attachment")
+async def remove_section_attachment(tid: str, code: str,
+                                     admin=Depends(require_role("admin"))):
+    doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Template not found")
+    sections = doc.get("sections", [])
+    idx = next((i for i, s in enumerate(sections) if s.get("code") == code), -1)
+    if idx < 0:
+        raise HTTPException(status_code=404, detail="Section not found")
+    sections[idx].pop("attachment", None)
+    await db.tender_templates.update_one({"_id": ObjectId(tid)},
+                                          {"$set": {"sections": sections, "updated_at": now_iso()}})
+    await audit_log("tender_template.section_attachment_remove", admin, "tender_template", tid,
+                    {"code": code})
+    return _out(await db.tender_templates.find_one({"_id": ObjectId(tid)}))

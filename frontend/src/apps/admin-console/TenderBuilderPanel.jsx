@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { tenderTemplateApi, formatApiError } from "@/lib/api";
+import TenderHeaderForm from "./tender/TenderHeaderForm";
+import RichEditor from "./tender/RichEditor";
+import { exportTenderPdf } from "./tender/tenderPdf";
 
 /**
  * TenderBuilderPanel — Section-by-section tender/RFP/RFQ composer.
@@ -62,6 +65,31 @@ export default function TenderBuilderPanel() {
       return { ...prev, sections };
     });
     setDirty(true);
+  };
+
+  const patchHeader = (patch) => {
+    setDoc((prev) => ({ ...prev, header: { ...(prev.header || {}), ...patch } }));
+    setDirty(true);
+  };
+
+  const uploadSectionAttachment = async (idx, file) => {
+    if (!file || !doc?.id) return;
+    setBusy(true);
+    try {
+      const updated = await tenderTemplateApi.uploadSectionAttachment(doc.id, doc.sections[idx].code, file);
+      setDoc(updated);
+      toast.success("Attachment uploaded");
+    } catch (e) { toast.error(formatApiError(e)); }
+    finally { setBusy(false); }
+  };
+
+  const removeSectionAttachment = async (idx) => {
+    if (!doc?.id) return;
+    if (!confirm("Remove this attachment?")) return;
+    try {
+      const updated = await tenderTemplateApi.removeSectionAttachment(doc.id, doc.sections[idx].code);
+      setDoc(updated);
+    } catch (e) { toast.error(formatApiError(e)); }
   };
 
   const addBlank = (kindCode) => {
@@ -217,11 +245,16 @@ export default function TenderBuilderPanel() {
                     data-testid="tb-name"
                     className="mt-1 w-full px-3 py-2 border border-brand-navy/20 text-lg font-serif text-brand-navy" />
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   <button onClick={save} disabled={busy || !dirty}
                     data-testid="tb-save"
                     className="px-5 py-2 text-[12px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep disabled:opacity-40">
                     {busy ? "Saving…" : dirty ? "Save changes" : "Saved"}
+                  </button>
+                  <button onClick={() => exportTenderPdf(doc)} disabled={!doc}
+                    data-testid="tb-export-pdf"
+                    className="px-4 py-2 text-[12px] uppercase tracking-widest border border-brand-navy text-brand-navy hover:bg-brand-navy hover:text-white">
+                    Export PDF
                   </button>
                   {!doc.is_master && (
                     <button onClick={removeDraft} data-testid="tb-delete"
@@ -231,54 +264,10 @@ export default function TenderBuilderPanel() {
                   )}
                 </div>
               </div>
-
-              <div className="mt-4 grid gap-3 md:grid-cols-3 text-sm">
-                <label className="text-sm">
-                  <span className="pmc-label">Work title</span>
-                  <input value={doc.header?.work_title || ""}
-                    onChange={(e) => { setDoc({ ...doc, header: { ...doc.header, work_title: e.target.value } }); setDirty(true); }}
-                    data-testid="tb-work-title"
-                    className="mt-1 w-full px-3 py-2 border border-brand-navy/20" />
-                </label>
-                <label className="text-sm">
-                  <span className="pmc-label">Budget</span>
-                  <input type="number" value={doc.header?.budget_amount || ""}
-                    onChange={(e) => { setDoc({ ...doc, header: { ...doc.header, budget_amount: Number(e.target.value) } }); setDirty(true); }}
-                    data-testid="tb-budget"
-                    className="mt-1 w-full px-3 py-2 border border-brand-navy/20" />
-                </label>
-                <label className="text-sm">
-                  <span className="pmc-label">Currency</span>
-                  <select value={doc.header?.budget_currency || "INR"}
-                    onChange={(e) => { setDoc({ ...doc, header: { ...doc.header, budget_currency: e.target.value } }); setDirty(true); }}
-                    data-testid="tb-currency"
-                    className="mt-1 w-full px-3 py-2 border border-brand-navy/20 bg-white">
-                    {["INR", "USD", "EUR", "KZT", "GBP", "AED"].map((c) => <option key={c}>{c}</option>)}
-                  </select>
-                </label>
-                <label className="text-sm">
-                  <span className="pmc-label">Period (days)</span>
-                  <input type="number" value={doc.header?.period_days || ""}
-                    onChange={(e) => { setDoc({ ...doc, header: { ...doc.header, period_days: Number(e.target.value) } }); setDirty(true); }}
-                    data-testid="tb-period"
-                    className="mt-1 w-full px-3 py-2 border border-brand-navy/20" />
-                </label>
-                <label className="text-sm md:col-span-2">
-                  <span className="pmc-label">Evaluation method</span>
-                  <input value={doc.header?.evaluation_method || ""}
-                    onChange={(e) => { setDoc({ ...doc, header: { ...doc.header, evaluation_method: e.target.value } }); setDirty(true); }}
-                    data-testid="tb-eval-method"
-                    className="mt-1 w-full px-3 py-2 border border-brand-navy/20" />
-                </label>
-                <label className="text-sm md:col-span-3">
-                  <span className="pmc-label">Eligibility</span>
-                  <textarea rows={2} value={doc.header?.eligibility || ""}
-                    onChange={(e) => { setDoc({ ...doc, header: { ...doc.header, eligibility: e.target.value } }); setDirty(true); }}
-                    data-testid="tb-eligibility"
-                    className="mt-1 w-full px-3 py-2 border border-brand-navy/20" />
-                </label>
-              </div>
             </div>
+
+            {/* CPPP-style structured header */}
+            <TenderHeaderForm header={doc.header} patchHeader={patchHeader} />
 
             {/* Sections */}
             <div className="space-y-4">
@@ -307,12 +296,34 @@ export default function TenderBuilderPanel() {
                       {s.hint}
                     </div>
                   )}
-                  <textarea value={s.body || ""}
-                    onChange={(e) => patchSection(i, { body: e.target.value })}
-                    data-testid={`tb-section-body-${s.code}`}
+                  <RichEditor
+                    value={s.body || ""}
+                    onChange={(v) => patchSection(i, { body: v })}
+                    testid={`tb-section-body-${s.code}`}
                     placeholder={s.hint || `Write the ${KIND_LABEL[s.kind]?.toLowerCase() || "section"} content here…`}
-                    rows={8}
-                    className="mt-3 w-full px-3 py-2 border border-current/20 bg-white text-brand-navy leading-relaxed text-sm resize-y" />
+                  />
+                  <div className="mt-3 border-t border-current/10 pt-3 flex items-center gap-3 flex-wrap">
+                    <span className="text-[10px] uppercase tracking-widest opacity-60">Template attachment</span>
+                    {s.attachment ? (
+                      <a href={`${process.env.REACT_APP_BACKEND_URL}${s.attachment.url}`} target="_blank" rel="noreferrer"
+                         data-testid={`tb-attach-dl-${s.code}`}
+                         className="text-xs underline text-brand-navy">
+                        📎 {s.attachment.file_name} ({Math.round((s.attachment.size_bytes || 0) / 1024)} KB)
+                      </a>
+                    ) : <span className="text-xs opacity-60">No attachment</span>}
+                    <label className="text-xs cursor-pointer px-2 py-1 border border-current/30 bg-white hover:bg-brand-pale">
+                      {s.attachment ? "Replace" : "Upload"}
+                      <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx"
+                             onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadSectionAttachment(i, f); e.target.value = ""; }}
+                             data-testid={`tb-attach-up-${s.code}`}
+                             className="hidden" />
+                    </label>
+                    {s.attachment && (
+                      <button type="button" onClick={() => removeSectionAttachment(i)}
+                              data-testid={`tb-attach-rm-${s.code}`}
+                              className="text-xs text-red-600 hover:underline">Remove</button>
+                    )}
+                  </div>
                   <div className="mt-2 text-[11px] opacity-60">
                     Code: <code className="font-mono">{s.code}</code>
                     {(s.body || "").length > 0 && (
@@ -340,3 +351,4 @@ export default function TenderBuilderPanel() {
     </div>
   );
 }
+

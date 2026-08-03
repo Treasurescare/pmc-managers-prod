@@ -19,7 +19,13 @@ Emergent MVP now, AWS Phase 2 later; also shipped as PWA + Capacitor mobile app.
 ## Roadmap
 
 ### P0 — Verified this session ✅
-- **Wave 23 (this iteration)** — code review round 3:
+- **Wave 24 (this session — 2026-08-03)** — Tender Builder v2:
+  - Injected **CPPP-style structured header form** (`TenderHeaderForm.jsx`) at the top of `TenderBuilderPanel` — Basic Details, Cover Details (multi-row), Fee & EMD, Work/Item, Critical Dates (8 datetimes), NIT + Work-Item Documents lists, Tender Inviting Authority (~60 typed fields streamed into `doc.header`).
+  - Built dependency-free **RichEditor** (`tender/RichEditor.jsx`) — Bold, Italic, Underline, H2, H3, Paragraph, • List, 1. List, Blockquote, Undo, Redo, Clear formatting. Persists HTML into the same `section.body` field (fully back-compat with plain-text seed).
+  - Added **Per-section Template Attachments** — new backend endpoints `POST/DELETE /api/v1/tender-templates/{id}/sections/{code}/attachment` write to `db.uploads` (same pattern as notice docs); UI shows current file + Upload/Replace/Remove per section.
+  - Added **Export PDF** button in save bar — opens a print-ready standalone HTML window (`tenderPdf.js`) with the composed header table + all sections + inline RichEditor HTML → browser Save-as-PDF.
+  - Verified with screenshot (header form + Bold text applied + attachment row) and cURL (upload + delete round-trip on `annex-VIII`).
+- **Wave 23** — code review round 3:
   - Empty-catch dev-mode logs added to `NotificationBell.jsx`, `VendorDashboard.jsx::logout`, `StaffDashboard.jsx::logout`, `MobileLogin.jsx::tryDetect` (3).
   - Perf win in `TenderBuilderPanel.jsx`: sections list now `useMemo`'d — avoids `sort()` on every re-render + preserves referential identity for React reconciler.
   - Skipped (same false-positive family as prior waves): the recurring "hardcoded secrets" flags at i18n-strings.js lines 199/252/753/806 (translation labels for the *password field*, already annotated), and I18nContext `useMemo` "missing STRINGS in deps" (ESLint says otherwise — STRINGS is a module-level constant).

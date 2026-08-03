@@ -337,6 +337,14 @@ export const tenderTemplateApi = {
   update: (id, p) => api.patch(`/api/v1/tender-templates/${id}`, p).then((r) => r.data),
   remove: (id) => api.delete(`/api/v1/tender-templates/${id}`).then((r) => r.data),
   reseed: () => api.post("/api/v1/tender-templates/seed").then((r) => r.data),
+  uploadSectionAttachment: (id, code, file) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return api.post(`/api/v1/tender-templates/${id}/sections/${encodeURIComponent(code)}/attachment`, fd,
+      { headers: { "Content-Type": "multipart/form-data" } }).then((r) => r.data);
+  },
+  removeSectionAttachment: (id, code) =>
+    api.delete(`/api/v1/tender-templates/${id}/sections/${encodeURIComponent(code)}/attachment`).then((r) => r.data),
 };
 
 export const gdprApi = {
