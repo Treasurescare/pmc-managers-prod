@@ -23,13 +23,13 @@ Emergent MVP now, AWS Phase 2 later; also shipped as PWA + Capacitor mobile app.
 - Kill `admin@pmcmanagers.com` — config default fixed + heal endpoint + stale test deleted
 - Admin fills full Sections A–E registration form for a vendor with activate/verify modes
 - **Wave 15** — trilingual bundle now covers every FORM FIELD (Sections A/B/C/D/E, DocSlot, UnifiedLogin, AdminVendorCreate, RegistrationStart, RegistrationResume). Backend cyclomatic-complexity refactor via `bids_helpers.py`, `analytics_helpers.py`, `packages_helpers.py`, `committee_helpers.py`. Verified iteration_18.
-- **Wave 16 (code review response)** — Applied recommended safe fixes: moved test creds in `wave10_test.py` to env vars with defaults; wrapped production console statements in `NODE_ENV !== "production"` guards (api.js, index.js, mobileBridge.js, I18nContext.jsx); annotated intentional mount-only useEffects in `VendorDashboard.jsx` + `useTenantSkin.js`; added a header comment in `i18n-strings.js` documenting that `password` / `login_password` entries are UI LABELS (not credentials — false-positive from static scanner).
+- **Wave 16** — code review fixes: test creds via env vars, prod console guards, mount-only useEffect annotations, flat-config global ignores.
+- **Wave 17 (this iteration)** — (a) Country dropdown fully localized: `config.COUNTRIES` now carries EN/RU/KK names, `/api/v1/meta/countries` exposes `name_en`/`name_ru`/`name_kk`, both `SectionA.jsx` and `RegistrationStart.jsx` pick by current lang (verified via screenshots: Kazakhstan → Казахстан → Қазақстан). (b) Panel Split Sprint: all four 250–370 LOC admin panels broken into focused sub-components under `admin-console/bidding/`, `admin-console/masters/`, `admin-console/evaluation/`, `admin-console/boq/`. Main panel files reduced to 64–202 LOC each while preserving every data-testid.
 
 ### P1 (Next)
-- (Optional polish) Localize country dropdown `<option>` labels — currently returned from backend `/api/v1/meta/countries` in English only. Small enhancement not covered by the trilingual bundle.
-- Firebase + APNs setup (needs your `google-services.json` + APNs auth key)
-- Live KYC-Checks credentials (need `KYC_BASE_URL` + `KYC_API_KEY`)
-- On production: after redeploy, admin can hit `POST /api/v1/admin/heal/rename-admin` to auto-clean the legacy `admin@pmcmanagers.com` row
+- **Deploy Refresh** — user needs to click "Save to Github" + "Deploy" so Waves 15–17 land in production, then hit `POST /api/v1/admin/heal/rename-admin` once to purge the legacy `admin@pmcmanagers.com` row from the prod DB
+- **Firebase + APNs** — waiting for user to drop `google-services.json` and APNs auth key
+- **Live KYC-Checks** — waiting for `KYC_BASE_URL` + `KYC_API_KEY` env vars
 
 ### P2
 - Refactor big frontend components (BiddingOpsPanel, MastersPanel, BOQContractsPanel) — deferred

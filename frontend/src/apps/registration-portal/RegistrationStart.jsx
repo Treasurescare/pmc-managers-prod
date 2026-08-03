@@ -7,7 +7,7 @@ import TopBar from "@/apps/shared/TopBar";
 import Footer from "@/apps/shared/Footer";
 
 export default function RegistrationStart() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [companyName, setCompanyName] = useState("");
@@ -95,7 +95,7 @@ export default function RegistrationStart() {
               data-testid="reg-start-country"
               className="mt-1 w-full px-4 py-3 border border-brand-navy/20 focus:outline-none focus:border-brand-navy-soft text-brand-navy bg-white"
             >
-              {countries.map((c) => (<option key={c.code} value={c.code}>{c.name}</option>))}
+              {countries.map((c) => (<option key={c.code} value={c.code}>{c[`name_${lang}`] || c.name_en || c.name}</option>))}
             </select>
           </div>
 

@@ -4,8 +4,10 @@ import { useI18n } from "@/context/I18nContext";
 
 const LEGAL_TYPES = ["", "LLC", "JSC", "Sole Proprietorship", "Partnership", "Branch", "Other"];
 
+const countryName = (c, lang) => c[`name_${lang}`] || c.name_en || c.name;
+
 export default function SectionA({ reg, update, countries, regId, token, onDocChange }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const slots = [
     ["incorporation_certificate", { label: t("section_a.doc_incorporation_certificate"), required: true }],
     ["address_proof", { label: t("section_a.doc_address_proof"), required: true }],
@@ -30,7 +32,7 @@ export default function SectionA({ reg, update, countries, regId, token, onDocCh
         <Field label={t("section_a.country")}>
           <select data-testid="f-country" value={reg.country || "KZ"} onChange={(e) => update({ country: e.target.value })}
             className="mt-1 w-full px-4 py-3 border border-brand-navy/20 focus:outline-none focus:border-brand-navy-soft text-brand-navy bg-white">
-            {countries.map((c) => (<option key={c.code} value={c.code}>{c.name}</option>))}
+            {countries.map((c) => (<option key={c.code} value={c.code}>{countryName(c, lang)}</option>))}
           </select>
         </Field>
         <Field label={t("section_a.registration_number")}>

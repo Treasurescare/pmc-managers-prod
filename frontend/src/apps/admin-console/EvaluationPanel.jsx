@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { evalApi, bidApi, formatApiError } from "@/lib/api";
+import RubricEditor from "./evaluation/RubricEditor";
+import BidScoreList from "./evaluation/BidScoreList";
+import AwardReport from "./evaluation/AwardReport";
 
 const DEFAULT_CRITERIA = [
   { code: "experience", label: "Relevant Experience", weight: 0.30, max_score: 100 },
@@ -94,48 +97,7 @@ export default function EvaluationPanel() {
         </div>
       </div>
 
-      <div className="bg-white border p-4">
-        <div className="pmc-label mb-2">Scoring Rubric</div>
-        <table className="w-full text-sm">
-          <thead className="text-xs text-brand-navy/60"><tr>
-            <th className="text-left">Criterion</th><th>Weight</th><th>Max</th>
-          </tr></thead>
-          <tbody>
-            {rubric.technical_criteria.map((c, i) => (
-              <tr key={c.code}>
-                <td className="py-1">{c.label}</td>
-                <td className="py-1 text-center">
-                  <input type="number" step="0.05" min="0" max="1" value={c.weight}
-                    onChange={(e) => {
-                      const arr = [...rubric.technical_criteria];
-                      arr[i] = { ...c, weight: Number(e.target.value) };
-                      setRubric({ ...rubric, technical_criteria: arr });
-                    }} className="w-20 border px-2 py-1" />
-                </td>
-                <td className="py-1 text-center">{c.max_score}</td>
-              </tr>
-            ))}
-            <tr>
-              <td className="py-1">Commercial weight (of combined)</td>
-              <td className="py-1 text-center">
-                <input type="number" step="0.05" min="0" max="1" value={rubric.commercial_weight}
-                  onChange={(e) => setRubric({ ...rubric, commercial_weight: Number(e.target.value) })}
-                  className="w-20 border px-2 py-1" /></td>
-            </tr>
-            <tr>
-              <td className="py-1">Minimum technical cutoff (%)</td>
-              <td className="py-1 text-center">
-                <input type="number" min="0" max="100" value={rubric.minimum_technical}
-                  onChange={(e) => setRubric({ ...rubric, minimum_technical: Number(e.target.value) })}
-                  className="w-20 border px-2 py-1" /></td>
-            </tr>
-          </tbody>
-        </table>
-        <button onClick={saveRubric} data-testid="save-rubric"
-          className="mt-3 px-4 py-2 text-[11px] uppercase tracking-widest bg-brand-navy-soft text-white">
-          Save rubric
-        </button>
-      </div>
+      <RubricEditor rubric={rubric} setRubric={setRubric} onSave={saveRubric} />
 
       <div className="bg-white border p-4">
         <div className="pmc-label mb-2">Your Conflict-of-Interest declaration for this tender</div>
@@ -157,98 +119,13 @@ export default function EvaluationPanel() {
         </button>
       </div>
 
-      {bids.length > 0 && (
-        <div className="bg-white border p-4">
-          <div className="pmc-label mb-2">Score bids ({bids.length})</div>
-          {bids.map((b) => (
-            <div key={b.id} className="border rounded p-3 mb-3" data-testid={`eval-bid-${b.bid_ref}`}>
-              <div className="flex justify-between items-baseline">
-                <div>
-                  <span className="font-mono text-xs">{b.bid_ref}</span>
-                  <span className="ml-2 text-sm">{b.company_name || b.vendor_email}</span>
-                  <span className="ml-2 text-xs text-slate-500">
-                    Price: {b.price_currency} {(b.price_amount || 0).toLocaleString()}
-                  </span>
-                </div>
-                <span className="text-xs bg-slate-100 px-2 py-0.5 rounded">{b.status}</span>
-              </div>
-              <div className="mt-2 grid grid-cols-4 gap-2 text-xs">
-                {rubric.technical_criteria.map((c) => (
-                  <label key={c.code}>
-                    <span>{c.label}</span>
-                    <input type="number" min="0" max="100"
-                      value={(scoreDraft[b.id] || {})[c.code] || ""}
-                      onChange={(e) => setScoreDraft({
-                        ...scoreDraft,
-                        [b.id]: { ...(scoreDraft[b.id] || {}), [c.code]: Number(e.target.value) },
-                      })}
-                      className="mt-1 w-full border px-2 py-1"
-                      data-testid={`score-${b.bid_ref}-${c.code}`} />
-                  </label>
-                ))}
-              </div>
-              <div className="mt-2 flex gap-2 items-end">
-                <button onClick={() => submitTechScore(b)} data-testid={`submit-tech-${b.bid_ref}`}
-                  className="text-xs bg-slate-900 text-white px-3 py-1.5">
-                  Save Technical
-                </button>
-                <label className="text-xs">
-                  <span>Commercial (%)</span>
-                  <input type="number" min="0" max="100"
-                    value={scoreDraft[`${b.id}_comm`] || ""}
-                    onChange={(e) => setScoreDraft({ ...scoreDraft, [`${b.id}_comm`]: e.target.value })}
-                    className="mt-1 border px-2 py-1 w-24" />
-                </label>
-                <button onClick={() => submitCommScore(b)} data-testid={`submit-comm-${b.bid_ref}`}
-                  className="text-xs bg-slate-900 text-white px-3 py-1.5">
-                  Save Commercial
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      <BidScoreList
+        bids={bids} rubric={rubric}
+        scoreDraft={scoreDraft} setScoreDraft={setScoreDraft}
+        onSaveTech={submitTechScore} onSaveComm={submitCommScore}
+      />
 
-      {report && (
-        <div className="bg-white border p-4" data-testid="award-report">
-          <div className="text-lg font-serif mb-2">Award Recommendation Report — {report.notice_ref}</div>
-          {report.recommendation ? (
-            <div className="bg-emerald-50 border border-emerald-200 p-3 mb-3">
-              <strong>Recommended for award:</strong> {report.recommendation.vendor} ·
-              Bid {report.recommendation.bid_ref} · Combined score {report.recommendation.combined}%
-              · Price {report.recommendation.price?.toLocaleString()}
-            </div>
-          ) : (
-            <div className="bg-amber-50 border border-amber-200 p-3 mb-3">
-              No bid qualifies (all below the {report.rubric.minimum_technical}% technical cutoff).
-            </div>
-          )}
-          <table className="w-full text-sm">
-            <thead className="text-xs text-brand-navy/60">
-              <tr>
-                <th className="text-left px-2">#</th><th className="text-left px-2">Bid</th>
-                <th className="text-left px-2">Vendor</th><th className="text-right px-2">Price</th>
-                <th className="text-right px-2">Tech %</th><th className="text-right px-2">Comm %</th>
-                <th className="text-right px-2">Combined</th><th className="text-center px-2">Qualifies</th>
-              </tr>
-            </thead>
-            <tbody>
-              {report.ranking.map((r, i) => (
-                <tr key={r.bid_id} className="border-t">
-                  <td className="px-2 py-1">{i + 1}</td>
-                  <td className="px-2 py-1 font-mono text-xs">{r.bid_ref}</td>
-                  <td className="px-2 py-1">{r.vendor}</td>
-                  <td className="px-2 py-1 text-right">{(r.price || 0).toLocaleString()}</td>
-                  <td className="px-2 py-1 text-right">{r.technical_avg}</td>
-                  <td className="px-2 py-1 text-right">{r.commercial_avg}</td>
-                  <td className="px-2 py-1 text-right font-semibold">{r.combined}</td>
-                  <td className="px-2 py-1 text-center">{r.qualifies ? "✓" : "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <AwardReport report={report} />
     </div>
   );
 }

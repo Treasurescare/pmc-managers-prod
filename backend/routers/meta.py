@@ -19,7 +19,12 @@ async def kz_licenses() -> Dict[str, Any]:
 
 @router.get("/countries")
 async def countries() -> List[Dict[str, str]]:
-    return [{"code": c, "name": n} for c, n in config.COUNTRIES]
+    """Returns each country with trilingual labels. Client picks by current lang."""
+    out = []
+    for row in config.COUNTRIES:
+        code, en, ru, kk = row if len(row) == 4 else (row[0], row[1], row[1], row[1])
+        out.append({"code": code, "name": en, "name_en": en, "name_ru": ru, "name_kk": kk})
+    return out
 
 
 @router.get("/public/stats")
