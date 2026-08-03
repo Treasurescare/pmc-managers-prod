@@ -44,11 +44,17 @@ export default function PaymentResult({ outcome }) {
   }, [loc, outcome]);
 
   const isSuccess = state.status === "paid";
-  const iconColor = isSuccess ? "text-green-600" : state.status === "cancelled" ? "text-slate-500" : "text-amber-600";
+  const isCancelled = state.status === "cancelled";
+  let iconColor = "text-amber-600";
+  if (isSuccess) iconColor = "text-green-600";
+  else if (isCancelled) iconColor = "text-slate-500";
+  let iconGlyph = "…";
+  if (isSuccess) iconGlyph = "✓";
+  else if (isCancelled) iconGlyph = "×";
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50" data-testid="payment-result">
       <div className="bg-white border rounded-lg p-8 max-w-md w-full text-center">
-        <div className={`text-5xl ${iconColor} mb-3`}>{isSuccess ? "✓" : state.status === "cancelled" ? "×" : "…"}</div>
+        <div className={`text-5xl ${iconColor} mb-3`}>{iconGlyph}</div>
         <h1 className="text-2xl font-serif" data-testid="payment-status">{state.label}</h1>
         {state.details && (
           <div className="mt-3 text-sm text-slate-600">

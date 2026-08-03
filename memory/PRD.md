@@ -19,6 +19,12 @@ Emergent MVP now, AWS Phase 2 later; also shipped as PWA + Capacitor mobile app.
 ## Roadmap
 
 ### P0 — Verified this session ✅
+- **Wave 25 (code-review fixes — 2026-08-03)**:
+  - **XSS defence in Tender Builder**: `RichEditor.jsx` now sanitises every HTML string on the way in AND out with **DOMPurify** (allowlist: p/br/b/strong/i/em/u/h2/h3/ul/ol/li/blockquote/code/pre/span/div/a); paste handler forces plain-text so no `<script>`/`onerror` survives. `tenderPdf.js` sanitises each section body before composing, drops `document.write` in favour of a **Blob URL + `window.open`**, and revokes the URL after 60 s. Verified via runtime injection test — the injected `<script>window.__pwned=true</script>` was blocked (pwned=false).
+  - Added dev-mode warns to empty catches in `mobileBridge.js::saveSecure`/`clearSecure` and `tenderPdf.js::print`.
+  - `PaymentResult.jsx`: two nested ternaries flattened into if/else for icon glyph + colour.
+  - Confirmed the flagged Python `is None` / `is not None` checks in `vendor_full_invite.py`, `packages.py`, `boqs_helpers.py` are PEP-8 correct — leaving them untouched (`is None` is mandated for None; the scanner false-positives it as "constant comparison").
+  - i18n-strings.js "secret" flags at lines 199/252/753/806 confirmed again as translation labels for the password field (already annotated in prior waves) — no change.
 - **Wave 24 (this session — 2026-08-03)** — Tender Builder v2:
   - Injected **CPPP-style structured header form** (`TenderHeaderForm.jsx`) at the top of `TenderBuilderPanel` — Basic Details, Cover Details (multi-row), Fee & EMD, Work/Item, Critical Dates (8 datetimes), NIT + Work-Item Documents lists, Tender Inviting Authority (~60 typed fields streamed into `doc.header`).
   - Built dependency-free **RichEditor** (`tender/RichEditor.jsx`) — Bold, Italic, Underline, H2, H3, Paragraph, • List, 1. List, Blockquote, Undo, Redo, Clear formatting. Persists HTML into the same `section.body` field (fully back-compat with plain-text seed).

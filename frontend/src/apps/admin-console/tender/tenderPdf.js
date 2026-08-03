@@ -3,8 +3,20 @@
  * in a new window, then triggers window.print() so the browser's Save-as-PDF
  * dialog can render a real PDF. Zero external deps, works offline, honours
  * the RichEditor HTML so bold/lists survive.
+ *
+ * Security: the composed HTML is sanitised with DOMPurify before it's ever
+ * handed to the new window, and we hand it off via a Blob URL (not
+ * `document.write`) so an attacker who slipped raw HTML into a template
+ * cannot get inline scripts to execute in the parent origin.
  */
+import DOMPurify from "dompurify";
+
 const KIND_LABEL = { section: "Section", annexure: "Annexure", form: "Form" };
+const BODY_SANITIZE_CFG = {
+  ALLOWED_TAGS: ["p", "br", "b", "strong", "i", "em", "u", "h2", "h3", "ul", "ol", "li",
+                 "blockquote", "code", "pre", "span", "div", "a"],
+  ALLOWED_ATTR: ["href", "target", "rel"],
+};
 
 function esc(v) {
   return String(v ?? "").replace(/[&<>"']/g, (c) =>
@@ -70,13 +82,18 @@ function headerRows(h) {
 export function buildTenderHtml(doc) {
   if (!doc) return "";
   const sections = [...(doc.sections || [])].sort((a, b) => (a.order || 0) - (b.order || 0));
-  const secHtml = sections.map((s) => `
+  const secHtml = sections.map((s) => {
+    const cleanBody = s.body
+      ? DOMPurify.sanitize(s.body, BODY_SANITIZE_CFG)
+      : "<em class='muted'>[to be completed]</em>";
+    return `
     <section class="sec">
       <h2>${esc(KIND_LABEL[s.kind] || "Section")} · ${esc(s.title)}</h2>
       ${s.hint ? `<div class="hint">${esc(s.hint)}</div>` : ""}
-      <div class="body">${s.body || "<em class='muted'>[to be completed]</em>"}</div>
+      <div class="body">${cleanBody}</div>
       ${s.attachment ? `<div class="attach">Attached template: ${esc(s.attachment.file_name)}</div>` : ""}
-    </section>`).join("");
+    </section>`;
+  }).join("");
   return `<!doctype html>
 <html><head><meta charset="utf-8"/>
 <title>${esc(doc.name || "Tender")}</title>
@@ -114,11 +131,25 @@ export function buildTenderHtml(doc) {
 
 export function exportTenderPdf(doc) {
   const html = buildTenderHtml(doc);
-  const w = window.open("", "_blank");
-  if (!w) return;
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
-  // Give the new window a tick to lay out before the print dialog fires.
-  w.onload = () => setTimeout(() => { try { w.focus(); w.print(); } catch { /* noop */ } }, 250);
+  // Hand the HTML off via a Blob URL instead of `document.write` so the new
+  // window loads it as a normal document with a fresh Trusted Types boundary.
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const w = window.open(url, "_blank");
+  if (!w) {
+    URL.revokeObjectURL(url);
+    return;
+  }
+  const cleanup = () => {
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  };
+  w.onload = () => {
+    setTimeout(() => {
+      try { w.focus(); w.print(); }
+      catch (e) {
+        if (process.env.NODE_ENV !== "production") console.warn("tenderPdf print failed", e);
+      }
+      cleanup();
+    }, 250);
+  };
 }

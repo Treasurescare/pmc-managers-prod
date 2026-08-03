@@ -74,7 +74,10 @@ export async function saveSecure(key, value) {
     await Preferences.set({ key, value });
     return;
   }
-  try { sessionStorage.setItem(key, value); } catch { /* ignore */ }
+  try { sessionStorage.setItem(key, value); }
+  catch (err) {
+    if (process.env.NODE_ENV !== "production") console.warn("saveSecure sessionStorage failed", err);
+  }
 }
 export async function loadSecure(key) {
   if (isNative()) {
@@ -90,7 +93,10 @@ export async function clearSecure(key) {
     await Preferences.remove({ key });
     return;
   }
-  try { sessionStorage.removeItem(key); } catch { /* ignore */ }
+  try { sessionStorage.removeItem(key); }
+  catch (err) {
+    if (process.env.NODE_ENV !== "production") console.warn("clearSecure sessionStorage failed", err);
+  }
 }
 
 // ---------- Push notifications ----------

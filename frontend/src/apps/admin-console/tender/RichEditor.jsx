@@ -1,15 +1,24 @@
 import { useEffect, useRef } from "react";
+import DOMPurify from "dompurify";
 
 /**
- * RichEditor — dependency-free contenteditable rich text editor.
- * Persists HTML strings so the body field is fully back-compat with the
+ * RichEditor — lightweight contenteditable rich text editor with
+ * DOMPurify sanitisation on both ingest and emit so any pasted HTML,
+ * seed text or persisted body is stripped of <script>, event handlers,
+ * <iframe>, javascript: URIs, etc.
+ *
+ * Persists HTML strings so the body field is back-compat with the
  * existing plain-text templates (they render as-is inside the editor).
  * Toolbar: Bold, Italic, Underline, H2, H3, Bulleted list, Numbered list,
  * Quote, Clear formatting, Undo, Redo.
- *
- * Design note: we deliberately avoid react-quill / tiptap here to keep
- * the bundle lean; the CPPP tender forms only need light formatting.
  */
+const SANITIZE_CFG = {
+  ALLOWED_TAGS: ["p", "br", "b", "strong", "i", "em", "u", "h2", "h3", "ul", "ol", "li",
+                 "blockquote", "code", "pre", "span", "div", "a"],
+  ALLOWED_ATTR: ["href", "target", "rel"],
+  ALLOW_DATA_ATTR: false,
+};
+const cleanHtml = (html) => DOMPurify.sanitize(html || "", SANITIZE_CFG);
 const BTN = "px-2 py-1 text-xs border border-brand-navy/20 bg-white text-brand-navy hover:bg-brand-navy/5 focus:outline-none";
 
 function ToolbarButton({ label, onClick, testid, title }) {
@@ -29,20 +38,32 @@ export default function RichEditor({ value, onChange, testid, placeholder }) {
 
   // Sync external value into the editor when it changes from outside (e.g.,
   // switching between drafts). We compare against innerHTML so we don't
-  // wipe the caret on every keystroke.
+  // wipe the caret on every keystroke. All incoming HTML is sanitised first.
   useEffect(() => {
-    if (ref.current && (value || "") !== ref.current.innerHTML) {
-      ref.current.innerHTML = value || "";
+    if (!ref.current) return;
+    const next = cleanHtml(value);
+    if (next !== ref.current.innerHTML) {
+      ref.current.innerHTML = next;
     }
   }, [value]);
 
-  const cmd = (name, arg = null) => {
-    document.execCommand(name, false, arg);
-    if (ref.current) onChange(ref.current.innerHTML);
+  const emit = () => {
+    if (ref.current) onChange(cleanHtml(ref.current.innerHTML));
   };
 
-  const onInput = () => {
-    if (ref.current) onChange(ref.current.innerHTML);
+  const cmd = (name, arg = null) => {
+    document.execCommand(name, false, arg);
+    emit();
+  };
+
+  const onInput = () => emit();
+
+  // Force paste to be plain text — blocks pasted <script>/<iframe> that would
+  // slip past execCommand-produced markup.
+  const onPaste = (e) => {
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData("text/plain");
+    document.execCommand("insertText", false, text);
   };
 
   return (
@@ -69,6 +90,7 @@ export default function RichEditor({ value, onChange, testid, placeholder }) {
         contentEditable
         suppressContentEditableWarning
         onInput={onInput}
+        onPaste={onPaste}
         data-testid={testid}
         data-placeholder={placeholder || ""}
         className="rich-editor min-h-[180px] px-3 py-2 outline-none text-brand-navy text-sm leading-relaxed prose max-w-none"
