@@ -1,9 +1,10 @@
 """Wave 7 — Tenant Master. Enables multi-tenant portals: each Corporate
 Client / Government Department can hold its own notices, vendors, and
-staff. Full portal isolation UI ships in a follow-up; this router provides
-the master record + assignment endpoints."""
+staff. Portal skinning + host-based resolution ship here so Emergent can
+migrate from `?tenant=CODE` query strings to real CNAME subdomains.
+"""
 from typing import Optional, List, Literal
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel, Field
 from bson import ObjectId
 
@@ -26,11 +27,36 @@ class TenantIn(BaseModel):
     primary_contact_email: Optional[str] = None
     primary_contact_name: Optional[str] = None
     branding_color: Optional[str] = None  # hex e.g. "#0b1e3f"
+    # Wave 17 — host/subdomain aliases for CNAME-based multi-tenant routing.
+    # `subdomain`  → the leftmost label of the CNAME hostname the client will
+    #                point at PMC, e.g. "acme" for acme.pmcmanagers.com.
+    # `host_alias` → optional fully-qualified custom domain (e.g. "tenders.acme.com")
+    #                so the client can plug in a top-level custom domain.
+    subdomain: Optional[str] = None
+    host_alias: Optional[str] = None
     is_active: bool = True
 
 
 def _out(doc: dict) -> dict:
     return BaseDocument.out(doc)
+
+
+def _extract_subdomain(host: str) -> Optional[str]:
+    """Return the leftmost label of a hostname if it looks like a subdomain of
+    a PMC apex (e.g. `acme.pmcmanagers.com` → `acme`). Filters out common
+    reserved/utility labels so preview envs and www don't accidentally match.
+    """
+    if not host:
+        return None
+    host = host.split(":", 1)[0].strip().lower()
+    parts = host.split(".")
+    if len(parts) < 3:
+        return None
+    head = parts[0]
+    if head in {"www", "app", "api", "admin", "preview", "staging",
+                "localhost", "tender-hub-57"}:
+        return None
+    return head
 
 
 @router.post("")
@@ -59,7 +85,39 @@ async def public_tenant(code: str):
         raise HTTPException(status_code=404, detail="Tenant not found")
     return {"code": t.get("code"), "name": t.get("name"),
             "kind": t.get("kind"), "country": t.get("country"),
-            "branding_color": t.get("branding_color")}
+            "branding_color": t.get("branding_color"),
+            "subdomain": t.get("subdomain"),
+            "host_alias": t.get("host_alias")}
+
+
+@router.get("/by-host")
+async def tenant_by_host(host: str = Query(..., description="Full hostname including port, e.g. acme.pmcmanagers.com")):
+    """CNAME-aware tenant resolution. Two-step lookup:
+      1) exact match on `host_alias` (e.g. tenders.acme.com)
+      2) subdomain match — leftmost label of the hostname vs. tenants.subdomain
+
+    Returns 404 when no tenant is bound to that hostname so the caller can
+    fall back to `?tenant=CODE` or the default PMC brand.
+    """
+    host_l = (host or "").split(":", 1)[0].strip().lower()
+    if not host_l:
+        raise HTTPException(status_code=400, detail="host param required")
+
+    # 1) full host alias match
+    t = await db.tenants.find_one({"host_alias": host_l, "is_active": True})
+    if not t:
+        sub = _extract_subdomain(host_l)
+        if not sub:
+            raise HTTPException(status_code=404, detail="No tenant bound to this hostname")
+        # 2) subdomain match (case-insensitive)
+        t = await db.tenants.find_one({"subdomain": sub, "is_active": True})
+    if not t:
+        raise HTTPException(status_code=404, detail="No tenant bound to this hostname")
+    return {"code": t.get("code"), "name": t.get("name"),
+            "kind": t.get("kind"), "country": t.get("country"),
+            "branding_color": t.get("branding_color"),
+            "subdomain": t.get("subdomain"),
+            "host_alias": t.get("host_alias")}
 
 
 @router.patch("/{tenant_id}")

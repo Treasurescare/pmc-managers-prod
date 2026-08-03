@@ -22,14 +22,16 @@ Emergent MVP now, AWS Phase 2 later; also shipped as PWA + Capacitor mobile app.
 - Unified `/login` on web
 - Kill `admin@pmcmanagers.com` — config default fixed + heal endpoint + stale test deleted
 - Admin fills full Sections A–E registration form for a vendor with activate/verify modes
-- **Wave 15** — trilingual bundle now covers every FORM FIELD (Sections A/B/C/D/E, DocSlot, UnifiedLogin, AdminVendorCreate, RegistrationStart, RegistrationResume). Backend cyclomatic-complexity refactor via `bids_helpers.py`, `analytics_helpers.py`, `packages_helpers.py`, `committee_helpers.py`. Verified iteration_18.
-- **Wave 16** — code review fixes: test creds via env vars, prod console guards, mount-only useEffect annotations, flat-config global ignores.
-- **Wave 17 (this iteration)** — (a) Country dropdown fully localized: `config.COUNTRIES` now carries EN/RU/KK names, `/api/v1/meta/countries` exposes `name_en`/`name_ru`/`name_kk`, both `SectionA.jsx` and `RegistrationStart.jsx` pick by current lang (verified via screenshots: Kazakhstan → Казахстан → Қазақстан). (b) Panel Split Sprint: all four 250–370 LOC admin panels broken into focused sub-components under `admin-console/bidding/`, `admin-console/masters/`, `admin-console/evaluation/`, `admin-console/boq/`. Main panel files reduced to 64–202 LOC each while preserving every data-testid.
+- **Wave 15** — trilingual bundle now covers every FORM FIELD.
+- **Wave 16** — code review fixes (test creds via env, prod console guards, mount-only useEffect annotations, flat-config global ignores).
+- **Wave 17** — Country dropdown fully localized · Panel Split Sprint completed for all four admin panels.
+- **Wave 18 (this iteration)** — (a) **Mobile hamburger drawer** in `TopBar.jsx` with all nav destinations + a prominent red **Sign Out** button on authed routes (verified in 390×844 screenshots). Sign out fires all three logout endpoints (admin/staff/vendor) best-effort. (b) **Multi-tenant Domain migration**: `tenants.py` now stores `subdomain` + `host_alias`, adds `GET /api/v1/tenants/by-host?host=…` for CNAME-based resolution; `useTenantSkin.js` reads the current hostname first, falls back to `?tenant=CODE`, cached in sessionStorage keyed on host so switching subdomains never leaks previous palette. Full setup guide at `/app/docs/MULTI_TENANT_DOMAIN.md`.
 
 ### P1 (Next)
-- **Deploy Refresh** — user needs to click "Save to Github" + "Deploy" so Waves 15–17 land in production, then hit `POST /api/v1/admin/heal/rename-admin` once to purge the legacy `admin@pmcmanagers.com` row from the prod DB
-- **Firebase + APNs** — waiting for user to drop `google-services.json` and APNs auth key
-- **Live KYC-Checks** — waiting for `KYC_BASE_URL` + `KYC_API_KEY` env vars
+- **Deploy Refresh** — user needs to click "Save to Github" + "Deploy" so Waves 15–18 land in production, then hit `POST /api/v1/admin/heal/rename-admin` once to purge the legacy `admin@pmcmanagers.com` row from prod
+- **Firebase + APNs** — waiting for `google-services.json` + APNs auth key
+- **Live KYC-Checks** — waiting for `KYC_BASE_URL` + `KYC_API_KEY`
+- **Admin UI for subdomain/host_alias** — currently editable via API only; add fields to the `MastersPanel > Tenants` form so admins can set CNAME aliases from the UI (P2)
 
 ### P2
 - Refactor big frontend components (BiddingOpsPanel, MastersPanel, BOQContractsPanel) — deferred

@@ -325,6 +325,8 @@ export const tenantApi = {
   create: (p) => api.post("/api/v1/tenants", p).then((r) => r.data),
   update: (id, p) => api.patch(`/api/v1/tenants/${id}`, p).then((r) => r.data),
   publicGet: (code) => api.get(`/api/v1/tenants/public/${code}`).then((r) => r.data),
+  publicByHost: (host) =>
+    api.get("/api/v1/tenants/by-host", { params: { host } }).then((r) => r.data),
 };
 
 export const gdprApi = {

@@ -2,18 +2,22 @@ import { useEffect, useState } from "react";
 import { tenantApi } from "@/lib/api";
 
 /**
- * useTenantSkin — reads `?tenant=CODE` from the URL and applies the tenant's
- * primary branding color to `--brand-navy` on document.documentElement.
- * Returns the tenant object so callers can render the tenant name too.
+ * useTenantSkin — resolves the active tenant in **three** priority steps:
+ *   1) CNAME subdomain (e.g. `acme.pmcmanagers.com` → tenant.subdomain = "acme")
+ *      OR full-host alias (e.g. `tenders.acme.com` → tenant.host_alias)
+ *      → hits `/api/v1/tenants/by-host?host=…`
+ *   2) `?tenant=CODE` query-string fallback (legacy path, still supported).
+ *   3) `sessionStorage` cache to survive client-side route changes.
  *
- * If no tenant param is present, does nothing (default PMC brand wins).
+ * The resolved branding_color is written to `--brand-navy` so the whole
+ * design system reskins in one line. Returns the tenant object.
  */
 export default function useTenantSkin() {
   const [tenant, setTenant] = useState(null);
 
   useEffect(() => {
-    // Mount-only: reads URL param + sessionStorage once, then hits API.
-    // Adding all internal locals to deps would cause infinite re-runs.
+    // Mount-only. Adding internal locals to deps would cause infinite re-runs.
+    const host = typeof window !== "undefined" ? window.location.host : "";
     const params = new URLSearchParams(window.location.search);
     const urlCode = params.get("tenant");
     let cached = null;
@@ -21,25 +25,36 @@ export default function useTenantSkin() {
       const raw = sessionStorage.getItem("pmc.tenant");
       if (raw) cached = JSON.parse(raw);
     } catch { /* ignore parse errors on stale cache */ }
-    const code = urlCode || cached?.code;
-    if (!code) return;
 
-    if (cached && cached.code === code) {
+    // Instant paint from cache — matches either code OR host so subdomain
+    // navigations feel zero-flash.
+    if (cached && (cached.code === urlCode || cached._host === host)) {
       setTenant(cached);
       if (cached.branding_color) {
         document.documentElement.style.setProperty("--brand-navy", cached.branding_color);
       }
     }
 
-    tenantApi.publicGet(code)
-      .then((t) => {
-        setTenant(t);
-        if (t?.branding_color) {
-          document.documentElement.style.setProperty("--brand-navy", t.branding_color);
-          try { sessionStorage.setItem("pmc.tenant", JSON.stringify(t)); } catch { /* quota exceeded */ }
+    const applyTenant = (t) => {
+      const merged = { ...t, _host: host };
+      setTenant(merged);
+      if (t?.branding_color) {
+        document.documentElement.style.setProperty("--brand-navy", t.branding_color);
+      }
+      try { sessionStorage.setItem("pmc.tenant", JSON.stringify(merged)); } catch { /* quota */ }
+    };
+
+    // Step 1 — host-based lookup (CNAME / host_alias).
+    tenantApi.publicByHost(host)
+      .then(applyTenant)
+      .catch(() => {
+        // Step 2 — fallback to ?tenant=CODE
+        if (urlCode) {
+          tenantApi.publicGet(urlCode).then(applyTenant).catch(() => {
+            /* default PMC brand wins */
+          });
         }
-      })
-      .catch(() => { /* silent — fall back to default brand */ });
+      });
   }, []);
 
   return tenant;
