@@ -19,13 +19,13 @@ Emergent MVP now, AWS Phase 2 later; also shipped as PWA + Capacitor mobile app.
 ## Roadmap
 
 ### P0 — Verified this session ✅
-- Unified `/login` on web
-- Kill `admin@pmcmanagers.com` — config default fixed + heal endpoint + stale test deleted
-- Admin fills full Sections A–E registration form for a vendor with activate/verify modes
-- **Wave 15** — trilingual bundle now covers every FORM FIELD.
-- **Wave 16** — code review fixes (test creds via env, prod console guards, mount-only useEffect annotations, flat-config global ignores).
-- **Wave 17** — Country dropdown fully localized · Panel Split Sprint completed for all four admin panels.
-- **Wave 18 (this iteration)** — (a) **Mobile hamburger drawer** in `TopBar.jsx` with all nav destinations + a prominent red **Sign Out** button on authed routes (verified in 390×844 screenshots). Sign out fires all three logout endpoints (admin/staff/vendor) best-effort. (b) **Multi-tenant Domain migration**: `tenants.py` now stores `subdomain` + `host_alias`, adds `GET /api/v1/tenants/by-host?host=…` for CNAME-based resolution; `useTenantSkin.js` reads the current hostname first, falls back to `?tenant=CODE`, cached in sessionStorage keyed on host so switching subdomains never leaks previous palette. Full setup guide at `/app/docs/MULTI_TENANT_DOMAIN.md`.
+- Unified `/login` on web · legacy admin removal · Admin fills full A–E form
+- **Wave 15** — trilingual form fields · **Wave 16** — code review round 1 · **Wave 17** — countries trilingual + panel splits · **Wave 18** — mobile hamburger drawer + Sign Out + CNAME multi-tenant
+- **Wave 19 (this iteration)** — code review round 2:
+  - Empty-catch cleanups with dev-mode `console.debug` in `TopBar.jsx` (3 catches), `UnifiedLogin.jsx` (3 catches), `useTenantSkin.js` (2 catches).
+  - Backend deep-nesting flattened: `db.py::create_indexes` now delegates recovery to `_recover_unique_index` helper; `analytics_helpers.py::deterministic_flags` extracts `_escrow_speed_flag`.
+  - Backend complexity reductions: new `routers/boqs_helpers.py::rows_to_items` used by `boqs.py::import_boq_excel`; new `routers/registrations_helpers.py` (`approve_and_create_vendor`, `dispatch_rejection_email`, `dispatch_clarification_email`) used by `registrations.py::admin_decide` — reduced from 66 → 37 LOC.
+  - "Hardcoded secrets" in `i18n-strings.js` are literal translation strings for the password *label* — already annotated at the top of the file (false positive).
 
 ### P1 (Next)
 - **Deploy Refresh** — user needs to click "Save to Github" + "Deploy" so Waves 15–18 land in production, then hit `POST /api/v1/admin/heal/rename-admin` once to purge the legacy `admin@pmcmanagers.com` row from prod

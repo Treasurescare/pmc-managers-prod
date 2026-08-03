@@ -37,17 +37,24 @@ export default function UnifiedLogin() {
           if (["admin", "reviewer"].includes(r.active_role)) return nav("/admin");
           return nav("/staff");
         }
-      } catch { /* try next */ }
+      } catch (err) {
+        // Expected 401 when this login isn't a staff account — fall through.
+        if (process.env.NODE_ENV !== "production") console.debug("staff login skipped:", err?.response?.status);
+      }
       try {
         await adminApi.login(email, password);
         toast.success(`${t("login.signed_in_as")} admin`);
         return nav("/admin");
-      } catch { /* try next */ }
+      } catch (err) {
+        if (process.env.NODE_ENV !== "production") console.debug("admin login skipped:", err?.response?.status);
+      }
       try {
         await vendorApi.login(email, password);
         toast.success(`${t("login.signed_in_as")} vendor`);
         return nav("/vendor");
-      } catch { /* fail */ }
+      } catch (err) {
+        if (process.env.NODE_ENV !== "production") console.debug("vendor login skipped:", err?.response?.status);
+      }
       toast.error(t("login.no_match"));
     } catch (err) { toast.error(formatApiError(err)); }
     finally { setBusy(false); }

@@ -38,6 +38,8 @@ export function I18nProvider({ children }) {
         return typeof cur === "string" ? cur : (fallback ?? key);
       },
     };
+    // `STRINGS` is a module-level constant and `bundle`/`parts`/`cur` are
+    // locals inside the memo — only `lang` needs to trigger a rebuild.
   }, [lang]);
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;

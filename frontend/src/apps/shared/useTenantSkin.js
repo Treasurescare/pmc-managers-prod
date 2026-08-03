@@ -24,7 +24,9 @@ export default function useTenantSkin() {
     try {
       const raw = sessionStorage.getItem("pmc.tenant");
       if (raw) cached = JSON.parse(raw);
-    } catch { /* ignore parse errors on stale cache */ }
+    } catch (err) {
+      if (process.env.NODE_ENV !== "production") console.debug("stale tenant cache:", err);
+    }
 
     // Instant paint from cache — matches either code OR host so subdomain
     // navigations feel zero-flash.
@@ -41,7 +43,10 @@ export default function useTenantSkin() {
       if (t?.branding_color) {
         document.documentElement.style.setProperty("--brand-navy", t.branding_color);
       }
-      try { sessionStorage.setItem("pmc.tenant", JSON.stringify(merged)); } catch { /* quota */ }
+      try { sessionStorage.setItem("pmc.tenant", JSON.stringify(merged)); }
+      catch (err) {
+        if (process.env.NODE_ENV !== "production") console.debug("tenant cache write failed:", err);
+      }
     };
 
     // Step 1 — host-based lookup (CNAME / host_alias).

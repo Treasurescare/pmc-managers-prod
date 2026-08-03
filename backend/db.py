@@ -75,24 +75,31 @@ async def _cleanup_null_keys() -> None:
             log.warning(f"Cleanup of {col}.{key}=null skipped: {e}")
 
 
+async def _recover_unique_index(col: str, keys, kwargs: dict) -> None:
+    """Drop-and-recreate for the rare case an old non-sparse unique index
+    collides with our new spec. Never raises — logs and returns on failure."""
+    if not kwargs.get("unique"):
+        return
+    name = kwargs.get("name")
+    try:
+        if name:
+            await db[col].drop_index(name)
+        await db[col].create_index(keys, **kwargs)
+        log.info(f"Recovered index {col}({keys}) after drop")
+    except Exception as e2:
+        log.error(f"Recovery failed on {col}({keys}): {e2} — continuing")
+
+
 async def create_indexes() -> None:
     """Best-effort index bootstrap. Never aborts startup on a single failure."""
     await _cleanup_null_keys()
     for col, keys, kwargs in _INDEX_SPECS:
         try:
             await db[col].create_index(keys, **kwargs)
+            continue
         except Exception as e:
-            # Fallback for pre-existing NON-sparse unique index colliding with our new one
             log.warning(f"Index create failed on {col}({keys}) kwargs={kwargs}: {e}")
-            if kwargs.get("unique"):
-                name = kwargs.get("name")
-                try:
-                    if name:
-                        await db[col].drop_index(name)
-                    await db[col].create_index(keys, **kwargs)
-                    log.info(f"Recovered index {col}({keys}) after drop")
-                except Exception as e2:
-                    log.error(f"Recovery failed on {col}({keys}): {e2} — continuing")
+        await _recover_unique_index(col, keys, kwargs)
 
 
 async def next_sequence(name: str) -> int:

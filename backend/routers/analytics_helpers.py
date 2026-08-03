@@ -4,9 +4,35 @@ Kept side-effect free (or minimal I/O) so the router can compose them cheaply.
 """
 import os
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from db import db
+
+
+def _escrow_speed_flag(bid: dict) -> Optional[str]:
+    """Return a warning if EMD → escrow-accept happened suspiciously fast."""
+    if not (bid.get("emd_paid_at") and bid.get("status") == "escrow_accepted"):
+        return None
+    history = bid.get("workflow_history") or []
+    try:
+        t1 = datetime.fromisoformat(bid["emd_paid_at"].replace("Z", ""))
+    except (ValueError, TypeError):
+        return None
+    escrow_step = next(
+        (h for h in history
+         if h.get("action") == "accept" and h.get("role") == "escrow_agent"),
+        None,
+    )
+    if not escrow_step:
+        return None
+    try:
+        t2 = datetime.fromisoformat(escrow_step["at"].replace("Z", ""))
+    except (ValueError, TypeError):
+        return None
+    delta_min = (t2 - t1).total_seconds() / 60
+    if delta_min < 2:
+        return f"Escrow accepted only {delta_min:.1f} min after EMD paid — very fast, verify manually"
+    return None
 
 
 async def deterministic_flags(bid: dict) -> tuple[List[str], str]:
@@ -15,27 +41,15 @@ async def deterministic_flags(bid: dict) -> tuple[List[str], str]:
     verdict = "ok"
     history = bid.get("workflow_history") or []
 
-    if bid.get("emd_paid_at") and bid.get("status") == "escrow_accepted":
-        try:
-            t1 = datetime.fromisoformat(bid["emd_paid_at"].replace("Z", ""))
-            for h in history:
-                if h.get("action") == "accept" and h.get("role") == "escrow_agent":
-                    t2 = datetime.fromisoformat(h["at"].replace("Z", ""))
-                    delta_min = (t2 - t1).total_seconds() / 60
-                    if delta_min < 2:
-                        flags.append(
-                            f"Escrow accepted only {delta_min:.1f} min after EMD paid — very fast, verify manually"
-                        )
-                    break
-        except Exception:
-            pass
+    speed_flag = _escrow_speed_flag(bid)
+    if speed_flag:
+        flags.append(speed_flag)
 
     legal_ok = any(h.get("role") == "legal_counsel" and h.get("action") == "accept" for h in history)
     if legal_ok:
         kyc = await db.kyc_cases.find_one({"vendor_ref": bid.get("vendor_ref")})
         if not kyc:
             flags.append("Legal cleared but no KYC case on file for this vendor — needs review")
-            verdict = "review"
     if flags:
         verdict = "review"
     return flags, verdict

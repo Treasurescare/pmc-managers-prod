@@ -288,64 +288,34 @@ async def admin_detail(registration_id: str, admin=Depends(require_role("admin",
 @router.post("/{registration_id}/decision")
 async def admin_decide(registration_id: str, payload: RegistrationDecisionIn,
                        admin=Depends(require_role("admin"))):
+    from routers.registrations_helpers import (
+        approve_and_create_vendor,
+        dispatch_rejection_email,
+        dispatch_clarification_email,
+    )
+
     doc = await db.registrations.find_one({"_id": ObjectId(registration_id)})
     if not doc:
         raise HTTPException(status_code=404, detail="Not found")
 
-    updates = {"reviewed_at": now_iso(), "reviewer_notes": payload.notes,
-               "reviewed_by": admin["id"]}
+    updates = {
+        "reviewed_at": now_iso(),
+        "reviewer_notes": payload.notes,
+        "reviewed_by": admin["id"],
+    }
+
     if payload.action == "approve":
-        # Assign vendor_ref
-        seq = await next_sequence("vendor_seq")
-        vendor_ref = f"PMC-SUP-{seq:06d}"
-        updates.update({"status": "approved", "vendor_ref": vendor_ref})
-        # Generate a temporary password so the vendor can log in.
-        import secrets
-        from security import hash_password
-        temp_password = secrets.token_urlsafe(9)
-        await db.vendors.insert_one({
-            "vendor_ref": vendor_ref,
-            "email": (doc["email"] or "").lower(),
-            "company_name": doc.get("company_name"),
-            "country": doc.get("country"),
-            "kz_licenses": doc.get("kz_licenses") or [],
-            "profile": {k: doc.get(k) for k in doc.keys() if k not in ("_id", "magic_token", "status")},
-            "tenant_id": doc.get("tenant_id", config.DEFAULT_TENANT_ID),
-            "password_hash": hash_password(temp_password),
-            "must_change_password": True,
-            "is_active": True,
-            "created_at": now_iso(),
-        })
-        login_url = f"{config.FRONTEND_URL}/vendor/login"
-        await send_email(doc["email"], "PMC Managers — Registration approved · Login details",
-                         wrap(f"You're approved · {vendor_ref}",
-                              f"<p>Congratulations. Your PMC Managers vendor registration has been approved. "
-                              f"Your supplier reference is <strong>{vendor_ref}</strong>.</p>"
-                              f"<p>You can now log in to the Vendor Portal to browse tenders and submit bids.</p>"
-                              f"<p><strong>Email:</strong> {doc['email']}<br/>"
-                              f"<strong>Temporary password:</strong> <code>{temp_password}</code></p>"
-                              f"<p>You will be asked to set a new password on your first login.</p>",
-                              "Sign in to the Vendor Portal", login_url))
+        updates.update(await approve_and_create_vendor(doc))
     elif payload.action == "reject":
         if not payload.notes:
             raise HTTPException(status_code=400, detail="Notes required when rejecting")
         updates["status"] = "rejected"
-        asyncio.create_task(send_email(
-            doc["email"], "PMC Managers — Registration update",
-            wrap("Registration update",
-                 f"<p>Thank you for your interest. Unfortunately your registration was not approved at this time.</p>"
-                 f"<p><em>Reason:</em> {payload.notes}</p>")))
+        dispatch_rejection_email(doc, payload.notes)
     elif payload.action == "clarify":
         if not payload.notes:
             raise HTTPException(status_code=400, detail="Notes required when requesting clarification")
         updates["status"] = "needs_clarification"
-        resume_url = f"{config.FRONTEND_URL}/register/resume?token={doc['magic_token']}"
-        asyncio.create_task(send_email(
-            doc["email"], "PMC Managers — Clarification needed",
-            wrap("Clarification needed on your registration",
-                 f"<p>We reviewed your submission and need some clarification before approving.</p>"
-                 f"<p><em>Reviewer notes:</em> {payload.notes}</p>",
-                 "Resume registration", resume_url)))
+        dispatch_clarification_email(doc, payload.notes)
     else:
         raise HTTPException(status_code=400, detail="Invalid action")
 

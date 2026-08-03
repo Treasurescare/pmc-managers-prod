@@ -55,6 +55,7 @@ async def import_boq_excel(template_id: str, file: UploadFile = File(...),
     """Import BOQ items from Excel — expects columns:
     Sl.No | Description | Unit | Quantity | Unit Rate | Remarks
     """
+    from routers.boqs_helpers import rows_to_items
     try:
         from openpyxl import load_workbook
     except ImportError:
@@ -63,25 +64,11 @@ async def import_boq_excel(template_id: str, file: UploadFile = File(...),
     content = await file.read()
     wb = load_workbook(io.BytesIO(content), data_only=True)
     ws = wb.active
-    items = []
     rows = list(ws.iter_rows(values_only=True))
     if not rows:
         raise HTTPException(status_code=400, detail="Empty spreadsheet")
-    # Skip header
-    for r in rows[1:]:
-        if not r or all(c is None for c in r):
-            continue
-        try:
-            items.append({
-                "sl_no": int(r[0]) if r[0] is not None else len(items) + 1,
-                "description": str(r[1] or "").strip(),
-                "unit": str(r[2] or "nos"),
-                "quantity": float(r[3] or 0),
-                "unit_rate": float(r[4] or 0),
-                "remarks": str(r[5] or "") if len(r) > 5 else None,
-            })
-        except (ValueError, TypeError):
-            continue
+
+    items, _skipped = rows_to_items(rows)
 
     r = await db.boq_templates.update_one(
         {"_id": ObjectId(template_id)},

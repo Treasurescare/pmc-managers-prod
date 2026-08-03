@@ -31,10 +31,17 @@ export default function TopBar({ dark = false }) {
     path.startsWith("/vendor");
 
   const signOut = async () => {
-    // Best-effort logout across all three cookie realms — 401s are ignored.
-    try { await adminApi.logout(); } catch { /* not signed in as admin */ }
-    try { await staffApi.logout(); } catch { /* not signed in as staff */ }
-    try { await vendorApi.logout(); } catch { /* not signed in as vendor */ }
+      // Best-effort logout across all three cookie realms — 401s just mean
+      // "not signed in as this role", which is expected for role-scoped cookies.
+      try { await adminApi.logout(); } catch (err) {
+        if (process.env.NODE_ENV !== "production") console.debug("admin logout skipped:", err?.response?.status);
+      }
+      try { await staffApi.logout(); } catch (err) {
+        if (process.env.NODE_ENV !== "production") console.debug("staff logout skipped:", err?.response?.status);
+      }
+      try { await vendorApi.logout(); } catch (err) {
+        if (process.env.NODE_ENV !== "production") console.debug("vendor logout skipped:", err?.response?.status);
+      }
     toast.success(t("nav.logout"));
     nav("/login");
   };
