@@ -19,6 +19,12 @@ Emergent MVP now, AWS Phase 2 later; also shipped as PWA + Capacitor mobile app.
 ## Roadmap
 
 ### P0 — Verified this session ✅
+- **Wave 29 (Tender Builder v3 — 2026-08-03)** — the 4 backlog items shipped:
+  1. **Notice PDF Wire-Up** — `NoticeIn.tender_template_id` added; new public endpoint `GET /api/v1/tender-templates/{tid}/public/pdf?notice_ref=…` gated by the linked notice being published; the Notice Detail page now shows a prominent navy "Download the full tender (PDF, watermarked)" CTA. Verified 200 · `%PDF-1.7` · 3 pages.
+  2. **Bulk Section Upload** — `POST /api/v1/tender-templates/{tid}/attachments/bulk` (multipart, N files). Filename→section matcher now prefers exact code → exact title-slug → longest-code prefix → longest substring, so `annex-VIII_bank.pdf` correctly matches `annex-VIII` (not `annex-V`). Frontend dropzone with per-file green/red report.
+  3. **AI Section Drafts** — `POST /api/v1/tender-templates/{tid}/sections/{code}/ai-draft` using **emergentintegrations LlmChat** + `EMERGENT_LLM_KEY`. System prompt drafts HTML-only (via allowed-tag list), tone/length knobs, header context passed in. Sanitised server-side before persist. Per-section ✨ AI button in the UI. Verified: 758-char formal HTML draft for Annexure I.
+  4. **Watermark & Version Stamp** — WeasyPrint `@page` running headers/footers: bottom-left `{status · v{version} · issued yyyy-mm-dd}`, bottom-right `Page x / y`, top-right shows the tender reference. Full-page diagonal DRAFT watermark when status ≠ PUBLISHED. Also injects a mustard `stamp` tile in the document header. `pypdf` confirms the "DRAFT" text and page-numbers are on every page.
+  - Added `EMERGENT_LLM_KEY` into `backend/.env`.
 - **Wave 28 (Real PDF export — 2026-08-03)**:
   - Adobe Acrobat rightly rejected the previous `.html` "Download" file. Replaced the client-side blob with a proper server-side render: new endpoint `GET /api/v1/tender-templates/{id}/export/pdf` uses **WeasyPrint** to produce a real A4 PDF, `Content-Disposition: attachment; filename="…pdf"`.
   - Frontend "Download" button relabelled `Download PDF` and now targets that endpoint — the browser downloads a genuine `%PDF-1.7` file.

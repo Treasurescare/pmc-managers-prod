@@ -360,14 +360,29 @@ def _render_tender_html(doc: dict) -> str:
         section_html_parts.append(
             f'<section class="sec"><h2>{_html.escape(kind)} · {title}</h2>{hint}<div class="body">{body}</div>{attach}</section>'
         )
+    # ---- Watermark & Version stamp ----
+    from datetime import datetime, timezone
+    status = (doc.get("status") or ("PUBLISHED" if doc.get("is_master") else "DRAFT")).upper()
+    version = doc.get("version") or 1
+    issued = (doc.get("updated_at") or now_iso())[:10]
+    stamp = f"{status} · v{version} · issued {issued}"
+    tender_ref = header.get("tender_reference_number") or header.get("tender_id") or doc.get("name") or ""
     return f"""<!doctype html><html><head><meta charset="utf-8"/>
 <title>{_html.escape(doc.get('name') or 'Tender')}</title>
 <style>
-  @page {{ size: A4; margin: 18mm 16mm; }}
+  @page {{
+    size: A4; margin: 20mm 16mm 22mm 16mm;
+    @top-right {{ content: "{_html.escape(tender_ref)[:80]}"; font: 9pt Georgia, serif; color: #94a3b8; }}
+    @bottom-left {{ content: "{_html.escape(stamp)}"; font: 8.5pt Georgia, serif; color: #64748b; }}
+    @bottom-right {{ content: "Page " counter(page) " / " counter(pages); font: 8.5pt Georgia, serif; color: #64748b; }}
+  }}
   body {{ font: 11pt/1.5 Georgia, 'Times New Roman', serif; color: #0b1f3a; }}
+  /* Full-page DRAFT diagonal watermark — only when status is DRAFT */
+  {'body::before { content: "DRAFT"; position: fixed; top: 42%; left: 0; right: 0; text-align: center; font-size: 120pt; color: rgba(203, 213, 225, 0.28); transform: rotate(-25deg); font-weight: 700; letter-spacing: .12em; z-index: -1; }' if status == 'DRAFT' else ''}
   header.doc {{ border-bottom: 3px double #0b1f3a; padding-bottom: 10pt; margin-bottom: 18pt; }}
   header.doc h1 {{ font-size: 20pt; margin: 0; }}
   header.doc .meta {{ font-size: 8pt; letter-spacing: .1em; text-transform: uppercase; color: #64748b; }}
+  header.doc .stamp {{ margin-top: 6pt; display: inline-block; padding: 2pt 8pt; background: #fef3c7; border: 0.5pt solid #f59e0b; color: #78350f; font-size: 8.5pt; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }}
   table.header {{ width: 100%; border-collapse: collapse; margin: 14pt 0; font-size: 9pt; }}
   table.header th, table.header td {{ border: 0.5pt solid #cbd5e1; padding: 4pt 6pt; text-align: left; vertical-align: top; }}
   table.header th {{ background: #f1f5f9; width: 34%; font-weight: 600; color: #334155; }}
@@ -382,10 +397,207 @@ def _render_tender_html(doc: dict) -> str:
 <header class="doc">
   <div class="meta">{_html.escape((doc.get('kind') or 'tender').upper())} · {_html.escape(doc.get('industry') or '')}</div>
   <h1>{_html.escape(doc.get('name') or 'Tender')}</h1>
+  <div class="stamp">{_html.escape(stamp)}</div>
 </header>
 <table class="header"><tbody>{''.join(header_rows)}</tbody></table>
 {''.join(section_html_parts)}
 </body></html>"""
+
+
+# ---------- Public notice-linked PDF export ----------
+
+@router.get("/{tid}/public/pdf")
+async def public_export_tender_pdf(tid: str, notice_ref: Optional[str] = None):
+    """PUBLIC — bidders download the composed tender PDF from a Notice detail.
+    Access is gated by the linked notice being published (or an admin session)."""
+    if notice_ref:
+        n = await db.notices.find_one({"notice_ref": notice_ref, "is_published": True,
+                                         "tender_template_id": tid})
+        if not n:
+            raise HTTPException(status_code=404, detail="Tender not available")
+    try:
+        doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
+    except Exception:
+        raise HTTPException(status_code=400, detail="Malformed template id")
+    if not doc:
+        raise HTTPException(status_code=404, detail="Template not found")
+    if not notice_ref and not doc.get("is_master") and not doc.get("public"):
+        raise HTTPException(status_code=403, detail="This template is not public")
+    from weasyprint import HTML
+    pdf_bytes = HTML(string=_render_tender_html(doc)).write_pdf()
+    safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in (doc.get("name") or "tender"))[:60]
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{safe}.pdf"',
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
+# ---------- AI section draft ----------
+
+class AiDraftIn(BaseModel):
+    tone: Optional[str] = "formal"       # formal | plain | strict
+    length: Optional[str] = "medium"     # short | medium | long
+
+
+@router.post("/{tid}/sections/{code}/ai-draft")
+async def ai_draft_section(tid: str, code: str,
+                            payload: AiDraftIn = AiDraftIn(),
+                            admin=Depends(require_role("admin", "reviewer"))):
+    """Fill a section body with an LLM draft — uses Emergent LLM key + emergentintegrations.
+    Reads the tender header (title, budget, category, timeline) as context so the
+    generated language is consistent with the rest of the document."""
+    import os
+    key = os.environ.get("EMERGENT_LLM_KEY", "")
+    if not key:
+        raise HTTPException(status_code=503, detail="AI copilot is not configured (missing EMERGENT_LLM_KEY)")
+    try:
+        doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
+    except Exception:
+        raise HTTPException(status_code=400, detail="Malformed template id")
+    if not doc:
+        raise HTTPException(status_code=404, detail="Template not found")
+    section = next((s for s in doc.get("sections", []) if s.get("code") == code), None)
+    if not section:
+        raise HTTPException(status_code=404, detail="Section not found")
+    header = doc.get("header") or {}
+    try:
+        from emergentintegrations.llm.chat import LlmChat, UserMessage
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"LLM SDK unavailable: {type(e).__name__}")
+
+    words = {"short": 120, "medium": 240, "long": 420}.get(payload.length or "medium", 240)
+    tone_hint = {
+        "formal": "Use formal Indian public-procurement English (mirror CPPP / GFR 2017 style).",
+        "plain":  "Use plain, direct English suitable for SMEs.",
+        "strict": "Use strict, unambiguous contractual language.",
+    }.get(payload.tone or "formal", "Use formal English.")
+
+    chat = LlmChat(
+        api_key=key,
+        session_id=f"tender-ai-{tid}-{code}",
+        system_message=(
+            "You are a public-procurement drafting copilot. Draft ONLY the body of "
+            "one tender-document section based on the header context. "
+            "Return valid HTML using ONLY these tags: <p> <br> <b> <i> <u> <ul> <ol> <li> "
+            "<h3> <blockquote>. Do NOT include the section title — it is already on the page. "
+            f"{tone_hint} Aim for approximately {words} words. Do not invent numbers not present in the context."
+        ),
+    )
+    chat.with_model("openai", "gpt-4o-mini")
+    ctx = {
+        "section_title": section.get("title"),
+        "section_kind": section.get("kind"),
+        "hint": section.get("hint"),
+        "header": {k: header.get(k) for k in
+                    ("work_title", "budget_amount", "tender_value", "budget_currency",
+                     "period_days", "product_category", "location", "eligibility",
+                     "evaluation_method", "emd_amount", "sub_end") if header.get(k)},
+    }
+    try:
+        resp = await chat.send_message(UserMessage(text=f"Draft the section body. Context: {ctx}"))
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"LLM call failed: {type(e).__name__}")
+    body = _sanitize_body(str(resp))
+    await audit_log("tender_template.ai_draft", admin, "tender_template", tid,
+                    {"code": code, "tone": payload.tone, "length": payload.length})
+    return {"body": body}
+
+
+# ---------- Bulk section attachment upload ----------
+
+def _normalise_slug(s: str) -> str:
+    import re
+    return re.sub(r"[^a-z0-9]+", "", (s or "").lower())
+
+
+def _match_section(sections: list, filename: str) -> Optional[int]:
+    """Match a filename to a section by code/title. Prefers exact code, then
+    exact title-slug, then a boundary-aware prefix match (longer wins), then
+    substring. Avoids the ``annex-VIII`` → ``annex-V`` false positive."""
+    slug = _normalise_slug(filename.rsplit(".", 1)[0])
+    if not slug:
+        return None
+    # 1. exact code match
+    for i, s in enumerate(sections):
+        if _normalise_slug(s.get("code")) == slug:
+            return i
+    # 2. exact title-slug match
+    for i, s in enumerate(sections):
+        if _normalise_slug(s.get("title")) == slug:
+            return i
+    # 3. filename starts with the section code (longer codes win over shorter)
+    prefix_matches = []
+    for i, s in enumerate(sections):
+        code_slug = _normalise_slug(s.get("code"))
+        if code_slug and slug.startswith(code_slug):
+            prefix_matches.append((len(code_slug), i))
+    if prefix_matches:
+        prefix_matches.sort(reverse=True)
+        return prefix_matches[0][1]
+    # 4. substring, longer wins
+    sub_matches = []
+    for i, s in enumerate(sections):
+        code_slug = _normalise_slug(s.get("code"))
+        title_slug = _normalise_slug(s.get("title"))
+        for k in (code_slug, title_slug):
+            if k and (k in slug or slug in k):
+                sub_matches.append((len(k), i))
+                break
+    if sub_matches:
+        sub_matches.sort(reverse=True)
+        return sub_matches[0][1]
+    return None
+
+
+@router.post("/{tid}/attachments/bulk")
+async def bulk_upload_attachments(tid: str,
+                                    files: List[UploadFile] = File(...),
+                                    admin=Depends(require_role("admin"))):
+    """Match each uploaded file to a section by filename → section code/title, then
+    attach. Returns a per-file report so the UI can show matched / unmatched."""
+    try:
+        doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
+    except Exception:
+        raise HTTPException(status_code=400, detail="Malformed template id")
+    if not doc:
+        raise HTTPException(status_code=404, detail="Template not found")
+    sections = doc.get("sections", [])
+    report = []
+    for f in files:
+        body = await f.read()
+        if len(body) > config.MAX_UPLOAD_BYTES:
+            report.append({"file_name": f.filename, "matched": False, "reason": "too_large"})
+            continue
+        idx = _match_section(sections, f.filename)
+        if idx is None:
+            report.append({"file_name": f.filename, "matched": False, "reason": "no_section_match"})
+            continue
+        key = f"tender-section-attachments/{tid}/{sections[idx]['code']}/{uuid.uuid4().hex}_{f.filename}"
+        await db.uploads.insert_one({
+            "key": key, "content_type": f.content_type or "application/octet-stream",
+            "size_bytes": len(body),
+            "data_b64": base64.b64encode(body).decode("ascii"),
+            "created_at": now_iso(),
+        })
+        meta = {
+            "file_name": f.filename, "url": f"/api/v1/uploads/files/{key}",
+            "content_type": f.content_type or "application/octet-stream",
+            "size_bytes": len(body), "uploaded_at": now_iso(),
+            "uploaded_by": admin["email"],
+        }
+        sections[idx]["attachment"] = meta
+        report.append({"file_name": f.filename, "matched": True,
+                        "section_code": sections[idx]["code"], "section_title": sections[idx]["title"]})
+    await db.tender_templates.update_one({"_id": ObjectId(tid)},
+                                          {"$set": {"sections": sections, "updated_at": now_iso()}})
+    await audit_log("tender_template.bulk_attachments", admin, "tender_template", tid,
+                    {"total": len(files), "matched": sum(1 for r in report if r["matched"])})
+    return {"template": _out(await db.tender_templates.find_one({"_id": ObjectId(tid)})),
+            "report": report}
 
 
 @router.get("/{tid}/export/pdf")

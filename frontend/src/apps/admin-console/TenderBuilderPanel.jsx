@@ -92,6 +92,35 @@ export default function TenderBuilderPanel() {
     } catch (e) { toast.error(formatApiError(e)); }
   };
 
+  const [aiBusyCode, setAiBusyCode] = useState(null);
+  const aiDraftSection = async (idx) => {
+    if (!doc?.id) return;
+    const s = doc.sections[idx];
+    if (s.body && !confirm(`Replace the current draft of "${s.title}" with an AI-generated one?`)) return;
+    setAiBusyCode(s.code);
+    try {
+      const r = await tenderTemplateApi.aiDraftSection(doc.id, s.code, { tone: "formal", length: "medium" });
+      patchSection(idx, { body: r.body || "" });
+      toast.success(`Draft filled by AI · ${s.code}`);
+    } catch (e) { toast.error(formatApiError(e)); }
+    finally { setAiBusyCode(null); }
+  };
+
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkReport, setBulkReport] = useState(null);
+  const bulkUpload = async (files) => {
+    if (!doc?.id || !files?.length) return;
+    setBulkBusy(true);
+    try {
+      const r = await tenderTemplateApi.bulkUpload(doc.id, Array.from(files));
+      setDoc(r.template);
+      setBulkReport(r.report);
+      const matched = r.report.filter((x) => x.matched).length;
+      toast.success(`${matched}/${r.report.length} files matched to sections`);
+    } catch (e) { toast.error(formatApiError(e)); }
+    finally { setBulkBusy(false); }
+  };
+
   const addBlank = (kindCode) => {
     setDoc((prev) => {
       const sections = [...(prev.sections || [])];
@@ -276,6 +305,38 @@ export default function TenderBuilderPanel() {
             {/* CPPP-style structured header */}
             <TenderHeaderForm header={doc.header} patchHeader={patchHeader} />
 
+            {/* Bulk section attachments — drag N files, auto-match by filename */}
+            <div className="border border-dashed border-brand-navy/30 bg-brand-pale/30 p-4">
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div>
+                  <div className="pmc-label">Bulk template upload</div>
+                  <div className="text-xs text-brand-navy/60 mt-1">
+                    Drop many blank forms at once. Filenames are matched to section codes/titles
+                    (e.g. <code>annex-VIII.pdf</code> → Annexure VIII).
+                  </div>
+                </div>
+                <label className="px-4 py-2 text-[11px] uppercase tracking-widest border border-brand-navy text-brand-navy hover:bg-brand-navy hover:text-white cursor-pointer">
+                  {bulkBusy ? "Uploading…" : "Choose files"}
+                  <input type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx"
+                         onChange={(e) => { const fs = e.target.files; if (fs?.length) bulkUpload(fs); e.target.value = ""; }}
+                         disabled={bulkBusy}
+                         data-testid="tb-bulk-upload"
+                         className="hidden" />
+                </label>
+              </div>
+              {bulkReport && (
+                <ul className="mt-3 text-xs space-y-1" data-testid="tb-bulk-report">
+                  {bulkReport.map((r, i) => (
+                    <li key={i} className={r.matched ? "text-emerald-800" : "text-red-600"}>
+                      {r.matched
+                        ? `✓ ${r.file_name} → ${r.section_code} · ${r.section_title}`
+                        : `✕ ${r.file_name} — ${r.reason === "too_large" ? "too large" : "no matching section"}`}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
             {/* Sections */}
             <div className="space-y-4">
               {orderedSections.map((s, i) => (
@@ -290,6 +351,12 @@ export default function TenderBuilderPanel() {
                         className="mt-1 w-full px-3 py-2 border border-current/20 bg-white text-brand-navy font-serif text-lg" />
                     </div>
                     <div className="flex gap-1">
+                      <button onClick={() => aiDraftSection(i)} disabled={aiBusyCode === s.code}
+                        data-testid={`tb-ai-draft-${s.code}`}
+                        title="Ask the AI copilot to draft this section body using the tender header context"
+                        className="px-2 py-1 text-xs border border-purple-500 text-purple-700 bg-white hover:bg-purple-50 disabled:opacity-40">
+                        {aiBusyCode === s.code ? "…" : "✨ AI"}
+                      </button>
                       <button onClick={() => move(i, -1)} data-testid={`tb-up-${s.code}`}
                         className="px-2 py-1 text-xs border border-current/30 bg-white hover:bg-brand-pale">↑</button>
                       <button onClick={() => move(i, +1)} data-testid={`tb-down-${s.code}`}

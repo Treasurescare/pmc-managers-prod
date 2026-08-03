@@ -345,6 +345,14 @@ export const tenderTemplateApi = {
   },
   removeSectionAttachment: (id, code) =>
     api.delete(`/api/v1/tender-templates/${id}/sections/${encodeURIComponent(code)}/attachment`).then((r) => r.data),
+  aiDraftSection: (id, code, opts) =>
+    api.post(`/api/v1/tender-templates/${id}/sections/${encodeURIComponent(code)}/ai-draft`, opts || {}).then((r) => r.data),
+  bulkUpload: (id, files) => {
+    const fd = new FormData();
+    for (const f of files) fd.append("files", f);
+    return api.post(`/api/v1/tender-templates/${id}/attachments/bulk`, fd,
+      { headers: { "Content-Type": "multipart/form-data" } }).then((r) => r.data);
+  },
 };
 
 export const gdprApi = {

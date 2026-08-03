@@ -31,6 +31,10 @@ class NoticeIn(BaseModel):
     approval_matrix_id: Optional[str] = None
     # Wave 7 — tenant assignment (defaults to config.DEFAULT_TENANT_ID)
     tenant_id: Optional[str] = None
+    # Wave 28 — optional link to a Tender Builder template. When set, the public
+    # Notice detail exposes a "Download composed tender PDF" button that renders
+    # the template via WeasyPrint.
+    tender_template_id: Optional[str] = None
 
 
 class NoticePublic(BaseModel):
