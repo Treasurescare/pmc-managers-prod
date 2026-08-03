@@ -22,9 +22,10 @@ Emergent MVP now, AWS Phase 2 later; also shipped as PWA + Capacitor mobile app.
 - Unified `/login` on web
 - Kill `admin@pmcmanagers.com` — config default fixed + heal endpoint + stale test deleted
 - Admin fills full Sections A–E registration form for a vendor with activate/verify modes
+- **Wave 15 (this fork)** — Fixed unused import lint blocker in AdminVendorCreate.jsx. Expanded trilingual bundle so every FORM FIELD switches EN/RU/KK (Sections A/B/C/D/E, DocSlot, UnifiedLogin, AdminVendorCreate, RegistrationStart, RegistrationResume). Legal-type dropdown options + declaration checkboxes + activation radios + submit buttons all localized. Backend cyclomatic-complexity refactor applied via helper modules: `bids_helpers.py`, new `analytics_helpers.py`, `packages_helpers.py`, `committee_helpers.py`. Verified end-to-end by testing agent (iteration_18) — all backend refactor tests pass; RU + KK verified across login/register/admin-vendor-create pages.
 
 ### P1 (Next)
-- Finish backend refactor: apply `bids_helpers` inside `decide_bid` body; refactor `audit_copilot`, `import_packages_csv`, `create_committee`
+- (Optional polish) Localize country dropdown `<option>` labels — currently returned from backend `/api/v1/meta/countries` in English only. Small enhancement not covered by the trilingual bundle.
 - Firebase + APNs setup (needs your `google-services.json` + APNs auth key)
 - Live KYC-Checks credentials (need `KYC_BASE_URL` + `KYC_API_KEY`)
 - On production: after redeploy, admin can hit `POST /api/v1/admin/heal/rename-admin` to auto-clean the legacy `admin@pmcmanagers.com` row
