@@ -36,8 +36,15 @@ export default function AdminVendorCreate() {
 
   const update = (patch) => setReg((prev) => ({ ...prev, ...patch }));
 
-  const createDraft = async () => {
-    if (!reg.email) return toast.error(t("admin_vendor.email_required"));
+  // Silent auto-save the FIRST time it's needed (e.g. the admin picks a
+  // document to upload before manually hitting "Save draft"). Returns the
+  // fresh {regId, token} so the caller can immediately upload.
+  const ensureDraft = async () => {
+    if (draftId && draftToken) return { regId: draftId, token: draftToken };
+    if (!reg.email) {
+      toast.error(t("admin_vendor.email_required"));
+      return null;
+    }
     setCreatingDraft(true);
     try {
       const d = await registrationApi.createDraft({
@@ -45,11 +52,19 @@ export default function AdminVendorCreate() {
         company_name: reg.company_name || undefined,
         country: reg.country || "KZ",
       });
+      const tok = d.magic_token || d.token;
       setDraftId(d.id);
-      setDraftToken(d.magic_token || d.token);
-      toast.success("Draft created — uploads enabled");
-    } catch (e) { toast.error(formatApiError(e)); }
-    finally { setCreatingDraft(false); }
+      setDraftToken(tok);
+      return { regId: d.id, token: tok };
+    } catch (e) {
+      toast.error(formatApiError(e));
+      return null;
+    } finally { setCreatingDraft(false); }
+  };
+
+  const createDraft = async () => {
+    const r = await ensureDraft();
+    if (r) toast.success("Draft created — uploads enabled");
   };
 
   const onDocChange = (slot, meta) => {
@@ -90,7 +105,7 @@ export default function AdminVendorCreate() {
   ];
 
   const sectionProps = { reg, update, regId: draftId, token: draftToken,
-                          onDocChange, countries };
+                          onDocChange, ensureDraft, countries };
 
   return (
     <div className="min-h-screen bg-brand-pale flex flex-col" data-testid="admin-vendor-create">
@@ -122,13 +137,13 @@ export default function AdminVendorCreate() {
               <span className="text-emerald-700/70">{Object.keys(reg.document_slots || {}).length} file(s) so far</span>
             </div>
           ) : (
-            <div className="bg-amber-50 border border-amber-200 text-amber-900 px-4 py-2 text-sm flex items-center justify-between gap-3"
+            <div className="bg-brand-navy/5 border border-brand-navy/20 text-brand-navy px-4 py-2 text-sm flex items-center justify-between gap-3"
                  data-testid="admin-vendor-nodraft-banner">
-              <span>Save a draft first to enable document uploads.</span>
+              <span>Enter the vendor email first — the draft is auto-saved the moment you pick a document to upload.</span>
               <button onClick={createDraft} disabled={creatingDraft || !reg.email}
                       data-testid="admin-vendor-create-draft"
-                      className="px-4 py-1.5 text-[11px] uppercase tracking-widest bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-40">
-                {creatingDraft ? "Saving…" : "Save draft & enable uploads"}
+                      className="px-4 py-1.5 text-[11px] uppercase tracking-widest border border-brand-navy text-brand-navy hover:bg-brand-navy hover:text-white disabled:opacity-40">
+                {creatingDraft ? "Saving…" : "Save now (optional)"}
               </button>
             </div>
           )}

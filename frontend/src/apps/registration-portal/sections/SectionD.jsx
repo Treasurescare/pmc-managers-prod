@@ -2,7 +2,7 @@ import { Field, Input } from "./FormPrimitives";
 import { DocSlotsBlock } from "./DocSlot";
 import { useI18n } from "@/context/I18nContext";
 
-export default function SectionD({ reg, update, kzMeta, regId, token, onDocChange }) {
+export default function SectionD({ reg, update, kzMeta, regId, token, onDocChange, ensureDraft }) {
   const { t } = useI18n();
   const slots = [
     ["signed_declaration", { label: t("section_d.doc_signed_declaration"), required: false }],
@@ -58,7 +58,7 @@ export default function SectionD({ reg, update, kzMeta, regId, token, onDocChang
       </Field>
       <DocSlotsBlock
         title={t("section_d.docs_title")}
-        regId={regId} token={token}
+        regId={regId} token={token} ensureDraft={ensureDraft}
         slots={slots}
         existing={reg.document_slots || {}}
         onChange={onDocChange}

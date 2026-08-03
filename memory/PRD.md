@@ -19,6 +19,10 @@ Emergent MVP now, AWS Phase 2 later; also shipped as PWA + Capacitor mobile app.
 ## Roadmap
 
 ### P0 — Verified this session ✅
+- **Wave 27 (Admin vendor UX — 2026-08-03)**:
+  - Killed the "Malformed registration id — save the draft first" wall on `/admin/vendors/new`. `DocSlot` now accepts an `ensureDraft()` callback and calls it lazily the first time the admin actually picks a file — the draft is created silently and the upload proceeds. No more manual "Save draft & enable uploads" click required.
+  - Fixed route ordering in `App.js` — the `/admin/*` wildcard used to shadow `/admin/vendors/new`. Specific route now precedes the wildcard.
+  - Nodraft banner rewritten as a soft info tile ("Enter the vendor email first — the draft is auto-saved the moment you pick a document"). Manual save button preserved as an optional shortcut.
 - **Wave 26 (Tender PDF UX fix — 2026-08-03)**:
   - `Export PDF` split into **two robust buttons**: `Print / PDF` (hidden iframe + `iframe.contentWindow.print()` — popup-blocker-proof) and `Download` (self-contained `.html` file via `<a download>`). Verified: Playwright caught the download event (7,560-byte file, safe filename slug) and confirmed the iframe injection (0 → 1) on Print / PDF click.
   - Backend `/api/v1/uploads/files/{key}` now sets `Content-Disposition: inline; filename="..."` (strips the uuid_ prefix) + `X-Content-Type-Options: nosniff` so browsers preview PDFs and users get a sensible name when they Save-As.

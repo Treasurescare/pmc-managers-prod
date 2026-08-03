@@ -2,7 +2,7 @@ import { Field, Input } from "./FormPrimitives";
 import { DocSlotsBlock } from "./DocSlot";
 import { useI18n } from "@/context/I18nContext";
 
-export default function SectionC({ reg, update, regId, token, onDocChange }) {
+export default function SectionC({ reg, update, regId, token, onDocChange, ensureDraft }) {
   const { t } = useI18n();
   const slots = [
     ["articles_of_incorporation", { label: t("section_c.doc_articles_of_incorporation"), required: true }],
@@ -30,7 +30,7 @@ export default function SectionC({ reg, update, regId, token, onDocChange }) {
       </div>
       <DocSlotsBlock
         title={t("section_c.docs_title")}
-        regId={regId} token={token}
+        regId={regId} token={token} ensureDraft={ensureDraft}
         slots={slots}
         existing={reg.document_slots || {}}
         onChange={onDocChange}

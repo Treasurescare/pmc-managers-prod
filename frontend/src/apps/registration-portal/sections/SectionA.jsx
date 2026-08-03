@@ -6,7 +6,7 @@ const LEGAL_TYPES = ["", "LLC", "JSC", "Sole Proprietorship", "Partnership", "Br
 
 const countryName = (c, lang) => c[`name_${lang}`] || c.name_en || c.name;
 
-export default function SectionA({ reg, update, countries, regId, token, onDocChange }) {
+export default function SectionA({ reg, update, countries, regId, token, onDocChange, ensureDraft }) {
   const { t, lang } = useI18n();
   const slots = [
     ["incorporation_certificate", { label: t("section_a.doc_incorporation_certificate"), required: true }],
@@ -63,7 +63,7 @@ export default function SectionA({ reg, update, countries, regId, token, onDocCh
       </div>
       <DocSlotsBlock
         title={t("section_a.docs_title")}
-        regId={regId} token={token}
+        regId={regId} token={token} ensureDraft={ensureDraft}
         slots={slots}
         existing={reg.document_slots || {}}
         onChange={onDocChange}

@@ -24,7 +24,7 @@ export default function SectionB({ reg, update, regId, token, onDocChange }) {
       </div>
       <DocSlotsBlock
         title={t("section_b.docs_title")}
-        regId={regId} token={token}
+        regId={regId} token={token} ensureDraft={ensureDraft}
         slots={slots}
         existing={reg.document_slots || {}}
         onChange={onDocChange}

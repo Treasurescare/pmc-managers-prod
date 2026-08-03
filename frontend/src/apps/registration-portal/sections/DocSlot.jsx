@@ -8,21 +8,30 @@ import { useI18n } from "@/context/I18nContext";
  * Uploads via multipart to /api/v1/registrations/{id}/documents/{slot}
  * with the magic token in FormData. Renders view / download / delete.
  */
-export default function DocSlot({ regId, token, slot, label, required, existing, onChange }) {
+export default function DocSlot({ regId, token, slot, label, required, existing, onChange, ensureDraft }) {
   const { t } = useI18n();
   const [busy, setBusy] = useState(false);
 
   const upload = async (file) => {
     if (!file) return;
-    if (!regId || !token) {
-      return toast.error("Save this registration as a draft before uploading documents.");
-    }
     if (file.size > 5 * 1024 * 1024) {
       return toast.error(t("docs.too_big"));
     }
     setBusy(true);
     try {
-      const meta = await registrationApi.uploadDocument(regId, token, slot, file);
+      // Auto-create the draft transparently the first time the user actually
+      // picks a file — so they never bump into "save the draft first".
+      let rid = regId, tok = token;
+      if ((!rid || !tok) && typeof ensureDraft === "function") {
+        const r = await ensureDraft();
+        if (!r) { setBusy(false); return; }
+        rid = r.regId; tok = r.token;
+      }
+      if (!rid || !tok) {
+        toast.error("Enter the vendor email first — the draft is auto-saved before the upload.");
+        return;
+      }
+      const meta = await registrationApi.uploadDocument(rid, tok, slot, file);
       toast.success(`${label} · ${t("docs.uploaded_ok")}`);
       onChange({ ...meta });
     } catch (e) { toast.error(formatApiError(e)); }
@@ -95,7 +104,7 @@ export default function DocSlot({ regId, token, slot, label, required, existing,
   );
 }
 
-export function DocSlotsBlock({ regId, token, slots, existing, onChange, title }) {
+export function DocSlotsBlock({ regId, token, slots, existing, onChange, title, ensureDraft }) {
   const { t } = useI18n();
   const required = slots.filter(([, m]) => m.required);
   const requiredDone = required.filter(([slot]) => !!existing?.[slot]).length;
@@ -128,6 +137,7 @@ export function DocSlotsBlock({ regId, token, slots, existing, onChange, title }
             key={slot}
             regId={regId}
             token={token}
+            ensureDraft={ensureDraft}
             slot={slot}
             label={meta.label}
             required={meta.required}

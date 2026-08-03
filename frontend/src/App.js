@@ -55,6 +55,7 @@ export default function App() {
             <Route path="/register/status" element={<RegistrationStatus />} />
 
             <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="/admin/vendors/new" element={<AdminVendorCreate />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/*" element={<AdminDashboard />} />
 
@@ -81,9 +82,6 @@ export default function App() {
 
             {/* Web — unified sign-in (parallel to /m) */}
             <Route path="/login" element={<UnifiedLogin />} />
-
-            {/* Admin — new vendor with full Sections A–E */}
-            <Route path="/admin/vendors/new" element={<AdminVendorCreate />} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
