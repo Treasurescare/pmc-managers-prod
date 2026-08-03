@@ -50,7 +50,7 @@ export default function TopBar({ dark = false }) {
     ["/notices", t("nav.notices"), "nav-notices"],
     ["/register", t("nav.register"), "nav-register"],
     ["/register/status", t("nav.status"), "nav-status"],
-    ["/admin/login", t("nav.admin"), "nav-admin"],
+    ["/login", t("nav.login"), "nav-signin"],
   ];
 
   return (

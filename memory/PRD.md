@@ -19,13 +19,10 @@ Emergent MVP now, AWS Phase 2 later; also shipped as PWA + Capacitor mobile app.
 ## Roadmap
 
 ### P0 — Verified this session ✅
-- Unified `/login` on web · legacy admin removal · Admin fills full A–E form
-- **Wave 15/16/17/18/19/20** — trilingual · panel splits · country i18n · mobile hamburger + CNAME · code review r2 · Tender Template Builder
-- **Wave 21 (this iteration)** — **Vendor doc upload 500 fix + admin-side uploads**:
-  - Backend `routers/registrations.py`: `upload_registration_doc` + `delete_registration_doc` now guard against malformed `ObjectId` — return **400 "Malformed registration id — save the draft first"** instead of a 500.
-  - Frontend `sections/DocSlot.jsx`: blocks the upload when `regId`/`token` are missing and shows a friendly toast.
-  - New "Save draft & enable uploads" flow inside `AdminVendorCreate.jsx`: green/amber banner drives the admin to create a token-authed draft *first*, then per-section `DocSlot` uploads flow through the standard public endpoint.
-  - `POST /api/v1/vendors/admin-create` gains `draft_registration_id` — on activation the draft's `document_slots` merge into the final registration and the draft is marked `superseded_by_admin`.
+- **Wave 22 (this iteration)** — **Sign-in hub redesign**: `/login` now shows **two clearly labelled cards**: a navy "PMC TEAM · Employee sign-in" (Admin + Escrow + Certifier + Legal + Accounting + Committee + Reviewer + Auditor + Support) and a green "VENDOR / SUPPLIER · Vendor sign-in" with a prominent Register-your-company link. TopBar nav renamed the old **Admin** entry to **Sign in** pointing at `/login`. Full trilingual (EN/RU/KK) copy for badges, card titles, sub-copy, submit buttons and role list. Playwright screenshots confirm desktop side-by-side + mobile stacked.
+- **Wave 21** — Upload 500 fixed + admin-side uploads inside "Add & Fill Vendor" with draft banner
+- **Wave 20** — Tender / RFP / RFQ Template Builder with 18 seeded PSU sections
+- **Wave 18/19** — Mobile hamburger drawer + Sign Out + CNAME multi-tenant + code review r2
 
 ### P1 (Next)
 - **Deploy Refresh** — user needs to click "Save to Github" + "Deploy" so Waves 15–18 land in production, then hit `POST /api/v1/admin/heal/rename-admin` once to purge the legacy `admin@pmcmanagers.com` row from prod
