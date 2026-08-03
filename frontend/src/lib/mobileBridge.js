@@ -25,7 +25,7 @@ export async function takePicture() {
       });
       return { data_b64: img.base64String, mime: `image/${img.format}` };
     } catch (e) {
-      console.error("Native camera failed", e);
+      if (process.env.NODE_ENV !== "production") console.error("Native camera failed", e);
     }
   }
   // Web fallback → prompt file picker
@@ -101,7 +101,9 @@ export async function registerPush(onToken, onNotification) {
       try {
         const reg = await navigator.serviceWorker.ready;
         return { platform: "web", registration: reg };
-      } catch (e) { console.warn("Web push register failed", e); }
+      } catch (e) {
+        if (process.env.NODE_ENV !== "production") console.warn("Web push register failed", e);
+      }
     }
     return { platform: "none" };
   }

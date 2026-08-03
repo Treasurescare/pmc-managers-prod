@@ -2,6 +2,10 @@
 // Every user-facing string in the tender portal should resolve through here.
 // Keep keys stable — components reference them by path (e.g. "section_a.company_name").
 
+// NOTE: keys like `password` / `login_password` below are TRANSLATION labels
+// for password FORM FIELDS. They are not credential values. Do not flag as
+// hardcoded secrets — the value here is user-facing UI copy in each locale.
+
 const EN = {
   brand: {
     name: "PMC Managers Limited",

@@ -15,7 +15,9 @@ export function I18nProvider({ children }) {
   const setLang = (v) => {
     setLangState(v);
     try { localStorage.setItem("pmc_lang", v); }
-    catch (err) { console.warn("Could not persist language preference:", err); }
+    catch (err) {
+      if (process.env.NODE_ENV !== "production") console.warn("Could not persist language preference:", err);
+    }
   };
 
   useEffect(() => {

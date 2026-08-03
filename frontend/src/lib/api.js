@@ -19,7 +19,7 @@ function readCookie(name) {
       .find((c) => c.startsWith(`${name}=`));
     return match ? decodeURIComponent(match.split("=").slice(1).join("=")) : null;
   } catch (err) {
-    console.warn("Cookie read failed:", err);
+    if (process.env.NODE_ENV !== "production") console.warn("Cookie read failed:", err);
     return null;
   }
 }

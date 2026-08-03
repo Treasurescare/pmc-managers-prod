@@ -6,7 +6,22 @@ import react from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
 
 export default [
-  js.configs.recommended,
+  // Global ignores — MUST be first so ESLint skips these directories entirely.
+  {
+    ignores: [
+      "build/**",
+      "node_modules/**",
+      "public/**",
+      "plugins/**",
+      "**/*.config.js",
+      "src/components/ui/**",
+    ],
+  },
+  // Scope the recommended ruleset ONLY to src/ so it doesn't lint tool scripts.
+  {
+    ...js.configs.recommended,
+    files: ["src/**/*.{js,jsx}"],
+  },
   {
     files: ["src/**/*.{js,jsx}"],
     languageOptions: {
@@ -38,8 +53,5 @@ export default [
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
     },
-  },
-  {
-    ignores: ["build/**", "node_modules/**", "public/**", "**/*.config.js", "src/components/ui/**"],
   },
 ];

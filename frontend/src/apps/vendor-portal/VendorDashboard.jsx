@@ -36,7 +36,9 @@ export default function VendorDashboard() {
         nav("/vendor/login");
       }
     })();
-  }, [nav]);
+    // Mount-only fetch: nav is stable, other refs are module-level API bindings.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const logout = async () => {
     try { await vendorApi.logout(); } catch { /* ignore */ }

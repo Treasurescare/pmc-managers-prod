@@ -14,7 +14,7 @@ createRoot(document.getElementById("root")).render(
 if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("/service-worker.js").catch((err) => {
-      console.warn("SW registration failed:", err);
+      if (process.env.NODE_ENV !== "production") console.warn("SW registration failed:", err);
     });
   });
 }

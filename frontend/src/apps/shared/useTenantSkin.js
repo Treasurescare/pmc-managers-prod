@@ -12,18 +12,18 @@ export default function useTenantSkin() {
   const [tenant, setTenant] = useState(null);
 
   useEffect(() => {
-    // 1) URL param wins (fresh entry point). 2) sessionStorage persists across routes.
+    // Mount-only: reads URL param + sessionStorage once, then hits API.
+    // Adding all internal locals to deps would cause infinite re-runs.
     const params = new URLSearchParams(window.location.search);
     const urlCode = params.get("tenant");
     let cached = null;
     try {
       const raw = sessionStorage.getItem("pmc.tenant");
       if (raw) cached = JSON.parse(raw);
-    } catch { /* ignore */ }
+    } catch { /* ignore parse errors on stale cache */ }
     const code = urlCode || cached?.code;
     if (!code) return;
 
-    // Apply cached instantly for zero-flash restore
     if (cached && cached.code === code) {
       setTenant(cached);
       if (cached.branding_color) {
@@ -36,7 +36,7 @@ export default function useTenantSkin() {
         setTenant(t);
         if (t?.branding_color) {
           document.documentElement.style.setProperty("--brand-navy", t.branding_color);
-          try { sessionStorage.setItem("pmc.tenant", JSON.stringify(t)); } catch { /* ignore */ }
+          try { sessionStorage.setItem("pmc.tenant", JSON.stringify(t)); } catch { /* quota exceeded */ }
         }
       })
       .catch(() => { /* silent — fall back to default brand */ });
