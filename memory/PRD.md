@@ -20,8 +20,12 @@ Emergent MVP now, AWS Phase 2 later; also shipped as PWA + Capacitor mobile app.
 
 ### P0 — Verified this session ✅
 - Unified `/login` on web · legacy admin removal · Admin fills full A–E form
-- **Wave 15/16/17/18/19** — trilingual · code review r1 · country i18n + panel splits · mobile hamburger + CNAME multi-tenant · code review r2
-- **Wave 20 (this iteration)** — **Tender / RFP / RFQ Template Builder**: new `routers/tender_templates.py` with CRUD + auto-seeded "Standard PSU e-Tender (GFR 2017, QCBS 70/30)" master carrying 18 blank sections (Sections 1-4, Annexures I-VIII, Forms A-F) modelled from the ESIC Idukki tender. New admin tab **Tender Builder** with left-column library (masters + drafts) and section-by-section editor: header meta form (work title, budget/currency, period, evaluation method, eligibility) + one blank textarea per section, reorderable, deletable, extensible via "+ Section / + Annexure / + Form" buttons. Verified end-to-end: master → clone → 18 sections rendered → edit + save → toast. Screenshot ✓.
+- **Wave 15/16/17/18/19/20** — trilingual · panel splits · country i18n · mobile hamburger + CNAME · code review r2 · Tender Template Builder
+- **Wave 21 (this iteration)** — **Vendor doc upload 500 fix + admin-side uploads**:
+  - Backend `routers/registrations.py`: `upload_registration_doc` + `delete_registration_doc` now guard against malformed `ObjectId` — return **400 "Malformed registration id — save the draft first"** instead of a 500.
+  - Frontend `sections/DocSlot.jsx`: blocks the upload when `regId`/`token` are missing and shows a friendly toast.
+  - New "Save draft & enable uploads" flow inside `AdminVendorCreate.jsx`: green/amber banner drives the admin to create a token-authed draft *first*, then per-section `DocSlot` uploads flow through the standard public endpoint.
+  - `POST /api/v1/vendors/admin-create` gains `draft_registration_id` — on activation the draft's `document_slots` merge into the final registration and the draft is marked `superseded_by_admin`.
 
 ### P1 (Next)
 - **Deploy Refresh** — user needs to click "Save to Github" + "Deploy" so Waves 15–18 land in production, then hit `POST /api/v1/admin/heal/rename-admin` once to purge the legacy `admin@pmcmanagers.com` row from prod

@@ -32,6 +32,9 @@ class AdminVendorFullIn(BaseModel):
     mode: Literal["activate", "verify"] = "verify"
     password: Optional[str] = Field(default=None, min_length=8)
     registration: dict  # full Sections A–E dict (matches RegistrationDraftIn shape)
+    # Optional — id of an already-created draft registration whose uploaded
+    # document_slots should be carried over into the final vendor record.
+    draft_registration_id: Optional[str] = None
 
 
 def _fingerprint_registration(reg: dict) -> dict:
@@ -85,8 +88,27 @@ async def admin_create_vendor(payload: AdminVendorFullIn,
     else:
         await db.vendors.insert_one(vendor_doc)
 
-    # Persist the FULL registration form as an approved record (admin-vouched)
+    # Persist the FULL registration form as an approved record (admin-vouched).
+    # If a draft registration id was supplied, carry over its document_slots
+    # so uploads made mid-flow are not lost.
     reg = dict(payload.registration or {})
+    if payload.draft_registration_id:
+        try:
+            from bson import ObjectId as _OID
+            draft = await db.registrations.find_one({"_id": _OID(payload.draft_registration_id)})
+        except Exception:
+            draft = None
+        if draft and draft.get("document_slots"):
+            reg.setdefault("document_slots", {})
+            reg["document_slots"] = {**draft["document_slots"], **(reg.get("document_slots") or {})}
+        # Retire the draft so it doesn't appear in the registrations queue.
+        if draft:
+            await db.registrations.update_one(
+                {"_id": draft["_id"]},
+                {"$set": {"status": "superseded_by_admin",
+                          "superseded_at": now_iso(),
+                          "superseded_by_vendor_ref": vendor_ref}},
+            )
     reg.update({
         "email": email,
         "vendor_ref": vendor_ref,
