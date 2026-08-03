@@ -130,24 +130,21 @@ export function buildTenderHtml(doc) {
 }
 
 export function exportTenderPdf(doc, { download = false } = {}) {
-  const html = buildTenderHtml(doc);
-  const filename = `${(doc?.name || "tender").replace(/[^a-z0-9-_]+/gi, "_").slice(0, 60)}.html`;
-
-  // ---- Download-as-file mode (robust — always works, no popup blocker) ----
+  // ---- Real PDF download via the server (WeasyPrint) ----
   if (download) {
-    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
+    if (!doc?.id) return;
+    const backend = process.env.REACT_APP_BACKEND_URL;
     const a = document.createElement("a");
-    a.href = url; a.download = filename;
+    a.href = `${backend}/api/v1/tender-templates/${doc.id}/export/pdf`;
+    // The server sends `Content-Disposition: attachment; filename=…` so the
+    // browser downloads a real .pdf. The `download` attribute is a hint.
+    a.download = `${(doc.name || "tender").replace(/[^a-z0-9-_]+/gi, "_").slice(0, 60)}.pdf`;
     document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 5_000);
     return;
   }
 
-  // ---- Print / Save-as-PDF mode ----
-  // Use an in-app hidden iframe (srcdoc). This is popup-blocker-proof, works
-  // on desktop Chrome/Firefox/Safari and mobile Safari, and doesn't need
-  // Trusted Types / blob-URL exemptions in strict CSP environments.
+  // ---- Print / Save-as-PDF mode (client-side preview) ----
+  const html = buildTenderHtml(doc);
   const iframe = document.createElement("iframe");
   iframe.style.position = "fixed";
   iframe.style.right = "0"; iframe.style.bottom = "0";
@@ -156,13 +153,10 @@ export function exportTenderPdf(doc, { download = false } = {}) {
   iframe.setAttribute("aria-hidden", "true");
   iframe.setAttribute("tabindex", "-1");
   iframe.srcdoc = html;
-
   const cleanup = () => {
     setTimeout(() => { try { iframe.remove(); } catch { /* noop */ } }, 60_000);
   };
-
   iframe.onload = () => {
-    // Give the layout engine one paint tick to render fonts/tables before print.
     setTimeout(() => {
       try {
         iframe.contentWindow?.focus();

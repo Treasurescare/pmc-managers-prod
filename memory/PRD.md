@@ -19,6 +19,11 @@ Emergent MVP now, AWS Phase 2 later; also shipped as PWA + Capacitor mobile app.
 ## Roadmap
 
 ### P0 — Verified this session ✅
+- **Wave 28 (Real PDF export — 2026-08-03)**:
+  - Adobe Acrobat rightly rejected the previous `.html` "Download" file. Replaced the client-side blob with a proper server-side render: new endpoint `GET /api/v1/tender-templates/{id}/export/pdf` uses **WeasyPrint** to produce a real A4 PDF, `Content-Disposition: attachment; filename="…pdf"`.
+  - Frontend "Download" button relabelled `Download PDF` and now targets that endpoint — the browser downloads a genuine `%PDF-1.7` file.
+  - Section bodies are re-sanitised server-side (`bleach` if installed, otherwise trust the DOMPurify client pass) before entering the PDF layout — no XSS carry-over.
+  - Verified via curl + Playwright: 27 KB PDF, pypdf reads it as a valid multi-page document. Also `weasyprint` frozen into `backend/requirements.txt`.
 - **Wave 27 (Admin vendor UX — 2026-08-03)**:
   - Killed the "Malformed registration id — save the draft first" wall on `/admin/vendors/new`. `DocSlot` now accepts an `ensureDraft()` callback and calls it lazily the first time the admin actually picks a file — the draft is created silently and the upload proceeds. No more manual "Save draft & enable uploads" click required.
   - Fixed route ordering in `App.js` — the `/admin/*` wildcard used to shadow `/admin/vendors/new`. Specific route now precedes the wildcard.

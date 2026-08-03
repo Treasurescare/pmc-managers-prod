@@ -15,9 +15,11 @@ Wire:
 * DELETE /api/v1/tender-templates/{id}/sections/{code}/attachment
 """
 import base64
+import html as _html
 import uuid
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from bson import ObjectId
 
@@ -270,3 +272,140 @@ async def remove_section_attachment(tid: str, code: str,
     await audit_log("tender_template.section_attachment_remove", admin, "tender_template", tid,
                     {"code": code})
     return _out(await db.tender_templates.find_one({"_id": ObjectId(tid)}))
+
+
+# ---------- PDF export ----------
+
+KIND_LABEL = {"section": "Section", "annexure": "Annexure", "form": "Form"}
+
+HEADER_FIELDS = [
+    ("organisation_chain", "Organisation Chain"),
+    ("tender_reference_number", "Tender Reference Number"),
+    ("tender_id", "Tender ID"),
+    ("tender_type", "Tender Type"),
+    ("form_of_contract", "Form of Contract"),
+    ("tender_category", "Tender Category"),
+    ("no_of_covers", "No. of Covers"),
+    ("work_title", "Work Title"),
+    ("work_description", "Work Description"),
+    ("product_category", "Product Category"),
+    ("sub_category", "Sub Category"),
+    ("contract_type", "Contract Type"),
+    ("tender_value", "Tender Value (₹)"),
+    ("budget_amount", "Budget Amount"),
+    ("budget_currency", "Currency"),
+    ("bid_validity_days", "Bid Validity (Days)"),
+    ("period_days", "Period of Work (Days)"),
+    ("location", "Location"),
+    ("pincode", "Pincode"),
+    ("emd_amount", "EMD Amount (₹)"),
+    ("emd_payable_to", "EMD Payable To"),
+    ("emd_payable_at", "EMD Payable At"),
+    ("tender_fee_amount", "Tender Fee (₹)"),
+    ("fee_payable_to", "Fee Payable To"),
+    ("fee_payable_at", "Fee Payable At"),
+    ("publish_date", "Publish Date"),
+    ("doc_dl_start", "Document Download Start"),
+    ("doc_dl_end", "Document Download End"),
+    ("sub_start", "Bid Submission Start"),
+    ("sub_end", "Bid Submission End"),
+    ("bid_opening_date", "Bid Opening Date"),
+    ("bid_opening_place", "Bid Opening Place"),
+    ("pre_bid_date", "Pre-Bid Meeting Date"),
+    ("pre_bid_place", "Pre-Bid Meeting Place"),
+    ("pre_bid_address", "Pre-Bid Meeting Address"),
+    ("authority_name", "Inviting Authority"),
+    ("authority_address", "Authority Address"),
+    ("evaluation_method", "Evaluation Method"),
+    ("eligibility", "Eligibility"),
+]
+
+# HTML tags we allow to survive the RichEditor → PDF pipeline. Anything else
+# (script, iframe, style, on*-handlers) is stripped by bleach.
+_ALLOWED_TAGS = ["p", "br", "b", "strong", "i", "em", "u", "h2", "h3",
+                 "ul", "ol", "li", "blockquote", "code", "pre", "span"]
+
+
+def _sanitize_body(html: str) -> str:
+    """Strip anything but our editorial allowlist. Uses stdlib fallback if
+    bleach is not installed — good enough because RichEditor already sanitises
+    on the client with DOMPurify."""
+    if not html:
+        return ""
+    try:
+        import bleach  # optional dependency; server-side belt-and-braces
+        return bleach.clean(html, tags=_ALLOWED_TAGS, attributes={}, strip=True)
+    except ImportError:
+        return html  # client-side DOMPurify already ran
+
+
+def _render_tender_html(doc: dict) -> str:
+    header = doc.get("header") or {}
+    header_rows = []
+    for key, label in HEADER_FIELDS:
+        val = header.get(key)
+        if val in (None, "", []):
+            continue
+        header_rows.append(f"<tr><th>{_html.escape(label)}</th><td>{_html.escape(str(val))}</td></tr>")
+    sections = sorted(doc.get("sections") or [], key=lambda s: s.get("order", 0))
+    section_html_parts = []
+    for s in sections:
+        title = _html.escape(s.get("title", ""))
+        kind = KIND_LABEL.get(s.get("kind"), "Section")
+        hint = f'<div class="hint">{_html.escape(s.get("hint", ""))}</div>' if s.get("hint") else ""
+        body = _sanitize_body(s.get("body") or "") or '<em class="muted">[to be completed]</em>'
+        attach = ""
+        if s.get("attachment"):
+            attach = f'<div class="attach">Attached template: {_html.escape(s["attachment"].get("file_name", ""))}</div>'
+        section_html_parts.append(
+            f'<section class="sec"><h2>{_html.escape(kind)} · {title}</h2>{hint}<div class="body">{body}</div>{attach}</section>'
+        )
+    return f"""<!doctype html><html><head><meta charset="utf-8"/>
+<title>{_html.escape(doc.get('name') or 'Tender')}</title>
+<style>
+  @page {{ size: A4; margin: 18mm 16mm; }}
+  body {{ font: 11pt/1.5 Georgia, 'Times New Roman', serif; color: #0b1f3a; }}
+  header.doc {{ border-bottom: 3px double #0b1f3a; padding-bottom: 10pt; margin-bottom: 18pt; }}
+  header.doc h1 {{ font-size: 20pt; margin: 0; }}
+  header.doc .meta {{ font-size: 8pt; letter-spacing: .1em; text-transform: uppercase; color: #64748b; }}
+  table.header {{ width: 100%; border-collapse: collapse; margin: 14pt 0; font-size: 9pt; }}
+  table.header th, table.header td {{ border: 0.5pt solid #cbd5e1; padding: 4pt 6pt; text-align: left; vertical-align: top; }}
+  table.header th {{ background: #f1f5f9; width: 34%; font-weight: 600; color: #334155; }}
+  h2 {{ font-size: 12pt; margin: 18pt 0 4pt; padding-bottom: 3pt; border-bottom: 0.5pt solid #cbd5e1; }}
+  .sec {{ margin-bottom: 12pt; page-break-inside: avoid; }}
+  .hint {{ font-style: italic; color: #64748b; font-size: 8.5pt; margin-bottom: 4pt; }}
+  .body ul, .body ol {{ padding-left: 18pt; }}
+  .body blockquote {{ margin: 4pt 0; padding-left: 10pt; border-left: 2pt solid #cbd5e1; color: #334155; }}
+  .attach {{ margin-top: 6pt; font-size: 8.5pt; color: #64748b; }}
+  .muted {{ color: #94a3b8; }}
+</style></head><body>
+<header class="doc">
+  <div class="meta">{_html.escape((doc.get('kind') or 'tender').upper())} · {_html.escape(doc.get('industry') or '')}</div>
+  <h1>{_html.escape(doc.get('name') or 'Tender')}</h1>
+</header>
+<table class="header"><tbody>{''.join(header_rows)}</tbody></table>
+{''.join(section_html_parts)}
+</body></html>"""
+
+
+@router.get("/{tid}/export/pdf")
+async def export_tender_pdf(tid: str, admin=Depends(require_role("admin", "reviewer", "auditor"))):
+    """Server-side HTML→PDF render of the composed tender via WeasyPrint —
+    returns a real application/pdf response the browser downloads directly."""
+    try:
+        doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
+    except Exception:
+        raise HTTPException(status_code=400, detail="Malformed template id")
+    if not doc:
+        raise HTTPException(status_code=404, detail="Template not found")
+    from weasyprint import HTML
+    pdf_bytes = HTML(string=_render_tender_html(doc)).write_pdf()
+    safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in (doc.get("name") or "tender"))[:60]
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{safe}.pdf"',
+            "X-Content-Type-Options": "nosniff",
+        },
+    )

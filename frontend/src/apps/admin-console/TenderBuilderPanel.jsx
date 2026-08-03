@@ -258,10 +258,10 @@ export default function TenderBuilderPanel() {
                     Print / PDF
                   </button>
                   <button onClick={() => exportTenderPdf(doc, { download: true })} disabled={!doc}
-                    data-testid="tb-download-html"
-                    title="Downloads a self-contained .html copy — open in any browser"
+                    data-testid="tb-download-pdf"
+                    title="Downloads a real .pdf rendered on the server"
                     className="px-4 py-2 text-[12px] uppercase tracking-widest border border-brand-navy/40 text-brand-navy hover:bg-brand-navy/10">
-                    Download
+                    Download PDF
                   </button>
                   {!doc.is_master && (
                     <button onClick={removeDraft} data-testid="tb-delete"
