@@ -251,6 +251,7 @@ export const kycApi = {
 export const vendorInviteApi = {
   invite: (payload) => api.post("/api/v1/vendors/invite", payload).then((r) => r.data),
   inviteBulk: (csv_text) => api.post("/api/v1/vendors/invite-bulk", { csv_text }).then((r) => r.data),
+  adminCreate: (payload) => api.post("/api/v1/vendors/admin-create", payload).then((r) => r.data),
   verifyMeta: (token) => api.get(`/api/v1/vendors/verify/${token}`).then((r) => r.data),
   complete: (token, password) =>
     api.post(`/api/v1/vendors/verify/${token}/complete`, { password }).then((r) => r.data),

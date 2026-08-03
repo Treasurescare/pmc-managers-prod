@@ -4,37 +4,35 @@
 Global tender management CRM/e-Tender platform. Multi-role approval pipeline, dynamic
 Approval Matrices, Bidding & EMD payments, BOQ, Evaluations, Contract Award, MFA,
 Multi-Tenant portals, AI Audit Copilot, KYC integration. Built "for Portability" —
-Emergent MVP now, AWS Phase 2 later; **now also shipped as PWA + Capacitor mobile app**.
+Emergent MVP now, AWS Phase 2 later; also shipped as PWA + Capacitor mobile app.
 
 ## User Personas
 - **Master Admin** — full RBAC.
 - **Staff** — Escrow Agent, Certifier, Legal Counsel, Accounting, Committee, Reviewer, Auditor, Support. High-risk roles must have MFA.
-- **Vendor** — self-registers or admin-invited (single or CSV bulk).
+- **Vendor** — self-registers OR admin-invited (magic email, CSV bulk, or **full form fill-in on behalf**).
 - **External Committee Invitee** — non-staff experts invited by email.
 
 ## Core Modules
-- **Wave 1-7** — Auth (HTTPOnly + CSRF), Bidding + EMD (Stripe live + PayPal/Kaspi sandbox), Evaluations, BOQ, Contracts, Vendor Intel, Analytics, MFA, Tenants, GDPR, Workflow Matrix
-- **Wave 8** — AI Audit Copilot, high-risk role MFA enforcement, GDPR self-service, matrix-driven Bidding Ops, tenant portal skinning, KYC stub
-- **Wave 9** — Admin vendor invites + verify-email + registration template, notice document uploads (primary + attachments), Permissions Matrix, external committee invitees
-- **Wave 10** — KYC-Checks live client (env-driven, stub fallback), Public notice attachments, Registration document slots (12 KYC slots + progress meter), Vendor template download, Committee Status Dashboard, Admin Document Viewer, Bulk Vendor Invite (CSV)
-- **Wave 11 (Quality)** — XSS fix, test creds → env vars, array-index-key fixes, MastersPanel default password → empty, `is` → `==`
-- **Wave 12 (Refactor)** — 4 nested admin panels (Registrations, Notices, Audit, Packages) extracted to standalone files; AdminDashboard slimmed from 687→140 lines; `bids_helpers.py` extracted from `decide_bid`
-- **Wave 13 (Mobile)** — **PWA + Capacitor**: `public/manifest.json`, service worker with offline shell + push, iOS meta tags, unified `/m` mobile login (role auto-detection), `mobileBridge.js` (native camera / biometric / push / secure storage), `capacitor.config.ts`, full `docs/MOBILE_BUILD.md` guide for App Store + Play Store submission
+- **Wave 1-13** (previous waves) — Auth, Bidding + EMD, Evaluations, BOQ, Contracts, Vendor Intel, Analytics, MFA, Tenants, GDPR, Workflow Matrix, AI Copilot, Permissions Matrix, KYC-Checks client, Registration docs, Mobile PWA + Capacitor scaffold, Unified mobile login `/m`
+- **Wave 14 (Prod-parity)** — Fixed `admin@pmcmanagers.com` legacy default in `config.py` (now `adminsupport@pmcmanagers.com`), deleted stale `backend/tests/backend_test.py`, added self-heal endpoint `POST /api/v1/admin/heal/rename-admin` for prod cleanup, added **Unified web login `/login`** (same auto-detect as mobile `/m`), added **Admin creates vendor with full Sections A–E form** at `/admin/vendors/new` with two modes (`activate` immediately with admin-set password OR `verify` via magic-link email). Vendors panel gains "Add & fill full form" button.
 
 ## Roadmap
 
-### P0 (Next)
-- Live KYC-Checks credentials — user to share `KYC_BASE_URL` + `KYC_API_KEY`
-- Backend send-push wiring (FCM/APNs adapters in `notifications.py`) once user provisions Firebase project
-- Complete backend function refactoring (paused mid-batch: bids.decide_bid still needs body update to use bids_helpers; also analytics.audit_copilot, packages.import_packages_csv, committee.create_committee)
+### P0 — Verified this session ✅
+- Unified `/login` on web
+- Kill `admin@pmcmanagers.com` — config default fixed + heal endpoint + stale test deleted
+- Admin fills full Sections A–E registration form for a vendor with activate/verify modes
 
-### P1
-- iOS + Android store submission (needs user's Mac + $99 Apple + $25 Google)
-- Domain-based multi-tenant routing (currently query-string only)
-- Backend push adapter (once FCM keys arrive)
+### P1 (Next)
+- Finish backend refactor: apply `bids_helpers` inside `decide_bid` body; refactor `audit_copilot`, `import_packages_csv`, `create_committee`
+- Firebase + APNs setup (needs your `google-services.json` + APNs auth key)
+- Live KYC-Checks credentials (need `KYC_BASE_URL` + `KYC_API_KEY`)
+- On production: after redeploy, admin can hit `POST /api/v1/admin/heal/rename-admin` to auto-clean the legacy `admin@pmcmanagers.com` row
 
 ### P2
-- Phase 2 — AWS migration (PostgreSQL RLS, S3 Object Lock, Cognito, Fargate)
+- Refactor big frontend components (BiddingOpsPanel, MastersPanel, BOQContractsPanel) — deferred
+- Domain-based multi-tenant routing (currently query-string)
+- Phase 2 AWS migration
 
 ## Deployment Notes
 - MongoDB unique indexes MUST use `sparse=True`
@@ -42,7 +40,7 @@ Emergent MVP now, AWS Phase 2 later; **now also shipped as PWA + Capacitor mobil
 - Emergent LLM key powers AI Audit Copilot + bid anomaly
 - Emergent Email key powers all send_email calls (best-effort if missing)
 - `KYC_PROVIDER` env var: `stub` (default) or `kyc-checks` (real)
-- For native mobile: cookies must be `SameSite=None; Secure` (already set)
+- **Production self-heal**: after redeploy, hit `POST /api/v1/admin/heal/rename-admin` once to clean the legacy `admin@pmcmanagers.com` row
 
 ## Integrations
 - Stripe (sandbox key in pod env)
@@ -50,4 +48,4 @@ Emergent MVP now, AWS Phase 2 later; **now also shipped as PWA + Capacitor mobil
 - Emergent Email
 - PyOTP + qrcode (MFA)
 - KYC-Checks (real client wired; awaiting credentials)
-- **Capacitor 8.x** (camera, preferences, push-notifications) + **@aparajita/capacitor-biometric-auth**
+- Capacitor 8.x (camera, preferences, push-notifications) + biometric-auth

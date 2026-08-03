@@ -35,6 +35,10 @@ import CommitteeAccept from "@/apps/committee-portal/CommitteeAccept";
 // Wave 12 — Mobile (PWA + Capacitor)
 import MobileLogin from "@/apps/mobile/MobileLogin";
 
+// Wave 14 — Unified web login + Admin creates full vendor
+import UnifiedLogin from "@/apps/shared/UnifiedLogin";
+import AdminVendorCreate from "@/apps/admin-console/AdminVendorCreate";
+
 export default function App() {
   return (
     <div className="App">
@@ -74,6 +78,12 @@ export default function App() {
             {/* Mobile — unified login (PWA / Capacitor) */}
             <Route path="/m" element={<MobileLogin />} />
             <Route path="/m/login" element={<MobileLogin />} />
+
+            {/* Web — unified sign-in (parallel to /m) */}
+            <Route path="/login" element={<UnifiedLogin />} />
+
+            {/* Admin — new vendor with full Sections A–E */}
+            <Route path="/admin/vendors/new" element={<AdminVendorCreate />} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

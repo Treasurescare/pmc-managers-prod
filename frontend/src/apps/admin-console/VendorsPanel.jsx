@@ -85,6 +85,10 @@ export default function VendorsPanel() {
                   className="px-4 py-2 text-[11px] uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5">
             Bulk invite (CSV)
           </button>
+          <a href="/admin/vendors/new" data-testid="vendor-fullform-open"
+             className="px-4 py-2 text-[11px] uppercase tracking-widest border border-brand-navy-soft text-brand-navy-soft hover:bg-brand-navy-soft hover:text-white">
+            Add & fill full form
+          </a>
           <button onClick={() => setShowInvite(!showInvite)}
                   data-testid="vendor-invite-toggle"
                   className="px-5 py-2 text-[11px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep">

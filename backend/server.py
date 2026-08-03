@@ -15,7 +15,7 @@ from routers import (
     notices, registrations, packages, admin_auth, uploads, audit_routes, meta, vendors,
     staff_auth, vendor_auth, bids, payments, committee, tasks, chat, inspections, masters,
     evaluations, boqs, vendor_intel, analytics, governance, notifications, payments_sandbox,
-    mfa, tenants, kyc, vendor_invites, permissions,
+    mfa, tenants, kyc, vendor_invites, permissions, admin_heal, vendor_full_invite,
 )
 
 
@@ -59,7 +59,11 @@ app.include_router(tenants.router)
 # Wave 8 — KYC (stub → live via KYC-Checks / Sumsub / Onfido)
 app.include_router(kyc.router)
 # Wave 9 — Admin vendor invites + Permissions matrix
+app.include_router(vendor_invites.router)
 app.include_router(permissions.router)
+# Wave 14 — Admin heal + admin creates full vendor
+app.include_router(admin_heal.router)
+app.include_router(vendor_full_invite.router)
 
 
 # ---------- CORS ----------
