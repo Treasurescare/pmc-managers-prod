@@ -59,7 +59,11 @@ async def upload_registration_doc(registration_id: str, slot: str,
     """PUBLIC (token-authed) — upload a document into a specific slot on this registration."""
     if slot not in DOC_SLOTS:
         raise HTTPException(status_code=400, detail=f"Unknown slot '{slot}'")
-    reg = await db.registrations.find_one({"_id": ObjectId(registration_id), "magic_token": token})
+    try:
+        reg_obj_id = ObjectId(registration_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Malformed registration id — save the draft first")
+    reg = await db.registrations.find_one({"_id": reg_obj_id, "magic_token": token})
     if not reg:
         raise HTTPException(status_code=404, detail="Registration not found or token invalid")
     if reg["status"] not in ("draft", "needs_clarification"):
@@ -81,7 +85,7 @@ async def upload_registration_doc(registration_id: str, slot: str,
             "url": f"/api/v1/uploads/files/{key}",
             "uploaded_at": now_iso(), "key": key}
     await db.registrations.update_one(
-        {"_id": ObjectId(registration_id)},
+        {"_id": reg_obj_id},
         {"$set": {f"document_slots.{slot}": meta, "updated_at": now_iso()}},
     )
     await audit_log("registration.document_upload", None, "registration", registration_id,
@@ -93,13 +97,17 @@ async def upload_registration_doc(registration_id: str, slot: str,
 async def delete_registration_doc(registration_id: str, slot: str,
                                     token: str = Query(...)):
     """PUBLIC (token-authed) — delete a slot's document."""
-    reg = await db.registrations.find_one({"_id": ObjectId(registration_id), "magic_token": token})
+    try:
+        reg_obj_id = ObjectId(registration_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Malformed registration id")
+    reg = await db.registrations.find_one({"_id": reg_obj_id, "magic_token": token})
     if not reg:
         raise HTTPException(status_code=404, detail="Registration not found or token invalid")
     if reg["status"] not in ("draft", "needs_clarification"):
         raise HTTPException(status_code=400, detail=f"Cannot edit — status is {reg['status']}")
     await db.registrations.update_one(
-        {"_id": ObjectId(registration_id)},
+        {"_id": reg_obj_id},
         {"$unset": {f"document_slots.{slot}": ""}, "$set": {"updated_at": now_iso()}},
     )
     await audit_log("registration.document_delete", None, "registration", registration_id,

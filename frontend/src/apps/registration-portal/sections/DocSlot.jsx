@@ -14,6 +14,9 @@ export default function DocSlot({ regId, token, slot, label, required, existing,
 
   const upload = async (file) => {
     if (!file) return;
+    if (!regId || !token) {
+      return toast.error("Save this registration as a draft before uploading documents.");
+    }
     if (file.size > 5 * 1024 * 1024) {
       return toast.error(t("docs.too_big"));
     }
