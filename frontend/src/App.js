@@ -32,6 +32,9 @@ import StaffDashboard from "@/apps/staff-portal/StaffDashboard";
 // Wave 9 — External Committee Invite
 import CommitteeAccept from "@/apps/committee-portal/CommitteeAccept";
 
+// Wave 12 — Mobile (PWA + Capacitor)
+import MobileLogin from "@/apps/mobile/MobileLogin";
+
 export default function App() {
   return (
     <div className="App">
@@ -67,6 +70,10 @@ export default function App() {
 
             {/* External Committee accept/decline */}
             <Route path="/committee/accept/:token" element={<CommitteeAccept />} />
+
+            {/* Mobile — unified login (PWA / Capacitor) */}
+            <Route path="/m" element={<MobileLogin />} />
+            <Route path="/m/login" element={<MobileLogin />} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

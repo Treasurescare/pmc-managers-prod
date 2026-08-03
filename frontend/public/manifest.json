@@ -1,0 +1,21 @@
+{
+  "short_name": "PMC Tenders",
+  "name": "PMC Managers · Global Tender Board",
+  "description": "e-Tender platform for admins, staff and vendors. Bid, evaluate, award — from any device.",
+  "icons": [
+    { "src": "pmc-logo.png", "sizes": "192x192 512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "start_url": "/m",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#0b1e3f",
+  "background_color": "#f7f5f0",
+  "categories": ["business", "productivity"],
+  "shortcuts": [
+    { "name": "Admin Console", "url": "/admin/login", "description": "Master admin dashboard" },
+    { "name": "Staff Portal",  "url": "/staff/login", "description": "Escrow / Certifier / Legal / Accounting / Committee" },
+    { "name": "Vendor Portal", "url": "/vendor/login", "description": "Submit bids, track EMD, manage KYC" },
+    { "name": "Notice Board",  "url": "/",             "description": "Browse open tenders" }
+  ]
+}
