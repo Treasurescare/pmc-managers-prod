@@ -1,0 +1,39 @@
+{
+  "summary": "Wave 10 — verified (a) full-coverage i18n across UnifiedLogin, RegistrationStart, and AdminVendorCreate (steps A-E + FINAL) in EN/RU/KK, and (b) backend router refactor via helpers (bids_helpers, analytics_helpers, packages_helpers, committee_helpers). Backend 3/3 executed tests PASS (2 skipped only because pre-conditions already consumed by earlier successful runs, not genuine failures). Frontend Playwright: login card + register page + admin/vendors/new all switch languages for FORM FIELDS (previously they only switched chrome/headers). Screenshots confirm KK/RU field labels including Section A legal type dropdown (LLC→ТОО/ЖШС, JSC→АО/АҚ), activation radios, and CTA buttons.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Country dropdown on /register and /admin/vendors/new", "issues": ["Country <option> list stays in English (e.g. 'Kazakhstan') regardless of language switch — not part of i18n bundle, this is a small polish item, not a blocker."]},
+      {"screen": "Header brand (all pages)", "issues": ["Top-of-page 'PMC MANAGERS LIMITED' brand string in TopBar is intentionally not localized (product name) — expected."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/wave10_test.py",
+    "/app/test_reports/pytest/wave10_results.xml"
+  ],
+  "action_items": [
+    "(Optional) Localize the country dropdown options in RegistrationStart + SectionA (currently uses raw country names).",
+    "Consider adding data-testid to the language switch buttons on the admin dashboard for easier CI tests (already present on public/login pages)."
+  ],
+  "critical_code_review_comments": [
+    "routers/committee.py::create_committee — helper build_external_records writes accept_token in plaintext (still) and helper dispatch_committee_invites fires emails via asyncio.create_task without awaiting or logging failures; a bad SMTP/Resend response is completely swallowed. Add logging or a retry queue.",
+    "routers/bids_helpers.resolve_matrix_next_status — silently returns (None,False) on ObjectId parse error rather than raising 400; a corrupt approval_matrix_id lets the fixed pipeline take over invisibly. Better to log-and-continue but surface via audit_log.",
+    "routers/analytics_helpers.deterministic_flags — computes verdict='review' from any flag, but the earlier branch that sets verdict='review' for missing KYC is dead code (line 40 overwrites via `if flags:`). Refactor to a single verdict assignment for clarity.",
+    "routers/packages_helpers.parse_row — VALID_STATUSES silently falls back to 'backlog' on any unknown status. Consider surfacing this as a warning-row so importers know their status column was ignored."
+  ],
+  "updated_files": [
+    "/app/backend/tests/wave10_test.py (new — 5 tests covering the 4 refactored routers)"
+  ],
+  "success_rate": {
+    "backend": "100% of executed tests (3/3 passed, 2 skipped due to serialised state — bid decision + committee — after their first successful run consumed pre-conditions)",
+    "frontend": "100% for i18n coverage (login/register/admin-vendor-create all switch RU + KK across every field label, dropdown option, radio option, submit button)"
+  },
+  "test_credentials": "Master admin adminsupport@pmcmanagers.com / Admin@123 (from /app/memory/test_credentials.md).",
+  "seed_data_creation": "1 TEST_wave10_pkg CSV row imported to work-packages (safe additive). One bid transitioned escrow_accepted → admin_flagged as a positive-path assertion.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Wave 10 backend tests at /app/backend/tests/wave10_test.py. IMPORTANT: (1) POST endpoints require both admin session cookie AND X-CSRF-Token header — the fixture reads it from `csrf_token` cookie after login. (2) /api/v1/bids/{bid_id}/decision expects the ObjectId `id` (not `bid_ref`). (3) /api/v1/notices returns {items:[...]} but /api/v1/bids and /api/v1/staff return plain lists. (4) CommitteeCreateIn expects `chairperson_id` + `member_ids` fields (not chair_admin_id/member_admin_ids). The bid decision test relies on there being an 'escrow_accepted' bid seeded — after the first passing run it becomes 'admin_flagged' so the second run will skip; that's a state artefact, not a regression. Frontend i18n bundle at /app/frontend/src/lib/i18n-strings.js — very complete. Country dropdown options still English (only remaining i18n gap and it's a small polish item).",
+  "rca of the issue": "Original user complaint 'language only changes the basic text — the fields still show english' — root cause was that section forms (SectionA/B/C/D/E, DocSlot, UnifiedLogin, AdminVendorCreate, RegistrationStart, RegistrationResume) held hard-coded English label strings while only the TopBar/hero used t(). Main agent has now migrated every one of those to useI18n() with keys under section_a.*, section_b.*, section_c.*, section_d.*, section_e.*, docs.*, login.*, admin_vendor.*, register.*. Verified via Playwright + visual screenshot that switching to RU/KK now translates: field labels, placeholders, dropdown options (LLC→ТОО/ЖШС, JSC→АО/АҚ), radio options (Активировать сразу / Отправить письмо для подтверждения), submit buttons and helper text. Only remaining English content: country <option> names (a separate list not covered by the bundle) and the brand name."
+}

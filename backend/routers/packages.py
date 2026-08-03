@@ -1,11 +1,8 @@
-import csv
-import io
 from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from bson import ObjectId
 from pydantic import BaseModel
 
-import config
 from db import db, next_sequence
 from models import PackageIn, PackagePatchIn
 from models.base import BaseDocument, now_iso
@@ -112,43 +109,26 @@ async def import_packages_csv(file: UploadFile = File(...),
     `status` defaults to `backlog` if omitted or invalid.
     Rows with missing `title` or `category` are skipped and reported.
     """
+    from routers.packages_helpers import read_csv_body, make_col_lookup, parse_row
+
     if not file.filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Please upload a .csv file")
     body = (await file.read()).decode("utf-8-sig", errors="replace")
-    reader = csv.DictReader(io.StringIO(body))
-    if not reader.fieldnames:
-        raise HTTPException(status_code=400, detail="Empty or invalid CSV")
-    header_map = {name.lower().strip(): name for name in reader.fieldnames}
-
-    def col(row: dict, name: str) -> Optional[str]:
-        real = header_map.get(name)
-        return row.get(real) if real else None
+    try:
+        reader = read_csv_body(body)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    col_fn = make_col_lookup(reader.fieldnames)
 
     created, skipped, errors = 0, 0, []
     for i, row in enumerate(reader, start=2):
-        title = (col(row, "title") or "").strip()
-        category = (col(row, "category") or "").strip()
-        if not title or not category:
+        partial, err = parse_row(row, col_fn)
+        if err:
             skipped += 1
-            errors.append({"row": i, "reason": "missing title or category"})
+            errors.append({"row": i, "reason": err})
             continue
-        status_val = (col(row, "status") or "backlog").strip().lower()
-        if status_val not in VALID_STATUSES:
-            status_val = "backlog"
-        value_str = (col(row, "value") or "").replace(",", "").strip()
-        try:
-            value_num = float(value_str) if value_str else None
-        except ValueError:
-            value_num = None
         doc = {
-            "title": title,
-            "category": category,
-            "phase": (col(row, "phase") or None),
-            "value": value_num,
-            "currency": (col(row, "currency") or "USD").strip() or "USD",
-            "float_target_date": (col(row, "float_target_date") or None),
-            "status": status_val,
-            "attached_documents": [],
+            **partial,
             "package_ref": await _next_package_ref(),
             "tenant_id": admin["tenant_id"],
             "created_by": admin["id"],

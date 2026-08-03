@@ -54,27 +54,27 @@ export default function RegistrationResume() {
       delete payload.vendor_ref; delete payload.reviewed_at; delete payload.reviewer_notes; delete payload.magic_token;
       const fresh = await registrationApi.update(reg.id, token, payload);
       setReg(fresh);
-      toast.success("Saved");
+      toast.success(t("register.saved"));
     } catch (err) {
       toast.error(formatApiError(err));
     } finally {
       setBusy(false);
     }
-  }, [reg, token]);
+  }, [reg, token, t]);
 
   const submitFinal = useCallback(async () => {
     setBusy(true);
     try {
       await saveDraft();
       await registrationApi.submit(reg.id, token);
-      toast.success("Registration submitted for review");
+      toast.success(t("register.submitted_ok"));
       navigate(`/register/status?token=${token}`);
     } catch (err) {
       toast.error(formatApiError(err));
     } finally {
       setBusy(false);
     }
-  }, [reg, token, saveDraft, navigate]);
+  }, [reg, token, saveDraft, navigate, t]);
 
   const allDeclarationsChecked = useMemo(
     () => (reg ? DECL_KEYS.every((k) => reg[k]) : false),
@@ -100,15 +100,15 @@ export default function RegistrationResume() {
         <TopBar />
         <div className="flex-1 max-w-3xl mx-auto w-full px-6 py-16">
           <div className="border border-brand-navy/10 bg-white p-10">
-            <div className="pmc-label">Registration status</div>
+            <div className="pmc-label">{t("register.status_heading")}</div>
             <h1 className="font-display text-3xl mt-2 text-brand-navy">
-              {reg.status === "submitted" ? "Submitted — under review" : `Status: ${reg.status}`}
+              {reg.status === "submitted" ? t("register.status_submitted") : `${t("register.status_generic")}: ${reg.status}`}
             </h1>
             <p className="text-brand-navy/70 mt-3">
-              {reg.reviewer_notes || "Our team will get back to you by email once the review is complete."}
+              {reg.reviewer_notes || t("register.status_reviewer_default")}
             </p>
             {reg.vendor_ref && (
-              <div className="mt-6 font-mono text-lg text-brand-navy-soft">Supplier ref: {reg.vendor_ref}</div>
+              <div className="mt-6 font-mono text-lg text-brand-navy-soft">{t("register.supplier_ref")}: {reg.vendor_ref}</div>
             )}
           </div>
         </div>
@@ -121,7 +121,7 @@ export default function RegistrationResume() {
     <div className="min-h-screen bg-brand-pale flex flex-col">
       <TopBar />
       <main className="flex-1 max-w-5xl mx-auto w-full px-6 lg:px-10 py-12">
-        <div className="pmc-label">Pre-Tender Registration</div>
+        <div className="pmc-label">{t("register.title")}</div>
         <h1 className="font-display text-3xl lg:text-4xl mt-2 text-brand-navy">{stepLabel}</h1>
 
         <ol className="mt-6 flex items-center gap-3 flex-wrap" data-testid="stepper">
@@ -180,7 +180,7 @@ export default function RegistrationResume() {
             data-testid="btn-prev"
             className="px-6 py-3 text-[12px] font-semibold uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5 disabled:opacity-40"
           >
-            ← Previous
+            ← {t("register.prev")}
           </button>
 
           <div className="flex items-center gap-3">
@@ -191,7 +191,7 @@ export default function RegistrationResume() {
               data-testid="btn-save-draft"
               className="px-6 py-3 text-[12px] font-semibold uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5 disabled:opacity-40"
             >
-              Save draft
+              {t("register.save_draft")}
             </button>
 
             {stepIdx < STEPS.length - 1 ? (
@@ -202,7 +202,7 @@ export default function RegistrationResume() {
                 data-testid="btn-next"
                 className="px-6 py-3 text-[12px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep disabled:opacity-40"
               >
-                Next →
+                {t("register.next")} →
               </button>
             ) : (
               <button
@@ -212,7 +212,7 @@ export default function RegistrationResume() {
                 data-testid="btn-submit-final"
                 className="px-6 py-3 text-[12px] font-semibold uppercase tracking-widest bg-brand-navy-soft text-white hover:bg-brand-navy-soft/90 disabled:opacity-40"
               >
-                Submit for review
+                {t("register.submit_final")}
               </button>
             )}
           </div>

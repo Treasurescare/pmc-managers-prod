@@ -1,21 +1,23 @@
 import { Field, Input } from "./FormPrimitives";
+import { useI18n } from "@/context/I18nContext";
 
-const DECLARATIONS = [
-  ["decl_conflict_of_interest", "No conflict of interest with PMC Managers, Emerald Corporates or Big B Corporation"],
-  ["decl_integrity", "Company is not under sanctions, blacklisting or debarment"],
-  ["decl_accuracy", "All information provided is accurate to the best of our knowledge"],
-  ["decl_data_consent", "Consent to PMC storing and processing this data in line with applicable data-protection law"],
-  ["decl_fee", "Understand that any registration fee (if applicable) is non-refundable"],
-  ["decl_notification", "Accept email notifications on tender activity"],
+const DECL_KEYS = [
+  "decl_conflict_of_interest",
+  "decl_integrity",
+  "decl_accuracy",
+  "decl_data_consent",
+  "decl_fee",
+  "decl_notification",
 ];
 
 export default function SectionE({ reg, update }) {
+  const { t } = useI18n();
   return (
     <div className="grid gap-5">
       <div>
-        <div className="pmc-label mb-3">Declarations · all six required</div>
+        <div className="pmc-label mb-3">{t("section_e.declarations_title")}</div>
         <div className="grid gap-2">
-          {DECLARATIONS.map(([k, label]) => (
+          {DECL_KEYS.map((k) => (
             <label key={k} className="flex items-start gap-3 border border-brand-navy/10 px-4 py-3 bg-white cursor-pointer hover:border-brand-navy-soft/60">
               <input
                 type="checkbox"
@@ -24,15 +26,15 @@ export default function SectionE({ reg, update }) {
                 onChange={() => update({ [k]: !reg[k] })}
                 className="mt-1"
               />
-              <span className="text-sm text-brand-navy">{label}</span>
+              <span className="text-sm text-brand-navy">{t(`section_e.${k}`)}</span>
             </label>
           ))}
         </div>
       </div>
       <div className="grid gap-5 md:grid-cols-3">
-        <Field label="Signature — full name"><Input testId="f-sign-name" value={reg.signature_name || ""} onChange={(e) => update({ signature_name: e.target.value })} /></Field>
-        <Field label="Signature — title"><Input testId="f-sign-title" value={reg.signature_title || ""} onChange={(e) => update({ signature_title: e.target.value })} /></Field>
-        <Field label="Signature — date"><Input testId="f-sign-date" type="date" value={reg.signature_date || ""} onChange={(e) => update({ signature_date: e.target.value })} /></Field>
+        <Field label={t("section_e.signature_name")}><Input testId="f-sign-name" value={reg.signature_name || ""} onChange={(e) => update({ signature_name: e.target.value })} /></Field>
+        <Field label={t("section_e.signature_title")}><Input testId="f-sign-title" value={reg.signature_title || ""} onChange={(e) => update({ signature_title: e.target.value })} /></Field>
+        <Field label={t("section_e.signature_date")}><Input testId="f-sign-date" type="date" value={reg.signature_date || ""} onChange={(e) => update({ signature_date: e.target.value })} /></Field>
       </div>
     </div>
   );

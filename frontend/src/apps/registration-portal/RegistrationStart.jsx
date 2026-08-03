@@ -43,7 +43,7 @@ export default function RegistrationStart() {
     <div className="min-h-screen bg-brand-pale flex flex-col">
       <TopBar />
       <main className="flex-1 max-w-4xl mx-auto w-full px-6 lg:px-10 py-16">
-        <div className="pmc-label">Sections A–E · Pre-Tender Registration</div>
+        <div className="pmc-label">{t("register.kicker")}</div>
         <h1 className="font-display text-4xl lg:text-5xl mt-2 text-brand-navy leading-tight">{t("register.title")}</h1>
         <p className="text-brand-navy/70 mt-3 max-w-2xl">{t("register.lede")}</p>
 
@@ -51,16 +51,15 @@ export default function RegistrationStart() {
           <div className="mt-6 flex flex-wrap items-center gap-3 p-4 border border-brand-navy/10 bg-white max-w-2xl"
                data-testid="reg-template-block">
             <div className="flex-1">
-              <div className="pmc-label">Blank registration form</div>
+              <div className="pmc-label">{t("register.template_title")}</div>
               <div className="text-sm text-brand-navy/70 mt-1">
-                Download the printable form to preview the fields and documents you'll need
-                before starting online.
+                {t("register.template_lede")}
               </div>
             </div>
             <a href={vendorInviteApi.templateDownloadUrl()} target="_blank" rel="noreferrer"
                data-testid="reg-template-download"
                className="px-5 py-2.5 text-[11px] font-semibold uppercase tracking-widest border border-brand-navy text-brand-navy hover:bg-brand-navy hover:text-white">
-              Download blank form
+              {t("register.template_download")}
             </a>
           </div>
         )}

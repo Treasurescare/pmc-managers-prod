@@ -149,56 +149,28 @@ async def decide_bid(bid_id: str, payload: BidDecisionIn,
                      admin=Depends(require_role("admin", "reviewer", "escrow_agent", "certifier",
                                                 "legal_counsel", "accounting", "committee_member"))):
     """Sequential approval step. The active role in the JWT must match `payload.role`."""
+    from routers.bids_helpers import (
+        check_role_match, resolve_matrix_next_status,
+        resolve_action_next_status, validate_transition,
+    )
+
     b = await db.bids.find_one({"_id": ObjectId(bid_id)})
     if not b:
         raise HTTPException(status_code=404, detail="Bid not found")
-    if admin.get("role") != payload.role and not (payload.role == "committee" and admin.get("role") == "committee_member"):
-        raise HTTPException(status_code=403, detail=f"Active role {admin.get('role')} cannot act as {payload.role}")
+    check_role_match(admin.get("role"), payload.role)
 
     prev_status = b.get("status")
     expected, next_status = _ROLE_TO_TARGET_STATUS.get(payload.role, (None, None))
 
-    # ---- Matrix-driven override: if the notice references an approval matrix,
-    # resolve the *next* status from the matrix ordering instead of the hard-
-    # coded fallback above. This lets admins reconfigure pipelines without code.
-    notice = await db.notices.find_one({"notice_ref": b.get("notice_ref")})
-    matrix_id = (notice or {}).get("approval_matrix_id")
-    if matrix_id and payload.action == "accept":
-        try:
-            matrix = await db.approval_matrices.find_one({"_id": ObjectId(matrix_id)})
-        except Exception:
-            matrix = None
-        steps = sorted((matrix or {}).get("steps", []), key=lambda s: s.get("order", 0))
-        # Find the step matching the acting role, then advance to the next step's role
-        for i, s in enumerate(steps):
-            if s.get("role_code") == payload.role:
-                # Next-status naming convention: "<role>_cleared" for intermediate
-                # steps, "awarded" if this is the terminal committee step.
-                if i + 1 < len(steps):
-                    next_status = f"{payload.role}_cleared" if payload.role != "escrow_agent" else "escrow_accepted"
-                    if payload.role == "admin":
-                        next_status = "admin_flagged"
-                else:
-                    next_status = "awarded" if payload.role in ("committee", "committee_member") else f"{payload.role}_cleared"
-                expected = None  # matrix ordering supersedes fixed prev-status check
-                break
+    # Matrix override on accept: matrix ordering supersedes the fixed pipeline.
+    if payload.action == "accept":
+        matrix_next, matrix_used = await resolve_matrix_next_status(b, payload.role)
+        if matrix_used:
+            next_status = matrix_next
+            expected = None
 
-    if payload.action == "reject":
-        next_status = "rejected"
-    elif payload.action == "flag":
-        next_status = "admin_flagged"
-    elif payload.action == "award":
-        if payload.role != "committee":
-            raise HTTPException(status_code=403, detail="Only committee can award")
-        next_status = "awarded"
-
-    if not next_status:
-        raise HTTPException(status_code=400, detail="Invalid action for role")
-    if payload.action == "accept" and expected and prev_status != expected:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Bid must be in status '{expected}' before {payload.role} can accept (current: {prev_status})",
-        )
+    next_status = resolve_action_next_status(payload.action, payload.role, next_status)
+    validate_transition(payload.action, expected, prev_status, payload.role)
 
     entry = {
         "role": payload.role, "action": payload.action, "from_status": prev_status,
@@ -216,7 +188,7 @@ async def decide_bid(bid_id: str, payload: BidDecisionIn,
         from notify import notify_bid_transition
         b_updated = await db.bids.find_one({"_id": ObjectId(bid_id)})
         await notify_bid_transition(b_updated, next_status)
-    except Exception as _e:
+    except Exception:
         pass
     return {"ok": True, "status": next_status}
 

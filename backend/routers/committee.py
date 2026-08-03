@@ -1,16 +1,13 @@
 """Bid Committee router — per-tender committee, formed from admin pool."""
-import asyncio
 from typing import List
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends
 from bson import ObjectId
 
-import config
 from db import db
 from models.committee import CommitteeCreateIn, CommitteeVoteIn, CommitteeCloseIn
 from models.base import BaseDocument, now_iso
-from security import require_role, new_magic_token
-from emails import send_email, wrap
+from security import require_role
 from audit import audit_log
 
 router = APIRouter(prefix="/api/v1/committees", tags=["committees"])
@@ -23,32 +20,17 @@ def _out(doc: dict) -> dict:
 @router.post("")
 async def create_committee(payload: CommitteeCreateIn,
                            admin=Depends(require_role("admin"))) -> dict:
+    from routers.committee_helpers import (
+        validate_and_tag_committee_staff, build_external_records, dispatch_committee_invites,
+    )
     notice = await db.notices.find_one({"notice_ref": payload.notice_ref})
     if not notice:
         raise HTTPException(status_code=404, detail="Notice not found")
     if await db.committees.find_one({"notice_ref": payload.notice_ref, "status": "open"}):
         raise HTTPException(status_code=409, detail="Open committee already exists for this tender")
-    # Ensure all referenced staff exist and mark them with `committee_member` role
-    all_ids = list({payload.chairperson_id, *payload.member_ids})
-    staff_docs = await db.admin_users.find({"_id": {"$in": [ObjectId(x) for x in all_ids]}}).to_list(length=100)
-    if len(staff_docs) != len(all_ids):
-        raise HTTPException(status_code=400, detail="One or more staff IDs are invalid")
-    for s in staff_docs:
-        roles = s.get("roles") or [s.get("role") or "admin"]
-        if "committee_member" not in roles:
-            roles.append("committee_member")
-            await db.admin_users.update_one({"_id": s["_id"]}, {"$set": {"roles": roles}})
 
-    # Build external invitee records with per-invitee accept tokens
-    ext_records = []
-    for inv in (payload.external_invitees or []):
-        tok = new_magic_token()
-        ext_records.append({
-            "email": inv.email.lower(), "name": inv.name,
-            "designation": inv.designation,
-            "accept_token": tok, "status": "invited",
-            "invited_at": now_iso(),
-        })
+    await validate_and_tag_committee_staff(payload.chairperson_id, payload.member_ids)
+    ext_records = build_external_records(payload.external_invitees)
 
     doc = {
         "notice_ref": payload.notice_ref,
@@ -65,28 +47,7 @@ async def create_committee(payload: CommitteeCreateIn,
     res = await db.committees.insert_one(doc)
     doc["_id"] = res.inserted_id
 
-    # Fire acceptance emails to external invitees (best-effort, non-blocking)
-    tender_title = notice.get("title", "")
-    tender_budget = f"{notice.get('budget_currency', '')} {notice.get('budget_amount') or ''}"
-    deadline = (notice.get("submission_deadline") or "")[:10]
-    for inv in ext_records:
-        accept_url = f"{config.FRONTEND_URL}/committee/accept/{inv['accept_token']}"
-        body_html = (
-            f"<p>You have been invited to sit on the evaluation committee for the following procurement:</p>"
-            f"<table style='width:100%;font-size:13px'>"
-            f"<tr><td><strong>Tender Ref</strong></td><td>{payload.notice_ref}</td></tr>"
-            f"<tr><td><strong>Title</strong></td><td>{tender_title}</td></tr>"
-            f"<tr><td><strong>Budget</strong></td><td>{tender_budget}</td></tr>"
-            f"<tr><td><strong>Submission deadline</strong></td><td>{deadline}</td></tr>"
-            f"</table>"
-            f"<p style='margin-top:16px'>Please accept or decline this invitation using the link below.</p>"
-        )
-        asyncio.create_task(send_email(
-            inv["email"],
-            f"PMC Managers — Committee invitation for {payload.notice_ref}",
-            wrap(f"Committee invitation · {payload.notice_ref}",
-                 body_html, "Accept or decline", accept_url),
-        ))
+    dispatch_committee_invites(notice, payload.notice_ref, ext_records)
 
     await audit_log("committee.create", admin, "committee", payload.notice_ref,
                     {"chair": payload.chairperson_id,

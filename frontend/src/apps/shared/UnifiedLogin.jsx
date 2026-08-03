@@ -5,6 +5,11 @@ import { adminApi, staffApi, vendorApi, formatApiError } from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import TopBar from "@/apps/shared/TopBar";
 
+const ROLE_KEYS = [
+  "admin", "escrow_agent", "certifier", "legal_counsel", "accounting",
+  "committee_member", "reviewer", "auditor", "support", "vendor",
+];
+
 /**
  * Unified web login (parallel to mobile /m).
  * Auto-detects Admin / Staff / Vendor and routes to the right dashboard.
@@ -21,32 +26,29 @@ export default function UnifiedLogin() {
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!email || !password) return toast.error("Email and password are required");
+    if (!email || !password) return toast.error(t("login.email_pwd_required"));
     setBusy(true);
     try {
-      // 1) Staff / admin unified endpoint (respects role dropdown)
       try {
         const r = await staffApi.login(email, password, role, undefined);
         if (r && !r.mfa_required) {
-          toast.success(`Signed in as ${r.active_role}`);
+          toast.success(`${t("login.signed_in_as")} ${r.active_role}`);
           if (role === "vendor") return nav("/vendor");
           if (["admin", "reviewer"].includes(r.active_role)) return nav("/admin");
           return nav("/staff");
         }
       } catch { /* try next */ }
-      // 2) Admin-only fallback
       try {
         await adminApi.login(email, password);
-        toast.success("Signed in as admin");
+        toast.success(`${t("login.signed_in_as")} admin`);
         return nav("/admin");
       } catch { /* try next */ }
-      // 3) Vendor fallback
       try {
         await vendorApi.login(email, password);
-        toast.success("Signed in as vendor");
+        toast.success(`${t("login.signed_in_as")} vendor`);
         return nav("/vendor");
       } catch { /* fail */ }
-      toast.error("No matching account for that email + password. Check the role dropdown.");
+      toast.error(t("login.no_match"));
     } catch (err) { toast.error(formatApiError(err)); }
     finally { setBusy(false); }
   };
@@ -57,18 +59,17 @@ export default function UnifiedLogin() {
       <main className="flex-1 flex items-center justify-center px-6 py-12">
         <form onSubmit={submit} className="w-full max-w-md bg-white border border-brand-navy/10 p-8 lg:p-10 space-y-4">
           <div>
-            <div className="pmc-label">Global sign-in</div>
-            <h1 className="font-display text-3xl text-brand-navy mt-1">Welcome back</h1>
+            <div className="pmc-label">{t("login.kicker")}</div>
+            <h1 className="font-display text-3xl text-brand-navy mt-1">{t("login.title")}</h1>
             <p className="text-sm text-brand-navy/60 mt-2">
-              One door for Admin, Staff and Vendor — pick your role and enter your credentials.
-              Prefer separate pages? Use{" "}
-              <a href="/admin/login" className="underline">Admin</a>,{" "}
-              <a href="/staff/login" className="underline">Staff</a>, or{" "}
-              <a href="/vendor/login" className="underline">Vendor</a>.
+              {t("login.intro_before")}
+              <a href="/admin/login" className="underline">{t("login.intro_admin")}</a>,{" "}
+              <a href="/staff/login" className="underline">{t("login.intro_staff")}</a>, or{" "}
+              <a href="/vendor/login" className="underline">{t("login.intro_vendor")}</a>.
             </p>
           </div>
           <label className="block text-sm">
-            <span className="pmc-label">Email</span>
+            <span className="pmc-label">{t("login.email")}</span>
             <input type="email" required value={email}
                    onChange={(e) => setEmail(e.target.value)}
                    data-testid="unified-login-email"
@@ -76,7 +77,7 @@ export default function UnifiedLogin() {
                    className="mt-1 w-full px-4 py-3 border border-brand-navy/20 focus:outline-none focus:border-brand-navy-soft text-brand-navy bg-white" />
           </label>
           <label className="block text-sm">
-            <span className="pmc-label">Password</span>
+            <span className="pmc-label">{t("login.password")}</span>
             <input type="password" required value={password}
                    onChange={(e) => setPassword(e.target.value)}
                    data-testid="unified-login-password"
@@ -84,29 +85,22 @@ export default function UnifiedLogin() {
                    className="mt-1 w-full px-4 py-3 border border-brand-navy/20 focus:outline-none focus:border-brand-navy-soft text-brand-navy bg-white" />
           </label>
           <label className="block text-sm">
-            <span className="pmc-label">Sign in as</span>
+            <span className="pmc-label">{t("login.role")}</span>
             <select value={role} onChange={(e) => setRole(e.target.value)}
                     data-testid="unified-login-role"
                     className="mt-1 w-full px-4 py-3 border border-brand-navy/20 text-brand-navy bg-white">
-              <option value="admin">Admin</option>
-              <option value="escrow_agent">Escrow Agent</option>
-              <option value="certifier">Site Certifier</option>
-              <option value="legal_counsel">Legal Counsel</option>
-              <option value="accounting">Accounting</option>
-              <option value="committee_member">Bid Committee</option>
-              <option value="reviewer">Reviewer</option>
-              <option value="auditor">Auditor</option>
-              <option value="support">Support</option>
-              <option value="vendor">Vendor</option>
+              {ROLE_KEYS.map((r) => (
+                <option key={r} value={r}>{t(`login.role_options.${r}`)}</option>
+              ))}
             </select>
           </label>
           <button type="submit" disabled={busy} data-testid="unified-login-submit"
                   className="w-full px-8 py-3 text-[12px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep disabled:opacity-50">
-            {busy ? t("common.loading") : "Sign in"}
+            {busy ? t("common.loading") : t("login.submit")}
           </button>
           <div className="text-xs text-brand-navy/50 border-t border-brand-navy/10 pt-3 mt-2">
-            Not a vendor yet? <a href="/register" className="underline">Register your company</a> ·{" "}
-            <a href="/" className="underline">Browse open tenders</a>
+            {t("login.register_prompt")} <a href="/register" className="underline">{t("login.register_link")}</a> ·{" "}
+            <a href="/" className="underline">{t("login.browse_notices")}</a>
           </div>
         </form>
       </main>
