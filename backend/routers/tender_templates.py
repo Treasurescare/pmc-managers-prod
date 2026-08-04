@@ -193,11 +193,79 @@ async def patch_template(tid: str, payload: TenderTemplateIn,
     # Never let a user flip is_master via PATCH
     body.pop("is_master", None)
     body["updated_at"] = now_iso()
-    r = await db.tender_templates.update_one({"_id": ObjectId(tid)}, {"$set": body})
-    if r.matched_count == 0:
+    # Snapshot the current state into a rolling versions[] before overwriting,
+    # so admins can revert to any of the last 20 saves.
+    existing = await db.tender_templates.find_one({"_id": ObjectId(tid)})
+    if not existing:
         raise HTTPException(status_code=404, detail="Not found")
+    snapshot = {
+        "saved_at": now_iso(),
+        "saved_by": admin.get("email"),
+        "name": existing.get("name"),
+        "header": existing.get("header") or {},
+        "sections": existing.get("sections") or [],
+    }
+    versions = (existing.get("versions") or []) + [snapshot]
+    versions = versions[-20:]  # cap
+    body["versions"] = versions
+    body["version"] = len(versions) + 1
+    await db.tender_templates.update_one({"_id": ObjectId(tid)}, {"$set": body})
     await audit_log("tender_template.update", admin, "tender_template", tid,
-                    {"name": payload.name})
+                    {"name": payload.name, "version": body["version"]})
+    return _out(await db.tender_templates.find_one({"_id": ObjectId(tid)}))
+
+
+@router.get("/{tid}/versions")
+async def list_versions(tid: str,
+                         admin=Depends(require_role("admin", "reviewer", "auditor"))):
+    """List rolling snapshots so admins can revert."""
+    try:
+        doc = await db.tender_templates.find_one({"_id": ObjectId(tid)},
+                                                   {"versions": 1, "name": 1})
+    except Exception:
+        raise HTTPException(status_code=400, detail="Malformed template id")
+    if not doc:
+        raise HTTPException(status_code=404, detail="Not found")
+    out = []
+    for i, v in enumerate(doc.get("versions") or []):
+        out.append({
+            "index": i,
+            "saved_at": v.get("saved_at"),
+            "saved_by": v.get("saved_by"),
+            "name": v.get("name"),
+            "section_count": len(v.get("sections") or []),
+        })
+    return {"versions": list(reversed(out))}  # newest first
+
+
+@router.post("/{tid}/versions/{index}/restore")
+async def restore_version(tid: str, index: int,
+                            admin=Depends(require_role("admin"))):
+    try:
+        doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
+    except Exception:
+        raise HTTPException(status_code=400, detail="Malformed template id")
+    if not doc:
+        raise HTTPException(status_code=404, detail="Not found")
+    versions = doc.get("versions") or []
+    if not (0 <= index < len(versions)):
+        raise HTTPException(status_code=404, detail="Version index out of range")
+    v = versions[index]
+    # Also snapshot the current state so the restore itself is undoable.
+    snap = {"saved_at": now_iso(), "saved_by": f"{admin.get('email')} (before restore)",
+            "name": doc.get("name"), "header": doc.get("header") or {},
+            "sections": doc.get("sections") or []}
+    new_versions = (versions + [snap])[-20:]
+    await db.tender_templates.update_one(
+        {"_id": ObjectId(tid)},
+        {"$set": {
+            "name": v.get("name"), "header": v.get("header") or {},
+            "sections": v.get("sections") or [], "updated_at": now_iso(),
+            "versions": new_versions, "version": len(new_versions) + 1,
+        }},
+    )
+    await audit_log("tender_template.restore", admin, "tender_template", tid,
+                    {"restored_index": index, "restored_saved_at": v.get("saved_at")})
     return _out(await db.tender_templates.find_one({"_id": ObjectId(tid)}))
 
 
@@ -339,7 +407,40 @@ def _sanitize_body(html: str) -> str:
         return html  # client-side DOMPurify already ran
 
 
-def _render_tender_html(doc: dict) -> str:
+# ---------- i18n labels for Multi-language PDF export ----------
+
+I18N = {
+    "en": {
+        "kind_section": "Section", "kind_annexure": "Annexure", "kind_form": "Form",
+        "to_be_completed": "[to be completed]", "attached_template": "Attached template",
+        "page": "Page", "of": " / ", "issued": "issued",
+        "draft": "DRAFT", "published": "PUBLISHED",
+        "advisory": "This document is AI-assisted and advisory. Final signature lies with authorised procurement personnel.",
+    },
+    "ru": {
+        "kind_section": "Раздел", "kind_annexure": "Приложение", "kind_form": "Форма",
+        "to_be_completed": "[заполняется]", "attached_template": "Шаблон",
+        "page": "Стр.", "of": " / ", "issued": "выпущено",
+        "draft": "ЧЕРНОВИК", "published": "ОПУБЛИКОВАНО",
+        "advisory": "Документ подготовлен с помощью ИИ. Окончательное решение — за уполномоченным сотрудником.",
+    },
+    "kk": {
+        "kind_section": "Бөлім", "kind_annexure": "Қосымша", "kind_form": "Нысан",
+        "to_be_completed": "[толтырылады]", "attached_template": "Үлгі",
+        "page": "Бет", "of": " / ", "issued": "шығарылған",
+        "draft": "ЖОБА", "published": "ЖАРИЯЛАНДЫ",
+        "advisory": "Құжат ЖИ көмегімен дайындалды. Түпкі шешім өкілетті қызметкерге тиесілі.",
+    },
+}
+
+
+def _lang(lang: Optional[str]) -> dict:
+    return I18N.get((lang or "en").lower(), I18N["en"])
+
+
+def _render_tender_html(doc: dict, lang: Optional[str] = "en") -> str:
+    L = _lang(lang)
+    kind_map = {"section": L["kind_section"], "annexure": L["kind_annexure"], "form": L["kind_form"]}
     header = doc.get("header") or {}
     header_rows = []
     for key, label in HEADER_FIELDS:
@@ -351,38 +452,40 @@ def _render_tender_html(doc: dict) -> str:
     section_html_parts = []
     for s in sections:
         title = _html.escape(s.get("title", ""))
-        kind = KIND_LABEL.get(s.get("kind"), "Section")
+        kind = kind_map.get(s.get("kind"), L["kind_section"])
         hint = f'<div class="hint">{_html.escape(s.get("hint", ""))}</div>' if s.get("hint") else ""
-        body = _sanitize_body(s.get("body") or "") or '<em class="muted">[to be completed]</em>'
+        body = _sanitize_body(s.get("body") or "") or f'<em class="muted">{_html.escape(L["to_be_completed"])}</em>'
         attach = ""
         if s.get("attachment"):
-            attach = f'<div class="attach">Attached template: {_html.escape(s["attachment"].get("file_name", ""))}</div>'
+            attach = f'<div class="attach">{_html.escape(L["attached_template"])}: {_html.escape(s["attachment"].get("file_name", ""))}</div>'
         section_html_parts.append(
             f'<section class="sec"><h2>{_html.escape(kind)} · {title}</h2>{hint}<div class="body">{body}</div>{attach}</section>'
         )
     # ---- Watermark & Version stamp ----
-    from datetime import datetime, timezone
-    status = (doc.get("status") or ("PUBLISHED" if doc.get("is_master") else "DRAFT")).upper()
+    raw_status = (doc.get("status") or ("PUBLISHED" if doc.get("is_master") else "DRAFT")).upper()
+    status_label = L["draft"] if raw_status == "DRAFT" else L["published"]
     version = doc.get("version") or 1
     issued = (doc.get("updated_at") or now_iso())[:10]
-    stamp = f"{status} · v{version} · issued {issued}"
+    stamp = f"{status_label} · v{version} · {L['issued']} {issued}"
     tender_ref = header.get("tender_reference_number") or header.get("tender_id") or doc.get("name") or ""
-    return f"""<!doctype html><html><head><meta charset="utf-8"/>
+    page_str = f'"{L["page"]} " counter(page) "{L["of"]}" counter(pages)'
+    return f"""<!doctype html><html lang="{_html.escape((lang or 'en').lower())}"><head><meta charset="utf-8"/>
 <title>{_html.escape(doc.get('name') or 'Tender')}</title>
 <style>
   @page {{
     size: A4; margin: 20mm 16mm 22mm 16mm;
     @top-right {{ content: "{_html.escape(tender_ref)[:80]}"; font: 9pt Georgia, serif; color: #94a3b8; }}
     @bottom-left {{ content: "{_html.escape(stamp)}"; font: 8.5pt Georgia, serif; color: #64748b; }}
-    @bottom-right {{ content: "Page " counter(page) " / " counter(pages); font: 8.5pt Georgia, serif; color: #64748b; }}
+    @bottom-right {{ content: {page_str}; font: 8.5pt Georgia, serif; color: #64748b; }}
   }}
   body {{ font: 11pt/1.5 Georgia, 'Times New Roman', serif; color: #0b1f3a; }}
   /* Full-page DRAFT diagonal watermark — only when status is DRAFT */
-  {'body::before { content: "DRAFT"; position: fixed; top: 42%; left: 0; right: 0; text-align: center; font-size: 120pt; color: rgba(203, 213, 225, 0.28); transform: rotate(-25deg); font-weight: 700; letter-spacing: .12em; z-index: -1; }' if status == 'DRAFT' else ''}
+  {'body::before { content: "' + L["draft"] + '"; position: fixed; top: 42%; left: 0; right: 0; text-align: center; font-size: 120pt; color: rgba(203, 213, 225, 0.28); transform: rotate(-25deg); font-weight: 700; letter-spacing: .12em; z-index: -1; }' if raw_status == 'DRAFT' else ''}
   header.doc {{ border-bottom: 3px double #0b1f3a; padding-bottom: 10pt; margin-bottom: 18pt; }}
   header.doc h1 {{ font-size: 20pt; margin: 0; }}
   header.doc .meta {{ font-size: 8pt; letter-spacing: .1em; text-transform: uppercase; color: #64748b; }}
   header.doc .stamp {{ margin-top: 6pt; display: inline-block; padding: 2pt 8pt; background: #fef3c7; border: 0.5pt solid #f59e0b; color: #78350f; font-size: 8.5pt; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }}
+  header.doc .advisory {{ margin-top: 4pt; font-size: 7.5pt; color: #64748b; font-style: italic; }}
   table.header {{ width: 100%; border-collapse: collapse; margin: 14pt 0; font-size: 9pt; }}
   table.header th, table.header td {{ border: 0.5pt solid #cbd5e1; padding: 4pt 6pt; text-align: left; vertical-align: top; }}
   table.header th {{ background: #f1f5f9; width: 34%; font-weight: 600; color: #334155; }}
@@ -398,6 +501,7 @@ def _render_tender_html(doc: dict) -> str:
   <div class="meta">{_html.escape((doc.get('kind') or 'tender').upper())} · {_html.escape(doc.get('industry') or '')}</div>
   <h1>{_html.escape(doc.get('name') or 'Tender')}</h1>
   <div class="stamp">{_html.escape(stamp)}</div>
+  <div class="advisory">{_html.escape(L["advisory"])}</div>
 </header>
 <table class="header"><tbody>{''.join(header_rows)}</tbody></table>
 {''.join(section_html_parts)}
@@ -476,7 +580,8 @@ async def public_export_tender_zip(tid: str, notice_ref: Optional[str] = None):
 # ---------- Public notice-linked PDF export ----------
 
 @router.get("/{tid}/public/pdf")
-async def public_export_tender_pdf(tid: str, notice_ref: Optional[str] = None):
+async def public_export_tender_pdf(tid: str, notice_ref: Optional[str] = None,
+                                     lang: Optional[str] = "en"):
     """PUBLIC — bidders download the composed tender PDF from a Notice detail.
     Access is gated by the linked notice being published (or an admin session)."""
     if notice_ref:
@@ -493,13 +598,14 @@ async def public_export_tender_pdf(tid: str, notice_ref: Optional[str] = None):
     if not notice_ref and not doc.get("is_master") and not doc.get("public"):
         raise HTTPException(status_code=403, detail="This template is not public")
     from weasyprint import HTML
-    pdf_bytes = HTML(string=_render_tender_html(doc)).write_pdf()
+    pdf_bytes = HTML(string=_render_tender_html(doc, lang=lang)).write_pdf()
     safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in (doc.get("name") or "tender"))[:60]
+    lang_tag = (lang or "en").lower()[:2]
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
         headers={
-            "Content-Disposition": f'attachment; filename="{safe}.pdf"',
+            "Content-Disposition": f'attachment; filename="{safe}_{lang_tag}.pdf"',
             "X-Content-Type-Options": "nosniff",
         },
     )
@@ -670,9 +776,12 @@ async def bulk_upload_attachments(tid: str,
 
 
 @router.get("/{tid}/export/pdf")
-async def export_tender_pdf(tid: str, admin=Depends(require_role("admin", "reviewer", "auditor"))):
+async def export_tender_pdf(tid: str, lang: Optional[str] = "en",
+                              admin=Depends(require_role("admin", "reviewer", "auditor"))):
     """Server-side HTML→PDF render of the composed tender via WeasyPrint —
-    returns a real application/pdf response the browser downloads directly."""
+    returns a real application/pdf response the browser downloads directly.
+    `lang=en|ru|kk` swaps the static labels + watermark; user-authored bodies
+    remain in the original language they were written."""
     try:
         doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
     except Exception:
@@ -680,13 +789,14 @@ async def export_tender_pdf(tid: str, admin=Depends(require_role("admin", "revie
     if not doc:
         raise HTTPException(status_code=404, detail="Template not found")
     from weasyprint import HTML
-    pdf_bytes = HTML(string=_render_tender_html(doc)).write_pdf()
+    pdf_bytes = HTML(string=_render_tender_html(doc, lang=lang)).write_pdf()
     safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in (doc.get("name") or "tender"))[:60]
+    lang_tag = (lang or "en").lower()[:2]
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
         headers={
-            "Content-Disposition": f'attachment; filename="{safe}.pdf"',
+            "Content-Disposition": f'attachment; filename="{safe}_{lang_tag}.pdf"',
             "X-Content-Type-Options": "nosniff",
         },
     )

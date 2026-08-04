@@ -16,7 +16,7 @@ from routers import (
     staff_auth, vendor_auth, bids, payments, committee, tasks, chat, inspections, masters,
     evaluations, boqs, vendor_intel, analytics, governance, notifications, payments_sandbox,
     mfa, tenants, kyc, vendor_invites, permissions, admin_heal, vendor_full_invite,
-    tender_templates,
+    tender_templates, notice_qa, bids_ai_compare, escrow,
 )
 
 
@@ -67,6 +67,9 @@ app.include_router(admin_heal.router)
 app.include_router(vendor_full_invite.router)
 # Wave 20 — Tender / RFP / RFQ template builder
 app.include_router(tender_templates.router)
+app.include_router(notice_qa.router)
+app.include_router(bids_ai_compare.router)
+app.include_router(escrow.router)
 
 
 # ---------- CORS ----------

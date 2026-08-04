@@ -19,7 +19,28 @@ Emergent MVP now, AWS Phase 2 later; also shipped as PWA + Capacitor mobile app.
 ## Roadmap
 
 ### P0 — Verified this session ✅
-- **Wave 30 (Tender Builder v4 — 2026-08-03)** — the next 4 backlog items shipped:
+- **Wave 32 (Joint Escrow ledger — 2026-08-03)** — implements user's EMD governance model:
+  - EMD is held in a **JOINT escrow account** with two named officers: one from PMC, one from the escrow institution. Admin picks the account details.
+  - New router `/api/v1/escrow/*`:
+    - `POST/GET/PATCH /accounts` — admin creates & manages joint accounts (institution, IBAN, SWIFT, currency, two officer records).
+    - `POST /transactions/init` — Accounting records an inbound EMD receipt against an active account (snapshots the officers so later account edits don't rewrite history).
+    - `POST /transactions/{tid}/sign` — one officer signs off on an intended action. Officer side (`pmc` vs `escrow_institution`) is inferred from the account snapshot, so an admin can't accidentally sign as the wrong side.
+    - `POST /transactions/{tid}/release` — dual-signature gated. Won't fire unless both officers have signed the **same** action (`release_to_contractor` / `release_to_vendor` / `forfeit`). Returns 409 otherwise.
+    - Immutable `audit_trail[]` on each tx + global `audit_log` entries.
+  - New admin tab `Escrow (EMD)` with the whole flow: joint-account form, ledger of transactions, per-officer sign buttons, gated Release button that only unlocks after both officers signed the same action.
+  - **Verified via curl**: created account, recorded 25 000 USD inbound EMD, tried to release with zero signatures → **HTTP 409**; then PMC-officer signed → status flipped to `awaiting_signatures` with `signed_by_pmc` audit entry.
+- **Wave 31 (four backlog features — 2026-08-03)**:
+  - **Version History**: rolling 20-snapshot list on every save (`versions[]` on the template), `GET /versions` + `POST /versions/{i}/restore`. Restore itself is auto-snapshotted (undoable). New `VersionHistory` drawer in Tender Builder header (`⟲ History · v{n}`).
+  - **Bidder Q&A**: new router `notice_qa` with public POST question / GET answered + admin listAll / reply. Email of the asker is masked in public output (`a***@company.com`). New `NoticeQa` component on the public Notice page. EmailStr swapped for regex validation to accept `.test` TLDs used in staging.
+  - **AI Redline Comparison**: `POST /api/v1/bids/compare-ai` returns structured JSON (`summary`, `clauses[]`, `recommended_questions[]`, `advisory_notice`). Explicitly refuses to rank a winner — advisory only, human retains signature. Verified: 9 clauses + 5 questions on a synthetic Bid A vs Bid B run.
+  - **Multi-language PDF**: `?lang=en|ru|kk` on `/export/pdf` and `/public/pdf`. Full I18N dict for section-kind labels, page footer, DRAFT watermark, issuance stamp + a per-language advisory notice. RU render confirmed via pypdf: contains "ЧЕРНОВИК" + "Стр." Notice detail now exposes three per-language PDF buttons.
+  - `diff@9.0.0` frozen; NoticeQa lint warning fixed with `useCallback`.
+- **Architecture guardrails captured** from user 2026-08-03:
+  - EMD → direct-to-escrow with dual-officer joint-account control (Wave 32).
+  - KYC must gate bidding (P1 — see roadmap).
+  - Technical / commercial evaluations kept segregated with per-stage authority (P1 — evaluation module already segregates rubric scores; needs role-firewall audit).
+  - AI stays advisory. All substantive decisions remain attributable to authorised individuals and fully auditable (enforced in `compare-ai` and `ai-draft` — no automated actions).
+- **Wave 30 (Tender Builder v4 — 2026-08-03)** — the previous 4 backlog items shipped:
   1. **Section Diff Viewer** — `diff@9` word-level diffs with red-strike / green-highlight; the `AiDiffModal` appears whenever AI is re-run on a section that already has body content, with `+N / −N words` stats, Keep-current vs Replace-with-AI actions. Only fires when body is non-empty (empty sections auto-apply).
   2. **Public Full-Docs Zip** — new endpoint `GET /api/v1/tender-templates/{id}/public/zip?notice_ref=…` (`zipfile` from stdlib) bundles the composed PDF + every section attachment + `README.txt` index. Public gated by the linked notice being published. Verified: 33 KB zip with `Standard_..pdf` + 3 attachments + README.
   3. **Tone Presets in UI** — new `AiDraftMenu` popover replaces the plain ✨ button. Grid of Formal / Plain / Strict tones × Short / Medium / Long lengths (~120/240/420 words), a purple "Draft with AI" CTA, escape-on-outside-click. Verified via Playwright: all 6 knobs + go button render for every section.

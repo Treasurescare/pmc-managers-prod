@@ -353,6 +353,35 @@ export const tenderTemplateApi = {
     return api.post(`/api/v1/tender-templates/${id}/attachments/bulk`, fd,
       { headers: { "Content-Type": "multipart/form-data" } }).then((r) => r.data);
   },
+  listVersions: (id) =>
+    api.get(`/api/v1/tender-templates/${id}/versions`).then((r) => r.data),
+  restoreVersion: (id, index) =>
+    api.post(`/api/v1/tender-templates/${id}/versions/${index}/restore`).then((r) => r.data),
+};
+
+export const noticeQaApi = {
+  listPublic: (ref) => api.get(`/api/v1/notices/${ref}/qa`).then((r) => r.data),
+  ask: (ref, body) => api.post(`/api/v1/notices/${ref}/qa`, body).then((r) => r.data),
+  listAdmin: (ref) => api.get(`/api/v1/notices/${ref}/qa/admin`).then((r) => r.data),
+  reply: (ref, qid, answer) =>
+    api.post(`/api/v1/notices/${ref}/qa/${qid}/reply`, { answer }).then((r) => r.data),
+};
+
+export const bidsAiApi = {
+  compare: (payload) =>
+    api.post(`/api/v1/bids/compare-ai`, payload).then((r) => r.data),
+};
+
+export const escrowApi = {
+  listAccounts: (activeOnly = false) =>
+    api.get("/api/v1/escrow/accounts", { params: { active_only: activeOnly } }).then((r) => r.data),
+  createAccount: (p) => api.post("/api/v1/escrow/accounts", p).then((r) => r.data),
+  patchAccount: (aid, p) => api.patch(`/api/v1/escrow/accounts/${aid}`, p).then((r) => r.data),
+  listTransactions: (params) =>
+    api.get("/api/v1/escrow/transactions", { params: params || {} }).then((r) => r.data),
+  initTransaction: (p) => api.post("/api/v1/escrow/transactions/init", p).then((r) => r.data),
+  sign: (tid, p) => api.post(`/api/v1/escrow/transactions/${tid}/sign`, p).then((r) => r.data),
+  release: (tid, p) => api.post(`/api/v1/escrow/transactions/${tid}/release`, p).then((r) => r.data),
 };
 
 export const gdprApi = {

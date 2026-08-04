@@ -4,6 +4,7 @@ import { publicApi, formatApiError } from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import TopBar from "@/apps/shared/TopBar";
 import Footer from "@/apps/shared/Footer";
+import NoticeQa from "./NoticeQa";
 import { toast } from "sonner";
 
 function DetailField({ label, value, mono = false }) {
@@ -103,20 +104,25 @@ export default function NoticeDetail() {
               {notice.tender_template_id && (
                 <div className="mt-8" data-testid="notice-composed-pdf">
                   <div className="pmc-label">Composed tender document</div>
-                  <div className="mt-2 flex flex-wrap gap-3">
-                    <a href={`${process.env.REACT_APP_BACKEND_URL}/api/v1/tender-templates/${notice.tender_template_id}/public/pdf?notice_ref=${encodeURIComponent(notice.notice_ref)}`}
-                       data-testid="notice-composed-download"
-                       className="inline-flex items-center gap-2 px-4 py-3 border border-brand-navy bg-brand-navy text-white hover:bg-brand-navy-deep transition-colors text-sm">
-                      ⬇ <span>Download PDF (watermarked)</span>
-                    </a>
+                  <div className="mt-2 flex flex-wrap items-center gap-3">
+                    <span className="text-[10px] uppercase tracking-widest text-brand-navy/60">Language:</span>
+                    {["en", "ru", "kk"].map((lg) => (
+                      <a key={lg}
+                         href={`${process.env.REACT_APP_BACKEND_URL}/api/v1/tender-templates/${notice.tender_template_id}/public/pdf?notice_ref=${encodeURIComponent(notice.notice_ref)}&lang=${lg}`}
+                         data-testid={`notice-composed-download-${lg}`}
+                         className={`inline-flex items-center gap-2 px-3 py-2 border text-[11px] uppercase tracking-widest ${lg === 'en' ? 'bg-brand-navy text-white border-brand-navy hover:bg-brand-navy-deep' : 'border-brand-navy/40 text-brand-navy hover:bg-brand-navy hover:text-white'}`}>
+                        ⬇ PDF · {lg.toUpperCase()}
+                      </a>
+                    ))}
                     <a href={`${process.env.REACT_APP_BACKEND_URL}/api/v1/tender-templates/${notice.tender_template_id}/public/zip?notice_ref=${encodeURIComponent(notice.notice_ref)}`}
                        data-testid="notice-composed-zip"
-                       className="inline-flex items-center gap-2 px-4 py-3 border border-brand-navy text-brand-navy hover:bg-brand-navy hover:text-white transition-colors text-sm">
-                      🗂 <span>Download all documents (.zip)</span>
+                       className="inline-flex items-center gap-2 px-3 py-2 text-[11px] uppercase tracking-widest border border-brand-navy text-brand-navy hover:bg-brand-navy hover:text-white">
+                      🗂 all docs (.zip)
                     </a>
                   </div>
                   <div className="mt-1 text-[11px] text-brand-navy/50">
                     Rendered live from the Tender Builder — includes every annexure and template attachment.
+                    Static labels are translated; bodies remain in the language the admin wrote them.
                   </div>
                 </div>
               )}
@@ -164,6 +170,7 @@ export default function NoticeDetail() {
             </aside>
           </div>
         )}
+        {notice && <NoticeQa noticeRef={notice.notice_ref} />}
       </main>
       <Footer />
     </div>

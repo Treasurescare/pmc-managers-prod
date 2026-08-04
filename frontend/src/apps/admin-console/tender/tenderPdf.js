@@ -129,16 +129,15 @@ export function buildTenderHtml(doc) {
 </body></html>`;
 }
 
-export function exportTenderPdf(doc, { download = false } = {}) {
+export function exportTenderPdf(doc, { download = false, lang = "en" } = {}) {
   // ---- Real PDF download via the server (WeasyPrint) ----
   if (download) {
     if (!doc?.id) return;
     const backend = process.env.REACT_APP_BACKEND_URL;
     const a = document.createElement("a");
-    a.href = `${backend}/api/v1/tender-templates/${doc.id}/export/pdf`;
-    // The server sends `Content-Disposition: attachment; filename=…` so the
-    // browser downloads a real .pdf. The `download` attribute is a hint.
-    a.download = `${(doc.name || "tender").replace(/[^a-z0-9-_]+/gi, "_").slice(0, 60)}.pdf`;
+    const langQs = lang ? `?lang=${encodeURIComponent(lang)}` : "";
+    a.href = `${backend}/api/v1/tender-templates/${doc.id}/export/pdf${langQs}`;
+    a.download = `${(doc.name || "tender").replace(/[^a-z0-9-_]+/gi, "_").slice(0, 60)}_${lang}.pdf`;
     document.body.appendChild(a); a.click(); a.remove();
     return;
   }

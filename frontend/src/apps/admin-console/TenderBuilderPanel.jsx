@@ -5,6 +5,7 @@ import TenderHeaderForm from "./tender/TenderHeaderForm";
 import RichEditor from "./tender/RichEditor";
 import AiDraftMenu from "./tender/AiDraftMenu";
 import AiDiffModal from "./tender/AiDiffModal";
+import VersionHistory from "./tender/VersionHistory";
 import { exportTenderPdf } from "./tender/tenderPdf";
 
 /**
@@ -126,6 +127,8 @@ export default function TenderBuilderPanel() {
 
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkReport, setBulkReport] = useState(null);
+  const [showHistory, setShowHistory] = useState(false);
+  const [pdfLang, setPdfLang] = useState("en");
   const bulkUpload = async (files) => {
     if (!doc?.id || !files?.length) return;
     setBulkBusy(true);
@@ -298,13 +301,27 @@ export default function TenderBuilderPanel() {
                     className="px-5 py-2 text-[12px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep disabled:opacity-40">
                     {busy ? "Saving…" : dirty ? "Save changes" : "Saved"}
                   </button>
+                  <button onClick={() => setShowHistory(true)} disabled={!doc?.id}
+                    data-testid="tb-history"
+                    title="View and restore rolling snapshots of this tender"
+                    className="px-3 py-2 text-[11px] uppercase tracking-widest border border-brand-navy/40 text-brand-navy hover:bg-brand-navy/10">
+                    ⟲ History{typeof doc?.version === "number" ? ` · v${doc.version}` : ""}
+                  </button>
                   <button onClick={() => exportTenderPdf(doc)} disabled={!doc}
                     data-testid="tb-export-pdf"
                     title="Opens the browser print dialog — pick 'Save as PDF'"
                     className="px-4 py-2 text-[12px] uppercase tracking-widest border border-brand-navy text-brand-navy hover:bg-brand-navy hover:text-white">
                     Print / PDF
                   </button>
-                  <button onClick={() => exportTenderPdf(doc, { download: true })} disabled={!doc}
+                  <select value={pdfLang} onChange={(e) => setPdfLang(e.target.value)}
+                    data-testid="tb-pdf-lang"
+                    title="Language for the downloaded PDF (labels only — bodies stay original)"
+                    className="px-2 py-2 text-[11px] uppercase tracking-widest border border-brand-navy/40 text-brand-navy bg-white">
+                    <option value="en">EN</option>
+                    <option value="ru">RU</option>
+                    <option value="kk">KK</option>
+                  </select>
+                  <button onClick={() => exportTenderPdf(doc, { download: true, lang: pdfLang })} disabled={!doc}
                     data-testid="tb-download-pdf"
                     title="Downloads a real .pdf rendered on the server"
                     className="px-4 py-2 text-[12px] uppercase tracking-widest border border-brand-navy/40 text-brand-navy hover:bg-brand-navy/10">
@@ -449,6 +466,13 @@ export default function TenderBuilderPanel() {
         onAccept={acceptAiDraft}
         onReject={rejectAiDraft}
       />
+      {showHistory && doc?.id && (
+        <VersionHistory
+          templateId={doc.id}
+          onClose={() => setShowHistory(false)}
+          onRestored={(d) => { setDoc(d); setShowHistory(false); toast.info("Restored older snapshot"); }}
+        />
+      )}
     </div>
   );
 }

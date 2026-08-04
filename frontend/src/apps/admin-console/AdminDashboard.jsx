@@ -29,6 +29,7 @@ function TabBar({ tab, setTab }) {
     ["notices", "Notices"],
     ["tender-builder", "Tender Builder"],
     ["bidding", "Bidding Ops"],
+    ["escrow", "Escrow (EMD)"],
     ["evaluation", "Evaluation"],
     ["boq", "BOQ & Contracts"],
     ["vintel", "Vendor Intel"],
@@ -119,6 +120,7 @@ export default function AdminDashboard() {
           {tab === "notices" && <NoticesPanel />}
           {tab === "tender-builder" && <TenderBuilderPanel />}
           {tab === "bidding" && <BiddingOpsPanel />}
+          {tab === "escrow" && <EscrowPanel />}
           {tab === "evaluation" && <EvaluationPanel />}
           {tab === "boq" && <BOQContractsPanel />}
           {tab === "vintel" && <VendorIntelPanel />}
