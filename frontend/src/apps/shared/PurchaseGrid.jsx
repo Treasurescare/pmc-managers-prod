@@ -100,15 +100,21 @@ export default function PurchaseGrid({ side, title, kicker }) {
   const startCheckout = async (p) => {
     const isQuote = ["range", "percentage", "cost_recovery"].includes(p.pricing_model);
     if (isQuote) {
-      toast.info(`Quote request recorded for ${p.name}. Our team will contact you.`);
-      // Stub — record the quote request server-side in a future wave.
+      // Wave 38: persist an engagement so admin can quote → invoice → collect.
       try {
-        await fetch(`${API}/api/v1/audit/note`, {
+        const r = await fetch(`${API}/api/v1/engagements/quote-request`, {
           method: "POST", headers: { "Content-Type": "application/json" },
           credentials: "include",
-          body: JSON.stringify({ event: "quote_request", product_code: p.code }),
-        }).catch(() => {});
-      } catch { /* non-blocking */ }
+          body: JSON.stringify({
+            product_code: p.code, quantity: 1,
+            buyer_email: prompt(`Email us at? (optional — we'll follow up on ${p.name})`) || undefined,
+          }),
+        });
+        if (!r.ok) throw new Error((await r.json()).detail || `HTTP ${r.status}`);
+        toast.success(`Quote request recorded for ${p.name}. Our team will contact you shortly.`);
+      } catch (e) {
+        toast.error(`Quote request failed: ${e.message}`);
+      }
       return;
     }
     setWorking(p.code);

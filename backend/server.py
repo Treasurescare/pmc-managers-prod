@@ -17,6 +17,7 @@ from routers import (
     evaluations, boqs, vendor_intel, analytics, governance, notifications, payments_sandbox,
     mfa, tenants, kyc, vendor_invites, permissions, admin_heal, vendor_full_invite,
     tender_templates, notice_qa, bids_ai_compare, escrow, reports, products, billing,
+    engagements,
 )
 
 
@@ -74,6 +75,8 @@ app.include_router(reports.router)
 # Wave 35 — Product catalog + Stripe billing
 app.include_router(products.router)
 app.include_router(billing.router)
+# Wave 38 — Engagements / quote pipeline
+app.include_router(engagements.router)
 
 
 # ---------- CORS ----------

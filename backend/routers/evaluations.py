@@ -128,7 +128,73 @@ async def list_scores(notice_ref: str, admin=Depends(require_role("admin", "comm
     return [_out(s) async for s in db.scores.find({"notice_ref": notice_ref})]
 
 
-# ---------- Award Recommendation Report ----------
+# ---------- Award Recommendation Report (helpers extracted for clarity) ----------
+
+
+def _load_rubric_config(rubric: dict) -> dict:
+    """Normalise rubric weights + minimum threshold. Never returns invalid values."""
+    commercial_weight = float(rubric.get("commercial_weight", 0.4) or 0.4)
+    return {
+        "tech_criteria":     rubric.get("technical_criteria", []),
+        "commercial_weight": commercial_weight,
+        "tech_weight":       1.0 - commercial_weight,
+        "min_tech":          float(rubric.get("minimum_technical", 60.0) or 60.0),
+    }
+
+
+def _pct_technical(scores: dict, tech_criteria: list) -> float:
+    """Weighted average of an evaluator's technical scores, normalised 0-100."""
+    if not tech_criteria:
+        return 0.0
+    total = 0.0
+    weight_sum = 0.0
+    for c in tech_criteria:
+        v = float((scores or {}).get(c["code"], 0) or 0)
+        mx = float(c.get("max_score", 100) or 100)
+        w = float(c.get("weight", 0) or 0)
+        total += (v / mx) * 100.0 * w
+        weight_sum += w
+    return total / weight_sum if weight_sum else 0.0
+
+
+def _pct_commercial(scores: dict) -> float:
+    v = float((scores or {}).get("commercial", 0) or 0)
+    return max(0.0, min(100.0, v))
+
+
+def _group_scores_by_bid(all_scores: list, tech_criteria: list) -> dict:
+    """Return `{bid_id: {"technical": [pct...], "commercial": [pct...]}}`."""
+    per_bid: dict = {}
+    for s in all_scores:
+        bmap = per_bid.setdefault(s["bid_id"], {"technical": [], "commercial": []})
+        if s["kind"] == "technical":
+            pct = _pct_technical(s.get("scores") or {}, tech_criteria)
+        elif s["kind"] == "commercial":
+            pct = _pct_commercial(s.get("scores") or {})
+        else:
+            continue
+        bmap[s["kind"]].append(pct)
+    return per_bid
+
+
+def _bid_row(bid: dict, per_bid: dict, cfg: dict) -> dict:
+    bid_id = str(bid["_id"])
+    m = per_bid.get(bid_id, {"technical": [], "commercial": []})
+    tech_avg = (sum(m["technical"]) / len(m["technical"])) if m["technical"] else 0.0
+    comm_avg = (sum(m["commercial"]) / len(m["commercial"])) if m["commercial"] else 0.0
+    combined = (tech_avg * cfg["tech_weight"]) + (comm_avg * cfg["commercial_weight"])
+    return {
+        "bid_id":        bid_id,
+        "bid_ref":       bid.get("bid_ref"),
+        "vendor":        bid.get("company_name") or bid.get("vendor_email"),
+        "price":         bid.get("price_amount"),
+        "technical_avg": round(tech_avg, 2),
+        "commercial_avg": round(comm_avg, 2),
+        "combined":      round(combined, 2),
+        "qualifies":     tech_avg >= cfg["min_tech"],
+        "status":        bid.get("status"),
+    }
+
 
 @router.get("/award-report/{notice_ref}")
 async def award_report(notice_ref: str,
@@ -136,60 +202,19 @@ async def award_report(notice_ref: str,
     """Aggregate all scores + rubric → weighted combined score per bid → ranking.
     Returns the recommendation report used by the Bid Committee."""
     rubric = await db.rubrics.find_one({"notice_ref": notice_ref}) or {}
-    tech_criteria = rubric.get("technical_criteria", [])
-    commercial_weight = float(rubric.get("commercial_weight", 0.4) or 0.4)
-    tech_weight = 1.0 - commercial_weight
-    min_tech = float(rubric.get("minimum_technical", 60.0) or 60.0)
-
+    cfg = _load_rubric_config(rubric)
     bids = [b async for b in db.bids.find({"notice_ref": notice_ref})]
     all_scores = [s async for s in db.scores.find({"notice_ref": notice_ref})]
-
-    # bid -> {kind -> [score_pct]}
-    per_bid = {}
-    for s in all_scores:
-        bmap = per_bid.setdefault(s["bid_id"], {"technical": [], "commercial": []})
-        # Compute pct for this evaluator's scores using rubric weights (technical only weighted)
-        if s["kind"] == "technical" and tech_criteria:
-            total = 0.0
-            weight_sum = 0.0
-            for c in tech_criteria:
-                v = float((s["scores"] or {}).get(c["code"], 0) or 0)
-                mx = float(c.get("max_score", 100) or 100)
-                w = float(c.get("weight", 0) or 0)
-                total += (v / mx) * 100.0 * w
-                weight_sum += w
-            pct = total / weight_sum if weight_sum else 0.0
-        elif s["kind"] == "commercial":
-            v = float((s["scores"] or {}).get("commercial", 0) or 0)
-            pct = max(0.0, min(100.0, v))
-        else:
-            pct = 0.0
-        bmap[s["kind"]].append(pct)
-
-    rows = []
-    for b in bids:
-        bid_id = str(b["_id"])
-        m = per_bid.get(bid_id, {"technical": [], "commercial": []})
-        tech_avg = (sum(m["technical"]) / len(m["technical"])) if m["technical"] else 0.0
-        comm_avg = (sum(m["commercial"]) / len(m["commercial"])) if m["commercial"] else 0.0
-        combined = (tech_avg * tech_weight) + (comm_avg * commercial_weight)
-        qualifies = tech_avg >= min_tech
-        rows.append({
-            "bid_id": bid_id, "bid_ref": b.get("bid_ref"),
-            "vendor": b.get("company_name") or b.get("vendor_email"),
-            "price": b.get("price_amount"),
-            "technical_avg": round(tech_avg, 2),
-            "commercial_avg": round(comm_avg, 2),
-            "combined": round(combined, 2),
-            "qualifies": qualifies,
-            "status": b.get("status"),
-        })
+    per_bid = _group_scores_by_bid(all_scores, cfg["tech_criteria"])
+    rows = [_bid_row(b, per_bid, cfg) for b in bids]
     rows.sort(key=lambda r: (-r["combined"], r.get("price") or 0))
     return {
-        "notice_ref": notice_ref,
-        "rubric": {"technical_weight": tech_weight, "commercial_weight": commercial_weight,
-                   "minimum_technical": min_tech, "criteria": tech_criteria},
+        "notice_ref":     notice_ref,
+        "rubric":         {"technical_weight": cfg["tech_weight"],
+                            "commercial_weight": cfg["commercial_weight"],
+                            "minimum_technical": cfg["min_tech"],
+                            "criteria": cfg["tech_criteria"]},
         "recommendation": rows[0] if rows and rows[0]["qualifies"] else None,
-        "ranking": rows,
-        "generated_at": now_iso(),
+        "ranking":        rows,
+        "generated_at":   now_iso(),
     }
