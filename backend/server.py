@@ -16,7 +16,7 @@ from routers import (
     staff_auth, vendor_auth, bids, payments, committee, tasks, chat, inspections, masters,
     evaluations, boqs, vendor_intel, analytics, governance, notifications, payments_sandbox,
     mfa, tenants, kyc, vendor_invites, permissions, admin_heal, vendor_full_invite,
-    tender_templates, notice_qa, bids_ai_compare, escrow, reports,
+    tender_templates, notice_qa, bids_ai_compare, escrow, reports, products, billing,
 )
 
 
@@ -71,6 +71,9 @@ app.include_router(notice_qa.router)
 app.include_router(bids_ai_compare.router)
 app.include_router(escrow.router)
 app.include_router(reports.router)
+# Wave 35 — Product catalog + Stripe billing
+app.include_router(products.router)
+app.include_router(billing.router)
 
 
 # ---------- CORS ----------
@@ -86,23 +89,25 @@ app.add_middleware(CORSMiddleware, allow_methods=["*"], allow_headers=["*"], **_
 
 # ---------- Startup: indexes + seed ----------
 async def _seed_admin() -> None:
-    existing = await db.admin_users.find_one({"email": config.ADMIN_EMAIL})
-    if not existing:
-        await db.admin_users.insert_one({
-            "email": config.ADMIN_EMAIL,
-            "password_hash": hash_password(config.ADMIN_PASSWORD),
-            "name": "PMC Master Admin",
-            "role": "admin",
-            "roles": ["admin", "committee_member", "support"],
-            "hierarchy_level": 10,
-            "tenant_id": config.DEFAULT_TENANT_ID,
-            "is_active": True,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        })
-        logging.info(f"Seeded master admin {config.ADMIN_EMAIL}")
-    else:
-        # Backfill roles list on legacy single-role docs
-        if not existing.get("roles"):
+    for email, pw, name in (
+        (config.ADMIN_EMAIL, config.ADMIN_PASSWORD, "PMC Master Admin"),
+        (config.OWNER_EMAIL, config.OWNER_PASSWORD, "PMC Owner (Kannan)"),
+    ):
+        existing = await db.admin_users.find_one({"email": email})
+        if not existing:
+            await db.admin_users.insert_one({
+                "email": email,
+                "password_hash": hash_password(pw),
+                "name": name,
+                "role": "admin",
+                "roles": ["admin", "committee_member", "support"],
+                "hierarchy_level": 10,
+                "tenant_id": config.DEFAULT_TENANT_ID,
+                "is_active": True,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
+            logging.info(f"Seeded admin {email}")
+        elif not existing.get("roles"):
             await db.admin_users.update_one(
                 {"_id": existing["_id"]},
                 {"$set": {"roles": [existing.get("role") or "admin"],
@@ -214,10 +219,36 @@ async def on_start() -> None:
     await _seed_staff()
     await _seed_demo_notices()
     await _seed_packages()
+    await _seed_product_catalog()
     from routers.tender_templates import seed_master_templates
     seeded = await seed_master_templates()
     if seeded:
         logging.info(f"Seeded {seeded} tender template masters")
+
+
+async def _seed_product_catalog() -> None:
+    """Idempotent — only inserts rows whose `code` is missing.
+    Also back-fills `is_active=True` on any legacy row where it's null so the
+    public catalog works after schema addition."""
+    from product_catalog_seed import DEFAULT_PRODUCTS
+    inserted = 0
+    for row in DEFAULT_PRODUCTS:
+        if await db.products.find_one({"code": row["code"]}):
+            continue
+        doc = dict(row)
+        doc.setdefault("is_active", True)   # explicit default
+        doc.update({"created_at": datetime.now(timezone.utc).isoformat(),
+                     "updated_at": datetime.now(timezone.utc).isoformat(),
+                     "created_by": "system"})
+        await db.products.insert_one(doc)
+        inserted += 1
+    # Migrate legacy rows with null is_active → True
+    fixed = await db.products.update_many(
+        {"is_active": {"$in": [None]}},
+        {"$set": {"is_active": True}},
+    )
+    if inserted or fixed.modified_count:
+        logging.info(f"Product catalog: seeded {inserted} new, backfilled is_active on {fixed.modified_count}")
 
 
 async def _seed_packages() -> None:

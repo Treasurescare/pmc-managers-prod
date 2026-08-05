@@ -89,15 +89,29 @@ export default function NoticeDetail() {
               {notice.primary_document && (
                 <div className="mt-8" data-testid="notice-primary-document">
                   <div className="pmc-label">Tender / RFP / RFQ document</div>
-                  <a href={`${process.env.REACT_APP_BACKEND_URL}${notice.primary_document.url}`}
-                     target="_blank" rel="noreferrer"
-                     data-testid="notice-primary-download"
-                     className="mt-2 inline-flex items-center gap-2 px-4 py-3 border border-brand-navy text-brand-navy hover:bg-brand-navy hover:text-white transition-colors text-sm">
-                    📄 <span>{notice.primary_document.file_name}</span>
-                    <span className="text-xs text-brand-navy/50">
-                      ({Math.round((notice.primary_document.size_bytes || 0) / 1024)} KB)
-                    </span>
-                  </a>
+                  {(notice.primary_document.size_bytes || 0) < 200 ? (
+                    <div className="mt-2 border-2 border-amber-500 bg-amber-50 p-4 text-sm text-amber-900"
+                         data-testid="notice-primary-placeholder">
+                      <strong>⚠ Placeholder file detected</strong> — this notice was seeded during testing
+                      and the real tender document has not been uploaded yet. Please contact{" "}
+                      {notice.contact_email ? (
+                        <a href={`mailto:${notice.contact_email}`} className="underline font-mono">
+                          {notice.contact_email}
+                        </a>
+                      ) : "the procurement office"}
+                      {" "}to request the official documents.
+                    </div>
+                  ) : (
+                    <a href={`${process.env.REACT_APP_BACKEND_URL}${notice.primary_document.url}`}
+                       target="_blank" rel="noreferrer"
+                       data-testid="notice-primary-download"
+                       className="mt-2 inline-flex items-center gap-2 px-4 py-3 border border-brand-navy text-brand-navy hover:bg-brand-navy hover:text-white transition-colors text-sm">
+                      📄 <span>{notice.primary_document.file_name}</span>
+                      <span className="text-xs text-brand-navy/50">
+                        ({Math.round((notice.primary_document.size_bytes || 0) / 1024)} KB)
+                      </span>
+                    </a>
+                  )}
                 </div>
               )}
 

@@ -22,6 +22,11 @@ DEFAULT_TENANT_ID = "PMC-KZ-01"
 ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "adminsupport@pmcmanagers.com").lower()
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "Admin@123")
 
+# Second Owner seed — the real user building this app. Same role/level as
+# the master admin but keyed on a real inbox so they can log in on prod.
+OWNER_EMAIL = os.environ.get("OWNER_EMAIL", "kannan@emeraldcorporates.com").lower()
+OWNER_PASSWORD = os.environ.get("OWNER_PASSWORD", "Owner@123")
+
 # Wave 1 — seeded staff accounts for the multi-role pipeline demo.
 STAFF_SEEDS = [
     ("escrow@pmcmanagers.com",   "Escrow@123", "Escrow Agent",    ["escrow_agent"]),

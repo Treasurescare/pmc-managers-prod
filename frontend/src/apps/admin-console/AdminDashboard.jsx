@@ -21,6 +21,7 @@ import PackagesPanel from "./PackagesPanel";
 import TenderBuilderPanel from "./TenderBuilderPanel";
 import EscrowPanel from "./EscrowPanel";
 import ReportsPanel from "./ReportsPanel";
+import ProductCatalogPanel from "./ProductCatalogPanel";
 import useTenantSkin from "@/apps/shared/useTenantSkin";
 
 function TabBar({ tab, setTab }) {
@@ -39,6 +40,7 @@ function TabBar({ tab, setTab }) {
     ["permissions", "Permissions"],
     ["packages", "Packages"],
     ["audit", "Audit"],
+    ["catalog", "Product Catalog"],
     ["reports", "Stakeholder Reports"],
   ];
   return (
@@ -131,6 +133,7 @@ export default function AdminDashboard() {
           {tab === "permissions" && <PermissionsPanel />}
           {tab === "packages" && <PackagesPanel />}
           {tab === "audit" && <AuditPanel />}
+          {tab === "catalog" && <ProductCatalogPanel />}
           {tab === "reports" && <ReportsPanel />}
         </div>
       </main>
