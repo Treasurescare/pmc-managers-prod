@@ -29,8 +29,8 @@
   </defs>
 
   <!-- Header -->
-  <text x='40' y='38' class='title' font-size='22'>PMC Managers v2 — End-to-end platform flow (rev. 2026-08-05)</text>
-  <text x='40' y='60' class='sub'>Six operating lanes · Escrow &amp; Revenue lanes updated with dual-officer magic-link and catalog-driven Stripe checkout</text>
+  <text x='40' y='38' class='title' font-size='22'>PMC Managers v2 — End-to-end platform flow (rev. 2026-08-05 · Wave 38)</text>
+  <text x='40' y='60' class='sub'>Six operating lanes · Revenue lane now includes the live Quote → Invoice pipeline · Escrow lane retains dual-officer magic-link</text>
 
   <!-- Legend -->
   <g class='legend' transform='translate(40, 76)'>
@@ -267,13 +267,13 @@
     <text x='105' y='104' text-anchor='middle' class='sub'>row updated</text>
   </g>
   <g transform='translate(1280,960)'>
-    <rect class='box-hi' width='250' height='140' rx='6'/>
-    <text x='125' y='30' text-anchor='middle' class='title'>Quote → Engagement (P1)</text>
+    <rect class='box-rev' width='250' height='140' rx='6'/>
+    <text x='125' y='30' text-anchor='middle' class='title'>Quote → Invoice pipeline</text>
     <text x='125' y='52' text-anchor='middle' class='sub'>Range / % / cost-recovery</text>
-    <text x='125' y='68' text-anchor='middle' class='sub'>→ Admin quotes value</text>
-    <text x='125' y='86' text-anchor='middle' class='sub'>→ Invoice generated</text>
-    <text x='125' y='104' text-anchor='middle' class='sub'>→ Statement of account</text>
-    <text x='125' y='122' text-anchor='middle' class='sub'>(Wave 38 roadmap)</text>
+    <text x='125' y='68' text-anchor='middle' class='sub'>engagement · admin sets amt</text>
+    <text x='125' y='86' text-anchor='middle' class='sub'>1-click Stripe pay-link</text>
+    <text x='125' y='104' text-anchor='middle' class='sub'>audit trail per transition</text>
+    <text x='125' y='122' text-anchor='middle' class='sub'>Wave 38 · engagements.py</text>
   </g>
   <path class='flow-rev' d='M290 1030 L320 1030' marker-end='url(#arrow-rev)'/>
   <path class='flow-rev' d='M530 1030 L560 1030' marker-end='url(#arrow-rev)'/>
