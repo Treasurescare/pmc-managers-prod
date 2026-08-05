@@ -19,6 +19,8 @@ import NoticesPanel from "./NoticesPanel";
 import AuditPanel from "./AuditPanel";
 import PackagesPanel from "./PackagesPanel";
 import TenderBuilderPanel from "./TenderBuilderPanel";
+import EscrowPanel from "./EscrowPanel";
+import ReportsPanel from "./ReportsPanel";
 import useTenantSkin from "@/apps/shared/useTenantSkin";
 
 function TabBar({ tab, setTab }) {
@@ -37,6 +39,7 @@ function TabBar({ tab, setTab }) {
     ["permissions", "Permissions"],
     ["packages", "Packages"],
     ["audit", "Audit"],
+    ["reports", "Stakeholder Reports"],
   ];
   return (
     <div className="flex flex-wrap gap-2" data-testid="admin-tabs">
@@ -128,6 +131,7 @@ export default function AdminDashboard() {
           {tab === "permissions" && <PermissionsPanel />}
           {tab === "packages" && <PackagesPanel />}
           {tab === "audit" && <AuditPanel />}
+          {tab === "reports" && <ReportsPanel />}
         </div>
       </main>
     </div>
