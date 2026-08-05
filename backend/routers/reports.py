@@ -843,12 +843,14 @@ SNAPSHOT_DIR = _Path(_os.environ.get("REPORTS_SNAPSHOT_DIR", "/app/docs/reports"
 
 def _flowchart_pdf_bytes() -> bytes:
     from weasyprint import HTML
+    # Custom page size matched to SVG aspect ratio (1720:1360) so the chart
+    # never gets clipped regardless of PDF viewer defaults.
     html = f"""<!doctype html><html><head><meta charset='utf-8'>
 <style>
-  @page {{ size: A3 landscape; margin: 6mm; }}
-  html, body {{ margin: 0; padding: 0; height: 100%; }}
-  body {{ display: block; }}
-  svg {{ display: block; width: 100%; height: auto; max-width: 100%; }}
+  @page {{ size: 380mm 300mm; margin: 5mm; }}
+  html, body {{ margin: 0; padding: 0; }}
+  body {{ width: 100%; height: 100%; }}
+  svg {{ display: block; width: 100%; height: auto; }}
 </style></head><body>{_build_flowchart_svg()}</body></html>"""
     return HTML(string=html).write_pdf()
 
