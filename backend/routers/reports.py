@@ -429,7 +429,8 @@ def _build_flowchart_svg() -> str:
     Revenue lane (Product Catalog · Client & Supplier services · Stripe) and
     the Escrow magic-link portal. Hand-laid SVG so it stays legible in slides."""
     return """<?xml version='1.0' encoding='UTF-8'?>
-<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1720 1280'
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1720 1360'
+     width='1720' height='1360' preserveAspectRatio='xMidYMid meet'
      font-family='Calibri, Arial, sans-serif' font-size='14'>
   <defs>
     <marker id='arrow' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='strokeWidth'
@@ -487,7 +488,7 @@ def _build_flowchart_svg() -> str:
   <rect class='lane' x='40'   y='918' width='1640' height='200'/>
   <text x='60' y='938' class='lane-title'>5 · REVENUE STREAMS — CATALOG · CLIENT + SUPPLIER · STRIPE</text>
 
-  <rect class='lane' x='40'   y='1128' width='1640' height='130'/>
+  <rect class='lane' x='40'   y='1128' width='1640' height='200'/>
   <text x='60' y='1148' class='lane-title'>6 · GOVERNANCE — AUDIT · AI · LIVE ROADMAP · AUTO-SNAPSHOT · MULTI-TENANT</text>
 
   <!-- ============ Lane 1: Tender creation ============ -->
@@ -843,8 +844,12 @@ SNAPSHOT_DIR = _Path(_os.environ.get("REPORTS_SNAPSHOT_DIR", "/app/docs/reports"
 def _flowchart_pdf_bytes() -> bytes:
     from weasyprint import HTML
     html = f"""<!doctype html><html><head><meta charset='utf-8'>
-<style>@page {{ size: A3 landscape; margin: 8mm; }} body {{ margin: 0; }}
-  svg {{ width: 100%; height: auto; }}</style></head><body>{_build_flowchart_svg()}</body></html>"""
+<style>
+  @page {{ size: A3 landscape; margin: 6mm; }}
+  html, body {{ margin: 0; padding: 0; height: 100%; }}
+  body {{ display: block; }}
+  svg {{ display: block; width: 100%; height: auto; max-width: 100%; }}
+</style></head><body>{_build_flowchart_svg()}</body></html>"""
     return HTML(string=html).write_pdf()
 
 
