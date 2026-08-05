@@ -5,6 +5,8 @@
  * the exact same "asked vs delivered" statement across Excel/Word/PDF and
  * hand the flowchart to the board.
  */
+import { useState } from "react";
+
 const API = process.env.REACT_APP_BACKEND_URL;
 
 const CARDS = [
@@ -33,6 +35,21 @@ const TONE = {
 };
 
 export default function ReportsPanel() {
+  const [snap, setSnap] = useState({ state: "idle", data: null, error: null });
+
+  const runSnapshot = async () => {
+    setSnap({ state: "busy", data: null, error: null });
+    try {
+      const r = await fetch(`${API}/api/v1/reports/snapshot`, {
+        method: "POST", credentials: "include",
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      setSnap({ state: "done", data: await r.json(), error: null });
+    } catch (e) {
+      setSnap({ state: "error", data: null, error: e.message });
+    }
+  };
+
   return (
     <div className="space-y-8" data-testid="reports-panel">
       <section>
@@ -64,6 +81,52 @@ export default function ReportsPanel() {
           </a>
         ))}
       </div>
+
+      <section className="border-t border-brand-navy/10 pt-6">
+        <div className="pmc-label">Save snapshot to repo</div>
+        <h3 className="font-display text-lg text-brand-navy mt-1">
+          Persist all five artefacts into <code>/app/docs/reports/</code> so the next
+          "Save to Github" carries them
+        </h3>
+        <p className="text-sm text-brand-navy/60 mt-1 max-w-2xl">
+          Downloads are in-memory only — they never touch the repo. Click below and
+          the backend writes fresh copies into the Git-tracked <code>docs/reports</code> folder;
+          then use <em>Save to Github</em> in the chat input to push them.
+        </p>
+        <button
+          type="button"
+          onClick={runSnapshot}
+          disabled={snap.state === "busy"}
+          data-testid="reports-snapshot-btn"
+          className="mt-3 border-2 border-brand-navy text-brand-navy px-5 py-2 text-sm font-semibold uppercase tracking-widest hover:bg-brand-navy hover:text-white transition-colors disabled:opacity-50"
+        >
+          {snap.state === "busy" ? "Saving…" : "Save snapshot to repo"}
+        </button>
+        {snap.state === "error" && (
+          <p className="text-sm text-red-600 mt-3" data-testid="reports-snapshot-error">
+            Snapshot failed: {snap.error}
+          </p>
+        )}
+        {snap.state === "done" && snap.data && (
+          <div className="mt-3 border border-emerald-500 bg-emerald-50 p-4"
+               data-testid="reports-snapshot-result">
+            <div className="text-xs uppercase tracking-widest text-emerald-800 font-semibold">
+              Wrote {snap.data.files.length} file(s) at {snap.data.generated_at}
+            </div>
+            <ul className="mt-2 space-y-1 text-sm text-emerald-900">
+              {snap.data.files.map((f) => (
+                <li key={f.file} className="flex justify-between gap-4">
+                  <code>{f.path}</code>
+                  <span className="opacity-70">{Math.round(f.bytes / 1024)} KB</span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-xs text-emerald-800/80 mt-3">
+              Now click <strong>Save to Github</strong> in the chat input to push these into your repo.
+            </p>
+          </div>
+        )}
+      </section>
 
       <section className="mt-6 border-l-4 border-brand-navy-soft/40 pl-5 max-w-2xl">
         <div className="pmc-label">Architecture guardrails accepted</div>

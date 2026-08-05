@@ -669,3 +669,54 @@ async def get_flowchart_pdf(admin=Depends(require_role("admin", "reviewer", "aud
     pdf = HTML(string=html).write_pdf()
     return Response(content=pdf, media_type="application/pdf",
                      headers=_dl_headers("PMC-v2-Platform-Flowchart.pdf", "application/pdf"))
+
+
+# ------------------------------------------------------------------
+#  Snapshot to disk (git-tracked so files show up in the next push)
+# ------------------------------------------------------------------
+import os as _os
+from pathlib import Path as _Path
+
+SNAPSHOT_DIR = _Path(_os.environ.get("REPORTS_SNAPSHOT_DIR", "/app/docs/reports"))
+
+
+def _flowchart_pdf_bytes() -> bytes:
+    from weasyprint import HTML
+    html = f"""<!doctype html><html><head><meta charset='utf-8'>
+<style>@page {{ size: A3 landscape; margin: 8mm; }} body {{ margin: 0; }}
+  svg {{ width: 100%; height: auto; }}</style></head><body>{_build_flowchart_svg()}</body></html>"""
+    return HTML(string=html).write_pdf()
+
+
+def snapshot_to_disk() -> dict:
+    """Write all five artefacts into SNAPSHOT_DIR so Git can track them.
+
+    Returns a small manifest the caller can render for the user.
+    """
+    SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
+    files = {
+        "PMC-v2-Asked-vs-Delivered.xlsx": _build_xlsx(),
+        "PMC-v2-Asked-vs-Delivered.docx": _build_docx(),
+        "PMC-v2-Asked-vs-Delivered.pdf":  _build_pdf(),
+        "PMC-v2-Platform-Flowchart.svg":  _build_flowchart_svg().encode("utf-8"),
+        "PMC-v2-Platform-Flowchart.pdf":  _flowchart_pdf_bytes(),
+    }
+    manifest = []
+    for name, body in files.items():
+        p = SNAPSHOT_DIR / name
+        p.write_bytes(body if isinstance(body, (bytes, bytearray)) else body.encode("utf-8"))
+        manifest.append({"file": name, "bytes": p.stat().st_size,
+                          "path": str(p.relative_to(_Path("/app")))})
+    (SNAPSHOT_DIR / "GENERATED_AT.txt").write_text(
+        f"Snapshot generated at {now_iso()}\n"
+        f"Source: /api/v1/reports/snapshot (POST) — see backend/routers/reports.py\n"
+    )
+    return {"generated_at": now_iso(),
+             "dir": str(SNAPSHOT_DIR.relative_to(_Path("/app"))),
+             "files": manifest}
+
+
+@router.post("/snapshot")
+async def post_snapshot(admin=Depends(require_role("admin"))):
+    """Persist the five artefacts into /app/docs/reports so they land in Git."""
+    return snapshot_to_disk()

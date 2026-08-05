@@ -19,6 +19,7 @@ Emergent MVP now, AWS Phase 2 later; also shipped as PWA + Capacitor mobile app.
 ## Roadmap
 
 ### P0 — Verified this session ✅
+- **Wave 34 (Snapshot reports to Git — 2026-08-05)** — `reports.py` now exposes `snapshot_to_disk()` + `POST /api/v1/reports/snapshot` (admin-only). Writes all 5 artefacts (`PMC-v2-Asked-vs-Delivered.{xlsx,docx,pdf}`, `PMC-v2-Platform-Flowchart.{svg,pdf}`) + `GENERATED_AT.txt` into `/app/docs/reports/` so the next "Save to Github" carries them. `ReportsPanel.jsx` gains a **Save snapshot to repo** button with per-file result listing. `docs/reports/README.md` explains the flow. Verified: files written (10 KB → 62 KB range), git shows `?? docs/reports/`, endpoint returns 401 to anon (admin-gated).
 - **Wave 32 (Joint Escrow ledger — 2026-08-03)** — implements user's EMD governance model:
   - EMD is held in a **JOINT escrow account** with two named officers: one from PMC, one from the escrow institution. Admin picks the account details.
   - New router `/api/v1/escrow/*`:
