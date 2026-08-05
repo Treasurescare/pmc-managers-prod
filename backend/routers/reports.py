@@ -133,6 +133,10 @@ ROWS: List[Tuple[str, str, str, str, str]] = [
      "Public clarifications thread on the Notice page",
      "`notice_qa` router — bidders ask, admin replies, only answered pairs shown publicly with masked emails",
      "Wave 31"),
+    (STATUS_DONE, "Compliance",
+     "KYC as a pre-bid gate — verify before allowing bid submission",
+     "`bids.create_bid()` returns HTTP 412 unless vendor has a passing KYC decision; `kyc_bypass` override on notices",
+     "Wave 35d"),
     (STATUS_DONE, "Escrow (EMD)",
      "EMD held in an escrow-controlled account, not a PMC operational account",
      "Joint escrow accounts with TWO named officers (one PMC, one escrow institution) on file",
@@ -145,10 +149,32 @@ ROWS: List[Tuple[str, str, str, str, str]] = [
      "Three outcomes: to contractor (via PMC), refund to vendor, forfeit",
      "`release_to_contractor` / `release_to_vendor` / `forfeit` — all audit-logged and immutable on tx",
      "Wave 32"),
+    (STATUS_DONE, "Escrow (EMD)",
+     "Non-PMC escrow officer signs without a full staff account",
+     "`POST /escrow/magic-tokens` admin-issued token → `/escrow/officer/:token` public portal signs the same transactions",
+     "Wave 35b"),
+
+    # --- Revenue streams (new) ---
+    (STATUS_DONE, "Revenue Catalog",
+     "Admin-editable master of every revenue line (client + supplier)",
+     "55 products seeded from CA-02/CA-03; 9 pricing models; multi-currency; live CRUD via Admin → Product Catalog",
+     "Wave 35 · `products.py`"),
+    (STATUS_DONE, "Revenue Catalog",
+     "Client purchase surface — packages + services",
+     "Public `/services` with 34 products, 5 category filters, quote-vs-subscribe CTAs driven by pricing_model",
+     "Wave 36 · `ClientPurchase`"),
+    (STATUS_DONE, "Revenue Catalog",
+     "Supplier purchase surface — Supplier Success + tender-stage + add-ons",
+     "Public `/vendor/services` with 21 products, GBP pricing, SME/Mid/Tier-1 subscription tiers",
+     "Wave 37 · `VendorPurchase`"),
+    (STATUS_DONE, "Payments",
+     "Stripe Checkout for one-off + subscription products from the catalog",
+     "`POST /api/v1/billing/checkout` (admin, vendor OR anon) creates `cs_test_...` session with server-authoritative amount; `/api/webhook/stripe` idempotent",
+     "Wave 35 · `emergentintegrations`"),
     (STATUS_PARTIAL, "Payments",
-     "Stripe (EMD), PayPal, Kaspi Pay",
-     "Stripe wired; PayPal/Kaspi in sandbox mock — waiting for merchant credentials",
-     "Waves 1-3"),
+     "PayPal, Kaspi Pay",
+     "In sandbox mock — waiting for merchant credentials",
+     "P2 · blocked"),
 
     # --- Evaluation & Contracts ---
     (STATUS_DONE, "Evaluation",
@@ -165,6 +191,14 @@ ROWS: List[Tuple[str, str, str, str, str]] = [
      "Every substantive action is logged and attributable",
      "Global `audit_log` collection + per-transaction immutable `audit_trail[]` on escrow records",
      "Throughout"),
+    (STATUS_DONE, "Governance",
+     "Live public roadmap page so vendors can see what's built vs coming",
+     "Public `/roadmap` reads `/api/v1/reports/public/roadmap` — 20 areas, status pills, stat-card filters",
+     "Wave 35c"),
+    (STATUS_DONE, "Governance",
+     "Stakeholder reports auto-regenerate on every deploy",
+     "`_refresh_reports_snapshot()` runs at startup — `/app/docs/reports/*.{xlsx,docx,pdf,svg}` never drifts",
+     "Wave 35e"),
 
     # --- Mobile ---
     (STATUS_DONE, "Mobile",
@@ -173,10 +207,6 @@ ROWS: List[Tuple[str, str, str, str, str]] = [
      "Waves 13, 22"),
 
     # --- Planned ---
-    (STATUS_PLANNED, "Compliance",
-     "KYC should be a pre-bid gate (verify before allowing bid submission)",
-     "Currently: KYC stub can be run, but not enforced as a gate before bidding",
-     "Roadmap · P1 — needs live KYC keys"),
     (STATUS_PLANNED, "Evaluation",
      "Technical vs commercial evaluators segregated",
      "Currently rubric-scored, but a firewall role split (`tech_evaluator` cannot see commercial score until joint meeting) is not enforced",
@@ -189,6 +219,10 @@ ROWS: List[Tuple[str, str, str, str, str]] = [
      "Real transactional email dispatch",
      "Currently console-logged; needs Emergent-managed Resend key",
      "Blocked · P2"),
+    (STATUS_PLANNED, "Compliance",
+     "Live KYC provider integration",
+     "Stubbed logic in place + pre-bid gate wired; awaiting `KYC_BASE_URL` and `KYC_API_KEY`",
+     "Blocked · P1"),
     (STATUS_PLANNED, "Deployment",
      "Native AWS Phase 2 migration (Postgres RLS, S3, Cognito, Fargate)",
      "MongoDB + FastAPI on Emergent for MVP; portability was a design constraint",
@@ -387,231 +421,328 @@ def _build_pdf() -> bytes:
 # ------------------------------------------------------------------
 
 def _build_flowchart_svg() -> str:
-    """A left-to-right platform flow chart.
-    Hand-laid SVG so it stays legible when embedded in slides."""
+    """Wave-35 refresh — left-to-right platform flow chart including the new
+    Revenue lane (Product Catalog · Client & Supplier services · Stripe) and
+    the Escrow magic-link portal. Hand-laid SVG so it stays legible in slides."""
     return """<?xml version='1.0' encoding='UTF-8'?>
-<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 1000'
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1720 1280'
      font-family='Calibri, Arial, sans-serif' font-size='14'>
   <defs>
     <marker id='arrow' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='strokeWidth'
             markerWidth='10' markerHeight='10' orient='auto'>
       <path d='M 0 0 L 10 5 L 0 10 z' fill='#0b1f3a'/>
     </marker>
+    <marker id='arrow-rev' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='strokeWidth'
+            markerWidth='10' markerHeight='10' orient='auto'>
+      <path d='M 0 0 L 10 5 L 0 10 z' fill='#065f46'/>
+    </marker>
     <style>
-      .box   { fill: #ffffff; stroke: #0b1f3a; stroke-width: 1.5; }
-      .box-ok{ fill: #d1fae5; stroke: #065f46; stroke-width: 1.5; }
-      .box-hi{ fill: #0b1f3a; stroke: #0b1f3a; }
-      .box-ai{ fill: #ede9fe; stroke: #6b21a8; stroke-width: 1.5; }
+      .box     { fill: #ffffff; stroke: #0b1f3a; stroke-width: 1.5; }
+      .box-ok  { fill: #d1fae5; stroke: #065f46; stroke-width: 1.5; }
+      .box-hi  { fill: #0b1f3a; stroke: #0b1f3a; }
+      .box-ai  { fill: #ede9fe; stroke: #6b21a8; stroke-width: 1.5; }
+      .box-rev { fill: #fef3c7; stroke: #92400e; stroke-width: 1.5; }
       .box-hi text { fill: #ffffff; }
-      .title { font-size: 15px; font-weight: 700; }
-      .sub   { font-size: 11px; fill: #475569; }
-      .lane  { fill: #f8fafc; stroke: #e2e8f0; stroke-dasharray: 3 3; }
+      .title   { font-size: 15px; font-weight: 700; }
+      .sub     { font-size: 11px; fill: #475569; }
+      .lane    { fill: #f8fafc; stroke: #e2e8f0; stroke-dasharray: 3 3; }
       .lane-title { font-size: 12px; font-weight: 700; fill: #64748b; letter-spacing: 1px; }
-      .flow  { stroke: #0b1f3a; stroke-width: 1.5; fill: none; }
-      .flow-alt { stroke: #6b21a8; stroke-width: 1.2; fill: none; stroke-dasharray: 6 4; }
+      .flow    { stroke: #0b1f3a; stroke-width: 1.5; fill: none; }
+      .flow-rev{ stroke: #92400e; stroke-width: 1.4; fill: none; stroke-dasharray: 4 3; }
+      .flow-alt{ stroke: #6b21a8; stroke-width: 1.2; fill: none; stroke-dasharray: 6 4; }
+      .legend text { font-size: 11px; fill: #334155; }
     </style>
   </defs>
 
   <!-- Header -->
-  <text x='40' y='38' class='title' font-size='22'>PMC Managers v2 — End-to-end platform flow</text>
-  <text x='40' y='60' class='sub'>Delivered = navy border · Escrow-critical = green fill · AI (advisory) = purple fill</text>
+  <text x='40' y='38' class='title' font-size='22'>PMC Managers v2 — End-to-end platform flow (rev. 2026-08-05)</text>
+  <text x='40' y='60' class='sub'>Six operating lanes · Escrow &amp; Revenue lanes updated with dual-officer magic-link and catalog-driven Stripe checkout</text>
+
+  <!-- Legend -->
+  <g class='legend' transform='translate(40, 76)'>
+    <rect x='0'   y='0' width='16' height='12' class='box'/>       <text x='22' y='10'>Standard step</text>
+    <rect x='140' y='0' width='16' height='12' class='box-ok'/>    <text x='162' y='10'>Escrow-critical (green)</text>
+    <rect x='320' y='0' width='16' height='12' class='box-hi'/>    <text x='342' y='10'>Publish / award decision</text>
+    <rect x='500' y='0' width='16' height='12' class='box-ai'/>    <text x='522' y='10'>AI (advisory only)</text>
+    <rect x='680' y='0' width='16' height='12' class='box-rev'/>   <text x='702' y='10'>Revenue (Stripe / catalog)</text>
+  </g>
 
   <!-- Swim lanes -->
-  <rect class='lane' x='40'   y='90'  width='1520' height='170'/>
-  <text x='60' y='115' class='lane-title'>1 · TENDER CREATION</text>
+  <rect class='lane' x='40'   y='108' width='1640' height='160'/>
+  <text x='60' y='128' class='lane-title'>1 · TENDER CREATION</text>
 
-  <rect class='lane' x='40'   y='270' width='1520' height='170'/>
-  <text x='60' y='295' class='lane-title'>2 · VENDOR ONBOARDING &amp; BIDDING</text>
+  <rect class='lane' x='40'   y='278' width='1640' height='200'/>
+  <text x='60' y='298' class='lane-title'>2 · VENDOR ONBOARDING · KYC GATE · BIDDING</text>
 
-  <rect class='lane' x='40'   y='450' width='1520' height='230'/>
-  <text x='60' y='475' class='lane-title'>3 · ESCROW &amp; EVALUATION</text>
+  <rect class='lane' x='40'   y='488' width='1640' height='260'/>
+  <text x='60' y='508' class='lane-title'>3 · JOINT ESCROW (dual-signature + magic-link)</text>
 
-  <rect class='lane' x='40'   y='690' width='1520' height='140'/>
-  <text x='60' y='715' class='lane-title'>4 · CONTRACT AWARD &amp; SETTLEMENT</text>
+  <rect class='lane' x='40'   y='758' width='1640' height='150'/>
+  <text x='60' y='778' class='lane-title'>4 · CONTRACT AWARD &amp; SETTLEMENT</text>
 
-  <rect class='lane' x='40'   y='840' width='1520' height='140'/>
-  <text x='60' y='865' class='lane-title'>5 · GOVERNANCE — AUDIT · AI · MULTI-LANG PDF</text>
+  <rect class='lane' x='40'   y='918' width='1640' height='200'/>
+  <text x='60' y='938' class='lane-title'>5 · REVENUE STREAMS — CATALOG · CLIENT + SUPPLIER · STRIPE</text>
 
-  <!-- Lane 1: Tender creation -->
-  <g transform='translate(80,140)'>
-    <rect class='box' width='190' height='90' rx='6'/>
+  <rect class='lane' x='40'   y='1128' width='1640' height='130'/>
+  <text x='60' y='1148' class='lane-title'>6 · GOVERNANCE — AUDIT · AI · LIVE ROADMAP · AUTO-SNAPSHOT · MULTI-TENANT</text>
+
+  <!-- ============ Lane 1: Tender creation ============ -->
+  <g transform='translate(80,150)'>
+    <rect class='box' width='190' height='95' rx='6'/>
     <text x='95' y='30' text-anchor='middle' class='title'>Admin drafts</text>
     <text x='95' y='52' text-anchor='middle' class='sub'>Tender Builder v4</text>
     <text x='95' y='70' text-anchor='middle' class='sub'>18 sections + header</text>
   </g>
-  <g transform='translate(320,140)'>
-    <rect class='box-ai' width='190' height='90' rx='6'/>
+  <g transform='translate(320,150)'>
+    <rect class='box-ai' width='190' height='95' rx='6'/>
     <text x='95' y='30' text-anchor='middle' class='title'>✨ AI section draft</text>
     <text x='95' y='52' text-anchor='middle' class='sub'>Tone × length</text>
     <text x='95' y='70' text-anchor='middle' class='sub'>Diff-review before apply</text>
   </g>
-  <g transform='translate(560,140)'>
-    <rect class='box' width='190' height='90' rx='6'/>
+  <g transform='translate(560,150)'>
+    <rect class='box' width='190' height='95' rx='6'/>
     <text x='95' y='30' text-anchor='middle' class='title'>Bulk attachments</text>
     <text x='95' y='52' text-anchor='middle' class='sub'>Auto-match filename →</text>
     <text x='95' y='70' text-anchor='middle' class='sub'>section by code/title</text>
   </g>
-  <g transform='translate(800,140)'>
-    <rect class='box' width='190' height='90' rx='6'/>
+  <g transform='translate(800,150)'>
+    <rect class='box' width='190' height='95' rx='6'/>
     <text x='95' y='30' text-anchor='middle' class='title'>Version history</text>
     <text x='95' y='52' text-anchor='middle' class='sub'>20-snapshot rolling</text>
     <text x='95' y='70' text-anchor='middle' class='sub'>1-click revert</text>
   </g>
-  <g transform='translate(1040,140)'>
-    <rect class='box-hi' width='190' height='90' rx='6'/>
+  <g transform='translate(1040,150)'>
+    <rect class='box-hi' width='190' height='95' rx='6'/>
     <text x='95' y='30' text-anchor='middle' class='title'>Publish notice</text>
     <text x='95' y='52' text-anchor='middle' class='sub'>Link tender template</text>
     <text x='95' y='70' text-anchor='middle' class='sub'>Approval matrix</text>
   </g>
-  <g transform='translate(1280,140)'>
-    <rect class='box' width='230' height='90' rx='6'/>
-    <text x='115' y='30' text-anchor='middle' class='title'>Public notice board</text>
-    <text x='115' y='52' text-anchor='middle' class='sub'>Bidders download PDF/.zip</text>
-    <text x='115' y='70' text-anchor='middle' class='sub'>EN · RU · KK</text>
+  <g transform='translate(1280,150)'>
+    <rect class='box' width='260' height='95' rx='6'/>
+    <text x='130' y='30' text-anchor='middle' class='title'>Public notice board</text>
+    <text x='130' y='52' text-anchor='middle' class='sub'>Bidders download PDF/.zip</text>
+    <text x='130' y='70' text-anchor='middle' class='sub'>EN · RU · KK · magic-byte checked</text>
   </g>
-  <path class='flow' d='M270 185 L320 185' marker-end='url(#arrow)'/>
-  <path class='flow' d='M510 185 L560 185' marker-end='url(#arrow)'/>
-  <path class='flow' d='M750 185 L800 185' marker-end='url(#arrow)'/>
-  <path class='flow' d='M990 185 L1040 185' marker-end='url(#arrow)'/>
-  <path class='flow' d='M1230 185 L1280 185' marker-end='url(#arrow)'/>
+  <path class='flow' d='M270 197 L320 197' marker-end='url(#arrow)'/>
+  <path class='flow' d='M510 197 L560 197' marker-end='url(#arrow)'/>
+  <path class='flow' d='M750 197 L800 197' marker-end='url(#arrow)'/>
+  <path class='flow' d='M990 197 L1040 197' marker-end='url(#arrow)'/>
+  <path class='flow' d='M1230 197 L1280 197' marker-end='url(#arrow)'/>
 
-  <!-- Lane 2: Vendor onboarding -->
+  <!-- ============ Lane 2: Vendor onboarding & bidding ============ -->
   <g transform='translate(80,320)'>
-    <rect class='box' width='190' height='90' rx='6'/>
+    <rect class='box' width='190' height='100' rx='6'/>
     <text x='95' y='30' text-anchor='middle' class='title'>Vendor registers</text>
     <text x='95' y='52' text-anchor='middle' class='sub'>Sections A-E</text>
     <text x='95' y='70' text-anchor='middle' class='sub'>Magic-link resume</text>
+    <text x='95' y='88' text-anchor='middle' class='sub'>Registration = free</text>
   </g>
   <g transform='translate(320,320)'>
-    <rect class='box' width='190' height='90' rx='6'/>
-    <text x='95' y='30' text-anchor='middle' class='title'>KYC verification</text>
-    <text x='95' y='52' text-anchor='middle' class='sub' fill='#78350f'>Planned as pre-bid gate</text>
-    <text x='95' y='70' text-anchor='middle' class='sub'>stub live · keys pending</text>
+    <rect class='box-ok' width='190' height='100' rx='6'/>
+    <text x='95' y='30' text-anchor='middle' class='title'>🔒 KYC verification</text>
+    <text x='95' y='52' text-anchor='middle' class='sub'>Pre-bid gate ACTIVE</text>
+    <text x='95' y='70' text-anchor='middle' class='sub'>HTTP 412 if not passed</text>
+    <text x='95' y='88' text-anchor='middle' class='sub'>kyc_bypass admin escape</text>
   </g>
   <g transform='translate(560,320)'>
-    <rect class='box' width='190' height='90' rx='6'/>
+    <rect class='box' width='190' height='100' rx='6'/>
     <text x='95' y='30' text-anchor='middle' class='title'>Ask a clarification</text>
     <text x='95' y='52' text-anchor='middle' class='sub'>Public Q&amp;A thread</text>
-    <text x='95' y='70' text-anchor='middle' class='sub'>Answered = visible to all</text>
+    <text x='95' y='70' text-anchor='middle' class='sub'>Email masked · admin reply</text>
   </g>
   <g transform='translate(800,320)'>
-    <rect class='box' width='190' height='90' rx='6'/>
+    <rect class='box' width='190' height='100' rx='6'/>
     <text x='95' y='30' text-anchor='middle' class='title'>Bid submission</text>
     <text x='95' y='52' text-anchor='middle' class='sub'>Price + tech notes</text>
     <text x='95' y='70' text-anchor='middle' class='sub'>Docs upload</text>
   </g>
   <g transform='translate(1040,320)'>
-    <rect class='box-ok' width='230' height='90' rx='6'/>
-    <text x='115' y='30' text-anchor='middle' class='title'>EMD wired to joint escrow</text>
-    <text x='115' y='52' text-anchor='middle' class='sub'>PMC officer + Escrow officer</text>
-    <text x='115' y='70' text-anchor='middle' class='sub'>Ledger tx.status = received</text>
+    <rect class='box-ok' width='250' height='100' rx='6'/>
+    <text x='125' y='30' text-anchor='middle' class='title'>EMD wired to joint escrow</text>
+    <text x='125' y='52' text-anchor='middle' class='sub'>PMC officer + Escrow officer</text>
+    <text x='125' y='70' text-anchor='middle' class='sub'>Stripe / PayPal / Kaspi rail</text>
+    <text x='125' y='88' text-anchor='middle' class='sub'>tx.status = received</text>
   </g>
-  <path class='flow' d='M270 365 L320 365' marker-end='url(#arrow)'/>
-  <path class='flow' d='M510 365 L560 365' marker-end='url(#arrow)'/>
-  <path class='flow' d='M750 365 L800 365' marker-end='url(#arrow)'/>
-  <path class='flow' d='M990 365 L1040 365' marker-end='url(#arrow)'/>
+  <path class='flow' d='M270 370 L320 370' marker-end='url(#arrow)'/>
+  <path class='flow' d='M510 370 L560 370' marker-end='url(#arrow)'/>
+  <path class='flow' d='M750 370 L800 370' marker-end='url(#arrow)'/>
+  <path class='flow' d='M990 370 L1040 370' marker-end='url(#arrow)'/>
 
-  <!-- Lane 3: Escrow & evaluation -->
-  <g transform='translate(80,510)'>
-    <rect class='box' width='190' height='100' rx='6'/>
+  <!-- ============ Lane 3: Joint Escrow (expanded) ============ -->
+  <g transform='translate(80,540)'>
+    <rect class='box' width='190' height='110' rx='6'/>
     <text x='95' y='30' text-anchor='middle' class='title'>Approval pipeline</text>
     <text x='95' y='52' text-anchor='middle' class='sub'>Escrow → Admin →</text>
     <text x='95' y='68' text-anchor='middle' class='sub'>Certifier → Legal →</text>
     <text x='95' y='84' text-anchor='middle' class='sub'>Accounting → Committee</text>
   </g>
-  <g transform='translate(320,510)'>
-    <rect class='box' width='190' height='100' rx='6'/>
+  <g transform='translate(320,540)'>
+    <rect class='box' width='190' height='110' rx='6'/>
     <text x='95' y='30' text-anchor='middle' class='title'>Committee eval</text>
     <text x='95' y='52' text-anchor='middle' class='sub'>Rubric per criterion</text>
     <text x='95' y='68' text-anchor='middle' class='sub'>Tech + commercial</text>
-    <text x='95' y='84' text-anchor='middle' class='sub' fill='#78350f'>role firewall planned</text>
+    <text x='95' y='88' text-anchor='middle' class='sub' fill='#78350f'>role firewall planned</text>
   </g>
-  <g transform='translate(560,510)'>
-    <rect class='box-ai' width='190' height='100' rx='6'/>
+  <g transform='translate(560,540)'>
+    <rect class='box-ai' width='190' height='110' rx='6'/>
     <text x='95' y='30' text-anchor='middle' class='title'>✨ AI redline</text>
     <text x='95' y='52' text-anchor='middle' class='sub'>Compare two bids</text>
     <text x='95' y='68' text-anchor='middle' class='sub'>clause · pricing · risk</text>
-    <text x='95' y='84' text-anchor='middle' class='sub'>advisory · no winner</text>
+    <text x='95' y='88' text-anchor='middle' class='sub'>advisory · no winner</text>
   </g>
-  <g transform='translate(800,510)'>
-    <rect class='box-ok' width='230' height='100' rx='6'/>
-    <text x='115' y='30' text-anchor='middle' class='title'>Escrow tx: dual sign-off</text>
-    <text x='115' y='52' text-anchor='middle' class='sub'>PMC officer signs · same action</text>
-    <text x='115' y='68' text-anchor='middle' class='sub'>Escrow officer signs · same action</text>
-    <text x='115' y='84' text-anchor='middle' class='sub'>Release button unlocks</text>
+  <g transform='translate(800,540)'>
+    <rect class='box-ok' width='260' height='110' rx='6'/>
+    <text x='130' y='30' text-anchor='middle' class='title'>Escrow tx: dual sign-off</text>
+    <text x='130' y='52' text-anchor='middle' class='sub'>PMC officer signs · same action</text>
+    <text x='130' y='68' text-anchor='middle' class='sub'>Escrow officer signs · same action</text>
+    <text x='130' y='88' text-anchor='middle' class='sub'>Release button unlocks (409 otherwise)</text>
   </g>
-  <g transform='translate(1060,510)'>
-    <rect class='box-hi' width='210' height='100' rx='6'/>
-    <text x='105' y='30' text-anchor='middle' class='title'>Award decision</text>
-    <text x='105' y='52' text-anchor='middle' class='sub'>Committee accepts</text>
-    <text x='105' y='68' text-anchor='middle' class='sub'>Contract drafted</text>
-    <text x='105' y='84' text-anchor='middle' class='sub'>Audit-logged</text>
+  <g transform='translate(1090,540)'>
+    <rect class='box-ok' width='250' height='110' rx='6'/>
+    <text x='125' y='30' text-anchor='middle' class='title'>🔗 Magic-link portal</text>
+    <text x='125' y='52' text-anchor='middle' class='sub'>Non-PMC officer signs via</text>
+    <text x='125' y='68' text-anchor='middle' class='sub'>/escrow/officer/{token}</text>
+    <text x='125' y='88' text-anchor='middle' class='sub'>no full staff account needed</text>
   </g>
-  <path class='flow' d='M270 560 L320 560' marker-end='url(#arrow)'/>
-  <path class='flow' d='M510 560 L560 560' marker-end='url(#arrow)'/>
-  <path class='flow' d='M750 560 L800 560' marker-end='url(#arrow)'/>
-  <path class='flow' d='M1030 560 L1060 560' marker-end='url(#arrow)'/>
+  <g transform='translate(1370,540)'>
+    <rect class='box-hi' width='230' height='110' rx='6'/>
+    <text x='115' y='30' text-anchor='middle' class='title'>Award decision</text>
+    <text x='115' y='52' text-anchor='middle' class='sub'>Committee accepts</text>
+    <text x='115' y='68' text-anchor='middle' class='sub'>Contract drafted</text>
+    <text x='115' y='88' text-anchor='middle' class='sub'>Audit-logged</text>
+  </g>
+  <path class='flow' d='M270 595 L320 595' marker-end='url(#arrow)'/>
+  <path class='flow' d='M510 595 L560 595' marker-end='url(#arrow)'/>
+  <path class='flow' d='M750 595 L800 595' marker-end='url(#arrow)'/>
+  <path class='flow-alt' d='M1090 595 L1060 595' marker-end='url(#arrow)'/>
+  <path class='flow' d='M1340 595 L1370 595' marker-end='url(#arrow)'/>
 
-  <!-- Lane 4: Settlement fan-out -->
-  <g transform='translate(80,730)'>
+  <!-- ============ Lane 4: Settlement fan-out ============ -->
+  <g transform='translate(80,800)'>
     <rect class='box-ok' width='240' height='80' rx='6'/>
     <text x='120' y='30' text-anchor='middle' class='title'>Release → Contractor</text>
     <text x='120' y='52' text-anchor='middle' class='sub'>via PMC as pass-through</text>
     <text x='120' y='68' text-anchor='middle' class='sub'>paymaster</text>
   </g>
-  <g transform='translate(360,730)'>
+  <g transform='translate(360,800)'>
     <rect class='box-ok' width='240' height='80' rx='6'/>
     <text x='120' y='30' text-anchor='middle' class='title'>Refund → Vendor</text>
     <text x='120' y='52' text-anchor='middle' class='sub'>bid did not win</text>
     <text x='120' y='68' text-anchor='middle' class='sub'>EMD returned in full</text>
   </g>
-  <g transform='translate(640,730)'>
+  <g transform='translate(640,800)'>
     <rect class='box-ok' width='240' height='80' rx='6'/>
     <text x='120' y='30' text-anchor='middle' class='title'>Forfeit</text>
     <text x='120' y='52' text-anchor='middle' class='sub'>Withdrawal · misdeclaration</text>
     <text x='120' y='68' text-anchor='middle' class='sub'>Retained per T&amp;C</text>
   </g>
-  <g transform='translate(950,730)'>
-    <rect class='box' width='320' height='80' rx='6'/>
-    <text x='160' y='30' text-anchor='middle' class='title'>Ledger closes · immutable audit_trail</text>
-    <text x='160' y='52' text-anchor='middle' class='sub'>received → signed_by_pmc → signed_by_escrow →</text>
-    <text x='160' y='68' text-anchor='middle' class='sub'>released_to_* / forfeited</text>
+  <g transform='translate(950,800)'>
+    <rect class='box' width='400' height='80' rx='6'/>
+    <text x='200' y='30' text-anchor='middle' class='title'>Ledger closes · immutable audit_trail</text>
+    <text x='200' y='52' text-anchor='middle' class='sub'>received → signed_by_pmc → signed_by_escrow →</text>
+    <text x='200' y='68' text-anchor='middle' class='sub'>released_to_* / forfeited</text>
   </g>
-  <path class='flow-alt' d='M1165 610 Q1165 660, 1060 730' marker-end='url(#arrow)'/>
-  <path class='flow' d='M320 770 L360 770' marker-end='url(#arrow)'/>
-  <path class='flow' d='M600 770 L640 770' marker-end='url(#arrow)'/>
-  <path class='flow' d='M880 770 L950 770' marker-end='url(#arrow)'/>
+  <path class='flow-alt' d='M1495 650 Q1495 730, 1350 800' marker-end='url(#arrow)'/>
+  <path class='flow' d='M320 840 L360 840' marker-end='url(#arrow)'/>
+  <path class='flow' d='M600 840 L640 840' marker-end='url(#arrow)'/>
+  <path class='flow' d='M880 840 L950 840' marker-end='url(#arrow)'/>
 
-  <!-- Lane 5: Governance -->
-  <g transform='translate(80,880)'>
-    <rect class='box' width='260' height='80' rx='6'/>
-    <text x='130' y='30' text-anchor='middle' class='title'>Audit log</text>
-    <text x='130' y='52' text-anchor='middle' class='sub'>Every substantive action</text>
-    <text x='130' y='68' text-anchor='middle' class='sub'>attributable to a human</text>
+  <!-- ============ Lane 5: REVENUE STREAMS (new) ============ -->
+  <g transform='translate(80,960)'>
+    <rect class='box-rev' width='210' height='140' rx='6'/>
+    <text x='105' y='30' text-anchor='middle' class='title'>Product Catalog</text>
+    <text x='105' y='52' text-anchor='middle' class='sub'>Admin-editable master</text>
+    <text x='105' y='68' text-anchor='middle' class='sub'>55 rows (CA-02 + CA-03)</text>
+    <text x='105' y='86' text-anchor='middle' class='sub'>9 pricing models</text>
+    <text x='105' y='104' text-anchor='middle' class='sub'>Multi-currency</text>
+    <text x='105' y='122' text-anchor='middle' class='sub'>USD · GBP · EUR · KZT</text>
   </g>
-  <g transform='translate(380,880)'>
-    <rect class='box-ai' width='260' height='80' rx='6'/>
-    <text x='130' y='30' text-anchor='middle' class='title'>AI Copilot (advisory)</text>
-    <text x='130' y='52' text-anchor='middle' class='sub'>Section draft · redline · Q&amp;A</text>
-    <text x='130' y='68' text-anchor='middle' class='sub'>Humans sign every action</text>
+  <g transform='translate(320,960)'>
+    <rect class='box-rev' width='210' height='140' rx='6'/>
+    <text x='105' y='30' text-anchor='middle' class='title'>Client purchase</text>
+    <text x='105' y='52' text-anchor='middle' class='sub'>/services</text>
+    <text x='105' y='68' text-anchor='middle' class='sub'>34 client products</text>
+    <text x='105' y='86' text-anchor='middle' class='sub'>Bronze · Silver · Gold ·</text>
+    <text x='105' y='104' text-anchor='middle' class='sub'>Platinum + 22 advisory</text>
+    <text x='105' y='122' text-anchor='middle' class='sub'>quote-vs-subscribe CTAs</text>
   </g>
-  <g transform='translate(680,880)'>
-    <rect class='box' width='260' height='80' rx='6'/>
-    <text x='130' y='30' text-anchor='middle' class='title'>Multi-lang PDF</text>
-    <text x='130' y='52' text-anchor='middle' class='sub'>EN · RU · KK</text>
-    <text x='130' y='68' text-anchor='middle' class='sub'>watermark · version stamp</text>
+  <g transform='translate(560,960)'>
+    <rect class='box-rev' width='210' height='140' rx='6'/>
+    <text x='105' y='30' text-anchor='middle' class='title'>Supplier purchase</text>
+    <text x='105' y='52' text-anchor='middle' class='sub'>/vendor/services</text>
+    <text x='105' y='68' text-anchor='middle' class='sub'>21 supplier products</text>
+    <text x='105' y='86' text-anchor='middle' class='sub'>SME · Mid · Tier-1</text>
+    <text x='105' y='104' text-anchor='middle' class='sub'>+ 13 monthly add-ons</text>
+    <text x='105' y='122' text-anchor='middle' class='sub'>+ project-setup fees</text>
   </g>
-  <g transform='translate(980,880)'>
-    <rect class='box' width='260' height='80' rx='6'/>
-    <text x='130' y='30' text-anchor='middle' class='title'>Multi-tenant portals</text>
-    <text x='130' y='52' text-anchor='middle' class='sub'>CNAME subdomains</text>
-    <text x='130' y='68' text-anchor='middle' class='sub'>Per-tenant branding · MFA</text>
+  <g transform='translate(800,960)'>
+    <rect class='box-rev' width='210' height='140' rx='6'/>
+    <text x='105' y='30' text-anchor='middle' class='title'>Stripe Checkout</text>
+    <text x='105' y='52' text-anchor='middle' class='sub'>POST /billing/checkout</text>
+    <text x='105' y='68' text-anchor='middle' class='sub'>admin · vendor · anon</text>
+    <text x='105' y='86' text-anchor='middle' class='sub'>server-authoritative price</text>
+    <text x='105' y='104' text-anchor='middle' class='sub'>one-off + subscription</text>
+    <text x='105' y='122' text-anchor='middle' class='sub'>cs_test_... session</text>
   </g>
-  <g transform='translate(1280,880)'>
-    <rect class='box' width='230' height='80' rx='6'/>
-    <text x='115' y='30' text-anchor='middle' class='title'>Mobile · PWA</text>
-    <text x='115' y='52' text-anchor='middle' class='sub'>Capacitor wrapper</text>
-    <text x='115' y='68' text-anchor='middle' class='sub'>Hamburger UI</text>
+  <g transform='translate(1040,960)'>
+    <rect class='box-rev' width='210' height='140' rx='6'/>
+    <text x='105' y='30' text-anchor='middle' class='title'>Webhook · ledger</text>
+    <text x='105' y='52' text-anchor='middle' class='sub'>/api/webhook/stripe</text>
+    <text x='105' y='68' text-anchor='middle' class='sub'>idempotent on paid</text>
+    <text x='105' y='86' text-anchor='middle' class='sub'>payment_transactions</text>
+    <text x='105' y='104' text-anchor='middle' class='sub'>row updated</text>
+  </g>
+  <g transform='translate(1280,960)'>
+    <rect class='box-hi' width='250' height='140' rx='6'/>
+    <text x='125' y='30' text-anchor='middle' class='title'>Quote → Engagement (P1)</text>
+    <text x='125' y='52' text-anchor='middle' class='sub'>Range / % / cost-recovery</text>
+    <text x='125' y='68' text-anchor='middle' class='sub'>→ Admin quotes value</text>
+    <text x='125' y='86' text-anchor='middle' class='sub'>→ Invoice generated</text>
+    <text x='125' y='104' text-anchor='middle' class='sub'>→ Statement of account</text>
+    <text x='125' y='122' text-anchor='middle' class='sub'>(Wave 38 roadmap)</text>
+  </g>
+  <path class='flow-rev' d='M290 1030 L320 1030' marker-end='url(#arrow-rev)'/>
+  <path class='flow-rev' d='M530 1030 L560 1030' marker-end='url(#arrow-rev)'/>
+  <path class='flow-rev' d='M770 1030 L800 1030' marker-end='url(#arrow-rev)'/>
+  <path class='flow-rev' d='M1010 1030 L1040 1030' marker-end='url(#arrow-rev)'/>
+  <path class='flow-rev' d='M1250 1030 L1280 1030' marker-end='url(#arrow-rev)'/>
+
+  <!-- ============ Lane 6: Governance ============ -->
+  <g transform='translate(80,1165)'>
+    <rect class='box' width='230' height='75' rx='6'/>
+    <text x='115' y='28' text-anchor='middle' class='title'>Audit log</text>
+    <text x='115' y='50' text-anchor='middle' class='sub'>Every substantive action</text>
+    <text x='115' y='66' text-anchor='middle' class='sub'>attributable to a human</text>
+  </g>
+  <g transform='translate(340,1165)'>
+    <rect class='box-ai' width='230' height='75' rx='6'/>
+    <text x='115' y='28' text-anchor='middle' class='title'>AI Copilot (advisory)</text>
+    <text x='115' y='50' text-anchor='middle' class='sub'>Section draft · redline · Q&amp;A</text>
+    <text x='115' y='66' text-anchor='middle' class='sub'>Humans sign every action</text>
+  </g>
+  <g transform='translate(600,1165)'>
+    <rect class='box' width='230' height='75' rx='6'/>
+    <text x='115' y='28' text-anchor='middle' class='title'>Live Roadmap /roadmap</text>
+    <text x='115' y='50' text-anchor='middle' class='sub'>Public shareable URL</text>
+    <text x='115' y='66' text-anchor='middle' class='sub'>Delivered · Partial · Planned</text>
+  </g>
+  <g transform='translate(860,1165)'>
+    <rect class='box' width='230' height='75' rx='6'/>
+    <text x='115' y='28' text-anchor='middle' class='title'>Auto-snapshot</text>
+    <text x='115' y='50' text-anchor='middle' class='sub'>Startup regenerates 5 files</text>
+    <text x='115' y='66' text-anchor='middle' class='sub'>docs/reports · git-tracked</text>
+  </g>
+  <g transform='translate(1120,1165)'>
+    <rect class='box' width='230' height='75' rx='6'/>
+    <text x='115' y='28' text-anchor='middle' class='title'>Multi-lang PDF</text>
+    <text x='115' y='50' text-anchor='middle' class='sub'>EN · RU · KK</text>
+    <text x='115' y='66' text-anchor='middle' class='sub'>watermark · version stamp</text>
+  </g>
+  <g transform='translate(1380,1165)'>
+    <rect class='box' width='230' height='75' rx='6'/>
+    <text x='115' y='28' text-anchor='middle' class='title'>Multi-tenant · Mobile</text>
+    <text x='115' y='50' text-anchor='middle' class='sub'>CNAME subdomains</text>
+    <text x='115' y='66' text-anchor='middle' class='sub'>Capacitor · MFA · i18n</text>
   </g>
 </svg>"""
 
