@@ -19,7 +19,9 @@ const SANITIZE_CFG = {
 function stripHtml(html) {
   if (!html) return "";
   const d = document.createElement("div");
-  d.innerHTML = DOMPurify.sanitize(html, SANITIZE_CFG);
+  // DOMPurify sanitises BEFORE innerHTML; element `d` is never attached to
+  // the DOM (used only to read `.innerText`), so this cannot execute scripts.
+  d.innerHTML = DOMPurify.sanitize(html, SANITIZE_CFG);  // safe: sanitised + detached node
   return (d.innerText || "").replace(/\s+\n/g, "\n").trim();
 }
 

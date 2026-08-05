@@ -81,7 +81,8 @@ export default function PublicRoadmap() {
               <div className="pmc-label border-b border-brand-navy/20 pb-2">{a.area}</div>
               <ul className="mt-4 space-y-3">
                 {a.items.map((it, i) => (
-                  <li key={i} className="border border-brand-navy/10 bg-white p-4">
+                  <li key={`${a.area}::${(it.asked || "").slice(0, 40)}::${i}`}
+                      className="border border-brand-navy/10 bg-white p-4">
                     <div className="flex items-start justify-between gap-4 flex-wrap">
                       <div className="flex-1 min-w-[280px]">
                         <div className="text-xs uppercase tracking-widest text-brand-navy/60">Asked</div>

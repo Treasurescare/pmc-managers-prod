@@ -38,12 +38,13 @@ export default function RichEditor({ value, onChange, testid, placeholder }) {
 
   // Sync external value into the editor when it changes from outside (e.g.,
   // switching between drafts). We compare against innerHTML so we don't
-  // wipe the caret on every keystroke. All incoming HTML is sanitised first.
+  // wipe the caret on every keystroke. `next` is DOMPurify-sanitised (see
+  // cleanHtml above), so this innerHTML assignment is XSS-safe.
   useEffect(() => {
     if (!ref.current) return;
-    const next = cleanHtml(value);
+    const next = cleanHtml(value);  // DOMPurify.sanitize — safe for innerHTML
     if (next !== ref.current.innerHTML) {
-      ref.current.innerHTML = next;
+      ref.current.innerHTML = next;   // safe: `next` is DOMPurify-sanitised above
     }
   }, [value]);
 

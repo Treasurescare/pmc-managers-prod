@@ -34,31 +34,33 @@ def _stripe_checkout():
                           webhook_url="")  # webhook URL is set per-request below
 
 
+_QUOTE_ONLY_MODELS = {
+    "percentage":    "Percentage-of-value products cannot be checked out directly — please request a quote.",
+    "cost_recovery": "Cost-recovery items require a quote before checkout.",
+}
+_FLAT_MODELS         = {"fixed", "monthly", "annual", "package"}
+_PER_QUANTITY_MODELS = {"per_delegate", "per_user_monthly"}
+
+
 def _price_from_product(product: dict, quantity: int) -> tuple[float, str, str]:
     """Compute (amount, currency, cadence) from a catalog row.
-    Returns amount as float, currency lower-cased, cadence for metadata."""
+    Returns amount as float, currency lower-cased, cadence for metadata.
+
+    Refactored (Wave 35 code-review): flat table lookup with an explicit
+    initial `amt` so control flow can never leave the function with an
+    uninitialised value.
+    """
     pm = product.get("pricing_model", "fixed")
     curr = (product.get("currency") or "USD").lower()
-    if pm == "fixed":
+    amt = 0.0
+    if pm in _QUOTE_ONLY_MODELS:
+        raise HTTPException(status_code=400, detail=_QUOTE_ONLY_MODELS[pm])
+    if pm in _FLAT_MODELS:
         amt = float(product.get("amount") or 0)
     elif pm == "range":
         amt = float(product.get("min_amount") or 0)
-    elif pm == "monthly":
-        amt = float(product.get("amount") or 0)
-    elif pm == "annual":
-        amt = float(product.get("amount") or 0)
-    elif pm == "per_delegate":
+    elif pm in _PER_QUANTITY_MODELS:
         amt = float(product.get("amount") or 0) * max(1, int(quantity))
-    elif pm == "per_user_monthly":
-        amt = float(product.get("amount") or 0) * max(1, int(quantity))
-    elif pm == "percentage":
-        raise HTTPException(status_code=400,
-            detail="Percentage-of-value products cannot be checked out directly — please request a quote.")
-    elif pm == "cost_recovery":
-        raise HTTPException(status_code=400,
-            detail="Cost-recovery items require a quote before checkout.")
-    elif pm == "package":
-        amt = float(product.get("amount") or 0)
     else:
         raise HTTPException(status_code=400, detail=f"Unsupported pricing_model: {pm}")
     if amt <= 0:
