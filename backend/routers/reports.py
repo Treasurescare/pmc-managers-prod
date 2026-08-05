@@ -672,6 +672,31 @@ async def get_flowchart_pdf(admin=Depends(require_role("admin", "reviewer", "aud
 
 
 # ------------------------------------------------------------------
+#  Public roadmap JSON — no auth. Powers the shareable /roadmap page.
+# ------------------------------------------------------------------
+
+@router.get("/public/roadmap")
+async def public_roadmap():
+    total = len(ROWS)
+    stats = {STATUS_DONE: 0, STATUS_PARTIAL: 0, STATUS_PLANNED: 0}
+    grouped: dict = {}
+    for status, area, asked, delivered, note in ROWS:
+        stats[status] = stats.get(status, 0) + 1
+        grouped.setdefault(area, []).append({
+            "status": status, "asked": asked,
+            "delivered": delivered, "note": note,
+        })
+    return {
+        "generated_at": now_iso(),
+        "total_items": total,
+        "delivered": stats[STATUS_DONE],
+        "partial": stats[STATUS_PARTIAL],
+        "planned": stats[STATUS_PLANNED],
+        "areas": [{"area": a, "items": items} for a, items in grouped.items()],
+    }
+
+
+# ------------------------------------------------------------------
 #  Snapshot to disk (git-tracked so files show up in the next push)
 # ------------------------------------------------------------------
 import os as _os

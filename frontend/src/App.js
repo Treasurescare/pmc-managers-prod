@@ -39,6 +39,13 @@ import MobileLogin from "@/apps/mobile/MobileLogin";
 import UnifiedLogin from "@/apps/shared/UnifiedLogin";
 import AdminVendorCreate from "@/apps/admin-console/AdminVendorCreate";
 
+// Wave 35/36/37 — Revenue surfaces + billing result + public roadmap + escrow magic-link
+import ClientPurchase from "@/apps/client-portal/ClientPurchase";
+import VendorPurchase from "@/apps/vendor-portal/VendorPurchase";
+import BillingResult from "@/apps/shared/BillingResult";
+import EscrowOfficerSign from "@/apps/shared/EscrowOfficerSign";
+import PublicRoadmap from "@/apps/shared/PublicRoadmap";
+
 export default function App() {
   return (
     <div className="App">
@@ -82,6 +89,20 @@ export default function App() {
 
             {/* Web — unified sign-in (parallel to /m) */}
             <Route path="/login" element={<UnifiedLogin />} />
+
+            {/* Wave 36/37 — Purchase surfaces */}
+            <Route path="/services" element={<ClientPurchase />} />
+            <Route path="/vendor/services" element={<VendorPurchase />} />
+
+            {/* Wave 35 — Stripe checkout result pages */}
+            <Route path="/billing/success" element={<BillingResult outcome="success" />} />
+            <Route path="/billing/cancel" element={<BillingResult outcome="cancel" />} />
+
+            {/* Escrow magic-link portal — non-PMC officer signs via emailed link */}
+            <Route path="/escrow/officer/:token" element={<EscrowOfficerSign />} />
+
+            {/* Live public roadmap */}
+            <Route path="/roadmap" element={<PublicRoadmap />} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

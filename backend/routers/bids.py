@@ -47,6 +47,25 @@ async def create_bid(payload: BidCreateIn, vendor=Depends(current_vendor)) -> di
     if dup:
         raise HTTPException(status_code=409, detail="You already have an active bid on this notice")
 
+    # KYC pre-bid gate — vendor must have a passing KYC decision on file.
+    # Skips when the vendor already has a `verified` flag OR when the notice
+    # was explicitly created with `kyc_bypass=true` (admin escape hatch).
+    if not notice.get("kyc_bypass"):
+        vendor_doc = await db.vendors.find_one({"_id": ObjectId(vendor["id"])}) if ObjectId.is_valid(vendor["id"]) else None
+        kyc_ok = False
+        if vendor_doc:
+            k = (vendor_doc.get("kyc") or {})
+            kyc_ok = k.get("status") in ("verified", "cleared", "passed") \
+                     or vendor_doc.get("kyc_status") in ("verified", "cleared", "passed")
+        # Also accept a passed KYC case tied to the vendor via kyc_cases collection.
+        if not kyc_ok:
+            latest = await db.kyc_cases.find_one({"vendor_id": vendor["id"], "status": "passed"},
+                                                   sort=[("created_at", -1)])
+            kyc_ok = bool(latest)
+        if not kyc_ok:
+            raise HTTPException(status_code=412,
+                detail="KYC verification required before submitting a bid. Please complete KYC from your vendor dashboard.")
+
     # Compute EMD due
     emd_cfg = EMDConfig(**(notice.get("emd_config") or {}))
     emd_due = emd_cfg.compute(notice.get("budget_amount") or 0.0)

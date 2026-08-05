@@ -224,6 +224,8 @@ async def on_start() -> None:
     seeded = await seed_master_templates()
     if seeded:
         logging.info(f"Seeded {seeded} tender template masters")
+    # Wave 35 — Auto-Snapshot On Change
+    await _refresh_reports_snapshot()
 
 
 async def _seed_product_catalog() -> None:
@@ -249,6 +251,18 @@ async def _seed_product_catalog() -> None:
     )
     if inserted or fixed.modified_count:
         logging.info(f"Product catalog: seeded {inserted} new, backfilled is_active on {fixed.modified_count}")
+
+
+async def _refresh_reports_snapshot() -> None:
+    """Wave 35 · Auto-Snapshot On Change — regenerate all 5 stakeholder-brief
+    files at startup so the /app/docs/reports/ folder never drifts from the
+    ROWS defined in `reports.py`. Safe/idempotent — writes in-place."""
+    try:
+        from routers.reports import snapshot_to_disk
+        result = snapshot_to_disk()
+        logging.info(f"Refreshed stakeholder-report snapshot ({len(result['files'])} files)")
+    except Exception as e:  # never block startup on a snapshot failure
+        logging.warning(f"Report snapshot refresh failed: {e}")
 
 
 async def _seed_packages() -> None:

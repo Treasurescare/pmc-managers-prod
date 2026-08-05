@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 from db import db
 from models.base import BaseDocument, now_iso
 from security import current_admin
+from routers.vendor_auth import current_vendor
 from audit import audit_log
 
 log = logging.getLogger("billing")
@@ -73,17 +74,38 @@ class CheckoutRequest(BaseModel):
     # Optional currency override — only accepted if it matches product OR is one
     # of the platform-supported currencies. Amount stays server-authoritative.
     currency_override: Optional[str] = None
+    # Anonymous checkout only — surfaces the buyer in the session metadata.
+    buyer_email: Optional[str] = None
 
 
 @router.post("/api/v1/billing/checkout")
-async def create_checkout(req: CheckoutRequest, request: Request,
-                            admin=Depends(current_admin)):
+async def create_checkout(req: CheckoutRequest, request: Request):
+    """Create a Stripe Checkout session for one catalog product. Accepts:
+    * admin session (staff subscribing on behalf of a client), OR
+    * vendor session (supplier subscribing to a supplier-side product), OR
+    * anonymous with a `buyer_email` — recorded in metadata only.
+    Pricing is always server-authoritative (from the catalog row)."""
+    # Resolve buyer identity — best-effort, never blocks anonymous checkout
+    buyer_email = None
+    buyer_role = "anonymous"
+    try:
+        u = await current_admin(request)
+        if u:
+            buyer_email = u.get("email"); buyer_role = "admin"
+    except Exception:
+        try:
+            v = await current_vendor(request)
+            if v:
+                buyer_email = v.get("email"); buyer_role = "vendor"
+        except Exception:
+            pass
+    if not buyer_email:
+        buyer_email = req.buyer_email or "anonymous@pmcmanagers.com"
     product = await db.products.find_one({"code": req.product_code, "is_active": True})
     if not product:
         raise HTTPException(status_code=404, detail=f"Product not found: {req.product_code}")
     amount, currency, cadence = _price_from_product(product, req.quantity)
     if req.currency_override:
-        # Whitelist we support at the payment layer
         if req.currency_override.upper() in {"USD", "GBP", "EUR", "KZT"}:
             currency = req.currency_override.lower()
 
@@ -104,7 +126,8 @@ async def create_checkout(req: CheckoutRequest, request: Request,
             "product_code": product["code"],
             "product_name": product["name"],
             "quantity": str(req.quantity),
-            "buyer_email": admin.get("email", ""),
+            "buyer_email": buyer_email,
+            "buyer_role": buyer_role,
             "cadence": cadence,
         },
     )
@@ -114,7 +137,8 @@ async def create_checkout(req: CheckoutRequest, request: Request,
     await db.payment_transactions.insert_one({
         "session_id": session.session_id,
         "product_code": product["code"],
-        "buyer_email": admin.get("email"),
+        "buyer_email": buyer_email,
+        "buyer_role": buyer_role,
         "amount": float(amount),
         "currency": currency,
         "quantity": req.quantity,
@@ -124,7 +148,9 @@ async def create_checkout(req: CheckoutRequest, request: Request,
         "created_at": datetime.now(timezone.utc),
         "updated_at": datetime.now(timezone.utc),
     })
-    await audit_log("billing.checkout_init", admin, "product", product["code"],
+    await audit_log("billing.checkout_init",
+                    {"email": buyer_email, "role": buyer_role},
+                    "product", product["code"],
                     {"amount": amount, "currency": currency, "session_id": session.session_id})
     return {"checkout_url": session.url, "session_id": session.session_id,
              "amount": amount, "currency": currency}

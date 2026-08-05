@@ -308,3 +308,128 @@ async def release(tid: str, payload: ReleaseIn,
                      {"amount": tx.get("amount"), "currency": tx.get("currency"),
                       "beneficiary": payload.beneficiary_account})
     return _out_tx(await db.escrow_transactions.find_one({"_id": ObjectId(tid)}))
+
+
+# ---------------- Magic-link portal for non-PMC escrow officers ----------
+#
+# The escrow-institution officer is an external party who should NOT need a
+# full staff account. They sign via a per-account magic link the admin sends
+# them by email. The token maps to their account+email in `escrow_magic_tokens`.
+
+import secrets as _secrets
+
+class MagicIssueIn(BaseModel):
+    account_id: str
+    officer_email: EmailStr
+
+
+class MagicSignIn(BaseModel):
+    tid: str
+    intended_action: Literal["release_to_contractor", "release_to_vendor", "forfeit"]
+    comment: Optional[str] = None
+
+
+@router.post("/magic-tokens")
+async def issue_magic_token(payload: MagicIssueIn,
+                             admin=Depends(require_role("admin"))):
+    """Admin generates a magic-link token for a specific officer of a specific
+    joint account. Token is single-account, multi-use (officer can sign as
+    many transactions on that account as arrive)."""
+    if not ObjectId.is_valid(payload.account_id):
+        raise HTTPException(status_code=400, detail="Invalid account id")
+    acc = await db.escrow_accounts.find_one({"_id": ObjectId(payload.account_id)})
+    if not acc:
+        raise HTTPException(status_code=404, detail="Escrow account not found")
+    pmc = acc.get("pmc_officer") or {}
+    esc = acc.get("escrow_officer") or {}
+    email_l = payload.officer_email.lower()
+    if email_l not in ((pmc.get("email") or "").lower(),
+                       (esc.get("email") or "").lower()):
+        raise HTTPException(status_code=400,
+            detail="Officer email is not on this joint account")
+    token = _secrets.token_urlsafe(28)
+    await db.escrow_magic_tokens.insert_one({
+        "token": token,
+        "account_id": payload.account_id,
+        "officer_email": email_l,
+        "created_at": now_iso(),
+        "created_by": admin["email"],
+        "revoked": False,
+    })
+    await audit_log("escrow.magic_issue", admin, "escrow_account",
+                     payload.account_id, {"officer_email": email_l})
+    return {"token": token, "portal_url": f"/escrow/officer/{token}"}
+
+
+@router.get("/magic/{token}")
+async def magic_context(token: str):
+    """Public — returns the officer's identity + all pending transactions on
+    their account. No auth beyond possession of the token."""
+    t = await db.escrow_magic_tokens.find_one({"token": token, "revoked": False})
+    if not t:
+        raise HTTPException(status_code=404, detail="Invalid or revoked magic token")
+    acc = await db.escrow_accounts.find_one({"_id": ObjectId(t["account_id"])})
+    if not acc:
+        raise HTTPException(status_code=404, detail="Escrow account not found")
+    officer_email = t["officer_email"]
+    officer_side = "pmc" if officer_email == (acc.get("pmc_officer") or {}).get("email", "").lower() \
+                   else "escrow_institution"
+    txs = await db.escrow_transactions.find(
+        {"escrow_account_id": t["account_id"],
+         "status": {"$in": ["received", "awaiting_signatures"]}},
+    ).sort("created_at", -1).to_list(100)
+    return {
+        "account": {"name": acc.get("name"), "institution": acc.get("institution"),
+                     "currency": acc.get("currency")},
+        "officer_email": officer_email,
+        "officer_side": officer_side,
+        "transactions": [_out_tx(t) for t in txs],
+    }
+
+
+@router.post("/magic/{token}/sign")
+async def magic_sign(token: str, payload: MagicSignIn):
+    """Officer signs a transaction via magic-link — no staff login needed."""
+    t = await db.escrow_magic_tokens.find_one({"token": token, "revoked": False})
+    if not t:
+        raise HTTPException(status_code=404, detail="Invalid or revoked magic token")
+    if not ObjectId.is_valid(payload.tid):
+        raise HTTPException(status_code=400, detail="Invalid transaction id")
+    tx = await db.escrow_transactions.find_one({"_id": ObjectId(payload.tid)})
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    if tx.get("escrow_account_id") != t["account_id"]:
+        raise HTTPException(status_code=403, detail="Transaction is not on this officer's account")
+    if tx["status"] in ("released_to_contractor", "released_to_vendor", "forfeited", "cancelled"):
+        raise HTTPException(status_code=409, detail=f"Transaction already {tx['status']}")
+    acc_snap = tx.get("escrow_account_snapshot") or {}
+    officer_email = t["officer_email"]
+    if officer_email == (acc_snap.get("pmc_officer") or {}).get("email", "").lower():
+        side = "pmc"
+    elif officer_email == (acc_snap.get("escrow_officer") or {}).get("email", "").lower():
+        side = "escrow_institution"
+    else:
+        raise HTTPException(status_code=403, detail="Officer not on this transaction snapshot")
+    signatures = tx.get("signatures") or {}
+    signatures[side] = {
+        "email": officer_email, "action": payload.intended_action,
+        "comment": payload.comment, "signed_at": now_iso(),
+        "via": "magic_link",
+    }
+    trail_entry = {"at": now_iso(), "by": officer_email,
+                    "event": f"signed_by_{side}_magic",
+                    "intended_action": payload.intended_action,
+                    "comment": payload.comment}
+    new_status = "awaiting_signatures" if not _dual_signed({"signatures": signatures},
+                                                            payload.intended_action) else tx["status"]
+    await db.escrow_transactions.update_one(
+        {"_id": ObjectId(payload.tid)},
+        {"$set": {"signatures": signatures, "status": new_status,
+                    "updated_at": now_iso()},
+         "$push": {"audit_trail": trail_entry}},
+    )
+    await audit_log(f"escrow.sign_{side}",
+                    {"email": officer_email, "role": "escrow_officer"},
+                    "escrow_tx", payload.tid,
+                    {"intended_action": payload.intended_action, "via": "magic_link"})
+    return _out_tx(await db.escrow_transactions.find_one({"_id": ObjectId(payload.tid)}))

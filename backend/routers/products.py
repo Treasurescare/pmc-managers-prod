@@ -175,6 +175,7 @@ async def reseed_catalog(admin=Depends(require_role("admin"))):
         if await db.products.find_one({"code": row["code"]}):
             continue
         doc = dict(row)
+        doc.setdefault("is_active", True)
         doc["created_at"] = now_iso()
         doc["updated_at"] = now_iso()
         doc["created_by"] = admin["email"]
@@ -183,3 +184,18 @@ async def reseed_catalog(admin=Depends(require_role("admin"))):
     await audit_log("product.reseed", admin, "product", "*",
                     {"inserted": inserted, "total_defaults": len(DEFAULT_PRODUCTS)})
     return {"ok": True, "inserted": inserted, "total_defaults": len(DEFAULT_PRODUCTS)}
+
+
+@router.get("/categories")
+async def list_categories(side: Optional[str] = None):
+    """Public. Used by the client + supplier purchase pages to group products
+    by category tab."""
+    q: dict = {"is_active": True}
+    if side and side in SIDES:
+        q["$or"] = [{"side": side}, {"side": "both"}]
+    cats: list[str] = []
+    async for d in db.products.find(q, {"category": 1}):
+        c = d.get("category")
+        if c and c not in cats:
+            cats.append(c)
+    return {"categories": sorted(cats)}
