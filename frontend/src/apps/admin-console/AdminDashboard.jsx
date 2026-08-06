@@ -23,6 +23,8 @@ import EscrowPanel from "./EscrowPanel";
 import ReportsPanel from "./ReportsPanel";
 import ProductCatalogPanel from "./ProductCatalogPanel";
 import EngagementsPanel from "./EngagementsPanel";
+import CorrigendaPanel from "./CorrigendaPanel";
+import AwardsPanel from "./AwardsPanel";
 import useTenantSkin from "@/apps/shared/useTenantSkin";
 
 function TabBar({ tab, setTab }) {
@@ -31,10 +33,12 @@ function TabBar({ tab, setTab }) {
     ["registrations", "Registrations"],
     ["vendors", "Vendors"],
     ["notices", "Notices"],
+    ["corrigenda", "Corrigenda"],
     ["tender-builder", "Tender Builder"],
     ["bidding", "Bidding Ops"],
     ["escrow", "Escrow (EMD)"],
     ["evaluation", "Evaluation"],
+    ["awards", "Awards & POs"],
     ["boq", "BOQ & Contracts"],
     ["vintel", "Vendor Intel"],
     ["masters", "Masters"],
@@ -125,10 +129,12 @@ export default function AdminDashboard() {
           {tab === "registrations" && <RegistrationsPanel />}
           {tab === "vendors" && <VendorsPanel />}
           {tab === "notices" && <NoticesPanel />}
+          {tab === "corrigenda" && <CorrigendaPanel />}
           {tab === "tender-builder" && <TenderBuilderPanel />}
           {tab === "bidding" && <BiddingOpsPanel />}
           {tab === "escrow" && <EscrowPanel />}
           {tab === "evaluation" && <EvaluationPanel />}
+          {tab === "awards" && <AwardsPanel />}
           {tab === "boq" && <BOQContractsPanel />}
           {tab === "vintel" && <VendorIntelPanel />}
           {tab === "masters" && <MastersPanel />}

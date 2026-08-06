@@ -88,7 +88,18 @@ async def get_notice(notice_ref: str):
     doc = await db.notices.find_one({"notice_ref": notice_ref, "is_published": True})
     if not doc:
         raise HTTPException(status_code=404, detail="Notice not found")
-    return _out(doc)
+    out = _out(doc)
+    # Wave 39 — attach active corrigenda so the public page can show the banner.
+    cursor = db.corrigenda.find({"notice_ref": notice_ref, "is_active": True})\
+                          .sort("corrigendum_no", 1)
+    corrigenda = []
+    async for c in cursor:
+        c_out = BaseDocument.out(c)
+        c_out.pop("pdf_bytes", None)
+        corrigenda.append(c_out)
+    out["corrigenda"] = corrigenda
+    out["corrigenda_count"] = len(corrigenda)
+    return out
 
 
 @router.post("")

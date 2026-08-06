@@ -118,9 +118,12 @@ export const bidApi = {
   get: (id) => api.get(`/api/v1/bids/${id}`).then((r) => r.data),
   withdraw: (id) => api.post(`/api/v1/bids/${id}/withdraw`).then((r) => r.data),
   list: (params = {}) => api.get("/api/v1/bids", { params }).then((r) => r.data),
+  listAll: (params = {}) => api.get("/api/v1/bids", { params }).then((r) => r.data),
   decide: (id, payload) => api.post(`/api/v1/bids/${id}/decision`, payload).then((r) => r.data),
   assignCertifier: (id, certifierId) =>
     api.post(`/api/v1/bids/${id}/assign-certifier`, null, { params: { certifier_id: certifierId } }).then((r) => r.data),
+  technicalClear: (id) => api.post(`/api/v1/bids/${id}/technical-clear`).then((r) => r.data),
+  financialOpen: (id) => api.post(`/api/v1/bids/${id}/financial-open`).then((r) => r.data),
 };
 
 // ---------- Wave 1: Payments (Stripe EMD) ----------
@@ -396,6 +399,21 @@ export const notifyApi = {
   list: () => api.get("/api/v1/notifications").then((r) => r.data),
   markRead: (id) => api.post(`/api/v1/notifications/${id}/read`).then((r) => r.data),
   markAllRead: () => api.post("/api/v1/notifications/read-all").then((r) => r.data),
+};
+
+// ---------- Wave 39: Corrigenda ----------
+export const corrigendaApi = {
+  listPublic: (ref) => api.get(`/api/v1/notices/${ref}/corrigenda`).then((r) => r.data),
+  listAdmin: (ref) => api.get(`/api/v1/notices/${ref}/corrigenda/admin`).then((r) => r.data),
+  publish: (ref, body) => api.post(`/api/v1/notices/${ref}/corrigenda`, body).then((r) => r.data),
+  withdraw: (ref, cid) => api.delete(`/api/v1/notices/${ref}/corrigenda/${cid}`).then((r) => r.data),
+};
+
+// ---------- Wave 39: Awards / Post-Award docs ----------
+export const awardsApi = {
+  list: (bid_id) => api.get(`/api/v1/awards/bid/${bid_id}`).then((r) => r.data),
+  listMine: (bid_id) => api.get(`/api/v1/awards/bid/${bid_id}/mine`).then((r) => r.data),
+  regenerate: (bid_id) => api.post(`/api/v1/awards/bid/${bid_id}/regenerate`).then((r) => r.data),
 };
 
 export default api;

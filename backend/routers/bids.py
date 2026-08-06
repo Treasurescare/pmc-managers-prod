@@ -21,6 +21,39 @@ from audit import audit_log
 router = APIRouter(prefix="/api/v1/bids", tags=["bids"])
 
 
+# Wave 39 — Two-Cover enforcement.
+# Roles that must NEVER see commercial fields until finance envelope is opened.
+_TECH_ONLY_ROLES = {"tech_evaluator", "technical_evaluator"}
+# Roles that may always see the commercial cover (finance / audit / admin).
+_FINANCE_ROLES = {"admin", "accounting", "auditor", "committee_member"}
+
+
+def _redact_commercial(doc: dict, viewer_roles: set) -> dict:
+    """Drop `price_amount`, `commercial_notes` and `kind=='commercial'` docs
+    for tech-only evaluators, and also whenever the financial envelope has
+    not yet been opened (unless the viewer holds a finance-cleared role)."""
+    is_tech_only = bool(viewer_roles & _TECH_ONLY_ROLES) and not (viewer_roles & _FINANCE_ROLES)
+    fin_open = bool(doc.get("financial_opened_at"))
+    finance_role = bool(viewer_roles & _FINANCE_ROLES)
+    if is_tech_only or (not fin_open and not finance_role):
+        doc = dict(doc)
+        doc["price_amount"] = None
+        doc["price_currency"] = None
+        doc["commercial_notes"] = None
+        doc["documents"] = [d for d in (doc.get("documents") or []) if d.get("kind") != "commercial"]
+        doc["commercial_redacted"] = True
+    return doc
+
+
+def _viewer_role_set(user: dict) -> set:
+    r = set()
+    if user:
+        if user.get("role"):
+            r.add(user["role"])
+        r.update(user.get("roles") or [])
+    return r
+
+
 def _out(doc: dict) -> dict:
     return BaseDocument.out(doc)
 
@@ -145,12 +178,57 @@ async def list_all_bids(
         q["notice_ref"] = notice_ref
     if status:
         q["status"] = status
+    viewer_roles = _viewer_role_set(admin)
     rows: List[dict] = []
     async for b in db.bids.find(q).sort("created_at", -1).limit(300):
-        row = _out(b)
+        row = _out(_redact_commercial(b, viewer_roles))
         row["active_step"] = await active_step(b)
         rows.append(row)
     return rows
+
+
+# ---------- Wave 39: Two-Cover flow control -----------------------------
+
+@router.post("/{bid_id}/technical-clear")
+async def technical_clear(bid_id: str,
+                           admin=Depends(require_role("admin", "committee_member", "reviewer"))):
+    """Mark technical envelope as cleared — bid is qualified to move to
+    commercial evaluation. Idempotent."""
+    b = await db.bids.find_one({"_id": ObjectId(bid_id)})
+    if not b:
+        raise HTTPException(status_code=404, detail="Bid not found")
+    if b.get("technical_cleared_at"):
+        return {"ok": True, "already": True,
+                "technical_cleared_at": b.get("technical_cleared_at")}
+    await db.bids.update_one(
+        {"_id": ObjectId(bid_id)},
+        {"$set": {"technical_cleared_at": now_iso(),
+                  "technical_cleared_by": admin.get("email")}},
+    )
+    await audit_log("bid.technical_clear", admin, "bid", b.get("bid_ref"), {})
+    return {"ok": True, "technical_cleared_at": now_iso()}
+
+
+@router.post("/{bid_id}/financial-open")
+async def financial_open(bid_id: str,
+                          admin=Depends(require_role("admin", "committee_member"))):
+    """Open (unseal) the commercial envelope. GATED on technical clearance."""
+    b = await db.bids.find_one({"_id": ObjectId(bid_id)})
+    if not b:
+        raise HTTPException(status_code=404, detail="Bid not found")
+    if not b.get("technical_cleared_at"):
+        raise HTTPException(status_code=412,
+            detail="Technical envelope must be cleared before opening the commercial envelope")
+    if b.get("financial_opened_at"):
+        return {"ok": True, "already": True,
+                "financial_opened_at": b.get("financial_opened_at")}
+    await db.bids.update_one(
+        {"_id": ObjectId(bid_id)},
+        {"$set": {"financial_opened_at": now_iso(),
+                  "financial_opened_by": admin.get("email")}},
+    )
+    await audit_log("bid.financial_open", admin, "bid", b.get("bid_ref"), {})
+    return {"ok": True, "financial_opened_at": now_iso()}
 
 
 _ROLE_TO_TARGET_STATUS = {
@@ -209,6 +287,14 @@ async def decide_bid(bid_id: str, payload: BidDecisionIn,
         await notify_bid_transition(b_updated, next_status)
     except Exception:
         pass
+    # Wave 39 — Auto-generate Post-Award documents on award.
+    if next_status == "awarded":
+        try:
+            from routers.awards import generate_award_documents
+            await generate_award_documents(bid_id, admin.get("email"))
+        except Exception as e:
+            import logging
+            logging.warning(f"Award document auto-generation failed for bid {bid_id}: {e}")
     return {"ok": True, "status": next_status}
 
 

@@ -210,11 +210,51 @@ ROWS: List[Tuple[str, str, str, str, str]] = [
      "PWA + Capacitor mobile wrapper, unified `/m` login, mobile hamburger menu",
      "Waves 13, 22"),
 
-    # --- Planned ---
-    (STATUS_PLANNED, "Evaluation",
-     "Technical vs commercial evaluators segregated",
-     "Currently rubric-scored, but a firewall role split (`tech_evaluator` cannot see commercial score until joint meeting) is not enforced",
+    # --- Wave 39 (2026-08-06) — Sailesh top-management feedback ---
+    (STATUS_DONE, "Procurement",
+     "Formal corrigendum / amendment publisher for published notices",
+     "New `/api/v1/notices/{ref}/corrigenda` router — auto-numbered, deadline auto-update on parent notice, public banner on Notice Detail, admin CorrigendaPanel with withdraw",
+     "Wave 39"),
+    (STATUS_DONE, "Bidding",
+     "Two-cover / split-envelope submission — technical clearance before commercial visibility",
+     "New `/bids/{id}/technical-clear` + `/financial-open`; `_redact_commercial()` strips price and commercial docs for tech-only viewers or before financial open",
+     "Wave 39"),
+    (STATUS_DONE, "Post-Award",
+     "Auto-generated Purchase Order, SLA, and Contract on bid award",
+     "New `/api/v1/awards/*` router — 3 WeasyPrint PDFs (PO/SLA/Contract) drafted on award, stored in `award_documents`, downloadable by admin + awarded vendor, admin AwardsPanel with regenerate",
+     "Wave 39 · PMC-PO-YYYY-##### numbering"),
+    (STATUS_DONE, "Evaluation",
+     "Technical vs commercial evaluators segregated (role firewall)",
+     "`tech_evaluator` role sees redacted bids (price + commercial notes + commercial documents stripped); commercial envelope gated by explicit `financial-open` after `technical-clear`",
+     "Wave 39 · supersedes earlier planned row"),
+
+    # --- Planned (Sailesh top-management review) ---
+    (STATUS_PLANNED, "Bidding",
+     "Live Reverse Auction room with masked identities, auto-bid, price floor",
+     "Auction model + endpoints scaffolded (`auction_type = reverse|forward|live|sealed`); missing real-time WebSocket bidding UI, auto-bid engine, masked leaderboard, price-floor validator",
      "Roadmap · P1"),
+    (STATUS_PLANNED, "Procurement",
+     "L1 (lowest-price) auto-comparison for mid-value tenders",
+     "Rule-based engine that fires when ≥ N vendors submit against a mid-value tender and auto-shortlists lowest-price compliant bid",
+     "Roadmap · P2"),
+    (STATUS_PLANNED, "Procurement",
+     "Direct-Purchase value-threshold gate",
+     "Config flag on notice/product so low-value catalog items skip full tender workflow and issue a direct PO",
+     "Roadmap · P2"),
+    (STATUS_PLANNED, "Taxonomy",
+     "UNSPSC / standardised product & service classification",
+     "Import UNSPSC v25 seed into `taxonomy_nodes`, add `unspsc_code` to products / BOQ items / registration scopes, expose a picker widget",
+     "Roadmap · P1"),
+    (STATUS_PLANNED, "Legal",
+     "PKI / DSC (Digital Signature Certificate) integration for bid + contract signing",
+     "Research done — shortlist: DocuSign eSignature Advanced (UK/EU global), Signicat (UK/EU eIDAS), eMudhra emSigner (India + global) or Adobe Sign Cloud Signatures. Needs paid vendor account + PKCS#11 handler on frontend",
+     "Roadmap · P1 · Legal non-repudiation"),
+    (STATUS_PLANNED, "Procurement",
+     "Scheduled Pre-Bid Meeting rooms (video + invitees)",
+     "Q&A thread already live (Wave 31); missing formal meeting scheduler with Google Meet / MS Teams link, RSVP list, minutes upload",
+     "Roadmap · P2"),
+
+    # --- Planned (infra) ---
     (STATUS_PLANNED, "Notifications",
      "Live push notifications on mobile",
      "Firebase/APNs plumbing scaffolded; waiting for `google-services.json` + APNs auth key",
@@ -429,8 +469,8 @@ def _build_flowchart_svg() -> str:
     Revenue lane (Product Catalog · Client & Supplier services · Stripe) and
     the Escrow magic-link portal. Hand-laid SVG so it stays legible in slides."""
     return """<?xml version='1.0' encoding='UTF-8'?>
-<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1720 1360'
-     width='1720' height='1360' preserveAspectRatio='xMidYMid meet'
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1720 1580'
+     width='1720' height='1580' preserveAspectRatio='xMidYMid meet'
      font-family='Calibri, Arial, sans-serif' font-size='14'>
   <defs>
     <marker id='arrow' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='strokeWidth'
@@ -460,8 +500,8 @@ def _build_flowchart_svg() -> str:
   </defs>
 
   <!-- Header -->
-  <text x='40' y='38' class='title' font-size='22'>PMC Managers v2 — End-to-end platform flow (rev. 2026-08-05 · Wave 38)</text>
-  <text x='40' y='60' class='sub'>Six operating lanes · Revenue lane now includes the live Quote → Invoice pipeline · Escrow lane retains dual-officer magic-link</text>
+  <text x='40' y='38' class='title' font-size='22'>PMC Managers v2 — End-to-end platform flow (rev. 2026-08-06 · Wave 39)</text>
+  <text x='40' y='60' class='sub'>Seven operating lanes · Wave 39 adds Corrigenda publisher · Two-Cover envelope enforcement · Auto Purchase Order + SLA + Contract on award</text>
 
   <!-- Legend -->
   <g class='legend' transform='translate(40, 76)'>
@@ -749,6 +789,57 @@ def _build_flowchart_svg() -> str:
     <text x='115' y='50' text-anchor='middle' class='sub'>CNAME subdomains</text>
     <text x='115' y='66' text-anchor='middle' class='sub'>Capacitor · MFA · i18n</text>
   </g>
+
+  <!-- ============ Lane 7: Wave 39 additions ============ -->
+  <g transform='translate(80,1380)'>
+    <rect class='box' width='300' height='140' rx='6'/>
+    <text x='150' y='30' text-anchor='middle' class='title'>Corrigendum publisher</text>
+    <text x='150' y='52' text-anchor='middle' class='sub'>Auto-numbered per notice</text>
+    <text x='150' y='70' text-anchor='middle' class='sub'>New deadline updates parent</text>
+    <text x='150' y='88' text-anchor='middle' class='sub'>Amber banner on public page</text>
+    <text x='150' y='106' text-anchor='middle' class='sub'>Withdraw = soft-delete</text>
+    <text x='150' y='124' text-anchor='middle' class='sub' fill='#0b1f3a' font-weight='700'>/api/v1/notices/{ref}/corrigenda</text>
+  </g>
+  <g transform='translate(420,1380)'>
+    <rect class='box-ok' width='300' height='140' rx='6'/>
+    <text x='150' y='30' text-anchor='middle' class='title'>Two-cover envelope</text>
+    <text x='150' y='52' text-anchor='middle' class='sub'>1) technical-clear</text>
+    <text x='150' y='70' text-anchor='middle' class='sub'>2) financial-open (gated)</text>
+    <text x='150' y='88' text-anchor='middle' class='sub'>tech_evaluator role → price</text>
+    <text x='150' y='106' text-anchor='middle' class='sub'>and commercial docs redacted</text>
+    <text x='150' y='124' text-anchor='middle' class='sub' fill='#0b1f3a' font-weight='700'>/bids/{id}/technical-clear</text>
+  </g>
+  <g transform='translate(760,1380)'>
+    <rect class='box-hi' width='300' height='140' rx='6'/>
+    <text x='150' y='30' text-anchor='middle' class='title'>Auto PO · SLA · Contract</text>
+    <text x='150' y='52' text-anchor='middle' class='sub'>Fires on `bid.awarded`</text>
+    <text x='150' y='70' text-anchor='middle' class='sub'>3 WeasyPrint PDFs stored</text>
+    <text x='150' y='88' text-anchor='middle' class='sub'>PMC-PO-YYYY-##### numbering</text>
+    <text x='150' y='106' text-anchor='middle' class='sub'>Vendor + admin downloads</text>
+    <text x='150' y='124' text-anchor='middle' class='sub' font-weight='700'>/api/v1/awards/bid/{id}</text>
+  </g>
+  <g transform='translate(1100,1380)'>
+    <rect class='box' width='280' height='140' rx='6'/>
+    <text x='140' y='30' text-anchor='middle' class='title'>Vendor download portal</text>
+    <text x='140' y='52' text-anchor='middle' class='sub'>Awarded bidder retrieves</text>
+    <text x='140' y='70' text-anchor='middle' class='sub'>PO / SLA / Contract PDFs</text>
+    <text x='140' y='88' text-anchor='middle' class='sub'>via vendor dashboard</text>
+    <text x='140' y='106' text-anchor='middle' class='sub'>Admin regen button covers</text>
+    <text x='140' y='124' text-anchor='middle' class='sub'>any render failure</text>
+  </g>
+  <g transform='translate(1420,1380)'>
+    <rect class='box-ai' width='240' height='140' rx='6'/>
+    <text x='120' y='30' text-anchor='middle' class='title'>Planned · P1</text>
+    <text x='120' y='52' text-anchor='middle' class='sub'>DSC / PKI signature</text>
+    <text x='120' y='70' text-anchor='middle' class='sub'>DocuSign · Signicat · eMudhra</text>
+    <text x='120' y='88' text-anchor='middle' class='sub'>UNSPSC taxonomy</text>
+    <text x='120' y='106' text-anchor='middle' class='sub'>Reverse Auction live room</text>
+    <text x='120' y='124' text-anchor='middle' class='sub'>L1 auto-comparison engine</text>
+  </g>
+  <path class='flow' d='M380 1450 L420 1450' marker-end='url(#arrow)'/>
+  <path class='flow' d='M720 1450 L760 1450' marker-end='url(#arrow)'/>
+  <path class='flow' d='M1060 1450 L1100 1450' marker-end='url(#arrow)'/>
+  <path class='flow-alt' d='M1380 1450 L1420 1450' marker-end='url(#arrow)'/>
 </svg>"""
 
 
@@ -843,11 +934,11 @@ SNAPSHOT_DIR = _Path(_os.environ.get("REPORTS_SNAPSHOT_DIR", "/app/docs/reports"
 
 def _flowchart_pdf_bytes() -> bytes:
     from weasyprint import HTML
-    # Custom page size matched to SVG aspect ratio (1720:1360) so the chart
+    # Custom page size matched to SVG aspect ratio (1720:1580) so the chart
     # never gets clipped regardless of PDF viewer defaults.
     html = f"""<!doctype html><html><head><meta charset='utf-8'>
 <style>
-  @page {{ size: 380mm 300mm; margin: 5mm; }}
+  @page {{ size: 380mm 348mm; margin: 5mm; }}
   html, body {{ margin: 0; padding: 0; }}
   body {{ width: 100%; height: 100%; }}
   svg {{ display: block; width: 100%; height: auto; }}

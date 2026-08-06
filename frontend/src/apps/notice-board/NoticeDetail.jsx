@@ -86,6 +86,36 @@ export default function NoticeDetail() {
                 <p className="whitespace-pre-wrap text-brand-navy/85 text-[15px] leading-7 mt-2">{notice.description}</p>
               </div>
 
+              {(notice.corrigenda?.length || 0) > 0 && (
+                <div className="mt-6 border-2 border-amber-500 bg-amber-50 p-5"
+                     data-testid="notice-corrigenda-banner">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="text-amber-900 font-semibold uppercase tracking-widest text-xs">
+                      ⚠ {notice.corrigenda.length} corrigend{notice.corrigenda.length === 1 ? "um" : "a"} · read before bidding
+                    </div>
+                  </div>
+                  <ol className="mt-3 space-y-3">
+                    {notice.corrigenda.map((c) => (
+                      <li key={c.id} className="text-sm text-amber-950"
+                          data-testid={`corr-pub-${c.corrigendum_no}`}>
+                        <div className="font-semibold">
+                          Corrigendum No. {c.corrigendum_no} · {c.title}
+                        </div>
+                        <div className="text-amber-900/90 whitespace-pre-line mt-1">{c.summary}</div>
+                        {c.new_submission_deadline && (
+                          <div className="text-xs text-amber-800 mt-1">
+                            New deadline: {c.new_submission_deadline?.slice(0, 16).replace("T", " ")}
+                          </div>
+                        )}
+                        <div className="text-[10px] text-amber-800/70 font-mono mt-1">
+                          Published {c.published_at?.slice(0, 10)}
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
+
               {notice.primary_document && (
                 <div className="mt-8" data-testid="notice-primary-document">
                   <div className="pmc-label">Tender / RFP / RFQ document</div>
