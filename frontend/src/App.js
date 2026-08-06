@@ -46,6 +46,9 @@ import BillingResult from "@/apps/shared/BillingResult";
 import EscrowOfficerSign from "@/apps/shared/EscrowOfficerSign";
 import PublicRoadmap from "@/apps/shared/PublicRoadmap";
 
+// Wave 40 — Reverse-auction live room
+import AuctionRoom from "@/apps/vendor-portal/AuctionRoom";
+
 export default function App() {
   return (
     <div className="App">
@@ -103,6 +106,8 @@ export default function App() {
 
             {/* Live public roadmap */}
             <Route path="/roadmap" element={<PublicRoadmap />} />
+
+            <Route path="/vendor/auction/:aid" element={<AuctionRoom />} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

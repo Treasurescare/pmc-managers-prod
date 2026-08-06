@@ -25,6 +25,7 @@ import ProductCatalogPanel from "./ProductCatalogPanel";
 import EngagementsPanel from "./EngagementsPanel";
 import CorrigendaPanel from "./CorrigendaPanel";
 import AwardsPanel from "./AwardsPanel";
+import LiveAuctionsPanel from "./LiveAuctionsPanel";
 import useTenantSkin from "@/apps/shared/useTenantSkin";
 
 function TabBar({ tab, setTab }) {
@@ -39,6 +40,7 @@ function TabBar({ tab, setTab }) {
     ["escrow", "Escrow (EMD)"],
     ["evaluation", "Evaluation"],
     ["awards", "Awards & POs"],
+    ["auctions", "Reverse Auctions"],
     ["boq", "BOQ & Contracts"],
     ["vintel", "Vendor Intel"],
     ["masters", "Masters"],
@@ -135,6 +137,7 @@ export default function AdminDashboard() {
           {tab === "escrow" && <EscrowPanel />}
           {tab === "evaluation" && <EvaluationPanel />}
           {tab === "awards" && <AwardsPanel />}
+          {tab === "auctions" && <LiveAuctionsPanel />}
           {tab === "boq" && <BOQContractsPanel />}
           {tab === "vintel" && <VendorIntelPanel />}
           {tab === "masters" && <MastersPanel />}

@@ -17,7 +17,7 @@ from routers import (
     evaluations, boqs, vendor_intel, analytics, governance, notifications, payments_sandbox,
     mfa, tenants, kyc, vendor_invites, permissions, admin_heal, vendor_full_invite,
     tender_templates, notice_qa, bids_ai_compare, escrow, reports, products, billing,
-    engagements, corrigenda, awards,
+    engagements, corrigenda, awards, auction_live, taxonomy,
 )
 
 
@@ -80,6 +80,9 @@ app.include_router(engagements.router)
 # Wave 39 — Corrigenda + Post-Award auto-doc generator + Two-Cover enforcement
 app.include_router(corrigenda.router)
 app.include_router(awards.router)
+# Wave 40 — Reverse Auction Live Room + UNSPSC-lite taxonomy
+app.include_router(auction_live.router)
+app.include_router(taxonomy.router)
 
 
 # ---------- CORS ----------
@@ -226,6 +229,7 @@ async def on_start() -> None:
     await _seed_demo_notices()
     await _seed_packages()
     await _seed_product_catalog()
+    await _seed_taxonomy()
     from routers.tender_templates import seed_master_templates
     seeded = await seed_master_templates()
     if seeded:
@@ -257,6 +261,21 @@ async def _seed_product_catalog() -> None:
     )
     if inserted or fixed.modified_count:
         logging.info(f"Product catalog: seeded {inserted} new, backfilled is_active on {fixed.modified_count}")
+
+
+async def _seed_taxonomy() -> None:
+    """Wave 40 — Seed the UNSPSC-lite taxonomy on startup (idempotent)."""
+    from unspsc_seed import UNSPSC_NODES
+    inserted = 0
+    for row in UNSPSC_NODES:
+        if await db.taxonomy_nodes.find_one({"code": row["code"]}):
+            continue
+        doc = dict(row)
+        doc["created_at"] = datetime.now(timezone.utc).isoformat()
+        await db.taxonomy_nodes.insert_one(doc)
+        inserted += 1
+    if inserted:
+        logging.info(f"Taxonomy: seeded {inserted} UNSPSC-lite nodes")
 
 
 async def _refresh_reports_snapshot() -> None:

@@ -416,4 +416,25 @@ export const awardsApi = {
   regenerate: (bid_id) => api.post(`/api/v1/awards/bid/${bid_id}/regenerate`).then((r) => r.data),
 };
 
+// ---------- Wave 40: Reverse-auction live room ----------
+export const reverseAuctionApi = {
+  create: (p) => api.post("/api/v1/reverse-auctions", p).then((r) => r.data),
+  list: () => api.get("/api/v1/reverse-auctions").then((r) => r.data),
+  get: (aid) => api.get(`/api/v1/reverse-auctions/${aid}`).then((r) => r.data),
+  start: (aid) => api.post(`/api/v1/reverse-auctions/${aid}/start`).then((r) => r.data),
+  close: (aid) => api.post(`/api/v1/reverse-auctions/${aid}/close`).then((r) => r.data),
+  register: (aid) => api.post(`/api/v1/reverse-auctions/${aid}/register`).then((r) => r.data),
+  bid: (aid, price) => api.post(`/api/v1/reverse-auctions/${aid}/bid`, { price }).then((r) => r.data),
+  autobid: (aid, body) => api.post(`/api/v1/reverse-auctions/${aid}/autobid`, body).then((r) => r.data),
+  state: (aid) => api.get(`/api/v1/reverse-auctions/${aid}/state`).then((r) => r.data),
+  stateMine: (aid) => api.get(`/api/v1/reverse-auctions/${aid}/state-mine`).then((r) => r.data),
+};
+
+// ---------- Wave 40: UNSPSC taxonomy ----------
+export const taxonomyApi = {
+  tree: () => api.get("/api/v1/taxonomy/tree").then((r) => r.data),
+  search: (q) => api.get("/api/v1/taxonomy/search", { params: { q } }).then((r) => r.data),
+  lookup: (code) => api.get(`/api/v1/taxonomy/lookup/${code}`).then((r) => r.data),
+};
+
 export default api;

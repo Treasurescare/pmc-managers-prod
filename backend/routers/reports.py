@@ -210,6 +210,16 @@ ROWS: List[Tuple[str, str, str, str, str]] = [
      "PWA + Capacitor mobile wrapper, unified `/m` login, mobile hamburger menu",
      "Waves 13, 22"),
 
+    # --- Wave 40 (2026-08-06) — Sailesh crown-jewel + taxonomy ---
+    (STATUS_DONE, "Bidding",
+     "Live Reverse Auction room with masked identities, auto-bid, price floor, anti-snipe",
+     "New `/api/v1/reverse-auctions/*` router · masked `Bidder A/B/C…` aliases · min-decrement + hard floor enforced · anti-snipe extends close time on last-second bids · auto-bid cascade lets pre-armed bidders undercut competitors automatically. Admin LiveAuctionsPanel + public `/vendor/auction/:aid` room with 2s polling",
+     "Wave 40"),
+    (STATUS_DONE, "Taxonomy",
+     "UNSPSC / standardised product & service classification",
+     "New `/api/v1/taxonomy/*` router + curated UNSPSC-lite seed (87 nodes across 23 segments: Construction, Medical, IT/Telecom, Professional Services, Utilities, Facilities, Education). Search + tree + lookup-chain endpoints. Idempotent startup seed",
+     "Wave 40 · products/BOQ can now be tagged"),
+
     # --- Wave 39 (2026-08-06) — Sailesh top-management feedback ---
     (STATUS_DONE, "Procurement",
      "Formal corrigendum / amendment publisher for published notices",
@@ -230,10 +240,6 @@ ROWS: List[Tuple[str, str, str, str, str]] = [
 
     # --- Planned (Sailesh top-management review) ---
     (STATUS_PLANNED, "Bidding",
-     "Live Reverse Auction room with masked identities, auto-bid, price floor",
-     "Auction model + endpoints scaffolded (`auction_type = reverse|forward|live|sealed`); missing real-time WebSocket bidding UI, auto-bid engine, masked leaderboard, price-floor validator",
-     "Roadmap · P1"),
-    (STATUS_PLANNED, "Procurement",
      "L1 (lowest-price) auto-comparison for mid-value tenders",
      "Rule-based engine that fires when ≥ N vendors submit against a mid-value tender and auto-shortlists lowest-price compliant bid",
      "Roadmap · P2"),
@@ -242,9 +248,9 @@ ROWS: List[Tuple[str, str, str, str, str]] = [
      "Config flag on notice/product so low-value catalog items skip full tender workflow and issue a direct PO",
      "Roadmap · P2"),
     (STATUS_PLANNED, "Taxonomy",
-     "UNSPSC / standardised product & service classification",
-     "Import UNSPSC v25 seed into `taxonomy_nodes`, add `unspsc_code` to products / BOQ items / registration scopes, expose a picker widget",
-     "Roadmap · P1"),
+     "UNSPSC picker widget in Product Catalog + BOQ Builder + registration scopes",
+     "Backend + seed shipped in Wave 40; frontend picker widgets still to be attached to product/BOQ/registration edit forms",
+     "Roadmap · P2"),
     (STATUS_PLANNED, "Legal",
      "PKI / DSC (Digital Signature Certificate) integration for bid + contract signing",
      "Research done — shortlist: DocuSign eSignature Advanced (UK/EU global), Signicat (UK/EU eIDAS), eMudhra emSigner (India + global) or Adobe Sign Cloud Signatures. Needs paid vendor account + PKCS#11 handler on frontend",
@@ -829,12 +835,12 @@ def _build_flowchart_svg() -> str:
   </g>
   <g transform='translate(1420,1380)'>
     <rect class='box-ai' width='240' height='140' rx='6'/>
-    <text x='120' y='30' text-anchor='middle' class='title'>Planned · P1</text>
-    <text x='120' y='52' text-anchor='middle' class='sub'>DSC / PKI signature</text>
-    <text x='120' y='70' text-anchor='middle' class='sub'>DocuSign · Signicat · eMudhra</text>
-    <text x='120' y='88' text-anchor='middle' class='sub'>UNSPSC taxonomy</text>
-    <text x='120' y='106' text-anchor='middle' class='sub'>Reverse Auction live room</text>
-    <text x='120' y='124' text-anchor='middle' class='sub'>L1 auto-comparison engine</text>
+    <text x='120' y='30' text-anchor='middle' class='title'>Wave 40 shipped</text>
+    <text x='120' y='52' text-anchor='middle' class='sub'>Reverse Auction live room ✓</text>
+    <text x='120' y='70' text-anchor='middle' class='sub'>UNSPSC-lite taxonomy ✓</text>
+    <text x='120' y='88' text-anchor='middle' class='sub'>Planned next:</text>
+    <text x='120' y='106' text-anchor='middle' class='sub'>DSC / PKI signature (P1)</text>
+    <text x='120' y='124' text-anchor='middle' class='sub'>L1 auto-comparison (P2)</text>
   </g>
   <path class='flow' d='M380 1450 L420 1450' marker-end='url(#arrow)'/>
   <path class='flow' d='M720 1450 L760 1450' marker-end='url(#arrow)'/>
