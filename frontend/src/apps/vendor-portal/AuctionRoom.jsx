@@ -190,7 +190,7 @@ export default function AuctionRoom() {
           </div>
           {state.bids.length === 0 && <div className="p-6 text-brand-navy/40 text-sm">No bids yet.</div>}
           {state.bids.map((b, i) => (
-            <div key={i} className="p-3 border-b border-brand-navy/5 flex items-baseline gap-4"
+            <div key={`${b.at}-${b.alias}-${b.price}`} className="p-3 border-b border-brand-navy/5 flex items-baseline gap-4"
                  data-testid={`ra-bid-row-${i}`}>
               <span className="font-mono text-xs text-brand-navy/50 w-32">{b.at?.slice(11, 19)}</span>
               <span className="text-sm font-semibold w-24">{b.alias}</span>
