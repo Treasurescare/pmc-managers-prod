@@ -210,6 +210,32 @@ ROWS: List[Tuple[str, str, str, str, str]] = [
      "PWA + Capacitor mobile wrapper, unified `/m` login, mobile hamburger menu",
      "Waves 13, 22"),
 
+    # --- Wave 43 (2026-08-07) — DocuSign eSignature (JWT Grant) ---
+    (STATUS_DONE, "Legal",
+     "PKI / DSC (Digital Signature Certificate) integration for bid + contract signing",
+     "DocuSign eSignature via JWT Grant (sandbox). New `/api/v1/docusign/*` router — envelope creation from Award PDFs (PO/SLA/Contract) + Bid acknowledgements, embedded signing view, Connect webhook for status. Admin DocuSignPanel with consent flow + envelope log. Trilingual (EN/RU/KK)",
+     "Wave 43 · consent granted, sandbox live"),
+
+    # --- Wave 42 (2026-08-07) — Usability + Trilingual sweep ---
+    (STATUS_DONE, "i18n",
+     "Trilingual coverage across every admin panel (not just public + login)",
+     "Added `panels` namespace to `i18n-strings.js` — ~450 EN/RU/KK strings covering headings, buttons, filter chips, table headers, empty states and toasts for 15 admin panels (Analytics, Audit, Awards, BOQ, Bidding, Corrigenda, Engagements, Evaluation, LiveAuctions, MFA, Masters, Permissions, Reports, TenderBuilder, VendorIntel). 21 of 22 admin panels now use `useI18n`",
+     "Wave 42a"),
+    (STATUS_DONE, "UX / Mobile",
+     "Mobile-first responsive layout across top pages",
+     "Home@375px now renders at exact viewport (was 421 overflow) via responsive stat cards + `overflow-x-hidden`. AdminDashboard's 22-tab bar collapses into a mobile `<select>` on md-, header buttons stack + adaptive text sizes. Every admin function reachable at 375/768 viewport with zero horizontal scroll",
+     "Wave 42b"),
+
+    # --- Wave 41 (2026-08-06) — Meeting Scheduler + L1 Auto-Comparison + Zoom ---
+    (STATUS_DONE, "Procurement",
+     "Scheduled Pre-Bid Meeting rooms (video + invitees + minutes)",
+     "New `/api/v1/meetings` router with dual provider (Jitsi iframe by default, Zoom via S2S OAuth for enterprise). Admin MeetingsPanel + shared MeetingRoom.jsx. RSVP-style invitee list, minutes upload, cancel flow",
+     "Wave 41a + 41b"),
+    (STATUS_DONE, "Bidding",
+     "L1 (lowest-price) auto-comparison for mid-value tenders",
+     "New `/api/v1/comparison/l1/{notice_ref}` — automatic ranking of commercial bids per notice with tie-break rules, exposed on admin L1ComparisonPanel",
+     "Wave 41a"),
+
     # --- Wave 40 (2026-08-06) — Sailesh crown-jewel + taxonomy ---
     (STATUS_DONE, "Bidding",
      "Live Reverse Auction room with masked identities, auto-bid, price floor, anti-snipe",
@@ -239,10 +265,6 @@ ROWS: List[Tuple[str, str, str, str, str]] = [
      "Wave 39 · supersedes earlier planned row"),
 
     # --- Planned (Sailesh top-management review) ---
-    (STATUS_PLANNED, "Bidding",
-     "L1 (lowest-price) auto-comparison for mid-value tenders",
-     "Rule-based engine that fires when ≥ N vendors submit against a mid-value tender and auto-shortlists lowest-price compliant bid",
-     "Roadmap · P2"),
     (STATUS_PLANNED, "Procurement",
      "Direct-Purchase value-threshold gate",
      "Config flag on notice/product so low-value catalog items skip full tender workflow and issue a direct PO",
@@ -250,14 +272,6 @@ ROWS: List[Tuple[str, str, str, str, str]] = [
     (STATUS_PLANNED, "Taxonomy",
      "UNSPSC picker widget in Product Catalog + BOQ Builder + registration scopes",
      "Backend + seed shipped in Wave 40; frontend picker widgets still to be attached to product/BOQ/registration edit forms",
-     "Roadmap · P2"),
-    (STATUS_PLANNED, "Legal",
-     "PKI / DSC (Digital Signature Certificate) integration for bid + contract signing",
-     "Research done — shortlist: DocuSign eSignature Advanced (UK/EU global), Signicat (UK/EU eIDAS), eMudhra emSigner (India + global) or Adobe Sign Cloud Signatures. Needs paid vendor account + PKCS#11 handler on frontend",
-     "Roadmap · P1 · Legal non-repudiation"),
-    (STATUS_PLANNED, "Procurement",
-     "Scheduled Pre-Bid Meeting rooms (video + invitees)",
-     "Q&A thread already live (Wave 31); missing formal meeting scheduler with Google Meet / MS Teams link, RSVP list, minutes upload",
      "Roadmap · P2"),
 
     # --- Planned (infra) ---
@@ -835,12 +849,12 @@ def _build_flowchart_svg() -> str:
   </g>
   <g transform='translate(1420,1380)'>
     <rect class='box-ai' width='240' height='140' rx='6'/>
-    <text x='120' y='30' text-anchor='middle' class='title'>Wave 40 shipped</text>
-    <text x='120' y='52' text-anchor='middle' class='sub'>Reverse Auction live room ✓</text>
-    <text x='120' y='70' text-anchor='middle' class='sub'>UNSPSC-lite taxonomy ✓</text>
-    <text x='120' y='88' text-anchor='middle' class='sub'>Planned next:</text>
-    <text x='120' y='106' text-anchor='middle' class='sub'>DSC / PKI signature (P1)</text>
-    <text x='120' y='124' text-anchor='middle' class='sub'>L1 auto-comparison (P2)</text>
+    <text x='120' y='30' text-anchor='middle' class='title'>Wave 43 shipped</text>
+    <text x='120' y='52' text-anchor='middle' class='sub'>DocuSign eSignature ✓</text>
+    <text x='120' y='70' text-anchor='middle' class='sub'>Meetings (Jitsi + Zoom) ✓</text>
+    <text x='120' y='88' text-anchor='middle' class='sub'>L1 comparison · Auctions ✓</text>
+    <text x='120' y='106' text-anchor='middle' class='sub'>Trilingual · Mobile UI ✓</text>
+    <text x='120' y='124' text-anchor='middle' class='sub'>UNSPSC picker (P2)</text>
   </g>
   <path class='flow' d='M380 1450 L420 1450' marker-end='url(#arrow)'/>
   <path class='flow' d='M720 1450 L760 1450' marker-end='url(#arrow)'/>

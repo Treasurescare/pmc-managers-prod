@@ -359,12 +359,12 @@
   </g>
   <g transform='translate(1420,1380)'>
     <rect class='box-ai' width='240' height='140' rx='6'/>
-    <text x='120' y='30' text-anchor='middle' class='title'>Wave 40 shipped</text>
-    <text x='120' y='52' text-anchor='middle' class='sub'>Reverse Auction live room ✓</text>
-    <text x='120' y='70' text-anchor='middle' class='sub'>UNSPSC-lite taxonomy ✓</text>
-    <text x='120' y='88' text-anchor='middle' class='sub'>Planned next:</text>
-    <text x='120' y='106' text-anchor='middle' class='sub'>DSC / PKI signature (P1)</text>
-    <text x='120' y='124' text-anchor='middle' class='sub'>L1 auto-comparison (P2)</text>
+    <text x='120' y='30' text-anchor='middle' class='title'>Wave 43 shipped</text>
+    <text x='120' y='52' text-anchor='middle' class='sub'>DocuSign eSignature ✓</text>
+    <text x='120' y='70' text-anchor='middle' class='sub'>Meetings (Jitsi + Zoom) ✓</text>
+    <text x='120' y='88' text-anchor='middle' class='sub'>L1 comparison · Auctions ✓</text>
+    <text x='120' y='106' text-anchor='middle' class='sub'>Trilingual · Mobile UI ✓</text>
+    <text x='120' y='124' text-anchor='middle' class='sub'>UNSPSC picker (P2)</text>
   </g>
   <path class='flow' d='M380 1450 L420 1450' marker-end='url(#arrow)'/>
   <path class='flow' d='M720 1450 L760 1450' marker-end='url(#arrow)'/>
