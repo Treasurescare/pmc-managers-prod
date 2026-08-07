@@ -10,8 +10,8 @@ export default function MeetingsPanel() {
   const [showInvitees, setShowInvitees] = useState(null); // meeting.id
   const [draft, setDraft] = useState({
     subject: "", agenda: "", notice_ref: "",
-    scheduled_at: "", duration_min: 45,
-    invitees_text: "",   // one email per line, "email, name, role"
+    scheduled_at: "", duration_min: 45, provider: "jitsi",
+    invitees_text: "",
   });
 
   const load = useCallback(() => {
@@ -49,14 +49,15 @@ export default function MeetingsPanel() {
         notice_ref: draft.notice_ref || undefined,
         scheduled_at: new Date(draft.scheduled_at).toISOString(),
         duration_min: parseInt(draft.duration_min, 10),
+        provider: draft.provider,
         invitees,
       };
       const res = await meetingsApi.create(payload);
-      toast.success(`Meeting scheduled · ${invitees.length} invitees`);
+      toast.success(`${draft.provider === "zoom" ? "Zoom" : "Jitsi"} meeting scheduled · ${invitees.length} invitees`);
       setShowInvitees(res.id);
       setShowNew(false);
       setDraft({ subject: "", agenda: "", notice_ref: "",
-                 scheduled_at: "", duration_min: 45, invitees_text: "" });
+                 scheduled_at: "", duration_min: 45, provider: "jitsi", invitees_text: "" });
       load();
     } catch (e) { toast.error(formatApiError(e)); }
   };
@@ -120,6 +121,20 @@ export default function MeetingsPanel() {
             <input type="number" value={draft.duration_min}
                    onChange={(e) => setDraft({ ...draft, duration_min: e.target.value })}
                    className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
+          <label className="col-span-2"><span className="pmc-label">Video provider</span>
+            <div className="mt-1 grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => setDraft({ ...draft, provider: "jitsi" })}
+                      data-testid="mtg-provider-jitsi"
+                      className={`px-4 py-3 border ${draft.provider === "jitsi" ? "bg-brand-navy text-white border-brand-navy" : "border-brand-navy/20 text-brand-navy"}`}>
+                Jitsi Meet · free · unlimited · local recording
+              </button>
+              <button type="button" onClick={() => setDraft({ ...draft, provider: "zoom" })}
+                      data-testid="mtg-provider-zoom"
+                      className={`px-4 py-3 border ${draft.provider === "zoom" ? "bg-brand-navy text-white border-brand-navy" : "border-brand-navy/20 text-brand-navy"}`}>
+                Zoom · your Basic account · 40-min cap on 3+ ppl
+              </button>
+            </div>
+          </label>
           <label className="col-span-2"><span className="pmc-label">
             Invitees — one per line, format: <span className="font-mono">email, name (optional), role (bidder/staff/observer/attendee)</span>
           </span>
@@ -143,6 +158,9 @@ export default function MeetingsPanel() {
           <div key={m.id} className="p-4 border-b border-brand-navy/10" data-testid={`mtg-row-${m.id}`}>
             <div className="flex items-baseline gap-4 flex-wrap">
               <span className={`text-[10px] uppercase tracking-widest px-2 py-1 border ${badge(m.status)}`}>{m.status}</span>
+              <span className={`text-[10px] uppercase tracking-widest px-2 py-1 border ${m.provider === "zoom" ? "border-sky-400 text-sky-700 bg-sky-50" : "border-emerald-400 text-emerald-700 bg-emerald-50"}`}>
+                {m.provider || "jitsi"}
+              </span>
               <span className="text-sm font-semibold text-brand-navy flex-1">{m.subject}</span>
               {m.notice_ref && <span className="font-mono text-xs text-brand-navy-soft">{m.notice_ref}</span>}
               <span className="text-xs text-brand-navy/60 font-mono">{m.scheduled_at?.slice(0, 16).replace("T", " ")} · {m.duration_min}min</span>

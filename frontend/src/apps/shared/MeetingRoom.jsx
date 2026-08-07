@@ -122,7 +122,7 @@ export default function MeetingRoom() {
     <div className="min-h-screen bg-brand-navy text-white flex flex-col" data-testid="meeting-room">
       <header className="px-6 py-4 border-b border-white/10 flex items-baseline justify-between flex-wrap gap-3">
         <div>
-          <div className="pmc-label" style={{ color: "rgba(255,255,255,0.5)" }}>PMC · Live meeting</div>
+          <div className="pmc-label" style={{ color: "rgba(255,255,255,0.5)" }}>PMC · Live meeting · {(meta.provider || "jitsi").toUpperCase()}</div>
           <h1 className="font-display text-xl mt-1">{meta.subject}</h1>
           {meta.notice_ref && <span className="text-xs text-white/60 font-mono">{meta.notice_ref}</span>}
         </div>
@@ -132,7 +132,40 @@ export default function MeetingRoom() {
         </div>
       </header>
 
-      {!joined && (
+      {meta.provider === "zoom" && (
+        <div className="flex-1 flex items-center justify-center p-8">
+          <div className="max-w-xl text-center">
+            <div className="pmc-label" style={{ color: "rgba(255,255,255,0.5)" }}>Zoom meeting</div>
+            <h2 className="font-display text-4xl mt-3">Join on Zoom</h2>
+            {meta.agenda && (
+              <div className="mt-6 text-left bg-white/5 border border-white/10 p-5">
+                <div className="pmc-label" style={{ color: "rgba(255,255,255,0.5)" }}>Agenda</div>
+                <div className="mt-2 whitespace-pre-line text-white/85 text-sm">{meta.agenda}</div>
+              </div>
+            )}
+            <div className="mt-6 text-white/60 text-sm">
+              Scheduled: {meta.scheduled_at?.slice(0, 16).replace("T", " ")} UTC · {meta.duration_min} min
+            </div>
+            {meta.status === "cancelled" ? (
+              <div className="mt-8 text-red-300">This meeting was cancelled.</div>
+            ) : (
+              <a href={meta.zoom_join_url} target="_blank" rel="noreferrer"
+                 data-testid="mtg-open-zoom"
+                 className="inline-block mt-8 px-10 py-4 bg-white text-brand-navy uppercase tracking-widest text-sm font-semibold hover:bg-white/90">
+                Open Zoom Meeting ↗
+              </a>
+            )}
+            {meta.zoom_password && (
+              <div className="mt-4 text-white/50 text-xs">Passcode (in case prompted): <span className="font-mono">{meta.zoom_password}</span></div>
+            )}
+            <div className="mt-6 text-white/40 text-[11px]">
+              Zoom will open in a new tab and offer to launch the Zoom app or join in your browser.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {meta.provider !== "zoom" && !joined && (
         <div className="flex-1 flex items-center justify-center p-8">
           <div className="max-w-xl text-center">
             <div className="pmc-label" style={{ color: "rgba(255,255,255,0.5)" }}>Pre-flight</div>
@@ -163,7 +196,7 @@ export default function MeetingRoom() {
       )}
 
       <div ref={containerRef}
-           className={joined ? "flex-1" : "hidden"}
+           className={joined && meta.provider !== "zoom" ? "flex-1" : "hidden"}
            style={{ minHeight: joined ? "70vh" : 0 }}
            data-testid="jitsi-container" />
     </div>
