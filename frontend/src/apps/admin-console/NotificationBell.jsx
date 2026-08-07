@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { notifyApi, formatApiError } from "@/lib/api";
+import { useI18n } from "@/context/I18nContext";
 import { toast } from "sonner";
 
 const stripHtml = (s) => (s || "").replace(/<br\s*\/?>/gi, "\n").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 
 export default function NotificationBell() {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
 
@@ -36,7 +38,7 @@ export default function NotificationBell() {
       <button onClick={() => setOpen(!open)}
         className="relative px-3 py-1.5 border text-xs uppercase tracking-widest"
         data-testid="notif-toggle">
-        Alerts {unread > 0 && <span className="ml-1 inline-flex items-center justify-center bg-red-600 text-white rounded-full h-4 min-w-[16px] px-1 text-[10px]">{unread}</span>}
+        {t("admin.header_alerts")} {unread > 0 && <span className="ml-1 inline-flex items-center justify-center bg-red-600 text-white rounded-full h-4 min-w-[16px] px-1 text-[10px]">{unread}</span>}
       </button>
       {open && (
         <div className="absolute right-0 mt-2 w-96 bg-white border shadow-lg z-50 max-h-[60vh] overflow-auto"

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { bidApi, analyticsApi, formatApiError } from "@/lib/api";
+import { useI18n } from "@/context/I18nContext";
 
 /**
  * AI Audit Copilot — floats in the Admin header. Opens a modal listing
@@ -8,6 +9,7 @@ import { bidApi, analyticsApi, formatApiError } from "@/lib/api";
  * LLM-assisted review of the workflow_history and returns a verdict + flags.
  */
 export default function AuditCopilotButton() {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [bids, setBids] = useState([]);
   const [selected, setSelected] = useState("");
@@ -42,7 +44,7 @@ export default function AuditCopilotButton() {
     <>
       <button type="button" onClick={() => setOpen(true)} data-testid="admin-copilot-open"
         className="px-3 py-1.5 text-[11px] uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5">
-        AI Copilot
+        {t("admin.header_copilot")}
       </button>
 
       {open && (

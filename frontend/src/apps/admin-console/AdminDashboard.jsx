@@ -89,7 +89,7 @@ export default function AdminDashboard() {
       .catch(() => { navigate("/admin/login"); });
   }, [navigate, location.pathname]);
 
-  const logout = async () => { await adminApi.logout(); navigate("/admin/login"); };
+  const logout = async () => { await adminApi.logout(); navigate("/"); };
 
   if (!me) return <div className="min-h-screen bg-brand-pale flex items-center justify-center text-brand-navy/60">{t("common.loading")}</div>;
 
@@ -113,14 +113,14 @@ export default function AdminDashboard() {
             <AuditCopilotButton />
             <button type="button" onClick={() => setMfaOpen(true)} data-testid="admin-mfa-open"
               className="px-3 py-1.5 text-[11px] uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5">
-              Security · 2FA
+              {t("admin.header_security")}
             </button>
             <div className="text-right">
-              <div className="pmc-label">Signed in</div>
+              <div className="pmc-label">{t("admin.header_signed_in")}</div>
               <div className="text-sm text-brand-navy">{me.email}</div>
             </div>
             <button type="button" onClick={logout} data-testid="admin-logout"
-              className="px-4 py-2 text-[11px] font-semibold uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5">Sign out</button>
+              className="px-4 py-2 text-[11px] font-semibold uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5">{t("admin.header_signout")}</button>
           </div>
           <MFASetupModal open={mfaOpen} onClose={() => setMfaOpen(false)} />
         </div>

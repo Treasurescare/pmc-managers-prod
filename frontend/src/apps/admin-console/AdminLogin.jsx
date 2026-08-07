@@ -19,7 +19,7 @@ export default function AdminLogin() {
     setBusy(true);
     try {
       await adminApi.login(email, password);
-      toast.success("Signed in");
+      toast.success(t("admin.toast_signed_in"));
       navigate("/admin");
     } catch (err) {
       toast.error(formatApiError(err));
@@ -34,9 +34,9 @@ export default function AdminLogin() {
       <main className="flex-1 grid lg:grid-cols-[5fr_7fr]">
         <section className="hidden lg:flex flex-col justify-between p-14 border-r border-white/10">
           <div>
-            <div className="pmc-label" style={{ color: "rgba(255,255,255,0.5)" }}>PMC Admin Console</div>
+            <div className="pmc-label" style={{ color: "rgba(255,255,255,0.5)" }}>{t("admin.hero_kicker")}</div>
             <h1 className="font-display text-4xl lg:text-5xl mt-3 leading-tight">
-              Manage registrations, packages and notices for the Kazakhstan programme.
+              {t("admin.hero_title")}
             </h1>
           </div>
           <div className="text-white/50 text-xs">v2 · Pilot Environment · Cognito MFA activates in Phase 2 (AWS).</div>
@@ -44,7 +44,7 @@ export default function AdminLogin() {
 
         <section className="flex items-center justify-center p-8">
           <form onSubmit={submit} className="w-full max-w-md bg-white border border-brand-navy/10 p-10 text-brand-navy" data-testid="admin-login-form">
-            <div className="pmc-label">Access</div>
+            <div className="pmc-label">{t("admin.login_access")}</div>
             <h2 className="font-display text-3xl mt-1">{t("admin.login_title")}</h2>
 
             <label className="block mt-8">

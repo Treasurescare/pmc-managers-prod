@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { adminApi, mastersApi, noticeDocsApi, tenderTemplateApi, formatApiError } from "@/lib/api";
+import { useI18n } from "@/context/I18nContext";
 
 export default function NoticesPanel() {
+  const { t } = useI18n();
   const [items, setItems] = useState([]);
   const [showNew, setShowNew] = useState(false);
   const [matrices, setMatrices] = useState([]);
@@ -56,10 +58,10 @@ export default function NoticesPanel() {
   return (
     <div data-testid="admin-notices-panel">
       <div className="flex items-center justify-between mb-4">
-        <div className="text-sm text-brand-navy/70">Published notices — visible on the public board</div>
+        <div className="text-sm text-brand-navy/70">{t("admin.notices_published_hint")}</div>
         <button type="button" onClick={() => setShowNew(!showNew)} data-testid="notice-new-toggle"
           className="px-5 py-2 text-[11px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep">
-          {showNew ? "Cancel" : "New notice"}
+          {showNew ? t("admin.notices_cancel") : t("admin.notices_new")}
         </button>
       </div>
 
@@ -164,7 +166,7 @@ export default function NoticesPanel() {
       )}
 
       <div className="border border-brand-navy/10 bg-white">
-        {items.length === 0 && <div className="p-6 text-brand-navy/50 text-sm">No published notices yet.</div>}
+        {items.length === 0 && <div className="p-6 text-brand-navy/50 text-sm">{t("admin.notices_empty")}</div>}
         {items.map((n) => (
           <div key={n.id} className="p-4 border-b border-brand-navy/10 flex items-baseline gap-4 flex-wrap" data-testid={`notice-row-${n.notice_ref}`}>
             <span className="font-mono text-xs text-brand-navy-soft">{n.notice_ref}</span>
@@ -192,7 +194,7 @@ export default function NoticesPanel() {
                data-testid={`notice-preview-${n.notice_ref}`}
                title="Open the public notice page in a new tab — exactly what bidders see"
                className="text-xs uppercase tracking-widest px-2 py-1 border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white">
-              Preview as bidder ↗
+              {t("admin.notices_preview_bidder")} ↗
             </a>
             <span className="text-xs text-brand-navy/50 font-mono">{n.submission_deadline?.slice(0, 10)}</span>
           </div>
