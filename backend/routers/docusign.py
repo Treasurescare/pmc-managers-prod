@@ -48,13 +48,25 @@ DS_AUTH_HOST = os.environ.get("DOCUSIGN_AUTH_HOST", "account-d.docusign.com")
 DS_PRIVATE_KEY_PATH = os.environ.get("DOCUSIGN_PRIVATE_KEY_PATH", "/app/backend/keys/docusign_private.key")
 
 
-def _consent_url() -> str:
+def _consent_url(redirect_uri: Optional[str] = None) -> str:
+    """Primary consent URL uses our own frontend as the redirect target so we
+    can drop the user back at the admin console. Callers may override the
+    redirect_uri (e.g. a DocuSign-hosted URI that ships pre-whitelisted on
+    every sandbox app)."""
+    redirect_uri = redirect_uri or f"{config.FRONTEND_URL}/admin"
     return f"https://{DS_AUTH_HOST}/oauth/auth?" + urlencode({
         "response_type": "code",
         "scope": "signature impersonation",
         "client_id": DS_INT_KEY,
-        "redirect_uri": f"{config.FRONTEND_URL}/admin",
+        "redirect_uri": redirect_uri,
     })
+
+
+def _consent_url_fallback() -> str:
+    """Fallback consent URL using a DocuSign-hosted redirect that is
+    pre-whitelisted on every sandbox app by default. Use this when the user
+    hasn't added our frontend URL to their app's redirect URI list."""
+    return _consent_url("https://apps-d.docusign.com/api-integrator-key")
 
 
 def _load_private_key() -> bytes:
@@ -216,13 +228,19 @@ async def status():
         "account_id": DS_ACCOUNT_ID[:8] + "…" if DS_ACCOUNT_ID else None,
         "base_uri": DS_BASE_URI,
         "consent_url": _consent_url() if configured else None,
+        "consent_url_fallback": _consent_url_fallback() if configured else None,
+        "redirect_uri_primary": f"{config.FRONTEND_URL}/admin",
+        "redirect_uri_fallback": "https://apps-d.docusign.com/api-integrator-key",
         "error": err,
     }
 
 
 @router.get("/consent-url")
 async def consent_url_endpoint():
-    return {"url": _consent_url()}
+    return {
+        "url": _consent_url(),
+        "url_fallback": _consent_url_fallback(),
+    }
 
 
 # ---------------- Award envelope ----------------
