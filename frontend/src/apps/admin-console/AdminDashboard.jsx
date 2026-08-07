@@ -28,6 +28,7 @@ import AwardsPanel from "./AwardsPanel";
 import LiveAuctionsPanel from "./LiveAuctionsPanel";
 import MeetingsPanel from "./MeetingsPanel";
 import L1ComparisonPanel from "./L1ComparisonPanel";
+import DocuSignPanel from "./DocuSignPanel";
 import useTenantSkin from "@/apps/shared/useTenantSkin";
 
 function TabBar({ tab, setTab }) {
@@ -43,6 +44,7 @@ function TabBar({ tab, setTab }) {
     ["escrow", t("admin.tab_escrow")],
     ["evaluation", t("admin.tab_evaluation")],
     ["awards", t("admin.tab_awards")],
+    ["docusign", t("admin.tab_docusign")],
     ["auctions", t("admin.tab_auctions")],
     ["meetings", t("admin.tab_meetings")],
     ["l1", t("admin.tab_l1")],
@@ -159,6 +161,7 @@ export default function AdminDashboard() {
           {tab === "escrow" && <EscrowPanel />}
           {tab === "evaluation" && <EvaluationPanel />}
           {tab === "awards" && <AwardsPanel />}
+          {tab === "docusign" && <DocuSignPanel />}
           {tab === "auctions" && <LiveAuctionsPanel />}
           {tab === "meetings" && <MeetingsPanel />}
           {tab === "l1" && <L1ComparisonPanel />}

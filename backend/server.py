@@ -18,6 +18,7 @@ from routers import (
     mfa, tenants, kyc, vendor_invites, permissions, admin_heal, vendor_full_invite,
     tender_templates, notice_qa, bids_ai_compare, escrow, reports, products, billing,
     engagements, corrigenda, awards, auction_live, taxonomy, meetings, comparison,
+    docusign,
 )
 
 
@@ -86,6 +87,8 @@ app.include_router(taxonomy.router)
 # Wave 41 — Meeting Scheduler + Jitsi + L1 Auto-Comparison
 app.include_router(meetings.router)
 app.include_router(comparison.router)
+# Wave 43 — DocuSign eSignature (JWT Grant)
+app.include_router(docusign.router)
 
 
 # ---------- CORS ----------
