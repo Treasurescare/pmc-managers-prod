@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { tenderTemplateApi, formatApiError } from "@/lib/api";
+import { useI18n } from "@/context/I18nContext";
 import TenderHeaderForm from "./tender/TenderHeaderForm";
 import RichEditor from "./tender/RichEditor";
 import AiDraftMenu from "./tender/AiDraftMenu";
@@ -24,6 +25,7 @@ const KIND_TONE = {
 };
 
 export default function TenderBuilderPanel() {
+  const { t } = useI18n();
   const [list, setList] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [doc, setDoc] = useState(null);
@@ -155,7 +157,7 @@ export default function TenderBuilderPanel() {
   };
 
   const removeSection = (idx) => {
-    if (!confirm("Remove this section?")) return;
+    if (!confirm(t("panels.tender_builder.remove_section_confirm"))) return;
     setDoc((prev) => {
       const sections = [...(prev.sections || [])];
       sections.splice(idx, 1);
@@ -196,7 +198,7 @@ export default function TenderBuilderPanel() {
 
   const removeDraft = async () => {
     if (!doc || doc.is_master) return;
-    if (!confirm("Delete this draft?")) return;
+    if (!confirm(t("panels.tender_builder.delete_draft_confirm"))) return;
     try {
       await tenderTemplateApi.remove(doc.id);
       toast.success("Deleted");
@@ -219,7 +221,7 @@ export default function TenderBuilderPanel() {
     <div data-testid="tender-builder-panel" className="grid gap-6 lg:grid-cols-[300px_1fr]">
       <aside className="space-y-4">
         <div className="border border-brand-navy/10 bg-white">
-          <div className="pmc-label p-3 border-b border-brand-navy/10">Kind</div>
+          <div className="pmc-label p-3 border-b border-brand-navy/10">{t("panels.tender_builder.kind")}</div>
           <div className="p-3 flex gap-2 flex-wrap">
             {["tender", "rfp", "rfq"].map((k) => (
               <button key={k} onClick={() => setKind(k)}
@@ -234,7 +236,7 @@ export default function TenderBuilderPanel() {
 
         <div className="border border-brand-navy/10 bg-white">
           <div className="pmc-label p-3 border-b border-brand-navy/10 flex justify-between items-center">
-            <span>Master library</span>
+            <span>{t("panels.tender_builder.master_lib")}</span>
             <span className="text-brand-navy/40 normal-case tracking-normal">{masters.length}</span>
           </div>
           <div className="max-h-64 overflow-y-auto">
@@ -248,17 +250,17 @@ export default function TenderBuilderPanel() {
                 <button onClick={() => cloneMaster(m)} disabled={busy}
                   data-testid={`tb-clone-${m.id}`}
                   className="mt-2 w-full px-3 py-1.5 text-[11px] uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep disabled:opacity-40">
-                  Clone as draft
+                  {t("panels.tender_builder.clone_as_draft")}
                 </button>
               </div>
             ))}
-            {masters.length === 0 && <div className="p-6 text-sm text-brand-navy/50">No master templates.</div>}
+            {masters.length === 0 && <div className="p-6 text-sm text-brand-navy/50">{t("panels.tender_builder.no_masters")}</div>}
           </div>
         </div>
 
         <div className="border border-brand-navy/10 bg-white">
           <div className="pmc-label p-3 border-b border-brand-navy/10 flex justify-between items-center">
-            <span>Your drafts</span>
+            <span>{t("panels.tender_builder.your_drafts")}</span>
             <span className="text-brand-navy/40 normal-case tracking-normal">{drafts.length}</span>
           </div>
           <div className="max-h-96 overflow-y-auto">
@@ -273,7 +275,7 @@ export default function TenderBuilderPanel() {
                 </div>
               </button>
             ))}
-            {drafts.length === 0 && <div className="p-6 text-sm text-brand-navy/50">Clone a master to start.</div>}
+            {drafts.length === 0 && <div className="p-6 text-sm text-brand-navy/50">{t("panels.tender_builder.no_drafts")}</div>}
           </div>
         </div>
       </aside>
@@ -281,7 +283,7 @@ export default function TenderBuilderPanel() {
       <section>
         {!doc ? (
           <div className="border border-dashed border-brand-navy/20 bg-white p-16 text-center text-brand-navy/50">
-            Pick a draft from the left, or clone a master template to start composing.
+            {t("panels.tender_builder.pick_a_draft")}
           </div>
         ) : (
           <div className="space-y-6">
@@ -289,7 +291,7 @@ export default function TenderBuilderPanel() {
             <div className="border border-brand-navy/10 bg-white p-5">
               <div className="flex flex-wrap items-baseline justify-between gap-3">
                 <div className="flex-1 min-w-[240px]">
-                  <div className="pmc-label">Tender name</div>
+                  <div className="pmc-label">{t("panels.tender_builder.tender_name")}</div>
                   <input value={doc.name || ""}
                     onChange={(e) => { setDoc({ ...doc, name: e.target.value }); setDirty(true); }}
                     data-testid="tb-name"
@@ -299,19 +301,19 @@ export default function TenderBuilderPanel() {
                   <button onClick={save} disabled={busy || !dirty}
                     data-testid="tb-save"
                     className="px-5 py-2 text-[12px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep disabled:opacity-40">
-                    {busy ? "Saving…" : dirty ? "Save changes" : "Saved"}
+                    {busy ? t("panels.tender_builder.saving") : dirty ? t("panels.tender_builder.save") : t("panels.tender_builder.saved")}
                   </button>
                   <button onClick={() => setShowHistory(true)} disabled={!doc?.id}
                     data-testid="tb-history"
                     title="View and restore rolling snapshots of this tender"
                     className="px-3 py-2 text-[11px] uppercase tracking-widest border border-brand-navy/40 text-brand-navy hover:bg-brand-navy/10">
-                    ⟲ History{typeof doc?.version === "number" ? ` · v${doc.version}` : ""}
+                    ⟲ {t("panels.tender_builder.history")}{typeof doc?.version === "number" ? ` · v${doc.version}` : ""}
                   </button>
                   <button onClick={() => exportTenderPdf(doc)} disabled={!doc}
                     data-testid="tb-export-pdf"
                     title="Opens the browser print dialog — pick 'Save as PDF'"
                     className="px-4 py-2 text-[12px] uppercase tracking-widest border border-brand-navy text-brand-navy hover:bg-brand-navy hover:text-white">
-                    Print / PDF
+                    {t("panels.tender_builder.print_pdf")}
                   </button>
                   <select value={pdfLang} onChange={(e) => setPdfLang(e.target.value)}
                     data-testid="tb-pdf-lang"
@@ -325,12 +327,12 @@ export default function TenderBuilderPanel() {
                     data-testid="tb-download-pdf"
                     title="Downloads a real .pdf rendered on the server"
                     className="px-4 py-2 text-[12px] uppercase tracking-widest border border-brand-navy/40 text-brand-navy hover:bg-brand-navy/10">
-                    Download PDF
+                    {t("panels.tender_builder.download_pdf")}
                   </button>
                   {!doc.is_master && (
                     <button onClick={removeDraft} data-testid="tb-delete"
                       className="px-4 py-2 text-[12px] uppercase tracking-widest border border-red-500 text-red-600 hover:bg-red-50">
-                      Delete
+                      {t("panels.tender_builder.delete")}
                     </button>
                   )}
                 </div>
@@ -344,14 +346,13 @@ export default function TenderBuilderPanel() {
             <div className="border border-dashed border-brand-navy/30 bg-brand-pale/30 p-4">
               <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div>
-                  <div className="pmc-label">Bulk template upload</div>
+                  <div className="pmc-label">{t("panels.tender_builder.bulk_title")}</div>
                   <div className="text-xs text-brand-navy/60 mt-1">
-                    Drop many blank forms at once. Filenames are matched to section codes/titles
-                    (e.g. <code>annex-VIII.pdf</code> → Annexure VIII).
+                    {t("panels.tender_builder.bulk_hint")}
                   </div>
                 </div>
                 <label className="px-4 py-2 text-[11px] uppercase tracking-widest border border-brand-navy text-brand-navy hover:bg-brand-navy hover:text-white cursor-pointer">
-                  {bulkBusy ? "Uploading…" : "Choose files"}
+                  {bulkBusy ? t("panels.tender_builder.uploading") : t("panels.tender_builder.choose_files")}
                   <input type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx"
                          onChange={(e) => { const fs = e.target.files; if (fs?.length) bulkUpload(fs); e.target.value = ""; }}
                          disabled={bulkBusy}
@@ -446,7 +447,7 @@ export default function TenderBuilderPanel() {
 
             {/* Add row */}
             <div className="border border-dashed border-brand-navy/30 bg-white p-4 flex flex-wrap gap-2 justify-center">
-              <span className="text-sm text-brand-navy/60 mr-2 self-center">Add a new:</span>
+              <span className="text-sm text-brand-navy/60 mr-2 self-center">{t("panels.tender_builder.add_new")}</span>
               {["section", "annexure", "form"].map((k) => (
                 <button key={k} onClick={() => addBlank(k)}
                   data-testid={`tb-add-${k}`}

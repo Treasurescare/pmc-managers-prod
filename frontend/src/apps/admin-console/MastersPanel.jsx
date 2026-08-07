@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { mastersApi, staffApi, tenantApi, formatApiError } from "@/lib/api";
+import { useI18n } from "@/context/I18nContext";
 import StaffTab from "./masters/StaffTab";
 import MatrixEditor from "./masters/MatrixEditor";
 
 export default function MastersPanel() {
+  const { t } = useI18n();
   const [tab, setTab] = useState("staff");
   const [staff, setStaff] = useState([]);
   const [companies, setCompanies] = useState([]);
@@ -42,10 +44,10 @@ export default function MastersPanel() {
   useEffect(() => { load(); }, [load]);
 
   const createStaff = async () => {
-    if (!staffDraft.email || !staffDraft.name) return toast.error("Email + name required");
+    if (!staffDraft.email || !staffDraft.name) return toast.error(t("panels.masters.email_name_required"));
     try {
       await staffApi.createStaff(staffDraft);
-      toast.success("Staff created");
+      toast.success(t("panels.masters.staff_created"));
       setShowStaffNew(false);
       setStaffDraft({ email: "", name: "", password: "", roles: ["reviewer"], hierarchy_level: 3 });
       load();
@@ -60,10 +62,10 @@ export default function MastersPanel() {
   };
 
   const createCompany = async () => {
-    if (!companyDraft.name || !companyDraft.code) return toast.error("Name + code required");
+    if (!companyDraft.name || !companyDraft.code) return toast.error(t("panels.masters.name_code_required"));
     try {
       await mastersApi.createCompany(companyDraft);
-      toast.success("Company added");
+      toast.success(t("panels.masters.company_added"));
       setCompanyDraft({ name: "", code: "", country: "KZ" });
       load();
     } catch (e) { toast.error(formatApiError(e)); }
@@ -72,16 +74,16 @@ export default function MastersPanel() {
   const createMatrix = async () => {
     try {
       await mastersApi.createMatrix(matrixDraft);
-      toast.success("Matrix saved");
+      toast.success(t("panels.masters.matrix_saved"));
       load();
     } catch (e) { toast.error(formatApiError(e)); }
   };
 
   const createTenant = async () => {
-    if (!tenantDraft.code || !tenantDraft.name) return toast.error("Code + name required");
+    if (!tenantDraft.code || !tenantDraft.name) return toast.error(t("panels.masters.code_name_required"));
     try {
       await tenantApi.create(tenantDraft);
-      toast.success("Tenant added");
+      toast.success(t("panels.masters.tenant_added"));
       setTenantDraft({ code: "", name: "", kind: "corporate", country: "KZ" });
       load();
     } catch (e) { toast.error(formatApiError(e)); }
@@ -90,7 +92,7 @@ export default function MastersPanel() {
   return (
     <div data-testid="admin-masters-panel">
       <div className="flex gap-2 mb-4 border-b">
-        {[["staff", "Staff Master"], ["companies", "Companies"], ["tenants", "Tenants"], ["matrix", "Approval Matrix"], ["hierarchy", "Hierarchy"]].map(([k, l]) => (
+        {[["staff", t("panels.masters.tab_staff")], ["companies", t("panels.masters.tab_companies")], ["tenants", t("panels.masters.tab_tenants")], ["matrix", t("panels.masters.tab_matrix")], ["hierarchy", t("panels.masters.tab_hierarchy")]].map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)}
             className={`px-4 py-2 text-xs uppercase tracking-widest ${tab === k ? "border-b-2 border-brand-navy font-semibold" : "text-slate-500"}`}
             data-testid={`masters-tab-${k}`}>{l}</button>
@@ -109,18 +111,18 @@ export default function MastersPanel() {
       {tab === "companies" && (
         <>
           <div className="bg-white border p-4 mb-4 grid gap-2 md:grid-cols-4" data-testid="company-new">
-            <input placeholder="Name" value={companyDraft.name}
+            <input placeholder={t("panels.masters.name")} value={companyDraft.name}
               onChange={(e) => setCompanyDraft({ ...companyDraft, name: e.target.value })}
               className="px-3 py-2 border" data-testid="company-name" />
-            <input placeholder="Code" value={companyDraft.code}
+            <input placeholder={t("panels.masters.code")} value={companyDraft.code}
               onChange={(e) => setCompanyDraft({ ...companyDraft, code: e.target.value })}
               className="px-3 py-2 border" data-testid="company-code" />
-            <input placeholder="Country" value={companyDraft.country}
+            <input placeholder={t("panels.masters.country")} value={companyDraft.country}
               onChange={(e) => setCompanyDraft({ ...companyDraft, country: e.target.value })}
               className="px-3 py-2 border" />
             <button onClick={createCompany} data-testid="company-create"
               className="px-4 py-2 text-[11px] uppercase tracking-widest bg-brand-navy text-white">
-              Add company
+              {t("panels.masters.add_company")}
             </button>
           </div>
           <div className="bg-white border">
@@ -131,7 +133,7 @@ export default function MastersPanel() {
                 <span className="ml-3 text-xs text-slate-500">{c.country}</span>
               </div>
             ))}
-            {companies.length === 0 && <div className="p-6 text-sm text-slate-500">No companies yet.</div>}
+            {companies.length === 0 && <div className="p-6 text-sm text-slate-500">{t("panels.masters.no_companies")}</div>}
           </div>
         </>
       )}
@@ -145,10 +147,10 @@ export default function MastersPanel() {
 
       {tab === "hierarchy" && (
         <div className="bg-white border p-4" data-testid="hierarchy-view">
-          <div className="pmc-label mb-2">Reporting Hierarchy (by staff.hierarchy_level)</div>
+          <div className="pmc-label mb-2">{t("panels.masters.hierarchy_title")}</div>
           {[10, 5, 3, 1].map((lvl) => (
             <div key={lvl} className="mb-3">
-              <div className="text-xs uppercase tracking-widest text-slate-500">Level {lvl}</div>
+              <div className="text-xs uppercase tracking-widest text-slate-500">{t("panels.masters.level_prefix")} {lvl}</div>
               <div className="grid grid-cols-3 gap-2 mt-1">
                 {staff.filter((s) => (s.hierarchy_level || 1) === lvl).map((s) => (
                   <div key={s.id} className="border p-2 text-sm">
@@ -166,34 +168,34 @@ export default function MastersPanel() {
       {tab === "tenants" && (
         <>
           <div className="bg-white border p-4 mb-4 grid gap-2 md:grid-cols-5" data-testid="tenant-new">
-            <input placeholder="Code" value={tenantDraft.code}
+            <input placeholder={t("panels.masters.code")} value={tenantDraft.code}
               onChange={(e) => setTenantDraft({ ...tenantDraft, code: e.target.value.toUpperCase() })}
               className="px-3 py-2 border" data-testid="tenant-code" />
-            <input placeholder="Name" value={tenantDraft.name}
+            <input placeholder={t("panels.masters.name")} value={tenantDraft.name}
               onChange={(e) => setTenantDraft({ ...tenantDraft, name: e.target.value })}
               className="px-3 py-2 border md:col-span-2" data-testid="tenant-name" />
             <select value={tenantDraft.kind}
               onChange={(e) => setTenantDraft({ ...tenantDraft, kind: e.target.value })}
               className="px-3 py-2 border bg-white" data-testid="tenant-kind">
-              <option value="pmc">PMC (internal)</option>
-              <option value="corporate">Corporate Client</option>
-              <option value="government">Government Department</option>
+              <option value="pmc">{t("panels.masters.tenant_kind_pmc")}</option>
+              <option value="corporate">{t("panels.masters.tenant_kind_corporate")}</option>
+              <option value="government">{t("panels.masters.tenant_kind_government")}</option>
             </select>
             <button onClick={createTenant} data-testid="tenant-create"
               className="px-4 py-2 text-[11px] uppercase tracking-widest bg-brand-navy text-white">
-              Add Tenant
+              {t("panels.masters.add_tenant")}
             </button>
           </div>
           <div className="bg-white border">
-            {tenants.map((t) => (
-              <div key={t.id} className="border-b p-3 text-sm" data-testid={`tenant-row-${t.code}`}>
-                <span className="font-mono text-xs mr-3">{t.code}</span>
-                <strong>{t.name}</strong>
-                <span className="ml-3 text-xs bg-slate-100 px-2 py-0.5 rounded">{t.kind}</span>
-                <span className="ml-2 text-xs text-slate-500">{t.country}</span>
+            {tenants.map((tn) => (
+              <div key={tn.id} className="border-b p-3 text-sm" data-testid={`tenant-row-${tn.code}`}>
+                <span className="font-mono text-xs mr-3">{tn.code}</span>
+                <strong>{tn.name}</strong>
+                <span className="ml-3 text-xs bg-slate-100 px-2 py-0.5 rounded">{tn.kind}</span>
+                <span className="ml-2 text-xs text-slate-500">{tn.country}</span>
               </div>
             ))}
-            {tenants.length === 0 && <div className="p-6 text-sm text-slate-500">No tenants yet — add Corporate Client / Government Department here.</div>}
+            {tenants.length === 0 && <div className="p-6 text-sm text-slate-500">{t("panels.masters.no_tenants")}</div>}
           </div>
         </>
       )}

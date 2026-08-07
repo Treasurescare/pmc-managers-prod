@@ -1,14 +1,9 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { permissionsApi, formatApiError } from "@/lib/api";
+import { useI18n } from "@/context/I18nContext";
 
 const ACTIONS = ["view", "create", "modify", "delete", "publish"];
-const DOC_TYPES = [
-  { code: "*", label: "All types" },
-  { code: "tender", label: "Tender" },
-  { code: "rfp", label: "RFP" },
-  { code: "rfq", label: "RFQ" },
-];
 const ROLE_LABELS = {
   admin: "Admin (master)", reviewer: "Reviewer",
   escrow_agent: "Escrow Agent", certifier: "Certifier",
@@ -18,6 +13,13 @@ const ROLE_LABELS = {
 };
 
 export default function PermissionsPanel() {
+  const { t } = useI18n();
+  const DOC_TYPES = [
+    { code: "*", label: t("panels.permissions.doc_all") },
+    { code: "tender", label: t("panels.permissions.doc_tender") },
+    { code: "rfp", label: t("panels.permissions.doc_rfp") },
+    { code: "rfq", label: t("panels.permissions.doc_rfq") },
+  ];
   const [rows, setRows] = useState([]);
   const [saving, setSaving] = useState(false);
 
@@ -45,17 +47,17 @@ export default function PermissionsPanel() {
     setSaving(true);
     try {
       await permissionsApi.put(rows);
-      toast.success("Permissions saved");
+      toast.success(t("panels.permissions.saved_toast"));
       await load();
     } catch (e) { toast.error(formatApiError(e)); }
     finally { setSaving(false); }
   };
 
   const reset = async () => {
-    if (!confirm("Reset to default matrix? Custom rules will be lost.")) return;
+    if (!confirm(t("panels.permissions.reset_confirm"))) return;
     try {
       await permissionsApi.reset();
-      toast.success("Reset to defaults");
+      toast.success(t("panels.permissions.reset_toast"));
       await load();
     } catch (e) { toast.error(formatApiError(e)); }
   };
@@ -64,16 +66,16 @@ export default function PermissionsPanel() {
     <div data-testid="admin-permissions-panel">
       <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
         <div className="text-sm text-brand-navy/70">
-          Permission Matrix — controls who can view / create / modify / delete / publish tenders, RFPs and RFQs
+          {t("panels.permissions.hint")}
         </div>
         <div className="flex gap-2">
           <button onClick={reset} data-testid="perm-reset"
                   className="px-4 py-2 text-[11px] uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5">
-            Reset defaults
+            {t("panels.permissions.reset")}
           </button>
           <button onClick={save} disabled={saving} data-testid="perm-save"
                   className="px-5 py-2 text-[11px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep disabled:opacity-50">
-            {saving ? "Saving…" : "Save matrix"}
+            {saving ? t("panels.permissions.saving") : t("panels.permissions.save")}
           </button>
         </div>
       </div>
@@ -82,8 +84,8 @@ export default function PermissionsPanel() {
         <table className="w-full text-sm">
           <thead className="text-left text-brand-navy/60 text-xs uppercase tracking-wider bg-brand-navy/5">
             <tr>
-              <th className="px-3 py-2">Role</th>
-              <th className="px-3 py-2">Doc type</th>
+              <th className="px-3 py-2">{t("panels.permissions.col_role")}</th>
+              <th className="px-3 py-2">{t("panels.permissions.col_doc_type")}</th>
               {ACTIONS.map((a) => (
                 <th key={a} className="px-3 py-2 text-center capitalize">{a}</th>
               ))}
@@ -96,7 +98,7 @@ export default function PermissionsPanel() {
                 <td className="px-3 py-2 font-semibold">
                   {ROLE_LABELS[r.role] || r.role}
                   {r.role === "admin" && (
-                    <div className="text-[10px] text-brand-navy/40 mt-0.5">(overrides — always allowed)</div>
+                    <div className="text-[10px] text-brand-navy/40 mt-0.5">{t("panels.permissions.admin_override")}</div>
                   )}
                 </td>
                 <td className="px-3 py-2">
@@ -125,8 +127,7 @@ export default function PermissionsPanel() {
         </table>
       </div>
       <div className="text-[11px] text-brand-navy/50 mt-3 italic">
-        Notes · Admin is always allowed regardless of the checkboxes. Any other role must have the box ticked
-        to perform the action. The matrix is enforced server-side on every /notices endpoint.
+        {t("panels.permissions.notes")}
       </div>
     </div>
   );

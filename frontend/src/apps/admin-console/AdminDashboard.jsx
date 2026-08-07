@@ -57,24 +57,41 @@ function TabBar({ tab, setTab }) {
     ["reports", t("admin.tab_reports")],
   ];
   return (
-    <div className="flex flex-wrap gap-2" data-testid="admin-tabs">
-      {tabs.map(([code, label]) => (
-        <button
-          key={code}
-          type="button"
-          onClick={() => setTab(code)}
-          data-testid={`admin-tab-${code}`}
-          className={
-            "px-5 py-2 text-[11px] font-semibold uppercase tracking-widest border " +
-            (tab === code
-              ? "bg-brand-navy text-white border-brand-navy"
-              : "bg-white text-brand-navy/70 border-brand-navy/20 hover:border-brand-navy-soft/60")
-          }
+    <>
+      {/* Mobile: single-select dropdown so 22 tabs don't overflow */}
+      <div className="md:hidden" data-testid="admin-tabs-mobile">
+        <label className="pmc-label block mb-1">{t("admin.dash_kicker")}</label>
+        <select
+          value={tab}
+          onChange={(e) => setTab(e.target.value)}
+          data-testid="admin-tabs-select"
+          className="w-full px-4 py-3 border border-brand-navy/20 bg-white text-brand-navy text-sm font-semibold uppercase tracking-widest"
         >
-          {label}
-        </button>
-      ))}
-    </div>
+          {tabs.map(([code, label]) => (
+            <option key={code} value={code}>{label}</option>
+          ))}
+        </select>
+      </div>
+      {/* Desktop: wrapped chip buttons */}
+      <div className="hidden md:flex flex-wrap gap-2" data-testid="admin-tabs">
+        {tabs.map(([code, label]) => (
+          <button
+            key={code}
+            type="button"
+            onClick={() => setTab(code)}
+            data-testid={`admin-tab-${code}`}
+            className={
+              "px-5 py-2 text-[11px] font-semibold uppercase tracking-widest border " +
+              (tab === code
+                ? "bg-brand-navy text-white border-brand-navy"
+                : "bg-white text-brand-navy/70 border-brand-navy/20 hover:border-brand-navy-soft/60")
+            }
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -100,15 +117,15 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-brand-pale flex flex-col">
       <TopBar />
-      <main className="flex-1 max-w-7xl mx-auto w-full px-6 lg:px-10 py-10">
-        <div className="flex items-baseline justify-between flex-wrap gap-4">
-          <div>
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-6 sm:py-10">
+        <div className="flex items-start sm:items-baseline justify-between flex-wrap gap-3 sm:gap-4">
+          <div className="min-w-0">
             <div className="pmc-label">{t("admin.dash_kicker")}</div>
-            <h1 className="font-display text-3xl lg:text-4xl mt-2 text-brand-navy">{t("admin.dash_title")}</h1>
+            <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl mt-2 text-brand-navy leading-tight">{t("admin.dash_title")}</h1>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center flex-wrap gap-2 sm:gap-4 w-full sm:w-auto justify-end">
             {tenant && (
-              <div className="text-xs px-2 py-1 border border-brand-navy/20 text-brand-navy/70"
+              <div className="text-[10px] sm:text-xs px-2 py-1 border border-brand-navy/20 text-brand-navy/70"
                    data-testid="admin-tenant-chip">
                 Portal · {tenant.name}
               </div>
@@ -116,22 +133,22 @@ export default function AdminDashboard() {
             <NotificationBell />
             <AuditCopilotButton />
             <button type="button" onClick={() => setMfaOpen(true)} data-testid="admin-mfa-open"
-              className="px-3 py-1.5 text-[11px] uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5">
+              className="px-2 sm:px-3 py-1.5 text-[10px] sm:text-[11px] uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5">
               {t("admin.header_security")}
             </button>
-            <div className="text-right">
+            <div className="text-right hidden sm:block">
               <div className="pmc-label">{t("admin.header_signed_in")}</div>
-              <div className="text-sm text-brand-navy">{me.email}</div>
+              <div className="text-sm text-brand-navy truncate max-w-[180px]">{me.email}</div>
             </div>
             <button type="button" onClick={logout} data-testid="admin-logout"
-              className="px-4 py-2 text-[11px] font-semibold uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5">{t("admin.header_signout")}</button>
+              className="px-3 sm:px-4 py-2 text-[10px] sm:text-[11px] font-semibold uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5">{t("admin.header_signout")}</button>
           </div>
           <MFASetupModal open={mfaOpen} onClose={() => setMfaOpen(false)} />
         </div>
 
-        <div className="mt-8"><TabBar tab={tab} setTab={setTab} /></div>
+        <div className="mt-6 sm:mt-8"><TabBar tab={tab} setTab={setTab} /></div>
 
-        <div className="mt-8">
+        <div className="mt-6 sm:mt-8 overflow-x-auto">
           {tab === "analytics" && <AnalyticsPanel />}
           {tab === "registrations" && <RegistrationsPanel />}
           {tab === "vendors" && <VendorsPanel />}

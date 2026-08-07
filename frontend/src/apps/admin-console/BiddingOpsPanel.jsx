@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { bidApi, committeeApi, staffApi, inspectionApi, formatApiError } from "@/lib/api";
+import { useI18n } from "@/context/I18nContext";
 import CommitteeForm from "./bidding/CommitteeForm";
 import CommitteeList from "./bidding/CommitteeList";
 import BidTable from "./bidding/BidTable";
@@ -17,6 +18,7 @@ const STATUS_LABELS = {
 };
 
 export default function BiddingOpsPanel() {
+  const { t } = useI18n();
   const [bids, setBids] = useState([]);
   const [staffList, setStaffList] = useState([]);
   const [filter, setFilter] = useState("");
@@ -105,18 +107,18 @@ export default function BiddingOpsPanel() {
     <div data-testid="admin-bidding-panel">
       <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
         <div className="text-sm text-brand-navy/70">
-          {bids.length} bids in pipeline · sequential Escrow → Admin → Certifier → Legal → Accounting → Committee
+          {bids.length} {t("panels.bidding.pipeline_hint")}
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <select value={filter} onChange={(e) => setFilter(e.target.value)}
             className="px-3 py-1.5 text-xs border border-brand-navy/20 bg-white"
             data-testid="bid-filter">
-            <option value="">All statuses</option>
+            <option value="">{t("panels.bidding.all_statuses")}</option>
             {Object.keys(STATUS_LABELS).map((s) => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
           </select>
           <button onClick={() => setShowCom(!showCom)} data-testid="committee-new-toggle"
             className="px-4 py-2 text-[11px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep">
-            {showCom ? "Cancel" : "Form Committee"}
+            {showCom ? t("panels.bidding.cancel") : t("panels.bidding.form_committee")}
           </button>
         </div>
       </div>

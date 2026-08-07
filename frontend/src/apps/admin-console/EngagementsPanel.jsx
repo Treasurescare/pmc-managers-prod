@@ -6,6 +6,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { useI18n } from "@/context/I18nContext";
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -20,6 +21,7 @@ const STATUS_STYLE = {
 const CURRENCIES = ["USD", "GBP", "EUR", "KZT", "INR", "AED", "SAR"];
 
 function QuoteModal({ engagement, onClose, onSaved }) {
+  const { t } = useI18n();
   const [amount, setAmount] = useState(engagement?.quoted_amount || "");
   const [currency, setCurrency] = useState(engagement?.quoted_currency || engagement?.product_currency || "USD");
   const [notes, setNotes] = useState(engagement?.admin_notes || "");
@@ -51,7 +53,7 @@ function QuoteModal({ engagement, onClose, onSaved }) {
          data-testid="engagement-quote-modal">
       <div className="bg-white border-2 border-brand-navy w-full max-w-lg p-8 my-8">
         <div className="flex items-center justify-between">
-          <h3 className="font-display text-xl text-brand-navy">Quote engagement</h3>
+          <h3 className="font-display text-xl text-brand-navy">{t("panels.engagements.quote_modal_title")}</h3>
           <button onClick={onClose} className="text-brand-navy/60 hover:text-brand-navy"
                   data-testid="engagement-quote-close">✕</button>
         </div>
@@ -64,31 +66,31 @@ function QuoteModal({ engagement, onClose, onSaved }) {
           </div>
         )}
         <div className="mt-6 grid gap-4">
-          <label><div className="pmc-label">Quoted amount</div>
+          <label><div className="pmc-label">{t("panels.engagements.quoted_amount")}</div>
             <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)}
                    data-testid="engagement-quote-amount"
                    className="mt-1 w-full border border-brand-navy/20 px-3 py-2 font-mono tabular-nums"/></label>
-          <label><div className="pmc-label">Currency</div>
+          <label><div className="pmc-label">{t("panels.engagements.currency")}</div>
             <select value={currency} onChange={(e) => setCurrency(e.target.value)}
                     data-testid="engagement-quote-currency"
                     className="mt-1 w-full border border-brand-navy/20 px-3 py-2 bg-white font-mono">
               {CURRENCIES.map((c) => <option key={c}>{c}</option>)}
             </select></label>
-          <label><div className="pmc-label">Valid until (optional)</div>
+          <label><div className="pmc-label">{t("panels.engagements.valid_until")}</div>
             <input type="date" value={validUntil?.slice(0, 10) || ""}
                    onChange={(e) => setValidUntil(e.target.value)}
                    className="mt-1 w-full border border-brand-navy/20 px-3 py-2"/></label>
-          <label><div className="pmc-label">Admin notes (buyer sees)</div>
+          <label><div className="pmc-label">{t("panels.engagements.admin_notes")}</div>
             <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)}
                       data-testid="engagement-quote-notes"
                       className="mt-1 w-full border border-brand-navy/20 px-3 py-2"/></label>
         </div>
         <div className="mt-8 flex items-center justify-end gap-3">
-          <button onClick={onClose} className="px-5 py-2 border border-brand-navy/20 text-sm">Cancel</button>
+          <button onClick={onClose} className="px-5 py-2 border border-brand-navy/20 text-sm">{t("panels.engagements.cancel")}</button>
           <button onClick={save} disabled={saving || !amount || Number(amount) <= 0}
                   data-testid="engagement-quote-save"
                   className="px-5 py-2 bg-brand-navy text-white text-xs uppercase tracking-widest disabled:opacity-50">
-            {saving ? "Saving…" : "Save quote"}
+            {saving ? t("panels.engagements.saving") : t("panels.engagements.save_quote")}
           </button>
         </div>
       </div>
@@ -106,6 +108,7 @@ function StatusPill({ s }) {
 }
 
 function EngagementRow({ e, onQuote, onInvoice, onCancel }) {
+  const { t } = useI18n();
   return (
     <tr className="border-b border-brand-navy/10" data-testid={`engagement-row-${e.id}`}>
       <td className="px-3 py-3">
@@ -126,22 +129,22 @@ function EngagementRow({ e, onQuote, onInvoice, onCancel }) {
       <td className="px-3 py-3 text-right space-x-2">
         {e.status === "quote_requested" && (
           <button onClick={() => onQuote(e)} data-testid={`engagement-set-quote-${e.id}`}
-                  className="text-xs uppercase tracking-widest text-sky-800 hover:underline">Set quote</button>
+                  className="text-xs uppercase tracking-widest text-sky-800 hover:underline">{t("panels.engagements.set_quote")}</button>
         )}
         {e.status === "quoted" && (
           <>
-            <button onClick={() => onQuote(e)} className="text-xs uppercase tracking-widest text-brand-navy hover:underline">Re-quote</button>
+            <button onClick={() => onQuote(e)} className="text-xs uppercase tracking-widest text-brand-navy hover:underline">{t("panels.engagements.requote")}</button>
             <button onClick={() => onInvoice(e)} data-testid={`engagement-invoice-${e.id}`}
-                    className="text-xs uppercase tracking-widest text-indigo-800 hover:underline font-semibold">Invoice</button>
+                    className="text-xs uppercase tracking-widest text-indigo-800 hover:underline font-semibold">{t("panels.engagements.invoice")}</button>
           </>
         )}
         {e.status === "invoiced" && e.checkout_url && (
           <a href={e.checkout_url} target="_blank" rel="noreferrer"
-             className="text-xs uppercase tracking-widest text-indigo-800 hover:underline">Pay-link</a>
+             className="text-xs uppercase tracking-widest text-indigo-800 hover:underline">{t("panels.engagements.pay_link")}</a>
         )}
         {!["paid", "cancelled"].includes(e.status) && (
           <button onClick={() => onCancel(e)} data-testid={`engagement-cancel-${e.id}`}
-                  className="text-xs uppercase tracking-widest text-red-700 hover:underline">Cancel</button>
+                  className="text-xs uppercase tracking-widest text-red-700 hover:underline">{t("panels.engagements.cancel")}</button>
         )}
       </td>
     </tr>
@@ -149,6 +152,7 @@ function EngagementRow({ e, onQuote, onInvoice, onCancel }) {
 }
 
 export default function EngagementsPanel() {
+  const { t } = useI18n();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
@@ -208,11 +212,10 @@ export default function EngagementsPanel() {
   return (
     <div className="space-y-6" data-testid="engagements-panel">
       <section>
-        <div className="pmc-label">Quote & invoice pipeline</div>
-        <h2 className="font-display text-2xl text-brand-navy mt-1">Engagements</h2>
+        <div className="pmc-label">{t("panels.engagements.kicker")}</div>
+        <h2 className="font-display text-2xl text-brand-navy mt-1">{t("panels.engagements.heading")}</h2>
         <p className="text-sm text-brand-navy/60 mt-2 max-w-xl">
-          Every "Request quote" click from the client / supplier purchase pages lands here. Set the amount,
-          hit Invoice to generate a Stripe pay-link, and Track through to paid.
+          {t("panels.engagements.subhead")}
         </p>
       </section>
 
@@ -223,24 +226,24 @@ export default function EngagementsPanel() {
                   className={`px-3 py-1.5 text-[11px] uppercase tracking-widest border ${
                     statusFilter === s ? "bg-brand-navy text-white border-brand-navy"
                       : "text-brand-navy/70 border-brand-navy/20 hover:border-brand-navy"}`}>
-            {s === "all" ? "All" : s.replace(/_/g, " ")} ({counts[s] || 0})
+            {s === "all" ? t("panels.engagements.filter_all") : s.replace(/_/g, " ")} ({counts[s] || 0})
           </button>
         ))}
       </div>
 
       {loading ? (
-        <div className="text-brand-navy/60 py-10 text-center">Loading engagements…</div>
+        <div className="text-brand-navy/60 py-10 text-center">{t("panels.engagements.loading")}</div>
       ) : (
         <div className="border border-brand-navy/10 bg-white overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-brand-navy text-white uppercase text-xs tracking-widest">
               <tr>
-                <th className="px-3 py-3 text-left">Product</th>
-                <th className="px-3 py-3 text-left">Buyer</th>
-                <th className="px-3 py-3 text-center">Qty</th>
-                <th className="px-3 py-3 text-right">Quoted</th>
-                <th className="px-3 py-3 text-left">Status</th>
-                <th className="px-3 py-3 text-right">Actions</th>
+                <th className="px-3 py-3 text-left">{t("panels.engagements.col_product")}</th>
+                <th className="px-3 py-3 text-left">{t("panels.engagements.col_buyer")}</th>
+                <th className="px-3 py-3 text-center">{t("panels.engagements.col_qty")}</th>
+                <th className="px-3 py-3 text-right">{t("panels.engagements.col_quoted")}</th>
+                <th className="px-3 py-3 text-left">{t("panels.engagements.col_status")}</th>
+                <th className="px-3 py-3 text-right">{t("panels.engagements.col_actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -249,7 +252,7 @@ export default function EngagementsPanel() {
               ))}
               {filtered.length === 0 && (
                 <tr><td colSpan={6} className="text-center py-10 text-brand-navy/60">
-                  No engagements in this bucket yet.
+                  {t("panels.engagements.empty")}
                 </td></tr>
               )}
             </tbody>

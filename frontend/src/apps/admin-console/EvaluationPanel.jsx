@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { evalApi, bidApi, formatApiError } from "@/lib/api";
+import { useI18n } from "@/context/I18nContext";
 import RubricEditor from "./evaluation/RubricEditor";
 import BidScoreList from "./evaluation/BidScoreList";
 import AwardReport from "./evaluation/AwardReport";
@@ -13,6 +14,7 @@ const DEFAULT_CRITERIA = [
 ];
 
 export default function EvaluationPanel() {
+  const { t } = useI18n();
   const [noticeRef, setNoticeRef] = useState("");
   const [rubric, setRubric] = useState({
     technical_criteria: DEFAULT_CRITERIA, commercial_weight: 0.4, minimum_technical: 60,
@@ -80,19 +82,19 @@ export default function EvaluationPanel() {
       <div className="bg-white border border-brand-navy/10 p-4">
         <div className="flex flex-wrap gap-3 items-end">
           <label className="flex-1 min-w-[240px] text-sm">
-            <span className="pmc-label">Tender notice ref</span>
+            <span className="pmc-label">{t("panels.evaluation.notice_ref")}</span>
             <input value={noticeRef} onChange={(e) => setNoticeRef(e.target.value)}
               placeholder="PMC-NOT-2026-0001"
               className="mt-1 w-full px-3 py-2 border border-brand-navy/20"
               data-testid="eval-notice-ref" />
           </label>
           <button onClick={() => lock("technical")} data-testid="lock-technical"
-            className="px-3 py-2 text-[11px] uppercase tracking-widest border">Lock Tech</button>
+            className="px-3 py-2 text-[11px] uppercase tracking-widest border">{t("panels.evaluation.lock_tech")}</button>
           <button onClick={() => lock("commercial")} data-testid="lock-commercial"
-            className="px-3 py-2 text-[11px] uppercase tracking-widest border">Lock Comm</button>
+            className="px-3 py-2 text-[11px] uppercase tracking-widest border">{t("panels.evaluation.lock_comm")}</button>
           <button onClick={generateReport} data-testid="award-report-btn"
             className="px-4 py-2 text-[11px] uppercase tracking-widest bg-brand-navy text-white">
-            Generate Award Report
+            {t("panels.evaluation.generate_report")}
           </button>
         </div>
       </div>
@@ -100,22 +102,22 @@ export default function EvaluationPanel() {
       <RubricEditor rubric={rubric} setRubric={setRubric} onSave={saveRubric} />
 
       <div className="bg-white border p-4">
-        <div className="pmc-label mb-2">Your Conflict-of-Interest declaration for this tender</div>
+        <div className="pmc-label mb-2">{t("panels.evaluation.coi_heading")}</div>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={coiChoice.has_conflict}
             onChange={(e) => setCoiChoice({ ...coiChoice, has_conflict: e.target.checked })}
             data-testid="coi-has-conflict" />
-          I have a conflict of interest with a bidder on this tender
+          {t("panels.evaluation.coi_checkbox")}
         </label>
         {coiChoice.has_conflict && (
           <input value={coiChoice.details}
             onChange={(e) => setCoiChoice({ ...coiChoice, details: e.target.value })}
-            placeholder="Describe the conflict"
+            placeholder={t("panels.evaluation.coi_placeholder")}
             className="mt-2 w-full px-3 py-2 border" />
         )}
         <button onClick={declareCOI} data-testid="declare-coi"
           className="mt-2 px-4 py-2 text-[11px] uppercase tracking-widest border">
-          Declare
+          {t("panels.evaluation.declare")}
         </button>
       </div>
 

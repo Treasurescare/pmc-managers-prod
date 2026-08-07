@@ -8,9 +8,9 @@ import { toast } from "sonner";
 
 function StatCard({ label, value }) {
   return (
-    <div className="border border-brand-navy/10 bg-white p-6" data-testid={`stat-${label}`}>
-      <div className="pmc-label">{label}</div>
-      <div className="pmc-stat-lg mt-2 text-brand-navy">{value ?? "—"}</div>
+    <div className="border border-brand-navy/10 bg-white p-3 sm:p-6 overflow-hidden" data-testid={`stat-${label}`}>
+      <div className="pmc-label text-[9px] sm:text-[10px]">{label}</div>
+      <div className="pmc-stat-lg mt-2 text-brand-navy text-2xl sm:text-4xl">{value ?? "—"}</div>
     </div>
   );
 }
@@ -89,12 +89,12 @@ export default function NoticeBoardHome() {
   }, [notices]);
 
   return (
-    <div className="min-h-screen bg-brand-pale flex flex-col">
+    <div className="min-h-screen bg-brand-pale flex flex-col overflow-x-hidden">
       <TopBar />
 
       {/* Hero */}
       <section className="border-b border-brand-navy/10 bg-brand-navy text-white">
-        <div className="max-w-7xl mx-auto px-6 lg:px-10 py-16 lg:py-24 grid gap-10 lg:grid-cols-[5fr_7fr] lg:gap-16 items-start">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-10 sm:py-16 lg:py-24 grid gap-8 lg:gap-16 lg:grid-cols-[5fr_7fr] items-start">
           <div>
             <div className="pmc-label" style={{ color: "rgba(255,255,255,0.5)" }}>{t("home.hero_kicker")}</div>
             <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl leading-tight mt-4">
@@ -110,7 +110,7 @@ export default function NoticeBoardHome() {
               </Link>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-3 sm:gap-4">
             <StatCard label={t("home.stats_notices")} value={stats?.notices_published ?? 0} />
             <StatCard label={t("home.stats_suppliers")} value={stats?.suppliers_approved ?? 0} />
             <StatCard label={t("home.stats_packages")} value={stats?.packages_total ?? 0} />
@@ -119,7 +119,7 @@ export default function NoticeBoardHome() {
       </section>
 
       {/* Filters + list */}
-      <section id="notices" className="flex-1 max-w-7xl mx-auto w-full px-6 lg:px-10 py-14">
+      <section id="notices" className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-10 py-10 sm:py-14">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="pmc-label">Open notices</div>

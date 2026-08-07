@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { boqApi, contractApi, bidApi, formatApiError } from "@/lib/api";
+import { useI18n } from "@/context/I18nContext";
 import BOQTemplatesTab from "./boq/BOQTemplatesTab";
 import ContractsTab from "./boq/ContractsTab";
 
 export default function BOQContractsPanel() {
+  const { t } = useI18n();
   const [tab, setTab] = useState("boq");
   const [templates, setTemplates] = useState([]);
   const [contracts, setContracts] = useState([]);
@@ -34,7 +36,7 @@ export default function BOQContractsPanel() {
   return (
     <div data-testid="admin-boq-panel">
       <div className="flex gap-2 mb-4 border-b">
-        {[["boq", "BOQ Templates"], ["contracts", "Contracts"]].map(([k, l]) => (
+        {[["boq", t("panels.boq.tab_boq")], ["contracts", t("panels.boq.tab_contracts")]].map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)}
             className={`px-4 py-2 text-xs uppercase tracking-widest ${tab === k ? "border-b-2 border-brand-navy font-semibold" : "text-slate-500"}`}
             data-testid={`boq-tab-${k}`}>{l}</button>

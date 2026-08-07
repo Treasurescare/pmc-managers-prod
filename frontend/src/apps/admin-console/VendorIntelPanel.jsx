@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { vendorIntelApi, formatApiError } from "@/lib/api";
+import { useI18n } from "@/context/I18nContext";
 
 const BANDS = ["excellent", "good", "fair", "poor", "blacklisted"];
 
 export default function VendorIntelPanel() {
+  const { t } = useI18n();
   const [rows, setRows] = useState([]);
   const [selected, setSelected] = useState(null);
   const [rating, setRating] = useState({ score: 70, band: "good" });
@@ -19,20 +21,20 @@ export default function VendorIntelPanel() {
   const saveRating = async (v) => {
     try {
       await vendorIntelApi.rate({ vendor_ref: v.vendor_ref, ...rating });
-      toast.success("Rating saved");
+      toast.success(t("panels.vendor_intel.rating_saved"));
       load();
     } catch (e) { toast.error(formatApiError(e)); }
   };
   const blacklist = async (v) => {
-    if (!blacklistReason) return toast.error("Reason required");
+    if (!blacklistReason) return toast.error(t("panels.vendor_intel.reason_required"));
     try {
       await vendorIntelApi.blacklist({ vendor_ref: v.vendor_ref, reason: blacklistReason });
-      toast.success("Blacklisted");
+      toast.success(t("panels.vendor_intel.blacklisted_toast"));
       load();
     } catch (e) { toast.error(formatApiError(e)); }
   };
   const unblacklist = async (v) => {
-    try { await vendorIntelApi.unblacklist(v.vendor_ref); toast.success("Removed"); load(); }
+    try { await vendorIntelApi.unblacklist(v.vendor_ref); toast.success(t("panels.vendor_intel.removed_toast")); load(); }
     catch (e) { toast.error(formatApiError(e)); }
   };
 
@@ -40,12 +42,12 @@ export default function VendorIntelPanel() {
     <div data-testid="admin-vendor-intel-panel" className="bg-white border">
       <table className="w-full text-sm">
         <thead className="text-xs text-brand-navy/60 border-b">
-          <tr><th className="text-left px-3 py-2">Vendor</th>
-            <th className="text-left px-3 py-2">Ref</th>
-            <th className="px-3 py-2">Rating</th>
-            <th className="px-3 py-2">Band</th>
-            <th className="px-3 py-2">Flags</th>
-            <th className="px-3 py-2">Actions</th></tr>
+          <tr><th className="text-left px-3 py-2">{t("panels.vendor_intel.col_vendor")}</th>
+            <th className="text-left px-3 py-2">{t("panels.vendor_intel.col_ref")}</th>
+            <th className="px-3 py-2">{t("panels.vendor_intel.col_rating")}</th>
+            <th className="px-3 py-2">{t("panels.vendor_intel.col_band")}</th>
+            <th className="px-3 py-2">{t("panels.vendor_intel.col_flags")}</th>
+            <th className="px-3 py-2">{t("panels.vendor_intel.col_actions")}</th></tr>
         </thead>
         <tbody>
           {rows.map((v) => (
@@ -60,11 +62,11 @@ export default function VendorIntelPanel() {
               </td>
               <td className="px-3 py-2">
                 <button onClick={() => setSelected(v)} data-testid={`vintel-select-${v.vendor_ref}`}
-                  className="text-xs border px-2 py-1">Manage</button>
+                  className="text-xs border px-2 py-1">{t("panels.vendor_intel.manage")}</button>
               </td>
             </tr>
           ))}
-          {rows.length === 0 && (<tr><td colSpan={6} className="p-6 text-center text-slate-500">No vendors yet.</td></tr>)}
+          {rows.length === 0 && (<tr><td colSpan={6} className="p-6 text-center text-slate-500">{t("panels.vendor_intel.empty")}</td></tr>)}
         </tbody>
       </table>
 
@@ -74,38 +76,38 @@ export default function VendorIntelPanel() {
             <div className="text-lg font-serif">{selected.company_name}</div>
             <div className="text-xs text-slate-500">{selected.vendor_ref}</div>
             <label className="block text-sm">
-              <span>Score (0-100)</span>
+              <span>{t("panels.vendor_intel.score_label")}</span>
               <input type="number" min="0" max="100" value={rating.score}
                 onChange={(e) => setRating({ ...rating, score: Number(e.target.value) })}
                 className="mt-1 w-full border px-3 py-2" data-testid="vintel-score" />
             </label>
             <label className="block text-sm">
-              <span>Band</span>
+              <span>{t("panels.vendor_intel.band_label")}</span>
               <select value={rating.band} onChange={(e) => setRating({ ...rating, band: e.target.value })}
                 className="mt-1 w-full border px-3 py-2" data-testid="vintel-band">
                 {BANDS.map((b) => <option key={b}>{b}</option>)}
               </select>
             </label>
             <button onClick={() => saveRating(selected)} data-testid="vintel-save-rating"
-              className="w-full bg-slate-900 text-white py-2 text-sm">Save rating</button>
+              className="w-full bg-slate-900 text-white py-2 text-sm">{t("panels.vendor_intel.save_rating")}</button>
             <div className="border-t pt-3">
               <label className="block text-sm">
-                <span>Blacklist reason</span>
+                <span>{t("panels.vendor_intel.bl_reason")}</span>
                 <input value={blacklistReason} onChange={(e) => setBlacklistReason(e.target.value)}
                   className="mt-1 w-full border px-3 py-2" data-testid="vintel-bl-reason" />
               </label>
               <div className="flex gap-2 mt-2">
                 {!selected.blacklisted ? (
                   <button onClick={() => blacklist(selected)} data-testid="vintel-blacklist"
-                    className="flex-1 bg-red-600 text-white py-2 text-sm">Blacklist</button>
+                    className="flex-1 bg-red-600 text-white py-2 text-sm">{t("panels.vendor_intel.blacklist")}</button>
                 ) : (
                   <button onClick={() => unblacklist(selected)} data-testid="vintel-unblacklist"
-                    className="flex-1 bg-slate-200 text-slate-900 py-2 text-sm">Remove from blacklist</button>
+                    className="flex-1 bg-slate-200 text-slate-900 py-2 text-sm">{t("panels.vendor_intel.unblacklist")}</button>
                 )}
               </div>
             </div>
             <button onClick={() => setSelected(null)} className="text-xs text-slate-500 hover:underline">
-              Close
+              {t("panels.vendor_intel.close")}
             </button>
           </div>
         </div>
