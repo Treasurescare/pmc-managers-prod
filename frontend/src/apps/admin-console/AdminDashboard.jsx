@@ -29,27 +29,28 @@ import LiveAuctionsPanel from "./LiveAuctionsPanel";
 import useTenantSkin from "@/apps/shared/useTenantSkin";
 
 function TabBar({ tab, setTab }) {
+  const { t } = useI18n();
   const tabs = [
-    ["analytics", "Dashboard"],
-    ["registrations", "Registrations"],
-    ["vendors", "Vendors"],
-    ["notices", "Notices"],
-    ["corrigenda", "Corrigenda"],
-    ["tender-builder", "Tender Builder"],
-    ["bidding", "Bidding Ops"],
-    ["escrow", "Escrow (EMD)"],
-    ["evaluation", "Evaluation"],
-    ["awards", "Awards & POs"],
-    ["auctions", "Reverse Auctions"],
-    ["boq", "BOQ & Contracts"],
-    ["vintel", "Vendor Intel"],
-    ["masters", "Masters"],
-    ["permissions", "Permissions"],
-    ["packages", "Packages"],
-    ["audit", "Audit"],
-    ["catalog", "Product Catalog"],
-    ["engagements", "Engagements"],
-    ["reports", "Stakeholder Reports"],
+    ["analytics", t("admin.tab_dashboard")],
+    ["registrations", t("admin.tab_registrations")],
+    ["vendors", t("admin.tab_vendors")],
+    ["notices", t("admin.tab_notices")],
+    ["corrigenda", t("admin.tab_corrigenda")],
+    ["tender-builder", t("admin.tab_tender_builder")],
+    ["bidding", t("admin.tab_bidding")],
+    ["escrow", t("admin.tab_escrow")],
+    ["evaluation", t("admin.tab_evaluation")],
+    ["awards", t("admin.tab_awards")],
+    ["auctions", t("admin.tab_auctions")],
+    ["boq", t("admin.tab_boq")],
+    ["vintel", t("admin.tab_vintel")],
+    ["masters", t("admin.tab_masters")],
+    ["permissions", t("admin.tab_permissions")],
+    ["packages", t("admin.tab_packages")],
+    ["audit", t("admin.tab_audit")],
+    ["catalog", t("admin.tab_catalog")],
+    ["engagements", t("admin.tab_engagements")],
+    ["reports", t("admin.tab_reports")],
   ];
   return (
     <div className="flex flex-wrap gap-2" data-testid="admin-tabs">
