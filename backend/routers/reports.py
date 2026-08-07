@@ -919,6 +919,58 @@ async def get_flowchart_pdf(admin=Depends(require_role("admin", "reviewer", "aud
 
 
 # ------------------------------------------------------------------
+#  Test-plan bundle (Wave 43) — hand this to any tester or AI QA tool.
+# ------------------------------------------------------------------
+
+def _test_plan_path() -> str:
+    from pathlib import Path
+    return str(Path(__file__).resolve().parent.parent.parent / "docs" / "reports" / "PMC-v2-Test-Plan.md")
+
+
+@router.get("/test-plan.md")
+async def get_test_plan_md(admin=Depends(require_role("admin", "reviewer", "auditor"))):
+    from pathlib import Path
+    body = Path(_test_plan_path()).read_bytes()
+    return Response(content=body, media_type="text/markdown; charset=utf-8",
+                     headers=_dl_headers("PMC-v2-Test-Plan.md", "text/markdown"))
+
+
+@router.get("/test-plan.pdf")
+async def get_test_plan_pdf(admin=Depends(require_role("admin", "reviewer", "auditor"))):
+    from pathlib import Path
+    import markdown as _md
+    from weasyprint import HTML
+    md_text = Path(_test_plan_path()).read_text()
+    html_body = _md.markdown(md_text, extensions=["tables", "fenced_code"])
+    html = f"""<!doctype html><html><head><meta charset='utf-8'>
+<style>
+  @page {{ size: A4 portrait; margin: 18mm 14mm; @bottom-center {{ content: "PMC v2 Test Plan · page " counter(page) " of " counter(pages); font-size: 8pt; color: #555; }} }}
+  body {{ font-family: 'Helvetica','Arial',sans-serif; font-size: 9pt; color: #0e2340; line-height: 1.45; }}
+  h1 {{ font-size: 20pt; color: #0e2340; margin: 24pt 0 6pt; }}
+  h2 {{ font-size: 14pt; color: #0e2340; border-bottom: 2px solid #0e2340; padding-bottom: 4pt; margin-top: 22pt; page-break-after: avoid; }}
+  h3 {{ font-size: 11pt; color: #3b5776; margin-top: 14pt; page-break-after: avoid; }}
+  table {{ border-collapse: collapse; width: 100%; margin: 6pt 0 12pt; page-break-inside: avoid; }}
+  th {{ background: #0e2340; color: #fff; text-align: left; padding: 5pt 6pt; font-size: 8.5pt; }}
+  td {{ border-bottom: 1px solid #dfe4ec; padding: 4pt 6pt; vertical-align: top; }}
+  code {{ background: #f2f4f8; padding: 1pt 3pt; font-size: 8pt; border-radius: 3pt; }}
+  pre {{ background: #f2f4f8; padding: 8pt; font-size: 8pt; page-break-inside: avoid; overflow-wrap: break-word; }}
+  ul, ol {{ margin: 4pt 0 8pt 18pt; }}
+</style></head><body>{html_body}</body></html>"""
+    pdf = HTML(string=html).write_pdf()
+    return Response(content=pdf, media_type="application/pdf",
+                     headers=_dl_headers("PMC-v2-Test-Plan.pdf", "application/pdf"))
+
+
+@router.get("/test-ids.txt")
+async def get_test_ids(admin=Depends(require_role("admin", "reviewer", "auditor"))):
+    from pathlib import Path
+    p = Path(__file__).resolve().parent.parent.parent / "docs" / "reports" / "PMC-v2-Test-IDs.txt"
+    body = p.read_bytes() if p.exists() else b""
+    return Response(content=body, media_type="text/plain; charset=utf-8",
+                     headers=_dl_headers("PMC-v2-Test-IDs.txt", "text/plain"))
+
+
+# ------------------------------------------------------------------
 #  Public roadmap JSON — no auth. Powers the shareable /roadmap page.
 # ------------------------------------------------------------------
 
