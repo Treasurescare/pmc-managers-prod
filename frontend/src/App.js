@@ -49,6 +49,9 @@ import PublicRoadmap from "@/apps/shared/PublicRoadmap";
 // Wave 40 — Reverse-auction live room
 import AuctionRoom from "@/apps/vendor-portal/AuctionRoom";
 
+// Wave 41 — Meeting room (Jitsi embed via magic-link)
+import MeetingRoom from "@/apps/shared/MeetingRoom";
+
 export default function App() {
   return (
     <div className="App">
@@ -108,6 +111,9 @@ export default function App() {
             <Route path="/roadmap" element={<PublicRoadmap />} />
 
             <Route path="/vendor/auction/:aid" element={<AuctionRoom />} />
+
+            {/* Wave 41 — Meeting magic-link (Jitsi embed) */}
+            <Route path="/meet/:token" element={<MeetingRoom />} />
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

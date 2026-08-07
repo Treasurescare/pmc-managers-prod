@@ -26,6 +26,8 @@ import EngagementsPanel from "./EngagementsPanel";
 import CorrigendaPanel from "./CorrigendaPanel";
 import AwardsPanel from "./AwardsPanel";
 import LiveAuctionsPanel from "./LiveAuctionsPanel";
+import MeetingsPanel from "./MeetingsPanel";
+import L1ComparisonPanel from "./L1ComparisonPanel";
 import useTenantSkin from "@/apps/shared/useTenantSkin";
 
 function TabBar({ tab, setTab }) {
@@ -42,6 +44,8 @@ function TabBar({ tab, setTab }) {
     ["evaluation", t("admin.tab_evaluation")],
     ["awards", t("admin.tab_awards")],
     ["auctions", t("admin.tab_auctions")],
+    ["meetings", t("admin.tab_meetings")],
+    ["l1", t("admin.tab_l1")],
     ["boq", t("admin.tab_boq")],
     ["vintel", t("admin.tab_vintel")],
     ["masters", t("admin.tab_masters")],
@@ -139,6 +143,8 @@ export default function AdminDashboard() {
           {tab === "evaluation" && <EvaluationPanel />}
           {tab === "awards" && <AwardsPanel />}
           {tab === "auctions" && <LiveAuctionsPanel />}
+          {tab === "meetings" && <MeetingsPanel />}
+          {tab === "l1" && <L1ComparisonPanel />}
           {tab === "boq" && <BOQContractsPanel />}
           {tab === "vintel" && <VendorIntelPanel />}
           {tab === "masters" && <MastersPanel />}

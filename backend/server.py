@@ -17,7 +17,7 @@ from routers import (
     evaluations, boqs, vendor_intel, analytics, governance, notifications, payments_sandbox,
     mfa, tenants, kyc, vendor_invites, permissions, admin_heal, vendor_full_invite,
     tender_templates, notice_qa, bids_ai_compare, escrow, reports, products, billing,
-    engagements, corrigenda, awards, auction_live, taxonomy,
+    engagements, corrigenda, awards, auction_live, taxonomy, meetings, comparison,
 )
 
 
@@ -83,6 +83,9 @@ app.include_router(awards.router)
 # Wave 40 — Reverse Auction Live Room + UNSPSC-lite taxonomy
 app.include_router(auction_live.router)
 app.include_router(taxonomy.router)
+# Wave 41 — Meeting Scheduler + Jitsi + L1 Auto-Comparison
+app.include_router(meetings.router)
+app.include_router(comparison.router)
 
 
 # ---------- CORS ----------

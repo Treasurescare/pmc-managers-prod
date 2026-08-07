@@ -437,4 +437,19 @@ export const taxonomyApi = {
   lookup: (code) => api.get(`/api/v1/taxonomy/lookup/${code}`).then((r) => r.data),
 };
 
+// ---------- Wave 41: Meetings + Jitsi ----------
+export const meetingsApi = {
+  create: (p) => api.post("/api/v1/meetings", p).then((r) => r.data),
+  list: () => api.get("/api/v1/meetings").then((r) => r.data),
+  get: (mid) => api.get(`/api/v1/meetings/${mid}`).then((r) => r.data),
+  addInvitees: (mid, list) => api.post(`/api/v1/meetings/${mid}/invitees`, list).then((r) => r.data),
+  uploadMinutes: (mid, minutes) => api.post(`/api/v1/meetings/${mid}/minutes`, { minutes }).then((r) => r.data),
+  cancel: (mid) => api.delete(`/api/v1/meetings/${mid}`).then((r) => r.data),
+};
+
+// ---------- Wave 41: L1 Auto-Comparison ----------
+export const comparisonApi = {
+  runL1: (notice_ref) => api.post(`/api/v1/comparison/l1/${notice_ref}`).then((r) => r.data),
+};
+
 export default api;
