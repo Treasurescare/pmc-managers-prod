@@ -58,6 +58,15 @@ class ProductIn(BaseModel):
     min_amount: Optional[float] = None            # for range
     max_amount: Optional[float] = None            # for range
     percentage: Optional[float] = None            # for percentage (0-100)
+    percentage_of: Optional[str] = None           # e.g. "contract_value"
+    unit_label: Optional[str] = None
+    package_tier: Optional[str] = None
+    conditions: Optional[str] = None
+    is_active: bool = True
+    display_order: int = 100
+    # Wave 44 — UNSPSC taxonomy tag (optional)
+    unspsc_code: Optional[str] = None
+    unspsc_title: Optional[str] = None
     percentage_of: Optional[str] = None           # "contract_value" | "programme_value" | ...
     unit_label: Optional[str] = None              # "per delegate", "per month", …
     package_tier: Optional[str] = None            # Bronze | Silver | Gold | Platinum | SME | Mid | Tier1

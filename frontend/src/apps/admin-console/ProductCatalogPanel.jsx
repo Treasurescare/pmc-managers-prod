@@ -7,6 +7,7 @@
  */
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { toast } from "sonner";
+import UnspscPicker from "@/components/UnspscPicker";
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -35,6 +36,7 @@ const EMPTY = {
   percentage: "", percentage_of: "",
   unit_label: "", package_tier: "", conditions: "",
   is_active: true, display_order: 100,
+  unspsc_code: "", unspsc_title: "",
 };
 
 function ProductRow({ p, onEdit, onToggle }) {
@@ -248,6 +250,21 @@ function ProductEditor({ item, onClose, onSaved }) {
                       data-testid="product-form-conditions" rows={2}
                       className="mt-1 w-full border border-brand-navy/20 px-3 py-2"/>
           </label>
+          <div className="col-span-2">
+            <div className="pmc-label">UNSPSC classification (optional)</div>
+            <div className="text-[11px] text-brand-navy/50 mb-1">
+              Tag with the closest UNSPSC segment / family so buyers can find it via commodity code.
+            </div>
+            <UnspscPicker
+              value={form.unspsc_code}
+              title={form.unspsc_title}
+              onChange={({ code, title }) => {
+                set("unspsc_code", code);
+                set("unspsc_title", title);
+              }}
+              testidPrefix="product-unspsc"
+            />
+          </div>
           <label className="col-span-2 flex items-center gap-2">
             <input type="checkbox" checked={!!form.is_active}
                    onChange={(e) => set("is_active", e.target.checked)}

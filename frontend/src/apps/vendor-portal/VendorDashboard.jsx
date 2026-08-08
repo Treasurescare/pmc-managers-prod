@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { vendorApi, publicApi, bidApi, formatApiError } from "@/lib/api";
 import VendorGdprButton from "./VendorGdprButton";
+import VendorSignatures from "./VendorSignatures";
 import useTenantSkin from "@/apps/shared/useTenantSkin";
 
 const STATUS_LABELS = {
@@ -70,14 +71,21 @@ export default function VendorDashboard() {
       </header>
 
       <div className="max-w-6xl mx-auto px-6 py-6">
-        <div className="flex gap-4 border-b mb-6">
+        <div className="flex gap-4 border-b mb-6 overflow-x-auto">
           <button onClick={() => setTab("tenders")}
-            className={`pb-2 text-sm ${tab === "tenders" ? "border-b-2 border-slate-900 font-semibold" : "text-slate-500"}`}
+            className={`pb-2 text-sm whitespace-nowrap ${tab === "tenders" ? "border-b-2 border-slate-900 font-semibold" : "text-slate-500"}`}
             data-testid="vendor-tab-tenders">Open tenders ({notices.length})</button>
           <button onClick={() => setTab("bids")}
-            className={`pb-2 text-sm ${tab === "bids" ? "border-b-2 border-slate-900 font-semibold" : "text-slate-500"}`}
+            className={`pb-2 text-sm whitespace-nowrap ${tab === "bids" ? "border-b-2 border-slate-900 font-semibold" : "text-slate-500"}`}
             data-testid="vendor-tab-bids">My bids ({bids.length})</button>
+          <button onClick={() => setTab("signatures")}
+            className={`pb-2 text-sm whitespace-nowrap ${tab === "signatures" ? "border-b-2 border-slate-900 font-semibold" : "text-slate-500"}`}
+            data-testid="vendor-tab-signatures">
+            Signatures ({bids.filter((b) => b.status === "awarded").length})
+          </button>
         </div>
+
+        {tab === "signatures" && <VendorSignatures />}
 
         {tab === "tenders" && (
           <div className="grid md:grid-cols-2 gap-4" data-testid="vendor-tender-list">

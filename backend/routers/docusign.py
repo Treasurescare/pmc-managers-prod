@@ -123,9 +123,11 @@ def _client() -> ds.ApiClient:
 async def _load_award_pdf(bid_id: str, kind: str) -> tuple[bytes, str, str]:
     """Return (pdf_bytes, filename, award_ref) for an award document."""
     d = await db.award_documents.find_one({"bid_id": bid_id, "kind": kind})
-    if not d or not d.get("pdf_bytes"):
+    if not d:
         raise HTTPException(404, f"Award document '{kind}' not found for bid {bid_id}")
-    pdf = d["pdf_bytes"]
+    pdf = d.get("pdf_bytes") or d.get("pdf_b64")
+    if not pdf:
+        raise HTTPException(404, f"Award document '{kind}' has no PDF payload")
     if isinstance(pdf, str):
         pdf = base64.b64decode(pdf)
     ref = d.get("award_ref", "AWARD")
@@ -379,6 +381,79 @@ async def list_envelopes(admin=Depends(current_admin), limit: int = 100):
         row.pop("_id", None)
         items.append(row)
     return {"items": items}
+
+
+# ---------------- Vendor-facing endpoints (Wave 44) ----------------
+
+from routers.vendor_auth import current_vendor  # noqa: E402
+
+
+@router.get("/mine")
+async def list_my_envelopes(vendor=Depends(current_vendor)):
+    """List envelopes where the vendor is the intended signer OR the envelope
+    was created for one of the vendor's awarded bids."""
+    ve = vendor.get("email")
+    if not ve:
+        return {"items": []}
+    # Find bids owned by this vendor.
+    bid_ids = []
+    async for b in db.bids.find({"vendor_email": ve}, {"id": 1}):
+        if b.get("id"):
+            bid_ids.append(b["id"])
+    query = {"$or": [{"signer_email": ve}, {"bid_id": {"$in": bid_ids}}]}
+    cursor = db.docusign_envelopes.find(query).sort("created_at", -1).limit(50)
+    items = []
+    async for row in cursor:
+        row.pop("_id", None)
+        items.append(row)
+    return {"items": items}
+
+
+@router.post("/mine/awards/{bid_id}/{kind}/envelope")
+async def vendor_request_award_envelope(
+    bid_id: str, kind: str, req: EnvelopeRequest,
+    vendor=Depends(current_vendor),
+):
+    """A vendor requests to sign one of their own awarded contract PDFs.
+    Server-side guard: the bid must be awarded AND owned by the calling vendor."""
+    if kind not in ("po", "sla", "contract"):
+        raise HTTPException(400, "kind must be po|sla|contract")
+    ve = vendor.get("email")
+    bid = await _load_bid(bid_id)
+    if bid.get("vendor_email") != ve:
+        raise HTTPException(403, "This bid is not owned by the calling vendor")
+    if bid.get("status") != "awarded":
+        raise HTTPException(412, "Bid must be awarded before signing")
+    pdf, fname, award_ref = await _load_award_pdf(bid_id, kind)
+    client = _client()
+    client_user_id = f"pmc:vendor:{bid_id}:{kind}:{ve}"
+    subject = f"PMC {award_ref} · {kind.upper()} — please sign"
+    envelope_id, _ = _create_envelope(
+        client, pdf, fname, req.signer_name or vendor.get("company_name") or ve,
+        str(req.signer_email or ve), subject, client_user_id,
+    )
+    return_url = req.return_url or f"{config.FRONTEND_URL}/vendor/dashboard?ds_signed=1"
+    signing_url = _recipient_view(client, envelope_id, req.signer_name or ve,
+                                   str(req.signer_email or ve), client_user_id, return_url)
+    doc = {
+        "envelope_id": envelope_id,
+        "kind": "award",
+        "sub_kind": kind,
+        "bid_id": bid_id,
+        "award_ref": award_ref,
+        "signer_name": req.signer_name or vendor.get("company_name") or ve,
+        "signer_email": str(req.signer_email or ve),
+        "client_user_id": client_user_id,
+        "status": "sent",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_by": ve,
+        "vendor_initiated": True,
+    }
+    await db.docusign_envelopes.update_one(
+        {"envelope_id": envelope_id}, {"$set": doc}, upsert=True,
+    )
+    return {"envelope_id": envelope_id, "signing_url": signing_url,
+            "expires_in": 300, "status": "sent"}
 
 
 # ---------------- Connect webhook ----------------

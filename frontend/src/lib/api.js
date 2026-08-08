@@ -463,6 +463,10 @@ export const docusignApi = {
   envelope: (eid) => api.get(`/api/v1/docusign/envelopes/${eid}`).then((r) => r.data),
   listEnvelopes: (limit = 100) =>
     api.get(`/api/v1/docusign/envelopes?limit=${limit}`).then((r) => r.data),
+  // Vendor-facing (Wave 44)
+  listMine: () => api.get("/api/v1/docusign/mine").then((r) => r.data),
+  vendorSignAward: (bidId, kind, payload) =>
+    api.post(`/api/v1/docusign/mine/awards/${bidId}/${kind}/envelope`, payload).then((r) => r.data),
 };
 
 export default api;
