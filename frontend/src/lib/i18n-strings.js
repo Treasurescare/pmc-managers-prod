@@ -562,6 +562,10 @@ const EN = {
       signer_required: "Signer name + email required",
       envelope_sent: "Envelope sent — signing URL below",
       consent_required: "Consent required — a new tab has opened, please approve",
+      delivery_mode: "Delivery mode",
+      delivery_embedded: "Embedded (sign in-app)",
+      delivery_email: "Email (DocuSign emails link)",
+      email_sent_hint: "DocuSign will email the signing link directly to the signer. No in-app link is generated.",
     },
   },
 };
@@ -1122,6 +1126,10 @@ const RU = {
       signer_required: "Требуются имя и email подписанта",
       envelope_sent: "Конверт отправлен — ссылка ниже",
       consent_required: "Требуется согласие — открылась новая вкладка, подтвердите",
+      delivery_mode: "Способ доставки",
+      delivery_embedded: "Встроенно (подпись в приложении)",
+      delivery_email: "Email (ссылка от DocuSign)",
+      email_sent_hint: "DocuSign отправит ссылку для подписания напрямую подписанту. Ссылка внутри приложения не создаётся.",
     },
   },
 };
@@ -1682,6 +1690,10 @@ const KK = {
       signer_required: "Қол қоюшы аты мен email қажет",
       envelope_sent: "Конверт жіберілді — сілтеме төменде",
       consent_required: "Келісім қажет — жаңа қойынды ашылды, мақұлдаңыз",
+      delivery_mode: "Жеткізу тәсілі",
+      delivery_embedded: "Кірістірілген (қосымшада қол қою)",
+      delivery_email: "Email (DocuSign сілтеме жібереді)",
+      email_sent_hint: "DocuSign қол қою сілтемесін тікелей қол қоюшыға email арқылы жібереді. Қосымшада сілтеме жасалмайды.",
     },
   },
 };

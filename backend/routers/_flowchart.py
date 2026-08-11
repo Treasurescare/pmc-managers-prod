@@ -1,0 +1,435 @@
+"""Flowchart SVG generator — split by lane for readability.
+
+Previously lived as a single 376-line function inside routers/reports.py.
+Each lane returns the raw SVG fragment for that horizontal band; the
+top-level composer stitches them together. Output is byte-identical to
+the pre-refactor SVG so downloaded artefacts (`PMC-v2-Platform-Flowchart.svg`,
+Test-Plan.pdf) don't drift.
+"""
+
+
+def _flow_defs_and_lanes() -> str:
+    """SVG root, markers, styles, header text, legend row, and the six
+    dashed swim-lane rectangles + lane titles."""
+    return """<?xml version='1.0' encoding='UTF-8'?>
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1720 1580'
+     width='1720' height='1580' preserveAspectRatio='xMidYMid meet'
+     font-family='Calibri, Arial, sans-serif' font-size='14'>
+  <defs>
+    <marker id='arrow' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='strokeWidth'
+            markerWidth='10' markerHeight='10' orient='auto'>
+      <path d='M 0 0 L 10 5 L 0 10 z' fill='#0b1f3a'/>
+    </marker>
+    <marker id='arrow-rev' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='strokeWidth'
+            markerWidth='10' markerHeight='10' orient='auto'>
+      <path d='M 0 0 L 10 5 L 0 10 z' fill='#065f46'/>
+    </marker>
+    <style>
+      .box     { fill: #ffffff; stroke: #0b1f3a; stroke-width: 1.5; }
+      .box-ok  { fill: #d1fae5; stroke: #065f46; stroke-width: 1.5; }
+      .box-hi  { fill: #0b1f3a; stroke: #0b1f3a; }
+      .box-ai  { fill: #ede9fe; stroke: #6b21a8; stroke-width: 1.5; }
+      .box-rev { fill: #fef3c7; stroke: #92400e; stroke-width: 1.5; }
+      .box-hi text { fill: #ffffff; }
+      .title   { font-size: 15px; font-weight: 700; }
+      .sub     { font-size: 11px; fill: #475569; }
+      .lane    { fill: #f8fafc; stroke: #e2e8f0; stroke-dasharray: 3 3; }
+      .lane-title { font-size: 12px; font-weight: 700; fill: #64748b; letter-spacing: 1px; }
+      .flow    { stroke: #0b1f3a; stroke-width: 1.5; fill: none; }
+      .flow-rev{ stroke: #92400e; stroke-width: 1.4; fill: none; stroke-dasharray: 4 3; }
+      .flow-alt{ stroke: #6b21a8; stroke-width: 1.2; fill: none; stroke-dasharray: 6 4; }
+      .legend text { font-size: 11px; fill: #334155; }
+    </style>
+  </defs>
+
+  <!-- Header -->
+  <text x='40' y='38' class='title' font-size='22'>PMC Managers v2 — End-to-end platform flow (rev. 2026-08-06 · Wave 39)</text>
+  <text x='40' y='60' class='sub'>Seven operating lanes · Wave 39 adds Corrigenda publisher · Two-Cover envelope enforcement · Auto Purchase Order + SLA + Contract on award</text>
+
+  <!-- Legend -->
+  <g class='legend' transform='translate(40, 76)'>
+    <rect x='0'   y='0' width='16' height='12' class='box'/>       <text x='22' y='10'>Standard step</text>
+    <rect x='140' y='0' width='16' height='12' class='box-ok'/>    <text x='162' y='10'>Escrow-critical (green)</text>
+    <rect x='320' y='0' width='16' height='12' class='box-hi'/>    <text x='342' y='10'>Publish / award decision</text>
+    <rect x='500' y='0' width='16' height='12' class='box-ai'/>    <text x='522' y='10'>AI (advisory only)</text>
+    <rect x='680' y='0' width='16' height='12' class='box-rev'/>   <text x='702' y='10'>Revenue (Stripe / catalog)</text>
+  </g>
+
+  <!-- Swim lanes -->
+  <rect class='lane' x='40'   y='108' width='1640' height='160'/>
+  <text x='60' y='128' class='lane-title'>1 · TENDER CREATION</text>
+
+  <rect class='lane' x='40'   y='278' width='1640' height='200'/>
+  <text x='60' y='298' class='lane-title'>2 · VENDOR ONBOARDING · KYC GATE · BIDDING</text>
+
+  <rect class='lane' x='40'   y='488' width='1640' height='260'/>
+  <text x='60' y='508' class='lane-title'>3 · JOINT ESCROW (dual-signature + magic-link)</text>
+
+  <rect class='lane' x='40'   y='758' width='1640' height='150'/>
+  <text x='60' y='778' class='lane-title'>4 · CONTRACT AWARD &amp; SETTLEMENT</text>
+
+  <rect class='lane' x='40'   y='918' width='1640' height='200'/>
+  <text x='60' y='938' class='lane-title'>5 · REVENUE STREAMS — CATALOG · CLIENT + SUPPLIER · STRIPE</text>
+
+  <rect class='lane' x='40'   y='1128' width='1640' height='200'/>
+  <text x='60' y='1148' class='lane-title'>6 · GOVERNANCE — AUDIT · AI · LIVE ROADMAP · AUTO-SNAPSHOT · MULTI-TENANT</text>
+"""
+
+
+def _flow_lane1_tender_creation() -> str:
+    """Lane 1 — Admin drafts → AI section → Bulk attachments → Version → Publish → Public board."""
+    return """
+  <!-- ============ Lane 1: Tender creation ============ -->
+  <g transform='translate(80,150)'>
+    <rect class='box' width='190' height='95' rx='6'/>
+    <text x='95' y='30' text-anchor='middle' class='title'>Admin drafts</text>
+    <text x='95' y='52' text-anchor='middle' class='sub'>Tender Builder v4</text>
+    <text x='95' y='70' text-anchor='middle' class='sub'>18 sections + header</text>
+  </g>
+  <g transform='translate(320,150)'>
+    <rect class='box-ai' width='190' height='95' rx='6'/>
+    <text x='95' y='30' text-anchor='middle' class='title'>✨ AI section draft</text>
+    <text x='95' y='52' text-anchor='middle' class='sub'>Tone × length</text>
+    <text x='95' y='70' text-anchor='middle' class='sub'>Diff-review before apply</text>
+  </g>
+  <g transform='translate(560,150)'>
+    <rect class='box' width='190' height='95' rx='6'/>
+    <text x='95' y='30' text-anchor='middle' class='title'>Bulk attachments</text>
+    <text x='95' y='52' text-anchor='middle' class='sub'>Auto-match filename →</text>
+    <text x='95' y='70' text-anchor='middle' class='sub'>section by code/title</text>
+  </g>
+  <g transform='translate(800,150)'>
+    <rect class='box' width='190' height='95' rx='6'/>
+    <text x='95' y='30' text-anchor='middle' class='title'>Version history</text>
+    <text x='95' y='52' text-anchor='middle' class='sub'>20-snapshot rolling</text>
+    <text x='95' y='70' text-anchor='middle' class='sub'>1-click revert</text>
+  </g>
+  <g transform='translate(1040,150)'>
+    <rect class='box-hi' width='190' height='95' rx='6'/>
+    <text x='95' y='30' text-anchor='middle' class='title'>Publish notice</text>
+    <text x='95' y='52' text-anchor='middle' class='sub'>Link tender template</text>
+    <text x='95' y='70' text-anchor='middle' class='sub'>Approval matrix</text>
+  </g>
+  <g transform='translate(1280,150)'>
+    <rect class='box' width='260' height='95' rx='6'/>
+    <text x='130' y='30' text-anchor='middle' class='title'>Public notice board</text>
+    <text x='130' y='52' text-anchor='middle' class='sub'>Bidders download PDF/.zip</text>
+    <text x='130' y='70' text-anchor='middle' class='sub'>EN · RU · KK · magic-byte checked</text>
+  </g>
+  <path class='flow' d='M270 197 L320 197' marker-end='url(#arrow)'/>
+  <path class='flow' d='M510 197 L560 197' marker-end='url(#arrow)'/>
+  <path class='flow' d='M750 197 L800 197' marker-end='url(#arrow)'/>
+  <path class='flow' d='M990 197 L1040 197' marker-end='url(#arrow)'/>
+  <path class='flow' d='M1230 197 L1280 197' marker-end='url(#arrow)'/>
+"""
+
+
+def _flow_lane2_vendor_bidding() -> str:
+    """Lane 2 — Vendor register → KYC → Q&A → Bid submit → EMD."""
+    return """
+  <!-- ============ Lane 2: Vendor onboarding & bidding ============ -->
+  <g transform='translate(80,320)'>
+    <rect class='box' width='190' height='100' rx='6'/>
+    <text x='95' y='30' text-anchor='middle' class='title'>Vendor registers</text>
+    <text x='95' y='52' text-anchor='middle' class='sub'>Sections A-E</text>
+    <text x='95' y='70' text-anchor='middle' class='sub'>Magic-link resume</text>
+    <text x='95' y='88' text-anchor='middle' class='sub'>Registration = free</text>
+  </g>
+  <g transform='translate(320,320)'>
+    <rect class='box-ok' width='190' height='100' rx='6'/>
+    <text x='95' y='30' text-anchor='middle' class='title'>🔒 KYC verification</text>
+    <text x='95' y='52' text-anchor='middle' class='sub'>Pre-bid gate ACTIVE</text>
+    <text x='95' y='70' text-anchor='middle' class='sub'>HTTP 412 if not passed</text>
+    <text x='95' y='88' text-anchor='middle' class='sub'>kyc_bypass admin escape</text>
+  </g>
+  <g transform='translate(560,320)'>
+    <rect class='box' width='190' height='100' rx='6'/>
+    <text x='95' y='30' text-anchor='middle' class='title'>Ask a clarification</text>
+    <text x='95' y='52' text-anchor='middle' class='sub'>Public Q&amp;A thread</text>
+    <text x='95' y='70' text-anchor='middle' class='sub'>Email masked · admin reply</text>
+  </g>
+  <g transform='translate(800,320)'>
+    <rect class='box' width='190' height='100' rx='6'/>
+    <text x='95' y='30' text-anchor='middle' class='title'>Bid submission</text>
+    <text x='95' y='52' text-anchor='middle' class='sub'>Price + tech notes</text>
+    <text x='95' y='70' text-anchor='middle' class='sub'>Docs upload</text>
+  </g>
+  <g transform='translate(1040,320)'>
+    <rect class='box-ok' width='250' height='100' rx='6'/>
+    <text x='125' y='30' text-anchor='middle' class='title'>EMD wired to joint escrow</text>
+    <text x='125' y='52' text-anchor='middle' class='sub'>PMC officer + Escrow officer</text>
+    <text x='125' y='70' text-anchor='middle' class='sub'>Stripe / PayPal / Kaspi rail</text>
+    <text x='125' y='88' text-anchor='middle' class='sub'>tx.status = received</text>
+  </g>
+  <path class='flow' d='M270 370 L320 370' marker-end='url(#arrow)'/>
+  <path class='flow' d='M510 370 L560 370' marker-end='url(#arrow)'/>
+  <path class='flow' d='M750 370 L800 370' marker-end='url(#arrow)'/>
+  <path class='flow' d='M990 370 L1040 370' marker-end='url(#arrow)'/>
+"""
+
+
+def _flow_lane3_escrow() -> str:
+    """Lane 3 — Approval pipeline → Committee eval → AI redline → Dual sign-off → Magic-link → Award."""
+    return """
+  <!-- ============ Lane 3: Joint Escrow (expanded) ============ -->
+  <g transform='translate(80,540)'>
+    <rect class='box' width='190' height='110' rx='6'/>
+    <text x='95' y='30' text-anchor='middle' class='title'>Approval pipeline</text>
+    <text x='95' y='52' text-anchor='middle' class='sub'>Escrow → Admin →</text>
+    <text x='95' y='68' text-anchor='middle' class='sub'>Certifier → Legal →</text>
+    <text x='95' y='84' text-anchor='middle' class='sub'>Accounting → Committee</text>
+  </g>
+  <g transform='translate(320,540)'>
+    <rect class='box' width='190' height='110' rx='6'/>
+    <text x='95' y='30' text-anchor='middle' class='title'>Committee eval</text>
+    <text x='95' y='52' text-anchor='middle' class='sub'>Rubric per criterion</text>
+    <text x='95' y='68' text-anchor='middle' class='sub'>Tech + commercial</text>
+    <text x='95' y='88' text-anchor='middle' class='sub' fill='#78350f'>role firewall planned</text>
+  </g>
+  <g transform='translate(560,540)'>
+    <rect class='box-ai' width='190' height='110' rx='6'/>
+    <text x='95' y='30' text-anchor='middle' class='title'>✨ AI redline</text>
+    <text x='95' y='52' text-anchor='middle' class='sub'>Compare two bids</text>
+    <text x='95' y='68' text-anchor='middle' class='sub'>clause · pricing · risk</text>
+    <text x='95' y='88' text-anchor='middle' class='sub'>advisory · no winner</text>
+  </g>
+  <g transform='translate(800,540)'>
+    <rect class='box-ok' width='260' height='110' rx='6'/>
+    <text x='130' y='30' text-anchor='middle' class='title'>Escrow tx: dual sign-off</text>
+    <text x='130' y='52' text-anchor='middle' class='sub'>PMC officer signs · same action</text>
+    <text x='130' y='68' text-anchor='middle' class='sub'>Escrow officer signs · same action</text>
+    <text x='130' y='88' text-anchor='middle' class='sub'>Release button unlocks (409 otherwise)</text>
+  </g>
+  <g transform='translate(1090,540)'>
+    <rect class='box-ok' width='250' height='110' rx='6'/>
+    <text x='125' y='30' text-anchor='middle' class='title'>🔗 Magic-link portal</text>
+    <text x='125' y='52' text-anchor='middle' class='sub'>Non-PMC officer signs via</text>
+    <text x='125' y='68' text-anchor='middle' class='sub'>/escrow/officer/{token}</text>
+    <text x='125' y='88' text-anchor='middle' class='sub'>no full staff account needed</text>
+  </g>
+  <g transform='translate(1370,540)'>
+    <rect class='box-hi' width='230' height='110' rx='6'/>
+    <text x='115' y='30' text-anchor='middle' class='title'>Award decision</text>
+    <text x='115' y='52' text-anchor='middle' class='sub'>Committee accepts</text>
+    <text x='115' y='68' text-anchor='middle' class='sub'>Contract drafted</text>
+    <text x='115' y='88' text-anchor='middle' class='sub'>Audit-logged</text>
+  </g>
+  <path class='flow' d='M270 595 L320 595' marker-end='url(#arrow)'/>
+  <path class='flow' d='M510 595 L560 595' marker-end='url(#arrow)'/>
+  <path class='flow' d='M750 595 L800 595' marker-end='url(#arrow)'/>
+  <path class='flow-alt' d='M1090 595 L1060 595' marker-end='url(#arrow)'/>
+  <path class='flow' d='M1340 595 L1370 595' marker-end='url(#arrow)'/>
+"""
+
+
+def _flow_lane4_settlement() -> str:
+    """Lane 4 — Release / Refund / Forfeit fan-out + ledger close."""
+    return """
+  <!-- ============ Lane 4: Settlement fan-out ============ -->
+  <g transform='translate(80,800)'>
+    <rect class='box-ok' width='240' height='80' rx='6'/>
+    <text x='120' y='30' text-anchor='middle' class='title'>Release → Contractor</text>
+    <text x='120' y='52' text-anchor='middle' class='sub'>via PMC as pass-through</text>
+    <text x='120' y='68' text-anchor='middle' class='sub'>paymaster</text>
+  </g>
+  <g transform='translate(360,800)'>
+    <rect class='box-ok' width='240' height='80' rx='6'/>
+    <text x='120' y='30' text-anchor='middle' class='title'>Refund → Vendor</text>
+    <text x='120' y='52' text-anchor='middle' class='sub'>bid did not win</text>
+    <text x='120' y='68' text-anchor='middle' class='sub'>EMD returned in full</text>
+  </g>
+  <g transform='translate(640,800)'>
+    <rect class='box-ok' width='240' height='80' rx='6'/>
+    <text x='120' y='30' text-anchor='middle' class='title'>Forfeit</text>
+    <text x='120' y='52' text-anchor='middle' class='sub'>Withdrawal · misdeclaration</text>
+    <text x='120' y='68' text-anchor='middle' class='sub'>Retained per T&amp;C</text>
+  </g>
+  <g transform='translate(950,800)'>
+    <rect class='box' width='400' height='80' rx='6'/>
+    <text x='200' y='30' text-anchor='middle' class='title'>Ledger closes · immutable audit_trail</text>
+    <text x='200' y='52' text-anchor='middle' class='sub'>received → signed_by_pmc → signed_by_escrow →</text>
+    <text x='200' y='68' text-anchor='middle' class='sub'>released_to_* / forfeited</text>
+  </g>
+  <path class='flow-alt' d='M1495 650 Q1495 730, 1350 800' marker-end='url(#arrow)'/>
+  <path class='flow' d='M320 840 L360 840' marker-end='url(#arrow)'/>
+  <path class='flow' d='M600 840 L640 840' marker-end='url(#arrow)'/>
+  <path class='flow' d='M880 840 L950 840' marker-end='url(#arrow)'/>
+"""
+
+
+def _flow_lane5_revenue() -> str:
+    """Lane 5 — Catalog · Client · Supplier · Stripe · Webhook · Quote pipeline."""
+    return """
+  <!-- ============ Lane 5: REVENUE STREAMS (new) ============ -->
+  <g transform='translate(80,960)'>
+    <rect class='box-rev' width='210' height='140' rx='6'/>
+    <text x='105' y='30' text-anchor='middle' class='title'>Product Catalog</text>
+    <text x='105' y='52' text-anchor='middle' class='sub'>Admin-editable master</text>
+    <text x='105' y='68' text-anchor='middle' class='sub'>55 rows (CA-02 + CA-03)</text>
+    <text x='105' y='86' text-anchor='middle' class='sub'>9 pricing models</text>
+    <text x='105' y='104' text-anchor='middle' class='sub'>Multi-currency</text>
+    <text x='105' y='122' text-anchor='middle' class='sub'>USD · GBP · EUR · KZT</text>
+  </g>
+  <g transform='translate(320,960)'>
+    <rect class='box-rev' width='210' height='140' rx='6'/>
+    <text x='105' y='30' text-anchor='middle' class='title'>Client purchase</text>
+    <text x='105' y='52' text-anchor='middle' class='sub'>/services</text>
+    <text x='105' y='68' text-anchor='middle' class='sub'>34 client products</text>
+    <text x='105' y='86' text-anchor='middle' class='sub'>Bronze · Silver · Gold ·</text>
+    <text x='105' y='104' text-anchor='middle' class='sub'>Platinum + 22 advisory</text>
+    <text x='105' y='122' text-anchor='middle' class='sub'>quote-vs-subscribe CTAs</text>
+  </g>
+  <g transform='translate(560,960)'>
+    <rect class='box-rev' width='210' height='140' rx='6'/>
+    <text x='105' y='30' text-anchor='middle' class='title'>Supplier purchase</text>
+    <text x='105' y='52' text-anchor='middle' class='sub'>/vendor/services</text>
+    <text x='105' y='68' text-anchor='middle' class='sub'>21 supplier products</text>
+    <text x='105' y='86' text-anchor='middle' class='sub'>SME · Mid · Tier-1</text>
+    <text x='105' y='104' text-anchor='middle' class='sub'>+ 13 monthly add-ons</text>
+    <text x='105' y='122' text-anchor='middle' class='sub'>+ project-setup fees</text>
+  </g>
+  <g transform='translate(800,960)'>
+    <rect class='box-rev' width='210' height='140' rx='6'/>
+    <text x='105' y='30' text-anchor='middle' class='title'>Stripe Checkout</text>
+    <text x='105' y='52' text-anchor='middle' class='sub'>POST /billing/checkout</text>
+    <text x='105' y='68' text-anchor='middle' class='sub'>admin · vendor · anon</text>
+    <text x='105' y='86' text-anchor='middle' class='sub'>server-authoritative price</text>
+    <text x='105' y='104' text-anchor='middle' class='sub'>one-off + subscription</text>
+    <text x='105' y='122' text-anchor='middle' class='sub'>cs_test_... session</text>
+  </g>
+  <g transform='translate(1040,960)'>
+    <rect class='box-rev' width='210' height='140' rx='6'/>
+    <text x='105' y='30' text-anchor='middle' class='title'>Webhook · ledger</text>
+    <text x='105' y='52' text-anchor='middle' class='sub'>/api/webhook/stripe</text>
+    <text x='105' y='68' text-anchor='middle' class='sub'>idempotent on paid</text>
+    <text x='105' y='86' text-anchor='middle' class='sub'>payment_transactions</text>
+    <text x='105' y='104' text-anchor='middle' class='sub'>row updated</text>
+  </g>
+  <g transform='translate(1280,960)'>
+    <rect class='box-rev' width='250' height='140' rx='6'/>
+    <text x='125' y='30' text-anchor='middle' class='title'>Quote → Invoice pipeline</text>
+    <text x='125' y='52' text-anchor='middle' class='sub'>Range / % / cost-recovery</text>
+    <text x='125' y='68' text-anchor='middle' class='sub'>engagement · admin sets amt</text>
+    <text x='125' y='86' text-anchor='middle' class='sub'>1-click Stripe pay-link</text>
+    <text x='125' y='104' text-anchor='middle' class='sub'>audit trail per transition</text>
+    <text x='125' y='122' text-anchor='middle' class='sub'>Wave 38 · engagements.py</text>
+  </g>
+  <path class='flow-rev' d='M290 1030 L320 1030' marker-end='url(#arrow-rev)'/>
+  <path class='flow-rev' d='M530 1030 L560 1030' marker-end='url(#arrow-rev)'/>
+  <path class='flow-rev' d='M770 1030 L800 1030' marker-end='url(#arrow-rev)'/>
+  <path class='flow-rev' d='M1010 1030 L1040 1030' marker-end='url(#arrow-rev)'/>
+  <path class='flow-rev' d='M1250 1030 L1280 1030' marker-end='url(#arrow-rev)'/>
+"""
+
+
+def _flow_lane6_governance() -> str:
+    """Lane 6 — Audit · AI copilot · Roadmap · Snapshot · Multi-lang · Multi-tenant."""
+    return """
+  <!-- ============ Lane 6: Governance ============ -->
+  <g transform='translate(80,1165)'>
+    <rect class='box' width='230' height='75' rx='6'/>
+    <text x='115' y='28' text-anchor='middle' class='title'>Audit log</text>
+    <text x='115' y='50' text-anchor='middle' class='sub'>Every substantive action</text>
+    <text x='115' y='66' text-anchor='middle' class='sub'>attributable to a human</text>
+  </g>
+  <g transform='translate(340,1165)'>
+    <rect class='box-ai' width='230' height='75' rx='6'/>
+    <text x='115' y='28' text-anchor='middle' class='title'>AI Copilot (advisory)</text>
+    <text x='115' y='50' text-anchor='middle' class='sub'>Section draft · redline · Q&amp;A</text>
+    <text x='115' y='66' text-anchor='middle' class='sub'>Humans sign every action</text>
+  </g>
+  <g transform='translate(600,1165)'>
+    <rect class='box' width='230' height='75' rx='6'/>
+    <text x='115' y='28' text-anchor='middle' class='title'>Live Roadmap /roadmap</text>
+    <text x='115' y='50' text-anchor='middle' class='sub'>Public shareable URL</text>
+    <text x='115' y='66' text-anchor='middle' class='sub'>Delivered · Partial · Planned</text>
+  </g>
+  <g transform='translate(860,1165)'>
+    <rect class='box' width='230' height='75' rx='6'/>
+    <text x='115' y='28' text-anchor='middle' class='title'>Auto-snapshot</text>
+    <text x='115' y='50' text-anchor='middle' class='sub'>Startup regenerates 5 files</text>
+    <text x='115' y='66' text-anchor='middle' class='sub'>docs/reports · git-tracked</text>
+  </g>
+  <g transform='translate(1120,1165)'>
+    <rect class='box' width='230' height='75' rx='6'/>
+    <text x='115' y='28' text-anchor='middle' class='title'>Multi-lang PDF</text>
+    <text x='115' y='50' text-anchor='middle' class='sub'>EN · RU · KK</text>
+    <text x='115' y='66' text-anchor='middle' class='sub'>watermark · version stamp</text>
+  </g>
+  <g transform='translate(1380,1165)'>
+    <rect class='box' width='230' height='75' rx='6'/>
+    <text x='115' y='28' text-anchor='middle' class='title'>Multi-tenant · Mobile</text>
+    <text x='115' y='50' text-anchor='middle' class='sub'>CNAME subdomains</text>
+    <text x='115' y='66' text-anchor='middle' class='sub'>Capacitor · MFA · i18n</text>
+  </g>
+"""
+
+
+def _flow_lane7_wave39_additions() -> str:
+    """Lane 7 — Wave 39/43 shipped additions row + trailing </svg> close."""
+    return """
+  <!-- ============ Lane 7: Wave 39 additions ============ -->
+  <g transform='translate(80,1380)'>
+    <rect class='box' width='300' height='140' rx='6'/>
+    <text x='150' y='30' text-anchor='middle' class='title'>Corrigendum publisher</text>
+    <text x='150' y='52' text-anchor='middle' class='sub'>Auto-numbered per notice</text>
+    <text x='150' y='70' text-anchor='middle' class='sub'>New deadline updates parent</text>
+    <text x='150' y='88' text-anchor='middle' class='sub'>Amber banner on public page</text>
+    <text x='150' y='106' text-anchor='middle' class='sub'>Withdraw = soft-delete</text>
+    <text x='150' y='124' text-anchor='middle' class='sub' fill='#0b1f3a' font-weight='700'>/api/v1/notices/{ref}/corrigenda</text>
+  </g>
+  <g transform='translate(420,1380)'>
+    <rect class='box-ok' width='300' height='140' rx='6'/>
+    <text x='150' y='30' text-anchor='middle' class='title'>Two-cover envelope</text>
+    <text x='150' y='52' text-anchor='middle' class='sub'>1) technical-clear</text>
+    <text x='150' y='70' text-anchor='middle' class='sub'>2) financial-open (gated)</text>
+    <text x='150' y='88' text-anchor='middle' class='sub'>tech_evaluator role → price</text>
+    <text x='150' y='106' text-anchor='middle' class='sub'>and commercial docs redacted</text>
+    <text x='150' y='124' text-anchor='middle' class='sub' fill='#0b1f3a' font-weight='700'>/bids/{id}/technical-clear</text>
+  </g>
+  <g transform='translate(760,1380)'>
+    <rect class='box-hi' width='300' height='140' rx='6'/>
+    <text x='150' y='30' text-anchor='middle' class='title'>Auto PO · SLA · Contract</text>
+    <text x='150' y='52' text-anchor='middle' class='sub'>Fires on `bid.awarded`</text>
+    <text x='150' y='70' text-anchor='middle' class='sub'>3 WeasyPrint PDFs stored</text>
+    <text x='150' y='88' text-anchor='middle' class='sub'>PMC-PO-YYYY-##### numbering</text>
+    <text x='150' y='106' text-anchor='middle' class='sub'>Vendor + admin downloads</text>
+    <text x='150' y='124' text-anchor='middle' class='sub' font-weight='700'>/api/v1/awards/bid/{id}</text>
+  </g>
+  <g transform='translate(1100,1380)'>
+    <rect class='box' width='280' height='140' rx='6'/>
+    <text x='140' y='30' text-anchor='middle' class='title'>Vendor download portal</text>
+    <text x='140' y='52' text-anchor='middle' class='sub'>Awarded bidder retrieves</text>
+    <text x='140' y='70' text-anchor='middle' class='sub'>PO / SLA / Contract PDFs</text>
+    <text x='140' y='88' text-anchor='middle' class='sub'>via vendor dashboard</text>
+    <text x='140' y='106' text-anchor='middle' class='sub'>Admin regen button covers</text>
+    <text x='140' y='124' text-anchor='middle' class='sub'>any render failure</text>
+  </g>
+  <g transform='translate(1420,1380)'>
+    <rect class='box-ai' width='240' height='140' rx='6'/>
+    <text x='120' y='30' text-anchor='middle' class='title'>Wave 43 shipped</text>
+    <text x='120' y='52' text-anchor='middle' class='sub'>DocuSign eSignature ✓</text>
+    <text x='120' y='70' text-anchor='middle' class='sub'>Meetings (Jitsi + Zoom) ✓</text>
+    <text x='120' y='88' text-anchor='middle' class='sub'>L1 comparison · Auctions ✓</text>
+    <text x='120' y='106' text-anchor='middle' class='sub'>Trilingual · Mobile UI ✓</text>
+    <text x='120' y='124' text-anchor='middle' class='sub'>UNSPSC picker (P2)</text>
+  </g>
+  <path class='flow' d='M380 1450 L420 1450' marker-end='url(#arrow)'/>
+  <path class='flow' d='M720 1450 L760 1450' marker-end='url(#arrow)'/>
+  <path class='flow' d='M1060 1450 L1100 1450' marker-end='url(#arrow)'/>
+  <path class='flow-alt' d='M1380 1450 L1420 1450' marker-end='url(#arrow)'/>
+</svg>"""
+
+
+def build_flowchart_svg() -> str:
+    """Compose the complete PMC v2 platform flowchart SVG from lane parts."""
+    return (
+        _flow_defs_and_lanes()
+        + _flow_lane1_tender_creation()
+        + _flow_lane2_vendor_bidding()
+        + _flow_lane3_escrow()
+        + _flow_lane4_settlement()
+        + _flow_lane5_revenue()
+        + _flow_lane6_governance()
+        + _flow_lane7_wave39_additions()
+    )

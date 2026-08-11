@@ -3,26 +3,21 @@ import { toast } from "sonner";
 import { tenderTemplateApi, formatApiError } from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import TenderHeaderForm from "./tender/TenderHeaderForm";
-import RichEditor from "./tender/RichEditor";
-import AiDraftMenu from "./tender/AiDraftMenu";
 import AiDiffModal from "./tender/AiDiffModal";
 import VersionHistory from "./tender/VersionHistory";
+import TenderSidebar from "./tender/TenderSidebar";
+import TenderSectionCard from "./tender/TenderSectionCard";
 import { exportTenderPdf } from "./tender/tenderPdf";
 
 /**
  * TenderBuilderPanel — Section-by-section tender/RFP/RFQ composer.
  *
- * Left column: master library + user drafts. Right column: editor —
- * header meta form + one textarea per section (Sections, Annexures, Forms).
- * Uses only textareas (no external rich-text lib) — future upgrade can swap
- * to react-quill or tiptap without touching the data model.
+ * Left column (TenderSidebar): kind picker + master library + user drafts.
+ * Right column: header meta form + section cards (TenderSectionCard).
+ * All heavy per-section markup was extracted into TenderSectionCard so this
+ * top-level file stays under 250 lines and easy to scan.
  */
 const KIND_LABEL = { section: "Section", annexure: "Annexure", form: "Form" };
-const KIND_TONE = {
-  section: "bg-brand-navy/5 border-brand-navy/20 text-brand-navy",
-  annexure: "bg-amber-50 border-amber-200 text-amber-900",
-  form: "bg-emerald-50 border-emerald-200 text-emerald-900",
-};
 
 export default function TenderBuilderPanel() {
   const { t } = useI18n();
@@ -107,7 +102,6 @@ export default function TenderBuilderPanel() {
       const r = await tenderTemplateApi.aiDraftSection(doc.id, s.code, opts);
       const newBody = r.body || "";
       if (s.body && s.body.trim()) {
-        // Section already has content — show the diff modal before applying.
         setDiffState({ idx, oldBody: s.body, newBody, title: s.title });
       } else {
         patchSection(idx, { body: newBody });
@@ -209,9 +203,6 @@ export default function TenderBuilderPanel() {
 
   const masters = list.filter((x) => x.is_master);
   const drafts = list.filter((x) => !x.is_master);
-  // Memoize the ordered sections so an unrelated re-render doesn't sort the
-  // whole list again (sort() is in-place; using a slice+sort keeps referential
-  // integrity for React's reconciler when only header meta changes).
   const orderedSections = useMemo(
     () => [...(doc?.sections || [])].sort((a, b) => (a.order || 0) - (b.order || 0)),
     [doc?.sections],
@@ -219,66 +210,13 @@ export default function TenderBuilderPanel() {
 
   return (
     <div data-testid="tender-builder-panel" className="grid gap-6 lg:grid-cols-[300px_1fr]">
-      <aside className="space-y-4">
-        <div className="border border-brand-navy/10 bg-white">
-          <div className="pmc-label p-3 border-b border-brand-navy/10">{t("panels.tender_builder.kind")}</div>
-          <div className="p-3 flex gap-2 flex-wrap">
-            {["tender", "rfp", "rfq"].map((k) => (
-              <button key={k} onClick={() => setKind(k)}
-                data-testid={`tb-kind-${k}`}
-                className={"px-3 py-1.5 text-[11px] uppercase tracking-widest border " +
-                  (kind === k ? "bg-brand-navy text-white border-brand-navy" : "border-brand-navy/20 text-brand-navy")}>
-                {k.toUpperCase()}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="border border-brand-navy/10 bg-white">
-          <div className="pmc-label p-3 border-b border-brand-navy/10 flex justify-between items-center">
-            <span>{t("panels.tender_builder.master_lib")}</span>
-            <span className="text-brand-navy/40 normal-case tracking-normal">{masters.length}</span>
-          </div>
-          <div className="max-h-64 overflow-y-auto">
-            {masters.map((m) => (
-              <div key={m.id} className="border-b border-brand-navy/10 p-3"
-                   data-testid={`tb-master-${m.id}`}>
-                <div className="text-sm font-semibold text-brand-navy leading-tight">{m.name}</div>
-                <div className="text-xs text-brand-navy/50 mt-1">
-                  {(m.sections || []).length} sections · {m.industry || "—"}
-                </div>
-                <button onClick={() => cloneMaster(m)} disabled={busy}
-                  data-testid={`tb-clone-${m.id}`}
-                  className="mt-2 w-full px-3 py-1.5 text-[11px] uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep disabled:opacity-40">
-                  {t("panels.tender_builder.clone_as_draft")}
-                </button>
-              </div>
-            ))}
-            {masters.length === 0 && <div className="p-6 text-sm text-brand-navy/50">{t("panels.tender_builder.no_masters")}</div>}
-          </div>
-        </div>
-
-        <div className="border border-brand-navy/10 bg-white">
-          <div className="pmc-label p-3 border-b border-brand-navy/10 flex justify-between items-center">
-            <span>{t("panels.tender_builder.your_drafts")}</span>
-            <span className="text-brand-navy/40 normal-case tracking-normal">{drafts.length}</span>
-          </div>
-          <div className="max-h-96 overflow-y-auto">
-            {drafts.map((d) => (
-              <button key={d.id} onClick={() => openTemplate(d.id)}
-                data-testid={`tb-draft-${d.id}`}
-                className={"w-full text-left border-b border-brand-navy/10 p-3 hover:bg-brand-navy/5 " +
-                  (selectedId === d.id ? "bg-brand-navy/10" : "")}>
-                <div className="text-sm font-semibold text-brand-navy leading-tight truncate">{d.name}</div>
-                <div className="text-xs text-brand-navy/50 mt-1">
-                  {(d.sections || []).length} sections · {d.kind?.toUpperCase()}
-                </div>
-              </button>
-            ))}
-            {drafts.length === 0 && <div className="p-6 text-sm text-brand-navy/50">{t("panels.tender_builder.no_drafts")}</div>}
-          </div>
-        </div>
-      </aside>
+      <TenderSidebar
+        t={t}
+        kind={kind} setKind={setKind}
+        masters={masters} drafts={drafts} busy={busy}
+        selectedId={selectedId}
+        cloneMaster={cloneMaster} openTemplate={openTemplate}
+      />
 
       <section>
         {!doc ? (
@@ -376,72 +314,17 @@ export default function TenderBuilderPanel() {
             {/* Sections */}
             <div className="space-y-4">
               {orderedSections.map((s, i) => (
-                <article key={`${s.code}-${i}`} className={`border p-5 ${KIND_TONE[s.kind] || KIND_TONE.section}`}
-                         data-testid={`tb-section-${s.code}`}>
-                  <div className="flex items-baseline justify-between gap-3 flex-wrap">
-                    <div className="flex-1 min-w-[200px]">
-                      <div className="text-[10px] uppercase tracking-widest opacity-60">{KIND_LABEL[s.kind] || s.kind}</div>
-                      <input value={s.title}
-                        onChange={(e) => patchSection(i, { title: e.target.value })}
-                        data-testid={`tb-section-title-${s.code}`}
-                        className="mt-1 w-full px-3 py-2 border border-current/20 bg-white text-brand-navy font-serif text-lg" />
-                    </div>
-                    <div className="flex gap-1 items-start">
-                      <AiDraftMenu
-                        code={s.code}
-                        busy={aiBusyCode === s.code}
-                        onDraft={(opts) => runAiDraft(i, opts)}
-                      />
-                      <button onClick={() => move(i, -1)} data-testid={`tb-up-${s.code}`}
-                        className="px-2 py-1 text-xs border border-current/30 bg-white hover:bg-brand-pale">↑</button>
-                      <button onClick={() => move(i, +1)} data-testid={`tb-down-${s.code}`}
-                        className="px-2 py-1 text-xs border border-current/30 bg-white hover:bg-brand-pale">↓</button>
-                      <button onClick={() => removeSection(i)} data-testid={`tb-del-${s.code}`}
-                        className="px-2 py-1 text-xs border border-red-500 text-red-600 bg-white hover:bg-red-50">×</button>
-                    </div>
-                  </div>
-                  {s.hint && (
-                    <div className="mt-2 text-xs opacity-70 italic">
-                      {s.hint}
-                    </div>
-                  )}
-                  <RichEditor
-                    value={s.body || ""}
-                    onChange={(v) => patchSection(i, { body: v })}
-                    testid={`tb-section-body-${s.code}`}
-                    placeholder={s.hint || `Write the ${KIND_LABEL[s.kind]?.toLowerCase() || "section"} content here…`}
-                  />
-                  <div className="mt-3 border-t border-current/10 pt-3 flex items-center gap-3 flex-wrap">
-                    <span className="text-[10px] uppercase tracking-widest opacity-60">Template attachment</span>
-                    {s.attachment ? (
-                      <a href={`${process.env.REACT_APP_BACKEND_URL}${s.attachment.url}`}
-                         target="_blank" rel="noreferrer"
-                         download={s.attachment.file_name}
-                         data-testid={`tb-attach-dl-${s.code}`}
-                         className="text-xs underline text-brand-navy">
-                        📎 {s.attachment.file_name} ({Math.round((s.attachment.size_bytes || 0) / 1024)} KB)
-                      </a>
-                    ) : <span className="text-xs opacity-60">No attachment</span>}
-                    <label className="text-xs cursor-pointer px-2 py-1 border border-current/30 bg-white hover:bg-brand-pale">
-                      {s.attachment ? "Replace" : "Upload"}
-                      <input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx"
-                             onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadSectionAttachment(i, f); e.target.value = ""; }}
-                             data-testid={`tb-attach-up-${s.code}`}
-                             className="hidden" />
-                    </label>
-                    {s.attachment && (
-                      <button type="button" onClick={() => removeSectionAttachment(i)}
-                              data-testid={`tb-attach-rm-${s.code}`}
-                              className="text-xs text-red-600 hover:underline">Remove</button>
-                    )}
-                  </div>
-                  <div className="mt-2 text-[11px] opacity-60">
-                    Code: <code className="font-mono">{s.code}</code>
-                    {(s.body || "").length > 0 && (
-                      <span className="ml-3">{(s.body || "").length} chars</span>
-                    )}
-                  </div>
-                </article>
+                <TenderSectionCard
+                  key={`${s.code}-${i}`}
+                  section={s} idx={i}
+                  patchSection={patchSection}
+                  move={move}
+                  removeSection={removeSection}
+                  aiBusyCode={aiBusyCode}
+                  runAiDraft={runAiDraft}
+                  uploadSectionAttachment={uploadSectionAttachment}
+                  removeSectionAttachment={removeSectionAttachment}
+                />
               ))}
             </div>
 
@@ -477,4 +360,3 @@ export default function TenderBuilderPanel() {
     </div>
   );
 }
-

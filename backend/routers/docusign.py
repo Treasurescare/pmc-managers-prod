@@ -168,8 +168,9 @@ async def _load_bid(bid_id: str) -> dict:
 
 def _create_envelope(client: ds.ApiClient, pdf_bytes: bytes, filename: str,
                      signer_name: str, signer_email: str, subject: str,
-                     client_user_id: str) -> tuple[str, str]:
-    """Send an envelope with an embedded signer; returns (envelope_id, sdk_client)."""
+                     client_user_id: Optional[str]) -> tuple[str, str]:
+    """Send an envelope; embedded when client_user_id is set, email-mode when None.
+    Returns (envelope_id, sdk_client)."""
     pdf64 = base64.b64encode(pdf_bytes).decode("ascii")
     document = ds.Document(
         document_base64=pdf64,
@@ -193,14 +194,19 @@ def _create_envelope(client: ds.ApiClient, pdf_bytes: bytes, filename: str,
         y_position="700",
         document_id="1",
     )
-    signer = ds.Signer(
+    signer_kwargs = dict(
         email=signer_email,
         name=signer_name,
         recipient_id="1",
         routing_order="1",
-        client_user_id=client_user_id,
         tabs=ds.Tabs(sign_here_tabs=[sign_here, sign_here_fixed]),
     )
+    # Only include client_user_id when embedded signing is requested. If it
+    # is set, DocuSign will NOT email the signer (embedded flow). When left
+    # off, DocuSign emails the signer a hosted signing link (email flow).
+    if client_user_id:
+        signer_kwargs["client_user_id"] = client_user_id
+    signer = ds.Signer(**signer_kwargs)
     envelope = ds.EnvelopeDefinition(
         email_subject=subject,
         email_blurb="Please review and sign — PMC Managers Global Tender Board.",
@@ -276,6 +282,10 @@ class EnvelopeRequest(BaseModel):
     signer_name: str
     signer_email: EmailStr
     return_url: Optional[str] = None
+    # Wave 44 — email-mode envelope: when "email", DocuSign emails the signer
+    # a hosted signing link (better for signers not logged into PMC). Default
+    # remains "embedded" (in-app iframe with a one-time recipient view URL).
+    delivery: Optional[str] = "embedded"
 
 
 @router.post("/awards/{bid_id}/{kind}/envelope")
@@ -287,15 +297,20 @@ async def create_award_envelope(
         raise HTTPException(400, "kind must be po|sla|contract")
     pdf, fname, award_ref = await _load_award_pdf(bid_id, kind)
     client = _client()
-    client_user_id = f"pmc:award:{bid_id}:{kind}:{req.signer_email}"
+    delivery = (req.delivery or "embedded").lower()
+    client_user_id: Optional[str] = (
+        f"pmc:award:{bid_id}:{kind}:{req.signer_email}" if delivery == "embedded" else None
+    )
     subject = f"PMC {award_ref} · {kind.upper()} — signature requested"
     envelope_id, _ = _create_envelope(
         client, pdf, fname, req.signer_name, str(req.signer_email),
         subject, client_user_id,
     )
     return_url = req.return_url or f"{config.FRONTEND_URL}/admin?ds_signed=1"
-    signing_url = _recipient_view(client, envelope_id, req.signer_name,
-                                   str(req.signer_email), client_user_id, return_url)
+    signing_url = None
+    if delivery == "embedded":
+        signing_url = _recipient_view(client, envelope_id, req.signer_name,
+                                       str(req.signer_email), client_user_id, return_url)
     doc = {
         "envelope_id": envelope_id,
         "kind": "award",
@@ -305,6 +320,7 @@ async def create_award_envelope(
         "signer_name": req.signer_name,
         "signer_email": str(req.signer_email),
         "client_user_id": client_user_id,
+        "delivery": delivery,
         "status": "sent",
         "created_at": datetime.now(timezone.utc).isoformat(),
         "created_by": admin.get("email"),
@@ -313,7 +329,8 @@ async def create_award_envelope(
         {"envelope_id": envelope_id}, {"$set": doc}, upsert=True,
     )
     return {"envelope_id": envelope_id, "signing_url": signing_url,
-            "expires_in": 300, "status": "sent"}
+            "delivery": delivery,
+            "expires_in": 300 if signing_url else None, "status": "sent"}
 
 
 # ---------------- Bid acknowledgement envelope ----------------

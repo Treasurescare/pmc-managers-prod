@@ -7,7 +7,11 @@ import { useI18n } from "@/context/I18nContext";
  *
  * Shows JWT consent status, lets admin trigger an embedded signing ceremony on
  * any Award PDF (PO/SLA/Contract) or on a Bid acknowledgement, and lists all
- * envelopes with live status. */
+ * envelopes with live status.
+ *
+ * Wave 44 — adds a "Delivery mode" toggle so admins can pick either an
+ * embedded (in-app) signing URL or ask DocuSign to email the signer directly.
+ */
 export default function DocuSignPanel() {
   const { t } = useI18n();
   const [status, setStatus] = useState(null);
@@ -17,8 +21,10 @@ export default function DocuSignPanel() {
   const [kind, setKind] = useState("contract");
   const [signerName, setSignerName] = useState("");
   const [signerEmail, setSignerEmail] = useState("");
+  const [delivery, setDelivery] = useState("embedded");
   const [busy, setBusy] = useState(false);
   const [signingUrl, setSigningUrl] = useState("");
+  const [emailSent, setEmailSent] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -43,12 +49,15 @@ export default function DocuSignPanel() {
     if (!pickedBidId) return toast.error(t("panels.docusign.pick_bid"));
     if (!signerName || !signerEmail) return toast.error(t("panels.docusign.signer_required"));
     setBusy(true);
+    setSigningUrl(""); setEmailSent(false);
     try {
       const r = await docusignApi.signAward(pickedBidId, kind, {
         signer_name: signerName,
         signer_email: signerEmail,
+        delivery,
       });
-      setSigningUrl(r.signing_url);
+      if (r.signing_url) setSigningUrl(r.signing_url);
+      else setEmailSent(true);
       toast.success(t("panels.docusign.envelope_sent"));
       load();
     } catch (err) {
@@ -104,6 +113,28 @@ export default function DocuSignPanel() {
 
       <section className="border border-brand-navy/10 bg-white p-5" data-testid="ds-request-form">
         <div className="pmc-label mb-3">{t("panels.docusign.request_sig_title")}</div>
+
+        {/* Delivery mode toggle (Wave 44) */}
+        <div className="mb-4" data-testid="ds-delivery-toggle">
+          <div className="pmc-label mb-2">{t("panels.docusign.delivery_mode")}</div>
+          <div className="grid gap-2 md:grid-cols-2">
+            <label className={"border p-3 cursor-pointer text-sm " +
+              (delivery === "embedded" ? "border-brand-navy bg-brand-navy/5" : "border-brand-navy/20 bg-white")}>
+              <input type="radio" name="ds-delivery" checked={delivery === "embedded"}
+                     onChange={() => setDelivery("embedded")}
+                     data-testid="ds-delivery-embedded" className="mr-2" />
+              <strong>{t("panels.docusign.delivery_embedded")}</strong>
+            </label>
+            <label className={"border p-3 cursor-pointer text-sm " +
+              (delivery === "email" ? "border-brand-navy bg-brand-navy/5" : "border-brand-navy/20 bg-white")}>
+              <input type="radio" name="ds-delivery" checked={delivery === "email"}
+                     onChange={() => setDelivery("email")}
+                     data-testid="ds-delivery-email" className="mr-2" />
+              <strong>{t("panels.docusign.delivery_email")}</strong>
+            </label>
+          </div>
+        </div>
+
         <div className="grid gap-3 md:grid-cols-2">
           <label><span className="pmc-label">{t("panels.docusign.awarded_bid")}</span>
             <select value={pickedBidId} onChange={(e) => setPickedBidId(e.target.value)}
@@ -150,6 +181,16 @@ export default function DocuSignPanel() {
               {signingUrl}
             </a>
             <div className="text-[10px] text-emerald-700/70 mt-1">{t("panels.docusign.link_expires")}</div>
+          </div>
+        )}
+        {emailSent && (
+          <div className="mt-4 border border-blue-500 bg-blue-50 p-3 text-sm" data-testid="ds-email-sent">
+            <div className="text-blue-800 font-semibold">
+              📧 {t("panels.docusign.envelope_sent")}
+            </div>
+            <div className="text-blue-900 text-xs mt-1">
+              {t("panels.docusign.email_sent_hint")} <code className="font-mono">{signerEmail}</code>
+            </div>
           </div>
         )}
       </section>
