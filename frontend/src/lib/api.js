@@ -467,6 +467,13 @@ export const docusignApi = {
   listMine: () => api.get("/api/v1/docusign/mine").then((r) => r.data),
   vendorSignAward: (bidId, kind, payload) =>
     api.post(`/api/v1/docusign/mine/awards/${bidId}/${kind}/envelope`, payload).then((r) => r.data),
+  // Wave 44 — signed PDF download
+  downloadPdf: (envelopeId) =>
+    api.get(`/api/v1/docusign/envelopes/${envelopeId}/combined-pdf`, { responseType: "blob" })
+      .then((r) => r.data),
+  vendorDownloadPdf: (envelopeId) =>
+    api.get(`/api/v1/docusign/mine/envelopes/${envelopeId}/combined-pdf`, { responseType: "blob" })
+      .then((r) => r.data),
 };
 
 export default api;

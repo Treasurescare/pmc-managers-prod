@@ -40,8 +40,12 @@ Product Catalog · Stripe checkout · Quote pipeline · Subscriptions · Engagem
 - **Wave 43** — DocuSign eSignature (JWT sandbox), embedded signing, Connect webhook w/ HMAC verification (secret `KFSC…VEs=` in `.env`), envelope status live-updates
 - **Wave 44** (2026-02-11)
   - DocuSign delivery-mode toggle: `embedded` vs `email`
+  - Delivery column + Signed PDF download button in envelope log
+  - Backend endpoints: `GET /api/v1/docusign/envelopes/{id}/combined-pdf` (admin) and `/mine/envelopes/{id}/combined-pdf` (vendor)
   - Vendor Signing Dashboard (`VendorSignatures.jsx`)
-  - UNSPSC picker component (currently attached to Product Catalog only)
+  - UNSPSC picker attached to BOQ template creation + Vendor Registration Section C
+  - Toaster moved from top-right → bottom-right (no longer covers avatar)
+  - New "How to use the platform" user-journey flowchart (`_userguide.py` · 22kb SVG · 81kb PDF · 37 numbered steps across 5 phases). Endpoints: `GET /api/v1/reports/user-guide.svg|.pdf`
   - Refactored oversized files:
     - `TenderBuilderPanel.jsx` 481 → 362 lines
     - `AdminVendorCreate.jsx` 213 → 177 lines
@@ -53,8 +57,9 @@ Product Catalog · Stripe checkout · Quote pipeline · Subscriptions · Engagem
 - After deploy: update DocuSign Connect webhook URL from preview to prod domain in DocuSign Admin
 
 **P1 — Complete UNSPSC integration**
-- Embed `UnspscPicker` into BOQ Builder line items
-- Embed `UnspscPicker` into Vendor Registration Section C (scopes/commodities)
+- ✅ Attached UnspscPicker to BOQ template creation (Wave 44)
+- ✅ Attached UnspscPicker to Vendor Registration Section C (Wave 44)
+- Backlog: propagate per-line-item UNSPSC on BOQ items (currently template-level only)
 
 **P2 — Real integrations (blocked on external creds)**
 - PayPal & Kaspi Pay real (needs merchant creds from user)
@@ -63,8 +68,9 @@ Product Catalog · Stripe checkout · Quote pipeline · Subscriptions · Engagem
 - Resend real email delivery (needs Emergent-managed Resend key)
 
 **P2 — UX / observability**
-- Add "Delivery: email/embedded" column to envelope log table
-- DocuSign envelope PDF download after completion
+- ✅ Delivery column in envelope log (Wave 44)
+- ✅ Signed PDF download button (Wave 44)
+- ✅ Toaster moved to bottom-right (Wave 44)
 - Test-plan doc auto-regeneration on wave completion
 
 ---
@@ -74,7 +80,11 @@ Product Catalog · Stripe checkout · Quote pipeline · Subscriptions · Engagem
 - `POST /api/v1/docusign/awards/{bid_id}/{kind}/envelope` — send envelope (accepts `delivery: embedded|email`)
 - `GET  /api/v1/docusign/envelopes` — list
 - `GET  /api/v1/docusign/envelopes/{env_id}` — status + live sync
-- `GET  /api/v1/reports/flowchart.svg` — 23578-byte platform flowchart
+- `GET  /api/v1/docusign/envelopes/{env_id}/combined-pdf` — signed PDF (Wave 44)
+- `GET  /api/v1/docusign/mine/envelopes/{env_id}/combined-pdf` — vendor-facing signed PDF (Wave 44)
+- `GET  /api/v1/reports/flowchart.svg|.pdf` — 23578-byte platform architecture flowchart
+- `GET  /api/v1/reports/user-guide.svg|.pdf` — user-journey how-to-use flowchart (Wave 44)
+- `GET  /api/v1/reports/comparative-statement.xlsx|.pdf|.docx` — Asked vs Delivered
 
 ## Key DB Collections
 - `docusign_envelopes` — {envelope_id, kind, sub_kind, bid_id, delivery, status, webhook_at, ...}

@@ -553,6 +553,33 @@ async def get_flowchart_pdf(admin=Depends(require_role("admin", "reviewer", "aud
 
 
 # ------------------------------------------------------------------
+#  Wave 44 — "How to use the platform" user-journey flowchart
+# ------------------------------------------------------------------
+
+def _build_user_guide_svg() -> str:
+    from routers._userguide import build_user_guide_svg
+    return build_user_guide_svg()
+
+
+@router.get("/user-guide.svg")
+async def get_user_guide_svg(admin=Depends(require_role("admin", "reviewer", "auditor"))):
+    svg = _build_user_guide_svg()
+    return Response(content=svg, media_type="image/svg+xml",
+                     headers=_dl_headers("PMC-v2-User-Guide-Flowchart.svg", "image/svg+xml"))
+
+
+@router.get("/user-guide.pdf")
+async def get_user_guide_pdf(admin=Depends(require_role("admin", "reviewer", "auditor"))):
+    from weasyprint import HTML
+    html = f"""<!doctype html><html><head><meta charset='utf-8'>
+<style>@page {{ size: A3 portrait; margin: 8mm; }} body {{ margin: 0; }}
+  svg {{ width: 100%; height: auto; }}</style></head><body>{_build_user_guide_svg()}</body></html>"""
+    pdf = HTML(string=html).write_pdf()
+    return Response(content=pdf, media_type="application/pdf",
+                     headers=_dl_headers("PMC-v2-User-Guide-Flowchart.pdf", "application/pdf"))
+
+
+# ------------------------------------------------------------------
 #  Test-plan bundle (Wave 43) — hand this to any tester or AI QA tool.
 # ------------------------------------------------------------------
 
@@ -664,6 +691,7 @@ def snapshot_to_disk() -> dict:
         "PMC-v2-Asked-vs-Delivered.pdf":  _build_pdf(),
         "PMC-v2-Platform-Flowchart.svg":  _build_flowchart_svg().encode("utf-8"),
         "PMC-v2-Platform-Flowchart.pdf":  _flowchart_pdf_bytes(),
+        "PMC-v2-User-Guide-Flowchart.svg": _build_user_guide_svg().encode("utf-8"),
     }
     manifest = []
     for name, body in files.items():

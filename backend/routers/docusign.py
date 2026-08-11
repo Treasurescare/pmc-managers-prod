@@ -498,6 +498,61 @@ async def vendor_request_award_envelope(
             "expires_in": 300, "status": "sent"}
 
 
+@router.get("/envelopes/{envelope_id}/combined-pdf")
+async def download_combined_pdf(envelope_id: str, admin=Depends(current_admin)):
+    """Return the fully-signed combined PDF for a completed envelope.
+
+    Only allowed when envelope status is `completed`. Streams the PDF bytes
+    from DocuSign's `EnvelopeDocuments.get_document` (documentId="combined").
+    """
+    row = await db.docusign_envelopes.find_one({"envelope_id": envelope_id})
+    if not row:
+        raise HTTPException(404, "Envelope not found")
+    if row.get("status") not in ("completed",):
+        raise HTTPException(412, f"Envelope status is '{row.get('status')}' — must be 'completed' before downloading the signed PDF")
+    client = _client()
+    envelopes = ds.EnvelopesApi(client)
+    try:
+        pdf_path = envelopes.get_document(DS_ACCOUNT_ID, "combined", envelope_id)
+    except Exception as e:
+        raise HTTPException(502, f"DocuSign document fetch failed: {e}")
+    try:
+        pdf_bytes = Path(pdf_path).read_bytes()
+    except Exception:
+        raise HTTPException(500, "Could not read the fetched PDF from disk")
+    fname = f"{row.get('award_ref') or row.get('bid_ref') or envelope_id}-signed.pdf"
+    from fastapi.responses import Response as _R
+    return _R(content=pdf_bytes, media_type="application/pdf",
+              headers={"Content-Disposition": f'attachment; filename="{fname}"'})
+
+
+@router.get("/mine/envelopes/{envelope_id}/combined-pdf")
+async def vendor_download_combined_pdf(envelope_id: str, vendor=Depends(current_vendor)):
+    """Vendor-facing: download the fully-signed PDF for an envelope they own."""
+    row = await db.docusign_envelopes.find_one({"envelope_id": envelope_id})
+    if not row:
+        raise HTTPException(404, "Envelope not found")
+    ve = vendor.get("email")
+    # Ownership: signer is the vendor OR envelope is against one of vendor's bids.
+    if row.get("signer_email") != ve:
+        bid = await db.bids.find_one({"id": row.get("bid_id")}) or {}
+        if bid.get("vendor_email") != ve:
+            raise HTTPException(403, "Not your envelope")
+    if row.get("status") != "completed":
+        raise HTTPException(412, "Envelope not completed yet")
+    client = _client()
+    envelopes = ds.EnvelopesApi(client)
+    try:
+        pdf_path = envelopes.get_document(DS_ACCOUNT_ID, "combined", envelope_id)
+    except Exception as e:
+        raise HTTPException(502, f"DocuSign document fetch failed: {e}")
+    pdf_bytes = Path(pdf_path).read_bytes()
+    fname = f"{row.get('award_ref') or row.get('bid_ref') or envelope_id}-signed.pdf"
+    from fastapi.responses import Response as _R
+    return _R(content=pdf_bytes, media_type="application/pdf",
+              headers={"Content-Disposition": f'attachment; filename="{fname}"'})
+
+
 # ---------------- Connect webhook ----------------
 
 @router.post("/webhook")

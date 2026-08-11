@@ -82,6 +82,27 @@ export default function DocuSignPanel() {
     return <span className={`text-[10px] uppercase tracking-widest border px-2 py-1 ${clsMap[s] || "bg-slate-50 border-slate-200"}`}>{s}</span>;
   };
 
+  const deliveryChip = (d) => {
+    const label = d === "email" ? "📧 email" : "🖥️ embedded";
+    const cls = d === "email"
+      ? "bg-blue-50 text-blue-800 border-blue-200"
+      : "bg-purple-50 text-purple-800 border-purple-200";
+    return <span className={`text-[10px] uppercase tracking-widest border px-2 py-1 ${cls}`}>{label}</span>;
+  };
+
+  const downloadSigned = async (envelope_id) => {
+    try {
+      const blob = await docusignApi.downloadPdf(envelope_id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `${envelope_id}-signed.pdf`;
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+    } catch (err) {
+      toast.error(formatApiError(err));
+    }
+  };
+
   return (
     <div data-testid="admin-docusign-panel" className="space-y-6">
       <section>
@@ -206,8 +227,10 @@ export default function DocuSignPanel() {
               <th className="text-left px-3 py-2">{t("panels.docusign.col_kind")}</th>
               <th className="text-left px-3 py-2">{t("panels.docusign.col_ref")}</th>
               <th className="text-left px-3 py-2">{t("panels.docusign.col_signer")}</th>
+              <th className="text-left px-3 py-2">Delivery</th>
               <th className="text-left px-3 py-2">{t("panels.docusign.col_status")}</th>
               <th className="text-left px-3 py-2">{t("panels.docusign.col_created")}</th>
+              <th className="text-left px-3 py-2">PDF</th>
             </tr>
           </thead>
           <tbody>
@@ -219,12 +242,22 @@ export default function DocuSignPanel() {
                 </td>
                 <td className="px-3 py-2 font-mono text-xs">{e.award_ref || e.bid_ref}</td>
                 <td className="px-3 py-2 text-xs">{e.signer_name}<br /><span className="text-brand-navy/50">{e.signer_email}</span></td>
+                <td className="px-3 py-2">{deliveryChip(e.delivery || "embedded")}</td>
                 <td className="px-3 py-2">{statusChip(e.status)}</td>
                 <td className="px-3 py-2 text-xs">{e.created_at?.slice(0, 16).replace("T", " ")}</td>
+                <td className="px-3 py-2">
+                  {e.status === "completed" ? (
+                    <button onClick={() => downloadSigned(e.envelope_id)}
+                      data-testid={`ds-download-${e.envelope_id}`}
+                      className="text-[10px] uppercase tracking-widest border border-emerald-500 text-emerald-700 px-2 py-1 hover:bg-emerald-50">
+                      ⬇ signed
+                    </button>
+                  ) : <span className="text-[10px] text-brand-navy/30">—</span>}
+                </td>
               </tr>
             ))}
             {envelopes.length === 0 && (
-              <tr><td colSpan={5} className="p-6 text-center text-brand-navy/50">
+              <tr><td colSpan={7} className="p-6 text-center text-brand-navy/50">
                 {t("panels.docusign.empty")}
               </td></tr>
             )}

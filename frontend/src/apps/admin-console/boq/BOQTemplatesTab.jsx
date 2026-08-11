@@ -1,9 +1,11 @@
 import { toast } from "sonner";
 import { boqApi, formatApiError } from "@/lib/api";
+import UnspscPicker from "@/components/UnspscPicker";
 
 /**
- * BOQTemplatesTab — extracted from BOQContractsPanel. Handles the BOQ template
- * list, create-new form, Excel import per template, and inline viewer.
+ * BOQTemplatesTab — BOQ template list, create-new form, Excel import per
+ * template, and inline viewer. Templates now carry an optional UNSPSC
+ * commodity tag so the whole BOQ can be reported against a standard code.
  */
 export default function BOQTemplatesTab({
   templates, showNewTmpl, setShowNewTmpl, tmplDraft, setTmplDraft,
@@ -14,7 +16,9 @@ export default function BOQTemplatesTab({
     try {
       await boqApi.createTemplate({ ...tmplDraft, items: [] });
       toast.success("Template created");
-      setShowNewTmpl(false); setTmplDraft({ name: "", notice_ref: "", currency: "USD" });
+      setShowNewTmpl(false);
+      setTmplDraft({ name: "", notice_ref: "", currency: "USD",
+                      unspsc_code: "", unspsc_title: "" });
       onReload();
     } catch (e) { toast.error(formatApiError(e)); }
   };
@@ -50,6 +54,19 @@ export default function BOQTemplatesTab({
           <input placeholder="Currency" value={tmplDraft.currency}
             onChange={(e) => setTmplDraft({ ...tmplDraft, currency: e.target.value })}
             className="px-3 py-2 border" />
+          <div className="md:col-span-3">
+            <div className="text-[10px] uppercase tracking-widest text-brand-navy/60 mb-1">
+              UNSPSC commodity family (optional)
+            </div>
+            <UnspscPicker
+              value={tmplDraft.unspsc_code}
+              title={tmplDraft.unspsc_title}
+              onChange={({ code, title }) => setTmplDraft({
+                ...tmplDraft, unspsc_code: code, unspsc_title: title,
+              })}
+              testidPrefix="boq-unspsc"
+            />
+          </div>
           <button onClick={createTemplate} data-testid="boq-create"
             className="md:col-span-3 px-4 py-2 text-[11px] uppercase tracking-widest bg-brand-navy-soft text-white">
             Create
@@ -64,6 +81,9 @@ export default function BOQTemplatesTab({
               <div className="font-semibold text-sm">{t.name}</div>
               <div className="text-xs text-slate-500">
                 {t.notice_ref || "—"} · {(t.items || []).length} items · {t.currency}
+                {t.unspsc_code && (
+                  <span className="ml-2 font-mono">· UNSPSC {t.unspsc_code}</span>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -81,7 +101,14 @@ export default function BOQTemplatesTab({
       </div>
       {selectedTmpl && (
         <div className="mt-4 bg-white border p-4" data-testid="boq-viewer">
-          <div className="font-serif text-lg">{selectedTmpl.name}</div>
+          <div className="flex items-baseline justify-between">
+            <div className="font-serif text-lg">{selectedTmpl.name}</div>
+            {selectedTmpl.unspsc_code && (
+              <div className="text-[11px] font-mono text-brand-navy/60">
+                UNSPSC {selectedTmpl.unspsc_code} · {selectedTmpl.unspsc_title}
+              </div>
+            )}
+          </div>
           <table className="w-full text-xs mt-2">
             <thead className="text-slate-500">
               <tr><th className="text-left">Sl.</th><th className="text-left">Description</th>

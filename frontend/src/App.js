@@ -57,7 +57,7 @@ export default function App() {
     <div className="App">
       <I18nProvider>
         <BrowserRouter>
-          <Toaster richColors position="top-right" theme="light" />
+          <Toaster richColors position="bottom-right" theme="light" />
           <Routes>
             <Route path="/" element={<NoticeBoardHome />} />
             <Route path="/notices" element={<NoticeBoardHome />} />

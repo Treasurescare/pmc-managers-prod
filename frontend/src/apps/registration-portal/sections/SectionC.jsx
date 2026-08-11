@@ -1,6 +1,7 @@
 import { Field, Input } from "./FormPrimitives";
 import { DocSlotsBlock } from "./DocSlot";
 import { useI18n } from "@/context/I18nContext";
+import UnspscPicker from "@/components/UnspscPicker";
 
 export default function SectionC({ reg, update, regId, token, onDocChange, ensureDraft }) {
   const { t } = useI18n();
@@ -28,6 +29,22 @@ export default function SectionC({ reg, update, regId, token, onDocChange, ensur
         <Field label={t("section_c.turnover_y2")}><Input testId="f-turnover-2" type="number" step="0.01" value={reg.turnover_year2 || ""} onChange={(e) => update({ turnover_year2: parseFloat(e.target.value || "0") || null })} /></Field>
         <Field label={t("section_c.turnover_y3")}><Input testId="f-turnover-3" type="number" step="0.01" value={reg.turnover_year3 || ""} onChange={(e) => update({ turnover_year3: parseFloat(e.target.value || "0") || null })} /></Field>
       </div>
+
+      {/* Wave 44 — Primary UNSPSC commodity tag */}
+      <div className="mt-6">
+        <div className="text-[10px] uppercase tracking-widest text-brand-navy/60 mb-1">
+          Primary UNSPSC commodity (optional — for cleaner reporting)
+        </div>
+        <UnspscPicker
+          value={reg.primary_unspsc_code}
+          title={reg.primary_unspsc_title}
+          onChange={({ code, title }) => update({
+            primary_unspsc_code: code, primary_unspsc_title: title,
+          })}
+          testidPrefix="vendor-unspsc"
+        />
+      </div>
+
       <DocSlotsBlock
         title={t("section_c.docs_title")}
         regId={regId} token={token} ensureDraft={ensureDraft}
@@ -38,3 +55,4 @@ export default function SectionC({ reg, update, regId, token, onDocChange, ensur
     </>
   );
 }
+
