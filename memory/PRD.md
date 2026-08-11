@@ -97,3 +97,12 @@ See `/app/memory/test_credentials.md`.
 
 ## Preview URL
 `https://tender-hub-57.preview.emergentagent.com`
+
+## Production URL (Emergent-managed, already live)
+`https://tender-hub-57.emergent.host`
+
+## AWS Production (in-progress — paused 2026-02-11)
+- EB Environment: `pmc-backend-prod` at `pmc-backend-prod.eba-kmk3u8cp.eu-west-2.elasticbeanstalk.com`
+- Full resume state: see `/app/memory/AWS_LAUNCH_STATE.md`
+- Target public domain: `www.pmcmanagers.com` (Chapter 6 pending)
+- MongoDB Atlas: `pmc-managers-uk` cluster in London, 1,149 docs migrated from preview
