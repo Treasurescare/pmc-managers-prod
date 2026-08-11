@@ -1,6 +1,6 @@
 """PMC Managers v2 — FastAPI entry point.
 
-Runs on Emergent stack (MongoDB + FastAPI) but structured per Build Sheet v2
+Runs on Cloud stack (MongoDB + FastAPI) but structured per Build Sheet v2
 API contract for zero-friction migration to AWS (RDS + Cognito + Fargate) in Phase 2.
 """
 import logging

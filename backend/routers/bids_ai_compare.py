@@ -1,6 +1,6 @@
 """Wave 31 — AI Redline Comparison of two bids.
 
-Feeds two bid scopes / technical narratives into the Emergent LLM and asks it
+Feeds two bid scopes / technical narratives into the LLM and asks it
 to surface clause-level differences (obligations, pricing, timeline, risks).
 Runs as an ADVISORY layer — no state change to either bid, only an audit-log
 entry. Human evaluators still make the final call, keeping the audit chain
@@ -58,7 +58,7 @@ async def compare_bids_ai(payload: RedlineIn,
                            admin=Depends(require_role("admin", "reviewer", "committee_member"))):
     """Return a clause-level AI redline between two bids.
     Provide either (bid_ref_a, bid_ref_b) or (scope_a, scope_b)."""
-    key = os.environ.get("EMERGENT_LLM_KEY", "")
+    key = os.environ.get("LLM_API_KEY", "") or os.environ.get("LEGACY_LLM_KEY", "")
     if not key:
         raise HTTPException(status_code=503, detail="AI copilot not configured")
     if payload.bid_ref_a and payload.bid_ref_b:
@@ -70,7 +70,7 @@ async def compare_bids_ai(payload: RedlineIn,
         raise HTTPException(status_code=400,
                              detail="Provide (bid_ref_a & bid_ref_b) OR (scope_a & scope_b)")
     try:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        from pmc_lib.llm.chat import LlmChat, UserMessage
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"LLM SDK unavailable: {type(e).__name__}")
 

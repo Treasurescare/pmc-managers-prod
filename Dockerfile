@@ -18,11 +18,8 @@ WORKDIR /app
 
 # Cache dependency install
 COPY backend/requirements.txt /app/backend/requirements.txt
-# ⚠️ Emergent's private PyPI hosts `emergentintegrations` — must add as extra-index-url
 RUN pip install --no-cache-dir --upgrade pip \
- && pip install --no-cache-dir \
-      --extra-index-url https://d33sy5i8bnduwe.cloudfront.net/simple/ \
-      -r backend/requirements.txt
+ && pip install --no-cache-dir -r backend/requirements.txt
 
 # App source (rest of backend)
 COPY backend /app/backend

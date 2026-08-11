@@ -1,6 +1,6 @@
 """Wave 7 — Tenant Master. Enables multi-tenant portals: each Corporate
 Client / Government Department can hold its own notices, vendors, and
-staff. Portal skinning + host-based resolution ship here so Emergent can
+staff. Portal skinning + host-based resolution ship here so Managed can
 migrate from `?tenant=CODE` query strings to real CNAME subdomains.
 """
 from typing import Optional, List, Literal

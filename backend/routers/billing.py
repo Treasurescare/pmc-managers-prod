@@ -1,4 +1,4 @@
-"""Wave 35 — Billing / Checkout via Stripe (Flow B, `sk_test_emergent`).
+"""Wave 35 — Billing / Checkout via Stripe (Flow B, `sk_test_managed`).
 
 Sits on top of the Product Catalog:
   * `POST /api/v1/billing/checkout` — creates a Stripe Checkout session for a
@@ -26,11 +26,11 @@ log = logging.getLogger("billing")
 router = APIRouter(tags=["billing"])
 
 
-# ---- Emergent-managed Stripe (Flow B) ------------------------------------
+# ---- Managed Stripe (Flow B) ------------------------------------
 
 def _stripe_checkout():
-    from emergentintegrations.payments.stripe.checkout import StripeCheckout
-    return StripeCheckout(api_key=os.environ.get("STRIPE_API_KEY", "sk_test_emergent"),
+    from pmc_lib.payments.stripe.checkout import StripeCheckout
+    return StripeCheckout(api_key=os.environ.get("STRIPE_API_KEY", "sk_test_managed"),
                           webhook_url="")  # webhook URL is set per-request below
 
 
@@ -111,13 +111,13 @@ async def create_checkout(req: CheckoutRequest, request: Request):
         if req.currency_override.upper() in {"USD", "GBP", "EUR", "KZT"}:
             currency = req.currency_override.lower()
 
-    # Build Stripe checkout (Flow B, emergentintegrations)
-    from emergentintegrations.payments.stripe.checkout import (
+    # Build Stripe checkout (Flow B, pmc_lib)
+    from pmc_lib.payments.stripe.checkout import (
         StripeCheckout, CheckoutSessionRequest,
     )
     host_url = str(request.base_url)
     webhook_url = f"{host_url}api/webhook/stripe"
-    sc = StripeCheckout(api_key=os.environ.get("STRIPE_API_KEY", "sk_test_emergent"),
+    sc = StripeCheckout(api_key=os.environ.get("STRIPE_API_KEY", "sk_test_managed"),
                          webhook_url=webhook_url)
     ck_req = CheckoutSessionRequest(
         amount=float(amount),
@@ -167,10 +167,10 @@ async def get_status(session_id: str, request: Request):
     # Ask Stripe directly if we're still pending — webhook may be delayed.
     if record.get("payment_status") != "paid":
         try:
-            from emergentintegrations.payments.stripe.checkout import StripeCheckout
+            from pmc_lib.payments.stripe.checkout import StripeCheckout
             host_url = str(request.base_url)
             webhook_url = f"{host_url}api/webhook/stripe"
-            sc = StripeCheckout(api_key=os.environ.get("STRIPE_API_KEY", "sk_test_emergent"),
+            sc = StripeCheckout(api_key=os.environ.get("STRIPE_API_KEY", "sk_test_managed"),
                                  webhook_url=webhook_url)
             status = await sc.get_checkout_status(session_id)
             if status.payment_status == "paid":
@@ -193,14 +193,14 @@ async def get_status(session_id: str, request: Request):
 
 @router.post("/api/webhook/stripe")
 async def stripe_webhook(request: Request):
-    """Flow-B webhook — exact path required by emergentintegrations."""
+    """Flow-B webhook — exact path required by pmc_lib."""
     body = await request.body()
     sig = request.headers.get("Stripe-Signature", "")
     try:
-        from emergentintegrations.payments.stripe.checkout import StripeCheckout
+        from pmc_lib.payments.stripe.checkout import StripeCheckout
         host_url = str(request.base_url)
         webhook_url = f"{host_url}api/webhook/stripe"
-        sc = StripeCheckout(api_key=os.environ.get("STRIPE_API_KEY", "sk_test_emergent"),
+        sc = StripeCheckout(api_key=os.environ.get("STRIPE_API_KEY", "sk_test_managed"),
                              webhook_url=webhook_url)
         event = await sc.handle_webhook(body, sig)
     except Exception as e:

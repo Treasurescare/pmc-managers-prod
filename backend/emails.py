@@ -34,7 +34,7 @@ def _wrap(title: str, body_html: str, cta_label: Optional[str] = None, cta_url: 
 
 async def send_email(to_email: str, subject: str, html: str) -> bool:
     if not config.EMAIL_KEY:
-        logging.warning("EMERGENT_EMAIL_KEY not set — email skipped")
+        logging.warning("EMAIL_API_KEY not set — email skipped")
         return False
     payload = {"to": [to_email], "subject": subject, "html": html, "from_name": config.EMAIL_FROM_NAME}
     try:

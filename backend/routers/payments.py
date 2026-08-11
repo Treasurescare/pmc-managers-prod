@@ -1,4 +1,4 @@
-"""Stripe EMD Payments router (Flow B — emergentintegrations lib).
+"""Stripe EMD Payments router (Flow B — pmc_lib lib).
 
 Vendor pays the EMD due on a bid via Stripe Checkout. On webhook success the
 bid transitions from `emd_pending` to `emd_paid`, unlocking the sequential
@@ -24,10 +24,10 @@ log = logging.getLogger("payments")
 
 def _stripe():
     """Lazy-import to keep dev startup resilient if key is missing."""
-    from emergentintegrations.payments.stripe.checkout import (
+    from pmc_lib.payments.stripe.checkout import (
         StripeCheckout, CheckoutSessionRequest,
     )
-    api_key = os.environ.get("STRIPE_API_KEY", "sk_test_emergent")
+    api_key = os.environ.get("STRIPE_API_KEY", "sk_test_managed")
     return StripeCheckout, CheckoutSessionRequest, api_key
 
 
@@ -166,7 +166,7 @@ async def refund_emd(payload: EMDRefundIn,
         raise HTTPException(status_code=404, detail="Paid transaction not found")
 
     import stripe
-    stripe.api_key = os.environ.get("STRIPE_API_KEY", "sk_test_emergent")
+    stripe.api_key = os.environ.get("STRIPE_API_KEY", "sk_test_managed")
     pi = tx.get("stripe_payment_intent_id") or tx.get("session_id")
     try:
         stripe.Refund.create(payment_intent=pi) if pi and pi.startswith("pi_") else None

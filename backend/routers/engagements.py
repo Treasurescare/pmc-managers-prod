@@ -176,12 +176,12 @@ async def engagement_checkout(eid: str, payload: CheckoutIn, request: Request,
         raise HTTPException(status_code=409,
             detail=f"Engagement must be `quoted` before checkout — current={doc['status']}")
     import os
-    from emergentintegrations.payments.stripe.checkout import (
+    from pmc_lib.payments.stripe.checkout import (
         StripeCheckout, CheckoutSessionRequest,
     )
     host = str(request.base_url)
     webhook_url = f"{host}api/webhook/stripe"
-    sc = StripeCheckout(api_key=os.environ.get("STRIPE_API_KEY", "sk_test_emergent"),
+    sc = StripeCheckout(api_key=os.environ.get("STRIPE_API_KEY", "sk_test_managed"),
                          webhook_url=webhook_url)
     ck = CheckoutSessionRequest(
         amount=float(doc["quoted_amount"]),

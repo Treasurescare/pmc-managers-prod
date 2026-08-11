@@ -1,4 +1,4 @@
-"""Wave 5 — BI Dashboards + AI (bid anomaly & vendor scoring via Emergent LLM key)."""
+"""Wave 5 — BI Dashboards + AI (bid anomaly & vendor scoring via PMC LLM key)."""
 from fastapi import APIRouter, HTTPException, Depends
 from bson import ObjectId
 
@@ -56,7 +56,7 @@ async def dashboard(admin=Depends(require_role("admin", "reviewer", "auditor")))
 async def audit_copilot(bid_id: str,
                         admin=Depends(require_role("admin", "committee_member", "auditor"))):
     """LLM reviews the bid's workflow_history and flags anomalies + issues an OK/REVIEW verdict.
-    Falls back to a deterministic rule-based verdict if the Emergent LLM key is unavailable."""
+    Falls back to a deterministic rule-based verdict if the PMC LLM key is unavailable."""
     from routers.analytics_helpers import deterministic_flags, llm_narrative
     bid = await db.bids.find_one({"_id": ObjectId(bid_id)})
     if not bid:
@@ -71,7 +71,7 @@ async def audit_copilot(bid_id: str,
 @router.post("/ai/bid-anomaly/{bid_id}")
 async def bid_anomaly_check(bid_id: str,
                              admin=Depends(require_role("admin", "committee_member"))):
-    """Uses the Emergent LLM key to flag anomalies in a bid vs. peer bids.
+    """Uses the PMC LLM key to flag anomalies in a bid vs. peer bids.
     Returns a natural-language flag list + a numeric anomaly score (0-100)."""
     from routers.analytics_helpers import anomaly_flags, anomaly_llm_narrative
     bid = await db.bids.find_one({"_id": ObjectId(bid_id)})

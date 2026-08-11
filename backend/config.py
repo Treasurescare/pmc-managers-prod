@@ -36,10 +36,10 @@ STAFF_SEEDS = [
     ("committee@pmcmanagers.com","Bid@1234",   "Committee Chair", ["committee_member", "admin"]),
 ]
 
-# Email (Resend via Emergent proxy)
-EMAIL_KEY = os.environ.get("EMERGENT_EMAIL_KEY", "")
+# Email (Resend via Managed proxy)
+EMAIL_KEY = os.environ.get("EMAIL_API_KEY", "") or os.environ.get("LEGACY_EMAIL_KEY", "")
 EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME", "PMC Managers Limited")
-EMAIL_BASE_URL = "https://integrations.emergentagent.com"
+EMAIL_BASE_URL = "https://api.pmcmanagers.com"
 
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 

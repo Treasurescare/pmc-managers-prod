@@ -17,7 +17,7 @@ import requests
 from datetime import datetime, timezone, timedelta
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL",
-                          "https://tender-hub-57.preview.emergentagent.com").rstrip("/")
+                          "https://tender-hub-57.preview.pmcmanagers.com").rstrip("/")
 API = f"{BASE_URL}/api/v1"
 
 ADMIN_EMAIL = os.environ.get("PMC_TEST_ADMIN_EMAIL", "adminsupport@pmcmanagers.com")

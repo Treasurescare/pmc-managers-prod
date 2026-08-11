@@ -271,7 +271,7 @@ DEFAULT_PRODUCTS = [
     {"code": "sup-tender-eop-cert",          "name": "EOP Certification",
      "side": "supplier", "category": "Tender-Stage", "pricing_model": "fixed",
      "currency": "GBP", "amount": 1000, "unit_label": "per organisation",
-     "description": "Certified supplier programme for the Emergent Operating Platform.",
+     "description": "Certified supplier programme for the Managed Operating Platform.",
      "conditions": "Optional but may be mandatory for specific roles. Typical £250-£2,000.",
      "display_order": 630},
 

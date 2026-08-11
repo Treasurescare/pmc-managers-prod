@@ -622,13 +622,13 @@ class AiDraftIn(BaseModel):
 async def ai_draft_section(tid: str, code: str,
                             payload: AiDraftIn = AiDraftIn(),
                             admin=Depends(require_role("admin", "reviewer"))):
-    """Fill a section body with an LLM draft — uses Emergent LLM key + emergentintegrations.
+    """Fill a section body with an LLM draft — uses PMC LLM key + pmc_lib.
     Reads the tender header (title, budget, category, timeline) as context so the
     generated language is consistent with the rest of the document."""
     import os
-    key = os.environ.get("EMERGENT_LLM_KEY", "")
+    key = os.environ.get("LLM_API_KEY", "") or os.environ.get("LEGACY_LLM_KEY", "")
     if not key:
-        raise HTTPException(status_code=503, detail="AI copilot is not configured (missing EMERGENT_LLM_KEY)")
+        raise HTTPException(status_code=503, detail="AI copilot is not configured (missing LLM_API_KEY)")
     try:
         doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
     except Exception:
@@ -640,7 +640,7 @@ async def ai_draft_section(tid: str, code: str,
         raise HTTPException(status_code=404, detail="Section not found")
     header = doc.get("header") or {}
     try:
-        from emergentintegrations.llm.chat import LlmChat, UserMessage
+        from pmc_lib.llm.chat import LlmChat, UserMessage
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"LLM SDK unavailable: {type(e).__name__}")
 

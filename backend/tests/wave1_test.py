@@ -12,7 +12,7 @@ import requests
 from datetime import datetime, timezone, timedelta
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL",
-                          "https://tender-hub-57.preview.emergentagent.com").rstrip("/")
+                          "https://tender-hub-57.preview.pmcmanagers.com").rstrip("/")
 API = f"{BASE_URL}/api/v1"
 
 OWNER_EMAIL = os.environ.get("PMC_TEST_OWNER_EMAIL", "kannan@emeraldcorporates.com")
@@ -234,7 +234,7 @@ class TestBidAndPayment:
             "bid_id": STATE["bid_id"],
             "origin_url": BASE_URL,
         }, timeout=30)
-        # Stripe test key sk_test_emergent may or may not work in sandbox;
+        # Stripe test key sk_test_managed may or may not work in sandbox;
         # accept both success and provisioning-related failure but log.
         if r.status_code != 200:
             pytest.skip(f"Stripe checkout unavailable in sandbox: {r.status_code} {r.text}")
