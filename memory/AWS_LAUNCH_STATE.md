@@ -1,18 +1,21 @@
-# PMC Managers v2 — AWS Launch State (updated 2026-02-11 13:08 UTC)
+# PMC Managers v2 — AWS Launch State (updated 2026-02-11 14:25 UTC)
 
 ## 🎯 Where you paused
 
-🎉 **Backend LIVE on AWS Elastic Beanstalk.** `curl /api/v1/meta/health` returns HTTP 200 with `{"ok":true,"service":"pmc-tender-v2-api","phase":"pilot"}`. About to start **Chapter 5 — Frontend to S3 + CloudFront**.
+🎉 **Backend + Frontend both LIVE on AWS.**
+- Backend: `http://pmc-backend-prod.eba-kmk3u8cp.eu-west-2.elasticbeanstalk.com` (EB + Docker + Atlas)
+- Frontend: `https://d2h9tkca2zjofy.cloudfront.net` (S3 + CloudFront + WAF, Free plan)
 
 ## ✅ What's DONE
 
 | Chapter | Status | Details |
 |---|---|---|
-| **0. AWS account** | ✅ Done | Account `637423434072`, region `eu-west-2` London |
-| **1. IAM user + CLI** | ✅ Done | User `pmc-admin`, ARN `arn:aws:iam::637423434072:user/pmc-admin`, AWS CLI configured on Windows laptop |
-| **2. MongoDB Atlas** | ✅ Done | Cluster `pmc-managers-uk` (`pmc-managers-uk.7zsyyyq.mongodb.net`), user `managerspmc_db_user`, **1,149 docs migrated** |
-| **3. GitHub push** | ✅ Done | Repo `Treasurescare/pmc-tender-v2-aws`, branch `main_pmcmanagersv2_aws`, `.emergent/` purged from repo via web UI |
-| **4. Elastic Beanstalk** | ✅ **LIVE** | App: `pmc-managers-v2`, Env: `pmc-backend-prod` on `t3.medium`, version `v8-deps-fixed`. Docker (Amazon Linux 2023 / 4.13.5). URL: `http://pmc-backend-prod.eba-kmk3u8cp.eu-west-2.elasticbeanstalk.com` |
+| 0. AWS account | ✅ | Account `637423434072`, region `eu-west-2` |
+| 1. IAM + CLI | ✅ | `pmc-admin`, AWS CLI configured |
+| 2. MongoDB Atlas | ✅ | `pmc-managers-uk` cluster, 1,149 docs migrated |
+| 3. GitHub | ✅ | `Treasurescare/pmc-tender-v2-aws`, `.emergent/` purged |
+| 4. Elastic Beanstalk | ✅ | `pmc-backend-prod` on t3.medium, v8-deps-fixed live |
+| 5. Frontend S3+CloudFront | ✅ | Bucket `pmc-managers-frontend-prod`, distribution `d2h9tkca2zjofy.cloudfront.net`, Free plan with WAF |
 
 ## 🔧 Fixes applied in this session to get backend LIVE
 
