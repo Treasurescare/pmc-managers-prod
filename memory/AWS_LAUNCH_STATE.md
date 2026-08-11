@@ -42,10 +42,21 @@
 
 ## ⚠️ Post-launch to-dos
 
-- Rotate weak admin password `Adminsupport@2024`
+- Rotate weak admin password `Admin@123` (previously wrongly recorded as `Adminsupport@2024` — corrected 2026-02-11)
 - Replace `STRIPE_API_KEY` placeholder `sk_test_emergent` with a real Stripe test key before enabling billing
 - Save-to-GitHub the updated `backend/requirements.txt` so future ZIPs include the deps
 - Update DocuSign Connect webhook URL when custom domain goes live (Chapter 6)
+
+## 🧩 CloudFront routing decision (2026-02-11 14:35 UTC)
+
+Because backend on EB is `http://` and frontend on CloudFront is `https://`, browsers block mixed-content requests. Chosen fix: **add a second origin + `/api/*` behavior to the existing frontend CloudFront distribution** so both apps share the same HTTPS domain. This eliminates CORS entirely (same-origin) and gives us HTTPS end-to-end without touching custom domain / ACM yet.
+
+- Frontend rebuilt with `REACT_APP_BACKEND_URL=https://d2h9tkca2zjofy.cloudfront.net`
+- CloudFront distribution `E2WZT1TMQ0EK9W`:
+  - Origin 1 (existing): S3 bucket `pmc-managers-frontend-prod`
+  - Origin 2 (new): EB `pmc-backend-prod.eba-kmk3u8cp.eu-west-2.elasticbeanstalk.com` on HTTP-only
+  - Behavior 1 (default `*`): S3
+  - Behavior 2 (`/api/*`): EB, forward all headers/cookies/query, no cache
 
 ## 🔄 RESUME HERE when you return
 
