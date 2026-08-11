@@ -1,8 +1,8 @@
-# PMC Managers v2 — AWS Launch State (paused 2026-02-11)
+# PMC Managers v2 — AWS Launch State (updated 2026-02-11 13:08 UTC)
 
 ## 🎯 Where you paused
 
-Elastic Beanstalk **environment provisioning in progress**. The Docker container is still being built inside your EC2 instance.
+🎉 **Backend LIVE on AWS Elastic Beanstalk.** `curl /api/v1/meta/health` returns HTTP 200 with `{"ok":true,"service":"pmc-tender-v2-api","phase":"pilot"}`. About to start **Chapter 5 — Frontend to S3 + CloudFront**.
 
 ## ✅ What's DONE
 
@@ -10,16 +10,39 @@ Elastic Beanstalk **environment provisioning in progress**. The Docker container
 |---|---|---|
 | **0. AWS account** | ✅ Done | Account `637423434072`, region `eu-west-2` London |
 | **1. IAM user + CLI** | ✅ Done | User `pmc-admin`, ARN `arn:aws:iam::637423434072:user/pmc-admin`, AWS CLI configured on Windows laptop |
-| **2. MongoDB Atlas** | ✅ Done | Cluster `pmc-managers-uk` (`pmc-managers-uk.7zsyyyq.mongodb.net`), user `managerspmc_db_user`, **1,149 docs migrated** (all preview data — DocuSign envelopes, products, notices, users, vendors) |
-| **3. GitHub push** | ✅ Done | Repo `Treasurescare/pmc-tender-v2-aws`, branch `main_pmcmanagersv2_aws`, includes `Dockerfile` + `.dockerignore` + `Dockerrun.aws.json` |
-| **4. Elastic Beanstalk setup** | 🟡 IN PROGRESS | App: `pmc-managers-v2`, Env: `pmc-backend-prod`, Env ID: `e-fp8nem6xeu`, Domain: `pmc-backend-prod.eba-kmk3u8cp.eu-west-2.elasticbeanstalk.com`, Platform: Docker on 64bit Amazon Linux 2023/4.13.5, Instance: single (t3.micro/small), 20 env vars pasted incl. `MONGO_URL` + 2,240-char `DOCUSIGN_PRIVATE_KEY_B64` |
+| **2. MongoDB Atlas** | ✅ Done | Cluster `pmc-managers-uk` (`pmc-managers-uk.7zsyyyq.mongodb.net`), user `managerspmc_db_user`, **1,149 docs migrated** |
+| **3. GitHub push** | ✅ Done | Repo `Treasurescare/pmc-tender-v2-aws`, branch `main_pmcmanagersv2_aws`, `.emergent/` purged from repo via web UI |
+| **4. Elastic Beanstalk** | ✅ **LIVE** | App: `pmc-managers-v2`, Env: `pmc-backend-prod` on `t3.medium`, version `v8-deps-fixed`. Docker (Amazon Linux 2023 / 4.13.5). URL: `http://pmc-backend-prod.eba-kmk3u8cp.eu-west-2.elasticbeanstalk.com` |
 
-## ⏸ Last observed state (updated 2026-02-11)
+## 🔧 Fixes applied in this session to get backend LIVE
 
-- Previous deploy on t3.micro stalled → OOM during weasyprint install (root cause identified)
-- Investor-purge complete: `.emergent` folder removed from Treasurescare/pmc-tender-v2-aws via GitHub web UI
-- User has clean ZIP at `C:\Users\abcd\pmcmanagers\pmc-tender-v2-aws-main_pmcmanagersv2_aws.zip`
-- Next actions given to user: (1) flatten ZIP if wrapped in top folder, (2) bump EB instance to t3.medium, (3) upload flattened `pmc-backend-eb.zip`, (4) curl /api/v1/meta/health
+1. Purged `.emergent/` from GitHub repo (was tracked, showed in every ZIP)
+2. Renamed EB env var `EMERGENT_LLM_KEY` → `LLM_API_KEY` (code reads the new name via `pmc_lib`)
+3. Bumped EB instance from t3.micro → **t3.medium** (t3.micro OOMed during weasyprint pip install)
+4. Fixed ZIP structure — replaced `Compress-Archive` (which writes backslash entries on PS 5.1) with manual `ZipArchive.CreateEntry` + `.Replace('\\','/')` for Linux-compatible forward-slash paths
+5. Added missing pip deps to `backend/requirements.txt`: `docusign-esign==6.1.0`, `bleach==6.2.0`, `Markdown==3.10.3`
+
+## ⏭ Next chapter — Chapter 5: Frontend → S3 + CloudFront
+
+- Frontend location: `C:\Users\abcd\pmcmanagers\_check\pmc-tender-v2-aws-main_pmcmanagersv2_aws\frontend\`
+- Backend URL to bake into frontend env: `http://pmc-backend-prod.eba-kmk3u8cp.eu-west-2.elasticbeanstalk.com`
+- S3 bucket to create: `pmc-managers-frontend-prod` in `eu-west-2`
+- CloudFront distribution: origin=that bucket, default root = `index.html`, custom error pages for SPA routing (403/404 → `/index.html` with HTTP 200)
+
+## 🔐 Reference — credential snapshot
+
+- AWS Console user (root): via account 637423434072
+- AWS IAM user (daily): `pmc-admin`
+- PMC admin login on production backend: `adminsupport@pmcmanagers.com` / `Adminsupport@2024` (⚠️ weak — rotate)
+- MongoDB Atlas: `managerspmc_db_user` / `ZzO8YoEqAQlrXqa5`
+- DocuSign HMAC: `KFSC1ftZ0DzyvFu9hmWdA27YFoCsYtRrKitbCvV6VEs=`
+
+## ⚠️ Post-launch to-dos
+
+- Rotate weak admin password `Adminsupport@2024`
+- Replace `STRIPE_API_KEY` placeholder `sk_test_emergent` with a real Stripe test key before enabling billing
+- Save-to-GitHub the updated `backend/requirements.txt` so future ZIPs include the deps
+- Update DocuSign Connect webhook URL when custom domain goes live (Chapter 6)
 
 ## 🔄 RESUME HERE when you return
 
