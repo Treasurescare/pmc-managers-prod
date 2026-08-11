@@ -83,6 +83,13 @@ android-sdk/
 .env
 .env.*
 *.env
+
+# Secrets — never commit
+backend/keys/
+DOCUSIGN_PRIVATE_KEY_B64.txt
+AWS_ENV_VARS.txt
+*.pem
+*.key
 credentials.json
 *.key
 .credentials
