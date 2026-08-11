@@ -580,6 +580,33 @@ async def get_user_guide_pdf(admin=Depends(require_role("admin", "reviewer", "au
 
 
 # ------------------------------------------------------------------
+#  Wave 45 — "Testing" swim-lane flowchart (55 QA scenarios)
+# ------------------------------------------------------------------
+
+def _build_testing_flowchart_svg() -> str:
+    from routers._testing_flowchart import build_testing_flowchart_svg
+    return build_testing_flowchart_svg()
+
+
+@router.get("/testing-flowchart.svg")
+async def get_testing_flowchart_svg(admin=Depends(require_role("admin", "reviewer", "auditor"))):
+    svg = _build_testing_flowchart_svg()
+    return Response(content=svg, media_type="image/svg+xml",
+                     headers=_dl_headers("PMC-v2-Testing-Flowchart.svg", "image/svg+xml"))
+
+
+@router.get("/testing-flowchart.pdf")
+async def get_testing_flowchart_pdf(admin=Depends(require_role("admin", "reviewer", "auditor"))):
+    from weasyprint import HTML
+    html = f"""<!doctype html><html><head><meta charset='utf-8'>
+<style>@page {{ size: A2 portrait; margin: 8mm; }} body {{ margin: 0; }}
+  svg {{ width: 100%; height: auto; }}</style></head><body>{_build_testing_flowchart_svg()}</body></html>"""
+    pdf = HTML(string=html).write_pdf()
+    return Response(content=pdf, media_type="application/pdf",
+                     headers=_dl_headers("PMC-v2-Testing-Flowchart.pdf", "application/pdf"))
+
+
+# ------------------------------------------------------------------
 #  Test-plan bundle (Wave 43) — hand this to any tester or AI QA tool.
 # ------------------------------------------------------------------
 

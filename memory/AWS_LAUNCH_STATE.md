@@ -1,10 +1,30 @@
-# PMC Managers v2 — AWS Launch State (updated 2026-02-11 14:25 UTC)
+# PMC Managers v2 — AWS Launch State (updated 2026-02-11 15:15 UTC)
 
-## 🎯 Where you paused
+## 🎯 Where you paused — 2026-02-11 evening (RESUME TOMORROW)
 
-🎉 **Backend + Frontend both LIVE on AWS.**
-- Backend: `http://pmc-backend-prod.eba-kmk3u8cp.eu-west-2.elasticbeanstalk.com` (EB + Docker + Atlas)
-- Frontend: `https://d2h9tkca2zjofy.cloudfront.net` (S3 + CloudFront + WAF, Free plan)
+🎉 **FULL STACK LIVE ON AWS.** Admin login verified working end-to-end at `https://d2h9tkca2zjofy.cloudfront.net/admin/login`. Single-origin routing via CloudFront behaviors (S3 for static, EB for `/api/*`) — no CORS, no mixed-content issues, HTTPS everywhere.
+
+## 🔄 RESUME TOMORROW — pick up in this order
+
+1. **Chapter 6 — Custom domain `www.pmcmanagers.com`** → step-by-step already written for you in **`/app/memory/CHAPTER_6_DOMAIN_KIT.md`** (Route 53 + ACM in us-east-1 + attach to CloudFront distribution `E2WZT1TMQ0EK9W`). Prereq: own the `pmcmanagers.com` domain at a registrar.
+2. **Comprehensive Testing Kit** → **`/app/docs/reports/PMC-v2-Testing-Kit.md`** created. Contains all creds, 55 test scenarios, smoke-test curls. Print alongside the testing flowchart PDF (still to be generated — 5-min task tomorrow).
+3. **NEW Testing Flowchart** — code lives in `/app/backend/routers/_testing_flowchart.py` (55-scenario swim-lane SVG) and endpoints registered in `reports.py` at `/api/v1/reports/testing-flowchart.svg|.pdf`. Backend HOT-RELOADED it. Tomorrow: hit `POST /api/v1/reports/snapshot` from admin to persist SVG+PDF to `/app/docs/reports/`, then include the two new files in the next frontend rebuild + S3 sync.
+4. **g — Asked-vs-Delivered docs** already regenerated fresh at `/app/docs/reports/PMC-v2-Asked-vs-Delivered.{pdf,docx,xlsx}` (15:25). Copied into `/app/frontend/public/downloads/` — will ship in next frontend rebuild.
+5. **d — Nuclear git reset** to a fresh `pmc-managers-prod` repo — do after Chapter 6 completes so the new repo captures the finished config.
+6. **e — Save-to-GitHub** (from Emergent chat input) to sync `backend/requirements.txt` (now has `docusign-esign`, `bleach`, `Markdown`) and the new `_testing_flowchart.py` + Chapter 6 kit + Testing Kit.
+7. **f — Smoke-test the demo flows** using the Testing Kit (5-min curl set + browser scenario 1-5).
+
+## 📝 Files created / updated this session (ready to Save-to-GitHub tomorrow)
+
+- ✅ `backend/requirements.txt` — added `docusign-esign==6.1.0`, `bleach==6.2.0`, `Markdown==3.10.3`
+- ✅ `backend/routers/_testing_flowchart.py` — NEW (55-scenario testing flowchart SVG generator)
+- ✅ `backend/routers/reports.py` — added `/testing-flowchart.svg|.pdf` endpoints
+- ✅ `docs/reports/PMC-v2-Testing-Kit.md` — NEW (comprehensive QA testing kit)
+- ✅ `memory/CHAPTER_6_DOMAIN_KIT.md` — NEW (Route 53 + ACM step-by-step)
+- ✅ `memory/AWS_LAUNCH_STATE.md` — updated (this file)
+- ✅ `memory/PRD.md` — updated (AWS marked LIVE)
+- ✅ `memory/test_credentials.md` — corrected admin password (`Admin@123`, verified working on prod)
+- ✅ `frontend/public/downloads/` — added 7 fresh SoT docs (Asked-vs-Delivered + Platform Flowchart + User-Guide Flowchart)
 
 ## ✅ What's DONE
 
@@ -15,7 +35,35 @@
 | 2. MongoDB Atlas | ✅ | `pmc-managers-uk` cluster, 1,149 docs migrated |
 | 3. GitHub | ✅ | `Treasurescare/pmc-tender-v2-aws`, `.emergent/` purged |
 | 4. Elastic Beanstalk | ✅ | `pmc-backend-prod` on t3.medium, v8-deps-fixed live |
-| 5. Frontend S3+CloudFront | ✅ | Bucket `pmc-managers-frontend-prod`, distribution `d2h9tkca2zjofy.cloudfront.net`, Free plan with WAF |
+| 5. Frontend S3+CloudFront | ✅ | Bucket `pmc-managers-frontend-prod`, distribution `E2WZT1TMQ0EK9W` (`d2h9tkca2zjofy.cloudfront.net`), Free plan with WAF, single-origin routing |
+| 5b. Single-origin routing | ✅ | Added EB as 2nd origin (`pmc-eb-backend`) + `/api/*` behavior with `CachingDisabled` + `AllViewer` origin request policy |
+| 5c. End-to-end verification | ✅ | Admin login `adminsupport@pmcmanagers.com` / `Admin@123` returns 200 through CloudFront |
+
+## ⏭ REMAINING for full launch
+
+| Priority | Task | ETA |
+|---|---|---|
+| 🟠 P1 | **Chapter 6 — Custom domain** `www.pmcmanagers.com` via Route 53 + ACM cert (us-east-1 for CloudFront). Then update DocuSign Connect webhook URL. | 30-45 min |
+| 🟠 P1 | Nuclear git reset — create fresh `pmc-managers-prod` repo, push scrubbed code as first commit | 15 min |
+| 🟡 P2 | Save-to-GitHub the fixed `backend/requirements.txt` (docusign-esign, bleach, Markdown) so future ZIPs include them | 2 min |
+| 🟡 P2 | Rotate `Admin@123` → strong password before investor demo | 5 min |
+| 🟡 P2 | Replace `STRIPE_API_KEY=sk_test_emergent` placeholder with real Stripe test key | 5 min |
+| 🟢 P3 | Attach UNSPSC picker to BOQ Builder + Vendor Registration Section C (deferred from before AWS pivot) | 30 min |
+
+## 🌐 Live URLs
+
+- **App**: `https://d2h9tkca2zjofy.cloudfront.net`
+- **Health check**: `https://d2h9tkca2zjofy.cloudfront.net/api/v1/meta/health` → `{"ok":true,...}`
+- **Backend origin** (internal): `http://pmc-backend-prod.eba-kmk3u8cp.eu-west-2.elasticbeanstalk.com`
+- **CloudFront distribution ID**: `E2WZT1TMQ0EK9W`
+
+## 🔐 Reference — credential snapshot
+
+- AWS account root: 637423434072
+- IAM daily user: `pmc-admin`
+- **PMC admin (verified working)**: `adminsupport@pmcmanagers.com` / **`Admin@123`** ⚠️ rotate before demo
+- MongoDB Atlas: `managerspmc_db_user` / `ZzO8YoEqAQlrXqa5`
+- DocuSign HMAC: `KFSC1ftZ0DzyvFu9hmWdA27YFoCsYtRrKitbCvV6VEs=`
 
 ## 🔧 Fixes applied in this session to get backend LIVE
 

@@ -101,8 +101,12 @@ See `/app/memory/test_credentials.md`.
 ## Production URL (Emergent-managed, already live)
 `https://tender-hub-57.emergent.host`
 
-## AWS Production (in-progress — paused 2026-02-11)
-- EB Environment: `pmc-backend-prod` at `pmc-backend-prod.eba-kmk3u8cp.eu-west-2.elasticbeanstalk.com`
-- Full resume state: see `/app/memory/AWS_LAUNCH_STATE.md`
-- Target public domain: `www.pmcmanagers.com` (Chapter 6 pending)
-- MongoDB Atlas: `pmc-managers-uk` cluster in London, 1,149 docs migrated from preview
+## AWS Production — 🎉 LIVE (2026-02-11)
+- **Live app**: `https://d2h9tkca2zjofy.cloudfront.net`
+- **Health**: `GET /api/v1/meta/health` returns 200 through CloudFront
+- **Admin login verified**: `adminsupport@pmcmanagers.com` / `Admin@123`
+- **Architecture**: CloudFront (Free plan + WAF) → S3 (static) + EB Docker t3.medium (`/api/*`) → MongoDB Atlas (`pmc-managers-uk`, eu-west-2)
+- **CloudFront distribution ID**: `E2WZT1TMQ0EK9W`
+- **EB env**: `pmc-backend-prod` on Amazon Linux 2023 Docker platform
+- **Chapter 6 pending**: Custom domain `www.pmcmanagers.com` via Route 53 + ACM
+- Full launch state + fixes applied: `/app/memory/AWS_LAUNCH_STATE.md`
