@@ -19,6 +19,9 @@ Endpoints:
     POST /api/v1/docusign/webhook                — Connect JSON SIM callback.
 """
 import base64
+import hashlib
+import hmac
+import logging
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -46,6 +49,28 @@ DS_ACCOUNT_ID = os.environ.get("DOCUSIGN_ACCOUNT_ID", "")
 DS_BASE_URI = os.environ.get("DOCUSIGN_BASE_URI", "https://demo.docusign.net")
 DS_AUTH_HOST = os.environ.get("DOCUSIGN_AUTH_HOST", "account-d.docusign.com")
 DS_PRIVATE_KEY_PATH = os.environ.get("DOCUSIGN_PRIVATE_KEY_PATH", "/app/backend/keys/docusign_private.key")
+DS_HMAC_SECRET = os.environ.get("DOCUSIGN_CONNECT_HMAC_SECRET", "")
+
+_log = logging.getLogger("docusign.webhook")
+
+
+def _verify_hmac(raw_body: bytes, headers) -> bool:
+    """Verify DocuSign Connect HMAC-SHA256 signature.
+
+    DocuSign delivers up to 3 signatures via headers x-docusign-signature-1..3
+    (base64-encoded HMAC-SHA256 of the raw request body using the shared secret).
+    Any match is accepted. Returns True if secret is not configured (opt-in).
+    """
+    if not DS_HMAC_SECRET:
+        return True  # HMAC not configured — accept (dev only)
+    expected = base64.b64encode(
+        hmac.new(DS_HMAC_SECRET.encode("utf-8"), raw_body, hashlib.sha256).digest()
+    ).decode("ascii")
+    for i in range(1, 4):
+        got = headers.get(f"x-docusign-signature-{i}") or headers.get(f"X-DocuSign-Signature-{i}")
+        if got and hmac.compare_digest(got.strip(), expected):
+            return True
+    return False
 
 
 def _consent_url(redirect_uri: Optional[str] = None) -> str:
@@ -461,7 +486,15 @@ async def vendor_request_award_envelope(
 @router.post("/webhook")
 async def docusign_webhook(request: Request):
     """DocuSign Connect (JSON SIM) callback. Updates envelope status in DB."""
-    payload = await request.json()
+    raw_body = await request.body()
+    if not _verify_hmac(raw_body, request.headers):
+        _log.warning("DocuSign webhook HMAC verification failed")
+        raise HTTPException(status_code=401, detail="Invalid HMAC signature")
+    try:
+        import json as _json
+        payload = _json.loads(raw_body.decode("utf-8")) if raw_body else {}
+    except Exception:
+        payload = {}
     event = payload.get("event") or payload.get("Event")
     data = payload.get("data") or {}
     envelope_id = data.get("envelopeId") or payload.get("envelopeId")
