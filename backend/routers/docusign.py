@@ -95,9 +95,23 @@ def _consent_url_fallback() -> str:
 
 
 def _load_private_key() -> bytes:
+    """Return the DocuSign RSA private key bytes.
+
+    Two sources supported (checked in order):
+      1. ``DOCUSIGN_PRIVATE_KEY_B64`` env var — base64-encoded PEM. Preferred
+         for cloud deploys (AWS App Runner / ECS / Heroku) where you can't
+         easily mount a file.
+      2. ``DOCUSIGN_PRIVATE_KEY_PATH`` file on disk — used in local/dev.
+    """
+    b64 = os.environ.get("DOCUSIGN_PRIVATE_KEY_B64", "").strip()
+    if b64:
+        try:
+            return base64.b64decode(b64)
+        except Exception as e:
+            raise HTTPException(500, f"DOCUSIGN_PRIVATE_KEY_B64 is set but not valid base64: {e}")
     p = Path(DS_PRIVATE_KEY_PATH)
     if not p.exists():
-        raise HTTPException(500, "DocuSign private key file not found on server")
+        raise HTTPException(500, "DocuSign private key not found — set DOCUSIGN_PRIVATE_KEY_B64 or place the file at DOCUSIGN_PRIVATE_KEY_PATH")
     return p.read_bytes()
 
 
