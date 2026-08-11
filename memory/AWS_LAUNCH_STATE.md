@@ -14,13 +14,12 @@ Elastic Beanstalk **environment provisioning in progress**. The Docker container
 | **3. GitHub push** | ✅ Done | Repo `Treasurescare/pmc-tender-v2-aws`, branch `main_pmcmanagersv2_aws`, includes `Dockerfile` + `.dockerignore` + `Dockerrun.aws.json` |
 | **4. Elastic Beanstalk setup** | 🟡 IN PROGRESS | App: `pmc-managers-v2`, Env: `pmc-backend-prod`, Env ID: `e-fp8nem6xeu`, Domain: `pmc-backend-prod.eba-kmk3u8cp.eu-west-2.elasticbeanstalk.com`, Platform: Docker on 64bit Amazon Linux 2023/4.13.5, Instance: single (t3.micro/small), 20 env vars pasted incl. `MONGO_URL` + 2,240-char `DOCUSIGN_PRIVATE_KEY_B64` |
 
-## ⏸ Last observed state
+## ⏸ Last observed state (updated 2026-02-11)
 
-- Environment health: **Pending** (grey circle)
-- Message: "None of the instances are sending data"
-- HTTP curl to port 80: `HTTP 000` (connection refused — container not up yet)
-- Elapsed since Submit click: ~5-10 min
-- Docker image is being built on the EC2 host (WeasyPrint install takes ~5-8 min)
+- Previous deploy on t3.micro stalled → OOM during weasyprint install (root cause identified)
+- Investor-purge complete: `.emergent` folder removed from Treasurescare/pmc-tender-v2-aws via GitHub web UI
+- User has clean ZIP at `C:\Users\abcd\pmcmanagers\pmc-tender-v2-aws-main_pmcmanagersv2_aws.zip`
+- Next actions given to user: (1) flatten ZIP if wrapped in top folder, (2) bump EB instance to t3.medium, (3) upload flattened `pmc-backend-eb.zip`, (4) curl /api/v1/meta/health
 
 ## 🔄 RESUME HERE when you return
 
