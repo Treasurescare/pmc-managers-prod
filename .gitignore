@@ -61,6 +61,9 @@ chainlit.md
 # Deployment
 .vercel
 
+# Platform artifacts (build tool config — do not ship)
+.emergent/
+
 # Data and databases
 agenthub/agents/youtube/db
 
