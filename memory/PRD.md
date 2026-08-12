@@ -101,12 +101,10 @@ See `/app/memory/test_credentials.md`.
 ## Production URL (Emergent-managed, already live)
 `https://tender-hub-57.emergent.host`
 
-## AWS Production — 🎉 LIVE (2026-02-11)
-- **Live app**: `https://d2h9tkca2zjofy.cloudfront.net`
-- **Health**: `GET /api/v1/meta/health` returns 200 through CloudFront
-- **Admin login verified**: `adminsupport@pmcmanagers.com` / `Admin@123`
-- **Architecture**: CloudFront (Free plan + WAF) → S3 (static) + EB Docker t3.medium (`/api/*`) → MongoDB Atlas (`pmc-managers-uk`, eu-west-2)
-- **CloudFront distribution ID**: `E2WZT1TMQ0EK9W`
-- **EB env**: `pmc-backend-prod` on Amazon Linux 2023 Docker platform
-- **Chapter 6 pending**: Custom domain `www.pmcmanagers.com` via Route 53 + ACM
+## AWS Production — 🎉 LIVE with custom domain (2026-02-12)
+- **Live app**: `https://www.pmcmanagers.com` (also `https://pmcmanagers.com` → 301 → www)
+- **Cert**: ACM us-east-1 `f9755627-05ac-4dc6-b4ab-5751ddd4f5e8` covers www + apex
+- **Verified**: HTTP 200 health, admin login 200, CORS allow-origin correct
+- **Architecture**: GoDaddy DNS → CloudFront (Free + WAF, distribution `E2WZT1TMQ0EK9W`) → S3 (static) + EB Docker t3.medium (`/api/*`) → MongoDB Atlas (`pmc-managers-uk`, eu-west-2)
+- **Fallback URL**: `https://d2h9tkca2zjofy.cloudfront.net` still active (belt & suspenders)
 - Full launch state + fixes applied: `/app/memory/AWS_LAUNCH_STATE.md`

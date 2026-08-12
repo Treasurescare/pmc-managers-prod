@@ -1,8 +1,44 @@
-# PMC Managers v2 — AWS Launch State (updated 2026-02-11 15:15 UTC)
+# PMC Managers v2 — AWS Launch State (updated 2026-02-12 06:24 UTC)
 
-## 🎯 Where you paused — 2026-02-11 evening (RESUME TOMORROW)
+## 🎯 Where you paused — 2026-02-12
 
-🎉 **FULL STACK LIVE ON AWS.** Admin login verified working end-to-end at `https://d2h9tkca2zjofy.cloudfront.net/admin/login`. Single-origin routing via CloudFront behaviors (S3 for static, EB for `/api/*`) — no CORS, no mixed-content issues, HTTPS everywhere.
+🎉 **CUSTOM DOMAIN LIVE.** `https://www.pmcmanagers.com` serves the full stack over HTTPS. Apex `pmcmanagers.com` 301-redirects to www. CORS validated. Admin login verified via custom domain.
+
+## ✅ COMPLETED
+
+| Chapter | Status | Details |
+|---|---|---|
+| 0-5 | ✅ | Full AWS stack live end-to-end since 2026-02-11. |
+| 6. **Custom Domain** | ✅ **DONE (2026-02-12)** | ACM cert `f9755627-05ac-4dc6-b4ab-5751ddd4f5e8` in us-east-1 covers `www` + apex · GoDaddy CNAME `www → d2h9tkca2zjofy.cloudfront.net` · GoDaddy Domain Forwarding apex → `https://www.pmcmanagers.com` (301, forward-only) · CloudFront alt CNAMEs + cert attached · EB env vars `FRONTEND_URL` + `CORS_ORIGINS` updated |
+
+## 🔴 REMAINING for full launch polish
+
+| Priority | Task | ETA |
+|---|---|---|
+| 🟠 P1 | **DocuSign Connect webhook** URL update to `https://www.pmcmanagers.com/api/v1/docusign/webhook` | 5 min |
+| 🟠 P1 | **Nuclear git reset** — fresh `pmc-managers-prod` GitHub repo | 15 min |
+| 🟡 P2 | **Save-to-GitHub** yesterday+today workspace changes | 2 min |
+| 🟡 P2 | **Rotate `Admin@123`** before demo | 5 min |
+| 🟡 P2 | Real Stripe key (waiting on user) | 5 min |
+| 🟢 P3 | Frontend v3 rebuild (cosmetic; old URL still works) | 5 min |
+| 🟢 P3 | UNSPSC picker → BOQ + Vendor Reg Section C | 30 min |
+
+## 🌐 Live URLs
+
+- **Primary app**: `https://www.pmcmanagers.com`
+- **Apex redirect**: `https://pmcmanagers.com` → 301 → www
+- **Fallback CloudFront default (still live)**: `https://d2h9tkca2zjofy.cloudfront.net`
+- **Health**: `GET https://www.pmcmanagers.com/api/v1/meta/health` → 200
+- **Backend origin (private, only via CloudFront)**: `http://pmc-backend-prod.eba-kmk3u8cp.eu-west-2.elasticbeanstalk.com`
+- **CloudFront distribution**: `E2WZT1TMQ0EK9W`
+
+## 🔐 Reference — credential snapshot
+
+- AWS root: 637423434072 · region: eu-west-2 (CF cert region: us-east-1)
+- IAM daily user: `pmc-admin`
+- **PMC admin (verified via www.pmcmanagers.com)**: `adminsupport@pmcmanagers.com` / `Admin@123` ⚠️ rotate before demo
+- MongoDB Atlas: `managerspmc_db_user` / `ZzO8YoEqAQlrXqa5`
+- DocuSign HMAC: `KFSC1ftZ0DzyvFu9hmWdA27YFoCsYtRrKitbCvV6VEs=`
 
 ## 🔄 RESUME TOMORROW — pick up in this order
 
