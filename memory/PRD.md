@@ -101,6 +101,24 @@ See `/app/memory/test_credentials.md`.
 ## Production URL (Emergent-managed, already live)
 `https://tender-hub-57.emergent.host`
 
+## Session 2026-02-12 (P0+P1 CLOSED 🏁)
+
+### ✅ Handover Complete — All P0 & P1 items DONE
+- Frontend v6 live on S3+CloudFront (main.3c36ee81.js)
+- Backend v3 live on EB (change-password endpoint + /status fix)
+- Admin password rotated to PMC@Prod-Kaspi-Winter-2026! (Admin@123 dead)
+- DocuSign Connect webhook working end-to-end
+- Connect HMAC re-enabled with fresh secret in DOCUSIGN_CONNECT_HMAC_SECRET
+- OAuth Redirect URI added: https://www.pmcmanagers.com/admin
+- Git history reset via Emergent "Save to GitHub" (fresh pmc-managers-prod repo)
+
+### 🎯 P2 Backlog (Post-Investor-Demo)
+- UNSPSC picker for BOQ Builder + Vendor Registration Section C
+- Real PayPal / Kaspi Pay integration (waiting on merchant credentials)
+- Firebase push notifications (waiting on FCM project + service account)
+- Live KYC provider (waiting on KYC_BASE_URL + KYC_API_KEY)
+- Fix DocuSign self-signing email delivery to owner (change "Deliver self-signed email notifications by" from Link → Email)
+
 ## Session 2026-02-12 (P0+P1 CLOSE) 🏁
 
 ### ✅ P0 & P1 Completed Today
