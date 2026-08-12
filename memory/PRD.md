@@ -108,3 +108,30 @@ See `/app/memory/test_credentials.md`.
 - **Architecture**: GoDaddy DNS → CloudFront (Free + WAF, distribution `E2WZT1TMQ0EK9W`) → S3 (static) + EB Docker t3.medium (`/api/*`) → MongoDB Atlas (`pmc-managers-uk`, eu-west-2)
 - **Fallback URL**: `https://d2h9tkca2zjofy.cloudfront.net` still active (belt & suspenders)
 - Full launch state + fixes applied: `/app/memory/AWS_LAUNCH_STATE.md`
+
+---
+
+## Session 2026-02-12 — DocuSign Prod Recovery (PARTIAL)
+
+### ✅ Completed
+- **DocuSign RSA Private Key restored** — user copied correct Private Key from DocuSign UI, base64-encoded via PowerShell (2232 chars), pasted full string into `DOCUSIGN_PRIVATE_KEY_B64` in EB → JWT auth working
+- **Force-refreshed 2 stuck envelopes** (`a9d92a78...`, `2f9d225a...`) via `GET /api/v1/docusign/envelopes/{id}` live-fetch endpoint → both now `completed` in DB
+- **HMAC secret removed** from EB (`DOCUSIGN_CONNECT_HMAC_SECRET` unset) to allow unsigned webhooks temporarily
+- **Old Connect configs deleted** (22271585, 22272951 — both pointed to stale URLs)
+- **New Connect config created** — `PMC Managers Prod`, URL: `https://www.pmcmanagers.com/api/v1/docusign/webhook`, HMAC OFF
+- **TLS verified from container**: TLS 1.2 + 1.3, cert valid until Feb 2027, chain depth 3 ✅
+- **Cosmetic bug identified**: `/api/v1/docusign/status` reports `configured: false` because deployed code checks disk path only — workspace fix already exists (line 257 checks B64 env var), needs backend redeploy
+
+### ⏸️ Paused Mid-Test (user tired 2026-02-12)
+- **Fresh test envelope**: `074129a3-16bb-8cb9-8069-f87ed8850caf` (PMC-AWD-2026-00011), signer `managerspmc@gmail.com`, status `sent`, waiting to be signed
+- **Once signed** → verify `webhook_at` gets populated → proves Connect webhook is end-to-end working
+- **If `webhook_at` stays None**: CloudFront TLS policy may be too strict → change from `TLSv1.2_2021` to `TLSv1.2_2019` in CloudFront distribution settings
+
+### 🔮 Next Steps (in order)
+1. **P0**: User signs envelope `074129a3-16bb-8cb9-8069-f87ed8850caf` from Gmail → verify webhook fires (60 sec wait)
+2. **P0**: If webhook succeeds, re-enable HMAC — generate new secret in DocuSign Connect Keys, save to `DOCUSIGN_CONNECT_HMAC_SECRET` in EB
+3. **P1**: Deploy latest backend to fix cosmetic `/status` endpoint (`configured: false` bug)
+4. **P1**: Update DocuSign OAuth Redirect URI → `https://www.pmcmanagers.com/admin`
+5. **P1**: Nuclear Git History Reset — fresh `pmc-managers-prod` GitHub repo before investor review
+6. **P2**: Rotate weak admin password `Admin@123`
+7. **P2**: Add per-row "🔄 Refresh Status" button to Envelope Log (manual escape hatch if webhook fails)
