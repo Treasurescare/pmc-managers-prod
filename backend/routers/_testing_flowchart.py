@@ -58,9 +58,9 @@ def build_testing_flowchart_svg() -> str:
     lanes = [
         ("Public / Anonymous",   85,  330, "#374151"),
         ("Vendor",              335,  350, "#065f46"),
-        ("Admin",               690,  380, "#6b21a8"),
-        ("Staff (Escrow/Certifier/Legal/Accounting)", 1075, 380, "#92400e"),
-        ("Committee",          1460,  220, "#9f1239"),
+        ("Admin",               690,  365, "#6b21a8"),
+        ("Staff (Escrow · Certifier · Legal · Accounting)", 1080, 380, "#92400e"),
+        ("Committee",          1470,  220, "#9f1239"),
     ]
     lane_svg = ""
     for label, y, h, colour in lanes:
@@ -70,17 +70,17 @@ def build_testing_flowchart_svg() -> str:
 """
 
     # ------------------------------------------------------------------
-    # Phase bands (vertical divisions)
+    # Phase bands (vertical divisions) - short titles to fit 170px width
     # ------------------------------------------------------------------
     phases = [
-        ("Phase 1 · Landing & discovery",         100),
-        ("Phase 2 · Registration & onboarding",   280),
-        ("Phase 3 · Tender publication & Q&A",    450),
-        ("Phase 4 · Bidding + EMD payment",       620),
-        ("Phase 5 · Evaluation + committee",      810),
-        ("Phase 6 · Award & post-award docs",    1010),
-        ("Phase 7 · Reverse auctions + meetings",1200),
-        ("Phase 8 · Escrow release + audit",     1390),
+        ("1 · Discovery",         100),
+        ("2 · Register",          280),
+        ("3 · Publish",           450),
+        ("4 · Bid + EMD",         620),
+        ("5 · Evaluate",          810),
+        ("6 · Award",            1010),
+        ("7 · Auctions",         1200),
+        ("8 · Escrow",           1390),
     ]
     phase_svg = ""
     for title, x in phases:
@@ -146,21 +146,21 @@ def build_testing_flowchart_svg() -> str:
         (44, 1390,1155,160, 55, "box-staff",  "Escrow officer public",    "magic-link /escrow/officer/:token"),
 
         # Committee lane
-        (45, 810,1470, 160, 55, "box-comm",   "Committee accept invite",  "/committee/accept/:token"),
-        (46, 810,1540, 160, 55, "box-comm",   "Score bid on rubric",      "per-criterion 0-10"),
-        (47, 810,1610, 160, 55, "box-comm",   "Bid pack rendering",       "line items, docs, vendor intel"),
+        (45, 810,1480, 160, 55, "box-comm",   "Committee accept invite",  "/committee/accept/:token"),
+        (46, 810,1550, 160, 55, "box-comm",   "Score bid on rubric",      "per-criterion 0-10"),
+        (47, 810,1620, 160, 55, "box-comm",   "Bid pack rendering",       "line items, docs, vendor intel"),
 
         # Cross-phase / observability
         (48, 100, 850, 160, 55, "box-admin",  "Notifications bell",       "role-scoped, live poll"),
         (49, 100, 920, 160, 55, "box-admin",  "Impersonate role dropdown","support flow diagnosis"),
         (50, 280, 840, 160, 55, "box-admin",  "Add tenant + skin",        "?tenant=DEMO-CORP color test"),
         (51, 100, 990, 160, 55, "box-admin",  "Mobile responsive audit",  "375px, 768px, 1024px probes"),
-        (52, 100,1060, 160, 55, "box-admin",  "i18n switch EN/RU/KK",     "all admin panels render"),
+        (52, 280, 910, 160, 55, "box-admin",  "i18n switch EN/RU/KK",     "all admin panels render"),
 
         # Auto-gen / audit / regression
         (53, 1390,1225,160, 55, "box-comm",   "Regen SoT docs",           "POST /reports/snapshot"),
-        (54, 1390,1470,160, 55, "box-comm",   "Test-plan endpoint",       "GET /reports/test-plan.pdf"),
-        (55, 1390,1540,160, 55, "box-comm",   "Test-IDs registry",        "GET /reports/test-ids.txt"),
+        (54, 1390,1480,160, 55, "box-comm",   "Test-plan endpoint",       "GET /reports/test-plan.pdf"),
+        (55, 1390,1550,160, 55, "box-comm",   "Test-IDs registry",        "GET /reports/test-ids.txt"),
     ]
     box_svg = ""
     for num, x, y, w, h, cls, title, sub in boxes:

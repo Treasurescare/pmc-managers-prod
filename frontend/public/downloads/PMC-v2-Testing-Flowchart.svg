@@ -1,0 +1,367 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 2100'
+     width='1600' height='2100' preserveAspectRatio='xMidYMid meet'
+     font-family='Calibri, Arial, sans-serif' font-size='13'>
+  <defs>
+    <marker id='tf-arr' viewBox='0 0 10 10' refX='9' refY='5' markerUnits='strokeWidth'
+            markerWidth='9' markerHeight='9' orient='auto'>
+      <path d='M 0 0 L 10 5 L 0 10 z' fill='#0b1f3a'/>
+    </marker>
+    <style>
+      .lane-bg      { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1; stroke-dasharray: 4 3; }
+      .lane-label   { fill: #0b1f3a; font-weight: 700; font-size: 15px; }
+      .phase-band   { fill: #eef2ff; stroke: #4f46e5; stroke-width: 1; }
+      .phase-title  { fill: #1e1b4b; font-weight: 700; font-size: 14px; }
+      .box          { fill: #ffffff; stroke: #0b1f3a; stroke-width: 1.4; rx: 6; }
+      .box-public   { fill: #f3f4f6; stroke: #374151; }
+      .box-vendor   { fill: #d1fae5; stroke: #065f46; }
+      .box-admin    { fill: #ede9fe; stroke: #6b21a8; }
+      .box-staff    { fill: #fef3c7; stroke: #92400e; }
+      .box-comm     { fill: #ffe4e6; stroke: #9f1239; }
+      .box-title    { font-weight: 700; fill: #0b1f3a; font-size: 12.5px; }
+      .box-sub      { fill: #475569; font-size: 11px; }
+      .step-num     { fill: #94a3b8; font-weight: 800; font-size: 18px; }
+      .arrow        { stroke: #0b1f3a; stroke-width: 1.4; fill: none; }
+      .header-title { fill: #0b1f3a; font-weight: 700; font-size: 22px; }
+      .header-sub   { fill: #475569; font-size: 12px; }
+      .pill         { fill: #0b1f3a; }
+      .pill text    { fill: #ffffff; font-weight: 700; font-size: 11px; }
+      .critical     { fill: #dc2626; font-weight: 700; }
+    </style>
+  </defs>
+
+  <rect x='0' y='0' width='1600' height='2100' fill='#ffffff'/>
+
+  <text x='60' y='42' class='header-title'>PMC Managers v2 — Comprehensive Testing Flowchart</text>
+  <text x='60' y='62' class='header-sub'>55 numbered test scenarios across 8 phases and 5 personas · investor-demo QA kit</text>
+
+  <rect class='lane-bg' x='60' y='85' width='1480' height='330'/>
+  <text x='75' y='105' class='lane-label' fill='#374151'>Public / Anonymous</text>
+
+  <rect class='lane-bg' x='60' y='335' width='1480' height='350'/>
+  <text x='75' y='355' class='lane-label' fill='#065f46'>Vendor</text>
+
+  <rect class='lane-bg' x='60' y='690' width='1480' height='365'/>
+  <text x='75' y='710' class='lane-label' fill='#6b21a8'>Admin</text>
+
+  <rect class='lane-bg' x='60' y='1080' width='1480' height='380'/>
+  <text x='75' y='1100' class='lane-label' fill='#92400e'>Staff (Escrow · Certifier · Legal · Accounting)</text>
+
+  <rect class='lane-bg' x='60' y='1470' width='1480' height='220'/>
+  <text x='75' y='1490' class='lane-label' fill='#9f1239'>Committee</text>
+
+  <rect class='phase-band' x='100' y='80' width='170' height='22'/>
+  <text x='108' y='96' class='phase-title'>1 · Discovery</text>
+
+  <rect class='phase-band' x='280' y='80' width='170' height='22'/>
+  <text x='288' y='96' class='phase-title'>2 · Register</text>
+
+  <rect class='phase-band' x='450' y='80' width='170' height='22'/>
+  <text x='458' y='96' class='phase-title'>3 · Publish</text>
+
+  <rect class='phase-band' x='620' y='80' width='170' height='22'/>
+  <text x='628' y='96' class='phase-title'>4 · Bid + EMD</text>
+
+  <rect class='phase-band' x='810' y='80' width='170' height='22'/>
+  <text x='818' y='96' class='phase-title'>5 · Evaluate</text>
+
+  <rect class='phase-band' x='1010' y='80' width='170' height='22'/>
+  <text x='1018' y='96' class='phase-title'>6 · Award</text>
+
+  <rect class='phase-band' x='1200' y='80' width='170' height='22'/>
+  <text x='1208' y='96' class='phase-title'>7 · Auctions</text>
+
+  <rect class='phase-band' x='1390' y='80' width='170' height='22'/>
+  <text x='1398' y='96' class='phase-title'>8 · Escrow</text>
+
+  <rect class='box box-public' x='100' y='120' width='160' height='55'/>
+  <text x='108' y='138' class='box-title'>Notice Board loads</text>
+  <text x='108' y='156' class='box-sub'>GET /notices/public · 3 col grid renders</text>
+  <text x='238' y='169' class='step-num'>01</text>
+
+  <rect class='box box-public' x='100' y='190' width='160' height='55'/>
+  <text x='108' y='208' class='box-title'>Notice search + filter</text>
+  <text x='108' y='226' class='box-sub'>keyword, org, status, deadline</text>
+  <text x='238' y='239' class='step-num'>02</text>
+
+  <rect class='box box-public' x='280' y='120' width='160' height='55'/>
+  <text x='288' y='138' class='box-title'>Notice detail + docs</text>
+  <text x='288' y='156' class='box-sub'>download attachments, corrigenda banner</text>
+  <text x='418' y='169' class='step-num'>03</text>
+
+  <rect class='box box-public' x='280' y='190' width='160' height='55'/>
+  <text x='288' y='208' class='box-title'>Q&A public thread</text>
+  <text x='288' y='226' class='box-sub'>vendor question → admin reply visible</text>
+  <text x='418' y='239' class='step-num'>04</text>
+
+  <rect class='box box-public' x='450' y='120' width='160' height='55'/>
+  <text x='458' y='138' class='box-title'>Public roadmap</text>
+  <text x='458' y='156' class='box-sub'>/roadmap read-only status pills</text>
+  <text x='588' y='169' class='step-num'>05</text>
+
+  <rect class='box box-vendor' x='280' y='355' width='160' height='55'/>
+  <text x='288' y='373' class='box-title'>Register Sections A–E</text>
+  <text x='288' y='391' class='box-sub'>vendor self-registration, uploads</text>
+  <text x='418' y='404' class='step-num'>06</text>
+
+  <rect class='box box-vendor' x='280' y='425' width='160' height='55'/>
+  <text x='288' y='443' class='box-title'>Email verification</text>
+  <text x='288' y='461' class='box-sub'>click link, set password</text>
+  <text x='418' y='474' class='step-num'>07</text>
+
+  <rect class='box box-vendor' x='280' y='495' width='160' height='55'/>
+  <text x='288' y='513' class='box-title'>Login + MFA setup</text>
+  <text x='288' y='531' class='box-sub'>/vendor/login, TOTP QR scan</text>
+  <text x='418' y='544' class='step-num'>08</text>
+
+  <rect class='box box-vendor' x='280' y='565' width='160' height='55'/>
+  <text x='288' y='583' class='box-title'>Update profile / GDPR</text>
+  <text x='288' y='601' class='box-sub'>export data JSON download</text>
+  <text x='418' y='614' class='step-num'>09</text>
+
+  <rect class='box box-vendor' x='620' y='355' width='160' height='55'/>
+  <text x='628' y='373' class='box-title'>Submit bid + line items</text>
+  <text x='628' y='391' class='box-sub'>/vendor/bid/new/:noticeRef</text>
+  <text x='758' y='404' class='step-num'>10</text>
+
+  <rect class='box box-vendor' x='620' y='425' width='160' height='55'/>
+  <text x='628' y='443' class='box-title'>Pay EMD via Stripe</text>
+  <text x='628' y='461' class='box-sub'>test card 4242 4242 4242 4242</text>
+  <text x='758' y='474' class='step-num'>11</text>
+
+  <rect class='box box-vendor' x='620' y='495' width='160' height='55'/>
+  <text x='628' y='513' class='box-title'>Pay EMD sandbox (PP/Kaspi)</text>
+  <text x='628' y='531' class='box-sub'>in-app demo checkout</text>
+  <text x='758' y='544' class='step-num'>12</text>
+
+  <rect class='box box-vendor' x='620' y='565' width='160' height='55'/>
+  <text x='628' y='583' class='box-title'>Envelope open (Two-cover)</text>
+  <text x='628' y='601' class='box-sub'>technical envelope only</text>
+  <text x='758' y='614' class='step-num'>13</text>
+
+  <rect class='box box-vendor' x='1200' y='355' width='160' height='55'/>
+  <text x='1208' y='373' class='box-title'>Join reverse auction</text>
+  <text x='1208' y='391' class='box-sub'>/vendor/auction/:aid, submit bid</text>
+  <text x='1338' y='404' class='step-num'>14</text>
+
+  <rect class='box box-vendor' x='1200' y='425' width='160' height='55'/>
+  <text x='1208' y='443' class='box-title'>Enable auto-bid rule</text>
+  <text x='1208' y='461' class='box-sub'>set floor + decrement</text>
+  <text x='1338' y='474' class='step-num'>15</text>
+
+  <rect class='box box-vendor' x='1200' y='495' width='160' height='55'/>
+  <text x='1208' y='513' class='box-title'>Join Zoom / Jitsi meeting</text>
+  <text x='1208' y='531' class='box-sub'>/meet/:token public join</text>
+  <text x='1338' y='544' class='step-num'>16</text>
+
+  <rect class='box box-vendor' x='1010' y='565' width='160' height='55'/>
+  <text x='1018' y='583' class='box-title'>Sign contract (embedded)</text>
+  <text x='1018' y='601' class='box-sub'>DocuSign iframe, embedded delivery</text>
+  <text x='1148' y='614' class='step-num'>17</text>
+
+  <rect class='box box-vendor' x='1010' y='635' width='160' height='55'/>
+  <text x='1018' y='653' class='box-title'>Download signed PDF</text>
+  <text x='1018' y='671' class='box-sub'>/mine/envelopes/{id}/combined-pdf</text>
+  <text x='1148' y='684' class='step-num'>18</text>
+
+  <rect class='box box-admin' x='100' y='700' width='160' height='55'/>
+  <text x='108' y='718' class='box-title'>Admin login</text>
+  <text x='108' y='736' class='box-sub'>/admin/login, session cookie</text>
+  <text x='238' y='749' class='step-num'>19</text>
+
+  <rect class='box box-admin' x='100' y='770' width='160' height='55'/>
+  <text x='108' y='788' class='box-title'>Dashboard KPIs render</text>
+  <text x='108' y='806' class='box-sub'>notices, bids, vendors counters</text>
+  <text x='238' y='819' class='step-num'>20</text>
+
+  <rect class='box box-admin' x='280' y='700' width='160' height='55'/>
+  <text x='288' y='718' class='box-title'>Approve vendor reg</text>
+  <text x='288' y='736' class='box-sub'>Section A–E review, activate</text>
+  <text x='418' y='749' class='step-num'>21</text>
+
+  <rect class='box box-admin' x='280' y='770' width='160' height='55'/>
+  <text x='288' y='788' class='box-title'>Bulk invite vendors</text>
+  <text x='288' y='806' class='box-sub'>CSV → email dispatch</text>
+  <text x='418' y='819' class='step-num'>22</text>
+
+  <rect class='box box-admin' x='450' y='700' width='160' height='55'/>
+  <text x='458' y='718' class='box-title'>Publish tender</text>
+  <text x='458' y='736' class='box-sub'>Tender Template Builder wizard</text>
+  <text x='588' y='749' class='step-num'>23</text>
+
+  <rect class='box box-admin' x='450' y='770' width='160' height='55'/>
+  <text x='458' y='788' class='box-title'>Publish corrigendum</text>
+  <text x='458' y='806' class='box-sub'>auto-numbered, deadline update</text>
+  <text x='588' y='819' class='step-num'>24</text>
+
+  <rect class='box box-admin' x='450' y='840' width='160' height='55'/>
+  <text x='458' y='858' class='box-title'>Answer Q&A</text>
+  <text x='458' y='876' class='box-sub'>admin reply → public</text>
+  <text x='588' y='889' class='step-num'>25</text>
+
+  <rect class='box box-admin' x='620' y='700' width='160' height='55'/>
+  <text x='628' y='718' class='box-title'>Financial envelope open</text>
+  <text x='628' y='736' class='box-sub'>post-technical shortlist</text>
+  <text x='758' y='749' class='step-num'>26</text>
+
+  <rect class='box box-admin' x='620' y='770' width='160' height='55'/>
+  <text x='628' y='788' class='box-title'>L1 comparison table</text>
+  <text x='628' y='806' class='box-sub'>auto-rank by amount</text>
+  <text x='758' y='819' class='step-num'>27</text>
+
+  <rect class='box box-admin' x='810' y='700' width='160' height='55'/>
+  <text x='818' y='718' class='box-title'>Setup evaluation rubric</text>
+  <text x='818' y='736' class='box-sub'>criteria + weights</text>
+  <text x='948' y='749' class='step-num'>28</text>
+
+  <rect class='box box-admin' x='810' y='770' width='160' height='55'/>
+  <text x='818' y='788' class='box-title'>Nominate committee</text>
+  <text x='818' y='806' class='box-sub'>internal + external members</text>
+  <text x='948' y='819' class='step-num'>29</text>
+
+  <rect class='box box-admin' x='810' y='840' width='160' height='55'/>
+  <text x='818' y='858' class='box-title'>Assign certifier</text>
+  <text x='818' y='876' class='box-sub'>site inspection dispatch</text>
+  <text x='948' y='889' class='step-num'>30</text>
+
+  <rect class='box box-admin' x='1010' y='700' width='160' height='55'/>
+  <text x='1018' y='718' class='box-title'>Award bid</text>
+  <text x='1018' y='736' class='box-sub'>auto-generate PO/SLA/Contract</text>
+  <text x='1148' y='749' class='step-num'>31</text>
+
+  <rect class='box box-admin' x='1010' y='770' width='160' height='55'/>
+  <text x='1018' y='788' class='box-title'>Send DocuSign envelope</text>
+  <text x='1018' y='806' class='box-sub'>pick delivery embedded/email</text>
+  <text x='1148' y='819' class='step-num'>32</text>
+
+  <rect class='box box-admin' x='1010' y='840' width='160' height='55'/>
+  <text x='1018' y='858' class='box-title'>Envelope status live</text>
+  <text x='1018' y='876' class='box-sub'>webhook updates panel</text>
+  <text x='1148' y='889' class='step-num'>33</text>
+
+  <rect class='box box-admin' x='1200' y='700' width='160' height='55'/>
+  <text x='1208' y='718' class='box-title'>Start reverse auction</text>
+  <text x='1208' y='736' class='box-sub'>min-decrement, anti-snipe</text>
+  <text x='1338' y='749' class='step-num'>34</text>
+
+  <rect class='box box-admin' x='1200' y='770' width='160' height='55'/>
+  <text x='1208' y='788' class='box-title'>Schedule meeting</text>
+  <text x='1208' y='806' class='box-sub'>Zoom/Jitsi + calendar dispatch</text>
+  <text x='1338' y='819' class='step-num'>35</text>
+
+  <rect class='box box-admin' x='1390' y='700' width='160' height='55'/>
+  <text x='1398' y='718' class='box-title'>Audit Copilot query</text>
+  <text x='1398' y='736' class='box-sub'>AI insights on any timeframe</text>
+  <text x='1528' y='749' class='step-num'>36</text>
+
+  <rect class='box box-admin' x='1390' y='770' width='160' height='55'/>
+  <text x='1398' y='788' class='box-title'>Export ledger + reports</text>
+  <text x='1398' y='806' class='box-sub'>flowchart, comparative, XLSX</text>
+  <text x='1528' y='819' class='step-num'>37</text>
+
+  <rect class='box box-staff' x='620' y='1085' width='160' height='55'/>
+  <text x='628' y='1103' class='box-title'>Escrow: accept EMD</text>
+  <text x='628' y='1121' class='box-sub'>confirm payment reconciled</text>
+  <text x='758' y='1134' class='step-num'>38</text>
+
+  <rect class='box box-staff' x='810' y='1085' width='160' height='55'/>
+  <text x='818' y='1103' class='box-title'>Certifier: site inspect</text>
+  <text x='818' y='1121' class='box-sub'>checklist + photo evidence</text>
+  <text x='948' y='1134' class='step-num'>39</text>
+
+  <rect class='box box-staff' x='810' y='1155' width='160' height='55'/>
+  <text x='818' y='1173' class='box-title'>Certifier: verify vendor</text>
+  <text x='818' y='1191' class='box-sub'>KYC + doc match</text>
+  <text x='948' y='1204' class='step-num'>40</text>
+
+  <rect class='box box-staff' x='810' y='1225' width='160' height='55'/>
+  <text x='818' y='1243' class='box-title'>Legal: KYC clearance</text>
+  <text x='818' y='1261' class='box-sub'>MFA-gated approval</text>
+  <text x='948' y='1274' class='step-num'>41</text>
+
+  <rect class='box box-staff' x='1010' y='1085' width='160' height='55'/>
+  <text x='1018' y='1103' class='box-title'>Accounting: sign-off</text>
+  <text x='1018' y='1121' class='box-sub'>MFA-gated financial approve</text>
+  <text x='1148' y='1134' class='step-num'>42</text>
+
+  <rect class='box box-staff' x='1390' y='1085' width='160' height='55'/>
+  <text x='1398' y='1103' class='box-title'>Escrow: release funds</text>
+  <text x='1398' y='1121' class='box-sub'>vendor bank details verified</text>
+  <text x='1528' y='1134' class='step-num'>43</text>
+
+  <rect class='box box-staff' x='1390' y='1155' width='160' height='55'/>
+  <text x='1398' y='1173' class='box-title'>Escrow officer public</text>
+  <text x='1398' y='1191' class='box-sub'>magic-link /escrow/officer/:token</text>
+  <text x='1528' y='1204' class='step-num'>44</text>
+
+  <rect class='box box-comm' x='810' y='1480' width='160' height='55'/>
+  <text x='818' y='1498' class='box-title'>Committee accept invite</text>
+  <text x='818' y='1516' class='box-sub'>/committee/accept/:token</text>
+  <text x='948' y='1529' class='step-num'>45</text>
+
+  <rect class='box box-comm' x='810' y='1550' width='160' height='55'/>
+  <text x='818' y='1568' class='box-title'>Score bid on rubric</text>
+  <text x='818' y='1586' class='box-sub'>per-criterion 0-10</text>
+  <text x='948' y='1599' class='step-num'>46</text>
+
+  <rect class='box box-comm' x='810' y='1620' width='160' height='55'/>
+  <text x='818' y='1638' class='box-title'>Bid pack rendering</text>
+  <text x='818' y='1656' class='box-sub'>line items, docs, vendor intel</text>
+  <text x='948' y='1669' class='step-num'>47</text>
+
+  <rect class='box box-admin' x='100' y='850' width='160' height='55'/>
+  <text x='108' y='868' class='box-title'>Notifications bell</text>
+  <text x='108' y='886' class='box-sub'>role-scoped, live poll</text>
+  <text x='238' y='899' class='step-num'>48</text>
+
+  <rect class='box box-admin' x='100' y='920' width='160' height='55'/>
+  <text x='108' y='938' class='box-title'>Impersonate role dropdown</text>
+  <text x='108' y='956' class='box-sub'>support flow diagnosis</text>
+  <text x='238' y='969' class='step-num'>49</text>
+
+  <rect class='box box-admin' x='280' y='840' width='160' height='55'/>
+  <text x='288' y='858' class='box-title'>Add tenant + skin</text>
+  <text x='288' y='876' class='box-sub'>?tenant=DEMO-CORP color test</text>
+  <text x='418' y='889' class='step-num'>50</text>
+
+  <rect class='box box-admin' x='100' y='990' width='160' height='55'/>
+  <text x='108' y='1008' class='box-title'>Mobile responsive audit</text>
+  <text x='108' y='1026' class='box-sub'>375px, 768px, 1024px probes</text>
+  <text x='238' y='1039' class='step-num'>51</text>
+
+  <rect class='box box-admin' x='280' y='910' width='160' height='55'/>
+  <text x='288' y='928' class='box-title'>i18n switch EN/RU/KK</text>
+  <text x='288' y='946' class='box-sub'>all admin panels render</text>
+  <text x='418' y='959' class='step-num'>52</text>
+
+  <rect class='box box-comm' x='1390' y='1225' width='160' height='55'/>
+  <text x='1398' y='1243' class='box-title'>Regen SoT docs</text>
+  <text x='1398' y='1261' class='box-sub'>POST /reports/snapshot</text>
+  <text x='1528' y='1274' class='step-num'>53</text>
+
+  <rect class='box box-comm' x='1390' y='1480' width='160' height='55'/>
+  <text x='1398' y='1498' class='box-title'>Test-plan endpoint</text>
+  <text x='1398' y='1516' class='box-sub'>GET /reports/test-plan.pdf</text>
+  <text x='1528' y='1529' class='step-num'>54</text>
+
+  <rect class='box box-comm' x='1390' y='1550' width='160' height='55'/>
+  <text x='1398' y='1568' class='box-title'>Test-IDs registry</text>
+  <text x='1398' y='1586' class='box-sub'>GET /reports/test-ids.txt</text>
+  <text x='1528' y='1599' class='step-num'>55</text>
+
+  <path class='arrow' d='M 260 145 L 285 145' marker-end='url(#tf-arr)'/>
+  <path class='arrow' d='M 440 145 L 460 145' marker-end='url(#tf-arr)'/>
+  <path class='arrow' d='M 440 380 L 620 380' marker-end='url(#tf-arr)'/>
+  <path class='arrow' d='M 800 380 L 1010 380 L 1010 610' marker-end='url(#tf-arr)'/>
+  <path class='arrow' d='M 1180 725 L 1200 725' marker-end='url(#tf-arr)'/>
+  <path class='arrow' d='M 180 725 L 100 725' marker-end='url(#tf-arr)' opacity='0'/>
+
+  <text x='60' y='2050' class='header-sub'>
+    Legend — gray: Public · green: Vendor · purple: Admin · yellow: Staff · pink: Committee.
+    Every box maps to a data-testid attribute in the frontend. Run each box top-to-bottom, left-to-right.
+    Report failures with the step number.
+  </text>
+  <text x='60' y='2075' class='header-sub'>
+    Boot the QA session with adminsupport@pmcmanagers.com / Admin@123 (rotate before demo) · seeded staff + vendor accounts in test_credentials.md.
+  </text>
+</svg>

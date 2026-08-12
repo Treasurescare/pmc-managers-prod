@@ -706,6 +706,29 @@ def _flowchart_pdf_bytes() -> bytes:
     return HTML(string=html).write_pdf()
 
 
+def _user_guide_pdf_bytes() -> bytes:
+    from weasyprint import HTML
+    html = f"""<!doctype html><html><head><meta charset='utf-8'>
+<style>
+  @page {{ size: 420mm 452mm; margin: 5mm; }}
+  html, body {{ margin: 0; padding: 0; }}
+  svg {{ display: block; width: 100%; height: auto; }}
+</style></head><body>{_build_user_guide_svg()}</body></html>"""
+    return HTML(string=html).write_pdf()
+
+
+def _testing_flowchart_pdf_bytes() -> bytes:
+    from weasyprint import HTML
+    # Testing flowchart viewBox is 1600 x 2100 so ratio 16:21
+    html = f"""<!doctype html><html><head><meta charset='utf-8'>
+<style>
+  @page {{ size: 420mm 552mm; margin: 5mm; }}
+  html, body {{ margin: 0; padding: 0; }}
+  svg {{ display: block; width: 100%; height: auto; }}
+</style></head><body>{_build_testing_flowchart_svg()}</body></html>"""
+    return HTML(string=html).write_pdf()
+
+
 def snapshot_to_disk() -> dict:
     """Write all five artefacts into SNAPSHOT_DIR so Git can track them.
 
@@ -719,6 +742,9 @@ def snapshot_to_disk() -> dict:
         "PMC-v2-Platform-Flowchart.svg":  _build_flowchart_svg().encode("utf-8"),
         "PMC-v2-Platform-Flowchart.pdf":  _flowchart_pdf_bytes(),
         "PMC-v2-User-Guide-Flowchart.svg": _build_user_guide_svg().encode("utf-8"),
+        "PMC-v2-User-Guide-Flowchart.pdf": _user_guide_pdf_bytes(),
+        "PMC-v2-Testing-Flowchart.svg":  _build_testing_flowchart_svg().encode("utf-8"),
+        "PMC-v2-Testing-Flowchart.pdf":  _testing_flowchart_pdf_bytes(),
     }
     manifest = []
     for name, body in files.items():
