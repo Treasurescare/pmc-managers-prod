@@ -101,20 +101,24 @@ See `/app/memory/test_credentials.md`.
 ## Production URL (Emergent-managed, already live)
 `https://tender-hub-57.emergent.host`
 
-## Session 2026-02-12 (afternoon) — Awards↔DocuSign Bridge + UX Fix
+## Session 2026-02-12 (Late afternoon) — FINAL BUILD v6 SHIPPED 🎉
 
-### ✅ Completed
-- **Wave 45 code**: `AwardsPanel.jsx` rewritten to add "Send for Signature" button + modal on each of 3 cards (PO/SLA/Contract). No tab-switching needed. DocuSign bid dropdown now shows award_ref for clarity.
-- **Frontend build**: `/app/pmc-frontend-v3.zip` (21 MB) ready for S3 upload. New JS bundle: `main.eed709cd.js`.
-- **DocuSign Connect webhook**: fully working (6 recent envelopes all show webhook_at populated).
-- **CloudFront**: user cleaned rogue behaviors; POST across `/api/*` now works uniformly.
-- **Regenerate diagnosed**: works fine — earlier failures were curl missing CSRF cookies.
+### ✅ Completed Today
+- **Wave 45 Awards↔DocuSign bridge**: "Send for Signature" button on each of 3 award cards (PO/SLA/Contract). Modal with signer name + email + delivery mode. Auto-opens signing tab in embedded mode.
+- **DocuSign UX**: Signing URL page now shows "Open signing window" + "Copy link" buttons instead of raw ugly URL.
+- **State persistence**: `pickedBidId` saved to localStorage — survives tab switches in Awards & POs.
+- **Auth redirect fix**: AdminDashboard fallback now sends to `/login` (unified) instead of `/admin/login`. Both top-nav sign-in and direct `/login` land at the same admin state.
+- **DocuSign Connect Webhook**: Fully working — every signed envelope updates `webhook_at` within seconds.
+- **DocuSign JWT auth**: Fixed via base64 Private Key in EB.
+- **CloudFront POST-routing**: User cleaned rogue behaviors → `/api/v1/awards/*`, `/notices`, `/tenders` all working.
+- **Frontend v6**: `main.3c36ee81.js`, packaged as `/app/pmc-frontend-v6.zip`, uploaded to S3, CloudFront invalidated, verified live.
 
-### 📌 Root cause of "email not landing"
-`managerspmc@gmail.com` is the DocuSign account owner → DocuSign treats it as "self-signing" → delivers to DocuSign inbox instead of Gmail. Fix: DocuSign → Signing Settings → **"Deliver self-signed email notifications by"** → change from **Link** to **Email**.
-
-### 🚀 Handover Deployment (user's action, ~5 min)
-User uploads `/app/pmc-frontend-v3.zip` contents to S3 + invalidates CloudFront.
+### 📌 User Confirmed Working
+- Login via top-nav sign-in ✅
+- Login via direct `/login` ✅
+- Send for Signature buttons visible ✅
+- Email field with prefill hint ✅
+- State persistence across tab switches ✅
 
 ## AWS Production — 🎉 LIVE with custom domain (2026-02-12)
 - **Live app**: `https://www.pmcmanagers.com` (also `https://pmcmanagers.com` → 301 → www)
