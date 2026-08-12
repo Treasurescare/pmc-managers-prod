@@ -56,7 +56,11 @@ export default function DocuSignPanel() {
         signer_email: signerEmail,
         delivery,
       });
-      if (r.signing_url) setSigningUrl(r.signing_url);
+    if (r.signing_url) {
+              setSigningUrl(r.signing_url);
+              // Auto-open in a new tab so the signer sees DocuSign immediately.
+              window.open(r.signing_url, "_blank", "noopener");
+            }
       else setEmailSent(true);
       toast.success(t("panels.docusign.envelope_sent"));
       load();
@@ -196,13 +200,25 @@ export default function DocuSignPanel() {
           </button>
         </div>
         {signingUrl && (
-          <div className="mt-4 border border-emerald-500 bg-emerald-50 p-3 text-sm" data-testid="ds-signing-url">
-            <div className="text-emerald-800 font-semibold">{t("panels.docusign.signing_link_ready")}</div>
-            <a href={signingUrl} target="_blank" rel="noreferrer"
-              className="text-emerald-900 underline break-all text-xs mt-1 inline-block">
-              {signingUrl}
-            </a>
-            <div className="text-[10px] text-emerald-700/70 mt-1">{t("panels.docusign.link_expires")}</div>
+          <div className="mt-4 border border-emerald-500 bg-emerald-50 p-4 text-sm" data-testid="ds-signing-url">
+            <div className="text-emerald-800 font-semibold mb-2">
+              {t("panels.docusign.signing_link_ready")}
+            </div>
+            <div className="flex flex-wrap gap-2 mb-2">
+              <button type="button"
+                onClick={() => window.open(signingUrl, "_blank", "noopener")}
+                data-testid="ds-open-signing-window"
+                className="px-4 py-2 text-[11px] font-semibold uppercase tracking-widest bg-emerald-700 text-white hover:bg-emerald-800">
+                🖥️ Open signing window
+              </button>
+              <button type="button"
+                onClick={() => { navigator.clipboard.writeText(signingUrl); toast.success(t("panels.docusign.link_copied")); }}
+                data-testid="ds-copy-signing-url"
+                className="px-4 py-2 text-[11px] font-semibold uppercase tracking-widest border border-emerald-700 text-emerald-800 hover:bg-emerald-100">
+                📋 Copy link
+              </button>
+            </div>
+            <div className="text-[10px] text-emerald-700/70">{t("panels.docusign.link_expires")}</div>
           </div>
         )}
         {emailSent && (
