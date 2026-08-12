@@ -1,9 +1,10 @@
 from typing import Dict, Any
+from bson import ObjectId
 from fastapi import APIRouter, HTTPException, Response, Depends
 
 from db import db
-from models import AdminLoginIn
-from security import verify_password, create_admin_token, current_admin, new_csrf_token
+from models import AdminLoginIn, AdminPasswordChangeIn
+from security import verify_password, hash_password, create_admin_token, current_admin, new_csrf_token, require_csrf
 from audit import audit_log
 import config
 
@@ -49,3 +50,24 @@ async def admin_logout(response: Response) -> Dict[str, bool]:
 async def admin_me(admin: Dict[str, Any] = Depends(current_admin)) -> Dict[str, Any]:
     # GET is CSRF-safe by convention.
     return admin
+
+
+@router.post("/change-password", dependencies=[Depends(require_csrf)])
+async def admin_change_password(
+    payload: AdminPasswordChangeIn,
+    admin: Dict[str, Any] = Depends(current_admin),
+) -> Dict[str, bool]:
+    """Self-service password rotation for the currently signed-in admin.
+
+    Requires the current password + a new password ≥ 10 chars."""
+    user = await db.admin_users.find_one({"_id": ObjectId(admin["id"])})
+    if not user or not verify_password(payload.current_password, user.get("password_hash", "")):
+        raise HTTPException(status_code=401, detail="Current password is incorrect")
+    if payload.new_password == payload.current_password:
+        raise HTTPException(status_code=400, detail="New password must differ from the current one")
+    await db.admin_users.update_one(
+        {"_id": user["_id"]},
+        {"$set": {"password_hash": hash_password(payload.new_password)}},
+    )
+    await audit_log("admin.password_change", admin, "admin_user", admin["id"], {})
+    return {"ok": True}

@@ -101,6 +101,21 @@ See `/app/memory/test_credentials.md`.
 ## Production URL (Emergent-managed, already live)
 `https://tender-hub-57.emergent.host`
 
+## Session 2026-02-12 (P0+P1 CLOSE) 🏁
+
+### ✅ P0 & P1 Completed Today
+- **Frontend v6** live on S3 + CloudFront (`main.3c36ee81.js`): Awards "Send for Signature" bridge, dropdown award_ref, localStorage persistence, unified `/login` redirect.
+- **Password change endpoint added**: `POST /api/v1/admin/auth/change-password` requires current_password + new_password (≥10 chars). Backend zip packaged at `/app/pmc-backend-v3.zip` (226KB) for EB deploy.
+- **DocuSign `/status` cosmetic fix**: same backend zip includes the fix so `configured: true` will show.
+- **DocuSign Connect webhook**: fully working (6 recent envelopes verified).
+
+### 🚀 Handover Actions For User (~15 min)
+1. **Deploy backend v3** to Elastic Beanstalk (upload `pmc-backend-v3.zip`)
+2. **Rotate admin password** via new curl command (see chat)
+3. **Re-enable Connect HMAC** in DocuSign + EB env var
+4. **Update OAuth Redirect URI** in DocuSign Apps & Keys
+5. **Nuclear Git Reset**: click "Save to GitHub" in Emergent chat header
+
 ## Session 2026-02-12 (Late afternoon) — FINAL BUILD v6 SHIPPED 🎉
 
 ### ✅ Completed Today

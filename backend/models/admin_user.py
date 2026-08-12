@@ -14,6 +14,11 @@ class AdminLoginIn(BaseModel):
     password: str = Field(min_length=6)
 
 
+class AdminPasswordChangeIn(BaseModel):
+    current_password: str = Field(min_length=6)
+    new_password: str = Field(min_length=10)
+
+
 class AdminUser(BaseModel):
     id: str
     email: str

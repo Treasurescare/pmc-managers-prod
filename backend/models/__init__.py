@@ -4,7 +4,7 @@ from .registration import (
     Registration, RegistrationDraftIn, RegistrationUpdateIn, RegistrationDecisionIn,
 )
 from .package import Package, PackageIn, PackagePatchIn
-from .admin_user import AdminUser, AdminLoginIn
+from .admin_user import AdminUser, AdminLoginIn, AdminPasswordChangeIn
 from .bid import BidCreateIn, BidUpdateIn, BidDecisionIn, BidDocument
 from .emd_payment import EMDConfig, EMDCheckoutIn, EMDRefundIn
 from .vendor_user import VendorLoginIn, VendorPasswordChangeIn, VendorPublic
@@ -24,7 +24,7 @@ __all__ = [
     "Notice", "NoticeIn", "NoticePublic",
     "Registration", "RegistrationDraftIn", "RegistrationUpdateIn", "RegistrationDecisionIn",
     "Package", "PackageIn", "PackagePatchIn",
-    "AdminUser", "AdminLoginIn",
+    "AdminUser", "AdminLoginIn", "AdminPasswordChangeIn",
     "BidCreateIn", "BidUpdateIn", "BidDecisionIn", "BidDocument",
     "EMDConfig", "EMDCheckoutIn", "EMDRefundIn",
     "VendorLoginIn", "VendorPasswordChangeIn", "VendorPublic",
