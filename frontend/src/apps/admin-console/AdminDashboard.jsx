@@ -109,7 +109,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     adminApi.me()
       .then(setMe)
-      .catch(() => { navigate("/admin/login"); });
+      .catch(() => { navigate("/login"); });
   }, [navigate, location.pathname]);
 
   const logout = async () => { await adminApi.logout(); navigate("/"); };

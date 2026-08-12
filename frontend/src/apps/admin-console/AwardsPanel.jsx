@@ -12,7 +12,10 @@ import { useI18n } from "@/context/I18nContext";
 export default function AwardsPanel() {
   const { t } = useI18n();
   const [awardedBids, setAwardedBids] = useState([]);
-  const [pickedBidId, setPickedBidId] = useState("");
+  const [pickedBidId, setPickedBidId] = useState(() => {
+    try { return window.localStorage.getItem("pmc.awards.pickedBidId") || ""; }
+    catch { return ""; }
+  });
   const [docs, setDocs] = useState([]);
   const [busy, setBusy] = useState(false);
   // Send-for-signature modal state
@@ -25,9 +28,13 @@ export default function AwardsPanel() {
   const loadBids = useCallback(() => {
     bidApi.listAll({ status: "awarded" }).then((rows) => {
       setAwardedBids(rows || []);
-      if (!pickedBidId && rows?.length) setPickedBidId(rows[0].id);
+      // Prefer the previously-picked bid; otherwise fall back to the first.
+      setPickedBidId((prev) => {
+        if (prev && (rows || []).some((b) => b.id === prev)) return prev;
+        return rows?.[0]?.id || "";
+      });
     }).catch((e) => toast.error(formatApiError(e)));
-  }, [pickedBidId]);
+  }, []);
 
   const loadDocs = useCallback((bidId) => {
     if (!bidId) return;
@@ -36,7 +43,13 @@ export default function AwardsPanel() {
   }, []);
 
   useEffect(() => { loadBids(); }, [loadBids]);
-  useEffect(() => { loadDocs(pickedBidId); }, [pickedBidId, loadDocs]);
+  useEffect(() => {
+    loadDocs(pickedBidId);
+    try {
+      if (pickedBidId) window.localStorage.setItem("pmc.awards.pickedBidId", pickedBidId);
+      else window.localStorage.removeItem("pmc.awards.pickedBidId");
+    } catch { /* ignore */ }
+  }, [pickedBidId, loadDocs]);
 
   const regenerate = async () => {
     if (!pickedBidId) return;
@@ -195,8 +208,14 @@ export default function AwardsPanel() {
               <label className="block">
                 <span className="pmc-label">{t("panels.awards.signer_email")}</span>
                 <input type="email" value={signerEmail} onChange={(e) => setSignerEmail(e.target.value)}
+                       placeholder="e.g. vendor@example.com"
                        data-testid="award-sign-email"
                        className="mt-1 w-full px-3 py-2 border border-brand-navy/20" />
+                <span className="text-[10px] text-brand-navy/50 mt-1 block">
+                  {currentBid?.vendor_email
+                    ? `Vendor of record: ${currentBid.vendor_email}`
+                    : "Type any email — DocuSign will send the signing link here"}
+                </span>
               </label>
               <div>
                 <span className="pmc-label">{t("panels.awards.delivery_mode")}</span>
