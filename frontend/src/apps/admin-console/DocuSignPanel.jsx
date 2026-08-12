@@ -165,6 +165,7 @@ export default function DocuSignPanel() {
               {awardedBids.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.bid_ref} · {b.company_name || b.vendor_email}
+                  {b.award_ref ? ` · ${b.award_ref}` : ""}
                 </option>
               ))}
             </select>

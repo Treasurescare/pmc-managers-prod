@@ -101,6 +101,21 @@ See `/app/memory/test_credentials.md`.
 ## Production URL (Emergent-managed, already live)
 `https://tender-hub-57.emergent.host`
 
+## Session 2026-02-12 (afternoon) — Awards↔DocuSign Bridge + UX Fix
+
+### ✅ Completed
+- **Wave 45 code**: `AwardsPanel.jsx` rewritten to add "Send for Signature" button + modal on each of 3 cards (PO/SLA/Contract). No tab-switching needed. DocuSign bid dropdown now shows award_ref for clarity.
+- **Frontend build**: `/app/pmc-frontend-v3.zip` (21 MB) ready for S3 upload. New JS bundle: `main.eed709cd.js`.
+- **DocuSign Connect webhook**: fully working (6 recent envelopes all show webhook_at populated).
+- **CloudFront**: user cleaned rogue behaviors; POST across `/api/*` now works uniformly.
+- **Regenerate diagnosed**: works fine — earlier failures were curl missing CSRF cookies.
+
+### 📌 Root cause of "email not landing"
+`managerspmc@gmail.com` is the DocuSign account owner → DocuSign treats it as "self-signing" → delivers to DocuSign inbox instead of Gmail. Fix: DocuSign → Signing Settings → **"Deliver self-signed email notifications by"** → change from **Link** to **Email**.
+
+### 🚀 Handover Deployment (user's action, ~5 min)
+User uploads `/app/pmc-frontend-v3.zip` contents to S3 + invalidates CloudFront.
+
 ## AWS Production — 🎉 LIVE with custom domain (2026-02-12)
 - **Live app**: `https://www.pmcmanagers.com` (also `https://pmcmanagers.com` → 301 → www)
 - **Cert**: ACM us-east-1 `f9755627-05ac-4dc6-b4ab-5751ddd4f5e8` covers www + apex
