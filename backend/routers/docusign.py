@@ -253,7 +253,8 @@ def _recipient_view(client: ds.ApiClient, envelope_id: str, signer_name: str,
 
 @router.get("/status")
 async def status():
-    key_present = Path(DS_PRIVATE_KEY_PATH).exists()
+    # Private key present if EITHER the B64 env var is set OR a file exists at the disk path
+    key_present = bool(os.environ.get("DOCUSIGN_PRIVATE_KEY_B64", "").strip()) or Path(DS_PRIVATE_KEY_PATH).exists()
     configured = bool(DS_INT_KEY and DS_USER_ID and DS_ACCOUNT_ID and key_present)
     consent_ok = False
     err = None
