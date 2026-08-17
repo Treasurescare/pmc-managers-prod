@@ -27,10 +27,14 @@ export default function TopBar({ dark = false }) {
     : "bg-white text-brand-navy border-brand-navy/10";
 
   const path = location.pathname;
-  const showSignOut =
+  // On dashboards (admin/staff/vendor) the inner header already owns sign-out
+  // and the user's identity, so the TopBar renders a slim public-only strip
+  // (brand + language) to avoid duplicate controls & broken alignment.
+  const onDashboard =
     path.startsWith("/admin") ||
     path.startsWith("/staff") ||
     path.startsWith("/vendor");
+  const showSignOut = false; // dashboards render their own sign-out
 
   const signOut = async () => {
       // Best-effort logout across all three cookie realms — 401s just mean
@@ -48,12 +52,14 @@ export default function TopBar({ dark = false }) {
     nav("/login");
   };
 
-  const NAV = [
+  const PUBLIC_NAV = [
     ["/notices", t("nav.notices"), "nav-notices"],
     ["/register", t("nav.register"), "nav-register"],
     ["/register/status", t("nav.status"), "nav-status"],
     ["/login", t("nav.login"), "nav-signin"],
   ];
+  // Hide the whole public-nav strip once the user is inside a dashboard.
+  const NAV = onDashboard ? [] : PUBLIC_NAV;
 
   return (
     <>
@@ -94,18 +100,20 @@ export default function TopBar({ dark = false }) {
               </button>
             )}
 
-            {/* Hamburger — always visible on mobile */}
-            <button
-              type="button"
-              onClick={() => setOpenDrawer(true)}
-              data-testid="topbar-hamburger"
-              aria-label="Open navigation"
-              className={"md:hidden inline-flex items-center justify-center w-10 h-10 border " +
-                (dark ? "border-white/30 text-white" : "border-brand-navy/30 text-brand-navy")}>
-              <svg width="18" height="14" viewBox="0 0 18 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <path d="M1 1h16M1 7h16M1 13h16" stroke="currentColor" strokeWidth="2" strokeLinecap="square"/>
-              </svg>
-            </button>
+            {/* Hamburger — only when there are public nav links to show */}
+            {!onDashboard && (
+              <button
+                type="button"
+                onClick={() => setOpenDrawer(true)}
+                data-testid="topbar-hamburger"
+                aria-label="Open navigation"
+                className={"md:hidden inline-flex items-center justify-center w-10 h-10 border " +
+                  (dark ? "border-white/30 text-white" : "border-brand-navy/30 text-brand-navy")}>
+                <svg width="18" height="14" viewBox="0 0 18 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path d="M1 1h16M1 7h16M1 13h16" stroke="currentColor" strokeWidth="2" strokeLinecap="square"/>
+                </svg>
+              </button>
+            )}
           </div>
         </div>
       </header>

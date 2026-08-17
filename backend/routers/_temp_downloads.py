@@ -22,6 +22,7 @@ ALLOWED = {
     "backend-v4b": "/app/pmc-backend-v4b.zip",
     "frontend": "/app/pmc-frontend-v8.zip",
     "frontend-v8b": "/app/pmc-frontend-v8b.zip",
+    "frontend-v8c": "/app/pmc-frontend-v8c.zip",
 }
 
 
