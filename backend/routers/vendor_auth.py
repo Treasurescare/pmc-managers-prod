@@ -54,6 +54,7 @@ async def current_vendor(request: Request) -> Dict[str, Any]:
             "vendor_ref": v.get("vendor_ref"),
             "company_name": v.get("company_name"),
             "must_change_password": v.get("must_change_password", False),
+            "avatar_data_url": v.get("avatar_data_url"),
         }
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Session expired")
@@ -78,6 +79,7 @@ async def vendor_login(payload: VendorLoginIn, response: Response) -> Dict[str, 
         "company_name": v.get("company_name"),
         "must_change_password": v.get("must_change_password", False),
         "csrf_token": csrf,
+        "avatar_data_url": v.get("avatar_data_url"),
     }
 
 

@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { adminApi } from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import TopBar from "@/apps/shared/TopBar";
+import ProfileModal from "@/apps/shared/ProfileModal";
 import VendorsPanel from "./VendorsPanel";
 import BiddingOpsPanel from "./BiddingOpsPanel";
 import EvaluationPanel from "./EvaluationPanel";
@@ -29,6 +30,8 @@ import LiveAuctionsPanel from "./LiveAuctionsPanel";
 import MeetingsPanel from "./MeetingsPanel";
 import L1ComparisonPanel from "./L1ComparisonPanel";
 import DocuSignPanel from "./DocuSignPanel";
+import HelpRequestsPanel from "./HelpRequestsPanel";
+import BrandingPanel from "./BrandingPanel";
 import useTenantSkin from "@/apps/shared/useTenantSkin";
 
 function TabBar({ tab, setTab }) {
@@ -57,6 +60,8 @@ function TabBar({ tab, setTab }) {
     ["catalog", t("admin.tab_catalog")],
     ["engagements", t("admin.tab_engagements")],
     ["reports", t("admin.tab_reports")],
+    ["help", "Help Requests"],
+    ["branding", "Portal Branding"],
   ];
   return (
     <>
@@ -104,6 +109,7 @@ export default function AdminDashboard() {
   const [me, setMe] = useState(null);
   const [tab, setTab] = useState("analytics");
   const [mfaOpen, setMfaOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const tenant = useTenantSkin();
 
   useEffect(() => {
@@ -138,6 +144,12 @@ export default function AdminDashboard() {
               className="px-2 sm:px-3 py-1.5 text-[10px] sm:text-[11px] uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5">
               {t("admin.header_security")}
             </button>
+            <button type="button" onClick={() => setProfileOpen(true)} data-testid="admin-profile-open"
+              className="w-9 h-9 rounded-full overflow-hidden border border-brand-navy/20 hover:ring-2 hover:ring-brand-navy/30 flex items-center justify-center bg-brand-navy/5">
+              {me.avatar_data_url
+                ? <img src={me.avatar_data_url} alt="avatar" className="w-full h-full object-cover" />
+                : <span className="font-display text-sm text-brand-navy">{(me.email || "?").slice(0, 1).toUpperCase()}</span>}
+            </button>
             <div className="text-right hidden sm:block">
               <div className="pmc-label">{t("admin.header_signed_in")}</div>
               <div className="text-sm text-brand-navy truncate max-w-[180px]">{me.email}</div>
@@ -146,6 +158,8 @@ export default function AdminDashboard() {
               className="px-3 sm:px-4 py-2 text-[10px] sm:text-[11px] font-semibold uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5">{t("admin.header_signout")}</button>
           </div>
           <MFASetupModal open={mfaOpen} onClose={() => setMfaOpen(false)} />
+          <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)}
+                        role="admin" me={me} onChange={setMe} />
         </div>
 
         <div className="mt-6 sm:mt-8"><TabBar tab={tab} setTab={setTab} /></div>
@@ -174,6 +188,8 @@ export default function AdminDashboard() {
           {tab === "catalog" && <ProductCatalogPanel />}
           {tab === "engagements" && <EngagementsPanel />}
           {tab === "reports" && <ReportsPanel />}
+          {tab === "help" && <HelpRequestsPanel />}
+          {tab === "branding" && <BrandingPanel />}
         </div>
       </main>
     </div>

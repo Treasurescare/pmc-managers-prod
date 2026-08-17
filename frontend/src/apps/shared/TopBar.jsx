@@ -5,6 +5,7 @@ import PmcLogo from "./PmcLogo";
 import LangSwitcher from "./LangSwitcher";
 import { useI18n } from "@/context/I18nContext";
 import { adminApi, staffApi, vendorApi } from "@/lib/api";
+import useTenantSkin from "./useTenantSkin";
 
 /**
  * TopBar — responsive header with hamburger drawer for mobile.
@@ -17,6 +18,7 @@ export default function TopBar({ dark = false }) {
   const nav = useNavigate();
   const location = useLocation();
   const [openDrawer, setOpenDrawer] = useState(false);
+  const tenant = useTenantSkin();
 
   useEffect(() => { setOpenDrawer(false); }, [location.pathname]);
 
@@ -58,10 +60,10 @@ export default function TopBar({ dark = false }) {
       <header className={`w-full border-b ${base}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-3 sm:py-4 flex items-center justify-between gap-3">
           <Link to="/" className="flex items-center gap-3 min-w-0" data-testid="topbar-brand">
-            <PmcLogo size={36} inverse={dark} />
+            <PmcLogo size={36} inverse={dark} src={tenant?.logo_data_url} />
             <div className="min-w-0">
               <div className="pmc-label truncate" style={{ color: dark ? "rgba(255,255,255,0.6)" : undefined }}>
-                {t("brand.name")}
+                {tenant?.name || t("brand.name")}
               </div>
               <div className={`font-display text-base sm:text-lg leading-none tracking-tight truncate ${dark ? "text-white" : "text-brand-navy"}`}>
                 {t("brand.tagline")}

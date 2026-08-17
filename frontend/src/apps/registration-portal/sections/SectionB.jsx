@@ -2,7 +2,7 @@ import { Field, Input } from "./FormPrimitives";
 import { DocSlotsBlock } from "./DocSlot";
 import { useI18n } from "@/context/I18nContext";
 
-export default function SectionB({ reg, update, regId, token, onDocChange }) {
+export default function SectionB({ reg, update, regId, token, onDocChange, ensureDraft }) {
   const { t } = useI18n();
   const slots = [
     ["previous_works", { label: t("section_b.doc_previous_works"), required: true }],

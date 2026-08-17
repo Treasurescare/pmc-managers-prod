@@ -35,7 +35,8 @@ async def admin_login(payload: AdminLoginIn, response: Response) -> Dict[str, An
     await audit_log("admin.login", {"id": str(user["_id"]), "email": user["email"]},
                     "admin_user", str(user["_id"]), {})
     return {"id": str(user["_id"]), "email": user["email"], "name": user.get("name"),
-            "role": user.get("role", "admin"), "token": token, "csrf_token": csrf}
+            "role": user.get("role", "admin"), "token": token, "csrf_token": csrf,
+            "avatar_data_url": user.get("avatar_data_url")}
 
 
 @router.post("/logout")
@@ -48,8 +49,10 @@ async def admin_logout(response: Response) -> Dict[str, bool]:
 
 @router.get("/me")
 async def admin_me(admin: Dict[str, Any] = Depends(current_admin)) -> Dict[str, Any]:
-    # GET is CSRF-safe by convention.
-    return admin
+    # GET is CSRF-safe by convention. Enrich with avatar for the profile widget.
+    user = await db.admin_users.find_one({"_id": ObjectId(admin["id"])},
+                                          {"avatar_data_url": 1})
+    return {**admin, "avatar_data_url": (user or {}).get("avatar_data_url")}
 
 
 @router.post("/change-password", dependencies=[Depends(require_csrf)])

@@ -76,6 +76,23 @@ export const adminApi = {
     api.post("/api/v1/admin/auth/login", { email, password }).then((r) => r.data),
   logout: () => api.post("/api/v1/admin/auth/logout"),
   me: () => api.get("/api/v1/admin/auth/me").then((r) => r.data),
+  changePassword: (current_password, new_password) =>
+    api.post("/api/v1/admin/auth/change-password",
+             { current_password, new_password }).then((r) => r.data),
+  uploadAvatar: (data_url) =>
+    api.post("/api/v1/admin/auth/avatar", { data_url }).then((r) => r.data),
+  removeAvatar: () => api.delete("/api/v1/admin/auth/avatar").then((r) => r.data),
+  uploadTenantLogo: (tenant_id, data_url) =>
+    api.post(`/api/v1/tenants/${tenant_id}/logo`, { data_url }).then((r) => r.data),
+  removeTenantLogo: (tenant_id) =>
+    api.delete(`/api/v1/tenants/${tenant_id}/logo`).then((r) => r.data),
+  listHelpRequests: (status) =>
+    api.get("/api/v1/admin/help-requests",
+            { params: status !== undefined && status !== "" ? { status } : {} })
+      .then((r) => r.data),
+  resolveHelpRequest: (id, resolution_notes) =>
+    api.post(`/api/v1/admin/help-requests/${id}/resolve`,
+             { resolution_notes }).then((r) => r.data),
   listRegistrations: (params = {}) => api.get("/api/v1/registrations", { params }).then((r) => r.data),
   getRegistration: (id) => api.get(`/api/v1/registrations/${id}`).then((r) => r.data),
   decideRegistration: (id, action, notes) =>
@@ -87,6 +104,14 @@ export const adminApi = {
   updatePackage: (id, payload) => api.patch(`/api/v1/packages/${id}`, payload).then((r) => r.data),
   audit: (params = {}) => api.get("/api/v1/audit-events", { params }).then((r) => r.data),
   verifyAudit: () => api.get("/api/v1/audit-events/verify").then((r) => r.data),
+};
+
+// ---------- Public auth helpers (forgot username / help request) ----------
+export const authApi = {
+  usernameLookup: (payload) =>
+    api.post("/api/v1/auth/username-lookup", payload).then((r) => r.data),
+  helpRequest: (payload) =>
+    api.post("/api/v1/auth/help-request", payload).then((r) => r.data),
 };
 
 // ---------- Wave 1: Staff (multi-role) ----------
@@ -109,6 +134,9 @@ export const vendorApi = {
   me: () => api.get("/api/v1/vendor/auth/me").then((r) => r.data),
   changePassword: (current_password, new_password) =>
     api.post("/api/v1/vendor/auth/change-password", { current_password, new_password }).then((r) => r.data),
+  uploadAvatar: (data_url) =>
+    api.post("/api/v1/vendor/auth/avatar", { data_url }).then((r) => r.data),
+  removeAvatar: () => api.delete("/api/v1/vendor/auth/avatar").then((r) => r.data),
 };
 
 // ---------- Wave 1: Bids ----------

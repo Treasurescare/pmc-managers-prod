@@ -87,7 +87,8 @@ async def public_tenant(code: str):
             "kind": t.get("kind"), "country": t.get("country"),
             "branding_color": t.get("branding_color"),
             "subdomain": t.get("subdomain"),
-            "host_alias": t.get("host_alias")}
+            "host_alias": t.get("host_alias"),
+            "logo_data_url": t.get("logo_data_url")}
 
 
 @router.get("/by-host")
@@ -117,7 +118,8 @@ async def tenant_by_host(host: str = Query(..., description="Full hostname inclu
             "kind": t.get("kind"), "country": t.get("country"),
             "branding_color": t.get("branding_color"),
             "subdomain": t.get("subdomain"),
-            "host_alias": t.get("host_alias")}
+            "host_alias": t.get("host_alias"),
+            "logo_data_url": t.get("logo_data_url")}
 
 
 @router.patch("/{tenant_id}")

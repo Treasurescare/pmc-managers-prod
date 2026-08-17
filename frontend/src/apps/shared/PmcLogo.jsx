@@ -1,4 +1,13 @@
-export default function PmcLogo({ className = "", size = 40, inverse = false }) {
+export default function PmcLogo({ className = "", size = 40, inverse = false, src = null }) {
+  // When a tenant has uploaded a custom logo, render it as an img.
+  if (src) {
+    return (
+      <img src={src} alt="Portal logo"
+           width={size} height={size}
+           className={`${className} object-contain`}
+           style={{ width: size, height: size }} />
+    );
+  }
   const bg = inverse ? "#ffffff" : "#0f1b3d";
   const fg = inverse ? "#0f1b3d" : "#ffffff";
   const accent = "#3b6fa0";

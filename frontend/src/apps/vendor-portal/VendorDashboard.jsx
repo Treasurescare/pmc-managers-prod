@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { vendorApi, publicApi, bidApi, formatApiError } from "@/lib/api";
 import VendorGdprButton from "./VendorGdprButton";
 import VendorSignatures from "./VendorSignatures";
+import ProfileModal from "@/apps/shared/ProfileModal";
 import useTenantSkin from "@/apps/shared/useTenantSkin";
 
 const STATUS_LABELS = {
@@ -22,6 +23,7 @@ export default function VendorDashboard() {
   const [notices, setNotices] = useState([]);
   const [bids, setBids] = useState([]);
   const [tab, setTab] = useState("tenders");
+  const [profileOpen, setProfileOpen] = useState(false);
   const tenant = useTenantSkin();
 
   useEffect(() => {
@@ -63,12 +65,21 @@ export default function VendorDashboard() {
           </div>
           <div className="text-sm flex items-center gap-4">
             <span className="text-white/70">{vendor.vendor_ref}</span>
+            <button onClick={() => setProfileOpen(true)}
+                    data-testid="vendor-profile-open"
+                    className="w-9 h-9 rounded-full overflow-hidden border border-white/30 flex items-center justify-center bg-white/10 hover:ring-2 hover:ring-white/40">
+              {vendor.avatar_data_url
+                ? <img src={vendor.avatar_data_url} alt="avatar" className="w-full h-full object-cover" />
+                : <span className="text-white text-sm font-serif">{(vendor.email || "?").slice(0, 1).toUpperCase()}</span>}
+            </button>
             <VendorGdprButton onSuccess={() => nav("/vendor/login")} />
             <button onClick={logout} className="text-white/80 hover:text-white underline"
               data-testid="vendor-logout">Sign out</button>
           </div>
         </div>
       </header>
+      <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)}
+                    role="vendor" me={vendor} onChange={setVendor} />
 
       <div className="max-w-6xl mx-auto px-6 py-6">
         <div className="flex gap-4 border-b mb-6 overflow-x-auto">

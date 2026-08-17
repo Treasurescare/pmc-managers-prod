@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { adminApi, staffApi, vendorApi, formatApiError } from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import TopBar from "@/apps/shared/TopBar";
+import ForgotUsernameModal from "@/apps/shared/ForgotUsernameModal";
 
 /**
  * UnifiedLogin — two clearly-labelled cards so anyone landing here knows
@@ -19,6 +20,7 @@ const EMPLOYEE_ROLES = [
 export default function UnifiedLogin() {
   const { t } = useI18n();
   const nav = useNavigate();
+  const [forgotOpen, setForgotOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-brand-pale flex flex-col" data-testid="unified-login-page">
@@ -35,9 +37,16 @@ export default function UnifiedLogin() {
           <VendorCard t={t} nav={nav} />
         </div>
 
-        <div className="mt-10 text-center text-sm text-brand-navy/50">
-          <a href="/" className="underline" data-testid="login-browse-notices">{t("login.browse_notices")}</a>
+        <div className="mt-8 text-center text-sm text-brand-navy/70 flex flex-col sm:flex-row gap-3 sm:gap-6 justify-center">
+          <button onClick={() => setForgotOpen(true)} data-testid="login-forgot-username"
+                  className="underline hover:text-brand-navy">
+            Forgot your username?
+          </button>
+          <a href="/" className="underline hover:text-brand-navy"
+             data-testid="login-browse-notices">{t("login.browse_notices")}</a>
         </div>
+
+        <ForgotUsernameModal open={forgotOpen} onClose={() => setForgotOpen(false)} />
       </main>
     </div>
   );
