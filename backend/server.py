@@ -18,7 +18,7 @@ from routers import (
     mfa, tenants, kyc, vendor_invites, permissions, admin_heal, vendor_full_invite,
     tender_templates, notice_qa, bids_ai_compare, escrow, reports, products, billing,
     engagements, corrigenda, awards, auction_live, taxonomy, meetings, comparison,
-    docusign, profile_ops, _temp_downloads,
+    docusign, profile_ops,
 )
 
 
@@ -33,7 +33,6 @@ app.include_router(registrations.router)
 app.include_router(packages.router)
 app.include_router(admin_auth.router)
 app.include_router(profile_ops.router)
-app.include_router(_temp_downloads.router)
 app.include_router(uploads.router)
 app.include_router(audit_routes.router)
 # Wave 9 vendor_invites must register BEFORE vendors.router so its specific

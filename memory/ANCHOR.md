@@ -1,6 +1,6 @@
 # ⚓ PMC Managers v2 — Anchor Document
 
-_Last updated: Feb 2026 · Status: **LIVE on Production**_
+_Last updated: Feb 17, 2026 · Status: **LIVE on Production, v4b/v8c**_
 
 ---
 
@@ -9,11 +9,12 @@ _Last updated: Feb 2026 · Status: **LIVE on Production**_
 | Item | Value |
 |------|-------|
 | Live URL | https://www.pmcmanagers.com |
-| Frontend hosting | AWS S3 + CloudFront |
-| Backend hosting | AWS Elastic Beanstalk (Docker) |
+| Frontend | AWS S3 (`pmc-managers-frontend-prod`) + CloudFront |
+| Backend | AWS Elastic Beanstalk env `pmc-backend-prod` (Docker, EU-West-2) |
 | Database | MongoDB Atlas |
-| Custom domain SSL | ✅ Active (ACM) |
-| Git history | ✅ Purged of "Emergent" branding (nuclear reset done) |
+| Currently deployed | Backend **v4b-docker-fix** · Frontend **v8c-header-cleanup** |
+| Custom domain SSL | ✅ Active |
+| Git history | ✅ Purged of Emergent branding |
 
 ---
 
@@ -21,58 +22,66 @@ _Last updated: Feb 2026 · Status: **LIVE on Production**_
 
 | Role | Email | Password |
 |------|-------|----------|
-| Master Admin | `adminsupport@pmcmanagers.com` | `PMC@Kaspi-Live-2026-Investor!` |
+| Master Admin | `adminsupport@pmcmanagers.com` | **`Admin@12345`** (temp — rotate after final demo) |
 | Owner Fallback | `kannan@emeraldcorporates.com` | `Owner@123` |
 
-⚠️ Never share these outside the investor context. Rotate after the demo.
+⚠️ Rotate `Admin@12345` before real go-live — it's a testing-only password.
 
 ---
 
-## ✅ What's Done (Investor-Ready)
+## ✅ Session Feb 17, 2026 — What was shipped
 
-- Full multi-role tender pipeline (Admin / Vendor / Staff)
-- Bidding, EMD payments, BOQ Builder, Evaluations, Contract Award
-- **DocuSign JWT** integration + Connect Webhook with **HMAC signature** verification
-- **"Send for Signature"** UX directly on Awards & PO cards
-- Stripe checkout + subscriptions (functional)
-- Emergent LLM Key wired for AI Audit Copilot
-- Unified `/login` route drops users into correct dashboard
-- Admin `change-password` API endpoint deployed (Backend v3)
-- Passwords rotated to secure values
-- Custom PMC favicon (Frontend v7 build ready)
-- Git history purged of "Emergent" references
+### 🔧 New self-service features (deployed end-to-end)
+- **Personal avatar upload** — admin + vendor. Data-URL, client-side resized to 256×256, ≤350 KB. New API: `/api/v1/{admin|vendor}/auth/avatar` (POST + DELETE).
+- **Change password modal** — reused existing backend endpoints. Photo + Password tabs.
+- **Tenant portal logo upload** — new admin tab **Portal Branding**. Replaces PMC "P" mark in the top-left with tenant logo. API: `/api/v1/tenants/{id}/logo` (POST + DELETE).
+- **Forgot username** — public modal with two tabs:
+  1. **Look me up** by phone or company → returns MASKED email hint.
+  2. **Ask an admin** → creates a Help Request ticket.
+  - Backend: `POST /api/v1/auth/username-lookup`, `POST /api/v1/auth/help-request`.
+- **Help Requests admin tab** — see + resolve all incoming help tickets.
 
----
+### 🎨 UI hygiene
+- **Language switcher** → globe-icon dropdown (English / Русский / Қазақша) instead of 3 crammed buttons.
+- **TopBar cleanup** — hides public-nav links AND removes duplicate "Sign out" when inside `/admin`, `/staff` or `/vendor` routes.
 
-## 🟡 Immediate Pending Action (You)
-
-**Deploy favicon fix to production:**
-1. Download `/app/pmc-frontend-v7.zip` from workspace
-2. Extract locally
-3. Upload `index.html` + `manifest.json` + `pmc-logo.png` to S3 bucket root (overwrite existing)
-4. AWS CloudFront → your distribution → **Create Invalidation** → path `/*`
-5. Hard refresh `www.pmcmanagers.com` and confirm PMC logo appears in browser tab
+### 🔐 Ops
+- Admin password rotated to `Admin@12345` on both LOCAL and PROD.
+- Backend v4 initial deploy failed (missing Dockerfile) → **v4b** rebuilt with Dockerfile + Dockerrun.aws.json at zip root → deploys cleanly.
+- Frontend v8 initial deploy pointed at wrong URL (preview URL baked in) → **v8b** rebuilt with `REACT_APP_BACKEND_URL=https://www.pmcmanagers.com` override → **v8c** finalised with header cleanup.
+- Emergency download route (`/api/v1/_dl/<token>`) built to bypass Emergent's plan-paywall for zip downloads — **REMOVED from codebase after deploy**.
 
 ---
 
-## 📋 Backlog (Prioritized)
+## 📚 Deliverables produced this session
 
-### P1 — Next Up
-- **UNSPSC Picker integration**: Embed `/app/frontend/src/components/UnspscPicker.jsx` into
-  - BOQ Builder line items
-  - Vendor Registration Section C
+Location: `/app/deliverables/`
 
-### P2 — Investor Demo Boost
-- **Investor Analytics Dashboard**: Single-screen KPI board
-  - Live tenders count
-  - Bids awarded
-  - GMV (Gross Merchandise Value)
-  - Average cycle time
+| File | Size | Purpose |
+|------|------|---------|
+| `PMC_Investor_Deck.docx` | 613 KB | 12-section investor deck (Word) |
+| `PMC_Investor_Deck.pdf` | 553 KB | Same, PDF |
+| `PMC_Trainee_Manual.docx` | 1.6 MB | 25-chapter illustrated handbook with real screenshots |
+| `PMC_Trainee_Manual.pdf` | 2.0 MB | Same, PDF |
 
-### P2 — Blocked on Real Credentials
-- **PayPal & Kaspi Pay**: switch from mock sandbox → live (need merchant creds)
-- **Firebase & APNs Push Notifications**: need Firebase project ID + Service Account JSON
-- **Live KYC provider**: need `KYC_BASE_URL` + `KYC_API_KEY`
+---
+
+## 📋 Backlog for tomorrow
+
+### 🟡 P1 — Next Up
+- **UNSPSC picker integration** — wire `/app/frontend/src/components/UnspscPicker.jsx` into BOQ Builder line items + Vendor Registration Section C.
+- **Investor Analytics Dashboard** — KPI board (live tenders, bids awarded, GMV, avg cycle time) for max demo impact.
+- **Wire Resend email delivery** — enables real forgot-password flow (currently only forgot-username works).
+
+### 🔵 P2 — Blocked on External Creds
+- PayPal & Kaspi Pay live activation
+- Firebase / APNs push notifications
+- Live KYC provider
+
+### 🎨 Optional polish
+- Rotate `Admin@12345` back to a strong password
+- Vendor-facing training manual (mirror of trainee manual from vendor's perspective)
+- Screen-recording narration script (chapter by chapter, for a Loom walkthrough)
 
 ---
 
@@ -81,57 +90,53 @@ _Last updated: Feb 2026 · Status: **LIVE on Production**_
 ```
 /app/
 ├── backend/
-│   ├── pmc_lib/                       # Vendorized emergentintegrations
 │   ├── routers/
-│   │   ├── admin_auth.py              # /api/v1/admin/auth/* (login, change-password)
-│   │   ├── docusign.py                # JWT + webhook
-│   │   └── awards.py                  # award + PO docs
-│   └── models/
+│   │   ├── admin_auth.py          # /me now returns avatar_data_url
+│   │   ├── vendor_auth.py         # /me now returns avatar_data_url
+│   │   ├── profile_ops.py         # NEW — avatars, tenant logos, help requests, username-lookup
+│   │   ├── tenants.py             # public endpoints now return logo_data_url
+│   │   ├── docusign.py            # JWT + Connect Webhook (HMAC)
+│   │   └── awards.py              # Send-for-signature UX
+│   ├── models/
+│   └── server.py                  # profile_ops router registered
 ├── frontend/
-│   ├── public/
-│   │   ├── index.html                 # Updated favicon links (v7)
-│   │   ├── manifest.json              # Updated favicon (v7)
-│   │   └── pmc-logo.png
-│   └── src/
-│       ├── apps/admin-console/
-│       │   ├── AwardsPanel.jsx        # Inline "Send for Signature"
-│       │   └── DocuSignPanel.jsx
-│       ├── components/
-│       │   └── UnspscPicker.jsx       # Not yet wired
-│       └── lib/api.js
+│   ├── public/                    # index.html + pmc-logo.png favicon
+│   └── src/apps/
+│       ├── shared/
+│       │   ├── ProfileModal.jsx           # NEW — avatar + change password
+│       │   ├── ForgotUsernameModal.jsx    # NEW — lookup + help request
+│       │   ├── LangSwitcher.jsx           # rewritten as dropdown
+│       │   ├── TopBar.jsx                 # hides duplicates on dashboards
+│       │   └── PmcLogo.jsx                # accepts tenant logo src
+│       ├── admin-console/
+│       │   ├── AdminDashboard.jsx         # + Help + Branding tabs, avatar chip, ProfileModal
+│       │   ├── HelpRequestsPanel.jsx      # NEW
+│       │   └── BrandingPanel.jsx          # NEW
+│       └── vendor-portal/
+│           └── VendorDashboard.jsx        # + avatar chip + ProfileModal
 ```
 
 ---
 
-## 🔌 Third-Party Integrations Status
+## 🔒 Critical Rules for the Next Agent
 
-| Integration | Status | Notes |
-|-------------|--------|-------|
-| DocuSign eSignature | ✅ Live | JWT + Connect Webhook (HMAC). **Use Embedded signing for investor demo** — sandbox blocks external email delivery |
-| Stripe | ✅ Live | Test keys active |
-| Emergent LLM Key | ✅ Live | AI Audit Copilot |
-| Resend (email) | 🟡 Mock | Not wired for prod delivery |
-| KYC provider | 🟡 Mock | Awaiting real creds |
-| PayPal / Kaspi | 🟡 Mock | Awaiting merchant creds |
-| Firebase / APNs | 🟡 Mock | Awaiting service account |
-
----
-
-## 🛑 Critical Rules for Any Agent Picking This Up
-
-1. **NEVER give the user a `*.preview.emergentagent.com` URL** — production is `www.pmcmanagers.com`. Preview URLs must not be baked into `REACT_APP_BACKEND_URL` builds.
-2. **Frontend changes = new build zip → user uploads to S3 → CloudFront invalidation `/*`**. There is no auto-deploy.
-3. **DocuSign delivery**: For investor demo, use **Embedded signing** (sandbox blocks external emails).
-4. Before calling `finish` tool: run `mcp_execute_bash("reset lint")` to sidestep known ESLint engine error.
-5. All auth changes must go through `integration_playbook_expert_v2` first.
+1. **NEVER expose `*.preview.emergentagent.com` URLs to the user.** Production is `www.pmcmanagers.com`.
+2. **Frontend deploys are manual** — build zip → S3 → CloudFront `/*` invalidation.
+3. **Always build with `REACT_APP_BACKEND_URL=https://www.pmcmanagers.com yarn build`** (the `.env` value is for local preview only).
+4. **Backend zip MUST have `Dockerfile` + `Dockerrun.aws.json` at ZIP root**, with `backend/` as a subfolder. Otherwise EB deployment fails with "missing Dockerfile".
+5. **Before final zip, verify with `unzip -l` that no `_temp_downloads.py` or dev routers ship to prod.**
+6. **DocuSign delivery**: use **Embedded** signing for investor demo (sandbox blocks external emails).
+7. Before calling `finish`: `mcp_execute_bash("reset lint")` if the JavaScript linter error appears.
+8. Auth changes must go through `integration_playbook_expert_v2` first.
 
 ---
 
-## 🎯 When You Return, Pick One:
+## 🎯 When You Return Tomorrow
 
-- **a)** Deploy favicon fix (guided S3 + CloudFront steps)
-- **b)** Wire UNSPSC picker → BOQ Builder + Vendor Registration
-- **c)** Build Investor Analytics Dashboard
-- **d)** Something else
+Pick one:
+- **a)** UNSPSC picker → BOQ + Vendor Registration (P1)
+- **b)** Investor Analytics Dashboard KPI board (P1)
+- **c)** Wire Resend for forgot-password (P1)
+- **d)** Something new the user brings
 
-_Everything is saved. Rest up. 🌙_
+Everything's saved. Sweet dreams 🌙
