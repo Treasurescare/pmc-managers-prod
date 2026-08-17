@@ -19,6 +19,7 @@ TOKEN = "sVGqLYK9RXjE8UnvXwT-uzDkV5wpdN2GfyAsHIYpQr4"
 # Only these exact files may be served. No path traversal.
 ALLOWED = {
     "backend": "/app/pmc-backend-v4.zip",
+    "backend-v4b": "/app/pmc-backend-v4b.zip",
     "frontend": "/app/pmc-frontend-v8.zip",
 }
 
