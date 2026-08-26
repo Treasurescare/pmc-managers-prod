@@ -1,6 +1,22 @@
 # ⚓ PMC Managers v2 — Anchor Document
 
-_Last updated: Aug 26, 2026 · Status: **LIVE on Production, v4b/v8c** · **v5/v10 built, awaiting user deploy**_
+_Last updated: Aug 26, 2026 · Status: **PROD 502 outage recovery in progress** · **backend-v7-hardened built + downloadable**_
+
+## 🚨 CURRENT OUTAGE — Backend v7 Hardened READY TO DEPLOY
+
+**Root cause hypothesis for v6 502**: v6 zip still shipped `_temp_downloads.py` (ANCHOR rule #5 violation) AND `config.py` hard-crashed silently on any missing env var (`MONGO_URL`/`DB_NAME`/`JWT_SECRET`) — likely wiped when user added `EMERGENT_EMAIL_KEY` on EB. AWS surfaced this as opaque 502.
+
+**Fix in v7**:
+- `config.py` now uses `_require_env()` which prints `[PMC-STARTUP-FATAL]` + list of visible env vars to stdout/stderr before `sys.exit(1)` → visible in `eb logs`.
+- `server.py` prints `[PMC-BOOT] tenant=... db=... email_key_set=...` at startup so success/failure is loud in logs.
+- `_temp_downloads.py` fully stripped from v7 zip (source + include_router line).
+- Dockerfile unchanged (already has libcairo/pango/build-essential; reportlab 5.0.1 needs no extra OS deps).
+
+**Download**: `https://tender-hub-57.preview.emergentagent.com/api/v1/_dl/sVGqLYK9RXjE8UnvXwT-uzDkV5wpdN2GfyAsHIYpQr4/backend-v7-hardened`
+
+**Required EB env vars (verify all present before deploy)**:
+`MONGO_URL`, `DB_NAME`, `JWT_SECRET`, `EMERGENT_EMAIL_KEY`, `EMAIL_FROM_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `OWNER_EMAIL`, `OWNER_PASSWORD`, `FRONTEND_URL`, `CORS_ORIGINS`.
+
 
 ---
 

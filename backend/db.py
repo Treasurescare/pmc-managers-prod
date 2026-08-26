@@ -12,8 +12,32 @@ import config
 
 log = logging.getLogger("db")
 
-client = AsyncIOMotorClient(config.MONGO_URL)
+# Aggressive timeouts so a bad Atlas IP-whitelist / DNS failure surfaces in
+# `eb logs` within ~8s instead of hanging FastAPI startup indefinitely.
+client = AsyncIOMotorClient(
+    config.MONGO_URL,
+    serverSelectionTimeoutMS=8000,
+    connectTimeoutMS=8000,
+    socketTimeoutMS=15000,
+)
 db = client[config.DB_NAME]
+
+
+async def ping() -> None:
+    """Fail-fast Mongo ping — surfaces a loud, unambiguous error early in
+    startup instead of letting `create_indexes()` time-out one operation at
+    a time."""
+    try:
+        await client.admin.command("ping")
+        log.info("[PMC-DB] MongoDB ping OK")
+    except Exception as e:
+        log.critical(
+            "[PMC-STARTUP-FATAL] Cannot reach MongoDB at the configured MONGO_URL. "
+            "Most common cause: the EC2 public IP is not in MongoDB Atlas → "
+            "Network Access allowlist. Add 0.0.0.0/0 (or the current EB EC2 IP) "
+            "and redeploy. Underlying error: %s", e,
+        )
+        raise
 
 
 # Every entry: (collection, keys, kwargs). kwargs may include unique / sparse / name.

@@ -1,16 +1,41 @@
 import os
+import sys
+import logging
 from pathlib import Path
 from dotenv import load_dotenv
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
+
+def _require_env(name: str) -> str:
+    """Fetch a required env var. On failure, log a big obvious error to stdout
+    (so it lands in `eb logs`/`docker logs`) and exit(1) instead of raising an
+    unhandled KeyError that AWS surfaces as an opaque 502 Bad Gateway."""
+    val = os.environ.get(name, "")
+    if not val:
+        present = sorted(k for k in os.environ.keys()
+                          if k.isupper() and not k.startswith("_"))
+        msg = (f"\n\n[PMC-STARTUP-FATAL] Required environment variable '{name}' is missing "
+               f"or empty.\n[PMC-STARTUP-FATAL] Env vars visible to the container: "
+               f"{', '.join(present)}\n[PMC-STARTUP-FATAL] Fix EB Console → Configuration → "
+               f"Software → Environment properties, then Apply.\n\n")
+        # Print to BOTH stdout and stderr so it shows up in eb logs regardless of channel.
+        sys.stdout.write(msg)
+        sys.stderr.write(msg)
+        sys.stdout.flush()
+        sys.stderr.flush()
+        logging.critical(msg)
+        sys.exit(1)
+    return val
+
+
 # Mongo
-MONGO_URL = os.environ["MONGO_URL"]
-DB_NAME = os.environ["DB_NAME"]
+MONGO_URL = _require_env("MONGO_URL")
+DB_NAME = _require_env("DB_NAME")
 
 # JWT
-JWT_SECRET = os.environ["JWT_SECRET"]
+JWT_SECRET = _require_env("JWT_SECRET")
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_TTL_MIN = 60 * 24
 MAGIC_LINK_TTL_HOURS = 72

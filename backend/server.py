@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
 import config
-from db import db, create_indexes
+from db import db, create_indexes, ping as db_ping
 from security import hash_password
 from routers import (
     notices, registrations, packages, admin_auth, uploads, audit_routes, meta, vendors,
@@ -23,6 +23,17 @@ from routers import (
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+
+# ---------- Startup diagnostic (visible in `eb logs` / `docker logs`) ----------
+_boot_log = logging.getLogger("pmc.boot")
+_boot_log.info(
+    "[PMC-BOOT] tenant=%s | db=%s | email_key_set=%s | frontend_url=%s | cors=%s",
+    getattr(config, "DEFAULT_TENANT_ID", "?"),
+    getattr(config, "DB_NAME", "?"),
+    bool(getattr(config, "EMAIL_KEY", "")),
+    getattr(config, "FRONTEND_URL", "?"),
+    getattr(config, "CORS_ORIGINS", "?"),
+)
 
 app = FastAPI(title="PMC Managers v2 — Tender & Registration API")
 
@@ -231,6 +242,7 @@ async def _seed_demo_notices() -> None:
 
 @app.on_event("startup")
 async def on_start() -> None:
+    await db_ping()   # fail-fast Mongo reachability check
     await create_indexes()
     await _seed_admin()
     await _seed_staff()
