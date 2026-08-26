@@ -1,21 +1,28 @@
 # ⚓ PMC Managers v2 — Anchor Document
 
-_Last updated: Aug 26, 2026 · Status: **PROD 502 outage recovery in progress** · **backend-v7-hardened built + downloadable**_
+_Last updated: Aug 26, 2026 · Status: **LIVE on Production** · **Outage resolved 07:47 UTC**_
 
-## 🚨 CURRENT OUTAGE — Backend v7 Hardened READY TO DEPLOY
+## ✅ 502 Outage Post-Mortem (Aug 26, 2026)
 
-**Root cause hypothesis for v6 502**: v6 zip still shipped `_temp_downloads.py` (ANCHOR rule #5 violation) AND `config.py` hard-crashed silently on any missing env var (`MONGO_URL`/`DB_NAME`/`JWT_SECRET`) — likely wiped when user added `EMERGENT_EMAIL_KEY` on EB. AWS surfaced this as opaque 502.
+**Root cause**: AWS EB EC2 public IP was **not on MongoDB Atlas → Network Access allowlist**. FastAPI startup called `create_indexes()` → motor hung waiting for Atlas → uvicorn workers stuck on `Waiting for application startup` → nginx returned **502 Bad Gateway** on every `/api/*` request.
 
-**Fix in v7**:
-- `config.py` now uses `_require_env()` which prints `[PMC-STARTUP-FATAL]` + list of visible env vars to stdout/stderr before `sys.exit(1)` → visible in `eb logs`.
-- `server.py` prints `[PMC-BOOT] tenant=... db=... email_key_set=...` at startup so success/failure is loud in logs.
-- `_temp_downloads.py` fully stripped from v7 zip (source + include_router line).
-- Dockerfile unchanged (already has libcairo/pango/build-essential; reportlab 5.0.1 needs no extra OS deps).
+**Diagnosis path**: v7-hardened deploy revealed `[PMC-BOOT]` fired but `Application startup complete.` never appeared → pointed straight at a blocking Mongo call in startup.
 
-**Download**: `https://tender-hub-57.preview.emergentagent.com/api/v1/_dl/sVGqLYK9RXjE8UnvXwT-uzDkV5wpdN2GfyAsHIYpQr4/backend-v7-hardened`
+**Fix**: Atlas → Network Access → +ADD IP ADDRESS → `0.0.0.0/0` (temp). Container auto-recovered without redeploy.
 
-**Required EB env vars (verify all present before deploy)**:
-`MONGO_URL`, `DB_NAME`, `JWT_SECRET`, `EMERGENT_EMAIL_KEY`, `EMAIL_FROM_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `OWNER_EMAIL`, `OWNER_PASSWORD`, `FRONTEND_URL`, `CORS_ORIGINS`.
+**Permanent guards now in codebase** (also included in v7.1 zip on disk):
+- `config.py::_require_env(name)` — prints `[PMC-STARTUP-FATAL]` with visible env-var list + `sys.exit(1)` if any required var is missing. No more silent KeyErrors.
+- `db.py` — motor client now uses `serverSelectionTimeoutMS=8000` + a `ping()` helper called at startup that prints `[PMC-DB] MongoDB ping OK` on success or a huge fatal log naming Atlas IP whitelist as the likely cause on failure.
+- `server.py::on_start()` — calls `db_ping()` first so mongo unreachability fails in ~8s instead of hanging forever.
+- `_temp_downloads.py` still ships **only** in preview builds; production zips (`build_backend_v7.sh` template) strip it.
+
+**Zips on disk**:
+- `/app/pmc-backend-v7-hardened.zip` — env-var guard + `_temp_downloads` stripped
+- `/app/pmc-backend-v7.1-mongo-guard.zip` — adds motor timeout + startup ping
+- Production is currently running **whatever was last deployed before the Atlas fix** — user did NOT need to redeploy since Atlas allowlist fixed it. **Recommended**: at next scheduled window, deploy `pmc-backend-v7.1-mongo-guard.zip` for the permanent diagnostic guards.
+
+**Long-term Atlas hygiene** (backlog):
+- Replace `0.0.0.0/0` with a NAT Gateway + Elastic IP (~$5/mo) → whitelist one static IP forever.
 
 
 ---
