@@ -17,7 +17,8 @@ class NoticeIn(BaseModel):
     submission_deadline: str
     pre_bid_meeting_date: Optional[str] = None
     budget_currency: str = "USD"
-    budget_amount: Optional[float] = None
+    # Bug #16 fix — reject negative budget amounts server-side
+    budget_amount: Optional[float] = Field(default=None, ge=0)
     required_licenses: List[str] = []
     # Primary tender/RFP/RFQ document (single canonical PDF/DOCX)
     primary_document: Optional[dict] = None  # {file_name, url, content_type, size_bytes}

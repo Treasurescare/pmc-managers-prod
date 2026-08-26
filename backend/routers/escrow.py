@@ -129,6 +129,19 @@ def _dual_signed(tx: dict, action: str) -> bool:
 @router.post("/accounts")
 async def create_account(payload: EscrowAccountIn,
                           admin=Depends(require_role("admin"))):
+    # Bug #14 fix — explicit guard that both officers exist and belong to
+    # the correct side of the joint account.
+    pmc = payload.pmc_officer
+    esc = payload.escrow_officer
+    if pmc.role != "pmc":
+        raise HTTPException(status_code=422,
+                            detail="pmc_officer.role must be 'pmc'")
+    if esc.role != "escrow_institution":
+        raise HTTPException(status_code=422,
+                            detail="escrow_officer.role must be 'escrow_institution'")
+    if pmc.email.lower() == esc.email.lower():
+        raise HTTPException(status_code=422,
+                            detail="PMC and Escrow officers must be different people")
     doc = payload.model_dump()
     doc["created_at"] = now_iso()
     doc["created_by"] = admin["email"]

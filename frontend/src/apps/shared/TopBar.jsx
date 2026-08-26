@@ -13,7 +13,7 @@ import useTenantSkin from "./useTenantSkin";
  * The drawer lists every nav destination + the sign-out action so nothing is
  * hidden behind horizontal scroll on small screens.
  */
-export default function TopBar({ dark = false }) {
+export default function TopBar({ dark = false, rightExtras = null }) {
   const { t } = useI18n();
   const nav = useNavigate();
   const location = useLocation();
@@ -87,7 +87,8 @@ export default function TopBar({ dark = false }) {
             ))}
           </nav>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
+            {rightExtras}
             <div className="hidden sm:block"><LangSwitcher dark={dark} /></div>
 
             {/* Always-visible sign out for authed routes (desktop) */}

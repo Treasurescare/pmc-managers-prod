@@ -90,7 +90,13 @@ export default function NoticesPanel() {
             <input value={draft.budget_currency} onChange={(e) => setDraft({ ...draft, budget_currency: e.target.value })} data-testid="notice-currency"
               className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
           <label><span className="pmc-label">Budget amount</span>
-            <input type="number" value={draft.budget_amount || ""} onChange={(e) => setDraft({ ...draft, budget_amount: parseFloat(e.target.value) || null })} data-testid="notice-budget"
+            <input type="number" min="0" step="0.01" value={draft.budget_amount || ""}
+              onChange={(e) => {
+                const v = parseFloat(e.target.value);
+                // Bug #16 fix — block negative or NaN budgets
+                setDraft({ ...draft, budget_amount: (isNaN(v) || v < 0) ? null : v });
+              }}
+              data-testid="notice-budget"
               className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
           <label><span className="pmc-label">EMD — Fixed amount ({draft.budget_currency})</span>
             <input type="number" min="0" value={draft.emd_config.fixed_amount || 0}
