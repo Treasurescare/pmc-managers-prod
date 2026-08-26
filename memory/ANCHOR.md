@@ -1,6 +1,107 @@
 # ⚓ PMC Managers v2 — Anchor Document
 
-_Last updated: Feb 17, 2026 · Status: **LIVE on Production, v4b/v8c**_
+_Last updated: Aug 26, 2026 · Status: **LIVE on Production, v4b/v8c** · **v5/v10 built, awaiting user deploy**_
+
+---
+
+## 🎯 TOMORROW'S FIRST STEP FOR USER
+
+**Download link (still active, preview backend):**
+👉 https://tender-hub-57.preview.emergentagent.com/api/v1/_dl/sVGqLYK9RXjE8UnvXwT-uzDkV5wpdN2GfyAsHIYpQr4
+
+Files to grab:
+- `pmc-backend-v5.zip` (225 KB) — 6 bug fixes + reportlab + Resend wiring
+- `pmc-frontend-v10.zip` (21 MB) — 3 UI defensive fixes
+
+**Then deploy as usual:**
+1. EB → Upload `pmc-backend-v5.zip`, label `backend-v5-bugs-v2`
+2. **EB → Configuration → Software → Environment Properties** — add:
+   - `EMERGENT_EMAIL_KEY = ek_80a98b03fc98055ac7fbe393962874aa`
+   - `EMAIL_FROM_NAME = PMC Managers Limited`
+3. S3 → clean `static/` → upload v10 build + `static/` folder
+4. CloudFront → invalidation `/*`
+
+---
+
+## 🐞 Bugs V2 (26-Aug testing report) — Status
+
+### ✅ Fixed in v5/v10 (awaiting AWS deploy)
+| # | Bug | Fix |
+|---|-----|-----|
+| 1 & 10 | Tender Builder → Clone as Draft → 500 | `order` field made optional, auto-assigned in `tender_templates.create_from_master` |
+| 3 | Bidding Ops logs user out | `Promise.allSettled` in `BiddingOpsPanel.load` — non-admin roles no longer break the panel |
+| 4 | Download blank form PDF fails | `vendor_invites.download_registration_template` now generates a fallback PDF via reportlab; `reportlab==5.0.1` added to requirements.txt |
+| 9 | Vendor "Add & Fill Full Form" shows "created undefined" | Defensive undefined fallback in `AdminVendorCreate.submit` |
+| 11 | L1 Comparison → Run hangs | 45-sec `Promise.race` timeout in `L1ComparisonPanel.run` |
+| 13 | Masters tab hangs | `Promise.allSettled` in `MastersPanel.load` |
+| 7 | Resume link email not delivered | `config.py` fixed: `EMAIL_KEY = EMERGENT_EMAIL_KEY`, `EMAIL_BASE_URL = https://integrations.emergentagent.com`. **REQUIRES env vars to be set on EB.** |
+
+### ⏳ Still open — need repro info from user
+| # | Bug | Reason |
+|---|-----|--------|
+| 5 | Notice creation as madhavi shows "undefined" | Need to know if madhavi is admin or reviewer + screenshot |
+| 6 | Vendor mailing address error persists | Need to know which specific field + screenshot |
+| 8 | Invite Vendor "not working" | My direct API probe returned HTTP 200 — need error text/screenshot |
+| 12 | New BOQ contract not showing in list | Need repro: contract ID + which list is empty |
+| 14 | Escrow joint account creates blank record | Small validation add-on — next round |
+| 15 | AI Bid Anomaly blank score/deviation | Need repro screenshot |
+| 16 | Budget accepts negative numbers | Small validation add-on — next round |
+
+---
+
+## 🌐 Production Snapshot
+
+| Item | Value |
+|------|-------|
+| Live URL | https://www.pmcmanagers.com |
+| Frontend | S3 `pmc-managers-frontend-prod` + CloudFront |
+| Backend | Elastic Beanstalk `pmc-backend-prod` (Docker, EU-West-2) |
+| Database | MongoDB Atlas |
+| Currently deployed | Backend **v4b-docker-fix** · Frontend **v8c-header-cleanup** |
+| Pending deploy | Backend **v5-bugs-v2** · Frontend **v10-bugs-v2** |
+| Git history | ✅ Purged of Emergent branding |
+
+---
+
+## 🔑 Master Credentials
+
+| Role | Email | Password |
+|------|-------|----------|
+| Master Admin | `adminsupport@pmcmanagers.com` | `Admin@12345` (temp) |
+| Owner | `kannan@emeraldcorporates.com` | `Owner@123` |
+
+⚠️ Rotate before final go-live.
+
+---
+
+## 📚 Deliverables in `/app/deliverables/`
+
+- `PMC_Investor_Deck.docx` / `.pdf`
+- `PMC_Trainee_Manual.docx` / `.pdf` (illustrated with production screenshots)
+
+---
+
+## 🔒 Critical Rules for the Next Agent
+
+1. **NEVER expose `*.preview.emergentagent.com` URLs to the user** for the app itself (only the `/_dl/` download route is OK).
+2. **Frontend deploys are manual** — build zip → S3 → CloudFront `/*` invalidation.
+3. **Always build with `REACT_APP_BACKEND_URL=https://www.pmcmanagers.com yarn build`**.
+4. **Backend zip MUST have `Dockerfile` + `Dockerrun.aws.json` at ZIP root**, with `backend/` subfolder.
+5. **Before final zip, strip `_temp_downloads.py`** from `backend/routers/` AND remove `_temp_downloads` mentions from `server.py`.
+6. **DocuSign delivery**: Embedded signing for investor demo.
+7. If `reset lint` fails: check for React unused-var warnings; fix them then retry.
+8. Auth changes → `integration_playbook_expert_v2` first.
+
+---
+
+## 🎯 Fresh backlog when everything green
+
+- Bug hunt round 2 (items 5, 6, 8, 12, 14, 15, 16 above)
+- **UNSPSC picker** → BOQ + Vendor Registration
+- **Investor Analytics Dashboard** — KPI board
+- **Portal walkthrough video script** — chapter-by-chapter narration
+- Backlog (blocked on creds): PayPal/Kaspi live, Firebase Push, Live KYC
+
 
 ---
 

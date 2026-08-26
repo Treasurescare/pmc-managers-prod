@@ -25,7 +25,7 @@ export default function AuctionRoom() {
       setState(s);
       if (s.me?.autobid_floor && !autoFloor) setAutoFloor(String(s.me.autobid_floor));
       if (s.me?.autobid_enabled) setAutoOn(true);
-    } catch (_e) {
+    } catch {
       // silent — auction may not exist yet
     }
   }, [aid, autoFloor]);
