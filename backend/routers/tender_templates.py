@@ -38,7 +38,7 @@ class SectionBlock(BaseModel):
     title: str
     hint: Optional[str] = None
     body: Optional[str] = ""
-    order: int
+    order: Optional[int] = None   # auto-assigned server-side if omitted
     attachment: Optional[dict] = None  # {file_name, url, content_type, size_bytes, uploaded_at, uploaded_by}
 
 
@@ -179,6 +179,11 @@ async def create_from_master(payload: TenderTemplateIn,
     doc["seed"] = False
     doc["created_at"] = now_iso()
     doc["created_by"] = admin["id"]
+    # Auto-assign section order if omitted (Bug #1 fix — clone-as-draft
+    # was 500ing because the payload dropped 'order').
+    for i, sec in enumerate(doc.get("sections") or []):
+        if sec.get("order") is None:
+            sec["order"] = (i + 1) * 10
     res = await db.tender_templates.insert_one(doc)
     doc["_id"] = res.inserted_id
     await audit_log("tender_template.create", admin, "tender_template", str(res.inserted_id),

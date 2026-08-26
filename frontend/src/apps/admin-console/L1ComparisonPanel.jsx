@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { comparisonApi, formatApiError } from "@/lib/api";
 
@@ -19,7 +19,11 @@ export default function L1ComparisonPanel() {
     if (!pickedRef) { toast.error("Pick a notice"); return; }
     setBusy(true);
     try {
-      const r = await comparisonApi.runL1(pickedRef);
+      // Bug #11 fix — hard 45-second timeout so the panel can never "hang".
+      // If the backend is slow, we abort with a user-visible error instead.
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("L1 comparison timed out — the tender has no compliant bids or the backend is slow. Try again shortly.")), 45000));
+      const r = await Promise.race([comparisonApi.runL1(pickedRef), timeout]);
       setResult(r);
       toast.success(r.l1_winner
         ? `L1: ${r.l1_winner.company_name} @ ${r.l1_winner.price_currency} ${r.l1_winner.price_amount?.toLocaleString()}`

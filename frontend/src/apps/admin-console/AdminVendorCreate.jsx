@@ -90,8 +90,13 @@ export default function AdminVendorCreate() {
         registration: reg,
         draft_registration_id: draftId || undefined,
       });
-      const modeMsg = mode === "activate" ? t("admin_vendor.ok_activated") : t("admin_vendor.ok_verify_sent");
-      toast.success(`${t("admin_vendor.ok_created")} · ${r.vendor_ref} · ${modeMsg}`);
+      // Bug #9 fix — build the toast defensively so we never render "undefined"
+      const ref = r?.vendor_ref || reg.email;
+      const modeMsg = mode === "activate"
+        ? t("admin_vendor.ok_activated")
+        : t("admin_vendor.ok_verify_sent");
+      const created = t("admin_vendor.ok_created") || "Vendor created";
+      toast.success(`${created} · ${ref} · ${modeMsg}`);
       nav("/admin");
     } catch (e) { toast.error(formatApiError(e)); }
     finally { setSaving(false); }

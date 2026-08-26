@@ -20,7 +20,7 @@ export default function HelpRequestsPanel() {
       setItems(r.items || []);
     } catch (err) { toast.error(formatApiError(err)); }
   };
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [status]);
+  useEffect(() => { load(); }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const resolve = async (id) => {
     const notes = (notesById[id] || "").trim();

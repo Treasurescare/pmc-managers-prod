@@ -212,22 +212,76 @@ async def upload_registration_template(file: UploadFile = File(...),
 
 @router.get("/registration-template")
 async def download_registration_template():
-    """PUBLIC — vendors download the blank form for reference."""
+    """PUBLIC — vendors download the blank form for reference.
+    Bug #4 fix — if no template has been uploaded yet, generate a minimal
+    fallback PDF so this endpoint never 404s."""
     from fastapi.responses import Response
     doc = await db.vendor_templates.find_one({"kind": "registration_template"})
-    if not doc:
+    if doc:
+        body = base64.b64decode(doc["data_b64"])
+        return Response(content=body,
+                        media_type=doc.get("content_type", "application/octet-stream"),
+                        headers={"Content-Disposition": f'attachment; filename="{doc.get("file_name","registration-template")}"'})
+    # Fallback — build a simple PDF listing every DOC_SLOT so the vendor has
+    # a printable checklist to fill in manually.
+    try:
+        from reportlab.pdfgen import canvas
+        from reportlab.lib.pagesizes import A4
+        from io import BytesIO
+        buf = BytesIO()
+        c = canvas.Canvas(buf, pagesize=A4)
+        w, h = A4
+        c.setFont("Helvetica-Bold", 18)
+        c.drawString(50, h - 60, "PMC Managers — Vendor Registration Form")
+        c.setFont("Helvetica", 10)
+        c.drawString(50, h - 82, "Print, complete, sign and upload to your registration record.")
+        c.setFont("Helvetica-Bold", 12)
+        y = h - 120
+        c.drawString(50, y, "SECTION A — Company Details"); y -= 20
+        c.setFont("Helvetica", 10)
+        for lbl in ("Legal Name:", "Trade Name:", "Country:", "Registration Number:",
+                    "Legal Entity Type:", "Primary Sector:", "Website:", "Employees Count:"):
+            c.drawString(60, y, lbl); c.line(190, y, w - 60, y); y -= 20
+        y -= 6; c.setFont("Helvetica-Bold", 12)
+        c.drawString(50, y, "SECTION B — Contact Details"); y -= 20
+        c.setFont("Helvetica", 10)
+        for lbl in ("Contact Name:", "Contact Email:", "Office Phone:", "Mobile:",
+                    "HQ Address (line 1):", "HQ Address (line 2):", "City / State:", "Postal Code:"):
+            c.drawString(60, y, lbl); c.line(190, y, w - 60, y); y -= 20
+        c.showPage()
+        c.setFont("Helvetica-Bold", 12)
+        y = h - 60
+        c.drawString(50, y, "SECTION C — Documents to Attach"); y -= 20
+        c.setFont("Helvetica", 10)
+        for lbl in ("Incorporation Certificate", "Address Proof",
+                    "TIN / VAT Proof", "Audited Financials (3 years)",
+                    "Previous Works", "ISO / Quality Certifications",
+                    "Licenses / Permits", "Articles of Incorporation",
+                    "Bank Reference", "Power of Attorney", "Other Supporting"):
+            c.drawString(60, y, f"[ ]  {lbl}"); y -= 18
+        y -= 20; c.setFont("Helvetica-Bold", 12)
+        c.drawString(50, y, "DECLARATION"); y -= 18
+        c.setFont("Helvetica", 9)
+        for line in ("I certify that the information supplied is true and correct.",
+                     "I understand that misrepresentation may lead to disqualification.",
+                     "Signature: ______________________   Date: ____________________",
+                     "Name in block letters: ________________________________________"):
+            c.drawString(60, y, line); y -= 18
+        c.save()
+        return Response(content=buf.getvalue(), media_type="application/pdf",
+                        headers={"Content-Disposition": 'attachment; filename="pmc-registration-form.pdf"'})
+    except Exception:
         raise HTTPException(status_code=404, detail="No template uploaded yet")
-    body = base64.b64decode(doc["data_b64"])
-    return Response(content=body,
-                    media_type=doc.get("content_type", "application/octet-stream"),
-                    headers={"Content-Disposition": f'attachment; filename="{doc.get("file_name","registration-template")}"'})
 
 
 @router.get("/registration-template/meta")
 async def registration_template_meta():
-    """PUBLIC — is a template available? Used to show/hide the download button."""
+    """PUBLIC — is a template available? Used to show/hide the download button.
+    Bug #4 fix — we always have SOMETHING to serve (a generated fallback PDF
+    if the admin hasn't uploaded one), so this always reports available."""
     doc = await db.vendor_templates.find_one({"kind": "registration_template"})
     if not doc:
-        return {"available": False}
+        return {"available": True, "file_name": "pmc-registration-form.pdf",
+                "size_bytes": 0, "uploaded_at": None, "fallback": True}
     return {"available": True, "file_name": doc.get("file_name"),
             "size_bytes": doc.get("size_bytes"), "uploaded_at": doc.get("uploaded_at")}

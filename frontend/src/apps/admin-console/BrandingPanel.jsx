@@ -24,7 +24,7 @@ export default function BrandingPanel() {
       }
     } catch (err) { toast.error(formatApiError(err)); }
   };
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const t = tenants.find((x) => x.id === selected);

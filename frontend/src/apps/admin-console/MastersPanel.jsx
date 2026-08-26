@@ -33,13 +33,19 @@ export default function MastersPanel() {
   });
 
   const load = useCallback(async () => {
-    try {
-      const [s, c, m, t] = await Promise.all([
-        staffApi.listStaff(), mastersApi.listCompanies(),
-        mastersApi.listMatrices(), tenantApi.list().catch(() => []),
-      ]);
-      setStaff(s); setCompanies(c); setMatrices(m); setTenants(t);
-    } catch (e) { toast.error(formatApiError(e)); }
+    // Bug #13 fix — allSettled so any single 403 does not hang the panel.
+    const [s, c, m, tn] = await Promise.allSettled([
+      staffApi.listStaff(),
+      mastersApi.listCompanies(),
+      mastersApi.listMatrices(),
+      tenantApi.list(),
+    ]);
+    if (s.status === "fulfilled") setStaff(s.value || []);
+    if (c.status === "fulfilled") setCompanies(c.value || []);
+    if (m.status === "fulfilled") setMatrices(m.value || []);
+    if (tn.status === "fulfilled") setTenants(tn.value || []);
+    const first = [s, c, m, tn].find((r) => r.status === "rejected");
+    if (first) toast.error(formatApiError(first.reason));
   }, []);
   useEffect(() => { load(); }, [load]);
 

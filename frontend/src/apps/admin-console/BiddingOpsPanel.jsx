@@ -31,14 +31,19 @@ export default function BiddingOpsPanel() {
   const [inspDraft, setInspDraft] = useState({ certifier_id: "", scheduled_at: "", location: "" });
 
   const load = useCallback(async () => {
-    try {
-      const [b, s, c] = await Promise.all([
-        bidApi.list(filter ? { status: filter } : {}),
-        staffApi.listStaff(),
-        committeeApi.list(),
-      ]);
-      setBids(b || []); setStaffList(s || []); setCommittees(c || []);
-    } catch (e) { toast.error(formatApiError(e)); }
+    // Bug #3 fix — use allSettled so a single 403 (e.g. non-admin staff role)
+    // does not kill the whole panel and leave the user with an unusable page.
+    const [b, s, c] = await Promise.allSettled([
+      bidApi.list(filter ? { status: filter } : {}),
+      staffApi.listStaff(),
+      committeeApi.list(),
+    ]);
+    if (b.status === "fulfilled") setBids(b.value || []);
+    if (s.status === "fulfilled") setStaffList(s.value || []);
+    if (c.status === "fulfilled") setCommittees(c.value || []);
+    // Only surface the FIRST real error, and only if bids failed —
+    // committee/staff lookups are optional decorations for the panel.
+    if (b.status === "rejected") toast.error(formatApiError(b.reason));
   }, [filter]);
   useEffect(() => { load(); }, [load]);
 
