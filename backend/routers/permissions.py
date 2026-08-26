@@ -41,7 +41,10 @@ class PermissionMatrixIn(BaseModel):
 
 DEFAULT_MATRIX: List[dict] = [
     {"role": "admin",             "document_type": "*", "view": True, "create": True, "modify": True, "delete": True, "publish": True},
-    {"role": "reviewer",          "document_type": "*", "view": True, "create": False, "modify": False, "delete": False, "publish": False},
+    # Reviewers are typically sub-admin operational staff — allowed to draft &
+    # modify notices, but publishing is reserved for the master admin so the
+    # final board is gated by one authoritative approver.
+    {"role": "reviewer",          "document_type": "*", "view": True, "create": True, "modify": True, "delete": False, "publish": False},
     {"role": "auditor",           "document_type": "*", "view": True, "create": False, "modify": False, "delete": False, "publish": False},
     {"role": "committee_member",  "document_type": "*", "view": True, "create": False, "modify": False, "delete": False, "publish": False},
     {"role": "escrow_agent",      "document_type": "*", "view": True, "create": False, "modify": False, "delete": False, "publish": False},

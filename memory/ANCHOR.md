@@ -1,28 +1,42 @@
 # ⚓ PMC Managers v2 — Anchor Document
 
-_Last updated: Aug 26, 2026 · Status: **LIVE on Production** · **Outage resolved 07:47 UTC**_
+_Last updated: Aug 26, 2026 · Status: **LIVE on Production, v7-hardened** · **v8/v12 built with Bug #5 fix**_
 
-## ✅ 502 Outage Post-Mortem (Aug 26, 2026)
+## 🎯 NEXT DEPLOY WINDOW
 
-**Root cause**: AWS EB EC2 public IP was **not on MongoDB Atlas → Network Access allowlist**. FastAPI startup called `create_indexes()` → motor hung waiting for Atlas → uvicorn workers stuck on `Waiting for application startup` → nginx returned **502 Bad Gateway** on every `/api/*` request.
+**Zips ready** (both downloadable via `_dl` route):
+- `pmc-backend-v8-bug5-fix.zip` — v7.1-mongo-guard + Bug #5 (reviewer permissions) fix
+- `pmc-frontend-v12-bug5-fix.zip` — Bug #5 UI fix (defensive notice_ref + role-aware publish checkbox)
 
-**Diagnosis path**: v7-hardened deploy revealed `[PMC-BOOT]` fired but `Application startup complete.` never appeared → pointed straight at a blocking Mongo call in startup.
+**Download**:
+- Backend: `https://tender-hub-57.preview.emergentagent.com/api/v1/_dl/sVGqLYK9RXjE8UnvXwT-uzDkV5wpdN2GfyAsHIYpQr4/backend-v8-bug5-fix`
+- Frontend: `https://tender-hub-57.preview.emergentagent.com/api/v1/_dl/sVGqLYK9RXjE8UnvXwT-uzDkV5wpdN2GfyAsHIYpQr4/frontend-v12-bug5-fix`
+
+**After deploy of v8, one-time step**: POST to `https://www.pmcmanagers.com/api/v1/permissions/reset` (auth as master admin, CSRF header) so any stored matrix from earlier runs is wiped and the new DEFAULT_MATRIX (with reviewer.create=True) takes effect. Or leave it — DEFAULT_MATRIX applies whenever no stored doc exists.
+
+## ✅ Bug #5 root cause + fix
+
+**Cause**: Madhavi has role `reviewer`. Backend Permissions Matrix had `reviewer.create = False`, so backend returned `403 {"detail":"Role 'reviewer' lacks 'create'…"}`. Frontend either read `response.detail` correctly (recent build) or `created.notice_ref` fell through as `undefined` (older builds) — either way the toast was unfriendly.
+
+**Fix (both sides)**:
+- Backend `permissions.py::DEFAULT_MATRIX` — `reviewer` now has `create: True, modify: True` (still `delete: False, publish: False` so master admin remains the final gatekeeper).
+- Frontend `NoticesPanel.jsx` — `is_published` defaults to `false`, checkbox is disabled for non-admins with an explanatory label; `created.notice_ref` defensive fallback so no more "undefined" toast if the response body is ever stripped by a proxy.
+
+## ✅ Bug #8 — Invite Vendor — CONFIRMED WORKING BY USER (Aug 26)
+
+## ✅ 502 Outage (Aug 26, 2026) — RESOLVED
+
+**Root cause**: AWS EB EC2 public IP was **not on MongoDB Atlas → Network Access allowlist**. FastAPI startup called `create_indexes()` → motor hung → uvicorn workers stuck on `Waiting for application startup` → nginx 502.
 
 **Fix**: Atlas → Network Access → +ADD IP ADDRESS → `0.0.0.0/0` (temp). Container auto-recovered without redeploy.
 
-**Permanent guards now in codebase** (also included in v7.1 zip on disk):
-- `config.py::_require_env(name)` — prints `[PMC-STARTUP-FATAL]` with visible env-var list + `sys.exit(1)` if any required var is missing. No more silent KeyErrors.
-- `db.py` — motor client now uses `serverSelectionTimeoutMS=8000` + a `ping()` helper called at startup that prints `[PMC-DB] MongoDB ping OK` on success or a huge fatal log naming Atlas IP whitelist as the likely cause on failure.
-- `server.py::on_start()` — calls `db_ping()` first so mongo unreachability fails in ~8s instead of hanging forever.
-- `_temp_downloads.py` still ships **only** in preview builds; production zips (`build_backend_v7.sh` template) strip it.
+**Permanent guards now in codebase (also in v8 zip)**:
+- `config.py::_require_env()` prints `[PMC-STARTUP-FATAL]` + visible env-vars, `sys.exit(1)` if missing MONGO_URL/DB_NAME/JWT_SECRET.
+- `db.py` motor `serverSelectionTimeoutMS=8000` + startup ping — Mongo unreachability fails in ~8s with a loud log.
+- `server.py::on_start()` calls `db_ping()` first before any Mongo query.
+- `_temp_downloads.py` stripped from production zips.
 
-**Zips on disk**:
-- `/app/pmc-backend-v7-hardened.zip` — env-var guard + `_temp_downloads` stripped
-- `/app/pmc-backend-v7.1-mongo-guard.zip` — adds motor timeout + startup ping
-- Production is currently running **whatever was last deployed before the Atlas fix** — user did NOT need to redeploy since Atlas allowlist fixed it. **Recommended**: at next scheduled window, deploy `pmc-backend-v7.1-mongo-guard.zip` for the permanent diagnostic guards.
-
-**Long-term Atlas hygiene** (backlog):
-- Replace `0.0.0.0/0` with a NAT Gateway + Elastic IP (~$5/mo) → whitelist one static IP forever.
+**Long-term Atlas hygiene**: replace `0.0.0.0/0` with NAT Gateway + Elastic IP (~$5/mo) → whitelist one static IP forever.
 
 
 ---

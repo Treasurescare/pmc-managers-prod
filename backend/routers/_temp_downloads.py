@@ -10,7 +10,9 @@ ALLOWED = {
     "backend-v6":              "/app/pmc-backend-v6.zip",
     "backend-v7-hardened":     "/app/pmc-backend-v7-hardened.zip",
     "backend-v7.1-mongo-guard":"/app/pmc-backend-v7.1-mongo-guard.zip",
+    "backend-v8-bug5-fix":     "/app/pmc-backend-v8-bug5-fix.zip",
     "frontend-v11":            "/app/pmc-frontend-v11.zip",
+    "frontend-v12-bug5-fix":   "/app/pmc-frontend-v12-bug5-fix.zip",
 }
 
 

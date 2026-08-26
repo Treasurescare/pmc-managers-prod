@@ -11,10 +11,11 @@ export default function NoticesPanel() {
   const [templates, setTemplates] = useState([]);
   const [primaryFile, setPrimaryFile] = useState(null);
   const [attachmentFiles, setAttachmentFiles] = useState([]);
+  const [me, setMe] = useState(null);
   const [draft, setDraft] = useState({
     title: "", description: "", document_type: "tender", category: "",
     delivery_country: "KZ", submission_deadline: "", budget_currency: "USD",
-    budget_amount: null, is_published: true,
+    budget_amount: null, is_published: false,
     emd_config: { fixed_amount: 0, percentage: 0, currency: "USD" },
     approval_matrix_id: "",
     tender_template_id: "",
@@ -30,7 +31,10 @@ export default function NoticesPanel() {
     load();
     mastersApi.listMatrices().then(setMatrices).catch(() => {});
     tenderTemplateApi.list().then(setTemplates).catch(() => {});
+    adminApi.me().then(setMe).catch(() => {});
   }, [load]);
+
+  const isMasterAdmin = me?.role === "admin";
 
   const create = async () => {
     if (!draft.title || !draft.description || !draft.category || !draft.submission_deadline) {
@@ -39,15 +43,24 @@ export default function NoticesPanel() {
     }
     try {
       const created = await adminApi.createNotice(draft);
+      // Bug #5 defensive fallback — if backend returned no notice_ref
+      // (rare edge case: response body stripped by a proxy), still show a
+      // meaningful confirmation instead of "created undefined".
+      const ref = created?.notice_ref;
+      if (!ref) {
+        toast.warning("Notice saved but reference number was not returned. Refreshing list.");
+        setShowNew(false); load();
+        return;
+      }
       if (primaryFile) {
-        try { await noticeDocsApi.uploadPrimary(created.notice_ref, primaryFile); }
+        try { await noticeDocsApi.uploadPrimary(ref, primaryFile); }
         catch (e) { toast.error(`Primary doc upload failed: ${formatApiError(e)}`); }
       }
       for (const f of attachmentFiles) {
-        try { await noticeDocsApi.uploadAttachment(created.notice_ref, f); }
+        try { await noticeDocsApi.uploadAttachment(ref, f); }
         catch (e) { toast.error(`Attachment "${f.name}" failed: ${formatApiError(e)}`); }
       }
-      toast.success(`Notice created · ${created.notice_ref}`);
+      toast.success(`Notice created · ${ref}`);
       setShowNew(false);
       setDraft({ ...draft, title: "", description: "" });
       setPrimaryFile(null); setAttachmentFiles([]);
@@ -134,8 +147,14 @@ export default function NoticesPanel() {
             </span>
           </label>
           <label className="col-span-2 flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={draft.is_published} onChange={(e) => setDraft({ ...draft, is_published: e.target.checked })} data-testid="notice-publish" />
-            Publish immediately (visible on public board)
+            <input type="checkbox"
+                   checked={draft.is_published}
+                   disabled={!isMasterAdmin}
+                   onChange={(e) => setDraft({ ...draft, is_published: e.target.checked })}
+                   data-testid="notice-publish" />
+            {isMasterAdmin
+              ? "Publish immediately (visible on public board)"
+              : "Publish immediately — reserved for Master Admin (this saves as draft)"}
           </label>
 
           <div className="col-span-2 border-t border-brand-navy/10 pt-4 mt-2">
