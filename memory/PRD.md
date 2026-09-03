@@ -1,74 +1,58 @@
 # PMC Managers Limited v2 — Product Requirements
 
 ## Original problem statement
-Global tender-management platform mirroring the 39-page Enterprise CRM & e-Tender Revised Integrated Report. Full multi-role approval pipeline, dynamic Approval Matrices, Bidding & EMD payments, BOQ Management, Evaluations, Contract Award, Multi-Tenant portals, and an AI Audit Copilot. Fully white-labeled AWS deploy — no "Emergent" branding anywhere in code or Git history.
+Global tender-management platform mirroring the 39-page Enterprise CRM & e-Tender Revised Integrated Report. Full multi-role approval pipeline, dynamic Approval Matrices, Bidding & EMD payments, BOQ Management, Evaluations, Contract Award, Multi-Tenant portals, AI Audit Copilot. Fully white-labeled AWS deploy — no "Emergent" branding.
 
-## Core roles
-Admin · Vendor · Staff (with sub-roles: escrow_agent, certifier, legal_counsel, accounting, committee_member).
+## Roles
+Admin · Vendor · Staff (escrow_agent, certifier, legal_counsel, accounting, committee_member, reviewer, auditor, support).
 
-## Core modules (all delivered)
-- Notice Board · Vendor Registration · Package Tracker
-- Bidding Management + EMD escrow
-- BOQ Builder · Evaluation & Contracts
-- Vendor Intelligence · Tender/RFP/RFQ Template Builder
-- Joint-Signature Escrow · Approval Matrix · Post-Award auto-doc generator
-- Product Catalog · Stripe checkout · Quote pipeline · Subscriptions
-- Two-Cover enforcement · Reverse Auction Live Room · UNSPSC-lite taxonomy
-- Meeting Scheduler (Zoom + Jitsi) · L1 Auto-Comparison · DocuSign eSignature
-- Profile ops (avatar, change password, forgot username, help desk)
-- Portal Branding (per-tenant logo)
+## Modules (all delivered)
+Notice Board · Vendor Registration · Package Tracker · Bidding + EMD escrow · BOQ Builder · Evaluation & Contracts · Vendor Intelligence · Tender/RFP/RFQ Template Builder · Joint-Signature Escrow · Approval Matrix · Post-Award Auto-Doc Generator · Product Catalog · Stripe checkout · Quote pipeline · Subscriptions · Two-Cover · Reverse Auction Live Room · UNSPSC-lite · Meetings (Zoom+Jitsi) · L1 Auto-Comparison · DocuSign eSignature · Profile ops · Portal Branding · Help Requests.
 
 ## Integrations
-- LLM: Emergent LLM Key (Claude/Gemini/GPT) — AI Audit Copilot
+- LLM: Emergent LLM Key (AI Audit Copilot)
 - Email: Resend via Emergent-managed Email Key
-- Payments: Stripe (test mode active) · PayPal/Kaspi (backlog — needs real merchant creds)
-- eSignature: DocuSign (JWT Grant, embedded signing for demo)
+- Payments: Stripe test mode (PayPal/Kaspi backlog)
+- eSignature: DocuSign JWT + embedded signing
 - Video: Zoom + Jitsi
 - Storage: AWS S3 + CloudFront (frontend)
-- Backend: AWS Elastic Beanstalk Docker (Amazon Linux 2023) · MongoDB Atlas
-- KYC: stub → live provider (backlog)
+- Backend: AWS Elastic Beanstalk Docker · MongoDB Atlas
+- KYC: stub
 
 ## Production topology
 - Frontend: S3 `pmc-managers-frontend-prod` + CloudFront
-- Backend: EB env `pmc-backend-prod` (Docker, EU-West-2)
-- DB: MongoDB Atlas project `pmc-tender-uk`, cluster `pmc-managers-uk`
-- Domain: https://www.pmcmanagers.com (SSL active)
-- Git history: purged of "Emergent" branding
+- Backend: EB `pmc-backend-prod` (Docker, EU-West-2)
+- DB: MongoDB Atlas project `pmc-tender-uk`
+- Domain: https://www.pmcmanagers.com
 
-## What's been implemented (roll-up as of Aug 26, 2026)
-- Full core stack + all core modules above
-- All 16 Bugs V2 addressed except items 5, 6, 8, 12, 15 (open, need repro info)
-- Illustrated Trainee Manual + Investor Deck (PDF + DOCX) in `/app/deliverables/`
-- Header consolidation, profile ops, forgot-username, help requests
-- **[NEW Aug 26]** Startup diagnostics: `[PMC-BOOT]`, `[PMC-DB]`, `[PMC-STARTUP-FATAL]` — surfacing config/Mongo issues loudly in `eb logs`
-- **[NEW Aug 26]** Motor client `serverSelectionTimeoutMS=8000` + explicit ping at startup → fails fast on Atlas IP-whitelist / DNS issues
+## Status snapshot (Sep 03, 2026)
 
-## Prioritised backlog
+**Live in prod**:
+- Backend `v7-hardened` · Frontend `v8c-header-cleanup` · Atlas whitelist `0.0.0.0/0`
+- 12 bugs fixed & shipped
+- Startup diagnostics `[PMC-BOOT]` / `[PMC-DB]` / `[PMC-STARTUP-FATAL]`
 
-### P0 — Recommended at next deploy window
-- Deploy `pmc-backend-v7.1-mongo-guard.zip` (contains permanent Mongo/env guards)
+**Ready to deploy (in `/app/`)**:
+- `pmc-backend-v9-wave-e.zip` (mongo/env guards + Bug 5)
+- `pmc-frontend-v13-quickwins.zip` (Bugs 5, 22, 23, 24, 46, 50)
+- `PMC_Bug_Tracker_v1.xlsx` (master tracker — 62 rows)
 
-### P1 — Next up
-- Bugs still open (need repro from user): #5 sub-admin notice "undefined" · #6 vendor mailing address · #8 invite vendor · #12 new BOQ contract not showing · #15 AI Bid Anomaly blank score
-- UNSPSC picker → BOQ Builder + Vendor Registration Section C
-- Investor Analytics Dashboard (KPI board: live tenders, GMV, cycle time)
+**Open backlog** (see tracker sheet 1):
+- Wave A: 9 bugs (created-but-not-in-list)
+- Wave B: 6 bugs (blank screen / re-login)
+- Wave C: 5 bugs (corrigenda + notice lifecycle)
+- Wave D: 7 bugs (vendor registration + supplier actions)
+- Wave E: 11 remaining after quickwins (validations, i18n)
+- Wave F: Handbook rewrite
+- Wave G: 5 governance items (dual-sig, COI, RBAC)
 
-### P2 — Blocked on external creds
-- PayPal & Kaspi Pay live (need merchant credentials)
-- Firebase / APNs push notifications (need Service Account JSON)
-- Live KYC provider (need KYC_BASE_URL + KYC_API_KEY)
-
-### Infra hygiene
-- Replace Atlas `0.0.0.0/0` with NAT Gateway + Elastic IP
-- Rotate `Admin@12345` → strong password before real go-live
-
-## Master credentials (see /app/memory/test_credentials.md)
+## Master credentials (see `/app/memory/test_credentials.md`)
 - Admin: `adminsupport@pmcmanagers.com` / `Admin@12345`
 - Owner: `kannan@emeraldcorporates.com` / `Owner@123`
 
 ## Critical rules
-1. Never expose `*.preview.emergentagent.com` URLs to end users (only `_dl/` route for temp zip delivery)
-2. Frontend deploys: build with `REACT_APP_BACKEND_URL=https://www.pmcmanagers.com yarn build` → S3 → CloudFront `/*` invalidation
-3. Backend zips MUST have `Dockerfile` + `Dockerrun.aws.json` at ZIP root, `backend/` as subfolder
-4. Strip `_temp_downloads.py` from production zips (see `/app/scripts/build_backend_v7.sh`)
-5. Auth changes → call `integration_playbook_expert_v2` first
+1. Never expose preview URLs to end users
+2. Frontend builds must use `REACT_APP_BACKEND_URL=https://www.pmcmanagers.com`
+3. Backend zips: Dockerfile + Dockerrun.aws.json at root, backend/ as subfolder
+4. Strip `_temp_downloads.py` from prod zips
+5. Auth changes → `integration_playbook_expert_v2` first

@@ -20,7 +20,15 @@ export default function RegistrationsPanel() {
     setSendingReminders(true);
     try {
       const r = await api.post("/api/v1/registrations/admin/send-reminders");
-      toast.success(`Reminders sent to ${r.data.reminded} of ${r.data.checked} stale drafts`);
+      // Bug #46 — clearer message when zero stale drafts
+      const { reminded = 0, checked = 0 } = r.data || {};
+      if (checked === 0) {
+        toast.info("No stale drafts found — nobody to nudge.");
+      } else if (reminded === 0) {
+        toast.warning(`Checked ${checked} drafts — none met the reminder threshold.`);
+      } else {
+        toast.success(`Reminders sent to ${reminded} of ${checked} stale drafts`);
+      }
     } catch (err) {
       toast.error(formatApiError(err));
     } finally {
@@ -36,7 +44,11 @@ export default function RegistrationsPanel() {
     }
     try {
       await adminApi.decideRegistration(selected.id, action, notes || null);
-      toast.success(`${action} recorded`);
+      // Bug #50 — fix "clarify recorded" typo
+      const verb = action === "clarify" ? "clarification"
+                 : action === "approve"  ? "approval"
+                 : action === "reject"   ? "rejection" : action;
+      toast.success(`${verb.charAt(0).toUpperCase() + verb.slice(1)} recorded`);
       setSelected(null); setNotes(""); load();
     } catch (err) {
       toast.error(formatApiError(err));

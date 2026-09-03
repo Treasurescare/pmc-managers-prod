@@ -11,8 +11,11 @@ ALLOWED = {
     "backend-v7-hardened":     "/app/pmc-backend-v7-hardened.zip",
     "backend-v7.1-mongo-guard":"/app/pmc-backend-v7.1-mongo-guard.zip",
     "backend-v8-bug5-fix":     "/app/pmc-backend-v8-bug5-fix.zip",
+    "backend-v9-wave-e":       "/app/pmc-backend-v9-wave-e.zip",
     "frontend-v11":            "/app/pmc-frontend-v11.zip",
     "frontend-v12-bug5-fix":   "/app/pmc-frontend-v12-bug5-fix.zip",
+    "frontend-v13-quickwins":  "/app/pmc-frontend-v13-quickwins.zip",
+    "bug-tracker-v1":          "/app/deliverables/PMC_Bug_Tracker_v1.xlsx",
 }
 
 
@@ -23,6 +26,11 @@ async def download(token: str, name: str):
     path = Path(ALLOWED.get(name, ""))
     if not path or not path.exists():
         raise HTTPException(status_code=404, detail="File not found")
+    # Serve xlsx with correct MIME so browsers download rather than XML-render
+    if str(path).endswith(".xlsx"):
+        return FileResponse(str(path),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            filename=path.name)
     return FileResponse(str(path), media_type="application/zip", filename=path.name)
 
 

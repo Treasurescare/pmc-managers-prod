@@ -1,18 +1,63 @@
 # ⚓ PMC Managers v2 — Anchor Document
 
-_Last updated: Aug 26, 2026 · Status: **LIVE on Production, v7-hardened** · **v8/v12 built with Bug #5 fix**_
+_Last updated: Sep 03, 2026 · Status: **LIVE on Production, v7-hardened** · **v9/v13 built + Bug Tracker Excel delivered**_
 
-## 🎯 NEXT DEPLOY WINDOW
+## 📊 THIS SESSION DELIVERY
 
-**Zips ready** (both downloadable via `_dl` route):
-- `pmc-backend-v8-bug5-fix.zip` — v7.1-mongo-guard + Bug #5 (reviewer permissions) fix
-- `pmc-frontend-v12-bug5-fix.zip` — Bug #5 UI fix (defensive notice_ref + role-aware publish checkbox)
+### 🎯 Assets ready for user download (via preview `_dl` route)
 
-**Download**:
-- Backend: `https://tender-hub-57.preview.emergentagent.com/api/v1/_dl/sVGqLYK9RXjE8UnvXwT-uzDkV5wpdN2GfyAsHIYpQr4/backend-v8-bug5-fix`
-- Frontend: `https://tender-hub-57.preview.emergentagent.com/api/v1/_dl/sVGqLYK9RXjE8UnvXwT-uzDkV5wpdN2GfyAsHIYpQr4/frontend-v12-bug5-fix`
+| File | Slug | Contents |
+|------|------|----------|
+| `pmc-backend-v9-wave-e.zip` | `backend-v9-wave-e` | v7.1 Mongo/env guards + Bug #5 permissions fix. `_temp_downloads` stripped. |
+| `pmc-frontend-v13-quickwins.zip` | `frontend-v13-quickwins` | Bug #5 defensive fallback + Bugs 22, 23, 24, 46, 50 fixed (Notice form full reset, validation text explicit, publish checkbox role-aware, nudge stale drafts clearer, clarification typo). |
+| `PMC_Bug_Tracker_v1.xlsx` | `bug-tracker-v1` | 62-row master tracker: all 60 QA bugs + status + fix approach + wave assignment. Second sheet: 9 waves with deploy plan. Third sheet: 24 structural observations from PDF. |
 
-**After deploy of v8, one-time step**: POST to `https://www.pmcmanagers.com/api/v1/permissions/reset` (auth as master admin, CSRF header) so any stored matrix from earlier runs is wiped and the new DEFAULT_MATRIX (with reviewer.create=True) takes effect. Or leave it — DEFAULT_MATRIX applies whenever no stored doc exists.
+### 📦 Bugs fixed & ready for prod deploy in this batch (7)
+
+| # | Title | Fix |
+|---|-------|-----|
+| 5 | Notice creation as madhavi shows "undefined" | Backend reviewer.create=True in DEFAULT_MATRIX; frontend defensive notice_ref fallback |
+| 22 | Notices form retains previous details | Full form reset in `NoticesPanel.create` success handler |
+| 23 | Unclear validation toast (10 char min) | Explicit toasts: "Title needs 3+ chars", "Description needs 10+ chars" |
+| 24 | Publish checkbox disabled for Master Admin | v12 gates `disabled={!isMasterAdmin}` where `isMasterAdmin = me?.role === "admin"` |
+| 46 | Nudge stale drafts unclear success | Three-branch toast: no drafts / none stale / count reminded |
+| 50 | "clarify recorded" typo + wrong verb | Verb mapping: approve→approval, reject→rejection, clarify→clarification |
+
+### 🗺️ Remaining waves (from tracker)
+
+- **Wave A** (9 bugs): Created-but-not-in-list pattern — BOQ template/contract, package, product catalog, reverse auction, activated vendor, rejected company, clarification tab
+- **Wave B** (6 bugs): Blank screen / re-login — bulk invite, generate award report, audit, general
+- **Wave C** (5 bugs): Corrigenda withdraw + notice lifecycle (start/close buttons)
+- **Wave D** (7 bugs): Vendor + registration + supplier actions
+- **Wave E** (15 bugs): Validations, i18n, misc — remaining after quickwins
+- **Wave F** (docs): Trainee Handbook rewrite
+- **Wave G** (5 items): Governance — escrow dual-sig enforcement, COI cross-check, tab-level RBAC
+
+## 🚀 Deploy plan (for QA team)
+
+**Backend**: EB → Upload `pmc-backend-v9-wave-e.zip` → label `backend-v9-wave-e` → Deploy (3 min)
+
+**Frontend**: unzip `pmc-frontend-v13-quickwins.zip` → S3 upload (delete old contents first) → CloudFront invalidation `/*` → 5 min
+
+**Regression to check**:
+- Master admin login + create + publish notice (checkbox enabled)
+- Madhavi login + create notice as draft (checkbox disabled, gets `PMC-NOT-XXXX` toast)
+- Nudge stale drafts: message differs by count
+- Registration approve/reject/clarify: toast reads "Approval recorded" etc.
+
+## ✅ Prod status (as of 07:47 UTC 26 Aug)
+
+- Backend: `backend-v7-hardened` — HEALTHY
+- Frontend: `v8c-header-cleanup`
+- Mongo Atlas: `0.0.0.0/0` whitelisted (temporary — recommend NAT+EIP)
+- All auth flows working end-to-end
+
+## Critical rules
+1. NEVER expose `*.preview.emergentagent.com` URLs to end users
+2. Frontend builds MUST use `REACT_APP_BACKEND_URL=https://www.pmcmanagers.com`
+3. Backend zips MUST have Dockerfile + Dockerrun.aws.json at root
+4. `_temp_downloads.py` stripped from prod zips (in `build_backend_v7.sh`)
+5. Auth changes → `integration_playbook_expert_v2` first
 
 ## ✅ Bug #5 root cause + fix
 

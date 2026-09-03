@@ -37,8 +37,21 @@ export default function NoticesPanel() {
   const isMasterAdmin = me?.role === "admin";
 
   const create = async () => {
-    if (!draft.title || !draft.description || !draft.category || !draft.submission_deadline) {
-      toast.error("Title, description, category and deadline are required");
+    // Bug #23 — explicit character-count feedback instead of generic "required"
+    if (!draft.title || draft.title.trim().length < 3) {
+      toast.error("Title is required (minimum 3 characters)");
+      return;
+    }
+    if (!draft.description || draft.description.trim().length < 10) {
+      toast.error("Description is required (minimum 10 characters)");
+      return;
+    }
+    if (!draft.category) {
+      toast.error("Category is required");
+      return;
+    }
+    if (!draft.submission_deadline) {
+      toast.error("Submission deadline is required");
       return;
     }
     try {
@@ -62,7 +75,15 @@ export default function NoticesPanel() {
       }
       toast.success(`Notice created · ${ref}`);
       setShowNew(false);
-      setDraft({ ...draft, title: "", description: "" });
+      // Bug #22 — full form reset instead of only clearing title/description
+      setDraft({
+        title: "", description: "", document_type: "tender", category: "",
+        delivery_country: "KZ", submission_deadline: "", budget_currency: "USD",
+        budget_amount: null, is_published: false,
+        emd_config: { fixed_amount: 0, percentage: 0, currency: "USD" },
+        approval_matrix_id: "",
+        tender_template_id: "",
+      });
       setPrimaryFile(null); setAttachmentFiles([]);
       load();
     } catch (err) { toast.error(formatApiError(err)); }
