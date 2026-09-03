@@ -129,22 +129,24 @@ def _dual_signed(tx: dict, action: str) -> bool:
 @router.post("/accounts")
 async def create_account(payload: EscrowAccountIn,
                           admin=Depends(require_role("admin"))):
-    # Bug #14 fix — explicit guard that both officers exist and belong to
-    # the correct side of the joint account.
-    pmc = payload.pmc_officer
-    esc = payload.escrow_officer
-    if pmc.role != "pmc":
-        raise HTTPException(status_code=422,
-                            detail="pmc_officer.role must be 'pmc'")
-    if esc.role != "escrow_institution":
-        raise HTTPException(status_code=422,
-                            detail="escrow_officer.role must be 'escrow_institution'")
-    if pmc.email.lower() == esc.email.lower():
-        raise HTTPException(status_code=422,
-                            detail="PMC and Escrow officers must be different people")
+    # Bug #14 hardening — reject blank/placeholder officer info
+    for label, o in (("PMC officer", payload.pmc_officer), ("Escrow officer", payload.escrow_officer)):
+        if not (o.name or "").strip() or len((o.name or "").strip()) < 2:
+            raise HTTPException(status_code=400, detail=f"{label}: name is required (min 2 chars)")
+        if not (o.email or "").strip():
+            raise HTTPException(status_code=400, detail=f"{label}: email is required")
+    # Bug G1 (governance) — enforce SEPARATE officers.
+    # Same email on both sides makes dual-signature theatre. Refuse.
+    if payload.pmc_officer.email.lower() == payload.escrow_officer.email.lower():
+        raise HTTPException(status_code=400,
+            detail="PMC officer and Escrow officer must be different people (different email addresses). Joint control requires two independent signatories.")
+    if payload.pmc_officer.role != "pmc":
+        raise HTTPException(status_code=400, detail="pmc_officer.role must equal 'pmc'")
+    if payload.escrow_officer.role != "escrow_institution":
+        raise HTTPException(status_code=400, detail="escrow_officer.role must equal 'escrow_institution'")
     doc = payload.model_dump()
     doc["created_at"] = now_iso()
-    doc["created_by"] = admin["email"]
+    doc["created_by"] = admin.get("email")
     r = await db.escrow_accounts.insert_one(doc)
     doc["_id"] = r.inserted_id
     await audit_log("escrow.account_create", admin, "escrow_account",

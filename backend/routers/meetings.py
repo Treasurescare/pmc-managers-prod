@@ -182,9 +182,12 @@ async def create_meeting(payload: MeetingIn,
 
 
 @router.get("")
-async def list_meetings(admin=Depends(current_admin)):
+async def list_meetings(include_cancelled: bool = False,
+                        admin=Depends(current_admin)):
+    # Bug #54 — hide cancelled meetings by default; toggle to include.
+    q = {} if include_cancelled else {"status": {"$ne": "cancelled"}}
     rows = []
-    async for m in db.meetings.find({}).sort("scheduled_at", -1).limit(200):
+    async for m in db.meetings.find(q).sort("scheduled_at", -1).limit(200):
         rows.append(_out(m))
     return {"items": rows, "total": len(rows)}
 

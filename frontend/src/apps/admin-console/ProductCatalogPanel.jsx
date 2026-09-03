@@ -297,7 +297,10 @@ export default function ProductCatalogPanel() {
   const reload = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await fetch(`${API}/api/v1/products?active_only=false`, { credentials: "include" });
+      // Bug #34/35 — cache-buster query param so browsers/CDNs never serve a
+      // stale response after a create/edit.
+      const r = await fetch(`${API}/api/v1/products?active_only=false&_=${Date.now()}`,
+                             { credentials: "include" });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
       setItems(d.items);

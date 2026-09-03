@@ -468,7 +468,7 @@ export const taxonomyApi = {
 // ---------- Wave 41: Meetings + Jitsi ----------
 export const meetingsApi = {
   create: (p) => api.post("/api/v1/meetings", p).then((r) => r.data),
-  list: () => api.get("/api/v1/meetings").then((r) => r.data),
+  list: (params = {}) => api.get("/api/v1/meetings", { params }).then((r) => r.data),
   get: (mid) => api.get(`/api/v1/meetings/${mid}`).then((r) => r.data),
   addInvitees: (mid, list) => api.post(`/api/v1/meetings/${mid}/invitees`, list).then((r) => r.data),
   uploadMinutes: (mid, minutes) => api.post(`/api/v1/meetings/${mid}/minutes`, { minutes }).then((r) => r.data),

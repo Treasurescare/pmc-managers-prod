@@ -150,14 +150,23 @@ export default function LiveAuctionsPanel() {
                 </span>
               </div>
               <div className="mt-2 flex items-center gap-3 text-xs">
-                <span className="text-brand-navy/60">{t("panels.live_auctions.bidder_link")}</span>
-                <input readOnly value={url}
-                       className="flex-1 px-2 py-1 border border-brand-navy/15 font-mono text-[11px] bg-brand-pale" />
-                <button type="button"
-                        onClick={() => { navigator.clipboard?.writeText(url); toast.success(t("panels.live_auctions.link_copied")); }}
-                        className="text-[10px] uppercase tracking-widest px-2 py-1 border border-brand-navy/30 hover:bg-brand-navy hover:text-white">
-                  {t("panels.live_auctions.copy")}
-                </button>
+                {a.status === "draft" ? (
+                  <span className="text-[11px] text-brand-navy/50 italic flex-1">
+                    Bidder link is hidden until you Start the auction — vendors will
+                    only receive the public URL after it goes live.
+                  </span>
+                ) : (
+                  <>
+                    <span className="text-brand-navy/60">{t("panels.live_auctions.bidder_link")}</span>
+                    <input readOnly value={url}
+                           className="flex-1 px-2 py-1 border border-brand-navy/15 font-mono text-[11px] bg-brand-pale" />
+                    <button type="button"
+                            onClick={() => { navigator.clipboard?.writeText(url); toast.success(t("panels.live_auctions.link_copied")); }}
+                            className="text-[10px] uppercase tracking-widest px-2 py-1 border border-brand-navy/30 hover:bg-brand-navy hover:text-white">
+                      {t("panels.live_auctions.copy")}
+                    </button>
+                  </>
+                )}
                 {a.status === "draft" && (
                   <button type="button" onClick={() => start(a.id)}
                           data-testid={`ra-start-${a.id}`}

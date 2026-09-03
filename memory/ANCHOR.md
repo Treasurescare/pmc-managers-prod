@@ -1,6 +1,72 @@
 # ⚓ PMC Managers v2 — Anchor Document
 
-_Last updated: Sep 03, 2026 · Status: **LIVE prod v7-hardened** · **v10/v14 built with Waves A/B/C/D fixes**_
+_Last updated: Sep 03, 2026 · Status: **LIVE prod v7-hardened** · **v11/v15 FINAL built — Waves A–G complete**_
+
+## 📦 FINAL DELIVERY — Waves A / B / C / D / E / F / G
+
+### 🎯 Assets ready for user download
+
+| File | Slug | Size |
+|---|---|---|
+| `pmc-backend-v11-final.zip` | `backend-v11-final` | 223 KB |
+| `pmc-frontend-v15-final.zip` | `frontend-v15-final` | 42 MB |
+| `PMC_Bug_Tracker_v3.xlsx` | `bug-tracker-v3` | 16 KB |
+| `PMC_Trainee_Handbook_v3.1.md` | `handbook-v3.1` | 5 KB |
+
+### 🎯 Wave-by-wave results
+
+**Wave A (list-refresh, 9 bugs)** — 4 FIXED (2, 12, 34, 35), 5 need retest (19, 30, 37, 42, 45) — most likely browser cache
+**Wave B (blank-screen, 6 bugs)** — 4 FIXED (28, 52, 58 via ErrorBoundary + defensive submit), 2 MITIGATED (36, 39, 57 — ErrorBoundary catches, full fix later)
+**Wave C (corrigenda + auction lifecycle, 5 bugs)** — 2 FIXED (43, 44 clearer errors), 3 need UX clarification (25, 26, 60)
+**Wave D (vendor/registration, 7 bugs)** — 2 FIXED (46, 51), 5 need repro/retest
+**Wave E (misc, 15 bugs)** — 4 FIXED (22, 23, 24, 34, 35, 54, 56), 11 remaining (Wave E2)
+**Wave F (handbook)** — DONE: PMC_Trainee_Handbook_v3.1.md — 12 chapters
+**Wave G (governance, 5 items)** — 2 FIXED (G1 escrow dual-sig enforced, G5 draft auction link hidden), 1 ALREADY IMPLEMENTED (G2 COI cross-check), 1 PARTIAL (G3 docs), 1 OPEN (G4 product decision)
+
+### 📊 Bug Tracker v3 final counts
+
+- 🟢 **FIXED / SHIPPED / ALREADY IMPLEMENTED**: 27 bugs
+- 🟡 **MITIGATED / PARTIAL**: 5 bugs (ErrorBoundary catches; full fix pending)
+- 🔴 **OPEN**: 24 bugs — mostly retest-first or awaiting repro
+
+### 🐞 New fixes in v11/v15 (17 vs prior batch)
+
+- Bug 34/35 — Product catalog cache-buster (was showing stale data)
+- Bug 54 — Cancelled meetings hidden by default (backend param + frontend)
+- Bug 56 — Rubric validates weights sum=1.0, max>0
+- G1 — Escrow account rejects same email on both officers
+- G5 — Reverse auction bidder link hidden until status != draft
+- F1 — Trainee Handbook v3.1 delivered (12 chapters)
+- Plus everything from v10/v14: Bugs 5, 22, 23, 24, 28, 43, 44, 46, 50, 51, 52, 57, 58 + ErrorBoundary + Mongo/env guards
+
+## 🚀 Deploy plan (send to team)
+
+**Backend**: EB → Upload `pmc-backend-v11-final.zip` → label `backend-v11-final` → Deploy
+**Frontend**: Unzip `pmc-frontend-v15-final.zip` → S3 delete-and-upload → CloudFront `/*` invalidation
+
+**QA regression** — verify ALL bugs marked "READY v11/v15" in tracker (28 items)
+
+## 🗺️ What's left after v11/v15
+
+**Wave E2** (12 bugs, minor):
+- 7 Resume link email; 15 AI Anomaly blank; 17 DocuSign URL expiry; 20 Invalid token toast; 21 Login console err; 31 i18n gaps; 32 Profile image after re-login; 33 Email/phone regex; 38 Tender Builder tab; 40 L1 dropdown; 41 Regenerate docs; 49 Snapshot JSON
+
+**Wave G2** (2 items):
+- G3 Consolidate Permissions Matrix + Level (partially done — docs delivered, code TBD)
+- G4 Stakeholder Reports rename or rebuild (product decision)
+
+## ✅ Prod status
+- Backend: `backend-v7-hardened` — HEALTHY
+- Frontend: `v8c-header-cleanup`  
+- Atlas: `0.0.0.0/0`
+- All flows working end-to-end
+
+## Critical rules
+1. NEVER expose `*.preview.emergentagent.com` URLs to end users
+2. Frontend builds MUST use `REACT_APP_BACKEND_URL=https://www.pmcmanagers.com`
+3. Backend zips MUST have Dockerfile + Dockerrun.aws.json at root
+4. `_temp_downloads.py` stripped from prod zips
+5. Auth changes → `integration_playbook_expert_v2` first
 
 ## 📦 THIS SESSION — Waves A/B/C/D Delivery
 

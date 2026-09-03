@@ -8,16 +8,13 @@ router = APIRouter(prefix="/api/v1/_dl", tags=["temp-downloads"])
 TOKEN = "sVGqLYK9RXjE8UnvXwT-uzDkV5wpdN2GfyAsHIYpQr4"
 ALLOWED = {
     "backend-v7-hardened":     "/app/pmc-backend-v7-hardened.zip",
-    "backend-v7.1-mongo-guard":"/app/pmc-backend-v7.1-mongo-guard.zip",
-    "backend-v8-bug5-fix":     "/app/pmc-backend-v8-bug5-fix.zip",
-    "backend-v9-wave-e":       "/app/pmc-backend-v9-wave-e.zip",
     "backend-v10-waves-abcd":  "/app/pmc-backend-v10-waves-abcd.zip",
-    "frontend-v11":            "/app/pmc-frontend-v11.zip",
-    "frontend-v12-bug5-fix":   "/app/pmc-frontend-v12-bug5-fix.zip",
-    "frontend-v13-quickwins":  "/app/pmc-frontend-v13-quickwins.zip",
+    "backend-v11-final":       "/app/pmc-backend-v11-final.zip",
     "frontend-v14-waves-abcd": "/app/pmc-frontend-v14-waves-abcd.zip",
-    "bug-tracker-v1":          "/app/deliverables/PMC_Bug_Tracker_v1.xlsx",
+    "frontend-v15-final":      "/app/pmc-frontend-v15-final.zip",
     "bug-tracker-v2":          "/app/deliverables/PMC_Bug_Tracker_v2.xlsx",
+    "bug-tracker-v3":          "/app/deliverables/PMC_Bug_Tracker_v3.xlsx",
+    "handbook-v3.1":           "/app/deliverables/PMC_Trainee_Handbook_v3.1.md",
 }
 
 
@@ -33,6 +30,8 @@ async def download(token: str, name: str):
         return FileResponse(str(path),
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             filename=path.name)
+    if str(path).endswith(".md"):
+        return FileResponse(str(path), media_type="text/markdown", filename=path.name)
     return FileResponse(str(path), media_type="application/zip", filename=path.name)
 
 

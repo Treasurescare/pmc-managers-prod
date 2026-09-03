@@ -14,10 +14,15 @@ export default function MeetingsPanel() {
     invitees_text: "",
   });
 
+  const [showCancelled, setShowCancelled] = useState(false);
+
   const load = useCallback(() => {
-    meetingsApi.list().then((d) => setItems(d.items || []))
+    // Bug #54 — pass include_cancelled to backend so cancelled meetings are
+    // hidden by default; toggle from UI reveals them.
+    meetingsApi.list({ include_cancelled: showCancelled })
+      .then((d) => setItems(d.items || []))
       .catch((e) => toast.error(formatApiError(e)));
-  }, []);
+  }, [showCancelled]);
 
   useEffect(() => {
     load();
