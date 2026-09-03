@@ -22,6 +22,7 @@ import PackagesPanel from "./PackagesPanel";
 import TenderBuilderPanel from "./TenderBuilderPanel";
 import EscrowPanel from "./EscrowPanel";
 import ReportsPanel from "./ReportsPanel";
+import StakeholderReportsPanel from "./StakeholderReportsPanel";
 import ProductCatalogPanel from "./ProductCatalogPanel";
 import EngagementsPanel from "./EngagementsPanel";
 import CorrigendaPanel from "./CorrigendaPanel";
@@ -60,6 +61,7 @@ function TabBar({ tab, setTab }) {
     ["catalog", t("admin.tab_catalog")],
     ["engagements", t("admin.tab_engagements")],
     ["reports", t("admin.tab_reports")],
+    ["stakeholder", "Stakeholder Reports"],
     ["help", "Help Requests"],
     ["branding", "Portal Branding"],
   ];
@@ -189,6 +191,7 @@ export default function AdminDashboard() {
           {tab === "catalog" && <ProductCatalogPanel />}
           {tab === "engagements" && <EngagementsPanel />}
           {tab === "reports" && <ReportsPanel />}
+          {tab === "stakeholder" && <StakeholderReportsPanel />}
           {tab === "help" && <HelpRequestsPanel />}
           {tab === "branding" && <BrandingPanel />}
         </div>

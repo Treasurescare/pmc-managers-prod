@@ -19,6 +19,8 @@ from routers import (
     tender_templates, notice_qa, bids_ai_compare, escrow, reports, products, billing,
     engagements, corrigenda, awards, auction_live, taxonomy, meetings, comparison,
     docusign, profile_ops, _temp_downloads,
+    stakeholder_reports, dashboard_drill, branding_theme,
+    envelope_authoritative, contracts_export,
 )
 
 
@@ -86,6 +88,11 @@ app.include_router(notice_qa.router)
 app.include_router(bids_ai_compare.router)
 app.include_router(escrow.router)
 app.include_router(reports.router)
+app.include_router(stakeholder_reports.router)
+app.include_router(dashboard_drill.router)
+app.include_router(branding_theme.router)
+app.include_router(envelope_authoritative.router)
+app.include_router(contracts_export.router)
 # Wave 35 — Product catalog + Stripe billing
 app.include_router(products.router)
 app.include_router(billing.router)

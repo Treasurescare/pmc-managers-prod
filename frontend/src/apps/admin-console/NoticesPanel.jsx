@@ -21,6 +21,10 @@ export default function NoticesPanel() {
     tender_template_id: "",
   });
 
+  const [filterStatus, setFilterStatus] = useState("");
+  const [filterQuery, setFilterQuery] = useState("");
+  const [showTemplateOnly, setShowTemplateOnly] = useState(false);
+
   const load = useCallback(() => {
     fetch(`${process.env.REACT_APP_BACKEND_URL}/api/v1/notices?limit=100`)
       .then((r) => r.json())
@@ -211,9 +215,50 @@ export default function NoticesPanel() {
         </div>
       )}
 
+      <div className="border border-brand-navy/10 bg-white mb-3 p-3 flex flex-wrap gap-2 items-center"
+           data-testid="notices-filter-bar">
+        <input value={filterQuery} onChange={(e) => setFilterQuery(e.target.value)}
+               placeholder="Search title / ref…"
+               data-testid="notices-filter-query"
+               className="px-3 py-1.5 border border-brand-navy/20 text-sm flex-1 min-w-[180px]"/>
+        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
+                data-testid="notices-filter-status"
+                className="px-3 py-1.5 border border-brand-navy/20 text-sm bg-white">
+          <option value="">Any status</option>
+          <option value="published">Published</option>
+          <option value="draft">Draft</option>
+          <option value="expired">Deadline past</option>
+        </select>
+        <label className="text-xs text-brand-navy/70 flex items-center gap-1">
+          <input type="checkbox" checked={showTemplateOnly}
+                 onChange={(e) => setShowTemplateOnly(e.target.checked)}
+                 data-testid="notices-filter-template-only" />
+          Template-linked only
+        </label>
+        <button type="button" onClick={() => { setFilterQuery(""); setFilterStatus(""); setShowTemplateOnly(false); }}
+                data-testid="notices-filter-clear"
+                className="px-3 py-1.5 text-xs uppercase tracking-widest border border-brand-navy/20 text-brand-navy/70 hover:bg-brand-navy/5">
+          Clear
+        </button>
+      </div>
+
       <div className="border border-brand-navy/10 bg-white">
-        {items.length === 0 && <div className="p-6 text-brand-navy/50 text-sm">{t("admin.notices_empty")}</div>}
-        {items.map((n) => (
+        {(() => {
+          const now = new Date().toISOString();
+          const filtered = items.filter((n) => {
+            if (showTemplateOnly && !n.tender_template_id) return false;
+            if (filterStatus === "published" && !n.is_published) return false;
+            if (filterStatus === "draft" && n.is_published) return false;
+            if (filterStatus === "expired" && (n.submission_deadline || "9999") > now) return false;
+            if (filterQuery) {
+              const q = filterQuery.toLowerCase();
+              if (!(n.title || "").toLowerCase().includes(q) &&
+                  !(n.notice_ref || "").toLowerCase().includes(q)) return false;
+            }
+            return true;
+          });
+          if (filtered.length === 0) return <div className="p-6 text-brand-navy/50 text-sm">{t("admin.notices_empty")}</div>;
+          return filtered.map((n) => (
           <div key={n.id} className="p-4 border-b border-brand-navy/10 flex items-baseline gap-4 flex-wrap" data-testid={`notice-row-${n.notice_ref}`}>
             <span className="font-mono text-xs text-brand-navy-soft">{n.notice_ref}</span>
             <span className="pmc-pill uppercase text-[10px]">{n.document_type}</span>
@@ -244,7 +289,8 @@ export default function NoticesPanel() {
             </a>
             <span className="text-xs text-brand-navy/50 font-mono">{n.submission_deadline?.slice(0, 10)}</span>
           </div>
-        ))}
+          ));
+        })()}
       </div>
     </div>
   );

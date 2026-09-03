@@ -227,8 +227,14 @@ async def engagement_checkout(eid: str, payload: CheckoutIn, request: Request,
              "engagement": _out(await db.engagements.find_one({"_id": ObjectId(eid)}))}
 
 
+class CancelIn(BaseModel):
+    reason: str = Field(min_length=5, max_length=500)
+
+
 @router.post("/{eid}/cancel")
-async def cancel_engagement(eid: str, admin=Depends(current_admin)):
+async def cancel_engagement(eid: str, payload: CancelIn,
+                             admin=Depends(current_admin)):
+    """Cancel with a required non-empty reason. Reason is logged + audited."""
     if not ObjectId.is_valid(eid):
         raise HTTPException(status_code=400, detail="Invalid engagement id")
     doc = await db.engagements.find_one({"_id": ObjectId(eid)})
@@ -237,11 +243,41 @@ async def cancel_engagement(eid: str, admin=Depends(current_admin)):
     if doc["status"] in (STATUS_PAID, STATUS_CANCELLED):
         raise HTTPException(status_code=409,
             detail=f"Cannot cancel an engagement in status={doc['status']}")
-    entry = {"at": now_iso(), "by": admin["email"], "event": "cancelled"}
+    entry = {"at": now_iso(), "by": admin["email"], "event": "cancelled",
+             "reason": payload.reason.strip()}
     await db.engagements.update_one(
         {"_id": ObjectId(eid)},
-        {"$set": {"status": STATUS_CANCELLED, "updated_at": now_iso()},
+        {"$set": {"status": STATUS_CANCELLED,
+                    "cancel_reason": payload.reason.strip(),
+                    "updated_at": now_iso()},
          "$push": {"history": entry}},
     )
-    await audit_log("engagement.cancelled", admin, "engagement", eid, {})
+    await audit_log("engagement.cancelled", admin, "engagement", eid,
+                    {"reason": payload.reason.strip()})
     return _out(await db.engagements.find_one({"_id": ObjectId(eid)}))
+
+
+@router.get("/aging/summary")
+async def aging_summary(admin=Depends(current_admin)):
+    """Age buckets for receivables — used by the Engagements panel top-row."""
+    from datetime import datetime, timezone as _tz
+    now = datetime.now(_tz.utc)
+    buckets = {"0-7": 0, "8-30": 0, "31-60": 0, "61+": 0}
+    async for e in db.engagements.find({"status": {"$in": [STATUS_QUOTED, STATUS_INVOICED]}}):
+        try:
+            iso = (e.get("created_at") or "").replace("Z", "+00:00")
+            d = datetime.fromisoformat(iso)
+            if d.tzinfo is None:
+                d = d.replace(tzinfo=_tz.utc)
+            days = (now - d).days
+        except Exception:
+            continue
+        if days <= 7:
+            buckets["0-7"] += 1
+        elif days <= 30:
+            buckets["8-30"] += 1
+        elif days <= 60:
+            buckets["31-60"] += 1
+        else:
+            buckets["61+"] += 1
+    return {"buckets": buckets, "generated_at": now.isoformat()}
