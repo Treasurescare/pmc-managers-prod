@@ -1,0 +1,635 @@
+[
+  {
+    "n": 1,
+    "title": "Public landing page",
+    "url": "https://tender-hub-57.preview.emergentagent.com/",
+    "wait": 1200,
+    "narrative": "Anyone who lands on the portal domain sees the tender-hub marketing page: brand identity, the four service lanes, and the top-right Sign in / Register CTAs.",
+    "test_steps": [
+      {
+        "step": "Open the portal root URL in an incognito window",
+        "expected": "Hero + Notices/Register/Sign-in in top nav render without a horizontal scroll on 375px viewports"
+      },
+      {
+        "step": "Tap the language switcher (EN \u2192 RU \u2192 KK)",
+        "expected": "Copy translates immediately; no console errors"
+      }
+    ],
+    "test_ids": [
+      "topbar-brand",
+      "nav-notices",
+      "nav-register",
+      "nav-signin"
+    ],
+    "image": "01_public-landing-page.png"
+  },
+  {
+    "n": 2,
+    "title": "Public tender board",
+    "url": "https://tender-hub-57.preview.emergentagent.com/notices",
+    "wait": 1500,
+    "narrative": "Public list of every published tender/RFP/RFQ across all tenants of the portal.",
+    "test_steps": [
+      {
+        "step": "Verify at least one PUBLISHED notice appears with title + closing date + budget",
+        "expected": "Cards render; DRAFT notices are hidden"
+      },
+      {
+        "step": "Click a card to open the Notice Detail",
+        "expected": "Detail page shows description, deadline, downloads and QA thread"
+      }
+    ],
+    "test_ids": [
+      "public-notice-card"
+    ],
+    "image": "02_public-tender-board.png"
+  },
+  {
+    "n": 3,
+    "title": "Vendor registration \u2014 start",
+    "url": "https://tender-hub-57.preview.emergentagent.com/register",
+    "wait": 1500,
+    "narrative": "Section A (Identity) is the entry point. As soon as the vendor picks a file for any slot, a silent draft is created so nothing is lost.",
+    "test_steps": [
+      {
+        "step": "Fill Section A (Company name, contact, email, phone, country)",
+        "expected": "Continue button unlocks once required fields are valid"
+      },
+      {
+        "step": "Attach a KYC doc to the ID slot",
+        "expected": "File uploads with progress; a resume-link toast appears"
+      }
+    ],
+    "test_ids": [
+      "reg-section-a",
+      "reg-continue"
+    ],
+    "image": "03_vendor-registration-\u2014-start.png"
+  },
+  {
+    "n": 4,
+    "title": "Vendor registration \u2014 check status",
+    "url": "https://tender-hub-57.preview.emergentagent.com/register/status",
+    "wait": 1500,
+    "narrative": "Any vendor with the emailed resume-token can paste it here to see current status without logging in.",
+    "test_steps": [
+      {
+        "step": "Paste an invalid token",
+        "expected": "Toast: 'Token invalid or expired \u2014 request a new resume link\u2026' (Bug 7 fix)"
+      },
+      {
+        "step": "Paste a valid token",
+        "expected": "Status card shows stage + reviewer notes + submission timestamp"
+      }
+    ],
+    "test_ids": [
+      "status-token",
+      "status-check",
+      "status-result"
+    ],
+    "image": "04_vendor-registration-\u2014-check-status.png"
+  },
+  {
+    "n": 5,
+    "title": "Admin login page",
+    "url": "https://tender-hub-57.preview.emergentagent.com/admin/login",
+    "wait": 1200,
+    "narrative": "Dedicated admin login. HTTPOnly-cookie based, CSRF double-submit.",
+    "test_steps": [
+      {
+        "step": "Try login with wrong password",
+        "expected": "Toast surfaces backend error; no console stack trace"
+      },
+      {
+        "step": "Try login with correct credentials",
+        "expected": "Redirect to /admin dashboard within 1s"
+      }
+    ],
+    "test_ids": [
+      "admin-login-email",
+      "admin-login-password",
+      "admin-login-submit"
+    ],
+    "image": "05_admin-login-page.png"
+  },
+  {
+    "n": 6,
+    "title": "Admin console \u00b7 Analytics",
+    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=analytics",
+    "narrative": "Dashboard \u00b7 KPIs + AI-Anomaly drill cards",
+    "test_steps": [
+      {
+        "step": "Click the 'analytics' tab in the admin sidebar",
+        "expected": "Panel renders within 1s; no white screen; ErrorBoundary NOT triggered"
+      },
+      {
+        "step": "Interact with the primary CTA on the panel",
+        "expected": "Backend responds; toast confirms success"
+      }
+    ],
+    "test_ids": [
+      "admin-analytics-panel"
+    ],
+    "image": "06_analytics.png"
+  },
+  {
+    "n": 7,
+    "title": "Admin console \u00b7 Registrations",
+    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=registrations",
+    "narrative": "Registrations pipeline \u00b7 draft/submitted/approved",
+    "test_steps": [
+      {
+        "step": "Click the 'registrations' tab in the admin sidebar",
+        "expected": "Panel renders within 1s; no white screen; ErrorBoundary NOT triggered"
+      },
+      {
+        "step": "Interact with the primary CTA on the panel",
+        "expected": "Backend responds; toast confirms success"
+      }
+    ],
+    "test_ids": [
+      "admin-registrations-panel"
+    ],
+    "image": "07_registrations.png"
+  },
+  {
+    "n": 8,
+    "title": "Admin console \u00b7 Vendors",
+    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=vendors",
+    "narrative": "Vendors master table + Bulk Invite",
+    "test_steps": [
+      {
+        "step": "Click the 'vendors' tab in the admin sidebar",
+        "expected": "Panel renders within 1s; no white screen; ErrorBoundary NOT triggered"
+      },
+      {
+        "step": "Interact with the primary CTA on the panel",
+        "expected": "Backend responds; toast confirms success"
+      }
+    ],
+    "test_ids": [
+      "admin-vendors-panel"
+    ],
+    "image": "08_vendors.png"
+  },
+  {
+    "n": 9,
+    "title": "Admin console \u00b7 Notices",
+    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=notices",
+    "narrative": "Notices \u00b7 filter bar (search + status + template-only)",
+    "test_steps": [
+      {
+        "step": "Click the 'notices' tab in the admin sidebar",
+        "expected": "Panel renders within 1s; no white screen; ErrorBoundary NOT triggered"
+      },
+      {
+        "step": "Interact with the primary CTA on the panel",
+        "expected": "Backend responds; toast confirms success"
+      }
+    ],
+    "test_ids": [
+      "admin-notices-panel"
+    ],
+    "image": "09_notices.png"
+  },
+  {
+    "n": 10,
+    "title": "Admin console \u00b7 Corrigenda",
+    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=corrigenda",
+    "narrative": "Corrigenda \u00b7 publish/withdraw with mandatory reason",
+    "test_steps": [
+      {
+        "step": "Click the 'corrigenda' tab in the admin sidebar",
+        "expected": "Panel renders within 1s; no white screen; ErrorBoundary NOT triggered"
+      },
+      {
+        "step": "Interact with the primary CTA on the panel",
+        "expected": "Backend responds; toast confirms success"
+      }
+    ],
+    "test_ids": [
+      "admin-corrigenda-panel"
+    ],
+    "image": "10_corrigenda.png"
+  },
+  {
+    "n": 11,
+    "title": "Admin console \u00b7 Tender Builder",
+    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=tender-builder",
+    "narrative": "Tender Builder \u00b7 sections + annexures + version history",
+    "test_steps": [
+      {
+        "step": "Click the 'tender-builder' tab in the admin sidebar",
+        "expected": "Panel renders within 1s; no white screen; ErrorBoundary NOT triggered"
+      },
+      {
+        "step": "Interact with the primary CTA on the panel",
+        "expected": "Backend responds; toast confirms success"
+      }
+    ],
+    "test_ids": [
+      "admin-tender-builder-panel"
+    ],
+    "image": "11_tender-builder.png"
+  },
+  {
+    "n": 12,
+    "title": "Admin console \u00b7 Bidding",
+    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=bidding",
+    "narrative": "Bidding Ops \u00b7 Committee UX overhaul (checkbox grid + dissolve + resend)",
+    "test_steps": [
+      {
+        "step": "Click the 'bidding' tab in the admin sidebar",
+        "expected": "Panel renders within 1s; no white screen; ErrorBoundary NOT triggered"
+      },
+      {
+        "step": "Interact with the primary CTA on the panel",
+        "expected": "Backend responds; toast confirms success"
+      }
+    ],
+    "test_ids": [
+      "admin-bidding-panel"
+    ],
+    "image": "12_bidding.png"
+  },
+  {
+    "n": 13,
+    "title": "Admin console \u00b7 Auctions",
+    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=auctions",
+    "narrative": "Reverse Auctions \u00b7 draft link hidden, participant validation",
+    "test_steps": [
+      {
+        "step": "Click the 'auctions' tab in the admin sidebar",
+        "expected": "Panel renders within 1s; no white screen; ErrorBoundary NOT triggered"
+      },
+      {
+        "step": "Interact with the primary CTA on the panel",
+        "expected": "Backend responds; toast confirms success"
+      }
+    ],
+    "test_ids": [
+      "admin-auctions-panel"
+    ],
+    "image": "13_auctions.png"
+  },
+  {
+    "n": 14,
+    "title": "Admin console \u00b7 Escrow",
+    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=escrow",
+    "narrative": "Escrow \u00b7 joint accounts, dual-signature releases",
+    "test_steps": [
+      {
+        "step": "Click the 'escrow' tab in the admin sidebar",
+        "expected": "Panel renders within 1s; no white screen; ErrorBoundary NOT triggered"
+      },
+      {
+        "step": "Interact with the primary CTA on the panel",
+        "expected": "Backend responds; toast confirms success"
+      }
+    ],
+    "test_ids": [
+      "admin-escrow-panel"
+    ],
+    "image": "14_escrow.png"
+  },
+  {
+    "n": 15,
+    "title": "Admin console \u00b7 Evaluation",
+    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=evaluation",
+    "narrative": "Evaluation \u00b7 rubric + COI cross-check",
+    "test_steps": [
+      {
+        "step": "Click the 'evaluation' tab in the admin sidebar",
+        "expected": "Panel renders within 1s; no white screen; ErrorBoundary NOT triggered"
+      },
+      {
+        "step": "Interact with the primary CTA on the panel",
+        "expected": "Backend responds; toast confirms success"
+      }
+    ],
+    "test_ids": [
+      "admin-evaluation-panel"
+    ],
+    "image": "15_evaluation.png"
+  },
+  {
+    "n": 16,
+    "title": "Admin console \u00b7 Awards",
+    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=awards",
+    "narrative": "Awards & POs \u00b7 Regenerate with confirmation + version log",
+    "test_steps": [
+      {
+        "step": "Click the 'awards' tab in the admin sidebar",
+        "expected": "Panel renders within 1s; no white screen; ErrorBoundary NOT triggered"
+      },
+      {
+        "step": "Interact with the primary CTA on the panel",
+        "expected": "Backend responds; toast confirms success"
+      }
+    ],
+    "test_ids": [
+      "admin-awards-panel"
+    ],
+    "image": "16_awards.png"
+  },
+  {
+    "n": 17,
+    "title": "Admin console \u00b7 Boq",
+    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=boq",
+    "narrative": "BOQ & Contracts \u00b7 export/filter/versions",
+    "test_steps": [
+      {
+        "step": "Click the 'boq' tab in the admin sidebar",
+        "expected": "Panel renders within 1s; no white screen; ErrorBoundary NOT triggered"
+      },
+      {
+        "step": "Interact with the primary CTA on the panel",
+        "expected": "Backend responds; toast confirms success"
+      }
+    ],
+    "test_ids": [
+      "admin-boq-panel"
+    ],
+    "image": "17_boq.png"
+  },
+  {
+    "n": 18,
+    "title": "Admin console \u00b7 Meetings",
+    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=meetings",
+    "narrative": "Meetings \u00b7 notice-ref required OR 'Internal meeting' tick",
+    "test_steps": [
+      {
+        "step": "Click the 'meetings' tab in the admin sidebar",
+        "expected": "Panel renders within 1s; no white screen; ErrorBoundary NOT triggered"
+      },
+      {
+        "step": "Interact with the primary CTA on the panel",
+        "expected": "Backend responds; toast confirms success"
+      }
+    ],
+    "test_ids": [
+      "admin-meetings-panel"
+    ],
+    "image": "18_meetings.png"
+  },
+  {
+    "n": 19,
+    "title": "Admin console \u00b7 L1",
+    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=l1",
+    "narrative": "L1 Comparison \u00b7 lowest-compliant winner + empty-state reasons",
+    "test_steps": [
+      {
+        "step": "Click the 'l1' tab in the admin sidebar",
+        "expected": "Panel renders within 1s; no white screen; ErrorBoundary NOT triggered"
+      },
+      {
+        "step": "Interact with the primary CTA on the panel",
+        "expected": "Backend responds; toast confirms success"
+      }
+    ],
+    "test_ids": [
+      "admin-l1-panel"
+    ],
+    "image": "19_l1.png"
+  },
+  {
+    "n": 20,
+    "title": "Admin console \u00b7 Docusign",
+    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=docusign",
+    "narrative": "DocuSign \u00b7 Envelope Log with is_authoritative flag",
+    "test_steps": [
+      {
+        "step": "Click the 'docusign' tab in the admin sidebar",
+        "expected": "Panel renders within 1s; no white screen; ErrorBoundary NOT triggered"
+      },
+      {
+        "step": "Interact with the primary CTA on the panel",
+        "expected": "Backend responds; toast confirms success"
+      }
+    ],
+    "test_ids": [
+      "admin-docusign-panel"
+    ],
+    "image": "20_docusign.png"
+  },
+  {
+    "n": 21,
+    "title": "Admin console \u00b7 Vendor Intel",
+    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=vendor-intel",
+    "narrative": "Vendor Intel \u00b7 BL/WL legend",
+    "test_steps": [
+      {
+        "step": "Click the 'vendor-intel' tab in the admin sidebar",
+        "expected": "Panel renders within 1s; no white screen; ErrorBoundary NOT triggered"
+      },
+      {
+        "step": "Interact with the primary CTA on the panel",
+        "expected": "Backend responds; toast confirms success"
+      }
+    ],
+    "test_ids": [
+      "admin-vendor-intel-panel"
+    ],
+    "image": "21_vendor-intel.png"
+  },
+  {
+    "n": 22,
+    "title": "Admin console \u00b7 Products",
+    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=products",
+    "narrative": "Product Catalog \u00b7 price-change history",
+    "test_steps": [
+      {
+        "step": "Click the 'products' tab in the admin sidebar",
+        "expected": "Panel renders within 1s; no white screen; ErrorBoundary NOT triggered"
+      },
+      {
+        "step": "Interact with the primary CTA on the panel",
+        "expected": "Backend responds; toast confirms success"
+      }
+    ],
+    "test_ids": [
+      "admin-products-panel"
+    ],
+    "image": "22_products.png"
+  },
+  {
+    "n": 23,
+    "title": "Admin console \u00b7 Engagements",
+    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=engagements",
+    "narrative": "Engagements \u00b7 aging buckets + cancel reason \u22655 chars",
+    "test_steps": [
+      {
+        "step": "Click the 'engagements' tab in the admin sidebar",
+        "expected": "Panel renders within 1s; no white screen; ErrorBoundary NOT triggered"
+      },
+      {
+        "step": "Interact with the primary CTA on the panel",
+        "expected": "Backend responds; toast confirms success"
+      }
+    ],
+    "test_ids": [
+      "admin-engagements-panel"
+    ],
+    "image": "23_engagements.png"
+  },
+  {
+    "n": 24,
+    "title": "Admin console \u00b7 Masters",
+    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=masters",
+    "narrative": "Masters \u00b7 roles + designations",
+    "test_steps": [
+      {
+        "step": "Click the 'masters' tab in the admin sidebar",
+        "expected": "Panel renders within 1s; no white screen; ErrorBoundary NOT triggered"
+      },
+      {
+        "step": "Interact with the primary CTA on the panel",
+        "expected": "Backend responds; toast confirms success"
+      }
+    ],
+    "test_ids": [
+      "admin-masters-panel"
+    ],
+    "image": "24_masters.png"
+  },
+  {
+    "n": 25,
+    "title": "Admin console \u00b7 Permissions",
+    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=permissions",
+    "narrative": "Permissions Matrix \u00b7 tab-level RBAC + G2 effective view",
+    "test_steps": [
+      {
+        "step": "Click the 'permissions' tab in the admin sidebar",
+        "expected": "Panel renders within 1s; no white screen; ErrorBoundary NOT triggered"
+      },
+      {
+        "step": "Interact with the primary CTA on the panel",
+        "expected": "Backend responds; toast confirms success"
+      }
+    ],
+    "test_ids": [
+      "admin-permissions-panel"
+    ],
+    "image": "25_permissions.png"
+  },
+  {
+    "n": 26,
+    "title": "Admin console \u00b7 Audit",
+    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=audit",
+    "narrative": "Audit \u00b7 every substantive action",
+    "test_steps": [
+      {
+        "step": "Click the 'audit' tab in the admin sidebar",
+        "expected": "Panel renders within 1s; no white screen; ErrorBoundary NOT triggered"
+      },
+      {
+        "step": "Interact with the primary CTA on the panel",
+        "expected": "Backend responds; toast confirms success"
+      }
+    ],
+    "test_ids": [
+      "admin-audit-panel"
+    ],
+    "image": "26_audit.png"
+  },
+  {
+    "n": 27,
+    "title": "Admin console \u00b7 Reports",
+    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=reports",
+    "narrative": "Reports \u00b7 Asked-vs-Delivered + flowcharts",
+    "test_steps": [
+      {
+        "step": "Click the 'reports' tab in the admin sidebar",
+        "expected": "Panel renders within 1s; no white screen; ErrorBoundary NOT triggered"
+      },
+      {
+        "step": "Interact with the primary CTA on the panel",
+        "expected": "Backend responds; toast confirms success"
+      }
+    ],
+    "test_ids": [
+      "admin-reports-panel"
+    ],
+    "image": "27_reports.png"
+  },
+  {
+    "n": 28,
+    "title": "Admin console \u00b7 Stakeholder",
+    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=stakeholder",
+    "narrative": "Stakeholder Reports \u00b7 G4 rebuild (Tenders/Awards/Escrow/SLA)",
+    "test_steps": [
+      {
+        "step": "Click the 'stakeholder' tab in the admin sidebar",
+        "expected": "Panel renders within 1s; no white screen; ErrorBoundary NOT triggered"
+      },
+      {
+        "step": "Interact with the primary CTA on the panel",
+        "expected": "Backend responds; toast confirms success"
+      }
+    ],
+    "test_ids": [
+      "admin-stakeholder-panel"
+    ],
+    "image": "28_stakeholder.png"
+  },
+  {
+    "n": 29,
+    "title": "Admin console \u00b7 Help",
+    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=help",
+    "narrative": "Help Requests \u00b7 triage from public form",
+    "test_steps": [
+      {
+        "step": "Click the 'help' tab in the admin sidebar",
+        "expected": "Panel renders within 1s; no white screen; ErrorBoundary NOT triggered"
+      },
+      {
+        "step": "Interact with the primary CTA on the panel",
+        "expected": "Backend responds; toast confirms success"
+      }
+    ],
+    "test_ids": [
+      "admin-help-panel"
+    ],
+    "image": "29_help.png"
+  },
+  {
+    "n": 30,
+    "title": "Admin console \u00b7 Branding",
+    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=branding",
+    "narrative": "Portal Branding \u00b7 logo history + theme colours",
+    "test_steps": [
+      {
+        "step": "Click the 'branding' tab in the admin sidebar",
+        "expected": "Panel renders within 1s; no white screen; ErrorBoundary NOT triggered"
+      },
+      {
+        "step": "Interact with the primary CTA on the panel",
+        "expected": "Backend responds; toast confirms success"
+      }
+    ],
+    "test_ids": [
+      "admin-branding-panel"
+    ],
+    "image": "30_branding.png"
+  },
+  {
+    "n": 31,
+    "title": "Sign out",
+    "url": "post-logout",
+    "narrative": "Confirms the user is back on the public login page and the admin cookie has been cleared.",
+    "test_steps": [
+      {
+        "step": "Click 'Sign out' in the admin header",
+        "expected": "Redirect to /login within 1s; admin cookie cleared"
+      },
+      {
+        "step": "Try to hit /admin directly in the URL bar",
+        "expected": "Bounce back to /login (401 on protected endpoints)"
+      }
+    ],
+    "test_ids": [
+      "admin-logout"
+    ],
+    "image": "31_sign-out-return.png"
+  }
+]
