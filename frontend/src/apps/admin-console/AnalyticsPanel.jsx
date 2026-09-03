@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { analyticsApi, bidApi, formatApiError } from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
+import DashboardDrillCards from "./DashboardDrillCards";
 
 export default function AnalyticsPanel() {
   const { t: tt } = useI18n();
@@ -33,6 +34,7 @@ export default function AnalyticsPanel() {
   const t = data.totals || {};
   return (
     <div data-testid="admin-analytics-panel" className="space-y-6">
+      <DashboardDrillCards />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           [tt("panels.analytics.kpi_published_notices"), t.published_notices, "/" + t.notices],

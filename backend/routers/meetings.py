@@ -104,6 +104,7 @@ class MeetingIn(BaseModel):
     subject: str = Field(min_length=3, max_length=200)
     agenda: Optional[str] = None
     notice_ref: Optional[str] = None
+    is_internal: bool = False   # Bug tracker E2 — internal meetings skip notice_ref
     scheduled_at: str
     duration_min: int = Field(ge=5, le=480, default=45)
     invitees: List[Invitee] = []
@@ -129,6 +130,13 @@ def _jitsi_room_for(mid: str) -> str:
 @router.post("")
 async def create_meeting(payload: MeetingIn,
                           admin=Depends(require_role("admin", "reviewer"))):
+    # Enforce notice_ref unless meeting is explicitly flagged internal.
+    if not payload.is_internal and not (payload.notice_ref or "").strip():
+        raise HTTPException(
+            status_code=400,
+            detail="notice_ref is required unless the meeting is flagged internal "
+                   "(tick 'Internal meeting' to skip).",
+        )
     invitees = []
     for inv in payload.invitees:
         invitees.append({
@@ -141,7 +149,7 @@ async def create_meeting(payload: MeetingIn,
 
     doc = {
         "subject": payload.subject, "agenda": payload.agenda,
-        "notice_ref": payload.notice_ref,
+        "notice_ref": payload.notice_ref, "is_internal": payload.is_internal,
         "scheduled_at": payload.scheduled_at, "duration_min": payload.duration_min,
         "invitees": invitees, "minutes": None,
         "status": "scheduled",

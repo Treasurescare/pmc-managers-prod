@@ -9,7 +9,7 @@ export default function MeetingsPanel() {
   const [showNew, setShowNew] = useState(false);
   const [showInvitees, setShowInvitees] = useState(null); // meeting.id
   const [draft, setDraft] = useState({
-    subject: "", agenda: "", notice_ref: "",
+    subject: "", agenda: "", notice_ref: "", is_internal: false,
     scheduled_at: "", duration_min: 45, provider: "jitsi",
     invitees_text: "",
   });
@@ -46,6 +46,10 @@ export default function MeetingsPanel() {
   const create = async () => {
     if (!draft.subject) { toast.error("Subject required"); return; }
     if (!draft.scheduled_at) { toast.error("Scheduled time required"); return; }
+    if (!draft.is_internal && !draft.notice_ref) {
+      toast.error("Pick a Notice OR tick 'Internal meeting' to skip.");
+      return;
+    }
     const invitees = parseInvitees();
     if (invitees.length === 0) { toast.error("Add at least one invitee"); return; }
     try {
@@ -53,6 +57,7 @@ export default function MeetingsPanel() {
         subject: draft.subject,
         agenda: draft.agenda || undefined,
         notice_ref: draft.notice_ref || undefined,
+        is_internal: !!draft.is_internal,
         scheduled_at: new Date(draft.scheduled_at).toISOString(),
         duration_min: parseInt(draft.duration_min, 10),
         provider: draft.provider,
@@ -62,7 +67,7 @@ export default function MeetingsPanel() {
       toast.success(`${draft.provider === "zoom" ? "Zoom" : "Jitsi"} meeting scheduled · ${invitees.length} invitees`);
       setShowInvitees(res.id);
       setShowNew(false);
-      setDraft({ subject: "", agenda: "", notice_ref: "",
+      setDraft({ subject: "", agenda: "", notice_ref: "", is_internal: false,
                  scheduled_at: "", duration_min: 45, provider: "jitsi", invitees_text: "" });
       load();
     } catch (e) { toast.error(formatApiError(e)); }
@@ -110,14 +115,25 @@ export default function MeetingsPanel() {
             <textarea rows={3} value={draft.agenda} onChange={(e) => setDraft({ ...draft, agenda: e.target.value })}
                       data-testid="mtg-agenda"
                       className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <label><span className="pmc-label">Notice (optional)</span>
-            <select value={draft.notice_ref} onChange={(e) => setDraft({ ...draft, notice_ref: e.target.value })}
-                    className="mt-1 w-full px-4 py-3 border border-brand-navy/20">
-              <option value="">— none —</option>
+          <label><span className="pmc-label">Notice (required unless internal)</span>
+            <select value={draft.notice_ref}
+                    onChange={(e) => setDraft({ ...draft, notice_ref: e.target.value })}
+                    disabled={draft.is_internal}
+                    data-testid="mtg-notice-ref"
+                    className="mt-1 w-full px-4 py-3 border border-brand-navy/20 disabled:bg-brand-navy/5">
+              <option value="">— pick a notice —</option>
               {notices.map((n) => (
                 <option key={n.id} value={n.notice_ref}>{n.notice_ref} — {n.title}</option>
               ))}
-            </select></label>
+            </select>
+            <label className="mt-2 flex items-center gap-2 text-xs text-brand-navy/70">
+              <input type="checkbox" checked={draft.is_internal}
+                     onChange={(e) => setDraft({ ...draft, is_internal: e.target.checked,
+                                                  notice_ref: e.target.checked ? "" : draft.notice_ref })}
+                     data-testid="mtg-is-internal" />
+              Internal meeting (skip notice link)
+            </label>
+          </label>
           <label><span className="pmc-label">Scheduled at</span>
             <input type="datetime-local" value={draft.scheduled_at}
                    onChange={(e) => setDraft({ ...draft, scheduled_at: e.target.value })}
