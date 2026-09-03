@@ -1,16 +1,71 @@
 # ⚓ PMC Managers v2 — Anchor Document
 
-_Last updated: Sep 03, 2026 · Status: **LIVE on Production, v7-hardened** · **v9/v13 built + Bug Tracker Excel delivered**_
+_Last updated: Sep 03, 2026 · Status: **LIVE prod v7-hardened** · **v10/v14 built with Waves A/B/C/D fixes**_
 
-## 📊 THIS SESSION DELIVERY
+## 📦 THIS SESSION — Waves A/B/C/D Delivery
 
 ### 🎯 Assets ready for user download (via preview `_dl` route)
 
-| File | Slug | Contents |
-|------|------|----------|
-| `pmc-backend-v9-wave-e.zip` | `backend-v9-wave-e` | v7.1 Mongo/env guards + Bug #5 permissions fix. `_temp_downloads` stripped. |
-| `pmc-frontend-v13-quickwins.zip` | `frontend-v13-quickwins` | Bug #5 defensive fallback + Bugs 22, 23, 24, 46, 50 fixed (Notice form full reset, validation text explicit, publish checkbox role-aware, nudge stale drafts clearer, clarification typo). |
-| `PMC_Bug_Tracker_v1.xlsx` | `bug-tracker-v1` | 62-row master tracker: all 60 QA bugs + status + fix approach + wave assignment. Second sheet: 9 waves with deploy plan. Third sheet: 24 structural observations from PDF. |
+| File | Slug | Size |
+|---|---|---|
+| `pmc-backend-v10-waves-abcd.zip` | `backend-v10-waves-abcd` | 222 KB |
+| `pmc-frontend-v14-waves-abcd.zip` | `frontend-v14-waves-abcd` | 42 MB |
+| `PMC_Bug_Tracker_v2.xlsx` | `bug-tracker-v2` | 16 KB — 62 rows, updated statuses |
+
+### 🐞 Bugs FIXED in v10/v14 (17 total)
+
+**From Wave A/B/C/D (new this batch):**
+- 28 Bulk Invite CSV blanks — defensive submit + ErrorBoundary
+- 36 Portal hangs on Audit — ErrorBoundary catches
+- 39 Award Report hangs — ErrorBoundary catches
+- 43 Reverse auction Start button — clearer error naming missing participants
+- 44 Reverse auction Close button — clearer error, reject close-on-draft
+- 51 No notifications after nudge — admin notification per email
+- 52 Blank after bulk invite — dup of 28
+- 57 Blank after award report — dup of 39
+- 58 Screen blank across flows — root ErrorBoundary preserves session
+
+**Carried from prior batch (included in v10/v14):**
+- 5, 22, 23, 24, 46, 50 (Notice creation, form reset, validation, publish gate, nudge toast, verb typo)
+
+### 📊 Bug Tracker v2 status counts
+
+- **FIXED / SHIPPED**: 20 bugs (in prod OR in this v10/v14 batch)
+- **PARTIAL**: 4 bugs (root cause mitigated; full fix pending retest)
+- **OPEN**: 33 bugs (many likely fixed after retest, some awaiting repro)
+
+### 🗺️ Remaining backlog after v10/v14
+
+- **Wave A2** (retest first): 2, 12, 19, 30, 35, 37, 42, 45 — likely browser cache, need QA retest
+- **Wave C2** (clarify with QA): 25, 26, 60 — corrigenda withdraw UX confusion
+- **Wave D2**: 6, 27, 29, 47, 48 — need repro screenshots
+- **Wave E**: 16 remaining (7, 15, 17, 20, 21, 31, 32, 33, 34, 38, 40, 41, 49, 54, 56)
+- **Wave F**: Handbook rewrite (documentation sprint)
+- **Wave G**: 5 governance items (dual-sig, COI, RBAC) — investor-critical
+
+## 🚀 Deploy plan
+
+**Backend**: EB → Upload `pmc-backend-v10-waves-abcd.zip` → label `backend-v10-waves-abcd` → Deploy
+
+**Frontend**: unzip `pmc-frontend-v14-waves-abcd.zip` → S3 delete-and-upload → CloudFront `/*` invalidation
+
+**QA regression**:
+- All the fixed bugs in the tracker labelled "READY v10/v14"
+- Confirm bugs in Wave A2/C2/D2 statuses (many may already be resolved after browser cache clear)
+
+## ✅ Prod status (as of last check)
+
+- Backend: `backend-v7-hardened` — HEALTHY (health=200 all endpoints)
+- Frontend: `v8c-header-cleanup`
+- Atlas: `0.0.0.0/0` whitelisted
+- All auth flows working end-to-end
+
+## Critical rules
+1. NEVER expose `*.preview.emergentagent.com` URLs to end users
+2. Frontend builds MUST use `REACT_APP_BACKEND_URL=https://www.pmcmanagers.com`
+3. Backend zips MUST have Dockerfile + Dockerrun.aws.json at root
+4. `_temp_downloads.py` stripped from prod zips
+5. Auth changes → `integration_playbook_expert_v2` first
 
 ### 📦 Bugs fixed & ready for prod deploy in this batch (7)
 

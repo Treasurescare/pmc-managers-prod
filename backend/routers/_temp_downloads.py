@@ -7,15 +7,17 @@ from fastapi.responses import FileResponse, HTMLResponse
 router = APIRouter(prefix="/api/v1/_dl", tags=["temp-downloads"])
 TOKEN = "sVGqLYK9RXjE8UnvXwT-uzDkV5wpdN2GfyAsHIYpQr4"
 ALLOWED = {
-    "backend-v6":              "/app/pmc-backend-v6.zip",
     "backend-v7-hardened":     "/app/pmc-backend-v7-hardened.zip",
     "backend-v7.1-mongo-guard":"/app/pmc-backend-v7.1-mongo-guard.zip",
     "backend-v8-bug5-fix":     "/app/pmc-backend-v8-bug5-fix.zip",
     "backend-v9-wave-e":       "/app/pmc-backend-v9-wave-e.zip",
+    "backend-v10-waves-abcd":  "/app/pmc-backend-v10-waves-abcd.zip",
     "frontend-v11":            "/app/pmc-frontend-v11.zip",
     "frontend-v12-bug5-fix":   "/app/pmc-frontend-v12-bug5-fix.zip",
     "frontend-v13-quickwins":  "/app/pmc-frontend-v13-quickwins.zip",
+    "frontend-v14-waves-abcd": "/app/pmc-frontend-v14-waves-abcd.zip",
     "bug-tracker-v1":          "/app/deliverables/PMC_Bug_Tracker_v1.xlsx",
+    "bug-tracker-v2":          "/app/deliverables/PMC_Bug_Tracker_v2.xlsx",
 }
 
 

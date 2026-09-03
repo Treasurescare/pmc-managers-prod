@@ -2,6 +2,7 @@ import "@/App.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { I18nProvider } from "@/context/I18nContext";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 // App 4 — Public Tender Notice Board
 import NoticeBoardHome from "@/apps/notice-board/NoticeBoardHome";
@@ -55,6 +56,7 @@ import MeetingRoom from "@/apps/shared/MeetingRoom";
 export default function App() {
   return (
     <div className="App">
+      <ErrorBoundary>
       <I18nProvider>
         <BrowserRouter>
           <Toaster richColors position="bottom-right" theme="light" />
@@ -119,6 +121,7 @@ export default function App() {
           </Routes>
         </BrowserRouter>
       </I18nProvider>
+      </ErrorBoundary>
     </div>
   );
 }

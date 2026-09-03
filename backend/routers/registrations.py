@@ -268,6 +268,22 @@ async def admin_send_reminders(admin: dict = Depends(require_role("admin"))) -> 
             {"_id": reg["_id"]},
             {"$set": {"reminder_sent_at": now_iso()}},
         )
+        # Bug #51 — also drop an in-app notification for the admin panel so
+        # ops know the nudge actually reached someone.
+        try:
+            await db.notifications.insert_one({
+                "tenant_id": reg.get("tenant_id") or config.DEFAULT_TENANT_ID,
+                "recipient_role": "admin",
+                "kind": "registration.reminder_sent",
+                "title": "Reminder email sent",
+                "body": f"Nudged {reg.get('email')} — draft is 7+ days old.",
+                "resource_type": "registration",
+                "resource_id": str(reg["_id"]),
+                "created_at": now_iso(),
+                "read": False,
+            })
+        except Exception:
+            pass  # notifications table optional; never break the reminder run
         reminded += 1
 
     await audit_log("registration.reminders_sent", admin, "registration_batch", "reminders",

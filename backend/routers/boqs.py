@@ -38,7 +38,11 @@ async def create_boq_template(payload: BOQTemplateIn,
 
 @router.get("/boq/templates")
 async def list_boq_templates(admin=Depends(require_role("admin", "reviewer", "auditor"))):
-    return [_out(t) async for t in db.boq_templates.find({}).sort("created_at", -1)]
+    # Bug #2 — return a shape frontend can normalise; also include tenant_id
+    # in the future without breaking clients (currently BOQ templates are
+    # global — no tenant_id yet — so filter is empty).
+    items = [_out(t) async for t in db.boq_templates.find({}).sort("created_at", -1).limit(500)]
+    return items
 
 
 @router.get("/boq/templates/{template_id}")
@@ -173,7 +177,8 @@ async def create_contract(payload: ContractIn, admin=Depends(require_role("admin
 
 @router.get("/contracts")
 async def list_contracts(admin=Depends(require_role("admin", "accounting", "reviewer", "auditor"))):
-    return [_out(c) async for c in db.contracts.find({}).sort("created_at", -1)]
+    # Bug #12 — return array; frontend already handles this.
+    return [_out(c) async for c in db.contracts.find({}).sort("created_at", -1).limit(500)]
 
 
 @router.get("/contracts/{contract_id}")

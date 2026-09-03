@@ -248,16 +248,19 @@ async def get_reverse_auction_admin(aid: str, admin=Depends(current_admin)):
 
 @router.post("/{aid}/start")
 async def start_reverse_auction(aid: str, admin=Depends(require_role("admin"))):
+    # Bug #43 — user reported "Start button doesn't work". Root cause: silent
+    # 400 due to <2 registered participants. Now returns a very clear message
+    # naming the specific gate that failed.
     a = await db.reverse_auctions.find_one({"_id": ObjectId(aid)})
     if not a:
         raise HTTPException(status_code=404, detail="Auction not found")
     if a["status"] != "draft":
         raise HTTPException(status_code=400,
-            detail=f"Cannot start — auction is in status '{a['status']}'")
+            detail=f"Cannot start auction — it is already in status '{a['status']}'. Only draft auctions can be started.")
     n = await db.reverse_auction_participants.count_documents({"auction_id": aid})
     if n < 2:
         raise HTTPException(status_code=400,
-            detail="Need at least 2 registered participants to start a reverse auction")
+            detail=f"Cannot start auction — need at least 2 registered participants, currently {n}. Ask vendors to register first via the public link.")
     now = _now()
     end = _end_at_from_duration(now, int(a["duration_minutes"]))
     await db.reverse_auctions.update_one(
@@ -271,11 +274,15 @@ async def start_reverse_auction(aid: str, admin=Depends(require_role("admin"))):
 
 @router.post("/{aid}/close")
 async def close_reverse_auction(aid: str, admin=Depends(require_role("admin"))):
+    # Bug #44 — clearer response so admin knows why nothing changed.
     a = await db.reverse_auctions.find_one({"_id": ObjectId(aid)})
     if not a:
         raise HTTPException(status_code=404, detail="Auction not found")
     if a["status"] == "closed":
-        return {"ok": True, "already_closed": True}
+        return {"ok": True, "already_closed": True, "status": "closed"}
+    if a["status"] == "draft":
+        raise HTTPException(status_code=400,
+            detail="Cannot close a draft auction — it was never started.")
     winner = None
     if a.get("current_leader_id"):
         p = await db.reverse_auction_participants.find_one({

@@ -23,10 +23,16 @@ export default function BulkInviteModal({ open, onClose, onDone }) {
     setRunning(true); setResults(null);
     try {
       const r = await vendorInviteApi.inviteBulk(csvText);
-      setResults(r);
-      toast.success(`Invited ${r.invited} · Skipped ${r.skipped}`);
-      if (r.invited > 0 && onDone) onDone();
-    } catch (e) { toast.error(formatApiError(e)); }
+      setResults(r || { invited: 0, skipped: 0, total: 0, results: [] });
+      toast.success(`Invited ${r?.invited ?? 0} · Skipped ${r?.skipped ?? 0}`);
+      if ((r?.invited ?? 0) > 0 && onDone) onDone();
+    } catch (e) {
+      // Bug #28/52 — never let this handler throw uncaught; blank-screen bug.
+      // Show a friendly toast and preserve the modal state so admin can retry.
+      toast.error(formatApiError(e));
+      setResults({ invited: 0, skipped: 0, total: 0, results: [],
+                   error: e?.response?.data?.detail || e?.message || "Unknown error" });
+    }
     finally { setRunning(false); }
   };
 
