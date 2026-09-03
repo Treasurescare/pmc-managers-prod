@@ -15,6 +15,9 @@ ALLOWED = {
     "bug-tracker-v2":          "/app/deliverables/PMC_Bug_Tracker_v2.xlsx",
     "bug-tracker-v3":          "/app/deliverables/PMC_Bug_Tracker_v3.xlsx",
     "handbook-v3.1":           "/app/deliverables/PMC_Trainee_Handbook_v3.1.md",
+    "bugs-response-xlsx":      "/app/deliverables/PMC_Bugs_Response_v1.xlsx",
+    "bugs-response-docx":      "/app/deliverables/PMC_Bugs_Screenshots_V6_with_Responses.docx",
+    "observations-response":   "/app/deliverables/PMC_Portal_Observations_Response.docx",
 }
 
 
@@ -29,6 +32,10 @@ async def download(token: str, name: str):
     if str(path).endswith(".xlsx"):
         return FileResponse(str(path),
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            filename=path.name)
+    if str(path).endswith(".docx"):
+        return FileResponse(str(path),
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             filename=path.name)
     if str(path).endswith(".md"):
         return FileResponse(str(path), media_type="text/markdown", filename=path.name)
