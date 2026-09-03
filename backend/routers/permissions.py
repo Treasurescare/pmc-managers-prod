@@ -33,6 +33,24 @@ class PermissionRow(BaseModel):
     modify: bool = False
     delete: bool = False
     publish: bool = False
+    # Bucket B — Tab-level RBAC extension. If empty/None, the role's tab
+    # visibility falls back to the DEFAULT_TABS derived from role name. If a
+    # non-empty list is provided, ONLY those tab keys are visible to the role.
+    tabs: Optional[List[str]] = None
+
+
+# Default tab visibility per role — used when no explicit `tabs` set on the row.
+DEFAULT_TABS: dict = {
+    "admin":            ["*"],  # all tabs
+    "reviewer":         ["notices", "registrations", "bids", "escrow", "meetings", "reports"],
+    "auditor":          ["notices", "audit", "reports", "vendor_intel"],
+    "committee_member": ["bids", "evaluations"],
+    "escrow_agent":     ["escrow", "meetings"],
+    "certifier":        ["bids", "evaluations"],
+    "legal_counsel":    ["notices", "bids", "evaluations", "docusign"],
+    "accounting":       ["escrow", "awards", "products", "reports"],
+    "support":          ["help", "vendors", "notices"],
+}
 
 
 class PermissionMatrixIn(BaseModel):
@@ -79,6 +97,20 @@ async def put_matrix(payload: PermissionMatrixIn, admin=Depends(require_role("ad
     await audit_log("permissions.update", admin, "permission_matrix", "notices",
                     {"rows": len(payload.rows)})
     return {"ok": True}
+
+
+@router.get("/tabs/{role}")
+async def get_tabs_for_role(role: str,
+                             admin=Depends(require_role("admin", "auditor", "reviewer"))):
+    """Bucket B — tab-level RBAC.
+    Returns the list of tab keys visible to a given role. If no explicit
+    override is stored, falls back to DEFAULT_TABS."""
+    rows = await _get_matrix()
+    for r in rows:
+        if r.get("role") == role and r.get("tabs"):
+            return {"role": role, "tabs": r["tabs"], "source": "matrix_override"}
+    return {"role": role, "tabs": DEFAULT_TABS.get(role, ["notices"]),
+            "source": "default_tabs"}
 
 
 @router.post("/reset")

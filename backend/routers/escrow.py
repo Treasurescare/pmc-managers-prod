@@ -158,10 +158,31 @@ async def create_account(payload: EscrowAccountIn,
 async def list_accounts(active_only: bool = False,
                           admin=Depends(require_role("admin", "reviewer", "accounting",
                                                       "escrow_agent"))):
+    # Bucket B — aging indicator + SLA flag per account.
+    # SLA_DAYS = configurable per account via `sla_days` field, defaults to 30.
+    from datetime import datetime, timezone
+    def _age_days(iso_str: str) -> int:
+        try:
+            dt = datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
+            return (datetime.now(timezone.utc) - dt).days
+        except Exception:
+            return 0
+
     q = {"active": True} if active_only else {}
     cursor = db.escrow_accounts.find(q).sort("created_at", -1)
-    items = [_out_account(d) async for d in cursor]
-    return {"items": items, "total": len(items)}
+    items = []
+    async for d in cursor:
+        row = _out_account(d)
+        row["age_days"] = _age_days(d.get("created_at") or "")
+        sla_days = d.get("sla_days") or 30
+        row["sla_days"] = sla_days
+        row["sla_breach"] = row["age_days"] > sla_days
+        items.append(row)
+    return {"items": items, "total": len(items),
+            "sla_summary": {
+                "in_sla": sum(1 for r in items if not r["sla_breach"]),
+                "breached": sum(1 for r in items if r["sla_breach"]),
+            }}
 
 
 @router.patch("/accounts/{aid}")

@@ -7,19 +7,18 @@ from fastapi.responses import FileResponse, HTMLResponse
 router = APIRouter(prefix="/api/v1/_dl", tags=["temp-downloads"])
 TOKEN = "sVGqLYK9RXjE8UnvXwT-uzDkV5wpdN2GfyAsHIYpQr4"
 ALLOWED = {
-    "backend-v7-hardened":     "/app/pmc-backend-v7-hardened.zip",
     "backend-v11-final":       "/app/pmc-backend-v11-final.zip",
     "backend-v12-bucketA":     "/app/pmc-backend-v12-bucketA.zip",
+    "backend-v13-bucketB":     "/app/pmc-backend-v13-bucketB.zip",
     "frontend-v15-final":      "/app/pmc-frontend-v15-final.zip",
     "frontend-v16-bucketA":    "/app/pmc-frontend-v16-bucketA.zip",
     "bug-tracker-v3":          "/app/deliverables/PMC_Bug_Tracker_v3.xlsx",
-    "handbook-v3.1":           "/app/deliverables/PMC_Trainee_Handbook_v3.1.md",
+    "observations-tracker":    "/app/deliverables/PMC_Observations_Tracker_v1.xlsx",
+    "observations-response-v2":"/app/deliverables/PMC_Portal_Observations_Response_v2.docx",
     "handbook-v3.1-docx":      "/app/deliverables/PMC_Trainee_Handbook_v3.1.docx",
     "handbook-v3.1-pdf":       "/app/deliverables/PMC_Trainee_Handbook_v3.1.pdf",
     "bugs-response-xlsx":      "/app/deliverables/PMC_Bugs_Response_v1.xlsx",
     "bugs-response-docx":      "/app/deliverables/PMC_Bugs_Screenshots_V6_with_Responses.docx",
-    "observations-response":   "/app/deliverables/PMC_Portal_Observations_Response.docx",
-    "observations-response-v2":"/app/deliverables/PMC_Portal_Observations_Response_v2.docx",
 }
 
 

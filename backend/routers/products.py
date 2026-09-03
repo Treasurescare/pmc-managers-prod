@@ -154,9 +154,30 @@ async def update_product(product_id: str, payload: ProductIn,
     upd = payload.model_dump()
     upd["updated_at"] = now_iso()
     upd["updated_by"] = admin["email"]
-    await db.products.update_one({"_id": ObjectId(product_id)}, {"$set": upd})
+
+    # Bucket B — Price history log. If the price changed, append the previous
+    # value + who/when to a `price_history` array on the product doc so admins
+    # can audit changes over time.
+    old_price = existing.get("price")
+    new_price = upd.get("price")
+    push = {}
+    if old_price is not None and new_price is not None and old_price != new_price:
+        push = {"price_history": {
+            "at": now_iso(),
+            "by": admin.get("email"),
+            "old_price": old_price,
+            "new_price": new_price,
+            "old_currency": existing.get("currency"),
+            "new_currency": upd.get("currency"),
+        }}
+
+    update_ops = {"$set": upd}
+    if push:
+        update_ops["$push"] = push
+    await db.products.update_one({"_id": ObjectId(product_id)}, update_ops)
     await audit_log("product.update", admin, "product", payload.code,
-                    {"name": payload.name})
+                    {"name": payload.name,
+                     "price_changed": bool(push)})
     return _out(await db.products.find_one({"_id": ObjectId(product_id)}))
 
 

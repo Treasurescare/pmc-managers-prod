@@ -1,6 +1,39 @@
 # ⚓ PMC Managers v2 — Anchor Document
 
-_Last updated: Sep 03, 2026 · Status: **v11/v15 LIVE prod · v12/v16 built with Bucket-A observations fixes**_
+_Last updated: Sep 03, 2026 12:35 UTC · Status: **v11/v15 LIVE prod · v12+v13 backend + v16 frontend built for next deploy · Observations tracker delivered**_
+
+## 📦 Latest Delivery — Bucket A + B (backend-heavy) Complete
+
+### 🎯 Zips ready for deploy
+
+| File | Slug | Size |
+|---|---|---|
+| **`pmc-backend-v13-bucketB.zip`** (v12 + Bucket B backend items) | `backend-v13-bucketB` | 223 KB |
+| **`pmc-frontend-v16-bucketA.zip`** (Bucket A UI fixes) | `frontend-v16-bucketA` | 42 MB |
+| **`PMC_Observations_Tracker_v1.xlsx`** (SEPARATE from bug tracker) | `observations-tracker` | 11 KB |
+
+### 🎯 Bucket B backend items shipped in v13 (4 items — verified locally)
+
+1. **Escrow aging + SLA** · `GET /escrow/accounts` now returns per-account `age_days`, `sla_days` (default 30), `sla_breach`, plus tenant-level `sla_summary` counts.  Verified: `age=30d sla=30d breach=False`
+2. **Product price history log** · `PATCH /products/{id}` detects price change, appends `{at, by, old_price, new_price, old_currency, new_currency}` to product's `price_history[]` array
+3. **Tab-level RBAC** · `PermissionRow.tabs: Optional[List[str]]` schema + `DEFAULT_TABS` per role + `GET /permissions/tabs/{role}` endpoint.  Verified: admin=['*'], reviewer=6 tabs, auditor=4 tabs, support=3 tabs, committee_member=2 tabs
+4. **Corrigenda withdraw reason** · already in v12, enforcement doubled up
+
+### 🗂️ Observations Tracker — 30 items × 3 buckets
+
+- 🟢 **Bucket A · Quick wins**: **11 items DELIVERED** (in v11/v12/v13/v15/v16)
+- 🟡 **Bucket B · Multi-week efforts**: **12 items** — backend done in v13 for 4 of them; frontend redesign portion **DEFERRED per user instruction**
+- 🔴 **Bucket C · Product decisions**: **2 items** awaiting user (G4 Stakeholder Reports rename-vs-rebuild · Tender Builder "All kinds" consolidate-vs-keep)
+
+## 🚀 Deploy plan
+Same as before — EB upload backend v13, S3+CloudFront frontend v16.
+
+## Critical rules
+1. NEVER expose `*.preview.emergentagent.com` URLs to end users
+2. Frontend builds MUST use `REACT_APP_BACKEND_URL=https://www.pmcmanagers.com`
+3. Backend zips MUST have Dockerfile + Dockerrun.aws.json at root
+4. `_temp_downloads.py` stripped from prod zips
+5. Auth changes → `integration_playbook_expert_v2` first
 
 ## 📦 Bucket-A Delivery (Sep 03 12:22 UTC)
 
