@@ -15,6 +15,17 @@ ALLOWED = {
     "bug-tracker-v3":          "/app/deliverables/PMC_Bug_Tracker_v3.xlsx",
     "bug-tracker-v4":          "/app/deliverables/PMC_Bug_Tracker_v4.xlsx",
     "bug-tracker-v5":          "/app/deliverables/PMC_Bug_Tracker_v5.xlsx",
+
+    # Process manuals + flowcharts (regenerated on every startup snapshot)
+    "process-flowchart-pdf":   "/app/docs/reports/PMC-v2-Platform-Flowchart.pdf",
+    "process-flowchart-svg":   "/app/docs/reports/PMC-v2-Platform-Flowchart.svg",
+    "user-guide-flowchart-pdf":"/app/docs/reports/PMC-v2-User-Guide-Flowchart.pdf",
+    "user-guide-flowchart-svg":"/app/docs/reports/PMC-v2-User-Guide-Flowchart.svg",
+    "testing-flowchart-pdf":   "/app/docs/reports/PMC-v2-Testing-Flowchart.pdf",
+    "testing-flowchart-svg":   "/app/docs/reports/PMC-v2-Testing-Flowchart.svg",
+    "process-manual-pdf":      "/app/docs/reports/PMC-v2-Asked-vs-Delivered.pdf",
+    "process-manual-docx":     "/app/docs/reports/PMC-v2-Asked-vs-Delivered.docx",
+    "process-manual-xlsx":     "/app/docs/reports/PMC-v2-Asked-vs-Delivered.xlsx",
     "observations-tracker":    "/app/deliverables/PMC_Observations_Tracker_v1.xlsx",
     "observations-response-v2":"/app/deliverables/PMC_Portal_Observations_Response_v2.docx",
     "observations-response-v3":"/app/deliverables/PMC_Portal_Observations_Response_v3.docx",
