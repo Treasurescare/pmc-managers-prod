@@ -107,13 +107,26 @@ async def list_admin_corrigenda(
     return {"notice_ref": notice_ref, "items": items, "total": len(items)}
 
 
+from pydantic import BaseModel, Field
+
+
+class WithdrawReasonIn(BaseModel):
+    reason: str = Field(..., min_length=8, description="Reason required for audit")
+
+
 @router.delete("/{notice_ref}/corrigenda/{cid}")
 async def withdraw_corrigendum(
     notice_ref: str,
     cid: str,
+    reason: str | None = None,
     admin=Depends(require_role("admin")),
 ) -> dict:
-    """Soft-delete — bidders can still see it was published but marked withdrawn."""
+    """Soft-delete — bidders can still see it was published but marked withdrawn.
+    Reason is REQUIRED (≥8 chars) so the audit log carries a rationale.
+    """
+    if not reason or len(reason.strip()) < 8:
+        raise HTTPException(status_code=400,
+            detail="Withdraw reason is required (min 8 characters) — this is recorded in the audit log.")
     try:
         oid = ObjectId(cid)
     except Exception:
@@ -124,10 +137,12 @@ async def withdraw_corrigendum(
     await db.corrigenda.update_one(
         {"_id": oid},
         {"$set": {"is_active": False, "withdrawn_at": now_iso(),
-                  "withdrawn_by": admin.get("email")}},
+                  "withdrawn_by": admin.get("email"),
+                  "withdrawn_reason": reason.strip()}},
     )
     await audit_log("corrigendum.withdraw", admin, "notice", notice_ref,
-                    {"corrigendum_no": c.get("corrigendum_no")})
+                    {"corrigendum_no": c.get("corrigendum_no"),
+                     "reason": reason.strip()})
     return {"ok": True}
 
 

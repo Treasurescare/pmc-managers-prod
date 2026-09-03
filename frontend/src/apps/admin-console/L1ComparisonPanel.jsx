@@ -101,7 +101,22 @@ export default function L1ComparisonPanel() {
               <span className="w-24 text-center">Compliant?</span>
             </div>
             {result.ranked.length === 0 && (
-              <div className="p-6 text-brand-navy/50 text-sm">No eligible bids to rank.</div>
+              <div className="p-8 text-brand-navy/60 text-sm text-center border border-dashed border-brand-navy/20"
+                   data-testid="l1-empty-state">
+                <div className="pmc-label mb-2">No eligible bids to rank</div>
+                <div>
+                  Reasons a bid may be excluded from L1 ranking:
+                </div>
+                <ul className="mt-2 text-xs text-brand-navy/60 space-y-1 max-w-md mx-auto text-left list-disc list-inside">
+                  <li>Technical envelope not scored yet (two-cover gate)</li>
+                  <li>Bid marked non-compliant during evaluation</li>
+                  <li>Vendor withdrew before deadline</li>
+                  <li>Notice status is not 'evaluation_complete' yet</li>
+                </ul>
+                <div className="mt-3 text-[11px] text-brand-navy/50">
+                  Active ranking rule: lowest compliant commercial price wins (L1). Ties broken by earlier submission.
+                </div>
+              </div>
             )}
             {result.ranked.map((r) => (
               <div key={r.bid_id} className={`p-3 border-b border-brand-navy/5 ${!r.compliant ? "bg-amber-50/50" : ""}`}

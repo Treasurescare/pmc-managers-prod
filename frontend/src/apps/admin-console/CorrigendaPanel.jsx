@@ -51,10 +51,17 @@ export default function CorrigendaPanel() {
   };
 
   const withdraw = async (cid) => {
-    if (!window.confirm(t("panels.corrigenda.withdraw_confirm"))) return;
+    // Bug (from PDF v3 observation) — require reason on withdraw, log to audit.
+    const reason = window.prompt(
+      "Reason for withdrawing this corrigendum? (required, min 8 chars — will be logged to audit)"
+    );
+    if (!reason) return;
+    if (reason.trim().length < 8) {
+      return toast.error("Reason must be at least 8 characters — this is recorded in the audit log.");
+    }
     try {
-      await corrigendaApi.withdraw(pickedNoticeRef, cid);
-      toast.success("Withdrawn");
+      await corrigendaApi.withdraw(pickedNoticeRef, cid, reason.trim());
+      toast.success("Withdrawn — audit trail updated.");
       loadCorrigenda(pickedNoticeRef);
     } catch (err) { toast.error(formatApiError(err)); }
   };

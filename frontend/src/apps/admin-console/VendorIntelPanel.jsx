@@ -40,6 +40,12 @@ export default function VendorIntelPanel() {
 
   return (
     <div data-testid="admin-vendor-intel-panel" className="bg-white border">
+      <div className="px-3 py-2 border-b bg-brand-pale text-[11px] text-brand-navy/70 flex flex-wrap gap-x-4 gap-y-1">
+        <span className="pmc-label">Flag legend</span>
+        <span><span className="text-red-600 font-bold">BL</span> = Blacklisted</span>
+        <span><span className="text-amber-600 font-bold">WL</span> = Watch-list (elevated scrutiny)</span>
+        <span className="text-brand-navy/50">· Anonymised entries appear as "—"</span>
+      </div>
       <table className="w-full text-sm">
         <thead className="text-xs text-brand-navy/60 border-b">
           <tr><th className="text-left px-3 py-2">{t("panels.vendor_intel.col_vendor")}</th>

@@ -1,6 +1,63 @@
 # ⚓ PMC Managers v2 — Anchor Document
 
-_Last updated: Sep 03, 2026 · Status: **LIVE prod v7-hardened** · **v11/v15 FINAL built — Waves A–G complete**_
+_Last updated: Sep 03, 2026 · Status: **v11/v15 LIVE prod · v12/v16 built with Bucket-A observations fixes**_
+
+## 📦 Bucket-A Delivery (Sep 03 12:22 UTC)
+
+### 🎯 Assets ready
+
+| File | Slug | Size |
+|---|---|---|
+| `pmc-backend-v12-bucketA.zip` | `backend-v12-bucketA` | 223 KB |
+| `pmc-frontend-v16-bucketA.zip` | `frontend-v16-bucketA` | 42 MB |
+| `PMC_Portal_Observations_Response_v2.docx` | `observations-response-v2` | 39 KB |
+
+### 🐞 Bucket-A observation fixes shipped in v12/v16 (8 items)
+
+1. **Corrigenda withdraw** — requires reason ≥8 chars, logged to audit (backend + frontend prompt)
+2. **Awards Regenerate** — confirmation dialog + response includes `regenerated_at`/`by`; bid record gets `award_regenerations[]` history array; toast shows timestamp+admin
+3. **Registrations list** — submission date now visible next to status
+4. **Bulk Invite CSV** — "Download sample CSV" button + red warning about mid-cycle template replacement
+5. **Vendor Intel** — legend bar (BL=Blacklisted, WL=Watch-list, "—" = anonymised)
+6. **Help Requests** — better empty-state copy (context-aware for open/resolved/all)
+7. **L1 Comparison** — empty state now lists 4 exclusion reasons + active ranking rule
+8. **Portal Observations Response v2** — updated docx explaining which items are Bucket A/B/C
+
+### 🗺️ What's still open + WHY
+
+**Bucket B — Multi-week efforts (deferred to next sprint)** — 10 items:
+- Dashboard AI Anomaly UX redesign
+- Dashboard drill-through navigation
+- Notices search/filter panel
+- Bidding Ops Committee UX overhaul (5+ interconnected changes)
+- Escrow aging/SLA/reconciliation report
+- L1 Comparison export
+- DocuSign Envelope Log
+- Reverse Auctions post-auction summary
+- BOQ Contracts export/filter/version history
+- Masters/Permissions tab-level RBAC + clone role
+- Product Catalog price history log
+- Portal Branding theming (color, favicon, logo history)
+
+**Bucket C — Product decisions needed from user** — 2 items:
+- G4 Stakeholder Reports: rename OR rebuild?
+- Tender Builder "All kinds" view: consolidate 3 tabs OR keep separate?
+
+## ✅ Prod status
+- Backend: `backend-v11-final` deployed by user (with all Wave A-G fixes)
+- Frontend: `frontend-v15-final` deployed by user
+- All prod smoke tests pass (verified via curl)
+- Atlas: `0.0.0.0/0` whitelisted (TEMP — recommend NAT+EIP)
+
+## 🚀 Deploy plan for v12/v16
+Same as before — EB upload for backend, S3+CloudFront for frontend, invalidation `/*`.
+
+## Critical rules
+1. NEVER expose `*.preview.emergentagent.com` URLs to end users
+2. Frontend builds MUST use `REACT_APP_BACKEND_URL=https://www.pmcmanagers.com`
+3. Backend zips MUST have Dockerfile + Dockerrun.aws.json at root
+4. `_temp_downloads.py` stripped from prod zips
+5. Auth changes → `integration_playbook_expert_v2` first
 
 ## 📦 FINAL DELIVERY — Waves A / B / C / D / E / F / G
 

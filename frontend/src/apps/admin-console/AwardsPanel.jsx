@@ -53,10 +53,16 @@ export default function AwardsPanel() {
 
   const regenerate = async () => {
     if (!pickedBidId) return;
+    // Bug #41 — confirmation dialog before regenerating award docs.
+    if (!window.confirm("Regenerate award documents (PO + SLA + Contract)? " +
+                        "This creates a new version and is stamped in the bid's history log. " +
+                        "The vendor may see the updated documents on their next login.")) return;
     setBusy(true);
     try {
       const r = await awardsApi.regenerate(pickedBidId);
-      toast.success(`${t("panels.awards.regenerated")} — ${r.award_ref}`);
+      const when = r.regenerated_at ? new Date(r.regenerated_at).toLocaleString() : "";
+      const by = r.regenerated_by ? ` by ${r.regenerated_by}` : "";
+      toast.success(`${t("panels.awards.regenerated")} — ${r.award_ref}${when ? ` · ${when}${by}` : ""}`);
       loadDocs(pickedBidId);
     } catch (err) { toast.error(formatApiError(err)); }
     finally { setBusy(false); }

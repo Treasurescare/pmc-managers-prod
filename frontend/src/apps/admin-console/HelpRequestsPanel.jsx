@@ -51,8 +51,14 @@ export default function HelpRequestsPanel() {
       </div>
 
       {items.length === 0 && (
-        <div className="text-center py-16 text-brand-navy/50 border border-dashed border-brand-navy/20">
-          No requests in this view.
+        <div className="text-center py-16 text-brand-navy/50 border border-dashed border-brand-navy/20"
+             data-testid="help-empty-state">
+          <div className="pmc-label">No help requests</div>
+          <div className="mt-1 text-sm">
+            {status === "open" ? "There are no open help requests — great, everyone's unblocked."
+             : status === "resolved" ? "No resolved requests in this tenant yet."
+             : "No help requests filed yet."}
+          </div>
         </div>
       )}
 

@@ -58,6 +58,29 @@ export default function BulkInviteModal({ open, onClose, onDone }) {
           <button onClick={close} className="text-slate-400 hover:text-slate-600 text-2xl leading-none"
                   data-testid="bulk-invite-close" aria-label="Close">×</button>
         </div>
+
+        <div className="text-xs bg-brand-pale border border-brand-navy/10 p-3 rounded">
+          <span className="pmc-label">Need a template?</span>
+          <button type="button"
+                  data-testid="bulk-invite-sample-download"
+                  onClick={() => {
+                    const sample = "email,company_name,country,contact_name\n" +
+                                   "vendor1@example.com,Alpha Traders LLC,KZ,Askar Ismailov\n" +
+                                   "vendor2@example.com,Beta Contracts Ltd,GB,Priya Menon\n" +
+                                   "vendor3@example.com,Gamma Industries,IN,Ravi Kumar\n";
+                    const blob = new Blob([sample], { type: "text/csv" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url; a.download = "pmc_vendor_invite_sample.csv"; a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="ml-3 underline text-brand-navy hover:text-brand-navy-deep">
+            Download sample CSV
+          </button>
+          <div className="mt-1 text-brand-navy/60">
+            ⚠️ Replacing the Registration Template while vendors are mid-registration will invalidate their in-progress drafts. Coordinate with QA before switching mid-cycle.
+          </div>
+        </div>
         <textarea
           value={csvText} onChange={(e) => setCsvText(e.target.value)} rows={10}
           data-testid="bulk-invite-csv"

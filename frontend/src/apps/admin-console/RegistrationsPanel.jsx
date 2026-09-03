@@ -79,7 +79,14 @@ export default function RegistrationsPanel() {
               className={"w-full text-left p-4 border-b border-brand-navy/10 hover:bg-brand-navy/5 " + (selected?.id === r.id ? "bg-brand-navy/5" : "")}>
               <div className="text-sm font-semibold text-brand-navy">{r.company_name || "(no company)"}</div>
               <div className="text-xs text-brand-navy/60 mt-1 font-mono">{r.email}</div>
-              <div className="text-[10px] uppercase tracking-widest text-brand-navy-soft mt-1">{r.status}</div>
+              <div className="text-[10px] uppercase tracking-widest text-brand-navy-soft mt-1 flex items-center gap-2">
+                <span>{r.status}</span>
+                {(r.submitted_at || r.created_at) && (
+                  <span className="text-brand-navy/50 normal-case tracking-normal">
+                    · {new Date(r.submitted_at || r.created_at).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
             </button>
           ))}
         </div>

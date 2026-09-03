@@ -334,13 +334,30 @@ async def regenerate_award_docs(
     admin=Depends(require_role("admin")),
 ) -> dict:
     """Manual re-run — useful after an admin edits a bid/notice post-award
-    or if the initial WeasyPrint render failed on any of the three."""
+    or if the initial WeasyPrint render failed on any of the three.
+
+    Bug #41 — response now includes a version stamp so the UI can show
+    'Regenerated at YYYY-MM-DD HH:MM by <admin>' as confirmation.
+    """
     bid = await db.bids.find_one({"_id": ObjectId(bid_id)})
     if not bid:
         raise HTTPException(status_code=404, detail="Bid not found")
     if bid.get("status") != "awarded":
         raise HTTPException(status_code=400, detail="Bid is not in awarded status")
     result = await generate_award_documents(bid_id, admin.get("email"))
+    regenerated_at = now_iso()
+    result["regenerated_at"] = regenerated_at
+    result["regenerated_by"] = admin.get("email")
+    # Also stamp the bid record so future queries can show version history.
+    await db.bids.update_one(
+        {"_id": ObjectId(bid_id)},
+        {"$push": {"award_regenerations": {
+            "at": regenerated_at,
+            "by": admin.get("email"),
+            "award_ref": result.get("award_ref"),
+        }}},
+    )
     await audit_log("award.regenerate", admin, "bid", bid.get("bid_ref"),
-                    {"award_ref": result.get("award_ref")})
+                    {"award_ref": result.get("award_ref"),
+                     "regenerated_at": regenerated_at})
     return result

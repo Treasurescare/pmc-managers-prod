@@ -434,7 +434,7 @@ export const corrigendaApi = {
   listPublic: (ref) => api.get(`/api/v1/notices/${ref}/corrigenda`).then((r) => r.data),
   listAdmin: (ref) => api.get(`/api/v1/notices/${ref}/corrigenda/admin`).then((r) => r.data),
   publish: (ref, body) => api.post(`/api/v1/notices/${ref}/corrigenda`, body).then((r) => r.data),
-  withdraw: (ref, cid) => api.delete(`/api/v1/notices/${ref}/corrigenda/${cid}`).then((r) => r.data),
+  withdraw: (ref, cid, reason) => api.delete(`/api/v1/notices/${ref}/corrigenda/${cid}`, { params: { reason } }).then((r) => r.data),
 };
 
 // ---------- Wave 39: Awards / Post-Award docs ----------
