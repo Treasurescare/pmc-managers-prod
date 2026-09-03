@@ -15,6 +15,8 @@ ALLOWED = {
     "bug-tracker-v2":          "/app/deliverables/PMC_Bug_Tracker_v2.xlsx",
     "bug-tracker-v3":          "/app/deliverables/PMC_Bug_Tracker_v3.xlsx",
     "handbook-v3.1":           "/app/deliverables/PMC_Trainee_Handbook_v3.1.md",
+    "handbook-v3.1-docx":      "/app/deliverables/PMC_Trainee_Handbook_v3.1.docx",
+    "handbook-v3.1-pdf":       "/app/deliverables/PMC_Trainee_Handbook_v3.1.pdf",
     "bugs-response-xlsx":      "/app/deliverables/PMC_Bugs_Response_v1.xlsx",
     "bugs-response-docx":      "/app/deliverables/PMC_Bugs_Screenshots_V6_with_Responses.docx",
     "observations-response":   "/app/deliverables/PMC_Portal_Observations_Response.docx",
@@ -39,6 +41,8 @@ async def download(token: str, name: str):
             filename=path.name)
     if str(path).endswith(".md"):
         return FileResponse(str(path), media_type="text/markdown", filename=path.name)
+    if str(path).endswith(".pdf"):
+        return FileResponse(str(path), media_type="application/pdf", filename=path.name)
     return FileResponse(str(path), media_type="application/zip", filename=path.name)
 
 
