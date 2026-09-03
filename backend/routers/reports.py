@@ -732,33 +732,41 @@ def _testing_flowchart_pdf_bytes() -> bytes:
 def snapshot_to_disk() -> dict:
     """Write all five artefacts into SNAPSHOT_DIR so Git can track them.
 
-    Returns a small manifest the caller can render for the user.
+    Bug tracker #38 — every WeasyPrint call was raising unhandled exceptions on
+    some hosts. We now wrap each artefact independently so one failure doesn't
+    kill the entire snapshot, and any error is surfaced as a JSON `errors[]`
+    list rather than a 500 with an opaque stack trace.
     """
     SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
-    files = {
-        "PMC-v2-Asked-vs-Delivered.xlsx": _build_xlsx(),
-        "PMC-v2-Asked-vs-Delivered.docx": _build_docx(),
-        "PMC-v2-Asked-vs-Delivered.pdf":  _build_pdf(),
-        "PMC-v2-Platform-Flowchart.svg":  _build_flowchart_svg().encode("utf-8"),
-        "PMC-v2-Platform-Flowchart.pdf":  _flowchart_pdf_bytes(),
-        "PMC-v2-User-Guide-Flowchart.svg": _build_user_guide_svg().encode("utf-8"),
-        "PMC-v2-User-Guide-Flowchart.pdf": _user_guide_pdf_bytes(),
-        "PMC-v2-Testing-Flowchart.svg":  _build_testing_flowchart_svg().encode("utf-8"),
-        "PMC-v2-Testing-Flowchart.pdf":  _testing_flowchart_pdf_bytes(),
-    }
-    manifest = []
-    for name, body in files.items():
-        p = SNAPSHOT_DIR / name
-        p.write_bytes(body if isinstance(body, (bytes, bytearray)) else body.encode("utf-8"))
-        manifest.append({"file": name, "bytes": p.stat().st_size,
-                          "path": str(p.relative_to(_Path("/app")))})
+    generators = [
+        ("PMC-v2-Asked-vs-Delivered.xlsx",   _build_xlsx),
+        ("PMC-v2-Asked-vs-Delivered.docx",   _build_docx),
+        ("PMC-v2-Asked-vs-Delivered.pdf",    _build_pdf),
+        ("PMC-v2-Platform-Flowchart.svg",    lambda: _build_flowchart_svg().encode("utf-8")),
+        ("PMC-v2-Platform-Flowchart.pdf",    _flowchart_pdf_bytes),
+        ("PMC-v2-User-Guide-Flowchart.svg",  lambda: _build_user_guide_svg().encode("utf-8")),
+        ("PMC-v2-User-Guide-Flowchart.pdf",  _user_guide_pdf_bytes),
+        ("PMC-v2-Testing-Flowchart.svg",     lambda: _build_testing_flowchart_svg().encode("utf-8")),
+        ("PMC-v2-Testing-Flowchart.pdf",     _testing_flowchart_pdf_bytes),
+    ]
+    manifest, errors = [], []
+    for name, gen in generators:
+        try:
+            body = gen()
+            p = SNAPSHOT_DIR / name
+            p.write_bytes(body if isinstance(body, (bytes, bytearray)) else body.encode("utf-8"))
+            manifest.append({"file": name, "bytes": p.stat().st_size,
+                             "path": str(p.relative_to(_Path("/app")))})
+        except Exception as e:
+            errors.append({"file": name, "error": f"{type(e).__name__}: {e}"})
     (SNAPSHOT_DIR / "GENERATED_AT.txt").write_text(
         f"Snapshot generated at {now_iso()}\n"
         f"Source: /api/v1/reports/snapshot (POST) — see backend/routers/reports.py\n"
     )
     return {"generated_at": now_iso(),
              "dir": str(SNAPSHOT_DIR.relative_to(_Path("/app"))),
-             "files": manifest}
+             "files": manifest, "errors": errors,
+             "ok": len(errors) == 0}
 
 
 @router.post("/snapshot")

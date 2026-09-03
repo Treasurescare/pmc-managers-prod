@@ -15,12 +15,26 @@ export default function RegistrationStatus() {
 
   const check = useCallback(async (tk) => {
     if (!tk) return;
+    if (tk.length < 20) {
+      toast.error("That doesn't look like a valid token — check the email link.");
+      return;
+    }
     setBusy(true);
     try {
       const s = await registrationApi.status(tk);
+      if (!s || !s.status) {
+        toast.error("Token not found or expired. Please request a new resume link.");
+        setStatus(null);
+        return;
+      }
       setStatus(s);
     } catch (err) {
-      toast.error(formatApiError(err));
+      const msg = formatApiError(err);
+      toast.error(
+        /404|not found|invalid|expired/i.test(msg)
+          ? "Token invalid or expired — request a new resume link from support."
+          : msg
+      );
       setStatus(null);
     } finally {
       setBusy(false);

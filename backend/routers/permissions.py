@@ -120,6 +120,58 @@ async def reset_matrix(admin=Depends(require_role("admin"))):
     return {"ok": True, "rows": DEFAULT_MATRIX}
 
 
+@router.get("/effective/{role}")
+async def effective_permissions(role: str,
+                                  admin=Depends(require_role("admin", "auditor", "reviewer"))):
+    """Wave G2 — consolidated access-control for a role.
+
+    Merges the two previously-independent access-control systems into a single
+    payload:
+      * `actions` — from the Permissions Matrix (view/create/modify/delete/publish)
+      * `tabs`    — matrix override OR DEFAULT_TABS fallback
+      * `level`   — hierarchy Level (0=master, 1=reviewer/deputy, 2=operator, 3=viewer)
+
+    Frontend uses this single call to gate everything: menu visibility,
+    button disabled-state and API permission hints.
+    """
+    rows = await _get_matrix()
+    actions = {"view": False, "create": False, "modify": False, "delete": False, "publish": False}
+    matched_row = None
+    for r in rows:
+        if r.get("role") != role:
+            continue
+        matched_row = r
+        for a in actions:
+            if r.get(a):
+                actions[a] = True
+        break
+    # Tab visibility.
+    tabs = (matched_row or {}).get("tabs") or DEFAULT_TABS.get(role, ["notices"])
+    # Hierarchy level mapping — deliberately kept explicit so the source of
+    # truth for G3 is legible to every reviewer.
+    LEVEL_BY_ROLE = {
+        "admin": 0,             # master administrator
+        "reviewer": 1,          # deputy / sub-admin
+        "legal_counsel": 1,
+        "certifier": 2,         # operational specialist
+        "escrow_agent": 2,
+        "accounting": 2,
+        "committee_member": 2,
+        "support": 3,           # read-mostly
+        "auditor": 3,           # read-only
+    }
+    level = LEVEL_BY_ROLE.get(role, 3)
+    return {
+        "role": role,
+        "level": level,
+        "level_label": {0: "master", 1: "deputy", 2: "operator", 3: "viewer"}[level],
+        "tabs": tabs,
+        "actions": actions,
+        "source": "matrix_override" if matched_row and matched_row.get("tabs") else "default_tabs",
+        "generated_at": now_iso(),
+    }
+
+
 async def check_notice_permission(admin: dict, action: PermAction,
                                    document_type: str = "*") -> bool:
     """Returns True if the admin's active role permits `action` on this doc type.

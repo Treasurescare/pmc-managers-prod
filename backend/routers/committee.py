@@ -128,6 +128,11 @@ async def close_committee(payload: CommitteeCloseIn,
         raise HTTPException(status_code=404, detail="Committee not found")
     if c.get("chairperson_id") != admin["id"] and admin.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Only chair or admin can close")
+    # Bucket B — support explicit dissolve action with a required reason.
+    if payload.decision == "dissolved":
+        if not payload.remarks or len(payload.remarks.strip()) < 8:
+            raise HTTPException(status_code=400,
+                detail="A dissolve reason of at least 8 characters is required.")
     updates = {"status": payload.decision, "closed_at": now_iso(),
                "closed_by": admin["id"], "close_remarks": payload.remarks}
     if payload.decision == "closed_awarded":
@@ -145,6 +150,40 @@ async def close_committee(payload: CommitteeCloseIn,
     await db.committees.update_one({"_id": ObjectId(payload.committee_id)}, {"$set": updates})
     await audit_log("committee.close", admin, "committee", payload.committee_id, updates)
     return {"ok": True}
+
+
+@router.post("/{committee_id}/external/{invitee_index}/resend")
+async def resend_external_invite(committee_id: str, invitee_index: int,
+                                  admin=Depends(require_role("admin"))) -> dict:
+    """Resend the accept-decline email for a pending external invitee.
+    Regenerates their accept_token so any older leaked link becomes useless."""
+    import secrets
+    from routers.committee_helpers import dispatch_committee_invites
+
+    c = await db.committees.find_one({"_id": ObjectId(committee_id)})
+    if not c:
+        raise HTTPException(status_code=404, detail="Committee not found")
+    ext = c.get("external_invitees") or []
+    if invitee_index < 0 or invitee_index >= len(ext):
+        raise HTTPException(status_code=404, detail="Invitee not found")
+    inv = ext[invitee_index]
+    if inv.get("status") == "accepted":
+        raise HTTPException(status_code=409, detail="Invitee already accepted")
+    new_token = secrets.token_urlsafe(24)
+    await db.committees.update_one(
+        {"_id": ObjectId(committee_id)},
+        {"$set": {
+            f"external_invitees.{invitee_index}.accept_token": new_token,
+            f"external_invitees.{invitee_index}.status": "invited",
+            f"external_invitees.{invitee_index}.resent_at": now_iso(),
+        }},
+    )
+    notice = await db.notices.find_one({"notice_ref": c["notice_ref"]})
+    fresh_inv = {**inv, "accept_token": new_token, "status": "invited"}
+    dispatch_committee_invites(notice, c["notice_ref"], [fresh_inv])
+    await audit_log("committee.resend_invite", admin, "committee", committee_id,
+                    {"invitee_index": invitee_index, "email": inv.get("email")})
+    return {"ok": True, "resent_to": inv.get("email")}
 
 
 @router.post("/{committee_id}/deadline-close")

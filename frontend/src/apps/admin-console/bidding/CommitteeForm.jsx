@@ -1,10 +1,13 @@
 import { toast } from "sonner";
 
 /**
- * CommitteeForm — extracted from BiddingOpsPanel to reduce complexity.
- * Renders the "Form Committee" editor (notice ref, chair, members, quorum,
- * external invitees). Delegates the actual submit to the parent so the
- * parent still owns reload orchestration.
+ * CommitteeForm v2 — Bucket B UX overhaul.
+ *
+ *  * Members: replaces Ctrl/Cmd multi-select with a clear checkbox grid.
+ *  * Chair : dropdown auto-filtered to CURRENTLY-selected members only.
+ *  * Quorum: capped by number of members with live inline hint.
+ *
+ * Contract with parent is unchanged so BiddingOpsPanel doesn't need to move.
  */
 export default function CommitteeForm({
   comDraft, setComDraft,
@@ -23,6 +26,20 @@ export default function CommitteeForm({
     setComDraft({ ...comDraft, external_invitees: copy });
   };
 
+  const toggleMember = (id, on) => {
+    const set = new Set(comDraft.members);
+    if (on) set.add(id); else set.delete(id);
+    const next = Array.from(set);
+    // Auto-clear chair if it's no longer among selected members.
+    const nextChair = next.includes(comDraft.chair) ? comDraft.chair : "";
+    // Cap quorum to member count.
+    const q = Math.max(1, Math.min(parseInt(comDraft.quorum, 10) || 1, next.length || 1));
+    setComDraft({ ...comDraft, members: next, chair: nextChair, quorum: q });
+  };
+
+  // Chair dropdown = intersection(selected members, admin pool).
+  const chairPool = admins.filter((a) => comDraft.members.includes(a.id));
+
   return (
     <div className="border border-brand-navy-soft/40 bg-white p-6 mb-6 grid gap-3 md:grid-cols-4"
          data-testid="committee-new-form">
@@ -34,40 +51,52 @@ export default function CommitteeForm({
           data-testid="committee-notice-ref" />
       </label>
       <label className="text-sm">
-        <span className="pmc-label">Chairperson</span>
-        <select value={comDraft.chair}
+        <span className="pmc-label">Chairperson (from selected members)</span>
+        <select value={comDraft.chair} disabled={chairPool.length === 0}
           onChange={(e) => setComDraft({ ...comDraft, chair: e.target.value })}
-          className="mt-1 w-full px-3 py-2 border border-brand-navy/20"
+          className="mt-1 w-full px-3 py-2 border border-brand-navy/20 disabled:bg-brand-navy/5"
           data-testid="committee-chair">
-          <option value="">Select…</option>
-          {admins.map((a) => <option key={a.id} value={a.id}>{a.email}</option>)}
+          <option value="">{chairPool.length ? "Select…" : "Tick members below first"}</option>
+          {chairPool.map((a) => <option key={a.id} value={a.id}>{a.email}</option>)}
         </select>
       </label>
       <label className="text-sm">
-        <span className="pmc-label">Quorum</span>
-        <input type="number" min="1" value={comDraft.quorum}
+        <span className="pmc-label">Quorum (≤ {comDraft.members.length || 1})</span>
+        <input type="number" min="1" max={comDraft.members.length || 1} value={comDraft.quorum}
           onChange={(e) => setComDraft({ ...comDraft, quorum: e.target.value })}
+          data-testid="committee-quorum"
           className="mt-1 w-full px-3 py-2 border border-brand-navy/20" />
       </label>
-      <label className="md:col-span-4 text-sm">
-        <span className="pmc-label">Members (hold Ctrl/Cmd to multi-select) · shows designation</span>
-        <select multiple value={comDraft.members}
-          onChange={(e) => setComDraft({
-            ...comDraft,
-            members: Array.from(e.target.selectedOptions, (o) => o.value),
+
+      <div className="md:col-span-4">
+        <div className="pmc-label mb-2">
+          Members ({comDraft.members.length} selected) · tick to include
+        </div>
+        <div className="grid gap-1 md:grid-cols-2 max-h-64 overflow-y-auto border border-brand-navy/10 p-3"
+             data-testid="committee-members-grid">
+          {staffList.map((a) => {
+            const on = comDraft.members.includes(a.id);
+            return (
+              <label key={a.id} data-testid={`committee-member-row-${a.id}`}
+                className={`flex items-start gap-2 p-1.5 text-xs border ${on ? "border-brand-navy bg-brand-navy/5" : "border-transparent hover:bg-brand-navy/5"}`}>
+                <input type="checkbox" checked={on}
+                  onChange={(e) => toggleMember(a.id, e.target.checked)}
+                  data-testid={`committee-member-check-${a.id}`}
+                  className="mt-1"/>
+                <span className="flex-1 min-w-0">
+                  <span className="font-semibold text-brand-navy">{a.email}</span>
+                  <span className="block text-brand-navy/60">
+                    {a.designation || (a.roles || []).join(", ") || "—"}
+                  </span>
+                </span>
+              </label>
+            );
           })}
-          className="mt-1 w-full px-3 py-2 border border-brand-navy/20 h-32"
-          data-testid="committee-members">
-          {staffList.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.email} — {a.designation || (a.roles || []).join(", ")}
-            </option>
-          ))}
-        </select>
-      </label>
+        </div>
+      </div>
 
       <div className="md:col-span-4 border-t border-brand-navy/10 pt-3">
-        <div className="pmc-label">External invitees (optional — will receive email invite with tender & bid summary)</div>
+        <div className="pmc-label">External invitees (optional — will receive email invite with tender &amp; bid summary)</div>
         <div className="grid gap-2 md:grid-cols-4 mt-2">
           <input value={extDraft.name}
                  onChange={(e) => setExtDraft({ ...extDraft, name: e.target.value })}
@@ -105,7 +134,8 @@ export default function CommitteeForm({
       </div>
       <div className="md:col-span-4 flex justify-end">
         <button onClick={onSubmit} data-testid="committee-create-submit"
-          className="px-8 py-3 text-[12px] font-semibold uppercase tracking-widest bg-brand-navy-soft text-white hover:bg-brand-navy-soft/90">
+          disabled={!comDraft.chair || comDraft.members.length === 0}
+          className="px-8 py-3 text-[12px] font-semibold uppercase tracking-widest bg-brand-navy-soft text-white hover:bg-brand-navy-soft/90 disabled:opacity-40 disabled:cursor-not-allowed">
           Form committee
         </button>
       </div>

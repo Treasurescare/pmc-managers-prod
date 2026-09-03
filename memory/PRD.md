@@ -26,12 +26,12 @@ LLM: Emergent LLM Key · Email: Resend · Payments: Stripe (test) · eSignature:
 - Startup diagnostics `[PMC-BOOT]` / `[PMC-DB]` / `[PMC-STARTUP-FATAL]`
 
 **Ready to deploy (in `/app/`)**:
-- `pmc-backend-v16.zip` (392 KB) — LATEST · adds meetings notice-ref enforcement + `is_internal` flag
-- `pmc-frontend-v19.zip` (43 MB) — LATEST · Dashboard drill cards + Meetings 'Internal meeting' toggle
-- `PMC_Bug_Tracker_v4.xlsx` — 63 rows · 40 FIXED / 1 PARTIAL / 22 OPEN
-- `PMC_Trainee_Handbook_v3.2.pdf/docx/md` — 20-chapter full-module rewrite
+- `pmc-backend-v17.zip` (383 KB) — LATEST · Committee UX overhaul + Wave-E2 polish + G2 access-control consolidation
+- `pmc-frontend-v20.zip` (43 MB) — LATEST · Committee checkboxes + edit/dissolve/resend + Tender kind-tab reset + status-token toast
+- `PMC_Bug_Tracker_v5.xlsx` — 66 rows · **48 FIXED (73%)** / 0 partial / 18 open
+- `PMC_Trainee_Handbook_v3.2` (docx + pdf + md) — 20-chapter full-module rewrite
 - `PMC_Portal_Observations_Response_v4.docx` — all closable items marked FIXED
-- Older retained: v15 backend, v18 frontend, v14/v17 zips
+- Older retained: v16 backend, v19 frontend
 
 **Fixes in this v10/v14 batch** (17):
 - Bug 5 (madhavi notice), 22 (form reset), 23 (validation msg), 24 (publish gate), 28 (bulk invite blank), 36 (audit hang — mitigated), 39 (award report hang — mitigated), 43 (auction Start), 44 (auction Close), 46 (nudge toast), 50 (verb typo), 51 (nudge notifications), 52 (dup 28), 57 (dup 39), 58 (blank flows — ErrorBoundary)

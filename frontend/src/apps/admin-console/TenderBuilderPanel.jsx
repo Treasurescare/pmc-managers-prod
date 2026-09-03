@@ -28,6 +28,15 @@ export default function TenderBuilderPanel() {
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
 
+  // Bug 31c — clicking a Kind tab should NOT leak the previous doc into the
+  // right pane. Reset both the selection AND the loaded document.
+  const switchKind = (k) => {
+    setKind(k);
+    setSelectedId(null);
+    setDoc(null);
+    setDirty(false);
+  };
+
   const load = useCallback(async () => {
     try { setList(await tenderTemplateApi.list()); }
     catch (e) { toast.error(formatApiError(e)); }
@@ -212,7 +221,7 @@ export default function TenderBuilderPanel() {
     <div data-testid="tender-builder-panel" className="grid gap-6 lg:grid-cols-[300px_1fr]">
       <TenderSidebar
         t={t}
-        kind={kind} setKind={setKind}
+        kind={kind} setKind={switchKind}
         masters={masters} drafts={drafts} busy={busy}
         selectedId={selectedId}
         cloneMaster={cloneMaster} openTemplate={openTemplate}
