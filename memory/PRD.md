@@ -26,9 +26,10 @@ LLM: Emergent LLM Key · Email: Resend · Payments: Stripe (test) · eSignature:
 - Startup diagnostics `[PMC-BOOT]` / `[PMC-DB]` / `[PMC-STARTUP-FATAL]`
 
 **Ready to deploy (in `/app/`)**:
-- `pmc-backend-v10-waves-abcd.zip` (222 KB)
-- `pmc-frontend-v14-waves-abcd.zip` (42 MB)
-- `PMC_Bug_Tracker_v2.xlsx` (62-row master tracker)
+- `pmc-backend-v14.zip` (314 KB) — latest; includes `/docs/PMC_Portal_Observations_Response_v3.docx`, tracker, handbook
+- `pmc-frontend-v17.zip` (43 MB) — latest; ships refreshed `/downloads/` bundle with v3 doc + tracker + response xlsx
+- `PMC_Portal_Observations_Response_v3.docx` — v3 refresh, all Wave A–D + Bucket A/B fixes marked FIXED (32 rows)
+- Older builds retained: `pmc-backend-v13-bucketB.zip`, `pmc-frontend-v16-bucketA.zip`
 
 **Fixes in this v10/v14 batch** (17):
 - Bug 5 (madhavi notice), 22 (form reset), 23 (validation msg), 24 (publish gate), 28 (bulk invite blank), 36 (audit hang — mitigated), 39 (award report hang — mitigated), 43 (auction Start), 44 (auction Close), 46 (nudge toast), 50 (verb typo), 51 (nudge notifications), 52 (dup 28), 57 (dup 39), 58 (blank flows — ErrorBoundary)

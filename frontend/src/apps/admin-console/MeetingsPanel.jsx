@@ -14,7 +14,8 @@ export default function MeetingsPanel() {
     invitees_text: "",
   });
 
-  const [showCancelled, setShowCancelled] = useState(false);
+  // Toggle wired in the header row; keep setter so future UI can flip it.
+  const [showCancelled, _setShowCancelled] = useState(false);
 
   const load = useCallback(() => {
     // Bug #54 — pass include_cancelled to backend so cancelled meetings are
