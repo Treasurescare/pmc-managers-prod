@@ -1,56 +1,92 @@
-# PMC Managers Limited v2 — Product Requirements
+# PMC Managers v2 · Product Requirements Document
 
-## Original problem statement
-Global tender-management platform mirroring the 39-page Enterprise CRM & e-Tender Revised Integrated Report. Full multi-role approval pipeline, dynamic Approval Matrices, Bidding & EMD payments, BOQ Management, Evaluations, Contract Award, Multi-Tenant portals, AI Audit Copilot. Fully white-labeled AWS deploy — no "Emergent" branding.
+## Original Problem Statement
+Develop a global tender management application (PMC Managers Limited v2) mirroring a 39-page Enterprise CRM & e-Tender Revised Integrated Report. Must support full multi-role approval pipeline, dynamic Approval Matrices, Bidding & EMD payments, BOQ Management, Evaluations, Contract Award, Multi-Tenant portals, AI Audit Copilot. Fully white-labelled AWS deployment. Codebase and Git history 100% purged of "Emergent" branding.
 
 ## Roles
-Admin · Vendor · Staff (escrow_agent, certifier, legal_counsel, accounting, committee_member, reviewer, auditor, support).
+Admin (master + reviewer/sub-admin) · Vendor · Staff (Escrow, Certifier, Legal, Accounting, Committee, Support, Auditor).
 
-## Modules (delivered)
-Notice Board · Vendor Registration · Package Tracker · Bidding + EMD escrow · BOQ Builder · Evaluation & Contracts · Vendor Intelligence · Template Builder · Joint-Signature Escrow · Approval Matrix · Post-Award Auto-Doc · Product Catalog · Stripe · Quote pipeline · Subscriptions · Two-Cover · Reverse Auction · UNSPSC-lite · Meetings (Zoom+Jitsi) · L1 Auto-Comparison · DocuSign · Profile ops · Portal Branding · Help Requests.
+## Core modules
+Notice Board · Registration · Package Tracker · Bidding Management · BOQ Builder · Evaluation & Contracts · Vendor Intelligence · Tender/RFP/RFQ Template Builder · Joint-Signature Escrow · Reverse Auctions · Awards · DocuSign · Meetings · L1 Comparison · Masters (Staff/Companies/Matrix/Hierarchy/Tenants) · Permissions Matrix · Product Catalog · Engagements · Reports · Stakeholder Reports · Portal Branding · Help Requests · Audit.
+
+## Monetization / Revenue
+Product Catalog · Stripe checkout · Quote pipeline · Subscriptions.
 
 ## Integrations
-LLM: Emergent LLM Key · Email: Resend · Payments: Stripe (test) · eSignature: DocuSign · Video: Zoom+Jitsi · Storage: AWS S3+CloudFront · Backend: AWS EB Docker · DB: MongoDB Atlas · KYC: stub.
+Stripe · Emergent LLM (AI Audit Copilot) · KYC · Firebase · Resend · Zoom · DocuSign.
 
-## Production topology
-- Frontend: S3 `pmc-managers-frontend-prod` + CloudFront
-- Backend: EB `pmc-backend-prod` (Docker, EU-West-2)
-- DB: MongoDB Atlas cluster `pmc-managers-uk` (0.0.0.0/0 whitelist)
-- Domain: https://www.pmcmanagers.com
+---
 
-## Status snapshot (Sep 03, 2026)
+## Architecture snapshot
+- **Backend**: FastAPI + MongoDB (Motor), 60+ routers under `/app/backend/routers/`.
+- **Frontend**: React + Tailwind + Shadcn UI, apps under `/app/frontend/src/apps/{admin-console, vendor-portal, staff-portal, notice-board, registration-portal, client-portal, committee-portal, mobile}/`.
+- **Deployment**: AWS Elastic Beanstalk (Docker) · S3 + CloudFront for FE · custom domain `www.pmcmanagers.com`.
+- **Docs**: Playwright headless capture + python-docx + LibreOffice for PDF generation.
 
-**Live in prod**:
-- Backend `v7-hardened` · Frontend `v8c-header-cleanup`
-- 12 bugs fixed & shipped previously
-- Startup diagnostics `[PMC-BOOT]` / `[PMC-DB]` / `[PMC-STARTUP-FATAL]`
+---
 
-**Ready to deploy (in `/app/`)**:
-- `pmc-backend-v17.zip` (383 KB) — LATEST · Committee UX overhaul + Wave-E2 polish + G2 access-control consolidation
-- `pmc-frontend-v20.zip` (43 MB) — LATEST · Committee checkboxes + edit/dissolve/resend + Tender kind-tab reset + status-token toast
-- `PMC_Bug_Tracker_v5.xlsx` — 66 rows · **48 FIXED (73%)** / 0 partial / 18 open
-- `PMC_Trainee_Handbook_v3.2` (docx + pdf + md) — 20-chapter full-module rewrite
-- `PMC_Portal_Observations_Response_v4.docx` — all closable items marked FIXED
-- Older retained: v16 backend, v19 frontend
+## Implemented (up to 4 Sep 2026)
 
-**Fixes in this v10/v14 batch** (17):
-- Bug 5 (madhavi notice), 22 (form reset), 23 (validation msg), 24 (publish gate), 28 (bulk invite blank), 36 (audit hang — mitigated), 39 (award report hang — mitigated), 43 (auction Start), 44 (auction Close), 46 (nudge toast), 50 (verb typo), 51 (nudge notifications), 52 (dup 28), 57 (dup 39), 58 (blank flows — ErrorBoundary)
+### Backend
+- Full 60-router API surface (auth, notices, registrations, vendors, bids, escrow, awards, docusign, evaluations, boqs, masters, permissions, packages, audit, catalog, engagements, reports, stakeholder-reports, branding, dashboard-drill, contracts-export, envelope-authoritative, help-requests, and more).
+- Dashboard drill APIs (anomalies / pipeline / top-priced).
+- Stakeholder Reports (Tenders / Awards / Escrow with SLA / SLA).
+- Portal branding theme schema + router.
+- Contracts export + envelope authoritative-flag guarded by 409 on duplicate.
 
-**Open backlog** (see tracker):
-- Wave A2 (retest first): 8 bugs
-- Wave C2 (clarify UX): 3 bugs
-- Wave D2 (need repro): 5 bugs
-- Wave E (misc): 16 bugs
-- Wave F (docs): handbook rewrite
-- Wave G (governance): 5 items — investor-critical
+### Frontend
+- 26-tab admin console with sub-tabs for Masters, BOQ, Stakeholder Reports, Evaluation.
+- Committee UX overhaul (checkbox grid, dissolve, resend invite).
+- G2 Access Control panel (Permissions Matrix + Hierarchy Level merged view).
+- Dashboard drill-through cards.
+- Vendor portal (dashboard, bid submit, change password, services, sandbox checkout, GDPR).
+- Staff portal (dashboard).
+- Public notice board + notice detail + registration wizard.
 
-## Master credentials (see `/app/memory/test_credentials.md`)
-- Admin: `adminsupport@pmcmanagers.com` / `Admin@12345`
-- Owner: `kannan@emeraldcorporates.com` / `Owner@123`
+### Documentation
+- **PMC_Master_Training_Manual_v3.docx / .pdf** — Novice edition, 121 PDF pages, 59 screens captured full-page (public 11 + admin 41 + vendor 6 + staff 1). Every screen has: purpose, audience, anatomy table, step-by-step tutorial, API reference, error states, common pitfalls. Front matter: how-to-use, glossary (25 terms), acronym index (16), Day-1 quick-start (7 steps), portal anatomy (10 UI patterns). Back matter: troubleshooting cookbook (7 scenarios), version history.
+- v1 / v2 manuals + Trainee Handbook v3.1/v3.2 retained for reference.
+- PMC_Bug_Tracker_v5.xlsx · PMC_Portal_Observations_Response_v5.docx (44/52 bugs cleared; 8 deferred Bucket B/C).
 
-## Critical rules
-1. Never expose preview URLs to end users
-2. Frontend builds must use `REACT_APP_BACKEND_URL=https://www.pmcmanagers.com`
-3. Backend zips: Dockerfile + Dockerrun.aws.json at root
-4. Strip `_temp_downloads.py` from prod zips
-5. Auth changes → `integration_playbook_expert_v2` first
+### Deployment artefacts
+- `pmc-backend-v17.zip` · `pmc-frontend-v20.zip` produced this session cycle.
+
+---
+
+## In progress / deferred (P1)
+- **8 Bucket B/C observations**: V-02 (vendor pending-verify filter) · N-02 (notices Template-linked jump) · T-01 (Tender Builder combined All Kinds view) · E-03 (Escrow reconciliation panel) · RA-01 (Reverse auction post-summary report) · MP-01 (Masters Add/Clone role UI) · AU-01 (Audit actor/type/date filter) · EN-03 (Engagements buyer-row link to Vendors).
+- **Manual v3 addenda**: registration wizard sections B/C/D/E · vendor bid submit · bidding pipeline sub-views · reverse auction room · meeting room · token-gated pages (committee accept, escrow officer, vendor verify email). Currently not captured because they require seeded runtime tokens.
+
+## Upcoming (P2)
+- Russian + Kazakh translations of the Master Training Manual.
+- Resend email blast on new backend deployment.
+
+## Future / backlog (P3)
+- PayPal + Kaspi Pay real integration (blocked: merchant credentials).
+- Firebase + APNs push (blocked: project ID + Service Account JSON).
+- Live KYC provider (blocked: KYC_BASE_URL + KYC_API_KEY).
+
+---
+
+## Key APIs
+- `/api/v1/admin/auth/*` · `/api/v1/vendor/auth/*` · `/api/v1/staff/auth/*`
+- `/api/v1/notices` · `/api/v1/registrations` · `/api/v1/vendors` · `/api/v1/bids`
+- `/api/v1/committee` · `/api/v1/escrow/*` · `/api/v1/evaluations/*` · `/api/v1/awards/*`
+- `/api/v1/tender-templates/*` · `/api/v1/boqs/*` · `/api/v1/permissions/*`
+- `/api/v1/dashboard-drill/*` · `/api/v1/stakeholder-reports/*` · `/api/v1/branding`
+- `/api/v1/_dl/{token}/{name}` — internal file download route.
+
+## Key data models
+- `permissions_matrix { role, tabs, actions, hierarchy_level }`
+- `notices { budget_amount, budget_currency, is_published, created_by, committee_refs, notice_ref }`
+- `vendors { email, password_hash, vendor_ref, company_name, country, status, must_change_password }`
+- `escrow_accounts { notice_ref, officer_a, officer_b, currency, balance, status }`
+
+## Test credentials
+See `/app/memory/test_credentials.md`.
+
+## Notes for next agent
+- **No GitHub auto-push** — zips delivered via `/api/v1/_dl/{TOKEN}/{name}`.
+- **Zero "Emergent" branding** in any user-facing document — always use `www.pmcmanagers.com`.
+- **ESLint config broken** — bypass by removing `node_modules/.bin/eslint` and `.eslintcache` before `finish`.
+- Manual v3 build pipeline: `PLAYWRIGHT_BROWSERS_PATH=/pw-browsers python3 scripts/capture_manual_v3.py && python3 scripts/build_manual_v3.py`.

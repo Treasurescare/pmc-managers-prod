@@ -52,6 +52,8 @@ ALLOWED = {
     "handbook-v3.1-pdf":       "/app/deliverables/PMC_Trainee_Handbook_v3.1.pdf",
     "bugs-response-xlsx":      "/app/deliverables/PMC_Bugs_Response_v1.xlsx",
     "bugs-response-docx":      "/app/deliverables/PMC_Bugs_Screenshots_V6_with_Responses.docx",
+    "master-manual-v3-docx":   "/app/deliverables/PMC_Master_Training_Manual_v3.docx",
+    "master-manual-v3-pdf":    "/app/deliverables/PMC_Master_Training_Manual_v3.pdf",
 }
 
 
