@@ -116,7 +116,12 @@ function EngagementRow({ e, onQuote, onInvoice, onCancel }) {
         <div className="text-xs text-brand-navy/60 font-mono">{e.product_code}</div>
       </td>
       <td className="px-3 py-3 text-xs">
-        <div>{e.buyer_email}</div>
+        {/* EN-03 fix — buyer email is a jump link back to the Vendors master */}
+        <a href={`/admin?tab=vendors&search=${encodeURIComponent(e.buyer_email)}`}
+           data-testid={`engagement-buyer-link-${e.id}`}
+           className="underline decoration-dotted text-brand-navy hover:text-brand-navy-soft">
+          {e.buyer_email}
+        </a>
         {e.buyer_company && <div className="text-brand-navy/60">{e.buyer_company}</div>}
       </td>
       <td className="px-3 py-3 text-center text-sm">{e.quantity}</td>

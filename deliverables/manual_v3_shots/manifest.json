@@ -589,6 +589,133 @@
     "image": "11-mobile-login.png"
   },
   {
+    "slug": "12-registration-resume",
+    "title": "Vendor registration \u00b7 Resume with token",
+    "url": "/register/resume?token=pYafyue0vvTaBAZMq9-2PqBm_Hq0aN-4",
+    "role": "public",
+    "audience": [
+      "Vendor",
+      "Ops"
+    ],
+    "purpose": "Any vendor can resume a draft by pasting the resume-token from the email. This capture uses a seeded draft that has sections A/B/C/D/E prefilled.",
+    "fields": [
+      [
+        "Section stepper",
+        "A \u00b7 Identity \u2192 B \u00b7 Structure \u2192 C \u00b7 Financials \u2192 D \u00b7 Documents \u2192 E \u00b7 References."
+      ],
+      [
+        "Section panels",
+        "Each panel shows the fields you filled last time \u2014 you can edit any."
+      ],
+      [
+        "Submit for review",
+        "Once all sections pass validation, submit for admin review."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/registrations/resume/{token}",
+        "Loads the draft."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "actions": [],
+    "tutorial": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "12-registration-resume.png"
+  },
+  {
+    "slug": "13-escrow-officer-magic",
+    "title": "Escrow officer \u00b7 Magic-link signature",
+    "url": "/escrow/officer/s38VBcn6V6G7dcH0TnnfSgdC8S0dQadp",
+    "role": "public",
+    "audience": [
+      "Escrow"
+    ],
+    "purpose": "Escrow institution officer signs a release/refund without logging into the portal \u2014 a magic-link token authorises exactly one signature.",
+    "fields": [
+      [
+        "Amount",
+        "The amount being signed for."
+      ],
+      [
+        "Sign as officer",
+        "Records the officer's signature. Token becomes single-use."
+      ],
+      [
+        "Reason",
+        "Free text for the ledger."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/escrow/magic/{token}",
+        "Load."
+      ],
+      [
+        "POST",
+        "/api/v1/escrow/magic/{token}/sign",
+        "Sign."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "actions": [],
+    "tutorial": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "13-escrow-officer-magic.png"
+  },
+  {
+    "slug": "14-meeting-room",
+    "title": "Meeting room \u00b7 Join by token",
+    "url": "/meet/c_pol_VUsWMi0Rqhuux9_-iTlc2en7W6",
+    "role": "public",
+    "audience": [
+      "Attendee"
+    ],
+    "purpose": "Public join page for a scheduled meeting. Displays attendee list, Zoom link, and the Accept/Decline CTA.",
+    "fields": [
+      [
+        "Meeting title",
+        "As set by the organiser."
+      ],
+      [
+        "Zoom URL",
+        "One-click join."
+      ],
+      [
+        "Attendees",
+        "Current RSVP status per invitee."
+      ],
+      [
+        "Accept / Decline",
+        "Updates your RSVP."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/meetings/join/{token}",
+        "Loads meeting."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "actions": [],
+    "tutorial": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "14-meeting-room.png"
+  },
+  {
     "slug": "21-admin-analytics",
     "title": "Admin console \u00b7 Analytics dashboard",
     "tab": "analytics",
@@ -2225,6 +2352,264 @@
     "image": "36-admin-vintel.png"
   },
   {
+    "slug": "23b-admin-vendors-status-filter",
+    "title": "Vendors \u00b7 Status filter (V-02 fix)",
+    "tab": "vendors",
+    "role": "admin",
+    "url": "/admin?tab=vendors",
+    "purpose": "Status filter dropdown lets ops jump straight to Pending-verify / Active / Inactive vendor cohorts.",
+    "actions": [
+      [
+        "click",
+        "[data-testid=admin-tab-vendors]",
+        null
+      ],
+      [
+        "click",
+        "[data-testid=vendor-status-filter-pending]",
+        null
+      ]
+    ],
+    "fields": [
+      [
+        "All",
+        "Every vendor."
+      ],
+      [
+        "Pending verify",
+        "email_verified=false \u2014 the onboarding gap."
+      ],
+      [
+        "Active",
+        "email_verified=true AND is_active=true."
+      ],
+      [
+        "Inactive",
+        "is_active=false \u2014 GDPR-redacted or deactivated."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "audience": [],
+    "tutorial": [],
+    "api": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "23b-admin-vendors-status-filter.png"
+  },
+  {
+    "slug": "26a-admin-tender-builder-all",
+    "title": "Tender Builder \u00b7 ALL KINDS view (T-01 fix)",
+    "tab": "tender-builder",
+    "role": "admin",
+    "url": "/admin?tab=tender-builder",
+    "purpose": "Combined view showing tenders + RFPs + RFQs together. Useful for the master library operator.",
+    "actions": [
+      [
+        "click",
+        "[data-testid=admin-tab-tender-builder]",
+        null
+      ],
+      [
+        "click",
+        "[data-testid=tb-kind-all]",
+        null
+      ]
+    ],
+    "fields": [
+      [
+        "ALL KINDS pill",
+        "Toggles the sidebar to show every template regardless of kind."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "audience": [],
+    "tutorial": [],
+    "api": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "26a-admin-tender-builder-all.png"
+  },
+  {
+    "slug": "28a-admin-escrow-reconciliation",
+    "title": "Escrow \u00b7 Reconciliation ledger vs bank (E-03 fix)",
+    "tab": "escrow",
+    "role": "admin",
+    "url": "/admin?tab=escrow",
+    "purpose": "Compares internal ledger balances against last-reported bank statements per joint account. Highlights deltas so operators can chase the escrow institution.",
+    "actions": [
+      [
+        "click",
+        "[data-testid=admin-tab-escrow]",
+        null
+      ],
+      [
+        "sleep",
+        "600",
+        null
+      ]
+    ],
+    "fields": [
+      [
+        "Row",
+        "Account \u00b7 currency \u00b7 ledger balance \u00b7 bank balance \u00b7 delta \u00b7 status pill."
+      ],
+      [
+        "Reconciled pill",
+        "Green \u2014 ledger and bank match to the cent."
+      ],
+      [
+        "Delta pill",
+        "Amber \u2014 a leg was not confirmed by the escrow institution yet."
+      ],
+      [
+        "Pending bank feed",
+        "Grey \u2014 no bank_balance received; reconcile manually."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "audience": [],
+    "tutorial": [],
+    "api": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "28a-admin-escrow-reconciliation.png"
+  },
+  {
+    "slug": "32a-admin-auction-summary",
+    "title": "Reverse auctions \u00b7 Post-auction summary (RA-01 fix)",
+    "tab": "auctions",
+    "role": "admin",
+    "url": "/admin?tab=auctions",
+    "purpose": "'View summary' button on any closed auction expands a summary panel: starting/floor/winning prices + savings percentage + winner + timing.",
+    "actions": [
+      [
+        "click",
+        "[data-testid=admin-tab-auctions]",
+        null
+      ],
+      [
+        "click_first",
+        "[data-testid^=ra-summary-]",
+        null
+      ]
+    ],
+    "fields": [
+      [
+        "Starting / Floor",
+        "Configured at draft time."
+      ],
+      [
+        "Winning bid",
+        "The final downward-bid price the auction closed at."
+      ],
+      [
+        "Savings vs start",
+        "(starting \u2212 winning) / starting \u00d7 100."
+      ],
+      [
+        "Timing",
+        "Duration, anti-snipe, closed timestamp."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "audience": [],
+    "tutorial": [],
+    "api": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "32a-admin-auction-summary.png"
+  },
+  {
+    "slug": "40a-admin-audit-filter",
+    "title": "Audit \u00b7 Filter by actor / type / date (AU-01 fix)",
+    "tab": "audit",
+    "role": "admin",
+    "url": "/admin?tab=audit",
+    "purpose": "Filter bar over the audit ledger \u2014 narrow to a single actor, event type, or date range.",
+    "actions": [
+      [
+        "click",
+        "[data-testid=admin-tab-audit]",
+        null
+      ],
+      [
+        "fill",
+        "[data-testid=audit-filter-actor]",
+        "adminsupport"
+      ],
+      [
+        "sleep",
+        "600",
+        null
+      ]
+    ],
+    "fields": [
+      [
+        "Actor email",
+        "Substring match on actor_email."
+      ],
+      [
+        "Event type",
+        "Substring match on event_type (e.g. 'notice.publish')."
+      ],
+      [
+        "From / To (UTC)",
+        "Date range filter."
+      ],
+      [
+        "Clear",
+        "Resets all four filters."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "audience": [],
+    "tutorial": [],
+    "api": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "40a-admin-audit-filter.png"
+  },
+  {
+    "slug": "42a-admin-engagement-buyer-jump",
+    "title": "Engagements \u00b7 Buyer jump-link (EN-03 fix)",
+    "tab": "engagements",
+    "role": "admin",
+    "url": "/admin?tab=engagements",
+    "purpose": "Every buyer email in the engagement table is a jump-link that opens the Vendors tab pre-filtered by that email.",
+    "actions": [
+      [
+        "click",
+        "[data-testid=admin-tab-engagements]",
+        null
+      ]
+    ],
+    "fields": [
+      [
+        "Buyer email",
+        "Dotted-underline link \u2192 /admin?tab=vendors&search=<email>."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "audience": [],
+    "tutorial": [],
+    "api": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "42a-admin-engagement-buyer-jump.png"
+  },
+  {
     "slug": "37-admin-masters-staff",
     "title": "Admin console \u00b7 Masters \u00b7 Staff",
     "tab": "masters",
@@ -2495,6 +2880,46 @@
     "errors": [],
     "kpis": [],
     "image": "37d-admin-masters-tenants.png"
+  },
+  {
+    "slug": "37e-admin-masters-staff-clone",
+    "title": "Masters \u00b7 Staff \u00b7 Clone role (MP-01 fix)",
+    "tab": "masters",
+    "role": "admin",
+    "url": "/admin?tab=masters",
+    "purpose": "Every staff row has a 'Clone role' button that copies the roles + hierarchy level into the New-staff form.",
+    "actions": [
+      [
+        "click",
+        "[data-testid=admin-tab-masters]",
+        null
+      ],
+      [
+        "click",
+        "[data-testid=masters-tab-staff]",
+        null
+      ],
+      [
+        "sleep",
+        "600",
+        null
+      ]
+    ],
+    "fields": [
+      [
+        "Clone role button",
+        "Copies roles + hierarchy_level of the source row into the new-staff form (email + name + password blank for the operator to fill)."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "audience": [],
+    "tutorial": [],
+    "api": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "37e-admin-masters-staff-clone.png"
   },
   {
     "slug": "38-admin-permissions",
@@ -3297,6 +3722,113 @@
     "errors": [],
     "kpis": [],
     "image": "65-vendor-payment-cancel.png"
+  },
+  {
+    "slug": "66-vendor-bid-submit",
+    "title": "Vendor \u00b7 Submit a bid",
+    "url": "/vendor/bid/new/PMC-NOT-2026-0020",
+    "role": "vendor",
+    "audience": [
+      "Vendor"
+    ],
+    "purpose": "Bid submission form scoped to a single published notice. Captures technical + commercial envelopes and triggers Stripe checkout for the EMD.",
+    "fields": [
+      [
+        "Notice header",
+        "notice_ref \u00b7 title \u00b7 deadline countdown."
+      ],
+      [
+        "Technical envelope",
+        "Upload each required document (from the linked Tender Builder template)."
+      ],
+      [
+        "Commercial envelope",
+        "BOQ line-items or a lump-sum price + currency."
+      ],
+      [
+        "EMD payment",
+        "Fires Stripe checkout with the EMD amount configured on the notice."
+      ],
+      [
+        "Submit bid",
+        "Persists the bid + starts the pipeline at emd_pending."
+      ]
+    ],
+    "api": [
+      [
+        "POST",
+        "/api/v1/bids",
+        "Body {notice_ref, price, currency, docs:[\u2026]}."
+      ],
+      [
+        "POST",
+        "/api/v1/payments/emd-checkout",
+        "Creates Stripe session for the EMD."
+      ]
+    ],
+    "pitfalls": [
+      "Bid cannot be submitted after the notice submission_deadline \u2014 deadline is enforced server-side."
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "actions": [],
+    "tutorial": [],
+    "errors": [],
+    "kpis": [],
+    "image": "66-vendor-bid-submit.png"
+  },
+  {
+    "slug": "67-vendor-auction-room",
+    "title": "Vendor \u00b7 Reverse auction room",
+    "url": "/vendor/auction/RA-MANUAL-0875",
+    "role": "vendor",
+    "audience": [
+      "Vendor"
+    ],
+    "purpose": "Live bidding room for a reverse auction. Real-time price ticker + downward-bid + anti-snipe extensions.",
+    "fields": [
+      [
+        "Current lowest",
+        "Live lowest bid from any participant, updated via WebSocket."
+      ],
+      [
+        "Time remaining",
+        "Countdown to close. Anti-snipe extends by N seconds on last-second bid."
+      ],
+      [
+        "Bid input",
+        "Enter next price \u2264 current \u2212 min_decrement."
+      ],
+      [
+        "Autobid",
+        "Set a floor + step to auto-bid until floor is reached."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/reverse-auctions/{aid}/state",
+        "Current state (public)."
+      ],
+      [
+        "POST",
+        "/api/v1/reverse-auctions/{aid}/bid",
+        "Submit a manual bid."
+      ],
+      [
+        "POST",
+        "/api/v1/reverse-auctions/{aid}/autobid",
+        "Configure autobid."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "actions": [],
+    "tutorial": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "67-vendor-auction-room.png"
   },
   {
     "slug": "70-staff-dashboard",

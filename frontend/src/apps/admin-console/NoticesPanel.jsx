@@ -264,10 +264,13 @@ export default function NoticesPanel() {
             <span className="pmc-pill uppercase text-[10px]">{n.document_type}</span>
             <span className="text-sm font-semibold text-brand-navy flex-1">{n.title}</span>
             {n.tender_template_id && (
-              <span className="text-[10px] uppercase tracking-widest text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5"
-                    data-testid={`notice-template-badge-${n.notice_ref}`}>
-                📐 template linked
-              </span>
+              /* N-02 fix — template badge jumps to Tender Builder for that template */
+              <a href={`/admin?tab=tender-builder&template=${n.tender_template_id}`}
+                 data-testid={`notice-template-badge-${n.notice_ref}`}
+                 title="Open this template in Tender Builder"
+                 className="text-[10px] uppercase tracking-widest text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 hover:bg-purple-100 hover:underline">
+                📐 template linked ↗
+              </a>
             )}
             {n.primary_document && (
               <a href={`${process.env.REACT_APP_BACKEND_URL}${n.primary_document.url}`} target="_blank" rel="noreferrer"

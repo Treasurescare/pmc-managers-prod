@@ -14,7 +14,8 @@ export default function TenderSidebar({
           {t("panels.tender_builder.kind")}
         </div>
         <div className="p-3 flex gap-2 flex-wrap">
-          {["tender", "rfp", "rfq"].map((k) => (
+          {/* T-01 fix — combined "All Kinds" view */}
+          {["all", "tender", "rfp", "rfq"].map((k) => (
             <button
               key={k}
               onClick={() => setKind(k)}
@@ -26,7 +27,7 @@ export default function TenderSidebar({
                   : "border-brand-navy/20 text-brand-navy")
               }
             >
-              {k.toUpperCase()}
+              {k === "all" ? "ALL KINDS" : k.toUpperCase()}
             </button>
           ))}
         </div>

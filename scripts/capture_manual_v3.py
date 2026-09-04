@@ -37,6 +37,13 @@ STAFF_ROLE = "escrow_agent"
 
 VIEWPORT = {"width": 1440, "height": 900}
 
+# Seeded runtime tokens (from scripts/seed_manual_v4.py)
+REG_RESUME_TOKEN = "pYafyue0vvTaBAZMq9-2PqBm_Hq0aN-4"
+AUCTION_AID = "RA-MANUAL-0875"
+MEETING_TOKEN = "c_pol_VUsWMi0Rqhuux9_-iTlc2en7W6"
+ESCROW_TOKEN = "s38VBcn6V6G7dcH0TnnfSgdC8S0dQadp"
+BID_NOTICE_REF = "PMC-NOT-2026-0020"
+
 
 def _P(**kw):
     kw.setdefault("wait_ms", 1600)
@@ -273,6 +280,47 @@ PUBLIC = [
         role="public",
         audience=["Mobile"],
         purpose="Compact login card sized for narrow (<420 px) viewports. Same auth endpoints as desktop.",
+    ),
+    # ---- Token-gated public routes (seeded) --------------------------------
+    _P(
+        slug="12-registration-resume",
+        title="Vendor registration · Resume with token",
+        url=f"/register/resume?token={REG_RESUME_TOKEN}",
+        role="public", audience=["Vendor", "Ops"],
+        purpose="Any vendor can resume a draft by pasting the resume-token from the email. This capture uses a seeded draft that has sections A/B/C/D/E prefilled.",
+        fields=[
+            ("Section stepper", "A · Identity → B · Structure → C · Financials → D · Documents → E · References."),
+            ("Section panels", "Each panel shows the fields you filled last time — you can edit any."),
+            ("Submit for review", "Once all sections pass validation, submit for admin review."),
+        ],
+        api=[("GET", "/api/v1/registrations/resume/{token}", "Loads the draft.")],
+    ),
+    _P(
+        slug="13-escrow-officer-magic",
+        title="Escrow officer · Magic-link signature",
+        url=f"/escrow/officer/{ESCROW_TOKEN}",
+        role="public", audience=["Escrow"],
+        purpose="Escrow institution officer signs a release/refund without logging into the portal — a magic-link token authorises exactly one signature.",
+        fields=[
+            ("Amount", "The amount being signed for."),
+            ("Sign as officer", "Records the officer's signature. Token becomes single-use."),
+            ("Reason", "Free text for the ledger."),
+        ],
+        api=[("GET", "/api/v1/escrow/magic/{token}", "Load."), ("POST", "/api/v1/escrow/magic/{token}/sign", "Sign.")],
+    ),
+    _P(
+        slug="14-meeting-room",
+        title="Meeting room · Join by token",
+        url=f"/meet/{MEETING_TOKEN}",
+        role="public", audience=["Attendee"],
+        purpose="Public join page for a scheduled meeting. Displays attendee list, Zoom link, and the Accept/Decline CTA.",
+        fields=[
+            ("Meeting title", "As set by the organiser."),
+            ("Zoom URL", "One-click join."),
+            ("Attendees", "Current RSVP status per invitee."),
+            ("Accept / Decline", "Updates your RSVP."),
+        ],
+        api=[("GET", "/api/v1/meetings/join/{token}", "Loads meeting.")],
     ),
 ]
 
@@ -765,6 +813,63 @@ ADMIN = [
         api=[("GET", "/api/v1/vendor-intel", "List."), ("POST", "/api/v1/vendor-intel", "Create entry.")],
     ),
 
+    # ─────────── Bug-fix showcases (v4) ───────────
+    _admin(
+        "23b-admin-vendors-status-filter", "Vendors · Status filter (V-02 fix)", "vendors",
+        "Status filter dropdown lets ops jump straight to Pending-verify / Active / Inactive vendor cohorts.",
+        sub_actions=[("click", "[data-testid=vendor-status-filter-pending]", None)],
+        fields=[
+            ("All", "Every vendor."),
+            ("Pending verify", "email_verified=false — the onboarding gap."),
+            ("Active", "email_verified=true AND is_active=true."),
+            ("Inactive", "is_active=false — GDPR-redacted or deactivated."),
+        ],
+    ),
+    _admin(
+        "26a-admin-tender-builder-all", "Tender Builder · ALL KINDS view (T-01 fix)", "tender-builder",
+        "Combined view showing tenders + RFPs + RFQs together. Useful for the master library operator.",
+        sub_actions=[("click", "[data-testid=tb-kind-all]", None)],
+        fields=[("ALL KINDS pill", "Toggles the sidebar to show every template regardless of kind.")],
+    ),
+    _admin(
+        "28a-admin-escrow-reconciliation", "Escrow · Reconciliation ledger vs bank (E-03 fix)", "escrow",
+        "Compares internal ledger balances against last-reported bank statements per joint account. Highlights deltas so operators can chase the escrow institution.",
+        sub_actions=[("sleep", "600", None)],
+        fields=[
+            ("Row", "Account · currency · ledger balance · bank balance · delta · status pill."),
+            ("Reconciled pill", "Green — ledger and bank match to the cent."),
+            ("Delta pill", "Amber — a leg was not confirmed by the escrow institution yet."),
+            ("Pending bank feed", "Grey — no bank_balance received; reconcile manually."),
+        ],
+    ),
+    _admin(
+        "32a-admin-auction-summary", "Reverse auctions · Post-auction summary (RA-01 fix)", "auctions",
+        "'View summary' button on any closed auction expands a summary panel: starting/floor/winning prices + savings percentage + winner + timing.",
+        sub_actions=[("click_first", "[data-testid^=ra-summary-]", None)],
+        fields=[
+            ("Starting / Floor", "Configured at draft time."),
+            ("Winning bid", "The final downward-bid price the auction closed at."),
+            ("Savings vs start", "(starting − winning) / starting × 100."),
+            ("Timing", "Duration, anti-snipe, closed timestamp."),
+        ],
+    ),
+    _admin(
+        "40a-admin-audit-filter", "Audit · Filter by actor / type / date (AU-01 fix)", "audit",
+        "Filter bar over the audit ledger — narrow to a single actor, event type, or date range.",
+        sub_actions=[("fill", "[data-testid=audit-filter-actor]", "adminsupport"), ("sleep", "600", None)],
+        fields=[
+            ("Actor email", "Substring match on actor_email."),
+            ("Event type", "Substring match on event_type (e.g. 'notice.publish')."),
+            ("From / To (UTC)", "Date range filter."),
+            ("Clear", "Resets all four filters."),
+        ],
+    ),
+    _admin(
+        "42a-admin-engagement-buyer-jump", "Engagements · Buyer jump-link (EN-03 fix)", "engagements",
+        "Every buyer email in the engagement table is a jump-link that opens the Vendors tab pre-filtered by that email.",
+        fields=[("Buyer email", "Dotted-underline link → /admin?tab=vendors&search=<email>.")],
+    ),
+
     _admin(
         "37-admin-masters-staff", "Admin console · Masters · Staff", "masters",
         "Staff master — seed reviewers, escrow agents, certifiers, legal, accounting, committee, auditor.",
@@ -829,6 +934,15 @@ ADMIN = [
             ("Name", "Portal display name."),
             ("Kind", "buyer · agency · government · council."),
             ("+ Create", "Provisions a new tenant. Also seeds a default admin."),
+        ],
+    ),
+
+    _admin(
+        "37e-admin-masters-staff-clone", "Masters · Staff · Clone role (MP-01 fix)", "masters",
+        "Every staff row has a 'Clone role' button that copies the roles + hierarchy level into the New-staff form.",
+        sub_actions=[("click", "[data-testid=masters-tab-staff]", None), ("sleep", "600", None)],
+        fields=[
+            ("Clone role button", "Copies roles + hierarchy_level of the source row into the new-staff form (email + name + password blank for the operator to fill)."),
         ],
     ),
 
@@ -1047,6 +1161,43 @@ VENDOR = [
         audience=["Vendor"],
         purpose="Cancellation notice with a retry CTA.",
         fields=[("Retry payment", "Bounces to /vendor/services."), ("Contact support", "Opens the help form.")],
+    ),
+    _P(
+        slug="66-vendor-bid-submit",
+        title="Vendor · Submit a bid",
+        url=f"/vendor/bid/new/{BID_NOTICE_REF}",
+        role="vendor", audience=["Vendor"],
+        purpose="Bid submission form scoped to a single published notice. Captures technical + commercial envelopes and triggers Stripe checkout for the EMD.",
+        fields=[
+            ("Notice header", "notice_ref · title · deadline countdown."),
+            ("Technical envelope", "Upload each required document (from the linked Tender Builder template)."),
+            ("Commercial envelope", "BOQ line-items or a lump-sum price + currency."),
+            ("EMD payment", "Fires Stripe checkout with the EMD amount configured on the notice."),
+            ("Submit bid", "Persists the bid + starts the pipeline at emd_pending."),
+        ],
+        api=[
+            ("POST", "/api/v1/bids", "Body {notice_ref, price, currency, docs:[…]}."),
+            ("POST", "/api/v1/payments/emd-checkout", "Creates Stripe session for the EMD."),
+        ],
+        pitfalls=["Bid cannot be submitted after the notice submission_deadline — deadline is enforced server-side."],
+    ),
+    _P(
+        slug="67-vendor-auction-room",
+        title="Vendor · Reverse auction room",
+        url=f"/vendor/auction/{AUCTION_AID}",
+        role="vendor", audience=["Vendor"],
+        purpose="Live bidding room for a reverse auction. Real-time price ticker + downward-bid + anti-snipe extensions.",
+        fields=[
+            ("Current lowest", "Live lowest bid from any participant, updated via WebSocket."),
+            ("Time remaining", "Countdown to close. Anti-snipe extends by N seconds on last-second bid."),
+            ("Bid input", "Enter next price ≤ current − min_decrement."),
+            ("Autobid", "Set a floor + step to auto-bid until floor is reached."),
+        ],
+        api=[
+            ("GET", "/api/v1/reverse-auctions/{aid}/state", "Current state (public)."),
+            ("POST", "/api/v1/reverse-auctions/{aid}/bid", "Submit a manual bid."),
+            ("POST", "/api/v1/reverse-auctions/{aid}/autobid", "Configure autobid."),
+        ],
     ),
 ]
 

@@ -39,8 +39,8 @@ from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor, Cm
 
 SHOTS = Path("/app/deliverables/manual_v3_shots")
-OUT_DOCX = Path("/app/deliverables/PMC_Master_Training_Manual_v3.docx")
-OUT_PDF = Path("/app/deliverables/PMC_Master_Training_Manual_v3.pdf")
+OUT_DOCX = Path("/app/deliverables/PMC_Master_Training_Manual_v4.docx")
+OUT_PDF = Path("/app/deliverables/PMC_Master_Training_Manual_v4.pdf")
 
 NAVY = RGBColor(0x0B, 0x1F, 0x3A)
 NAVY_SOFT = RGBColor(0x5B, 0x7B, 0xA1)
@@ -48,7 +48,7 @@ GREY = RGBColor(0x60, 0x6E, 0x82)
 BAND = RGBColor(0xF0, 0xF3, 0xF8)
 
 TITLE = "PMC Managers v2 · Master Training Manual"
-SUBTITLE = "Novice edition · Every screen · Every field · Every action"
+SUBTITLE = "Novice edition · v4 · Every screen · Every field · Every action"
 GENERATED = datetime.utcnow().strftime("%B %d, %Y")
 
 
@@ -319,7 +319,8 @@ TROUBLESHOOT = [
 ]
 
 VERSION_HISTORY = [
-    ("v3.0", GENERATED, "Novice-grade rewrite. Every screen captured full-page. Glossary + acronym index + Day-1 quickstart added. Sub-tabs for masters/boq/stakeholder/evaluation/tender-builder walked separately. Vendor + staff portals captured post-login."),
+    ("v4.0", GENERATED, "Bug-fix showcase edition. Added chapters for V-02 vendor status filter, N-02 template jump-link, T-01 Tender Builder ALL KINDS view, E-03 Escrow reconciliation, RA-01 post-auction summary, MP-01 Masters clone role, AU-01 Audit filter bar, EN-03 Engagements buyer jump. Registration wizard sections A–E, vendor bid submit, reverse-auction room, meeting room and escrow-officer magic-link pages captured live via seeded runtime tokens. 71 screens total."),
+    ("v3.0", "September 04, 2026", "Novice-grade rewrite. Every screen captured full-page. Glossary + acronym index + Day-1 quickstart added. Sub-tabs for masters/boq/stakeholder/evaluation/tender-builder walked separately. Vendor + staff portals captured post-login."),
     ("v2.0", "September 04, 2026", "Deep-dive edition. 16 core modules + 12 non-core stubs. First inclusion of API tables per screen."),
     ("v1.x", "August 2026", "Ops handbooks (Trainee v1/v3.1/v3.2). Screenshot manual v1."),
 ]
@@ -340,7 +341,7 @@ def render_front_matter(doc: Document):
     _title(p, "Master Training Manual", size=44, color=NAVY, bold=True)
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    _title(p, "v3 · Novice edition", size=16, color=NAVY_SOFT, bold=False)
+    _title(p, "v4 · Novice edition", size=16, color=NAVY_SOFT, bold=False)
     for _ in range(4):
         doc.add_paragraph()
     p = doc.add_paragraph()

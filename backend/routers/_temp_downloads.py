@@ -54,6 +54,10 @@ ALLOWED = {
     "bugs-response-docx":      "/app/deliverables/PMC_Bugs_Screenshots_V6_with_Responses.docx",
     "master-manual-v3-docx":   "/app/deliverables/PMC_Master_Training_Manual_v3.docx",
     "master-manual-v3-pdf":    "/app/deliverables/PMC_Master_Training_Manual_v3.pdf",
+    "master-manual-v4-docx":   "/app/deliverables/PMC_Master_Training_Manual_v4.docx",
+    "master-manual-v4-pdf":    "/app/deliverables/PMC_Master_Training_Manual_v4.pdf",
+    "pmc-backend-v18":         "/app/deliverables/pmc-backend-v18.zip",
+    "pmc-frontend-v21":        "/app/deliverables/pmc-frontend-v21.zip",
 }
 
 

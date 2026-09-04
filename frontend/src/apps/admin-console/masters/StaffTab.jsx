@@ -12,6 +12,16 @@ export default function StaffTab({
   staff, showStaffNew, setShowStaffNew,
   staffDraft, setStaffDraft, onCreate, onToggleRole,
 }) {
+  // MP-01 fix — clone an existing staff member's role setup into the new-staff form
+  const cloneFrom = (s) => {
+    setStaffDraft({
+      email: "", name: "", password: "",
+      roles: [...(s.roles || (s.role ? [s.role] : ["reviewer"]))],
+      hierarchy_level: s.hierarchy_level || 3,
+    });
+    setShowStaffNew(true);
+    window?.scrollTo?.({ top: 0, behavior: "smooth" });
+  };
   return (
     <>
       <div className="flex justify-between mb-4">
@@ -61,7 +71,8 @@ export default function StaffTab({
           <thead className="text-xs text-brand-navy/60 border-b">
             <tr><th className="text-left px-3 py-2">Email</th><th className="text-left px-3 py-2">Name</th>
               <th className="text-left px-3 py-2">Roles</th><th className="text-center px-3 py-2">Level</th>
-              <th className="text-center px-3 py-2">Active</th></tr>
+              <th className="text-center px-3 py-2">Active</th>
+              <th className="text-center px-3 py-2">Clone</th></tr>
           </thead>
           <tbody>
             {staff.map((s) => (
@@ -71,6 +82,14 @@ export default function StaffTab({
                 <td className="px-3 py-2 text-xs">{(s.roles || [s.role]).join(", ")}</td>
                 <td className="px-3 py-2 text-center">{s.hierarchy_level}</td>
                 <td className="px-3 py-2 text-center">{s.is_active !== false ? "✓" : "×"}</td>
+                {/* MP-01 fix — clone this role setup */}
+                <td className="px-3 py-2 text-center">
+                  <button type="button" onClick={() => cloneFrom(s)}
+                          data-testid={`staff-clone-${s.email}`}
+                          className="text-[10px] uppercase tracking-widest px-2 py-1 border border-brand-navy/20 text-brand-navy hover:bg-brand-navy hover:text-white">
+                    Clone role
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>

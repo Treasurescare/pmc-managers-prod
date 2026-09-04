@@ -9,6 +9,7 @@ export default function LiveAuctionsPanel() {
   const [items, setItems] = useState([]);
   const [notices, setNotices] = useState([]);
   const [showNew, setShowNew] = useState(false);
+  const [summaryFor, setSummaryFor] = useState(null);  // RA-01 fix
   const [draft, setDraft] = useState({
     notice_ref: "", title: "", currency: "USD",
     starting_price: 1000000, floor_price: 800000,
@@ -186,7 +187,36 @@ export default function LiveAuctionsPanel() {
                     {t("panels.live_auctions.winner_prefix")} {a.winner.alias} · {a.currency} {a.winner.winning_price?.toLocaleString()}
                   </span>
                 )}
+                {/* RA-01 fix — post-auction summary report */}
+                {a.status === "closed" && (
+                  <button type="button" onClick={() => setSummaryFor(summaryFor === a.id ? null : a.id)}
+                          data-testid={`ra-summary-${a.id}`}
+                          className="text-[10px] uppercase tracking-widest px-3 py-1 border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white">
+                    {summaryFor === a.id ? "Hide summary" : "View summary"}
+                  </button>
+                )}
               </div>
+              {a.status === "closed" && summaryFor === a.id && (
+                <div className="mt-3 border-t border-brand-navy/10 pt-3 grid gap-3 md:grid-cols-4 text-xs"
+                     data-testid={`ra-summary-panel-${a.id}`}>
+                  <div><div className="pmc-label">Starting</div><div className="font-mono">{a.currency} {a.starting_price?.toLocaleString()}</div></div>
+                  <div><div className="pmc-label">Floor</div><div className="font-mono">{a.currency} {a.floor_price?.toLocaleString()}</div></div>
+                  <div><div className="pmc-label">Winning bid</div><div className="font-mono text-emerald-800">{a.currency} {(a.winner?.winning_price ?? "—").toLocaleString?.() ?? "—"}</div></div>
+                  <div><div className="pmc-label">Savings vs start</div><div className="font-mono">
+                    {a.winner?.winning_price
+                      ? `${(((a.starting_price - a.winner.winning_price) / a.starting_price) * 100).toFixed(1)}%`
+                      : "—"}
+                  </div></div>
+                  <div className="md:col-span-4"><div className="pmc-label mb-1">Winner</div>
+                    <div>{a.winner ? `${a.winner.alias} — awarded at ${a.winner.winning_price?.toLocaleString()} ${a.currency}` : "No participants"}</div>
+                  </div>
+                  <div className="md:col-span-4"><div className="pmc-label mb-1">Timing</div>
+                    <div className="text-brand-navy/70">
+                      Duration {a.duration_minutes} min · anti-snipe {a.anti_snipe_seconds}s · closed {a.closed_at?.slice(0, 19).replace("T", " ") || "—"} UTC
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}

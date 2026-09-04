@@ -7,12 +7,22 @@ export default function AuditPanel() {
   const { t } = useI18n();
   const [events, setEvents] = useState([]);
   const [verifyResult, setVerifyResult] = useState(null);
+  // AU-01 fix — filter bar
+  const [flt, setFlt] = useState({ actor: "", type: "", from: "", to: "" });
 
   useEffect(() => {
     adminApi.audit({ limit: 100 })
       .then(setEvents)
       .catch((err) => console.warn("Failed to load audit events:", err));
   }, []);
+
+  const filtered = events.filter((e) => {
+    if (flt.actor && !(e.actor_email || "").toLowerCase().includes(flt.actor.toLowerCase())) return false;
+    if (flt.type && !(e.event_type || "").toLowerCase().includes(flt.type.toLowerCase())) return false;
+    if (flt.from && e.at && e.at < flt.from) return false;
+    if (flt.to && e.at && e.at > flt.to + "T23:59:59Z") return false;
+    return true;
+  });
 
   const verify = async () => {
     try { setVerifyResult(await adminApi.verifyAudit()); }
@@ -33,6 +43,36 @@ export default function AuditPanel() {
             : <>{t("panels.audit.chain_broken_at")} #{verifyResult.at_seq} — {verifyResult.reason}</>}
         </div>
       )}
+      {/* AU-01 fix — filter bar: actor / type / date range */}
+      <div className="border border-brand-navy/10 bg-white p-3 mb-3 grid gap-2 md:grid-cols-5 items-end" data-testid="audit-filter-bar">
+        <label className="text-xs"><div className="pmc-label mb-1">Actor email</div>
+          <input value={flt.actor} onChange={(e) => setFlt({ ...flt, actor: e.target.value })}
+                 data-testid="audit-filter-actor"
+                 placeholder="e.g. adminsupport@…"
+                 className="w-full px-3 py-2 border border-brand-navy/20 text-sm"/></label>
+        <label className="text-xs"><div className="pmc-label mb-1">Event type</div>
+          <input value={flt.type} onChange={(e) => setFlt({ ...flt, type: e.target.value })}
+                 data-testid="audit-filter-type"
+                 placeholder="e.g. notice.publish"
+                 className="w-full px-3 py-2 border border-brand-navy/20 text-sm"/></label>
+        <label className="text-xs"><div className="pmc-label mb-1">From (UTC)</div>
+          <input type="date" value={flt.from} onChange={(e) => setFlt({ ...flt, from: e.target.value })}
+                 data-testid="audit-filter-from"
+                 className="w-full px-3 py-2 border border-brand-navy/20 text-sm"/></label>
+        <label className="text-xs"><div className="pmc-label mb-1">To (UTC)</div>
+          <input type="date" value={flt.to} onChange={(e) => setFlt({ ...flt, to: e.target.value })}
+                 data-testid="audit-filter-to"
+                 className="w-full px-3 py-2 border border-brand-navy/20 text-sm"/></label>
+        <button type="button" onClick={() => setFlt({ actor: "", type: "", from: "", to: "" })}
+                data-testid="audit-filter-clear"
+                className="px-3 py-2 text-[11px] uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5">
+          Clear
+        </button>
+        <div className="md:col-span-5 text-[11px] text-brand-navy/50">
+          Showing {filtered.length} of {events.length} events.
+        </div>
+      </div>
+
       <div className="border border-brand-navy/10 bg-white overflow-x-auto">
         <table className="pmc-table w-full text-sm">
           <thead>
@@ -41,7 +81,7 @@ export default function AuditPanel() {
             </tr>
           </thead>
           <tbody>
-            {events.map((e) => (
+            {filtered.map((e) => (
               <tr key={e.id} className="border-t border-brand-navy/10" data-testid={`audit-row-${e.seq}`}>
                 <td className="px-4 py-2 font-mono">{e.seq}</td>
                 <td className="px-4 py-2">{e.event_type}</td>

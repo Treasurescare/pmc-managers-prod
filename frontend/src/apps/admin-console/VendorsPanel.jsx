@@ -20,6 +20,7 @@ export default function VendorsPanel() {
   const [loadingKpi, setLoadingKpi] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [showBulk, setShowBulk] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all");  // V-02 fix
   const [inviteDraft, setInviteDraft] = useState({ email: "", company_name: "", country: "KZ", contact_name: "" });
   const [templateMeta, setTemplateMeta] = useState({ available: false });
 
@@ -150,13 +151,36 @@ export default function VendorsPanel() {
             data-testid="vendor-search"
             className="w-full px-4 py-2 border border-brand-navy/20 focus:outline-none focus:border-brand-navy-soft text-brand-navy bg-white text-sm mb-3"
           />
+          {/* V-02 fix — filter dropdown: all / pending-verify / active / inactive */}
+          <div className="flex gap-2 items-center mb-3 text-xs text-brand-navy/70" data-testid="vendor-status-filter-bar">
+            <span className="pmc-label">Status</span>
+            {[
+              ["all", "All"],
+              ["pending", "Pending verify"],
+              ["active", "Active"],
+              ["inactive", "Inactive"],
+            ].map(([k, l]) => (
+              <button key={k} type="button" onClick={() => setStatusFilter(k)}
+                data-testid={`vendor-status-filter-${k}`}
+                className={`px-3 py-1 border text-[11px] uppercase tracking-widest ${statusFilter === k ? "bg-brand-navy text-white border-brand-navy" : "border-brand-navy/20 text-brand-navy/70 hover:border-brand-navy"}`}>
+                {l}
+              </button>
+            ))}
+          </div>
           <div className="border border-brand-navy/10 bg-white">
             {vendors.length === 0 && (
               <div className="p-6 text-brand-navy/50 text-sm">
                 No vendors yet. Invite one above or approve a registration.
               </div>
             )}
-            {vendors.map((v) => (
+            {vendors
+              .filter((v) => {
+                if (statusFilter === "pending") return v.email_verified === false;
+                if (statusFilter === "active") return v.email_verified !== false && v.is_active !== false;
+                if (statusFilter === "inactive") return v.is_active === false;
+                return true;
+              })
+              .map((v) => (
               <button
                 key={v.id}
                 type="button"
