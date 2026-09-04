@@ -62,6 +62,7 @@ ALLOWED = {
     "pmc-frontend-v21-build":  "/app/deliverables/pmc-frontend-v21-build.zip",
     "bug-tracker-v6":          "/app/deliverables/PMC_Bug_Tracker_v6.xlsx",
     "observations-response-v6":"/app/deliverables/PMC_Portal_Observations_Response_v6.docx",
+    "verify-prod-sh":          "/app/deliverables/verify_prod.sh",
 }
 
 
