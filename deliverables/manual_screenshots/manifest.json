@@ -2,7 +2,7 @@
   {
     "n": 1,
     "title": "Public landing page",
-    "url": "https://tender-hub-57.preview.emergentagent.com/",
+    "url": "https://www.pmcmanagers.com/",
     "wait": 1200,
     "narrative": "Anyone who lands on the portal domain sees the tender-hub marketing page: brand identity, the four service lanes, and the top-right Sign in / Register CTAs.",
     "test_steps": [
@@ -26,7 +26,7 @@
   {
     "n": 2,
     "title": "Public tender board",
-    "url": "https://tender-hub-57.preview.emergentagent.com/notices",
+    "url": "https://www.pmcmanagers.com/notices",
     "wait": 1500,
     "narrative": "Public list of every published tender/RFP/RFQ across all tenants of the portal.",
     "test_steps": [
@@ -47,7 +47,7 @@
   {
     "n": 3,
     "title": "Vendor registration \u2014 start",
-    "url": "https://tender-hub-57.preview.emergentagent.com/register",
+    "url": "https://www.pmcmanagers.com/register",
     "wait": 1500,
     "narrative": "Section A (Identity) is the entry point. As soon as the vendor picks a file for any slot, a silent draft is created so nothing is lost.",
     "test_steps": [
@@ -69,7 +69,7 @@
   {
     "n": 4,
     "title": "Vendor registration \u2014 check status",
-    "url": "https://tender-hub-57.preview.emergentagent.com/register/status",
+    "url": "https://www.pmcmanagers.com/register/status",
     "wait": 1500,
     "narrative": "Any vendor with the emailed resume-token can paste it here to see current status without logging in.",
     "test_steps": [
@@ -92,7 +92,7 @@
   {
     "n": 5,
     "title": "Admin login page",
-    "url": "https://tender-hub-57.preview.emergentagent.com/admin/login",
+    "url": "https://www.pmcmanagers.com/admin/login",
     "wait": 1200,
     "narrative": "Dedicated admin login. HTTPOnly-cookie based, CSRF double-submit.",
     "test_steps": [
@@ -115,7 +115,7 @@
   {
     "n": 6,
     "title": "Admin console \u00b7 Analytics",
-    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=analytics",
+    "url": "https://www.pmcmanagers.com/admin?tab=analytics",
     "narrative": "Dashboard \u00b7 KPIs + AI-Anomaly drill cards",
     "test_steps": [
       {
@@ -135,7 +135,7 @@
   {
     "n": 7,
     "title": "Admin console \u00b7 Registrations",
-    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=registrations",
+    "url": "https://www.pmcmanagers.com/admin?tab=registrations",
     "narrative": "Registrations pipeline \u00b7 draft/submitted/approved",
     "test_steps": [
       {
@@ -155,7 +155,7 @@
   {
     "n": 8,
     "title": "Admin console \u00b7 Vendors",
-    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=vendors",
+    "url": "https://www.pmcmanagers.com/admin?tab=vendors",
     "narrative": "Vendors master table + Bulk Invite",
     "test_steps": [
       {
@@ -175,7 +175,7 @@
   {
     "n": 9,
     "title": "Admin console \u00b7 Notices",
-    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=notices",
+    "url": "https://www.pmcmanagers.com/admin?tab=notices",
     "narrative": "Notices \u00b7 filter bar (search + status + template-only)",
     "test_steps": [
       {
@@ -195,7 +195,7 @@
   {
     "n": 10,
     "title": "Admin console \u00b7 Corrigenda",
-    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=corrigenda",
+    "url": "https://www.pmcmanagers.com/admin?tab=corrigenda",
     "narrative": "Corrigenda \u00b7 publish/withdraw with mandatory reason",
     "test_steps": [
       {
@@ -215,7 +215,7 @@
   {
     "n": 11,
     "title": "Admin console \u00b7 Tender Builder",
-    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=tender-builder",
+    "url": "https://www.pmcmanagers.com/admin?tab=tender-builder",
     "narrative": "Tender Builder \u00b7 sections + annexures + version history",
     "test_steps": [
       {
@@ -235,7 +235,7 @@
   {
     "n": 12,
     "title": "Admin console \u00b7 Bidding",
-    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=bidding",
+    "url": "https://www.pmcmanagers.com/admin?tab=bidding",
     "narrative": "Bidding Ops \u00b7 Committee UX overhaul (checkbox grid + dissolve + resend)",
     "test_steps": [
       {
@@ -255,7 +255,7 @@
   {
     "n": 13,
     "title": "Admin console \u00b7 Auctions",
-    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=auctions",
+    "url": "https://www.pmcmanagers.com/admin?tab=auctions",
     "narrative": "Reverse Auctions \u00b7 draft link hidden, participant validation",
     "test_steps": [
       {
@@ -275,7 +275,7 @@
   {
     "n": 14,
     "title": "Admin console \u00b7 Escrow",
-    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=escrow",
+    "url": "https://www.pmcmanagers.com/admin?tab=escrow",
     "narrative": "Escrow \u00b7 joint accounts, dual-signature releases",
     "test_steps": [
       {
@@ -295,7 +295,7 @@
   {
     "n": 15,
     "title": "Admin console \u00b7 Evaluation",
-    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=evaluation",
+    "url": "https://www.pmcmanagers.com/admin?tab=evaluation",
     "narrative": "Evaluation \u00b7 rubric + COI cross-check",
     "test_steps": [
       {
@@ -315,7 +315,7 @@
   {
     "n": 16,
     "title": "Admin console \u00b7 Awards",
-    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=awards",
+    "url": "https://www.pmcmanagers.com/admin?tab=awards",
     "narrative": "Awards & POs \u00b7 Regenerate with confirmation + version log",
     "test_steps": [
       {
@@ -335,7 +335,7 @@
   {
     "n": 17,
     "title": "Admin console \u00b7 Boq",
-    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=boq",
+    "url": "https://www.pmcmanagers.com/admin?tab=boq",
     "narrative": "BOQ & Contracts \u00b7 export/filter/versions",
     "test_steps": [
       {
@@ -355,7 +355,7 @@
   {
     "n": 18,
     "title": "Admin console \u00b7 Meetings",
-    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=meetings",
+    "url": "https://www.pmcmanagers.com/admin?tab=meetings",
     "narrative": "Meetings \u00b7 notice-ref required OR 'Internal meeting' tick",
     "test_steps": [
       {
@@ -375,7 +375,7 @@
   {
     "n": 19,
     "title": "Admin console \u00b7 L1",
-    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=l1",
+    "url": "https://www.pmcmanagers.com/admin?tab=l1",
     "narrative": "L1 Comparison \u00b7 lowest-compliant winner + empty-state reasons",
     "test_steps": [
       {
@@ -395,7 +395,7 @@
   {
     "n": 20,
     "title": "Admin console \u00b7 Docusign",
-    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=docusign",
+    "url": "https://www.pmcmanagers.com/admin?tab=docusign",
     "narrative": "DocuSign \u00b7 Envelope Log with is_authoritative flag",
     "test_steps": [
       {
@@ -415,7 +415,7 @@
   {
     "n": 21,
     "title": "Admin console \u00b7 Vendor Intel",
-    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=vendor-intel",
+    "url": "https://www.pmcmanagers.com/admin?tab=vendor-intel",
     "narrative": "Vendor Intel \u00b7 BL/WL legend",
     "test_steps": [
       {
@@ -435,7 +435,7 @@
   {
     "n": 22,
     "title": "Admin console \u00b7 Products",
-    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=products",
+    "url": "https://www.pmcmanagers.com/admin?tab=products",
     "narrative": "Product Catalog \u00b7 price-change history",
     "test_steps": [
       {
@@ -455,7 +455,7 @@
   {
     "n": 23,
     "title": "Admin console \u00b7 Engagements",
-    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=engagements",
+    "url": "https://www.pmcmanagers.com/admin?tab=engagements",
     "narrative": "Engagements \u00b7 aging buckets + cancel reason \u22655 chars",
     "test_steps": [
       {
@@ -475,7 +475,7 @@
   {
     "n": 24,
     "title": "Admin console \u00b7 Masters",
-    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=masters",
+    "url": "https://www.pmcmanagers.com/admin?tab=masters",
     "narrative": "Masters \u00b7 roles + designations",
     "test_steps": [
       {
@@ -495,7 +495,7 @@
   {
     "n": 25,
     "title": "Admin console \u00b7 Permissions",
-    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=permissions",
+    "url": "https://www.pmcmanagers.com/admin?tab=permissions",
     "narrative": "Permissions Matrix \u00b7 tab-level RBAC + G2 effective view",
     "test_steps": [
       {
@@ -515,7 +515,7 @@
   {
     "n": 26,
     "title": "Admin console \u00b7 Audit",
-    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=audit",
+    "url": "https://www.pmcmanagers.com/admin?tab=audit",
     "narrative": "Audit \u00b7 every substantive action",
     "test_steps": [
       {
@@ -535,7 +535,7 @@
   {
     "n": 27,
     "title": "Admin console \u00b7 Reports",
-    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=reports",
+    "url": "https://www.pmcmanagers.com/admin?tab=reports",
     "narrative": "Reports \u00b7 Asked-vs-Delivered + flowcharts",
     "test_steps": [
       {
@@ -555,7 +555,7 @@
   {
     "n": 28,
     "title": "Admin console \u00b7 Stakeholder",
-    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=stakeholder",
+    "url": "https://www.pmcmanagers.com/admin?tab=stakeholder",
     "narrative": "Stakeholder Reports \u00b7 G4 rebuild (Tenders/Awards/Escrow/SLA)",
     "test_steps": [
       {
@@ -575,7 +575,7 @@
   {
     "n": 29,
     "title": "Admin console \u00b7 Help",
-    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=help",
+    "url": "https://www.pmcmanagers.com/admin?tab=help",
     "narrative": "Help Requests \u00b7 triage from public form",
     "test_steps": [
       {
@@ -595,7 +595,7 @@
   {
     "n": 30,
     "title": "Admin console \u00b7 Branding",
-    "url": "https://tender-hub-57.preview.emergentagent.com/admin?tab=branding",
+    "url": "https://www.pmcmanagers.com/admin?tab=branding",
     "narrative": "Portal Branding \u00b7 logo history + theme colours",
     "test_steps": [
       {
