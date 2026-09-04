@@ -36,6 +36,8 @@ ALLOWED = {
     "handbook-v3.2-md":        "/app/deliverables/PMC_Trainee_Handbook_v3.2.md",
     "screenshot-manual":       "/app/deliverables/PMC_Screenshot_Training_Manual_v1.pdf",
     "screenshot-manual-docx":  "/app/deliverables/PMC_Screenshot_Training_Manual_v1.docx",
+    "master-manual-docx":      "/app/deliverables/PMC_Master_Training_Manual_v1.docx",
+    "master-manual-pdf":       "/app/deliverables/PMC_Master_Training_Manual_v1.pdf",
     "backend-v16":             "/app/pmc-backend-v16.zip",
     "backend-v17":             "/app/pmc-backend-v17.zip",
     "backend-v15":             "/app/pmc-backend-v15.zip",
