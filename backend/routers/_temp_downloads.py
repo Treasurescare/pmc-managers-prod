@@ -60,6 +60,8 @@ ALLOWED = {
     "pmc-backend-v18b":        "/app/deliverables/pmc-backend-v18b.zip",
     "pmc-frontend-v21":        "/app/deliverables/pmc-frontend-v21.zip",
     "pmc-frontend-v21-build":  "/app/deliverables/pmc-frontend-v21-build.zip",
+    "bug-tracker-v6":          "/app/deliverables/PMC_Bug_Tracker_v6.xlsx",
+    "observations-response-v6":"/app/deliverables/PMC_Portal_Observations_Response_v6.docx",
 }
 
 
