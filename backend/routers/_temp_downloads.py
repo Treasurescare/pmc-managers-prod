@@ -30,6 +30,7 @@ ALLOWED = {
     "observations-response-v2":"/app/deliverables/PMC_Portal_Observations_Response_v2.docx",
     "observations-response-v3":"/app/deliverables/PMC_Portal_Observations_Response_v3.docx",
     "observations-response-v4":"/app/deliverables/PMC_Portal_Observations_Response_v4.docx",
+    "observations-response-v5":"/app/deliverables/PMC_Portal_Observations_Response_v5.docx",
     "handbook-v3.2-docx":      "/app/deliverables/PMC_Trainee_Handbook_v3.2.docx",
     "handbook-v3.2-pdf":       "/app/deliverables/PMC_Trainee_Handbook_v3.2.pdf",
     "handbook-v3.2-md":        "/app/deliverables/PMC_Trainee_Handbook_v3.2.md",
