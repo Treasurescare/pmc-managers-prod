@@ -8,56 +8,53 @@ Admin (master + reviewer/sub-admin) · Vendor · Staff (Escrow, Certifier, Legal
 
 ## Architecture
 - Backend: FastAPI + MongoDB (Motor), 60+ routers.
-- Frontend: React + Tailwind + Shadcn UI, 8 sub-apps (admin/vendor/staff/notice-board/registration/client/committee/mobile).
-- Deploy: AWS Elastic Beanstalk (Docker) · S3 + CloudFront · `www.pmcmanagers.com`.
+- Frontend: React + Tailwind + Shadcn UI, 8 sub-apps.
+- Deploy: AWS Elastic Beanstalk (Docker) + S3 + CloudFront + Route 53 · `www.pmcmanagers.com`.
+- **HTTPS termination**: CloudFront (single distribution) with `/api/*` Behavior forwarding to EB HTTP:80. Same-origin frontend + backend eliminates CORS.
 
 ---
 
-## Implemented (up to 4 Sep 2026)
+## Implemented (as of 5 Sep 2026)
 
-### v4 bug-fix batch (all closed, 52/52 = 100%)
-- V-02 · Vendor pending-verify dropdown filter.
-- N-02 · Notice template pill is now a jump-link to Tender Builder.
-- T-01 · Tender Builder combined **ALL KINDS** view.
-- E-03 · Escrow reconciliation ledger-vs-bank sub-panel with delta pills.
-- RA-01 · Reverse auction post-close summary panel (starting/floor/winning/savings%/winner/timing).
-- MP-01 · Masters · Staff · **Clone role** column.
-- AU-01 · Audit filter bar (actor / event_type / from date / to date + Clear).
-- EN-03 · Engagements buyer email is a jump-link to Vendors master.
+### v4 bug-fix batch (all closed — 52 / 52 = 100%)
+V-02 · N-02 · T-01 · E-03 · RA-01 · MP-01 · AU-01 · EN-03. Each fix has a screenshot chapter in Master Manual v4.
 
 ### Documentation
-- **PMC_Master_Training_Manual_v4.docx / .pdf** — 71 screens, 141 PDF pages, ~8 MB. Chapters for every public / admin / vendor / staff route + token-gated pages + 6 bug-fix showcases.
-- **PMC_Bug_Tracker_v6.xlsx** — 52/52 (100%) closed, 8 rows highlighted green with fix evidence.
-- **PMC_Portal_Observations_Response_v6.docx** — matching v6 with fix descriptions per bug.
-- v3 (121 pages), v2 (51 pages) manuals retained.
+- PMC_Master_Training_Manual_v4.docx / .pdf — 71 screens, 141 PDF pages, ~8 MB.
+- PMC_Bug_Tracker_v6.xlsx — 52/52 closed, green highlights.
+- PMC_Portal_Observations_Response_v6.docx — matching v6 with fix evidence.
+- v3 (121 pages) and v2 retained.
 
-### Deployment artefacts (all served via `/api/v1/_dl/<token>/<name>`)
-- `pmc-backend-v18.zip` (structured for EB Docker upload · Dockerfile + Dockerrun + backend/ + docs/)
-- `pmc-backend-v18b.zip` (byte-identical, alternate label to avoid "version already exists")
-- `pmc-frontend-v21.zip` (source tree, 43 MB — reference only)
-- `pmc-frontend-v21-build.zip` (2 MB · production build with `REACT_APP_BACKEND_URL=https://pmc-backend-prod.eba-kmk3u8cp.eu-west-2.elasticbeanstalk.com`)
-- `verify_prod.sh` (four-command smoke test)
+### Deployment artefacts
+- `pmc-backend-v18.zip` and `pmc-backend-v18b.zip` (byte-identical, alt label).
+- `pmc-frontend-v22-build.zip` (2 MB) — **same-origin build**, REACT_APP_BACKEND_URL="".
+- `pmc-frontend-v21-build.zip` — earlier build with EB URL baked in (currently live).
+- `verify_prod.sh` and `verify_prod_v2.sh` — CLI smoke tests.
+- Legacy zips v11–v17 also served via `/api/v1/_dl/`.
 
-### Deploy status
-- **Frontend on S3 + CloudFront** at `https://www.pmcmanagers.com/` — LIVE, serving `main.4ed5ef24.js` from the new bundle.
-- **Backend on EB** (`backend-v18b-final`) — Health **Ok** internally, HTTP :80 responds 404 (no `/` route, expected).
-- **BLOCKER · Backend :443 HTTPS listener missing** — env is single-instance, no ALB provisioned. Frontend cannot reach backend from browser until this is fixed.
+### LIVE deploy status
+- `https://www.pmcmanagers.com/` — **LIVE**, serving `main.4ed5ef24.js` from CloudFront + S3.
+- `https://www.pmcmanagers.com/api/v1/*` — **LIVE**, proxied via CloudFront `/api/*` Behavior → `pmc-backend-eb` origin (HTTP:80).
+- EB `backend-v18b-final` running with health = Ok.
+- Verified: health, admin login (returns JWT), notices list (3 real Mongo records).
 
 ---
 
-## Next task (parked by user 4 Sep 2026)
+## Backlog
 
-**P0 · Enable HTTPS on the backend.** Two paths documented:
-- Path A · Convert EB env from Single instance → Load balanced, add :443 listener with ACM cert on the new ALB. ~$16/mo cost.
-- Path B · Put CloudFront in front of the single-instance EB with ACM cert in us-east-1 + `api.pmcmanagers.com` Route 53 record + frontend rebuild.
+### P1 (nice-to-have hygiene)
+- Deploy `pmc-frontend-v22-build.zip` to S3 so the live JS calls `/api/*` same-origin (currently JS still calls EB URL directly — works today over HTTP:80 but not future-proof).
+- Smoke-test the 8 v4 fixes on the live URL with Bug Tracker v6 open.
 
-## Backlog (P2/P3)
-- P2 · Russian + Kazakh translations of Master Manual v4 (deferred by user).
-- P2 · Resend email blast on new backend deployment.
-- P2 · Investor exec preview (one-page summary of v4 manual).
-- P3 · PayPal + Kaspi Pay real integration (blocked: merchant credentials).
-- P3 · Firebase + APNs push (blocked: project ID + Service Account JSON).
-- P3 · Live KYC provider (blocked: KYC_BASE_URL + KYC_API_KEY).
+### P2
+- Russian + Kazakh translations of Master Manual v4 (deferred by user).
+- Resend email blast on new backend deployment.
+- Investor exec preview (one-page summary of v4 manual).
+
+### P3
+- PayPal + Kaspi Pay real integration (blocked: merchant credentials).
+- Firebase + APNs push (blocked: project ID + Service Account JSON).
+- Live KYC provider (blocked: KYC_BASE_URL + KYC_API_KEY).
 
 ---
 
@@ -68,15 +65,16 @@ Admin (master + reviewer/sub-admin) · Vendor · Staff (Escrow, Certifier, Legal
 - `/api/v1/tender-templates/*` · `/api/v1/boqs/*` · `/api/v1/permissions/*`
 - `/api/v1/dashboard-drill/*` · `/api/v1/stakeholder-reports/*` · `/api/v1/branding`
 - `/api/v1/reverse-auctions/*` · `/api/v1/meetings` · `/api/v1/audit`
-- `/api/v1/meta/health` — used by Docker HEALTHCHECK.
+- `/api/v1/meta/health` — used by Docker HEALTHCHECK + smoke tests.
 - `/api/v1/_dl/{token}/{name}` — internal file download.
 
 ## Test credentials
 See `/app/memory/test_credentials.md`.
 
 ## Notes for next agent
-- No GitHub auto-push — deliverables via `/api/v1/_dl/{TOKEN}/{name}` route (token: `sVGqLYK9RXjE8UnvXwT-uzDkV5wpdN2GfyAsHIYpQr4`).
+- CloudFront distribution has TWO origins: S3 (default, serves `/` etc.) + `pmc-backend-eb` (Behavior `/api/*`).
+- EB env is **Single instance** — no ALB. HTTPS is terminated at CloudFront. Do NOT try to add :443 to EB directly; use CloudFront cert.
 - Zero "Emergent" branding in user-facing docs — always use `www.pmcmanagers.com`.
-- ESLint bin is broken — remove `/app/frontend/node_modules/.bin/eslint*` before `finish`; DO NOT delete `eslint-scope` (webpack dependency).
-- Manual v4 build pipeline: `python3 scripts/seed_manual_v4.py` then `PLAYWRIGHT_BROWSERS_PATH=/pw-browsers python3 scripts/capture_manual_v3.py` then `python3 scripts/build_manual_v3.py`.
-- EB env is single-instance (no ALB) — must convert to load-balanced before HTTPS works.
+- ESLint bin is broken — remove `/app/frontend/node_modules/.bin/eslint*` before `finish`. DO NOT delete `eslint-scope` (webpack dependency).
+- Manual v4 build pipeline: `python3 scripts/seed_manual_v4.py` → `PLAYWRIGHT_BROWSERS_PATH=/pw-browsers python3 scripts/capture_manual_v3.py` → `python3 scripts/build_manual_v3.py`.
+- No GitHub auto-push. All deliverables via `/api/v1/_dl/{TOKEN}/{name}` route (token: `sVGqLYK9RXjE8UnvXwT-uzDkV5wpdN2GfyAsHIYpQr4`).
