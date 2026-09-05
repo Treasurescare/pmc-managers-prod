@@ -34,10 +34,19 @@ V-02 · N-02 · T-01 · E-03 · RA-01 · MP-01 · AU-01 · EN-03. Each fix has a
 
 ### Deployment artefacts (kept for rollback / reference)
 - `pmc-backend-v18.zip` and `pmc-backend-v18b.zip` (byte-identical, alt label).
-- `pmc-frontend-v22-build.zip` — currently deployed.
+- `pmc-frontend-v24-build.zip` — **latest**, purges all user-visible "Stakeholder" references + deletes hidden panel files.
+- `pmc-frontend-v23-build.zip` — previously deployed, contained "Stakeholder Reports" label.
+- `pmc-frontend-v22-build.zip` — pre-hidden-modules build.
 - `pmc-frontend-v21-build.zip` — pre-same-origin build (EB URL baked in).
 - `verify_prod.sh` and `verify_prod_v2.sh` — CLI smoke tests.
 - Legacy zips v11–v17 also served via `/api/v1/_dl/`.
+
+### 5 Sep 2026 — "Stakeholder" residual purge (v24)
+- User reported "Stakeholder Reports" still appeared on the live build even after the pilot-hide.
+- Root cause: the visible `ReportsPanel` tab used i18n key `admin.tab_reports = "Stakeholder Reports"` and section kicker `panels.reports.kicker = "Stakeholder brief"` across EN / RU / KZ.
+- Fix: renamed all three locales — tab now reads "Reports" / "Отчёты" / "Есептер"; kicker now "Executive brief" / "Сводка руководству" / "Атқарушы қысқаша"; EN pdf_hint no longer mentions "stakeholders".
+- Also deleted unused hidden panels (`StakeholderReportsPanel.jsx`, `HelpRequestsPanel.jsx`, `BrandingPanel.jsx`) and removed all commented-out references in `AdminDashboard.jsx`.
+- Verified: `grep -i stakeholder` on the built JS/CSS bundle returns **0 matches**. Screenshot confirms tab reads "REPORTS" and Reports panel opens with "EXECUTIVE BRIEF" kicker.
 
 ---
 
@@ -60,7 +69,7 @@ V-02 · N-02 · T-01 · E-03 · RA-01 · MP-01 · AU-01 · EN-03. Each fix has a
 - `/api/v1/notices` · `/api/v1/registrations` · `/api/v1/vendors` · `/api/v1/bids`
 - `/api/v1/committee` · `/api/v1/escrow/*` · `/api/v1/evaluations/*` · `/api/v1/awards/*`
 - `/api/v1/tender-templates/*` · `/api/v1/boqs/*` · `/api/v1/permissions/*`
-- `/api/v1/dashboard-drill/*` · `/api/v1/stakeholder-reports/*` · `/api/v1/branding`
+- `/api/v1/dashboard-drill/*` (stakeholder-reports/branding routers hidden during pilot)
 - `/api/v1/reverse-auctions/*` · `/api/v1/meetings` · `/api/v1/audit`
 - `/api/v1/meta/health` — Docker HEALTHCHECK + smoke tests.
 - `/api/v1/_dl/{token}/{name}` — internal file download.

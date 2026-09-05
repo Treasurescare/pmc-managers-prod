@@ -22,7 +22,7 @@ from playwright.async_api import async_playwright, Page
 
 BASE = os.environ.get(
     "REACT_APP_BACKEND_URL",
-    "https://tender-hub-57.preview.emergentagent.com",
+    "https://www.pmcmanagers.com",
 )
 OUT = Path("/app/deliverables/manual_v3_shots")
 OUT.mkdir(parents=True, exist_ok=True)
@@ -366,7 +366,7 @@ ADMIN = [
         ],
         pitfalls=[
             "The KPI numbers are tenant-scoped — if you switch tenant, refresh.",
-            "AI check requires an EMERGENT_LLM_KEY server-side; missing key returns 503.",
+            "AI check requires an admin-configured LLM API key server-side; if missing the endpoint returns 503.",
         ],
         kpis=[
             "notices_published_per_month",
@@ -662,7 +662,6 @@ ADMIN = [
         ],
         pitfalls=[
             "Officer A and Officer B cannot be the same person — 400 enforced.",
-            "SLA threshold on pending transactions is exposed on the Stakeholder → Escrow report.",
         ],
     ),
 
@@ -1027,52 +1026,9 @@ ADMIN = [
         api=[("GET", "/api/v1/reports/asked-vs-delivered", "JSON.")],
     ),
 
-    _admin(
-        "44-admin-stakeholder", "Admin console · Stakeholder reports (G4)", "stakeholder",
-        "Stakeholder-facing reports — Tenders / Awards / Escrow / SLA. Downloadable CSV per tab.",
-        audience=["Mgmt", "Investor"],
-        fields=[
-            ("Report tabs", "Tenders · Awards · Escrow · SLA."),
-            ("Table", "Report-specific columns."),
-            ("Download CSV", "Full export of the current tab."),
-            ("Escrow SLA banner", "Only on Escrow tab — shows the threshold config."),
-        ],
-        api=[
-            ("GET", "/api/v1/stakeholder-reports/tenders", "JSON."),
-            ("GET", "/api/v1/stakeholder-reports/awards", "JSON."),
-            ("GET", "/api/v1/stakeholder-reports/escrow", "JSON + sla_threshold_days."),
-            ("GET", "/api/v1/stakeholder-reports/sla", "JSON."),
-        ],
-    ),
-
-    _admin(
-        "45-admin-help", "Admin console · Help requests triage", "help",
-        "Inbound help-form triage. Assign / resolve / close.",
-        audience=["Support"],
-        fields=[
-            ("Request row", "Requester · subject · category · status pill."),
-            ("Assign", "Pick a support user."),
-            ("Resolve", "Mark resolved + attach note."),
-        ],
-        api=[("GET", "/api/v1/help-requests", "List."), ("POST", "/api/v1/help-requests/{id}/assign", "Body {assignee_id}.")],
-    ),
-
-    _admin(
-        "46-admin-branding", "Admin console · Portal branding", "branding",
-        "Per-tenant logo history + primary/secondary theme colours. Live-preview panel.",
-        audience=["Mgmt"],
-        fields=[
-            ("Logo history", "Every uploaded logo — click to restore an old one."),
-            ("Primary colour", "Hex — brand navy."),
-            ("Secondary colour", "Hex — accent."),
-            ("Preview panel", "Shows the top-bar + a sample button using the new theme."),
-            ("Save", "Applies theme instantly to all tenant users."),
-        ],
-        api=[
-            ("GET", "/api/v1/branding", "Current theme."),
-            ("PUT", "/api/v1/branding", "Update primary/secondary + upload logo."),
-        ],
-    ),
+    # Panels hidden during pilot testing (Stakeholder Reports · Help Requests ·
+    # Portal Branding) intentionally omitted from this manual. Backend routes
+    # remain in place — re-add these chapters after the pilot cycle finishes.]
 ]
 
 
@@ -1324,33 +1280,8 @@ async def capture():
             except Exception as e:
                 print(f"  ✗ {spec['slug']} failed: {e}")
 
-        # Stakeholder sub-tabs
-        for sub in ["tenders", "awards", "escrow", "sla"]:
-            slug = f"44-{sub}-stakeholder"
-            print(f"[admin] {slug}")
-            try:
-                try:
-                    await page.click('[data-testid=admin-tab-stakeholder]', timeout=5000)
-                    await page.wait_for_timeout(1800)
-                except Exception:
-                    pass
-                try:
-                    await page.click(f'[data-testid=stakeholder-tab-{sub}]', timeout=5000)
-                    await page.wait_for_timeout(1500)
-                except Exception:
-                    pass
-                await shot(page, slug, True)
-                manifest.append({
-                    "slug": slug,
-                    "title": f"Stakeholder reports · {sub.title()}",
-                    "url": f"{BASE}/admin?tab=stakeholder&sub={sub}",
-                    "role": "admin", "tab": "stakeholder",
-                    "purpose": f"Stakeholder-facing {sub} report table.",
-                    "image": f"{slug}.png",
-                    "fields": [], "tutorial": [], "api": [], "pitfalls": [], "errors": [],
-                })
-            except Exception as e:
-                print(f"  ✗ {slug} failed: {e}")
+        # Stakeholder sub-tabs — hidden during pilot testing, skip capture.
+        # Re-enable by adding entries here after pilot testing wraps.
 
         await logout(page)
 

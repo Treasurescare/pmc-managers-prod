@@ -1,5 +1,5 @@
 /**
- * ReportsPanel — one-click stakeholder deliverables.
+ * ReportsPanel — one-click executive deliverables.
  *
  * Streams five artefacts direct from the backend so the admin can circulate
  * the exact same "asked vs delivered" statement across Excel/Word/PDF and

@@ -50,6 +50,7 @@ ALLOWED = {
     "frontend-v17":            "/app/pmc-frontend-v17.zip",
     "pmc-frontend-v22-build":  "/app/deliverables/pmc-frontend-v22-build.zip",
     "pmc-frontend-v23-build":  "/app/deliverables/pmc-frontend-v23-build.zip",
+    "pmc-frontend-v24-build":  "/app/deliverables/pmc-frontend-v24-build.zip",
     "verify-prod-v2-sh":       "/app/deliverables/verify_prod_v2.sh",
     "handbook-v3.1-docx":      "/app/deliverables/PMC_Trainee_Handbook_v3.1.docx",
     "handbook-v3.1-pdf":       "/app/deliverables/PMC_Trainee_Handbook_v3.1.pdf",
@@ -65,6 +66,10 @@ ALLOWED = {
     "pmc-frontend-v21-build":  "/app/deliverables/pmc-frontend-v21-build.zip",
     "bug-tracker-v6":          "/app/deliverables/PMC_Bug_Tracker_v6.xlsx",
     "observations-response-v6":"/app/deliverables/PMC_Portal_Observations_Response_v6.docx",
+    "bug-tracker-v7":          "/app/deliverables/PMC_Bug_Tracker_v7.xlsx",
+    "observations-response-v7":"/app/deliverables/PMC_Portal_Observations_Response_v7.docx",
+    "master-manual-v5-docx":   "/app/deliverables/PMC_Master_Training_Manual_v5.docx",
+    "master-manual-v5-pdf":    "/app/deliverables/PMC_Master_Training_Manual_v5.pdf",
     "verify-prod-sh":          "/app/deliverables/verify_prod.sh",
 }
 

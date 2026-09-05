@@ -22,8 +22,6 @@ import PackagesPanel from "./PackagesPanel";
 import TenderBuilderPanel from "./TenderBuilderPanel";
 import EscrowPanel from "./EscrowPanel";
 import ReportsPanel from "./ReportsPanel";
-// Hidden during pilot testing — bring back after test cycle
-// import StakeholderReportsPanel from "./StakeholderReportsPanel";
 import ProductCatalogPanel from "./ProductCatalogPanel";
 import EngagementsPanel from "./EngagementsPanel";
 import CorrigendaPanel from "./CorrigendaPanel";
@@ -32,9 +30,6 @@ import LiveAuctionsPanel from "./LiveAuctionsPanel";
 import MeetingsPanel from "./MeetingsPanel";
 import L1ComparisonPanel from "./L1ComparisonPanel";
 import DocuSignPanel from "./DocuSignPanel";
-// Hidden during pilot testing — bring back after test cycle
-// import HelpRequestsPanel from "./HelpRequestsPanel";
-// import BrandingPanel from "./BrandingPanel";
 import useTenantSkin from "@/apps/shared/useTenantSkin";
 
 function TabBar({ tab, setTab }) {
@@ -63,10 +58,6 @@ function TabBar({ tab, setTab }) {
     ["catalog", t("admin.tab_catalog")],
     ["engagements", t("admin.tab_engagements")],
     ["reports", t("admin.tab_reports")],
-    // Hidden during pilot testing:
-    // ["stakeholder", "Stakeholder Reports"],
-    // ["help", "Help Requests"],
-    // ["branding", "Portal Branding"],
   ];
   return (
     <>
@@ -194,11 +185,6 @@ export default function AdminDashboard() {
           {tab === "catalog" && <ProductCatalogPanel />}
           {tab === "engagements" && <EngagementsPanel />}
           {tab === "reports" && <ReportsPanel />}
-          {/* Hidden during pilot testing:
-          {tab === "stakeholder" && <StakeholderReportsPanel />}
-          {tab === "help" && <HelpRequestsPanel />}
-          {tab === "branding" && <BrandingPanel />}
-          */}
         </div>
       </main>
     </div>
