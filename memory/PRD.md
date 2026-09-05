@@ -34,12 +34,21 @@ V-02 · N-02 · T-01 · E-03 · RA-01 · MP-01 · AU-01 · EN-03. Each fix has a
 
 ### Deployment artefacts (kept for rollback / reference)
 - `pmc-backend-v18.zip` and `pmc-backend-v18b.zip` (byte-identical, alt label).
-- `pmc-frontend-v24-build.zip` — **latest**, purges all user-visible "Stakeholder" references + deletes hidden panel files.
+- `pmc-frontend-v25-build.zip` — **latest**, removes entire Reports tab + strips `emergentagent.com` URL from bundle + drops `@emergentbase/visual-edits` dep.
+- `pmc-frontend-v24-build.zip` — prev, purges all user-visible "Stakeholder" references + deletes hidden panel files.
 - `pmc-frontend-v23-build.zip` — previously deployed, contained "Stakeholder Reports" label.
 - `pmc-frontend-v22-build.zip` — pre-hidden-modules build.
 - `pmc-frontend-v21-build.zip` — pre-same-origin build (EB URL baked in).
 - `verify_prod.sh` and `verify_prod_v2.sh` — CLI smoke tests.
 - Legacy zips v11–v17 also served via `/api/v1/_dl/`.
+
+### 5 Sep 2026 — Full Reports section purge + Emergent brand strip (v25)
+- User requested: (a) hide the entire Reports section (Excel/Word/PDF Asked-vs-Delivered + all flow charts), (b) remove any residual "emergent" LLM / URL references, (c) provide a secret download link.
+- Removed the `reports` tab entirely from `AdminDashboard.jsx` (import + tab entry + JSX switch). Deleted `ReportsPanel.jsx`.
+- Rebuilt with `REACT_APP_BACKEND_URL=""` so the AWS bundle is same-origin (no `emergentagent.com` URL baked in).
+- Purged `@emergentbase/visual-edits` from `package.json` devDependencies.
+- Verified: `grep -Ei "emergent|stakeholder"` on the built JS/CSS/HTML/asset-manifest bundle returns **0 matches**. Screenshot confirms tab strip ends at ENGAGEMENTS.
+- Deliverable: `pmc-frontend-v25-build.zip` (42 MB) served via `/api/v1/_dl/{TOKEN}/pmc-frontend-v25-build`.
 
 ### 5 Sep 2026 — "Stakeholder" residual purge (v24)
 - User reported "Stakeholder Reports" still appeared on the live build even after the pilot-hide.

@@ -21,7 +21,6 @@ import AuditPanel from "./AuditPanel";
 import PackagesPanel from "./PackagesPanel";
 import TenderBuilderPanel from "./TenderBuilderPanel";
 import EscrowPanel from "./EscrowPanel";
-import ReportsPanel from "./ReportsPanel";
 import ProductCatalogPanel from "./ProductCatalogPanel";
 import EngagementsPanel from "./EngagementsPanel";
 import CorrigendaPanel from "./CorrigendaPanel";
@@ -57,7 +56,6 @@ function TabBar({ tab, setTab }) {
     ["audit", t("admin.tab_audit")],
     ["catalog", t("admin.tab_catalog")],
     ["engagements", t("admin.tab_engagements")],
-    ["reports", t("admin.tab_reports")],
   ];
   return (
     <>
@@ -184,7 +182,6 @@ export default function AdminDashboard() {
           {tab === "audit" && <AuditPanel />}
           {tab === "catalog" && <ProductCatalogPanel />}
           {tab === "engagements" && <EngagementsPanel />}
-          {tab === "reports" && <ReportsPanel />}
         </div>
       </main>
     </div>
