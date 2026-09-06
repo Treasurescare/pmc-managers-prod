@@ -124,6 +124,9 @@ async def create_checkout(req: CheckoutRequest, request: Request):
         currency=currency,
         success_url=f"{req.origin_url.rstrip('/')}/billing/success?session_id={{CHECKOUT_SESSION_ID}}",
         cancel_url=f"{req.origin_url.rstrip('/')}/billing/cancel",
+        tax_mode=os.environ.get("STRIPE_TAX_MODE", "full"),
+        product_name=product["name"],
+        product_tax_code=product.get("stripe_tax_code") or "txcd_10000000",
         metadata={
             "product_code": product["code"],
             "product_name": product["name"],

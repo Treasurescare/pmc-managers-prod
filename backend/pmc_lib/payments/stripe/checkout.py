@@ -20,6 +20,17 @@ class CheckoutSessionRequest(BaseModel):
         default_factory=lambda: ['card'],
         description="Stripe payment method types (e.g. ['card'], ['crypto'], ['card', 'crypto']); defaults to ['card']"
     )
+    tax_mode: str = Field(
+        "diy",
+        description="'full' = Stripe Managed Payments (SMP, +3.5%, tax & compliance handled). "
+                    "'calc_only' = Stripe Tax auto-calc (+0.5%, you file). 'diy' = no tax help.",
+    )
+    product_name: str = Field("Payment", description="Product name shown on Stripe checkout")
+    product_tax_code: str = Field(
+        "txcd_10000000",
+        description="Stripe tax code applied to the line item; required for SMP eligibility. "
+                    "Defaults to general digital services (txcd_10000000).",
+    )
 
     @validator('amount')
     def validate_amount(cls, v, values):
@@ -133,7 +144,8 @@ class StripeCheckout:
                     'price_data': {
                         'currency': request.currency,
                         'product_data': {
-                            'name': 'Payment',
+                            'name': request.product_name,
+                            'tax_code': request.product_tax_code,
                         },
                         'unit_amount': amount_in_cents,
                     },
@@ -154,16 +166,49 @@ class StripeCheckout:
 
             payment_methods = request.payment_methods or ['card']
 
-            # Create the checkout session
-            session = stripe.checkout.Session.create(
-                payment_method_types=payment_methods,
+            base_kwargs = dict(
                 line_items=line_items,
                 mode='payment',
                 success_url=request.success_url,
                 cancel_url=request.cancel_url,
-                metadata=request.metadata or {}
+                metadata=request.metadata or {},
             )
-            
+
+            tax_mode = (request.tax_mode or 'diy').lower()
+            session = None
+            if tax_mode == 'full':
+                # Stripe Managed Payments (SMP): Stripe handles tax + compliance.
+                # payment_method_types is set automatically by SMP; do not pass it.
+                try:
+                    session = stripe.checkout.Session.create(
+                        **base_kwargs,
+                        managed_payments={"enabled": True},
+                    )
+                except stripe.error.InvalidRequestError as e:
+                    msg = (getattr(e, 'user_message', '') or str(e)).lower()
+                    if 'managed payments' in msg or 'ineligible' in msg or 'not eligible' in msg:
+                        # Fall back to Stripe Tax auto-calc (calc_only behaviour).
+                        session = stripe.checkout.Session.create(
+                            **base_kwargs,
+                            payment_method_types=payment_methods,
+                            automatic_tax={"enabled": True},
+                            billing_address_collection="required",
+                        )
+                    else:
+                        raise
+            elif tax_mode == 'calc_only':
+                session = stripe.checkout.Session.create(
+                    **base_kwargs,
+                    payment_method_types=payment_methods,
+                    automatic_tax={"enabled": True},
+                    billing_address_collection="required",
+                )
+            else:  # 'diy'
+                session = stripe.checkout.Session.create(
+                    **base_kwargs,
+                    payment_method_types=payment_methods,
+                )
+
             return CheckoutSessionResponse(
                 url=session.url,
                 session_id=session.id

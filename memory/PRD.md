@@ -16,6 +16,17 @@ Admin (master + reviewer/sub-admin) · Vendor · Staff (Escrow, Certifier, Legal
 
 ## Implemented — 100% shipped (as of 5 Sep 2026)
 
+### 6 Sep 2026 — Stripe Payments Integrated (Flow B / BYOK)
+- User's live Stripe account (`acct_1T40n8H0joY1mkyK`, country GB) test key wired via `STRIPE_API_KEY` in `/app/backend/.env`.
+- Tax mode: **`STRIPE_TAX_MODE=full`** — Stripe Managed Payments (SMP), Stripe handles tax + compliance across ~80 countries.
+- Upgraded `pmc_lib/payments/stripe/checkout.py`:
+  - Added `tax_mode` field ("full"/"calc_only"/"diy") to `CheckoutSessionRequest`.
+  - Added `product_name` + `product_tax_code` fields (default `txcd_10000000` for SMP eligibility).
+  - Branches on tax_mode → SMP with automatic fallback to Stripe Tax if SMP ineligible.
+- Updated `routers/payments.py` (EMD) + `routers/billing.py` (product catalog) to pass tax_mode from env.
+- Verified: real `checkout.stripe.com/c/pay/cs_test_...` URL returned end-to-end via preview API, status poll returns `pending`, session confirmed SMP-enabled on Stripe.
+- **⚠️ SECURITY**: User accidentally pasted their `sk_live_51T40n8H0joY1mkyK...` in chat — advised immediate revocation. Only `sk_test_` values touch code/env.
+
 ### v4 bug-fix batch (all closed — 52 / 52 = 100%)
 V-02 · N-02 · T-01 · E-03 · RA-01 · MP-01 · AU-01 · EN-03. Each fix has a screenshot chapter in Master Manual v4.
 

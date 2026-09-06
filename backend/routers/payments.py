@@ -57,6 +57,9 @@ async def create_emd_checkout(payload: EMDCheckoutIn, request: Request,
         currency=currency,
         success_url=success_url,
         cancel_url=cancel_url,
+        tax_mode=os.environ.get("STRIPE_TAX_MODE", "full"),
+        product_name=f"EMD — bid {bid.get('bid_ref') or payload.bid_id}",
+        product_tax_code="txcd_10000000",  # digital services (SMP-eligible)
         metadata={"bid_id": payload.bid_id, "vendor_id": vendor["id"],
                   "notice_ref": bid.get("notice_ref", ""), "purpose": "emd"},
     )
