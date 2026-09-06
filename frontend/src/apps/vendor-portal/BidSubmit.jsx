@@ -62,13 +62,23 @@ export default function BidSubmit() {
       toast.success(`Bid ${bid.bid_ref} submitted`);
       // If EMD due, immediately go to selected gateway
       if ((bid.emd_due_amount || 0) > 0) {
+        let checkout_url;
         if (gateway === "stripe") {
           const chk = await paymentApi.checkout(bid.id, window.location.origin);
-          window.location.href = chk.checkout_url;
+          checkout_url = chk.checkout_url;
         } else {
           const chk = await sandboxPayApi.checkout(bid.id, gateway, window.location.origin);
-          window.location.href = chk.checkout_url;
+          checkout_url = chk.checkout_url;
         }
+        // Open payment gateway in a new tab — Stripe's CSP blocks iframe
+        // embedding, so navigating the current window hangs inside preview iframes.
+        const w = window.open(checkout_url, "_blank", "noopener,noreferrer");
+        if (!w) {
+          try { window.top.location.href = checkout_url; }
+          catch { window.location.href = checkout_url; }
+        }
+        toast.info(`${gateway === "stripe" ? "Stripe" : gateway} checkout opened in a new tab`);
+        nav("/vendor");
       } else {
         nav("/vendor");
       }

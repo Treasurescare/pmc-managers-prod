@@ -130,7 +130,16 @@ export default function PurchaseGrid({ side, title, kicker }) {
       });
       if (!r.ok) throw new Error((await r.json()).detail || `HTTP ${r.status}`);
       const d = await r.json();
-      if (d.checkout_url) window.location.href = d.checkout_url;
+      if (d.checkout_url) {
+        // Open Stripe checkout in a new tab — Stripe's CSP blocks iframe
+        // embedding, so navigating the current window hangs inside preview iframes.
+        const w = window.open(d.checkout_url, "_blank", "noopener,noreferrer");
+        if (!w) {
+          try { window.top.location.href = d.checkout_url; }
+          catch { window.location.href = d.checkout_url; }
+        }
+        toast.success("Stripe checkout opened in a new tab");
+      }
       else throw new Error("No checkout URL returned");
     } catch (e) {
       toast.error(`Checkout failed: ${e.message}`);

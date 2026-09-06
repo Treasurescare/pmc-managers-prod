@@ -146,7 +146,16 @@ export default function VendorDashboard() {
                           const r = await bidApi.get(b.id); void r;
                           const chk = await (await import("@/lib/api")).paymentApi
                             .checkout(b.id, window.location.origin);
-                          window.location.href = chk.checkout_url;
+                          // Open Stripe checkout in a new tab — Stripe's CSP blocks
+                          // iframe embedding, so navigating the current window
+                          // hangs when the app is viewed inside a preview iframe.
+                          const w = window.open(chk.checkout_url, "_blank", "noopener,noreferrer");
+                          if (!w) {
+                            // Popup blocker: fall back to top-window navigation
+                            try { window.top.location.href = chk.checkout_url; }
+                            catch { window.location.href = chk.checkout_url; }
+                          }
+                          toast.info("Stripe checkout opened in a new tab");
                         } catch (err) { toast.error(formatApiError(err)); }
                       }}
                       className="text-xs bg-amber-500 text-white px-3 py-1.5 rounded hover:bg-amber-600"
