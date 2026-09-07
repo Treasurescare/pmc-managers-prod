@@ -16,6 +16,17 @@ Admin (master + reviewer/sub-admin) · Vendor · Staff (Escrow, Certifier, Legal
 
 ## Implemented — 100% shipped (as of 5 Sep 2026)
 
+### 7 Sep 2026 — Staff Master: Edit / Role-change / Deactivate / Password-reset UI
+- Concern: admin could add staff but couldn't edit them — only "Clone role" button existed.
+- Backend already had `PATCH /api/v1/staff/{id}` for name/roles/hierarchy_level/is_active; added optional `password` to `StaffUpdateIn` for password reset (hashed server-side, never logged raw).
+- Rewrote `admin-console/masters/StaffTab.jsx` — every row now has **Edit** + **Clone** buttons. Edit opens inline form with: name, roles (multi-checkbox), hierarchy level, active toggle, password reset field (blank = keep). Active checkmark is now a clickable toggle for one-click deactivate.
+- Wired `updateStaff` handler in `MastersPanel.jsx` → calls `staffApi.updateStaff` → refreshes list.
+- Verified: PATCH edits name/roles/level/is_active + password reset lets user re-login with new password.
+
+### 6 Sep 2026 — Stripe checkout iframe-hang fix
+- Stripe's CSP `frame-ancestors 'self'` blocks embedding, so `window.location.href = stripe_url` from inside the Emergent preview iframe hangs at a blank skeleton.
+- Fixed in `VendorDashboard.jsx` (My Bids → Pay EMD), `BidSubmit.jsx` (Submit Bid), and `PurchaseGrid.jsx` (Product catalog) — all now use `window.open(url, "_blank")` with `window.top.location` fallback.
+
 ### 6 Sep 2026 — Stripe Payments Integrated (Flow B / BYOK)
 - User's live Stripe account (`acct_1T40n8H0joY1mkyK`, country GB) test key wired via `STRIPE_API_KEY` in `/app/backend/.env`.
 - Tax mode: **`STRIPE_TAX_MODE=full`** — Stripe Managed Payments (SMP), Stripe handles tax + compliance across ~80 countries.

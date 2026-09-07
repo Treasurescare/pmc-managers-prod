@@ -45,6 +45,7 @@ class StaffUpdateIn(BaseModel):
     reports_to: Optional[str] = None
     designation: Optional[str] = None
     is_active: Optional[bool] = None
+    password: Optional[str] = Field(None, min_length=8)
 
 
 class StaffPublic(BaseModel):

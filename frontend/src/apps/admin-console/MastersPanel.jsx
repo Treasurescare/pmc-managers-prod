@@ -67,6 +67,14 @@ export default function MastersPanel() {
     setStaffDraft({ ...staffDraft, roles: nextRoles });
   };
 
+  const updateStaff = async (id, patch) => {
+    try {
+      await staffApi.updateStaff(id, patch);
+      toast.success("Staff updated");
+      load();
+    } catch (e) { toast.error(formatApiError(e)); }
+  };
+
   const createCompany = async () => {
     if (!companyDraft.name || !companyDraft.code) return toast.error(t("panels.masters.name_code_required"));
     try {
@@ -110,7 +118,7 @@ export default function MastersPanel() {
           staff={staff}
           showStaffNew={showStaffNew} setShowStaffNew={setShowStaffNew}
           staffDraft={staffDraft} setStaffDraft={setStaffDraft}
-          onCreate={createStaff} onToggleRole={toggleRole}
+          onCreate={createStaff} onToggleRole={toggleRole} onUpdate={updateStaff}
         />
       )}
 

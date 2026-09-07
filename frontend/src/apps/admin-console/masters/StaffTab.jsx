@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { toast } from "sonner";
+
 const ROLE_LABELS = {
   admin: "Admin", reviewer: "Reviewer", escrow_agent: "Escrow Agent",
   certifier: "Certifier", legal_counsel: "Legal Counsel",
@@ -6,12 +9,54 @@ const ROLE_LABELS = {
 };
 
 /**
- * StaffTab — extracted from MastersPanel. New-staff form + roster table.
+ * StaffTab — new-staff form + roster table with inline edit / role change /
+ * activation toggle / password reset. Backed by PATCH /api/v1/staff/{id}.
  */
 export default function StaffTab({
   staff, showStaffNew, setShowStaffNew,
-  staffDraft, setStaffDraft, onCreate, onToggleRole,
+  staffDraft, setStaffDraft, onCreate, onToggleRole, onUpdate,
 }) {
+  const [editingId, setEditingId] = useState(null);
+  const [editDraft, setEditDraft] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  const startEdit = (s) => {
+    setEditingId(s.id);
+    setEditDraft({
+      name: s.name || "",
+      roles: [...(s.roles || (s.role ? [s.role] : []))],
+      hierarchy_level: s.hierarchy_level || 3,
+      is_active: s.is_active !== false,
+      password: "",
+    });
+  };
+  const cancelEdit = () => { setEditingId(null); setEditDraft(null); };
+  const toggleEditRole = (r) => {
+    setEditDraft((d) => ({
+      ...d,
+      roles: d.roles.includes(r) ? d.roles.filter((x) => x !== r) : [...d.roles, r],
+    }));
+  };
+  const saveEdit = async (s) => {
+    if (!editDraft.roles.length) return toast.error("At least one role is required");
+    setSaving(true);
+    try {
+      // Only send changed / non-empty fields
+      const patch = {
+        name: editDraft.name,
+        roles: editDraft.roles,
+        hierarchy_level: editDraft.hierarchy_level,
+        is_active: editDraft.is_active,
+      };
+      if (editDraft.password) patch.password = editDraft.password;
+      await onUpdate(s.id, patch);
+      cancelEdit();
+    } finally {
+      setSaving(false);
+    }
+  };
+  const toggleActive = (s) => onUpdate(s.id, { is_active: !(s.is_active !== false) });
+
   // MP-01 fix — clone an existing staff member's role setup into the new-staff form
   const cloneFrom = (s) => {
     setStaffDraft({
@@ -22,6 +67,7 @@ export default function StaffTab({
     setShowStaffNew(true);
     window?.scrollTo?.({ top: 0, behavior: "smooth" });
   };
+
   return (
     <>
       <div className="flex justify-between mb-4">
@@ -69,29 +115,107 @@ export default function StaffTab({
       <div className="bg-white border">
         <table className="w-full text-sm">
           <thead className="text-xs text-brand-navy/60 border-b">
-            <tr><th className="text-left px-3 py-2">Email</th><th className="text-left px-3 py-2">Name</th>
-              <th className="text-left px-3 py-2">Roles</th><th className="text-center px-3 py-2">Level</th>
+            <tr>
+              <th className="text-left px-3 py-2">Email</th>
+              <th className="text-left px-3 py-2">Name</th>
+              <th className="text-left px-3 py-2">Roles</th>
+              <th className="text-center px-3 py-2">Level</th>
               <th className="text-center px-3 py-2">Active</th>
-              <th className="text-center px-3 py-2">Clone</th></tr>
+              <th className="text-center px-3 py-2">Actions</th>
+            </tr>
           </thead>
           <tbody>
-            {staff.map((s) => (
-              <tr key={s.id} className="border-t" data-testid={`staff-row-${s.email}`}>
-                <td className="px-3 py-2 font-mono text-xs">{s.email}</td>
-                <td className="px-3 py-2">{s.name}</td>
-                <td className="px-3 py-2 text-xs">{(s.roles || [s.role]).join(", ")}</td>
-                <td className="px-3 py-2 text-center">{s.hierarchy_level}</td>
-                <td className="px-3 py-2 text-center">{s.is_active !== false ? "✓" : "×"}</td>
-                {/* MP-01 fix — clone this role setup */}
-                <td className="px-3 py-2 text-center">
-                  <button type="button" onClick={() => cloneFrom(s)}
-                          data-testid={`staff-clone-${s.email}`}
-                          className="text-[10px] uppercase tracking-widest px-2 py-1 border border-brand-navy/20 text-brand-navy hover:bg-brand-navy hover:text-white">
-                    Clone role
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {staff.map((s) => {
+              const isEditing = editingId === s.id;
+              if (isEditing) {
+                return (
+                  <tr key={s.id} className="border-t bg-amber-50/50" data-testid={`staff-edit-row-${s.email}`}>
+                    <td className="px-3 py-3 font-mono text-xs align-top">{s.email}</td>
+                    <td className="px-3 py-3 align-top">
+                      <input value={editDraft.name}
+                        onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })}
+                        className="w-full px-2 py-1 border text-sm" data-testid={`staff-edit-name-${s.email}`} />
+                      <input type="password" placeholder="Reset password (leave blank to keep)"
+                        value={editDraft.password}
+                        onChange={(e) => setEditDraft({ ...editDraft, password: e.target.value })}
+                        className="w-full px-2 py-1 border text-xs mt-1"
+                        data-testid={`staff-edit-password-${s.email}`} />
+                    </td>
+                    <td className="px-3 py-3 align-top" colSpan={2}>
+                      <div className="grid grid-cols-2 gap-1 text-xs">
+                        {Object.entries(ROLE_LABELS).map(([r, l]) => (
+                          <label key={r} className="flex items-center gap-1">
+                            <input type="checkbox" checked={editDraft.roles.includes(r)}
+                              onChange={() => toggleEditRole(r)}
+                              data-testid={`staff-edit-role-${s.email}-${r}`} />
+                            {l}
+                          </label>
+                        ))}
+                      </div>
+                      <label className="text-xs mt-2 block">
+                        <span>Hierarchy level</span>
+                        <input type="number" min="1" max="10" value={editDraft.hierarchy_level}
+                          onChange={(e) => setEditDraft({ ...editDraft, hierarchy_level: Number(e.target.value) })}
+                          className="mt-1 w-24 px-2 py-1 border"
+                          data-testid={`staff-edit-level-${s.email}`} />
+                      </label>
+                    </td>
+                    <td className="px-3 py-3 text-center align-top">
+                      <label className="inline-flex items-center gap-1 text-xs cursor-pointer">
+                        <input type="checkbox" checked={editDraft.is_active}
+                          onChange={(e) => setEditDraft({ ...editDraft, is_active: e.target.checked })}
+                          data-testid={`staff-edit-active-${s.email}`} />
+                        Active
+                      </label>
+                    </td>
+                    <td className="px-3 py-3 text-center align-top">
+                      <div className="flex flex-col gap-1">
+                        <button type="button" onClick={() => saveEdit(s)} disabled={saving}
+                          data-testid={`staff-save-${s.email}`}
+                          className="text-[10px] uppercase tracking-widest px-2 py-1 bg-brand-navy text-white disabled:opacity-50">
+                          {saving ? "Saving…" : "Save"}
+                        </button>
+                        <button type="button" onClick={cancelEdit}
+                          data-testid={`staff-cancel-${s.email}`}
+                          className="text-[10px] uppercase tracking-widest px-2 py-1 border border-brand-navy/20 text-brand-navy">
+                          Cancel
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              }
+              return (
+                <tr key={s.id} className="border-t" data-testid={`staff-row-${s.email}`}>
+                  <td className="px-3 py-2 font-mono text-xs">{s.email}</td>
+                  <td className="px-3 py-2">{s.name}</td>
+                  <td className="px-3 py-2 text-xs">{(s.roles || [s.role]).join(", ")}</td>
+                  <td className="px-3 py-2 text-center">{s.hierarchy_level}</td>
+                  <td className="px-3 py-2 text-center">
+                    <button type="button" onClick={() => toggleActive(s)}
+                      data-testid={`staff-toggle-active-${s.email}`}
+                      className={`text-xs font-semibold ${s.is_active !== false ? "text-emerald-700" : "text-slate-400"} hover:underline`}
+                      title="Click to toggle activation">
+                      {s.is_active !== false ? "✓" : "×"}
+                    </button>
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <button type="button" onClick={() => startEdit(s)}
+                        data-testid={`staff-edit-${s.email}`}
+                        className="text-[10px] uppercase tracking-widest px-2 py-1 bg-brand-navy text-white hover:bg-brand-navy-soft">
+                        Edit
+                      </button>
+                      <button type="button" onClick={() => cloneFrom(s)}
+                        data-testid={`staff-clone-${s.email}`}
+                        className="text-[10px] uppercase tracking-widest px-2 py-1 border border-brand-navy/20 text-brand-navy hover:bg-brand-navy hover:text-white">
+                        Clone
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

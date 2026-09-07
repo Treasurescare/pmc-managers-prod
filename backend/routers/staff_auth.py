@@ -144,9 +144,18 @@ async def update_staff(staff_id: str, payload: StaffUpdateIn,
     updates = payload.model_dump(exclude_unset=True)
     if "roles" in updates and updates["roles"]:
         updates["role"] = updates["roles"][0]
+    # Password reset: hash before persisting, never store raw
+    if updates.get("password"):
+        updates["password_hash"] = hash_password(updates.pop("password"))
+    else:
+        updates.pop("password", None)
     r = await db.admin_users.update_one({"_id": ObjectId(staff_id)}, {"$set": updates})
     if r.matched_count == 0:
         raise HTTPException(status_code=404, detail="Not found")
     fresh = await db.admin_users.find_one({"_id": ObjectId(staff_id)})
-    await audit_log("staff.update", admin, "admin_user", staff_id, updates)
+    # Redact password_hash before audit log
+    audit_updates = {k: v for k, v in updates.items() if k != "password_hash"}
+    if "password_hash" in updates:
+        audit_updates["password_reset"] = True
+    await audit_log("staff.update", admin, "admin_user", staff_id, audit_updates)
     return _out(fresh)
