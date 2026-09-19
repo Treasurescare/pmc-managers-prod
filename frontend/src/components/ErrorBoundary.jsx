@@ -28,11 +28,12 @@ export default class ErrorBoundary extends Component {
         <div className="max-w-lg w-full border border-red-200 bg-white p-8">
           <div className="pmc-label text-red-700">Something crashed on this screen</div>
           <h2 className="font-display text-2xl text-brand-navy mt-2">
-            Your session is still active
+            This panel hit an error
           </h2>
           <p className="text-sm text-brand-navy/70 mt-3">
-            The panel encountered an error but your login is preserved. Click
-            reload to return to the dashboard — no data was lost.
+            The screen failed to render, but no data was lost. Click reload to
+            retry. If the error repeats after switching accounts, sign out
+            fully and sign back in — role-mismatched cookies can cause this.
           </p>
           <details className="mt-4 text-xs text-brand-navy/50 font-mono">
             <summary className="cursor-pointer">Show technical details</summary>

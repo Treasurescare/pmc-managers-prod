@@ -362,6 +362,20 @@ async def admin_decide(registration_id: str, payload: RegistrationDecisionIn,
     }
 
     if payload.action == "approve":
+        # Bug #83 fix — strict validation before approval. Prevents admins
+        # from approving a supplier that hasn't filled the Identity fields.
+        REQUIRED = ["company_name", "registered_address", "country",
+                    "registration_number", "legal_entity_type", "email"]
+        missing = [f for f in REQUIRED if not (doc.get(f) or "").strip()] if isinstance(doc.get("company_name"), str) else [f for f in REQUIRED if not doc.get(f)]
+        if missing:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Cannot approve — the supplier has not filled these required "
+                    f"Section A fields: {', '.join(missing)}. Ask them to complete "
+                    "the registration or use Request Clarification instead."
+                ),
+            )
         updates.update(await approve_and_create_vendor(doc))
     elif payload.action == "reject":
         if not payload.notes:

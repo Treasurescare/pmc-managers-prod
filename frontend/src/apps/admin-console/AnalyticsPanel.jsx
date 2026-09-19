@@ -54,11 +54,14 @@ export default function AnalyticsPanel() {
 
       <div className="bg-white border p-4">
         <div className="pmc-label mb-2">{tt("panels.analytics.funnel_title")}</div>
-        <div className="grid grid-cols-4 md:grid-cols-8 gap-2 text-xs">
+        {/* Bug #79 fix — mobile overlap. 4 cols was too tight for long
+            stage labels like "certifier_cleared"; use 2/4/8 responsive
+            steps and let labels wrap. */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 text-xs">
           {Object.entries(data.funnel || {}).map(([k, v]) => (
-            <div key={k} className="border p-2 text-center">
-              <div className="text-slate-500">{k}</div>
-              <div className="text-lg">{v}</div>
+            <div key={k} className="border p-2 text-center min-w-0">
+              <div className="text-slate-500 break-words leading-tight" data-testid={`funnel-stage-${k}`}>{k}</div>
+              <div className="text-lg mt-1">{v}</div>
             </div>
           ))}
         </div>

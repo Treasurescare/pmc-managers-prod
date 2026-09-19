@@ -16,6 +16,18 @@ Admin (master + reviewer/sub-admin) · Vendor · Staff (Escrow, Certifier, Legal
 
 ## Implemented — 100% shipped (as of 5 Sep 2026)
 
+### 14 Feb 2026 — BugsV3 P0 sprint (batch #5): Session collision + Approval bypass + Blank form + Mobile funnel
+Files: `pmc-backend-v22b.zip` · `pmc-frontend-v31-build.zip`
+- **Bug #82 · #81 · #56 · #50 — Session collision (P0 root cause)**: switching between admin/staff/vendor left stale cookies from the previous role → dual identity → API 4xx → React crash → misleading "Your session is still active" banner. Fixed on both sides:
+  - Backend (`admin_auth`, `staff_auth`, `vendor_auth`): every `logout` endpoint now deletes ALL three cookies (`access_token`, `vendor_token`, `csrf_token`) regardless of which role called it.
+  - Frontend (`TopBar.jsx`): after hitting the three logout endpoints, wipes every `pmc.*` and `pmc_*` key from `localStorage` + `sessionStorage` (preserves language preference).
+  - Frontend (`ErrorBoundary.jsx`): honest title "This panel hit an error" instead of the misleading "Your session is still active"; hint text now points at role-cookie mismatch as a possible cause.
+- **Bug #83 — Approval bypass validation (P0)**: `POST /api/v1/registrations/{id}/decision` with `action=approve` now rejects with 400 if any of `company_name, registered_address, country, registration_number, legal_entity_type, email` is missing on the supplier record. Prevents "approved but never filled the form" state. Verified via curl.
+- **Bug #4 · #60 — Blank registration form download (P0)**: previously 500'd on Safari when no admin template existed. Now generates a printable reportlab PDF checklist as a fallback so the endpoint always returns 200 + `application/pdf` + `Content-Disposition: attachment`. Verified via curl.
+- **Bug #79 — Mobile funnel labels overlap (P0)**: `AnalyticsPanel.funnel_title` grid was `grid-cols-4 md:grid-cols-8` — long stage labels like `certifier_cleared` overflowed on mobile. Now `grid-cols-2 sm:grid-cols-4 lg:grid-cols-8` with `break-words` on the stage label.
+
+
+
 ### 14 Feb 2026 — Investor Demo Mode + Corrigenda Cleanup + Registration Guard
 - **Investor Demo Mode** (`/app/backend/routers/admin_demo.py`): one-click seed of a curated showcase dataset — 3 notices (Astana Metro Line 2, Sovereign Data Lake, Electric Bus Fleet), 3 approved KZ vendors with licenses, 5 bids covering the full lifecycle (submitted → emd_paid → admin_flagged → certifier_cleared → awarded) plus a signed contract. Every row tagged `is_demo:true` so it can be wiped cleanly. Endpoints: `GET /api/v1/admin/demo/status`, `POST /api/v1/admin/demo/seed`, `POST /api/v1/admin/demo/reset`. UI added as a new **Investor Demo** tab inside Masters (`DemoModeTab.jsx`). Idempotent + reset verified via curl.
 - **Corrigenda Withdraw Cleanup** (`admin-console/CorrigendaPanel.jsx`): withdrawn corrigenda are now moved out of the active list into a separate greyed-out "Withdrawn (historical)" section with the withdrawal reason surfaced. Notice picker also switched to `adminApi.listAllNotices` so drafts + published notices both show up.

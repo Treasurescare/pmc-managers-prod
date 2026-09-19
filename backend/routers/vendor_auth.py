@@ -85,7 +85,10 @@ async def vendor_login(payload: VendorLoginIn, response: Response) -> Dict[str, 
 
 @router.post("/auth/logout")
 async def vendor_logout(response: Response) -> Dict[str, bool]:
+    # Bug #82 fix — nuke ALL three cookie realms so a vendor logging out
+    # can immediately log in as staff/admin without dual-identity collisions.
     response.delete_cookie("vendor_token", path="/")
+    response.delete_cookie("access_token", path="/")
     response.delete_cookie("csrf_token", path="/")
     return {"ok": True}
 

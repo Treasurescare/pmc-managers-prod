@@ -42,7 +42,11 @@ async def admin_login(payload: AdminLoginIn, response: Response) -> Dict[str, An
 @router.post("/logout")
 async def admin_logout(response: Response) -> Dict[str, bool]:
     # Logout does not require CSRF — it's idempotent and only clears cookies.
+    # Bug #82 fix — nuke ALL three cookie realms so switching roles never
+    # leaves a stale vendor_token / access_token behind (which caused the
+    # "Your session is still active" ErrorBoundary crash on the next login).
     response.delete_cookie("access_token", path="/")
+    response.delete_cookie("vendor_token", path="/")
     response.delete_cookie("csrf_token", path="/")
     return {"ok": True}
 

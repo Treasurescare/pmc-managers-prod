@@ -48,6 +48,21 @@ export default function TopBar({ dark = false, rightExtras = null }) {
       try { await vendorApi.logout(); } catch (err) {
         if (process.env.NODE_ENV !== "production") console.debug("vendor logout skipped:", err?.response?.status);
       }
+      // Bug #82 fix — clear every PMC key from local + session storage so
+      // a stale admin-only state (awards picker, tenant skin cache, etc.)
+      // never leaks into the next role. Language preference is preserved.
+      try {
+        const langBackup = localStorage.getItem("pmc_lang");
+        Object.keys(localStorage)
+          .filter((k) => k.startsWith("pmc.") || k.startsWith("pmc_") && k !== "pmc_lang")
+          .forEach((k) => localStorage.removeItem(k));
+        Object.keys(sessionStorage)
+          .filter((k) => k.startsWith("pmc.") || k.startsWith("pmc_"))
+          .forEach((k) => sessionStorage.removeItem(k));
+        if (langBackup) localStorage.setItem("pmc_lang", langBackup);
+      } catch (err) {
+        if (process.env.NODE_ENV !== "production") console.debug("storage clear failed:", err);
+      }
     toast.success(t("nav.logout"));
     nav("/login");
   };

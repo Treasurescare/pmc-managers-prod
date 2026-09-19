@@ -84,7 +84,9 @@ async def staff_login(payload: StaffLoginIn, response: Response) -> Dict[str, An
 
 @router.post("/auth/logout")
 async def staff_logout(response: Response) -> Dict[str, bool]:
+    # Bug #82 fix — nuke ALL three cookie realms (see admin_auth.logout).
     response.delete_cookie("access_token", path="/")
+    response.delete_cookie("vendor_token", path="/")
     response.delete_cookie("csrf_token", path="/")
     return {"ok": True}
 
