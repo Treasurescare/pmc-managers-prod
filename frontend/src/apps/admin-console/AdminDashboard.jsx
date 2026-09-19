@@ -29,6 +29,7 @@ import LiveAuctionsPanel from "./LiveAuctionsPanel";
 import MeetingsPanel from "./MeetingsPanel";
 import L1ComparisonPanel from "./L1ComparisonPanel";
 import DocuSignPanel from "./DocuSignPanel";
+import HelpPanel from "./HelpPanel";
 import useTenantSkin from "@/apps/shared/useTenantSkin";
 
 function TabBar({ tab, setTab }) {
@@ -56,6 +57,7 @@ function TabBar({ tab, setTab }) {
     ["audit", t("admin.tab_audit")],
     ["catalog", t("admin.tab_catalog")],
     ["engagements", t("admin.tab_engagements")],
+    ["help", "Help"],
   ];
   return (
     <>
@@ -199,6 +201,7 @@ export default function AdminDashboard() {
           {tab === "audit" && <AuditPanel />}
           {tab === "catalog" && <ProductCatalogPanel />}
           {tab === "engagements" && <EngagementsPanel />}
+          {tab === "help" && <HelpPanel />}
         </div>
       </main>
     </div>

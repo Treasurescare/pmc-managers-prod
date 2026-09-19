@@ -110,6 +110,8 @@ app.include_router(dashboard_drill.router)
 app.include_router(branding_theme.router)
 app.include_router(envelope_authoritative.router)
 app.include_router(contracts_export.router)
+from routers import help_content as _help_content
+app.include_router(_help_content.router)
 # Wave 35 — Product catalog + Stripe billing
 app.include_router(products.router)
 app.include_router(billing.router)
