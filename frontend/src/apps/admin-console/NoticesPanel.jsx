@@ -26,8 +26,12 @@ export default function NoticesPanel() {
   const [showTemplateOnly, setShowTemplateOnly] = useState(false);
 
   const load = useCallback(() => {
-    fetch(`${process.env.REACT_APP_BACKEND_URL}/api/v1/notices?limit=100`)
-      .then((r) => r.json())
+    // Bucket A fix — use the admin-only endpoint that returns BOTH drafts
+    // and published notices. The public /api/v1/notices endpoint filters
+    // out drafts (is_published=true only), which made new drafts look
+    // invisible after creation. Cache-buster prevents CloudFront from
+    // serving a stale response after create/publish.
+    adminApi.listAllNotices({ limit: 200, _: Date.now() })
       .then((d) => setItems(d.items || []))
       .catch((err) => console.warn("Failed to load notices:", err));
   }, []);

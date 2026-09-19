@@ -36,7 +36,18 @@ export default function AdminVendorCreate() {
     publicApi.countries().then(setCountries).catch(() => {});
   }, []);
 
-  const update = (patch) => setReg((prev) => ({ ...prev, ...patch }));
+  const update = (patch) => setReg((prev) => {
+    // Bug #78 fix (Vendor Document Crossover) — if the admin changes the
+    // vendor email after having auto-created a draft, we MUST discard the
+    // previous draft + any documents uploaded against it. Otherwise the
+    // newly-emailed vendor inherits the previous vendor's uploaded files.
+    if ("email" in patch && patch.email !== prev.email && (draftId || Object.keys(prev.document_slots || {}).length > 0)) {
+      setDraftId(null);
+      setDraftToken(null);
+      return { ...prev, ...patch, document_slots: {} };
+    }
+    return { ...prev, ...patch };
+  });
 
   // Silent auto-save the FIRST time it's needed (e.g. the admin picks a
   // document to upload before manually hitting "Save draft"). Returns the

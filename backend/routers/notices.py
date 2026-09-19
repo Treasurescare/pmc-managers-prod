@@ -57,6 +57,27 @@ def _out(doc: dict) -> dict:
     return d
 
 
+@router.get("/admin/all")
+async def list_notices_admin(
+    limit: int = 200,
+    offset: int = 0,
+    admin=Depends(require_role("admin", "reviewer", "auditor", "legal_counsel",
+                                "committee_member", "certifier", "accounting")),
+):
+    """Admin-only — list EVERY notice (published + draft) so the Notices tab
+    reflects newly-created drafts immediately after creation.
+    Bucket A fix — the public `GET /` filters by is_published=true, hiding
+    drafts from the admin panel and giving the impression that "Create Notice"
+    is broken."""
+    limit = max(1, min(int(limit), 500))
+    offset = max(0, int(offset))
+    q = {"tenant_id": admin["tenant_id"]}
+    cursor = db.notices.find(q).sort("created_at", -1).skip(offset).limit(limit)
+    total = await db.notices.count_documents(q)
+    items = [_out(t) async for t in cursor]
+    return {"items": items, "total": total, "limit": limit, "offset": offset}
+
+
 @router.get("")
 async def list_notices(
     country: Optional[str] = None,

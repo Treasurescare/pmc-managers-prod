@@ -98,6 +98,11 @@ async def admin_create_vendor(payload: AdminVendorFullIn,
             draft = await db.registrations.find_one({"_id": _OID(payload.draft_registration_id)})
         except Exception:
             draft = None
+        # Bug #78 fix — NEVER carry over document_slots from a draft that
+        # was created under a DIFFERENT email. Otherwise Vendor B inherits
+        # Vendor A's uploaded documents (data-leak / audit risk).
+        if draft and (draft.get("email") or "").lower() != email:
+            draft = None
         if draft and draft.get("document_slots"):
             reg.setdefault("document_slots", {})
             reg["document_slots"] = {**draft["document_slots"], **(reg.get("document_slots") or {})}

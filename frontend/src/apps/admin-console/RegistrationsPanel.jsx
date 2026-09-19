@@ -45,13 +45,23 @@ export default function RegistrationsPanel() {
     }
     setDeciding(true);
     try {
-      await adminApi.decideRegistration(selected.id, action, notes || null);
+      const r = await adminApi.decideRegistration(selected.id, action, notes || null);
       // Bug #50 — fix "clarify recorded" typo
       const verb = action === "clarify" ? "clarification"
                  : action === "approve"  ? "approval"
                  : action === "reject"   ? "rejection" : action;
       toast.success(`${verb.charAt(0).toUpperCase() + verb.slice(1)} recorded`);
-      setSelected(null); setNotes(""); load();
+      setSelected(null); setNotes("");
+      // Bucket A fix — auto-switch the filter to the new status so the
+      // reviewer sees where the record went. Previously the row simply
+      // disappeared from the "submitted" tab and the user thought the
+      // action didn't take effect.
+      const nextStatus = r?.status
+        || (action === "approve" ? "approved"
+        : action === "reject" ? "rejected"
+        : action === "clarify" ? "needs_clarification" : status);
+      if (nextStatus !== status) setStatus(nextStatus);
+      else load();
     } catch (err) {
       toast.error(formatApiError(err));
     } finally {

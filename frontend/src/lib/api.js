@@ -98,6 +98,7 @@ export const adminApi = {
   decideRegistration: (id, action, notes) =>
     api.post(`/api/v1/registrations/${id}/decision`, { action, notes }).then((r) => r.data),
   createNotice: (payload) => api.post("/api/v1/notices", payload).then((r) => r.data),
+  listAllNotices: (params = {}) => api.get("/api/v1/notices/admin/all", { params }).then((r) => r.data),
   publishNotice: (ref) => api.post(`/api/v1/notices/${ref}/publish`).then((r) => r.data),
   listPackages: (params = {}) => api.get("/api/v1/packages", { params }).then((r) => r.data),
   createPackage: (payload) => api.post("/api/v1/packages", payload).then((r) => r.data),
@@ -361,8 +362,13 @@ export const tenantApi = {
 };
 
 export const tenderTemplateApi = {
+  // Bucket C fix — cache-buster prevents CloudFront/browser from returning
+  // stale list after clone/delete. Bug reported: "delete gives success but
+  // draft still listed" — usually the DELETE succeeded but the follow-up
+  // list was served from cache.
+  _cb: () => ({ _: Date.now() }),
   list: (kind) =>
-    api.get("/api/v1/tender-templates", { params: kind ? { kind } : {} }).then((r) => r.data),
+    api.get("/api/v1/tender-templates", { params: { ...(kind ? { kind } : {}), _: Date.now() } }).then((r) => r.data),
   get: (id) => api.get(`/api/v1/tender-templates/${id}`).then((r) => r.data),
   create: (p) => api.post("/api/v1/tender-templates", p).then((r) => r.data),
   update: (id, p) => api.patch(`/api/v1/tender-templates/${id}`, p).then((r) => r.data),
