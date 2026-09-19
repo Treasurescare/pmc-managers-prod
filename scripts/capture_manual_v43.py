@@ -172,33 +172,101 @@ RECIPES = [
 ]
 
 
-async def _login(page):
-    await page.goto(f"{BASE_URL}/admin/login", wait_until="domcontentloaded", timeout=25000)
-    await page.wait_for_timeout(1200)
-    await page.locator('[data-testid="admin-login-email"]').first.fill(ADMIN_EMAIL, timeout=8000)
-    await page.locator('[data-testid="admin-login-password"]').first.fill(ADMIN_PASS, timeout=8000)
-    await page.locator('[data-testid="admin-login-submit"]').first.click(timeout=8000)
+async def _login(page, ctx):
+    """
+    Authenticate by hitting the login API directly and injecting the
+    resulting httpOnly cookies into the browser context.
+    """
+    import subprocess as _sp, json as _json
+    from urllib.parse import urlparse
+    api_url = os.environ.get("MANUAL_API_URL", "http://localhost:8001")
+    body = _json.dumps({"email": ADMIN_EMAIL, "password": ADMIN_PASS})
+    # Use curl so Cloudflare doesn't 403 us on the preview URL.
+    proc = _sp.run(
+        ["curl", "-sSi", "-X", "POST",
+         f"{api_url}/api/v1/admin/auth/login",
+         "-H", "Content-Type: application/json",
+         "-A", "Mozilla/5.0 (X11; Linux x86_64) PMC-Manual-Capture/1.0",
+         "-d", body],
+        capture_output=True, text=True, timeout=20,
+    )
+    host = urlparse(api_url).hostname or "localhost"
+    cookies = []
+    for line in proc.stdout.splitlines():
+        if line.lower().startswith("set-cookie:"):
+            hval = line.split(":", 1)[1].strip()
+            name_val = hval.split(";", 1)[0]
+            if "=" not in name_val:
+                continue
+            n, v = name_val.split("=", 1)
+            cookies.append({
+                "name": n.strip(), "value": v.strip(),
+                "domain": host, "path": "/",
+                "httpOnly": "HttpOnly" in hval,
+                "secure": "Secure" in hval,
+                "sameSite": "None" if "SameSite=None" in hval else "Lax",
+            })
+    print(f"    injecting {len(cookies)} cookies: {[c['name'] for c in cookies]}")
+    if cookies:
+        await ctx.add_cookies(cookies)
+    await page.goto(f"{BASE_URL}/admin", wait_until="networkidle", timeout=25000)
     await page.wait_for_timeout(3500)
+    print(f"    post-login url: {page.url}")
+
+
+TAB_READY_SELECTORS = {
+    "notices": "admin-notices-panel",
+    "registrations": "admin-registrations-panel",
+    "vendors": "admin-vendors-panel",
+    "packages": "admin-packages-panel",
+    "bidding": "admin-bidding-panel",
+    "escrow": "escrow-panel",
+    "corrigenda": "admin-corrigenda-panel",
+    "auctions": "admin-live-auctions",
+    "meetings": "admin-meetings-panel",
+    "boq": None,  # BOQ panel doesn't wrap the tabs container yet
+    "tender-builder": "tender-builder-panel",
+    "masters": "admin-masters-panel",
+    "permissions": "admin-permissions-panel",
+    "audit": "admin-audit-panel",
+    "analytics": "admin-analytics-panel",
+    "l1": "admin-l1-panel",
+    "docusign": "admin-docusign-panel",
+    "awards": "admin-awards-panel",
+    "vintel": "admin-vendor-intel-panel",
+    "engagements": None,
+    "catalog": None,
+    "evaluation": "admin-evaluation-panel",
+    "help": None,
+}
 
 
 async def _run_recipe(page, tab, shot_name, seq):
     print(f"  → tab={tab}  shot={shot_name}")
-    await page.goto(f"{BASE_URL}/admin?tab={tab}", wait_until="domcontentloaded", timeout=15000)
-    await page.wait_for_timeout(1500)
+    await page.goto(f"{BASE_URL}/admin?tab={tab}", wait_until="networkidle", timeout=20000)
+    # Wait for the panel testid to appear so React has rendered content.
+    ready = TAB_READY_SELECTORS.get(tab)
+    if ready:
+        try:
+            await page.locator(f'[data-testid="{ready}"]').first.wait_for(state="visible", timeout=15000)
+        except Exception:
+            pass
+    await page.wait_for_timeout(2000)
     for step in seq:
         kind, arg = step
         try:
             if kind == "click":
                 loc = page.locator(f'[data-testid="{arg}"]').first
-                await loc.click(timeout=4000)
+                await loc.wait_for(state="visible", timeout=8000)
+                await loc.click(timeout=6000)
             elif kind == "fill":
                 testid, val = arg.split("|", 1)
-                await page.locator(f'[data-testid="{testid}"]').first.fill(val, timeout=4000)
+                await page.locator(f'[data-testid="{testid}"]').first.fill(val, timeout=6000)
             elif kind == "wait":
                 await page.wait_for_timeout(int(arg))
             elif kind == "goto":
-                await page.goto(f"{BASE_URL}{arg}", wait_until="domcontentloaded", timeout=15000)
-                await page.wait_for_timeout(1200)
+                await page.goto(f"{BASE_URL}{arg}", wait_until="networkidle", timeout=15000)
+                await page.wait_for_timeout(1500)
         except Exception as e:
             print(f"    step {kind}({arg}) FAILED: {e!r}")
     target = OUT_DIR / f"{shot_name}.png"
@@ -214,7 +282,7 @@ async def main(codes: list):
         ctx = await browser.new_context(viewport={"width": 1600, "height": 1000})
         page = await ctx.new_page()
         try:
-            await _login(page)
+            await _login(page, ctx)
             for tab, name, seq in to_run:
                 try:
                     await _run_recipe(page, tab, name, seq)
