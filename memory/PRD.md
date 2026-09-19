@@ -16,6 +16,9 @@ Admin (master + reviewer/sub-admin) · Vendor · Staff (Escrow, Certifier, Legal
 
 ## Implemented — 100% shipped (as of 19 Feb 2026)
 
+### 19 Feb 2026 — Bug Tracker v12 delivered
+`PMC_Bug_Tracker_v12_20260219.xlsx` (SHA-256 `767abe92a97b6df2b2df1edcea7ae1f69477a5fff9342720da0e59ab9fe3ad2f`) — includes a new "Feb 19 delivery" sheet documenting Batches #6/#7/#8 with file names, SHA-256s and cleared bug IDs.
+
 ### 19 Feb 2026 — Batch #8: P1 tester-experience polish (v35 frontend only, backend unchanged)
 File: `pmc-frontend-v35-build.zip` (1.2 MB, `main.4b0111ec.js`, SHA-256 `bd7161beaaf93890235abc6bc9b8f7bf44d9a28ad4197f3ac6506ae47eb99508`). Backend stays at v22d — no server-side change needed.
 - **Bug #26 — Product Catalog toast**: `ProductCatalogPanel.jsx` save toast now reads `"Product created · <name>"` / `"Product saved · <name>"` (was ambiguous "Saved <name>" that testers mistook for the Procurement Strategy module). List already had cache-buster + `onSaved` refresh — retained.
