@@ -16,6 +16,17 @@ Admin (master + reviewer/sub-admin) · Vendor · Staff (Escrow, Certifier, Legal
 
 ## Implemented — 100% shipped (as of 5 Sep 2026)
 
+### 14 Feb 2026 — Bugs V2 Batch #4: Vendor Doc Crossover + Notices drafts + Registrations UX
+- **Bug #78 — Vendor Document Crossover (CRITICAL security)**: on admin-create flow, Vendor B could inherit Vendor A's uploaded documents.
+  - Backend fix (`vendor_full_invite.py`): `admin-create` now ignores `draft_registration_id` if the draft's email doesn't match the new vendor's email (defence in depth).
+  - Frontend fix (`AdminVendorCreate.jsx`): if the admin changes the vendor's email after an auto-draft was created, the `draftId`/`draftToken`/`document_slots` state is reset. Previously the state was reused → old uploads were merged into the new vendor.
+  - Regression test: `/app/backend/tests/test_regression_v22.py::test_bug78_admin_create_rejects_cross_email_draft` — PASSES.
+- **Bucket A — Notices drafts invisible in Admin panel**: `list_notices` (public) filters `is_published=True`, so newly-created drafts were hidden. Added `GET /api/v1/notices/admin/all` (admin-scoped, returns drafts + published + tenant filter). Rewired `NoticesPanel.jsx` to use it. Regression test PASSES.
+- **Bucket A — Registrations "Approve does nothing"**: on approve/reject/clarify the target row moved to a different status tab, so it disappeared from the current view. Reviewer perceived it as broken. `RegistrationsPanel.jsx` now auto-switches the filter to the new status.
+- **Bucket C — Tender Builder Clone/Delete stale list**: added cache-buster `_=Date.now()` to `tenderTemplateApi.list()` so CloudFront never serves a stale list after a delete/clone. Verified clone endpoint returns 200 with correct payload on preview (the AWS 500 was a stale-backend issue prior to v21).
+
+
+
 ### 7 Sep 2026 — Staff Master: Edit / Role-change / Deactivate / Password-reset UI
 - Concern: admin could add staff but couldn't edit them — only "Clone role" button existed.
 - Backend already had `PATCH /api/v1/staff/{id}` for name/roles/hierarchy_level/is_active; added optional `password` to `StaffUpdateIn` for password reset (hashed server-side, never logged raw).
