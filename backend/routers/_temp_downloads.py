@@ -101,7 +101,15 @@ async def download(token: str, name: str):
         return FileResponse(str(path), media_type="text/markdown", filename=path.name)
     if str(path).endswith(".pdf"):
         return FileResponse(str(path), media_type="application/pdf", filename=path.name)
-    return FileResponse(str(path), media_type="application/zip", filename=path.name)
+    # For .zip and everything else, force a raw binary attachment. Safari on
+    # macOS auto-extracts `application/zip` by default; `application/octet-stream`
+    # + explicit Content-Disposition keeps the .zip intact on disk.
+    return FileResponse(
+        str(path),
+        media_type="application/octet-stream",
+        filename=path.name,
+        headers={"Content-Disposition": f'attachment; filename="{path.name}"'},
+    )
 
 
 @router.get("/{token}")
