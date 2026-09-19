@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { tenderTemplateApi, formatApiError } from "@/lib/api";
+import { tenderTemplateApi, formatApiError, showApiError} from "@/lib/api";
 
 /**
  * VersionHistory — sidebar drawer listing every rolling snapshot of a tender
@@ -17,7 +17,7 @@ export default function VersionHistory({ templateId, onRestored, onClose }) {
     setLoading(true);
     tenderTemplateApi.listVersions(templateId)
       .then((d) => setItems(d.versions || []))
-      .catch((e) => toast.error(formatApiError(e)))
+      .catch((e) => showApiError(e))
       .finally(() => setLoading(false));
   }, [templateId]);
 
@@ -28,7 +28,7 @@ export default function VersionHistory({ templateId, onRestored, onClose }) {
       const doc = await tenderTemplateApi.restoreVersion(templateId, index);
       toast.success(`Restored — version ${doc.version || "-"}`);
       onRestored(doc);
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
     finally { setBusy(false); }
   };
 

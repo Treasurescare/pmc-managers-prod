@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { boqApi, contractApi, bidApi, formatApiError } from "@/lib/api";
+import { boqApi, contractApi, bidApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import BOQTemplatesTab from "./boq/BOQTemplatesTab";
 import ContractsTab from "./boq/ContractsTab";
@@ -29,7 +29,7 @@ export default function BOQContractsPanel() {
         bidApi.list({ status: "awarded" }).catch(() => []),
       ]);
       setTemplates(t); setContracts(c); setAwardedBids(b);
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   }, []);
   useEffect(() => { load(); }, [load]);
 

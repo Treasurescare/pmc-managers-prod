@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { comparisonApi, formatApiError } from "@/lib/api";
+import { comparisonApi, formatApiError, showApiError} from "@/lib/api";
+import { InfoDot } from "@/components/InfoDot";
 
 /** Wave 41 — L1 Auto-Comparison Engine (rule-based lowest-price shortlist). */
 export default function L1ComparisonPanel() {
@@ -28,7 +29,7 @@ export default function L1ComparisonPanel() {
       toast.success(r.l1_winner
         ? `L1: ${r.l1_winner.company_name} @ ${r.l1_winner.price_currency} ${r.l1_winner.price_amount?.toLocaleString()}`
         : `${r.eligible_count} eligible · no compliant L1 found`);
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
     finally { setBusy(false); }
   };
 
@@ -51,18 +52,22 @@ export default function L1ComparisonPanel() {
       </div>
 
       <div className="grid gap-3 md:grid-cols-[1fr_auto] mb-6">
-        <select value={pickedRef} onChange={(e) => { setPickedRef(e.target.value); setResult(null); }}
-                data-testid="l1-notice-picker"
-                className="px-4 py-3 border border-brand-navy/20">
-          <option value="">— pick a notice —</option>
-          {notices.map((n) => (
-            <option key={n.id} value={n.notice_ref}>{n.notice_ref} — {n.title}</option>
-          ))}
-        </select>
+        <label className="text-xs uppercase tracking-widest text-brand-navy/60">
+          Notice<InfoDot tip="Which tender to shortlist. The engine will only rank bids on this notice whose technical envelope has been cleared." />
+          <select value={pickedRef} onChange={(e) => { setPickedRef(e.target.value); setResult(null); }}
+                  data-testid="l1-notice-picker"
+                  className="mt-1 w-full px-4 py-3 border border-brand-navy/20 normal-case tracking-normal">
+            <option value="">— pick a notice —</option>
+            {notices.map((n) => (
+              <option key={n.id} value={n.notice_ref}>{n.notice_ref} — {n.title}</option>
+            ))}
+          </select>
+        </label>
         <button type="button" onClick={run} disabled={!pickedRef || busy}
                 data-testid="l1-run"
-                className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep disabled:opacity-40">
+                className="self-end px-6 py-3 text-[11px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep disabled:opacity-40">
           {busy ? "Running…" : "Run L1 comparison"}
+          <InfoDot tip="Executes the lowest-price-compliant algorithm. Bids missing docs, above 150% budget or below 40% budget are flagged, not ranked." />
         </button>
       </div>
 

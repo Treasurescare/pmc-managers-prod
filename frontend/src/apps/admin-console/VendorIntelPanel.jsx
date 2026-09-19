@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { vendorIntelApi, formatApiError } from "@/lib/api";
+import { vendorIntelApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
+import { InfoDot } from "@/components/InfoDot";
 
 const BANDS = ["excellent", "good", "fair", "poor", "blacklisted"];
 
@@ -14,7 +15,7 @@ export default function VendorIntelPanel() {
 
   const load = useCallback(async () => {
     try { setRows(await vendorIntelApi.summary()); }
-    catch (e) { toast.error(formatApiError(e)); }
+    catch (e) { showApiError(e); }
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -23,7 +24,7 @@ export default function VendorIntelPanel() {
       await vendorIntelApi.rate({ vendor_ref: v.vendor_ref, ...rating });
       toast.success(t("panels.vendor_intel.rating_saved"));
       load();
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   };
   const blacklist = async (v) => {
     if (!blacklistReason) return toast.error(t("panels.vendor_intel.reason_required"));
@@ -31,11 +32,11 @@ export default function VendorIntelPanel() {
       await vendorIntelApi.blacklist({ vendor_ref: v.vendor_ref, reason: blacklistReason });
       toast.success(t("panels.vendor_intel.blacklisted_toast"));
       load();
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   };
   const unblacklist = async (v) => {
     try { await vendorIntelApi.unblacklist(v.vendor_ref); toast.success(t("panels.vendor_intel.removed_toast")); load(); }
-    catch (e) { toast.error(formatApiError(e)); }
+    catch (e) { showApiError(e); }
   };
 
   return (
@@ -87,23 +88,26 @@ export default function VendorIntelPanel() {
             <div className="text-lg font-serif">{selected.company_name}</div>
             <div className="text-xs text-slate-500">{selected.vendor_ref}</div>
             <label className="block text-sm">
-              <span>{t("panels.vendor_intel.score_label")}</span>
+              <span>{t("panels.vendor_intel.score_label")}<InfoDot tip="Numeric score 0-100. Reflects the vendor's overall reliability across past contracts. Used to compute the Band." /></span>
               <input type="number" min="0" max="100" value={rating.score}
                 onChange={(e) => setRating({ ...rating, score: Number(e.target.value) })}
                 className="mt-1 w-full border px-3 py-2" data-testid="vintel-score" />
             </label>
             <label className="block text-sm">
-              <span>{t("panels.vendor_intel.band_label")}</span>
+              <span>{t("panels.vendor_intel.band_label")}<InfoDot tip="Coarse tier used by matrix routing rules — 'blacklisted' auto-rejects future bids from this vendor." /></span>
               <select value={rating.band} onChange={(e) => setRating({ ...rating, band: e.target.value })}
                 className="mt-1 w-full border px-3 py-2" data-testid="vintel-band">
                 {BANDS.map((b) => <option key={b}>{b}</option>)}
               </select>
             </label>
             <button onClick={() => saveRating(selected)} data-testid="vintel-save-rating"
-              className="w-full bg-slate-900 text-white py-2 text-sm">{t("panels.vendor_intel.save_rating")}</button>
+              className="w-full bg-slate-900 text-white py-2 text-sm">
+              {t("panels.vendor_intel.save_rating")}
+              <InfoDot tip="Persists the score and band. Every change is written to the audit log with the acting admin's identity." />
+            </button>
             <div className="border-t pt-3">
               <label className="block text-sm">
-                <span>{t("panels.vendor_intel.bl_reason")}</span>
+                <span>{t("panels.vendor_intel.bl_reason")}<InfoDot tip="Required when blacklisting. Rendered in the vendor's dossier and legal exports. Minimum 8 characters recommended." /></span>
                 <input value={blacklistReason} onChange={(e) => setBlacklistReason(e.target.value)}
                   className="mt-1 w-full border px-3 py-2" data-testid="vintel-bl-reason" />
               </label>

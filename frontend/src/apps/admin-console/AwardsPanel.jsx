@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { awardsApi, bidApi, docusignApi, formatApiError, BACKEND_URL } from "@/lib/api";
+import { awardsApi, bidApi, docusignApi, formatApiError, BACKEND_URL, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
+import { InfoDot } from "@/components/InfoDot";
 
 /** Wave 39 — Post-Award document dashboard.
  *
@@ -33,13 +34,13 @@ export default function AwardsPanel() {
         if (prev && (rows || []).some((b) => b.id === prev)) return prev;
         return rows?.[0]?.id || "";
       });
-    }).catch((e) => toast.error(formatApiError(e)));
+    }).catch((e) => showApiError(e));
   }, []);
 
   const loadDocs = useCallback((bidId) => {
     if (!bidId) return;
     awardsApi.list(bidId).then((d) => setDocs(d.items || []))
-      .catch((e) => toast.error(formatApiError(e)));
+      .catch((e) => showApiError(e));
   }, []);
 
   useEffect(() => { loadBids(); }, [loadBids]);
@@ -64,7 +65,7 @@ export default function AwardsPanel() {
       const by = r.regenerated_by ? ` by ${r.regenerated_by}` : "";
       toast.success(`${t("panels.awards.regenerated")} — ${r.award_ref}${when ? ` · ${when}${by}` : ""}`);
       loadDocs(pickedBidId);
-    } catch (err) { toast.error(formatApiError(err)); }
+    } catch (err) { showApiError(err); }
     finally { setBusy(false); }
   };
 
@@ -114,7 +115,7 @@ export default function AwardsPanel() {
         window.open(detail.consent_url, "_blank", "noopener");
         toast.error(t("panels.docusign.consent_required"));
       } else {
-        toast.error(formatApiError(err));
+        showApiError(err);
       }
     } finally {
       setSignBusy(false);
@@ -135,7 +136,7 @@ export default function AwardsPanel() {
       </div>
 
       <label className="block mb-4">
-        <span className="pmc-label">{t("panels.awards.awarded_bid")}</span>
+        <span className="pmc-label">{t("panels.awards.awarded_bid")}<InfoDot tip="Only bids that reached Awarded state are eligible. Selecting a bid loads its auto-generated PO / SLA / Contract PDFs." /></span>
         <select value={pickedBidId} onChange={(e) => setPickedBidId(e.target.value)}
                 data-testid="awards-bid-picker"
                 className="mt-1 w-full px-4 py-3 border border-brand-navy/20">

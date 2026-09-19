@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { adminApi, mastersApi, noticeDocsApi, tenderTemplateApi, formatApiError } from "@/lib/api";
+import { adminApi, mastersApi, noticeDocsApi, tenderTemplateApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
+import { InfoDot } from "@/components/InfoDot";
 
 export default function NoticesPanel() {
   const { t } = useI18n();
@@ -109,7 +110,7 @@ export default function NoticesPanel() {
       });
       setPrimaryFile(null); setAttachmentFiles([]);
       load();
-    } catch (err) { toast.error(formatApiError(err)); }
+    } catch (err) { showApiError(err); }
   };
 
   return (
@@ -124,29 +125,29 @@ export default function NoticesPanel() {
 
       {showNew && (
         <div className="border border-brand-navy-soft/40 bg-white p-6 mb-6 grid gap-4 md:grid-cols-2" data-testid="notice-new-form">
-          <label className="col-span-2"><span className="pmc-label">Title</span>
+          <label className="col-span-2"><span className="pmc-label">Title<InfoDot tip="Human-readable name of the tender / RFP / RFQ. Shown on the public Notice Board. Minimum 3 characters." /></span>
             <input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} data-testid="notice-title"
               className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <label className="col-span-2"><span className="pmc-label">Description</span>
+          <label className="col-span-2"><span className="pmc-label">Description<InfoDot tip="Full scope, objectives and bidder eligibility. Rendered as body copy on the public notice page. Minimum 10 characters." /></span>
             <textarea rows={4} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} data-testid="notice-description"
               className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <label><span className="pmc-label">Category</span>
+          <label><span className="pmc-label">Category<InfoDot tip="Industry / commodity code (free text or UNSPSC). Used for filtering on the Notice Board and vendor invite matching." /></span>
             <input value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })} data-testid="notice-category"
               className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <label><span className="pmc-label">Document type</span>
+          <label><span className="pmc-label">Document type<InfoDot tip="TENDER = works/goods procurement, RFP = solutioning/consulting, RFQ = quick price quote. Drives which template sections are mandatory." /></span>
             <select value={draft.document_type} onChange={(e) => setDraft({ ...draft, document_type: e.target.value })} data-testid="notice-doc-type"
               className="mt-1 w-full px-4 py-3 border border-brand-navy/20">
               <option value="tender">Tender</option><option value="rfp">RFP</option><option value="rfq">RFQ</option></select></label>
-          <label><span className="pmc-label">Delivery country</span>
+          <label><span className="pmc-label">Delivery country<InfoDot tip="ISO-2 country code (KZ, US, GB, AE, IN…). Filters vendor eligibility and applies country-specific EMD/tax rules." /></span>
             <input value={draft.delivery_country} onChange={(e) => setDraft({ ...draft, delivery_country: e.target.value })} data-testid="notice-country"
               className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <label><span className="pmc-label">Submission deadline</span>
+          <label><span className="pmc-label">Submission deadline<InfoDot tip="Cut-off timestamp in your local timezone. After this moment bids can no longer be submitted and the notice moves to 'expired'." /></span>
             <input type="datetime-local" value={draft.submission_deadline} onChange={(e) => setDraft({ ...draft, submission_deadline: e.target.value })} data-testid="notice-deadline"
               className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <label><span className="pmc-label">Budget currency</span>
+          <label><span className="pmc-label">Budget currency<InfoDot tip="ISO-4217 code (USD, EUR, KZT, INR, AED…). Applied to Budget and EMD amounts." /></span>
             <input value={draft.budget_currency} onChange={(e) => setDraft({ ...draft, budget_currency: e.target.value })} data-testid="notice-currency"
               className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <label><span className="pmc-label">Budget amount</span>
+          <label><span className="pmc-label">Budget amount<InfoDot tip="Estimated contract value. Optional but recommended — informs vendor go/no-go decisions and Approval-Matrix routing." /></span>
             <input type="number" min="0" step="0.01" value={draft.budget_amount || ""}
               onChange={(e) => {
                 const v = parseFloat(e.target.value);
@@ -155,17 +156,17 @@ export default function NoticesPanel() {
               }}
               data-testid="notice-budget"
               className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <label><span className="pmc-label">EMD — Fixed amount ({draft.budget_currency})</span>
+          <label><span className="pmc-label">EMD — Fixed amount ({draft.budget_currency})<InfoDot tip="Earnest Money Deposit as a flat sum. Bidders pay this via Stripe/PayPal/Kaspi. Set 0 to use percentage-of-budget instead." /></span>
             <input type="number" min="0" value={draft.emd_config.fixed_amount || 0}
               onChange={(e) => setDraft({ ...draft, emd_config: { ...draft.emd_config, fixed_amount: parseFloat(e.target.value) || 0, currency: draft.budget_currency } })}
               data-testid="notice-emd-fixed"
               className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <label><span className="pmc-label">EMD — % of budget</span>
+          <label><span className="pmc-label">EMD — % of budget<InfoDot tip="Percentage of Budget amount charged as EMD. Between 0 and 100. Ignored if Fixed amount is greater than zero." /></span>
             <input type="number" step="0.01" min="0" max="100" value={draft.emd_config.percentage || 0}
               onChange={(e) => setDraft({ ...draft, emd_config: { ...draft.emd_config, percentage: parseFloat(e.target.value) || 0, currency: draft.budget_currency } })}
               data-testid="notice-emd-percentage"
               className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <label className="md:col-span-2"><span className="pmc-label">Approval Matrix (Masters)</span>
+          <label className="md:col-span-2"><span className="pmc-label">Approval Matrix (Masters)<InfoDot tip="Named approval pipeline defined under Masters → Approval Matrices. Overrides the default Escrow → Admin → Certifier → Legal → Accounting → Committee chain." /></span>
             <select value={draft.approval_matrix_id || ""}
               onChange={(e) => setDraft({ ...draft, approval_matrix_id: e.target.value })}
               data-testid="notice-matrix"
@@ -174,7 +175,7 @@ export default function NoticesPanel() {
               {matrices.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
           </label>
-          <label className="md:col-span-2"><span className="pmc-label">Tender template (Tender Builder)</span>
+          <label className="md:col-span-2"><span className="pmc-label">Tender template (Tender Builder)<InfoDot tip="Optional. Attach a pre-built tender template so bidders can download the full watermarked PDF from the public Notice page." /></span>
             <select value={draft.tender_template_id || ""}
               onChange={(e) => setDraft({ ...draft, tender_template_id: e.target.value })}
               data-testid="notice-tender-template"

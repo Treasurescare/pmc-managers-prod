@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { publicApi, vendorApi, bidApi, paymentApi, uploadsApi, sandboxPayApi, formatApiError } from "@/lib/api";
+import { publicApi, vendorApi, bidApi, paymentApi, uploadsApi, sandboxPayApi, formatApiError, showApiError} from "@/lib/api";
 
 const GATEWAYS = [
   { id: "stripe", label: "Stripe", note: "Card · Live sandbox" },
@@ -42,7 +42,7 @@ export default function BidSubmit() {
         size_bytes: r.size_bytes, uploaded_at: new Date().toISOString(),
       }]);
       toast.success(`Uploaded ${file.name}`);
-    } catch (err) { toast.error(formatApiError(err)); }
+    } catch (err) { showApiError(err); }
   };
 
   const removeDoc = (idx) => setDocs((d) => d.filter((_, i) => i !== idx));
@@ -83,7 +83,7 @@ export default function BidSubmit() {
         nav("/vendor");
       }
     } catch (err) {
-      toast.error(formatApiError(err));
+      showApiError(err);
       setBusy(false);
     }
   };

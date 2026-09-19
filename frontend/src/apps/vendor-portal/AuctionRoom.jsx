@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { reverseAuctionApi, formatApiError } from "@/lib/api";
+import { reverseAuctionApi, formatApiError, showApiError} from "@/lib/api";
 import TopBar from "@/apps/shared/TopBar";
 
 /** Wave 40 — Live reverse-auction room (vendor).
@@ -43,7 +43,7 @@ export default function AuctionRoom() {
       const r = await reverseAuctionApi.register(aid);
       toast.success(`You joined as ${r.alias}`);
       pollState();
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
     finally { setBusy(false); }
   };
 
@@ -55,7 +55,7 @@ export default function AuctionRoom() {
       toast.success(`Bid accepted at ${r.currency} ${r.current_price?.toLocaleString()}`);
       setBidPrice("");
       setState(r);
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
     finally { setBusy(false); }
   };
 
@@ -66,7 +66,7 @@ export default function AuctionRoom() {
       await reverseAuctionApi.autobid(aid, { floor: parseFloat(autoFloor), enabled: autoOn });
       toast.success(autoOn ? `Auto-bid armed with floor ${autoFloor}` : "Auto-bid disabled");
       pollState();
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
     finally { setBusy(false); }
   };
 

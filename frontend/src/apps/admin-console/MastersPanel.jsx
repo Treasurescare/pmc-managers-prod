@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { mastersApi, staffApi, tenantApi, formatApiError } from "@/lib/api";
+import { mastersApi, staffApi, tenantApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import StaffTab from "./masters/StaffTab";
 import MatrixEditor from "./masters/MatrixEditor";
 import DemoModeTab from "./masters/DemoModeTab";
+import { InfoDot } from "@/components/InfoDot";
 
 export default function MastersPanel() {
   const { t } = useI18n();
@@ -46,7 +47,7 @@ export default function MastersPanel() {
     if (m.status === "fulfilled") setMatrices(m.value || []);
     if (tn.status === "fulfilled") setTenants(tn.value || []);
     const first = [s, c, m, tn].find((r) => r.status === "rejected");
-    if (first) toast.error(formatApiError(first.reason));
+    if (first) showApiError(first.reason);
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -58,7 +59,7 @@ export default function MastersPanel() {
       setShowStaffNew(false);
       setStaffDraft({ email: "", name: "", password: "", roles: ["reviewer"], hierarchy_level: 3 });
       load();
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   };
 
   const toggleRole = (r) => {
@@ -73,7 +74,7 @@ export default function MastersPanel() {
       await staffApi.updateStaff(id, patch);
       toast.success("Staff updated");
       load();
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   };
 
   const createCompany = async () => {
@@ -83,7 +84,7 @@ export default function MastersPanel() {
       toast.success(t("panels.masters.company_added"));
       setCompanyDraft({ name: "", code: "", country: "KZ" });
       load();
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   };
 
   const createMatrix = async () => {
@@ -91,7 +92,7 @@ export default function MastersPanel() {
       await mastersApi.createMatrix(matrixDraft);
       toast.success(t("panels.masters.matrix_saved"));
       load();
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   };
 
   const createTenant = async () => {
@@ -101,7 +102,7 @@ export default function MastersPanel() {
       toast.success(t("panels.masters.tenant_added"));
       setTenantDraft({ code: "", name: "", kind: "corporate", country: "KZ" });
       load();
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   };
 
   return (
@@ -126,17 +127,26 @@ export default function MastersPanel() {
       {tab === "companies" && (
         <>
           <div className="bg-white border p-4 mb-4 grid gap-2 md:grid-cols-4" data-testid="company-new">
-            <input placeholder={t("panels.masters.name")} value={companyDraft.name}
-              onChange={(e) => setCompanyDraft({ ...companyDraft, name: e.target.value })}
-              className="px-3 py-2 border" data-testid="company-name" />
-            <input placeholder={t("panels.masters.code")} value={companyDraft.code}
-              onChange={(e) => setCompanyDraft({ ...companyDraft, code: e.target.value })}
-              className="px-3 py-2 border" data-testid="company-code" />
-            <input placeholder={t("panels.masters.country")} value={companyDraft.country}
-              onChange={(e) => setCompanyDraft({ ...companyDraft, country: e.target.value })}
-              className="px-3 py-2 border" />
+            <label className="text-xs uppercase tracking-widest text-brand-navy/60">
+              {t("panels.masters.name")}<InfoDot tip="Legal name of the buying/PMC entity (parent org). Referenced by Approval Matrices and tender headers." />
+              <input placeholder={t("panels.masters.name")} value={companyDraft.name}
+                onChange={(e) => setCompanyDraft({ ...companyDraft, name: e.target.value })}
+                className="mt-1 w-full px-3 py-2 border normal-case tracking-normal" data-testid="company-name" />
+            </label>
+            <label className="text-xs uppercase tracking-widest text-brand-navy/60">
+              {t("panels.masters.code")}<InfoDot tip="Short unique code (e.g. PMC-KZ). Used in URLs and export filenames." />
+              <input placeholder={t("panels.masters.code")} value={companyDraft.code}
+                onChange={(e) => setCompanyDraft({ ...companyDraft, code: e.target.value })}
+                className="mt-1 w-full px-3 py-2 border normal-case tracking-normal" data-testid="company-code" />
+            </label>
+            <label className="text-xs uppercase tracking-widest text-brand-navy/60">
+              {t("panels.masters.country")}<InfoDot tip="ISO-2 country code. Used for regional tax/EMD defaults." />
+              <input placeholder={t("panels.masters.country")} value={companyDraft.country}
+                onChange={(e) => setCompanyDraft({ ...companyDraft, country: e.target.value })}
+                className="mt-1 w-full px-3 py-2 border normal-case tracking-normal" />
+            </label>
             <button onClick={createCompany} data-testid="company-create"
-              className="px-4 py-2 text-[11px] uppercase tracking-widest bg-brand-navy text-white">
+              className="px-4 py-2 text-[11px] uppercase tracking-widest bg-brand-navy text-white self-end">
               {t("panels.masters.add_company")}
             </button>
           </div>
@@ -185,21 +195,30 @@ export default function MastersPanel() {
       {tab === "tenants" && (
         <>
           <div className="bg-white border p-4 mb-4 grid gap-2 md:grid-cols-5" data-testid="tenant-new">
-            <input placeholder={t("panels.masters.code")} value={tenantDraft.code}
-              onChange={(e) => setTenantDraft({ ...tenantDraft, code: e.target.value.toUpperCase() })}
-              className="px-3 py-2 border" data-testid="tenant-code" />
-            <input placeholder={t("panels.masters.name")} value={tenantDraft.name}
-              onChange={(e) => setTenantDraft({ ...tenantDraft, name: e.target.value })}
-              className="px-3 py-2 border md:col-span-2" data-testid="tenant-name" />
-            <select value={tenantDraft.kind}
-              onChange={(e) => setTenantDraft({ ...tenantDraft, kind: e.target.value })}
-              className="px-3 py-2 border bg-white" data-testid="tenant-kind">
-              <option value="pmc">{t("panels.masters.tenant_kind_pmc")}</option>
-              <option value="corporate">{t("panels.masters.tenant_kind_corporate")}</option>
-              <option value="government">{t("panels.masters.tenant_kind_government")}</option>
-            </select>
+            <label className="text-xs uppercase tracking-widest text-brand-navy/60">
+              {t("panels.masters.code")}<InfoDot tip="Uppercase tenant slug. Used as sub-path (e.g. /t/ACME) and in emails. Must be unique." />
+              <input placeholder={t("panels.masters.code")} value={tenantDraft.code}
+                onChange={(e) => setTenantDraft({ ...tenantDraft, code: e.target.value.toUpperCase() })}
+                className="mt-1 w-full px-3 py-2 border normal-case tracking-normal" data-testid="tenant-code" />
+            </label>
+            <label className="text-xs uppercase tracking-widest text-brand-navy/60 md:col-span-2">
+              {t("panels.masters.name")}<InfoDot tip="Display name shown on the tenant portal (e.g. 'Acme Holdings Ltd')." />
+              <input placeholder={t("panels.masters.name")} value={tenantDraft.name}
+                onChange={(e) => setTenantDraft({ ...tenantDraft, name: e.target.value })}
+                className="mt-1 w-full px-3 py-2 border normal-case tracking-normal" data-testid="tenant-name" />
+            </label>
+            <label className="text-xs uppercase tracking-widest text-brand-navy/60">
+              Kind<InfoDot tip="PMC = internal, Corporate = client-owned portal, Government = public-sector white-label." />
+              <select value={tenantDraft.kind}
+                onChange={(e) => setTenantDraft({ ...tenantDraft, kind: e.target.value })}
+                className="mt-1 w-full px-3 py-2 border bg-white normal-case tracking-normal" data-testid="tenant-kind">
+                <option value="pmc">{t("panels.masters.tenant_kind_pmc")}</option>
+                <option value="corporate">{t("panels.masters.tenant_kind_corporate")}</option>
+                <option value="government">{t("panels.masters.tenant_kind_government")}</option>
+              </select>
+            </label>
             <button onClick={createTenant} data-testid="tenant-create"
-              className="px-4 py-2 text-[11px] uppercase tracking-widest bg-brand-navy text-white">
+              className="px-4 py-2 text-[11px] uppercase tracking-widest bg-brand-navy text-white self-end">
               {t("panels.masters.add_tenant")}
             </button>
           </div>

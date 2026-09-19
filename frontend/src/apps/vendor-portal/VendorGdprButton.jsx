@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { gdprApi, formatApiError } from "@/lib/api";
+import { gdprApi, formatApiError, showApiError} from "@/lib/api";
 
 /**
  * GDPR self-service — vendor can anonymise their own profile after re-entering
@@ -22,7 +22,7 @@ export default function VendorGdprButton({ onSuccess }) {
       toast.success("Your profile has been anonymised.");
       setOpen(false);
       if (onSuccess) onSuccess();
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
     finally { setSubmitting(false); }
   };
 

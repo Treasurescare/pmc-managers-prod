@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { adminApi, api, formatApiError } from "@/lib/api";
+import { adminApi, api, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
+import { InfoDot } from "@/components/InfoDot";
 
 export default function RegistrationsPanel() {
   const { t } = useI18n();
@@ -20,7 +21,7 @@ export default function RegistrationsPanel() {
     setNotes("");
     adminApi.listRegistrations({ status })
       .then(setItems)
-      .catch((e) => toast.error(formatApiError(e)));
+      .catch((e) => showApiError(e));
   }, [status]);
   useEffect(() => { load(); }, [load]);
 
@@ -41,7 +42,7 @@ export default function RegistrationsPanel() {
         );
       }
     } catch (err) {
-      toast.error(formatApiError(err));
+      showApiError(err);
     } finally {
       setSendingReminders(false);
     }
@@ -73,7 +74,7 @@ export default function RegistrationsPanel() {
       if (nextStatus !== status) setStatus(nextStatus);
       else load();
     } catch (err) {
-      toast.error(formatApiError(err));
+      showApiError(err);
     } finally {
       setDeciding(false);
     }
@@ -158,14 +159,23 @@ export default function RegistrationsPanel() {
               </div>
             )}
             <div className="mt-6">
-              <label className="pmc-label">{t("panels.registrations.reviewer_notes")}</label>
+              <label className="pmc-label">{t("panels.registrations.reviewer_notes")}<InfoDot tip="Notes are recorded in the audit log and emailed to the vendor when action = Clarify or Reject. Required for those two actions." /></label>
               <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} data-testid="reg-notes"
                 className="mt-1 w-full px-4 py-3 border border-brand-navy/20 focus:outline-none focus:border-brand-navy-soft text-brand-navy" />
             </div>
             <div className="mt-4 flex gap-2 flex-wrap">
-              <button type="button" onClick={() => decide("approve")} disabled={deciding} data-testid="reg-approve" className="px-6 py-3 text-[12px] font-semibold uppercase tracking-widest bg-brand-navy-soft text-white hover:bg-brand-navy-soft/90 disabled:opacity-50 disabled:cursor-not-allowed">{deciding ? t("panels.registrations.approve_working") : t("panels.registrations.approve")}</button>
-              <button type="button" onClick={() => decide("clarify")} disabled={deciding} data-testid="reg-clarify" className="px-6 py-3 text-[12px] font-semibold uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5 disabled:opacity-50 disabled:cursor-not-allowed">{t("panels.registrations.clarify")}</button>
-              <button type="button" onClick={() => decide("reject")} disabled={deciding} data-testid="reg-reject" className="px-6 py-3 text-[12px] font-semibold uppercase tracking-widest border border-red-500/50 text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed">{t("panels.registrations.reject")}</button>
+              <button type="button" onClick={() => decide("approve")} disabled={deciding} data-testid="reg-approve" className="px-6 py-3 text-[12px] font-semibold uppercase tracking-widest bg-brand-navy-soft text-white hover:bg-brand-navy-soft/90 disabled:opacity-50 disabled:cursor-not-allowed">
+                {deciding ? t("panels.registrations.approve_working") : t("panels.registrations.approve")}
+                <InfoDot tip="Grants vendor account access. Notes optional. Vendor receives welcome email with password-set link." />
+              </button>
+              <button type="button" onClick={() => decide("clarify")} disabled={deciding} data-testid="reg-clarify" className="px-6 py-3 text-[12px] font-semibold uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5 disabled:opacity-50 disabled:cursor-not-allowed">
+                {t("panels.registrations.clarify")}
+                <InfoDot tip="Send back for corrections. Notes are mandatory and are emailed verbatim to the vendor's registration email." />
+              </button>
+              <button type="button" onClick={() => decide("reject")} disabled={deciding} data-testid="reg-reject" className="px-6 py-3 text-[12px] font-semibold uppercase tracking-widest border border-red-500/50 text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                {t("panels.registrations.reject")}
+                <InfoDot tip="Terminal decision. Notes required and recorded in the audit log. Vendor cannot re-apply with the same email for 90 days." />
+              </button>
             </div>
           </div>
         ) : (

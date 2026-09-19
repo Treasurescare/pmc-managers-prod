@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { api, formatApiError } from "@/lib/api";
+import { api, formatApiError, showApiError} from "@/lib/api";
 
 /**
  * External committee invite accept/decline landing page.
@@ -26,7 +26,7 @@ export default function CommitteeAccept() {
       const r = await api.post(`/api/v1/committees/external/${token}/decision`, { decision: dec });
       setDecision(r.data.decision);
       toast.success(`Invitation ${dec}`);
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
     finally { setBusy(false); }
   };
 

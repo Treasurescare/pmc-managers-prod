@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { publicApi, formatApiError } from "@/lib/api";
+import { publicApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import TopBar from "@/apps/shared/TopBar";
 import Footer from "@/apps/shared/Footer";
@@ -78,7 +78,7 @@ export default function NoticeBoardHome() {
         setNotices(lst.items || []);
         setStats(s);
       })
-      .catch((e) => !cancelled && toast.error(formatApiError(e)))
+      .catch((e) => !cancelled && showApiError(e))
       .finally(() => !cancelled && setLoading(false));
     return () => { cancelled = true; };
   }, [filter, country]);

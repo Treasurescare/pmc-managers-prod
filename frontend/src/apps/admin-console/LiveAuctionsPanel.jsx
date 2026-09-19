@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { reverseAuctionApi, formatApiError } from "@/lib/api";
+import { reverseAuctionApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
+import { InfoDot } from "@/components/InfoDot";
 
 /** Wave 40 — Admin live-auction management. */
 export default function LiveAuctionsPanel() {
@@ -18,7 +19,7 @@ export default function LiveAuctionsPanel() {
 
   const load = useCallback(() => {
     reverseAuctionApi.list().then((d) => setItems(d.items || []))
-      .catch((e) => toast.error(formatApiError(e)));
+      .catch((e) => showApiError(e));
   }, []);
 
   useEffect(() => {
@@ -37,7 +38,7 @@ export default function LiveAuctionsPanel() {
       toast.success(`Auction drafted · ${r.id}`);
       setShowNew(false);
       load();
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   };
 
   const start = async (aid) => {
@@ -45,7 +46,7 @@ export default function LiveAuctionsPanel() {
       const r = await reverseAuctionApi.start(aid);
       toast.success(`Started · ends ${r.end_at?.slice(11, 16)} UTC`);
       load();
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   };
 
   const close = async (aid) => {
@@ -54,7 +55,7 @@ export default function LiveAuctionsPanel() {
       const r = await reverseAuctionApi.close(aid);
       toast.success(r.winner ? `Closed · winner ${r.winner.alias} @ ${r.winner.winning_price}` : "Closed (no bids)");
       load();
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   };
 
   const badge = (status) => ({
@@ -78,7 +79,7 @@ export default function LiveAuctionsPanel() {
       {showNew && (
         <div className="border border-brand-navy-soft/40 bg-white p-6 mb-6 grid gap-4 md:grid-cols-2"
              data-testid="ra-new-form">
-          <label className="col-span-2"><span className="pmc-label">{t("panels.live_auctions.notice")}</span>
+          <label className="col-span-2"><span className="pmc-label">{t("panels.live_auctions.notice")}<InfoDot tip="Which notice this reverse auction serves. Only bidders who submitted a bid on that notice can join." /></span>
             <select value={draft.notice_ref} onChange={(e) => setDraft({ ...draft, notice_ref: e.target.value })}
                     data-testid="ra-notice"
                     className="mt-1 w-full px-4 py-3 border border-brand-navy/20">
@@ -88,37 +89,37 @@ export default function LiveAuctionsPanel() {
               ))}
             </select>
           </label>
-          <label className="col-span-2"><span className="pmc-label">{t("panels.live_auctions.title_public")}</span>
+          <label className="col-span-2"><span className="pmc-label">{t("panels.live_auctions.title_public")}<InfoDot tip="Public title bidders will see in the live room. Keep it short (e.g. 'Round-2 e-Auction · Substation SS-401')." /></span>
             <input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })}
                    data-testid="ra-title"
                    className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <label><span className="pmc-label">{t("panels.live_auctions.currency")}</span>
+          <label><span className="pmc-label">{t("panels.live_auctions.currency")}<InfoDot tip="Currency for all price fields below. Cannot be changed once the auction goes live." /></span>
             <select value={draft.currency} onChange={(e) => setDraft({ ...draft, currency: e.target.value })}
                     className="mt-1 w-full px-4 py-3 border border-brand-navy/20">
               {["USD","GBP","EUR","KZT","INR","AED","SAR"].map((c) => <option key={c}>{c}</option>)}
             </select>
           </label>
-          <label><span className="pmc-label">{t("panels.live_auctions.starting_price")}</span>
+          <label><span className="pmc-label">{t("panels.live_auctions.starting_price")}<InfoDot tip="Opening ceiling price. Bidders must bid strictly below this to place a valid bid." /></span>
             <input type="number" value={draft.starting_price}
                    onChange={(e) => setDraft({ ...draft, starting_price: parseFloat(e.target.value) })}
                    data-testid="ra-start-price"
                    className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <label><span className="pmc-label">{t("panels.live_auctions.floor_price")}</span>
+          <label><span className="pmc-label">{t("panels.live_auctions.floor_price")}<InfoDot tip="Absolute minimum price. Bids at or below this trigger a floor-reached alert; below this the bid is rejected." /></span>
             <input type="number" value={draft.floor_price}
                    onChange={(e) => setDraft({ ...draft, floor_price: parseFloat(e.target.value) })}
                    data-testid="ra-floor"
                    className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <label><span className="pmc-label">{t("panels.live_auctions.min_decrement")}</span>
+          <label><span className="pmc-label">{t("panels.live_auctions.min_decrement")}<InfoDot tip="Smallest allowed step-down from the current leading price. Prevents shill bids of ±1." /></span>
             <input type="number" value={draft.min_decrement}
                    onChange={(e) => setDraft({ ...draft, min_decrement: parseFloat(e.target.value) })}
                    data-testid="ra-decrement"
                    className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <label><span className="pmc-label">{t("panels.live_auctions.duration_min")}</span>
+          <label><span className="pmc-label">{t("panels.live_auctions.duration_min")}<InfoDot tip="Auction duration in minutes from the moment you press Start." /></span>
             <input type="number" value={draft.duration_minutes}
                    onChange={(e) => setDraft({ ...draft, duration_minutes: parseInt(e.target.value, 10) })}
                    data-testid="ra-duration"
                    className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <label><span className="pmc-label">{t("panels.live_auctions.antisnipe_sec")}</span>
+          <label><span className="pmc-label">{t("panels.live_auctions.antisnipe_sec")}<InfoDot tip="If a valid bid arrives within this many seconds of the end, the clock is extended. Prevents last-second sniping." /></span>
             <input type="number" value={draft.anti_snipe_seconds}
                    onChange={(e) => setDraft({ ...draft, anti_snipe_seconds: parseInt(e.target.value, 10) })}
                    data-testid="ra-antisnipe"

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { analyticsApi, bidApi, formatApiError } from "@/lib/api";
+import { analyticsApi, bidApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import DashboardDrillCards from "./DashboardDrillCards";
+import { InfoDot } from "@/components/InfoDot";
 
 export default function AnalyticsPanel() {
   const { t: tt } = useI18n();
@@ -18,7 +19,7 @@ export default function AnalyticsPanel() {
         bidApi.list().catch(() => []),
       ]);
       setData(d); setBids(b);
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -27,7 +28,7 @@ export default function AnalyticsPanel() {
     try {
       const r = await analyticsApi.bidAnomaly(bidId);
       setAnomaly(r);
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   };
 
   if (!data) return <div className="p-6 text-slate-500 text-sm">{tt("panels.analytics.loading")}</div>;
@@ -91,7 +92,7 @@ export default function AnalyticsPanel() {
         <div className="pmc-label mb-2">{tt("panels.analytics.ai_anomaly_title")}</div>
         <div className="flex gap-2 items-end">
           <label className="flex-1">
-            <span className="text-xs">{tt("panels.analytics.bid_label")}</span>
+            <span className="text-xs">{tt("panels.analytics.bid_label")}<InfoDot tip="Which bid to run the AI anomaly-detector against. Only bids with a commercial envelope are eligible." /></span>
             <select value={bidId} onChange={(e) => setBidId(e.target.value)}
               className="mt-1 w-full px-3 py-2 border" data-testid="anomaly-bid-select">
               <option value="">{tt("panels.analytics.select_bid")}</option>
@@ -103,6 +104,7 @@ export default function AnalyticsPanel() {
           <button onClick={runAnomaly} data-testid="anomaly-run"
             className="px-4 py-2 text-[11px] uppercase tracking-widest bg-brand-navy text-white">
             {tt("panels.analytics.run_ai_check")}
+            <InfoDot tip="Runs Emergent LLM copilot: compares bid price to peer distribution and vendor's history to flag potential collusion or dumping." />
           </button>
         </div>
         {anomaly && (

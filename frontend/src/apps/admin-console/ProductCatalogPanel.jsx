@@ -8,6 +8,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { toast } from "sonner";
 import UnspscPicker from "@/components/UnspscPicker";
+import { InfoDot } from "@/components/InfoDot";
 
 const API = process.env.REACT_APP_BACKEND_URL;
 

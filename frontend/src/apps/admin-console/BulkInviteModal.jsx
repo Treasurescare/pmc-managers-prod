@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { vendorInviteApi, formatApiError } from "@/lib/api";
+import { vendorInviteApi, formatApiError, showApiError} from "@/lib/api";
 
 /**
  * BulkInviteModal — CSV-driven bulk vendor invite.
@@ -38,7 +38,7 @@ export default function BulkInviteModal({ open, onClose, onDone }) {
       if (status === 401 || status === 403) {
         toast.error(`Auth failed (${status}). Refresh the tab and retry — your session may have expired.`);
       } else {
-        toast.error(formatApiError(e));
+        showApiError(e);
       }
       setResults({ invited: 0, skipped: 0, total: 0, results: [], error: detail });
     }

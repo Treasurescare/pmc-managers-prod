@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { publicApi, vendorInviteApi, registrationApi, formatApiError } from "@/lib/api";
+import { publicApi, vendorInviteApi, registrationApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import TopBar from "@/apps/shared/TopBar";
 import SectionA from "@/apps/registration-portal/sections/SectionA";
@@ -11,6 +11,7 @@ import SectionD from "@/apps/registration-portal/sections/SectionD";
 import SectionE from "@/apps/registration-portal/sections/SectionE";
 import VendorStepperNav from "./vendor/VendorStepperNav";
 import VendorActivationStep from "./vendor/VendorActivationStep";
+import { InfoDot } from "@/components/InfoDot";
 
 /**
  * Admin creates a vendor + fills the FULL Sections A–E form on their behalf.
@@ -70,7 +71,7 @@ export default function AdminVendorCreate() {
       setDraftToken(tok);
       return { regId: d.id, token: tok };
     } catch (e) {
-      toast.error(formatApiError(e));
+      showApiError(e);
       return null;
     } finally { setCreatingDraft(false); }
   };
@@ -112,7 +113,7 @@ export default function AdminVendorCreate() {
       // is visible immediately (previously we redirected to /admin which
       // opened the "Dashboard" tab and testers thought the vendor was lost).
       nav("/admin?tab=vendors");
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
     finally { setSaving(false); }
   };
 
@@ -168,7 +169,7 @@ export default function AdminVendorCreate() {
           {step === "a" && (
             <>
               <label className="block text-sm">
-                <span className="pmc-label">{t("admin_vendor.email_label")}</span>
+                <span className="pmc-label">{t("admin_vendor.email_label")}<InfoDot tip="Vendor's login email. Must be unique. If a draft with this email already exists it will be re-used automatically." /></span>
                 <input type="email" required value={reg.email || ""}
                        onChange={(e) => update({ email: e.target.value })}
                        data-testid="admin-vendor-email"

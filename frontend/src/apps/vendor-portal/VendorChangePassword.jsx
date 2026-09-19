@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { vendorApi, formatApiError } from "@/lib/api";
+import { vendorApi, formatApiError, showApiError} from "@/lib/api";
 
 export default function VendorChangePassword() {
   const nav = useNavigate();
@@ -24,7 +24,7 @@ export default function VendorChangePassword() {
       toast.success("Password updated");
       nav("/vendor");
     } catch (err) {
-      toast.error(formatApiError(err));
+      showApiError(err);
     } finally {
       setLoading(false);
     }

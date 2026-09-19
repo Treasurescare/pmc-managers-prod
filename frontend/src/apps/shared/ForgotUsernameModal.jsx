@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { authApi, formatApiError } from "@/lib/api";
+import { authApi, formatApiError, showApiError} from "@/lib/api";
 
 /**
  * ForgotUsernameModal — helps a user recover their sign-in email.
@@ -63,7 +63,7 @@ function Lookup() {
       if ((r.matches || []).length === 0) {
         toast.message("No match found. Try the “Ask an admin” tab.");
       }
-    } catch (err) { toast.error(formatApiError(err)); }
+    } catch (err) { showApiError(err); }
     finally { setBusy(false); }
   };
 
@@ -119,7 +119,7 @@ function RequestHelp({ onClose }) {
                                   company_name: company_name || null, message, kind });
       toast.success("Request sent. An admin will reach out shortly.");
       onClose && onClose();
-    } catch (err) { toast.error(formatApiError(err)); }
+    } catch (err) { showApiError(err); }
     finally { setBusy(false); }
   };
 

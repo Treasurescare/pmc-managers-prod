@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { vendorApi, publicApi, bidApi, formatApiError } from "@/lib/api";
+import { vendorApi, publicApi, bidApi, formatApiError, showApiError} from "@/lib/api";
 import VendorGdprButton from "./VendorGdprButton";
 import VendorSignatures from "./VendorSignatures";
 import ProfileModal from "@/apps/shared/ProfileModal";
@@ -156,7 +156,7 @@ export default function VendorDashboard() {
                             catch { window.location.href = chk.checkout_url; }
                           }
                           toast.info("Stripe checkout opened in a new tab");
-                        } catch (err) { toast.error(formatApiError(err)); }
+                        } catch (err) { showApiError(err); }
                       }}
                       className="text-xs bg-amber-500 text-white px-3 py-1.5 rounded hover:bg-amber-600"
                       data-testid={`pay-emd-${b.bid_ref}`}>Pay EMD</button>

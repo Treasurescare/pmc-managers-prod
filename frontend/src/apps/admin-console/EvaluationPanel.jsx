@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { evalApi, bidApi, formatApiError } from "@/lib/api";
+import { evalApi, bidApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import RubricEditor from "./evaluation/RubricEditor";
 import BidScoreList from "./evaluation/BidScoreList";
 import AwardReport from "./evaluation/AwardReport";
+import { InfoDot } from "@/components/InfoDot";
 
 const DEFAULT_CRITERIA = [
   { code: "experience", label: "Relevant Experience", weight: 0.30, max_score: 100 },
@@ -29,7 +30,7 @@ export default function EvaluationPanel() {
     try {
       const list = await bidApi.list({ notice_ref: noticeRef });
       setBids(list || []);
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   }, [noticeRef]);
   useEffect(() => { loadBids(); }, [loadBids]);
 
@@ -38,7 +39,7 @@ export default function EvaluationPanel() {
     try {
       await evalApi.saveRubric({ notice_ref: noticeRef, ...rubric });
       toast.success("Rubric saved");
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   };
 
   const declareCOI = async () => {
@@ -46,7 +47,7 @@ export default function EvaluationPanel() {
     try {
       await evalApi.declareCOI({ notice_ref: noticeRef, ...coiChoice });
       toast.success("COI recorded");
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   };
 
   const submitTechScore = async (bid) => {
@@ -54,14 +55,14 @@ export default function EvaluationPanel() {
     try {
       await evalApi.score({ bid_id: bid.id, kind: "technical", scores: s });
       toast.success("Technical score saved");
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   };
   const submitCommScore = async (bid) => {
     const v = scoreDraft[`${bid.id}_comm`] || 0;
     try {
       await evalApi.score({ bid_id: bid.id, kind: "commercial", scores: { commercial: Number(v) } });
       toast.success("Commercial score saved");
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   };
 
   const generateReport = async () => {
@@ -69,12 +70,12 @@ export default function EvaluationPanel() {
     try {
       const r = await evalApi.awardReport(noticeRef);
       setReport(r);
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   };
 
   const lock = async (kind) => {
     try { await evalApi.lockEnvelope(noticeRef, kind); toast.success(`${kind} envelope locked`); }
-    catch (e) { toast.error(formatApiError(e)); }
+    catch (e) { showApiError(e); }
   };
 
   return (
@@ -82,19 +83,26 @@ export default function EvaluationPanel() {
       <div className="bg-white border border-brand-navy/10 p-4">
         <div className="flex flex-wrap gap-3 items-end">
           <label className="flex-1 min-w-[240px] text-sm">
-            <span className="pmc-label">{t("panels.evaluation.notice_ref")}</span>
+            <span className="pmc-label">{t("panels.evaluation.notice_ref")}<InfoDot tip="Reference of the tender being evaluated (e.g. PMC-NOT-2026-0001). Drives which bids and which rubric are loaded." /></span>
             <input value={noticeRef} onChange={(e) => setNoticeRef(e.target.value)}
               placeholder="PMC-NOT-2026-0001"
               className="mt-1 w-full px-3 py-2 border border-brand-navy/20"
               data-testid="eval-notice-ref" />
           </label>
           <button onClick={() => lock("technical")} data-testid="lock-technical"
-            className="px-3 py-2 text-[11px] uppercase tracking-widest border">{t("panels.evaluation.lock_tech")}</button>
+            className="px-3 py-2 text-[11px] uppercase tracking-widest border">
+            {t("panels.evaluation.lock_tech")}
+            <InfoDot tip="Freeze technical envelope — no more technical scores can be added or edited after this action. Auditable." />
+          </button>
           <button onClick={() => lock("commercial")} data-testid="lock-commercial"
-            className="px-3 py-2 text-[11px] uppercase tracking-widest border">{t("panels.evaluation.lock_comm")}</button>
+            className="px-3 py-2 text-[11px] uppercase tracking-widest border">
+            {t("panels.evaluation.lock_comm")}
+            <InfoDot tip="Freeze commercial envelope after tech scoring is complete. Required before Award Report can be generated." />
+          </button>
           <button onClick={generateReport} data-testid="award-report-btn"
             className="px-4 py-2 text-[11px] uppercase tracking-widest bg-brand-navy text-white">
             {t("panels.evaluation.generate_report")}
+            <InfoDot tip="Produce the L1 award report (weighted tech + commercial scoring) — this is the artefact the Committee votes on." />
           </button>
         </div>
       </div>

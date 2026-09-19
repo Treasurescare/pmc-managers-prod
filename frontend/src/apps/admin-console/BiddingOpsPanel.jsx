@@ -6,6 +6,7 @@ import CommitteeForm from "./bidding/CommitteeForm";
 import CommitteeList from "./bidding/CommitteeList";
 import BidTable from "./bidding/BidTable";
 import AssignCertifierModal from "./bidding/AssignCertifierModal";
+import { InfoDot } from "@/components/InfoDot";
 
 const STATUS_LABELS = {
   emd_pending: "EMD pending", emd_paid: "EMD paid — Awaits Escrow",
@@ -43,7 +44,7 @@ export default function BiddingOpsPanel() {
     if (c.status === "fulfilled") setCommittees(c.value || []);
     // Only surface the FIRST real error, and only if bids failed —
     // committee/staff lookups are optional decorations for the panel.
-    if (b.status === "rejected") toast.error(formatApiError(b.reason));
+    if (b.status === "rejected") showApiError(b.reason);
   }, [filter]);
   useEffect(() => { load(); }, [load]);
 
@@ -52,7 +53,7 @@ export default function BiddingOpsPanel() {
       await bidApi.decide(b.id, { action: "accept", role: "admin", notes: "" });
       toast.success("Bid flagged to certifier");
       await load();
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   };
 
   const doReject = async (b) => {
@@ -60,7 +61,7 @@ export default function BiddingOpsPanel() {
       await bidApi.decide(b.id, { action: "reject", role: "admin", notes: "" });
       toast.success("Bid rejected");
       await load();
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   };
 
   const openAssign = (b) => {
@@ -83,7 +84,7 @@ export default function BiddingOpsPanel() {
       toast.success("Certifier assigned & inspection scheduled");
       setAssignFor(null);
       await load();
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   };
 
   const submitCommittee = async () => {
@@ -121,15 +122,19 @@ export default function BiddingOpsPanel() {
           {bids.length} {t("panels.bidding.pipeline_hint")}
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          <select value={filter} onChange={(e) => setFilter(e.target.value)}
-            className="px-3 py-1.5 text-xs border border-brand-navy/20 bg-white"
-            data-testid="bid-filter">
-            <option value="">{t("panels.bidding.all_statuses")}</option>
-            {Object.keys(STATUS_LABELS).map((s) => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
-          </select>
+          <label className="text-[10px] uppercase tracking-widest text-brand-navy/60 flex items-center gap-1">
+            Status filter<InfoDot tip="Narrow the pipeline to a specific stage. 'All' shows every bid regardless of gate." />
+            <select value={filter} onChange={(e) => setFilter(e.target.value)}
+              className="px-3 py-1.5 text-xs border border-brand-navy/20 bg-white normal-case tracking-normal"
+              data-testid="bid-filter">
+              <option value="">{t("panels.bidding.all_statuses")}</option>
+              {Object.keys(STATUS_LABELS).map((s) => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
+            </select>
+          </label>
           <button onClick={() => setShowCom(!showCom)} data-testid="committee-new-toggle"
             className="px-4 py-2 text-[11px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep">
             {showCom ? t("panels.bidding.cancel") : t("panels.bidding.form_committee")}
+            <InfoDot tip="Constitute an Evaluation Committee for a given notice. Chair + members must satisfy the quorum before voting is enabled." />
           </button>
         </div>
       </div>

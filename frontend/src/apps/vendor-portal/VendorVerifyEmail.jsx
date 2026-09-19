@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { api, formatApiError } from "@/lib/api";
+import { api, formatApiError, showApiError} from "@/lib/api";
 
 /**
  * Vendor email-verify + set-password landing page.
@@ -31,7 +31,7 @@ export default function VendorVerifyEmail() {
       await api.post(`/api/v1/vendors/verify/${token}/complete`, { password });
       toast.success("Email verified — please sign in with your new password");
       nav("/vendor/login");
-    } catch (e2) { toast.error(formatApiError(e2)); }
+    } catch (e2) { showApiError(e2); }
     finally { setBusy(false); }
   };
 

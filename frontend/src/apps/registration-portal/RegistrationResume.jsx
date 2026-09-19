@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { publicApi, registrationApi, formatApiError } from "@/lib/api";
+import { publicApi, registrationApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import TopBar from "@/apps/shared/TopBar";
 import Footer from "@/apps/shared/Footer";
@@ -47,7 +47,7 @@ export default function RegistrationResume() {
       publicApi.kzMeta().catch(() => ({ licenses: [], category_map: {} })),
     ])
       .then(([r, cs, kz]) => { setReg(r); setCountries(cs); setKzMeta(kz); })
-      .catch((e) => { toast.error(formatApiError(e)); setTimeout(() => navigate("/register"), 1200); })
+      .catch((e) => { showApiError(e); setTimeout(() => navigate("/register"), 1200); })
       .finally(() => setLoading(false));
   }, [token, navigate]);
 
@@ -65,7 +65,7 @@ export default function RegistrationResume() {
       setReg(fresh);
       toast.success(t("register.saved"));
     } catch (err) {
-      toast.error(formatApiError(err));
+      showApiError(err);
     } finally {
       setBusy(false);
     }
@@ -79,7 +79,7 @@ export default function RegistrationResume() {
       toast.success(t("register.submitted_ok"));
       navigate(`/register/status?token=${token}`);
     } catch (err) {
-      toast.error(formatApiError(err));
+      showApiError(err);
     } finally {
       setBusy(false);
     }

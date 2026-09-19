@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { tenderTemplateApi, formatApiError } from "@/lib/api";
+import { tenderTemplateApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import TenderHeaderForm from "./tender/TenderHeaderForm";
 import AiDiffModal from "./tender/AiDiffModal";
@@ -8,6 +8,7 @@ import VersionHistory from "./tender/VersionHistory";
 import TenderSidebar from "./tender/TenderSidebar";
 import TenderSectionCard from "./tender/TenderSectionCard";
 import { exportTenderPdf } from "./tender/tenderPdf";
+import { InfoDot } from "@/components/InfoDot";
 
 /**
  * TenderBuilderPanel — Section-by-section tender/RFP/RFQ composer.
@@ -39,7 +40,7 @@ export default function TenderBuilderPanel() {
 
   const load = useCallback(async () => {
     try { setList(await tenderTemplateApi.list()); }
-    catch (e) { toast.error(formatApiError(e)); }
+    catch (e) { showApiError(e); }
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -47,7 +48,7 @@ export default function TenderBuilderPanel() {
     setSelectedId(id);
     setDirty(false);
     try { setDoc(await tenderTemplateApi.get(id)); }
-    catch (e) { toast.error(formatApiError(e)); }
+    catch (e) { showApiError(e); }
   };
 
   const cloneMaster = async (master) => {
@@ -79,7 +80,7 @@ export default function TenderBuilderPanel() {
       });
       await load();
       await openTemplate(created.id);
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
     finally { setBusy(false); }
   };
 
@@ -104,7 +105,7 @@ export default function TenderBuilderPanel() {
       const updated = await tenderTemplateApi.uploadSectionAttachment(doc.id, doc.sections[idx].code, file);
       setDoc(updated);
       toast.success("Attachment uploaded");
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
     finally { setBusy(false); }
   };
 
@@ -114,7 +115,7 @@ export default function TenderBuilderPanel() {
     try {
       const updated = await tenderTemplateApi.removeSectionAttachment(doc.id, doc.sections[idx].code);
       setDoc(updated);
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   };
 
   const [aiBusyCode, setAiBusyCode] = useState(null);
@@ -132,7 +133,7 @@ export default function TenderBuilderPanel() {
         patchSection(idx, { body: newBody });
         toast.success(`Draft filled by AI · ${s.code}`);
       }
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
     finally { setAiBusyCode(null); }
   };
   const acceptAiDraft = () => {
@@ -159,7 +160,7 @@ export default function TenderBuilderPanel() {
       setBulkReport(r.report);
       const matched = r.report.filter((x) => x.matched).length;
       toast.success(`${matched}/${r.report.length} files matched to sections`);
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
     finally { setBulkBusy(false); }
   };
 
@@ -211,7 +212,7 @@ export default function TenderBuilderPanel() {
       setDoc(updated);
       setDirty(false);
       await load();
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
     finally { setBusy(false); }
   };
 
@@ -223,7 +224,7 @@ export default function TenderBuilderPanel() {
       toast.success("Deleted");
       setDoc(null); setSelectedId(null);
       await load();
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   };
 
   const masters = list.filter((x) => x.is_master);
@@ -254,7 +255,7 @@ export default function TenderBuilderPanel() {
             <div className="border border-brand-navy/10 bg-white p-5">
               <div className="flex flex-wrap items-baseline justify-between gap-3">
                 <div className="flex-1 min-w-[240px]">
-                  <div className="pmc-label">{t("panels.tender_builder.tender_name")}</div>
+                  <div className="pmc-label">{t("panels.tender_builder.tender_name")}<InfoDot tip="Human-readable draft name. Not shown publicly — this is only the internal handle used inside Tender Builder." /></div>
                   <input value={doc.name || ""}
                     onChange={(e) => { setDoc({ ...doc, name: e.target.value }); setDirty(true); }}
                     data-testid="tb-name"
@@ -265,18 +266,21 @@ export default function TenderBuilderPanel() {
                     data-testid="tb-save"
                     className="px-5 py-2 text-[12px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep disabled:opacity-40">
                     {busy ? t("panels.tender_builder.saving") : dirty ? t("panels.tender_builder.save") : t("panels.tender_builder.saved")}
+                    <InfoDot tip="Persist header + section changes. Snapshots the previous version to History (max 20 kept). Enabled only when there are unsaved edits." />
                   </button>
                   <button onClick={() => setShowHistory(true)} disabled={!doc?.id}
                     data-testid="tb-history"
                     title="View and restore rolling snapshots of this tender"
                     className="px-3 py-2 text-[11px] uppercase tracking-widest border border-brand-navy/40 text-brand-navy hover:bg-brand-navy/10">
                     ⟲ {t("panels.tender_builder.history")}{typeof doc?.version === "number" ? ` · v${doc.version}` : ""}
+                    <InfoDot tip="Every Save creates a version. Click any prior version to restore or diff." />
                   </button>
                   <button onClick={() => exportTenderPdf(doc)} disabled={!doc}
                     data-testid="tb-export-pdf"
                     title="Opens the browser print dialog — pick 'Save as PDF'"
                     className="px-4 py-2 text-[12px] uppercase tracking-widest border border-brand-navy text-brand-navy hover:bg-brand-navy hover:text-white">
                     {t("panels.tender_builder.print_pdf")}
+                    <InfoDot tip="Browser-rendered PDF. Fast preview, but layout depends on your browser's print engine." />
                   </button>
                   <select value={pdfLang} onChange={(e) => setPdfLang(e.target.value)}
                     data-testid="tb-pdf-lang"

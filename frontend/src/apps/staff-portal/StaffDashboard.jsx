@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { staffApi, bidApi, inspectionApi, uploadsApi, formatApiError } from "@/lib/api";
+import { staffApi, bidApi, inspectionApi, uploadsApi, formatApiError, showApiError} from "@/lib/api";
 
 const ROLE_LABELS = {
   escrow_agent: "Escrow Agent", certifier: "Site Certifier",
@@ -62,7 +62,7 @@ export default function StaffDashboard() {
       await bidApi.decide(bid.id, { action, role: me.active_role, notes: "" });
       toast.success(`Bid ${bid.bid_ref}: ${action}`);
       await refresh();
-    } catch (err) { toast.error(formatApiError(err)); }
+    } catch (err) { showApiError(err); }
   };
 
   const committeeAward = async (bid) => {
@@ -70,7 +70,7 @@ export default function StaffDashboard() {
       await bidApi.decide(bid.id, { action: "award", role: "committee", notes: "" });
       toast.success(`Bid ${bid.bid_ref} awarded`);
       await refresh();
-    } catch (err) { toast.error(formatApiError(err)); }
+    } catch (err) { showApiError(err); }
   };
 
   const uploadInspectionMedia = async (ins, file, kind) => {
@@ -83,7 +83,7 @@ export default function StaffDashboard() {
       });
       toast.success("Uploaded");
       await refresh();
-    } catch (err) { toast.error(formatApiError(err)); }
+    } catch (err) { showApiError(err); }
   };
 
   const completeInspection = async (ins, result) => {
@@ -91,7 +91,7 @@ export default function StaffDashboard() {
       await inspectionApi.update(ins.id, { status: "completed", result });
       toast.success("Inspection recorded");
       await refresh();
-    } catch (err) { toast.error(formatApiError(err)); }
+    } catch (err) { showApiError(err); }
   };
 
   const queueLabel = useMemo(() => ({

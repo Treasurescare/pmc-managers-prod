@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { meetingsApi, formatApiError } from "@/lib/api";
+import { meetingsApi, formatApiError, showApiError} from "@/lib/api";
+import { InfoDot } from "@/components/InfoDot";
 
 /** Wave 41 — Admin meeting scheduler with Jitsi Meet embed. */
 export default function MeetingsPanel() {
@@ -22,7 +23,7 @@ export default function MeetingsPanel() {
     // hidden by default; toggle from UI reveals them.
     meetingsApi.list({ include_cancelled: showCancelled })
       .then((d) => setItems(d.items || []))
-      .catch((e) => toast.error(formatApiError(e)));
+      .catch((e) => showApiError(e));
   }, [showCancelled]);
 
   useEffect(() => {
@@ -70,13 +71,13 @@ export default function MeetingsPanel() {
       setDraft({ subject: "", agenda: "", notice_ref: "", is_internal: false,
                  scheduled_at: "", duration_min: 45, provider: "jitsi", invitees_text: "" });
       load();
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   };
 
   const cancel = async (mid) => {
     if (!window.confirm("Cancel this meeting?")) return;
     try { await meetingsApi.cancel(mid); toast.success("Cancelled"); load(); }
-    catch (e) { toast.error(formatApiError(e)); }
+    catch (e) { showApiError(e); }
   };
 
   const copyLink = (url) => {
@@ -106,16 +107,16 @@ export default function MeetingsPanel() {
 
       {showNew && (
         <div className="border border-brand-navy-soft/40 bg-white p-6 mb-6 grid gap-4 md:grid-cols-2" data-testid="mtg-new-form">
-          <label className="col-span-2"><span className="pmc-label">Subject</span>
+          <label className="col-span-2"><span className="pmc-label">Subject<InfoDot tip="Meeting title shown to invitees. Required." /></span>
             <input value={draft.subject} onChange={(e) => setDraft({ ...draft, subject: e.target.value })}
                    data-testid="mtg-subject"
                    placeholder="Pre-bid clarification meeting"
                    className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <label className="col-span-2"><span className="pmc-label">Agenda</span>
+          <label className="col-span-2"><span className="pmc-label">Agenda<InfoDot tip="Optional. Rendered in the invite email so attendees can prepare." /></span>
             <textarea rows={3} value={draft.agenda} onChange={(e) => setDraft({ ...draft, agenda: e.target.value })}
                       data-testid="mtg-agenda"
                       className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <label><span className="pmc-label">Notice (required unless internal)</span>
+          <label><span className="pmc-label">Notice (required unless internal)<InfoDot tip="Ties the meeting to a specific tender. Bidders' magic-links are auto-validated against the notice." /></span>
             <select value={draft.notice_ref}
                     onChange={(e) => setDraft({ ...draft, notice_ref: e.target.value })}
                     disabled={draft.is_internal}
@@ -131,19 +132,19 @@ export default function MeetingsPanel() {
                      onChange={(e) => setDraft({ ...draft, is_internal: e.target.checked,
                                                   notice_ref: e.target.checked ? "" : draft.notice_ref })}
                      data-testid="mtg-is-internal" />
-              Internal meeting (skip notice link)
+              Internal meeting (skip notice link)<InfoDot tip="For staff-only calls (e.g. committee sync). Skips the notice requirement and hides the meeting from vendors." />
             </label>
           </label>
-          <label><span className="pmc-label">Scheduled at</span>
+          <label><span className="pmc-label">Scheduled at<InfoDot tip="Start time in your local timezone. Invitees see the converted time in their own timezone in the email." /></span>
             <input type="datetime-local" value={draft.scheduled_at}
                    onChange={(e) => setDraft({ ...draft, scheduled_at: e.target.value })}
                    data-testid="mtg-when"
                    className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <label><span className="pmc-label">Duration (min)</span>
+          <label><span className="pmc-label">Duration (min)<InfoDot tip="Planned length. Advisory only — the room stays open until you End it in the video app." /></span>
             <input type="number" value={draft.duration_min}
                    onChange={(e) => setDraft({ ...draft, duration_min: e.target.value })}
                    className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <label className="col-span-2"><span className="pmc-label">Video provider</span>
+          <label className="col-span-2"><span className="pmc-label">Video provider<InfoDot tip="Jitsi is free and has no time limit. Zoom uses your Basic account (40-min cap on 3+ participants)." /></span>
             <div className="mt-1 grid grid-cols-2 gap-2">
               <button type="button" onClick={() => setDraft({ ...draft, provider: "jitsi" })}
                       data-testid="mtg-provider-jitsi"

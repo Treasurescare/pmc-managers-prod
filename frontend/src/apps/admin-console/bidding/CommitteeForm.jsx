@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import { InfoDot } from "@/components/InfoDot";
 
 /**
  * CommitteeForm v2 — Bucket B UX overhaul.
@@ -44,14 +45,14 @@ export default function CommitteeForm({
     <div className="border border-brand-navy-soft/40 bg-white p-6 mb-6 grid gap-3 md:grid-cols-4"
          data-testid="committee-new-form">
       <label className="md:col-span-2 text-sm">
-        <span className="pmc-label">Notice ref (e.g. PMC-NOT-2026-0001)</span>
+        <span className="pmc-label">Notice ref (e.g. PMC-NOT-2026-0001)<InfoDot tip="Tender reference this committee will evaluate. One committee per notice." /></span>
         <input value={comDraft.notice_ref}
           onChange={(e) => setComDraft({ ...comDraft, notice_ref: e.target.value })}
           className="mt-1 w-full px-3 py-2 border border-brand-navy/20"
           data-testid="committee-notice-ref" />
       </label>
       <label className="text-sm">
-        <span className="pmc-label">Chairperson (from selected members)</span>
+        <span className="pmc-label">Chairperson (from selected members)<InfoDot tip="Voting weight tie-breaker. Only members already ticked below are selectable — tick first, then pick." /></span>
         <select value={comDraft.chair} disabled={chairPool.length === 0}
           onChange={(e) => setComDraft({ ...comDraft, chair: e.target.value })}
           className="mt-1 w-full px-3 py-2 border border-brand-navy/20 disabled:bg-brand-navy/5"
@@ -61,7 +62,7 @@ export default function CommitteeForm({
         </select>
       </label>
       <label className="text-sm">
-        <span className="pmc-label">Quorum (≤ {comDraft.members.length || 1})</span>
+        <span className="pmc-label">Quorum (≤ {comDraft.members.length || 1})<InfoDot tip="Minimum members that must vote for a decision to be binding. Auto-capped at the member count." /></span>
         <input type="number" min="1" max={comDraft.members.length || 1} value={comDraft.quorum}
           onChange={(e) => setComDraft({ ...comDraft, quorum: e.target.value })}
           data-testid="committee-quorum"

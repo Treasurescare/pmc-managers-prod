@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { bidApi, analyticsApi, formatApiError } from "@/lib/api";
+import { bidApi, analyticsApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 
 /**
@@ -21,7 +21,7 @@ export default function AuditCopilotButton() {
     bidApi.list({})
       .then((rows) =>
         setBids(rows.filter((b) => !["emd_pending", "submitted"].includes(b.status))))
-      .catch((e) => toast.error(formatApiError(e)));
+      .catch((e) => showApiError(e));
   }, [open]);
 
   const run = async () => {
@@ -30,7 +30,7 @@ export default function AuditCopilotButton() {
     try {
       const r = await analyticsApi.auditCopilot(selected);
       setResult(r);
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
     finally { setRunning(false); }
   };
 

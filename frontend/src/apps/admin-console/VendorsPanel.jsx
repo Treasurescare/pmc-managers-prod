@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { api, vendorInviteApi, formatApiError } from "@/lib/api";
+import { api, vendorInviteApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import BulkInviteModal from "./BulkInviteModal";
+import { InfoDot } from "@/components/InfoDot";
 
 function KpiTile({ label, value }) {
   return (
@@ -30,7 +31,7 @@ export default function VendorsPanel() {
   const load = useCallback(() => {
     api.get("/api/v1/vendors", { params: search ? { search } : {} })
       .then((r) => setVendors(r.data || []))
-      .catch((e) => toast.error(formatApiError(e)));
+      .catch((e) => showApiError(e));
   }, [search]);
 
   useEffect(() => { load(); }, [load]);
@@ -43,7 +44,7 @@ export default function VendorsPanel() {
     setLoadingKpi(true);
     api.get(`/api/v1/vendors/${selected.vendor_ref}/kpi`)
       .then((r) => setKpi(r.data))
-      .catch((e) => toast.error(formatApiError(e)))
+      .catch((e) => showApiError(e))
       .finally(() => setLoadingKpi(false));
   }, [selected]);
 
@@ -66,7 +67,7 @@ export default function VendorsPanel() {
       setShowInvite(false);
       setInviteDraft({ email: "", company_name: "", country: "KZ", contact_name: "" });
       load();
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
     finally { setSendingInvite(false); }
   };
 
@@ -85,7 +86,7 @@ export default function VendorsPanel() {
       setTemplateMeta({ available: true, file_name: fname, size_bytes: size });
     } catch (e) {
       // Surface the real backend detail (413 too large, 400 wrong extension, etc.)
-      toast.error(formatApiError(e));
+      showApiError(e);
     }
   };
 
@@ -129,27 +130,27 @@ export default function VendorsPanel() {
         <div className="border border-brand-navy-soft/40 bg-white p-6 grid gap-3 md:grid-cols-4"
              data-testid="vendor-invite-form">
           <label className="md:col-span-2 text-sm">
-            <span className="pmc-label">{t("panels.vendors.invite_email")}</span>
+            <span className="pmc-label">{t("panels.vendors.invite_email")}<InfoDot tip="Verification email is sent to this address. The vendor sets their own password via the magic-link inside." /></span>
             <input value={inviteDraft.email} type="email" required
                    onChange={(e) => setInviteDraft({ ...inviteDraft, email: e.target.value })}
                    data-testid="vendor-invite-email"
                    className="mt-1 w-full px-3 py-2 border border-brand-navy/20" />
           </label>
           <label className="md:col-span-2 text-sm">
-            <span className="pmc-label">{t("panels.vendors.invite_company")}</span>
+            <span className="pmc-label">{t("panels.vendors.invite_company")}<InfoDot tip="Legal entity name. Editable by the vendor during their own registration flow." /></span>
             <input value={inviteDraft.company_name}
                    onChange={(e) => setInviteDraft({ ...inviteDraft, company_name: e.target.value })}
                    data-testid="vendor-invite-company"
                    className="mt-1 w-full px-3 py-2 border border-brand-navy/20" />
           </label>
           <label className="text-sm">
-            <span className="pmc-label">{t("panels.vendors.invite_contact")}</span>
+            <span className="pmc-label">{t("panels.vendors.invite_contact")}<InfoDot tip="Primary point of contact at the vendor. Optional." /></span>
             <input value={inviteDraft.contact_name}
                    onChange={(e) => setInviteDraft({ ...inviteDraft, contact_name: e.target.value })}
                    className="mt-1 w-full px-3 py-2 border border-brand-navy/20" />
           </label>
           <label className="text-sm">
-            <span className="pmc-label">{t("panels.vendors.invite_country")}</span>
+            <span className="pmc-label">{t("panels.vendors.invite_country")}<InfoDot tip="ISO-2 country code. Drives KYC provider selection and country-specific required documents." /></span>
             <input value={inviteDraft.country}
                    onChange={(e) => setInviteDraft({ ...inviteDraft, country: e.target.value })}
                    className="mt-1 w-full px-3 py-2 border border-brand-navy/20" />

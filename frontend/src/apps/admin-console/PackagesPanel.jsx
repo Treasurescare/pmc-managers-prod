@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { adminApi, api, formatApiError } from "@/lib/api";
+import { adminApi, api, formatApiError, showApiError} from "@/lib/api";
 import KanbanColumn from "./packages/KanbanColumn";
+import { InfoDot } from "@/components/InfoDot";
 
 const COLUMNS = [
   { code: "backlog", label: "Backlog" },
@@ -26,7 +27,7 @@ export default function PackagesPanel() {
     setLoading(true);
     adminApi.listPackages({ limit: 1000 })
       .then((d) => setPackages(d.items || []))
-      .catch((e) => toast.error(formatApiError(e)))
+      .catch((e) => showApiError(e))
       .finally(() => setLoading(false));
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -51,7 +52,7 @@ export default function PackagesPanel() {
       await api.post(`/api/v1/packages/${id}/status`, { status: targetStatus });
       toast.success(`Moved to ${targetStatus}`);
     } catch (err) {
-      toast.error(formatApiError(err));
+      showApiError(err);
       load();
     }
   };
@@ -70,7 +71,7 @@ export default function PackagesPanel() {
       e.target.value = "";
       load();
     } catch (err) {
-      toast.error(formatApiError(err));
+      showApiError(err);
     } finally {
       setImporting(false);
     }
@@ -95,7 +96,7 @@ export default function PackagesPanel() {
       setNewDraft({ title: "", category: "", phase: "", value: "", float_target_date: "", status: "backlog" });
       load();
     } catch (err) {
-      toast.error(formatApiError(err));
+      showApiError(err);
     }
   };
 
@@ -120,14 +121,32 @@ export default function PackagesPanel() {
 
       {showNew && (
         <div className="border border-brand-navy-soft/40 bg-white p-6 mb-6 grid gap-3 md:grid-cols-6" data-testid="pkg-new-form">
-          <input placeholder="Title" data-testid="pkg-new-title" value={newDraft.title} onChange={(e) => setNewDraft({ ...newDraft, title: e.target.value })} className="md:col-span-3 px-3 py-2 border border-brand-navy/20" />
-          <input placeholder="Category" data-testid="pkg-new-category" value={newDraft.category} onChange={(e) => setNewDraft({ ...newDraft, category: e.target.value })} className="md:col-span-2 px-3 py-2 border border-brand-navy/20" />
-          <input placeholder="Phase" data-testid="pkg-new-phase" value={newDraft.phase} onChange={(e) => setNewDraft({ ...newDraft, phase: e.target.value })} className="px-3 py-2 border border-brand-navy/20" />
-          <input placeholder="Value (USD)" data-testid="pkg-new-value" type="number" value={newDraft.value} onChange={(e) => setNewDraft({ ...newDraft, value: e.target.value })} className="px-3 py-2 border border-brand-navy/20" />
-          <input placeholder="Float target (YYYY-MM-DD)" data-testid="pkg-new-date" type="date" value={newDraft.float_target_date} onChange={(e) => setNewDraft({ ...newDraft, float_target_date: e.target.value })} className="px-3 py-2 border border-brand-navy/20" />
-          <select data-testid="pkg-new-status" value={newDraft.status} onChange={(e) => setNewDraft({ ...newDraft, status: e.target.value })} className="px-3 py-2 border border-brand-navy/20">
-            {COLUMNS.map((c) => (<option key={c.code} value={c.code}>{c.label}</option>))}
-          </select>
+          <label className="md:col-span-3 text-xs uppercase tracking-widest text-brand-navy/60">
+            Title<InfoDot tip="Package name shown on the Kanban card. Free text. Example: 'Substation SS-401 civil works'." />
+            <input placeholder="Title" data-testid="pkg-new-title" value={newDraft.title} onChange={(e) => setNewDraft({ ...newDraft, title: e.target.value })} className="mt-1 w-full px-3 py-2 border border-brand-navy/20 normal-case tracking-normal" />
+          </label>
+          <label className="md:col-span-2 text-xs uppercase tracking-widest text-brand-navy/60">
+            Category<InfoDot tip="Commodity / discipline. Groups packages by trade for the Master Admin's rollup views." />
+            <input placeholder="Category" data-testid="pkg-new-category" value={newDraft.category} onChange={(e) => setNewDraft({ ...newDraft, category: e.target.value })} className="mt-1 w-full px-3 py-2 border border-brand-navy/20 normal-case tracking-normal" />
+          </label>
+          <label className="text-xs uppercase tracking-widest text-brand-navy/60">
+            Phase<InfoDot tip="Optional. Project phase (e.g. FEED, EPC, O&M). Used only for reporting." />
+            <input placeholder="Phase" data-testid="pkg-new-phase" value={newDraft.phase} onChange={(e) => setNewDraft({ ...newDraft, phase: e.target.value })} className="mt-1 w-full px-3 py-2 border border-brand-navy/20 normal-case tracking-normal" />
+          </label>
+          <label className="text-xs uppercase tracking-widest text-brand-navy/60">
+            Value (USD)<InfoDot tip="Estimated contract value in USD. Feeds the pipeline-total analytics widget." />
+            <input placeholder="Value (USD)" data-testid="pkg-new-value" type="number" value={newDraft.value} onChange={(e) => setNewDraft({ ...newDraft, value: e.target.value })} className="mt-1 w-full px-3 py-2 border border-brand-navy/20 normal-case tracking-normal" />
+          </label>
+          <label className="text-xs uppercase tracking-widest text-brand-navy/60">
+            Float target<InfoDot tip="Planned date to publish the Notice for this package. Drives the deadline alerts on the Kanban card." />
+            <input placeholder="Float target (YYYY-MM-DD)" data-testid="pkg-new-date" type="date" value={newDraft.float_target_date} onChange={(e) => setNewDraft({ ...newDraft, float_target_date: e.target.value })} className="mt-1 w-full px-3 py-2 border border-brand-navy/20 normal-case tracking-normal" />
+          </label>
+          <label className="text-xs uppercase tracking-widest text-brand-navy/60">
+            Status<InfoDot tip="Starting Kanban column. You can drag the card between columns later — the history is audited." />
+            <select data-testid="pkg-new-status" value={newDraft.status} onChange={(e) => setNewDraft({ ...newDraft, status: e.target.value })} className="mt-1 w-full px-3 py-2 border border-brand-navy/20 normal-case tracking-normal">
+              {COLUMNS.map((c) => (<option key={c.code} value={c.code}>{c.label}</option>))}
+            </select>
+          </label>
           <button type="button" onClick={createOne} data-testid="pkg-new-create" className="md:col-span-2 px-6 py-2 text-[11px] font-semibold uppercase tracking-widest bg-brand-navy-soft text-white hover:bg-brand-navy-soft/90">Create</button>
         </div>
       )}

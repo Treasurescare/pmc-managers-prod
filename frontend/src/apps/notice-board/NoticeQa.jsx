@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { noticeQaApi, formatApiError } from "@/lib/api";
+import { noticeQaApi, formatApiError, showApiError} from "@/lib/api";
 
 /**
  * NoticeQa — public bidder-clarification thread on the Notice detail page.
@@ -33,7 +33,7 @@ export default function NoticeQa({ noticeRef }) {
       toast.success("Question sent — you'll see the reply here once the tender team responds.");
       setForm({ asker_name: "", asker_email: "", question: "" });
       load();
-    } catch (err) { toast.error(formatApiError(err)); }
+    } catch (err) { showApiError(err); }
     finally { setSubmitting(false); }
   };
 

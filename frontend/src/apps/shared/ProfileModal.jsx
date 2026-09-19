@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { adminApi, vendorApi, formatApiError } from "@/lib/api";
+import { adminApi, vendorApi, formatApiError, showApiError} from "@/lib/api";
 
 /**
  * ProfileModal — unified self-service profile panel.
@@ -54,7 +54,7 @@ export default function ProfileModal({ open, onClose, role, me, onChange }) {
       await api.uploadAvatar(avatar);
       toast.success("Photo updated.");
       onChange && onChange({ ...me, avatar_data_url: avatar });
-    } catch (err) { toast.error(formatApiError(err)); }
+    } catch (err) { showApiError(err); }
     finally { setBusy(false); }
   };
 
@@ -65,7 +65,7 @@ export default function ProfileModal({ open, onClose, role, me, onChange }) {
       setAvatar("");
       toast.success("Photo removed.");
       onChange && onChange({ ...me, avatar_data_url: null });
-    } catch (err) { toast.error(formatApiError(err)); }
+    } catch (err) { showApiError(err); }
     finally { setBusy(false); }
   };
 
@@ -79,7 +79,7 @@ export default function ProfileModal({ open, onClose, role, me, onChange }) {
       await api.changePassword(current, next);
       toast.success("Password changed. Please sign in again next time.");
       setCurrent(""); setNext(""); setConfirm("");
-    } catch (err) { toast.error(formatApiError(err)); }
+    } catch (err) { showApiError(err); }
     finally { setBusy(false); }
   };
 

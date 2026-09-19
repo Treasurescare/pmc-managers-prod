@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { publicApi, registrationApi, vendorInviteApi, formatApiError } from "@/lib/api";
+import { publicApi, registrationApi, vendorInviteApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import TopBar from "@/apps/shared/TopBar";
 import Footer from "@/apps/shared/Footer";
@@ -33,7 +33,7 @@ export default function RegistrationStart() {
       // In pilot: redirect to the resume link so the user can continue immediately
       setTimeout(() => navigate(`/register/resume?token=${r.magic_token}`), 800);
     } catch (err) {
-      toast.error(formatApiError(err));
+      showApiError(err);
     } finally {
       setBusy(false);
     }

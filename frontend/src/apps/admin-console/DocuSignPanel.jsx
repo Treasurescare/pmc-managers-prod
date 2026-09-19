@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { docusignApi, bidApi, formatApiError } from "@/lib/api";
+import { docusignApi, bidApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
+import { InfoDot } from "@/components/InfoDot";
 
 /** Wave 43 — DocuSign eSignature admin panel.
  *
@@ -36,7 +37,7 @@ export default function DocuSignPanel() {
       setStatus(s); setEnvelopes(e.items || []);
       setAwardedBids(b || []);
       if (!pickedBidId && b?.length) setPickedBidId(b[0].id);
-    } catch (err) { toast.error(formatApiError(err)); }
+    } catch (err) { showApiError(err); }
   }, [pickedBidId]);
 
   useEffect(() => { load(); }, [load]);
@@ -70,7 +71,7 @@ export default function DocuSignPanel() {
         window.open(detail.consent_url, "_blank", "noopener");
         toast.error(t("panels.docusign.consent_required"));
       } else {
-        toast.error(formatApiError(err));
+        showApiError(err);
       }
     } finally { setBusy(false); }
   };
@@ -103,7 +104,7 @@ export default function DocuSignPanel() {
       document.body.appendChild(a); a.click();
       setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
     } catch (err) {
-      toast.error(formatApiError(err));
+      showApiError(err);
     }
   };
 
@@ -161,7 +162,7 @@ export default function DocuSignPanel() {
         </div>
 
         <div className="grid gap-3 md:grid-cols-2">
-          <label><span className="pmc-label">{t("panels.docusign.awarded_bid")}</span>
+          <label><span className="pmc-label">{t("panels.docusign.awarded_bid")}<InfoDot tip="Only bids in the 'awarded' state appear here. Envelope is bound to this bid's Award reference." /></span>
             <select value={pickedBidId} onChange={(e) => setPickedBidId(e.target.value)}
               data-testid="ds-bid-picker"
               className="mt-1 w-full px-3 py-2 border border-brand-navy/20 bg-white">
@@ -174,7 +175,7 @@ export default function DocuSignPanel() {
               ))}
             </select>
           </label>
-          <label><span className="pmc-label">{t("panels.docusign.document")}</span>
+          <label><span className="pmc-label">{t("panels.docusign.document")}<InfoDot tip="Pick which award artefact to send. Each document type produces a separate DocuSign envelope." /></span>
             <select value={kind} onChange={(e) => setKind(e.target.value)}
               data-testid="ds-kind-picker"
               className="mt-1 w-full px-3 py-2 border border-brand-navy/20 bg-white">
@@ -183,11 +184,11 @@ export default function DocuSignPanel() {
               <option value="contract">{t("panels.awards.contract_title")}</option>
             </select>
           </label>
-          <label><span className="pmc-label">{t("panels.docusign.signer_name")}</span>
+          <label><span className="pmc-label">{t("panels.docusign.signer_name")}<InfoDot tip="Full legal name of the signatory as it should appear on the executed PDF." /></span>
             <input value={signerName} onChange={(e) => setSignerName(e.target.value)}
               data-testid="ds-signer-name"
               className="mt-1 w-full px-3 py-2 border border-brand-navy/20" /></label>
-          <label><span className="pmc-label">{t("panels.docusign.signer_email")}</span>
+          <label><span className="pmc-label">{t("panels.docusign.signer_email")}<InfoDot tip="Email tied to the DocuSign envelope. Used for identity verification and delivery." /></span>
             <input type="email" value={signerEmail} onChange={(e) => setSignerEmail(e.target.value)}
               data-testid="ds-signer-email"
               className="mt-1 w-full px-3 py-2 border border-brand-navy/20" /></label>

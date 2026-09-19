@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useI18n } from "@/context/I18nContext";
+import { InfoDot } from "@/components/InfoDot";
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -66,17 +67,17 @@ function QuoteModal({ engagement, onClose, onSaved }) {
           </div>
         )}
         <div className="mt-6 grid gap-4">
-          <label><div className="pmc-label">{t("panels.engagements.quoted_amount")}</div>
+          <label><div className="pmc-label">{t("panels.engagements.quoted_amount")}<InfoDot tip="Total amount to invoice the buyer for this engagement. Enter the pre-tax subtotal only." /></div>
             <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)}
                    data-testid="engagement-quote-amount"
                    className="mt-1 w-full border border-brand-navy/20 px-3 py-2 font-mono tabular-nums"/></label>
-          <label><div className="pmc-label">{t("panels.engagements.currency")}</div>
+          <label><div className="pmc-label">{t("panels.engagements.currency")}<InfoDot tip="ISO-4217 currency code. Determines the Stripe checkout currency." /></div>
             <select value={currency} onChange={(e) => setCurrency(e.target.value)}
                     data-testid="engagement-quote-currency"
                     className="mt-1 w-full border border-brand-navy/20 px-3 py-2 bg-white font-mono">
               {CURRENCIES.map((c) => <option key={c}>{c}</option>)}
             </select></label>
-          <label><div className="pmc-label">{t("panels.engagements.valid_until")}</div>
+          <label><div className="pmc-label">{t("panels.engagements.valid_until")}<InfoDot tip="Optional. Quote expiry date. After this date the Stripe checkout link is disabled server-side." /></div>
             <input type="date" value={validUntil?.slice(0, 10) || ""}
                    onChange={(e) => setValidUntil(e.target.value)}
                    className="mt-1 w-full border border-brand-navy/20 px-3 py-2"/></label>

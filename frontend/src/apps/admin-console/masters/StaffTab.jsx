@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
+import { InfoDot } from "@/components/InfoDot";
 
 const ROLE_LABELS = {
   admin: "Admin", reviewer: "Reviewer", escrow_agent: "Escrow Agent",
@@ -79,17 +80,26 @@ export default function StaffTab({
       </div>
       {showStaffNew && (
         <div className="bg-white border p-4 mb-4 grid gap-2 md:grid-cols-3" data-testid="staff-new-form">
-          <input placeholder="Email" value={staffDraft.email}
-            onChange={(e) => setStaffDraft({ ...staffDraft, email: e.target.value.toLowerCase() })}
-            className="px-3 py-2 border" data-testid="staff-email" />
-          <input placeholder="Full name" value={staffDraft.name}
-            onChange={(e) => setStaffDraft({ ...staffDraft, name: e.target.value })}
-            className="px-3 py-2 border" data-testid="staff-name" />
-          <input placeholder="Password" value={staffDraft.password}
-            onChange={(e) => setStaffDraft({ ...staffDraft, password: e.target.value })}
-            className="px-3 py-2 border" data-testid="staff-password" />
+          <label className="text-xs uppercase tracking-widest text-brand-navy/60">
+            Email<InfoDot tip="Login email. Auto-lowercased. Must be unique across all staff records." />
+            <input placeholder="Email" value={staffDraft.email}
+              onChange={(e) => setStaffDraft({ ...staffDraft, email: e.target.value.toLowerCase() })}
+              className="mt-1 w-full px-3 py-2 border normal-case tracking-normal" data-testid="staff-email" />
+          </label>
+          <label className="text-xs uppercase tracking-widest text-brand-navy/60">
+            Full name<InfoDot tip="Displayed on committee sign-offs and audit log entries." />
+            <input placeholder="Full name" value={staffDraft.name}
+              onChange={(e) => setStaffDraft({ ...staffDraft, name: e.target.value })}
+              className="mt-1 w-full px-3 py-2 border normal-case tracking-normal" data-testid="staff-name" />
+          </label>
+          <label className="text-xs uppercase tracking-widest text-brand-navy/60">
+            Password<InfoDot tip="Initial password. The staff member is forced to change it on first login." />
+            <input placeholder="Password" value={staffDraft.password}
+              onChange={(e) => setStaffDraft({ ...staffDraft, password: e.target.value })}
+              className="mt-1 w-full px-3 py-2 border normal-case tracking-normal" data-testid="staff-password" />
+          </label>
           <div className="md:col-span-3">
-            <div className="pmc-label mb-1">Roles (multi-select)</div>
+            <div className="pmc-label mb-1">Roles (multi-select)<InfoDot tip="One user can hold multiple roles. Roles drive dashboard visibility and permission-matrix gates." /></div>
             <div className="grid grid-cols-3 gap-1 text-xs">
               {Object.entries(ROLE_LABELS).map(([r, l]) => (
                 <label key={r} className="flex items-center gap-1">

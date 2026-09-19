@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { adminApi, formatApiError } from "@/lib/api";
+import { adminApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
+import { InfoDot } from "@/components/InfoDot";
 
 export default function AuditPanel() {
   const { t } = useI18n();
@@ -26,7 +27,7 @@ export default function AuditPanel() {
 
   const verify = async () => {
     try { setVerifyResult(await adminApi.verifyAudit()); }
-    catch (err) { toast.error(formatApiError(err)); }
+    catch (err) { showApiError(err); }
   };
 
   return (
@@ -34,7 +35,10 @@ export default function AuditPanel() {
       <div className="flex items-center justify-between mb-4">
         <div className="text-sm text-brand-navy/70">{t("panels.audit.hint")}</div>
         <button type="button" onClick={verify} data-testid="audit-verify"
-          className="px-5 py-2 text-[11px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep">{t("panels.audit.verify")}</button>
+          className="px-5 py-2 text-[11px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep">
+          {t("panels.audit.verify")}
+          <InfoDot tip="Re-computes the hash chain across every event and confirms nothing has been tampered with. Read-only." />
+        </button>
       </div>
       {verifyResult && (
         <div data-testid="audit-verify-result" className={"mb-4 border p-4 text-sm " + (verifyResult.ok ? "border-green-500/40 bg-green-50 text-green-800" : "border-red-500/40 bg-red-50 text-red-800")}>
@@ -45,21 +49,21 @@ export default function AuditPanel() {
       )}
       {/* AU-01 fix — filter bar: actor / type / date range */}
       <div className="border border-brand-navy/10 bg-white p-3 mb-3 grid gap-2 md:grid-cols-5 items-end" data-testid="audit-filter-bar">
-        <label className="text-xs"><div className="pmc-label mb-1">Actor email</div>
+        <label className="text-xs"><div className="pmc-label mb-1">Actor email<InfoDot tip="Substring match on the acting user's email. Case-insensitive." /></div>
           <input value={flt.actor} onChange={(e) => setFlt({ ...flt, actor: e.target.value })}
                  data-testid="audit-filter-actor"
                  placeholder="e.g. adminsupport@…"
                  className="w-full px-3 py-2 border border-brand-navy/20 text-sm"/></label>
-        <label className="text-xs"><div className="pmc-label mb-1">Event type</div>
+        <label className="text-xs"><div className="pmc-label mb-1">Event type<InfoDot tip="Substring match on the event type slug (e.g. 'notice.publish', 'bid.decision.accept')." /></div>
           <input value={flt.type} onChange={(e) => setFlt({ ...flt, type: e.target.value })}
                  data-testid="audit-filter-type"
                  placeholder="e.g. notice.publish"
                  className="w-full px-3 py-2 border border-brand-navy/20 text-sm"/></label>
-        <label className="text-xs"><div className="pmc-label mb-1">From (UTC)</div>
+        <label className="text-xs"><div className="pmc-label mb-1">From (UTC)<InfoDot tip="Inclusive lower bound of event timestamp. UTC." /></div>
           <input type="date" value={flt.from} onChange={(e) => setFlt({ ...flt, from: e.target.value })}
                  data-testid="audit-filter-from"
                  className="w-full px-3 py-2 border border-brand-navy/20 text-sm"/></label>
-        <label className="text-xs"><div className="pmc-label mb-1">To (UTC)</div>
+        <label className="text-xs"><div className="pmc-label mb-1">To (UTC)<InfoDot tip="Inclusive upper bound (end-of-day UTC)." /></div>
           <input type="date" value={flt.to} onChange={(e) => setFlt({ ...flt, to: e.target.value })}
                  data-testid="audit-filter-to"
                  className="w-full px-3 py-2 border border-brand-navy/20 text-sm"/></label>

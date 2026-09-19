@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { sandboxPayApi, formatApiError } from "@/lib/api";
+import { sandboxPayApi, formatApiError, showApiError} from "@/lib/api";
 
 const GATEWAY_LABELS = {
   paypal: { name: "PayPal", tagline: "Sandbox — no real charge", color: "#003087" },
@@ -30,7 +30,7 @@ export default function SandboxCheckout() {
       toast.success("Payment received (sandbox)");
       nav(`/vendor/payment/success?session_id=${sid}`);
     } catch (err) {
-      toast.error(formatApiError(err));
+      showApiError(err);
       setBusy(false);
     }
   };

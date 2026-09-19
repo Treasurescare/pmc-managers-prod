@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { adminApi, staffApi, vendorApi, formatApiError } from "@/lib/api";
+import { adminApi, staffApi, vendorApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import TopBar from "@/apps/shared/TopBar";
 import ForgotUsernameModal from "@/apps/shared/ForgotUsernameModal";
@@ -82,7 +82,7 @@ function EmployeeCard({ t, nav }) {
         if (process.env.NODE_ENV !== "production") console.debug("admin login skipped:", err?.response?.status);
       }
       toast.error(t("login.employee_no_match"));
-    } catch (err) { toast.error(formatApiError(err)); }
+    } catch (err) { showApiError(err); }
     finally { setBusy(false); }
   };
 

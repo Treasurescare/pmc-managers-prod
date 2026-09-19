@@ -6,6 +6,7 @@
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { escrowApi, formatApiError, showApiError } from "@/lib/api";
+import { InfoDot } from "@/components/InfoDot";
 
 const ACTIONS = ["release_to_contractor", "release_to_vendor", "forfeit"];
 const CLOSED = new Set(["released_to_contractor", "released_to_vendor", "forfeited", "cancelled"]);
@@ -82,13 +83,14 @@ function TransactionRow({ t, onSign, onRelease }) {
             <button key={a} onClick={() => onSign(t, a)}
                     disabled={sameEmail}
                     data-testid={`escrow-sign-${a}-${t.id}`}
-                    title={sameEmail ? "Fix the same-email governance issue above first" : undefined}
+                    title={sameEmail ? "Fix the same-email governance issue above first" : `Sign this transaction with action: ${a.replace(/_/g, " ")}. Requires the officer's authentication.`}
                     className="px-3 py-1 text-[11px] uppercase tracking-widest border border-brand-navy/40 text-brand-navy hover:bg-brand-navy hover:text-white disabled:opacity-40 disabled:cursor-not-allowed">
               Sign · {a.replace(/_/g, " ")}
             </button>
           ))}
           <button onClick={() => onRelease(t)} disabled={!bothMatch || sameEmail}
                   data-testid={`escrow-release-${t.id}`}
+                  title="Enabled only when BOTH officers have signed the identical action. Triggers the ledger release and the audit record."
                   className="ml-auto px-3 py-1 text-[11px] uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep disabled:opacity-40 disabled:cursor-not-allowed">
             Release ({sameEmail ? "blocked — fix officers" : bothMatch ? "unlocked" : "needs both signatures"})
           </button>

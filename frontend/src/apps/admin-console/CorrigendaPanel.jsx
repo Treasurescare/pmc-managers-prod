@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { corrigendaApi, formatApiError } from "@/lib/api";
+import { corrigendaApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
+import { InfoDot } from "@/components/InfoDot";
 
 /** Wave 39 — Corrigendum publisher. Attached under Notices admin flow. */
 export default function CorrigendaPanel() {
@@ -30,7 +31,7 @@ export default function CorrigendaPanel() {
   const loadCorrigenda = useCallback((ref) => {
     if (!ref) return;
     corrigendaApi.listAdmin(ref).then((d) => setItems(d.items || []))
-      .catch((e) => toast.error(formatApiError(e)));
+      .catch((e) => showApiError(e));
   }, []);
 
   useEffect(() => { loadNotices(); }, [loadNotices]);
@@ -50,7 +51,7 @@ export default function CorrigendaPanel() {
       setShowNew(false);
       setDraft({ title: "", summary: "", effective_from: "", new_submission_deadline: "" });
       loadCorrigenda(pickedNoticeRef);
-    } catch (err) { toast.error(formatApiError(err)); }
+    } catch (err) { showApiError(err); }
   };
 
   const withdraw = async (cid) => {
@@ -66,7 +67,7 @@ export default function CorrigendaPanel() {
       await corrigendaApi.withdraw(pickedNoticeRef, cid, reason.trim());
       toast.success("Withdrawn — audit trail updated.");
       loadCorrigenda(pickedNoticeRef);
-    } catch (err) { toast.error(formatApiError(err)); }
+    } catch (err) { showApiError(err); }
   };
 
   return (
@@ -81,7 +82,7 @@ export default function CorrigendaPanel() {
       </div>
 
       <label className="block mb-4">
-        <span className="pmc-label">{t("panels.corrigenda.notice_label")}</span>
+        <span className="pmc-label">{t("panels.corrigenda.notice_label")}<InfoDot tip="Pick the parent notice to which the corrigendum applies. All published corrigenda are attached to this notice's public page." /></span>
         <select value={pickedNoticeRef} onChange={(e) => setPickedNoticeRef(e.target.value)}
                 data-testid="corr-notice-picker"
                 className="mt-1 w-full px-4 py-3 border border-brand-navy/20">
@@ -94,21 +95,21 @@ export default function CorrigendaPanel() {
       {showNew && (
         <div className="border border-brand-navy-soft/40 bg-white p-6 mb-6 grid gap-4 md:grid-cols-2"
              data-testid="corr-new-form">
-          <label className="col-span-2"><span className="pmc-label">{t("panels.corrigenda.title_label")}</span>
+          <label className="col-span-2"><span className="pmc-label">{t("panels.corrigenda.title_label")}<InfoDot tip="Short headline shown on the public notice page (e.g. 'Deadline extended by 7 days')." /></span>
             <input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })}
                    data-testid="corr-title"
                    className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <label className="col-span-2"><span className="pmc-label">{t("panels.corrigenda.summary_label")}</span>
+          <label className="col-span-2"><span className="pmc-label">{t("panels.corrigenda.summary_label")}<InfoDot tip="Full text of the amendment. Rendered verbatim in the corrigendum PDF and notification email to registered bidders." /></span>
             <textarea rows={5} value={draft.summary}
                       onChange={(e) => setDraft({ ...draft, summary: e.target.value })}
                       data-testid="corr-summary"
                       className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <label><span className="pmc-label">{t("panels.corrigenda.effective_from")}</span>
+          <label><span className="pmc-label">{t("panels.corrigenda.effective_from")}<InfoDot tip="Optional. When this amendment takes effect. Leave blank for 'immediately on publish'." /></span>
             <input type="datetime-local" value={draft.effective_from}
                    onChange={(e) => setDraft({ ...draft, effective_from: e.target.value })}
                    data-testid="corr-effective"
                    className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <label><span className="pmc-label">{t("panels.corrigenda.new_deadline")}</span>
+          <label><span className="pmc-label">{t("panels.corrigenda.new_deadline")}<InfoDot tip="Optional. If this corrigendum extends or shortens the bid deadline, set the new cut-off here. Overwrites the notice's deadline." /></span>
             <input type="datetime-local" value={draft.new_submission_deadline}
                    onChange={(e) => setDraft({ ...draft, new_submission_deadline: e.target.value })}
                    data-testid="corr-new-deadline"
@@ -117,6 +118,7 @@ export default function CorrigendaPanel() {
             <button type="button" onClick={publish} data-testid="corr-publish"
               className="px-8 py-3 text-[12px] font-semibold uppercase tracking-widest bg-brand-navy-soft text-white hover:bg-brand-navy-soft/90">
               {t("panels.corrigenda.publish")}
+              <InfoDot tip="Publishes the corrigendum, emails all registered bidders and appends to the public notice page. Cannot be undone (only withdrawn with reason)." />
             </button>
           </div>
         </div>

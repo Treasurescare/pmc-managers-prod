@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { adminApi, staffApi, vendorApi, formatApiError } from "@/lib/api";
+import { adminApi, staffApi, vendorApi, formatApiError, showApiError } from "@/lib/api";
 import { biometricAvailable, biometricAuthenticate, saveSecure, loadSecure, platform, registerPush } from "@/lib/mobileBridge";
 
 /**
@@ -67,7 +67,7 @@ export default function MobileLogin() {
       if (who.kind === "admin" || ["admin", "reviewer"].includes(who.role)) return nav("/admin");
       return nav("/staff");
     } catch (err) {
-      toast.error(formatApiError(err) || err.message || "Sign-in failed");
+      showApiError(err, { fallbackTitle: "Sign-in failed" });
     } finally { setBusy(false); }
   };
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { docusignApi, bidApi, formatApiError } from "@/lib/api";
+import { docusignApi, bidApi, formatApiError, showApiError} from "@/lib/api";
 
 /** Wave 44 — Vendor Signing Dashboard.
  *
@@ -24,7 +24,7 @@ export default function VendorSignatures() {
       const env = await docusignApi.listMine().catch(() => ({ items: [] }));
       setEnvelopes(env.items || []);
     } catch (e) {
-      toast.error(formatApiError(e));
+      showApiError(e);
     } finally {
       setLoading(false);
     }
@@ -62,7 +62,7 @@ export default function VendorSignatures() {
       if (d?.code === "DOCUSIGN_CONSENT_REQUIRED") {
         toast.error("DocuSign consent not granted — contact admin");
       } else {
-        toast.error(formatApiError(e));
+        showApiError(e);
       }
     } finally {
       setBusy("");

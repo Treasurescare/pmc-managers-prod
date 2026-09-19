@@ -1,5 +1,6 @@
 import { toast } from "sonner";
-import { contractApi, formatApiError } from "@/lib/api";
+import { contractApi, formatApiError, showApiError} from "@/lib/api";
+import { InfoDot } from "@/components/InfoDot";
 
 /**
  * ContractsTab — extracted from BOQContractsPanel. Renders the contract list
@@ -30,7 +31,7 @@ export default function ContractsTab({
       toast.success("Contract created");
       setShowNewContract(false);
       onReload();
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   };
 
   const completeMilestone = async (contract, order) => {
@@ -38,7 +39,7 @@ export default function ContractsTab({
       await contractApi.completeMilestone(contract.id, order);
       toast.success("Milestone completed");
       onReload();
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   };
 
   return (
@@ -53,7 +54,7 @@ export default function ContractsTab({
       {showNewContract && (
         <div className="bg-white border p-4 mb-4 grid gap-2 md:grid-cols-2" data-testid="contract-new-form">
           <label className="text-sm md:col-span-2">
-            <span>Awarded bid</span>
+            <span>Awarded bid<InfoDot tip="Only bids in 'awarded' status can be converted to a Contract. Picking one auto-fills notice_ref, vendor and currency." /></span>
             <select value={contractDraft.bid_id}
               onChange={(e) => setContractDraft({ ...contractDraft, bid_id: e.target.value })}
               className="mt-1 w-full px-3 py-2 border" data-testid="contract-bid">
@@ -65,21 +66,34 @@ export default function ContractsTab({
               ))}
             </select>
           </label>
-          <input placeholder="Contract title" value={contractDraft.title}
-            onChange={(e) => setContractDraft({ ...contractDraft, title: e.target.value })}
-            className="px-3 py-2 border" data-testid="contract-title" />
-          <input type="number" placeholder="Value" value={contractDraft.value}
-            onChange={(e) => setContractDraft({ ...contractDraft, value: e.target.value })}
-            className="px-3 py-2 border" data-testid="contract-value" />
-          <input type="date" placeholder="Start" value={contractDraft.start_date}
-            onChange={(e) => setContractDraft({ ...contractDraft, start_date: e.target.value })}
-            className="px-3 py-2 border" />
-          <input type="date" placeholder="End" value={contractDraft.end_date}
-            onChange={(e) => setContractDraft({ ...contractDraft, end_date: e.target.value })}
-            className="px-3 py-2 border" />
+          <label className="text-xs uppercase tracking-widest text-brand-navy/60">
+            Contract title<InfoDot tip="Legal heading printed on the SLA and PO PDFs. Editable later." />
+            <input placeholder="Contract title" value={contractDraft.title}
+              onChange={(e) => setContractDraft({ ...contractDraft, title: e.target.value })}
+              className="mt-1 w-full px-3 py-2 border normal-case tracking-normal" data-testid="contract-title" />
+          </label>
+          <label className="text-xs uppercase tracking-widest text-brand-navy/60">
+            Value<InfoDot tip="Total contract value in the awarded bid's currency. Milestone amounts must sum to this." />
+            <input type="number" placeholder="Value" value={contractDraft.value}
+              onChange={(e) => setContractDraft({ ...contractDraft, value: e.target.value })}
+              className="mt-1 w-full px-3 py-2 border normal-case tracking-normal" data-testid="contract-value" />
+          </label>
+          <label className="text-xs uppercase tracking-widest text-brand-navy/60">
+            Start<InfoDot tip="Contract effective date. Defaults to today if left blank." />
+            <input type="date" placeholder="Start" value={contractDraft.start_date}
+              onChange={(e) => setContractDraft({ ...contractDraft, start_date: e.target.value })}
+              className="mt-1 w-full px-3 py-2 border" />
+          </label>
+          <label className="text-xs uppercase tracking-widest text-brand-navy/60">
+            End<InfoDot tip="Contract expiry date. Used to compute the SLA target date on each milestone." />
+            <input type="date" placeholder="End" value={contractDraft.end_date}
+              onChange={(e) => setContractDraft({ ...contractDraft, end_date: e.target.value })}
+              className="mt-1 w-full px-3 py-2 border" />
+          </label>
           <button onClick={createContract} data-testid="contract-create"
             className="md:col-span-2 px-4 py-2 text-[11px] uppercase tracking-widest bg-brand-navy-soft text-white">
             Create contract
+            <InfoDot tip="Persists the contract. Milestone rows and obligations can be added afterwards from the row's expand action." />
           </button>
         </div>
       )}

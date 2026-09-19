@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { adminApi, formatApiError } from "@/lib/api";
+import { adminApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import TopBar from "@/apps/shared/TopBar";
 import { toast } from "sonner";
@@ -22,7 +22,7 @@ export default function AdminLogin() {
       toast.success(t("admin.toast_signed_in"));
       navigate("/admin");
     } catch (err) {
-      toast.error(formatApiError(err));
+      showApiError(err);
     } finally {
       setBusy(false);
     }

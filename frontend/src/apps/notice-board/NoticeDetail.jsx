@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { publicApi, formatApiError } from "@/lib/api";
+import { publicApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import TopBar from "@/apps/shared/TopBar";
 import Footer from "@/apps/shared/Footer";
@@ -31,7 +31,7 @@ export default function NoticeDetail() {
       .then((n) => !cancelled && setNotice(n))
       .catch((e) => {
         if (cancelled) return;
-        toast.error(formatApiError(e));
+        showApiError(e);
         setTimeout(() => navigate("/notices"), 1200);
       })
       .finally(() => !cancelled && setLoading(false));

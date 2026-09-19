@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { adminApi, formatApiError } from "@/lib/api";
+import { adminApi, formatApiError, showApiError} from "@/lib/api";
 
 /**
  * DemoModeTab — one-click investor showcase seed / reset.
@@ -14,7 +14,7 @@ export default function DemoModeTab() {
 
   const refresh = useCallback(async () => {
     try { setStatus(await adminApi.demoStatus()); }
-    catch (e) { toast.error(formatApiError(e)); }
+    catch (e) { showApiError(e); }
   }, []);
 
   useEffect(() => { refresh(); }, [refresh]);
@@ -29,7 +29,7 @@ export default function DemoModeTab() {
         `Demo ready — created ${c.notices || 0} notices, ${c.vendors || 0} vendors, ${c.bids || 0} bids, ${c.contracts || 0} contracts.`,
       );
       await refresh();
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
     finally { setBusy(false); }
   };
 
@@ -43,7 +43,7 @@ export default function DemoModeTab() {
         `Demo wiped — removed ${d.notices || 0} notices, ${d.vendors || 0} vendors, ${d.bids || 0} bids, ${d.contracts || 0} contracts.`,
       );
       await refresh();
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
     finally { setBusy(false); }
   };
 

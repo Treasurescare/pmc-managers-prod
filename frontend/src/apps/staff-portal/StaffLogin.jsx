@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
-import { staffApi, formatApiError } from "@/lib/api";
+import { staffApi, formatApiError, showApiError} from "@/lib/api";
 
 const ROLE_LABELS = {
   admin: "Admin", reviewer: "Reviewer",
@@ -39,7 +39,7 @@ export default function StaffLogin() {
       if (["admin", "reviewer"].includes(res.active_role)) nav("/admin");
       else nav("/staff");
     } catch (err) {
-      toast.error(formatApiError(err));
+      showApiError(err);
     } finally {
       setLoading(false);
     }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { mfaApi, formatApiError } from "@/lib/api";
+import { mfaApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 
 export default function MFASetupModal({ open, onClose }) {
@@ -17,7 +17,7 @@ export default function MFASetupModal({ open, onClose }) {
 
   const start = async () => {
     try { setEnrolment(await mfaApi.enroll()); }
-    catch (e) { toast.error(formatApiError(e)); }
+    catch (e) { showApiError(e); }
   };
   const verify = async () => {
     try {
@@ -25,7 +25,7 @@ export default function MFASetupModal({ open, onClose }) {
       setRecovery(r.recovery_codes);
       toast.success(t("panels.mfa.enabled_toast"));
       setStatus({ enabled: true, pending_enrolment: false });
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   };
   const disable = async () => {
     try {
@@ -33,7 +33,7 @@ export default function MFASetupModal({ open, onClose }) {
       toast.success(t("panels.mfa.disabled_toast"));
       setStatus({ enabled: false, pending_enrolment: false });
       setEnrolment(null); setOtp(""); setRecovery(null);
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   };
 
   if (!open) return null;

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { registrationApi, formatApiError } from "@/lib/api";
+import { registrationApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 
 /**
@@ -34,7 +34,7 @@ export default function DocSlot({ regId, token, slot, label, required, existing,
       const meta = await registrationApi.uploadDocument(rid, tok, slot, file);
       toast.success(`${label} · ${t("docs.uploaded_ok")}`);
       onChange({ ...meta });
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
     finally { setBusy(false); }
   };
 
@@ -45,7 +45,7 @@ export default function DocSlot({ regId, token, slot, label, required, existing,
       await registrationApi.deleteDocument(regId, token, slot);
       toast.success(`${label} · ${t("docs.removed_ok")}`);
       onChange(null);
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
     finally { setBusy(false); }
   };
 

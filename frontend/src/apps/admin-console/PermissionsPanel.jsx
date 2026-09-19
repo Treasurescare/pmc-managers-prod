@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { permissionsApi, formatApiError } from "@/lib/api";
+import { permissionsApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
+import { InfoDot } from "@/components/InfoDot";
 
 const ACTIONS = ["view", "create", "modify", "delete", "publish"];
 const ROLE_LABELS = {
@@ -27,7 +28,7 @@ export default function PermissionsPanel() {
     try {
       const r = await permissionsApi.get();
       setRows(r.rows || []);
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   };
   useEffect(() => { load(); }, []);
 
@@ -49,7 +50,7 @@ export default function PermissionsPanel() {
       await permissionsApi.put(rows);
       toast.success(t("panels.permissions.saved_toast"));
       await load();
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
     finally { setSaving(false); }
   };
 
@@ -59,7 +60,7 @@ export default function PermissionsPanel() {
       await permissionsApi.reset();
       toast.success(t("panels.permissions.reset_toast"));
       await load();
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   };
 
   return (
@@ -72,10 +73,12 @@ export default function PermissionsPanel() {
           <button onClick={reset} data-testid="perm-reset"
                   className="px-4 py-2 text-[11px] uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5">
             {t("panels.permissions.reset")}
+            <InfoDot tip="Restore the built-in role → action defaults. Custom permissions you saved are discarded. Cannot be undone." />
           </button>
           <button onClick={save} disabled={saving} data-testid="perm-save"
                   className="px-5 py-2 text-[11px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep disabled:opacity-50">
             {saving ? t("panels.permissions.saving") : t("panels.permissions.save")}
+            <InfoDot tip="Persist the permission matrix. Takes effect on the next request per role. Audited." />
           </button>
         </div>
       </div>

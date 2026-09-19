@@ -1,6 +1,7 @@
 import { toast } from "sonner";
-import { boqApi, formatApiError } from "@/lib/api";
+import { boqApi, formatApiError, showApiError} from "@/lib/api";
 import UnspscPicker from "@/components/UnspscPicker";
+import { InfoDot } from "@/components/InfoDot";
 
 /**
  * BOQTemplatesTab — BOQ template list, create-new form, Excel import per
@@ -20,7 +21,7 @@ export default function BOQTemplatesTab({
       setTmplDraft({ name: "", notice_ref: "", currency: "USD",
                       unspsc_code: "", unspsc_title: "" });
       onReload();
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   };
 
   const importExcel = async (tmpl, file) => {
@@ -29,7 +30,7 @@ export default function BOQTemplatesTab({
       toast.success(`Imported ${r.items} items`);
       onReload();
       if (selectedTmpl?.id === tmpl.id) setSelectedTmpl(await boqApi.getTemplate(tmpl.id));
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e); }
   };
 
   const viewTemplate = async (tmpl) => setSelectedTmpl(await boqApi.getTemplate(tmpl.id));
@@ -45,15 +46,24 @@ export default function BOQTemplatesTab({
       </div>
       {showNewTmpl && (
         <div className="bg-white border p-4 mb-4 grid gap-2 md:grid-cols-3" data-testid="boq-new-form">
-          <input placeholder="Template name" value={tmplDraft.name}
-            onChange={(e) => setTmplDraft({ ...tmplDraft, name: e.target.value })}
-            className="px-3 py-2 border" data-testid="boq-name" />
-          <input placeholder="Linked notice ref (optional)" value={tmplDraft.notice_ref}
-            onChange={(e) => setTmplDraft({ ...tmplDraft, notice_ref: e.target.value })}
-            className="px-3 py-2 border" data-testid="boq-notice-ref" />
-          <input placeholder="Currency" value={tmplDraft.currency}
-            onChange={(e) => setTmplDraft({ ...tmplDraft, currency: e.target.value })}
-            className="px-3 py-2 border" />
+          <label className="text-xs uppercase tracking-widest text-brand-navy/60">
+            Template name<InfoDot tip="Internal name for the Bill-of-Quantities template. Free text." />
+            <input placeholder="Template name" value={tmplDraft.name}
+              onChange={(e) => setTmplDraft({ ...tmplDraft, name: e.target.value })}
+              className="mt-1 w-full px-3 py-2 border normal-case tracking-normal" data-testid="boq-name" />
+          </label>
+          <label className="text-xs uppercase tracking-widest text-brand-navy/60">
+            Linked notice ref<InfoDot tip="Optional. Bind this BOQ to a specific tender so line-item bidding is enabled on the notice page." />
+            <input placeholder="Linked notice ref (optional)" value={tmplDraft.notice_ref}
+              onChange={(e) => setTmplDraft({ ...tmplDraft, notice_ref: e.target.value })}
+              className="mt-1 w-full px-3 py-2 border normal-case tracking-normal" data-testid="boq-notice-ref" />
+          </label>
+          <label className="text-xs uppercase tracking-widest text-brand-navy/60">
+            Currency<InfoDot tip="ISO-4217 code applied to all Unit Rate columns imported from Excel." />
+            <input placeholder="Currency" value={tmplDraft.currency}
+              onChange={(e) => setTmplDraft({ ...tmplDraft, currency: e.target.value })}
+              className="mt-1 w-full px-3 py-2 border normal-case tracking-normal" />
+          </label>
           <div className="md:col-span-3">
             <div className="text-[10px] uppercase tracking-widest text-brand-navy/60 mb-1">
               UNSPSC commodity family (optional)

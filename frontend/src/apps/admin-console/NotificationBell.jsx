@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { notifyApi, formatApiError } from "@/lib/api";
+import { notifyApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import { toast } from "sonner";
 
@@ -26,11 +26,11 @@ export default function NotificationBell() {
 
   const markAll = async () => {
     try { await notifyApi.markAllRead(); toast.success("All read"); refresh(); }
-    catch (e) { toast.error(formatApiError(e)); }
+    catch (e) { showApiError(e); }
   };
   const markOne = async (id) => {
     try { await notifyApi.markRead(id); refresh(); }
-    catch (e) { toast.error(formatApiError(e)); }
+    catch (e) { showApiError(e); }
   };
 
   return (
