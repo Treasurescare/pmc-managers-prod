@@ -137,7 +137,7 @@ export default function BiddingOpsPanel() {
         />
       )}
 
-      <CommitteeList committees={committees} />
+      <CommitteeList committees={committees} onChange={load} />
 
       <BidTable
         bids={bids}

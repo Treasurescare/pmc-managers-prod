@@ -16,6 +16,16 @@ Admin (master + reviewer/sub-admin) · Vendor · Staff (Escrow, Certifier, Legal
 
 ## Implemented — 100% shipped (as of 5 Sep 2026)
 
+### 14 Feb 2026 — Batch #6 hotfix: Committee dissolve
+Files: `pmc-backend-v22c.zip` · `pmc-frontend-v32-build.zip`
+- **Bug (Bidding Ops → Committee): "Dissolve committee" seemed to succeed but the row still showed Status: open.**
+  - Root cause 1 (backend): `CommitteeCloseIn.decision` was a `Literal["open","closed_awarded","closed_rejected","closed_no_award"]` — pydantic 422'd every dissolve call because `"dissolved"` was not in the union. The `if payload.decision == "dissolved":` branch never even ran.
+  - Root cause 2 (frontend `BiddingOpsPanel`): the `CommitteeList` was rendered without an `onChange` callback, so even a successful dissolve wouldn't refresh the list.
+  - Root cause 3 (frontend `CommitteeList`): the "Active committees" grid rendered every committee the API returned regardless of `status`, so closed/dissolved ones stayed visible.
+  - Fixes: added `"dissolved"` to the Literal union; passed `onChange={load}` to `CommitteeList`; split rendering into an "Active committees (N)" grid (`status === "open"` only) and a "Recently closed / dissolved (N)" strip that shows the close reason + date for audit.
+
+
+
 ### 14 Feb 2026 — BugsV3 P0 sprint (batch #5): Session collision + Approval bypass + Blank form + Mobile funnel
 Files: `pmc-backend-v22b.zip` · `pmc-frontend-v31-build.zip`
 - **Bug #82 · #81 · #56 · #50 — Session collision (P0 root cause)**: switching between admin/staff/vendor left stale cookies from the previous role → dual identity → API 4xx → React crash → misleading "Your session is still active" banner. Fixed on both sides:

@@ -46,11 +46,19 @@ export default function CommitteeList({ committees, onChange }) {
   };
 
   if (!committees.length) return null;
+  // Bug fix — only show OPEN committees under "Active committees". Dissolved
+  // and closed committees appear in a "Recently closed" strip below so
+  // the operator still has audit visibility but doesn't confuse them with
+  // active ones. Frontend previously showed every committee regardless
+  // of status because the API returns the last 200 unfiltered.
+  const active = committees.filter((c) => c.status === "open");
+  const closed = committees.filter((c) => c.status !== "open");
+  if (!active.length && !closed.length) return null;
   return (
     <div className="mb-6">
-      <div className="pmc-label mb-2">Active committees</div>
+      <div className="pmc-label mb-2">Active committees ({active.length})</div>
       <div className="grid gap-3 md:grid-cols-2">
-        {committees.map((c) => {
+        {active.map((c) => {
           const ext = c.external_invitees || [];
           const acc = ext.filter((e) => e.status === "accepted").length;
           const dec = ext.filter((e) => e.status === "declined").length;
@@ -120,6 +128,28 @@ export default function CommitteeList({ committees, onChange }) {
           );
         })}
       </div>
+      {closed.length > 0 && (
+        <div className="mt-6" data-testid="committee-closed-section">
+          <div className="pmc-label mb-2 text-brand-navy/60">Recently closed / dissolved ({closed.length})</div>
+          <div className="grid gap-2 md:grid-cols-2">
+            {closed.slice(0, 6).map((c) => (
+              <div key={c.id} className="border border-slate-200 bg-slate-50/50 p-3 text-xs opacity-70"
+                   data-testid={`committee-closed-${c.notice_ref}`}>
+                <div className="flex items-baseline justify-between">
+                  <span className="font-mono text-brand-navy-soft">{c.notice_ref}</span>
+                  <span className="uppercase tracking-widest text-[10px] text-brand-navy/60">{c.status}</span>
+                </div>
+                {c.close_remarks && (
+                  <div className="mt-1 italic text-brand-navy/60 line-clamp-2">Reason: {c.close_remarks}</div>
+                )}
+                {c.closed_at && (
+                  <div className="mt-1 text-brand-navy/40">Closed {c.closed_at.slice(0, 10)}</div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -3,7 +3,7 @@ from typing import List, Optional, Literal
 from pydantic import BaseModel
 
 
-CommitteeDecision = Literal["open", "closed_awarded", "closed_rejected", "closed_no_award"]
+CommitteeDecision = Literal["open", "closed_awarded", "closed_rejected", "closed_no_award", "dissolved"]
 
 
 class ExternalInviteeIn(BaseModel):
