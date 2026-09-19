@@ -95,6 +95,23 @@ async def submit_score(payload: ScoreEntryIn,
     bid = await db.bids.find_one({"_id": ObjectId(payload.bid_id)})
     if not bid:
         raise HTTPException(status_code=404, detail="Bid not found")
+
+    # Bug #52 — once the envelope has been locked, evaluators can no longer
+    # submit or overwrite scores for this bid. Prevents "re-entering the same
+    # Bid ID after locking still lets me score" — instead we return a clean
+    # 409 with the lock timestamp so the UI can surface it plainly.
+    notice = await db.notices.find_one({"notice_ref": bid["notice_ref"]},
+                                        {f"{payload.kind}_locked_at": 1,
+                                         f"{payload.kind}_locked_by": 1})
+    locked_at = (notice or {}).get(f"{payload.kind}_locked_at")
+    if locked_at:
+        raise HTTPException(
+            status_code=409,
+            detail=(f"The {payload.kind} envelope for {bid['notice_ref']} was locked "
+                    f"at {locked_at}. Scores can no longer be submitted or edited. "
+                    f"Generate the Award Report to view saved results."),
+        )
+
     coi = await db.coi_declarations.find_one({
         "notice_ref": bid["notice_ref"], "evaluator_id": admin["id"],
     })
@@ -104,6 +121,27 @@ async def submit_score(payload: ScoreEntryIn,
     if coi.get("has_conflict"):
         raise HTTPException(status_code=403,
                             detail="You declared a conflict — cannot score this tender")
+
+    # Bug #49 — reject any score that exceeds the criterion's max_score. This
+    # complements the frontend range guards for defence-in-depth.
+    rubric = await db.rubrics.find_one({"notice_ref": bid["notice_ref"]})
+    if rubric and payload.kind == "technical":
+        max_map = {c.get("code"): float(c.get("max_score") or 100)
+                   for c in (rubric.get("technical_criteria") or [])}
+        for code, v in (payload.scores or {}).items():
+            if code in max_map and (v is None or float(v) < 0 or float(v) > max_map[code]):
+                raise HTTPException(
+                    status_code=422,
+                    detail=(f"Score for '{code}' must be between 0 and {max_map[code]} "
+                            f"(got {v}). Fix the row and try again."),
+                )
+    if payload.kind == "commercial":
+        v = (payload.scores or {}).get("commercial")
+        if v is None or float(v) < 0 or float(v) > 100:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Commercial score must be between 0 and 100 (got {v}).",
+            )
 
     entry = {
         "bid_id": payload.bid_id,

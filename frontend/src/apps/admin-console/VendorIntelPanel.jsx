@@ -46,7 +46,11 @@ export default function VendorIntelPanel() {
         <span><span className="text-amber-600 font-bold">WL</span> = Watch-list (elevated scrutiny)</span>
         <span className="text-brand-navy/50">· Anonymised entries appear as "—"</span>
       </div>
-      <table className="w-full text-sm">
+      {/* Bug #84 — horizontal scroll wrapper so long vendor rows don't blow
+          out the mobile viewport (was overflowing on iPhone SE / narrow
+          Android). min-w-[640px] keeps columns readable while allowing swipe. */}
+      <div className="w-full overflow-x-auto">
+      <table className="w-full text-sm min-w-[640px]">
         <thead className="text-xs text-brand-navy/60 border-b">
           <tr><th className="text-left px-3 py-2">{t("panels.vendor_intel.col_vendor")}</th>
             <th className="text-left px-3 py-2">{t("panels.vendor_intel.col_ref")}</th>
@@ -75,6 +79,7 @@ export default function VendorIntelPanel() {
           {rows.length === 0 && (<tr><td colSpan={6} className="p-6 text-center text-slate-500">{t("panels.vendor_intel.empty")}</td></tr>)}
         </tbody>
       </table>
+      </div>
 
       {selected && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">

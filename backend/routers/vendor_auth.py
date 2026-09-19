@@ -97,7 +97,12 @@ async def vendor_logout(response: Response) -> Dict[str, bool]:
 
 
 @router.get("/auth/me")
-async def vendor_me(vendor=Depends(current_vendor)) -> Dict[str, Any]:
+async def vendor_me(vendor=Depends(current_vendor), response: Response = None) -> Dict[str, Any]:
+    # Bug #29 — force no-store so a fresh avatar upload is visible on the next
+    # tab/page load (CloudFront was serving a stale /auth/me briefly).
+    if response is not None:
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
     return vendor
 
 

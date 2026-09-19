@@ -108,7 +108,10 @@ export default function AdminVendorCreate() {
         : t("admin_vendor.ok_verify_sent");
       const created = t("admin_vendor.ok_created") || "Vendor created";
       toast.success(`${created} · ${ref} · ${modeMsg}`);
-      nav("/admin");
+      // Bug #63 — land back on the Vendors tab so the freshly-created vendor
+      // is visible immediately (previously we redirected to /admin which
+      // opened the "Dashboard" tab and testers thought the vendor was lost).
+      nav("/admin?tab=vendors");
     } catch (e) { toast.error(formatApiError(e)); }
     finally { setSaving(false); }
   };

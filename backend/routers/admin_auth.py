@@ -55,10 +55,16 @@ async def admin_logout(response: Response) -> Dict[str, bool]:
 
 
 @router.get("/me")
-async def admin_me(admin: Dict[str, Any] = Depends(current_admin)) -> Dict[str, Any]:
+async def admin_me(admin: Dict[str, Any] = Depends(current_admin), response: Response = None) -> Dict[str, Any]:
     # GET is CSRF-safe by convention. Enrich with avatar for the profile widget.
     user = await db.admin_users.find_one({"_id": ObjectId(admin["id"])},
                                           {"avatar_data_url": 1})
+    # Bug #29 — force no-store so a fresh avatar upload is visible on the next
+    # tab/page load. CloudFront was serving a stale /me for up to 60s, which
+    # made the newly-picked profile photo disappear until the cache expired.
+    if response is not None:
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
     return {**admin, "avatar_data_url": (user or {}).get("avatar_data_url")}
 
 

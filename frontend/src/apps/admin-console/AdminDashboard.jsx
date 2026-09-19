@@ -101,7 +101,16 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const [me, setMe] = useState(null);
-  const [tab, setTab] = useState("analytics");
+  // Bug #63 — honour ?tab=<name> in the URL so redirects after admin
+  // vendor-create (or any deep link) land on the right tab. Falls back to
+  // the previous default ("analytics") if the param is missing/unknown.
+  const initialTab = (() => {
+    try {
+      const p = new URLSearchParams(location.search).get("tab");
+      return p || "analytics";
+    } catch { return "analytics"; }
+  })();
+  const [tab, setTab] = useState(initialTab);
   const [mfaOpen, setMfaOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const tenant = useTenantSkin();
@@ -111,6 +120,14 @@ export default function AdminDashboard() {
       .then(setMe)
       .catch(() => { navigate("/login"); });
   }, [navigate, location.pathname]);
+
+  // Bug #63 — when ?tab= changes (e.g. programmatic navigation), sync it.
+  useEffect(() => {
+    try {
+      const p = new URLSearchParams(location.search).get("tab");
+      if (p) setTab(p);
+    } catch { /* noop */ }
+  }, [location.search]);
 
   const logout = async () => { await adminApi.logout(); navigate("/"); };
 

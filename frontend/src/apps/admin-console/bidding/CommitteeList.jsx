@@ -1,12 +1,20 @@
 import { useState } from "react";
 import { toast } from "sonner";
-
-const API = process.env.REACT_APP_BACKEND_URL;
+import { api, formatApiError } from "@/lib/api";
 
 /**
- * CommitteeList v2 — adds dissolve + resend-invite actions.
- *   * Dissolve  → closes an open committee with status="dissolved" + audit reason
- *   * Resend    → per-external-invitee resend of the accept email
+ * CommitteeList v3 — dissolve + resend-invite via `api` axios helper.
+ *
+ *   * Root-cause bug (2026-09-19): the previous version used a raw `fetch()`
+ *     that never attached the `X-CSRF-Token` header, so the backend
+ *     `POST /api/v1/committees/close` returned HTTP 403 "CSRF token missing
+ *     or invalid" — the committee stayed open, and the operator saw two
+ *     zombie active committees they could not dissolve. Because of the 403,
+ *     `create_committee` then returned HTTP 409 ("Open committee already
+ *     exists for this tender") when they tried to form a new one — hence
+ *     the "neither formed" report.
+ *   * Fix: use the shared `api` axios instance (which already adds the CSRF
+ *     header on every non-GET request) instead of raw `fetch`.
  */
 export default function CommitteeList({ committees, onChange }) {
   const [busyId, setBusyId] = useState(null);
@@ -19,38 +27,28 @@ export default function CommitteeList({ committees, onChange }) {
     }
     setBusyId(c.id);
     try {
-      const r = await fetch(`${API}/api/v1/committees/close`, {
-        method: "POST", credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          committee_id: c.id, decision: "dissolved", remarks: reason.trim(),
-        }),
+      await api.post("/api/v1/committees/close", {
+        committee_id: c.id, decision: "dissolved", remarks: reason.trim(),
       });
-      if (!r.ok) throw new Error((await r.json()).detail || `HTTP ${r.status}`);
       toast.success("Committee dissolved");
       onChange?.();
-    } catch (e) { toast.error(e.message); }
+    } catch (e) { toast.error(formatApiError(e)); }
     finally { setBusyId(null); }
   };
 
   const resendInvite = async (c, invIdx) => {
     setBusyId(`${c.id}-${invIdx}`);
     try {
-      const r = await fetch(`${API}/api/v1/committees/${c.id}/external/${invIdx}/resend`, {
-        method: "POST", credentials: "include",
-      });
-      if (!r.ok) throw new Error((await r.json()).detail || `HTTP ${r.status}`);
+      await api.post(`/api/v1/committees/${c.id}/external/${invIdx}/resend`);
       toast.success("Invite resent");
-    } catch (e) { toast.error(e.message); }
+    } catch (e) { toast.error(formatApiError(e)); }
     finally { setBusyId(null); }
   };
 
   if (!committees.length) return null;
-  // Bug fix — only show OPEN committees under "Active committees". Dissolved
-  // and closed committees appear in a "Recently closed" strip below so
-  // the operator still has audit visibility but doesn't confuse them with
-  // active ones. Frontend previously showed every committee regardless
-  // of status because the API returns the last 200 unfiltered.
+  // Only show OPEN committees under "Active committees". Dissolved / closed
+  // committees appear in a "Recently closed" strip below so the operator
+  // still has audit visibility but doesn't confuse them with active ones.
   const active = committees.filter((c) => c.status === "open");
   const closed = committees.filter((c) => c.status !== "open");
   if (!active.length && !closed.length) return null;

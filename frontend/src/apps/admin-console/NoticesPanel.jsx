@@ -42,11 +42,13 @@ export default function NoticesPanel() {
     adminApi.me().then(setMe).catch(() => {});
   }, [load]);
 
-  // Bug #32 — accept any admin role variant, not just literal "admin".
-  // Backend can return "admin" | "master_admin" | "superadmin" depending on
-  // seeding path; testers on newer accounts were seeing the checkbox disabled
-  // because their token said "master_admin".
-  const isMasterAdmin = ["admin", "master_admin", "superadmin", "staff_admin"].includes(me?.role);
+  // Bug #21/#32 — accept any admin role variant (case-insensitive, tolerates
+  // legacy "Master Admin" / "MASTER_ADMIN" / "master-admin" etc.). Backend can
+  // return "admin" | "master_admin" | "superadmin" depending on seeding path;
+  // testers on newer accounts were seeing the checkbox disabled because their
+  // token said "master_admin" or had different casing/separators.
+  const roleNorm = (me?.role || "").toString().toLowerCase().replace(/[\s-]+/g, "_");
+  const isMasterAdmin = ["admin", "master_admin", "superadmin", "staff_admin"].includes(roleNorm);
 
   const create = async () => {
     // Bug #31 — spell out which field failed AND the exact minimum, so testers

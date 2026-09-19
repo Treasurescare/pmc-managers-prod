@@ -1,6 +1,7 @@
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { api, vendorInviteApi, formatApiError } from "@/lib/api";
+import { useI18n } from "@/context/I18nContext";
 import BulkInviteModal from "./BulkInviteModal";
 
 function KpiTile({ label, value }) {
@@ -13,6 +14,7 @@ function KpiTile({ label, value }) {
 }
 
 export default function VendorsPanel() {
+  const { t } = useI18n();
   const [vendors, setVendors] = useState([]);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState(null);
@@ -91,32 +93,32 @@ export default function VendorsPanel() {
     <div className="space-y-4" data-testid="admin-vendors-panel">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="text-sm text-brand-navy/70">
-          {vendors.length} vendors · use "Invite vendor" to pre-register a supplier
+          {vendors.length} {t("panels.vendors.count_hint_suffix")}
         </div>
         <div className="flex gap-2 items-center">
           <label className="text-xs cursor-pointer border border-brand-navy/20 px-3 py-1.5 uppercase tracking-widest text-brand-navy hover:bg-brand-navy/5"
                  data-testid="vendor-template-upload-label">
-            {templateMeta.available ? "Replace registration template" : "Upload registration template"}
+            {templateMeta.available ? t("panels.vendors.replace_template") : t("panels.vendors.upload_template")}
             <input type="file" accept=".pdf,.docx,.doc" onChange={(e) => uploadTemplate(e.target.files?.[0])}
                    className="hidden" data-testid="vendor-template-upload" />
           </label>
           {templateMeta.available && (
             <a href={vendorInviteApi.templateDownloadUrl()} target="_blank" rel="noreferrer"
                className="text-xs underline text-brand-navy/70"
-               data-testid="vendor-template-download">Download current ({templateMeta.file_name})</a>
+               data-testid="vendor-template-download">{t("panels.vendors.download_template_prefix")} ({templateMeta.file_name})</a>
           )}
           <button onClick={() => setShowBulk(true)} data-testid="vendor-bulk-invite-open"
                   className="px-4 py-2 text-[11px] uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5">
-            Bulk invite (CSV)
+            {t("panels.vendors.bulk_invite")}
           </button>
           <a href="/admin/vendors/new" data-testid="vendor-fullform-open"
              className="px-4 py-2 text-[11px] uppercase tracking-widest border border-brand-navy-soft text-brand-navy-soft hover:bg-brand-navy-soft hover:text-white">
-            Add & fill full form
+            {t("panels.vendors.add_fullform")}
           </a>
           <button onClick={() => setShowInvite(!showInvite)}
                   data-testid="vendor-invite-toggle"
                   className="px-5 py-2 text-[11px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep">
-            {showInvite ? "Cancel" : "Invite vendor"}
+            {showInvite ? t("panels.vendors.invite_toggle_close") : t("panels.vendors.invite_toggle_open")}
           </button>
         </div>
       </div>
@@ -127,41 +129,40 @@ export default function VendorsPanel() {
         <div className="border border-brand-navy-soft/40 bg-white p-6 grid gap-3 md:grid-cols-4"
              data-testid="vendor-invite-form">
           <label className="md:col-span-2 text-sm">
-            <span className="pmc-label">Vendor email</span>
+            <span className="pmc-label">{t("panels.vendors.invite_email")}</span>
             <input value={inviteDraft.email} type="email" required
                    onChange={(e) => setInviteDraft({ ...inviteDraft, email: e.target.value })}
                    data-testid="vendor-invite-email"
                    className="mt-1 w-full px-3 py-2 border border-brand-navy/20" />
           </label>
           <label className="md:col-span-2 text-sm">
-            <span className="pmc-label">Company name</span>
+            <span className="pmc-label">{t("panels.vendors.invite_company")}</span>
             <input value={inviteDraft.company_name}
                    onChange={(e) => setInviteDraft({ ...inviteDraft, company_name: e.target.value })}
                    data-testid="vendor-invite-company"
                    className="mt-1 w-full px-3 py-2 border border-brand-navy/20" />
           </label>
           <label className="text-sm">
-            <span className="pmc-label">Contact name</span>
+            <span className="pmc-label">{t("panels.vendors.invite_contact")}</span>
             <input value={inviteDraft.contact_name}
                    onChange={(e) => setInviteDraft({ ...inviteDraft, contact_name: e.target.value })}
                    className="mt-1 w-full px-3 py-2 border border-brand-navy/20" />
           </label>
           <label className="text-sm">
-            <span className="pmc-label">Country</span>
+            <span className="pmc-label">{t("panels.vendors.invite_country")}</span>
             <input value={inviteDraft.country}
                    onChange={(e) => setInviteDraft({ ...inviteDraft, country: e.target.value })}
                    className="mt-1 w-full px-3 py-2 border border-brand-navy/20" />
           </label>
           <div className="md:col-span-4 text-[11px] text-brand-navy/50">
-            An email will be sent asking the vendor to verify their address and set a password.
-            Their vendor reference is generated automatically.
+            {t("panels.vendors.invite_hint")}
           </div>
           <div className="md:col-span-4 flex justify-end">
             <button type="button" onClick={sendInvite}
                     disabled={sendingInvite}
                     data-testid="vendor-invite-submit"
                     className="px-8 py-3 text-[12px] font-semibold uppercase tracking-widest bg-brand-navy-soft text-white hover:bg-brand-navy-soft/90 disabled:opacity-50 disabled:cursor-not-allowed">
-              {sendingInvite ? "Sending…" : "Send invitation"}
+              {sendingInvite ? t("panels.vendors.invite_sending") : t("panels.vendors.invite_submit")}
             </button>
           </div>
         </div>
@@ -172,18 +173,18 @@ export default function VendorsPanel() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name or ref…"
+            placeholder={t("panels.vendors.search_placeholder")}
             data-testid="vendor-search"
             className="w-full px-4 py-2 border border-brand-navy/20 focus:outline-none focus:border-brand-navy-soft text-brand-navy bg-white text-sm mb-3"
           />
           {/* V-02 fix — filter dropdown: all / pending-verify / active / inactive */}
           <div className="flex gap-2 items-center mb-3 text-xs text-brand-navy/70" data-testid="vendor-status-filter-bar">
-            <span className="pmc-label">Status</span>
+            <span className="pmc-label">{t("panels.vendors.filter_status")}</span>
             {[
-              ["all", "All"],
-              ["pending", "Pending verify"],
-              ["active", "Active"],
-              ["inactive", "Inactive"],
+              ["all", t("panels.vendors.filter_all")],
+              ["pending", t("panels.vendors.filter_pending")],
+              ["active", t("panels.vendors.filter_active")],
+              ["inactive", t("panels.vendors.filter_inactive")],
             ].map(([k, l]) => (
               <button key={k} type="button" onClick={() => setStatusFilter(k)}
                 data-testid={`vendor-status-filter-${k}`}
@@ -195,7 +196,7 @@ export default function VendorsPanel() {
           <div className="border border-brand-navy/10 bg-white">
             {vendors.length === 0 && (
               <div className="p-6 text-brand-navy/50 text-sm">
-                No vendors yet. Invite one above or approve a registration.
+                {t("panels.vendors.empty")}
               </div>
             )}
             {vendors
@@ -217,8 +218,8 @@ export default function VendorsPanel() {
                 <div className="text-xs font-mono text-brand-navy-soft mt-1">{v.vendor_ref}</div>
                 <div className="text-xs text-brand-navy/50 mt-0.5">
                   {v.email} · {v.country}
-                  {v.email_verified === false && <span className="ml-2 text-amber-600">· pending verify</span>}
-                  {v.is_active === false && v.email_verified !== false && <span className="ml-2 text-slate-500">· inactive</span>}
+                  {v.email_verified === false && <span className="ml-2 text-amber-600">· {t("panels.vendors.pending_verify")}</span>}
+                  {v.is_active === false && v.email_verified !== false && <span className="ml-2 text-slate-500">· {t("panels.vendors.inactive_badge")}</span>}
                 </div>
               </button>
             ))}
@@ -228,40 +229,40 @@ export default function VendorsPanel() {
         <div>
           {!selected ? (
             <div className="border border-dashed border-brand-navy/20 bg-white p-14 text-center text-brand-navy/50">
-              Select a vendor on the left to see their KPI dashboard.
+              {t("panels.vendors.kpi_placeholder")}
             </div>
           ) : loadingKpi || !kpi ? (
-            <div className="border border-brand-navy/10 bg-white p-14 text-center text-brand-navy/50">Loading vendor KPI…</div>
+            <div className="border border-brand-navy/10 bg-white p-14 text-center text-brand-navy/50">{t("panels.vendors.kpi_loading")}</div>
           ) : (
             <div className="border border-brand-navy/10 bg-white p-6" data-testid="vendor-kpi">
-              <div className="pmc-label">Approved supplier</div>
+              <div className="pmc-label">{t("panels.vendors.kpi_kicker")}</div>
               <h3 className="font-display text-2xl text-brand-navy mt-1">{kpi.company_name || "(no name)"}</h3>
               <div className="text-sm font-mono text-brand-navy-soft mt-1">{kpi.vendor_ref}</div>
               <div className="text-xs text-brand-navy/50 mt-0.5">{kpi.email} · {kpi.country} · {kpi.primary_sector || "sector n/a"}</div>
               <div className="mt-6 grid gap-3 md:grid-cols-4">
-                <KpiTile label="Days approved" value={kpi.approved_days_ago} />
-                <KpiTile label="Review turnaround (h)" value={kpi.time_to_decision_hours} />
-                <KpiTile label="KZ licenses" value={kpi.kz_licenses_count} />
-                <KpiTile label="Categories" value={kpi.categories_count} />
+                <KpiTile label={t("panels.vendors.kpi_days_approved")} value={kpi.approved_days_ago} />
+                <KpiTile label={t("panels.vendors.kpi_review_hours")} value={kpi.time_to_decision_hours} />
+                <KpiTile label={t("panels.vendors.kpi_kz_licenses")} value={kpi.kz_licenses_count} />
+                <KpiTile label={t("panels.vendors.kpi_categories")} value={kpi.categories_count} />
               </div>
               <div className="mt-6 grid gap-4 md:grid-cols-2 text-sm">
                 <div>
-                  <div className="pmc-label">KZ licenses held</div>
+                  <div className="pmc-label">{t("panels.vendors.kpi_kz_held")}</div>
                   {(kpi.kz_licenses_held || []).length === 0
-                    ? <div className="text-brand-navy/50 mt-1">None</div>
+                    ? <div className="text-brand-navy/50 mt-1">{t("panels.vendors.kpi_none")}</div>
                     : (<ul className="mt-1 text-brand-navy">
                         {kpi.kz_licenses_held.map((l) => <li key={l}>· {l}</li>)}</ul>)}
                 </div>
                 <div>
-                  <div className="pmc-label">Operating regions</div>
+                  <div className="pmc-label">{t("panels.vendors.kpi_regions")}</div>
                   {(kpi.operating_regions || []).length === 0
-                    ? <div className="text-brand-navy/50 mt-1">Not declared</div>
+                    ? <div className="text-brand-navy/50 mt-1">{t("panels.vendors.kpi_regions_none")}</div>
                     : <div className="mt-1 text-brand-navy">{kpi.operating_regions.join(", ")}</div>}
                 </div>
                 <div className="md:col-span-2">
-                  <div className="pmc-label">Business categories declared</div>
+                  <div className="pmc-label">{t("panels.vendors.kpi_business_cats")}</div>
                   {(kpi.categories_declared || []).length === 0
-                    ? <div className="text-brand-navy/50 mt-1">None</div>
+                    ? <div className="text-brand-navy/50 mt-1">{t("panels.vendors.kpi_none")}</div>
                     : <div className="mt-1 text-brand-navy">{kpi.categories_declared.join(" · ")}</div>}
                 </div>
               </div>
