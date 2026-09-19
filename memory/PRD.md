@@ -27,6 +27,14 @@ Admin (master + reviewer/sub-admin) · Vendor · Staff (Escrow, Certifier, Legal
 - Stripe's CSP `frame-ancestors 'self'` blocks embedding, so `window.location.href = stripe_url` from inside the Emergent preview iframe hangs at a blank skeleton.
 - Fixed in `VendorDashboard.jsx` (My Bids → Pay EMD), `BidSubmit.jsx` (Submit Bid), and `PurchaseGrid.jsx` (Product catalog) — all now use `window.open(url, "_blank")` with `window.top.location` fallback.
 
+### 19 Sep 2026 — Bugs V2 Batch #3: retest + mobile funnel + committee verification
+- **Retest results (via preview API + Mongo, using latest code):**
+  - Notice draft creation as admin — endpoint accepts `is_published=false`, notice lands in drafts list. Was blocked in earlier test only because `category` is a required field on the create payload (frontend already sends it). Not a real bug.
+  - Committee external-email listing — pulled 2 live committees, both carry the full `external_invitees` array (email + name + designation + accept_token + status + invited_at + decided_at). Backend list endpoint returns them. Frontend `CommitteeList.jsx` iterates over them correctly. Prior "not listed" report was almost certainly the CloudFront-cached-HTML issue.
+  - Registration submit — hardened + verified.
+- **Bug #79 Mobile Landing Pipeline Funnel labels overlapping**: fixed in `apps/notice-board/NoticeBoardHome.jsx::StatCard`. Added `min-w-0`, `break-words`, `leading-tight` and made the 3-card grid `grid-cols-1 xs:grid-cols-3 sm:grid-cols-3` so labels stack vertically on the smallest phone widths instead of overlapping.
+- Bundled into `pmc-frontend-v28-build.zip` (43 MB) + refreshed `pmc-backend-v21.zip` (255 KB).
+
 ### 19 Sep 2026 — Bugs V2 Batch #2: Registration submit hardening
 - New bug reported live: vendor completes 6 declarations + signature → clicks Submit for Review → toast "Request failed with status code 500".
 - Root cause: multiple KeyError / InvalidId paths in `submit_registration` — malformed `registration_id` bubbled up as BSON InvalidId → 500; `doc["email"]` KeyError on legacy rows missing the field → 500; `send_email` failing on live Resend key → 500.

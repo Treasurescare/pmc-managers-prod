@@ -8,8 +8,8 @@ import { toast } from "sonner";
 
 function StatCard({ label, value }) {
   return (
-    <div className="border border-brand-navy/10 bg-white p-3 sm:p-6 overflow-hidden" data-testid={`stat-${label}`}>
-      <div className="pmc-label text-[9px] sm:text-[10px]">{label}</div>
+    <div className="border border-brand-navy/10 bg-white p-3 sm:p-6 overflow-hidden min-w-0" data-testid={`stat-${label}`}>
+      <div className="pmc-label text-[9px] sm:text-[10px] leading-tight break-words">{label}</div>
       <div className="pmc-stat-lg mt-2 text-brand-navy text-2xl sm:text-4xl">{value ?? "—"}</div>
     </div>
   );
@@ -110,7 +110,7 @@ export default function NoticeBoardHome() {
               </Link>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 xs:grid-cols-3 sm:grid-cols-3 gap-3 sm:gap-4">
             <StatCard label={t("home.stats_notices")} value={stats?.notices_published ?? 0} />
             <StatCard label={t("home.stats_suppliers")} value={stats?.suppliers_approved ?? 0} />
             <StatCard label={t("home.stats_packages")} value={stats?.packages_total ?? 0} />
