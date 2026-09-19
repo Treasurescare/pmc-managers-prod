@@ -55,6 +55,7 @@ ALLOWED = {
     "pmc-frontend-v26-build":  "/app/deliverables/pmc-frontend-v26-build.zip",
     "pmc-frontend-v27-build":  "/app/deliverables/pmc-frontend-v27-build.zip",
     "pmc-frontend-v28-build":  "/app/deliverables/pmc-frontend-v28-build.zip",
+    "pmc-frontend-v29-build":  "/app/deliverables/pmc-frontend-v29-build.zip",
     "pmc-backend-v19":         "/app/deliverables/pmc-backend-v19.zip",
     "pmc-backend-v20":         "/app/deliverables/pmc-backend-v20.zip",
     "pmc-backend-v21":         "/app/deliverables/pmc-backend-v21.zip",
