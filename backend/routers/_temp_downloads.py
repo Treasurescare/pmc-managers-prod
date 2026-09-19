@@ -67,6 +67,7 @@ ALLOWED = {
     "pmc-frontend-v32-build":  "/app/deliverables/pmc-frontend-v32-build.zip",
     "PMC_Bug_Tracker_v9":      "/app/deliverables/PMC_Bug_Tracker_v9_E1_20260919.xlsx",
     "PMC_Bug_Tracker_v10":     "/app/deliverables/PMC_Bug_Tracker_v10_E1_20260919.xlsx",
+    "PMC_Bug_Tracker_v11":     "/app/deliverables/PMC_Bug_Tracker_v11_E1_20260919.xlsx",
     "verify-prod-v2-sh":       "/app/deliverables/verify_prod_v2.sh",
     "handbook-v3.1-docx":      "/app/deliverables/PMC_Trainee_Handbook_v3.1.docx",
     "handbook-v3.1-pdf":       "/app/deliverables/PMC_Trainee_Handbook_v3.1.pdf",

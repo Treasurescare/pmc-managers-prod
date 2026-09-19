@@ -16,6 +16,17 @@ Admin (master + reviewer/sub-admin) · Vendor · Staff (Escrow, Certifier, Legal
 
 ## Implemented — 100% shipped (as of 5 Sep 2026)
 
+### 14 Feb 2026 — Batch #6 LIVE: Committee dissolve + apex domain wiring
+Files: `pmc-backend-v22c.zip` · `pmc-frontend-v32-build.zip` · both deployed to AWS at 05:34 UTC
+- **Committee dissolve (P0 live observation)** — 3 stacked root causes fixed and verified on prod:
+  1. Backend `models/committee.py` `CommitteeDecision` Literal now includes `"dissolved"` (was pydantic-422ing every dissolve call).
+  2. Frontend `BiddingOpsPanel.jsx` passes `onChange={load}` to `<CommitteeList/>` so the list refreshes after dissolve.
+  3. Frontend `bidding/CommitteeList.jsx` splits rendering into "Active committees (N)" (open only) + "Recently closed / dissolved (N)" strip showing close reason + date.
+  Verified on prod: committee for PMC-NOT-2026-0020 transitioned open → dissolved with reason preserved.
+- **Apex domain `pmcmanagers.com`** — ACM cert re-issued covering both apex + www; both added as CloudFront alternate CNAMEs; old Route 53 A/AAAA/CNAME records pointing to legacy `d3v0l4ai7kvp10` distribution removed; new A/AAAA aliases created via "Route domains to CloudFront" pointing to `d2h9tkca2zjofy` (the correct pmc-managers-frontend distribution). Global DNS propagation in progress (15-30 min TTL).
+
+
+
 ### 14 Feb 2026 — Batch #6 hotfix: Committee dissolve
 Files: `pmc-backend-v22c.zip` · `pmc-frontend-v32-build.zip`
 - **Bug (Bidding Ops → Committee): "Dissolve committee" seemed to succeed but the row still showed Status: open.**
