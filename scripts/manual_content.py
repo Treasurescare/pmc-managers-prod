@@ -685,6 +685,14 @@ MODULES = {
     "escrow-magic":         {"surface": "magic",        "title": "Escrow Officer Portal",   "url_path": "/escrow/officer/",   "purpose": "External escrow trustees sign releases via magic-link (Bug #9c workflow).",                    "actions": [], "prerequisites": []},
 }
 
+# --- Phase-2 authoring merged in --------------------------------------------
+try:
+    from manual_content_extras import EXTRAS as _EXTRAS
+    for _k, _v in _EXTRAS.items():
+        MODULES[_k] = _v
+except Exception:
+    pass
+
 
 def list_modules() -> list:
     return list(MODULES.keys())
