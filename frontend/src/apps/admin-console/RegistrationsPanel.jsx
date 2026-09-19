@@ -11,6 +11,11 @@ export default function RegistrationsPanel() {
   const [deciding, setDeciding] = useState(false);
 
   const load = useCallback(() => {
+    // Bug #15 fix — when the reviewer switches status tab, clear the
+    // currently-selected row so the previous company's details don't
+    // linger over the new tab's rows.
+    setSelected(null);
+    setNotes("");
     adminApi.listRegistrations({ status })
       .then(setItems)
       .catch((e) => toast.error(formatApiError(e)));
