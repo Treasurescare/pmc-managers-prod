@@ -84,6 +84,11 @@ KYC_WEBHOOK_SECRET = os.environ.get("KYC_WEBHOOK_SECRET", "")
 # CORS
 CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "*").strip()
 
+# Cookie domain — set to ".pmcmanagers.com" so a browser on the apex OR www
+# sees cookies from api.pmcmanagers.com as first-party (Safari ITP fix).
+# Leave empty to fall back to the request host (dev / preview).
+COOKIE_DOMAIN = os.environ.get("COOKIE_DOMAIN", "").strip() or None
+
 # KZ Licenses & Category map (from Domain_Spec §3 and §4)
 KZ_LICENSE_TYPES = [
     "Construction (1st category)",

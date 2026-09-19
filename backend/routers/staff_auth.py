@@ -22,11 +22,14 @@ router = APIRouter(prefix="/api/v1/staff", tags=["staff-auth"])
 
 def _set_session_cookies(response: Response, access_token: str) -> str:
     max_age = config.ACCESS_TOKEN_TTL_MIN * 60
-    response.set_cookie("access_token", access_token, httponly=True, secure=True,
-                        samesite="lax", max_age=max_age, path="/")
+    ck = {"httponly": True, "secure": True, "samesite": "lax",
+          "max_age": max_age, "path": "/"}
+    if config.COOKIE_DOMAIN:
+        ck["domain"] = config.COOKIE_DOMAIN
+    response.set_cookie("access_token", access_token, **ck)
     csrf = new_csrf_token()
-    response.set_cookie("csrf_token", csrf, httponly=False, secure=True,
-                        samesite="lax", max_age=max_age, path="/")
+    ck["httponly"] = False
+    response.set_cookie("csrf_token", csrf, **ck)
     return csrf
 
 
@@ -85,9 +88,9 @@ async def staff_login(payload: StaffLoginIn, response: Response) -> Dict[str, An
 @router.post("/auth/logout")
 async def staff_logout(response: Response) -> Dict[str, bool]:
     # Bug #82 fix — nuke ALL three cookie realms (see admin_auth.logout).
-    response.delete_cookie("access_token", path="/")
-    response.delete_cookie("vendor_token", path="/")
-    response.delete_cookie("csrf_token", path="/")
+    response.delete_cookie("access_token", path="/", domain=config.COOKIE_DOMAIN)
+    response.delete_cookie("vendor_token", path="/", domain=config.COOKIE_DOMAIN)
+    response.delete_cookie("csrf_token", path="/", domain=config.COOKIE_DOMAIN)
     return {"ok": True}
 
 

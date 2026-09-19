@@ -15,13 +15,16 @@ def _set_session_cookies(response: Response, access_token: str) -> str:
     """Set both httpOnly access_token cookie AND JS-readable csrf_token cookie.
     Returns the csrf_token so the caller can echo it in the JSON body too."""
     max_age = config.ACCESS_TOKEN_TTL_MIN * 60
-    response.set_cookie("access_token", access_token, httponly=True, secure=True,
-                        samesite="lax", max_age=max_age, path="/")
+    ck = {"httponly": True, "secure": True, "samesite": "lax",
+          "max_age": max_age, "path": "/"}
+    if config.COOKIE_DOMAIN:
+        ck["domain"] = config.COOKIE_DOMAIN
+    response.set_cookie("access_token", access_token, **ck)
     csrf = new_csrf_token()
     # csrf_token cookie is INTENTIONALLY not httpOnly — client JS reads it and
     # echoes as X-CSRF-Token header (double-submit-cookie pattern).
-    response.set_cookie("csrf_token", csrf, httponly=False, secure=True,
-                        samesite="lax", max_age=max_age, path="/")
+    ck["httponly"] = False
+    response.set_cookie("csrf_token", csrf, **ck)
     return csrf
 
 
@@ -45,9 +48,9 @@ async def admin_logout(response: Response) -> Dict[str, bool]:
     # Bug #82 fix — nuke ALL three cookie realms so switching roles never
     # leaves a stale vendor_token / access_token behind (which caused the
     # "Your session is still active" ErrorBoundary crash on the next login).
-    response.delete_cookie("access_token", path="/")
-    response.delete_cookie("vendor_token", path="/")
-    response.delete_cookie("csrf_token", path="/")
+    response.delete_cookie("access_token", path="/", domain=config.COOKIE_DOMAIN)
+    response.delete_cookie("vendor_token", path="/", domain=config.COOKIE_DOMAIN)
+    response.delete_cookie("csrf_token", path="/", domain=config.COOKIE_DOMAIN)
     return {"ok": True}
 
 

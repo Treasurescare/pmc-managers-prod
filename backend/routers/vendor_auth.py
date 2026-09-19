@@ -25,11 +25,14 @@ def _create_vendor_token(vendor_id: str, email: str) -> str:
 
 def _set_cookies(response: Response, token: str) -> str:
     max_age = config.ACCESS_TOKEN_TTL_MIN * 60
-    response.set_cookie("vendor_token", token, httponly=True, secure=True,
-                        samesite="lax", max_age=max_age, path="/")
+    ck = {"httponly": True, "secure": True, "samesite": "lax",
+          "max_age": max_age, "path": "/"}
+    if config.COOKIE_DOMAIN:
+        ck["domain"] = config.COOKIE_DOMAIN
+    response.set_cookie("vendor_token", token, **ck)
     csrf = new_csrf_token()
-    response.set_cookie("csrf_token", csrf, httponly=False, secure=True,
-                        samesite="lax", max_age=max_age, path="/")
+    ck["httponly"] = False
+    response.set_cookie("csrf_token", csrf, **ck)
     return csrf
 
 
@@ -87,9 +90,9 @@ async def vendor_login(payload: VendorLoginIn, response: Response) -> Dict[str, 
 async def vendor_logout(response: Response) -> Dict[str, bool]:
     # Bug #82 fix — nuke ALL three cookie realms so a vendor logging out
     # can immediately log in as staff/admin without dual-identity collisions.
-    response.delete_cookie("vendor_token", path="/")
-    response.delete_cookie("access_token", path="/")
-    response.delete_cookie("csrf_token", path="/")
+    response.delete_cookie("vendor_token", path="/", domain=config.COOKIE_DOMAIN)
+    response.delete_cookie("access_token", path="/", domain=config.COOKIE_DOMAIN)
+    response.delete_cookie("csrf_token", path="/", domain=config.COOKIE_DOMAIN)
     return {"ok": True}
 
 
