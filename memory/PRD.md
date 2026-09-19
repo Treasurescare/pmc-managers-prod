@@ -14,7 +14,16 @@ Admin (master + reviewer/sub-admin) · Vendor · Staff (Escrow, Certifier, Legal
 
 ---
 
-## Implemented — 100% shipped (as of 5 Sep 2026)
+## Implemented — 100% shipped (as of 19 Feb 2026)
+
+### 19 Feb 2026 — DNS migration to Route 53 + Frontend v33 (Emergent purge)
+Files: `pmc-frontend-v33-build.zip` (1.2 MB, `main.8680e8df.js`, SHA-256 `e433a2078b85668149461efaa905386107e463cb3cc0594ff33812ed3f711233`) · backend unchanged (still v22c on EB).
+- **DNS authoritative migration GoDaddy → AWS Route 53**: nameservers switched from `ns09/ns10.domaincontrol.com` to `ns-1502.awsdns-59.org · ns-1726.awsdns-23.co.uk · ns-169.awsdns-21.com · ns-610.awsdns-12.net`. Both apex and www now resolve to CloudFront (`d2h9tkca2zjofy`) and serve HTTP 200 globally (verified via check-host.net from HU/SG/US).
+- **Email preserved during migration**: MX (0 smtp.secureserver.net, 10 mailstore1.secureserver.net), SPF TXT (`v=spf1 include:secureserver.net -all`), DKIM CNAMEs (`s1._domainkey`, `s2._domainkey` → onsecureserver.net), webmail CNAME (`email → email.secureserver.net`), SRV `_autodiscover._tcp` — all mirrored into Route 53 before NS switch. Verified via dnspython against 8.8.8.8/1.1.1.1/9.9.9.9.
+- **api.pmcmanagers.com fix (was 100% broken)**: A record was pointing to orphaned Singapore IP `18.140.35.163`. Changed to Route 53 **Alias → Elastic Beanstalk environment** (`pmc-backend-prod.eba-kmk3u8cp.eu-west-2.elasticbeanstalk.com`, London IPs `3.10.6.189` / `3.11.167.236`). Health probe now returns `{"ok":true,"service":"pmc-tender-v2-api","phase":"pilot"}`. Admin login verified end-to-end from live domain (JWT + CSRF returned).
+- **Frontend v33 — Emergent branding purged**: previous v32 build accidentally shipped with `REACT_APP_BACKEND_URL=https://tender-hub-57.preview.emergentagent.com` baked into `main.86b8c80a.js` (1 hit). v33 rebuilt with `REACT_APP_BACKEND_URL=https://api.pmcmanagers.com`, deployed via AWS Console upload to `pmc-managers-frontend-prod` + CloudFront invalidation `/*` on distribution `E2WZT1TMQ0EK9W`. New bundle `main.8680e8df.js` verified: `grep -c emergent` = **0**, `grep -c 'api.pmcmanagers.com'` = 1. Codebase 100% clean of Emergent brand references in user-facing artefacts.
+- **CORS validated**: preflight from both `https://www.pmcmanagers.com` and `https://pmcmanagers.com` returns `Access-Control-Allow-Origin` matching origin + methods `DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT`.
+- **Known-not-fixed (low-priority)**: (a) `_dmarc` TXT in Route 53 has record name entered as FQDN causing double-suffix `_dmarc.pmcmanagers.com.pmcmanagers.com` → NXDOMAIN for standard DMARC lookup. DMARC policy still `p=none` so no email delivery impact today. 30-second Console fix: edit record → change name from `_dmarc.pmcmanagers.com` → `_dmarc`, save. (b) Preview-DB seeded vendor `manualvendor@pmcmanagers.com` returns 401 on production API — production MongoDB uses different data set (expected — real vendors register through UI).
 
 ### 14 Feb 2026 — Batch #6 LIVE: Committee dissolve + apex domain wiring
 Files: `pmc-backend-v22c.zip` · `pmc-frontend-v32-build.zip` · both deployed to AWS at 05:34 UTC
