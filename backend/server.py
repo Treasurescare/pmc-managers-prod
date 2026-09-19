@@ -40,6 +40,21 @@ _boot_log.info(
 
 app = FastAPI(title="PMC Managers v2 — Tender & Registration API")
 
+
+# ---------- Root health probes for load balancers (Elastic Beanstalk / ALB)
+# EB Enhanced Health hits `/` (and sometimes `/health`) on the ALB. Without a
+# handler these return 404 and EB reports "100% 4xx" → environment goes
+# Severe even though the app itself is healthy. Return a lightweight OK.
+@app.get("/")
+async def _root_probe():
+    return {"ok": True, "service": "pmc-tender-v2-api", "path": "/"}
+
+
+@app.get("/health")
+async def _plain_health():
+    return {"ok": True, "service": "pmc-tender-v2-api", "path": "/health"}
+
+
 # ---------- Routers ----------
 app.include_router(meta.router)
 app.include_router(notices.router)
