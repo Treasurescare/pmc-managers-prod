@@ -16,6 +16,12 @@ Admin (master + reviewer/sub-admin) · Vendor · Staff (Escrow, Certifier, Legal
 
 ## Implemented — 100% shipped (as of 19 Feb 2026)
 
+### 19 Feb 2026 — CloudFront apex→www 301 redirect + same-origin architecture live
+- **CloudFront Function `pmc-apex-to-www-redirect`** (cloudfront-js-2.0) associated with distribution `E2WZT1TMQ0EK9W` on the Default (*) cache behavior at Viewer request stage. `pmcmanagers.com` now returns `HTTP 301 → https://www.pmcmanagers.com/…` preserving path + querystring. Verified from container + 6 external nodes (Austria, Spain, Finland, Indonesia, Iran, USA) — all HTTP 200 end-to-end. `/api/*` on apex still routes to EB unredirected (function only fires on Default behavior).
+- **Same-origin browser architecture** — the `/api/*` CloudFront behavior serves the backend under both `pmcmanagers.com/api/*` and `www.pmcmanagers.com/api/*`, eliminating the need for an `api.pmcmanagers.com` subdomain. Cookies are first-party (`Domain=www.pmcmanagers.com`), which sidesteps Safari ITP + third-party-cookie blockers globally.
+- **Route 53 SOA min-TTL** (recommended to change from 86400 → 60) — reduces future negative-cache lag from 24h → 1 min. Optional but recommended.
+- **DNS propagation status** — 6/9 major public resolvers (Google, Cloudflare, Quad9, OpenDNS, Verisign, Comodo) already return CloudFront IPs for apex; 3 stragglers (Yandex, AdGuard, Level3) expected to catch up within 24-48h of the nameserver switch — normal ISP DNS behaviour, self-corrects.
+
 ### 19 Feb 2026 — Bug Tracker v12 delivered
 `PMC_Bug_Tracker_v12_20260219.xlsx` (SHA-256 `767abe92a97b6df2b2df1edcea7ae1f69477a5fff9342720da0e59ab9fe3ad2f`) — includes a new "Feb 19 delivery" sheet documenting Batches #6/#7/#8 with file names, SHA-256s and cleared bug IDs.
 
