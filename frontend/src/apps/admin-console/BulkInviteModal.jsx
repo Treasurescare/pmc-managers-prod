@@ -24,14 +24,23 @@ export default function BulkInviteModal({ open, onClose, onDone }) {
     try {
       const r = await vendorInviteApi.inviteBulk(csvText);
       setResults(r || { invited: 0, skipped: 0, total: 0, results: [] });
-      toast.success(`Invited ${r?.invited ?? 0} · Skipped ${r?.skipped ?? 0}`);
+      toast.success(`Invited ${r?.invited ?? 0} · Skipped ${r?.skipped ?? 0}`, {
+        description: (r?.skipped ?? 0) > 0 ? "Skipped rows show a reason in the table below." : undefined,
+      });
       if ((r?.invited ?? 0) > 0 && onDone) onDone();
     } catch (e) {
-      // Bug #28/52 — never let this handler throw uncaught; blank-screen bug.
+      // Bug #8/#28/#52 — never let this handler throw uncaught; blank-screen bug.
       // Show a friendly toast and preserve the modal state so admin can retry.
-      toast.error(formatApiError(e));
-      setResults({ invited: 0, skipped: 0, total: 0, results: [],
-                   error: e?.response?.data?.detail || e?.message || "Unknown error" });
+      // If the failure was 401/403 (CSRF/session), admin stays on this modal —
+      // we do NOT auto-navigate away, which was misread as "logged me out".
+      const status = e?.response?.status;
+      const detail = e?.response?.data?.detail || e?.message || "Unknown error";
+      if (status === 401 || status === 403) {
+        toast.error(`Auth failed (${status}). Refresh the tab and retry — your session may have expired.`);
+      } else {
+        toast.error(formatApiError(e));
+      }
+      setResults({ invited: 0, skipped: 0, total: 0, results: [], error: detail });
     }
     finally { setRunning(false); }
   };

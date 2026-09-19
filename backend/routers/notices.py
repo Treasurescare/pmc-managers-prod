@@ -1,5 +1,6 @@
 from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
+from fastapi.responses import JSONResponse
 from bson import ObjectId
 import base64, uuid
 
@@ -75,7 +76,14 @@ async def list_notices_admin(
     cursor = db.notices.find(q).sort("created_at", -1).skip(offset).limit(limit)
     total = await db.notices.count_documents(q)
     items = [_out(t) async for t in cursor]
-    return {"items": items, "total": total, "limit": limit, "offset": offset}
+    # Bug #57/#58/#66 fix — force no-store so newly-created drafts appear
+    # instantly. CloudFront was caching /admin/all responses briefly and
+    # making testers think their draft "disappeared".
+    return JSONResponse(
+        content={"items": items, "total": total, "limit": limit, "offset": offset},
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate",
+                 "Pragma": "no-cache", "Expires": "0"},
+    )
 
 
 @router.get("")

@@ -181,9 +181,15 @@ async def create_from_master(payload: TenderTemplateIn,
     doc["created_by"] = admin["id"]
     # Auto-assign section order if omitted (Bug #1 fix — clone-as-draft
     # was 500ing because the payload dropped 'order').
+    # Bug #69/#70/#71 — server-side defence: even if the frontend forgets to
+    # strip the master's attachment, a clone must start with none. Otherwise
+    # the URL would still point at the master's file and confuse editors.
     for i, sec in enumerate(doc.get("sections") or []):
         if sec.get("order") is None:
             sec["order"] = (i + 1) * 10
+        sec.pop("attachment", None)
+        sec.pop("_id", None)
+        sec.pop("id", None)
     res = await db.tender_templates.insert_one(doc)
     doc["_id"] = res.inserted_id
     await audit_log("tender_template.create", admin, "tender_template", str(res.inserted_id),

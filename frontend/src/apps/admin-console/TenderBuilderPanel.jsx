@@ -53,14 +53,30 @@ export default function TenderBuilderPanel() {
   const cloneMaster = async (master) => {
     setBusy(true);
     try {
+      // Bug #69/#70/#71 — strip fields that don't belong on a clone.
+      // The master's `attachment` refers to a file uploaded on that specific
+      // template; carrying it into a clone caused the backend to fail on
+      // sections with dangling file references (500). We also strip any
+      // stray `_id` / `id` / server-side timestamps that pydantic rejects.
+      const cleanSections = (master.sections || []).map((s) => ({
+        code: s.code,
+        kind: s.kind || "section",
+        title: s.title,
+        hint: s.hint ?? null,
+        body: s.body ?? "",
+        order: typeof s.order === "number" ? s.order : null,
+        // deliberately omit `attachment` — clones start with no attached files
+      }));
       const payload = {
         name: `${master.name} — draft ${new Date().toISOString().slice(0, 10)}`,
         kind, industry: master.industry,
         header: { ...(master.header || {}) },
-        sections: (master.sections || []).map((s) => ({ ...s })),
+        sections: cleanSections,
       };
       const created = await tenderTemplateApi.create(payload);
-      toast.success("Draft created");
+      toast.success(`Draft created · ${created.name}`, {
+        description: "Attachments were reset — re-upload any section files on the clone.",
+      });
       await load();
       await openTemplate(created.id);
     } catch (e) { toast.error(formatApiError(e)); }

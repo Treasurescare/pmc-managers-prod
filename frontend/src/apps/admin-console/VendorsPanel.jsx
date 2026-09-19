@@ -20,6 +20,7 @@ export default function VendorsPanel() {
   const [loadingKpi, setLoadingKpi] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [showBulk, setShowBulk] = useState(false);
+  const [sendingInvite, setSendingInvite] = useState(false);  // Bug #5 — prevent double-submit + dead-button feel
   const [statusFilter, setStatusFilter] = useState("all");  // V-02 fix
   const [inviteDraft, setInviteDraft] = useState({ email: "", company_name: "", country: "KZ", contact_name: "" });
   const [templateMeta, setTemplateMeta] = useState({ available: false });
@@ -45,14 +46,26 @@ export default function VendorsPanel() {
   }, [selected]);
 
   const sendInvite = async () => {
-    if (!inviteDraft.email) return toast.error("Email is required");
+    // Bug #5 — email validation before request; give tester an actionable
+    // message instead of a silent no-op that felt like a "dead button".
+    if (!inviteDraft.email || !inviteDraft.email.trim()) {
+      return toast.error("Vendor email is required");
+    }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(inviteDraft.email.trim())) {
+      return toast.error("Enter a valid email address");
+    }
+    if (sendingInvite) return;   // prevent double-click while in-flight
+    setSendingInvite(true);
     try {
-      const r = await vendorInviteApi.invite(inviteDraft);
-      toast.success(`Invited ${r.email} · ${r.vendor_ref}`);
+      const r = await vendorInviteApi.invite({ ...inviteDraft, email: inviteDraft.email.trim() });
+      toast.success(`Invited ${r.email} · ${r.vendor_ref}`, {
+        description: "Verification email sent. Vendor can also open the link from the audit log.",
+      });
       setShowInvite(false);
       setInviteDraft({ email: "", company_name: "", country: "KZ", contact_name: "" });
       load();
     } catch (e) { toast.error(formatApiError(e)); }
+    finally { setSendingInvite(false); }
   };
 
   const uploadTemplate = async (f) => {
@@ -134,9 +147,11 @@ export default function VendorsPanel() {
             Their vendor reference is generated automatically.
           </div>
           <div className="md:col-span-4 flex justify-end">
-            <button onClick={sendInvite} data-testid="vendor-invite-submit"
-                    className="px-8 py-3 text-[12px] font-semibold uppercase tracking-widest bg-brand-navy-soft text-white hover:bg-brand-navy-soft/90">
-              Send invitation
+            <button type="button" onClick={sendInvite}
+                    disabled={sendingInvite}
+                    data-testid="vendor-invite-submit"
+                    className="px-8 py-3 text-[12px] font-semibold uppercase tracking-widest bg-brand-navy-soft text-white hover:bg-brand-navy-soft/90 disabled:opacity-50 disabled:cursor-not-allowed">
+              {sendingInvite ? "Sending…" : "Send invitation"}
             </button>
           </div>
         </div>

@@ -16,6 +16,21 @@ Admin (master + reviewer/sub-admin) · Vendor · Staff (Escrow, Certifier, Legal
 
 ## Implemented — 100% shipped (as of 19 Feb 2026)
 
+### 19 Feb 2026 — Batch #7: Notice draft flow + Tender Clone + Vendor Invite polish (v34/v22d)
+Files: `pmc-frontend-v34-build.zip` (1.2 MB, `main.92d8377e.js`, SHA-256 `d91d5d2b552a34c704fffd881b11de77365135357d5d2241836630a36c29db37`) · `pmc-backend-v22d.zip` (258 KB, SHA-256 `80b88dc4a7ae723c15d9a4f1b3960194998a71df4b1e57bc0663b7481085ba4b`).
+- **Bug #57 · #58 · #66 — Notice draft flow polish**
+  - Backend `GET /api/v1/notices/admin/all` now returns `Cache-Control: no-store, no-cache, must-revalidate` explicitly. Prevents CloudFront/browser from briefly serving a stale list right after a draft is created — the main reason testers saw "created but not in list".
+  - Frontend `NoticesPanel.jsx` create toast now says "Draft saved · REF" (with hint to use "Draft only" filter) when `is_published=false`, and "Notice published · REF" when true. Removed the ambiguous "Notice created" copy.
+  - Frontend `NoticesPanel.jsx` list rows now show a visible **DRAFT** (amber) / **● Live** (green) status badge next to the doc type pill. Testers can no longer miss a saved draft.
+- **Bug #69 · #70 · #71 — Tender Builder Clone / Delete / History polish**
+  - Frontend `TenderBuilderPanel.jsx` `cloneMaster` now sanitises the master's sections before cloning: strips `attachment` (attachments belong to a specific instance and must not be carried across), plus any stray `_id` / `id` / server-only fields. Toast now warns admin to re-upload attachments on the clone.
+  - Backend `POST /api/v1/tender-templates` `create_from_master` adds a server-side defence: `sec.pop("attachment"/"_id"/"id", None)` on every incoming section. Even if a future frontend forgets, the clone starts with no dangling files. Regression verified: clone of the 18-section PSU master returns HTTP 200 with `is_master: False` and 0 attachments.
+- **Bug #5 · #8 · #25 — Vendor Invite pipeline resilience**
+  - `VendorsPanel.jsx` `sendInvite`: added `sendingInvite` in-flight flag → button now shows "Sending…" and is disabled during the request (prevents double-submit / dead-button perception). Also validates `email` format client-side before POST for actionable error toasts. Added `type="button"` on submit to defend against implicit form submission.
+  - `BulkInviteModal.jsx` `submit`: on 401/403 responses (CSRF/session), the modal now shows a specific "Auth failed — refresh the tab" toast **without** clearing state or reloading. Previously the frontend's generic error handler could look like a logout when combined with a session hiccup.
+  - Toast on success now includes the number of skipped rows (with the hint to check the table below), and the results table remains visible.
+- **All 4 e2e regression tests pass HTTP 200** against preview API using cookie + CSRF headers: draft notice create (`PMC-NOT-2026-0029`), tender clone (18 sections, 0 attachments), single vendor invite (`PMC-SUP-000026`), bulk CSV invite (2/2/0). Backend v22d verified with `python -c "from routers import notices, tender_templates, vendor_invites"`.
+
 ### 19 Feb 2026 — DNS migration to Route 53 + Frontend v33 (Emergent purge)
 Files: `pmc-frontend-v33-build.zip` (1.2 MB, `main.8680e8df.js`, SHA-256 `e433a2078b85668149461efaa905386107e463cb3cc0594ff33812ed3f711233`) · backend unchanged (still v22c on EB).
 - **DNS authoritative migration GoDaddy → AWS Route 53**: nameservers switched from `ns09/ns10.domaincontrol.com` to `ns-1502.awsdns-59.org · ns-1726.awsdns-23.co.uk · ns-169.awsdns-21.com · ns-610.awsdns-12.net`. Both apex and www now resolve to CloudFront (`d2h9tkca2zjofy`) and serve HTTP 200 globally (verified via check-host.net from HU/SG/US).

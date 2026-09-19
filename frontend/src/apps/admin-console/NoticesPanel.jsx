@@ -81,7 +81,15 @@ export default function NoticesPanel() {
         try { await noticeDocsApi.uploadAttachment(ref, f); }
         catch (e) { toast.error(`Attachment "${f.name}" failed: ${formatApiError(e)}`); }
       }
-      toast.success(`Notice created · ${ref}`);
+      // Bug #57/#58/#66 — explicit toast so testers know a draft was saved
+      // (previously a plain "Notice created" made them think it was live).
+      if (draft.is_published) {
+        toast.success(`Notice published · ${ref}`);
+      } else {
+        toast.success(`Draft saved · ${ref}`, {
+          description: "It appears in the list below with a DRAFT badge. Filter → 'Draft only' to isolate.",
+        });
+      }
       setShowNew(false);
       // Bug #22 — full form reset instead of only clearing title/description
       setDraft({
@@ -266,6 +274,18 @@ export default function NoticesPanel() {
           <div key={n.id} className="p-4 border-b border-brand-navy/10 flex items-baseline gap-4 flex-wrap" data-testid={`notice-row-${n.notice_ref}`}>
             <span className="font-mono text-xs text-brand-navy-soft">{n.notice_ref}</span>
             <span className="pmc-pill uppercase text-[10px]">{n.document_type}</span>
+            {/* Bug #57/#58/#66 fix — visible DRAFT / LIVE status badge */}
+            {n.is_published ? (
+              <span data-testid={`notice-status-${n.notice_ref}`}
+                    className="text-[10px] uppercase tracking-widest text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5">
+                ● Live
+              </span>
+            ) : (
+              <span data-testid={`notice-status-${n.notice_ref}`}
+                    className="text-[10px] uppercase tracking-widest text-amber-900 bg-amber-50 border border-amber-300 px-2 py-0.5 font-semibold">
+                ✎ Draft
+              </span>
+            )}
             <span className="text-sm font-semibold text-brand-navy flex-1">{n.title}</span>
             {n.tender_template_id && (
               /* N-02 fix — template badge jumps to Tender Builder for that template */
