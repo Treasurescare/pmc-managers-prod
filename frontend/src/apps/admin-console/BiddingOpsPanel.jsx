@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { bidApi, committeeApi, staffApi, inspectionApi, formatApiError } from "@/lib/api";
+import { bidApi, committeeApi, staffApi, inspectionApi, formatApiError, showApiError } from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import CommitteeForm from "./bidding/CommitteeForm";
 import CommitteeList from "./bidding/CommitteeList";
@@ -88,7 +88,10 @@ export default function BiddingOpsPanel() {
 
   const submitCommittee = async () => {
     if (!comDraft.notice_ref || !comDraft.chair || comDraft.members.length === 0) {
-      return toast.error("Notice ref, chair and at least one member required");
+      return toast.error("Missing required fields", {
+        description: "Notice ref, chairperson and at least one member are required to form a committee.",
+        duration: 8000,
+      });
     }
     try {
       await committeeApi.create({
@@ -98,11 +101,14 @@ export default function BiddingOpsPanel() {
         external_invitees: comDraft.external_invitees,
         quorum: Number(comDraft.quorum) || 3,
       });
-      toast.success(`Committee formed${comDraft.external_invitees.length ? ` · ${comDraft.external_invitees.length} external invited by email` : ""}`);
+      toast.success("Committee formed", {
+        description: `Notice ${comDraft.notice_ref} · ${comDraft.members.length} internal member(s)${comDraft.external_invitees.length ? ` · ${comDraft.external_invitees.length} external invited by email` : ""}`,
+        duration: 7000,
+      });
       setShowCom(false);
       setComDraft({ notice_ref: "", chair: "", members: [], quorum: 3, external_invitees: [] });
       await load();
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e, { fallbackTitle: "Committee not formed" }); }
   };
 
   const certifiers = staffList.filter((s) => (s.roles || []).includes("certifier"));

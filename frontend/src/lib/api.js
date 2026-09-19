@@ -43,6 +43,38 @@ export function formatApiError(err) {
   return String(d);
 }
 
+/**
+ * Loud, persistent, dismissable error toast for API failures.
+ * Splits the backend detail into a short title (HTTP context + first sentence)
+ * and a long description (full remediation text) so the user sees the WHY
+ * immediately and can read the HOW below without truncation.
+ *
+ *   import { toast } from "sonner";
+ *   import { showApiError } from "@/lib/api";
+ *   try { ... } catch (e) { showApiError(e, { fallbackTitle: "Sign failed" }); }
+ */
+export function showApiError(err, { fallbackTitle = "Something went wrong" } = {}) {
+  // Lazy import so this stays cheap for non-error paths.
+  const { toast } = require("sonner");
+  const status = err?.response?.status;
+  const detail = formatApiError(err);
+  // Split on the first period+space (or newline) into headline + details.
+  const [head, ...rest] = detail.split(/(?:\.\s+|\n)/);
+  const description = rest.join(" ").trim();
+  const title = status ? `${fallbackTitle} · HTTP ${status}` : fallbackTitle;
+  toast.error(title, {
+    description: description ? `${head}${head.endsWith(".") ? "" : "."}\n${description}` : head,
+    duration: status && status >= 400 && status < 500 ? 12000 : 8000,
+    closeButton: true,
+  });
+  // Also mirror to the browser console so operators / support can copy full
+  // stack + response body when reporting a bug.
+  if (typeof console !== "undefined") {
+    // eslint-disable-next-line no-console
+    console.error(`[api-error] ${title}\n${detail}`, err);
+  }
+}
+
 export const publicApi = {
   listNotices: (params = {}) => api.get("/api/v1/notices", { params }).then((r) => r.data),
   getNotice: (ref) => api.get(`/api/v1/notices/${ref}`).then((r) => r.data),

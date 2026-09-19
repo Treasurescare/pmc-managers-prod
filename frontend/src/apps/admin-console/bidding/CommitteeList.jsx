@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { api, formatApiError } from "@/lib/api";
+import { api, formatApiError, showApiError } from "@/lib/api";
 
 /**
  * CommitteeList v3 — dissolve + resend-invite via `api` axios helper.
@@ -30,9 +30,11 @@ export default function CommitteeList({ committees, onChange }) {
       await api.post("/api/v1/committees/close", {
         committee_id: c.id, decision: "dissolved", remarks: reason.trim(),
       });
-      toast.success("Committee dissolved");
+      toast.success("Committee dissolved", {
+        description: `${c.notice_ref} · reason: "${reason.trim().slice(0, 80)}${reason.trim().length > 80 ? '…' : ''}"`,
+      });
       onChange?.();
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e, { fallbackTitle: "Dissolve failed" }); }
     finally { setBusyId(null); }
   };
 
@@ -40,8 +42,10 @@ export default function CommitteeList({ committees, onChange }) {
     setBusyId(`${c.id}-${invIdx}`);
     try {
       await api.post(`/api/v1/committees/${c.id}/external/${invIdx}/resend`);
-      toast.success("Invite resent");
-    } catch (e) { toast.error(formatApiError(e)); }
+      toast.success("Invite resent", {
+        description: `An email is on its way to ${c.external_invitees?.[invIdx]?.email || "the invitee"}.`,
+      });
+    } catch (e) { showApiError(e, { fallbackTitle: "Resend failed" }); }
     finally { setBusyId(null); }
   };
 

@@ -1,5 +1,38 @@
 # PMC Managers v2 — Changelog
 
+## 2026-09-19 · Batch #9d — Loud, verbatim error handling everywhere (v40 frontend, backend unchanged)
+**Not yet deployed to AWS · awaiting user verification on preview**
+
+### User report
+"Error message handling is very bad. When such a thing happens clear-cut error message needs to be flashed then and there."
+
+### Fixes (v40)
+**Global `Toaster` (App.js + index.js)**
+- Moved to **top-right** (was bottom-right, easy to miss)
+- **`richColors`** + **`closeButton`** + **`expand`** so toasts stack readably instead of overlapping
+- Default duration **6s** for info/success · **12s** for 4xx errors · **8s** for 5xx errors
+- Custom classes: red 4px left border on errors, emerald on success, amber on warnings, brand navy on info
+- Larger footprint on errors (`min-w-[380px] max-w-[560px]`) and `whitespace-pre-line` on descriptions so long remediation text is not clipped
+
+**New `showApiError(err, {fallbackTitle})` helper in `lib/api.js`**
+- Splits backend `detail` into a short **title** (HTTP status + first sentence) and a long **description** (rest of the remediation text)
+- Automatically mirrors to `console.error` with the full response body so support can copy-paste the exact server reply
+- Long-form 4xx guidance messages (e.g. escrow "same email on both officers") now display fully instead of being silently truncated in a 4-second bottom-corner toast
+
+**Migrated critical call sites**
+- `EscrowTransactionsSection` — `sign`, `release`, `createTx` all use `showApiError`
+  - **Sign** now inspects the returned `signatures` payload and shows **either**:
+    - ✅ `"Both officers signed — Release is now unlocked"` (green, with the action)
+    - 🔵 `"Signed as {side} — awaiting {other side}. Nothing has been transferred yet."` (blue info, so the user is NEVER left thinking a release fired when only one side signed)
+  - **Release** with mismatched actions shows a red error explaining exactly what the two sides have signed
+- `CommitteeList` — dissolve + resend-invite use `showApiError` and success toasts include the notice ref + reason preview
+- `BiddingOpsPanel` — committee-create surfaces missing-field validation as a proper red error with description and uses `showApiError` on the backend call
+
+### Rollout note
+This is a frontend-only change (v40); backend v22f from Batch #9c remains the target for the paired push.
+
+---
+
 ## 2026-09-19 · Batch #9c — Escrow governance guard (v39 frontend · v22f backend)
 **Not yet deployed to AWS · awaiting user verification on preview**
 

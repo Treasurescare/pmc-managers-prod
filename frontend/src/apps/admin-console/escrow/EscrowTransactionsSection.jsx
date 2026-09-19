@@ -5,7 +5,7 @@
  */
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { escrowApi, formatApiError } from "@/lib/api";
+import { escrowApi, formatApiError, showApiError } from "@/lib/api";
 
 const ACTIONS = ["release_to_contractor", "release_to_vendor", "forfeit"];
 const CLOSED = new Set(["released_to_contractor", "released_to_vendor", "forfeited", "cancelled"]);
@@ -113,15 +113,37 @@ export default function EscrowTransactionsSection({ accounts, txs, onReload }) {
       setShowNew(false);
       setTx(EMPTY_TX);
       onReload();
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e, { fallbackTitle: "EMD receipt failed" }); }
   };
 
   const signAction = async (t, action) => {
     try {
-      await escrowApi.sign(t.id, { intended_action: action });
-      toast.success(`Signed as officer · ${action}`);
+      const result = await escrowApi.sign(t.id, { intended_action: action });
+      // 2026-09-19 — verify the signature actually landed on OUR side. If the
+      // account has same-email governance issue the backend now rejects with
+      // 409; but if any future backend regression records only one side we'll
+      // catch it here too and surface a warning instead of a green success.
+      const sigs = result?.signatures || {};
+      const pmc = sigs.pmc || {};
+      const esc = sigs.escrow_institution || {};
+      const bothSigned = pmc.action && pmc.action === esc.action;
+      if (bothSigned) {
+        toast.success("Both officers signed — Release is now unlocked", {
+          description: `Action: ${action.replace(/_/g, " ")}. Click Release to fire the transfer.`,
+          duration: 8000,
+        });
+      } else {
+        const mySide = pmc.signed_at && !esc.signed_at ? "PMC officer"
+                     : esc.signed_at && !pmc.signed_at ? "Escrow officer"
+                     : "one side";
+        const missing = pmc.signed_at ? "the Escrow officer" : "the PMC officer";
+        toast.info(`Signed as ${mySide} — awaiting ${missing}`, {
+          description: `The release will NOT trigger until ${missing} also signs "${action.replace(/_/g, " ")}" on this transaction. Nothing has been transferred yet.`,
+          duration: 9000,
+        });
+      }
       onReload();
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e, { fallbackTitle: "Sign refused" }); }
   };
 
   const release = async (t) => {
@@ -129,15 +151,21 @@ export default function EscrowTransactionsSection({ accounts, txs, onReload }) {
     const pmc = sigs.pmc || {};
     const esc = sigs.escrow_institution || {};
     if (!pmc.action || pmc.action !== esc.action) {
-      toast.error("Both officers must sign the SAME action before release");
+      toast.error("Release blocked — both officers must sign the same action", {
+        description: `Currently: PMC signed "${pmc.action || 'nothing'}", Escrow signed "${esc.action || 'nothing'}". They must match before Release can fire.`,
+        duration: 10000,
+      });
       return;
     }
     if (!window.confirm(`Release ${t.amount} ${t.currency} — ${pmc.action}?`)) return;
     try {
       await escrowApi.release(t.id, { action: pmc.action });
-      toast.success("Release recorded — ledger closed");
+      toast.success("Release recorded — ledger closed", {
+        description: `${t.amount} ${t.currency} · ${pmc.action.replace(/_/g, " ")} · ${t.bid_ref}. The bank rail will pick up this state next reconciliation cycle.`,
+        duration: 8000,
+      });
       onReload();
-    } catch (e) { toast.error(formatApiError(e)); }
+    } catch (e) { showApiError(e, { fallbackTitle: "Release failed" }); }
   };
 
   return (
