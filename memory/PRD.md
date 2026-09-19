@@ -27,6 +27,19 @@ Admin (master + reviewer/sub-admin) · Vendor · Staff (Escrow, Certifier, Legal
 - Stripe's CSP `frame-ancestors 'self'` blocks embedding, so `window.location.href = stripe_url` from inside the Emergent preview iframe hangs at a blank skeleton.
 - Fixed in `VendorDashboard.jsx` (My Bids → Pay EMD), `BidSubmit.jsx` (Submit Bid), and `PurchaseGrid.jsx` (Product catalog) — all now use `window.open(url, "_blank")` with `window.top.location` fallback.
 
+### 19 Sep 2026 — Bugs V2 Batch #2: Registration submit hardening
+- New bug reported live: vendor completes 6 declarations + signature → clicks Submit for Review → toast "Request failed with status code 500".
+- Root cause: multiple KeyError / InvalidId paths in `submit_registration` — malformed `registration_id` bubbled up as BSON InvalidId → 500; `doc["email"]` KeyError on legacy rows missing the field → 500; `send_email` failing on live Resend key → 500.
+- Fix in `routers/registrations.py::submit_registration`: wrap `ObjectId(...)` in try/except → 400 · use `doc.get("status")` and `.get("email")` → 400 with clear detail · wrap the confirmation email in an inner try/except so a transport failure never fails a valid submission.
+- Verified end-to-end via curl: malformed id → 400, missing token → 404, valid submit → 200.
+- Rolled into `pmc-backend-v20.zip` (255 KB).
+
+### 19 Sep 2026 — Bugs V2 Batch #1: registration guard + corrigenda + vendor isolation
+- Bugs #23 + #77 (Registration double-approve → 500): backend now returns `409 Conflict` with a clear message when a registration is re-approved or re-rejected. Frontend `Approve/Clarify/Reject` buttons now disable + say "Working…" during the API call to prevent accidental double-clicks.
+- Bugs #12 + #22 + #23 (Corrigenda withdraw): backend now returns the freshly-updated corrigendum in the withdraw response so the frontend can flip `is_active=false` without a second round-trip.
+- Bug #29 (New vendor gets another vendor's documents): `approve_and_create_vendor` in `registrations_helpers.py` now explicitly excludes `documents`, `document_slots`, `attachments`, `uploads`, `primary_document`, `signed_documents` from the profile copy. Registration docs stay on the registration row; vendor row carries only the registration_id reference.
+- Deliverables: `pmc-frontend-v27-build.zip` + `pmc-backend-v20.zip` — ready for AWS deploy.
+
 ### 6 Sep 2026 — Stripe Payments Integrated (Flow B / BYOK)
 - User's live Stripe account (`acct_1T40n8H0joY1mkyK`, country GB) test key wired via `STRIPE_API_KEY` in `/app/backend/.env`.
 - Tax mode: **`STRIPE_TAX_MODE=full`** — Stripe Managed Payments (SMP), Stripe handles tax + compliance across ~80 countries.

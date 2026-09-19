@@ -143,7 +143,10 @@ async def withdraw_corrigendum(
     await audit_log("corrigendum.withdraw", admin, "notice", notice_ref,
                     {"corrigendum_no": c.get("corrigendum_no"),
                      "reason": reason.strip()})
-    return {"ok": True}
+    # Bug #12 / #23 fix — return the fresh document so the frontend has
+    # the authoritative is_active=false without a second round-trip.
+    fresh = await db.corrigenda.find_one({"_id": oid})
+    return {"ok": True, "corrigendum": _out(fresh) if fresh else None}
 
 
 @router.post("/{notice_ref}/corrigenda/{cid}/attachment")

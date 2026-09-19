@@ -14,17 +14,32 @@ from emails import send_email, wrap
 
 
 async def approve_and_create_vendor(doc: dict) -> dict:
-    """Assign a vendor_ref, insert the vendors row, email the new supplier."""
+    """Assign a vendor_ref, insert the vendors row, email the new supplier.
+
+    Bug #29 fix — the copied profile only carries scalar registrant fields
+    (never `documents`, `document_slots`, `attachments`, `uploads` etc.) so
+    that a newly created vendor never appears to inherit another vendor's
+    files. Registration documents remain in `db.registrations` and are
+    referenced by registration id, not vendor id.
+    """
     seq = await next_sequence("vendor_seq")
     vendor_ref = f"PMC-SUP-{seq:06d}"
     temp_password = secrets.token_urlsafe(9)
+    _EXCLUDE = {
+        "_id", "magic_token", "status",
+        # Never copy file/document references — those live on the
+        # registration doc and must never leak onto the vendor row.
+        "documents", "document_slots", "attachments", "uploads",
+        "primary_document", "signed_documents",
+    }
     await db.vendors.insert_one({
         "vendor_ref": vendor_ref,
         "email": (doc["email"] or "").lower(),
         "company_name": doc.get("company_name"),
         "country": doc.get("country"),
         "kz_licenses": doc.get("kz_licenses") or [],
-        "profile": {k: doc.get(k) for k in doc.keys() if k not in ("_id", "magic_token", "status")},
+        "profile": {k: doc.get(k) for k in doc.keys() if k not in _EXCLUDE},
+        "registration_id": str(doc.get("_id")) if doc.get("_id") else None,
         "tenant_id": doc.get("tenant_id", config.DEFAULT_TENANT_ID),
         "password_hash": hash_password(temp_password),
         "must_change_password": True,

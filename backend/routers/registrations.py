@@ -187,11 +187,18 @@ async def update_draft(registration_id: str, payload: RegistrationUpdateIn,
 async def submit_registration(registration_id: str,
                               token: str = Query(..., description="Magic-link token")):
     """PUBLIC — final submission. Locks the draft and moves to `submitted`."""
-    doc = await db.registrations.find_one({"_id": ObjectId(registration_id), "magic_token": token})
+    # Bug #new — harden id parsing: an invalid id would previously bubble up
+    # as a BSON InvalidId → 500.
+    try:
+        oid = ObjectId(registration_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Malformed registration id")
+    doc = await db.registrations.find_one({"_id": oid, "magic_token": token})
     if not doc:
         raise HTTPException(status_code=404, detail="Registration not found")
-    if doc["status"] not in ("draft", "needs_clarification"):
-        raise HTTPException(status_code=400, detail=f"Cannot submit — status is {doc['status']}")
+    if doc.get("status") not in ("draft", "needs_clarification"):
+        raise HTTPException(status_code=400,
+                            detail=f"Cannot submit — status is {doc.get('status') or 'unknown'}")
 
     # Validate all 6 declarations present & true
     decls = ["decl_conflict_of_interest", "decl_integrity", "decl_accuracy",
@@ -205,18 +212,31 @@ async def submit_registration(registration_id: str,
         if not doc.get(f):
             raise HTTPException(status_code=400, detail=f"Missing signature field: {f}")
 
+    # Guard against a data row missing an email — must have been captured on
+    # RegistrationStart. Return a clean 400 instead of KeyError → 500.
+    email = doc.get("email")
+    if not email:
+        raise HTTPException(status_code=400,
+            detail="This registration is missing an email address. Please restart from the beginning.")
+
     await db.registrations.update_one(
-        {"_id": ObjectId(registration_id)},
+        {"_id": oid},
         {"$set": {"status": "submitted", "submitted_at": now_iso()}},
     )
     await audit_log("registration.submit", None, "registration", registration_id,
-                    {"email": doc["email"], "company_name": doc.get("company_name")})
-    # Confirm to vendor — fire-and-forget.
-    asyncio.create_task(send_email(
-        doc["email"], "PMC Managers — Registration submitted",
-        wrap("Registration submitted",
-             f"<p>Thank you. Your registration has been received and will be reviewed by our team. "
-             f"You will receive an update once a decision is made.</p>")))
+                    {"email": email, "company_name": doc.get("company_name")})
+    # Confirm to vendor — fire-and-forget, swallow any transport error so a
+    # broken SMTP/Resend key can never take down a successful submission.
+    async def _notify():
+        try:
+            await send_email(
+                email, "PMC Managers — Registration submitted",
+                wrap("Registration submitted",
+                     f"<p>Thank you. Your registration has been received and will be reviewed by our team. "
+                     f"You will receive an update once a decision is made.</p>"))
+        except Exception:
+            pass
+    asyncio.create_task(_notify())
     return {"ok": True, "status": "submitted"}
 
 
@@ -321,6 +341,19 @@ async def admin_decide(registration_id: str, payload: RegistrationDecisionIn,
     doc = await db.registrations.find_one({"_id": ObjectId(registration_id)})
     if not doc:
         raise HTTPException(status_code=404, detail="Not found")
+
+    # Bug #23 / #77 fix — reject any decision on a registration that has
+    # already been approved. Prevents the "double-approve → 500" crash and
+    # gives the reviewer a clear message instead of a stack trace.
+    current_status = (doc.get("status") or "").lower()
+    if current_status == "approved":
+        raise HTTPException(
+            status_code=409,
+            detail=f"Registration already approved (vendor {doc.get('vendor_ref') or '—'}). "
+                   "No further decisions can be recorded.",
+        )
+    if current_status == "rejected" and payload.action == "reject":
+        raise HTTPException(status_code=409, detail="Registration already rejected.")
 
     updates = {
         "reviewed_at": now_iso(),

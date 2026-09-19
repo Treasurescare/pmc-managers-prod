@@ -8,6 +8,7 @@ export default function RegistrationsPanel() {
   const [selected, setSelected] = useState(null);
   const [notes, setNotes] = useState("");
   const [sendingReminders, setSendingReminders] = useState(false);
+  const [deciding, setDeciding] = useState(false);
 
   const load = useCallback(() => {
     adminApi.listRegistrations({ status })
@@ -37,11 +38,12 @@ export default function RegistrationsPanel() {
   };
 
   const decide = async (action) => {
-    if (!selected) return;
+    if (!selected || deciding) return;
     if ((action === "reject" || action === "clarify") && !notes.trim()) {
       toast.error("Notes required for this action");
       return;
     }
+    setDeciding(true);
     try {
       await adminApi.decideRegistration(selected.id, action, notes || null);
       // Bug #50 — fix "clarify recorded" typo
@@ -52,6 +54,8 @@ export default function RegistrationsPanel() {
       setSelected(null); setNotes(""); load();
     } catch (err) {
       toast.error(formatApiError(err));
+    } finally {
+      setDeciding(false);
     }
   };
 
@@ -130,9 +134,9 @@ export default function RegistrationsPanel() {
                 className="mt-1 w-full px-4 py-3 border border-brand-navy/20 focus:outline-none focus:border-brand-navy-soft text-brand-navy" />
             </div>
             <div className="mt-4 flex gap-2 flex-wrap">
-              <button type="button" onClick={() => decide("approve")} data-testid="reg-approve" className="px-6 py-3 text-[12px] font-semibold uppercase tracking-widest bg-brand-navy-soft text-white hover:bg-brand-navy-soft/90">Approve</button>
-              <button type="button" onClick={() => decide("clarify")} data-testid="reg-clarify" className="px-6 py-3 text-[12px] font-semibold uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5">Request clarification</button>
-              <button type="button" onClick={() => decide("reject")} data-testid="reg-reject" className="px-6 py-3 text-[12px] font-semibold uppercase tracking-widest border border-red-500/50 text-red-600 hover:bg-red-50">Reject</button>
+              <button type="button" onClick={() => decide("approve")} disabled={deciding} data-testid="reg-approve" className="px-6 py-3 text-[12px] font-semibold uppercase tracking-widest bg-brand-navy-soft text-white hover:bg-brand-navy-soft/90 disabled:opacity-50 disabled:cursor-not-allowed">{deciding ? "Working…" : "Approve"}</button>
+              <button type="button" onClick={() => decide("clarify")} disabled={deciding} data-testid="reg-clarify" className="px-6 py-3 text-[12px] font-semibold uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5 disabled:opacity-50 disabled:cursor-not-allowed">Request clarification</button>
+              <button type="button" onClick={() => decide("reject")} disabled={deciding} data-testid="reg-reject" className="px-6 py-3 text-[12px] font-semibold uppercase tracking-widest border border-red-500/50 text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed">Reject</button>
             </div>
           </div>
         ) : (
