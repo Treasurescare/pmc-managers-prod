@@ -72,9 +72,19 @@ export default function VendorsPanel() {
     if (!f) return;
     try {
       const r = await vendorInviteApi.uploadTemplate(f);
-      toast.success(`Template uploaded · ${r.file_name}`);
-      setTemplateMeta({ available: true, file_name: r.file_name, size_bytes: r.size_bytes });
-    } catch (e) { toast.error(formatApiError(e)); }
+      // Bug #74 — backend response was previously stringified straight into
+      // the toast, which showed "Template uploaded · undefined" if the
+      // response shape changed. Now we fall back to the file's own name.
+      const fname = r?.file_name || f.name || "template";
+      const size = r?.size_bytes ?? f.size ?? 0;
+      toast.success(`Registration template uploaded · ${fname}`, {
+        description: size ? `${(size / 1024).toFixed(1)} KB · vendors can now download this exact file` : undefined,
+      });
+      setTemplateMeta({ available: true, file_name: fname, size_bytes: size });
+    } catch (e) {
+      // Surface the real backend detail (413 too large, 400 wrong extension, etc.)
+      toast.error(formatApiError(e));
+    }
   };
 
   return (

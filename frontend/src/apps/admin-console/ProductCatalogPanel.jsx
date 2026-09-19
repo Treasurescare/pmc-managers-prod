@@ -99,7 +99,9 @@ function ProductEditor({ item, onClose, onSaved }) {
         credentials: "include", body: JSON.stringify(body),
       });
       if (!r.ok) throw new Error((await r.json()).detail || `HTTP ${r.status}`);
-      toast.success(`${isNew ? "Created" : "Saved"} ${body.name}`);
+      // Bug #26 — clearer, product-scoped copy so the "Saved Procurement
+      // Strategy" mismatch that testers reported can't come back.
+      toast.success(`${isNew ? "Product created" : "Product saved"} · ${body.name}`);
       onSaved();
     } catch (e) {
       toast.error(`Save failed: ${e.message}`);

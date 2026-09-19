@@ -16,6 +16,14 @@ Admin (master + reviewer/sub-admin) · Vendor · Staff (Escrow, Certifier, Legal
 
 ## Implemented — 100% shipped (as of 19 Feb 2026)
 
+### 19 Feb 2026 — Batch #8: P1 tester-experience polish (v35 frontend only, backend unchanged)
+File: `pmc-frontend-v35-build.zip` (1.2 MB, `main.4b0111ec.js`, SHA-256 `bd7161beaaf93890235abc6bc9b8f7bf44d9a28ad4197f3ac6506ae47eb99508`). Backend stays at v22d — no server-side change needed.
+- **Bug #26 — Product Catalog toast**: `ProductCatalogPanel.jsx` save toast now reads `"Product created · <name>"` / `"Product saved · <name>"` (was ambiguous "Saved <name>" that testers mistook for the Procurement Strategy module). List already had cache-buster + `onSaved` refresh — retained.
+- **Bug #31 — Notice title/description validation**: `NoticesPanel.jsx` toast now shows `"Title is required · minimum 3 characters"` / `"Description is required · minimum 10 characters"` with clear separator. Testers no longer have to guess which field the "10 char" rule applies to.
+- **Bug #32 — Master Admin publish checkbox**: `NoticesPanel.jsx` `isMasterAdmin` check now accepts `admin | master_admin | superadmin | staff_admin` role variants (backend returns different literals depending on seed path — testers on newer accounts saw the checkbox disabled even as Master Admin).
+- **Bug #74 (registration template "undefined" toast)**: `VendorsPanel.jsx` `uploadTemplate` now falls back to `f.name`/`f.size` if the backend response omits `file_name`/`size_bytes`, and shows KB as a description. Also surfaces the real backend error detail on failure instead of a generic message.
+- **Bugs #28 · #29 · #35 · #49 · #52 · #63 · #84 · #85** were already verified as fixed in v20/v21/v22 and shipped in prior batches — Batch #8 does not touch them; they remain green.
+
 ### 19 Feb 2026 — Batch #7: Notice draft flow + Tender Clone + Vendor Invite polish (v34/v22d)
 Files: `pmc-frontend-v34-build.zip` (1.2 MB, `main.92d8377e.js`, SHA-256 `d91d5d2b552a34c704fffd881b11de77365135357d5d2241836630a36c29db37`) · `pmc-backend-v22d.zip` (258 KB, SHA-256 `80b88dc4a7ae723c15d9a4f1b3960194998a71df4b1e57bc0663b7481085ba4b`).
 - **Bug #57 · #58 · #66 — Notice draft flow polish**

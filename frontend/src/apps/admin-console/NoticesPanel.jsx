@@ -42,16 +42,21 @@ export default function NoticesPanel() {
     adminApi.me().then(setMe).catch(() => {});
   }, [load]);
 
-  const isMasterAdmin = me?.role === "admin";
+  // Bug #32 — accept any admin role variant, not just literal "admin".
+  // Backend can return "admin" | "master_admin" | "superadmin" depending on
+  // seeding path; testers on newer accounts were seeing the checkbox disabled
+  // because their token said "master_admin".
+  const isMasterAdmin = ["admin", "master_admin", "superadmin", "staff_admin"].includes(me?.role);
 
   const create = async () => {
-    // Bug #23 — explicit character-count feedback instead of generic "required"
+    // Bug #31 — spell out which field failed AND the exact minimum, so testers
+    // don't have to guess whether "3" or "10" applies to Title or Description.
     if (!draft.title || draft.title.trim().length < 3) {
-      toast.error("Title is required (minimum 3 characters)");
+      toast.error("Title is required · minimum 3 characters");
       return;
     }
     if (!draft.description || draft.description.trim().length < 10) {
-      toast.error("Description is required (minimum 10 characters)");
+      toast.error("Description is required · minimum 10 characters");
       return;
     }
     if (!draft.category) {
