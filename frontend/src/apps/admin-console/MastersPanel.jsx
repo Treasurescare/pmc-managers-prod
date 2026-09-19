@@ -4,6 +4,7 @@ import { mastersApi, staffApi, tenantApi, formatApiError } from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import StaffTab from "./masters/StaffTab";
 import MatrixEditor from "./masters/MatrixEditor";
+import DemoModeTab from "./masters/DemoModeTab";
 
 export default function MastersPanel() {
   const { t } = useI18n();
@@ -106,7 +107,7 @@ export default function MastersPanel() {
   return (
     <div data-testid="admin-masters-panel">
       <div className="flex gap-2 mb-4 border-b">
-        {[["staff", t("panels.masters.tab_staff")], ["companies", t("panels.masters.tab_companies")], ["tenants", t("panels.masters.tab_tenants")], ["matrix", t("panels.masters.tab_matrix")], ["hierarchy", t("panels.masters.tab_hierarchy")]].map(([k, l]) => (
+        {[["staff", t("panels.masters.tab_staff")], ["companies", t("panels.masters.tab_companies")], ["tenants", t("panels.masters.tab_tenants")], ["matrix", t("panels.masters.tab_matrix")], ["hierarchy", t("panels.masters.tab_hierarchy")], ["demo", "Investor Demo"]].map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)}
             className={`px-4 py-2 text-xs uppercase tracking-widest ${tab === k ? "border-b-2 border-brand-navy font-semibold" : "text-slate-500"}`}
             data-testid={`masters-tab-${k}`}>{l}</button>
@@ -178,6 +179,8 @@ export default function MastersPanel() {
           ))}
         </div>
       )}
+
+      {tab === "demo" && <DemoModeTab />}
 
       {tab === "tenants" && (
         <>

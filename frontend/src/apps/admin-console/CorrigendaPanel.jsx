@@ -15,13 +15,16 @@ export default function CorrigendaPanel() {
   });
 
   const loadNotices = useCallback(() => {
-    fetch(`${process.env.REACT_APP_BACKEND_URL}/api/v1/notices?limit=200`)
-      .then((r) => r.json())
-      .then((d) => {
-        setNotices(d.items || []);
-        if (!pickedNoticeRef && d.items?.length) setPickedNoticeRef(d.items[0].notice_ref);
-      })
-      .catch(() => {});
+    // Bucket A fix — pull drafts + published so admin can attach corrigenda
+    // to unpublished notices too. Cache-buster defeats CloudFront caching.
+    import("@/lib/api").then(({ adminApi }) =>
+      adminApi.listAllNotices({ limit: 200, _: Date.now() })
+        .then((d) => {
+          setNotices(d.items || []);
+          if (!pickedNoticeRef && d.items?.length) setPickedNoticeRef(d.items[0].notice_ref);
+        })
+        .catch(() => {})
+    );
   }, [pickedNoticeRef]);
 
   const loadCorrigenda = useCallback((ref) => {
@@ -119,35 +122,75 @@ export default function CorrigendaPanel() {
         </div>
       )}
 
-      <div className="border border-brand-navy/10 bg-white">
-        {items.length === 0 && (
-          <div className="p-6 text-brand-navy/50 text-sm">{t("panels.corrigenda.empty")}</div>
-        )}
-        {items.map((c) => (
+      {(() => {
+        const active = items.filter((c) => c.is_active);
+        const withdrawn = items.filter((c) => !c.is_active);
+        const renderRow = (c) => (
           <div key={c.id}
-               className={`p-4 border-b border-brand-navy/10 ${c.is_active ? "" : "opacity-50 line-through"}`}
+               className={`p-4 border-b border-brand-navy/10 ${c.is_active ? "" : "bg-slate-50"}`}
                data-testid={`corr-row-${c.corrigendum_no}`}>
             <div className="flex items-baseline gap-4 flex-wrap">
               <span className="font-mono text-xs text-brand-navy-soft">Corrigendum No. {c.corrigendum_no}</span>
-              <span className="text-sm font-semibold text-brand-navy flex-1">{c.title}</span>
+              <span className={`text-sm font-semibold flex-1 ${c.is_active ? "text-brand-navy" : "text-brand-navy/50 line-through"}`}>
+                {c.title}
+              </span>
               <span className="text-xs text-brand-navy/50 font-mono">{c.published_at?.slice(0, 10)}</span>
-              {c.is_active && (
+              {c.is_active ? (
                 <button type="button" onClick={() => withdraw(c.id)}
                         data-testid={`corr-withdraw-${c.corrigendum_no}`}
                         className="text-[10px] uppercase tracking-widest px-2 py-1 border border-red-300 text-red-700 hover:bg-red-50">
                   {t("panels.corrigenda.withdraw")}
                 </button>
+              ) : (
+                <span className="text-[10px] uppercase tracking-widest px-2 py-1 border border-slate-300 bg-white text-slate-500"
+                      data-testid={`corr-status-withdrawn-${c.corrigendum_no}`}>
+                  Withdrawn{c.withdrawn_at ? ` · ${c.withdrawn_at.slice(0, 10)}` : ""}
+                </span>
               )}
             </div>
-            <div className="text-sm text-brand-navy/80 mt-2 whitespace-pre-line">{c.summary}</div>
-            {c.new_submission_deadline && (
+            <div className={`text-sm mt-2 whitespace-pre-line ${c.is_active ? "text-brand-navy/80" : "text-brand-navy/50"}`}>
+              {c.summary}
+            </div>
+            {!c.is_active && c.withdrawn_reason && (
+              <div className="text-xs text-slate-500 mt-2 italic"
+                   data-testid={`corr-withdraw-reason-${c.corrigendum_no}`}>
+                Withdrawal reason: {c.withdrawn_reason}
+              </div>
+            )}
+            {c.is_active && c.new_submission_deadline && (
               <div className="text-xs text-amber-800 mt-2 bg-amber-50 border border-amber-200 px-3 py-1 inline-block">
                 {t("panels.corrigenda.deadline_updated")} {c.new_submission_deadline?.slice(0, 16).replace("T", " ")}
               </div>
             )}
           </div>
-        ))}
-      </div>
+        );
+        return (
+          <>
+            <div className="pmc-label mb-2" data-testid="corr-section-active">
+              Active corrigenda ({active.length})
+            </div>
+            <div className="border border-brand-navy/10 bg-white">
+              {active.length === 0 ? (
+                <div className="p-6 text-brand-navy/50 text-sm">
+                  No active corrigenda for this notice.
+                </div>
+              ) : (
+                active.map(renderRow)
+              )}
+            </div>
+            {withdrawn.length > 0 && (
+              <>
+                <div className="pmc-label mt-6 mb-2 text-brand-navy/60" data-testid="corr-section-withdrawn">
+                  Withdrawn (historical) — {withdrawn.length}
+                </div>
+                <div className="border border-slate-200 bg-slate-50/50">
+                  {withdrawn.map(renderRow)}
+                </div>
+              </>
+            )}
+          </>
+        );
+      })()}
     </div>
   );
 }

@@ -21,6 +21,7 @@ from routers import (
     docusign, profile_ops, _temp_downloads,
     stakeholder_reports, dashboard_drill, branding_theme,
     envelope_authoritative, contracts_export,
+    admin_demo,
 )
 
 
@@ -81,6 +82,7 @@ app.include_router(vendor_invites.router)
 app.include_router(permissions.router)
 # Wave 14 — Admin heal + admin creates full vendor
 app.include_router(admin_heal.router)
+app.include_router(admin_demo.router)
 app.include_router(vendor_full_invite.router)
 # Wave 20 — Tender / RFP / RFQ template builder
 app.include_router(tender_templates.router)

@@ -16,6 +16,11 @@ Admin (master + reviewer/sub-admin) · Vendor · Staff (Escrow, Certifier, Legal
 
 ## Implemented — 100% shipped (as of 5 Sep 2026)
 
+### 14 Feb 2026 — Investor Demo Mode + Corrigenda Cleanup + Registration Guard
+- **Investor Demo Mode** (`/app/backend/routers/admin_demo.py`): one-click seed of a curated showcase dataset — 3 notices (Astana Metro Line 2, Sovereign Data Lake, Electric Bus Fleet), 3 approved KZ vendors with licenses, 5 bids covering the full lifecycle (submitted → emd_paid → admin_flagged → certifier_cleared → awarded) plus a signed contract. Every row tagged `is_demo:true` so it can be wiped cleanly. Endpoints: `GET /api/v1/admin/demo/status`, `POST /api/v1/admin/demo/seed`, `POST /api/v1/admin/demo/reset`. UI added as a new **Investor Demo** tab inside Masters (`DemoModeTab.jsx`). Idempotent + reset verified via curl.
+- **Corrigenda Withdraw Cleanup** (`admin-console/CorrigendaPanel.jsx`): withdrawn corrigenda are now moved out of the active list into a separate greyed-out "Withdrawn (historical)" section with the withdrawal reason surfaced. Notice picker also switched to `adminApi.listAllNotices` so drafts + published notices both show up.
+- **Registration Guard** (`registration-portal/RegistrationResume.jsx`): "Next" button on Section A is disabled + shows an inline red hint until Identity & Basic Info required fields (`company_name`, `registered_address`, `country`, `registration_number`, `legal_entity_type`) are all filled. Prevents vendors from progressing to Contact/Banking without core identity data.
+
 ### 14 Feb 2026 — Bugs V2 Batch #4: Vendor Doc Crossover + Notices drafts + Registrations UX
 - **Bug #78 — Vendor Document Crossover (CRITICAL security)**: on admin-create flow, Vendor B could inherit Vendor A's uploaded documents.
   - Backend fix (`vendor_full_invite.py`): `admin-create` now ignores `draft_registration_id` if the draft's email doesn't match the new vendor's email (defence in depth).

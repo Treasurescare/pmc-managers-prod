@@ -17,6 +17,15 @@ const DECL_KEYS = [
   "decl_data_consent", "decl_fee", "decl_notification",
 ];
 
+// Section A required fields — vendor cannot advance until Identity & Basic
+// Info is complete. Anything else per section is optional/progressive.
+const SECTION_A_REQUIRED = [
+  "company_name", "registered_address", "country",
+  "registration_number", "legal_entity_type",
+];
+const missingSectionA = (reg) =>
+  SECTION_A_REQUIRED.filter((k) => !reg?.[k] || String(reg[k]).trim() === "");
+
 export default function RegistrationResume() {
   const { t } = useI18n();
   const navigate = useNavigate();
@@ -81,8 +90,12 @@ export default function RegistrationResume() {
     [reg]
   );
 
+  // Registration Guard — block Next if Section A is incomplete. Only enforced
+  // when the current step is A; later steps can move freely once A is done.
+  const sectionAGaps = useMemo(() => missingSectionA(reg), [reg]);
   const step = STEPS[stepIdx];
   const stepLabel = t(`register.section_${step}`);
+  const nextBlocked = step === "a" && sectionAGaps.length > 0;
 
   if (loading || !reg) {
     return (
@@ -195,15 +208,32 @@ export default function RegistrationResume() {
             </button>
 
             {stepIdx < STEPS.length - 1 ? (
-              <button
-                type="button"
-                onClick={async () => { await saveDraft(); setStepIdx(stepIdx + 1); }}
-                disabled={busy}
-                data-testid="btn-next"
-                className="px-6 py-3 text-[12px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep disabled:opacity-40"
-              >
-                {t("register.next")} →
-              </button>
+              <div className="flex flex-col items-end gap-1">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (nextBlocked) {
+                      toast.error(
+                        `Please fill Identity & Basic Info first. Missing: ${sectionAGaps.map((k) => k.replace(/_/g, " ")).join(", ")}`,
+                      );
+                      return;
+                    }
+                    await saveDraft();
+                    setStepIdx(stepIdx + 1);
+                  }}
+                  disabled={busy || nextBlocked}
+                  data-testid="btn-next"
+                  title={nextBlocked ? `Complete Section A first (${sectionAGaps.length} field(s) missing)` : ""}
+                  className="px-6 py-3 text-[12px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep disabled:opacity-40"
+                >
+                  {t("register.next")} →
+                </button>
+                {nextBlocked && (
+                  <span className="text-[11px] text-red-600" data-testid="section-a-gaps">
+                    {sectionAGaps.length} required field(s) missing in Section A
+                  </span>
+                )}
+              </div>
             ) : (
               <button
                 type="button"

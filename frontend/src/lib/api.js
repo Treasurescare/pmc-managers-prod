@@ -99,6 +99,10 @@ export const adminApi = {
     api.post(`/api/v1/registrations/${id}/decision`, { action, notes }).then((r) => r.data),
   createNotice: (payload) => api.post("/api/v1/notices", payload).then((r) => r.data),
   listAllNotices: (params = {}) => api.get("/api/v1/notices/admin/all", { params }).then((r) => r.data),
+  // Investor Demo Mode — one-click seed / reset / status
+  demoStatus: () => api.get("/api/v1/admin/demo/status").then((r) => r.data),
+  demoSeed: () => api.post("/api/v1/admin/demo/seed").then((r) => r.data),
+  demoReset: () => api.post("/api/v1/admin/demo/reset").then((r) => r.data),
   publishNotice: (ref) => api.post(`/api/v1/notices/${ref}/publish`).then((r) => r.data),
   listPackages: (params = {}) => api.get("/api/v1/packages", { params }).then((r) => r.data),
   createPackage: (payload) => api.post("/api/v1/packages", payload).then((r) => r.data),
