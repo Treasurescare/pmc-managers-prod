@@ -1,5 +1,38 @@
 # PMC Managers v2 — Changelog
 
+## 2026-09-19 · Batch #9c — Escrow governance guard (v39 frontend · v22f backend)
+**Not yet deployed to AWS · awaiting user verification on preview**
+
+### User report
+"I am sending a document for signing and release to contractor. It shows signed. But nothing has been triggered."
+
+### Root cause (P0)
+The joint escrow account `PMC-KZ EMD Escrow #1` had `adminsupport@pmcmanagers.com` on BOTH the PMC officer AND the Escrow officer. When the admin clicked **SIGN · RELEASE TO CONTRACTOR**, the backend `sign_off` handler's `if/elif` short-circuited on the PMC side, recorded the signature only under `signatures.pmc`, and left `signatures.escrow_institution` empty forever. `_dual_signed()` therefore returned `False` and the **RELEASE** button stayed permanently disabled with "needs both signatures". The account was created before the "different-emails" guard was added, so it slipped through.
+
+### Fixes (v39/v22f)
+**Backend (`routers/escrow.py`)**
+- `sign_off` now detects `pmc_email == escrow_email` BEFORE selecting a side and raises HTTP 409 with a plain-English message telling the operator exactly what to fix and where.
+- `list_accounts` now returns per-row `governance_ok: bool` + `same_email_email` + tenant-wide `governance_summary: {ok, broken}`.
+- `list_transactions` now returns per-row `governance_ok` + `same_email_email` so the panel can render banners without a second round-trip.
+
+**Frontend (`EscrowTransactionsSection.jsx`)**
+- Red governance warning banner on every affected transaction row explaining:
+  1. Which email is on both sides
+  2. Why release will never fire
+  3. Exactly how to fix it (edit the Escrow officer to a different email)
+- Sign + Release buttons on affected rows disabled with tooltip pointing to the banner
+- Uses the backend `governance_ok` flag with a snapshot-based fallback for older cached responses
+
+### Verified in preview
+- `POST /api/v1/escrow/transactions/{tid}/sign` → HTTP 409 with the full remediation message ✓
+- `GET /api/v1/escrow/accounts` → `governance_summary: {ok: 0, broken: 1}` ✓
+- Frontend build → `Compiled successfully`
+
+### Immediate remediation for production
+Ask the customer to open **Escrow → Joint Escrow Accounts → PMC-KZ EMD Escrow #1**, edit the **Escrow officer** email to a distinct trustee (or issue a magic-link to the external escrow institution via `POST /api/v1/escrow/magic-tokens`). Once the two officers are distinct, existing pending transactions can be re-signed by each side and Release will fire cleanly.
+
+---
+
 ## 2026-09-19 · Batch #9b — Committee dissolve/create hotfix (v38 frontend, backend unchanged)
 **Not yet deployed to AWS · awaiting user verification on preview**
 

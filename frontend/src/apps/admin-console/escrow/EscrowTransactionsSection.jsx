@@ -34,6 +34,12 @@ function TransactionRow({ t, onSign, onRelease }) {
   const esc = sigs.escrow_institution || {};
   const bothMatch = pmc.action && pmc.action === esc.action;
   const closed = CLOSED.has(t.status);
+  // 2026-09-19 — governance flag from backend (same email on both officers).
+  // Fallback to snapshot check for older cached responses that predate the flag.
+  const snap = t.escrow_account_snapshot || {};
+  const snapPmcEmail = (snap.pmc_officer?.email || "").toLowerCase();
+  const snapEscEmail = (snap.escrow_officer?.email || "").toLowerCase();
+  const sameEmail = t.governance_ok === false || (snapPmcEmail && snapPmcEmail === snapEscEmail);
   return (
     <div className="p-4" data-testid={`escrow-tx-row-${t.id}`}>
       <div className="flex items-baseline justify-between gap-3 flex-wrap">
@@ -44,26 +50,47 @@ function TransactionRow({ t, onSign, onRelease }) {
           <span className="ml-3 text-[10px] uppercase tracking-widest px-2 py-0.5 bg-brand-pale text-brand-navy">{t.status}</span>
         </div>
         <div className="text-[11px] text-brand-navy/50">
-          {t.escrow_account_snapshot?.name} · received {(t.received_at || "").slice(0, 10)}
+          {snap.name} · received {(t.received_at || "").slice(0, 10)}
         </div>
       </div>
+      {sameEmail && !closed && (
+        <div className="mt-3 p-3 border border-red-300 bg-red-50 text-xs text-red-900 space-y-1"
+             data-testid={`escrow-tx-governance-warn-${t.id}`}>
+          <div className="font-semibold uppercase tracking-widest text-[10px]">⚠ Release blocked — same officer on both sides</div>
+          <div>
+            The joint account for this bid has the same email
+            (<code className="font-mono">{snapPmcEmail || t.same_email_email}</code>)
+            on both the PMC officer and the Escrow officer. Dual-signature is
+            impossible until the two officers are distinct people, so
+            <b> nothing will trigger no matter how many times you click Sign</b>.
+          </div>
+          <div>
+            To unblock: go to <b>Joint Escrow Accounts</b> above → open this
+            account → set the <b>Escrow officer</b> to a different email (an
+            independent trustee at the escrow institution). Then come back and
+            sign again on both sides.
+          </div>
+        </div>
+      )}
       <div className="mt-2 grid gap-3 md:grid-cols-2 text-xs">
-        <SignatureBox label="PMC officer" officer={t.escrow_account_snapshot?.pmc_officer} sig={pmc}/>
-        <SignatureBox label="Escrow officer" officer={t.escrow_account_snapshot?.escrow_officer} sig={esc}/>
+        <SignatureBox label="PMC officer" officer={snap.pmc_officer} sig={pmc}/>
+        <SignatureBox label="Escrow officer" officer={snap.escrow_officer} sig={esc}/>
       </div>
       {!closed && (
         <div className="mt-3 flex flex-wrap gap-2 border-t border-brand-navy/10 pt-3">
           {ACTIONS.map((a) => (
             <button key={a} onClick={() => onSign(t, a)}
+                    disabled={sameEmail}
                     data-testid={`escrow-sign-${a}-${t.id}`}
-                    className="px-3 py-1 text-[11px] uppercase tracking-widest border border-brand-navy/40 text-brand-navy hover:bg-brand-navy hover:text-white">
+                    title={sameEmail ? "Fix the same-email governance issue above first" : undefined}
+                    className="px-3 py-1 text-[11px] uppercase tracking-widest border border-brand-navy/40 text-brand-navy hover:bg-brand-navy hover:text-white disabled:opacity-40 disabled:cursor-not-allowed">
               Sign · {a.replace(/_/g, " ")}
             </button>
           ))}
-          <button onClick={() => onRelease(t)} disabled={!bothMatch}
+          <button onClick={() => onRelease(t)} disabled={!bothMatch || sameEmail}
                   data-testid={`escrow-release-${t.id}`}
-                  className="ml-auto px-3 py-1 text-[11px] uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep disabled:opacity-40">
-            Release ({bothMatch ? "unlocked" : "needs both signatures"})
+                  className="ml-auto px-3 py-1 text-[11px] uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep disabled:opacity-40 disabled:cursor-not-allowed">
+            Release ({sameEmail ? "blocked — fix officers" : bothMatch ? "unlocked" : "needs both signatures"})
           </button>
         </div>
       )}

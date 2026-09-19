@@ -177,8 +177,18 @@ async def list_accounts(active_only: bool = False,
         sla_days = d.get("sla_days") or 30
         row["sla_days"] = sla_days
         row["sla_breach"] = row["age_days"] > sla_days
+        # 2026-09-19 — surface legacy same-email accounts so the panel can
+        # render a red governance banner explaining why sign/release will fail.
+        pmc_e = ((d.get("pmc_officer") or {}).get("email") or "").lower()
+        esc_e = ((d.get("escrow_officer") or {}).get("email") or "").lower()
+        row["governance_ok"] = bool(pmc_e and esc_e and pmc_e != esc_e)
+        row["same_email_email"] = pmc_e if pmc_e == esc_e else None
         items.append(row)
     return {"items": items, "total": len(items),
+            "governance_summary": {
+                "ok": sum(1 for r in items if r["governance_ok"]),
+                "broken": sum(1 for r in items if not r["governance_ok"]),
+            },
             "sla_summary": {
                 "in_sla": sum(1 for r in items if not r["sla_breach"]),
                 "breached": sum(1 for r in items if r["sla_breach"]),
@@ -255,7 +265,18 @@ async def list_transactions(bid_ref: Optional[str] = None,
     if notice_ref: q["notice_ref"] = notice_ref
     if status: q["status"] = status
     cursor = db.escrow_transactions.find(q).sort("created_at", -1).limit(200)
-    items = [_out_tx(d) async for d in cursor]
+    items = []
+    async for d in cursor:
+        row = _out_tx(d)
+        # 2026-09-19 — surface the same-email governance flag per-transaction
+        # so the panel can render a per-row banner explaining why sign/release
+        # will never fire until officers are fixed.
+        snap = d.get("escrow_account_snapshot") or {}
+        pmc_e = ((snap.get("pmc_officer") or {}).get("email") or "").lower()
+        esc_e = ((snap.get("escrow_officer") or {}).get("email") or "").lower()
+        row["governance_ok"] = bool(pmc_e and esc_e and pmc_e != esc_e)
+        row["same_email_email"] = pmc_e if pmc_e == esc_e else None
+        items.append(row)
     return {"items": items, "total": len(items)}
 
 
@@ -277,10 +298,30 @@ async def sign_off(tid: str, payload: SignIn,
     snap = tx.get("escrow_account_snapshot") or {}
     pmc = snap.get("pmc_officer") or {}
     esc = snap.get("escrow_officer") or {}
+    pmc_email = (pmc.get("email") or "").lower()
+    esc_email = (esc.get("email") or "").lower()
     email = (admin.get("email") or "").lower()
-    if email == (pmc.get("email") or "").lower():
+    # Bug (2026-09-19) — legacy joint-escrow accounts created before the
+    # "different emails" guard sometimes carry the same email on both sides.
+    # In that case the admin clicks Sign, the backend records only the pmc
+    # side (if/elif short-circuits), the escrow_institution side stays empty
+    # forever, and Release never fires. Detect the misconfiguration and tell
+    # the operator exactly how to unblock it instead of silently no-oping.
+    if pmc_email and pmc_email == esc_email:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "This joint escrow account has the SAME email on both officers "
+                f"({pmc_email}). Dual-signature is impossible until the two "
+                "officers are distinct people. Go to Escrow → Joint Escrow "
+                "Accounts, edit this account, and set the Escrow officer to a "
+                "different email (or issue a magic-link to the external trustee "
+                "via /api/v1/escrow/magic-tokens). Nothing has been signed."
+            ),
+        )
+    if email == pmc_email:
         side = "pmc"
-    elif email == (esc.get("email") or "").lower():
+    elif email == esc_email:
         side = "escrow_institution"
     else:
         raise HTTPException(status_code=403,
