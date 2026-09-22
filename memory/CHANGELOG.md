@@ -1,5 +1,39 @@
 # PMC Managers v2 — Changelog
 
+## 2026-02-22 · v44 — Vendor Admin UI + Directors registration (preview only)
+
+### User report
+"A) all the 5 fixes in one go" — Directors registration missing, vendors disappearing from UI after activation, inability to activate existing vendors, temp test account needed.
+
+### Fixes (v44)
+**Backend (`vendor_invites.py`)**
+- New endpoint `POST /api/v1/vendors/{vendor_ref}/activate` (admin + CSRF)
+  - `mode=resend_link` → regenerates magic token and re-emails the verify link
+  - `mode=set_password` → force-activates immediately with an admin-supplied password (≥8 chars) and flags `must_change_password=True`
+  - Guards: 404 on missing vendor, 400 on already-active, 400 on `set_password` missing password, 401 unauth, 403 CSRF
+
+**Frontend — Admin Vendors panel (`VendorsPanel.jsx`)**
+- Inline green **"Activate now"** button on every inactive vendor row (`data-testid=vendor-activate-<vendor_ref>`)
+- Auto-scroll to and emerald-ring highlight (3.5 s fade) on any vendor row that was just invited, activated or force-activated — newly-created vendors no longer feel like they "disappeared"
+- `window.confirm` flow: OK = resend magic link, Cancel = admin sets a temporary password inline; success/failure surfaced via `showApiError` + sonner toasts
+
+**Frontend — Registration flow (Directors section)**
+- New `SectionDirectors.jsx` with unlimited add/remove rows: Full legal name, Role (Director / Shareholder / UBO / Officer / Other), Nationality, ID/Passport #, Ownership %, Residential address
+- New step inserted between D and E: `STEPS = ["a","b","c","d","directors","e"]`
+- Submit gate: at least one row with non-empty `full_name` required. Reason surfaced inline (red text) + toast
+- Persisted at `reg.directors` (array). No backend schema change — `RegistrationUpdateIn` already uses `extra="allow"`
+- Localised in EN / RU / KK (register.section_directors, register.directors_required, section_directors.*)
+- Stepper CSS tightened (`px-3 py-2`, `whitespace-nowrap`, `gap-2`) so 6 steps sit compactly
+
+### Testing status
+- `/app/backend/tests/test_v44_activation.py` — 8/8 pytest cases pass
+- testing_agent iteration_20 — 100 % pass on both backend + frontend flows; window.confirm/window.prompt handled correctly
+- Verified end-to-end via curl on preview: `resend_link` ✓, `set_password` ✓ (vendor can then log in with new password), 404 ✓, already-active guard ✓
+
+### Not yet deployed to AWS · awaiting user verification on preview
+
+---
+
 ## 2026-09-19 · Batch #9d — Loud, verbatim error handling everywhere (v40 frontend, backend unchanged)
 **Not yet deployed to AWS · awaiting user verification on preview**
 

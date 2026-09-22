@@ -1,6 +1,6 @@
 # PMC Managers v2 — Product Requirements & Roadmap
 
-Last updated: 19 Feb 2026 — v43 LIVE ON PRODUCTION
+Last updated: 22 Feb 2026 — v44 preview (Vendor Admin UI + Directors registration)
 
 ## Original Problem Statement
 Develop a global tender management application (PMC Managers Limited v2) supporting a full multi-role approval pipeline, dynamic Approval Matrices, Bidding & EMD payments, BOQ Management, Evaluations, Contract Award, Multi-Tenant portals, and an AI Audit Copilot.
@@ -12,6 +12,26 @@ Core requirements:
 - Integrations: Stripe, Emergent LLM (AI Audit Copilot), KYC, Firebase, Resend, Zoom, DocuSign
 - Fully white-labeled AWS Deployment (S3 + CloudFront + Elastic Beanstalk Docker)
 - Codebase and Git history 100% purged of "Emergent" branding
+
+## v44 — Preview (22 Feb 2026)
+
+### Vendor Admin UI (P0 — DONE)
+- **Inline "Activate now" green button** on every inactive vendor row (`VendorsPanel.jsx`).
+- **Auto-scroll + emerald ring highlight (3.5 s)** on any vendor row that was just invited, activated, or force-activated. Newly created vendors no longer feel like they "disappeared".
+- **Force-activate confirmation flow**: OK = resend magic-link email; Cancel = admin sets a temporary password inline and vendor is asked to change it on first login.
+
+### Backend — new endpoint (P0 — DONE)
+- `POST /api/v1/vendors/{vendor_ref}/activate` (admin + CSRF)
+  - `mode=resend_link` regenerates magic token and re-emails the verify link.
+  - `mode=set_password` force-activates immediately with an admin-supplied password (min 8 chars) and forces `must_change_password=True`.
+  - Guards: 404 if vendor not in tenant, 400 if already active, 400 if `set_password` without password.
+
+### Registration flow — Directors section (P1 — DONE)
+- New **"Directors · Beneficial Owners"** tab inserted between Section D and Section E.
+- Dynamic add/remove rows (unlimited entries), fields: Full legal name, Role (Director / Shareholder / UBO / Officer / Other), Nationality, ID/Passport #, Ownership %, Residential address.
+- **Submit gate**: at least one row with a non-empty `full_name` required. Reason surfaced inline (red text under Submit button) and via toast.
+- Persisted at `reg.directors` (array). Backed by existing `RegistrationUpdateIn` model with `extra="allow"` — no backend schema change needed.
+- Localised in EN / RU / KK.
 
 ## v43 — Production Status (19 Feb 2026)
 

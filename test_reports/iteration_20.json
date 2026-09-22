@@ -1,0 +1,31 @@
+{
+  "summary": "v44 patch fully verified end-to-end on preview backend + frontend. Backend: 8/8 pytest cases pass in /app/backend/tests/test_v44_activation.py — POST /api/v1/vendors/{ref}/activate returns 200 for both mode=resend_link (with verify_url + email) and mode=set_password (is_active=true, and vendor can then POST /api/v1/vendor/auth/login with the new password); returns 401 for unauthenticated calls, 404 for missing vendor_ref, 400 when set_password is missing the password, and 400 when trying to activate an already-active vendor. Regression: POST /api/v1/vendors/invite still creates a stub, GET /api/v1/vendors lists it, POST /api/v1/vendors/verify/{token}/complete still activates via the magic link. Directors persistence: PATCH /api/v1/registrations/{id}?token=... with a directors:[{...}] payload saves without validation error and GET /api/v1/registrations/resume/{token} reads it back. Frontend: Admin Vendors panel → INACTIVE filter shows 12+ inline emerald 'Activate Now' buttons (data-testid=vendor-activate-<ref>). Clicking triggers window.confirm — OK path resends magic link (green toast 'Verify link resent to …', row highlighted with emerald ring); Cancel path opens window.prompt for a >=8-char password and force-activates (green toast 'Activated … can now sign in'). Invite vendor form still works: fills email/company/country, SEND INVITATION returns success toast with vendor_ref, panel refreshes, and the just-invited row scrolls into view with the emerald highlight. Registration flow: /register → resume URL loads with stepper containing all 6 steps [step-a, step-b, step-c, step-d, step-directors, step-e] in DOM order; SectionDirectors renders (section-directors + director-row-0 with 5 role select options); clicking + Add another person creates director-row-1, removing collapses back. Submit gate: with no director full_name → btn-submit-final is disabled AND red 'directors-gap' hint is shown. After filling director-name-0='Jane Doe' AND checking all 6 declaration checkboxes on Section E, btn-submit-final becomes enabled.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Registration stepper", "issues": ["At 1920px width the 6-step stepper wraps to two rows (A/B/C then D/DIRECTORS/E). DOM order is correct and all step-* testids are present, but visual wrap may confuse users. Consider shrinking padding or horizontal-scrolling the ol so all 6 remain on one line."]},
+      {"screen": "Admin console (AnalyticsPanel)", "issues": ["Pre-existing React hydration dev-warning '<span> cannot be a child of <option>' still present in console (noted in iteration_19). Cosmetic dev-only."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_v44_activation.py",
+    "/app/test_reports/pytest/v44_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "vendor_invites.py `AdminActivateIn.password: Optional[str] = Field(default=None, min_length=8)` — pydantic v2 applies min_length only when a value is supplied, so None passes; the handler correctly raises a manual 400. Works, but a stricter model_validator flagging (mode==set_password and password missing) would be cleaner and give a single validation error path.",
+    "vendor_invites.py already-active guard uses `v.get('is_active') and v.get('email_verified')` — a vendor that was force-activated by admin has both true, but a stub vendor that was invited (is_active=false) can still be re-invited; behavior is intended and correct. Just noting to next dev.",
+    "VendorsPanel.jsx activateVendor() uses window.confirm+window.prompt — works but is not accessible/i18n-friendly (uses hardcoded English strings). Consider a shadcn Dialog with password input in future.",
+    "RegistrationResume.jsx directorsOk gate only checks full_name presence — no format validation on ownership_percent (numeric input already, but no total<=100 rule) or nationality (ISO code). Fine for MVP.",
+    "Registration stepper wraps to 2 lines on desktop (~1920px). data-testids all still present, but purely visual — worth a small CSS tweak."
+  ],
+  "updated_files": ["/app/backend/tests/test_v44_activation.py"],
+  "success_rate": {"backend": "100% (8/8)", "frontend": "100% (all v44 flows verified)"},
+  "test_credentials": "adminsupport@pmcmanagers.com / Admin@12345 (from /app/memory/test_credentials.md).",
+  "seed_data_creation": "Created ~5 TEST_v44_* vendor stubs via invite endpoint, 1 testv44invite_* vendor via UI, 2 activated (one force-set-password), and 2 TEST_dir_* registrations to verify directors persistence. All test data prefixed TEST_v44_/testv44invite_/testdir_.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "v44 patch is green. Test file: /app/backend/tests/test_v44_activation.py (pytest, uses REACT_APP_BACKEND_URL). Admin auth issues both Bearer token + csrf_token in the login response — set X-CSRF-Token header for all state-changing admin calls. For Playwright, window.confirm/window.prompt handled via page.on('dialog', ...): confirm.accept() = resend_link, confirm.dismiss()+prompt.accept('pwd') = set_password. Section E declaration checkboxes are the first 6 native input[type=checkbox] on the section-e block (no dedicated data-testids). SectionDirectors testids: section-directors, director-row-{n}, director-name-{n}, director-role-{n} (native <select>), director-nationality-{n}, director-id-{n}, director-ownership-{n}, director-address-{n}, director-add, director-remove-{n}. Stepper wraps at 1920px — minor visual issue only."
+}

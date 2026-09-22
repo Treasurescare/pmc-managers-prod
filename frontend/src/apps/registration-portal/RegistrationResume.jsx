@@ -147,7 +147,7 @@ export default function RegistrationResume() {
         <div className="pmc-label">{t("register.title")}</div>
         <h1 className="font-display text-3xl lg:text-4xl mt-2 text-brand-navy">{stepLabel}</h1>
 
-        <ol className="mt-6 flex items-center gap-3 flex-wrap" data-testid="stepper">
+        <ol className="mt-6 flex items-center gap-2 flex-wrap" data-testid="stepper">
           {STEPS.map((s, i) => {
             const active = i === stepIdx;
             const passed = i < stepIdx;
@@ -158,7 +158,7 @@ export default function RegistrationResume() {
                   onClick={() => setStepIdx(i)}
                   data-testid={`step-${s}`}
                   className={
-                    "px-4 py-2 text-[11px] font-semibold uppercase tracking-widest border " +
+                    "px-3 py-2 text-[11px] font-semibold uppercase tracking-widest border whitespace-nowrap " +
                     (active
                       ? "bg-brand-navy text-white border-brand-navy"
                       : passed
