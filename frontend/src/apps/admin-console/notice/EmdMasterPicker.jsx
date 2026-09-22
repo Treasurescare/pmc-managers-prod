@@ -13,18 +13,33 @@ export default function EmdMasterPicker({ country, tenderValue, emdConfig, onPic
   const [pickId, setPickId]    = useState("");
   const [computed, setComputed] = useState(null);
   const [busy, setBusy]        = useState(false);
+  const [autoPicked, setAutoPicked] = useState(false);
 
   useEffect(() => {
     let alive = true;
     tenderProApi.listEmdMasters(country || undefined, "emd")
-      .then((r) => { if (alive) setMasters(r || []); })
+      .then((r) => {
+        if (!alive) return;
+        const rows = r || [];
+        setMasters(rows);
+        // v45b — auto-suggest: prefer is_default on this country, else the
+        // first master returned. Only fires if admin hasn't already picked
+        // one manually and there is at least one candidate.
+        if (rows.length && !pickId) {
+          const preferred = rows.find((m) => m.is_default) || rows[0];
+          setAutoPicked(true);
+          compute(preferred.id, rows);
+        }
+      })
       .catch(() => { if (alive) setMasters([]); });
     return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [country]);
 
-  const compute = async (mid) => {
+  const compute = async (mid, mastersOverride) => {
     setPickId(mid);
     setComputed(null);
+    const pool = mastersOverride || masters;
     if (!mid || !tenderValue || tenderValue <= 0) {
       onPick?.({ fixed_amount: emdConfig?.fixed_amount || 0,
                   percentage: emdConfig?.percentage || 0,
@@ -36,7 +51,7 @@ export default function EmdMasterPicker({ country, tenderValue, emdConfig, onPic
     try {
       const r = await tenderProApi.computeEmd(mid, tenderValue);
       setComputed(r);
-      const master = masters.find((m) => m.id === mid);
+      const master = pool.find((m) => m.id === mid);
       onPick?.({
         fixed_amount: r.type === "fixed" ? r.amount : 0,
         percentage:   r.type === "percentage" ? r.percentage : 0,
@@ -45,16 +60,26 @@ export default function EmdMasterPicker({ country, tenderValue, emdConfig, onPic
         emd_master_name: master?.name,
         auto_computed_amount: r.amount,
       });
-      toast.success(`EMD computed · ${r.amount.toLocaleString()} ${r.currency}`);
+      if (!autoPicked) {
+        toast.success(`EMD computed · ${r.amount.toLocaleString()} ${r.currency}`);
+      }
     } catch (e) { showApiError(e); }
     finally { setBusy(false); }
   };
+
+  // Recompute when tender value changes (admin edits Budget after picking master).
+  useEffect(() => {
+    if (pickId && tenderValue > 0) compute(pickId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenderValue]);
 
   return (
     <div className="border border-emerald-200 bg-emerald-50/60 p-3 md:col-span-2 space-y-2"
          data-testid="emd-master-picker">
       <div className="flex items-baseline justify-between">
-        <div className="pmc-label text-emerald-900">Auto-EMD from master</div>
+        <div className="pmc-label text-emerald-900">
+          Auto-EMD from master {autoPicked && pickId && <span className="normal-case tracking-normal text-[10px] ml-2 bg-emerald-100 px-1.5 py-0.5">Auto-picked</span>}
+        </div>
         <span className="text-[11px] text-brand-navy/50">Masters → Rating & Fees tab</span>
       </div>
       <select value={pickId} onChange={(e) => compute(e.target.value)}
