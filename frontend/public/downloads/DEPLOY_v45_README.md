@@ -140,7 +140,7 @@ Watch until `Status = Ready`, `Health = Ok`, `VersionLabel = v22i-*`.
 
 ```
 pmc-frontend-v45-build.zip   9.5 MB   SHA256: 717db2b5c0f1e0a1bf38726e5b3cc4c2718a90a5fa8c6c1c8c5384c530a47203
-pmc-backend-v22i.zip         248 kB   SHA256: 5ba9d24de5c3132f39ebe932765ae1fc6aa77f484c5ca8152bb463777ebaa658
+pmc-backend-v22i.zip         252K   SHA256: b00423dc4da28885fe66e44022c9dd17a064a7f4a835da31e943d4cf25bcabc7
 ```
 
 Bundle: main.0e4160f3.js — verified against `https://www.pmcmanagers.com` (no preview URL bleed).

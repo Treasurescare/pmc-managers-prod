@@ -73,6 +73,37 @@ def _llm_key() -> str:
     return key
 
 
+async def _llm_complete(system: str, user: str) -> str:
+    """Single-shot LLM completion with correct proxy routing.
+
+    sk-managed-*  → white-label production proxy (INTEGRATION_PROXY_URL or
+                    https://api.pmcmanagers.com/llm) — same path the vendored
+                    pmc_lib uses on AWS.
+    sk-emergent-* → Emergent integrations proxy (preview / local dev).
+    anything else → direct OpenAI-compatible call.
+    """
+    import litellm
+    key = _llm_key()
+    params = {
+        "model": "gpt-4o-mini",
+        "messages": [{"role": "system", "content": system},
+                      {"role": "user", "content": user}],
+        "api_key": key,
+    }
+    if key.startswith("sk-managed-"):
+        proxy = os.environ.get("INTEGRATION_PROXY_URL") or "https://api.pmcmanagers.com"
+        params["api_base"] = proxy.rstrip("/") + "/llm"
+        params["custom_llm_provider"] = "openai"
+    elif key.startswith("sk-emergent-"):
+        params["api_base"] = "https://integrations.emergentagent.com/llm"
+        params["custom_llm_provider"] = "openai"
+    try:
+        resp = await litellm.acompletion(**params)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"LLM call failed: {type(e).__name__} {str(e)[:200]}")
+    return resp.choices[0].message.content or ""
+
+
 @router.post("/dpr/analyze")
 async def analyze_dpr(file: UploadFile = File(...),
                        kind: str = Query("tender", regex="^(tender|rfp|rfq)$"),
@@ -90,34 +121,20 @@ async def analyze_dpr(file: UploadFile = File(...),
     if len(text.strip()) < 60:
         raise HTTPException(status_code=422, detail="Could not extract readable text from the uploaded DPR")
 
-    key = _llm_key()
-    try:
-        from pmc_lib.llm.chat import LlmChat, UserMessage
-    except Exception as e:
-        raise HTTPException(status_code=503, detail=f"LLM SDK unavailable: {type(e).__name__}")
-
     # Truncate to keep LLM context manageable
     excerpt = text[:16000]
-    chat = LlmChat(
-        api_key=key,
-        session_id=f"dpr-{admin['id']}-{now_iso()}",
-        system_message=(
-            "You are a public-procurement copilot. Given a Detailed Project Report (DPR) excerpt, "
-            f"produce a JSON object suitable for a {kind.upper()} pack with EXACTLY these keys: "
-            "{\"header\": {work_title, work_description, tender_value, budget_currency, period_days, "
-            "location, product_category, sub_category, contract_type, eligibility, evaluation_method, "
-            "bid_validity_days, emd_amount, emd_type, emd_percentage, tender_fee_amount}, "
-            "\"section_bodies\": {sec-1, sec-2, sec-3, sec-4, annex-III}, "
-            "\"warnings\": [fields you could not confidently extract]}. "
-            "section_bodies values MUST be short HTML using only <p><br><b><i><ul><ol><li>. "
-            "Return valid JSON only — no prose, no code fences."
-        ),
+    system_msg = (
+        "You are a public-procurement copilot. Given a Detailed Project Report (DPR) excerpt, "
+        f"produce a JSON object suitable for a {kind.upper()} pack with EXACTLY these keys: "
+        "{\"header\": {work_title, work_description, tender_value, budget_currency, period_days, "
+        "location, product_category, sub_category, contract_type, eligibility, evaluation_method, "
+        "bid_validity_days, emd_amount, emd_type, emd_percentage, tender_fee_amount}, "
+        "\"section_bodies\": {sec-1, sec-2, sec-3, sec-4, annex-III}, "
+        "\"warnings\": [fields you could not confidently extract]}. "
+        "section_bodies values MUST be short HTML using only <p><br><b><i><ul><ol><li>. "
+        "Return valid JSON only — no prose, no code fences."
     )
-    chat.with_model("openai", "gpt-4o-mini")
-    try:
-        resp = await chat.send_message(UserMessage(text=f"DPR excerpt:\n{excerpt}"))
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"LLM call failed: {type(e).__name__}")
+    resp = await _llm_complete(system_msg, f"DPR excerpt:\n{excerpt}")
 
     import json as _json
     raw = str(resp).strip()
@@ -152,12 +169,6 @@ async def ai_fill_all_sections(tid: str, payload: AiFillAllIn = AiFillAllIn(),
     doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
     if not doc:
         raise HTTPException(status_code=404, detail="Template not found")
-    key = _llm_key()
-    try:
-        from pmc_lib.llm.chat import LlmChat, UserMessage
-    except Exception as e:
-        raise HTTPException(status_code=503, detail=f"LLM SDK unavailable: {type(e).__name__}")
-
     header = doc.get("header") or {}
     updated = 0
     words = {"short": 120, "medium": 240, "long": 420}.get(payload.length or "medium", 240)
@@ -166,17 +177,12 @@ async def ai_fill_all_sections(tid: str, payload: AiFillAllIn = AiFillAllIn(),
     for i, sec in enumerate(sections):
         if payload.only_empty and (sec.get("body") or "").strip():
             continue
-        chat = LlmChat(
-            api_key=key,
-            session_id=f"aiall-{tid}-{sec['code']}",
-            system_message=(
-                "You are a public-procurement drafting copilot. Draft the body of ONE tender-document "
-                "section based on the section title, hint and tender header. Return valid HTML using "
-                "ONLY these tags: <p><br><b><i><ul><ol><li><h3>. Do not include the title. "
-                f"Aim for approximately {words} words. Do not invent numbers not present in the context."
-            ),
+        system_msg = (
+            "You are a public-procurement drafting copilot. Draft the body of ONE tender-document "
+            "section based on the section title, hint and tender header. Return valid HTML using "
+            "ONLY these tags: <p><br><b><i><ul><ol><li><h3>. Do not include the title. "
+            f"Aim for approximately {words} words. Do not invent numbers not present in the context."
         )
-        chat.with_model("openai", "gpt-4o-mini")
         ctx = {"section_title": sec.get("title"), "section_kind": sec.get("kind"),
                "hint": sec.get("hint"),
                "header": {k: header.get(k) for k in
@@ -185,15 +191,12 @@ async def ai_fill_all_sections(tid: str, payload: AiFillAllIn = AiFillAllIn(),
                            "evaluation_method", "emd_amount", "sub_end", "country", "industry")
                           if header.get(k)}}
         try:
-            resp = await chat.send_message(UserMessage(text=f"Draft the body. Context: {ctx}"))
-            body_html = str(resp).strip()
-            # Strip fence if any
+            body_html = (await _llm_complete(system_msg, f"Draft the body. Context: {ctx}")).strip()
             if body_html.startswith("```"):
                 body_html = re.sub(r"^```(?:html)?", "", body_html).rstrip("`").strip()
             sections[i] = {**sec, "body": body_html}
             updated += 1
-        except Exception:
-            # Skip this section — do not fail the whole pass
+        except HTTPException:
             continue
 
     await db.tender_templates.update_one({"_id": ObjectId(tid)},
