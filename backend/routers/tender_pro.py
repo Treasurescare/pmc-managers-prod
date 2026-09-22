@@ -34,6 +34,11 @@ def _out(doc: dict) -> dict:
 # PHASE C — DPR upload + AI fill-all
 # =============================================================================
 
+class DprAnalyzeJsonIn(BaseModel):
+    filename: str
+    content_b64: str  # base64-encoded file bytes
+
+
 class DprAnalyzeResult(BaseModel):
     header: dict
     section_bodies: dict  # {section_code: html_body}
@@ -64,6 +69,69 @@ def _extract_text_from_upload(name: str, body: bytes) -> str:
         return body.decode("utf-8", errors="ignore")
     except Exception:
         raise HTTPException(status_code=400, detail="Unsupported file type — upload PDF, DOCX or TXT")
+
+
+async def _run_dpr_analyze(name: str, body_bytes: bytes, kind: str, admin: dict) -> dict:
+    """Shared DPR pipeline used by both the multipart and JSON endpoints."""
+    if len(body_bytes) > 15 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="DPR exceeds 15 MB limit")
+    text = _extract_text_from_upload(name, body_bytes)
+    if len(text.strip()) < 60:
+        raise HTTPException(status_code=422, detail="Could not extract readable text from the uploaded DPR")
+    excerpt = text[:16000]
+    system_msg = (
+        "You are a public-procurement copilot. Given a Detailed Project Report (DPR) excerpt, "
+        f"produce a JSON object suitable for a {kind.upper()} pack with EXACTLY these keys: "
+        "{\"header\": {work_title, work_description, tender_value, budget_currency, period_days, "
+        "location, product_category, sub_category, contract_type, eligibility, evaluation_method, "
+        "bid_validity_days, emd_amount, emd_type, emd_percentage, tender_fee_amount}, "
+        "\"section_bodies\": {sec-1, sec-2, sec-3, sec-4, annex-III}, "
+        "\"warnings\": [fields you could not confidently extract]}. "
+        "section_bodies values MUST be short HTML using only <p><br><b><i><ul><ol><li>. "
+        "Return valid JSON only — no prose, no code fences."
+    )
+    resp = await _llm_complete(system_msg, f"DPR excerpt:\n{excerpt}")
+    import json as _json
+    raw = str(resp).strip()
+    if raw.startswith("```"):
+        raw = re.sub(r"^```(?:json)?", "", raw).rstrip("`").strip()
+    try:
+        parsed = _json.loads(raw)
+    except Exception:
+        raise HTTPException(status_code=502, detail="LLM returned invalid JSON — retry")
+    parsed.setdefault("header", {})
+    parsed.setdefault("section_bodies", {})
+    parsed.setdefault("warnings", [])
+    await audit_log("tender_pro.dpr_analyze", admin, "dpr", name,
+                    {"chars_in": len(text), "sections_out": len(parsed.get("section_bodies") or {})})
+    return parsed
+
+
+@router.post("/dpr/analyze")
+async def analyze_dpr(file: UploadFile = File(...),
+                       kind: str = Query("tender", regex="^(tender|rfp|rfq)$"),
+                       admin=Depends(require_role("admin", "reviewer"))):
+    """Multipart DPR upload. Prefer /dpr/analyze-json on AWS deployments
+    behind a WAF that blocks binary POST bodies."""
+    body_bytes = await file.read()
+    return await _run_dpr_analyze(file.filename, body_bytes, kind, admin)
+
+
+@router.post("/dpr/analyze-json")
+async def analyze_dpr_json(payload: DprAnalyzeJsonIn,
+                            kind: str = Query("tender", regex="^(tender|rfp|rfq)$"),
+                            admin=Depends(require_role("admin", "reviewer"))):
+    """v45c — WAF-safe DPR upload. Frontend base64-encodes the file and
+    posts it as JSON so AWS WAF managed rules (which block binary bodies)
+    let it through. Payload cap enforced BEFORE base64 decode.
+    """
+    if len(payload.content_b64) > 22 * 1024 * 1024:   # ~16 MB decoded
+        raise HTTPException(status_code=413, detail="DPR exceeds 15 MB limit")
+    try:
+        body_bytes = base64.b64decode(payload.content_b64, validate=True)
+    except Exception:
+        raise HTTPException(status_code=400, detail="content_b64 is not valid base64")
+    return await _run_dpr_analyze(payload.filename, body_bytes, kind, admin)
 
 
 def _llm_key() -> str:
@@ -104,54 +172,11 @@ async def _llm_complete(system: str, user: str) -> str:
     return resp.choices[0].message.content or ""
 
 
-@router.post("/dpr/analyze")
-async def analyze_dpr(file: UploadFile = File(...),
-                       kind: str = Query("tender", regex="^(tender|rfp|rfq)$"),
-                       admin=Depends(require_role("admin", "reviewer"))):
-    """Upload a DPR / project brief. LLM extracts structured fields for the
-    Tender Builder header and drafts a body for each canonical section.
-
-    Returns a preview payload that the frontend can review before cloning
-    a working draft. Nothing is written to Mongo here.
-    """
-    body_bytes = await file.read()
-    if len(body_bytes) > 15 * 1024 * 1024:
-        raise HTTPException(status_code=413, detail="DPR exceeds 15 MB limit")
-    text = _extract_text_from_upload(file.filename, body_bytes)
-    if len(text.strip()) < 60:
-        raise HTTPException(status_code=422, detail="Could not extract readable text from the uploaded DPR")
-
-    # Truncate to keep LLM context manageable
-    excerpt = text[:16000]
-    system_msg = (
-        "You are a public-procurement copilot. Given a Detailed Project Report (DPR) excerpt, "
-        f"produce a JSON object suitable for a {kind.upper()} pack with EXACTLY these keys: "
-        "{\"header\": {work_title, work_description, tender_value, budget_currency, period_days, "
-        "location, product_category, sub_category, contract_type, eligibility, evaluation_method, "
-        "bid_validity_days, emd_amount, emd_type, emd_percentage, tender_fee_amount}, "
-        "\"section_bodies\": {sec-1, sec-2, sec-3, sec-4, annex-III}, "
-        "\"warnings\": [fields you could not confidently extract]}. "
-        "section_bodies values MUST be short HTML using only <p><br><b><i><ul><ol><li>. "
-        "Return valid JSON only — no prose, no code fences."
-    )
-    resp = await _llm_complete(system_msg, f"DPR excerpt:\n{excerpt}")
-
-    import json as _json
-    raw = str(resp).strip()
-    # Strip accidental code fences the model sometimes wraps around JSON
-    if raw.startswith("```"):
-        raw = re.sub(r"^```(?:json)?", "", raw).rstrip("`").strip()
-    try:
-        parsed = _json.loads(raw)
-    except Exception:
-        raise HTTPException(status_code=502, detail="LLM returned invalid JSON — retry")
-
-    parsed.setdefault("header", {})
-    parsed.setdefault("section_bodies", {})
-    parsed.setdefault("warnings", [])
-    await audit_log("tender_pro.dpr_analyze", admin, "dpr", file.filename,
-                    {"chars_in": len(text), "sections_out": len(parsed.get("section_bodies") or {})})
-    return parsed
+@router.post("/dpr/analyze-legacy-multipart-removed")
+async def _analyze_dpr_removed():
+    """This multipart endpoint is superseded by /dpr/analyze-json which
+    survives AWS WAF binary-body rules. Do not use."""
+    raise HTTPException(status_code=410, detail="Use /dpr/analyze-json instead")
 
 
 class AiFillAllIn(BaseModel):
