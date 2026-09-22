@@ -98,3 +98,5 @@ credentials.json
 .credentials
 frontend/node_modules/.cache/default-development/0.pack
 frontend/node_modules/.cache/default-development/4.pack
+deliverables/pmc-frontend-v44-build.zip
+frontend/public/downloads/pmc-frontend-v44-build.zip
