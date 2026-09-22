@@ -11,7 +11,7 @@ The admin can also upload a *template* blank registration form which vendors can
 import secrets
 import base64
 import asyncio
-from typing import Optional, List
+from typing import Optional, List, Literal
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
 from pydantic import BaseModel, EmailStr, Field
 from bson import ObjectId
@@ -160,6 +160,76 @@ async def verify_token_info(token: str):
         "company_name": v.get("company_name"),
         "email_verified": v.get("email_verified", False),
     }
+
+
+class AdminActivateIn(BaseModel):
+    """Admin-side activation for an already-existing vendor stub.
+
+    mode=resend_link  Regenerate magic token and re-email the verify link.
+    mode=set_password Force-activate immediately (admin provides password).
+    """
+    mode: Literal["resend_link", "set_password"] = "resend_link"
+    password: Optional[str] = Field(default=None, min_length=8)
+
+
+@router.post("/{vendor_ref}/activate")
+async def admin_activate_vendor(vendor_ref: str, payload: "AdminActivateIn",
+                                  admin=Depends(require_role("admin"))):
+    """Admin re-activates an existing inactive vendor.
+
+    Bug v44 fix — previously the only way to activate a vendor was via the
+    magic-link the vendor never clicked. Admins now have a one-click path
+    to either resend the verify email or force-set a password themselves.
+    """
+    v = await db.vendors.find_one({"vendor_ref": vendor_ref,
+                                     "tenant_id": admin["tenant_id"]})
+    if not v:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    if v.get("is_active") and v.get("email_verified"):
+        raise HTTPException(status_code=400, detail="Vendor is already active")
+
+    if payload.mode == "set_password":
+        if not payload.password:
+            raise HTTPException(status_code=400,
+                                 detail="password is required when mode=set_password")
+        await db.vendors.update_one(
+            {"_id": v["_id"]},
+            {"$set": {"password_hash": hash_password(payload.password),
+                      "email_verified": True, "is_active": True,
+                      "must_change_password": True,
+                      "email_verified_at": now_iso(),
+                      "activated_by": admin["id"], "activated_at": now_iso()},
+             "$unset": {"magic_token": ""}},
+        )
+        asyncio.create_task(send_email(
+            v["email"], f"PMC Managers — Vendor account activated · {vendor_ref}",
+            wrap(f"Welcome to PMC · {vendor_ref}",
+                 f"<p>Your PMC vendor account has been activated by our team. "
+                 f"Please sign in and change your password on first login.</p>"
+                 f"<p><strong>Login email:</strong> {v['email']}</p>",
+                 "Sign in", f"{config.FRONTEND_URL}/vendor/login")))
+        await audit_log("vendor.admin_activate", admin, "vendor", vendor_ref,
+                        {"mode": "set_password", "email": v["email"]})
+        return {"ok": True, "vendor_ref": vendor_ref, "mode": "set_password",
+                "email": v["email"], "is_active": True}
+
+    # Default: resend magic-link
+    token = new_magic_token()
+    await db.vendors.update_one(
+        {"_id": v["_id"]},
+        {"$set": {"magic_token": token, "invited_at": now_iso()}},
+    )
+    verify_url = f"{config.FRONTEND_URL}/vendor/verify/{token}"
+    asyncio.create_task(send_email(
+        v["email"], "PMC Managers — Vendor activation link (resent)",
+        wrap(f"Activate your account · {vendor_ref}",
+             f"<p>Your PMC vendor invitation has been re-issued. Please verify "
+             f"your email and set a password to activate your account.</p>",
+             "Verify email & set password", verify_url)))
+    await audit_log("vendor.admin_activate", admin, "vendor", vendor_ref,
+                    {"mode": "resend_link", "email": v["email"]})
+    return {"ok": True, "vendor_ref": vendor_ref, "mode": "resend_link",
+            "email": v["email"], "verify_url": verify_url}
 
 
 @router.post("/verify/{token}/complete")

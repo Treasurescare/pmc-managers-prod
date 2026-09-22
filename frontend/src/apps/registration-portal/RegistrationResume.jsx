@@ -9,9 +9,12 @@ import SectionA from "./sections/SectionA";
 import SectionB from "./sections/SectionB";
 import SectionC from "./sections/SectionC";
 import SectionD from "./sections/SectionD";
+import SectionDirectors from "./sections/SectionDirectors";
 import SectionE from "./sections/SectionE";
 
-const STEPS = ["a", "b", "c", "d", "e"];
+// v44 — Directors & Beneficial Owners inserted between D (KZ Business Profile)
+// and E (Declarations & Signature). Legacy keys a/b/c/d/e untouched.
+const STEPS = ["a", "b", "c", "d", "directors", "e"];
 const DECL_KEYS = [
   "decl_conflict_of_interest", "decl_integrity", "decl_accuracy",
   "decl_data_consent", "decl_fee", "decl_notification",
@@ -89,6 +92,13 @@ export default function RegistrationResume() {
     () => (reg ? DECL_KEYS.every((k) => reg[k]) : false),
     [reg]
   );
+
+  // v44 — Directors gate: require at least one director row with a non-empty
+  // full name before allowing final submit.
+  const directorsOk = useMemo(() => {
+    const arr = Array.isArray(reg?.directors) ? reg.directors : [];
+    return arr.some((d) => (d?.full_name || "").trim().length > 0);
+  }, [reg]);
 
   // Registration Guard — block Next if Section A is incomplete. Only enforced
   // when the current step is A; later steps can move freely once A is done.
@@ -180,6 +190,7 @@ export default function RegistrationResume() {
             if (step === "b") return <SectionB reg={reg} update={update} {...docProps} />;
             if (step === "c") return <SectionC reg={reg} update={update} {...docProps} />;
             if (step === "d") return <SectionD reg={reg} update={update} kzMeta={kzMeta} {...docProps} />;
+            if (step === "directors") return <SectionDirectors reg={reg} update={update} />;
             if (step === "e") return <SectionE reg={reg} update={update} />;
             return null;
           })()}
@@ -235,15 +246,29 @@ export default function RegistrationResume() {
                 )}
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={submitFinal}
-                disabled={busy || !allDeclarationsChecked}
-                data-testid="btn-submit-final"
-                className="px-6 py-3 text-[12px] font-semibold uppercase tracking-widest bg-brand-navy-soft text-white hover:bg-brand-navy-soft/90 disabled:opacity-40"
-              >
-                {t("register.submit_final")}
-              </button>
+              <div className="flex flex-col items-end gap-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!directorsOk) {
+                      toast.error(t("register.directors_required"));
+                      return;
+                    }
+                    submitFinal();
+                  }}
+                  disabled={busy || !allDeclarationsChecked || !directorsOk}
+                  data-testid="btn-submit-final"
+                  title={!directorsOk ? t("register.directors_required") : ""}
+                  className="px-6 py-3 text-[12px] font-semibold uppercase tracking-widest bg-brand-navy-soft text-white hover:bg-brand-navy-soft/90 disabled:opacity-40"
+                >
+                  {t("register.submit_final")}
+                </button>
+                {!directorsOk && (
+                  <span className="text-[11px] text-red-600" data-testid="directors-gap">
+                    {t("register.directors_required")}
+                  </span>
+                )}
+              </div>
             )}
           </div>
         </div>

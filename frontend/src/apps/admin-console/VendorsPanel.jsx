@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { api, vendorInviteApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
@@ -27,10 +27,29 @@ export default function VendorsPanel() {
   const [statusFilter, setStatusFilter] = useState("all");  // V-02 fix
   const [inviteDraft, setInviteDraft] = useState({ email: "", company_name: "", country: "KZ", contact_name: "" });
   const [templateMeta, setTemplateMeta] = useState({ available: false });
+  // v44 — highlight a specific vendor_ref after activation/creation so the
+  // admin visually locates the row instead of feeling like it "disappeared".
+  const [highlightRef, setHighlightRef] = useState(null);
+  const [activatingRef, setActivatingRef] = useState(null);
+  const rowRefs = useRef({});
 
-  const load = useCallback(() => {
+  const load = useCallback((focusRef) => {
     api.get("/api/v1/vendors", { params: search ? { search } : {} })
-      .then((r) => setVendors(r.data || []))
+      .then((r) => {
+        setVendors(r.data || []);
+        if (focusRef) {
+          setHighlightRef(focusRef);
+          // Wait one paint for the row to mount, then scroll to it.
+          setTimeout(() => {
+            const el = rowRefs.current[focusRef];
+            if (el && typeof el.scrollIntoView === "function") {
+              el.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+          }, 60);
+          // Clear the highlight after 3.5s.
+          setTimeout(() => setHighlightRef((cur) => (cur === focusRef ? null : cur)), 3500);
+        }
+      })
       .catch((e) => showApiError(e));
   }, [search]);
 
@@ -62,13 +81,54 @@ export default function VendorsPanel() {
     try {
       const r = await vendorInviteApi.invite({ ...inviteDraft, email: inviteDraft.email.trim() });
       toast.success(`Invited ${r.email} · ${r.vendor_ref}`, {
-        description: "Verification email sent. Vendor can also open the link from the audit log.",
+        description: "Verification email sent. Row is highlighted below.",
       });
       setShowInvite(false);
       setInviteDraft({ email: "", company_name: "", country: "KZ", contact_name: "" });
-      load();
+      setStatusFilter("all");  // ensure the just-invited pending vendor is visible
+      load(r.vendor_ref);
     } catch (e) { showApiError(e); }
     finally { setSendingInvite(false); }
+  };
+
+  // v44 — inline one-click activation for an inactive vendor.
+  // Default action: resend magic link. Uses window.confirm to give the admin
+  // one chance to switch to "force activate with a password".
+  const activateVendor = async (v) => {
+    if (activatingRef) return;  // guard double-clicks
+    const forcePwd = window.confirm(
+      `Resend verify email to ${v.email}?\n\n` +
+      `Press OK to RESEND the magic link.\n` +
+      `Press Cancel to set a password yourself and activate immediately.`
+    );
+    let payload = { mode: "resend_link" };
+    if (!forcePwd) {
+      const pwd = window.prompt(
+        `Set an initial password for ${v.email} (min 8 chars).\n` +
+        `Vendor will be forced to change it on first sign-in.`
+      );
+      if (!pwd) return;  // admin bailed
+      if (pwd.length < 8) {
+        toast.error("Password must be at least 8 characters");
+        return;
+      }
+      payload = { mode: "set_password", password: pwd };
+    }
+    setActivatingRef(v.vendor_ref);
+    try {
+      const r = await vendorInviteApi.activate(v.vendor_ref, payload);
+      if (r.mode === "resend_link") {
+        toast.success(`Verify link resent to ${r.email}`, {
+          description: `Vendor ref ${r.vendor_ref} · row highlighted below`,
+        });
+      } else {
+        toast.success(`Activated ${r.email}`, {
+          description: `Vendor ref ${r.vendor_ref} can now sign in`,
+        });
+      }
+      load(v.vendor_ref);
+    } catch (e) { showApiError(e); }
+    finally { setActivatingRef(null); }
   };
 
   const uploadTemplate = async (f) => {
@@ -207,23 +267,55 @@ export default function VendorsPanel() {
                 if (statusFilter === "inactive") return v.is_active === false;
                 return true;
               })
-              .map((v) => (
-              <button
-                key={v.id}
-                type="button"
-                onClick={() => setSelected(v)}
-                data-testid={`vendor-row-${v.vendor_ref}`}
-                className={"w-full text-left p-4 border-b border-brand-navy/10 hover:bg-brand-navy/5 " + (selected?.id === v.id ? "bg-brand-navy/5" : "")}
-              >
-                <div className="text-sm font-semibold text-brand-navy">{v.company_name || "(no name)"}</div>
-                <div className="text-xs font-mono text-brand-navy-soft mt-1">{v.vendor_ref}</div>
-                <div className="text-xs text-brand-navy/50 mt-0.5">
-                  {v.email} · {v.country}
-                  {v.email_verified === false && <span className="ml-2 text-amber-600">· {t("panels.vendors.pending_verify")}</span>}
-                  {v.is_active === false && v.email_verified !== false && <span className="ml-2 text-slate-500">· {t("panels.vendors.inactive_badge")}</span>}
-                </div>
-              </button>
-            ))}
+              .map((v) => {
+                const isInactive = v.is_active === false || v.email_verified === false;
+                const isHighlighted = highlightRef === v.vendor_ref;
+                return (
+                  <div
+                    key={v.id}
+                    ref={(el) => { rowRefs.current[v.vendor_ref] = el; }}
+                    data-testid={`vendor-row-${v.vendor_ref}`}
+                    className={
+                      "w-full p-4 border-b border-brand-navy/10 transition-colors duration-500 " +
+                      (isHighlighted
+                        ? "bg-emerald-100/80 ring-2 ring-emerald-400 "
+                        : selected?.id === v.id
+                          ? "bg-brand-navy/5 "
+                          : "hover:bg-brand-navy/5 ")
+                    }
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setSelected(v)}
+                      className="text-left w-full"
+                      data-testid={`vendor-row-select-${v.vendor_ref}`}
+                    >
+                      <div className="text-sm font-semibold text-brand-navy">{v.company_name || "(no name)"}</div>
+                      <div className="text-xs font-mono text-brand-navy-soft mt-1">{v.vendor_ref}</div>
+                      <div className="text-xs text-brand-navy/50 mt-0.5">
+                        {v.email} · {v.country}
+                        {v.email_verified === false && <span className="ml-2 text-amber-600">· {t("panels.vendors.pending_verify")}</span>}
+                        {v.is_active === false && v.email_verified !== false && <span className="ml-2 text-slate-500">· {t("panels.vendors.inactive_badge")}</span>}
+                      </div>
+                    </button>
+                    {isInactive && (
+                      <div className="mt-3">
+                        <button
+                          type="button"
+                          onClick={() => activateVendor(v)}
+                          disabled={activatingRef === v.vendor_ref}
+                          data-testid={`vendor-activate-${v.vendor_ref}`}
+                          className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {activatingRef === v.vendor_ref
+                            ? t("panels.vendors.activating")
+                            : t("panels.vendors.activate_row")}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
           </div>
         </div>
 

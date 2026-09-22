@@ -332,6 +332,12 @@ export const vendorInviteApi = {
   templateMeta: () => api.get("/api/v1/vendors/registration-template/meta").then((r) => r.data),
   templateDownloadUrl: () =>
     `${process.env.REACT_APP_BACKEND_URL}/api/v1/vendors/registration-template`,
+  // v44 — Admin one-click activation for an existing inactive vendor row.
+  // mode: "resend_link" (default) resends the verify email; "set_password"
+  // force-activates immediately using the supplied password.
+  activate: (vendor_ref, { mode = "resend_link", password } = {}) =>
+    api.post(`/api/v1/vendors/${vendor_ref}/activate`,
+             { mode, password }).then((r) => r.data),
 };
 
 export const permissionsApi = {
