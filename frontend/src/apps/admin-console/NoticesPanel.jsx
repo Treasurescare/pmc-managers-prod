@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { adminApi, mastersApi, noticeDocsApi, tenderTemplateApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import { InfoDot } from "@/components/InfoDot";
+import EmdMasterPicker from "./notice/EmdMasterPicker";
 
 export default function NoticesPanel() {
   const { t } = useI18n();
@@ -156,6 +157,13 @@ export default function NoticesPanel() {
               }}
               data-testid="notice-budget"
               className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
+          {/* v45 · Phase B — auto-EMD from country-specific master table */}
+          <EmdMasterPicker
+            country={draft.delivery_country}
+            tenderValue={draft.budget_amount || 0}
+            emdConfig={draft.emd_config}
+            onPick={(cfg) => setDraft({ ...draft, emd_config: { ...draft.emd_config, ...cfg } })}
+          />
           <label><span className="pmc-label">EMD — Fixed amount ({draft.budget_currency})<InfoDot tip="Earnest Money Deposit as a flat sum. Bidders pay this via Stripe/PayPal/Kaspi. Set 0 to use percentage-of-budget instead." /></span>
             <input type="number" min="0" value={draft.emd_config.fixed_amount || 0}
               onChange={(e) => setDraft({ ...draft, emd_config: { ...draft.emd_config, fixed_amount: parseFloat(e.target.value) || 0, currency: draft.budget_currency } })}

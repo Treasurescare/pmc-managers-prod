@@ -13,6 +13,9 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState(null);
   const [masterId, setMasterId] = useState("");
+  // v45 — track which fields the admin has already accepted from the AI preview,
+  // so the warnings panel dims resolved items and highlights the rest.
+  const [resolvedKeys, setResolvedKeys] = useState({});
 
   if (!open) return null;
 
@@ -22,6 +25,7 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
     try {
       const r = await tenderProApi.analyzeDpr(file, kind);
       setPreview(r);
+      setResolvedKeys({});
       if (masters?.length && !masterId) setMasterId(masters[0].id);
       toast.success(`Extracted ${Object.keys(r.section_bodies || {}).length} section drafts`);
     } catch (e) { showApiError(e); } finally { setBusy(false); }
@@ -39,10 +43,13 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
         body: preview.section_bodies?.[s.code] || s.body || "",
         order: typeof s.order === "number" ? s.order : null,
       }));
+      // v45 — stash warnings on the header so the builder can surface them
+      // next to the header form after the clone lands.
       const created = await tenderTemplateApi.create({
         name: `${preview.header?.work_title || file.name || "AI Draft"} — ${new Date().toISOString().slice(0, 10)}`,
         kind, industry: master.industry,
-        header: { ...(master.header || {}), ...(preview.header || {}) },
+        header: { ...(master.header || {}), ...(preview.header || {}),
+                    dpr_warnings: preview.warnings || [] },
         sections: cleanSections,
       });
       toast.success(`AI draft created · ${created.name}`);
@@ -85,6 +92,32 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
               </div>
               <div className="text-xs text-brand-navy/60 mt-2">
                 {Object.keys(preview.section_bodies || {}).length} section drafts ready · {preview.warnings?.length || 0} warning(s)
+              </div>
+            </div>
+          )}
+
+          {/* v45 — Phase C — DPR warnings panel */}
+          {preview && (preview.warnings?.length || 0) > 0 && (
+            <div className="border border-amber-300 bg-amber-50 p-3 text-sm" data-testid="dpr-warnings">
+              <div className="pmc-label text-amber-900 mb-2 flex items-center gap-2">
+                ⚠ Fields the AI could not extract — please complete manually
+              </div>
+              <ul className="space-y-1">
+                {(preview.warnings || []).map((w, i) => (
+                  <li key={i}
+                      data-testid={`dpr-warning-${i}`}
+                      className={"flex items-start gap-2 text-xs " +
+                                  (resolvedKeys[w] ? "line-through text-brand-navy/40" : "text-amber-900")}>
+                    <input type="checkbox"
+                           checked={!!resolvedKeys[w]}
+                           onChange={(e) => setResolvedKeys({ ...resolvedKeys, [w]: e.target.checked })}
+                           className="mt-0.5" />
+                    <span>{w}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="text-[11px] text-amber-800 mt-2">
+                Tick each item as you fill it in on the header form after cloning.
               </div>
             </div>
           )}

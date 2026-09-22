@@ -51,6 +51,16 @@ function YesNo({ value, onChange, testid }) {
 
 export default function TenderHeaderForm({ header, patchHeader }) {
   const h = header || {};
+  // v45 · Phase C — DPR warnings persisted on the header. Toggling a
+  // checkbox marks the item resolved without deleting it so the audit
+  // trail of what the AI missed stays visible.
+  const warnings = Array.isArray(h.dpr_warnings) ? h.dpr_warnings : [];
+  const resolved = h.dpr_warnings_resolved || {};
+  const toggleWarning = (w) => {
+    const next = { ...resolved, [w]: !resolved[w] };
+    patchHeader({ dpr_warnings_resolved: next });
+  };
+  const dismissAllWarnings = () => patchHeader({ dpr_warnings: [], dpr_warnings_resolved: {} });
 
   const covers = h.covers || [
     { cover_no: 1, name: "Fee/PreQual/Technical", doc_type: ".pdf", description: "Bid declaration for EMD" },
@@ -84,6 +94,34 @@ export default function TenderHeaderForm({ header, patchHeader }) {
 
   return (
     <div data-testid="tender-header-form">
+      {warnings.length > 0 && (
+        <section className="border border-amber-300 bg-amber-50 mb-5"
+                  data-testid="th-dpr-warnings">
+          <header className="bg-amber-100/70 border-b border-amber-300 px-4 py-2 flex items-baseline justify-between">
+            <strong className="text-amber-900 text-sm">
+              ⚠ DPR fields the AI could not extract ({warnings.length})
+            </strong>
+            <button type="button" onClick={dismissAllWarnings}
+                    data-testid="th-warn-dismiss-all"
+                    className="text-[11px] uppercase tracking-widest text-amber-800 hover:underline">
+              Dismiss all
+            </button>
+          </header>
+          <ul className="p-3 space-y-1">
+            {warnings.map((w, i) => (
+              <li key={i}
+                  className={"flex items-start gap-2 text-xs " +
+                              (resolved[w] ? "line-through text-brand-navy/40" : "text-amber-900")}
+                  data-testid={`th-warn-${i}`}>
+                <input type="checkbox" checked={!!resolved[w]}
+                        onChange={() => toggleWarning(w)}
+                        className="mt-0.5" />
+                <span>{w}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <Group title="Basic Details" testid="th-basic-details">
         <Row label="Organisation Chain">
           <Text value={h.organisation_chain} onChange={(v) => patchHeader({ organisation_chain: v })}
