@@ -1,84 +1,64 @@
 # PMC Managers v2 — Product Requirements & Roadmap
 
-Last updated: 22 Feb 2026 — v44 preview (Vendor Admin UI + Directors registration)
+Last updated: 22 Feb 2026 — v45 preview (Tender Pro: AI DPR, filters, EMD & rating masters)
 
 ## Original Problem Statement
-Develop a global tender management application (PMC Managers Limited v2) supporting a full multi-role approval pipeline, dynamic Approval Matrices, Bidding & EMD payments, BOQ Management, Evaluations, Contract Award, Multi-Tenant portals, and an AI Audit Copilot.
+Global tender management platform (PMC Managers Limited v2) with full multi-role pipeline, dynamic Approval Matrices, Bidding & EMD, BOQ, Evaluations, Contract Award, Multi-Tenant portals, AI Audit Copilot. Fully white-labeled AWS deployment.
 
-Core requirements:
-- Roles: Admin, Vendor, Staff
-- Core Modules: Notice Board, Registration, Package Tracker, Bidding Management, BOQ Builder, Evaluation & Contracts, Vendor Intelligence, Tender/RFP/RFQ Template Builder, Joint-Signature Escrow
-- Monetization/Revenue: Product Catalog, Stripe checkout, Quote pipeline, Subscriptions
-- Integrations: Stripe, Emergent LLM (AI Audit Copilot), KYC, Firebase, Resend, Zoom, DocuSign
-- Fully white-labeled AWS Deployment (S3 + CloudFront + Elastic Beanstalk Docker)
-- Codebase and Git history 100% purged of "Emergent" branding
+## v45 — Preview (22 Feb 2026) — 4-phase Tender Pro release
+Meeting-note-driven Tender Builder overhaul. All backend curl-verified on preview, UI wired.
 
-## v44 — Preview (22 Feb 2026)
+### Phase C — AI DPR & full-doc generation
+- `POST /api/v1/tender-pro/dpr/analyze` — upload PDF/DOCX/TXT, LLM extracts header + section bodies (JSON, non-persistent preview).
+- `POST /api/v1/tender-pro/templates/{tid}/ai-fill-all` — one-shot AI draft for every empty section (`only_empty=True` by default) — audit-logged.
+- Frontend: `DprGenerateModal` + `✨ AI Fill All` button on the header bar.
 
-### Vendor Admin UI (P0 — DONE)
-- **Inline "Activate now" green button** on every inactive vendor row (`VendorsPanel.jsx`).
-- **Auto-scroll + emerald ring highlight (3.5 s)** on any vendor row that was just invited, activated, or force-activated. Newly created vendors no longer feel like they "disappeared".
-- **Force-activate confirmation flow**: OK = resend magic-link email; Cancel = admin sets a temporary password inline and vendor is asked to change it on first login.
+### Phase A — Filters, per-section save, auto tender-ref, dynamic covers
+- `POST /api/v1/tender-pro/next-reference?country=KZ&industry=Construction&kind=rfp` → `PMC-KZ-CONS-RFP-26-00001` (per-country/kind Mongo sequence).
+- `PATCH /api/v1/tender-pro/templates/{tid}/sections/{code}` — save one section without bumping the versions array.
+- `TenderFilterBar` (search / country / industry / sort A-Z, Z-A, date) client-side filter on drafts.
+- Dynamic covers already synced to `no_of_covers` in TenderHeaderForm.
 
-### Backend — new endpoint (P0 — DONE)
-- `POST /api/v1/vendors/{vendor_ref}/activate` (admin + CSRF)
-  - `mode=resend_link` regenerates magic token and re-emails the verify link.
-  - `mode=set_password` force-activates immediately with an admin-supplied password (min 8 chars) and forces `must_change_password=True`.
-  - Guards: 404 if vendor not in tenant, 400 if already active, 400 if `set_password` without password.
+### Phase B — Country templates, save-as-master, EMD master
+- New `country` field on templates, `POST /api/v1/tender-pro/templates/{tid}/save-as-master` promotes a working draft into the master library under (country, industry).
+- `emd_masters` collection with CRUD + `POST /emd-masters/compute` — country-scoped fee slabs, fixed OR percentage, with tender-value ranges (verified: fixed at 50k below 10M, 2% above → 1M on 50M).
 
-### Registration flow — Directors section (P1 — DONE)
-- New **"Directors · Beneficial Owners"** tab inserted between Section D and Section E.
-- Dynamic add/remove rows (unlimited entries), fields: Full legal name, Role (Director / Shareholder / UBO / Officer / Other), Nationality, ID/Passport #, Ownership %, Residential address.
-- **Submit gate**: at least one row with a non-empty `full_name` required. Reason surfaced inline (red text under Submit button) and via toast.
-- Persisted at `reg.directors` (array). Backed by existing `RegistrationUpdateIn` model with `extra="allow"` — no backend schema change needed.
-- Localised in EN / RU / KK.
+### Phase D — Vendor rating criteria + multi-rater aggregate
+- `rating_criteria_sets` CRUD (15-30 criteria, weights, scale min/max, is_default flag auto-uniqued).
+- `POST /api/v1/tender-pro/ratings/multi` — per-criterion scores with rater type (admin/vendor/platform), auto-normalised to a 0-100 weighted score.
+- `GET /api/v1/tender-pro/ratings/aggregate/{vendor_ref}` — aggregate across all raters.
 
-## v43 — Production Status (19 Feb 2026)
+### What's LIVE now (curl-verified on preview)
+- next-reference → `PMC-KZ-CONS-RFP-26-00001`
+- EMD master create + list + compute (fixed & percentage slabs)
+- rating criteria create with default flag + aggregate endpoint
 
-### Frontend — LIVE
-- Bundle: `main.ac7e71b2.js` on https://www.pmcmanagers.com
-- ⓘ Tooltips across all 26 admin panels via `<InfoDot>`
-- 🔴 `showApiError()` loud toasts in 51 files (verbatim backend errors, HTTP status, 12-second red toast)
-- 📖 In-app Help tab (from v42) now wired to live backend endpoint
+### Not yet in v45 (deferred to v46+)
+- LSEG/Refinitiv KYC live integration (needs API keys)
+- WhatsApp/WeChat/Telegram notifications
+- Reverse auction rebuild
+- Full multi-rater vendor blind rating UI (backend ready; UI is minimal)
+- Country-first clone flow (backend accepts, UI still uses simple industry hint)
 
-### Backend — LIVE
-- Version label: `v22g-clean-20260919-take3` on `pmc-backend-prod`
-- Delta from v22f: two-line `include_router(help_content.router)` + static `help_content.json` + minimal `routers/help_content.py`
-- Endpoint `/api/v1/meta/help` returns full 28-module JSON payload
+## v44 — LIVE on preview only (needs prod deploy)
+- Vendor admin panel: inline Activate Now, auto-scroll + emerald ring highlight.
+- Registration flow: Directors & Beneficial Owners tab (dynamic rows, EN/RU/KK).
+- `POST /api/v1/vendors/{ref}/activate` (resend_link + set_password modes).
+- v22h backend zip + v44b frontend zip both built and downloadable from preview URL.
 
-### Deployment lessons learned this cycle
-- CloudFront SPA-fallback silently serves `index.html` for any 404 on `www.pmcmanagers.com/downloads/*`. Always verify downloads via `file` + `shasum` BEFORE uploading to AWS — a "zip" that's really HTML will pass EB's file selector and fail at Docker-image parse.
-- macOS Safari auto-extract + Finder-compress wraps zips in a parent folder, breaking EB's Dockerfile detection. Use Terminal `curl -O` + drag-from-Finder pattern for AWS uploads.
-- Preview URL (`tender-hub-57.preview.emergentagent.com`) is the authoritative download source until the corresponding S3 upload lands.
+## v43 — Production status (19 Feb 2026)
+- Frontend `main.ac7e71b2.js` on `www.pmcmanagers.com`; backend `v22g-clean` on `pmc-backend-prod`.
+- InfoDot tooltips across 26 admin panels + showApiError() global loud toasts.
+- 32-shot per-modal User Manual v43 shipped.
 
-## Follow-ups (still pending)
-- **P1: Upload `downloads/` folder** from the frontend v43 build to S3 so `https://www.pmcmanagers.com/downloads/PMC_User_Manual_v43.pdf` returns real PDF instead of HTML. Requires an S3-console drag of the `downloads/` subfolder + CloudFront invalidation of `/downloads/*`.
-- **P2: Stale prod data — Joint Escrow Account #1**: manual DB edit needed to assign distinct Escrow-officer email so bidder BID-2026-TEST2 unblocks.
-
-## Backlog (P2 — deferred)
-- Turkish / Russian / Kazakh translation versions of the Master Training Manual
-- Firebase & APNs Push Notifications
-- Live KYC provider integration
-- PayPal & Kaspi Pay live integrations (currently mocked)
-- Route 53 SOA min-TTL update from 86400s to 60s (optional DNS safeguard)
+## Backlog / follow-ups
+- **P1 · v44 redeploy**: `pmc-frontend-v44b-build.zip` fixes prod backend URL — user hit truncated-download earlier; new slim 5.6 MB build ready with SHA `e8185592…`.
+- **P2 · v44 backend**: `pmc-backend-v22h.zip` (SHA `a40a2621…`) — adds Activate Now endpoint.
+- **P2 · v45 packaging**: not yet packaged for AWS — new endpoints + UI are on preview only.
+- Static prod data: joint escrow account #1 still needs distinct officer email (manual DB edit).
+- Route 53 SOA TTL 86400 → 60 (optional).
 
 ## Architecture
-- `/app/backend` — FastAPI + MongoDB
-- `/app/frontend` — React SPA (CRA + Shadcn UI + Radix + Sonner + Framer Motion)
-- `/app/scripts` — deployment + docs generation pipelines
-- `/app/deliverables` — versioned QA trackers, user manual DOCX/PDF, deployment tarballs
-
-## Test credentials
-- Admin: `adminsupport@pmcmanagers.com` / `Admin@12345`
-- Vendor: `manualvendor@pmcmanagers.com` / `Vendor@12345`
-
-## Key v43 files
-- `/app/frontend/src/components/InfoDot.jsx`
-- `/app/frontend/src/lib/api.js` (`showApiError()`)
-- `/app/scripts/apply_show_api_error.py`
-- `/app/scripts/capture_manual_v43.py`
-- `/app/scripts/build_manual_v43.py`
-- `/app/deliverables/pmc-backend-v22g-clean.zip` (sha256 `74e6c92258ed37cfcdd795c64d70e525dc83107e09bfc9dc87376f837001db97`)
-- `/app/deliverables/deploy-frontend-v43.sh` + `deploy-backend-v22g.sh`
-- `/app/deliverables/PMC_Bug_Tracker_v16_20260919.xlsx`
-- `/app/deliverables/manual/PMC_User_Manual_v43.docx` + `.pdf`
+- `/app/backend` — FastAPI + MongoDB; new router `tender_pro.py` (v45).
+- `/app/frontend` — React SPA; new components under `admin-console/tender/` (DprGenerateModal, TenderFilterBar).
+- AWS: S3 + CloudFront (frontend), Elastic Beanstalk Docker (backend).

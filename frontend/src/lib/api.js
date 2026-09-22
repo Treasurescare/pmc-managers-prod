@@ -438,6 +438,41 @@ export const tenderTemplateApi = {
     api.post(`/api/v1/tender-templates/${id}/versions/${index}/restore`).then((r) => r.data),
 };
 
+// v45 — Tender Pro: DPR upload, AI fill-all, per-section save, masters, ratings.
+export const tenderProApi = {
+  analyzeDpr: (file, kind = "tender") => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return api.post(`/api/v1/tender-pro/dpr/analyze?kind=${kind}`, fd,
+      { headers: { "Content-Type": "multipart/form-data" } }).then((r) => r.data);
+  },
+  aiFillAll: (tid, opts) =>
+    api.post(`/api/v1/tender-pro/templates/${tid}/ai-fill-all`, opts || {}).then((r) => r.data),
+  nextReference: (country, industry, kind) =>
+    api.post(`/api/v1/tender-pro/next-reference`, null,
+             { params: { country, industry, kind } }).then((r) => r.data),
+  patchSection: (tid, code, patch) =>
+    api.patch(`/api/v1/tender-pro/templates/${tid}/sections/${encodeURIComponent(code)}`, patch).then((r) => r.data),
+  saveAsMaster: (tid, payload) =>
+    api.post(`/api/v1/tender-pro/templates/${tid}/save-as-master`, payload).then((r) => r.data),
+  // EMD masters
+  listEmdMasters: (country, kind) =>
+    api.get(`/api/v1/tender-pro/emd-masters`, { params: { country, kind } }).then((r) => r.data),
+  createEmdMaster: (p) => api.post(`/api/v1/tender-pro/emd-masters`, p).then((r) => r.data),
+  updateEmdMaster: (id, p) => api.patch(`/api/v1/tender-pro/emd-masters/${id}`, p).then((r) => r.data),
+  deleteEmdMaster: (id) => api.delete(`/api/v1/tender-pro/emd-masters/${id}`).then((r) => r.data),
+  computeEmd: (master_id, tender_value) =>
+    api.post(`/api/v1/tender-pro/emd-masters/compute`, { master_id, tender_value }).then((r) => r.data),
+  // Rating criteria
+  listCriteriaSets: () => api.get(`/api/v1/tender-pro/rating-criteria`).then((r) => r.data),
+  createCriteriaSet: (p) => api.post(`/api/v1/tender-pro/rating-criteria`, p).then((r) => r.data),
+  updateCriteriaSet: (id, p) => api.patch(`/api/v1/tender-pro/rating-criteria/${id}`, p).then((r) => r.data),
+  deleteCriteriaSet: (id) => api.delete(`/api/v1/tender-pro/rating-criteria/${id}`).then((r) => r.data),
+  submitMultiRating: (p) => api.post(`/api/v1/tender-pro/ratings/multi`, p).then((r) => r.data),
+  ratingAggregate: (vendor_ref) =>
+    api.get(`/api/v1/tender-pro/ratings/aggregate/${vendor_ref}`).then((r) => r.data),
+};
+
 export const noticeQaApi = {
   listPublic: (ref) => api.get(`/api/v1/notices/${ref}/qa`).then((r) => r.data),
   ask: (ref, body) => api.post(`/api/v1/notices/${ref}/qa`, body).then((r) => r.data),

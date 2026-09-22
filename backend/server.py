@@ -101,6 +101,8 @@ app.include_router(admin_demo.router)
 app.include_router(vendor_full_invite.router)
 # Wave 20 — Tender / RFP / RFQ template builder
 app.include_router(tender_templates.router)
+from routers import tender_pro as _tender_pro
+app.include_router(_tender_pro.router)
 app.include_router(notice_qa.router)
 app.include_router(bids_ai_compare.router)
 app.include_router(escrow.router)

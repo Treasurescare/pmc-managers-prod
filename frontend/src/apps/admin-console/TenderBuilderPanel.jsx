@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { tenderTemplateApi, formatApiError, showApiError} from "@/lib/api";
+import { tenderTemplateApi, tenderProApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import TenderHeaderForm from "./tender/TenderHeaderForm";
 import AiDiffModal from "./tender/AiDiffModal";
 import VersionHistory from "./tender/VersionHistory";
 import TenderSidebar from "./tender/TenderSidebar";
 import TenderSectionCard from "./tender/TenderSectionCard";
+import TenderFilterBar, { applyTenderFilters } from "./tender/TenderFilterBar";
+import DprGenerateModal from "./tender/DprGenerateModal";
 import { exportTenderPdf } from "./tender/tenderPdf";
 import { InfoDot } from "@/components/InfoDot";
 
@@ -229,6 +231,61 @@ export default function TenderBuilderPanel() {
 
   const masters = list.filter((x) => x.is_master);
   const drafts = list.filter((x) => !x.is_master);
+  // v45 · Phase A — client-side filter + sort of drafts
+  const [filters, setFilters] = useState({ q: "", country: "", industry: "", sort: "date-desc" });
+  const filteredDrafts = useMemo(() => applyTenderFilters(drafts, filters), [drafts, filters]);
+  const industries = useMemo(() => [...new Set(list.map((d) => d.industry).filter(Boolean))].sort(), [list]);
+  const countries  = useMemo(() => [...new Set(list.map((d) => (d.country || d.header?.country || "")).filter(Boolean))].sort(), [list]);
+  const [showDpr, setShowDpr]           = useState(false);
+  const [aiFillBusy, setAiFillBusy]     = useState(false);
+  const [saveMasterBusy, setSaveMasterBusy] = useState(false);
+
+  const runAiFillAll = async () => {
+    if (!doc?.id) return;
+    if (!confirm("Draft every empty section with AI? This may take up to 60 seconds.")) return;
+    setAiFillBusy(true);
+    try {
+      const r = await tenderProApi.aiFillAll(doc.id, { only_empty: true, tone: "formal", length: "medium" });
+      setDoc(r.template);
+      toast.success(`AI drafted ${r.updated} section(s)`);
+      await load();
+    } catch (e) { showApiError(e); } finally { setAiFillBusy(false); }
+  };
+
+  const saveAsMaster = async () => {
+    if (!doc?.id) return;
+    const country = prompt("Save as master under which country (ISO-2, e.g. KZ, IN, MY, GB)?", (doc.country || doc.header?.country || "KZ"));
+    if (!country) return;
+    const industry = prompt("Industry / vertical (e.g. Public Works, Software, Consulting)?", doc.industry || "General");
+    if (!industry) return;
+    setSaveMasterBusy(true);
+    try {
+      await tenderProApi.saveAsMaster(doc.id, { country: country.trim().toUpperCase(), industry: industry.trim() });
+      toast.success(`Saved as master · ${country.toUpperCase()} / ${industry}`);
+      await load();
+    } catch (e) { showApiError(e); } finally { setSaveMasterBusy(false); }
+  };
+
+  const genRef = async () => {
+    if (!doc) return;
+    const country = doc.country || doc.header?.country || prompt("Country code (ISO-2)?", "KZ");
+    if (!country) return;
+    try {
+      const r = await tenderProApi.nextReference(country.toUpperCase(), doc.industry || "GEN", doc.kind || "tender");
+      patchHeader({ tender_reference_number: r.reference, tender_id: r.reference });
+      toast.success(`Reference generated · ${r.reference}`);
+    } catch (e) { showApiError(e); }
+  };
+
+  const saveSection = async (idx) => {
+    if (!doc?.id) return;
+    const s = doc.sections[idx];
+    try {
+      await tenderProApi.patchSection(doc.id, s.code, { body: s.body, title: s.title, hint: s.hint });
+      toast.success(`Section saved · ${s.code}`);
+    } catch (e) { showApiError(e); }
+  };
+
   const orderedSections = useMemo(
     () => [...(doc?.sections || [])].sort((a, b) => (a.order || 0) - (b.order || 0)),
     [doc?.sections],
@@ -236,13 +293,22 @@ export default function TenderBuilderPanel() {
 
   return (
     <div data-testid="tender-builder-panel" className="grid gap-6 lg:grid-cols-[300px_1fr]">
-      <TenderSidebar
-        t={t}
-        kind={kind} setKind={switchKind}
-        masters={masters} drafts={drafts} busy={busy}
-        selectedId={selectedId}
-        cloneMaster={cloneMaster} openTemplate={openTemplate}
-      />
+      <div className="space-y-4">
+        <TenderFilterBar filters={filters} setFilters={setFilters}
+                          industries={industries} countries={countries} />
+        <button type="button" onClick={() => setShowDpr(true)}
+                data-testid="tb-open-dpr"
+                className="w-full px-4 py-2.5 text-[11px] font-semibold uppercase tracking-widest bg-emerald-600 text-white hover:bg-emerald-700">
+          ✨ AI Generate from DPR
+        </button>
+        <TenderSidebar
+          t={t}
+          kind={kind} setKind={switchKind}
+          masters={masters} drafts={filteredDrafts} busy={busy}
+          selectedId={selectedId}
+          cloneMaster={cloneMaster} openTemplate={openTemplate}
+        />
+      </div>
 
       <section>
         {!doc ? (
@@ -300,6 +366,23 @@ export default function TenderBuilderPanel() {
                     <button onClick={removeDraft} data-testid="tb-delete"
                       className="px-4 py-2 text-[12px] uppercase tracking-widest border border-red-500 text-red-600 hover:bg-red-50">
                       {t("panels.tender_builder.delete")}
+                    </button>
+                  )}
+                  {/* v45 — Phase A/B/C action buttons */}
+                  <button onClick={runAiFillAll} disabled={aiFillBusy}
+                          data-testid="tb-ai-fill-all"
+                          className="px-4 py-2 text-[12px] uppercase tracking-widest bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40">
+                    {aiFillBusy ? "AI drafting…" : "✨ AI Fill All"}
+                  </button>
+                  <button onClick={genRef} data-testid="tb-gen-ref"
+                          className="px-4 py-2 text-[12px] uppercase tracking-widest border border-brand-navy-soft text-brand-navy-soft hover:bg-brand-navy-soft hover:text-white">
+                    ↻ Auto Tender ID
+                  </button>
+                  {!doc.is_master && (
+                    <button onClick={saveAsMaster} disabled={saveMasterBusy}
+                            data-testid="tb-save-master"
+                            className="px-4 py-2 text-[12px] uppercase tracking-widest border border-amber-600 text-amber-700 hover:bg-amber-50 disabled:opacity-40">
+                      {saveMasterBusy ? "Saving…" : "★ Save as master"}
                     </button>
                   )}
                 </div>
@@ -386,6 +469,13 @@ export default function TenderBuilderPanel() {
           onRestored={(d) => { setDoc(d); setShowHistory(false); toast.info("Restored older snapshot"); }}
         />
       )}
+      <DprGenerateModal
+        open={showDpr}
+        onClose={() => setShowDpr(false)}
+        kind={kind === "all" ? "tender" : kind}
+        masters={masters}
+        onCloned={async (created) => { await load(); await openTemplate(created.id); }}
+      />
     </div>
   );
 }
