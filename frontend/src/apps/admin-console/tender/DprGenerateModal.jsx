@@ -272,7 +272,7 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
                   </label>
                   <label className="block text-xs">
                     <span className="pmc-label">Base master template</span>
-                    <select value={p.masterId} onChange={(e) => patchPreview(idx, { masterId: e.target.value })}
+                    <select value={p.masterId || ""} onChange={(e) => patchPreview(idx, { masterId: e.target.value })}
                             data-testid={`dpr-master-${idx}`}
                             className="mt-1 w-full px-3 py-2 border border-brand-navy/20 bg-white">
                       <option value="">— New master from this DPR —</option>

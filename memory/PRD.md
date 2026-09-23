@@ -1,11 +1,17 @@
 # PMC Managers v2 — Product Requirements & Roadmap
 
-Last updated: 23 Feb 2026 — v46 vendor ratings & reviews portal complete (preview verified, not yet deployed)
+Last updated: 23 Sep 2026 — v46f DPR no-master workflow verified end-to-end (iteration_24, 100%); v46f frontend zip ready for user deploy; KMT DPR confirmed reading on production
 
 ## Original Problem Statement
 Global tender management platform (PMC Managers Limited v2) with full multi-role pipeline, dynamic Approval Matrices, Bidding & EMD, BOQ, Evaluations, Contract Award, Multi-Tenant portals, AI Audit Copilot. Fully white-labeled AWS deployment.
 
-## Production status (verified 23 Feb 2026)
+## Production status (verified 23 Sep 2026)
+- Frontend v46e LIVE on pmcmanagers.com (main.ad632643.js, user-deployed via CloudShell sync + invalidation 23 Sep 11:17)
+- v46f zip ready at /app/deliverables/v46c/pmc-frontend-v46f-prod-build.zip (main.21ab3717.js) — adds real save-as-master persistence + editable tender name; AWAITING USER DEPLOY
+- Backend v46d on EB (nginx 25 MB body limit); KMT DPR read successfully on prod (Kazakhstan Medical Township, USD 6.0–6.2B)
+- Auth on prod confirmed working (cookie session, same-origin /api)
+
+### Historical (Feb 2026)
 - Frontend v45c: main.df887e6e.js on www.pmcmanagers.com (deployed via S3 console drag-drop)
 - Backend v22i (WAF-safe flavor, SHA 0EA89170…) on pmc-backend-prod (EB console "Upload and deploy", label v22i-waf-fix)
 - DPR AI extraction VERIFIED on prod: PDF → header + 5 section drafts + warnings in ~4.4s

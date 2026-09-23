@@ -1,0 +1,40 @@
+{
+  "summary": "v46f DPR no-master workflow verified end-to-end, backend AND frontend. Backend pytest 6/6 (login → analyze-json TXT → create draft → save-as-master → list-verify country top-level → delete draft). Frontend Playwright: admin login → Tender Builder tab → open DPR modal → country dropdown lists platform countries (KZ, RU, UZ, GB, IN, …) → picking a country with no masters shows dpr-no-master-help amber box → both checkboxes (dpr-cross-country, dpr-no-master-mode) render correctly → borrow toggle populates dropdown with [COUNTRY] prefixed masters → no-master toggle disables the dropdown → uploading a small TXT DPR triggers analyze in ~4s → editable dpr-name-0 pre-filled from AI work_title ('Construction of 40km highway in Wales') → dpr-master-0 first option '— New master from this DPR —' → editing name to unique 'TEST_QA Wales Highway 1790163387' + CREATE → toast 'Created 1 AI draft (saved as new master)' → draft opens in Tender Builder → search box (tb-filter-q) filters to the new draft → Master Library sidebar shows the new '· RU master' entry immediately. Backend list confirms is_master=true with top-level country='RU' (or 'GB' from pytest). Cleanup done for drafts; masters remain (API-by-design).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "DprGenerateModal preview card", "issues": [
+        "React console warning: 'value prop on select should not be null' — dpr-master-0 <select> receives value={p.masterId} where masterId is null when noMasterMode; wrap with `value={p.masterId || ''}`.",
+        "One legacy master shows up as '[??] Standard PSU e-Tender (GFR 2017, QCBS 70/30)' in cross-country dropdown because it has no country field — pre-existing seed, cosmetic only."
+      ]},
+      {"screen": "Admin console (global)", "issues": [
+        "Persistent hydration warnings <span> inside <option> and <button> inside <button> (pre-existing since iteration_22, not related to v46f)."
+      ]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_v46f_dpr_no_master.py",
+    "/app/test_reports/pytest/v46f_results.xml"
+  ],
+  "action_items": [
+    "LOW: In DprGenerateModal.jsx around line 275, change `value={p.masterId}` to `value={p.masterId || ''}` on the dpr-master-{idx} select to silence the null-value React warning.",
+    "LOW (optional cleanup): Backfill the legacy seed master 'Standard PSU e-Tender (GFR 2017, QCBS 70/30)' with country='IN' so it no longer displays '[??]' in cross-country picker."
+  ],
+  "critical_code_review_comments": [
+    "Save-as-master flow in cloneAndApply awaits saveAsMaster INSIDE the per-file loop but only surfaces errors via `errors.push` — the created draft (is_master=false) remains behind if saveAsMaster fails, so admin sees a draft AND a partial state. Consider deleting the draft on saveAsMaster failure, or unifying create+promote into one server-side endpoint.",
+    "cloneAndApply calls onCloned(created[0]) which opens the DRAFT in the builder, not the newly saved MASTER. If noMasterMode is on, the master lives as a separate document in the sidebar — users may confusingly edit the draft copy assuming they're editing the master. Consider opening the master doc when noMasterMode=true.",
+    "tender_pro.save_as_master duplicates every section including large HTML bodies; for a DPR with many sections this doubles storage on every use. Fine for now but flag if catalog scales.",
+    "DprGenerateModal auto-computes EMD inside cloneAndApply — swallows all errors silently (`try {} catch {}` on line 122). Reviewer won't know why EMD didn't fill. Add a toast.info in the catch.",
+    "The country dropdown in Country=1 uses publicApi.countries() (v46d) but if that endpoint returns empty, the modal offers only '— All countries —' and every attempt bricks with no visible error — verified live it works, but add a defensive toast on empty list."
+  ],
+  "updated_files": ["/app/backend/tests/test_v46f_dpr_no_master.py"],
+  "success_rate": {"backend": "100% (6/6 pytest)", "frontend": "100% — full happy path verified with real LLM call"},
+  "test_credentials": "Admin adminsupport@pmcmanagers.com / Admin@12345 (cookie session + X-CSRF-Token from login body)",
+  "seed_data_creation": "Created 2 QA masters during testing: (1) 'TEST_v46f QA Wales Highway 1790163334 · GB master' via backend pytest, (2) 'TEST_QA Wales Highway 1790163387 - RU master' via frontend flow. Both drafts were cleaned up via DELETE /api/v1/tender-templates/{id}. The two masters remain (cannot be deleted via API) — safe to ignore or manually purge from Mongo.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "v46f is verified. Backend save-as-master persists top-level country + is_master=true. Frontend editable name field, no-master-help, cross-country prefix, no-master toggle disable, post-create search, and Master Library refresh all work. LLM call on small TXT completes in ~4s. Only action item is a one-line React value-null warning fix — no functional regression. Do NOT delete masters; only drafts can be deleted via API.",
+  "rca of the issue": "No bug found in the reviewed feature. Prior 'draft created but master not persisted' bug is verified fixed — save-as-master is chained after tender-templates create when noMasterMode && !p.masterId (DprGenerateModal.jsx lines 138-150). Confirmed the new master appears in GET /api/v1/tender-templates with is_master=true, top-level country, industry, and name ending '· XX master'."
+}

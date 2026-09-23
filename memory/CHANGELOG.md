@@ -1,4 +1,27 @@
-## 2026-02-24 · v46b — Reverse-auction invitations + fee-checkout wiring (preview only)
+# PMC Managers v2 — Changelog
+
+## 2026-09-23 · v46f — DPR no-master workflow fixed + editable tender name (TESTED, zip ready)
+
+### User request
+1. KMT DPR uploaded fine but output differed from template-based runs (no KZ master existed → generic fallback structure).
+2. After AI reads the file, let the user EDIT the auto-generated tender name before saving; saved draft must be searchable in the left-column search.
+
+### Root cause found during audit
+v46e "Build a new master from this DPR" only created a DRAFT: `POST /api/v1/tender-templates` forces `is_master=false` and drops top-level `country`. The "saved as new master" toast was false.
+
+### Delivered (frontend `DprGenerateModal.jsx`)
+- After create, when no-master mode is on and no base master picked, the draft is promoted via `POST /api/v1/tender-pro/templates/{id}/save-as-master` (real master, top-level country/industry, name `"{chosen} · {CC} master"`).
+- Per-file EDITABLE name input (`data-testid=dpr-name-{idx}`) pre-filled from AI `work_title`; used as the saved draft name (searchable via `tb-filter-q`).
+- Base-master select gets a `— New master from this DPR —` placeholder option + `value={p.masterId || ""}` (React null-value warning fixed).
+- Testing agent iteration_24: backend 6/6 pytest, frontend full happy path 100%. QA masters purged from preview Mongo.
+- Artifact: `/app/deliverables/v46c/pmc-frontend-v46f-prod-build.zip` (main.21ab3717.js), also at `/downloads/pmc-frontend-v46f-prod-build.zip`. Backend unchanged — no backend deploy needed.
+
+### Deployment note
+User deploys via CloudShell: download zip → unzip → `aws s3 sync build/ s3://pmc-managers-frontend-prod/ --exact-timestamps` (NEVER `--delete`) → CloudFront invalidation.
+
+---
+
+
 
 ### User request
 "Reverse Auction: real-time bidding room with invites, countdown, live view. Fee Types: subscription/premium/transaction/data-intel end-to-end into payments. Then deploy."
