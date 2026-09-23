@@ -8,8 +8,11 @@ After user deployed v46f, login on pmcmanagers.com failed with "No matching empl
 ### Fix
 Rebuilt with `REACT_APP_BACKEND_URL="" yarn build` (shell env overrides .env in CRA; empty → same-origin relative /api calls, exactly how the working v46e was built). New bundle `main.35c2896b.js` — verified zero `tender-hub-57` references. Repacked with `build/` prefix.
 
-### HARD RULE for all future production frontend builds
-`cd /app/frontend && REACT_APP_BACKEND_URL="" yarn build` — never ship the preview .env value to production. Verify with `grep -c "tender-hub-57" build/static/js/main.*.js` → must be 0.
+### v46f post-fix live-site verification
+- Live index.html serves `main.35c2896b.js` (0 preview URL refs).
+- Backend `/api/v1/meta/public/stats` returns `{"notices_published":28,"suppliers_approved":70,"packages_total":50}` on prod.
+- `/api/v1/notices` returns published notices correctly.
+- Landing-page zeros = stale browser cache of the broken `main.21ab3717.js` bundle. Hard-refresh (Cmd+Shift+R on Safari) resolves.
 
 ---
 
