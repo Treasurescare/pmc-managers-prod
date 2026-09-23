@@ -1,5 +1,18 @@
 # PMC Managers v2 — Changelog
 
+## 2026-09-23 · v46f HOTFIX — production bundle had preview API URL baked in (login CORS-blocked)
+
+### Incident
+After user deployed v46f, login on pmcmanagers.com failed with "No matching employee account" (generic toast). Root cause found via browser automation + console logs: the bundle was built with `REACT_APP_BACKEND_URL=https://tender-hub-57.preview.emergentagent.com` from `frontend/.env`, so the browser called the PREVIEW API cross-origin → CORS blocked (wildcard origin + credentials) → every auth call failed before reaching the server. curl to production API worked fine the whole time — purely a build-env mistake.
+
+### Fix
+Rebuilt with `REACT_APP_BACKEND_URL="" yarn build` (shell env overrides .env in CRA; empty → same-origin relative /api calls, exactly how the working v46e was built). New bundle `main.35c2896b.js` — verified zero `tender-hub-57` references. Repacked with `build/` prefix.
+
+### HARD RULE for all future production frontend builds
+`cd /app/frontend && REACT_APP_BACKEND_URL="" yarn build` — never ship the preview .env value to production. Verify with `grep -c "tender-hub-57" build/static/js/main.*.js` → must be 0.
+
+---
+
 ## 2026-09-23 · v46g — DPR DEEP-DIVE (multi-pass, KMT verified 5 → 26 sections)
 
 ### User request
