@@ -72,60 +72,201 @@ def _extract_text_from_upload(name: str, body: bytes) -> str:
         raise HTTPException(status_code=400, detail="Unsupported file type — upload PDF, DOCX or TXT")
 
 
+def _parse_json_loose(raw: str) -> dict:
+    """Strip code fences and parse. Raise 502 on failure."""
+    import json as _json
+    s = str(raw).strip()
+    if s.startswith("```"):
+        s = re.sub(r"^```(?:json)?", "", s).rstrip("`").strip()
+    try:
+        return _json.loads(s)
+    except Exception:
+        raise HTTPException(status_code=502, detail="LLM returned invalid JSON — retry")
+
+
+def _chunk_for_section(full_text: str, section: dict, fallback_slice: tuple) -> str:
+    """Find the passage of the DPR most relevant to a discovered section.
+    Searches for the section title (and the first significant word of the
+    title) inside the extracted text; returns ±3500 chars around the first
+    hit. Falls back to the given evenly-split slice when no hit."""
+    title = (section.get("title") or "").strip()
+    if title:
+        low = full_text.lower()
+        idx = low.find(title.lower())
+        if idx < 0:
+            # Try first significant word of the title
+            for w in re.findall(r"[A-Za-z]{5,}", title):
+                idx = low.find(w.lower())
+                if idx >= 0:
+                    break
+        if idx >= 0:
+            start = max(0, idx - 500)
+            end = min(len(full_text), idx + 3500)
+            return full_text[start:end]
+    s, e = fallback_slice
+    return full_text[max(0, s):max(0, e)]
+
+
 async def _run_dpr_analyze(name: str, body_bytes: bytes, kind: str, admin: dict,
                             template: Optional[dict] = None) -> dict:
     """Shared DPR pipeline used by both the multipart and JSON endpoints.
-    When a template is supplied, the LLM is constrained to that template's
-    EXACT header keys and section codes so the output drops straight in."""
+
+    Two modes:
+      * Template-aware (a master was picked)  — single LLM call, expanded
+        excerpt (60k chars) so long DPRs still get proper coverage.
+      * Multi-pass deep-dive (no master)      — Pass 1 discovers a full
+        header + a DYNAMIC list of chapters/sections from the whole
+        document (head + tail excerpt); Pass 2 drafts each section body
+        in parallel from its relevant chunk of the DPR. Yields dozens of
+        real sections instead of the previous 5 generic ones.
+    """
     if len(body_bytes) > 15 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="DPR exceeds 15 MB limit")
     text = _extract_text_from_upload(name, body_bytes)
     if len(text.strip()) < 60:
         raise HTTPException(status_code=422, detail="Could not extract readable text from the uploaded DPR")
-    excerpt = text[:16000]
 
-    # Template-aware spec: fall back to the generic pack only when no template
+    total = len(text)
+    warnings: list = []
+
+    # -------------------- Template-aware fast path --------------------
     if template:
+        excerpt = text[:60000]
+        if total > len(excerpt):
+            warnings.append(f"Document is {total:,} chars — analysed the first {len(excerpt):,}")
         header_keys = list((template.get("header") or {}).keys())
         sec_spec = [{"code": s.get("code"), "title": s.get("title"),
                      "hint": (s.get("hint") or "")[:120]}
                     for s in (template.get("sections") or [])]
-        header_line = (f"\"header\": an object with EXACTLY these keys from the chosen template: "
-                       f"{header_keys}. ")
-        section_line = (f"\"section_bodies\": an object keyed by the EXACT section codes of the chosen "
-                        f"template: {[s['code'] for s in sec_spec]}. For each code, draft body text "
-                        f"that matches its title and hint: {sec_spec}. ")
-    else:
-        header_line = ("\"header\": {work_title, work_description, tender_value, budget_currency, "
-                       "period_days, location, product_category, sub_category, contract_type, "
-                       "eligibility, evaluation_method, bid_validity_days, emd_amount, emd_type, "
-                       "emd_percentage, tender_fee_amount}. ")
-        section_line = "\"section_bodies\": {sec-1, sec-2, sec-3, sec-4, annex-III}. "
+        system_msg = (
+            "You are a public-procurement copilot. Given a Detailed Project Report (DPR) excerpt, "
+            f"produce a JSON object suitable for a {kind.upper()} pack with EXACTLY these keys: "
+            f"{{\"header\": an object with EXACTLY these keys from the chosen template: {header_keys}. "
+            f"\"section_bodies\": an object keyed by the EXACT section codes of the chosen template: "
+            f"{[s['code'] for s in sec_spec]}. For each code, draft body text that matches its "
+            f"title and hint: {sec_spec}. "
+            "\"warnings\": [fields you could not confidently extract]}. "
+            "section_bodies values MUST be HTML using only <p><br><b><i><ul><ol><li>. "
+            "Do NOT invent section codes or header keys beyond the list given. "
+            "Return valid JSON only — no prose, no code fences."
+        )
+        resp = await _llm_complete(system_msg, f"DPR excerpt:\n{excerpt}")
+        parsed = _parse_json_loose(resp)
+        parsed.setdefault("header", {})
+        parsed.setdefault("section_bodies", {})
+        parsed.setdefault("warnings", [])
+        parsed["warnings"] = warnings + list(parsed.get("warnings") or [])
+        parsed["meta"] = {"chars_total": total, "chars_analysed": len(excerpt),
+                          "sections_out": len(parsed.get("section_bodies") or {}),
+                          "template_aware": True, "passes": 1}
+        await audit_log("tender_pro.dpr_analyze", admin, "dpr", name, parsed["meta"])
+        return parsed
 
-    system_msg = (
-        "You are a public-procurement copilot. Given a Detailed Project Report (DPR) excerpt, "
-        f"produce a JSON object suitable for a {kind.upper()} pack with EXACTLY these keys: "
-        "{" + header_line + section_line +
+    # -------------------- Multi-pass deep-dive (no template) --------------------
+    # Feed head + tail so metadata (usually up front) AND financial
+    # schedules / annexures (usually at the back) are both seen.
+    HEAD = 60000
+    TAIL = 30000
+    if total <= HEAD + TAIL:
+        blueprint_text = text
+    else:
+        blueprint_text = (text[:HEAD]
+                          + f"\n\n[...MIDDLE OF DOCUMENT OMITTED — {total - HEAD - TAIL:,} chars...]\n\n"
+                          + text[-TAIL:])
+        warnings.append(f"Document is {total:,} chars — deep-dive analysed head {HEAD:,} + tail {TAIL:,}")
+
+    # ---- Pass 1: metadata + dynamic section discovery ----
+    system_p1 = (
+        "You are a public-procurement copilot. Read this Detailed Project Report (DPR) and produce "
+        f"a JSON blueprint for a full {kind.upper()} pack. Return EXACTLY: "
+        "{\"header\": {work_title, work_description, tender_value, budget_currency, period_days, "
+        "location, product_category, sub_category, contract_type, eligibility, evaluation_method, "
+        "bid_validity_days, emd_amount, emd_type, emd_percentage, tender_fee_amount}, "
+        "\"sections\": ["
+        "  {\"code\": \"dpr-1\", \"kind\": \"section\", \"title\": \"…\", "
+        "   \"hint\": \"one-line description of what this section covers\"}, …], "
         "\"warnings\": [fields you could not confidently extract]}. "
-        "section_bodies values MUST be short HTML using only <p><br><b><i><ul><ol><li>. "
-        "Do NOT invent section codes or header keys beyond the list given. "
+        "Discover EVERY major chapter, technical schedule, financial breakdown, milestone plan, "
+        "annexure and form the DPR actually contains — aim for 12–30 sections. "
+        "Use codes dpr-1, dpr-2 … in reading order. Do NOT draft bodies yet. "
         "Return valid JSON only — no prose, no code fences."
     )
-    resp = await _llm_complete(system_msg, f"DPR excerpt:\n{excerpt}")
-    import json as _json
-    raw = str(resp).strip()
-    if raw.startswith("```"):
-        raw = re.sub(r"^```(?:json)?", "", raw).rstrip("`").strip()
-    try:
-        parsed = _json.loads(raw)
-    except Exception:
-        raise HTTPException(status_code=502, detail="LLM returned invalid JSON — retry")
-    parsed.setdefault("header", {})
-    parsed.setdefault("section_bodies", {})
-    parsed.setdefault("warnings", [])
-    await audit_log("tender_pro.dpr_analyze", admin, "dpr", name,
-                    {"chars_in": len(text), "sections_out": len(parsed.get("section_bodies") or {}),
-                     "template_aware": bool(template)})
+    raw1 = await _llm_complete(system_p1, f"DPR content:\n{blueprint_text}")
+    blueprint = _parse_json_loose(raw1)
+    header = blueprint.get("header") or {}
+    discovered = blueprint.get("sections") or []
+    warnings += list(blueprint.get("warnings") or [])
+    if not isinstance(discovered, list) or not discovered:
+        # Fallback — LLM refused to discover; keep a minimal generic list
+        discovered = [
+            {"code": "dpr-1", "kind": "section", "title": "Project Overview",           "hint": "Executive summary from the DPR"},
+            {"code": "dpr-2", "kind": "section", "title": "Scope of Work",              "hint": "Detailed scope, deliverables"},
+            {"code": "dpr-3", "kind": "section", "title": "Financial Summary",          "hint": "Budget, EMD, currency, fee"},
+            {"code": "dpr-4", "kind": "section", "title": "Schedule & Milestones",      "hint": "Timeline & milestones"},
+            {"code": "dpr-5", "kind": "section", "title": "Eligibility & Evaluation",   "hint": "Bidder eligibility, evaluation method"},
+        ]
+        warnings.append("Pass-1 returned no sections — used generic 5-section fallback")
+
+    # Guardrails: cap section count and normalize.
+    discovered = discovered[:30]
+    for i, s in enumerate(discovered):
+        if not s.get("code"):
+            s["code"] = f"dpr-{i+1}"
+        s["kind"] = s.get("kind") or "section"
+        s["order"] = (i + 1) * 10
+
+    # ---- Pass 2: parallel section-body drafting ----
+    n = len(discovered)
+    # Even fallback slices across the whole document so section i sees roughly the i-th slice.
+    slice_len = max(4000, total // max(1, n))
+    async def _draft_body(i: int, sec: dict) -> tuple[str, str]:
+        chunk = _chunk_for_section(text, sec,
+                                    (i * slice_len, i * slice_len + slice_len + 500))
+        prompt = (
+            "You are a public-procurement drafting copilot. Draft the BODY of ONE tender-document "
+            "section using the DPR passage below as source. Return valid HTML using ONLY these "
+            "tags: <p><br><b><i><ul><ol><li><h3>. Do NOT include the section title. Do NOT invent "
+            "numbers not present in the passage. Aim for approximately 220 words."
+        )
+        user = (f"Section title: {sec.get('title')}\n"
+                f"Section hint: {sec.get('hint') or ''}\n\n"
+                f"Relevant DPR passage:\n{chunk}")
+        try:
+            body_html = (await _llm_complete(prompt, user)).strip()
+            if body_html.startswith("```"):
+                body_html = re.sub(r"^```(?:html)?", "", body_html).rstrip("`").strip()
+            return sec["code"], body_html
+        except HTTPException:
+            return sec["code"], ""
+
+    import asyncio
+    # Concurrency-limit LLM calls so we don't overwhelm the proxy.
+    sem = asyncio.Semaphore(6)
+    async def _bounded(i, s):
+        async with sem:
+            return await _draft_body(i, s)
+    results = await asyncio.gather(*[_bounded(i, s) for i, s in enumerate(discovered)])
+    section_bodies = {code: body for code, body in results if body}
+    if len(section_bodies) < n:
+        warnings.append(f"{n - len(section_bodies)} section(s) failed to draft — will be blank")
+
+    parsed = {
+        "header": header,
+        "section_bodies": section_bodies,
+        "warnings": warnings,
+        # Optional: expose the discovered section list so the UI can render
+        # them in reading order even if bodies are empty.
+        "sections_blueprint": discovered,
+        "meta": {
+            "chars_total": total,
+            "chars_analysed": min(total, HEAD + TAIL),
+            "sections_discovered": n,
+            "sections_drafted": len(section_bodies),
+            "template_aware": False,
+            "passes": 2,
+        },
+    }
+    await audit_log("tender_pro.dpr_analyze", admin, "dpr", name, parsed["meta"])
     return parsed
 
 

@@ -1,6 +1,40 @@
 # PMC Managers v2 — Changelog
 
-## 2026-09-23 · v46f — DPR no-master workflow fixed + editable tender name (TESTED, zip ready)
+## 2026-09-23 · v46g — DPR DEEP-DIVE (multi-pass, KMT verified 5 → 26 sections)
+
+### User request
+"Is the workflow now able to deep-dive and read the FULL KMT file?" — no; the old pipeline clipped extracted text to 16 KB (~5–8 pages) and asked the AI for only 5 generic sections (`sec-1 … sec-4, annex-III`), so the financial schedules and back-of-document annexures were skipped.
+
+### Delivered (`backend/routers/tender_pro.py`)
+Rewrote `_run_dpr_analyze` with two modes:
+
+**Template-aware (master picked)** — same single-call flow but excerpt bumped from 16 KB → 60 KB, plus a warning if the document was longer.
+
+**Deep-dive (no master)** — multi-pass:
+1. **Pass 1** feeds head 60 KB + tail 30 KB to the LLM to (a) extract the full header and (b) dynamically discover 12–30 real chapters (project overview, financials, schedules, risk, annexures…). Returns codes `dpr-1…dpr-N`, titles and hints — no bodies yet.
+2. **Pass 2** drafts each discovered section's body in parallel (asyncio.Semaphore(6)) from the passage of the DPR most relevant to that section title (`_chunk_for_section` searches the extracted text for the title and returns ±3.5 KB of surrounding context; falls back to an even slice if no hit).
+
+Result payload also now returns:
+- `sections_blueprint`: the ordered list of discovered sections
+- `meta.chars_total`, `chars_analysed`, `sections_discovered`, `sections_drafted`, `passes`
+- Truncation warnings when the DPR exceeds 90 KB of extracted text.
+
+### Verified against KMT DPR (1.37 MB PDF, 68 704 chars extracted)
+- Header: work_title, work_description, tender_value USD 6.0–6.2 B, EMD USD 62 M, all populated.
+- **26 sections discovered and drafted**: Executive Summary, Keys to Success, Market Analysis, Kazakhstan Medical Township Solution, SWOT, Organizing Structure, Project Site, Academic & Clinical Delivery, Staff Plan, Project Investment, Operating Expense Detail, Projected Operational Results, Fund Requirement, Returns & Scenario Analysis, Installation & Commissioning Schedule, Risk Factors & Mitigation, Corporate Details, Tender Submission Forms, Financial Statements & Models, Legal and Compliance Requirements, FAQs, Annexures, and more.
+- End-to-end LLM time ~34 s (27 parallel calls); 0 warnings.
+
+### Artifacts
+- `/app/deliverables/v46c/pmc-backend-v46g.zip` (EB Docker bundle) — DEPLOY THIS.
+- `/app/deliverables/v46c/pmc-frontend-v46f-prod-build.zip` (repacked with `build/` prefix so your existing deploy script works verbatim — no frontend code change from v46f).
+
+### Deploy (both)
+Backend — EB console → Upload and Deploy → `pmc-backend-v46g.zip` → label `v46g-dpr-deep-dive`.  
+Frontend — same S3 sync + CloudFront invalidation you used for v46e (refresh CloudShell if AWS token expired).
+
+---
+
+
 
 ### User request
 1. KMT DPR uploaded fine but output differed from template-based runs (no KZ master existed → generic fallback structure).

@@ -6,10 +6,10 @@ Last updated: 23 Sep 2026 — v46f DPR no-master workflow verified end-to-end (i
 Global tender management platform (PMC Managers Limited v2) with full multi-role pipeline, dynamic Approval Matrices, Bidding & EMD, BOQ, Evaluations, Contract Award, Multi-Tenant portals, AI Audit Copilot. Fully white-labeled AWS deployment.
 
 ## Production status (verified 23 Sep 2026)
-- Frontend v46e LIVE on pmcmanagers.com (main.ad632643.js, user-deployed via CloudShell sync + invalidation 23 Sep 11:17)
-- v46f zip ready at /app/deliverables/v46c/pmc-frontend-v46f-prod-build.zip (main.21ab3717.js) — adds real save-as-master persistence + editable tender name; AWAITING USER DEPLOY
-- Backend v46d on EB (nginx 25 MB body limit); KMT DPR read successfully on prod (Kazakhstan Medical Township, USD 6.0–6.2B)
-- Auth on prod confirmed working (cookie session, same-origin /api)
+- Frontend v46e LIVE on pmcmanagers.com (main.ad632643.js). v46f zip ready (main.21ab3717.js) with editable name + real save-as-master persistence.
+- **v46g backend NEW — DPR deep-dive (multi-pass). KMT PDF verified in preview: 26 sections discovered vs the old 5. Zip: /app/deliverables/v46c/pmc-backend-v46g.zip. AWAITING USER EB DEPLOY.**
+- KMT DPR reads on prod (backend v46d, generic 5-section fallback until v46g deploys).
+- Auth on prod confirmed working (cookie session, same-origin /api).
 
 ### Historical (Feb 2026)
 - Frontend v45c: main.df887e6e.js on www.pmcmanagers.com (deployed via S3 console drag-drop)
