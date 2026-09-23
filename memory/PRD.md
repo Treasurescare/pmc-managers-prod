@@ -1,64 +1,39 @@
 # PMC Managers v2 — Product Requirements & Roadmap
 
-Last updated: 22 Feb 2026 — v45 preview (Tender Pro: AI DPR, filters, EMD & rating masters)
+Last updated: 23 Feb 2026 — v45c LIVE ON PRODUCTION (DPR AI extraction verified end-to-end)
 
 ## Original Problem Statement
 Global tender management platform (PMC Managers Limited v2) with full multi-role pipeline, dynamic Approval Matrices, Bidding & EMD, BOQ, Evaluations, Contract Award, Multi-Tenant portals, AI Audit Copilot. Fully white-labeled AWS deployment.
 
-## v45 — Preview (22 Feb 2026) — 4-phase Tender Pro release
-Meeting-note-driven Tender Builder overhaul. All backend curl-verified on preview, UI wired.
+## Production status (verified 23 Feb 2026)
+- Frontend v45c: main.df887e6e.js on www.pmcmanagers.com (deployed via S3 console drag-drop)
+- Backend v22i (WAF-safe flavor, SHA 0EA89170…) on pmc-backend-prod (EB console "Upload and deploy", label v22i-waf-fix)
+- DPR AI extraction VERIFIED on prod: PDF → header + 5 section drafts + warnings in ~4.4s
 
-### Phase C — AI DPR & full-doc generation
-- `POST /api/v1/tender-pro/dpr/analyze` — upload PDF/DOCX/TXT, LLM extracts header + section bodies (JSON, non-persistent preview).
-- `POST /api/v1/tender-pro/templates/{tid}/ai-fill-all` — one-shot AI draft for every empty section (`only_empty=True` by default) — audit-logged.
-- Frontend: `DprGenerateModal` + `✨ AI Fill All` button on the header bar.
+## CRITICAL AWS LEARNINGS (do not forget)
+1. **AWS WAF `SizeRestrictions_BODY`** on the CloudFront-attached web ACL blocks request bodies > 8 KB. Symptom: POST returns SPA index.html with HTTP 200 in <100ms. FIXED by setting the rule to Count in the ACL (CreatedByCloudFront… on E2WZT1TMQ0EK9W). If binary uploads ever fail again with fast HTML responses, check WAF first.
+2. **CloudFront 404/403 → SPA fallback** masks missing backend routes: probe routes with unauthenticated calls (401 JSON = route exists; HTML = route missing).
+3. **LLM key routing**: `sk-emergent-*` keys MUST go via https://integrations.emergentagent.com/llm; `sk-managed-*` via white-label proxy. Vendored pmc_lib only proxies sk-managed-. tender_pro.py has `_llm_complete()` handling both.
+4. **requirements.txt freeze discipline**: pip installs without pip freeze don't reach EB Docker builds (pypdf incident).
+5. **Windows deploys**: PS scripts need profile auto-detect + $LASTEXITCODE checks (PS 5.1 doesn't stop on native command failure). Console upload (EB "Upload and deploy" + S3 drag-drop) works without AWS CLI.
 
-### Phase A — Filters, per-section save, auto tender-ref, dynamic covers
-- `POST /api/v1/tender-pro/next-reference?country=KZ&industry=Construction&kind=rfp` → `PMC-KZ-CONS-RFP-26-00001` (per-country/kind Mongo sequence).
-- `PATCH /api/v1/tender-pro/templates/{tid}/sections/{code}` — save one section without bumping the versions array.
-- `TenderFilterBar` (search / country / industry / sort A-Z, Z-A, date) client-side filter on drafts.
-- Dynamic covers already synced to `no_of_covers` in TenderHeaderForm.
+## v45/v45b/v45c — Delivered (all live on prod)
+- Tender Pro: DPR batch upload (≤3) → AI header + section extraction → clone to draft
+- AI Fill All sections, per-section save, auto tender-ref (PMC-{COUNTRY}-{IND}-{KIND}-{YY}-{SEQ})
+- TenderFilterBar (search/country/industry/sort), dynamic covers
+- EMD masters (country slabs, fixed/%), auto-prefill picker on Notice form
+- Rating criteria master (Masters → Rating & Fees tab), multi-rater aggregate endpoints
+- DPR warnings panel (modal + header banner)
+- Save-as-master under country/industry
 
-### Phase B — Country templates, save-as-master, EMD master
-- New `country` field on templates, `POST /api/v1/tender-pro/templates/{tid}/save-as-master` promotes a working draft into the master library under (country, industry).
-- `emd_masters` collection with CRUD + `POST /emd-masters/compute` — country-scoped fee slabs, fixed OR percentage, with tender-value ranges (verified: fixed at 50k below 10M, 2% above → 1M on 50M).
-
-### Phase D — Vendor rating criteria + multi-rater aggregate
-- `rating_criteria_sets` CRUD (15-30 criteria, weights, scale min/max, is_default flag auto-uniqued).
-- `POST /api/v1/tender-pro/ratings/multi` — per-criterion scores with rater type (admin/vendor/platform), auto-normalised to a 0-100 weighted score.
-- `GET /api/v1/tender-pro/ratings/aggregate/{vendor_ref}` — aggregate across all raters.
-
-### What's LIVE now (curl-verified on preview)
-- next-reference → `PMC-KZ-CONS-RFP-26-00001`
-- EMD master create + list + compute (fixed & percentage slabs)
-- rating criteria create with default flag + aggregate endpoint
-
-### Not yet in v45 (deferred to v46+)
-- LSEG/Refinitiv KYC live integration (needs API keys)
-- WhatsApp/WeChat/Telegram notifications
-- Reverse auction rebuild
-- Full multi-rater vendor blind rating UI (backend ready; UI is minimal)
-- Country-first clone flow (backend accepts, UI still uses simple industry hint)
-
-## v44 — LIVE on preview only (needs prod deploy)
-- Vendor admin panel: inline Activate Now, auto-scroll + emerald ring highlight.
-- Registration flow: Directors & Beneficial Owners tab (dynamic rows, EN/RU/KK).
-- `POST /api/v1/vendors/{ref}/activate` (resend_link + set_password modes).
-- v22h backend zip + v44b frontend zip both built and downloadable from preview URL.
-
-## v43 — Production status (19 Feb 2026)
-- Frontend `main.ac7e71b2.js` on `www.pmcmanagers.com`; backend `v22g-clean` on `pmc-backend-prod`.
-- InfoDot tooltips across 26 admin panels + showApiError() global loud toasts.
-- 32-shot per-modal User Manual v43 shipped.
-
-## Backlog / follow-ups
-- **P1 · v44 redeploy**: `pmc-frontend-v44b-build.zip` fixes prod backend URL — user hit truncated-download earlier; new slim 5.6 MB build ready with SHA `e8185592…`.
-- **P2 · v44 backend**: `pmc-backend-v22h.zip` (SHA `a40a2621…`) — adds Activate Now endpoint.
-- **P2 · v45 packaging**: not yet packaged for AWS — new endpoints + UI are on preview only.
-- Static prod data: joint escrow account #1 still needs distinct officer email (manual DB edit).
-- Route 53 SOA TTL 86400 → 60 (optional).
+## Backlog
+- P1: LSEG/Refinitiv KYC live integration (needs API keys)
+- P1: OCR for scanned PDFs (current pypdf path needs text-layer PDFs)
+- P2: WhatsApp/Telegram notifications, reverse auction rebuild
+- P2: Bulk vendor rating grid UI (backend ready), bidder watchlist auto-flag <40/100
+- P2: Turkish/Russian/Kazakh manual translations
 
 ## Architecture
-- `/app/backend` — FastAPI + MongoDB; new router `tender_pro.py` (v45).
-- `/app/frontend` — React SPA; new components under `admin-console/tender/` (DprGenerateModal, TenderFilterBar).
-- AWS: S3 + CloudFront (frontend), Elastic Beanstalk Docker (backend).
+- /app/backend — FastAPI + MongoDB; routers/tender_pro.py (v45)
+- /app/frontend — React SPA; admin-console/tender/ (DprGenerateModal, TenderFilterBar), notice/EmdMasterPicker, masters/RatingCriteriaTab
+- AWS: S3+CloudFront (frontend, dist E2WZT1TMQ0EK9W), EB Docker (backend, pmc-backend-prod, eu-west-2)
