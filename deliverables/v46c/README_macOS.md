@@ -23,7 +23,8 @@ shasum -a 256 pmc-backend-v46c.zip pmc-frontend-v46c-build.zip
 Expected SHA-256 (should match exactly):
 
 - `pmc-backend-v46c.zip` — `210268f6eabdbbc0564e6d55cc51680dc2a42e52c98909232c1d1bfbeb51c56d`
-- `pmc-frontend-v46c-prod-build.zip` — production build, **same-origin API** (`REACT_APP_BACKEND_URL=https://www.pmcmanagers.com`; fixes SameSite=Lax cookie bounce after login). Excludes downloads/ to stay lean. Hash: `6bcfc8368648c280b9f068b85f3feee9fb10c1cc5e79aa7765e4384de8263ede`
+- `pmc-frontend-v46d-prod-build.zip` — **current production build**. Same-origin API (`REACT_APP_BACKEND_URL=https://www.pmcmanagers.com`) + service worker removed and replaced with a self-destructing SW (clears stale caches in every returning browser). Hash: `bb78e34d7df3e208ffd8e34439f352830bbb8d3db78271b6cb5cb46f02d472b7`
+- ~~`pmc-frontend-v46c-prod-build.zip`~~ — SUPERSEDED (old service worker could still serve stale bundles; do not use)
 - ~~`pmc-frontend-v46c-build.zip`~~ — SUPERSEDED (had preview URL baked in — do not upload)
 
 ## What's in each file

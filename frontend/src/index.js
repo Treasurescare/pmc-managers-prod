@@ -29,11 +29,9 @@ createRoot(document.getElementById("root")).render(
   </>
 );
 
-// Register service worker for PWA / offline / push
-if ("serviceWorker" in navigator && process.env.NODE_ENV === "production") {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/service-worker.js").catch((err) => {
-      if (process.env.NODE_ENV !== "production") console.warn("SW registration failed:", err);
-    });
-  });
-}
+// v46d — Service worker REMOVED. The offline-first SW precached the app shell
+// and kept serving stale JS bundles across deploys (caused two production
+// login incidents: cross-origin preview bundle + SameSite=Lax cookie bounce
+// persisted after fixes shipped). A self-destructing /service-worker.js is
+// deployed instead; existing browsers will clear caches and unregister on
+// next visit.

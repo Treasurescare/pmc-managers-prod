@@ -30,6 +30,26 @@ Tested user's Kazakhstan Medical Township DPR: HTTP 200, extracted work_title, w
 
 # PMC Managers v2 — Changelog
 
+## 2026-02-24 · v46d — PRODUCTION INCIDENT FIX · stale service worker + wrong baked API URL
+
+### Incident chain (user-reported: site not loading → login fails → "signed in" but bounced)
+1. Frontend zip initially built with preview backend URL baked in (`tender-hub-57.preview.emergentagent.com`) → all API calls cross-origin to the wrong backend → login hung with zero network requests.
+2. Rebuilt with `d2h9tkca2zjofy.cloudfront.net` → login POST succeeded but session cookie set `SameSite=Lax` on the cloudfront.net host is NOT sent on cross-site XHR from www.pmcmanagers.com → `/auth/me` 401 → bounced back to /login after "Signed in" toast.
+3. FINAL ROOT CAUSE masking all fixes: `src/index.js` registered an offline-first service worker (`/service-worker.js`, precaches "/") which kept serving the STALE broken bundle from Cache Storage even after correct builds shipped to S3+CloudFront.
+
+### Fix (v46d)
+- `REACT_APP_BACKEND_URL=https://www.pmcmanagers.com` baked in (same-origin — CloudFront routes /api/* to EB; cookies become first-party).
+- Service worker registration removed from `src/index.js`.
+- `public/service-worker.js` replaced with a SELF-DESTRUCTING worker: skipWaiting → delete all caches → clients.claim → unregister → force window reloads. Every returning browser heals itself on next visit.
+- Production bundle: `main.eab42f05.js` · zip `pmc-frontend-v46d-prod-build.zip` sha256 `bb78e34d7df3e208ffd8e34439f352830bbb8d3db78271b6cb5cb46f02d472b7`.
+
+### Permanent lessons (added to PRD)
+- ALWAYS build the production frontend zip with the production REACT_APP_BACKEND_URL (env override at build time — never edit .env).
+- This app must NOT ship a cache-first app-shell service worker until an update-notification flow exists. If PWA/push is revived, use network-first for navigations.
+- Verified via curl: same-origin login + /me round-trip 200 on prod.
+
+---
+
 ## 2026-02-24 · v46c — Spectator + invite templates + fee refunds + DEPLOY
 
 ### User request
