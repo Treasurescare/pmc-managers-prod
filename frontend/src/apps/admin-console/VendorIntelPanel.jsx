@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { vendorIntelApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import { InfoDot } from "@/components/InfoDot";
+import ReviewModerationSection, { AdminBadgePreview } from "@/apps/admin-console/vendor/ReviewModerationSection";
 
 const BANDS = ["excellent", "good", "fair", "poor", "blacklisted"];
 
@@ -57,6 +58,7 @@ export default function VendorIntelPanel() {
             <th className="text-left px-3 py-2">{t("panels.vendor_intel.col_ref")}</th>
             <th className="px-3 py-2">{t("panels.vendor_intel.col_rating")}</th>
             <th className="px-3 py-2">{t("panels.vendor_intel.col_band")}</th>
+            <th className="px-3 py-2">Trust badge</th>
             <th className="px-3 py-2">{t("panels.vendor_intel.col_flags")}</th>
             <th className="px-3 py-2">{t("panels.vendor_intel.col_actions")}</th></tr>
         </thead>
@@ -67,6 +69,7 @@ export default function VendorIntelPanel() {
               <td className="px-3 py-2 font-mono text-xs">{v.vendor_ref}</td>
               <td className="px-3 py-2 text-center">{v.rating ?? "—"}</td>
               <td className="px-3 py-2 text-center">{v.band ?? "—"}</td>
+              <td className="px-3 py-2 text-center"><AdminBadgePreview vendorRef={v.vendor_ref} /></td>
               <td className="px-3 py-2 text-center">
                 {v.blacklisted && <span className="text-red-600 text-xs mr-1">BL</span>}
                 {v.watchlisted && <span className="text-amber-600 text-xs">WL</span>}
@@ -77,7 +80,7 @@ export default function VendorIntelPanel() {
               </td>
             </tr>
           ))}
-          {rows.length === 0 && (<tr><td colSpan={6} className="p-6 text-center text-slate-500">{t("panels.vendor_intel.empty")}</td></tr>)}
+          {rows.length === 0 && (<tr><td colSpan={7} className="p-6 text-center text-slate-500">{t("panels.vendor_intel.empty")}</td></tr>)}
         </tbody>
       </table>
       </div>
@@ -127,6 +130,7 @@ export default function VendorIntelPanel() {
           </div>
         </div>
       )}
+      <ReviewModerationSection />
     </div>
   );
 }

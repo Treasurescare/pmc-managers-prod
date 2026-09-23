@@ -46,6 +46,7 @@ import VendorPurchase from "@/apps/vendor-portal/VendorPurchase";
 import BillingResult from "@/apps/shared/BillingResult";
 import EscrowOfficerSign from "@/apps/shared/EscrowOfficerSign";
 import PublicRoadmap from "@/apps/shared/PublicRoadmap";
+import PublicVendorProfile from "@/apps/shared/PublicVendorProfile";
 
 // Wave 40 — Reverse-auction live room
 import AuctionRoom from "@/apps/vendor-portal/AuctionRoom";
@@ -86,6 +87,7 @@ export default function App() {
             <Route path="/" element={<NoticeBoardHome />} />
             <Route path="/notices" element={<NoticeBoardHome />} />
             <Route path="/notices/:noticeRef" element={<NoticeDetail />} />
+            <Route path="/vendors/:vendorRef" element={<PublicVendorProfile />} />
 
             <Route path="/register" element={<RegistrationStart />} />
             <Route path="/register/resume" element={<RegistrationResume />} />

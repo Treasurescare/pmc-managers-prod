@@ -4,6 +4,7 @@ import { publicApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import TopBar from "@/apps/shared/TopBar";
 import Footer from "@/apps/shared/Footer";
+import TrustedVendorsSection from "@/apps/shared/TrustedVendorsSection";
 import { toast } from "sonner";
 
 function StatCard({ label, value }) {
@@ -169,6 +170,8 @@ export default function NoticeBoardHome() {
           {notices.map((n) => (<NoticeRow key={n.id} notice={n} t={t} />))}
         </div>
       </section>
+
+      <TrustedVendorsSection />
 
       <Footer />
     </div>

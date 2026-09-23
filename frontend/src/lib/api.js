@@ -484,6 +484,33 @@ export const tenderProApi = {
     api.get(`/api/v1/tender-pro/ratings/aggregate/${vendor_ref}`).then((r) => r.data),
 };
 
+// v46 — Vendor Rating & Review portal (peer + PMC + public buyer).
+export const vendorRatingsApi = {
+  // Public — no auth
+  publicAggregate: (ref) =>
+    api.get(`/api/v1/vendor-ratings/public/${encodeURIComponent(ref)}`).then((r) => r.data),
+  publicTop: (limit = 12) =>
+    api.get(`/api/v1/vendor-ratings/public/top`, { params: { limit } }).then((r) => r.data),
+  publicSubmit: (payload) =>
+    api.post(`/api/v1/vendor-ratings/public/submit`, payload).then((r) => r.data),
+  // Peer vendor — authenticated vendor
+  peerSubmit: (payload) =>
+    api.post(`/api/v1/vendor-ratings/peer/submit`, payload).then((r) => r.data),
+  peerListMine: () =>
+    api.get(`/api/v1/vendor-ratings/peer/mine`).then((r) => r.data),
+  // PMC admin
+  adminSubmit: (payload) =>
+    api.post(`/api/v1/vendor-ratings/admin/submit`, payload).then((r) => r.data),
+  adminList: (params) =>
+    api.get(`/api/v1/vendor-ratings/admin/reviews`, { params }).then((r) => r.data),
+  adminModerate: (id, payload) =>
+    api.post(`/api/v1/vendor-ratings/admin/reviews/${id}/moderate`, payload).then((r) => r.data),
+  adminDelete: (id) =>
+    api.delete(`/api/v1/vendor-ratings/admin/reviews/${id}`).then((r) => r.data),
+  adminPendingCount: () =>
+    api.get(`/api/v1/vendor-ratings/admin/pending-count`).then((r) => r.data),
+};
+
 export const noticeQaApi = {
   listPublic: (ref) => api.get(`/api/v1/notices/${ref}/qa`).then((r) => r.data),
   ask: (ref, body) => api.post(`/api/v1/notices/${ref}/qa`, body).then((r) => r.data),

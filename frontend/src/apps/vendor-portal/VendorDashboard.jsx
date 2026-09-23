@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { vendorApi, publicApi, bidApi, formatApiError, showApiError} from "@/lib/api";
 import VendorGdprButton from "./VendorGdprButton";
 import VendorSignatures from "./VendorSignatures";
+import RateAVendor from "./RateAVendor";
 import ProfileModal from "@/apps/shared/ProfileModal";
 import useTenantSkin from "@/apps/shared/useTenantSkin";
 
@@ -94,9 +95,13 @@ export default function VendorDashboard() {
             data-testid="vendor-tab-signatures">
             Signatures ({bids.filter((b) => b.status === "awarded").length})
           </button>
+          <button onClick={() => setTab("rate")}
+            className={`pb-2 text-sm whitespace-nowrap ${tab === "rate" ? "border-b-2 border-slate-900 font-semibold" : "text-slate-500"}`}
+            data-testid="vendor-tab-rate">Rate a vendor</button>
         </div>
 
         {tab === "signatures" && <VendorSignatures />}
+        {tab === "rate" && <RateAVendor me={vendor} />}
 
         {tab === "tenders" && (
           <div className="grid md:grid-cols-2 gap-4" data-testid="vendor-tender-list">

@@ -83,6 +83,8 @@ app.include_router(masters.router)
 app.include_router(evaluations.router)
 app.include_router(boqs.router)
 app.include_router(vendor_intel.router)
+from routers import vendor_ratings as _vendor_ratings
+app.include_router(_vendor_ratings.router)
 app.include_router(analytics.router)
 app.include_router(governance.router)
 app.include_router(notifications.router)

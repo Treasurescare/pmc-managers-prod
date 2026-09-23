@@ -11,11 +11,14 @@ export default function TenderFilterBar({
   return (
     <div className="border border-brand-navy/10 bg-white p-3 space-y-2 text-xs"
          data-testid="tb-filter-bar">
-      <input value={filters.q || ""}
-             onChange={(e) => patch({ q: e.target.value })}
-             placeholder="Search draft name / industry / tender-ref…"
-             data-testid="tb-filter-q"
-             className="w-full px-2 py-1.5 border border-brand-navy/20 focus:outline-none focus:border-brand-navy-soft" />
+      <div className="flex items-center gap-1">
+        <span className="text-brand-navy/50 select-none" aria-hidden>🔍</span>
+        <input value={filters.q || ""}
+               onChange={(e) => patch({ q: e.target.value })}
+               placeholder="Search drafts + in-progress + tender-ref…"
+               data-testid="tb-filter-q"
+               className="flex-1 px-2 py-1.5 border border-brand-navy/20 focus:outline-none focus:border-brand-navy-soft" />
+      </div>
       <div className="grid grid-cols-2 gap-2">
         <select value={filters.country || ""} onChange={(e) => patch({ country: e.target.value })}
                 data-testid="tb-filter-country"

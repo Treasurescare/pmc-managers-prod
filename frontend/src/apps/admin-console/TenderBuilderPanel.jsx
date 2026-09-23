@@ -239,6 +239,23 @@ export default function TenderBuilderPanel() {
   const [showDpr, setShowDpr]           = useState(false);
   const [aiFillBusy, setAiFillBusy]     = useState(false);
   const [sectionSaving, setSectionSaving] = useState(null);
+  // v45f · Autosave — every 30s if the open doc has unsaved edits.
+  const [autosaveDirty, setAutosaveDirty] = useState(false);
+  const [autoSaving, setAutoSaving] = useState(false);
+  useEffect(() => {
+    if (!doc?.id || !autosaveDirty) return;
+    const t = setInterval(async () => {
+      setAutoSaving(true);
+      try {
+        await tenderTemplateApi.update(doc.id, doc);
+        setAutosaveDirty(false);
+        toast.info("Autosaved", { duration: 1200 });
+      } catch { /* silent — manual Save remains */ }
+      finally { setAutoSaving(false); }
+    }, 30000);
+    return () => clearInterval(t);
+  }, [autosaveDirty, doc]);
+  useEffect(() => { if (doc?.id) setAutosaveDirty(true); }, [doc]);
   const [saveMasterBusy, setSaveMasterBusy] = useState(false);
 
   const runAiFillAll = async () => {

@@ -11,11 +11,15 @@ import { tenderProApi, tenderTemplateApi, showApiError } from "@/lib/api";
 export default function DprGenerateModal({ open, onClose, kind, masters, onCloned }) {
   const [files, setFiles] = useState([]);
   const [busy, setBusy] = useState(false);
-  const [previews, setPreviews] = useState([]); // per-file [{file, preview, masterId, status, error}]
+  const [previews, setPreviews] = useState([]);
   const [resolvedKeys, setResolvedKeys] = useState({});
-  // v45d — master is chosen BEFORE analysis so the AI output uses the
-  // template's exact section codes + header keys (no more out-of-sync data).
   const [batchMasterId, setBatchMasterId] = useState("");
+  // v45f · Country-first: pick country → masters filter to that country
+  const [country, setCountry] = useState("");
+  const countries = Array.from(new Set((masters || []).map((m) => m.country || m.header?.country).filter(Boolean))).sort();
+  const filteredMasters = country
+    ? (masters || []).filter((m) => (m.country || m.header?.country) === country)
+    : (masters || []);
 
   if (!open) return null;
 
@@ -125,26 +129,41 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
 
         <div className="space-y-4">
           <label className="block text-sm">
-            <span className="pmc-label">1 · Master template (the AI fills THIS template's exact sections)</span>
-            <select value={batchMasterId} onChange={(e) => setBatchMasterId(e.target.value)}
-                    data-testid="dpr-batch-master"
+            <span className="pmc-label">1 · Country (drives regulations + templates)</span>
+            <select value={country} onChange={(e) => { setCountry(e.target.value); setBatchMasterId(""); }}
+                    data-testid="dpr-country"
                     className="mt-1 w-full px-3 py-2 border border-brand-navy/20 bg-white">
-              <option value="">— Select master template —</option>
-              {(masters || []).map((m) => (
-                <option key={m.id} value={m.id}>{m.name}</option>
-              ))}
+              <option value="">— All countries —</option>
+              {countries.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </label>
 
           <label className="block text-sm">
-            <span className="pmc-label">2 · Upload up to 3 DPRs (PDF, DOCX or TXT · max 15 MB each)</span>
+            <span className="pmc-label">2 · Master template (AI fills its exact sections)</span>
+            <select value={batchMasterId} onChange={(e) => setBatchMasterId(e.target.value)}
+                    data-testid="dpr-batch-master"
+                    className="mt-1 w-full px-3 py-2 border border-brand-navy/20 bg-white">
+              <option value="">— Select master —</option>
+              {filteredMasters.map((m) => (
+                <option key={m.id} value={m.id}>{m.name}</option>
+              ))}
+            </select>
+            {country && filteredMasters.length === 0 && (
+              <span className="text-[11px] text-amber-700 block mt-1">
+                No masters for {country} — create one via Save as Master, or pick "All countries".
+              </span>
+            )}
+          </label>
+
+          <label className="block text-sm">
+            <span className="pmc-label">3 · Upload up to 3 DPRs (PDF / DOCX / TXT · max 15 MB each)</span>
             <input type="file" accept=".pdf,.docx,.txt" multiple
                    onChange={(e) => setFiles(Array.from(e.target.files || []).slice(0, 3))}
                    data-testid="dpr-file"
                    className="mt-2 block w-full text-sm" />
             {files.length > 0 && (
               <div className="mt-2 text-[11px] text-brand-navy/60">
-                {files.length} file(s) selected: {files.map((f) => f.name).join(", ")}
+                {files.length} file(s): {files.map((f) => f.name).join(", ")}
               </div>
             )}
           </label>
@@ -152,7 +171,7 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
           <button onClick={analyze} disabled={busy || !files.length || !batchMasterId}
                   data-testid="dpr-analyze"
                   className="px-4 py-2 text-[11px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep disabled:opacity-40">
-            {busy ? "Analysing…" : `3 · Analyze ${files.length || ""} DPR${files.length === 1 ? "" : "s"} with AI`}
+            {busy ? "Analysing…" : `4 · Analyze ${files.length || ""} DPR${files.length === 1 ? "" : "s"} with AI`}
           </button>
 
           {previews.map((p, idx) => (

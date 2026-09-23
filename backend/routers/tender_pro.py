@@ -9,6 +9,7 @@ Adds four capability bundles on top of tender_templates:
             "Save as master" promotion of a draft
   Phase D — Vendor rating criteria master + multi-rater aggregate scoring
 """
+import secrets
 import base64
 import re
 import os
@@ -276,13 +277,17 @@ async def next_tender_reference(country: str = Query(..., min_length=2, max_leng
                                  industry: str = Query("GEN"),
                                  kind: str = Query("tender", regex="^(tender|rfp|rfq)$"),
                                  admin=Depends(require_role("admin"))):
-    """Generate PMC-{COUNTRY}-{IND}-{KIND}-{YY}-{SEQ} auto reference.
-    Sequence is per (country, kind) to keep numbers small and predictable."""
-    yy = datetime.now(timezone.utc).strftime("%y")
+    """v45f — Guaranteed-unique tender reference:
+    PMC-{COUNTRY}-{TYPE}-{YYMMDD-HHMMSS}-{RAND4}-{SEQ}
+    Combines a Mongo sequence (monotonic per country+kind) with a random
+    4-hex suffix and the exact submission timestamp so collisions are
+    mathematically impossible even under concurrency."""
+    now = datetime.now(timezone.utc)
+    stamp = now.strftime("%y%m%d-%H%M%S")
     seq = await next_sequence(f"tref_{country.upper()}_{kind}")
-    ind_code = re.sub(r"[^A-Z0-9]", "", (industry or "GEN").upper())[:4] or "GEN"
-    ref = f"PMC-{country.upper()}-{ind_code}-{kind.upper()}-{yy}-{seq:05d}"
-    return {"reference": ref, "sequence": seq, "generated_at": now_iso()}
+    rand4 = secrets.token_hex(2).upper()
+    ref = f"PMC-{country.upper()}-{kind.upper()}-{stamp}-{rand4}-{seq:04d}"
+    return {"reference": ref, "sequence": seq, "generated_at": now.isoformat()}
 
 
 class SectionPatchIn(BaseModel):
@@ -367,7 +372,9 @@ class EmdMasterIn(BaseModel):
     name: str = Field(min_length=2, max_length=120)
     country: str = Field(min_length=2, max_length=3)
     industry: Optional[str] = None
-    kind: Literal["tender_fee", "emd"] = "emd"
+    # v45f — five fee categories per requirements doc
+    kind: Literal["tender_fee", "emd", "registration", "subscription",
+                   "premium_subscription", "transaction", "data_intel"] = "emd"
     currency: str = "USD"
     slabs: List[EmdSlabIn] = Field(default_factory=list)
     is_active: bool = True
