@@ -22,7 +22,7 @@ shasum -a 256 pmc-backend-v46c.zip pmc-frontend-v46c-build.zip
 
 Expected SHA-256 (should match exactly):
 
-- `pmc-backend-v46c.zip` — `5f335495c2907bdadb7ba2bb4b0d9101c7ce312340644dde27da8645b2d594a6`
+- `pmc-backend-v46c.zip` — `210268f6eabdbbc0564e6d55cc51680dc2a42e52c98909232c1d1bfbeb51c56d`
 - `pmc-frontend-v46c-build.zip` — `e799ec588f2256fb420487fb99c5abc4dbe7bb9a2b414eccbcff752d596117b8`
 
 ## What's in each file
