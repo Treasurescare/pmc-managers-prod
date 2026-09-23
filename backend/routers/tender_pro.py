@@ -71,23 +71,43 @@ def _extract_text_from_upload(name: str, body: bytes) -> str:
         raise HTTPException(status_code=400, detail="Unsupported file type — upload PDF, DOCX or TXT")
 
 
-async def _run_dpr_analyze(name: str, body_bytes: bytes, kind: str, admin: dict) -> dict:
-    """Shared DPR pipeline used by both the multipart and JSON endpoints."""
+async def _run_dpr_analyze(name: str, body_bytes: bytes, kind: str, admin: dict,
+                            template: Optional[dict] = None) -> dict:
+    """Shared DPR pipeline used by both the multipart and JSON endpoints.
+    When a template is supplied, the LLM is constrained to that template's
+    EXACT header keys and section codes so the output drops straight in."""
     if len(body_bytes) > 15 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="DPR exceeds 15 MB limit")
     text = _extract_text_from_upload(name, body_bytes)
     if len(text.strip()) < 60:
         raise HTTPException(status_code=422, detail="Could not extract readable text from the uploaded DPR")
     excerpt = text[:16000]
+
+    # Template-aware spec: fall back to the generic pack only when no template
+    if template:
+        header_keys = list((template.get("header") or {}).keys())
+        sec_spec = [{"code": s.get("code"), "title": s.get("title"),
+                     "hint": (s.get("hint") or "")[:120]}
+                    for s in (template.get("sections") or [])]
+        header_line = (f"\"header\": an object with EXACTLY these keys from the chosen template: "
+                       f"{header_keys}. ")
+        section_line = (f"\"section_bodies\": an object keyed by the EXACT section codes of the chosen "
+                        f"template: {[s['code'] for s in sec_spec]}. For each code, draft body text "
+                        f"that matches its title and hint: {sec_spec}. ")
+    else:
+        header_line = ("\"header\": {work_title, work_description, tender_value, budget_currency, "
+                       "period_days, location, product_category, sub_category, contract_type, "
+                       "eligibility, evaluation_method, bid_validity_days, emd_amount, emd_type, "
+                       "emd_percentage, tender_fee_amount}. ")
+        section_line = "\"section_bodies\": {sec-1, sec-2, sec-3, sec-4, annex-III}. "
+
     system_msg = (
         "You are a public-procurement copilot. Given a Detailed Project Report (DPR) excerpt, "
         f"produce a JSON object suitable for a {kind.upper()} pack with EXACTLY these keys: "
-        "{\"header\": {work_title, work_description, tender_value, budget_currency, period_days, "
-        "location, product_category, sub_category, contract_type, eligibility, evaluation_method, "
-        "bid_validity_days, emd_amount, emd_type, emd_percentage, tender_fee_amount}, "
-        "\"section_bodies\": {sec-1, sec-2, sec-3, sec-4, annex-III}, "
+        "{" + header_line + section_line +
         "\"warnings\": [fields you could not confidently extract]}. "
         "section_bodies values MUST be short HTML using only <p><br><b><i><ul><ol><li>. "
+        "Do NOT invent section codes or header keys beyond the list given. "
         "Return valid JSON only — no prose, no code fences."
     )
     resp = await _llm_complete(system_msg, f"DPR excerpt:\n{excerpt}")
@@ -103,23 +123,36 @@ async def _run_dpr_analyze(name: str, body_bytes: bytes, kind: str, admin: dict)
     parsed.setdefault("section_bodies", {})
     parsed.setdefault("warnings", [])
     await audit_log("tender_pro.dpr_analyze", admin, "dpr", name,
-                    {"chars_in": len(text), "sections_out": len(parsed.get("section_bodies") or {})})
+                    {"chars_in": len(text), "sections_out": len(parsed.get("section_bodies") or {}),
+                     "template_aware": bool(template)})
     return parsed
+
+
+async def _load_template_opt(template_id: Optional[str]) -> Optional[dict]:
+    if not template_id:
+        return None
+    try:
+        return await db.tender_templates.find_one({"_id": ObjectId(template_id)})
+    except Exception:
+        return None
 
 
 @router.post("/dpr/analyze")
 async def analyze_dpr(file: UploadFile = File(...),
                        kind: str = Query("tender", regex="^(tender|rfp|rfq)$"),
+                       template_id: Optional[str] = Query(None),
                        admin=Depends(require_role("admin", "reviewer"))):
     """Multipart DPR upload. Prefer /dpr/analyze-json on AWS deployments
     behind a WAF that blocks binary POST bodies."""
     body_bytes = await file.read()
-    return await _run_dpr_analyze(file.filename, body_bytes, kind, admin)
+    template = await _load_template_opt(template_id)
+    return await _run_dpr_analyze(file.filename, body_bytes, kind, admin, template)
 
 
 @router.post("/dpr/analyze-json")
 async def analyze_dpr_json(payload: DprAnalyzeJsonIn,
                             kind: str = Query("tender", regex="^(tender|rfp|rfq)$"),
+                            template_id: Optional[str] = Query(None),
                             admin=Depends(require_role("admin", "reviewer"))):
     """v45c — WAF-safe DPR upload. Frontend base64-encodes the file and
     posts it as JSON so AWS WAF managed rules (which block binary bodies)
@@ -131,7 +164,8 @@ async def analyze_dpr_json(payload: DprAnalyzeJsonIn,
         body_bytes = base64.b64decode(payload.content_b64, validate=True)
     except Exception:
         raise HTTPException(status_code=400, detail="content_b64 is not valid base64")
-    return await _run_dpr_analyze(payload.filename, body_bytes, kind, admin)
+    template = await _load_template_opt(template_id)
+    return await _run_dpr_analyze(payload.filename, body_bytes, kind, admin, template)
 
 
 def _llm_key() -> str:

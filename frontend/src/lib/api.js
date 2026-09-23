@@ -440,16 +440,17 @@ export const tenderTemplateApi = {
 
 // v45 — Tender Pro: DPR upload, AI fill-all, per-section save, masters, ratings.
 export const tenderProApi = {
-  analyzeDpr: (file, kind = "tender") =>
+  analyzeDpr: (file, kind = "tender", templateId = null) =>
     new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onerror = () => reject(new Error("Could not read file"));
       reader.onload = () => {
         const dataUrl = String(reader.result || "");
         const content_b64 = dataUrl.substring(dataUrl.indexOf(",") + 1);
-        // v45c — base64 JSON path bypasses AWS WAF binary-body rules that
-        // silently return SPA fallback on prod. Preview accepts either.
-        api.post(`/api/v1/tender-pro/dpr/analyze-json?kind=${kind}`,
+        // v45c — base64 JSON path bypasses AWS WAF binary-body rules.
+        // v45d — template_id makes the AI fill the master's exact sections.
+        const tpl = templateId ? `&template_id=${encodeURIComponent(templateId)}` : "";
+        api.post(`/api/v1/tender-pro/dpr/analyze-json?kind=${kind}${tpl}`,
           { filename: file.name, content_b64 })
           .then((r) => resolve(r.data))
           .catch(reject);
