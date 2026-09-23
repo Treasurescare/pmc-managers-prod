@@ -23,7 +23,7 @@ shasum -a 256 pmc-backend-v46c.zip pmc-frontend-v46c-build.zip
 Expected SHA-256 (should match exactly):
 
 - `pmc-backend-v46c.zip` — `210268f6eabdbbc0564e6d55cc51680dc2a42e52c98909232c1d1bfbeb51c56d`
-- `pmc-frontend-v46c-prod-build.zip` — production build (REACT_APP_BACKEND_URL=https://d2h9tkca2zjofy.cloudfront.net baked in; excludes downloads/ to keep it lean) — `53867b4ba17308ceff57d04fda6308a7bdfd9d41ea4a5a8e04253d20298533ed`
+- `pmc-frontend-v46c-prod-build.zip` — production build, **same-origin API** (`REACT_APP_BACKEND_URL=https://www.pmcmanagers.com`; fixes SameSite=Lax cookie bounce after login). Excludes downloads/ to stay lean. Hash: `6bcfc8368648c280b9f068b85f3feee9fb10c1cc5e79aa7765e4384de8263ede`
 - ~~`pmc-frontend-v46c-build.zip`~~ — SUPERSEDED (had preview URL baked in — do not upload)
 
 ## What's in each file
