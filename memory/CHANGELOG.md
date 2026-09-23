@@ -1,5 +1,33 @@
 # PMC Managers v2 — Changelog
 
+## 2026-02-24 · v46 — Vendor Ratings & Reviews portal (preview only)
+
+### User request
+"Peer vendors + PMC management + public buyers should rate vendors. Anonymous but verified. Trust badges on landing page. This needs to be worked properly."
+
+### Delivered
+**Backend** — new router `/api/v1/vendor-ratings/*` in `routers/vendor_ratings.py`
+- Public: `GET /public/rubric`, `GET /public/top`, `GET /public/{vendor_ref}`, `POST /public/submit` (3-per-email/day rate limit, pending moderation)
+- Peer vendor (cookie auth): `GET /directory`, `POST /peer/submit` (self-rating 400-block, auto-approve if is_active), `GET /peer/mine`
+- PMC admin (Bearer+CSRF): `POST /admin/submit` (auto-approved), `GET /admin/reviews`, `POST /admin/reviews/{id}/moderate` (approve/hide), `DELETE /admin/reviews/{id}`, `GET /admin/pending-count`
+- Trust badge tiers: platinum (≥85/≥10), gold (≥70/≥5), silver (≥55/≥3), bronze (≥1), none
+
+**Frontend**
+- `components/VendorTrustBadge.jsx` — reusable badge with tier styling
+- `shared/TrustedVendorsSection.jsx` — landing "Trusted vendors" strip with badge legend + top-rated cards
+- `shared/PublicVendorProfile.jsx` — `/vendors/:ref` public page (aggregate, criteria averages, moderated comments, public buyer review form using `/public/rubric`)
+- `vendor-portal/RateAVendor.jsx` — vendor dashboard "Rate a vendor" tab (directory search, sliders, own review history)
+- `admin-console/vendor/ReviewModerationSection.jsx` — admin moderation queue with pending/approved/hidden/all tabs and approve/hide/delete per row (data-testids `rm-tab-*`, `rm-approve-{id}`, `rm-hide-{id}`, `rm-delete-{id}`)
+- Wired into `App.js` (`/vendors/:vendorRef`), `NoticeBoardHome`, `VendorDashboard` (new tab), `VendorIntelPanel` (badge column + moderation section)
+
+### Testing
+- `/app/backend/tests/test_v46_vendor_ratings.py` — 24/24 pytest pass (public/top, public aggregate, public submit + 429/422/404, admin submit + upsert + CSRF, moderate approve/hide/delete + aggregate reflect, peer submit self-block + upsert, public rubric, directory + q filter + auth)
+- testing_agent iterations 21 & 22 — Backend 100%, Frontend 100% after two blocker fixes (public rubric + vendor directory endpoints replacing admin-scoped calls)
+
+### Not yet deployed to AWS · user deferred deployment
+
+---
+
 ## 2026-02-22 · v44 — Vendor Admin UI + Directors registration (preview only)
 
 ### User report

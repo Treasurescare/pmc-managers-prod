@@ -1,0 +1,32 @@
+{
+  "summary": "v46b retest of the two HIGH-priority blockers from iteration_21. Backend: 24/24 pytest pass (extended test_v46_vendor_ratings.py with TestPublicRubric + TestDirectory covering the two new endpoints). Frontend: all three fixes verified end-to-end on the preview URL. Fixed a small runtime crash in RateAVendor.jsx that referenced an undefined `rubrics` variable (dead code from an older iteration) — otherwise the peer submission form threw a ReferenceError and mounted the ErrorBoundary the moment a vendor was picked. After that removal the peer flow submits cleanly.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_v46_vendor_ratings.py",
+    "/app/test_reports/pytest/v46_results.xml"
+  ],
+  "action_items": [
+    "Peer review from the seeded manualvendor lands in status='pending' rather than 'approved' (backend peer_submit auto-approves only when reviewer vendor is is_active && !blacklisted). Confirm whether manualvendor should be flagged is_active=true so verified peers auto-publish in dev — same observation as iteration_21."
+  ],
+  "critical_code_review_comments": [
+    "RateAVendor.jsx had `{rubrics.length > 1 && (... pickCriteriaSet ...)}` block referencing symbols that no longer exist after the switch to publicRubric(). This crashed the whole panel — a lint/pre-commit check would have caught it (`no-undef`). Removed the block. Consider adding CI ESLint with react-app config so undefined vars fail the build.",
+    "Admin console throws several React hydration warnings (span-in-option and button-in-label inside AnalyticsPanel/InfoDot). Not blocking but noisy — unrelated to v46.",
+    "Public rubric endpoint correctly returns 200 with the seeded default rubric and requires no auth; directory endpoint enforces vendor cookie (401 without) and returns 40 rows for the manualvendor caller, excluding self and honouring ?q= + ?limit= cap 500."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_v46_vendor_ratings.py",
+    "/app/frontend/src/apps/vendor-portal/RateAVendor.jsx"
+  ],
+  "success_rate": { "backend": "100% (24/24)", "frontend": "100% — all three fixes verified" },
+  "test_credentials": "Admin adminsupport@pmcmanagers.com / Admin@12345 (Employee sign-in, role=Admin). Vendor manualvendor@pmcmanagers.com / Vendor@12345 (vendor_ref PMC-VEN-MANUAL-01).",
+  "seed_data_creation": "Public review created on PMC-SUP-000036 (TEST buyer). Peer review created by manualvendor against PMC-SUP-000017. One pending review from the earlier queue was approved → hidden → deleted end-to-end via admin UI (cleanup completed).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "v46 rating portal is fully green after this iteration. Backend covered by /app/backend/tests/test_v46_vendor_ratings.py (24 tests). If retesting, note that the peer flow relies on manualvendor.is_active — if seed changes, expect status=pending toast text (\"pending PMC moderation\") instead of the \"published anonymously\" toast; both indicate success.",
+  "rca of the issue": "iteration_21 blockers had two causes: (1) public-facing pages calling admin-scoped criteria API and (2) vendor Rate-a-vendor calling admin-scoped vendor-intel summary. E1 added /public/rubric and /directory endpoints and swapped the frontend calls to vendorRatingsApi.publicRubric() and vendorRatingsApi.peerDirectory(). Both fixes work. A leftover conditional block in RateAVendor.jsx (`{rubrics.length > 1 && ...}`) survived the refactor and referenced undefined identifiers — crashed the component on vendor pick with `ReferenceError: rubrics is not defined`. Removed the dead block; peer form now renders and submits successfully."
+}

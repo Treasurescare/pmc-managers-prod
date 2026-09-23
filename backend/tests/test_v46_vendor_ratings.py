@@ -46,6 +46,49 @@ def vendor_ref(vendor_session):
     return r.json().get("vendor_ref")
 
 
+# ---------- v46b: new public rubric + vendor directory ----------
+class TestPublicRubric:
+    def test_public_rubric_no_auth(self):
+        r = requests.get(f"{API}/public/rubric", timeout=30)
+        assert r.status_code == 200, r.text[:200]
+        d = r.json()
+        assert "id" in d and "criteria" in d
+        assert isinstance(d["criteria"], list) and len(d["criteria"]) >= 1
+        c = d["criteria"][0]
+        for k in ("code", "label", "scale_min", "scale_max"):
+            assert k in c
+
+
+class TestDirectory:
+    def test_directory_401_no_cookie(self):
+        r = requests.get(f"{API}/directory", timeout=30)
+        assert r.status_code in (401, 403)
+
+    def test_directory_lists_others(self, vendor_session, vendor_ref):
+        r = vendor_session.get(f"{API}/directory", timeout=30)
+        assert r.status_code == 200, r.text[:200]
+        rows = r.json()
+        assert isinstance(rows, list)
+        # Caller must be excluded
+        for row in rows:
+            assert row["vendor_ref"] != vendor_ref
+        # At least one other vendor exists
+        assert len(rows) >= 1
+
+    def test_directory_search_q(self, vendor_session):
+        r = vendor_session.get(f"{API}/directory", params={"q": "PMC-SUP"}, timeout=30)
+        assert r.status_code == 200
+        rows = r.json()
+        for row in rows:
+            hay = (row.get("vendor_ref") or "") + (row.get("company_name") or "") + (row.get("email") or "")
+            assert "PMC-SUP".lower() in hay.lower() or "pmc" in hay.lower()
+
+    def test_directory_limit_cap(self, vendor_session):
+        r = vendor_session.get(f"{API}/directory", params={"limit": 9999}, timeout=30)
+        assert r.status_code == 200
+        assert len(r.json()) <= 500
+
+
 # ---------- Public endpoints ----------
 class TestPublic:
     def test_top(self):

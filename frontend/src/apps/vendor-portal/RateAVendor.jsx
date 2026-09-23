@@ -137,17 +137,6 @@ export default function RateAVendor({ me }) {
               )}
             </div>
 
-            {rubrics.length > 1 && (
-              <label className="text-xs uppercase tracking-widest text-brand-navy/60 block">
-                Rubric
-                <select value={criteriaSet?.id || ""} onChange={(e) => pickCriteriaSet(e.target.value)}
-                        data-testid="rav-rubric-select"
-                        className="mt-1 w-full px-3 py-2 border normal-case tracking-normal">
-                  {rubrics.map((r) => (<option key={r.id} value={r.id}>{r.name}{r.is_default ? " (default)" : ""}</option>))}
-                </select>
-              </label>
-            )}
-
             {!criteriaSet ? (
               <div className="text-sm text-amber-800 bg-amber-50 border border-amber-200 p-3">
                 No rating rubric configured yet. Ask PMC admin to publish a rubric
