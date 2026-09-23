@@ -23,8 +23,9 @@ shasum -a 256 pmc-backend-v46c.zip pmc-frontend-v46c-build.zip
 Expected SHA-256 (should match exactly):
 
 - `pmc-backend-v46c.zip` — `210268f6eabdbbc0564e6d55cc51680dc2a42e52c98909232c1d1bfbeb51c56d`
-- `pmc-frontend-v46d-prod-build.zip` — **current production build**. Same-origin API (`REACT_APP_BACKEND_URL=https://www.pmcmanagers.com`) + service worker removed and replaced with a self-destructing SW (clears stale caches in every returning browser). Hash: `bb78e34d7df3e208ffd8e34439f352830bbb8d3db78271b6cb5cb46f02d472b7`
-- ~~`pmc-frontend-v46c-prod-build.zip`~~ — SUPERSEDED (old service worker could still serve stale bundles; do not use)
+- `pmc-backend-v46d.zip` — **current backend build**. Includes new `.platform/nginx/conf.d/proxy.conf` that raises EB's front-nginx `client_max_body_size` to 25 MB (fixes HTTP 413 on DPR uploads > 1 MB). Hash: `42eec629a1faaecb9ff95d027261c6d49660c61e3faa58343ac2f3660d41dcb0`
+- ~~`pmc-backend-v46c.zip`~~ — SUPERSEDED (nginx default 1 MB body cap causes 413 on real DPR PDFs)
+- `pmc-frontend-v46d-prod-build.zip` — **current production build**. Same-origin API + service worker self-destruct + country dropdown now sourced from `/api/v1/meta/countries` (not existing masters, which may have no country attached). Hash: `cbb5975146191446564ba72b42babe477c25f524780d5859a9f6dc900c51379f`
 - ~~`pmc-frontend-v46c-build.zip`~~ — SUPERSEDED (had preview URL baked in — do not upload)
 
 ## What's in each file

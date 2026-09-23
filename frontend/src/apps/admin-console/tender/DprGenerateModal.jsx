@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { tenderProApi, tenderTemplateApi, showApiError } from "@/lib/api";
+import { tenderProApi, tenderTemplateApi, publicApi, showApiError } from "@/lib/api";
 
 /**
  * v45 · Phase C — DPR upload modal.
@@ -16,7 +16,14 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
   const [batchMasterId, setBatchMasterId] = useState("");
   // v45f · Country-first: pick country → masters filter to that country
   const [country, setCountry] = useState("");
-  const countries = Array.from(new Set((masters || []).map((m) => m.country || m.header?.country).filter(Boolean))).sort();
+  // v46d · Country dropdown now sources from the platform-wide country
+  // master (publicApi.countries) — not from existing templates — so an
+  // empty template library still lets admin scope by country.
+  const [countryList, setCountryList] = useState([]);
+  useEffect(() => {
+    if (!open) return;
+    publicApi.countries().then((rows) => setCountryList(rows || [])).catch(() => setCountryList([]));
+  }, [open]);
   const filteredMasters = country
     ? (masters || []).filter((m) => (m.country || m.header?.country) === country)
     : (masters || []);
@@ -134,7 +141,7 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
                     data-testid="dpr-country"
                     className="mt-1 w-full px-3 py-2 border border-brand-navy/20 bg-white">
               <option value="">— All countries —</option>
-              {countries.map((c) => <option key={c} value={c}>{c}</option>)}
+              {countryList.map((c) => <option key={c.code} value={c.code}>{c.name} ({c.code})</option>)}
             </select>
           </label>
 
