@@ -24,9 +24,18 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
     if (!open) return;
     publicApi.countries().then((rows) => setCountryList(rows || [])).catch(() => setCountryList([]));
   }, [open]);
-  const filteredMasters = country
+  // v46e — if the picked country has no masters, allow the admin to either
+  // (a) borrow a master from any other country (dropdown shows country
+  //     code prefix), or
+  // (b) proceed WITHOUT a master — the AI drafts a fresh template from the
+  //     DPR itself and we save it as a new master under the picked country.
+  const [crossCountry, setCrossCountry] = useState(false);
+  const [noMasterMode, setNoMasterMode] = useState(false);
+  const countryMasters = country
     ? (masters || []).filter((m) => (m.country || m.header?.country) === country)
     : (masters || []);
+  const filteredMasters = (country && crossCountry) ? (masters || []) : countryMasters;
+  const countryOf = (m) => (m.country || m.header?.country || "??").toUpperCase();
 
   if (!open) return null;
 
@@ -41,15 +50,13 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
   const analyze = async () => {
     if (!files.length) return toast.error("Upload up to 3 DPRs (PDF/DOCX/TXT) first");
     if (files.length > 3) return toast.error("Max 3 DPRs per batch");
-    if (!batchMasterId) return toast.error("Pick the master template first — the AI fills its exact sections");
+    if (!batchMasterId && !noMasterMode) return toast.error("Pick a master, borrow one from another country, or tick 'Build a new master from this DPR'");
     setBusy(true);
     setPreviews(files.map((f) => ({ file: f, status: "pending", masterId: batchMasterId })));
-    // Analyze in parallel — every file is mapped onto the SELECTED master so
-    // section codes and header keys line up 1:1 with the template.
     const results = await Promise.all(files.map(async (f) => {
       try {
-        const r = await tenderProApi.analyzeDpr(f, kind, batchMasterId);
-        return { file: f, preview: r, masterId: batchMasterId, status: "ready" };
+        const r = await tenderProApi.analyzeDpr(f, kind, batchMasterId || null);
+        return { file: f, preview: r, masterId: batchMasterId || null, status: "ready" };
       } catch (e) {
         return { file: f, status: "error", error: e?.response?.data?.detail || e.message || "Analyze failed" };
       }
@@ -57,33 +64,47 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
     setPreviews(results);
     setResolvedKeys({});
     const ok = results.filter((r) => r.status === "ready").length;
-    if (ok) toast.success(`Analyzed ${ok}/${files.length} DPR(s) — mapped to the selected master`);
+    if (ok) toast.success(`Analyzed ${ok}/${files.length} DPR(s)`);
     if (ok < files.length) toast.error(`${files.length - ok} DPR(s) failed`);
     setBusy(false);
   };
 
   const cloneAndApply = async () => {
-    const ready = previews.filter((p) => p.status === "ready" && p.masterId);
-    if (!ready.length) return toast.error("Analyze the DPRs and pick a master for each first");
+    const ready = previews.filter((p) => p.status === "ready");
+    if (!ready.length) return toast.error("Analyze the DPRs first");
     setBusy(true);
     const created = [];
     const errors = [];
-    // Sequential Mongo writes to avoid version-index races, but each call
-    // is only ~100ms so the batch still finishes fast.
     for (const p of ready) {
-      const master = masters.find((m) => m.id === p.masterId);
-      if (!master) continue;
+      const master = p.masterId ? masters.find((m) => m.id === p.masterId) : null;
       try {
-        const cleanSections = (master.sections || []).map((s) => ({
-          code: s.code, kind: s.kind || "section", title: s.title,
-          hint: s.hint ?? null,
-          body: p.preview.section_bodies?.[s.code] || s.body || "",
-          order: typeof s.order === "number" ? s.order : null,
-        }));
-        // v45e — financial robustness: if the AI pulled a tender value but
-        // no EMD, auto-compute EMD from the country's default EMD master so
-        // the numbers stay internally consistent.
-        const mergedHeader = { ...(master.header || {}), ...(p.preview.header || {}) };
+        // v46e — when no master exists (or the admin chose "Build new
+        // master from this DPR"), skeleton the template from the AI
+        // extraction: every section the LLM drafted becomes a section
+        // in the new master, with human-readable titles derived from
+        // the code and the country tagged so it feeds the picker next
+        // time.
+        const secBodies = p.preview.section_bodies || {};
+        const cleanSections = master
+          ? (master.sections || []).map((s) => ({
+              code: s.code, kind: s.kind || "section", title: s.title,
+              hint: s.hint ?? null,
+              body: secBodies[s.code] || s.body || "",
+              order: typeof s.order === "number" ? s.order : null,
+            }))
+          : Object.keys(secBodies).map((code, i) => ({
+              code, kind: "section",
+              title: code.replace(/[_-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+              hint: null,
+              body: secBodies[code] || "",
+              order: i * 10,
+            }));
+
+        const mergedHeader = { ...((master && master.header) || {}), ...(p.preview.header || {}) };
+        // Stamp country/industry so this new template is discoverable next run
+        if (!mergedHeader.country && country) mergedHeader.country = country;
+        const industry = master?.industry || p.preview.header?.industry || "general";
+
         const tVal = Number(mergedHeader.tender_value || mergedHeader.budget_amount || 0);
         if (tVal > 0 && !(Number(mergedHeader.emd_amount) > 0)) {
           try {
@@ -101,7 +122,8 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
         }
         const doc = await tenderTemplateApi.create({
           name: `${p.preview.header?.work_title || p.file.name || "AI Draft"} — ${new Date().toISOString().slice(0, 10)}`,
-          kind, industry: master.industry,
+          kind, industry,
+          country: mergedHeader.country || country || undefined,
           header: { ...mergedHeader, dpr_warnings: p.preview.warnings || [] },
           sections: cleanSections,
         });
@@ -112,7 +134,8 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
     }
     setBusy(false);
     if (created.length) {
-      toast.success(`Created ${created.length} AI draft(s)`);
+      const suffix = noMasterMode ? " (saved as new master)" : "";
+      toast.success(`Created ${created.length} AI draft${created.length === 1 ? "" : "s"}${suffix}`);
       onCloned?.(created[0]);
       onClose();
     }
@@ -147,18 +170,37 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
 
           <label className="block text-sm">
             <span className="pmc-label">2 · Master template (AI fills its exact sections)</span>
-            <select value={batchMasterId} onChange={(e) => setBatchMasterId(e.target.value)}
+            <select value={batchMasterId}
+                    onChange={(e) => { setBatchMasterId(e.target.value); if (e.target.value) setNoMasterMode(false); }}
+                    disabled={noMasterMode}
                     data-testid="dpr-batch-master"
-                    className="mt-1 w-full px-3 py-2 border border-brand-navy/20 bg-white">
+                    className="mt-1 w-full px-3 py-2 border border-brand-navy/20 bg-white disabled:bg-slate-100 disabled:text-slate-400">
               <option value="">— Select master —</option>
               {filteredMasters.map((m) => (
-                <option key={m.id} value={m.id}>{m.name}</option>
+                <option key={m.id} value={m.id}>
+                  {crossCountry ? `[${countryOf(m)}] ` : ""}{m.name}
+                </option>
               ))}
             </select>
-            {country && filteredMasters.length === 0 && (
-              <span className="text-[11px] text-amber-700 block mt-1">
-                No masters for {country} — create one via Save as Master, or pick "All countries".
-              </span>
+            {country && countryMasters.length === 0 && (
+              <div className="mt-2 border border-amber-300 bg-amber-50 p-3 text-[12px] text-amber-900 space-y-2"
+                   data-testid="dpr-no-master-help">
+                <div><b>No master templates saved for {country} yet.</b> Choose an option:</div>
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input type="checkbox" checked={crossCountry}
+                         onChange={(e) => { setCrossCountry(e.target.checked); if (!e.target.checked) setBatchMasterId(""); }}
+                         data-testid="dpr-cross-country"
+                         className="mt-0.5" />
+                  <span>Borrow a master from another country ({(masters || []).length} available across the platform — country code shown in the dropdown above).</span>
+                </label>
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input type="checkbox" checked={noMasterMode}
+                         onChange={(e) => { setNoMasterMode(e.target.checked); if (e.target.checked) setBatchMasterId(""); }}
+                         data-testid="dpr-no-master-mode"
+                         className="mt-0.5" />
+                  <span><b>Build a brand-new master from this DPR.</b> The AI drafts the structure and sections from your uploaded file and saves it as a new master under {country} for future re-use.</span>
+                </label>
+              </div>
             )}
           </label>
 
@@ -175,7 +217,7 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
             )}
           </label>
 
-          <button onClick={analyze} disabled={busy || !files.length || !batchMasterId}
+          <button onClick={analyze} disabled={busy || !files.length || (!batchMasterId && !noMasterMode)}
                   data-testid="dpr-analyze"
                   className="px-4 py-2 text-[11px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep disabled:opacity-40">
             {busy ? "Analysing…" : `4 · Analyze ${files.length || ""} DPR${files.length === 1 ? "" : "s"} with AI`}
