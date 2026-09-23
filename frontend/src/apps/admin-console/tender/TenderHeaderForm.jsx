@@ -70,14 +70,31 @@ export default function TenderHeaderForm({ header, patchHeader }) {
   const nitDocs = h.nit_documents || [];
   const workItemDocs = h.work_item_documents || [];
 
+  // v45e — "No. of Covers" is the single source of truth: changing it
+  // resizes the Cover Details rows to exactly N (padded with blank rows or
+  // trimmed), and add/remove buttons keep the number in sync.
+  const setCoverCount = (n) => {
+    const target = Math.max(1, Math.min(10, Number(n) || 1));
+    const arr = [...covers];
+    while (arr.length < target) {
+      arr.push({ cover_no: arr.length + 1, name: "", doc_type: ".pdf", description: "" });
+    }
+    const trimmed = arr.slice(0, target).map((c, i) => ({ ...c, cover_no: c.cover_no ?? i + 1 }));
+    patchHeader({ no_of_covers: target, covers: trimmed });
+  };
+
   const patchCover = (idx, next) => {
     const arr = [...covers];
     arr[idx] = { ...arr[idx], ...next };
     patchHeader({ covers: arr });
   };
-  const addCover = () => patchHeader({ covers: [...covers, { cover_no: covers.length + 1, name: "", doc_type: ".pdf", description: "" }] });
+  const addCover = () => {
+    const arr = [...covers, { cover_no: covers.length + 1, name: "", doc_type: ".pdf", description: "" }];
+    patchHeader({ covers: arr, no_of_covers: arr.length });
+  };
   const rmCover = (idx) => {
-    const arr = [...covers]; arr.splice(idx, 1); patchHeader({ covers: arr });
+    const arr = [...covers]; arr.splice(idx, 1);
+    patchHeader({ covers: arr, no_of_covers: Math.max(1, arr.length) });
   };
 
   const patchNit = (idx, next) => {
@@ -164,7 +181,8 @@ export default function TenderHeaderForm({ header, patchHeader }) {
             </select>
           </Row>
           <Row label="No. of Covers">
-            <Text type="number" value={h.no_of_covers ?? 2} onChange={(v) => patchHeader({ no_of_covers: v })} testid="th-covers" />
+            <Text type="number" value={h.no_of_covers ?? covers.length}
+              onChange={(v) => setCoverCount(v)} testid="th-covers" />
           </Row>
           <Row label="General Technical Evaluation Allowed">
             <YesNo value={h.general_technical_eval ?? false} onChange={(v) => patchHeader({ general_technical_eval: v })} testid="th-gen-tech" />
@@ -187,7 +205,7 @@ export default function TenderHeaderForm({ header, patchHeader }) {
         </div>
       </Group>
 
-      <Group title={`Cover Details, No. Of Covers - ${h.no_of_covers ?? covers.length}`} testid="th-cover-details">
+      <Group title={`Cover Details, No. Of Covers - ${covers.length}`} testid="th-cover-details">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-xs uppercase tracking-wider text-brand-navy/70 border-b border-brand-navy/10">
