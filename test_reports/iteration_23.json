@@ -1,0 +1,55 @@
+{
+  "summary": "v46b end-to-end verification of (a) reverse-auction invitations, (b) fee-checkout Stripe wiring, and (c) DPR analyze-json regression. Backend: 45/45 pytest pass (20 new v46b + 24 v46 regression + 1 DPR). Frontend: invitations widget + vendor invite landing verified. FeeCharger tab wiring is BROKEN — MastersPanel.jsx never imports/mounts FeeCharger.jsx and the tabs array in it omits 'fees'. Users cannot reach the Charge Fee UI at all. All backend fee-checkout endpoints work perfectly (verified via curl-equivalent pytest).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "MastersPanel.jsx",
+        "issue": "The new 'Charge Fee' tab is not wired. MastersPanel's tabs array only contains [staff, companies, tenants, matrix, hierarchy, rating, demo]. There is no import for FeeCharger and no {tab==='fees' && <FeeCharger/>} branch. FeeCharger.jsx exists at /app/frontend/src/apps/admin-console/masters/FeeCharger.jsx with correct data-testids (fee-charger, fc-country, fc-kind, fc-master, fc-tender-value, fc-preview, fc-charge) but is completely unreferenced (grep confirms 0 references outside its own file).",
+        "selector": "[data-testid=\"masters-tab-fees\"]",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Admin console (global)",
+        "issues": [
+          "Console shows several React hydration errors: <span> as child of <option> and <button> as descendant of <button> — pre-existing since iteration_22, not introduced by v46b, but still noisy."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_v46b_auction_invites_and_fees.py",
+    "/app/backend/tests/test_v46_vendor_ratings.py",
+    "/app/test_reports/pytest/v46b_results.xml",
+    "/app/test_reports/pytest/v46_and_v46b_results.xml"
+  ],
+  "action_items": [
+    "HIGH: Wire the Charge Fee tab in /app/frontend/src/apps/admin-console/MastersPanel.jsx — (a) `import FeeCharger from './masters/FeeCharger';`, (b) append `['fees', 'Charge Fee']` to the tabs tuple array on line 112, (c) add `{tab === 'fees' && <FeeCharger />}` after the existing tab branches. Component and backend are ready; this is a one-file wiring miss.",
+    "OPTIONAL: Fix hydration warnings — remove <span> from inside <option> in the mobile admin-tabs-select and stop nesting <button> inside a <button>/<label> (AnalyticsPanel / InfoDot). Long-standing noise since iteration_22."
+  ],
+  "critical_code_review_comments": [
+    "Invitations backend endpoint `list_invitations` reads `v.get('id')` then falls back to `str(v.get('_id'))`, but participants collection stores vendor_id as the vendor `id` string (from vendor_auth). If a vendor doc has only `_id` and no `id` field, joined-status detection could return false-positive false. Verified working in production because vendor docs do carry `id`.",
+    "billing.py fee-checkout uses `str(request.base_url)` to build the webhook URL — inside the ingress this resolves to the internal 0.0.0.0:8001 host, not the public one. Stripe won't be able to call the webhook from the preview. Consider deriving from an explicit env var (PUBLIC_BASE_URL) or reflecting `req.origin_url`.",
+    "FeeCheckoutRequest allows `tender_value=0` (Field(0, ge=0)), which combined with a percentage slab produces amount=0 and returns 400. Better to raise 422 with 'tender_value required for percentage slabs' for clarity — current 400 message is generic.",
+    "AuctionInvitations widget stores tokens verbatim in the DOM (COPY LINK button copies /vendor/auction/invite/{token}); if a browser extension or logged UI event captures it, tokens leak. Consider single-use tokens or short expiry. Currently tokens are effectively permanent."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_v46b_auction_invites_and_fees.py"
+  ],
+  "success_rate": {
+    "backend": "100% (45/45 pytest)",
+    "frontend": "66% — 2 of 3 features verified end-to-end; Charge Fee tab not reachable due to MastersPanel wiring miss"
+  },
+  "test_credentials": "Admin adminsupport@pmcmanagers.com / Admin@12345 (Bearer + X-CSRF-Token from admin login). Vendor manualvendor@pmcmanagers.com / Vendor@12345 (vendor_ref PMC-VEN-MANUAL-01).",
+  "seed_data_creation": "Created several TEST_v46b_* EMD masters (percentage/fixed/inactive/gap-slab variants) for slab math + edge-case tests. Sent invitations from admin console to manualvendor + also@example.com + new_bidder@example.com + someone-else@example.com against draft auction 'v46b test auction' (aid 6ab3933a981aa774944ce895); manualvendor's invitation was accepted by the vendor session (JOINED status shown in admin console).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend for v46b is fully green — do not re-run unless E1 changes billing.py or auction_live.py. The only outstanding UI item is wiring FeeCharger into MastersPanel.jsx (see action_items). After E1 wires it, retest the Charge Fee flow (fc-preview shows amount for e.g. 5,000,000 KZT → 50000 KZT fixed on the seeded 'EMD KZ Public Works' master; fc-charge opens Stripe cs_test_* URL in a new tab). Admin console dashboard uses tabbed panels, not routed pages — testids are `admin-tab-{code}` where code is one of: dashboard, registrations, vendors, notices, corrigenda, tender_builder, bidding_ops, escrow, evaluation, awards, docusign, auctions (Reverse Auctions), meetings, l1, boq, vendor_intel, masters, permissions, packages, audit, catalog, engagements, help.",
+  "rca of the issue": "FeeCharger tab miss: MastersPanel.jsx's tabs list was extended in the review request spec (masters-tab-fees) but the actual JSX at line 112 still holds only the original 7 tabs. FeeCharger.jsx was created as an orphan file — grep for 'FeeCharger' across /app/frontend/src returns only its own definition. Root cause: main agent generated the component and updated api.js but forgot the import + tab-case + array-entry patch to MastersPanel.jsx. Reproduction: log in as admin → click MASTERS → observe visible tabs (Staff Master / Companies / Tenants / Approval Matrix / Hierarchy / Rating & Fees / Investor Demo). No 'Charge Fee' tab. Confirmed by `grep -n 'fees' MastersPanel.jsx` → no match. Mitigation is a 3-line patch outlined in action_items."
+}

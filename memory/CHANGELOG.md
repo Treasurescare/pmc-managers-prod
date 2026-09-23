@@ -1,3 +1,33 @@
+## 2026-02-24 · v46b — Reverse-auction invitations + fee-checkout wiring (preview only)
+
+### User request
+"Reverse Auction: real-time bidding room with invites, countdown, live view. Fee Types: subscription/premium/transaction/data-intel end-to-end into payments. Then deploy."
+
+### Delivered
+**Backend**
+- `POST/GET /api/v1/reverse-auctions/{aid}/invite(?)` — admin invites bidders by email; per-email token; dedupes with resent_at (auction_live.py)
+- `GET /api/v1/reverse-auctions/invite/resolve/{token}` (public) + `POST /api/v1/reverse-auctions/invite/accept/{token}` (vendor) — auto-registers vendor as auction participant
+- `POST /api/v1/billing/fee-checkout` — takes fee_master_id + tender_value, computes slab, creates Stripe Checkout session (billing.py). Amount is server-authoritative from EMD/fee master. Works with any of the 7 fee kinds (emd, tender_fee, registration, subscription, premium_subscription, transaction, data_intel).
+
+**Frontend**
+- `admin-console/auction/AuctionInvitations.jsx` — inline widget under each non-closed auction row (invite list, textarea, note, generate + copy link)
+- `vendor-portal/AuctionInviteAccept.jsx` — `/vendor/auction/invite/:token` landing page with auction summary + accept flow
+- `admin-console/masters/FeeCharger.jsx` — Charge Fee tab under Masters → picks master, previews slab amount, opens Stripe checkout
+- `MastersPanel` — new "Charge Fee" tab (data-testid `masters-tab-fees`)
+- `App.js` — new route `/vendor/auction/invite/:token`
+- `lib/api.js` — `reverseAuctionApi.invite/listInvitations/resolveInvite/acceptInvite` + `feeBillingApi.feeCheckout`
+
+### DPR robustness confirmed
+Tested user's Kazakhstan Medical Township DPR: HTTP 200, extracted work_title, work_description, tender_value USD 6.0–6.2B, budget_currency USD, period_days 1825, location "Almaty & Astana, Kazakhstan" cleanly. No OCR needed — existing pypdf pipeline handled it.
+
+### Testing
+- `/app/backend/tests/test_v46b_auction_invites_and_fees.py` — 20 tests. Combined suite: 45/45 pytest pass.
+- testing_agent iteration_23 — Backend 100%; frontend verified (invitations widget + vendor invite landing; Charge Fee tab wired after fix).
+
+### Not yet deployed to AWS · user awaiting deployment step
+
+---
+
 # PMC Managers v2 — Changelog
 
 ## 2026-02-24 · v46 — Vendor Ratings & Reviews portal (preview only)
