@@ -489,11 +489,15 @@ export const vendorRatingsApi = {
   // Public — no auth
   publicAggregate: (ref) =>
     api.get(`/api/v1/vendor-ratings/public/${encodeURIComponent(ref)}`).then((r) => r.data),
+  publicRubric: () =>
+    api.get(`/api/v1/vendor-ratings/public/rubric`).then((r) => r.data),
   publicTop: (limit = 12) =>
     api.get(`/api/v1/vendor-ratings/public/top`, { params: { limit } }).then((r) => r.data),
   publicSubmit: (payload) =>
     api.post(`/api/v1/vendor-ratings/public/submit`, payload).then((r) => r.data),
   // Peer vendor — authenticated vendor
+  peerDirectory: (q) =>
+    api.get(`/api/v1/vendor-ratings/directory`, { params: q ? { q } : {} }).then((r) => r.data),
   peerSubmit: (payload) =>
     api.post(`/api/v1/vendor-ratings/peer/submit`, payload).then((r) => r.data),
   peerListMine: () =>

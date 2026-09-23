@@ -1,0 +1,66 @@
+{
+  "summary": "v46 Vendor Ratings & Reviews portal — completed backend + frontend E2E testing. Backend is solid (19/19 pytest cases pass), including public/top, public aggregate, public submit (with 429 rate-limit + 422 short-name + 404 unknown vendor + no-leak into aggregate), admin submit (CSRF-double-submit, upsert idempotence, score clamp to 100), admin pending-count / reviews filter / moderate approve+hide+delete (verified aggregate increments then decrements), and peer submit (self-rating blocked with 400, upsert idempotence, cross-vendor auto-approve). Frontend has the correct data-testids on the landing page and public profile shell, admin Vendor-Intel embeds the Review moderation section with a trust-badge column, and the vendor Dashboard exposes the 'Rate a vendor' tab. HOWEVER two hard UI blockers make the review-submission flows unusable end-to-end and MUST be fixed before shipping.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "PublicVendorProfile.jsx (/vendors/:ref)",
+        "issue": "Fetches the rubric via admin-only `tenderProApi.listCriteriaSets()` which returns 401 for anonymous public buyers, so `criteriaSet` stays null. Result: the criteria sliders never render and the `pv-submit` button is permanently `disabled` (verified in browser — button rendered greyed-out, `is_disabled()==True`, 401 seen on `/api/v1/tender-pro/rating-criteria`). No public buyer can ever submit a review from the UI even though `POST /public/submit` fully supports omitting criteria_set_id.",
+        "selector": "[data-testid=\"pv-submit\"]",
+        "priority": "HIGH"
+      },
+      {
+        "component": "RateAVendor.jsx (Vendor portal → 'Rate a vendor' tab)",
+        "issue": "`loadDirectory` calls `vendorIntelApi.summary()` which is admin-only (401 for vendors). The left-hand vendor directory renders 'No vendors to display' — the peer vendor can never select a target, so `rav-submit` never appears and no review can be submitted via the UI. Backend `/peer/submit` works correctly (verified via pytest).",
+        "selector": "[data-testid=\"rav-submit\"]",
+        "priority": "HIGH"
+      },
+      {
+        "component": "ReviewModerationSection.jsx (admin Vendor-Intel)",
+        "issue": "Section renders and tabs/actions work visually, but the specific data-testids listed in the review spec (`rm-tab-pending|approved|hidden|all`, `rm-approve-{id}`, `rm-hide-{id}`, `rm-delete-{id}`) are missing on the tab and per-row action buttons — automated testing has to fall back to text selectors.",
+        "selector": "[data-testid^=\"rm-tab-\"]",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Public buyer review submit",
+        "issue": "Frontend blocks submission because the rubric endpoint used is admin-only.",
+        "affected_selectors": ["[data-testid=\"pv-submit\"]"]
+      },
+      {
+        "flow": "Peer vendor rating",
+        "issue": "Frontend directory source is admin-only, so vendor never sees any target vendor to click.",
+        "affected_selectors": ["[data-testid^=\"rav-vendor-\"]", "[data-testid=\"rav-submit\"]"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_v46_vendor_ratings.py",
+    "/app/test_reports/pytest/v46_results.xml"
+  ],
+  "action_items": [
+    "PublicVendorProfile: stop calling `tenderProApi.listCriteriaSets()` from the public page. Either (a) add a public GET endpoint returning the default rubric's criteria, or (b) drop the criteria_set_id from the public payload and let the backend pick the default — but still render slider inputs by fetching that public rubric so users can score.",
+    "RateAVendor: replace the admin-only `vendorIntelApi.summary()` call with a vendor-accessible directory endpoint (e.g. reuse/extend `/api/v1/vendor-ratings/public/top`, or add a `/vendor-directory` route usable by authenticated vendors). Peer vendors need to be able to search all other active vendors.",
+    "Add missing data-testids on ReviewModerationSection tabs and per-row Approve/Hide/Delete buttons (`rm-tab-{status}`, `rm-approve-{id}`, `rm-hide-{id}`, `rm-delete-{id}`)."
+  ],
+  "critical_code_review_comments": [
+    "Public-facing pages must never depend on admin-scoped APIs — silent 401s create dead-end UIs that pass visual QA but block the primary user action.",
+    "vendor_ratings.py public_submit rate-limit is enforced per (email, day, status=pending). Because same-email same-vendor submissions upsert instead of insert, the 429 branch is only reachable when the buyer targets multiple different vendors in a day; consider documenting this behaviour or counting against distinct (email, day) attempts regardless of upsert to make the intent clearer.",
+    "score_out_of_100 clamping is correct (verified with values > scale_max → 100.0), but there is no floor test for < scale_min in the current pytest suite; consider adding.",
+    "PMC admin `admin/reviews` filter accepts only pending/approved/hidden — no way to filter by vendor + status combo other than passing both; already supported, good.",
+    "peer_submit sets status='approved' only when vendor is_active AND !blacklisted. The seeded `manualvendor` returned a PENDING peer review in the vendor UI recent-reviews list, so is_active may currently be false for that seed; not a bug per se but worth checking if peer reviews should ever auto-approve in dev seeds."
+  ],
+  "updated_files": ["/app/backend/tests/test_v46_vendor_ratings.py"],
+  "success_rate": {"backend": "100% (19/19)", "frontend": "60% — landing + admin panels OK; public-buyer and peer-vendor submission flows blocked in UI"},
+  "test_credentials": "Admin: adminsupport@pmcmanagers.com / Admin@12345 (login includes {token, csrf_token}; use both Authorization Bearer AND session cookie for CSRF double-submit). Vendor: manualvendor@pmcmanagers.com / Vendor@12345 (cookie session).",
+  "seed_data_creation": "Backend tests created several TEST_-prefixed public/admin/peer reviews on PMC-SUP-000031..36. The moderate/approve/hide/delete test cleans up after itself; other TEST_ rows remain visible in the admin Review moderation queue and can be safely deleted.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend is green — you can re-run `pytest /app/backend/tests/test_v46_vendor_ratings.py -v` any time. Focus retest on frontend after the two HIGH-priority fixes: (1) public profile can render sliders + submit without 401, (2) vendor Rate-a-vendor lists vendors and can submit. Also verify newly-added data-testids on the moderation section.",
+  "rca of the issue": "Both blocking UI bugs share the same root cause: the new public-buyer and peer-vendor surfaces reuse admin-scoped APIs to hydrate their pickers/forms. Because the admin endpoints correctly 401 on non-admin callers, the UI silently falls into an empty/disabled state instead of failing loudly. Mitigation: (1) introduce a small public/tender-pro criteria endpoint OR ship a hard-coded default rubric preview on the public form; (2) add a vendor-scoped directory listing (or reuse `public/top` with search) for the Rate-a-vendor tab."
+}

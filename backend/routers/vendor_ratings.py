@@ -143,6 +143,28 @@ async def _load_default_criteria() -> Optional[dict]:
 # Public endpoints — no auth, safe payloads only
 # ---------------------------------------------------------------------------
 
+@router.get("/public/rubric")
+async def public_rubric():
+    """Public read-only view of the default rating rubric so buyer forms can
+    render sliders without hitting the admin-scoped tender-pro master.
+    Returns 404 when no rubric is configured yet."""
+    d = await _load_default_criteria()
+    if not d:
+        raise HTTPException(status_code=404, detail="No rating rubric configured yet")
+    return {
+        "id": str(d["_id"]),
+        "name": d.get("name"),
+        "criteria": [{
+            "code": c.get("code"),
+            "label": c.get("label"),
+            "description": c.get("description"),
+            "weight": c.get("weight"),
+            "scale_min": c.get("scale_min", 1),
+            "scale_max": c.get("scale_max", 5),
+        } for c in (d.get("criteria") or [])],
+    }
+
+
 @router.get("/public/top")
 async def public_top_rated(limit: int = 12):
     """Landing-page listing of best-rated vendors."""
@@ -347,6 +369,34 @@ async def peer_list_mine(vendor=Depends(current_vendor)):
     """Reviews the calling vendor has authored (for their own history)."""
     cursor = db.vendor_reviews.find({"reviewer_vendor_ref": vendor.get("vendor_ref")}).sort("created_at", -1)
     return [_out(r) async for r in cursor]
+
+
+@router.get("/directory")
+async def peer_directory(
+    q: Optional[str] = None,
+    limit: int = 200,
+    vendor=Depends(current_vendor),
+):
+    """Vendor-scoped directory: lists all other active vendors so peers can
+    pick a target for a review. Excludes the caller and blacklisted vendors."""
+    limit = max(1, min(500, int(limit)))
+    filt: dict = {"vendor_ref": {"$ne": vendor.get("vendor_ref")}}
+    if q:
+        filt["$or"] = [
+            {"company_name": {"$regex": q, "$options": "i"}},
+            {"vendor_ref": {"$regex": q, "$options": "i"}},
+            {"email": {"$regex": q, "$options": "i"}},
+        ]
+    cursor = db.vendors.find(filt, {"password_hash": 0}).sort("company_name", 1).limit(limit)
+    out = []
+    async for v in cursor:
+        out.append({
+            "vendor_ref": v.get("vendor_ref"),
+            "company_name": v.get("company_name") or v.get("email"),
+            "country": v.get("country"),
+            "email": v.get("email"),
+        })
+    return out
 
 
 # ---------------------------------------------------------------------------

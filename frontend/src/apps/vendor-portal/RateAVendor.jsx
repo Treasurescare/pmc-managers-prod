@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { vendorRatingsApi, tenderProApi, vendorIntelApi, showApiError } from "@/lib/api";
+import { vendorRatingsApi, showApiError } from "@/lib/api";
 import { VendorTrustBadge } from "@/components/VendorTrustBadge";
 
 /**
@@ -14,7 +14,6 @@ export default function RateAVendor({ me }) {
   const [q, setQ]                     = useState("");
   const [selected, setSelected]       = useState(null);
   const [aggregate, setAggregate]     = useState(null);
-  const [rubrics, setRubrics]         = useState([]);
   const [criteriaSet, setCriteriaSet] = useState(null);
   const [scores, setScores]           = useState({});
   const [comment, setComment]         = useState("");
@@ -23,28 +22,23 @@ export default function RateAVendor({ me }) {
 
   const loadDirectory = useCallback(async () => {
     try {
-      const list = await vendorIntelApi.summary();
-      setVendors((list || []).filter((v) => v.vendor_ref !== me?.vendor_ref));
-    } catch {
-      // Vendor-intel summary is admin-only — the vendor list is intentionally
-      // omitted for peers. The vendor can still rate by pasting a vendor_ref.
+      const list = await vendorRatingsApi.peerDirectory();
+      setVendors(list || []);
+    } catch (e) {
+      showApiError(e);
       setVendors([]);
     }
-  }, [me]);
+  }, []);
 
-  const loadRubrics = useCallback(async () => {
+  const loadRubric = useCallback(async () => {
     try {
-      const list = await tenderProApi.listCriteriaSets();
-      setRubrics(list);
-      const def = list.find((s) => s.is_default) || list[0];
-      if (def) {
-        setCriteriaSet(def);
-        const init = {};
-        (def.criteria || []).forEach((c) => { init[c.code] = c.scale_min; });
-        setScores(init);
-      }
+      const rub = await vendorRatingsApi.publicRubric();
+      setCriteriaSet(rub);
+      const init = {};
+      (rub.criteria || []).forEach((c) => { init[c.code] = c.scale_min; });
+      setScores(init);
     } catch {
-      setRubrics([]);
+      setCriteriaSet(null);
     }
   }, []);
 
@@ -53,21 +47,12 @@ export default function RateAVendor({ me }) {
     catch { setMyReviews([]); }
   }, []);
 
-  useEffect(() => { loadDirectory(); loadRubrics(); loadMine(); },
-           [loadDirectory, loadRubrics, loadMine]);
+  useEffect(() => { loadDirectory(); loadRubric(); loadMine(); },
+           [loadDirectory, loadRubric, loadMine]);
 
   const loadAggregate = async (ref) => {
     try { setAggregate(await vendorRatingsApi.publicAggregate(ref)); }
     catch (e) { showApiError(e); }
-  };
-
-  const pickCriteriaSet = (id) => {
-    const s = rubrics.find((r) => r.id === id);
-    if (!s) return;
-    setCriteriaSet(s);
-    const init = {};
-    (s.criteria || []).forEach((c) => { init[c.code] = c.scale_min; });
-    setScores(init);
   };
 
   const submit = async () => {
@@ -97,7 +82,7 @@ export default function RateAVendor({ me }) {
     return (v.company_name || "").toLowerCase().includes(s)
         || (v.vendor_ref || "").toLowerCase().includes(s)
         || (v.email || "").toLowerCase().includes(s);
-  }).slice(0, 30);
+  }).slice(0, 50);
 
   return (
     <div className="grid gap-6 lg:grid-cols-[3fr_5fr]" data-testid="rate-a-vendor">

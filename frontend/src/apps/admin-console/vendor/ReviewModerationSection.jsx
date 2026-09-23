@@ -59,7 +59,7 @@ export default function ReviewModerationSection() {
         <div className="ml-auto flex gap-1">
           {["pending", "approved", "hidden", "all"].map((t) => (
             <button key={t} onClick={() => setTab(t)}
-                    data-testid={`review-tab-${t}`}
+                    data-testid={`rm-tab-${t}`}
                     className={`text-[11px] uppercase tracking-widest px-2 py-1 border ${tab === t ? "bg-brand-navy text-white border-brand-navy" : "bg-white text-brand-navy border-brand-navy/20"}`}>
               {t}
             </button>
@@ -102,20 +102,20 @@ export default function ReviewModerationSection() {
                   <div className="flex flex-wrap gap-1 justify-center">
                     {r.status !== "approved" && (
                       <button onClick={() => moderate(r, "approve")} disabled={busy === r.id}
-                              data-testid={`review-approve-${r.id}`}
+                              data-testid={`rm-approve-${r.id}`}
                               className="text-[10px] uppercase tracking-widest px-2 py-1 bg-emerald-600 text-white disabled:opacity-40">
                         Approve
                       </button>
                     )}
                     {r.status !== "hidden" && (
                       <button onClick={() => moderate(r, "hide")} disabled={busy === r.id}
-                              data-testid={`review-hide-${r.id}`}
+                              data-testid={`rm-hide-${r.id}`}
                               className="text-[10px] uppercase tracking-widest px-2 py-1 bg-amber-500 text-white disabled:opacity-40">
                         Hide
                       </button>
                     )}
                     <button onClick={() => remove(r)} disabled={busy === r.id}
-                            data-testid={`review-delete-${r.id}`}
+                            data-testid={`rm-delete-${r.id}`}
                             className="text-[10px] uppercase tracking-widest px-2 py-1 border border-red-500 text-red-600 disabled:opacity-40">
                       Delete
                     </button>

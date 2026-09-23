@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { toast } from "sonner";
-import { vendorRatingsApi, tenderProApi, showApiError } from "@/lib/api";
+import { vendorRatingsApi, showApiError } from "@/lib/api";
 import { VendorTrustBadge } from "@/components/VendorTrustBadge";
 import TopBar from "@/apps/shared/TopBar";
 import Footer from "@/apps/shared/Footer";
@@ -14,7 +14,6 @@ import Footer from "@/apps/shared/Footer";
 export default function PublicVendorProfile() {
   const { vendorRef } = useParams();
   const [agg, setAgg]         = useState(null);
-  const [rubrics, setRubrics] = useState([]);
   const [criteriaSet, setCriteriaSet] = useState(null);
   const [reviewer, setReviewer] = useState({ name: "", email: "", company: "" });
   const [scores, setScores]   = useState({});
@@ -27,21 +26,14 @@ export default function PublicVendorProfile() {
       const a = await vendorRatingsApi.publicAggregate(vendorRef);
       setAgg(a);
     } catch (e) { showApiError(e); }
-    // Public list of criteria sets is not exposed; use the default rubric on
-    // the public form. Falling back gracefully if none is configured yet.
     try {
-      const list = await tenderProApi.listCriteriaSets();
-      setRubrics(list);
-      const def = list.find((s) => s.is_default) || list[0];
-      if (def) {
-        setCriteriaSet(def);
-        const init = {};
-        (def.criteria || []).forEach((c) => { init[c.code] = c.scale_min; });
-        setScores(init);
-      }
+      const rub = await vendorRatingsApi.publicRubric();
+      setCriteriaSet(rub);
+      const init = {};
+      (rub.criteria || []).forEach((c) => { init[c.code] = c.scale_min; });
+      setScores(init);
     } catch {
-      // Public users are not authorised for the master — that's fine, the
-      // backend will fall back to its default rubric.
+      // No rubric configured yet — form will show a friendly notice.
     }
   }, [vendorRef]);
 
