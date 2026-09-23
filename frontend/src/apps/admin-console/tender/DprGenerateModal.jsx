@@ -69,11 +69,29 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
           body: p.preview.section_bodies?.[s.code] || s.body || "",
           order: typeof s.order === "number" ? s.order : null,
         }));
+        // v45e — financial robustness: if the AI pulled a tender value but
+        // no EMD, auto-compute EMD from the country's default EMD master so
+        // the numbers stay internally consistent.
+        const mergedHeader = { ...(master.header || {}), ...(p.preview.header || {}) };
+        const tVal = Number(mergedHeader.tender_value || mergedHeader.budget_amount || 0);
+        if (tVal > 0 && !(Number(mergedHeader.emd_amount) > 0)) {
+          try {
+            const ems = await tenderProApi.listEmdMasters(mergedHeader.country || undefined, "emd");
+            const def = (ems || []).find((m) => m.is_default) || (ems || [])[0];
+            if (def) {
+              const c = await tenderProApi.computeEmd(def.id, tVal);
+              mergedHeader.emd_amount = c.amount;
+              mergedHeader.emd_type = c.type;
+              if (c.percentage) mergedHeader.emd_percentage = c.percentage;
+              if (!mergedHeader.budget_currency && c.currency) mergedHeader.budget_currency = c.currency;
+              toast.success(`EMD auto-computed · ${c.amount.toLocaleString()} ${c.currency} (${def.name})`);
+            }
+          } catch { /* no master configured — leave EMD for manual entry */ }
+        }
         const doc = await tenderTemplateApi.create({
           name: `${p.preview.header?.work_title || p.file.name || "AI Draft"} — ${new Date().toISOString().slice(0, 10)}`,
           kind, industry: master.industry,
-          header: { ...(master.header || {}), ...(p.preview.header || {}),
-                      dpr_warnings: p.preview.warnings || [] },
+          header: { ...mergedHeader, dpr_warnings: p.preview.warnings || [] },
           sections: cleanSections,
         });
         created.push(doc);

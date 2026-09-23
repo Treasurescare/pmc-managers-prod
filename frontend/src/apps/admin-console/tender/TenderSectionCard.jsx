@@ -17,6 +17,7 @@ export default function TenderSectionCard({
   patchSection, move, removeSection,
   aiBusyCode, runAiDraft,
   uploadSectionAttachment, removeSectionAttachment,
+  saveSection, sectionSaving,
 }) {
   const backendUrl = process.env.REACT_APP_BACKEND_URL;
   return (
@@ -125,11 +126,24 @@ export default function TenderSectionCard({
         )}
       </div>
 
-      <div className="mt-2 text-[11px] opacity-60">
-        Code: <code className="font-mono">{s.code}</code>
-        {(s.body || "").length > 0 && (
-          <span className="ml-3">{(s.body || "").length} chars</span>
-        )}
+      <div className="mt-2 text-[11px] opacity-60 flex items-center justify-between gap-2">
+        <span>
+          Code: <code className="font-mono">{s.code}</code>
+          {(s.body || "").length > 0 && (
+            <span className="ml-3">{(s.body || "").length} chars</span>
+          )}
+        </span>
+        {/* v45e — per-section save: persists just this section so you can
+            pause and resume without a full-document save */}
+        <button
+          type="button"
+          onClick={() => saveSection?.(i)}
+          disabled={sectionSaving === s.code}
+          data-testid={`tb-save-section-${s.code}`}
+          className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep disabled:opacity-40"
+        >
+          {sectionSaving === s.code ? "Saving…" : "💾 Save section"}
+        </button>
       </div>
     </article>
   );

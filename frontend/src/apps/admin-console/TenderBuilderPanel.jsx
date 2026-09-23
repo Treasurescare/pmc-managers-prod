@@ -238,6 +238,7 @@ export default function TenderBuilderPanel() {
   const countries  = useMemo(() => [...new Set(list.map((d) => (d.country || d.header?.country || "")).filter(Boolean))].sort(), [list]);
   const [showDpr, setShowDpr]           = useState(false);
   const [aiFillBusy, setAiFillBusy]     = useState(false);
+  const [sectionSaving, setSectionSaving] = useState(null);
   const [saveMasterBusy, setSaveMasterBusy] = useState(false);
 
   const runAiFillAll = async () => {
@@ -280,10 +281,12 @@ export default function TenderBuilderPanel() {
   const saveSection = async (idx) => {
     if (!doc?.id) return;
     const s = doc.sections[idx];
+    setSectionSaving(s.code);
     try {
       await tenderProApi.patchSection(doc.id, s.code, { body: s.body, title: s.title, hint: s.hint });
-      toast.success(`Section saved · ${s.code}`);
+      toast.success(`Section saved · ${s.code}`, { description: "Resume anytime — this section is persisted" });
     } catch (e) { showApiError(e); }
+    finally { setSectionSaving(null); }
   };
 
   const orderedSections = useMemo(
@@ -436,6 +439,8 @@ export default function TenderBuilderPanel() {
                   runAiDraft={runAiDraft}
                   uploadSectionAttachment={uploadSectionAttachment}
                   removeSectionAttachment={removeSectionAttachment}
+                  saveSection={saveSection}
+                  sectionSaving={sectionSaving}
                 />
               ))}
             </div>
