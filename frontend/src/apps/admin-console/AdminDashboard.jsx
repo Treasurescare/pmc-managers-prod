@@ -57,6 +57,7 @@ function TabBar({ tab, setTab }) {
     ["audit", t("admin.tab_audit")],
     ["catalog", t("admin.tab_catalog")],
     ["engagements", t("admin.tab_engagements")],
+    ["billing", "Billing & Refunds"],
     ["help", "Help"],
   ];
   return (
@@ -97,6 +98,8 @@ function TabBar({ tab, setTab }) {
     </>
   );
 }
+
+import BillingTransactionsPanel from "./BillingTransactionsPanel";
 
 export default function AdminDashboard() {
   const { t } = useI18n();
@@ -201,6 +204,7 @@ export default function AdminDashboard() {
           {tab === "audit" && <AuditPanel />}
           {tab === "catalog" && <ProductCatalogPanel />}
           {tab === "engagements" && <EngagementsPanel />}
+          {tab === "billing" && <BillingTransactionsPanel />}
           {tab === "help" && <HelpPanel />}
         </div>
       </main>

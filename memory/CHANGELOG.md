@@ -30,6 +30,34 @@ Tested user's Kazakhstan Medical Township DPR: HTTP 200, extracted work_title, w
 
 # PMC Managers v2 — Changelog
 
+## 2026-02-24 · v46c — Spectator + invite templates + fee refunds + DEPLOY
+
+### User request
+"Live Auction Spectator public view · Invitation Templates + auto-send · Fee Refunds via Stripe · Deploy v46b to AWS."
+
+### Delivered
+**Backend**
+- `GET/POST/PATCH/DELETE /api/v1/reverse-auctions/invite/tpl(/{tid})` — invitation-template CRUD (auction_live.py). Supports placeholders `{{invite_url}} {{auction_title}} {{notice_ref}} {{vendor_email}} {{starting_price}} {{currency}} {{admin_note}}`.
+- Invite endpoint extended: `template_id`, `auto_send`, `origin_url`. Sends via managed email proxy (`emails.send_email`), returns `auto_sent` count.
+- `POST /api/v1/billing/refund/{session_id}` (billing.py) — admin refund. Retrieves PaymentIntent from Stripe checkout session, `stripe.Refund.create`, marks transaction `refunded`.
+- Public `/state` (already existed) reused for spectator view.
+
+**Frontend**
+- `shared/PublicAuctionRoom.jsx` — `/auctions/:aid/live` public spectator (2s polling, countdown, masked bid feed, closed banner). No auth.
+- `admin-console/BillingTransactionsPanel.jsx` — new "Billing & Refunds" tab (data-testid `admin-tab-billing`) with transactions table + per-row Refund button.
+- `admin-console/auction/AuctionInvitations.jsx` extended with template picker (`ai-tpl-{aid}`) + auto-send toggle (`ai-autosend-{aid}`).
+- New route `/auctions/:aid/live` in App.js.
+
+### Testing (preview)
+- Curl: templates CRUD OK; invite with template_id + auto_send → `auto_sent: 1`; refund on pending tx → 400 with clear message; public /state → 200 with masked bids.
+
+### Deployment
+Dispatched to deployer agent — job 60f300ec-7443-4bb9-ae84-d2df7002707a. Deploying both backend (Elastic Beanstalk) and frontend (S3/CloudFront) with v46c payload.
+
+---
+
+# PMC Managers v2 — Changelog
+
 ## 2026-02-24 · v46 — Vendor Ratings & Reviews portal (preview only)
 
 ### User request

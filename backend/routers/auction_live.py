@@ -27,6 +27,7 @@ from models.base import BaseDocument, now_iso
 from security import require_role, current_admin
 from routers.vendor_auth import current_vendor
 from audit import audit_log
+from emails import send_email, wrap as email_wrap
 
 router = APIRouter(prefix="/api/v1/reverse-auctions", tags=["reverse-auctions"])
 
@@ -403,6 +404,9 @@ async def get_state_mine(aid: str, vendor=Depends(current_vendor)):
 class InviteBatchIn(BaseModel):
     emails: List[str] = Field(min_length=1, max_length=200)
     note: Optional[str] = None
+    template_id: Optional[str] = None   # v46c — reusable template
+    auto_send: bool = False             # v46c — auto-email via managed proxy
+    origin_url: Optional[str] = None    # for building invite URL in email
 
 
 @router.post("/{aid}/invite")
@@ -413,7 +417,17 @@ async def invite_bidders(aid: str, payload: InviteBatchIn,
         raise HTTPException(status_code=404, detail="Auction not found")
     if a.get("status") == "closed":
         raise HTTPException(status_code=400, detail="Auction is closed")
+    # Resolve template (optional)
+    tpl = None
+    if payload.template_id:
+        try:
+            tpl = await db.auction_invite_templates.find_one({"_id": ObjectId(payload.template_id)})
+        except Exception:
+            raise HTTPException(status_code=422, detail="Invalid template_id")
+        if not tpl:
+            raise HTTPException(status_code=404, detail="Invitation template not found")
     out = []
+    sent_count = 0
     for raw in payload.emails:
         email = (raw or "").strip().lower()
         if not email or "@" not in email:
@@ -439,9 +453,74 @@ async def invite_bidders(aid: str, payload: InviteBatchIn,
             "email": email, "token": token, "resent": bool(existing),
             "vendor_ref": v.get("vendor_ref") if v else None,
         })
+        # v46c — auto-send via managed email proxy when requested
+        if payload.auto_send and tpl:
+            invite_url = f"{(payload.origin_url or '').rstrip('/')}/vendor/auction/invite/{token}"
+            body_html = (tpl.get("body_html") or "")\
+                .replace("{{invite_url}}", invite_url)\
+                .replace("{{auction_title}}", a.get("title", ""))\
+                .replace("{{notice_ref}}", a.get("notice_ref", ""))\
+                .replace("{{vendor_email}}", email)\
+                .replace("{{starting_price}}", str(a.get("starting_price", "")))\
+                .replace("{{currency}}", a.get("currency", ""))\
+                .replace("{{admin_note}}", payload.note or "")
+            subject = (tpl.get("subject") or f"Invitation: {a.get('title')}")\
+                .replace("{{auction_title}}", a.get("title", ""))\
+                .replace("{{notice_ref}}", a.get("notice_ref", ""))
+            wrapped = email_wrap(subject, body_html, "Join auction", invite_url)
+            if await send_email(email, subject, wrapped):
+                sent_count += 1
     await audit_log("reverse_auction.invite", admin, "auction", aid,
-                    {"count": len(out)})
-    return {"invited": out, "count": len(out)}
+                    {"count": len(out), "auto_sent": sent_count})
+    return {"invited": out, "count": len(out), "auto_sent": sent_count}
+
+
+# ---- Invitation templates (v46c) -----------------------------------------
+
+class InviteTemplateIn(BaseModel):
+    name: str = Field(min_length=2, max_length=120)
+    subject: str = Field(min_length=2, max_length=200)
+    body_html: str = Field(min_length=10)  # supports {{invite_url}}, {{auction_title}}, {{notice_ref}}, {{vendor_email}}, {{starting_price}}, {{currency}}, {{admin_note}}
+    is_default: bool = False
+
+
+@router.get("/invite/tpl")
+async def list_invite_templates(admin=Depends(current_admin)):
+    return [BaseDocument.out(t) async for t in db.auction_invite_templates.find({}).sort("name", 1)]
+
+
+@router.post("/invite/tpl")
+async def create_invite_template(payload: InviteTemplateIn,
+                                   admin=Depends(require_role("admin"))):
+    doc = payload.model_dump()
+    doc["created_at"] = now_iso()
+    doc["created_by"] = admin.get("email")
+    if doc.get("is_default"):
+        await db.auction_invite_templates.update_many({}, {"$set": {"is_default": False}})
+    r = await db.auction_invite_templates.insert_one(doc)
+    return BaseDocument.out(await db.auction_invite_templates.find_one({"_id": r.inserted_id}))
+
+
+@router.patch("/invite/tpl/{tid}")
+async def update_invite_template(tid: str, payload: InviteTemplateIn,
+                                   admin=Depends(require_role("admin"))):
+    body = payload.model_dump()
+    body["updated_at"] = now_iso()
+    if body.get("is_default"):
+        await db.auction_invite_templates.update_many({"_id": {"$ne": ObjectId(tid)}},
+                                                        {"$set": {"is_default": False}})
+    r = await db.auction_invite_templates.update_one({"_id": ObjectId(tid)}, {"$set": body})
+    if not r.matched_count:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return BaseDocument.out(await db.auction_invite_templates.find_one({"_id": ObjectId(tid)}))
+
+
+@router.delete("/invite/tpl/{tid}")
+async def delete_invite_template(tid: str, admin=Depends(require_role("admin"))):
+    r = await db.auction_invite_templates.delete_one({"_id": ObjectId(tid)})
+    if not r.deleted_count:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return {"ok": True}
 
 
 @router.get("/{aid}/invitations")

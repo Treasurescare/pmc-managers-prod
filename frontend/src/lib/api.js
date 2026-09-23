@@ -582,20 +582,34 @@ export const reverseAuctionApi = {
   state: (aid) => api.get(`/api/v1/reverse-auctions/${aid}/state`).then((r) => r.data),
   stateMine: (aid) => api.get(`/api/v1/reverse-auctions/${aid}/state-mine`).then((r) => r.data),
   // v46b — invitations
-  invite: (aid, emails, note) =>
-    api.post(`/api/v1/reverse-auctions/${aid}/invite`, { emails, note }).then((r) => r.data),
+  invite: (aid, emails, note, opts) =>
+    api.post(`/api/v1/reverse-auctions/${aid}/invite`,
+             { emails, note, ...(opts || {}) }).then((r) => r.data),
   listInvitations: (aid) =>
     api.get(`/api/v1/reverse-auctions/${aid}/invitations`).then((r) => r.data),
   resolveInvite: (token) =>
     api.get(`/api/v1/reverse-auctions/invite/resolve/${token}`).then((r) => r.data),
   acceptInvite: (token) =>
     api.post(`/api/v1/reverse-auctions/invite/accept/${token}`).then((r) => r.data),
+  // v46c — invitation templates
+  listTemplates: () =>
+    api.get(`/api/v1/reverse-auctions/invite/tpl`).then((r) => r.data),
+  createTemplate: (p) =>
+    api.post(`/api/v1/reverse-auctions/invite/tpl`, p).then((r) => r.data),
+  updateTemplate: (id, p) =>
+    api.patch(`/api/v1/reverse-auctions/invite/tpl/${id}`, p).then((r) => r.data),
+  deleteTemplate: (id) =>
+    api.delete(`/api/v1/reverse-auctions/invite/tpl/${id}`).then((r) => r.data),
 };
 
-// v46b — Fee master → Stripe checkout
+// v46c — Fee master → Stripe checkout + refund + transactions
 export const feeBillingApi = {
   feeCheckout: (payload) =>
     api.post(`/api/v1/billing/fee-checkout`, payload).then((r) => r.data),
+  listTransactions: (limit = 50) =>
+    api.get(`/api/v1/billing/transactions`, { params: { limit } }).then((r) => r.data),
+  refund: (session_id, reason) =>
+    api.post(`/api/v1/billing/refund/${session_id}`, { reason }).then((r) => r.data),
 };
 
 // ---------- Wave 40: UNSPSC taxonomy ----------

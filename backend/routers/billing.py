@@ -355,3 +355,56 @@ async def create_fee_checkout(req: FeeCheckoutRequest, request: Request):
              "amount": amt, "currency": currency,
              "fee_kind": m.get("kind"), "slab": slab_used}
 
+
+# ---- Refund a fee-checkout (v46c) ----------------------------------------
+
+class FeeRefundRequest(BaseModel):
+    reason: Optional[str] = None
+
+
+@router.post("/api/v1/billing/refund/{session_id}")
+async def refund_fee_checkout(session_id: str, payload: FeeRefundRequest,
+                                admin=Depends(current_admin)):
+    """Admin refunds a paid Stripe fee-checkout. Uses stripe.Refund.create
+    against the PaymentIntent for the session."""
+    record = await db.payment_transactions.find_one({"session_id": session_id})
+    if not record:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    if record.get("payment_status") == "refunded":
+        return {"ok": True, "already": True, "status": "refunded"}
+    if record.get("payment_status") != "paid":
+        raise HTTPException(status_code=400,
+            detail=f"Cannot refund a {record.get('payment_status')} transaction — only paid transactions can be refunded")
+
+    import stripe
+    stripe.api_key = os.environ.get("STRIPE_API_KEY", "sk_test_managed")
+    try:
+        session = stripe.checkout.Session.retrieve(session_id)
+        pi = session.get("payment_intent") if isinstance(session, dict) else session.payment_intent
+        if not pi:
+            raise HTTPException(status_code=400,
+                detail="Stripe session has no PaymentIntent — refund not possible")
+        refund = stripe.Refund.create(payment_intent=pi,
+                                       metadata={"reason": payload.reason or ""})
+        refund_id = refund.get("id") if isinstance(refund, dict) else refund.id
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=502,
+            detail=f"Stripe refund failed: {type(e).__name__}: {e}")
+
+    await db.payment_transactions.update_one(
+        {"session_id": session_id},
+        {"$set": {"payment_status": "refunded",
+                  "status": "refunded",
+                  "refund_id": refund_id,
+                  "refund_reason": payload.reason,
+                  "refunded_by": admin.get("email"),
+                  "refunded_at": now_iso(),
+                  "updated_at": datetime.now(timezone.utc)}})
+    await audit_log("billing.refund", admin, "session", session_id,
+                    {"reason": payload.reason, "refund_id": refund_id,
+                     "amount": record.get("amount"), "currency": record.get("currency")})
+    return {"ok": True, "session_id": session_id, "refund_id": refund_id,
+             "status": "refunded"}
+

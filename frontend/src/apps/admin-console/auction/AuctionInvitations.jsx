@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { reverseAuctionApi, showApiError } from "@/lib/api";
-
 /**
  * v46b — Auction invitations widget. Renders inline on each auction row
  * in LiveAuctionsPanel. Admin pastes/types emails, clicks Invite, gets
@@ -13,6 +12,9 @@ export default function AuctionInvitations({ auctionId }) {
   const [emails, setEmails]       = useState("");
   const [note, setNote]           = useState("");
   const [busy, setBusy]           = useState(false);
+  const [templates, setTemplates] = useState([]);
+  const [templateId, setTemplateId] = useState("");
+  const [autoSend, setAutoSend]   = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -21,7 +23,16 @@ export default function AuctionInvitations({ auctionId }) {
     } catch (e) { showApiError(e); }
   }, [auctionId]);
 
-  useEffect(() => { if (open) load(); }, [open, load]);
+  useEffect(() => {
+    if (open) {
+      load();
+      reverseAuctionApi.listTemplates().then((t) => {
+        setTemplates(t || []);
+        const def = (t || []).find((x) => x.is_default);
+        if (def && !templateId) setTemplateId(def.id);
+      }).catch(() => setTemplates([]));
+    }
+  }, [open, load, templateId]);
 
   const parseEmails = () => emails
     .split(/[\s,;\n]+/g).map((s) => s.trim())
@@ -35,8 +46,13 @@ export default function AuctionInvitations({ auctionId }) {
     }
     setBusy(true);
     try {
-      const r = await reverseAuctionApi.invite(auctionId, list, note.trim() || null);
-      toast.success(`Invited ${r.count} vendor${r.count === 1 ? "" : "s"}`);
+      const r = await reverseAuctionApi.invite(auctionId, list, note.trim() || null, {
+        template_id: templateId || null,
+        auto_send: autoSend,
+        origin_url: window.location.origin,
+      });
+      const auto = r.auto_sent > 0 ? ` · ${r.auto_sent} emailed` : "";
+      toast.success(`Invited ${r.count} vendor${r.count === 1 ? "" : "s"}${auto}`);
       setEmails("");
       setNote("");
       await load();
@@ -79,6 +95,22 @@ export default function AuctionInvitations({ auctionId }) {
                    placeholder="Optional note (round-2, best-and-final, ...)"
                    data-testid={`ai-note-${auctionId}`}
                    className="mt-2 w-full px-3 py-2 border text-xs" />
+            {templates.length > 0 && (
+              <>
+                <select value={templateId} onChange={(e) => setTemplateId(e.target.value)}
+                        data-testid={`ai-tpl-${auctionId}`}
+                        className="mt-2 w-full px-3 py-2 border text-xs bg-white">
+                  <option value="">— no template (link only) —</option>
+                  {templates.map((t) => (<option key={t.id} value={t.id}>{t.name}{t.is_default ? " (default)" : ""}</option>))}
+                </select>
+                <label className="mt-2 flex items-center gap-2 text-xs">
+                  <input type="checkbox" checked={autoSend} onChange={(e) => setAutoSend(e.target.checked)}
+                         data-testid={`ai-autosend-${auctionId}`}
+                         disabled={!templateId} />
+                  Auto-send emails now (requires a template)
+                </label>
+              </>
+            )}
             <button type="button" onClick={invite} disabled={busy}
                     data-testid={`ai-send-${auctionId}`}
                     className="mt-2 w-full px-4 py-2 text-[11px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep disabled:opacity-40">
