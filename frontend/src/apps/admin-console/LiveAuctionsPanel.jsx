@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { reverseAuctionApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import { InfoDot } from "@/components/InfoDot";
+import AuctionInvitations from "./auction/AuctionInvitations";
 
 /** Wave 40 — Admin live-auction management. */
 export default function LiveAuctionsPanel() {
@@ -218,6 +219,7 @@ export default function LiveAuctionsPanel() {
                   </div>
                 </div>
               )}
+              {a.status !== "closed" && <AuctionInvitations auctionId={a.id} />}
             </div>
           );
         })}

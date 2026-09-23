@@ -50,6 +50,7 @@ import PublicVendorProfile from "@/apps/shared/PublicVendorProfile";
 
 // Wave 40 — Reverse-auction live room
 import AuctionRoom from "@/apps/vendor-portal/AuctionRoom";
+import AuctionInviteAccept from "@/apps/vendor-portal/AuctionInviteAccept";
 
 // Wave 41 — Meeting room (Jitsi embed via magic-link)
 import MeetingRoom from "@/apps/shared/MeetingRoom";
@@ -107,6 +108,7 @@ export default function App() {
             <Route path="/vendor/payment/cancel" element={<PaymentResult outcome="cancel" />} />
             <Route path="/vendor/payment/sandbox" element={<SandboxCheckout />} />
             <Route path="/vendor/verify/:token" element={<VendorVerifyEmail />} />
+            <Route path="/vendor/auction/invite/:token" element={<AuctionInviteAccept />} />
 
             {/* Staff Portal */}
             <Route path="/staff/login" element={<StaffLogin />} />

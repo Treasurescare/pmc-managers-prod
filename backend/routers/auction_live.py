@@ -15,6 +15,7 @@ Data model:
   `reverse_auction_participants` — one row per vendor who joined the round
   `reverse_auction_bids`         — immutable ledger of every bid (manual + auto)
 """
+import secrets
 from typing import Optional, List
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends
@@ -391,3 +392,131 @@ async def get_state_mine(aid: str, vendor=Depends(current_vendor)):
         "is_leader": bool(p and state.get("leader_alias") == p.get("alias")),
     }
     return state
+
+
+# ---------- Invitations (v46b) ----------------------------------------
+# Admin can invite specific vendors by email. Each invite generates a
+# single-use token and a shareable URL. Vendors who click the URL land on
+# the auction room and can register with one click. No SMTP dependency —
+# admin can copy the URLs and share via any channel.
+
+class InviteBatchIn(BaseModel):
+    emails: List[str] = Field(min_length=1, max_length=200)
+    note: Optional[str] = None
+
+
+@router.post("/{aid}/invite")
+async def invite_bidders(aid: str, payload: InviteBatchIn,
+                          admin=Depends(require_role("admin"))):
+    a = await db.reverse_auctions.find_one({"_id": ObjectId(aid)})
+    if not a:
+        raise HTTPException(status_code=404, detail="Auction not found")
+    if a.get("status") == "closed":
+        raise HTTPException(status_code=400, detail="Auction is closed")
+    out = []
+    for raw in payload.emails:
+        email = (raw or "").strip().lower()
+        if not email or "@" not in email:
+            continue
+        # Reuse token if this email was already invited to this auction.
+        existing = await db.reverse_auction_invitations.find_one({
+            "auction_id": aid, "email": email})
+        if existing:
+            token = existing["token"]
+            await db.reverse_auction_invitations.update_one(
+                {"_id": existing["_id"]},
+                {"$set": {"resent_at": now_iso(), "note": payload.note}})
+        else:
+            token = secrets.token_urlsafe(24)
+            await db.reverse_auction_invitations.insert_one({
+                "auction_id": aid, "email": email, "token": token,
+                "status": "pending", "note": payload.note,
+                "invited_by": admin.get("email"), "invited_at": now_iso(),
+            })
+        # Try to resolve vendor by email so we can autolink status later.
+        v = await db.vendors.find_one({"email": email})
+        out.append({
+            "email": email, "token": token, "resent": bool(existing),
+            "vendor_ref": v.get("vendor_ref") if v else None,
+        })
+    await audit_log("reverse_auction.invite", admin, "auction", aid,
+                    {"count": len(out)})
+    return {"invited": out, "count": len(out)}
+
+
+@router.get("/{aid}/invitations")
+async def list_invitations(aid: str, admin=Depends(current_admin)):
+    rows = []
+    async for r in db.reverse_auction_invitations.find({"auction_id": aid}).sort("invited_at", -1):
+        r["id"] = str(r.pop("_id"))
+        # Check if invitee actually joined
+        joined = False
+        if r.get("email"):
+            v = await db.vendors.find_one({"email": r["email"]})
+            if v:
+                p = await db.reverse_auction_participants.find_one({
+                    "auction_id": aid, "vendor_id": v["id"] if "id" in v else str(v.get("_id"))})
+                joined = bool(p)
+                r["vendor_ref"] = v.get("vendor_ref")
+        r["joined"] = joined
+        rows.append(r)
+    return {"items": rows, "count": len(rows)}
+
+
+@router.get("/invite/resolve/{token}")
+async def resolve_invite(token: str):
+    """Public — resolves the auction referenced by the invite token.
+    Frontend calls this from the invite landing page to know where to go."""
+    inv = await db.reverse_auction_invitations.find_one({"token": token})
+    if not inv:
+        raise HTTPException(status_code=404, detail="Invitation not found or expired")
+    a = await db.reverse_auctions.find_one({"_id": ObjectId(inv["auction_id"])})
+    if not a:
+        raise HTTPException(status_code=404, detail="Auction no longer exists")
+    return {
+        "auction_id": inv["auction_id"],
+        "email": inv.get("email"),
+        "status": a.get("status"),
+        "title": a.get("title"),
+        "notice_ref": a.get("notice_ref"),
+        "starting_price": a.get("starting_price"),
+        "floor_price": a.get("floor_price"),
+        "currency": a.get("currency"),
+    }
+
+
+@router.post("/invite/accept/{token}")
+async def accept_invite(token: str, vendor=Depends(current_vendor)):
+    """Vendor accepts an invitation — must be signed in as the invited email."""
+    inv = await db.reverse_auction_invitations.find_one({"token": token})
+    if not inv:
+        raise HTTPException(status_code=404, detail="Invitation not found or expired")
+    if inv.get("email") and inv["email"].lower() != (vendor.get("email") or "").lower():
+        raise HTTPException(status_code=403,
+            detail=f"This invitation is for {inv['email']}. Sign in as that vendor first.")
+    aid = inv["auction_id"]
+    a = await db.reverse_auctions.find_one({"_id": ObjectId(aid)})
+    if not a:
+        raise HTTPException(status_code=404, detail="Auction no longer exists")
+    # Auto-register the vendor to the auction (idempotent)
+    existing = await db.reverse_auction_participants.find_one({
+        "auction_id": aid, "vendor_id": vendor["id"]})
+    if not existing:
+        idx = await db.reverse_auction_participants.count_documents({"auction_id": aid})
+        alias = _alias_for_index(idx)
+        await db.reverse_auction_participants.insert_one({
+            "auction_id": aid, "vendor_id": vendor["id"],
+            "vendor_email": vendor["email"],
+            "company_name": vendor.get("company_name"),
+            "alias": alias, "autobid_enabled": False,
+            "autobid_floor": None, "registered_at": now_iso(),
+            "via_invitation_token": token,
+        })
+        alias_out = alias
+    else:
+        alias_out = existing.get("alias")
+    await db.reverse_auction_invitations.update_one(
+        {"_id": inv["_id"]},
+        {"$set": {"status": "accepted", "accepted_at": now_iso(),
+                  "accepted_by_vendor_id": vendor["id"]}})
+    return {"ok": True, "auction_id": aid, "alias": alias_out}

@@ -233,3 +233,125 @@ async def list_transactions(admin=Depends(current_admin), limit: int = 50):
                 d[k] = v.isoformat()
         out.append(d)
     return {"items": out, "count": len(out)}
+
+# ---- Fee master → Stripe checkout (v46b) ---------------------------------
+# Turns any EMD / registration / subscription / premium / transaction /
+# data-intel fee master into a Stripe Checkout session. Amount is computed
+# from the matching slab (see tender_pro.compute_emd) — the client is never
+# trusted for pricing.
+
+class FeeCheckoutRequest(BaseModel):
+    fee_master_id: str
+    tender_value: float = Field(0, ge=0)
+    origin_url: str
+    buyer_email: Optional[str] = None
+    label: Optional[str] = None            # override display label
+    context_ref: Optional[str] = None      # tender_ref / notice_ref for audit
+
+
+@router.post("/api/v1/billing/fee-checkout")
+async def create_fee_checkout(req: FeeCheckoutRequest, request: Request):
+    """Public — vendors and buyers can pay a configured fee. Admin can also
+    pay-on-behalf. Amount is server-authoritative from the fee master."""
+    # Look up buyer
+    buyer_email = None
+    buyer_role = "anonymous"
+    try:
+        u = await current_admin(request)
+        if u:
+            buyer_email = u.get("email"); buyer_role = "admin"
+    except Exception:
+        try:
+            v = await current_vendor(request)
+            if v:
+                buyer_email = v.get("email"); buyer_role = "vendor"
+        except Exception:
+            pass
+    if not buyer_email:
+        buyer_email = req.buyer_email or "anonymous@pmcmanagers.com"
+
+    try:
+        m = await db.emd_masters.find_one({"_id": ObjectId(req.fee_master_id)})
+    except Exception:
+        raise HTTPException(status_code=422, detail="Invalid fee_master_id")
+    if not m:
+        raise HTTPException(status_code=404, detail="Fee master not found")
+    if not m.get("is_active", True):
+        raise HTTPException(status_code=400, detail="This fee master is inactive")
+
+    # Compute amount from slabs (mirrors tender_pro.compute_emd)
+    v = req.tender_value
+    amt = None
+    slab_used = None
+    for slab in (m.get("slabs") or []):
+        lo = slab.get("tender_value_min") or 0
+        hi = slab.get("tender_value_max")
+        if v >= lo and (hi is None or v < hi):
+            if slab["fee_type"] == "fixed":
+                amt = float(slab.get("fixed_amount") or 0)
+            else:
+                amt = round(v * float(slab.get("percentage") or 0) / 100.0, 2)
+            slab_used = slab
+            break
+    if amt is None:
+        raise HTTPException(status_code=422,
+            detail=f"No slab matches tender value {v} for master '{m.get('name')}'. Configure a slab that covers this range.")
+    if amt <= 0:
+        raise HTTPException(status_code=400,
+            detail=f"Computed fee is 0 — check that slab has a positive amount or percentage.")
+
+    currency = (m.get("currency") or "USD").lower()
+    label = req.label or f"{m.get('name')} · {m.get('kind')}"
+
+    from pmc_lib.payments.stripe.checkout import (
+        StripeCheckout, CheckoutSessionRequest,
+    )
+    host_url = str(request.base_url)
+    webhook_url = f"{host_url}api/webhook/stripe"
+    sc = StripeCheckout(api_key=os.environ.get("STRIPE_API_KEY", "sk_test_managed"),
+                         webhook_url=webhook_url)
+    ck_req = CheckoutSessionRequest(
+        amount=float(amt),
+        currency=currency,
+        success_url=f"{req.origin_url.rstrip('/')}/billing/success?session_id={{CHECKOUT_SESSION_ID}}",
+        cancel_url=f"{req.origin_url.rstrip('/')}/billing/cancel",
+        tax_mode=os.environ.get("STRIPE_TAX_MODE", "full"),
+        product_name=label,
+        product_tax_code="txcd_10000000",
+        metadata={
+            "fee_master_id": str(m["_id"]),
+            "fee_master_name": m.get("name") or "",
+            "fee_kind": m.get("kind") or "",
+            "tender_value": str(v),
+            "context_ref": req.context_ref or "",
+            "buyer_email": buyer_email,
+            "buyer_role": buyer_role,
+        },
+    )
+    session = await sc.create_checkout_session(ck_req)
+
+    await db.payment_transactions.insert_one({
+        "session_id": session.session_id,
+        "product_code": f"FEE:{m.get('kind')}",
+        "fee_master_id": str(m["_id"]),
+        "fee_kind": m.get("kind"),
+        "tender_value": v,
+        "buyer_email": buyer_email,
+        "buyer_role": buyer_role,
+        "amount": float(amt),
+        "currency": currency,
+        "context_ref": req.context_ref,
+        "status": "initiated",
+        "payment_status": "pending",
+        "created_at": datetime.now(timezone.utc),
+        "updated_at": datetime.now(timezone.utc),
+    })
+    await audit_log("billing.fee_checkout_init",
+                    {"email": buyer_email, "role": buyer_role},
+                    "fee_master", str(m["_id"]),
+                    {"amount": amt, "currency": currency, "tender_value": v,
+                     "context_ref": req.context_ref, "session_id": session.session_id})
+    return {"checkout_url": session.url, "session_id": session.session_id,
+             "amount": amt, "currency": currency,
+             "fee_kind": m.get("kind"), "slab": slab_used}
+

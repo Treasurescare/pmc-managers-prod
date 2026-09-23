@@ -581,6 +581,21 @@ export const reverseAuctionApi = {
   autobid: (aid, body) => api.post(`/api/v1/reverse-auctions/${aid}/autobid`, body).then((r) => r.data),
   state: (aid) => api.get(`/api/v1/reverse-auctions/${aid}/state`).then((r) => r.data),
   stateMine: (aid) => api.get(`/api/v1/reverse-auctions/${aid}/state-mine`).then((r) => r.data),
+  // v46b — invitations
+  invite: (aid, emails, note) =>
+    api.post(`/api/v1/reverse-auctions/${aid}/invite`, { emails, note }).then((r) => r.data),
+  listInvitations: (aid) =>
+    api.get(`/api/v1/reverse-auctions/${aid}/invitations`).then((r) => r.data),
+  resolveInvite: (token) =>
+    api.get(`/api/v1/reverse-auctions/invite/resolve/${token}`).then((r) => r.data),
+  acceptInvite: (token) =>
+    api.post(`/api/v1/reverse-auctions/invite/accept/${token}`).then((r) => r.data),
+};
+
+// v46b — Fee master → Stripe checkout
+export const feeBillingApi = {
+  feeCheckout: (payload) =>
+    api.post(`/api/v1/billing/fee-checkout`, payload).then((r) => r.data),
 };
 
 // ---------- Wave 40: UNSPSC taxonomy ----------
