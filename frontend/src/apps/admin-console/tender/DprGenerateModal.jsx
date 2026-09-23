@@ -56,7 +56,8 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
     const results = await Promise.all(files.map(async (f) => {
       try {
         const r = await tenderProApi.analyzeDpr(f, kind, batchMasterId || null);
-        return { file: f, preview: r, masterId: batchMasterId || null, status: "ready" };
+        return { file: f, preview: r, masterId: batchMasterId || null, status: "ready",
+                 name: r?.header?.work_title || f.name.replace(/\.[^.]+$/, "") || "AI Draft" };
       } catch (e) {
         return { file: f, status: "error", error: e?.response?.data?.detail || e.message || "Analyze failed" };
       }
@@ -120,14 +121,33 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
             }
           } catch { /* no master configured — leave EMD for manual entry */ }
         }
+        const chosenName = (p.name || "").trim() ||
+          `${p.preview.header?.work_title || p.file.name || "AI Draft"} — ${new Date().toISOString().slice(0, 10)}`;
         const doc = await tenderTemplateApi.create({
-          name: `${p.preview.header?.work_title || p.file.name || "AI Draft"} — ${new Date().toISOString().slice(0, 10)}`,
+          name: chosenName,
           kind, industry,
           country: mergedHeader.country || country || undefined,
           header: { ...mergedHeader, dpr_warnings: p.preview.warnings || [] },
           sections: cleanSections,
         });
         created.push(doc);
+        // v46f — "Build a new master" must ACTUALLY persist a master:
+        // POST /tender-templates always creates a draft (is_master=false,
+        // top-level country dropped), so promote the fresh draft through
+        // the dedicated save-as-master endpoint.
+        if (noMasterMode && !p.masterId) {
+          const mCountry = (mergedHeader.country || country || "").toUpperCase();
+          if (mCountry) {
+            try {
+              await tenderProApi.saveAsMaster(doc.id, {
+                country: mCountry, industry,
+                name: `${chosenName} · ${mCountry} master`,
+              });
+            } catch (e) {
+              errors.push(`${p.file.name}: draft created, but saving as master failed — ${e?.response?.data?.detail || e.message}`);
+            }
+          }
+        }
       } catch (e) {
         errors.push(`${p.file.name}: ${e?.response?.data?.detail || e.message}`);
       }
@@ -242,11 +262,20 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
                       <div key={k}><span className="font-mono text-brand-navy/60">{k}:</span> {String(v).slice(0, 70)}</div>
                     ))}
                   </div>
+                  <label className="block text-xs mb-2">
+                    <span className="pmc-label">Tender name (editable — this is what you search for in the left column)</span>
+                    <input value={p.name || ""}
+                           onChange={(e) => patchPreview(idx, { name: e.target.value })}
+                           data-testid={`dpr-name-${idx}`}
+                           placeholder="Name this tender draft"
+                           className="mt-1 w-full px-3 py-2 border border-brand-navy/20 bg-white" />
+                  </label>
                   <label className="block text-xs">
                     <span className="pmc-label">Base master template</span>
                     <select value={p.masterId} onChange={(e) => patchPreview(idx, { masterId: e.target.value })}
                             data-testid={`dpr-master-${idx}`}
                             className="mt-1 w-full px-3 py-2 border border-brand-navy/20 bg-white">
+                      <option value="">— New master from this DPR —</option>
                       {(masters || []).map((m) => (
                         <option key={m.id} value={m.id}>{m.name}</option>
                       ))}
