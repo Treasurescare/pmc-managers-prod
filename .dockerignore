@@ -3,7 +3,6 @@
 .gitignore
 .eslintcache
 node_modules
-frontend
 docs
 tests
 __pycache__
