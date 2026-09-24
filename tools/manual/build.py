@@ -116,7 +116,7 @@ for pid, human in [("admin", "Admin"), ("management", "Management"),
         [("Work email", "Email that appears in the audit trail."),
          ("Password", "12+ characters; failures trigger the brute-force lockout after 5 attempts."),
          ("Portal briefing (right rail)", "Short brief so the user knows they're in the right door."),
-         ("Session security note", "TLS 1.3 + Emergent audit log — cite this in security reviews.")],
+         ("Session security note", "TLS 1.3 + immutable audit log — cite this in security reviews.")],
         ["MFA is enforced for admin + management once configured — you get a code prompt after the password step."])
 
 # Vendor portal
@@ -535,7 +535,7 @@ p("**Data** — MongoDB via Motor (async driver). Collections include tenants, "
     "notices, tender_templates, registrations, vendors, bids, rubrics, scores, "
     "evaluations, awards, escrow_transactions, auctions, corrigenda, audits, "
     "ratings, engagements, packages, categories, countries, dpr_jobs.")
-p("**AI** — Emergent LLM Universal Key routed through the integration proxy. "
+p("**AI** — Managed AI Gateway (universal LLM key) routed through the integration proxy. "
     "Used for DPR ingestion (map-reduce), AI Fill All, anomaly detection and "
     "the admin copilot. v46l lifts the 800 KB cap and adds an async worker.")
 p("**Storage** — S3 for licences, tender attachments, signed PDFs, archived "
@@ -909,7 +909,7 @@ p("This manual is versioned and lives under `/app/deliverables/v46_manual/build/
 
 # ------- WRITE MD -------
 md_text = "\n".join(md)
-(OUT / "PMC_v46p_Master_Training_Manual.md").write_text(md_text)
+(OUT / "PMC_v3_Master_Training_Manual.md").write_text(md_text)
 
 # ---------- DOCX ----------
 from docx import Document
@@ -1042,7 +1042,7 @@ for term, defn in gl:
     run = pp.add_run(term); run.bold = True
     pp.add_run(f" — {defn}")
 
-doc.save(OUT / "PMC_v46p_Master_Training_Manual.docx")
+doc.save(OUT / "PMC_v3_Master_Training_Manual.docx")
 
 # ---------- PDF via WeasyPrint ----------
 def esc(s: str) -> str: return html.escape(str(s))
@@ -1080,7 +1080,7 @@ overview_paras = [
     "<b>Frontend</b> — React SPA served from S3 + CloudFront. Sovereign navy/gold editorial design system with Libre Baskerville + IBM Plex fonts. Routing via React Router; state via Context (i18n, auth) + local component state.",
     "<b>Backend</b> — FastAPI on AWS Elastic Beanstalk (Docker running on 64-bit Amazon Linux 2). All routes prefixed <code>/api/v1/…</code>. Auth realm split into admin, staff and vendor with per-realm login endpoints and cookie names.",
     "<b>Data</b> — MongoDB via Motor (async driver). Collections include tenants, notices, tender_templates, registrations, vendors, bids, rubrics, scores, evaluations, awards, escrow_transactions, auctions, corrigenda, audits, ratings, engagements, packages, categories, countries, dpr_jobs.",
-    "<b>AI</b> — Emergent LLM Universal Key routed through the integration proxy. Used for DPR ingestion (map-reduce), AI Fill All, anomaly detection and the admin copilot. v46l lifts the 800 KB cap and adds an async worker.",
+    "<b>AI</b> — Managed AI Gateway (universal LLM key) routed through the integration proxy. Used for DPR ingestion (map-reduce), AI Fill All, anomaly detection and the admin copilot. v46l lifts the 800 KB cap and adds an async worker.",
     "<b>Storage</b> — S3 for licences, tender attachments, signed PDFs, archived auction rooms. CloudFront in front for global CDN.",
     "<b>Notifications</b> — Resend (email), planned Firebase/APNs (mobile push).",
     "<b>Payments</b> — Stripe (test + live keys separated); Kaspi + PayPal on the roadmap.",
@@ -1740,19 +1740,19 @@ for t, d in [
 body_parts.append("<h1>70 · AI copilot governance and audit trail</h1>")
 for t, d in [
     ("Positioning", "Every AI surface is <b>advisory-only</b>. No AI-generated content is ever written to a legal or immutable audit record. The human evaluator, admin or vendor is always the recorded actor."),
-    ("Inventory", "1) DPR extractor (ingestion pipeline); 2) Section drafter (Tender Builder); 3) Bid-anomaly detector (Analytics); 4) Committee deliberation summariser; 5) Vendor Q&amp;A auto-suggest; 6) Public-notice de-jargon reviewer. All route through the Emergent LLM Universal Key proxy."),
+    ("Inventory", "1) DPR extractor (ingestion pipeline); 2) Section drafter (Tender Builder); 3) Bid-anomaly detector (Analytics); 4) Committee deliberation summariser; 5) Vendor Q&amp;A auto-suggest; 6) Public-notice de-jargon reviewer. All route through the managed AI Gateway (universal LLM key) proxy."),
     ("Prompt registry", "Every prompt lives under <code>backend/pmc_lib/prompts/</code> with a semver tag. Changes require a PR + reviewer + prompt-diff attached to a governance ticket. The registry is immutable; historical prompts are retained for 7 years to support audit replay."),
     ("Model registry", "Model choice per surface is tracked in <code>ai_governance.models</code>. Downgrading a model (e.g. GPT-5.6 → GPT-5.4) is a change-managed action requiring CTO sign-off. The runtime records model + prompt version on every response — so any output can be re-produced exactly."),
     ("Bias controls", "DPR extraction is checked nightly against a golden-set corpus of 40 known tenders. If precision or recall drops &gt; 3 pts vs baseline, the ai-governance-check CI fails and blocks the release. Bid-anomaly detector is checked for demographic drift on vendor country-of-origin."),
     ("Explainability", "Every AI recommendation the UI surfaces has a 'Why?' expander that shows the prompt digest + response digest + retrieved context. This is required for regulator conversations."),
     ("Human veto", "Committee members and admins can veto any AI recommendation. The veto is recorded as an audit row with a mandatory reason string. Vetoes are aggregated monthly and fed back to prompt/model tuning."),
-    ("Data residency", "Emergent's Universal Key proxy is contractually pinned to EU + KZ endpoints only. No PII leaves the region. Any content beyond raw tender bodies is redacted at the prompt-builder stage — the redactor is unit-tested against a KZ-PII corpus every commit."),
+    ("Data residency", "The managed AI Gateway proxy is contractually pinned to EU + KZ endpoints only. No PII leaves the region. Any content beyond raw tender bodies is redacted at the prompt-builder stage — the redactor is unit-tested against a KZ-PII corpus every commit."),
 ]:
     body_parts.append(f"<h2>{esc(t)}</h2><p>{d}</p>")
 
 body_parts.append("<h1>71 · Business continuity & regional failover</h1>")
 for t, d in [
-    ("Regional footprint", "Primary region: eu-central-1 (Frankfurt) — colocation with Emergent LLM proxy EU endpoint. Warm-standby region: me-south-1 (Bahrain) — Gulf partner requirement. Read-only DR region: eu-west-2 (London) — legal archive only."),
+    ("Regional footprint", "Primary region: eu-central-1 (Frankfurt) — colocation with the AI gateway EU endpoint. Warm-standby region: me-south-1 (Bahrain) — Gulf partner requirement. Read-only DR region: eu-west-2 (London) — legal archive only."),
     ("RTO / RPO", "Recovery Time Objective 30 minutes for a warm standby cutover; 4 hours for a cold rebuild. Recovery Point Objective is 60 seconds — enforced by MongoDB oplog streaming to standby and S3 cross-region replication for uploads."),
     ("Failover triggers", "1) Elastic Beanstalk region health &lt; 60 % for 5 minutes; 2) MongoDB primary election failure for &gt; 2 minutes; 3) LLM proxy latency &gt; 30 s for 3 minutes; 4) Manual declaration by CTO. Any single trigger fires the failover playbook (see chapter 33)."),
     ("Data-store replication", "MongoDB Atlas cross-region cluster (primary + 2 replicas in EU + 1 replica in ME). S3 Cross-Region Replication for <code>pmc-uploads</code> and <code>pmc-downloads</code>. Route 53 health-checks + DNS failover for <code>api.pmcmanagers.com</code>."),
@@ -1765,10 +1765,10 @@ for t, d in [
 
 body_parts.append("<h1>72 · Cybersecurity posture & third-party risk</h1>")
 for t, d in [
-    ("Certification roadmap", "ISO 27001 target FY2027 Q3. SOC 2 Type II target FY2027 Q4. Both scoped to the platform + Emergent LLM proxy + Stripe + Resend + DocuSign integrations. GDPR + Kazakhstan Law 94-V compliance is already in force; the certification is the third-party attestation."),
+    ("Certification roadmap", "ISO 27001 target FY2027 Q3. SOC 2 Type II target FY2027 Q4. Both scoped to the platform + managed AI gateway + Stripe + Resend + DocuSign integrations. GDPR + Kazakhstan Law 94-V compliance is already in force; the certification is the third-party attestation."),
     ("Threat model", "STRIDE assessment refreshed each release. Top current risks: (1) vendor credential stuffing at /vendor/login, (2) prompt injection via uploaded DPR files, (3) escrow signer email substitution, (4) supply-chain compromise of npm/pypi packages, (5) social engineering of admin support staff."),
     ("Controls", "Rate limiting + IP throttling on all /login surfaces. LLM prompt-injection guardrails: strict allow-list HTML tags, sandboxed retrieval, no tool-use inside DPR pipeline. Escrow signer changes require re-authentication + audit + email confirmation. Dependency-pinning + Snyk + weekly dependency-cron scans."),
-    ("Third-party risk register", "Every external service the platform depends on has a row in <code>third_party.md</code>: scope, data flow, SOC-2 status, DPA on file, contract expiry, escalation contact. Current entries: Emergent LLM, Stripe, Resend, DocuSign, MongoDB Atlas, AWS, Cloudflare, Slack, Telegram, Snapchat/Instagram API."),
+    ("Third-party risk register", "Every external service the platform depends on has a row in <code>third_party.md</code>: scope, data flow, SOC-2 status, DPA on file, contract expiry, escalation contact. Current entries: Managed AI Gateway (LLM), Stripe, Resend, DocuSign, MongoDB Atlas, AWS, Cloudflare, Slack, Telegram, Snapchat/Instagram API."),
     ("Penetration testing", "Annual external pen-test by an approved vendor. Quarterly internal red-team exercises. Findings are logged in JIRA with a Sev tag; anything Sev-1 must be remediated within 15 days per policy."),
     ("Encryption", "TLS 1.3 in transit; AES-256 at rest on MongoDB + S3. Application-level envelope encryption for tender bodies (KMS CMKs rotated annually). DocuSign PDFs are stored encrypted with the vendor's public key from KYC — nobody but the signer can retrieve the plaintext."),
     ("Incident classification", "Sev-1 = data exfiltration or systemic auth bypass; Sev-2 = single-tenant data-integrity failure; Sev-3 = performance regression or observability gap. Each has a fixed on-call rotation + response SLA + post-mortem template. See chapter 33 for the full playbook."),
@@ -1891,15 +1891,15 @@ for t, d in [
 ]:
     body_parts.append(f"<h2>{esc(t)}</h2><p>{d}</p>")
 
-body_parts.append("<h1>82 · Sign-off</h1><p>This manual is versioned under <code>/app/deliverables/v46_manual/build/</code>. Regenerate via <code>python3 /app/tools/manual/build.py</code>. Re-capture via <code>python3 /app/tools/manual/capture.py</code> after every material release. v46p adds chapters 68 – 81 (vendor scorecard, cross-border settlement, AI governance, BCP, cybersecurity, vendor KPIs, regulator engagement, roadmap horizons, ethics board, TCO, green procurement, vendor comms, data-quality, PWA) to reach the 150-page target requested by the sponsor.</p>")
+body_parts.append("<h1>82 · Sign-off</h1><p>This manual is versioned under <code>/app/deliverables/v46_manual/build/</code>. Regenerate via <code>python3 /app/tools/manual/build.py</code>. Re-capture via <code>python3 /app/tools/manual/capture.py</code> after every material release. Manual v3 adds chapters 68 – 81 (vendor scorecard, cross-border settlement, AI governance, BCP, cybersecurity, vendor KPIs, regulator engagement, roadmap horizons, ethics board, TCO, green procurement, vendor comms, data-quality, PWA) and is fully scrubbed of third-party platform references.</p>")
 
 pdf_html = f"""<!doctype html><html><head><meta charset='utf-8'/>
-<title>PMC v46p Master Training Manual</title>
+<title>PMC Master Training Manual v3</title>
 <style>
     /* v46o — watermark + cover */
     @page :first {{ background: #0B132B; margin: 0; }}
     @page {{ size: A4; margin: 20mm 16mm 22mm 16mm;
-      @top-right {{ content: "PMC v46p Master Manual"; font: 8.5pt Georgia; color: #94a3b8; }}
+      @top-right {{ content: "PMC Master Manual v3"; font: 8.5pt Georgia; color: #94a3b8; }}
       @bottom-left {{ content: "{esc(BANNER)}"; font: 8.5pt Georgia; color: #64748b; }}
       @bottom-right {{ content: "Page " counter(page) " / " counter(pages); font: 8.5pt Georgia; color: #64748b; }}
       background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='800'><g transform='translate(400,400) rotate(-30)'><text x='0' y='0' text-anchor='middle' font-family='Georgia' font-size='60' fill='rgba(15,31,58,0.05)' font-weight='700' letter-spacing='6'>CONFIDENTIAL — INTERNAL USE ONLY</text></g></svg>");
@@ -1933,7 +1933,7 @@ code {{ font-family: 'Menlo', 'Courier New', monospace; font-size: 9.5pt; backgr
 <div class="cover">
   <div class="crest">PMC</div>
   <div class="title">Master Training Manual</div>
-  <div class="title" style="font-size:24pt;color:#D4AF37;margin-top:14pt;">v46p · Sovereign Edition · 150-page complete</div>
+  <div class="title" style="font-size:24pt;color:#D4AF37;margin-top:14pt;">v3 · Sovereign Edition · 150-page complete</div>
   <div class="rule"></div>
   <div class="sub">End-to-end operator handbook · every screen · every field · every workflow</div>
   <div class="banner">{esc(BANNER)}</div>
@@ -1942,12 +1942,12 @@ code {{ font-family: 'Menlo', 'Courier New', monospace; font-size: 9.5pt; backgr
 {"".join(body_parts)}
 </body></html>"""
 
-pdf_html_path = OUT / "PMC_v46p_Master_Training_Manual.html"
+pdf_html_path = OUT / "PMC_v3_Master_Training_Manual.html"
 pdf_html_path.write_text(pdf_html)
 
 from weasyprint import HTML
 HTML(string=pdf_html, base_url=str(ROOT)).write_pdf(
-    str(OUT / "PMC_v46p_Master_Training_Manual.pdf"))
+    str(OUT / "PMC_v3_Master_Training_Manual.pdf"))
 
 sizes = {f.name: f.stat().st_size for f in OUT.iterdir() if f.is_file()}
 print("Manual built:")

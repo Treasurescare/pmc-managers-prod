@@ -217,8 +217,8 @@ MODULES = [
            ["Section body auto-fills with 280-360 word HTML draft.",
             "Toast success 'AI draft generated'."],
            ["POST /api/v1/tender-templates/{tid}/sections/{code}/ai-draft → 200 body[]",
-            "Backend proxies via EMERGENT_LLM_KEY → integrations.emergentagent.com/llm"],
-           "Regression check: prod key sk-emergent-*, no LLM_API_KEY."),
+            "Backend proxies via the managed AI key → AI gateway endpoint"],
+           "Regression check: prod uses the managed AI key (sk-*), no legacy LLM_API_KEY."),
         tc("E-03", "Async DPR ingestion (unlimited size · v46l)",
            "Draft open. Sample 100 MB PDF/DOCX.",
            ["Click 'Analyse DPR' → upload file",
@@ -492,11 +492,11 @@ CATEGORIES = [
 def build_html():
     parts = []
     parts.append("""<!doctype html><html><head><meta charset='utf-8'>
-<title>PMC v46p Testing Manual</title>
+<title>PMC Testing Manual v3</title>
 <style>
   @page :first { background: #0B132B; margin: 0; }
   @page { size: A4; margin: 20mm 16mm 22mm 16mm;
-    @top-right { content: "PMC v46p Testing Manual"; font: 8.5pt Georgia; color: #94a3b8; }
+    @top-right { content: "PMC Testing Manual v3"; font: 8.5pt Georgia; color: #94a3b8; }
     @bottom-left { content: "Confidential — Internal Use Only"; font: 8.5pt Georgia; color: #64748b; }
     @bottom-right { content: "Page " counter(page) " / " counter(pages); font: 8.5pt Georgia; color: #64748b; }
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='800'><g transform='translate(400,400) rotate(-30)'><text x='0' y='0' text-anchor='middle' font-family='Georgia' font-size='60' fill='rgba(15,31,58,0.05)' font-weight='700' letter-spacing='6'>CONFIDENTIAL — INTERNAL USE ONLY</text></g></svg>");
@@ -528,7 +528,7 @@ def build_html():
     parts.append(f"""<div class="cover">
   <div class="crest">PMC</div>
   <div class="title">Testing Manual</div>
-  <div class="title" style="font-size:24pt;color:#D4AF37;margin-top:14pt;">v46p · Sovereign Edition</div>
+  <div class="title" style="font-size:24pt;color:#D4AF37;margin-top:14pt;">v3 · Sovereign Edition</div>
   <div class="rule"></div>
   <div class="sub">Per-module test cases · happy paths · edge cases · expected errors · HTTP codes</div>
   <div class="banner">{esc(BANNER)}</div>
@@ -595,9 +595,9 @@ def build_html():
 
 def main():
     doc = build_html()
-    html_path = OUT / "PMC_v46p_Testing_Manual.html"
+    html_path = OUT / "PMC_v3_Testing_Manual.html"
     html_path.write_text(doc)
-    pdf_path = OUT / "PMC_v46p_Testing_Manual.pdf"
+    pdf_path = OUT / "PMC_v3_Testing_Manual.pdf"
     HTML(string=doc).write_pdf(str(pdf_path))
     print(f"Testing manual: {pdf_path.stat().st_size/1024:.1f} KB")
 

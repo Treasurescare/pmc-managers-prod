@@ -35,7 +35,7 @@ def _svg() -> str:
         (720, 420, 360, 90, "Evaluations & Rubrics", "rubrics · scores · lock_envelopes", "#fff4d6"),
         (720, 540, 360, 90, "Awards & Contracts", "awards · contracts · milestones", "#fff4d6"),
 
-        (1380, 60, 360, 90, "Emergent LLM Proxy", "DPR extract · section drafter · anomaly", "#f3e8ff"),
+        (1380, 60, 360, 90, "AI Gateway (LLM Proxy)", "DPR extract · section drafter · anomaly", "#f3e8ff"),
         (1380, 180, 360, 90, "Escrow (EMD)", "escrow_accounts · escrow_transactions", "#e8f8ee"),
         (1380, 300, 360, 90, "DocuSign Envelopes", "LOA · PO · Contract · NDA", "#e8f8ee"),
         (1380, 420, 360, 90, "Payments (Stripe / Kaspi / SWIFT)", "settlements · refunds", "#e8f8ee"),
@@ -74,7 +74,7 @@ def _svg() -> str:
         f"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 {W} {H}' width='{W}' height='{H}'>",
         f"<rect x='0' y='0' width='{W}' height='{H}' fill='#f7f5f0'/>",
         # header
-        f"<text x='60' y='40' font-family='Georgia' font-size='24' fill='{NAVY}' font-weight='700'>PMC Managers v46p — Data Flow</text>",
+        f"<text x='60' y='40' font-family='Georgia' font-size='24' fill='{NAVY}' font-weight='700'>PMC Managers — Data Flow (Manual v3)</text>",
         f"<text x='{W-60}' y='40' font-family='Georgia' font-size='11' fill='{MUTED}' text-anchor='end'>CONFIDENTIAL — INTERNAL USE ONLY</text>",
         # arrow-head marker
         "<defs><marker id='arr' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'>"
@@ -124,15 +124,15 @@ def _svg() -> str:
 
 def main():
     svg = _svg()
-    (OUT / "PMC_v46p_Data_Flow.svg").write_text(svg)
+    (OUT / "PMC_v3_Data_Flow.svg").write_text(svg)
     html = f"""<!doctype html><html><head><meta charset='utf-8'>
 <style>
   @page {{ size: 420mm 300mm; margin: 6mm; }}
   html, body {{ margin: 0; padding: 0; }}
   svg {{ display: block; width: 100%; height: auto; }}
 </style></head><body>{svg}</body></html>"""
-    HTML(string=html).write_pdf(str(OUT / "PMC_v46p_Data_Flow.pdf"))
-    print(f"Data-flow written: {(OUT/'PMC_v46p_Data_Flow.pdf').stat().st_size/1024:.1f} KB")
+    HTML(string=html).write_pdf(str(OUT / "PMC_v3_Data_Flow.pdf"))
+    print(f"Data-flow written: {(OUT/'PMC_v3_Data_Flow.pdf').stat().st_size/1024:.1f} KB")
 
 
 if __name__ == "__main__":

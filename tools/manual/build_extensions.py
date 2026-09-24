@@ -324,7 +324,7 @@ BUG_TRACKER_STATE = [
         "#38 · Stakeholder snapshot 500 on any artefact failure — per-artefact try/except + errors[].",
     ]),
     ("Closed in v46o", [
-        "Per-section ✨ AI silently 503'd on production — rewired to _llm_complete with Emergent proxy routing.",
+        "Per-section ✨ AI silently 503'd on production — rewired to _llm_complete with managed AI gateway routing.",
         "Bid workflow narrative silently failed — same key-lookup widened.",
         "Auction anomaly narrative silently failed — same fix.",
         "Bid-pair AI redline silently failed — same fix.",
@@ -349,7 +349,7 @@ BUG_TRACKER_STATE = [
 INCIDENT_RESPONSE = [
     ("Detection", "Alerts flow through CloudWatch → PagerDuty → on-call admin. The audit-log tail on Elastic Beanstalk feeds a 30-min sliding window that raises P1 on >5 auth failures / min or >3 500-class responses / min. The AI anomaly detector opens a P2 for any high-confidence flag; Legal triages daily."),
     ("Triage", "On-call admin acknowledges within 5 min, opens a Slack war-room channel, invites the CTO + Legal + Escrow + Support. Engineer captures the immediate CloudWatch tail, the audit rows for the affected entities, and the browser Network trace if a UI regression."),
-    ("Containment", "If credentials or key material may be exposed: rotate the affected key first (Emergent LLM key rotates via the platform; Stripe via Stripe dashboard; JWT signing key via EB env-property + rolling restart). If a code path is at fault, roll back to the previous EB version via the Application Versions console."),
+    ("Containment", "If credentials or key material may be exposed: rotate the affected key first (the managed AI key rotates via the platform; Stripe via Stripe dashboard; JWT signing key via EB env-property + rolling restart). If a code path is at fault, roll back to the previous EB version via the Application Versions console."),
     ("Communication", "For any incident touching vendor bids or contract data, the CEO + Partner lead are informed within 1 h. Communications drafts customer language; nothing is sent without CTO + Legal sign-off. The audit-vault records the entire war-room transcript."),
     ("Recovery", "Once mitigated, engineer captures the RCA + timeline + fix in `/app/deliverables/incidents/YYYY-MM-DD-<slug>.md`. That file is committed via 'Save to Github' and cross-linked from the audit vault."),
     ("Post-mortem", "Blameless post-mortem within 5 business days. Attendees: engineer, CTO, on-call admin, affected role owner. Output: (a) written RCA, (b) 3 preventive actions with owners + due dates, (c) update to the troubleshooting playbook (chapter 12)."),
@@ -422,7 +422,7 @@ SECURITY_CONTROLS = [
     ("Application-level", [
         ("CSRF",                   "Double-submit token; every mutating request must carry the X-CSRF-Token header."),
         ("XSS",                    "Rich-text sanitisation via _sanitize_body allow-list; React auto-escapes by default."),
-        ("SSRF",                   "Outbound HTTP restricted to a URL allow-list (Emergent LLM, Stripe, DocuSign, Resend)."),
+        ("SSRF",                   "Outbound HTTP restricted to a URL allow-list (managed AI gateway, Stripe, DocuSign, Resend)."),
         ("Serialisation",          "PyObjectId annotated type; no raw ObjectId leakage; all API models are Pydantic-typed."),
         ("File uploads",           "Signed URLs to a private bucket, MIME sniff on server, 100 MB DPR cap, 25 MB elsewhere."),
     ]),
@@ -856,13 +856,13 @@ BOARD_REPORTING_PACK = [
 IT_OPERATIONS = [
     ("Runbook custody",     "IT operations runbooks live under `/app/deliverables/ops/`. Every playbook has an owner + review date + last-executed timestamp."),
     ("Environment matrix",  "prod (EB + S3 + CloudFront + Mongo Atlas M40), preview (this environment), sandbox (scratch cluster), DR (paired region)."),
-    ("Secret rotation",     "Emergent LLM key auto-rotated by the platform. Stripe, DocuSign, Resend keys rotated annually + on incident. JWT signing key rotated on suspicion of exposure."),
+    ("Secret rotation",     "Managed AI key auto-rotated by the platform. Stripe, DocuSign, Resend keys rotated annually + on incident. JWT signing key rotated on suspicion of exposure."),
     ("Log retention",       "CloudWatch 90 days hot + 5 years cold. Audit vault 10 years / 15 years as per chapter 34."),
     ("Monitoring",          "CloudWatch metrics + PagerDuty routing. Custom metrics: dpr_job_latency_p95, envelope_lock_rate, audit_row_lag."),
     ("Backup",              "Nightly Mongo dump (7-day rolling S3), weekly Glacier cold-copy (12-month rolling), quarterly restore drill."),
     ("Capacity planning",   "Every doubling of published notices triggers a capacity review — CPU, RAM, LLM quota, S3 spend, Mongo Atlas tier."),
     ("Cost management",     "Monthly cost report to the CTO; anything above 15 % QoQ opens a review with the sponsoring finance lead."),
-    ("Vendor management",   "Renewals tracked in Masters → Integrations → Renewals. 90-day advance notice on any Emergent / AWS / Mongo Atlas / DocuSign / Stripe / Resend renewal."),
+    ("Vendor management",   "Renewals tracked in Masters → Integrations → Renewals. 90-day advance notice on any AI Gateway / AWS / Mongo Atlas / DocuSign / Stripe / Resend renewal."),
     ("End-of-life policy",  "Any dependency EOL'd by upstream triggers a migration project with a 6-month cushion before the upstream end-date."),
 ]
 
