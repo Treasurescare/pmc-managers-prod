@@ -31,20 +31,27 @@ export default function TenderBuilderPanel() {
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
 
-  // Bug 31c — clicking a Kind tab should NOT leak the previous doc into the
-  // right pane. Reset both the selection AND the loaded document.
+  // Bug 31c + v46p Tab-Refetch — clicking a Kind tab must (a) reset the
+  // right-pane selection so a previous doc doesn't leak across kinds and
+  // (b) refetch the sidebar list so masters+drafts reflect the picked kind.
+  // Passing kind='all' to the API returns everything (server ignores the
+  // filter when the query param is empty).
+  const load = useCallback(async (k) => {
+    try {
+      const filterKind = (k || kind);
+      const params = (filterKind && filterKind !== "all") ? filterKind : undefined;
+      setList(await tenderTemplateApi.list(params));
+    } catch (e) { showApiError(e); }
+  }, [kind]);
+  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+
   const switchKind = (k) => {
     setKind(k);
     setSelectedId(null);
     setDoc(null);
     setDirty(false);
+    load(k);
   };
-
-  const load = useCallback(async () => {
-    try { setList(await tenderTemplateApi.list()); }
-    catch (e) { showApiError(e); }
-  }, []);
-  useEffect(() => { load(); }, [load]);
 
   const openTemplate = async (id) => {
     setSelectedId(id);

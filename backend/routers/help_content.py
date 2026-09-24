@@ -1,20 +1,28 @@
 """help_content.py — serves the manual content JSON to the in-app Help tab.
 
 The frontend `<HelpPanel>` renders the same content authored in
-`scripts/manual_content.py` — but rather than couple the frontend to a
-Python file, we expose a lightweight endpoint that emits it as JSON.
+`backend/pmc_lib/help_content_data.py` (mirrored from `scripts/manual_content.py`
+for local development). Router prefers the in-package copy so the Elastic
+Beanstalk archive — which only ships `backend/` — never ends up with an empty
+`MODULES` and a blank Help tab in production (bug reported v46p).
 """
 import sys
 from pathlib import Path
 from fastapi import APIRouter, Response
 
-# Import from /app/scripts
-_SCRIPTS = Path(__file__).resolve().parents[2] / "scripts"
-sys.path.insert(0, str(_SCRIPTS))
+MODULES: dict = {}
+# 1. Prefer in-package copy (survives every backend-only deployment).
 try:
-    from manual_content import MODULES  # type: ignore
+    from pmc_lib.help_content_data import MODULES  # type: ignore
 except Exception:
-    MODULES = {}
+    # 2. Fall back to /app/scripts for dev workstations that still edit there.
+    _SCRIPTS = Path(__file__).resolve().parents[2] / "scripts"
+    if _SCRIPTS.exists():
+        sys.path.insert(0, str(_SCRIPTS))
+        try:
+            from manual_content import MODULES  # type: ignore
+        except Exception:
+            MODULES = {}
 
 router = APIRouter(prefix="/api/v1/meta", tags=["meta"])
 
