@@ -56,6 +56,11 @@ import AuctionInviteAccept from "@/apps/vendor-portal/AuctionInviteAccept";
 // Wave 41 — Meeting room (Jitsi embed via magic-link)
 import MeetingRoom from "@/apps/shared/MeetingRoom";
 
+// v46i — editorial public pages + live/completed tender lists
+import AboutUs from "@/apps/notice-board/AboutUs";
+import VisionMission from "@/apps/notice-board/VisionMission";
+import TendersList from "@/apps/notice-board/TendersList";
+
 export default function App() {
   return (
     <div className="App">
@@ -89,6 +94,10 @@ export default function App() {
             <Route path="/" element={<NoticeBoardHome />} />
             <Route path="/notices" element={<NoticeBoardHome />} />
             <Route path="/notices/:noticeRef" element={<NoticeDetail />} />
+            <Route path="/about" element={<AboutUs />} />
+            <Route path="/vision" element={<VisionMission />} />
+            <Route path="/tenders" element={<Navigate to="/tenders/live" replace />} />
+            <Route path="/tenders/:mode" element={<TendersList />} />
             <Route path="/vendors/:vendorRef" element={<PublicVendorProfile />} />
             <Route path="/auctions/:aid/live" element={<PublicAuctionRoom />} />
 

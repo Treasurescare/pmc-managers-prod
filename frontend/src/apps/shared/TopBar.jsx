@@ -68,9 +68,11 @@ export default function TopBar({ dark = false, rightExtras = null }) {
   };
 
   const PUBLIC_NAV = [
-    ["/notices", t("nav.notices"), "nav-notices"],
+    ["/tenders/live", t("nav.notices") || "Live tenders", "nav-live"],
+    ["/tenders/completed", "Completed", "nav-completed"],
+    ["/about", "About us", "nav-about"],
+    ["/vision", "Vision", "nav-vision"],
     ["/register", t("nav.register"), "nav-register"],
-    ["/register/status", t("nav.status"), "nav-status"],
     ["/login", t("nav.login"), "nav-signin"],
   ];
   // Hide the whole public-nav strip once the user is inside a dashboard.

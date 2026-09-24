@@ -15,6 +15,7 @@ import ForgotUsernameModal from "@/apps/shared/ForgotUsernameModal";
 const EMPLOYEE_ROLES = [
   "admin", "escrow_agent", "certifier", "legal_counsel", "accounting",
   "committee_member", "reviewer", "auditor", "support",
+  "management", "partner", "agent",
 ];
 
 export default function UnifiedLogin() {

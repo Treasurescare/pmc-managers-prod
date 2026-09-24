@@ -1,13 +1,15 @@
 # PMC Managers v2 — Product Requirements & Roadmap
 
-Last updated: 23 Sep 2026 — v46f DPR no-master workflow verified end-to-end (iteration_24, 100%); v46f frontend zip ready for user deploy; KMT DPR confirmed reading on production
+Last updated: 24 Sep 2026 — v46i editorial redesign + admin sidebar shell + 5-portal sign-in (management/partner/agent roles); v46g backend live; v46f frontend live on prod.
 
 ## Original Problem Statement
 Global tender management platform (PMC Managers Limited v2) with full multi-role pipeline, dynamic Approval Matrices, Bidding & EMD, BOQ, Evaluations, Contract Award, Multi-Tenant portals, AI Audit Copilot. Fully white-labeled AWS deployment.
 
-## Production status (verified 23 Sep 2026)
-- Frontend v46f HOTFIXED zip ready (main.35c2896b.js, same-origin API base — production builds MUST use `REACT_APP_BACKEND_URL="" yarn build`; v46f first cut broke login by baking preview URL). AWAITING USER REDEPLOY.
-- **v46g backend NEW — DPR deep-dive (multi-pass). KMT PDF verified in preview: 26 sections discovered vs the old 5. Zip: /app/deliverables/v46c/pmc-backend-v46g.zip. AWAITING USER EB DEPLOY.**
+## Production status (verified 24 Sep 2026)
+- **v46i frontend zip ready (main.e33ca9d4.js, 0 preview URL refs)** — admin sidebar shell (full/icons/hamburger toggle), editorial public site (About/Vision), Live/Completed tenders card grid, footer with Snapchat/Instagram/WhatsApp, 12-role staff login. AWAITING USER DEPLOY.
+- Backend v46g live on EB (DPR deep-dive). StaffRole now includes management/partner/agent — needs re-zip + EB re-deploy to pick up literal.
+- v46f frontend LIVE on pmcmanagers.com (main.35c2896b.js).
+- v46h delivered per-tab SAVE button on Add Vendor Full Form; Bugs_Tracker_v46h.xlsx published.
 - KMT DPR reads on prod (backend v46d, generic 5-section fallback until v46g deploys).
 - Auth on prod confirmed working (cookie session, same-origin /api).
 

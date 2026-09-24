@@ -1,0 +1,228 @@
+{
+  "project_name": "PMC Public Procurement & Tender Authority Platform",
+  "archetype": "The Big-4 Editorial Procurement Authority (Emerald-inspired)",
+  "version": "2026.1",
+  "theme_strategy": {
+    "primary_mode": "Light Editorial",
+    "theme_toggle": true,
+    "background_base": "bg-[#F8FAF9]",
+    "surface_cards": "bg-[#FFFFFF]",
+    "dark_contrast_surface": "bg-[#0B1E3F]",
+    "brand_navy": "#0B1E3F",
+    "brand_gold": "#B78D3C",
+    "emerald_accent": "#059669"
+  },
+  "typography": {
+    "display_font": "Playfair Display, Cormorant Garamond, serif",
+    "body_font": "Plus Jakarta Sans, Manrope, sans-serif",
+    "mono_font": "JetBrains Mono, monospace",
+    "font_import_link": "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;0,900;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap",
+    "scale": {
+      "h1_hero": "text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight font-serif text-[#0B1E3F]",
+      "h2_section": "text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight font-serif text-[#0B1E3F]",
+      "h3_subsection": "text-xl sm:text-2xl font-semibold font-serif text-[#0B1E3F]",
+      "h4_card_title": "text-lg sm:text-xl font-semibold font-sans text-[#0B1E3F]",
+      "body_lead": "text-lg sm:text-xl text-[#334155] leading-relaxed",
+      "body_regular": "text-base text-[#475569] leading-relaxed",
+      "caption_mono": "text-xs font-mono uppercase tracking-widest text-[#B78D3C]"
+    }
+  },
+  "colors": {
+    "brand_primary_navy": {
+      "DEFAULT": "#0B1E3F",
+      "light": "#162B56",
+      "dark": "#06132A",
+      "hover": "#13284F"
+    },
+    "brand_gold": {
+      "DEFAULT": "#B78D3C",
+      "light": "#D4A85A",
+      "subtle": "#F7F2E7",
+      "border": "rgba(183, 141, 60, 0.25)"
+    },
+    "status_system": {
+      "live_emerald": {
+        "bg": "bg-emerald-50",
+        "text": "text-emerald-800",
+        "border": "border-emerald-200",
+        "badge": "#059669"
+      },
+      "draft_amber": {
+        "bg": "bg-amber-50",
+        "text": "text-amber-800",
+        "border": "border-amber-200",
+        "badge": "#D97706"
+      },
+      "closed_slate": {
+        "bg": "bg-slate-100",
+        "text": "text-slate-700",
+        "border": "border-slate-300",
+        "badge": "#64748B"
+      },
+      "awarded_navy": {
+        "bg": "bg-[#0B1E3F]/10",
+        "text": "text-[#0B1E3F]",
+        "border": "border-[#0B1E3F]/20",
+        "badge": "#0B1E3F"
+      }
+    },
+    "surfaces": {
+      "page_bg": "#F8FAF9",
+      "card_bg": "#FFFFFF",
+      "muted_bg": "#F1F5F9",
+      "navy_dark_bg": "#0B1E3F",
+      "overlay_scrim": "rgba(11, 30, 63, 0.45)"
+    }
+  },
+  "layout_and_navigation": {
+    "public_header": {
+      "utility_bar": "bg-[#0B1E3F] text-slate-200 text-xs py-2 px-6 flex justify-between items-center border-b border-[#B78D3C]/30",
+      "masthead": "bg-[#FFFFFF] border-b border-slate-200 sticky top-0 z-40 backdrop-blur-md bg-white/90 shadow-sm",
+      "wordmark": "font-serif text-2xl font-bold tracking-tight text-[#0B1E3F] flex items-center gap-2",
+      "navigation_links": ["Tender Notice Board", "Live Tenders", "Completed Tenders", "About Us", "Vision & Mission", "Public Roadmap"],
+      "primary_cta": "bg-[#0B1E3F] hover:bg-[#162B56] text-[#FFFFFF] font-medium px-5 py-2.5 rounded-none border border-[#B78D3C]"
+    },
+    "split_portal_auth_modal": {
+      "style": "Emerald Corporates editorial 2-column modal",
+      "container": "max-w-4xl w-full bg-white border border-[#B78D3C]/30 shadow-2xl overflow-hidden grid grid-cols-1 md:grid-cols-12",
+      "left_rail_portals": {
+        "col_span": "md:col-span-5 bg-[#0B1E3F] p-6 text-white space-y-3",
+        "title": "Select Authority Portal",
+        "portals": [
+          {"key": "admin", "title": "Admin Console", "desc": "Procurement officers, evaluators & platform directors"},
+          {"key": "management", "title": "Executive Management", "desc": "Oversight committees & policy directors"},
+          {"key": "partners", "title": "Partners & Evaluators", "desc": "Escrow officers, legal counsel & tech evaluators"},
+          {"key": "agents", "title": "Procurement Agents", "desc": "Field agents & verification coordinators"},
+          {"key": "vendor", "title": "Vendor Portal", "desc": "Bidders, contractors & supplier networks"}
+        ],
+        "active_card_style": "bg-[#B78D3C] text-[#0B1E3F] border-l-4 border-white shadow-md font-semibold p-3 cursor-pointer transition-all",
+        "inactive_card_style": "bg-[#162B56]/60 text-slate-200 border-l-2 border-transparent hover:bg-[#162B56] p-3 cursor-pointer transition-all"
+      },
+      "right_form_area": {
+        "col_span": "md:col-span-7 p-8 bg-white flex flex-col justify-center",
+        "elements": ["Dynamic Portal Header", "MFA Code / Quick Magic Token options", "Corporate Email Input", "Password Input", "Remember Me & Reset Password Links", "Sign In Action CTA button", "Direct Registration CTA link"]
+      }
+    },
+    "admin_console_shell": {
+      "desktop_sidebar": {
+        "type": "Collapsible Left Sidebar",
+        "width_expanded": "w-72",
+        "width_collapsed": "w-20",
+        "grouped_sections": [
+          {
+            "section_name": "Overview & Control",
+            "items": ["Dashboard Analytics", "Audit Trail & Copilot", "System Masters"]
+          },
+          {
+            "section_name": "Procurement Lifecycle",
+            "items": ["Tender Builder", "Notice Board", "Corrigenda Management", "Packages & DPR"]
+          },
+          {
+            "section_name": "Market & Vendors",
+            "items": ["Vendor Directory", "Registrations Queue", "Vendor Intelligence & Ratings", "Product Catalog"]
+          },
+          {
+            "section_name": "Money & Governance",
+            "items": ["Bidding & Committees", "Live Auctions", "Escrow & EMD Accounts", "Evaluations & L1", "Awards & POs", "DocuSign Contracts"]
+          },
+          {
+            "section_name": "Events & Support",
+            "items": ["Pre-Bid Meetings", "Engagements & RFQs", "Permissions & Access", "Help & Compliance"]
+          }
+        ]
+      },
+      "mobile_navigation": "Hamburger-only drawer sliding from left with backdrop blur backdrop-slate-900/60",
+      "header_bar": {
+        "style": "bg-white border-b border-slate-200 h-16 px-6 flex items-center justify-between sticky top-0 z-30",
+        "elements": [
+          "Hamburger toggle (mobile)",
+          "Sidebar collapse trigger (desktop)",
+          "Environment status chip (PROD / LIVE)",
+          "Global Cmd+K Search trigger modal",
+          "MFA Security Indicator",
+          "Notification Bell with live ping",
+          "User Profile Avatar Dropdown with Portal Switcher & Sign Out"
+        ]
+      }
+    },
+    "editorial_tender_cards": {
+      "container": "bg-white border border-slate-200 hover:border-[#B78D3C] transition-all p-6 shadow-sm hover:shadow-md relative",
+      "elements": [
+        "Country / Region Flag Chip (e.g., 🇰Z Kazakhstan / 🇺🇸 Global)",
+        "Status Badge (Live=Emerald, Draft=Amber, Closed=Slate, Awarded=Navy)",
+        "EMD Badge (Earnest Money Deposit requirement)",
+        "Notice Category & UNSPSC Code",
+        "Tender Title (Serif 2-line clamp)",
+        "Budget Band (e.g., $1,500,000 USD / 680M KZT)",
+        "Deadline Countdown timer with live pulse icon",
+        "Action CTA Button ('View Notice', 'Download BOQ', 'Submit Bid')"
+      ]
+    },
+    "footer": {
+      "style": "bg-[#0B1E3F] text-white pt-16 pb-12 border-t-4 border-[#B78D3C]",
+      "columns": [
+        {
+          "title": "PMC Procurement Authority",
+          "content": "Official government and corporate multi-portal tender management platform delivering transparent, compliant, and accelerated procurement."
+        },
+        {
+          "title": "Quick Navigation",
+          "links": ["Live Tender Board", "Completed Contracts", "Vendor Registration", "Public Roadmap", "DocuSign Verification"]
+        },
+        {
+          "title": "Governance & Compliance",
+          "links": ["Procurement Regulations", "Escrow Protection Policy", "Anti-Corruption Standards", "Privacy & GDPR", "Audit Log Verification"]
+        },
+        {
+          "title": "Social & Channels",
+          "social_integrations": [
+            {"platform": "Snapchat", "icon": "FaSnapchat", "url": "#", "label": "@PMC_Tenders"},
+            {"platform": "Instagram", "icon": "FaInstagram", "url": "#", "label": "@PMC_Official"},
+            {"platform": "WhatsApp", "icon": "FaWhatsapp", "url": "#", "label": "+1 (800) PMC-PROCURE"}
+          ]
+        }
+      ],
+      "bottom_bar": "© 2026 PMC Public Procurement Authority. All rights reserved. ISO 27001 Certified & Escrow Protected."
+    }
+  },
+  "dedicated_pages": {
+    "about_us": {
+      "hero": "Editorial split hero with dark navy background, large gold serif headline, and architectural corporate asset photo",
+      "sections": [
+        "Mission Statement & Global Reach Metrics",
+        "History of PMC Procurement Transformation",
+        "Executive Leadership & Evaluation Board Grid",
+        "Institutional Partners & Escrow Trustees"
+      ]
+    },
+    "vision_mission": {
+      "hero": "Serif masthead with ambient lighting overlay and structured 3-pillar breakdown",
+      "pillars": [
+        {"title": "Transparency & Integrity", "desc": "Zero-knowledge encryption for tender envelopes and tamper-proof audit trails."},
+        {"title": "Economic Velocity", "desc": "Reducing tender cycle times from 90 days to under 14 days with automated AI L1 comparison."},
+        {"title": "Inclusive Access", "desc": "Multi-portal access empowering SME vendors, international suppliers, and independent evaluators."}
+      ]
+    },
+    "live_tenders_page": "Filterable grid & list view with real-time countdown, budget filtering, UNSPSC category tags, and country flag chips",
+    "completed_tenders_page": "Archive table with awarded vendor details, winning bid amounts, L1 contract values, and downloadable award certificates"
+  },
+  "visual_enhancers": {
+    "subtle_grain_css": "bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px]",
+    "gold_border_accent": "border border-[#B78D3C]/30 hover:border-[#B78D3C]",
+    "glassmorphism": "backdrop-blur-xl bg-white/80 dark:bg-[#0B1E3F]/80 border border-white/20",
+    "selection_color": "selection:bg-[#0B1E3F] selection:text-[#B78D3C]",
+    "shadow_system": "shadow-[0_4px_20px_-2px_rgba(11,30,63,0.08)]"
+  },
+  "media_assets": {
+    "corporate_architecture_dusk": "https://images.unsplash.com/photo-1470075801209-17f9ec0cada6?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MDV8MHwxfHNlYXJjaHwyfHxtb2Rlcm4lMjBjb3Jwb3JhdGUlMjBhcmNoaXRlY3R1cmUlMjBidWlsZGluZyUyMGR1c2t8ZW58MHx8fHwxNzkwMjIxMDM5fDA&ixlib=rb-4.1.0&q=85",
+    "modern_office_corner": "https://images.unsplash.com/photo-1576731753569-3e93a228048c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MDV8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBjb3Jwb3JhdGUlMjBhcmNoaXRlY3R1cmUlMjBidWlsZGluZyUyMGR1c2t8ZW58MHx8fHwxNzkwMjIxMDM5fDA&ixlib=rb-4.1.0&q=85",
+    "infrastructure_crane": "https://images.unsplash.com/photo-1527335988388-b40ee248d80c?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxOTB8MHwxfHNlYXJjaHwzfHxjbGVhbiUyMGluZnJhc3RydWN0dXJlJTIwZW5naW5lZXJpbmclMjBjb25zdHJ1Y3Rpb258ZW58MHx8fHwxNzkwMjIxMDM5fDA&ixlib=rb-4.1.0&q=85",
+    "solar_rooftop_engineering": "https://images.pexels.com/photos/11644973/pexels-photo-11644973.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940"
+  },
+  "general_ui_ux_design_guidelines": {
+    "testing_attribute_requirement": "All interactive buttons, inputs, modals, tabs, links, and cards MUST contain data-testid attributes formatted in kebab-case (e.g. data-testid='admin-login-submit-button').",
+    "contrast_rule": "Maintain APCA contrast ratio >= 4.5:1. Never use transparent backgrounds on headers, dropdowns, or active cards.",
+    "hover_state_rule": "Every hover state must explicitly define text color and background color to avoid invisible contrast states.",
+    "touch_targets": "Minimum touch target size 44x44px for mobile views."
+  }
+}

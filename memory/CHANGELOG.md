@@ -8,11 +8,25 @@ After user deployed v46f, login on pmcmanagers.com failed with "No matching empl
 ### Fix
 Rebuilt with `REACT_APP_BACKEND_URL="" yarn build` (shell env overrides .env in CRA; empty → same-origin relative /api calls, exactly how the working v46e was built). New bundle `main.35c2896b.js` — verified zero `tender-hub-57` references. Repacked with `build/` prefix.
 
-### v46f post-fix live-site verification
-- Live index.html serves `main.35c2896b.js` (0 preview URL refs).
-- Backend `/api/v1/meta/public/stats` returns `{"notices_published":28,"suppliers_approved":70,"packages_total":50}` on prod.
-- `/api/v1/notices` returns published notices correctly.
-- Landing-page zeros = stale browser cache of the broken `main.21ab3717.js` bundle. Hard-refresh (Cmd+Shift+R on Safari) resolves.
+### v46i · 24 Sep 2026 — Admin sidebar shell + editorial public site + 5-portal sign-in + new roles
+
+**Design refresh delivered from `/app/design_guidelines.json` (Big-4 editorial · Emerald-inspired hybrid, PMC navy + gold retained).**
+
+- **Admin sidebar shell** (`admin-console/AdminShell.jsx`) — collapsible left sidebar grouped into 5 sections (Overview / Procurement / Market / Money & Compliance / Events), 24 panels wired. Nav mode toggle: `full` (icon + label), `icons` (icon-only rail), `hamburger` (drawer) — persisted in `localStorage.pmc_admin_nav`. Mobile always uses the drawer.
+- **Public site editorial pass**:
+  - `/about` — About Us page (masthead, 3-stat band, 1-stop lifecycle prose)
+  - `/vision` — Vision & Mission page (side-by-side navy/white cards, 6-values grid)
+  - `/tenders/:mode` (`live | completed | all`) — filterable card grid with status chip (Live=emerald, Closed=slate, Awarded=navy), country + query filters
+  - `TopBar` public nav → Live tenders · Completed · About us · Vision · Register · Sign-in
+  - `PmcFooter` — 4-column footer with Snapchat + Instagram + WhatsApp social icons (URLs override via `window.__PMC_SOCIAL__`), Legal column, © bar
+- **5-portal sign-in** — `UnifiedLogin` role selector now includes `management`, `partner`, `agent` on top of admin/reviewer/escrow/certifier/legal/accounting/committee/auditor/support.
+- **Backend roles** — `StaffRole` literal + `ALL_STAFF_ROLES` extended with `management`, `partner`, `agent` (`backend/models/staff_user.py`). No new endpoints needed — existing `require_role()` guards accept them, and the seeder / admin `staff/create` UI now offers the new roles.
+
+Deploy: frontend zip `pmc-frontend-v46i-prod-build.zip` (`main.6838b149.js` — 0 preview URL refs). Backend restart needed to pick up the role literal.
+
+---
+
+
 
 ---
 
