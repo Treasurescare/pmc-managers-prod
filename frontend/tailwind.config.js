@@ -35,8 +35,13 @@ module.exports = {
         "brand-navy": "#0f1b3d",
         "brand-navy-deep": "#1e3a5f",
         "brand-navy-soft": "#3b6fa0",
+        "brand-navy-sovereign": "#0B132B",
         "brand-pale": "#e8edf3",
         "brand-surface": "#ffffff",
+        // Sovereign Gold accents (v46k redesign)
+        "brand-gold": "#D4AF37",
+        "brand-gold-hover": "#B89628",
+        "brand-gold-soft": "rgba(212,175,55,0.08)",
       },
       boxShadow: {
         "brand-btn": "0 10px 25px -5px rgba(15,27,61,0.25)",

@@ -70,7 +70,6 @@ export function showApiError(err, { fallbackTitle = "Something went wrong" } = {
   // Also mirror to the browser console so operators / support can copy full
   // stack + response body when reporting a bug.
   if (typeof console !== "undefined") {
-    // eslint-disable-next-line no-console
     console.error(`[api-error] ${title}\n${detail}`, err);
   }
 }

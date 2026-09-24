@@ -1,84 +1,65 @@
-# PMC Managers v2 — Product Requirements & Roadmap
+# PMC Managers Limited — PRD
 
-Last updated: 24 Sep 2026 — v46i editorial redesign + admin sidebar shell + 5-portal sign-in (management/partner/agent roles); v46g backend live; v46f frontend live on prod.
-
-## Original Problem Statement
-Global tender management platform (PMC Managers Limited v2) with full multi-role pipeline, dynamic Approval Matrices, Bidding & EMD, BOQ, Evaluations, Contract Award, Multi-Tenant portals, AI Audit Copilot. Fully white-labeled AWS deployment.
-
-## Production status (verified 24 Sep 2026)
-- **v46i frontend zip ready (main.e33ca9d4.js, 0 preview URL refs)** — admin sidebar shell (full/icons/hamburger toggle), editorial public site (About/Vision), Live/Completed tenders card grid, footer with Snapchat/Instagram/WhatsApp, 12-role staff login. AWAITING USER DEPLOY.
-- Backend v46g live on EB (DPR deep-dive). StaffRole now includes management/partner/agent — needs re-zip + EB re-deploy to pick up literal.
-- v46f frontend LIVE on pmcmanagers.com (main.35c2896b.js).
-- v46h delivered per-tab SAVE button on Add Vendor Full Form; Bugs_Tracker_v46h.xlsx published.
-- KMT DPR reads on prod (backend v46d, generic 5-section fallback until v46g deploys).
-- Auth on prod confirmed working (cookie session, same-origin /api).
-
-### Historical (Feb 2026)
-- Frontend v45c: main.df887e6e.js on www.pmcmanagers.com (deployed via S3 console drag-drop)
-- Backend v22i (WAF-safe flavor, SHA 0EA89170…) on pmc-backend-prod (EB console "Upload and deploy", label v22i-waf-fix)
-- DPR AI extraction VERIFIED on prod: PDF → header + 5 section drafts + warnings in ~4.4s
-- v46 rating portal — preview only, deployment deferred per user
-
-## v46 — Vendor Ratings & Reviews portal (24 Feb 2026, preview)
-User policy: reviewers = PMC management + verified peer vendors + public buyers. Reviewer identity = anonymous but verified. Backend/frontend both delivered and tested (24/24 backend pytest pass, all frontend UI flows verified).
-
-New backend router `/api/v1/vendor-ratings/*`:
-- `GET /public/rubric` — default rubric (public, no auth)
-- `GET /public/top?limit=` — trust-badge listing for landing page
-- `GET /public/{vendor_ref}` — anonymised aggregate + trust badge
-- `POST /public/submit` — public buyer review (pending moderation, 3/email/day rate limit)
-- `GET /directory` — vendor-scoped directory (peer directory for "Rate a vendor")
-- `POST /peer/submit` — peer vendor rates another vendor (self-block, auto-approve if verified)
-- `GET /peer/mine` — vendor's own reviews history
-- `POST /admin/submit` — PMC admin scored review (auto-approved)
-- `GET /admin/reviews?status=&vendor_ref=` — moderation list
-- `POST /admin/reviews/{id}/moderate` — approve/hide
-- `DELETE /admin/reviews/{id}` — permanent delete
-- `GET /admin/pending-count` — for admin nav badge
-
-New frontend:
-- Landing "Trusted vendors" section (badge legend + top-rated cards)
-- Public `/vendors/:ref` profile with badge, criteria averages, moderated comments, buyer review form
-- Vendor Dashboard → new "Rate a vendor" tab (directory search, sliders, history)
-- Admin Vendor-Intel → trust-badge column + full moderation panel (pending/approved/hidden/all + approve/hide/delete)
-- New `VendorTrustBadge` component with Platinum/Gold/Silver/Bronze/None tiers
-
-Trust badge thresholds (approved reviews only):
-- Platinum: avg ≥ 85 AND count ≥ 10
-- Gold: avg ≥ 70 AND count ≥ 5
-- Silver: avg ≥ 55 AND count ≥ 3
-- Bronze: count ≥ 1
-- None: 0 approved
-
-## CRITICAL AWS LEARNINGS (do not forget)
-1. **AWS WAF `SizeRestrictions_BODY`** on the CloudFront-attached web ACL blocks request bodies > 8 KB. Symptom: POST returns SPA index.html with HTTP 200 in <100ms. FIXED by setting the rule to Count in the ACL (CreatedByCloudFront… on E2WZT1TMQ0EK9W). If binary uploads ever fail again with fast HTML responses, check WAF first.
-2. **CloudFront 404/403 → SPA fallback** masks missing backend routes: probe routes with unauthenticated calls (401 JSON = route exists; HTML = route missing).
-3. **LLM key routing**: `sk-emergent-*` keys MUST go via https://integrations.emergentagent.com/llm; `sk-managed-*` via white-label proxy. Vendored pmc_lib only proxies sk-managed-. tender_pro.py has `_llm_complete()` handling both.
-4. **requirements.txt freeze discipline**: pip installs without pip freeze don't reach EB Docker builds (pypdf incident).
-5. **Windows deploys**: PS scripts need profile auto-detect + $LASTEXITCODE checks (PS 5.1 doesn't stop on native command failure). Console upload (EB "Upload and deploy" + S3 drag-drop) works without AWS CLI.
-6. **Public-facing pages must never depend on admin-scoped APIs** — silent 401s create dead-end UIs that pass visual QA but block the primary user action.
-
-## v45/v45b/v45c — Delivered (all live on prod)
-- Tender Pro: DPR batch upload (≤3) → AI header + section extraction → clone to draft
-- AI Fill All sections, per-section save, auto tender-ref (PMC-{COUNTRY}-{IND}-{KIND}-{YY}-{SEQ})
-- TenderFilterBar (search/country/industry/sort), dynamic covers
-- EMD masters (country slabs, fixed/%), auto-prefill picker on Notice form
-- Rating criteria master (Masters → Rating & Fees tab), multi-rater aggregate endpoints
-- DPR warnings panel (modal + header banner)
-- Save-as-master under country/industry
-
-## Backlog
-- P1: LSEG/Refinitiv KYC live integration (needs API keys)
-- P1: OCR for scanned PDFs (current pypdf path needs text-layer PDFs)
-- P1: Public buyer email OTP verification (currently name+email only; moderation covers spam)
-- P1: Trust badge threshold tuning after real-world data (currently 1 review = bronze — may want higher floor)
-- P2: WhatsApp/Telegram notifications, reverse auction rebuild
-- P2: Bulk vendor rating grid UI (backend ready), bidder watchlist auto-flag <40/100
-- P2: Turkish/Russian/Kazakh manual translations
-- P2: Refactor `tender_pro.py` into focused routers (DPR / references / fees / ratings) once P0 UX stable
-- P2: `manualvendor` seed should flag `is_active=true` so verified peer reviews auto-publish in dev (currently pending)
+## Original problem statement
+Build and operate PMC Managers Limited (pmcmanagers.com), a multi-role procurement and tender-management platform for Kazakhstan and CIS markets. Roles include Admin, Management, Partners, Agents and Registered Vendors. Core surfaces: public tender notice board (About Us, Vision & Mission, Live/Completed/All Tenders lists), vendor registration, admin tender workbench, evaluations, awards, escrow, auctions and analytics. AI-assisted DPR ingestion must handle very large tender/DPR documents "of any size and any number of characters" and produce genuine section-level extraction, not stubs.
 
 ## Architecture
-- /app/backend — FastAPI + MongoDB; routers/tender_pro.py (v45) + routers/vendor_ratings.py (v46)
-- /app/frontend — React SPA; admin-console/tender/ (DprGenerateModal, TenderFilterBar), notice/EmdMasterPicker, masters/RatingCriteriaTab, admin-console/vendor/ReviewModerationSection, shared/PublicVendorProfile, shared/TrustedVendorsSection, vendor-portal/RateAVendor, components/VendorTrustBadge
-- AWS: S3+CloudFront (frontend, dist E2WZT1TMQ0EK9W), EB Docker (backend, pmc-backend-prod, eu-west-2)
+
+- Frontend: React (CRA), Tailwind, shadcn/ui — hosted on S3 + CloudFront.
+- Backend: FastAPI on AWS Elastic Beanstalk (Docker) with 25 MB nginx body limit.
+- Data: MongoDB (via `MONGO_URL`).
+- AI: Emergent LLM Universal Key (map-reduce DPR pipeline in `backend/routers/tender_pro.py`).
+- Auth: Cookie sessions, three realms (admin, staff, vendor). Same-origin `/api` calls required in production bundles.
+- Assets: Public `/downloads/` folder for release artifacts and manuals — NEVER deleted with `s3 sync --delete` at bucket root.
+
+## Implemented (as of 2026-09-24)
+
+- **v46k Sovereign Redesign**
+  - Rebuilt `/login` as a 5-portal picker (Admin, Management, Partners, Agents, Vendors) with per-portal branding, badges, icons and dedicated credential forms.
+  - Sovereign navy (#0B132B) + gold (#D4AF37) accent palette across public surfaces.
+  - Refreshed home hero with editorial serif headline, gold kicker, gold primary CTA.
+  - Home now uses `PmcFooter` (Snapchat / Instagram / WhatsApp social icons + gold seal strip).
+  - New Tailwind tokens: `brand-gold`, `brand-gold-hover`, `brand-gold-soft`, `brand-navy-sovereign`.
+- **v46j Map-Reduce AI DPR ingestion** (backend zip staged; production deployment pending).
+- **v46i editorial public surfaces** (About Us, Vision & Mission, live/completed/all tender lists, admin shell with 5-section collapsible sidebar + hamburger drawer). Deployed to production.
+- **v46f no-master AI DPR flow** (editable tender name, save-as-master persists, master reusable across countries).
+- **v46b/c/d/g bug blitz** (bulk of the 87-item bug tracker fixed and shipped).
+
+## Open backlog (P0/P1/P2)
+
+**P0 (blocking)**
+- Deploy v46j backend + v46k frontend to production and run KMT DPR validation end-to-end.
+- Address "unlimited size" DPR ingestion — remove the 800 KB cap and add background/async worker processing for 100 MB+ / 500+ page files.
+
+**P1 (bugs still open in tracker)**
+- Registration wizard step-validation gate between Section A and B/C.
+- Stakeholder Reports save-snapshot JSON parse error (needs backend RCA).
+- Evaluation rubric max-value client-side gate.
+- Locked-evaluation should refuse re-open + show saved report.
+- TenderBuilder Tender/RFP/RFQ tab switch should refetch.
+- Escrow — modify email IDs on transaction signer flow.
+- Mobile CSS overflow: landing pipeline funnel labels, reverse-auction summary button, vendor-intel columns.
+- i18n Russian/Kazakh strings backfill.
+- Profile avatar cache invalidation after re-login.
+- Global email + mobile regex validation across forms.
+
+**P2 (feature backlog)**
+- Manual v2 (130–160 pages) covering admin sub-tabs, modals, workflows, vendor journey — capture after v46k design settles.
+- Firebase / APNs push notifications.
+- LSEG / World-Check integration.
+- PayPal / Kaspi payments alongside Stripe.
+- Zoom integration for evaluation committees.
+
+## Guardrails
+
+- Never use `aws s3 sync ... --delete` at bucket root — it previously deleted `/downloads/`.
+- Production frontend bundle MUST be built with no `REACT_APP_BACKEND_URL` (same-origin `/api`).
+- Service worker registration remains disabled/self-cleaning.
+- Do not package `backend/.env` in EB deployment archives — use EB environment properties.
+
+## Recent artifacts
+
+- `/app/frontend/public/downloads/pmc-backend-v46j.zip` — map-reduce DPR backend for EB.
+- `/app/frontend/public/downloads/pmc-frontend-v46k-prod-build.zip` — sovereign redesign frontend.
+- `/app/frontend/public/downloads/DEPLOY_v46k_README.md` — deploy instructions.
+- `/app/deliverables/v46c/Bugs_Tracker_v46h.xlsx` — bug tracker current status.

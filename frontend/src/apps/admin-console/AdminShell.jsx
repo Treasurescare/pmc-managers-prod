@@ -170,7 +170,7 @@ export default function AdminShell({ tab, setTab, header, children }) {
       <div className="flex-1 flex flex-col min-w-0">
         <header className="bg-white border-b border-brand-navy/10 sticky top-0 z-30">
           <div className="px-4 lg:px-8 h-14 flex items-center gap-3">
-            {(isDrawer || true) && (
+            {Boolean(isDrawer || true) && (
               <button type="button" onClick={() => setDrawerOpen(true)}
                       data-testid="admin-hamburger"
                       className={"p-2 border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5 " + (isDrawer ? "" : "md:hidden")}>

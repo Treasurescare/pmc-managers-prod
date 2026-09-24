@@ -33,7 +33,6 @@ export default function EmdMasterPicker({ country, tenderValue, emdConfig, onPic
       })
       .catch(() => { if (alive) setMasters([]); });
     return () => { alive = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [country]);
 
   const compute = async (mid, mastersOverride) => {
@@ -70,7 +69,6 @@ export default function EmdMasterPicker({ country, tenderValue, emdConfig, onPic
   // Recompute when tender value changes (admin edits Budget after picking master).
   useEffect(() => {
     if (pickId && tenderValue > 0) compute(pickId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenderValue]);
 
   return (

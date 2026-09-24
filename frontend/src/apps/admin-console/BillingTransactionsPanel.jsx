@@ -21,7 +21,6 @@ export default function BillingTransactionsPanel() {
   useEffect(() => { load(); }, [load]);
 
   const refund = async (row) => {
-    // eslint-disable-next-line no-alert
     const reason = window.prompt(`Refund ${row.currency?.toUpperCase()} ${row.amount} for ${row.buyer_email}?\nOptional reason:`, "");
     if (reason === null) return;
     setBusy(row.session_id);

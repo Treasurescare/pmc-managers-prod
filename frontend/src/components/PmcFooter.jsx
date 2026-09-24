@@ -19,11 +19,12 @@ function Icon({ kind }) {
 
 export default function PmcFooter() {
   return (
-    <footer className="bg-brand-navy text-white/85 mt-24" data-testid="pmc-footer">
+    <footer className="bg-brand-navy-sovereign text-white/85 mt-24" data-testid="pmc-footer">
+      <div className="h-[2px] bg-gradient-to-r from-transparent via-brand-gold to-transparent opacity-70" />
       <div className="max-w-7xl mx-auto px-6 lg:px-10 py-14 grid gap-10 md:grid-cols-4">
         <div className="md:col-span-1">
           <div className="font-display text-2xl text-white">PMC Managers</div>
-          <div className="pmc-label text-brand-gold/80 mt-1">Global Tender Board</div>
+          <div className="pmc-label text-brand-gold mt-1">Sovereign Tender Board</div>
           <p className="text-sm text-white/70 leading-relaxed mt-4">
             The Big-4 procurement authority for cross-border public works,
             operating since 2018 across 11 jurisdictions.
@@ -31,7 +32,7 @@ export default function PmcFooter() {
         </div>
 
         <div>
-          <div className="pmc-label text-brand-gold/80 mb-3">Explore</div>
+          <div className="pmc-label text-brand-gold mb-3">Explore</div>
           <ul className="space-y-2 text-sm">
             <li><Link to="/tenders/live"     className="hover:text-brand-gold" data-testid="footer-live">Live tenders</Link></li>
             <li><Link to="/tenders/completed" className="hover:text-brand-gold" data-testid="footer-completed">Completed tenders</Link></li>
@@ -41,7 +42,7 @@ export default function PmcFooter() {
         </div>
 
         <div>
-          <div className="pmc-label text-brand-gold/80 mb-3">Company</div>
+          <div className="pmc-label text-brand-gold mb-3">Company</div>
           <ul className="space-y-2 text-sm">
             <li><Link to="/about"   className="hover:text-brand-gold" data-testid="footer-about">About us</Link></li>
             <li><Link to="/vision"  className="hover:text-brand-gold" data-testid="footer-vision">Vision &amp; Mission</Link></li>
@@ -50,7 +51,7 @@ export default function PmcFooter() {
         </div>
 
         <div>
-          <div className="pmc-label text-brand-gold/80 mb-3">Follow</div>
+          <div className="pmc-label text-brand-gold mb-3">Follow</div>
           <div className="flex items-center gap-3">
             <a href={social.snapchat}  target="_blank" rel="noreferrer" aria-label="Snapchat"  data-testid="footer-social-snapchat"
                className="w-9 h-9 border border-white/25 hover:border-brand-gold hover:text-brand-gold flex items-center justify-center transition-colors">
@@ -65,7 +66,7 @@ export default function PmcFooter() {
               <Icon kind="whatsapp" />
             </a>
           </div>
-          <div className="pmc-label text-brand-gold/80 mt-6 mb-2">Legal</div>
+          <div className="pmc-label text-brand-gold mt-6 mb-2">Legal</div>
           <ul className="space-y-1 text-xs text-white/60">
             <li>Terms of use</li>
             <li>Privacy &amp; GDPR</li>
@@ -73,8 +74,8 @@ export default function PmcFooter() {
           </ul>
         </div>
       </div>
-      <div className="border-t border-white/10 py-5 text-center text-[11px] uppercase tracking-widest text-white/40">
-        © {new Date().getFullYear()} PMC Managers Limited · All rights reserved · v46
+      <div className="border-t border-white/10 py-5 text-center text-[10px] uppercase tracking-[0.35em] text-white/40">
+        © {new Date().getFullYear()} PMC Managers Limited · All rights reserved · v46k
       </div>
     </footer>
   );

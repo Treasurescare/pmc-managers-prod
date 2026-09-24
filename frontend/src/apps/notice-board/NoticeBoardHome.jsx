@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { publicApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import TopBar from "@/apps/shared/TopBar";
-import Footer from "@/apps/shared/Footer";
+import PmcFooter from "@/components/PmcFooter";
 import TrustedVendorsSection from "@/apps/shared/TrustedVendorsSection";
 import { toast } from "sonner";
 
@@ -93,21 +93,26 @@ export default function NoticeBoardHome() {
     <div className="min-h-screen bg-brand-pale flex flex-col overflow-x-hidden">
       <TopBar />
 
-      {/* Hero */}
-      <section className="border-b border-brand-navy/10 bg-brand-navy text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-10 sm:py-16 lg:py-24 grid gap-8 lg:gap-16 lg:grid-cols-[5fr_7fr] items-start">
+      {/* Hero — sovereign navy with gold serif accents */}
+      <section className="border-b border-brand-navy/10 bg-brand-navy-sovereign text-white relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(212,175,55,0.08),transparent_55%)] pointer-events-none" />
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-brand-gold to-transparent opacity-70" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-10 sm:py-16 lg:py-24 grid gap-8 lg:gap-16 lg:grid-cols-[5fr_7fr] items-start relative">
           <div>
-            <div className="pmc-label" style={{ color: "rgba(255,255,255,0.5)" }}>{t("home.hero_kicker")}</div>
-            <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl leading-tight mt-4">
+            <div className="text-[11px] font-mono uppercase tracking-[0.3em] text-brand-gold">{t("home.hero_kicker")}</div>
+            <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl leading-[1.05] mt-4 text-white">
               {t("home.hero_headline")}
             </h1>
-            <p className="text-white/70 mt-6 text-base max-w-xl">{t("home.hero_lede")}</p>
+            <p className="text-white/70 mt-6 text-base lg:text-lg max-w-xl leading-relaxed">{t("home.hero_lede")}</p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <a href="#notices" data-testid="hero-cta-notices" className="bg-brand-navy-soft text-white px-8 py-4 uppercase tracking-widest text-[0.8125rem] font-semibold shadow-brand-btn hover:bg-brand-navy-soft/90 transition-colors">
+              <a href="#notices" data-testid="hero-cta-notices" className="bg-brand-gold text-brand-navy-sovereign px-8 py-4 uppercase tracking-[0.2em] text-[0.8125rem] font-semibold hover:bg-brand-gold-hover transition-colors">
                 {t("home.cta_view_notices")}
               </a>
-              <Link to="/register" data-testid="hero-cta-register" className="border border-white/40 text-white px-8 py-4 uppercase tracking-widest text-[0.8125rem] font-semibold hover:bg-white/10 transition-colors">
+              <Link to="/register" data-testid="hero-cta-register" className="border border-white/40 text-white px-8 py-4 uppercase tracking-[0.2em] text-[0.8125rem] font-semibold hover:bg-white/10 hover:border-brand-gold hover:text-brand-gold transition-colors">
                 {t("home.cta_register")}
+              </Link>
+              <Link to="/login" data-testid="hero-cta-portals" className="text-white/70 hover:text-brand-gold px-2 py-4 uppercase tracking-[0.2em] text-[0.8125rem] font-semibold underline underline-offset-4">
+                Portal gateways
               </Link>
             </div>
           </div>
@@ -173,7 +178,7 @@ export default function NoticeBoardHome() {
 
       <TrustedVendorsSection />
 
-      <Footer />
+      <PmcFooter />
     </div>
   );
 }

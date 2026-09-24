@@ -38,7 +38,6 @@ export default function ReviewModerationSection() {
   };
 
   const remove = async (row) => {
-    // eslint-disable-next-line no-alert
     if (!window.confirm("Delete this review permanently? This cannot be undone.")) return;
     setBusy(row.id);
     try {
