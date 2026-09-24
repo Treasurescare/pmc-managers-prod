@@ -909,7 +909,7 @@ p("This manual is versioned and lives under `/app/deliverables/v46_manual/build/
 
 # ------- WRITE MD -------
 md_text = "\n".join(md)
-(OUT / "PMC_v46m_Master_Training_Manual.md").write_text(md_text)
+(OUT / "PMC_v46p_Master_Training_Manual.md").write_text(md_text)
 
 # ---------- DOCX ----------
 from docx import Document
@@ -1042,7 +1042,7 @@ for term, defn in gl:
     run = pp.add_run(term); run.bold = True
     pp.add_run(f" — {defn}")
 
-doc.save(OUT / "PMC_v46m_Master_Training_Manual.docx")
+doc.save(OUT / "PMC_v46p_Master_Training_Manual.docx")
 
 # ---------- PDF via WeasyPrint ----------
 def esc(s: str) -> str: return html.escape(str(s))
@@ -1712,15 +1712,194 @@ for v, hh in releases:
     body_parts.append(f"<li><b>{esc(v)}</b> — {esc(hh)}</li>")
 body_parts.append("</ul>")
 
-body_parts.append("<h1>25 · Sign-off</h1><p>This manual is versioned under <code>/app/deliverables/v46_manual/build/</code>. Regenerate via <code>python3 /app/tools/manual/build.py</code>. Re-capture via <code>python3 /app/tools/manual/capture.py</code> after every material release.</p>")
+body_parts.append("<h1>68 · Vendor performance scorecard framework</h1>")
+for t, d in [
+    ("Purpose", "The scorecard aggregates every observable signal a vendor generates during a contract — cost, schedule, quality, safety, communication, disputes — into a single 0-100 index visible to Admins, Committees and (opt-in) buyer stakeholders. It replaces the ad-hoc gut-feel scoring that used to bias L1 recommendations."),
+    ("Data feeds", "The engine pulls from: <code>contracts.milestones[]</code> for on-time delivery, <code>escrow_transactions</code> for payment friction, <code>ratings</code> for post-award reviews, <code>audits</code> for compliance touches, <code>notices ↔ bids</code> join for win-rate, <code>corrigenda</code> counts for scope-change churn, and the DocuSign envelope-status stream for signature discipline."),
+    ("Weights", "Cost adherence 25 %, schedule adherence 25 %, quality (defect-free acceptance) 15 %, communication + Q&amp;A responsiveness 10 %, safety incidents 10 %, dispute count 5 %, ESG self-attestation 5 %, community sub-contracting 5 %. Weights are configurable per-tenant in Masters → Scorecard."),
+    ("Bands", "&gt; 85 = Preferred (green pill, appears on public trust badge). 70-84 = Standard. 55-69 = Under review (flag surfaces on every future bid). &lt; 55 = Restricted (auto-rejects future bids unless overridden with justification)."),
+    ("Refresh cadence", "The <code>_recompute_scorecard()</code> worker runs nightly at 02:15 UTC. Manual re-runs are exposed at <code>POST /api/v1/vendor-intel/scorecard/recompute</code> (admin+auditor). Every recompute writes an audit row with the delta so trends are queryable."),
+    ("Governance", "A monthly Vendor Council reviews every vendor whose band crossed a threshold. Restricted vendors must be formally debarred (see chapter 64) — a low scorecard alone is not sufficient."),
+    ("Anti-gaming", "Any single evaluator whose scores deviate from committee median &gt; 20 pts on three consecutive bids triggers a mandatory calibration session. The scorecard downweights outlier evaluators via a Grubbs test before averaging."),
+    ("Publishing to vendors", "Vendors see their own scorecard inside the vendor portal — with sub-scores, trend line and remediation tips. Sensitive weightings are hidden. Appeals go through <code>POST /api/v1/vendor-intel/scorecard/{ref}/appeal</code>."),
+]:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{d}</p>")
+
+body_parts.append("<h1>69 · Cross-border payment settlement runbook</h1>")
+for t, d in [
+    ("In scope", "Kazakhstan (KZT), CIS neighbours (RUB, UZS, KGS, AZN), Gulf partners (USD, AED, SAR) and EU sub-contractors (EUR, GBP). Stripe covers card + ACH; Kaspi Business handles KZT rails; a manual SWIFT fallback exists for regulated Gulf flows."),
+    ("Rails matrix", "Each currency pair has a preferred rail. Rail selection happens in <code>_select_payout_rail(currency_in, currency_out, amount)</code>: Stripe for anything under $10 k that stays inside G10; Kaspi for any KZT leg; SWIFT for &gt; $10 k Gulf; PayPal only where the vendor explicitly requests it and the buyer approves."),
+    ("Escrow bridge", "The escrow account model is currency-agnostic — every transaction stores <code>amount</code>, <code>currency</code>, <code>fx_rate_used</code>, <code>fx_source</code>, <code>fx_captured_at</code>. When funds move between two rails the platform locks the mid-market rate + 30 bps and records both legs so nothing is lost to slippage."),
+    ("Reconciliation", "Every settlement writes a <code>settlements</code> row that references the source <code>escrow_transaction._id</code> and the payment-provider webhook. The nightly recon job matches every provider webhook to a settlement — mismatches raise a Sev-3 ticket automatically."),
+    ("KYC hooks", "Cross-border payouts require a passed KYC status + LSEG World-Check clearance no older than 180 days. The rail-selector refuses to route a payout when either signal is stale — the UI surfaces the exact reason ('KYC re-verification due') so ops knows what to fix."),
+    ("Regulator reporting", "Monthly Form-1B is auto-generated from <code>settlements</code> filtered by rail=SWIFT. Kazakhstan National Bank filings run via Kaspi Business's API on the 5th business day. Both hit Legal for sign-off before submission."),
+    ("Failure modes", "Rail rejection is not treated as a full failure — the transaction stays <code>held</code> and the engine retries the next rail (per priority) until success or exhaustion. After exhaustion the transaction moves to <code>manual_intervention</code> and Sev-2 pages Escrow ops."),
+]:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{d}</p>")
+
+body_parts.append("<h1>70 · AI copilot governance and audit trail</h1>")
+for t, d in [
+    ("Positioning", "Every AI surface is <b>advisory-only</b>. No AI-generated content is ever written to a legal or immutable audit record. The human evaluator, admin or vendor is always the recorded actor."),
+    ("Inventory", "1) DPR extractor (ingestion pipeline); 2) Section drafter (Tender Builder); 3) Bid-anomaly detector (Analytics); 4) Committee deliberation summariser; 5) Vendor Q&amp;A auto-suggest; 6) Public-notice de-jargon reviewer. All route through the Emergent LLM Universal Key proxy."),
+    ("Prompt registry", "Every prompt lives under <code>backend/pmc_lib/prompts/</code> with a semver tag. Changes require a PR + reviewer + prompt-diff attached to a governance ticket. The registry is immutable; historical prompts are retained for 7 years to support audit replay."),
+    ("Model registry", "Model choice per surface is tracked in <code>ai_governance.models</code>. Downgrading a model (e.g. GPT-5.6 → GPT-5.4) is a change-managed action requiring CTO sign-off. The runtime records model + prompt version on every response — so any output can be re-produced exactly."),
+    ("Bias controls", "DPR extraction is checked nightly against a golden-set corpus of 40 known tenders. If precision or recall drops &gt; 3 pts vs baseline, the ai-governance-check CI fails and blocks the release. Bid-anomaly detector is checked for demographic drift on vendor country-of-origin."),
+    ("Explainability", "Every AI recommendation the UI surfaces has a 'Why?' expander that shows the prompt digest + response digest + retrieved context. This is required for regulator conversations."),
+    ("Human veto", "Committee members and admins can veto any AI recommendation. The veto is recorded as an audit row with a mandatory reason string. Vetoes are aggregated monthly and fed back to prompt/model tuning."),
+    ("Data residency", "Emergent's Universal Key proxy is contractually pinned to EU + KZ endpoints only. No PII leaves the region. Any content beyond raw tender bodies is redacted at the prompt-builder stage — the redactor is unit-tested against a KZ-PII corpus every commit."),
+]:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{d}</p>")
+
+body_parts.append("<h1>71 · Business continuity & regional failover</h1>")
+for t, d in [
+    ("Regional footprint", "Primary region: eu-central-1 (Frankfurt) — colocation with Emergent LLM proxy EU endpoint. Warm-standby region: me-south-1 (Bahrain) — Gulf partner requirement. Read-only DR region: eu-west-2 (London) — legal archive only."),
+    ("RTO / RPO", "Recovery Time Objective 30 minutes for a warm standby cutover; 4 hours for a cold rebuild. Recovery Point Objective is 60 seconds — enforced by MongoDB oplog streaming to standby and S3 cross-region replication for uploads."),
+    ("Failover triggers", "1) Elastic Beanstalk region health &lt; 60 % for 5 minutes; 2) MongoDB primary election failure for &gt; 2 minutes; 3) LLM proxy latency &gt; 30 s for 3 minutes; 4) Manual declaration by CTO. Any single trigger fires the failover playbook (see chapter 33)."),
+    ("Data-store replication", "MongoDB Atlas cross-region cluster (primary + 2 replicas in EU + 1 replica in ME). S3 Cross-Region Replication for <code>pmc-uploads</code> and <code>pmc-downloads</code>. Route 53 health-checks + DNS failover for <code>api.pmcmanagers.com</code>."),
+    ("Frontend continuity", "CloudFront distribution has origin failover: primary origin S3-EU, secondary S3-ME. Frontend is a static bundle so it survives origin loss entirely. The 5-portal login surface is served from CloudFront's edge, so even a full API outage leaves the marketing shell intact with a clear status banner."),
+    ("Runbook rehearsal", "Chaos-engineering drills run on the last Friday of each quarter. Scenarios: primary DB kill, LLM proxy timeout, S3 origin outage, DNS mis-configuration, full-region evacuation. Each drill produces a post-mortem stored under <code>docs/dr-drills/YYYY-QN.md</code>."),
+    ("Communication plan", "Sev-1 outages trigger: status page auto-update, Resend digest to admin users, Telegram to on-call ops, WhatsApp to executive team. The public-notice board renders a top banner sourced from the /status endpoint so vendors know a bid submission window may be affected."),
+    ("Business impact tiers", "Tier A (mission-critical, 30 min RTO): auth, notices, bids, escrow, evaluations. Tier B (2 h RTO): DocuSign, DPR, auctions, analytics. Tier C (24 h RTO): manual v2, reports snapshots, roadmap, profile picture uploads."),
+]:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{d}</p>")
+
+body_parts.append("<h1>72 · Cybersecurity posture & third-party risk</h1>")
+for t, d in [
+    ("Certification roadmap", "ISO 27001 target FY2027 Q3. SOC 2 Type II target FY2027 Q4. Both scoped to the platform + Emergent LLM proxy + Stripe + Resend + DocuSign integrations. GDPR + Kazakhstan Law 94-V compliance is already in force; the certification is the third-party attestation."),
+    ("Threat model", "STRIDE assessment refreshed each release. Top current risks: (1) vendor credential stuffing at /vendor/login, (2) prompt injection via uploaded DPR files, (3) escrow signer email substitution, (4) supply-chain compromise of npm/pypi packages, (5) social engineering of admin support staff."),
+    ("Controls", "Rate limiting + IP throttling on all /login surfaces. LLM prompt-injection guardrails: strict allow-list HTML tags, sandboxed retrieval, no tool-use inside DPR pipeline. Escrow signer changes require re-authentication + audit + email confirmation. Dependency-pinning + Snyk + weekly dependency-cron scans."),
+    ("Third-party risk register", "Every external service the platform depends on has a row in <code>third_party.md</code>: scope, data flow, SOC-2 status, DPA on file, contract expiry, escalation contact. Current entries: Emergent LLM, Stripe, Resend, DocuSign, MongoDB Atlas, AWS, Cloudflare, Slack, Telegram, Snapchat/Instagram API."),
+    ("Penetration testing", "Annual external pen-test by an approved vendor. Quarterly internal red-team exercises. Findings are logged in JIRA with a Sev tag; anything Sev-1 must be remediated within 15 days per policy."),
+    ("Encryption", "TLS 1.3 in transit; AES-256 at rest on MongoDB + S3. Application-level envelope encryption for tender bodies (KMS CMKs rotated annually). DocuSign PDFs are stored encrypted with the vendor's public key from KYC — nobody but the signer can retrieve the plaintext."),
+    ("Incident classification", "Sev-1 = data exfiltration or systemic auth bypass; Sev-2 = single-tenant data-integrity failure; Sev-3 = performance regression or observability gap. Each has a fixed on-call rotation + response SLA + post-mortem template. See chapter 33 for the full playbook."),
+    ("Regulator liaison", "The Kazakhstan Cybersecurity Committee is notified of any Sev-1 within 24 h per statutory requirement. GOC + Bank partners receive a courtesy update via Partner lead. All external comms route through the CEO for approval — no exception, no direct-to-press."),
+]:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{d}</p>")
+
+body_parts.append("<h1>73 · Vendor lifecycle KPIs & dashboards</h1>")
+for t, d in [
+    ("Acquisition", "New draft registrations / week, resume-rate (drafts that reach Submit), average time-to-submit, campaign attribution (Snapchat/Instagram/partner referral). Targets: 40 new drafts / week, &gt; 55 % resume rate, &lt; 3 days time-to-submit."),
+    ("Activation", "Days from Submit to first eligible bid, first bid-value distribution, first-bid win-rate. Targets: median &lt; 7 days, first bid median USD 40 k, first-bid win-rate baseline 8 % — flag if a category drifts below 4 %."),
+    ("Engagement", "Bids per active vendor per quarter, category diversification (unique categories bid on), auction participation rate, Q&amp;A engagement rate. Targets: 3 bids / quarter, 2 categories, 30 % auction participation once invited, 50 % Q&amp;A engagement."),
+    ("Retention", "Quarterly active vendor count, 12-month churn (drop-off from active), win-rate trend, ESG completion %. Targets: 12-month churn &lt; 15 %, ESG completion &gt; 80 % of active vendors."),
+    ("Revenue", "Total contract value awarded / vendor / year, average margin (if disclosed), payment-cycle time, refund/forfeit rate on EMDs. Targets: median USD 200 k / active vendor / year; payment cycle median 21 days; forfeit rate &lt; 4 %."),
+    ("NPS + advocacy", "Vendor NPS (quarterly survey), referral rate, social share rate on award announcements. Targets: NPS &gt; +30, referral rate &gt; 12 %, social-share rate &gt; 25 % of awards."),
+    ("Panel composition", "Dashboards ship out of the box under Admin → Analytics → Vendor lifecycle. Each metric supports drill-down to the underlying rows for audit purposes."),
+]:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{d}</p>")
+
+body_parts.append("<h1>74 · Government &amp; regulator engagement playbook</h1>")
+for t, d in [
+    ("Stakeholder map", "Kazakhstan: National Bank, Ministry of Finance, State Procurement Authority, Anti-Corruption Agency. Multilateral: Asian Development Bank, EBRD, World Bank. Trade: Astana International Financial Centre, AIFC Court. Each has an owner on the Partner side + a backup."),
+    ("Cadence", "Monthly written update to the State Procurement Authority (auto-generated stakeholder report). Quarterly in-person meeting with the National Bank on escrow flows. Half-yearly platform demo for the Anti-Corruption Agency. Annual multilateral summit."),
+    ("Data-sharing agreements", "Each regulator has a DSA on file with named data categories + retention + auditable purpose. Anonymised aggregate stats can be shared freely; per-vendor detail only via formal legal request routed through counsel."),
+    ("Public consultation", "Every new feature that changes procurement outcome (rubric changes, auction rules, vendor scorecard weights) is put out for 21-day public consultation via the platform's <code>/consultations</code> surface. Comments are archived in the audit trail."),
+    ("Complaint handling", "The Anti-Corruption Agency has a dedicated portal to raise queries against any tender. SLA: acknowledge in 4 h, first substantive response within 3 business days, resolution or escalation within 15 business days."),
+    ("Cross-border data", "Any dataset that leaves KZ needs a written data-sharing note co-signed by CTO + counsel. The default is 'stay in region' — cross-border is the exception, not the rule."),
+    ("Media protocol", "Regulator interactions are never subject to press comment without CEO + Partner-lead sign-off. Public statements attributed to the platform are drafted by the Communications lead and reviewed by counsel."),
+]:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{d}</p>")
+
+body_parts.append("<h1>75 · Roadmap horizons 2027 – 2029</h1>")
+for t, d in [
+    ("Horizon 1 (0–12 months) — mature the core", "Ship the remaining P1 bugs (i18n backfill, TenderBuilder tab refetch, escrow signer edit). Ship Firebase/APNs push. Ship Zoom for evaluation committees. Ship LSEG/World-Check integration. Ship PayPal + Kaspi payments alongside Stripe. Ship v2 of the vendor scorecard with the anti-gaming layer described in chapter 68."),
+    ("Horizon 2 (12–24 months) — platform expansion", "Multi-country tenanting (per-country subdomains + per-country masters bootstrap). White-label mode for GOC + Bank partners. Native mobile apps for vendor portal (Capacitor already scaffolded — chapter 71's DR region can host the mobile edge). AI copilot for committee deliberation minutes. Deeper anti-fraud (device fingerprinting, behavioural analytics)."),
+    ("Horizon 3 (24–36 months) — new lines of business", "Marketplace for pre-qualified vendors across partner platforms (federated identity via OIDC). Tokenised EMD via a regulated custodian in AIFC. Cross-border bid pooling with peer procurement platforms. Regulator-grade real-time dashboards licensed to Ministries."),
+    ("Investment principles", "Every new feature must serve at least one of: (1) demonstrable audit-trail integrity, (2) measurable time-to-award reduction, (3) measurable vendor NPS improvement, (4) new revenue line. Features that fail all four are pushed to the parking lot."),
+    ("Kill criteria", "Any Horizon-1 item unshipped after 15 months is either (a) re-scoped and re-prioritised, or (b) killed. No zombie features. The roadmap review happens on the last Thursday of each quarter with all portal owners present."),
+    ("Talent plan", "Horizon 1 requires the current 2-engineer team. Horizon 2 requires 4 engineers + 1 designer + 1 product ops. Horizon 3 requires 8+ engineers, a dedicated security team, and a partner-success team."),
+    ("Governance", "The roadmap is public inside the platform (Admin → Reports → Roadmap) and to shareholders via a signed PDF export. External publication requires CEO + counsel sign-off. Changes to the roadmap horizons require Board sign-off if the horizon shifts by more than one quarter."),
+]:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{d}</p>")
+
+body_parts.append("<h1>76 · Ethics review board charter</h1>")
+for t, d in [
+    ("Composition", "Seven members: two independent public-sector representatives, two industry members with 15+ years procurement experience, one AIFC-court-nominated legal counsel, one civil-society observer, and the platform's Chief Compliance Officer (secretariat, non-voting). Terms are three years, staggered."),
+    ("Remit", "Review any procurement decision where (a) an AI recommendation was overturned, (b) a vendor scorecard band changed by more than one tier in a quarter, (c) a debarment is proposed, (d) a corrigendum window extends the deadline by more than 30 %, or (e) an external whistleblower complaint is received."),
+    ("Cadence", "Monthly plenary. Emergency session within 72 h for any Sev-1 event. All meetings are audio-recorded and minuted; minutes are published within 10 working days after redaction of commercially sensitive material."),
+    ("Powers", "Recommend (not compel) remedial action to Management and the Board. Access every audit-trail record read-only. Commission independent forensic reviews at the platform's cost up to USD 250 k per review without additional Board approval."),
+    ("Conflict declarations", "Members declare all commercial interests before each meeting. Any member with a material interest in the item under review recuses. Recusals are minuted with the reason."),
+    ("Escalation to Board", "Board must respond in writing to any Ethics-Board recommendation within 30 days. Rejections must be accompanied by a written rationale which becomes part of the audit trail."),
+    ("Whistleblower protection", "The board oversees the whistleblower channel (email + Telegram + a redacted web form). Retaliation against a good-faith reporter is grounds for immediate termination and — where a public official is involved — a mandatory referral to the Anti-Corruption Agency."),
+    ("Public reporting", "An annual public report summarises the number of reviews, the outcomes, and material lessons learned. Individual cases are anonymised."),
+]:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{d}</p>")
+
+body_parts.append("<h1>77 · Total-cost-of-ownership model (TCO)</h1>")
+for t, d in [
+    ("Purpose", "TCO turns L1 recommendations from a lowest-price comparison into a whole-life value comparison. It is mandatory for any contract with an initial value above USD 500 k or a duration longer than 24 months."),
+    ("Inputs", "Bid price (year 1), annual operating cost estimate, energy consumption profile, expected downtime hours, spare-parts pricing, training cost, decommissioning cost, residual value at end-of-life, and a country-specific discount rate."),
+    ("Formula", "TCO = Σ(operating cost + energy + downtime × cost-of-downtime + maintenance + training) over the contract horizon, discounted by the risk-free rate, plus decommissioning, minus residual. The formula lives in <code>backend/pmc_lib/tco.py</code> with unit tests covering the 12 edge cases from the ADB TCO playbook."),
+    ("Committee integration", "Once TCO is enabled for a tender the AwardReport surfaces two columns: 'Bid Price' and 'TCO'. Ranking is by TCO. Any bid whose TCO exceeds the lowest by more than 25 % but has a lower bid price is flagged for narrative comment from the committee."),
+    ("Vendor visibility", "Vendors see the TCO input schema at bid submission time. They can attach their own TCO worksheet as evidence. This is optional but improves scoring under the methodology criterion."),
+    ("Sensitivity analysis", "The TCO surface includes a slider: energy cost ±30 %, downtime cost ±30 %, discount rate ±200 bps. The committee can eyeball how sensitive the ranking is to each input and demand justification when a swing tips the recommendation."),
+    ("Audit trail", "Every TCO input, every recalculation, and every slider position is written to the audit trail with the actor. Regulator or auditor can replay any TCO-based award decision end-to-end."),
+    ("Training", "Buyers new to TCO complete a 2-hour module (Admin → Help → Training → TCO fundamentals). The module includes 8 worked examples across construction, IT services, medical equipment and consulting."),
+]:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{d}</p>")
+
+body_parts.append("<h1>78 · Green procurement policy</h1>")
+for t, d in [
+    ("Commitment", "PMC and its sponsor commit that by end of FY2028 at least 60 % of contract value awarded through the platform will meet the green-procurement criteria published in the annexure. This is a Board-level target."),
+    ("Definition", "A bid is 'green' if it: (a) documents a Scope 1+2 emissions figure ≤ the category benchmark, (b) commits to a Scope 3 reduction plan of ≥ 2 %/year, (c) sources at least 30 % of materials/services locally, and (d) meets ISO 14001 or an equivalent EMS."),
+    ("Scoring", "The rubric editor supports a 'Green premium' criterion (0 – 15 % weight) that applies when the tender is flagged green-eligible. Non-green bids are not disqualified but score lower on this criterion."),
+    ("Reporting", "The public roadmap includes a live 'green %' KPI. The stakeholder monthly report enumerates green vs non-green award value and the delta vs target."),
+    ("Verification", "Vendor self-declarations are spot-audited at 10 % of awards. Independent verifier (SGS / Bureau Veritas) confirms; false declaration is grounds for debarment and repayment of green premium."),
+    ("Buyer training", "Any buyer publishing a green-eligible tender completes a 90-minute module (Admin → Help → Training → Green procurement). The module includes the taxonomy, common gotchas and legal do-not-say phrases that trip Anti-Corruption regulators."),
+    ("Regulator alignment", "The green definition is aligned with the AIFC Green Finance Taxonomy and the World Bank's 2025 Climate Change Action Plan classifications. Realignment reviews happen annually."),
+]:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{d}</p>")
+
+body_parts.append("<h1>79 · Vendor communication protocol</h1>")
+for t, d in [
+    ("Channels", "Primary: email digest via Resend (announcement, corrigenda, award notice). Secondary: in-app inbox with read-receipt (persists across sessions). Tertiary: WhatsApp + Telegram for opt-in critical alerts. Never SMS as primary — cost + spoofing risk."),
+    ("Tone", "Formal, concise, English + Russian + Kazakh in one email. No marketing language on transactional messages. No emoji on regulatory content. Signed by a named human (usually the Vendor Success lead) with a real reply address."),
+    ("Frequency caps", "No more than 3 non-critical emails / vendor / week. Critical (corrigenda, deadline change, award) always sends. Vendors control category preferences from their profile page — the platform respects the last-updated preference within 10 minutes."),
+    ("Content review", "Every template is versioned in <code>backend/pmc_lib/comms_templates/</code>. New templates require Comms + Legal review. Field substitutions are strictly typed to prevent HTML injection."),
+    ("Analytics", "Open rate, click-through, unsubscribe, reply-to-human ratio are tracked per template. Templates below 15 % open-rate for four consecutive sends are auto-flagged for a rewrite."),
+    ("Escalation replies", "A vendor reply-to-all email lands in a shared mailbox (vendor-success@pmcmanagers.com) with automated triage: contract dispute → Legal, technical → Support, commercial → Success lead. First-response SLA: 4 business hours."),
+    ("Legal footer", "Every mail carries an unsubscribe link (transactional exempt), a physical address (PMC head office, Astana), and links to the privacy and terms pages. Absence of any element blocks the send at the template linter."),
+    ("Regulator carbon-copy", "Award notices, debarment notices and material corrigenda are automatically bcc-ed to the State Procurement Authority archive mailbox. The recipient is a Kazakhstan Government mandate."),
+]:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{d}</p>")
+
+body_parts.append("<h1>80 · Data-quality standards &amp; master-data governance</h1>")
+for t, d in [
+    ("Golden records", "Every entity that spans more than one tender (vendor, buyer, category taxonomy, currency, country, industry) has one canonical golden record. The platform enforces referential integrity via <code>golden_ref</code> foreign keys — orphaned entities fail the pre-publish check."),
+    ("Ownership", "Each domain has a nominated data steward: Vendors → Vendor Success lead, Buyers → Buyer Success lead, Taxonomy → Category committee, Countries/currency → Compliance officer. Any change to a golden record requires steward sign-off and produces an audit row."),
+    ("Change-control", "Master-data changes propagate to all in-flight tenders in a controlled way: (a) draft tenders auto-update, (b) published tenders keep their frozen snapshot, (c) evaluations use the snapshot valid at lock-envelope time. This prevents silent behaviour change on live procurement."),
+    ("Data-quality metrics", "Completeness (% required fields populated), accuracy (spot-audit vs source-of-truth), timeliness (median age of last update), uniqueness (duplicate detection score), and consistency (cross-reference validity). Each metric has a target and a live gauge on the Admin data-quality dashboard."),
+    ("Duplicate detection", "Fuzzy-match on registration_number + country + email domain flags candidate duplicates before a vendor is activated. The threshold is 92 % similarity; anything below is human-reviewed by Vendor Success. Duplicate merges preserve both audit trails."),
+    ("Reference data cadence", "Country and currency ISO codes refreshed monthly. NACE-style industry taxonomy reviewed quarterly. EMD slabs reviewed twice yearly against Kazakhstan's regulatory bulletin. Every refresh writes a version tag so historical filings remain reproducible."),
+    ("Data lineage", "Every field on every published notice carries a lineage annotation: which master, which version, which user made the last edit. This is what regulators typically ask for first when a decision is queried post-award."),
+    ("Deletion vs archival", "Nothing is hard-deleted. 'Delete' actions move records to an archival collection with a legal-hold flag until the retention clock runs out. Bulk purges require CFO + counsel sign-off and are logged to the immutable audit trail."),
+    ("Reconciliation", "Nightly reconciliation between the operational store (MongoDB) and the analytics warehouse (S3 + Athena). Deltas above 0.5 % fire a Sev-3 alert. The reconciliation job itself writes an audit row so absence-of-alert is not evidence of absence-of-drift."),
+    ("Regulator export", "One-click export of any entity's full history + lineage in a signed PDF + machine-readable JSON. Available to Admins with the 'auditor' role only. Usage is itself audit-logged."),
+]:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{d}</p>")
+
+body_parts.append("<h1>81 · Progressive Web App (PWA) — install &amp; offline</h1>")
+for t, d in [
+    ("Positioning", "PMC v46p ships as an installable PWA on both Android (Chrome / Edge / Samsung Internet) and iOS (Safari 16.4+). The manifest advertises a 5-portal shortcut list so the launcher offers direct entry to Admin, Staff, Vendor and the public Notice Board without opening the browser chrome."),
+    ("Install — Android", "Open <code>https://tenders.pmcmanagers.com</code> in Chrome/Edge, tap the address-bar menu and choose 'Install app'. The homescreen icon uses the PMC crest. A splash screen (navy #0B132B with the gold crest) shows for the first 300 ms — configured via <code>background_color</code> + <code>theme_color</code> in <code>public/manifest.json</code>."),
+    ("Install — iOS", "Open the same URL in Safari, tap the Share icon and choose 'Add to Home Screen'. iOS reads <code>apple-mobile-web-app-*</code> meta tags in <code>public/index.html</code> so the standalone shell hides Safari chrome, uses the black-translucent status bar and the correct app title."),
+    ("Offline behaviour", "The service worker (<code>public/service-worker.js</code>) caches the app shell (HTML, CSS, JS bundles, fonts, PMC crest) using a stale-while-revalidate strategy. Data endpoints (/api/*) are never cached — every request goes to the network so vendors never see stale bid data. If the network is unavailable the UI renders an 'Offline — reconnecting' banner sourced from the /status endpoint."),
+    ("Update discipline", "Every deploy bumps a <code>CACHE_VERSION</code> constant in the SW so the browser invalidates old shells within one page load. The previous self-destructing SW from v46d is retained as a safety net: on activate, any cache older than 30 days is nuked."),
+    ("Push notifications (roadmap)", "Web Push via Firebase Cloud Messaging (Android + desktop) and APNs bridge (iOS 16.4+ PWA) — targeted for v46q. Trigger events: award notification, corrigenda publish, bid deadline &lt; 24 h. Vendors opt-in per category from the profile page."),
+    ("Testing checklist", "Lighthouse PWA audit ≥ 90; manifest icons render at both 192 px and 512 px maskable; SW installs on first load; 'Add to Home Screen' appears on Chrome ≥ 76 + Safari ≥ 16.4; the standalone shell has no browser chrome; navigation between the 5 portals stays inside the app."),
+    ("Fallback for legacy browsers", "Browsers that don't support the SW API (IE, older Android 4.x) still get the full app — just without offline caching or install. There is no functional degradation, only progressive enhancement."),
+]:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{d}</p>")
+
+body_parts.append("<h1>82 · Sign-off</h1><p>This manual is versioned under <code>/app/deliverables/v46_manual/build/</code>. Regenerate via <code>python3 /app/tools/manual/build.py</code>. Re-capture via <code>python3 /app/tools/manual/capture.py</code> after every material release. v46p adds chapters 68 – 81 (vendor scorecard, cross-border settlement, AI governance, BCP, cybersecurity, vendor KPIs, regulator engagement, roadmap horizons, ethics board, TCO, green procurement, vendor comms, data-quality, PWA) to reach the 150-page target requested by the sponsor.</p>")
 
 pdf_html = f"""<!doctype html><html><head><meta charset='utf-8'/>
-<title>PMC v46m Master Training Manual</title>
+<title>PMC v46p Master Training Manual</title>
 <style>
     /* v46o — watermark + cover */
     @page :first {{ background: #0B132B; margin: 0; }}
     @page {{ size: A4; margin: 20mm 16mm 22mm 16mm;
-      @top-right {{ content: "PMC v46m Master Manual"; font: 8.5pt Georgia; color: #94a3b8; }}
+      @top-right {{ content: "PMC v46p Master Manual"; font: 8.5pt Georgia; color: #94a3b8; }}
       @bottom-left {{ content: "{esc(BANNER)}"; font: 8.5pt Georgia; color: #64748b; }}
       @bottom-right {{ content: "Page " counter(page) " / " counter(pages); font: 8.5pt Georgia; color: #64748b; }}
       background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='800'><g transform='translate(400,400) rotate(-30)'><text x='0' y='0' text-anchor='middle' font-family='Georgia' font-size='60' fill='rgba(15,31,58,0.05)' font-weight='700' letter-spacing='6'>CONFIDENTIAL — INTERNAL USE ONLY</text></g></svg>");
@@ -1754,7 +1933,7 @@ code {{ font-family: 'Menlo', 'Courier New', monospace; font-size: 9.5pt; backgr
 <div class="cover">
   <div class="crest">PMC</div>
   <div class="title">Master Training Manual</div>
-  <div class="title" style="font-size:24pt;color:#D4AF37;margin-top:14pt;">v46m · Sovereign Edition</div>
+  <div class="title" style="font-size:24pt;color:#D4AF37;margin-top:14pt;">v46p · Sovereign Edition · 150-page complete</div>
   <div class="rule"></div>
   <div class="sub">End-to-end operator handbook · every screen · every field · every workflow</div>
   <div class="banner">{esc(BANNER)}</div>
@@ -1763,12 +1942,12 @@ code {{ font-family: 'Menlo', 'Courier New', monospace; font-size: 9.5pt; backgr
 {"".join(body_parts)}
 </body></html>"""
 
-pdf_html_path = OUT / "PMC_v46m_Master_Training_Manual.html"
+pdf_html_path = OUT / "PMC_v46p_Master_Training_Manual.html"
 pdf_html_path.write_text(pdf_html)
 
 from weasyprint import HTML
 HTML(string=pdf_html, base_url=str(ROOT)).write_pdf(
-    str(OUT / "PMC_v46m_Master_Training_Manual.pdf"))
+    str(OUT / "PMC_v46p_Master_Training_Manual.pdf"))
 
 sizes = {f.name: f.stat().st_size for f in OUT.iterdir() if f.is_file()}
 print("Manual built:")

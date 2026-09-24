@@ -2,10 +2,13 @@
  * RubricEditor — extracted from EvaluationPanel. Renders the scoring rubric
  * (technical criteria weights + commercial weight + minimum cutoff).
  *
- * Bug-blitz (c) — the rubric editor now exposes a `getErrors()` helper via
- * the `errorRef` prop so the parent's save handler can veto keyboard /
- * programmatic saves that bypass the disabled button.
+ * Bug-blitz (c) — the rubric editor exposes its current validation errors
+ * via the `errorRef` prop so the parent's save handler can veto keyboard /
+ * programmatic saves that bypass the disabled button. The mutation is done
+ * in a useEffect so we never touch parent state during render.
  */
+import { useEffect } from "react";
+
 export default function RubricEditor({ rubric, setRubric, onSave, errorRef }) {
   // Bug #49 — client-side derivation of validity so the "Save rubric" button
   // stays disabled (and the user gets a clear inline error) when weights fall
@@ -22,8 +25,9 @@ export default function RubricEditor({ rubric, setRubric, onSave, errorRef }) {
   if (!commOk) errors.push("Commercial weight must be between 0 and 1.");
   if (!minOk) errors.push("Minimum technical cutoff must be between 0 and 100.");
   const canSave = errors.length === 0;
-  // Publish the current error list to the parent (see prop docstring).
-  if (errorRef) errorRef.current = errors;
+  // Publish the current error list to the parent via effect (avoids render-
+  // phase side-effects; safe under React strict-mode).
+  useEffect(() => { if (errorRef) errorRef.current = errors; });
 
   return (
     <div className="bg-white border p-4">

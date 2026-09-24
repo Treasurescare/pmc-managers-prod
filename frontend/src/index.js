@@ -29,9 +29,17 @@ createRoot(document.getElementById("root")).render(
   </>
 );
 
-// v46d — Service worker REMOVED. The offline-first SW precached the app shell
-// and kept serving stale JS bundles across deploys (caused two production
-// login incidents: cross-origin preview bundle + SameSite=Lax cookie bounce
-// persisted after fixes shipped). A self-destructing /service-worker.js is
-// deployed instead; existing browsers will clear caches and unregister on
-// next visit.
+// v46p — PWA service worker re-enabled with a safe strategy:
+//   - shell (HTML/JS/CSS/fonts/crest) is stale-while-revalidate
+//   - navigation requests are network-first with shell fallback
+//   - /api/* is bypassed entirely (never cached) → no repeat of the v46d
+//     regression where stale bundles masked login fixes
+// This unlocks Android + iOS install-to-homescreen and keeps the app
+// usable during transient network drops.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("/service-worker.js", { scope: "/" })
+      .catch(() => { /* HTTPS-only in prod; silently no-op if it fails */ });
+  });
+}

@@ -169,10 +169,10 @@ export default function RegistrationResume() {
                     setStepIdx(i);
                   }}
                   data-testid={`step-${s}`}
-                  disabled={jumpBlocked}
+                  aria-disabled={jumpBlocked}
                   title={jumpBlocked ? `Complete Section A first (${sectionAGaps.length} field(s) missing)` : ""}
                   className={
-                    "px-3 py-2 text-[11px] font-semibold uppercase tracking-widest border whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed " +
+                    "px-3 py-2 text-[11px] font-semibold uppercase tracking-widest border whitespace-nowrap aria-disabled:opacity-40 aria-disabled:cursor-not-allowed " +
                     (active
                       ? "bg-brand-navy text-white border-brand-navy"
                       : passed

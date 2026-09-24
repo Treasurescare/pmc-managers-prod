@@ -12,9 +12,16 @@ Build and operate PMC Managers Limited (pmcmanagers.com), a multi-role procureme
 - Auth: Cookie sessions, three realms (admin, staff, vendor). Same-origin `/api` calls required in production bundles.
 - Assets: Public `/downloads/` folder for release artifacts and manuals — NEVER deleted with `s3 sync --delete` at bucket root.
 
-## Implemented (as of 2026-09-24)
+## Implemented (as of 2026-09-24 pm — v46p sovereign release)
 
-- **v46o Per-section AI hotfix Round Two** — `ai_draft_section` no longer uses `pmc_lib.LlmChat` (which cannot reach the Emergent integrations proxy). Now delegates to `tender_pro._llm_complete` — same helper the DPR pipeline uses — so `sk-emergent-*` keys correctly route through `https://integrations.emergentagent.com/llm`. This is the real fix; v46n only widened the env-var check but left the underlying routing broken.
+- **v46p PWA re-enabled** — production `manifest.json` now advertises 4 explicit icon slots (192/512 any + maskable), 4 launcher shortcuts (Admin / Management / Vendor / Notice Board), `start_url=/`, `display=standalone`, sovereign navy `theme_color` + splash. `service-worker.js` rewritten as a stale-while-revalidate app-shell cache that bypasses `/api/*` entirely (no v46d stale-bundle regression). SW registration re-wired in `src/index.js`. `apple-mobile-web-app-*` meta tags already present in `index.html`. Result: installable on Android (Chrome/Edge/Samsung) and iOS 16.4+ (Safari).
+- **v46p Deliverables pack** — all landed in `/app/frontend/public/downloads/`:
+  - `PMC_v46p_Master_Training_Manual.pdf` — **151 pages**, 9.43 MB, 82 chapters, 32 full-page screenshots, sovereign cover + gold crest + "Confidential" watermark on every page. Docx sibling shipped.
+  - `PMC_v46p_Testing_Manual.pdf` — 33 pages, per-module test-case catalogue with preconditions, steps, expected UI, expected API/HTTP codes, test data references. Modules: Public / Registration / 5-Portal Login / Notices / Tender Builder / Evaluation / Escrow / Reverse Auctions / Vendor Portal / Reports / PWA.
+  - `PMC_v46p_Process_Flow.pdf` + `.svg` — full lifecycle flowchart (5 swim-lanes: Tender · Vendor · Escrow · Award · Governance) at A3 landscape.
+  - `PMC_v46p_Data_Flow.pdf` + `.svg` — 20-node data-flow diagram (public → vendor → admin → AI proxy → escrow → payments → audit + MongoDB + S3 + external integrations) at A3 landscape.
+- **v46p Bug Blitz Round Two (fully closed)** — all five P0 items shipped and verified 5/5 by the testing agent (iteration_25.json) with pytest coverage on the backend snapshot endpoint. See list below.
+- **v46o Per-section AI hotfix Round Two** — `ai_draft_section` now delegates to `tender_pro._llm_complete` so `sk-emergent-*` keys correctly route through `https://integrations.emergentagent.com/llm`.
 - **v46m Manual v2 (final)** — 130-page (67-chapter) master training manual with sovereign cover + PMC crest + "CONFIDENTIAL — INTERNAL USE ONLY" watermark on every page. 32 screenshots + 8000+ words of narrative across all app surfaces + regulator liaison + ESG questionnaire + role runbooks + MoU + RACI + cost-benefit + sample corrigenda / DocuSign / stakeholder reports / audit trail / bid + procurement policy + committee constitution + DR drill + acceptance-test matrix + localisation strings + Q&A digest + standard clauses + comms templates + NPS + debarment + release plan.
 - **v46n Per-section AI hotfix Round One** — superseded by v46o.
 - **v46m Manual v2** — regenerated 66-page (25-chapter, 32-screen) master training manual against the deployed sovereign design.
@@ -46,15 +53,15 @@ Build and operate PMC Managers Limited (pmcmanagers.com), a multi-role procureme
 - Deploy v46j backend + v46k frontend to production and run KMT DPR validation end-to-end.
 - Address "unlimited size" DPR ingestion — remove the 800 KB cap and add background/async worker processing for 100 MB+ / 500+ page files.
 
-**P1 (bugs still open in tracker)**
-- Registration wizard step-validation gate between Section A and B/C.
-- Stakeholder Reports save-snapshot JSON parse error (needs backend RCA).
-- Evaluation rubric max-value client-side gate.
-- Locked-evaluation should refuse re-open + show saved report.
+**P1 (open bugs — historical, kept for context)**
+- ✅ Registration wizard step-validation gate between Section A and B/C. — **CLOSED v46p**
+- ✅ Stakeholder Reports save-snapshot JSON parse error. — **CLOSED v46p**
+- ✅ Evaluation rubric max-value client-side gate. — **CLOSED v46p**
+- ✅ Locked-evaluation should refuse re-open + show saved report. — **CLOSED v46p**
+- ✅ Mobile CSS overflow: reverse-auction summary button. — **CLOSED v46p** (funnel + vendor-intel already fixed earlier)
 - TenderBuilder Tender/RFP/RFQ tab switch should refetch.
 - Escrow — modify email IDs on transaction signer flow.
-- Mobile CSS overflow: landing pipeline funnel labels, reverse-auction summary button, vendor-intel columns.
-- i18n Russian/Kazakh strings backfill.
+- i18n Russian/Kazakh strings backfill (deferred by user in this session).
 - Profile avatar cache invalidation after re-login.
 - Global email + mobile regex validation across forms.
 
