@@ -151,14 +151,28 @@ export default function RegistrationResume() {
           {STEPS.map((s, i) => {
             const active = i === stepIdx;
             const passed = i < stepIdx;
+            // Bug-blitz (a) — Registration step gate. Jumping past Section A
+            // via the stepper used to bypass the required-field check; block
+            // it here so the only way past Section A is completing it.
+            const jumpBlocked = i > 0 && sectionAGaps.length > 0;
             return (
               <li key={s}>
                 <button
                   type="button"
-                  onClick={() => setStepIdx(i)}
+                  onClick={() => {
+                    if (jumpBlocked) {
+                      toast.error(
+                        `Please fill Identity & Basic Info first. Missing: ${sectionAGaps.map((k) => k.replace(/_/g, " ")).join(", ")}`,
+                      );
+                      return;
+                    }
+                    setStepIdx(i);
+                  }}
                   data-testid={`step-${s}`}
+                  disabled={jumpBlocked}
+                  title={jumpBlocked ? `Complete Section A first (${sectionAGaps.length} field(s) missing)` : ""}
                   className={
-                    "px-3 py-2 text-[11px] font-semibold uppercase tracking-widest border whitespace-nowrap " +
+                    "px-3 py-2 text-[11px] font-semibold uppercase tracking-widest border whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed " +
                     (active
                       ? "bg-brand-navy text-white border-brand-navy"
                       : passed

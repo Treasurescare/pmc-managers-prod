@@ -771,5 +771,21 @@ def snapshot_to_disk() -> dict:
 
 @router.post("/snapshot")
 async def post_snapshot(admin=Depends(require_role("admin"))):
-    """Persist the five artefacts into /app/docs/reports so they land in Git."""
-    return snapshot_to_disk()
+    """Persist the five artefacts into /app/docs/reports so they land in Git.
+
+    Bug-blitz (b) — Stakeholder Reports save-snapshot JSON parse error.
+    ``snapshot_to_disk`` used to bubble WeasyPrint / disk errors as unhandled
+    Python exceptions which FastAPI serialised into a plain-text 500 page —
+    the frontend then failed on ``response.json()`` with a JSON parse error.
+    Wrap the call so the response is *always* valid JSON, even on failure.
+    """
+    try:
+        return snapshot_to_disk()
+    except Exception as e:  # noqa: BLE001 — surface any lower-layer failure
+        return {
+            "ok": False,
+            "generated_at": now_iso(),
+            "dir": str(SNAPSHOT_DIR.relative_to(_Path("/app"))) if SNAPSHOT_DIR.exists() else "docs/reports",
+            "files": [],
+            "errors": [{"file": "*", "error": f"{type(e).__name__}: {e}"}],
+        }

@@ -152,7 +152,7 @@ export default function LiveAuctionsPanel() {
                   {a.currency} · start {a.starting_price?.toLocaleString()} → floor {a.floor_price?.toLocaleString()} · Δ {a.min_decrement?.toLocaleString()}
                 </span>
               </div>
-              <div className="mt-2 flex items-center gap-3 text-xs">
+              <div className="mt-2 flex flex-wrap items-center gap-2 gap-y-2 text-xs">
                 {a.status === "draft" ? (
                   <span className="text-[11px] text-brand-navy/50 italic flex-1">
                     Bidder link is hidden until you Start the auction — vendors will

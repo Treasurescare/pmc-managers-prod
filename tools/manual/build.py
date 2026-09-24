@@ -1176,6 +1176,448 @@ for term, defn in gl:
     body_parts.append(f"<li><b>{esc(term)}</b> — {esc(defn)}</li>")
 body_parts.append("</ul>")
 
+# ---------------------------------------------------------------------------
+# v46o expansion — inject chapters 26 – 36 (modal walkthroughs, regulator
+# liaison, ESG questionnaire, per-role runbooks, forms reference, bug
+# tracker snapshot, DPR internals, incident response, data retention,
+# vendor curriculum, change management) into BOTH the MD build and the
+# PDF body_parts list. Content lives in build_extensions.py so this file
+# stays readable.
+# ---------------------------------------------------------------------------
+from build_extensions import (
+    MODAL_WALKS, REGULATOR_PROTOCOL, ESG_QUESTIONNAIRE, ROLE_RUNBOOKS,
+    FORM_FIELDS, BUG_TRACKER_STATE, INCIDENT_RESPONSE, DATA_RETENTION,
+    VENDOR_CURRICULUM, CHANGE_MANAGEMENT,
+    SECURITY_CONTROLS, TENDER_COMMITTEE_CONSTITUTION, DR_DRILL_SCRIPT,
+    SAMPLE_NOTICE, SAMPLE_BID, DETAILED_API_REFERENCE, ACCEPTANCE_TESTS,
+    SAMPLE_CORRIGENDA, SAMPLE_DOCUSIGN_WALK, STAKEHOLDER_REPORT_SAMPLE,
+    AUDIT_TRAIL_SAMPLE, MOU_TEMPLATE, RACI_MATRIX, COST_BENEFIT_WORKSHEET,
+    COMMITTEE_MINUTES_TEMPLATE, PROCUREMENT_POLICY_SUMMARY,
+    LOCALISATION_STRINGS, VENDOR_SANDBOX, COMMITTEE_TRAINING, ETHICS_CODE,
+    BOARD_REPORTING_PACK, IT_OPERATIONS,
+    SAMPLE_QA_DIGEST, BID_EVAL_MATRIX, STANDARD_CLAUSES,
+    COMMS_TEMPLATES, NPS_SURVEY, DEBARMENT_LOG,
+    TEXT_MESSAGE_LIBRARY, RELEASE_PLANNING, MANUAL_MAINTENANCE,
+)
+
+# ------- MD chapters 26 – 36 -------
+h(2, "26 · Modal walkthroughs")
+for title, path, fields, gotchas in MODAL_WALKS:
+    h(3, title); p(path)
+    h(4, "Fields")
+    for f in fields:
+        p(f"- {f}")
+    if gotchas:
+        h(4, "Known gotchas")
+        for g in gotchas:
+            p(f"- {g}")
+
+h(2, "27 · Regulator-liaison protocol")
+for t, d in REGULATOR_PROTOCOL:
+    h(3, t); p(d)
+
+h(2, "28 · ESG questionnaire (procurement bidders)")
+for cat, qs in ESG_QUESTIONNAIRE:
+    h(3, cat)
+    for q in qs:
+        p(f"- {q}")
+
+h(2, "29 · Per-role runbooks")
+for role, items in ROLE_RUNBOOKS:
+    h(3, role)
+    for it in items:
+        p(f"- {it}")
+
+h(2, "30 · Field-by-field forms reference")
+for form_name, fields in FORM_FIELDS:
+    h(3, form_name)
+    for name, desc in fields:
+        p(f"- {name} — {desc}")
+
+h(2, "31 · Bug tracker snapshot (v46o cutover)")
+for section, items in BUG_TRACKER_STATE:
+    h(3, section)
+    for it in items:
+        p(f"- {it}")
+
+h(2, "32 · DPR pipeline internal reference (v46l)")
+for para_text in [
+    "**Entry points.** Sync `POST /api/v1/tender-pro/dpr/analyze-json` for < 4 MB payloads and async `POST /api/v1/tender-pro/dpr/analyze-async` for anything larger. Both accept `{filename, content_b64}` and an optional `?template_id=` query param.",
+    "**Extraction.** `_extract_text_from_upload(name, body_bytes)` routes by file extension. PDF → pypdf iter-pages; DOCX → python-docx paragraph concatenation; TXT → UTF-8 decode. All emit `\\n\\n` between logical blocks so downstream chunking finds natural boundaries.",
+    "**Chunking.** `_chunk_text(text)` slides a 40 000-char window with 3 000-char overlap. Cap `DPR_MAX_CHUNKS=500` (env-overridable). Returns `[(offset, chunk_text), …]`.",
+    "**Pass 1a — per-chunk map.** Semaphore(4). System prompt asks for `{header_hints, sections}` as strict JSON. `header_hints` covers work title, budget, deadlines, EMD, evaluation method. `sections[]` carries `{title, hint, anchor_phrase}` where `anchor_phrase` is a 6-12 word verbatim snippet used later to locate the passage most relevant to a section.",
+    "**Pass 1b — global reduce.** `merged_header` first-wins across chunks (rich early chunks dominate). `global_sections` deduplicates by lowercased title; ties break by earliest occurrence. Caps at 60 (was 30 pre-v46l).",
+    "**Pass 2 — draft.** Semaphore(6). `_best_chunk(sec, i)` picks the chunk whose text contains `anchor_phrase` (case-insensitive) — falls back to chunk `i % len(chunks)` if no match. Draft prompt forbids inventing numbers; asks for 280-360 words HTML with a strict tag allow-list. Bodies under 200 chars trigger the raw-passage fallback so nothing lands as a stub.",
+    "**Async progress.** `progress_cb(pct, phase)` is invoked at every phase transition. The worker (`_dpr_job_worker`) writes `{progress, phase, status, updated_at}` into the `dpr_jobs` collection so the UI polls a real percentage rather than a spinner.",
+    "**Error surface.** Any 413/422/502 propagates as-is; unexpected exceptions surface as `500` with `{error: 'TypeName: str[:400]}`. The UI shows the exact string in a sonner toast (see chapter 10).",
+    "**Nginx tuning.** `client_max_body_size 200M` + `client_body_timeout 300s` + `proxy_read_timeout 300s`. Without these, EB's default idle 60 s kills any 20-MB base64 upload.",
+    "**Observability.** Every DPR job writes an audit row (`tender_pro.dpr_analyze`) on start + completion with size + section count. CloudWatch tail: `filterPattern=/dpr/analyze` for latency, `filterPattern='dpr.job.failed'` for failure rate.",
+]:
+    p(para_text)
+
+h(2, "33 · Incident-response playbook")
+for t, d in INCIDENT_RESPONSE:
+    h(3, t); p(d)
+
+h(2, "34 · Data-retention & backup policy")
+p("| Entity | Retention | Notes |\n|---|---|---|\n" +
+  "\n".join(f"| {a} | {b} | — |" for a, b in DATA_RETENTION) + "\n")
+
+h(2, "35 · Vendor education curriculum")
+for m, d in VENDOR_CURRICULUM:
+    h(3, m); p(d)
+
+h(2, "36 · Change management & release cadence")
+for t, d in CHANGE_MANAGEMENT:
+    h(3, t); p(d)
+
+h(2, "37 · Security controls matrix")
+for group, items in SECURITY_CONTROLS:
+    h(3, group)
+    for name, desc in items:
+        p(f"- **{name}** — {desc}")
+
+h(2, "38 · Tender committee constitution")
+for t, d in TENDER_COMMITTEE_CONSTITUTION:
+    h(3, t); p(d)
+
+h(2, "39 · Disaster-recovery drill script")
+for t, d in DR_DRILL_SCRIPT:
+    h(3, t); p(d)
+
+h(2, "40 · Sample notice (annotated)")
+for t, d in SAMPLE_NOTICE:
+    h(3, t); p(d)
+
+h(2, "41 · Sample bid (annotated)")
+for t, d in SAMPLE_BID:
+    h(3, t); p(d)
+
+h(2, "42 · Detailed API reference")
+for group, endpoints in DETAILED_API_REFERENCE:
+    h(3, group)
+    for ep, desc in endpoints:
+        p(f"- `{ep}` — {desc}")
+
+h(2, "43 · Acceptance-test matrix")
+for area, tests in ACCEPTANCE_TESTS:
+    h(3, area)
+    for t in tests:
+        p(f"- {t}")
+
+h(2, "44 · Sample corrigenda log")
+for t, d in SAMPLE_CORRIGENDA:
+    h(3, t); p(d)
+
+h(2, "45 · Sample DocuSign envelope walkthrough")
+for t, d in SAMPLE_DOCUSIGN_WALK:
+    h(3, t); p(d)
+
+h(2, "46 · Stakeholder-report sample")
+for t, d in STAKEHOLDER_REPORT_SAMPLE:
+    h(3, t); p(d)
+
+h(2, "47 · Audit-trail export sample")
+for t, d in AUDIT_TRAIL_SAMPLE:
+    h(3, t); p(d)
+
+h(2, "48 · MoU template (Sponsor ↔ Platform Operator)")
+for t, d in MOU_TEMPLATE:
+    h(3, t); p(d)
+
+h(2, "49 · RACI matrix")
+p("| Activity | Assignment |\n|---|---|\n" +
+  "\n".join(f"| {a} | {b} |" for a, b in RACI_MATRIX) + "\n")
+
+h(2, "50 · Cost-benefit worksheet (KZ programme, illustrative)")
+for t, d in COST_BENEFIT_WORKSHEET:
+    h(3, t); p(d)
+
+h(2, "51 · Committee minutes template")
+for t, d in COMMITTEE_MINUTES_TEMPLATE:
+    h(3, t); p(d)
+
+h(2, "52 · Procurement policy summary")
+for t, d in PROCUREMENT_POLICY_SUMMARY:
+    h(3, t); p(d)
+
+h(2, "53 · Localisation strings (EN / RU / KK)")
+for group, items in LOCALISATION_STRINGS:
+    h(3, group)
+    for key, val in items:
+        p(f"- `{key}` — {val}")
+
+h(2, "54 · Vendor sandbox playbook")
+for t, d in VENDOR_SANDBOX:
+    h(3, t); p(d)
+
+h(2, "55 · Committee training curriculum")
+for t, d in COMMITTEE_TRAINING:
+    h(3, t); p(d)
+
+h(2, "56 · Ethics code")
+for t, d in ETHICS_CODE:
+    h(3, t); p(d)
+
+h(2, "57 · Board reporting pack")
+for t, d in BOARD_REPORTING_PACK:
+    h(3, t); p(d)
+
+h(2, "58 · IT operations manual")
+for t, d in IT_OPERATIONS:
+    h(3, t); p(d)
+
+h(2, "59 · Sample Q&A digest")
+for t, d in SAMPLE_QA_DIGEST:
+    h(3, t); p(d)
+
+h(2, "60 · Sample bid evaluation matrix")
+for t, d in BID_EVAL_MATRIX:
+    h(3, t); p(d)
+
+h(2, "61 · Standard clauses library")
+for t, d in STANDARD_CLAUSES:
+    h(3, t); p(d)
+
+h(2, "62 · Communications templates")
+for t, d in COMMS_TEMPLATES:
+    h(3, t); p(d)
+
+h(2, "63 · Vendor NPS survey")
+for t, d in NPS_SURVEY:
+    h(3, t); p(d)
+
+h(2, "64 · Debarment log format")
+for t, d in DEBARMENT_LOG:
+    h(3, t); p(d)
+
+h(2, "65 · SMS / in-app message library")
+for t, d in TEXT_MESSAGE_LIBRARY:
+    h(3, t); p(d)
+
+h(2, "66 · Release planning — CY 2027")
+for t, d in RELEASE_PLANNING:
+    h(3, t); p(d)
+
+h(2, "67 · Manual maintenance guide")
+for t, d in MANUAL_MAINTENANCE:
+    h(3, t); p(d)
+
+# ------- PDF body_parts chapters 26 – 36 -------
+body_parts.append("<h1>26 · Modal walkthroughs</h1>")
+for title, path, fields, gotchas in MODAL_WALKS:
+    body_parts.append(f"<h2>{esc(title)}</h2><p>{esc(path)}</p>")
+    body_parts.append("<h3>Fields</h3><ul>")
+    for f in fields:
+        body_parts.append(f"<li>{esc(f)}</li>")
+    body_parts.append("</ul>")
+    if gotchas:
+        body_parts.append("<h3>Known gotchas</h3><ul>")
+        for g in gotchas:
+            body_parts.append(f"<li>{esc(g)}</li>")
+        body_parts.append("</ul>")
+
+body_parts.append("<h1>27 · Regulator-liaison protocol</h1>")
+for t, d in REGULATOR_PROTOCOL:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{esc(d)}</p>")
+
+body_parts.append("<h1>28 · ESG questionnaire (procurement bidders)</h1>")
+for cat, qs in ESG_QUESTIONNAIRE:
+    body_parts.append(f"<h2>{esc(cat)}</h2><ul>")
+    for q in qs:
+        body_parts.append(f"<li>{esc(q)}</li>")
+    body_parts.append("</ul>")
+
+body_parts.append("<h1>29 · Per-role runbooks</h1>")
+for role, items in ROLE_RUNBOOKS:
+    body_parts.append(f"<h2>{esc(role)}</h2><ul>")
+    for it in items:
+        body_parts.append(f"<li>{esc(it)}</li>")
+    body_parts.append("</ul>")
+
+body_parts.append("<h1>30 · Field-by-field forms reference</h1>")
+for form_name, fields in FORM_FIELDS:
+    body_parts.append(f"<h2>{esc(form_name)}</h2><table><tr><th>Field</th><th>Description</th></tr>")
+    for name, desc in fields:
+        body_parts.append(f"<tr><td>{name}</td><td>{esc(desc)}</td></tr>")
+    body_parts.append("</table>")
+
+body_parts.append("<h1>31 · Bug tracker snapshot (v46o cutover)</h1>")
+for section, items in BUG_TRACKER_STATE:
+    body_parts.append(f"<h2>{esc(section)}</h2><ul>")
+    for it in items:
+        body_parts.append(f"<li>{esc(it)}</li>")
+    body_parts.append("</ul>")
+
+body_parts.append("<h1>32 · DPR pipeline internal reference (v46l)</h1>")
+for para_text in [
+    "<b>Entry points.</b> Sync <code>POST /api/v1/tender-pro/dpr/analyze-json</code> for &lt; 4 MB payloads and async <code>POST /api/v1/tender-pro/dpr/analyze-async</code> for anything larger. Both accept <code>{filename, content_b64}</code> and an optional <code>?template_id=</code> query param.",
+    "<b>Extraction.</b> <code>_extract_text_from_upload(name, body_bytes)</code> routes by file extension. PDF → pypdf iter-pages; DOCX → python-docx paragraph concatenation; TXT → UTF-8 decode. All emit <code>\\n\\n</code> between logical blocks so downstream chunking finds natural boundaries.",
+    "<b>Chunking.</b> <code>_chunk_text(text)</code> slides a 40 000-char window with 3 000-char overlap. Cap <code>DPR_MAX_CHUNKS=500</code> (env-overridable). Returns <code>[(offset, chunk_text), …]</code>.",
+    "<b>Pass 1a — per-chunk map.</b> Semaphore(4). System prompt asks for <code>{header_hints, sections}</code> as strict JSON. Each section carries <code>{title, hint, anchor_phrase}</code>; the anchor_phrase is a 6-12 word verbatim snippet used later to locate the passage most relevant to a section.",
+    "<b>Pass 1b — global reduce.</b> <code>merged_header</code> first-wins across chunks. <code>global_sections</code> deduplicates by lowercased title; ties break by earliest occurrence. Caps at 60 (was 30 pre-v46l).",
+    "<b>Pass 2 — draft.</b> Semaphore(6). <code>_best_chunk(sec, i)</code> picks the chunk whose text contains anchor_phrase (case-insensitive). Draft prompt forbids inventing numbers; asks for 280-360 words HTML with a strict tag allow-list. Bodies under 200 chars trigger the raw-passage fallback so nothing lands as a stub.",
+    "<b>Async progress.</b> <code>progress_cb(pct, phase)</code> is invoked at every phase transition. The worker (<code>_dpr_job_worker</code>) writes <code>{progress, phase, status, updated_at}</code> into <code>dpr_jobs</code> so the UI polls a real percentage.",
+    "<b>Error surface.</b> Any 413/422/502 propagates as-is; unexpected exceptions surface as 500 with <code>{error: 'TypeName: str[:400]}</code>.",
+    "<b>Nginx tuning.</b> <code>client_max_body_size 200M</code> + <code>client_body_timeout 300s</code> + <code>proxy_read_timeout 300s</code>. Without these, EB's default idle 60 s kills any 20 MB base64 upload.",
+    "<b>Observability.</b> Every DPR job writes an audit row (<code>tender_pro.dpr_analyze</code>) on start + completion with size + section count. CloudWatch tail: <code>filterPattern=/dpr/analyze</code> for latency, <code>filterPattern='dpr.job.failed'</code> for failure rate.",
+]:
+    body_parts.append(f"<p>{para_text}</p>")
+
+body_parts.append("<h1>33 · Incident-response playbook</h1>")
+for t, d in INCIDENT_RESPONSE:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{esc(d)}</p>")
+
+body_parts.append("<h1>34 · Data-retention &amp; backup policy</h1><table><tr><th>Entity</th><th>Retention</th></tr>")
+for a, b in DATA_RETENTION:
+    body_parts.append(f"<tr><td>{esc(a)}</td><td>{esc(b)}</td></tr>")
+body_parts.append("</table>")
+
+body_parts.append("<h1>35 · Vendor education curriculum</h1>")
+for m, d in VENDOR_CURRICULUM:
+    body_parts.append(f"<h2>{esc(m)}</h2><p>{esc(d)}</p>")
+
+body_parts.append("<h1>36 · Change management &amp; release cadence</h1>")
+for t, d in CHANGE_MANAGEMENT:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{esc(d)}</p>")
+
+body_parts.append("<h1>37 · Security controls matrix</h1>")
+for group, items in SECURITY_CONTROLS:
+    body_parts.append(f"<h2>{esc(group)}</h2><table><tr><th>Control</th><th>Implementation</th></tr>")
+    for name, desc in items:
+        body_parts.append(f"<tr><td>{esc(name)}</td><td>{esc(desc)}</td></tr>")
+    body_parts.append("</table>")
+
+body_parts.append("<h1>38 · Tender committee constitution</h1>")
+for t, d in TENDER_COMMITTEE_CONSTITUTION:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{esc(d)}</p>")
+
+body_parts.append("<h1>39 · Disaster-recovery drill script</h1>")
+for t, d in DR_DRILL_SCRIPT:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{esc(d)}</p>")
+
+body_parts.append("<h1>40 · Sample notice (annotated)</h1>")
+for t, d in SAMPLE_NOTICE:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{esc(d)}</p>")
+
+body_parts.append("<h1>41 · Sample bid (annotated)</h1>")
+for t, d in SAMPLE_BID:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{esc(d)}</p>")
+
+body_parts.append("<h1>42 · Detailed API reference</h1>")
+for group, endpoints in DETAILED_API_REFERENCE:
+    body_parts.append(f"<h2>{esc(group)}</h2><table><tr><th>Endpoint</th><th>Purpose</th></tr>")
+    for ep, desc in endpoints:
+        body_parts.append(f"<tr><td><code>{esc(ep)}</code></td><td>{desc}</td></tr>")
+    body_parts.append("</table>")
+
+body_parts.append("<h1>43 · Acceptance-test matrix</h1>")
+for area, tests in ACCEPTANCE_TESTS:
+    body_parts.append(f"<h2>{esc(area)}</h2><ul>")
+    for t in tests:
+        body_parts.append(f"<li>{t}</li>")
+    body_parts.append("</ul>")
+
+body_parts.append("<h1>44 · Sample corrigenda log</h1>")
+for t, d in SAMPLE_CORRIGENDA:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{esc(d)}</p>")
+
+body_parts.append("<h1>45 · Sample DocuSign envelope walkthrough</h1>")
+for t, d in SAMPLE_DOCUSIGN_WALK:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{esc(d)}</p>")
+
+body_parts.append("<h1>46 · Stakeholder-report sample</h1>")
+for t, d in STAKEHOLDER_REPORT_SAMPLE:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{esc(d)}</p>")
+
+body_parts.append("<h1>47 · Audit-trail export sample</h1>")
+for t, d in AUDIT_TRAIL_SAMPLE:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{esc(d)}</p>")
+
+body_parts.append("<h1>48 · MoU template (Sponsor ↔ Platform Operator)</h1>")
+for t, d in MOU_TEMPLATE:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{esc(d)}</p>")
+
+body_parts.append("<h1>49 · RACI matrix</h1><table><tr><th>Activity</th><th>Assignment</th></tr>")
+for a, b in RACI_MATRIX:
+    body_parts.append(f"<tr><td>{esc(a)}</td><td>{esc(b)}</td></tr>")
+body_parts.append("</table>")
+
+body_parts.append("<h1>50 · Cost-benefit worksheet (KZ programme, illustrative)</h1>")
+for t, d in COST_BENEFIT_WORKSHEET:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{esc(d)}</p>")
+
+body_parts.append("<h1>51 · Committee minutes template</h1>")
+for t, d in COMMITTEE_MINUTES_TEMPLATE:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{esc(d)}</p>")
+
+body_parts.append("<h1>52 · Procurement policy summary</h1>")
+for t, d in PROCUREMENT_POLICY_SUMMARY:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{esc(d)}</p>")
+
+body_parts.append("<h1>53 · Localisation strings (EN / RU / KK)</h1>")
+for group, items in LOCALISATION_STRINGS:
+    body_parts.append(f"<h2>{esc(group)}</h2><table><tr><th>Key</th><th>Translations</th></tr>")
+    for key, val in items:
+        body_parts.append(f"<tr><td><code>{esc(key)}</code></td><td>{esc(val)}</td></tr>")
+    body_parts.append("</table>")
+
+body_parts.append("<h1>54 · Vendor sandbox playbook</h1>")
+for t, d in VENDOR_SANDBOX:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{esc(d)}</p>")
+
+body_parts.append("<h1>55 · Committee training curriculum</h1>")
+for t, d in COMMITTEE_TRAINING:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{esc(d)}</p>")
+
+body_parts.append("<h1>56 · Ethics code</h1>")
+for t, d in ETHICS_CODE:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{esc(d)}</p>")
+
+body_parts.append("<h1>57 · Board reporting pack</h1>")
+for t, d in BOARD_REPORTING_PACK:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{esc(d)}</p>")
+
+body_parts.append("<h1>58 · IT operations manual</h1>")
+for t, d in IT_OPERATIONS:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{esc(d)}</p>")
+
+body_parts.append("<h1>59 · Sample Q&amp;A digest</h1>")
+for t, d in SAMPLE_QA_DIGEST:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{esc(d)}</p>")
+
+body_parts.append("<h1>60 · Sample bid evaluation matrix</h1>")
+for t, d in BID_EVAL_MATRIX:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{esc(d)}</p>")
+
+body_parts.append("<h1>61 · Standard clauses library</h1>")
+for t, d in STANDARD_CLAUSES:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{esc(d)}</p>")
+
+body_parts.append("<h1>62 · Communications templates</h1>")
+for t, d in COMMS_TEMPLATES:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{esc(d)}</p>")
+
+body_parts.append("<h1>63 · Vendor NPS survey</h1>")
+for t, d in NPS_SURVEY:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{esc(d)}</p>")
+
+body_parts.append("<h1>64 · Debarment log format</h1>")
+for t, d in DEBARMENT_LOG:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{esc(d)}</p>")
+
+body_parts.append("<h1>65 · SMS / in-app message library</h1>")
+for t, d in TEXT_MESSAGE_LIBRARY:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{esc(d)}</p>")
+
+body_parts.append("<h1>66 · Release planning — CY 2027</h1>")
+for t, d in RELEASE_PLANNING:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{esc(d)}</p>")
+
+body_parts.append("<h1>67 · Manual maintenance guide</h1>")
+for t, d in MANUAL_MAINTENANCE:
+    body_parts.append(f"<h2>{esc(t)}</h2><p>{esc(d)}</p>")
+
 # Chapters 16 – 25
 body_parts.append("<h1>16 · Role-by-role onboarding checklist (30 / 60 / 90 days)</h1>")
 for pt in [

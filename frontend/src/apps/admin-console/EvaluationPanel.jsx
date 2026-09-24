@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { evalApi, bidApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
@@ -27,6 +27,10 @@ export default function EvaluationPanel() {
   // v46m — envelope lock state. When either envelope has been locked we hide
   // the "Lock" button and disable score submission (backend also refuses).
   const [lockState, setLockState] = useState({ technical_locked_at: null, commercial_locked_at: null });
+  // Bug-blitz (c) — the RubricEditor writes its current validation errors
+  // here so saveRubric() can veto keyboard/programmatic bypass of the
+  // disabled Save button.
+  const rubricErrorsRef = useRef([]);
 
   const loadBids = useCallback(async () => {
     if (!noticeRef) return;
@@ -45,9 +49,29 @@ export default function EvaluationPanel() {
   useEffect(() => { loadBids(); loadLockState(); }, [loadBids, loadLockState]);
   const techLocked = !!lockState?.technical_locked_at;
   const commLocked = !!lockState?.commercial_locked_at;
+  const fullyLocked = techLocked && commLocked;
+
+  // Bug-blitz (d) — Locked-eval reopen. When both envelopes are sealed for
+  // the entered notice_ref, silently pull the saved award report so the
+  // user sees the historical decision instead of a blank scoring surface.
+  useEffect(() => {
+    if (!noticeRef || !fullyLocked) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await evalApi.awardReport(noticeRef);
+        if (!cancelled) setReport(r);
+      } catch { /* silent — panel still usable */ }
+    })();
+    return () => { cancelled = true; };
+  }, [noticeRef, fullyLocked]);
 
   const saveRubric = async () => {
     if (!noticeRef) return toast.error("Enter a tender notice ref first");
+    // Bug-blitz (c) — defensive gate: the button is already `disabled` when
+    // errors exist, but keyboard/programmatic clicks used to slip through.
+    const errs = rubricErrorsRef.current || [];
+    if (errs.length > 0) { toast.error(errs[0]); return; }
     try {
       await evalApi.saveRubric({ notice_ref: noticeRef, ...rubric });
       toast.success("Rubric saved");
@@ -126,7 +150,15 @@ export default function EvaluationPanel() {
         </div>
       </div>
 
-      <RubricEditor rubric={rubric} setRubric={setRubric} onSave={saveRubric} />
+      <RubricEditor rubric={rubric} setRubric={setRubric} onSave={saveRubric} errorRef={rubricErrorsRef} />
+
+      {fullyLocked && report && (
+        <div className="border-l-4 border-brand-navy bg-brand-pale p-4 text-sm text-brand-navy"
+             data-testid="locked-eval-notice">
+          <div className="font-semibold uppercase tracking-widest text-[11px]">Evaluation sealed</div>
+          <div className="mt-1">Both envelopes for <b>{noticeRef}</b> are locked. The saved Award Report is shown below — no further scoring or re-evaluation is permitted.</div>
+        </div>
+      )}
 
       {(techLocked || commLocked) && (
         <div className="border-l-4 border-emerald-500 bg-emerald-50 p-4 text-sm text-emerald-900"
@@ -167,6 +199,7 @@ export default function EvaluationPanel() {
         bids={bids} rubric={rubric}
         scoreDraft={scoreDraft} setScoreDraft={setScoreDraft}
         onSaveTech={submitTechScore} onSaveComm={submitCommScore}
+        readOnly={fullyLocked}
       />
 
       <AwardReport report={report} />

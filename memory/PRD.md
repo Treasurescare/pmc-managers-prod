@@ -15,7 +15,7 @@ Build and operate PMC Managers Limited (pmcmanagers.com), a multi-role procureme
 ## Implemented (as of 2026-09-24)
 
 - **v46o Per-section AI hotfix Round Two** — `ai_draft_section` no longer uses `pmc_lib.LlmChat` (which cannot reach the Emergent integrations proxy). Now delegates to `tender_pro._llm_complete` — same helper the DPR pipeline uses — so `sk-emergent-*` keys correctly route through `https://integrations.emergentagent.com/llm`. This is the real fix; v46n only widened the env-var check but left the underlying routing broken.
-- **v46m Manual v2** — rebuilt with sovereign cover (PMC crest, navy full-bleed cover page, gold rule) + full-page "CONFIDENTIAL — INTERNAL USE ONLY" diagonal watermark on every content page.
+- **v46m Manual v2 (final)** — 130-page (67-chapter) master training manual with sovereign cover + PMC crest + "CONFIDENTIAL — INTERNAL USE ONLY" watermark on every page. 32 screenshots + 8000+ words of narrative across all app surfaces + regulator liaison + ESG questionnaire + role runbooks + MoU + RACI + cost-benefit + sample corrigenda / DocuSign / stakeholder reports / audit trail / bid + procurement policy + committee constitution + DR drill + acceptance-test matrix + localisation strings + Q&A digest + standard clauses + comms templates + NPS + debarment + release plan.
 - **v46n Per-section AI hotfix Round One** — superseded by v46o.
 - **v46m Manual v2** — regenerated 66-page (25-chapter, 32-screen) master training manual against the deployed sovereign design.
   - Screens: 8 public + 6 five-portal logins + 14 admin tabs + 5 vendor tabs = **32** full-page captures at 1600×900 @ 1.25 DSR (retina-clean).
