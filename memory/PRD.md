@@ -14,6 +14,11 @@ Build and operate PMC Managers Limited (pmcmanagers.com), a multi-role procureme
 
 ## Implemented (as of 2026-09-24)
 
+- **v46m Manual v2** — regenerated 66-page (25-chapter, 32-screen) master training manual against the deployed sovereign design.
+  - Screens: 8 public + 6 five-portal logins + 14 admin tabs + 5 vendor tabs = **32** full-page captures at 1600×900 @ 1.25 DSR (retina-clean).
+  - Chapters: architecture, roles matrix, security/audit, public journey, vendor journey, admin tour, DPR deep-dive, evaluation/escrow deep-dive, reverse auctions, UX safeties, deploy runbook, troubleshooting, API index, release history, glossary, 30/60/90 onboarding, monthly cadence, KPIs, escalation matrix, keyboard shortcuts, FAQ, sample tender lifecycle, data-model appendix, release archive, sign-off.
+  - Artefacts: PDF (9 MB), DOCX (8 MB), MD (49 KB) plus a single-file bundle zip (16 MB).
+  - Regenerate at any time with `python3 /app/tools/manual/capture.py && python3 /app/tools/manual/build.py`.
 - **v46m Bug Blitz Round Two** (backend + frontend zips staged).
   - `GET /api/v1/evaluations/lock-state/{notice_ref}` added; frontend `EvaluationPanel` now disables Lock buttons + shows sealed timestamp banner once an envelope is locked.
   - `POST /api/v1/evaluations/lock-envelope` refuses re-lock (409) so a rogue call cannot overwrite the timestamp / attribution.
