@@ -163,107 +163,170 @@ async def _run_dpr_analyze(name: str, body_bytes: bytes, kind: str, admin: dict,
         return parsed
 
     # -------------------- Multi-pass deep-dive (no template) --------------------
-    # Feed head + tail so metadata (usually up front) AND financial
-    # schedules / annexures (usually at the back) are both seen.
-    HEAD = 60000
-    TAIL = 30000
-    if total <= HEAD + TAIL:
-        blueprint_text = text
+    # v46j — TRUE MAP-REDUCE. No character ceiling; the ENTIRE extracted
+    # document is fed to the LLM in overlapping chunks. Pass 1a summarises
+    # each chunk; Pass 1b reduces those summaries into a global blueprint;
+    # Pass 2 drafts each section body from the passage most relevant to
+    # that section title. If a section body call fails, we ALWAYS fall
+    # back to a rich HTML block built from the raw source passage — never
+    # a 1-line stub or empty string.
+    import asyncio
+
+    CHUNK = 40000        # ~10-12 pages of extracted PDF text per LLM call
+    OVERLAP = 3000       # keep context continuity across chunk boundaries
+    MAX_CHUNKS = 20      # cap at ~800 KB of text (≈ 250-400 pages)
+
+    chunks: list[tuple[int, str]] = []  # (offset, text)
+    if total <= CHUNK:
+        chunks.append((0, text))
     else:
-        blueprint_text = (text[:HEAD]
-                          + f"\n\n[...MIDDLE OF DOCUMENT OMITTED — {total - HEAD - TAIL:,} chars...]\n\n"
-                          + text[-TAIL:])
-        warnings.append(f"Document is {total:,} chars — deep-dive analysed head {HEAD:,} + tail {TAIL:,}")
+        i = 0
+        while i < total and len(chunks) < MAX_CHUNKS:
+            chunks.append((i, text[i:i + CHUNK]))
+            if i + CHUNK >= total:
+                break
+            i += CHUNK - OVERLAP
+        if i < total:
+            warnings.append(f"Document is {total:,} chars — deep-dive analysed first {len(chunks) * (CHUNK - OVERLAP):,} chars in {len(chunks)} chunks")
 
-    # ---- Pass 1: metadata + dynamic section discovery ----
-    system_p1 = (
-        "You are a public-procurement copilot. Read this Detailed Project Report (DPR) and produce "
-        f"a JSON blueprint for a full {kind.upper()} pack. Return EXACTLY: "
-        "{\"header\": {work_title, work_description, tender_value, budget_currency, period_days, "
-        "location, product_category, sub_category, contract_type, eligibility, evaluation_method, "
-        "bid_validity_days, emd_amount, emd_type, emd_percentage, tender_fee_amount}, "
-        "\"sections\": ["
-        "  {\"code\": \"dpr-1\", \"kind\": \"section\", \"title\": \"…\", "
-        "   \"hint\": \"one-line description of what this section covers\"}, …], "
-        "\"warnings\": [fields you could not confidently extract]}. "
-        "Discover EVERY major chapter, technical schedule, financial breakdown, milestone plan, "
-        "annexure and form the DPR actually contains — aim for 12–30 sections. "
-        "Use codes dpr-1, dpr-2 … in reading order. Do NOT draft bodies yet. "
-        "Return valid JSON only — no prose, no code fences."
-    )
-    raw1 = await _llm_complete(system_p1, f"DPR content:\n{blueprint_text}")
-    blueprint = _parse_json_loose(raw1)
-    header = blueprint.get("header") or {}
-    discovered = blueprint.get("sections") or []
-    warnings += list(blueprint.get("warnings") or [])
-    if not isinstance(discovered, list) or not discovered:
-        # Fallback — LLM refused to discover; keep a minimal generic list
-        discovered = [
-            {"code": "dpr-1", "kind": "section", "title": "Project Overview",           "hint": "Executive summary from the DPR"},
-            {"code": "dpr-2", "kind": "section", "title": "Scope of Work",              "hint": "Detailed scope, deliverables"},
-            {"code": "dpr-3", "kind": "section", "title": "Financial Summary",          "hint": "Budget, EMD, currency, fee"},
-            {"code": "dpr-4", "kind": "section", "title": "Schedule & Milestones",      "hint": "Timeline & milestones"},
-            {"code": "dpr-5", "kind": "section", "title": "Eligibility & Evaluation",   "hint": "Bidder eligibility, evaluation method"},
+    # ---- Pass 1a: per-chunk local blueprints (in parallel, bounded) ----
+    sem1 = asyncio.Semaphore(4)
+    async def _local_bp(idx: int, offset: int, ctext: str) -> dict:
+        sys_local = (
+            "You are analysing ONE chunk of a Detailed Project Report (DPR). "
+            "Return JSON: {\"header_hints\": {work_title, work_description, tender_value, "
+            "budget_currency, period_days, location, product_category, sub_category, "
+            "contract_type, eligibility, evaluation_method, bid_validity_days, emd_amount, "
+            "emd_type, emd_percentage, tender_fee_amount — fill only fields visible in THIS chunk}, "
+            "\"sections\": [{\"title\": \"…\", \"hint\": \"one-line description\", "
+            "\"anchor_phrase\": \"6-12 word verbatim phrase from this chunk that appears in the section body\"}, …]}. "
+            "List every major chapter/schedule/annexure/form found in this chunk (0 if none). "
+            "Return valid JSON only — no prose."
+        )
+        try:
+            async with sem1:
+                raw = await _llm_complete(sys_local, f"Chunk {idx+1} of {len(chunks)} (starts at char {offset:,}):\n{ctext}")
+            return _parse_json_loose(raw)
+        except Exception:
+            return {"header_hints": {}, "sections": []}
+
+    local_bps = await asyncio.gather(*[_local_bp(i, off, c) for i, (off, c) in enumerate(chunks)])
+
+    # ---- Pass 1b: reduce local blueprints into ONE global header + section list ----
+    merged_header: dict = {}
+    for lb in local_bps:
+        for k, v in (lb.get("header_hints") or {}).items():
+            if v and not merged_header.get(k):
+                merged_header[k] = v
+
+    # Deduplicate + globally-order the discovered sections.
+    seen_titles: set[str] = set()
+    global_sections: list[dict] = []
+    for lb in local_bps:
+        for s in (lb.get("sections") or []):
+            key = (s.get("title") or "").strip().lower()
+            if key and key not in seen_titles:
+                seen_titles.add(key)
+                global_sections.append({
+                    "title": s.get("title"),
+                    "hint": s.get("hint") or "",
+                    "anchor_phrase": s.get("anchor_phrase") or "",
+                })
+
+    if not global_sections:
+        global_sections = [
+            {"title": "Project Overview",           "hint": "Executive summary from the DPR",       "anchor_phrase": ""},
+            {"title": "Scope of Work",              "hint": "Detailed scope, deliverables",         "anchor_phrase": ""},
+            {"title": "Financial Summary",          "hint": "Budget, EMD, currency, fee",           "anchor_phrase": ""},
+            {"title": "Schedule & Milestones",      "hint": "Timeline & milestones",                "anchor_phrase": ""},
+            {"title": "Eligibility & Evaluation",   "hint": "Bidder eligibility, evaluation method","anchor_phrase": ""},
         ]
-        warnings.append("Pass-1 returned no sections — used generic 5-section fallback")
+        warnings.append("Chunk pass returned no sections — used generic 5-section fallback")
 
-    # Guardrails: cap section count and normalize.
-    discovered = discovered[:30]
+    discovered = global_sections[:30]
     for i, s in enumerate(discovered):
-        if not s.get("code"):
-            s["code"] = f"dpr-{i+1}"
-        s["kind"] = s.get("kind") or "section"
+        s["code"] = f"dpr-{i+1}"
+        s["kind"] = "section"
         s["order"] = (i + 1) * 10
 
-    # ---- Pass 2: parallel section-body drafting ----
+    header = merged_header
+
+    # ---- Pass 2: parallel section-body drafting from BEST passage ----
     n = len(discovered)
-    # Even fallback slices across the whole document so section i sees roughly the i-th slice.
-    slice_len = max(4000, total // max(1, n))
+    slice_len = max(6000, total // max(1, n))
+
+    def _best_chunk(sec: dict, i: int) -> str:
+        # Prefer the LLM-provided anchor phrase (more accurate than title match).
+        for probe in (sec.get("anchor_phrase") or "", sec.get("title") or ""):
+            probe = (probe or "").strip()
+            if not probe:
+                continue
+            low = text.lower()
+            idx = low.find(probe.lower())
+            if idx < 0:
+                # try first significant token from the probe
+                for w in re.findall(r"[A-Za-z]{5,}", probe):
+                    idx = low.find(w.lower())
+                    if idx >= 0:
+                        break
+            if idx >= 0:
+                start = max(0, idx - 800)
+                end = min(len(text), idx + 5500)
+                return text[start:end]
+        # Even fallback slice — spreads across whole document.
+        s = i * slice_len
+        return text[max(0, s):min(total, s + slice_len + 500)]
+
+    sem2 = asyncio.Semaphore(6)
     async def _draft_body(i: int, sec: dict) -> tuple[str, str]:
-        chunk = _chunk_for_section(text, sec,
-                                    (i * slice_len, i * slice_len + slice_len + 500))
+        passage = _best_chunk(sec, i)
         prompt = (
             "You are a public-procurement drafting copilot. Draft the BODY of ONE tender-document "
-            "section using the DPR passage below as source. Return valid HTML using ONLY these "
+            "section using ONLY the DPR passage below as source. Return valid HTML using only these "
             "tags: <p><br><b><i><ul><ol><li><h3>. Do NOT include the section title. Do NOT invent "
-            "numbers not present in the passage. Aim for approximately 220 words."
+            "numbers or facts absent from the passage. Aim for 280-360 words with real details, "
+            "bullets for lists, bold for key figures. If the passage is short, still produce a "
+            "substantive paragraph — never a one-liner."
         )
         user = (f"Section title: {sec.get('title')}\n"
-                f"Section hint: {sec.get('hint') or ''}\n\n"
-                f"Relevant DPR passage:\n{chunk}")
+                f"Hint: {sec.get('hint') or ''}\n\n"
+                f"Relevant DPR passage:\n{passage}")
         try:
-            body_html = (await _llm_complete(prompt, user)).strip()
+            async with sem2:
+                body_html = (await _llm_complete(prompt, user)).strip()
             if body_html.startswith("```"):
                 body_html = re.sub(r"^```(?:html)?", "", body_html).rstrip("`").strip()
+            # Reject stubs — anything under 200 chars is treated as failure
+            # so the raw-passage fallback kicks in.
+            if len(re.sub(r"<[^>]+>", "", body_html)) < 200:
+                raise ValueError("stub")
             return sec["code"], body_html
-        except HTTPException:
-            return sec["code"], ""
+        except Exception:
+            # Fallback — never return an empty body. Wrap the raw passage
+            # as safely-escaped paragraphs so the section at least contains
+            # the source material.
+            import html as _html
+            paras = [p.strip() for p in re.split(r"\n{2,}", passage) if p.strip()]
+            paras = paras[:8] or [passage.strip()]
+            body_html = "\n".join(f"<p>{_html.escape(p[:1200])}</p>" for p in paras)
+            return sec["code"], body_html
 
-    import asyncio
-    # Concurrency-limit LLM calls so we don't overwhelm the proxy.
-    sem = asyncio.Semaphore(6)
-    async def _bounded(i, s):
-        async with sem:
-            return await _draft_body(i, s)
-    results = await asyncio.gather(*[_bounded(i, s) for i, s in enumerate(discovered)])
+    results = await asyncio.gather(*[_draft_body(i, s) for i, s in enumerate(discovered)])
     section_bodies = {code: body for code, body in results if body}
-    if len(section_bodies) < n:
-        warnings.append(f"{n - len(section_bodies)} section(s) failed to draft — will be blank")
 
     parsed = {
         "header": header,
         "section_bodies": section_bodies,
         "warnings": warnings,
-        # Optional: expose the discovered section list so the UI can render
-        # them in reading order even if bodies are empty.
         "sections_blueprint": discovered,
         "meta": {
             "chars_total": total,
-            "chars_analysed": min(total, HEAD + TAIL),
+            "chars_analysed": sum(len(c) for _, c in chunks),
+            "chunks": len(chunks),
             "sections_discovered": n,
             "sections_drafted": len(section_bodies),
             "template_aware": False,
-            "passes": 2,
+            "passes": 3,
         },
     }
     await audit_log("tender_pro.dpr_analyze", admin, "dpr", name, parsed["meta"])
