@@ -249,6 +249,8 @@ export const uploadsApi = {
 export const evalApi = {
   lockEnvelope: (notice_ref, kind) =>
     api.post("/api/v1/evaluations/lock-envelope", { notice_ref, kind }).then((r) => r.data),
+  lockState: (notice_ref) =>
+    api.get(`/api/v1/evaluations/lock-state/${encodeURIComponent(notice_ref)}`).then((r) => r.data),
   saveRubric: (p) => api.post("/api/v1/evaluations/rubric", p).then((r) => r.data),
   getRubric: (ref) => api.get(`/api/v1/evaluations/rubric/${ref}`).then((r) => r.data),
   declareCOI: (p) => api.post("/api/v1/evaluations/coi", p).then((r) => r.data),

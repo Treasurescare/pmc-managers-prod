@@ -29,6 +29,14 @@ async def lock_envelope(payload: EnvelopeLockIn, admin=Depends(require_role("adm
     """After the deadline, admin can lock a specific envelope kind so
     scoring can begin (bids can no longer be edited)."""
     key = f"{payload.kind}_locked_at"
+    # v46m — refuse to re-lock. Once locked the envelope is sealed forever;
+    # the frontend hides the button but a rogue direct API call would
+    # otherwise silently reset the lock timestamp / attribution.
+    existing = await db.notices.find_one({"notice_ref": payload.notice_ref}, {key: 1})
+    if existing and existing.get(key):
+        raise HTTPException(status_code=409,
+                             detail=f"The {payload.kind} envelope is already locked. "
+                                    f"Re-opening a locked envelope requires an admin audit trail.")
     r = await db.notices.update_one(
         {"notice_ref": payload.notice_ref},
         {"$set": {key: now_iso(), f"{payload.kind}_locked_by": admin["id"]}},
@@ -37,6 +45,27 @@ async def lock_envelope(payload: EnvelopeLockIn, admin=Depends(require_role("adm
         raise HTTPException(status_code=404, detail="Notice not found")
     await audit_log(f"envelope.lock.{payload.kind}", admin, "notice", payload.notice_ref, {})
     return {"ok": True}
+
+
+@router.get("/lock-state/{notice_ref}")
+async def get_lock_state(notice_ref: str, admin=Depends(current_admin)):
+    """v46m — expose envelope lock timestamps so the frontend can
+    disable the "Lock envelope" / "Submit score" buttons after lock and
+    render a "sealed at …" badge with attribution."""
+    doc = await db.notices.find_one(
+        {"notice_ref": notice_ref},
+        {"technical_locked_at": 1, "technical_locked_by": 1,
+         "commercial_locked_at": 1, "commercial_locked_by": 1},
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="Notice not found")
+    return {
+        "notice_ref": notice_ref,
+        "technical_locked_at": doc.get("technical_locked_at"),
+        "technical_locked_by": doc.get("technical_locked_by"),
+        "commercial_locked_at": doc.get("commercial_locked_at"),
+        "commercial_locked_by": doc.get("commercial_locked_by"),
+    }
 
 
 # ---------- Scoring Rubric ----------

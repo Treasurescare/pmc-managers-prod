@@ -24,6 +24,9 @@ export default function EvaluationPanel() {
   const [bids, setBids] = useState([]);
   const [report, setReport] = useState(null);
   const [scoreDraft, setScoreDraft] = useState({});
+  // v46m — envelope lock state. When either envelope has been locked we hide
+  // the "Lock" button and disable score submission (backend also refuses).
+  const [lockState, setLockState] = useState({ technical_locked_at: null, commercial_locked_at: null });
 
   const loadBids = useCallback(async () => {
     if (!noticeRef) return;
@@ -32,7 +35,16 @@ export default function EvaluationPanel() {
       setBids(list || []);
     } catch (e) { showApiError(e); }
   }, [noticeRef]);
-  useEffect(() => { loadBids(); }, [loadBids]);
+  const loadLockState = useCallback(async () => {
+    if (!noticeRef) { setLockState({ technical_locked_at: null, commercial_locked_at: null }); return; }
+    try {
+      const s = await evalApi.lockState(noticeRef);
+      setLockState(s);
+    } catch { /* notice may not exist yet — leave defaults */ }
+  }, [noticeRef]);
+  useEffect(() => { loadBids(); loadLockState(); }, [loadBids, loadLockState]);
+  const techLocked = !!lockState?.technical_locked_at;
+  const commLocked = !!lockState?.commercial_locked_at;
 
   const saveRubric = async () => {
     if (!noticeRef) return toast.error("Enter a tender notice ref first");
@@ -74,8 +86,11 @@ export default function EvaluationPanel() {
   };
 
   const lock = async (kind) => {
-    try { await evalApi.lockEnvelope(noticeRef, kind); toast.success(`${kind} envelope locked`); }
-    catch (e) { showApiError(e); }
+    try {
+      await evalApi.lockEnvelope(noticeRef, kind);
+      toast.success(`${kind} envelope locked`);
+      await loadLockState();
+    } catch (e) { showApiError(e); }
   };
 
   return (
@@ -90,13 +105,17 @@ export default function EvaluationPanel() {
               data-testid="eval-notice-ref" />
           </label>
           <button onClick={() => lock("technical")} data-testid="lock-technical"
-            className="px-3 py-2 text-[11px] uppercase tracking-widest border">
-            {t("panels.evaluation.lock_tech")}
+            disabled={techLocked}
+            title={techLocked ? `Sealed at ${lockState.technical_locked_at}` : ""}
+            className="px-3 py-2 text-[11px] uppercase tracking-widest border disabled:opacity-40 disabled:cursor-not-allowed">
+            {techLocked ? "Technical · Sealed 🔒" : t("panels.evaluation.lock_tech")}
             <InfoDot tip="Freeze technical envelope — no more technical scores can be added or edited after this action. Auditable." />
           </button>
           <button onClick={() => lock("commercial")} data-testid="lock-commercial"
-            className="px-3 py-2 text-[11px] uppercase tracking-widest border">
-            {t("panels.evaluation.lock_comm")}
+            disabled={commLocked}
+            title={commLocked ? `Sealed at ${lockState.commercial_locked_at}` : ""}
+            className="px-3 py-2 text-[11px] uppercase tracking-widest border disabled:opacity-40 disabled:cursor-not-allowed">
+            {commLocked ? "Commercial · Sealed 🔒" : t("panels.evaluation.lock_comm")}
             <InfoDot tip="Freeze commercial envelope after tech scoring is complete. Required before Award Report can be generated." />
           </button>
           <button onClick={generateReport} data-testid="award-report-btn"
@@ -108,6 +127,21 @@ export default function EvaluationPanel() {
       </div>
 
       <RubricEditor rubric={rubric} setRubric={setRubric} onSave={saveRubric} />
+
+      {(techLocked || commLocked) && (
+        <div className="border-l-4 border-emerald-500 bg-emerald-50 p-4 text-sm text-emerald-900"
+             data-testid="envelope-lock-banner">
+          <div className="font-semibold uppercase tracking-widest text-[11px]">Envelope status</div>
+          <ul className="mt-1 space-y-0.5">
+            {techLocked && (
+              <li>Technical envelope sealed at <b>{lockState.technical_locked_at}</b>{lockState.technical_locked_by ? ` by ${lockState.technical_locked_by}` : ""}. No further scores accepted.</li>
+            )}
+            {commLocked && (
+              <li>Commercial envelope sealed at <b>{lockState.commercial_locked_at}</b>{lockState.commercial_locked_by ? ` by ${lockState.commercial_locked_by}` : ""}. No further scores accepted.</li>
+            )}
+          </ul>
+        </div>
+      )}
 
       <div className="bg-white border p-4">
         <div className="pmc-label mb-2">{t("panels.evaluation.coi_heading")}</div>

@@ -190,15 +190,16 @@ export default function AuctionRoom() {
           </div>
           {state.bids.length === 0 && <div className="p-6 text-brand-navy/40 text-sm">No bids yet.</div>}
           {state.bids.map((b, i) => (
-            <div key={`${b.at}-${b.alias}-${b.price}`} className="p-3 border-b border-brand-navy/5 flex items-baseline gap-4"
+            <div key={`${b.at}-${b.alias}-${b.price}`}
+                 className="p-3 border-b border-brand-navy/5 flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4"
                  data-testid={`ra-bid-row-${i}`}>
-              <span className="font-mono text-xs text-brand-navy/50 w-32">{b.at?.slice(11, 19)}</span>
-              <span className="text-sm font-semibold w-24">{b.alias}</span>
-              <span className="font-mono tabular-nums text-brand-navy flex-1">
+              <span className="font-mono text-xs text-brand-navy/50 sm:w-32">{b.at?.slice(11, 19)}</span>
+              <span className="text-sm font-semibold sm:w-24">{b.alias}</span>
+              <span className="font-mono tabular-nums text-brand-navy flex-1 break-all">
                 {state.currency} {b.price?.toLocaleString()}
               </span>
               {b.auto && (
-                <span className="text-[10px] uppercase tracking-widest text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5">
+                <span className="self-start text-[10px] uppercase tracking-widest text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5">
                   auto
                 </span>
               )}
