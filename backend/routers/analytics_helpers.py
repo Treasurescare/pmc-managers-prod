@@ -57,8 +57,13 @@ async def deterministic_flags(bid: dict) -> tuple[List[str], str]:
 
 async def llm_narrative(bid: dict, flags: List[str], session_prefix: str) -> str:
     """Best-effort short narrative via PMC LLM key.
-    Silently returns a placeholder if the key or the SDK is unavailable."""
-    key = os.environ.get("LLM_API_KEY", "") or os.environ.get("LEGACY_LLM_KEY", "")
+    Silently returns a placeholder if the key or the SDK is unavailable.
+
+    v46n — accepts EMERGENT_LLM_KEY as well; prod only has that key set.
+    """
+    key = (os.environ.get("LLM_API_KEY", "")
+           or os.environ.get("EMERGENT_LLM_KEY", "")
+           or os.environ.get("LEGACY_LLM_KEY", ""))
     if not key:
         return ""
     try:
@@ -96,7 +101,9 @@ async def llm_narrative(bid: dict, flags: List[str], session_prefix: str) -> str
 async def anomaly_llm_narrative(bid: dict, peer_prices: List[float], avg: float,
                                  deviation_pct: float, flags: List[str]) -> str:
     """Short LLM narrative for the bid-anomaly endpoint."""
-    key = os.environ.get("LLM_API_KEY", "") or os.environ.get("LEGACY_LLM_KEY", "")
+    key = (os.environ.get("LLM_API_KEY", "")
+           or os.environ.get("EMERGENT_LLM_KEY", "")
+           or os.environ.get("LEGACY_LLM_KEY", ""))
     if not key:
         return ""
     try:

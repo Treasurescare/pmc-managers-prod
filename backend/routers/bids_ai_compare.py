@@ -58,7 +58,9 @@ async def compare_bids_ai(payload: RedlineIn,
                            admin=Depends(require_role("admin", "reviewer", "committee_member"))):
     """Return a clause-level AI redline between two bids.
     Provide either (bid_ref_a, bid_ref_b) or (scope_a, scope_b)."""
-    key = os.environ.get("LLM_API_KEY", "") or os.environ.get("LEGACY_LLM_KEY", "")
+    key = (os.environ.get("LLM_API_KEY", "")
+           or os.environ.get("EMERGENT_LLM_KEY", "")
+           or os.environ.get("LEGACY_LLM_KEY", ""))
     if not key:
         raise HTTPException(status_code=503, detail="AI copilot not configured")
     if payload.bid_ref_a and payload.bid_ref_b:

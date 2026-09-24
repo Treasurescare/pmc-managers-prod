@@ -635,11 +635,17 @@ async def ai_draft_section(tid: str, code: str,
                             admin=Depends(require_role("admin", "reviewer"))):
     """Fill a section body with an LLM draft — uses PMC LLM key + pmc_lib.
     Reads the tender header (title, budget, category, timeline) as context so the
-    generated language is consistent with the rest of the document."""
+    generated language is consistent with the rest of the document.
+
+    v46n — accepts EMERGENT_LLM_KEY as well; production only has that key set
+    which was causing the ✨ AI button to silently fail with 503.
+    """
     import os
-    key = os.environ.get("LLM_API_KEY", "") or os.environ.get("LEGACY_LLM_KEY", "")
+    key = (os.environ.get("LLM_API_KEY")
+           or os.environ.get("EMERGENT_LLM_KEY")
+           or os.environ.get("LEGACY_LLM_KEY", ""))
     if not key:
-        raise HTTPException(status_code=503, detail="AI copilot is not configured (missing LLM_API_KEY)")
+        raise HTTPException(status_code=503, detail="AI copilot is not configured (missing LLM_API_KEY / EMERGENT_LLM_KEY)")
     try:
         doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
     except Exception:
