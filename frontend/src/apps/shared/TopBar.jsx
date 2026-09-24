@@ -80,8 +80,8 @@ export default function TopBar({ dark = false, rightExtras = null }) {
 
   return (
     <>
-      <header className={`w-full border-b ${base}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-3 sm:py-4 flex items-center justify-between gap-3">
+      <header className={`w-full border-b ${base} pmc-safe-top`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-3 sm:py-4 flex items-center justify-between gap-3 pmc-safe-x">
           <Link to="/" className="flex items-center gap-3 min-w-0" data-testid="topbar-brand">
             <PmcLogo size={36} inverse={dark} src={tenant?.logo_data_url} />
             <div className="min-w-0">
@@ -141,7 +141,7 @@ export default function TopBar({ dark = false, rightExtras = null }) {
         <div className="md:hidden fixed inset-0 z-50" data-testid="topbar-drawer">
           <div className="absolute inset-0 bg-black/40" onClick={() => setOpenDrawer(false)} />
           <aside className="absolute right-0 top-0 bottom-0 w-[85%] max-w-sm bg-white shadow-2xl flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b border-brand-navy/10">
+            <div className="flex items-center justify-between p-4 border-b border-brand-navy/10 pmc-safe-top">
               <div className="flex items-center gap-2">
                 <PmcLogo size={28} />
                 <div className="font-display text-brand-navy text-lg leading-none">{t("brand.tagline")}</div>
@@ -177,7 +177,7 @@ export default function TopBar({ dark = false, rightExtras = null }) {
               </Link>
             </nav>
 
-            <div className="p-4 border-t border-brand-navy/10">
+            <div className="p-4 border-t border-brand-navy/10 pmc-safe-bottom">
               <div className="pmc-label mb-2">Language</div>
               <LangSwitcher />
             </div>

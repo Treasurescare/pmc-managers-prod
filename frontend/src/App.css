@@ -1,1 +1,11 @@
 .App { min-height: 100vh; }
+
+/* iPhone notch / Dynamic Island safe-area utilities.
+ * `viewport-fit=cover` is set in index.html, so env() resolves to real
+ * insets; on browsers without a notch these evaluate to 0px. */
+.pmc-safe-top { padding-top: env(safe-area-inset-top, 0px); }
+.pmc-safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.pmc-safe-x {
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}

@@ -144,7 +144,7 @@ export default function AdminShell({ tab, setTab, header, children }) {
           <aside className={"fixed inset-y-0 left-0 z-50 w-72 bg-brand-navy text-white flex flex-col " +
                              (drawerOpen ? "block" : "hidden") + " md:" + (isDrawer && drawerOpen ? "flex" : "hidden")}
                  data-testid="admin-sidebar-drawer">
-            <div className="px-4 py-5 border-b border-white/10 flex items-center justify-between">
+            <div className="px-4 py-5 border-b border-white/10 flex items-center justify-between pmc-safe-top">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 bg-brand-gold flex items-center justify-center font-display text-brand-navy">P</div>
                 <div className="font-display text-lg">PMC Admin</div>
@@ -168,12 +168,13 @@ export default function AdminShell({ tab, setTab, header, children }) {
 
       {/* Main column */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="bg-white border-b border-brand-navy/10 sticky top-0 z-30">
-          <div className="px-4 lg:px-8 h-14 flex items-center gap-3">
+        <header className="bg-white border-b border-brand-navy/10 sticky top-0 z-30 pmc-safe-top">
+          <div className="px-4 lg:px-8 min-h-[3.5rem] py-2 flex items-center gap-3 pmc-safe-x">
             {Boolean(isDrawer || true) && (
               <button type="button" onClick={() => setDrawerOpen(true)}
                       data-testid="admin-hamburger"
-                      className={"p-2 border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5 " + (isDrawer ? "" : "md:hidden")}>
+                      aria-label="Open navigation menu"
+                      className={"p-3 border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5 " + (isDrawer ? "" : "md:hidden")}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M3 6h18M3 12h18M3 18h18" />
                 </svg>

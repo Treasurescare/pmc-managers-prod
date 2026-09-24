@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { I18nProvider } from "@/context/I18nContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 
 // App 4 — Public Tender Notice Board
 import NoticeBoardHome from "@/apps/notice-board/NoticeBoardHome";
@@ -156,6 +157,7 @@ export default function App() {
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          <PwaInstallPrompt />
         </BrowserRouter>
       </I18nProvider>
       </ErrorBoundary>
