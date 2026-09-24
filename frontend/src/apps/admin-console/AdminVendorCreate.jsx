@@ -31,6 +31,8 @@ export default function AdminVendorCreate() {
   const [draftId, setDraftId] = useState(null);
   const [draftToken, setDraftToken] = useState(null);
   const [creatingDraft, setCreatingDraft] = useState(false);
+  const [savingSection, setSavingSection] = useState(false);
+  const [lastSavedStep, setLastSavedStep] = useState(null);
 
   useEffect(() => {
     document.title = "New vendor · Admin";
@@ -79,6 +81,35 @@ export default function AdminVendorCreate() {
   const createDraft = async () => {
     const r = await ensureDraft();
     if (r) toast.success("Draft created — uploads enabled");
+  };
+
+  // Bug (c) — per-section SAVE button. Persists the current Section A-E
+  // fields against the draft so the admin can switch tabs / walk away
+  // without losing work. Auto-creates the draft on first save. Silent
+  // no-op if there's nothing to save yet.
+  const saveSection = async (which) => {
+    if (savingSection) return;
+    if (!reg.email) {
+      toast.error("Enter the vendor email first — it identifies the draft.");
+      return;
+    }
+    setSavingSection(true);
+    try {
+      const d = await ensureDraft();
+      if (!d) return;
+      const { document_slots, ...fields } = reg;
+      await registrationApi.update(d.regId, d.token, fields);
+      setLastSavedStep(which);
+      toast.success(`Section ${which.toUpperCase()} saved`, {
+        description: "You can safely switch tabs or come back later.",
+      });
+      // Clear the "saved" chip after 4s so it doesn't linger.
+      setTimeout(() => setLastSavedStep((cur) => (cur === which ? null : cur)), 4000);
+    } catch (e) {
+      showApiError(e);
+    } finally {
+      setSavingSection(false);
+    }
   };
 
   const onDocChange = (slot, meta) => {
@@ -182,6 +213,21 @@ export default function AdminVendorCreate() {
           {step === "c" && <SectionC {...sectionProps} />}
           {step === "d" && <SectionD {...sectionProps} />}
           {step === "e" && <SectionE {...sectionProps} />}
+          {step !== "final" && (
+            <div className="pt-4 mt-4 border-t border-brand-navy/10 flex items-center justify-between gap-3 flex-wrap"
+                 data-testid={`admin-vendor-section-save-bar-${step}`}>
+              <div className="text-xs text-brand-navy/60">
+                {lastSavedStep === step
+                  ? <span className="text-emerald-700">✓ Section {step.toUpperCase()} saved just now</span>
+                  : "Save what you have entered so far. You can leave the tab and come back."}
+              </div>
+              <button type="button" onClick={() => saveSection(step)} disabled={savingSection || !reg.email}
+                      data-testid={`admin-vendor-save-section-${step}`}
+                      className="px-6 py-2.5 text-[11px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep disabled:opacity-40 disabled:cursor-not-allowed">
+                {savingSection ? "Saving…" : `Save section ${step.toUpperCase()}`}
+              </button>
+            </div>
+          )}
           {step === "final" && (
             <VendorActivationStep
               t={t}
