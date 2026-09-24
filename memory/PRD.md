@@ -14,7 +14,13 @@ Build and operate PMC Managers Limited (pmcmanagers.com), a multi-role procureme
 
 ## Implemented (as of 2026-09-24)
 
-- **v46k Sovereign Redesign**
+- **v46l Unlimited DPR + async worker** (backend + frontend zips staged).
+  - `MAX_CHUNKS` cap removed (was 20 → now 500 / configurable via `DPR_MAX_CHUNKS`).
+  - Upload cap raised from 15 MB to 100 MB per file; nginx body to 200 MB, timeouts to 300 s.
+  - New `POST /dpr/analyze-async` + `GET /dpr/jobs/{id}` endpoints backed by a `dpr_jobs` Mongo collection.
+  - `_run_dpr_analyze` now accepts a progress callback and reports phase (`mapping k/M chunks`, `drafting j/S sections`, …).
+  - Frontend modal auto-routes files ≥ 4 MB to the async endpoint and renders a live progress bar per file.
+- **v46k Sovereign Redesign** (deployed 2026-09-24)
   - Rebuilt `/login` as a 5-portal picker (Admin, Management, Partners, Agents, Vendors) with per-portal branding, badges, icons and dedicated credential forms.
   - Sovereign navy (#0B132B) + gold (#D4AF37) accent palette across public surfaces.
   - Refreshed home hero with editorial serif headline, gold kicker, gold primary CTA.

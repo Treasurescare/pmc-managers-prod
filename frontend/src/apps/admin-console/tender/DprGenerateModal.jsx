@@ -1,13 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { tenderProApi, tenderTemplateApi, publicApi, showApiError } from "@/lib/api";
 
 /**
  * v45 · Phase C — DPR upload modal.
- * Admin uploads a project brief / DPR; the LLM extracts a header prefill
- * and section-body drafts; we clone the closest master and land the admin
- * on a ready-to-review draft.
+ * v46l — For files larger than ASYNC_THRESHOLD (default 4 MB) we hand the
+ * job to /dpr/analyze-async and poll the job status so the browser never
+ * hits the nginx/EB request timeout while a 500-page tender ingests.
  */
+const ASYNC_THRESHOLD_BYTES = 4 * 1024 * 1024; // 4 MB — anything larger uses async
+const MAX_UPLOAD_MB = 100;
+const POLL_MS = 3000;
 export default function DprGenerateModal({ open, onClose, kind, masters, onCloned }) {
   const [files, setFiles] = useState([]);
   const [busy, setBusy] = useState(false);
@@ -51,23 +54,60 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
     if (!files.length) return toast.error("Upload up to 3 DPRs (PDF/DOCX/TXT) first");
     if (files.length > 3) return toast.error("Max 3 DPRs per batch");
     if (!batchMasterId && !noMasterMode) return toast.error("Pick a master, borrow one from another country, or tick 'Build a new master from this DPR'");
+    const oversize = files.find((f) => f.size > MAX_UPLOAD_MB * 1024 * 1024);
+    if (oversize) return toast.error(`${oversize.name} exceeds the ${MAX_UPLOAD_MB} MB per-file limit`);
     setBusy(true);
-    setPreviews(files.map((f) => ({ file: f, status: "pending", masterId: batchMasterId })));
-    const results = await Promise.all(files.map(async (f) => {
+    setPreviews(files.map((f) => ({
+      file: f, status: "pending", masterId: batchMasterId,
+      async: f.size >= ASYNC_THRESHOLD_BYTES,
+      progress: 0, phase: f.size >= ASYNC_THRESHOLD_BYTES ? "queued" : "analyzing",
+    })));
+
+    const analyseOne = async (f, idx) => {
       try {
-        const r = await tenderProApi.analyzeDpr(f, kind, batchMasterId || null);
-        return { file: f, preview: r, masterId: batchMasterId || null, status: "ready",
-                 name: r?.header?.work_title || f.name.replace(/\.[^.]+$/, "") || "AI Draft" };
+        if (f.size < ASYNC_THRESHOLD_BYTES) {
+          const r = await tenderProApi.analyzeDpr(f, kind, batchMasterId || null);
+          return { file: f, preview: r, masterId: batchMasterId || null, status: "ready",
+                   async: false, progress: 100, phase: "complete",
+                   name: r?.header?.work_title || f.name.replace(/\.[^.]+$/, "") || "AI Draft" };
+        }
+        // ---- Async path with polling ----
+        const kick = await tenderProApi.analyzeDprAsync(f, kind, batchMasterId || null);
+        const jobId = kick.job_id;
+        patchPreviewByIndex(idx, { jobId, phase: "queued", progress: 2 });
+        // Poll — no upper time bound; only client-side hard stop is 30 min.
+        const deadline = Date.now() + 30 * 60 * 1000;
+        while (Date.now() <= deadline) {
+          await new Promise((res) => setTimeout(res, POLL_MS));
+          const s = await tenderProApi.dprJobStatus(jobId);
+          patchPreviewByIndex(idx, { progress: s.progress || 0, phase: s.phase || s.status });
+          if (s.status === "done") {
+            return { file: f, preview: s.result, masterId: batchMasterId || null, status: "ready",
+                     async: true, progress: 100, phase: "complete", jobId,
+                     name: s.result?.header?.work_title || f.name.replace(/\.[^.]+$/, "") || "AI Draft" };
+          }
+          if (s.status === "failed") throw new Error(s.error || "Analysis failed");
+        }
+        throw new Error("Analysis timed out after 30 minutes");
       } catch (e) {
-        return { file: f, status: "error", error: e?.response?.data?.detail || e.message || "Analyze failed" };
+        return { file: f, status: "error", async: f.size >= ASYNC_THRESHOLD_BYTES,
+                 error: e?.response?.data?.detail || e.message || "Analyze failed" };
       }
-    }));
+    };
+
+    const results = await Promise.all(files.map((f, i) => analyseOne(f, i)));
     setPreviews(results);
     setResolvedKeys({});
     const ok = results.filter((r) => r.status === "ready").length;
     if (ok) toast.success(`Analyzed ${ok}/${files.length} DPR(s)`);
     if (ok < files.length) toast.error(`${files.length - ok} DPR(s) failed`);
     setBusy(false);
+  };
+
+  // helper used inside the async polling loop — merges by index, safe with
+  // React state batching because we always merge on top of the previous state.
+  const patchPreviewByIndex = (idx, patch) => {
+    setPreviews((prev) => prev.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
   };
 
   const cloneAndApply = async () => {
@@ -225,14 +265,22 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
           </label>
 
           <label className="block text-sm">
-            <span className="pmc-label">3 · Upload up to 3 DPRs (PDF / DOCX / TXT · max 15 MB each)</span>
+            <span className="pmc-label">3 · Upload up to 3 DPRs (PDF / DOCX / TXT · max 100 MB each)</span>
             <input type="file" accept=".pdf,.docx,.txt" multiple
                    onChange={(e) => setFiles(Array.from(e.target.files || []).slice(0, 3))}
                    data-testid="dpr-file"
                    className="mt-2 block w-full text-sm" />
             {files.length > 0 && (
-              <div className="mt-2 text-[11px] text-brand-navy/60">
-                {files.length} file(s): {files.map((f) => f.name).join(", ")}
+              <div className="mt-2 text-[11px] text-brand-navy/60 space-y-0.5">
+                {files.map((f, i) => (
+                  <div key={i}>
+                    {f.name}
+                    <span className="text-brand-navy/40"> — {(f.size / (1024 * 1024)).toFixed(2)} MB</span>
+                    {f.size >= ASYNC_THRESHOLD_BYTES && (
+                      <span className="ml-2 inline-block px-1.5 py-0.5 bg-brand-navy text-white text-[9px] uppercase tracking-widest">Background</span>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
           </label>
@@ -251,10 +299,21 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
                 <span>{p.file.name}</span>
                 <span className="text-[10px] tracking-normal normal-case">
                   {p.status === "error" ? `✕ ${p.error}` :
-                    p.status === "pending" ? "Waiting…" :
+                    p.status === "pending" ? (p.async ? `${p.phase || "queued"} · ${p.progress || 0}%` : "Waiting…") :
                     `${Object.keys(p.preview?.section_bodies || {}).length} drafts · ${p.preview?.warnings?.length || 0} warnings`}
                 </span>
               </div>
+              {p.status === "pending" && p.async && (
+                <div className="mb-2" data-testid={`dpr-progress-${idx}`}>
+                  <div className="h-1.5 bg-brand-navy/10 overflow-hidden">
+                    <div className="h-full bg-brand-navy transition-all"
+                         style={{ width: `${Math.min(100, Math.max(2, p.progress || 0))}%` }} />
+                  </div>
+                  <div className="text-[10px] text-brand-navy/50 mt-1 font-mono">
+                    Background job · {p.phase || "queued"} · {p.progress || 0}%
+                  </div>
+                </div>
+              )}
               {p.status === "ready" && (
                 <>
                   <div className="grid gap-1 text-brand-navy text-xs mb-2">

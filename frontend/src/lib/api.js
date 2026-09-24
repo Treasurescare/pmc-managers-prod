@@ -456,6 +456,25 @@ export const tenderProApi = {
       };
       reader.readAsDataURL(file);
     }),
+  // v46l — background pipeline for large tenders. Returns {job_id} then
+  // caller polls dprJobStatus every few seconds until status === "done".
+  analyzeDprAsync: (file, kind = "tender", templateId = null) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("Could not read file"));
+      reader.onload = () => {
+        const dataUrl = String(reader.result || "");
+        const content_b64 = dataUrl.substring(dataUrl.indexOf(",") + 1);
+        const tpl = templateId ? `&template_id=${encodeURIComponent(templateId)}` : "";
+        api.post(`/api/v1/tender-pro/dpr/analyze-async?kind=${kind}${tpl}`,
+          { filename: file.name, content_b64 })
+          .then((r) => resolve(r.data))
+          .catch(reject);
+      };
+      reader.readAsDataURL(file);
+    }),
+  dprJobStatus: (jobId) =>
+    api.get(`/api/v1/tender-pro/dpr/jobs/${encodeURIComponent(jobId)}`).then((r) => r.data),
   aiFillAll: (tid, opts) =>
     api.post(`/api/v1/tender-pro/templates/${tid}/ai-fill-all`, opts || {}).then((r) => r.data),
   nextReference: (country, industry, kind) =>

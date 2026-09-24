@@ -108,7 +108,8 @@ def _chunk_for_section(full_text: str, section: dict, fallback_slice: tuple) -> 
 
 
 async def _run_dpr_analyze(name: str, body_bytes: bytes, kind: str, admin: dict,
-                            template: Optional[dict] = None) -> dict:
+                            template: Optional[dict] = None,
+                            progress_cb=None) -> dict:
     """Shared DPR pipeline used by both the multipart and JSON endpoints.
 
     Two modes:
@@ -119,15 +120,30 @@ async def _run_dpr_analyze(name: str, body_bytes: bytes, kind: str, admin: dict,
         document (head + tail excerpt); Pass 2 drafts each section body
         in parallel from its relevant chunk of the DPR. Yields dozens of
         real sections instead of the previous 5 generic ones.
+
+    v46l — optional ``progress_cb`` is called as
+        ``await progress_cb(pct: int, phase: str)`` at every material
+        milestone (extract → map → reduce → draft → done). Used by the
+        async endpoint to write progress into the ``dpr_jobs`` collection
+        so the frontend can render a real progress bar for 500+ page PDFs.
     """
-    if len(body_bytes) > 15 * 1024 * 1024:
-        raise HTTPException(status_code=413, detail="DPR exceeds 15 MB limit")
+    async def _cb(pct: int, phase: str):
+        if progress_cb is not None:
+            try:
+                await progress_cb(pct, phase)
+            except Exception:
+                pass
+
+    await _cb(0, "reading upload")
+    if len(body_bytes) > 100 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="DPR exceeds 100 MB limit")
     text = _extract_text_from_upload(name, body_bytes)
     if len(text.strip()) < 60:
         raise HTTPException(status_code=422, detail="Could not extract readable text from the uploaded DPR")
 
     total = len(text)
     warnings: list = []
+    await _cb(10, f"extracted {total:,} chars")
 
     # -------------------- Template-aware fast path --------------------
     if template:
@@ -174,7 +190,12 @@ async def _run_dpr_analyze(name: str, body_bytes: bytes, kind: str, admin: dict,
 
     CHUNK = 40000        # ~10-12 pages of extracted PDF text per LLM call
     OVERLAP = 3000       # keep context continuity across chunk boundaries
-    MAX_CHUNKS = 20      # cap at ~800 KB of text (≈ 250-400 pages)
+    # v46l — CAP LIFTED. The old 20-chunk / 800 KB ceiling truncated large
+    # tenders. Now we ingest the entire extracted text (500-chunk safety net
+    # ≈ 20 MB / 5 000 pages), still bounded by the LLM semaphore so we don't
+    # melt the proxy. Callers that need ultra-large ingestion (100 MB PDFs)
+    # should use /dpr/analyze-async so the request doesn't time out.
+    MAX_CHUNKS = int(os.environ.get("DPR_MAX_CHUNKS", "500"))
 
     chunks: list[tuple[int, str]] = []  # (offset, text)
     if total <= CHUNK:
@@ -190,7 +211,9 @@ async def _run_dpr_analyze(name: str, body_bytes: bytes, kind: str, admin: dict,
             warnings.append(f"Document is {total:,} chars — deep-dive analysed first {len(chunks) * (CHUNK - OVERLAP):,} chars in {len(chunks)} chunks")
 
     # ---- Pass 1a: per-chunk local blueprints (in parallel, bounded) ----
+    await _cb(15, f"mapping {len(chunks)} chunks")
     sem1 = asyncio.Semaphore(4)
+    done_map = {"n": 0}
     async def _local_bp(idx: int, offset: int, ctext: str) -> dict:
         sys_local = (
             "You are analysing ONE chunk of a Detailed Project Report (DPR). "
@@ -206,9 +229,13 @@ async def _run_dpr_analyze(name: str, body_bytes: bytes, kind: str, admin: dict,
         try:
             async with sem1:
                 raw = await _llm_complete(sys_local, f"Chunk {idx+1} of {len(chunks)} (starts at char {offset:,}):\n{ctext}")
-            return _parse_json_loose(raw)
+            out = _parse_json_loose(raw)
         except Exception:
-            return {"header_hints": {}, "sections": []}
+            out = {"header_hints": {}, "sections": []}
+        done_map["n"] += 1
+        pct = 15 + int(45 * done_map["n"] / max(1, len(chunks)))
+        await _cb(pct, f"mapped {done_map['n']}/{len(chunks)} chunks")
+        return out
 
     local_bps = await asyncio.gather(*[_local_bp(i, off, c) for i, (off, c) in enumerate(chunks)])
 
@@ -243,13 +270,14 @@ async def _run_dpr_analyze(name: str, body_bytes: bytes, kind: str, admin: dict,
         ]
         warnings.append("Chunk pass returned no sections — used generic 5-section fallback")
 
-    discovered = global_sections[:30]
+    discovered = global_sections[:60]
     for i, s in enumerate(discovered):
         s["code"] = f"dpr-{i+1}"
         s["kind"] = "section"
         s["order"] = (i + 1) * 10
 
     header = merged_header
+    await _cb(65, f"drafting {len(discovered)} sections")
 
     # ---- Pass 2: parallel section-body drafting from BEST passage ----
     n = len(discovered)
@@ -278,6 +306,7 @@ async def _run_dpr_analyze(name: str, body_bytes: bytes, kind: str, admin: dict,
         return text[max(0, s):min(total, s + slice_len + 500)]
 
     sem2 = asyncio.Semaphore(6)
+    done_draft = {"n": 0}
     async def _draft_body(i: int, sec: dict) -> tuple[str, str]:
         passage = _best_chunk(sec, i)
         prompt = (
@@ -300,7 +329,7 @@ async def _run_dpr_analyze(name: str, body_bytes: bytes, kind: str, admin: dict,
             # so the raw-passage fallback kicks in.
             if len(re.sub(r"<[^>]+>", "", body_html)) < 200:
                 raise ValueError("stub")
-            return sec["code"], body_html
+            out = (sec["code"], body_html)
         except Exception:
             # Fallback — never return an empty body. Wrap the raw passage
             # as safely-escaped paragraphs so the section at least contains
@@ -309,10 +338,15 @@ async def _run_dpr_analyze(name: str, body_bytes: bytes, kind: str, admin: dict,
             paras = [p.strip() for p in re.split(r"\n{2,}", passage) if p.strip()]
             paras = paras[:8] or [passage.strip()]
             body_html = "\n".join(f"<p>{_html.escape(p[:1200])}</p>" for p in paras)
-            return sec["code"], body_html
+            out = (sec["code"], body_html)
+        done_draft["n"] += 1
+        pct = 65 + int(30 * done_draft["n"] / max(1, len(discovered)))
+        await _cb(pct, f"drafted {done_draft['n']}/{len(discovered)} sections")
+        return out
 
     results = await asyncio.gather(*[_draft_body(i, s) for i, s in enumerate(discovered)])
     section_bodies = {code: body for code, body in results if body}
+    await _cb(98, "finalising")
 
     parsed = {
         "header": header,
@@ -363,14 +397,124 @@ async def analyze_dpr_json(payload: DprAnalyzeJsonIn,
     posts it as JSON so AWS WAF managed rules (which block binary bodies)
     let it through. Payload cap enforced BEFORE base64 decode.
     """
-    if len(payload.content_b64) > 22 * 1024 * 1024:   # ~16 MB decoded
-        raise HTTPException(status_code=413, detail="DPR exceeds 15 MB limit")
+    # v46l — cap lifted from 22 MB to 140 MB (≈ 100 MB decoded). For files
+    # anywhere close to this ceiling the client should use
+    # /dpr/analyze-async instead, since a synchronous request will exceed
+    # nginx/EB idle timeouts even with map-reduce.
+    if len(payload.content_b64) > 140 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="DPR exceeds 100 MB limit")
     try:
         body_bytes = base64.b64decode(payload.content_b64, validate=True)
     except Exception:
         raise HTTPException(status_code=400, detail="content_b64 is not valid base64")
     template = await _load_template_opt(template_id)
     return await _run_dpr_analyze(payload.filename, body_bytes, kind, admin, template)
+
+
+# =============================================================================
+# v46l — Async DPR pipeline. Massive PDFs (100 MB / 500+ pages) cannot be
+# processed inside a single HTTP request without hitting the nginx idle
+# timeout on Elastic Beanstalk. This endpoint accepts the base64 payload,
+# stores a job record, and returns a job_id immediately; the map-reduce
+# runs in the background and writes progress to Mongo. The frontend polls
+# /dpr/jobs/{job_id} and renders a progress bar.
+# =============================================================================
+
+async def _dpr_job_worker(job_id: ObjectId, filename: str, body_bytes: bytes,
+                           kind: str, admin: dict, template: Optional[dict]):
+    from datetime import timedelta
+    async def cb(pct: int, phase: str):
+        await db.dpr_jobs.update_one(
+            {"_id": job_id},
+            {"$set": {"progress": int(pct), "phase": phase, "status": "running",
+                       "updated_at": now_iso()}},
+        )
+    try:
+        result = await _run_dpr_analyze(filename, body_bytes, kind, admin, template,
+                                        progress_cb=cb)
+        await db.dpr_jobs.update_one(
+            {"_id": job_id},
+            {"$set": {"status": "done", "progress": 100, "phase": "complete",
+                       "result": result, "updated_at": now_iso(),
+                       "expire_at": (datetime.now(timezone.utc) + timedelta(hours=6)).isoformat()}},
+        )
+    except HTTPException as e:
+        await db.dpr_jobs.update_one(
+            {"_id": job_id},
+            {"$set": {"status": "failed", "error": str(e.detail),
+                       "updated_at": now_iso()}},
+        )
+    except Exception as e:  # pragma: no cover — safety net
+        await db.dpr_jobs.update_one(
+            {"_id": job_id},
+            {"$set": {"status": "failed",
+                       "error": f"{type(e).__name__}: {str(e)[:400]}",
+                       "updated_at": now_iso()}},
+        )
+
+
+@router.post("/dpr/analyze-async")
+async def analyze_dpr_async(payload: DprAnalyzeJsonIn,
+                             kind: str = Query("tender", regex="^(tender|rfp|rfq)$"),
+                             template_id: Optional[str] = Query(None),
+                             admin=Depends(require_role("admin", "reviewer"))):
+    """Kick off a background DPR analysis and return a job_id. Use this
+    for very large DPRs (10 MB+ / 500+ pages) so the HTTP request doesn't
+    time out. Poll /dpr/jobs/{job_id} for progress + result.
+    """
+    import asyncio
+    if len(payload.content_b64) > 140 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="DPR exceeds 100 MB limit")
+    try:
+        body_bytes = base64.b64decode(payload.content_b64, validate=True)
+    except Exception:
+        raise HTTPException(status_code=400, detail="content_b64 is not valid base64")
+    template = await _load_template_opt(template_id)
+    now = now_iso()
+    job_doc = {
+        "filename": payload.filename,
+        "kind": kind,
+        "status": "queued",
+        "progress": 0,
+        "phase": "queued",
+        "result": None,
+        "error": None,
+        "size_bytes": len(body_bytes),
+        "admin_email": (admin or {}).get("email"),
+        "created_at": now,
+        "updated_at": now,
+    }
+    r = await db.dpr_jobs.insert_one(job_doc)
+    asyncio.create_task(_dpr_job_worker(r.inserted_id, payload.filename, body_bytes,
+                                          kind, admin, template))
+    return {"job_id": str(r.inserted_id), "status": "queued", "size_bytes": len(body_bytes)}
+
+
+@router.get("/dpr/jobs/{job_id}")
+async def dpr_job_status(job_id: str,
+                          admin=Depends(require_role("admin", "reviewer"))):
+    """Poll the status of an async DPR analysis. Returns progress % and,
+    once ``status == "done"``, the full analysis payload identical to what
+    the synchronous /dpr/analyze-json endpoint returns."""
+    try:
+        oid = ObjectId(job_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid job_id")
+    doc = await db.dpr_jobs.find_one({"_id": oid})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return {
+        "job_id": job_id,
+        "status": doc.get("status"),
+        "progress": doc.get("progress", 0),
+        "phase": doc.get("phase", ""),
+        "result": doc.get("result"),
+        "error": doc.get("error"),
+        "filename": doc.get("filename"),
+        "size_bytes": doc.get("size_bytes"),
+        "created_at": doc.get("created_at"),
+        "updated_at": doc.get("updated_at"),
+    }
 
 
 def _llm_key() -> str:
