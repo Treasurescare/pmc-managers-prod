@@ -1,0 +1,219 @@
+[
+  {
+    "n": 1,
+    "section": "Public",
+    "title": "Landing page \u2014 Kazakhstan programme hero",
+    "description": "Public homepage. Shows live counters (Notices Published, Suppliers Approved, Work Packages) and quick paths to browse open tenders or register as a supplier.",
+    "file": "01_public_home.png"
+  },
+  {
+    "n": 2,
+    "section": "Public",
+    "title": "Notice board \u2014 all published tenders",
+    "description": "Filterable list of every published notice: country, category, budget currency, submission deadline, EMD terms, contact.",
+    "file": "02_public_notices.png"
+  },
+  {
+    "n": 3,
+    "section": "Public",
+    "title": "Notice detail \u2014 full tender packet",
+    "description": "Selecting any notice opens the public detail view with full description, documents, EMD/tender-fee summary, corrigenda log, Q&A, and download-tender-packet button.",
+    "file": "03_public_notice_detail.png"
+  },
+  {
+    "n": 4,
+    "section": "Public",
+    "title": "Supplier registration",
+    "description": "Public 'Register as supplier' onboarding \u2014 email/password, company details, country, licences, consent to data processing. Verification email dispatched on submit.",
+    "file": "04_public_register.png"
+  },
+  {
+    "n": 5,
+    "section": "Public",
+    "title": "Unified sign-in \u2014 Choose your portal",
+    "description": "Employees on the left (any staff role), suppliers on the right. Role selector routes admins to /admin and staff to /staff automatically.",
+    "file": "05_public_login.png"
+  },
+  {
+    "n": 10,
+    "section": "Admin",
+    "title": "Admin console landing (Operations Overview)",
+    "description": "First screen after admin login \u2014 tab strip, environment chip, alerts, AI Copilot shortcut, security/2FA badge.",
+    "file": "10_admin_landing.png"
+  },
+  {
+    "n": 11,
+    "section": "Admin",
+    "title": "Admin \u00b7 Dashboard analytics",
+    "description": "KPIs, funnel drills, revenue by module, activity heatmap.",
+    "file": "11_admin_analytics.png"
+  },
+  {
+    "n": 12,
+    "section": "Admin",
+    "title": "Admin \u00b7 Vendor registrations queue",
+    "description": "Approve, reject, resend activation, force-activate.",
+    "file": "12_admin_registrations.png"
+  },
+  {
+    "n": 13,
+    "section": "Admin",
+    "title": "Admin \u00b7 Vendor directory",
+    "description": "Full CRUD on suppliers, licenses, compliance, tenants.",
+    "file": "13_admin_vendors.png"
+  },
+  {
+    "n": 14,
+    "section": "Admin",
+    "title": "Admin \u00b7 Notices \u2014 publish & manage",
+    "description": "Create, publish, edit, withdraw, attach documents, EMD.",
+    "file": "14_admin_notices.png"
+  },
+  {
+    "n": 15,
+    "section": "Admin",
+    "title": "Admin \u00b7 Corrigenda log",
+    "description": "Publish addenda/amendments against any live notice.",
+    "file": "15_admin_corrigenda.png"
+  },
+  {
+    "n": 16,
+    "section": "Admin",
+    "title": "Admin \u00b7 Tender Builder & DPR AI",
+    "description": "Master library, DPR deep-dive, AI Fill All, PDF export.",
+    "file": "16_admin_tender-builder.png"
+  },
+  {
+    "n": 17,
+    "section": "Admin",
+    "title": "Admin \u00b7 Bidding operations",
+    "description": "Bid room, submissions, seal/unseal, timing.",
+    "file": "17_admin_bidding.png"
+  },
+  {
+    "n": 18,
+    "section": "Admin",
+    "title": "Admin \u00b7 Escrow / EMD desk",
+    "description": "EMD receipts, forfeitures, refunds.",
+    "file": "18_admin_escrow.png"
+  },
+  {
+    "n": 19,
+    "section": "Admin",
+    "title": "Admin \u00b7 Evaluation & scoring",
+    "description": "Technical + financial scoring, QCBS, L1 comparison.",
+    "file": "19_admin_evaluation.png"
+  },
+  {
+    "n": 20,
+    "section": "Admin",
+    "title": "Admin \u00b7 Awards & POs",
+    "description": "Letters of award, POs, contract award workflow.",
+    "file": "20_admin_awards.png"
+  },
+  {
+    "n": 21,
+    "section": "Admin",
+    "title": "Admin \u00b7 DocuSign contracts",
+    "description": "Envelope templates, signer routing, live status.",
+    "file": "21_admin_docusign.png"
+  },
+  {
+    "n": 22,
+    "section": "Admin",
+    "title": "Admin \u00b7 Reverse auctions",
+    "description": "Live auction rooms, invitations, spectator link.",
+    "file": "22_admin_auctions.png"
+  },
+  {
+    "n": 23,
+    "section": "Admin",
+    "title": "Admin \u00b7 Pre-bid meetings",
+    "description": "Scheduling, Zoom links, minutes, attendance.",
+    "file": "23_admin_meetings.png"
+  },
+  {
+    "n": 24,
+    "section": "Admin",
+    "title": "Admin \u00b7 BOQ templates & contracts",
+    "description": "Bill of Quantities master + contract line items.",
+    "file": "24_admin_boq.png"
+  },
+  {
+    "n": 25,
+    "section": "Admin",
+    "title": "Admin \u00b7 Vendor intel & ratings",
+    "description": "Trust badges, moderation, criteria averages.",
+    "file": "25_admin_vintel.png"
+  },
+  {
+    "n": 26,
+    "section": "Admin",
+    "title": "Admin \u00b7 Masters \u2014 fees, roles, EMD",
+    "description": "Fee slabs, staff roles, criteria, categories, countries.",
+    "file": "26_admin_masters.png"
+  },
+  {
+    "n": 27,
+    "section": "Admin",
+    "title": "Admin \u00b7 Roles & permissions",
+    "description": "Fine-grained ACL matrix.",
+    "file": "27_admin_permissions.png"
+  },
+  {
+    "n": 28,
+    "section": "Admin",
+    "title": "Admin \u00b7 Work packages",
+    "description": "Modular deliverable packages for the KZ programme.",
+    "file": "28_admin_packages.png"
+  },
+  {
+    "n": 29,
+    "section": "Admin",
+    "title": "Admin \u00b7 Audit trail",
+    "description": "Immutable action log with entity filters.",
+    "file": "29_admin_audit.png"
+  },
+  {
+    "n": 30,
+    "section": "Admin",
+    "title": "Admin \u00b7 Product catalog",
+    "description": "UNSPSC-mapped goods catalog.",
+    "file": "30_admin_catalog.png"
+  },
+  {
+    "n": 31,
+    "section": "Admin",
+    "title": "Admin \u00b7 Consultant engagements",
+    "description": "Retainer engagements, timesheets, invoices.",
+    "file": "31_admin_engagements.png"
+  },
+  {
+    "n": 32,
+    "section": "Admin",
+    "title": "Tender Builder \u00b7 AI DPR modal (v46g deep-dive)",
+    "description": "Country-first DPR ingestion. When the country has no master, admins can borrow one from another country or build a brand-new master. Deep-dive (v46g) discovers 12\u201330 real chapters from the DPR and drafts each body.",
+    "file": "32_admin_tender_builder_dpr_modal.png"
+  },
+  {
+    "n": 33,
+    "section": "Admin",
+    "title": "Tender Builder \u00b7 No-master options",
+    "description": "When the picked country has no saved masters, an amber helper offers two options: (1) borrow a master from another country (all masters listed with country-code prefix), or (2) build a brand-new master from this DPR.",
+    "file": "33_admin_tender_builder_no_master.png"
+  },
+  {
+    "n": 60,
+    "section": "Vendor",
+    "title": "Vendor sign-in",
+    "description": "Dedicated vendor login (also accessible via /login \u2192 right card).",
+    "file": "60_vendor_login.png"
+  },
+  {
+    "n": 61,
+    "section": "Vendor",
+    "title": "Vendor dashboard landing",
+    "description": "Overview of open tenders the vendor may bid on, invoice status, ratings tab, profile & licenses.",
+    "file": "61_vendor_dashboard.png"
+  }
+]
