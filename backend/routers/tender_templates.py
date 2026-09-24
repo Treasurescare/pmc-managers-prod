@@ -633,19 +633,15 @@ class AiDraftIn(BaseModel):
 async def ai_draft_section(tid: str, code: str,
                             payload: AiDraftIn = AiDraftIn(),
                             admin=Depends(require_role("admin", "reviewer"))):
-    """Fill a section body with an LLM draft — uses PMC LLM key + pmc_lib.
-    Reads the tender header (title, budget, category, timeline) as context so the
-    generated language is consistent with the rest of the document.
+    """Fill a section body with an LLM draft — uses the same _llm_complete
+    helper the DPR pipeline uses so the Emergent proxy routing is honoured.
+    Reads the tender header as context so language stays consistent.
 
-    v46n — accepts EMERGENT_LLM_KEY as well; production only has that key set
-    which was causing the ✨ AI button to silently fail with 503.
+    v46n — accepts EMERGENT_LLM_KEY as well.
+    v46o — bypasses pmc_lib.LlmChat (which does not know how to reach the
+    Emergent integrations proxy) and delegates to tender_pro._llm_complete
+    which explicitly sets api_base for sk-emergent-* / sk-managed-* keys.
     """
-    import os
-    key = (os.environ.get("LLM_API_KEY")
-           or os.environ.get("EMERGENT_LLM_KEY")
-           or os.environ.get("LEGACY_LLM_KEY", ""))
-    if not key:
-        raise HTTPException(status_code=503, detail="AI copilot is not configured (missing LLM_API_KEY / EMERGENT_LLM_KEY)")
     try:
         doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
     except Exception:
@@ -656,44 +652,41 @@ async def ai_draft_section(tid: str, code: str,
     if not section:
         raise HTTPException(status_code=404, detail="Section not found")
     header = doc.get("header") or {}
-    try:
-        from pmc_lib.llm.chat import LlmChat, UserMessage
-    except Exception as e:
-        raise HTTPException(status_code=503, detail=f"LLM SDK unavailable: {type(e).__name__}")
+    from routers.tender_pro import _llm_complete
+    import re as _re
 
     words = {"short": 120, "medium": 240, "long": 420}.get(payload.length or "medium", 240)
     tone_hint = {
-        "formal": "Use formal Indian public-procurement English (mirror CPPP / GFR 2017 style).",
+        "formal": "Use formal public-procurement English (mirror CPPP / GFR 2017 style).",
         "plain":  "Use plain, direct English suitable for SMEs.",
         "strict": "Use strict, unambiguous contractual language.",
     }.get(payload.tone or "formal", "Use formal English.")
 
-    chat = LlmChat(
-        api_key=key,
-        session_id=f"tender-ai-{tid}-{code}",
-        system_message=(
-            "You are a public-procurement drafting copilot. Draft ONLY the body of "
-            "one tender-document section based on the header context. "
-            "Return valid HTML using ONLY these tags: <p> <br> <b> <i> <u> <ul> <ol> <li> "
-            "<h3> <blockquote>. Do NOT include the section title — it is already on the page. "
-            f"{tone_hint} Aim for approximately {words} words. Do not invent numbers not present in the context."
-        ),
+    system_msg = (
+        "You are a public-procurement drafting copilot. Draft ONLY the body of "
+        "one tender-document section based on the header context. "
+        "Return valid HTML using ONLY these tags: <p> <br> <b> <i> <u> <ul> <ol> <li> "
+        "<h3> <blockquote>. Do NOT include the section title — it is already on the page. "
+        f"{tone_hint} Aim for approximately {words} words. Do not invent numbers not present in the context."
     )
-    chat.with_model("openai", "gpt-4o-mini")
     ctx = {
         "section_title": section.get("title"),
-        "section_kind": section.get("kind"),
-        "hint": section.get("hint"),
+        "section_kind":  section.get("kind"),
+        "hint":          section.get("hint"),
         "header": {k: header.get(k) for k in
                     ("work_title", "budget_amount", "tender_value", "budget_currency",
                      "period_days", "product_category", "location", "eligibility",
                      "evaluation_method", "emd_amount", "sub_end") if header.get(k)},
     }
     try:
-        resp = await chat.send_message(UserMessage(text=f"Draft the section body. Context: {ctx}"))
+        raw = (await _llm_complete(system_msg, f"Draft the section body. Context: {ctx}")).strip()
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"LLM call failed: {type(e).__name__}")
-    body = _sanitize_body(str(resp))
+        raise HTTPException(status_code=502, detail=f"LLM call failed: {type(e).__name__}: {str(e)[:200]}")
+    if raw.startswith("```"):
+        raw = _re.sub(r"^```(?:html)?", "", raw).rstrip("`").strip()
+    body = _sanitize_body(raw)
     await audit_log("tender_template.ai_draft", admin, "tender_template", tid,
                     {"code": code, "tone": payload.tone, "length": payload.length})
     return {"body": body}

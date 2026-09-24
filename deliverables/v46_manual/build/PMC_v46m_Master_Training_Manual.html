@@ -1,11 +1,16 @@
 <!doctype html><html><head><meta charset='utf-8'/>
 <title>PMC v46m Master Training Manual</title>
 <style>
-@page { size: A4; margin: 20mm 16mm 22mm 16mm;
-  @top-right { content: "PMC v46m Master Manual"; font: 8.5pt Georgia; color: #94a3b8; }
-  @bottom-left { content: "PMC Managers Limited · Confidential · v46m · September 2026"; font: 8.5pt Georgia; color: #64748b; }
-  @bottom-right { content: "Page " counter(page) " / " counter(pages); font: 8.5pt Georgia; color: #64748b; }
-}
+    /* v46o — watermark + cover */
+    @page :first { background: #0B132B; margin: 0; }
+    @page { size: A4; margin: 20mm 16mm 22mm 16mm;
+      @top-right { content: "PMC v46m Master Manual"; font: 8.5pt Georgia; color: #94a3b8; }
+      @bottom-left { content: "PMC Managers Limited · Confidential · v46m · September 2026"; font: 8.5pt Georgia; color: #64748b; }
+      @bottom-right { content: "Page " counter(page) " / " counter(pages); font: 8.5pt Georgia; color: #64748b; }
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='800'><g transform='translate(400,400) rotate(-30)'><text x='0' y='0' text-anchor='middle' font-family='Georgia' font-size='60' fill='rgba(15,31,58,0.05)' font-weight='700' letter-spacing='6'>CONFIDENTIAL — INTERNAL USE ONLY</text></g></svg>");
+      background-position: center;
+      background-repeat: no-repeat;
+    }
 body { font: 10.5pt/1.55 Georgia, 'Times New Roman', serif; color: #0b1f3a; }
 h1 { font-size: 20pt; margin: 22pt 0 8pt; border-bottom: 2pt solid #0b1f3a; padding-bottom: 4pt; page-break-before: always; }
 h1:first-of-type { page-break-before: avoid; }
@@ -22,16 +27,22 @@ th { background: #eef2f8; color: #0b1e3f; }
 .img img { max-width: 100%; border: 0.5pt solid #cbd5e1; }
 .cap { font: italic 9pt Georgia; color: #64748b; margin-top: 2pt; }
 code { font-family: 'Menlo', 'Courier New', monospace; font-size: 9.5pt; background: #f1f5f9; padding: 1pt 4pt; }
-.cover { text-align: center; padding: 90pt 0 20pt; }
-.cover .title { font-size: 34pt; letter-spacing: -0.5pt; color: #0B132B; }
-.cover .sub { font-size: 14pt; color: #64748b; margin-top: 10pt; }
-.cover .banner { display:inline-block; margin-top: 60pt; padding: 6pt 14pt; background: #fef3c7; border: 0.5pt solid #D4AF37; color: #78350f; font-size: 9pt; letter-spacing: .12em; text-transform: uppercase; }
+.cover { text-align: center; color: #fff; padding: 140pt 20pt 40pt; height: 240mm; page-break-after: always; }
+.cover .crest { width: 96pt; height: 96pt; margin: 0 auto 30pt; border: 2pt solid #D4AF37; display: flex; align-items: center; justify-content: center; font: 700 44pt Georgia; color: #D4AF37; }
+.cover .title { font-size: 40pt; letter-spacing: -0.5pt; color: #fff; line-height: 1.05; }
+.cover .sub { font-size: 14pt; color: rgba(255,255,255,0.7); margin-top: 22pt; letter-spacing: 0.05em; }
+.cover .rule { width: 60pt; height: 2pt; background: #D4AF37; margin: 40pt auto; }
+.cover .banner { display:inline-block; margin-top: 20pt; padding: 6pt 14pt; background: rgba(212,175,55,0.12); border: 0.5pt solid #D4AF37; color: #D4AF37; font-size: 9pt; letter-spacing: .18em; text-transform: uppercase; }
+.cover .conf { margin-top: 24pt; font-size: 10pt; letter-spacing: 0.3em; color: rgba(255,255,255,0.5); text-transform: uppercase; }
 </style></head><body>
 <div class="cover">
-  <div class="title">PMC Managers · v46m</div>
+  <div class="crest">PMC</div>
   <div class="title">Master Training Manual</div>
+  <div class="title" style="font-size:24pt;color:#D4AF37;margin-top:14pt;">v46m · Sovereign Edition</div>
+  <div class="rule"></div>
   <div class="sub">End-to-end operator handbook · every screen · every field · every workflow</div>
   <div class="banner">PMC Managers Limited · Confidential · v46m · September 2026</div>
+  <div class="conf">Confidential — Internal Use Only</div>
 </div>
 <h1>1 · Platform overview &amp; architecture</h1><p>The PMC platform is a multi-role tender lifecycle engine covering the full path from notice publication → registration → bidding → EMD → evaluation → award → e-signature → invoicing → post-contract audit. Delivered as a React SPA backed by FastAPI + MongoDB with same-origin cookie sessions and CSRF double-submit tokens.</p><p><b>Frontend</b> — React SPA served from S3 + CloudFront. Sovereign navy/gold editorial design system with Libre Baskerville + IBM Plex fonts. Routing via React Router; state via Context (i18n, auth) + local component state.</p><p><b>Backend</b> — FastAPI on AWS Elastic Beanstalk (Docker running on 64-bit Amazon Linux 2). All routes prefixed <code>/api/v1/…</code>. Auth realm split into admin, staff and vendor with per-realm login endpoints and cookie names.</p><p><b>Data</b> — MongoDB via Motor (async driver). Collections include tenants, notices, tender_templates, registrations, vendors, bids, rubrics, scores, evaluations, awards, escrow_transactions, auctions, corrigenda, audits, ratings, engagements, packages, categories, countries, dpr_jobs.</p><p><b>AI</b> — Emergent LLM Universal Key routed through the integration proxy. Used for DPR ingestion (map-reduce), AI Fill All, anomaly detection and the admin copilot. v46l lifts the 800 KB cap and adds an async worker.</p><p><b>Storage</b> — S3 for licences, tender attachments, signed PDFs, archived auction rooms. CloudFront in front for global CDN.</p><p><b>Notifications</b> — Resend (email), planned Firebase/APNs (mobile push).</p><p><b>Payments</b> — Stripe (test + live keys separated); Kaspi + PayPal on the roadmap.</p><p><b>E-signature</b> — DocuSign envelope templates + status webhooks.</p><p><b>Observability</b> — Structured logs via Python logging, CloudWatch tail, audit_log() collection for every mutation.</p><h1>2 · Roles at a glance</h1><table><tr><th>Role</th><th>Portal</th><th>Scope</th></tr><tr><td>Admin</td><td><code>/admin</code></td><td>Full control of every module.</td></tr><tr><td>Management</td><td><code>/staff</code></td><td>Executive dashboards, committee outcomes, escrow financials.</td></tr><tr><td>Partner</td><td><code>/staff</code></td><td>GOC / Bank / Regulator — audit hooks and co-procurement dashboards.</td></tr><tr><td>Agent</td><td><code>/staff</code></td><td>Field-ops — draft tenders, review dossiers, publish corrigenda.</td></tr><tr><td>Reviewer</td><td><code>/admin</code></td><td>Read-only + evaluation scoring.</td></tr><tr><td>Escrow agent</td><td><code>/staff</code></td><td>EMD desk, forfeitures, refunds.</td></tr><tr><td>Certifier</td><td><code>/staff</code></td><td>Tender packet sign-off.</td></tr><tr><td>Legal counsel</td><td><code>/staff</code></td><td>Contract review, DocuSign envelope owner.</td></tr><tr><td>Accounting</td><td><code>/staff</code></td><td>Fee invoicing, refunds, reconciliation.</td></tr><tr><td>Committee member</td><td><code>/staff</code></td><td>Evaluation committee voting.</td></tr><tr><td>Auditor</td><td><code>/admin (read)</code></td><td>Full audit trail with entity filters.</td></tr><tr><td>Support</td><td><code>/staff</code></td><td>Vendor helpdesk, activation resends.</td></tr><tr><td>Vendor</td><td><code>/vendor</code></td><td>Bid on notices, manage profile &amp; invoices.</td></tr></table><h1>3 · Security, audit &amp; data-protection</h1><p><b>Authentication</b> — Three cookie realms (admin_session, staff_session, vendor_session). HttpOnly, SameSite=Lax, Secure in production. CSRF double-submit on every mutating request. Brute-force lockout after 5 failed attempts within 15 minutes.</p><p><b>Authorisation</b> — <code>require_role(*roles)</code> guards every mutating endpoint. Read endpoints use realm-specific <code>current_admin</code> / <code>current_staff</code> / <code>current_vendor</code> dependencies.</p><p><b>Audit trail</b> — Every mutation calls <code>audit_log()</code> which writes an immutable row (actor id, timestamp, entity, action, JSON payload) to the audits collection. Auditors filter by entity + action + actor + date and export CSV.</p><p><b>Data protection</b> — Licences and legal docs sit in a private S3 bucket behind pre-signed URLs. PII is redacted from Auditor-role CSV exports.</p><p><b>Compliance</b> — GDPR consent captured at registration; ESG questionnaire lives under the vendor profile.</p><h1>4 · Public visitor journey</h1>
 <h2> 1 · Sovereign home — hero + live KPIs</h2>

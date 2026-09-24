@@ -1275,11 +1275,16 @@ body_parts.append("<h1>25 · Sign-off</h1><p>This manual is versioned under <cod
 pdf_html = f"""<!doctype html><html><head><meta charset='utf-8'/>
 <title>PMC v46m Master Training Manual</title>
 <style>
-@page {{ size: A4; margin: 20mm 16mm 22mm 16mm;
-  @top-right {{ content: "PMC v46m Master Manual"; font: 8.5pt Georgia; color: #94a3b8; }}
-  @bottom-left {{ content: "{esc(BANNER)}"; font: 8.5pt Georgia; color: #64748b; }}
-  @bottom-right {{ content: "Page " counter(page) " / " counter(pages); font: 8.5pt Georgia; color: #64748b; }}
-}}
+    /* v46o — watermark + cover */
+    @page :first {{ background: #0B132B; margin: 0; }}
+    @page {{ size: A4; margin: 20mm 16mm 22mm 16mm;
+      @top-right {{ content: "PMC v46m Master Manual"; font: 8.5pt Georgia; color: #94a3b8; }}
+      @bottom-left {{ content: "{esc(BANNER)}"; font: 8.5pt Georgia; color: #64748b; }}
+      @bottom-right {{ content: "Page " counter(page) " / " counter(pages); font: 8.5pt Georgia; color: #64748b; }}
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='800'><g transform='translate(400,400) rotate(-30)'><text x='0' y='0' text-anchor='middle' font-family='Georgia' font-size='60' fill='rgba(15,31,58,0.05)' font-weight='700' letter-spacing='6'>CONFIDENTIAL — INTERNAL USE ONLY</text></g></svg>");
+      background-position: center;
+      background-repeat: no-repeat;
+    }}
 body {{ font: 10.5pt/1.55 Georgia, 'Times New Roman', serif; color: #0b1f3a; }}
 h1 {{ font-size: 20pt; margin: 22pt 0 8pt; border-bottom: 2pt solid #0b1f3a; padding-bottom: 4pt; page-break-before: always; }}
 h1:first-of-type {{ page-break-before: avoid; }}
@@ -1296,16 +1301,22 @@ th {{ background: #eef2f8; color: #0b1e3f; }}
 .img img {{ max-width: 100%; border: 0.5pt solid #cbd5e1; }}
 .cap {{ font: italic 9pt Georgia; color: #64748b; margin-top: 2pt; }}
 code {{ font-family: 'Menlo', 'Courier New', monospace; font-size: 9.5pt; background: #f1f5f9; padding: 1pt 4pt; }}
-.cover {{ text-align: center; padding: 90pt 0 20pt; }}
-.cover .title {{ font-size: 34pt; letter-spacing: -0.5pt; color: #0B132B; }}
-.cover .sub {{ font-size: 14pt; color: #64748b; margin-top: 10pt; }}
-.cover .banner {{ display:inline-block; margin-top: 60pt; padding: 6pt 14pt; background: #fef3c7; border: 0.5pt solid #D4AF37; color: #78350f; font-size: 9pt; letter-spacing: .12em; text-transform: uppercase; }}
+.cover {{ text-align: center; color: #fff; padding: 140pt 20pt 40pt; height: 240mm; page-break-after: always; }}
+.cover .crest {{ width: 96pt; height: 96pt; margin: 0 auto 30pt; border: 2pt solid #D4AF37; display: flex; align-items: center; justify-content: center; font: 700 44pt Georgia; color: #D4AF37; }}
+.cover .title {{ font-size: 40pt; letter-spacing: -0.5pt; color: #fff; line-height: 1.05; }}
+.cover .sub {{ font-size: 14pt; color: rgba(255,255,255,0.7); margin-top: 22pt; letter-spacing: 0.05em; }}
+.cover .rule {{ width: 60pt; height: 2pt; background: #D4AF37; margin: 40pt auto; }}
+.cover .banner {{ display:inline-block; margin-top: 20pt; padding: 6pt 14pt; background: rgba(212,175,55,0.12); border: 0.5pt solid #D4AF37; color: #D4AF37; font-size: 9pt; letter-spacing: .18em; text-transform: uppercase; }}
+.cover .conf {{ margin-top: 24pt; font-size: 10pt; letter-spacing: 0.3em; color: rgba(255,255,255,0.5); text-transform: uppercase; }}
 </style></head><body>
 <div class="cover">
-  <div class="title">PMC Managers · v46m</div>
+  <div class="crest">PMC</div>
   <div class="title">Master Training Manual</div>
+  <div class="title" style="font-size:24pt;color:#D4AF37;margin-top:14pt;">v46m · Sovereign Edition</div>
+  <div class="rule"></div>
   <div class="sub">End-to-end operator handbook · every screen · every field · every workflow</div>
   <div class="banner">{esc(BANNER)}</div>
+  <div class="conf">Confidential — Internal Use Only</div>
 </div>
 {"".join(body_parts)}
 </body></html>"""

@@ -14,7 +14,9 @@ Build and operate PMC Managers Limited (pmcmanagers.com), a multi-role procureme
 
 ## Implemented (as of 2026-09-24)
 
-- **v46n Per-section AI hotfix** — four backend routes still read only the legacy `LLM_API_KEY`; widened to also accept `EMERGENT_LLM_KEY` (which is the only key set in production). Restores the ✨ Draft-with-AI button on every Tender Builder section, plus the workflow-narrative and bid-anomaly and clause-level bid-redline copilots.
+- **v46o Per-section AI hotfix Round Two** — `ai_draft_section` no longer uses `pmc_lib.LlmChat` (which cannot reach the Emergent integrations proxy). Now delegates to `tender_pro._llm_complete` — same helper the DPR pipeline uses — so `sk-emergent-*` keys correctly route through `https://integrations.emergentagent.com/llm`. This is the real fix; v46n only widened the env-var check but left the underlying routing broken.
+- **v46m Manual v2** — rebuilt with sovereign cover (PMC crest, navy full-bleed cover page, gold rule) + full-page "CONFIDENTIAL — INTERNAL USE ONLY" diagonal watermark on every content page.
+- **v46n Per-section AI hotfix Round One** — superseded by v46o.
 - **v46m Manual v2** — regenerated 66-page (25-chapter, 32-screen) master training manual against the deployed sovereign design.
   - Screens: 8 public + 6 five-portal logins + 14 admin tabs + 5 vendor tabs = **32** full-page captures at 1600×900 @ 1.25 DSR (retina-clean).
   - Chapters: architecture, roles matrix, security/audit, public journey, vendor journey, admin tour, DPR deep-dive, evaluation/escrow deep-dive, reverse auctions, UX safeties, deploy runbook, troubleshooting, API index, release history, glossary, 30/60/90 onboarding, monthly cadence, KPIs, escalation matrix, keyboard shortcuts, FAQ, sample tender lifecycle, data-model appendix, release archive, sign-off.
