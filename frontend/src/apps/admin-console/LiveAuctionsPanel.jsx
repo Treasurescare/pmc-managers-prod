@@ -25,8 +25,7 @@ export default function LiveAuctionsPanel() {
 
   useEffect(() => {
     load();
-    fetch(`${process.env.REACT_APP_BACKEND_URL}/api/v1/notices?limit=200`)
-      .then((r) => r.json())
+    publicApi.listNotices({ limit: 200 })
       .then((d) => setNotices(d.items || []))
       .catch(() => {});
   }, [load]);

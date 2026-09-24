@@ -8,8 +8,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useI18n } from "@/context/I18nContext";
 import { InfoDot } from "@/components/InfoDot";
-
-const API = process.env.REACT_APP_BACKEND_URL;
+import { engagementsApi, showApiError } from "@/lib/api";
 
 const STATUS_STYLE = {
   quote_requested: "bg-amber-100 text-amber-900 border-amber-400",
@@ -32,20 +31,15 @@ function QuoteModal({ engagement, onClose, onSaved }) {
   const save = async () => {
     setSaving(true);
     try {
-      const r = await fetch(`${API}/api/v1/engagements/${engagement.id}/quote`, {
-        method: "PATCH", headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          quoted_amount: Number(amount),
-          quoted_currency: currency,
-          admin_notes: notes || null,
-          valid_until: validUntil || null,
-        }),
+      await engagementsApi.saveQuote(engagement.id, {
+        quoted_amount: Number(amount),
+        quoted_currency: currency,
+        admin_notes: notes || null,
+        valid_until: validUntil || null,
       });
-      if (!r.ok) throw new Error((await r.json()).detail || `HTTP ${r.status}`);
       toast.success("Quote saved — buyer can now be invoiced");
       onSaved();
-    } catch (e) { toast.error(`Save failed: ${e.message}`); }
+    } catch (e) { showApiError(e, { fallbackTitle: "Save failed" }); }
     finally { setSaving(false); }
   };
 
@@ -167,11 +161,9 @@ export default function EngagementsPanel() {
   const reload = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await fetch(`${API}/api/v1/engagements`, { credentials: "include" });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const d = await r.json();
-      setItems(d.items);
-    } catch (e) { toast.error(`Load failed: ${e.message}`); }
+      const d = await engagementsApi.listAdmin();
+      setItems(d.items || []);
+    } catch (e) { showApiError(e, { fallbackTitle: "Load failed" }); }
     finally { setLoading(false); }
   }, []);
 
@@ -179,29 +171,20 @@ export default function EngagementsPanel() {
 
   const invoice = async (e) => {
     try {
-      const r = await fetch(`${API}/api/v1/engagements/${e.id}/checkout`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ origin_url: window.location.origin }),
-      });
-      if (!r.ok) throw new Error((await r.json()).detail || `HTTP ${r.status}`);
-      const d = await r.json();
+      const d = await engagementsApi.checkout(e.id, window.location.origin);
       toast.success(`Invoice generated — pay-link ready`);
       if (window.confirm("Open the Stripe pay-link now?")) window.open(d.checkout_url, "_blank");
       reload();
-    } catch (err) { toast.error(`Invoice failed: ${err.message}`); }
+    } catch (err) { showApiError(err, { fallbackTitle: "Invoice failed" }); }
   };
 
   const cancel = async (e) => {
     if (!window.confirm(`Cancel engagement for ${e.product_name}?`)) return;
     try {
-      const r = await fetch(`${API}/api/v1/engagements/${e.id}/cancel`, {
-        method: "POST", credentials: "include",
-      });
-      if (!r.ok) throw new Error((await r.json()).detail || `HTTP ${r.status}`);
+      await engagementsApi.cancel(e.id);
       toast.success("Cancelled");
       reload();
-    } catch (err) { toast.error(`Cancel failed: ${err.message}`); }
+    } catch (err) { showApiError(err, { fallbackTitle: "Cancel failed" }); }
   };
 
   const filtered = useMemo(

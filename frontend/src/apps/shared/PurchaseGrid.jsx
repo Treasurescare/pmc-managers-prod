@@ -6,8 +6,7 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-
-const API = process.env.REACT_APP_BACKEND_URL;
+import { productCatalogApi, engagementsApi, billingCheckoutApi, showApiError } from "@/lib/api";
 
 const MODEL_LABEL = {
   fixed: "One-off", range: "Quote", percentage: "% of value",
@@ -83,10 +82,9 @@ export default function PurchaseGrid({ side, title, kicker }) {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    fetch(`${API}/api/v1/products/public?side=${side}`)
-      .then((r) => r.json())
+    productCatalogApi.publicList(side)
       .then((d) => { if (!cancelled) setItems(d.items || []); })
-      .catch((e) => toast.error(`Catalog load failed: ${e.message}`))
+      .catch((e) => showApiError(e, { fallbackTitle: "Catalog load failed" }))
       .finally(() => !cancelled && setLoading(false));
     return () => { cancelled = true; };
   }, [side]);
@@ -102,34 +100,22 @@ export default function PurchaseGrid({ side, title, kicker }) {
     if (isQuote) {
       // Wave 38: persist an engagement so admin can quote → invoice → collect.
       try {
-        const r = await fetch(`${API}/api/v1/engagements/quote-request`, {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            product_code: p.code, quantity: 1,
-            buyer_email: prompt(`Email us at? (optional — we'll follow up on ${p.name})`) || undefined,
-          }),
+        await engagementsApi.quoteRequest({
+          product_code: p.code, quantity: 1,
+          buyer_email: prompt(`Email us at? (optional — we'll follow up on ${p.name})`) || undefined,
         });
-        if (!r.ok) throw new Error((await r.json()).detail || `HTTP ${r.status}`);
         toast.success(`Quote request recorded for ${p.name}. Our team will contact you shortly.`);
       } catch (e) {
-        toast.error(`Quote request failed: ${e.message}`);
+        showApiError(e, { fallbackTitle: "Quote request failed" });
       }
       return;
     }
     setWorking(p.code);
     try {
-      const r = await fetch(`${API}/api/v1/billing/checkout`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          product_code: p.code, quantity: 1,
-          origin_url: window.location.origin,
-        }),
+      const d = await billingCheckoutApi.checkout({
+        product_code: p.code, quantity: 1,
+        origin_url: window.location.origin,
       });
-      if (!r.ok) throw new Error((await r.json()).detail || `HTTP ${r.status}`);
-      const d = await r.json();
       if (d.checkout_url) {
         // Open Stripe checkout in a new tab — Stripe's CSP blocks iframe
         // embedding, so navigating the current window hangs inside preview iframes.
@@ -142,7 +128,7 @@ export default function PurchaseGrid({ side, title, kicker }) {
       }
       else throw new Error("No checkout URL returned");
     } catch (e) {
-      toast.error(`Checkout failed: ${e.message}`);
+      showApiError(e, { fallbackTitle: "Checkout failed" });
     } finally {
       setWorking(null);
     }

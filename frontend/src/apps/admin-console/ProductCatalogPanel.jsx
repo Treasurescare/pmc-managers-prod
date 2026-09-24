@@ -9,8 +9,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { toast } from "sonner";
 import UnspscPicker from "@/components/UnspscPicker";
 import { InfoDot } from "@/components/InfoDot";
-
-const API = process.env.REACT_APP_BACKEND_URL;
+import { productCatalogApi, showApiError } from "@/lib/api";
 
 const PRICING_MODELS = [
   { v: "fixed", l: "Fixed one-off" },
@@ -93,19 +92,15 @@ function ProductEditor({ item, onClose, onSaved }) {
       body[k] = body[k] === "" || body[k] == null ? null : Number(body[k]);
     }
     try {
-      const url = isNew ? `${API}/api/v1/products` : `${API}/api/v1/products/${item.id}`;
-      const r = await fetch(url, {
-        method: isNew ? "POST" : "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include", body: JSON.stringify(body),
-      });
-      if (!r.ok) throw new Error((await r.json()).detail || `HTTP ${r.status}`);
-      // Bug #26 — clearer, product-scoped copy so the "Saved Procurement
-      // Strategy" mismatch that testers reported can't come back.
+      if (isNew) {
+        await productCatalogApi.create(body);
+      } else {
+        await productCatalogApi.update(item.id, body);
+      }
       toast.success(`${isNew ? "Product created" : "Product saved"} · ${body.name}`);
       onSaved();
     } catch (e) {
-      toast.error(`Save failed: ${e.message}`);
+      showApiError(e, { fallbackTitle: "Save failed" });
     } finally {
       setSaving(false);
     }
@@ -300,15 +295,10 @@ export default function ProductCatalogPanel() {
   const reload = useCallback(async () => {
     setLoading(true);
     try {
-      // Bug #34/35 — cache-buster query param so browsers/CDNs never serve a
-      // stale response after a create/edit.
-      const r = await fetch(`${API}/api/v1/products?active_only=false&_=${Date.now()}`,
-                             { credentials: "include" });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const d = await r.json();
-      setItems(d.items);
+      const d = await productCatalogApi.adminList(false);
+      setItems(d.items || []);
     } catch (e) {
-      toast.error(`Load failed: ${e.message}`);
+      showApiError(e, { fallbackTitle: "Load failed" });
     } finally {
       setLoading(false);
     }
@@ -326,25 +316,18 @@ export default function ProductCatalogPanel() {
 
   const toggleActive = async (p) => {
     try {
-      const r = await fetch(`${API}/api/v1/products/${p.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ ...p, is_active: !p.is_active }),
-      });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      await productCatalogApi.update(p.id, { is_active: !p.is_active });
       toast.success(`${p.name} ${p.is_active ? "disabled" : "enabled"}`);
       reload();
-    } catch (e) { toast.error(`Toggle failed: ${e.message}`); }
+    } catch (e) { showApiError(e, { fallbackTitle: "Toggle failed" }); }
   };
 
   const reseed = async () => {
     try {
-      const r = await fetch(`${API}/api/v1/products/reseed`, { method: "POST", credentials: "include" });
-      const d = await r.json();
+      const d = await productCatalogApi.reseed();
       toast.success(`Reseed complete — ${d.inserted} new default(s) inserted`);
       reload();
-    } catch (e) { toast.error(`Reseed failed: ${e.message}`); }
+    } catch (e) { showApiError(e, { fallbackTitle: "Reseed failed" }); }
   };
 
   const totals = useMemo(() => {

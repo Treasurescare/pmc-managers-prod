@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { toast } from "sonner";
+import { api } from "@/lib/api";
 
 /** Wave 41 — Jitsi Meet embedded room, joined via magic-link `/meet/:token`.
  *
@@ -42,16 +43,9 @@ export default function MeetingRoom() {
   const apiRef = useRef(null);
 
   useEffect(() => {
-    fetch(`${process.env.REACT_APP_BACKEND_URL}/api/v1/meetings/join/${token}`)
-      .then(async (r) => {
-        if (!r.ok) {
-          const j = await r.json().catch(() => ({}));
-          throw new Error(j.detail || `HTTP ${r.status}`);
-        }
-        return r.json();
-      })
-      .then(setMeta)
-      .catch((e) => setError(e.message));
+    api.get(`/api/v1/meetings/join/${token}`)
+      .then((r) => setMeta(r.data))
+      .catch((e) => setError(e?.response?.data?.detail || e.message || "Failed to load meeting"));
   }, [token]);
 
   const joinRoom = async () => {

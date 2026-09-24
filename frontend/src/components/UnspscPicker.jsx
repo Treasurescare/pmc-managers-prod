@@ -4,8 +4,7 @@
  * Renders as a labelled input; on selection sets both `code` and `title`
  * via the parent-supplied `onChange({code, title})` callback. */
 import { useCallback, useEffect, useRef, useState } from "react";
-
-const API = process.env.REACT_APP_BACKEND_URL;
+import { taxonomyApi } from "@/lib/api";
 
 export default function UnspscPicker({ value, title, onChange, testidPrefix = "unspsc" }) {
   const [q, setQ] = useState(title || "");
@@ -23,11 +22,8 @@ export default function UnspscPicker({ value, title, onChange, testidPrefix = "u
     if (!query || query.length < 2) { setRows([]); return; }
     setBusy(true);
     try {
-      const r = await fetch(`${API}/api/v1/taxonomy/search?q=${encodeURIComponent(query)}&limit=15`);
-      if (r.ok) {
-        const d = await r.json();
-        setRows(d.items || []);
-      }
+      const d = await taxonomyApi.search(query);
+      setRows(d.items || []);
     } catch {
       setRows([]);
     } finally {

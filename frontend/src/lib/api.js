@@ -678,4 +678,47 @@ export const docusignApi = {
       .then((r) => r.data),
 };
 
+// ---------- Dashboard Drill-through (Wave E-2) ----------
+export const dashboardDrillApi = {
+  anomalies: () => api.get("/api/v1/dashboard-drill/anomalies").then((r) => r.data),
+  pipeline: (status) => api.get("/api/v1/dashboard-drill/pipeline", { params: status ? { status } : {} }).then((r) => r.data),
+  topPriced: (limit = 10) => api.get("/api/v1/dashboard-drill/top-priced", { params: { limit } }).then((r) => r.data),
+};
+
+// ---------- Product Catalog (Wave 38) ----------
+export const productCatalogApi = {
+  publicList: (side) => api.get("/api/v1/products/public", { params: side ? { side } : {} }).then((r) => r.data),
+  adminList: (active_only = false) => api.get("/api/v1/products", { params: { active_only, _: Date.now() } }).then((r) => r.data),
+  create: (p) => api.post("/api/v1/products", p).then((r) => r.data),
+  update: (id, p) => api.patch(`/api/v1/products/${id}`, p).then((r) => r.data),
+  delete: (id) => api.delete(`/api/v1/products/${id}`).then((r) => r.data),
+  reseed: () => api.post("/api/v1/products/reseed").then((r) => r.data),
+};
+
+// ---------- Engagements & Quotes (Wave 38) ----------
+export const engagementsApi = {
+  quoteRequest: (payload) => api.post("/api/v1/engagements/quote-request", payload).then((r) => r.data),
+  checkout: (id, origin_url) => api.post(`/api/v1/engagements/${id}/checkout`, { origin_url }).then((r) => r.data),
+  cancel: (id) => api.post(`/api/v1/engagements/${id}/cancel`).then((r) => r.data),
+  saveQuote: (id, payload) => api.patch(`/api/v1/engagements/${id}/quote`, payload).then((r) => r.data),
+  listAdmin: () => api.get("/api/v1/engagements").then((r) => r.data),
+};
+
+// ---------- Escrow Magic-Sign ----------
+export const escrowMagicApi = {
+  get: (token) => api.get(`/api/v1/escrow/magic/${token}`).then((r) => r.data),
+  sign: (token, payload) => api.post(`/api/v1/escrow/magic/${token}/sign`, payload).then((r) => r.data),
+};
+
+// ---------- Public Roadmap ----------
+export const publicRoadmapApi = {
+  get: () => api.get("/api/v1/reports/public/roadmap").then((r) => r.data),
+};
+
+// ---------- Billing Checkout & Status ----------
+export const billingCheckoutApi = {
+  checkout: (payload) => api.post("/api/v1/billing/checkout", payload).then((r) => r.data),
+  status: (sid) => api.get(`/api/v1/billing/status/${sid}`).then((r) => r.data),
+};
+
 export default api;

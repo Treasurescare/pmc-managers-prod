@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { meetingsApi, formatApiError, showApiError} from "@/lib/api";
+import { meetingsApi, publicApi, formatApiError, showApiError} from "@/lib/api";
 import { InfoDot } from "@/components/InfoDot";
 
 /** Wave 41 — Admin meeting scheduler with Jitsi Meet embed. */
@@ -28,8 +28,8 @@ export default function MeetingsPanel() {
 
   useEffect(() => {
     load();
-    fetch(`${process.env.REACT_APP_BACKEND_URL}/api/v1/notices?limit=200`)
-      .then((r) => r.json()).then((d) => setNotices(d.items || []))
+    publicApi.listNotices({ limit: 200 })
+      .then((d) => setNotices(d.items || []))
       .catch(() => {});
   }, [load]);
 

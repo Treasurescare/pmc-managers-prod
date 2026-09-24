@@ -6,8 +6,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import TopBar from "@/apps/shared/TopBar";
 import Footer from "@/apps/shared/Footer";
-
-const API = process.env.REACT_APP_BACKEND_URL;
+import { billingCheckoutApi, showApiError } from "@/lib/api";
 
 function StatusCard({ paid, pending, error, tx }) {
   if (paid) {
@@ -57,9 +56,7 @@ export default function BillingResult({ outcome }) {
   const poll = useCallback(async () => {
     if (!sid) { setState((s) => ({ ...s, error: "Missing session_id" })); return; }
     try {
-      const r = await fetch(`${API}/api/v1/billing/status/${sid}`);
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const d = await r.json();
+      const d = await billingCheckoutApi.status(sid);
       if (d.payment_status === "paid") {
         setState({ paid: true, pending: false, error: null, tx: d });
       } else {

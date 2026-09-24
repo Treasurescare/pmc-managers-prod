@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { comparisonApi, formatApiError, showApiError} from "@/lib/api";
+import { comparisonApi, publicApi, formatApiError, showApiError} from "@/lib/api";
 import { InfoDot } from "@/components/InfoDot";
 
 /** Wave 41 — L1 Auto-Comparison Engine (rule-based lowest-price shortlist). */
@@ -11,8 +11,8 @@ export default function L1ComparisonPanel() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    fetch(`${process.env.REACT_APP_BACKEND_URL}/api/v1/notices?limit=200`)
-      .then((r) => r.json()).then((d) => setNotices(d.items || []))
+    publicApi.listNotices({ limit: 200 })
+      .then((d) => setNotices(d.items || []))
       .catch(() => {});
   }, []);
 

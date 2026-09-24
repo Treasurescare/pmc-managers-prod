@@ -9,8 +9,7 @@ import { useParams } from "react-router-dom";
 import { toast } from "sonner";
 import TopBar from "@/apps/shared/TopBar";
 import Footer from "@/apps/shared/Footer";
-
-const API = process.env.REACT_APP_BACKEND_URL;
+import { escrowMagicApi, showApiError } from "@/lib/api";
 
 const ACTIONS = [
   { v: "release_to_contractor", l: "Release → Contractor (winning vendor)" },
@@ -112,9 +111,8 @@ export default function EscrowOfficerSign() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await fetch(`${API}/api/v1/escrow/magic/${token}`);
-      if (!r.ok) throw new Error((await r.json()).detail || `HTTP ${r.status}`);
-      setCtx(await r.json());
+      const d = await escrowMagicApi.get(token);
+      setCtx(d);
       setError(null);
     } catch (e) {
       setError(e.message);
@@ -127,15 +125,11 @@ export default function EscrowOfficerSign() {
 
   const sign = async (tid, intended_action, comment) => {
     try {
-      const r = await fetch(`${API}/api/v1/escrow/magic/${token}/sign`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tid, intended_action, comment }),
-      });
-      if (!r.ok) throw new Error((await r.json()).detail || `HTTP ${r.status}`);
+      await escrowMagicApi.sign(token, { tid, intended_action, comment });
       toast.success("Signature recorded");
       load();
     } catch (e) {
-      toast.error(`Sign failed: ${e.message}`);
+      showApiError(e, { fallbackTitle: "Sign failed" });
     }
   };
 

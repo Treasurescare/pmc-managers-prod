@@ -6,8 +6,7 @@
 import { useEffect, useMemo, useState } from "react";
 import TopBar from "@/apps/shared/TopBar";
 import Footer from "@/apps/shared/Footer";
-
-const API = process.env.REACT_APP_BACKEND_URL;
+import { publicRoadmapApi } from "@/lib/api";
 
 const STATUS_STYLE = {
   Delivered: "bg-emerald-100 text-emerald-900 border-emerald-500",
@@ -28,8 +27,8 @@ export default function PublicRoadmap() {
 
   useEffect(() => {
     document.title = "PMC Managers · Live Roadmap";
-    fetch(`${API}/api/v1/reports/public/roadmap`)
-      .then((r) => r.json()).then(setData).catch(() => {});
+    publicRoadmapApi.get()
+      .then(setData).catch(() => {});
   }, []);
 
   const areas = useMemo(() => {

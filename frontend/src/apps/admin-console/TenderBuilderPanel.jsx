@@ -43,7 +43,7 @@ export default function TenderBuilderPanel() {
       setList(await tenderTemplateApi.list(params));
     } catch (e) { showApiError(e); }
   }, [kind]);
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  useEffect(() => { load(); }, [load]);
 
   const switchKind = (k) => {
     setKind(k);
