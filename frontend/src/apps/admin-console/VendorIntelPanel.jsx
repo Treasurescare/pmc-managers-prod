@@ -13,6 +13,7 @@ export default function VendorIntelPanel() {
   const [selected, setSelected] = useState(null);
   const [rating, setRating] = useState({ score: 70, band: "good" });
   const [blacklistReason, setBlacklistReason] = useState("");
+  const [search, setSearch] = useState("");
 
   const load = useCallback(async () => {
     try { setRows(await vendorIntelApi.summary()); }
@@ -51,6 +52,15 @@ export default function VendorIntelPanel() {
       {/* Bug #84 — horizontal scroll wrapper so long vendor rows don't blow
           out the mobile viewport (was overflowing on iPhone SE / narrow
           Android). min-w-[640px] keeps columns readable while allowing swipe. */}
+      <div className="px-3 py-2 border-b">
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by company or vendor reference…"
+          data-testid="vintel-search"
+          className="w-full px-3 py-2 border border-brand-navy/20 focus:outline-none focus:border-brand-navy-soft text-brand-navy bg-white text-sm"
+        />
+      </div>
       <div className="w-full overflow-x-auto">
       <table className="w-full text-sm min-w-[640px]">
         <thead className="text-xs text-brand-navy/60 border-b">
@@ -63,7 +73,19 @@ export default function VendorIntelPanel() {
             <th className="px-3 py-2">{t("panels.vendor_intel.col_actions")}</th></tr>
         </thead>
         <tbody>
-          {rows.map((v) => (
+          {(() => {
+            const q = search.trim().toLowerCase();
+            const filtered = q
+              ? rows.filter((v) => (v.company_name || "").toLowerCase().includes(q)
+                  || (v.email || "").toLowerCase().includes(q)
+                  || (v.vendor_ref || "").toLowerCase().includes(q))
+              : rows;
+            if (filtered.length === 0) {
+              return (<tr><td colSpan={7} className="p-6 text-center text-slate-500">
+                {q ? "No matches" : t("panels.vendor_intel.empty")}
+              </td></tr>);
+            }
+            return filtered.map((v) => (
             <tr key={v.id} className="border-t" data-testid={`vintel-row-${v.vendor_ref}`}>
               <td className="px-3 py-2">{v.company_name || v.email}</td>
               <td className="px-3 py-2 font-mono text-xs">{v.vendor_ref}</td>
@@ -79,8 +101,8 @@ export default function VendorIntelPanel() {
                   className="text-xs border px-2 py-1">{t("panels.vendor_intel.manage")}</button>
               </td>
             </tr>
-          ))}
-          {rows.length === 0 && (<tr><td colSpan={7} className="p-6 text-center text-slate-500">{t("panels.vendor_intel.empty")}</td></tr>)}
+            ));
+          })()}
         </tbody>
       </table>
       </div>

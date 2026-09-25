@@ -38,6 +38,12 @@ class KYCStartIn(BaseModel):
     level: KYCLevel = "basic"
 
 
+class KYCManualIn(BaseModel):
+    vendor_ref: str
+    decision: Literal["verified", "rejected", "pending"]
+    notes: Optional[str] = None
+
+
 def _out(doc: dict) -> dict:
     return BaseDocument.out(doc)
 
@@ -141,6 +147,35 @@ async def start_kyc(payload: KYCStartIn, admin=Depends(require_role("admin", "le
                     {"case_id": case_id, "status": result["status"],
                      "provider": result.get("provider")})
     return {"case_id": case_id, **result}
+
+
+@router.post("/manual")
+async def manual_kyc_decision(payload: KYCManualIn,
+                              admin=Depends(require_role("admin", "legal_counsel"))):
+    """Admin override — set a vendor's KYC status directly without running the
+    provider. Used when the admin has verified documents out-of-band or needs to
+    unblock/roll back a decision. Writes an audit row for every change."""
+    v = await db.vendors.find_one({"vendor_ref": payload.vendor_ref})
+    if not v:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    await db.vendors.update_one(
+        {"vendor_ref": payload.vendor_ref},
+        {"$set": {"kyc_status": payload.decision,
+                  "kyc.status": payload.decision,
+                  "kyc_at": now_iso(),
+                  "kyc_provider": "manual-admin"}},
+    )
+    case_id = f"kyc_manual_{secrets.token_urlsafe(8)}"
+    await db.kyc_cases.insert_one({
+        "case_id": case_id, "vendor_ref": payload.vendor_ref,
+        "vendor_email": v.get("email"), "level": "manual",
+        "status": payload.decision, "provider": "manual-admin",
+        "flags": [payload.notes] if payload.notes else [],
+        "created_by": admin["id"], "created_at": now_iso(),
+    })
+    await audit_log("kyc.manual", admin, "vendor", payload.vendor_ref,
+                    {"decision": payload.decision, "notes": payload.notes})
+    return {"ok": True, "case_id": case_id, "kyc_status": payload.decision}
 
 
 @router.get("/{case_id}")

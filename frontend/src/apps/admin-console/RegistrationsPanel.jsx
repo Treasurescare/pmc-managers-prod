@@ -12,6 +12,7 @@ export default function RegistrationsPanel() {
   const [notes, setNotes] = useState("");
   const [sendingReminders, setSendingReminders] = useState(false);
   const [deciding, setDeciding] = useState(false);
+  const [search, setSearch] = useState("");
 
   const load = useCallback(() => {
     // Bug #15 fix — when the reviewer switches status tab, clear the
@@ -105,9 +106,26 @@ export default function RegistrationsPanel() {
             {sendingReminders ? t("panels.registrations.nudge_sending") : t("panels.registrations.nudge_stale")}
           </button>
         </div>
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by company, email or registration number…"
+          data-testid="reg-search"
+          className="w-full px-4 py-2 border border-brand-navy/20 focus:outline-none focus:border-brand-navy-soft text-brand-navy bg-white text-sm mb-3"
+        />
         <div className="border border-brand-navy/10 bg-white">
-          {items.length === 0 && <div className="p-6 text-brand-navy/50 text-sm">{t("panels.registrations.empty")}</div>}
-          {items.map((r) => (
+          {(() => {
+            const q = search.trim().toLowerCase();
+            const filtered = q
+              ? items.filter((r) =>
+                  (r.company_name || "").toLowerCase().includes(q)
+                  || (r.email || "").toLowerCase().includes(q)
+                  || (r.registration_number || "").toLowerCase().includes(q))
+              : items;
+            if (filtered.length === 0) {
+              return <div className="p-6 text-brand-navy/50 text-sm">{q ? "No matches" : t("panels.registrations.empty")}</div>;
+            }
+            return filtered.map((r) => (
             <button key={r.id} type="button" onClick={() => { setSelected(r); setNotes(""); }}
               data-testid={`reg-row-${r.id}`}
               className={"w-full text-left p-4 border-b border-brand-navy/10 hover:bg-brand-navy/5 " + (selected?.id === r.id ? "bg-brand-navy/5" : "")}>
@@ -122,7 +140,8 @@ export default function RegistrationsPanel() {
                 )}
               </div>
             </button>
-          ))}
+            ));
+          })()}
         </div>
       </div>
       <div>

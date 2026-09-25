@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { api, vendorInviteApi, formatApiError, showApiError} from "@/lib/api";
+import { api, vendorInviteApi, kycApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import BulkInviteModal from "./BulkInviteModal";
 import { InfoDot } from "@/components/InfoDot";
@@ -31,7 +31,33 @@ export default function VendorsPanel() {
   // admin visually locates the row instead of feeling like it "disappeared".
   const [highlightRef, setHighlightRef] = useState(null);
   const [activatingRef, setActivatingRef] = useState(null);
+  const [kycBusy, setKycBusy] = useState(false);
   const rowRefs = useRef({});
+
+  const runKycAuto = async (v) => {
+    if (kycBusy) return;
+    setKycBusy(true);
+    try {
+      const r = await kycApi.start(v.vendor_ref, "basic");
+      toast.success(`KYC ${r.status || "run"} · risk ${r.risk_score ?? "—"}/100`);
+      load();
+    } catch (e) { showApiError(e); } finally { setKycBusy(false); }
+  };
+  const setKycManual = async (v, decision) => {
+    if (kycBusy) return;
+    let notes = null;
+    if (decision === "rejected") {
+      notes = window.prompt("Reason for rejection (recorded in audit log):", "");
+      if (notes === null) return;
+    }
+    setKycBusy(true);
+    try {
+      await kycApi.manual(v.vendor_ref, decision, notes);
+      toast.success(`KYC marked ${decision}`);
+      setSelected({ ...v, kyc_status: decision });
+      load();
+    } catch (e) { showApiError(e); } finally { setKycBusy(false); }
+  };
 
   const load = useCallback((focusRef) => {
     api.get("/api/v1/vendors", { params: search ? { search } : {} })
@@ -337,6 +363,50 @@ export default function VendorsPanel() {
                 <KpiTile label={t("panels.vendors.kpi_review_hours")} value={kpi.time_to_decision_hours} />
                 <KpiTile label={t("panels.vendors.kpi_kz_licenses")} value={kpi.kz_licenses_count} />
                 <KpiTile label={t("panels.vendors.kpi_categories")} value={kpi.categories_count} />
+              </div>
+              {/* KYC controls — admin can trigger provider run OR override manually.
+                  Vendor bids are blocked until kyc_status ∈ {verified, cleared, passed}. */}
+              <div className="mt-6 border border-brand-navy/10 bg-brand-pale/40 p-4" data-testid="vendor-kyc-controls">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="pmc-label">KYC verification</div>
+                    <div className="text-sm text-brand-navy mt-1">
+                      Current status:{" "}
+                      <strong data-testid="vendor-kyc-status" className={
+                        (kpi.kyc_status === "verified" || kpi.kyc_status === "cleared" || kpi.kyc_status === "passed")
+                          ? "text-emerald-700"
+                          : kpi.kyc_status === "rejected" ? "text-red-600"
+                          : "text-amber-700"
+                      }>
+                        {kpi.kyc_status || selected.kyc_status || "not run"}
+                      </strong>
+                      {kpi.kyc_score != null && <span className="ml-2 text-xs text-brand-navy/60">risk {kpi.kyc_score}/100</span>}
+                    </div>
+                  </div>
+                  <InfoDot tip="Admin can trigger the automated KYC provider run OR override the decision manually. Vendors cannot submit bids until this reads verified / cleared / passed." />
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button type="button" onClick={() => runKycAuto(selected)} disabled={kycBusy}
+                    data-testid="vendor-kyc-run"
+                    className="px-3 py-1.5 text-[11px] uppercase tracking-widest border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white disabled:opacity-50">
+                    {kycBusy ? "Working…" : "Run KYC provider"}
+                  </button>
+                  <button type="button" onClick={() => setKycManual(selected, "verified")} disabled={kycBusy}
+                    data-testid="vendor-kyc-verify"
+                    className="px-3 py-1.5 text-[11px] uppercase tracking-widest bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50">
+                    Mark verified
+                  </button>
+                  <button type="button" onClick={() => setKycManual(selected, "pending")} disabled={kycBusy}
+                    data-testid="vendor-kyc-pending"
+                    className="px-3 py-1.5 text-[11px] uppercase tracking-widest border border-amber-500/60 text-amber-700 hover:bg-amber-50 disabled:opacity-50">
+                    Mark pending
+                  </button>
+                  <button type="button" onClick={() => setKycManual(selected, "rejected")} disabled={kycBusy}
+                    data-testid="vendor-kyc-reject"
+                    className="px-3 py-1.5 text-[11px] uppercase tracking-widest border border-red-500/60 text-red-600 hover:bg-red-50 disabled:opacity-50">
+                    Mark rejected
+                  </button>
+                </div>
               </div>
               <div className="mt-6 grid gap-4 md:grid-cols-2 text-sm">
                 <div>

@@ -12,6 +12,8 @@ Build and operate PMC Managers Limited (pmcmanagers.com), a multi-role procureme
 - Auth: Cookie sessions, three realms (admin, staff, vendor). Same-origin `/api` calls required in production bundles.
 - Assets: Public `/downloads/` folder for release artifacts and manuals — NEVER deleted with `s3 sync --delete` at bucket root.
 
+- **v46u KYC admin controls + universal search (P1)** — new `POST /api/v1/kyc/manual` endpoint lets admins override a vendor's KYC status (verified / pending / rejected) with an audit row per change. VendorsPanel: added a KYC controls block on the selected vendor's KPI panel with **Run KYC provider**, **Mark verified**, **Mark pending**, **Mark rejected** buttons and a colored current-status pill. `RegistrationsPanel` and `VendorIntelPanel` now each have a search input (`reg-search` / `vintel-search`) that filters by company/email/reference — matching the existing `VendorsPanel` search UX. E2E verified via curl: admin login → `/api/v1/kyc/manual` → vendor kyc_status set to `verified` → vendor successfully created bid `PMC-BID-2026-00018` on PMC-NOT-2026-0013.
+
 ## Implemented (as of 2026-09-25 — v46u bid-submit UX + SW crash fix)
 
 - **v46u KYC/EMD verification pass** — test vendor `manualvendor@pmcmanagers.com` had no KYC record (kyc: None) so every bid returned 412; marked `kyc.status=verified` in preview DB. Full chain verified via curl: bid create on PMC-NOT-2026-0014 → `PMC-BID-2026-00016` (EMD USD 10,500) → Stripe checkout URL generated (test mode) → bid withdrawn to free the slot. EMD payment pipeline is functional.
@@ -68,8 +70,9 @@ Build and operate PMC Managers Limited (pmcmanagers.com), a multi-role procureme
 ## Open backlog (P0/P1/P2)
 
 **P0 (blocking)**
-- Deploy v46j backend + v46k frontend to production and run KMT DPR validation end-to-end.
-- Address "unlimited size" DPR ingestion — remove the 800 KB cap and add background/async worker processing for 100 MB+ / 500+ page files.
+- ~~Deploy v46j backend + v46k frontend to production and run KMT DPR validation end-to-end.~~
+- ~~Address "unlimited size" DPR ingestion~~ — completed.
+- **Deploy v46u to production** — production bundle rebuild + redeploy to pick up bid-submit UX, service-worker crash fix, KYC admin controls, and universal search.
 
 **P1 (open bugs — historical, kept for context)**
 - ✅ Registration wizard step-validation gate between Section A and B/C. — **CLOSED v46p**

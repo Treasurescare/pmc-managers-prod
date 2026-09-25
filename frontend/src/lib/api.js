@@ -314,6 +314,8 @@ export const kycApi = {
   get: (case_id) => api.get(`/api/v1/kyc/${case_id}`).then((r) => r.data),
   listForVendor: (vendor_ref) =>
     api.get(`/api/v1/kyc/vendor/${vendor_ref}`).then((r) => r.data),
+  manual: (vendor_ref, decision, notes = null) =>
+    api.post("/api/v1/kyc/manual", { vendor_ref, decision, notes }).then((r) => r.data),
 };
 
 // ---------- Wave 9: Admin vendor invite + Permissions Matrix ----------
