@@ -216,18 +216,27 @@ function PortalCredentialForm({ portal, nav, t }) {
         if (vr && vr.must_change_password) return nav("/vendor/change-password");
         return nav("/vendor");
       }
-      // staff kinds — always try staff login with the portal role first, then admin
-      try {
-        const r = await staffApi.login(email, password, portal.role, undefined);
-        if (r && !r.mfa_required) {
-          toast.success(`Signed in · ${r.active_role}`);
-          if (["admin", "reviewer"].includes(r.active_role)) return nav("/admin");
-          return nav(portal.goto);
+      // staff kinds — try the portal's own role first, then transparently
+      // fall back to `admin` for every portal so a master admin can sign in
+      // from any portal card (fix v46w).
+      const candidates = [portal.role, "admin"].filter((r, i, a) => a.indexOf(r) === i);
+      for (const roleCandidate of candidates) {
+        try {
+          const r = await staffApi.login(email, password, roleCandidate, undefined);
+          if (r && !r.mfa_required) {
+            toast.success(`Signed in · ${r.active_role}`);
+            if (["admin", "reviewer"].includes(r.active_role)) return nav("/admin");
+            return nav(portal.goto);
+          }
+          if (r && r.mfa_required) {
+            toast.info("MFA required — enter your 2FA code on the admin portal.");
+            return;
+          }
+        } catch (err) {
+          if (process.env.NODE_ENV !== "production") console.debug(`staff login (${roleCandidate}) skipped:`, err?.response?.status);
         }
-      } catch (err) {
-        if (process.env.NODE_ENV !== "production") console.debug("staff login skipped:", err?.response?.status);
       }
-      // fall back to admin cookie realm for admin portal only
+      // Final fallback: legacy admin cookie realm (only useful for the admin card).
       if (portal.id === "admin") {
         try {
           await adminApi.login(email, password);

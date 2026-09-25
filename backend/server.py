@@ -148,6 +148,14 @@ app.add_middleware(CORSMiddleware, allow_methods=["*"], allow_headers=["*"], **_
 
 # ---------- Startup: indexes + seed ----------
 async def _seed_admin() -> None:
+    # v46w — the master admin + owner must hold EVERY executive-tier role so
+    # they can sign in from any of the 5 portal cards (Admin / Management /
+    # Partners / Agents / Vendors). Vendor is a separate collection; the
+    # remaining four map to portal roles below.
+    FULL_ADMIN_ROLES = [
+        "admin", "reviewer", "management", "partner", "agent",
+        "committee_member", "support", "auditor",
+    ]
     for email, pw, name in (
         (config.ADMIN_EMAIL, config.ADMIN_PASSWORD, "PMC Master Admin"),
         (config.OWNER_EMAIL, config.OWNER_PASSWORD, "PMC Owner (Kannan)"),
@@ -159,19 +167,24 @@ async def _seed_admin() -> None:
                 "password_hash": hash_password(pw),
                 "name": name,
                 "role": "admin",
-                "roles": ["admin", "committee_member", "support"],
+                "roles": FULL_ADMIN_ROLES,
                 "hierarchy_level": 10,
                 "tenant_id": config.DEFAULT_TENANT_ID,
                 "is_active": True,
                 "created_at": datetime.now(timezone.utc).isoformat(),
             })
             logging.info(f"Seeded admin {email}")
-        elif not existing.get("roles"):
-            await db.admin_users.update_one(
-                {"_id": existing["_id"]},
-                {"$set": {"roles": [existing.get("role") or "admin"],
-                          "is_active": True}},
-            )
+        else:
+            # Idempotent role backfill — always ensure master admins carry the
+            # full executive role list so v46w's 5-portal login works for them.
+            current = set(existing.get("roles") or [existing.get("role") or "admin"])
+            merged = sorted(current | set(FULL_ADMIN_ROLES))
+            if merged != sorted(current) or not existing.get("is_active", True):
+                await db.admin_users.update_one(
+                    {"_id": existing["_id"]},
+                    {"$set": {"roles": merged, "is_active": True}},
+                )
+                logging.info(f"Backfilled admin roles for {email}: {merged}")
 
 
 async def _seed_staff() -> None:

@@ -31,14 +31,19 @@ export default function MobileLogin() {
   }, []);
 
   const tryDetect = async (email, password) => {
-    // 1. Staff / admin unified endpoint (backend picks the right table)
-    try {
-      const r = await staffApi.login(email, password, role, undefined);
-      if (r && !r.mfa_required) return { kind: "staff", role: r.active_role };
-    } catch (err) {
-      if (process.env.NODE_ENV !== "production") console.debug("mobile staff login skipped:", err?.response?.status);
+    // 1. Staff / admin unified endpoint — try the selected role first, then
+    // transparently fall back to `admin` (fix v46w — mobile users hitting
+    // Management/Partner/Agent chips could otherwise never sign in).
+    const roleCandidates = [role, "admin"].filter((r, i, a) => a.indexOf(r) === i);
+    for (const rc of roleCandidates) {
+      try {
+        const r = await staffApi.login(email, password, rc, undefined);
+        if (r && !r.mfa_required) return { kind: "staff", role: r.active_role };
+      } catch (err) {
+        if (process.env.NODE_ENV !== "production") console.debug(`mobile staff login (${rc}) skipped:`, err?.response?.status);
+      }
     }
-    // 2. Admin-only fallback
+    // 2. Admin-only fallback (legacy cookie realm)
     try {
       await adminApi.login(email, password);
       return { kind: "admin", role: "admin" };
