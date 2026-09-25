@@ -41,8 +41,9 @@ Multi-role procurement & tender platform for PMC Managers Limited: engagements, 
 - Service worker `pmc-shell-v46u`: all fetch branches return a real Response (503/504 fallbacks).
 
 ### Emails
-- Sender switched to `admin@mail.pmcmanagers.com` (v46v). Requires DNS verification of `mail.pmcmanagers.com` in Resend (MX + SPF + DKIM).
+- Sender switched to `admin@mail.pmcmanagers.com` (v46v). Domain **verified in Resend on Sep 25, 2026** (DKIM TXT + `send.mail`/`rsend.mail` CNAMEs to forge.rmta.net; region ap-northeast-1, provider Route 53). Verified live: raw API send → HTTP 200, platform `send_email()` path → True.
 - Legacy `emergentmails.com` relay removed from the code path; only Resend is used.
+- ⚠️ EB env-var caveat: if `EMAIL_FROM_ADDRESS` is explicitly set on Elastic Beanstalk to the unverified root `admin@pmcmanagers.com`, it overrides the code default — must be updated to `admin@mail.pmcmanagers.com` or removed.
 
 ## Test credentials
 See `/app/memory/test_credentials.md`.
