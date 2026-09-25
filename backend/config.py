@@ -61,13 +61,18 @@ STAFF_SEEDS = [
     ("committee@pmcmanagers.com","Bid@1234",   "Committee Chair", ["committee_member", "admin"]),
 ]
 
-# Email (Resend via Emergent managed proxy)
+# Email — direct Resend path (preferred) or legacy relay fallback.
+# When RESEND_API_KEY is set, mail goes straight to Resend's API and sends from
+# EMAIL_FROM_ADDRESS on the verified pmcmanagers.com domain. Otherwise the
+# legacy relay key path is used.
 EMAIL_KEY = os.environ.get("EMERGENT_EMAIL_KEY", "") \
             or os.environ.get("EMAIL_API_KEY", "") \
             or os.environ.get("LEGACY_EMAIL_KEY", "")
 EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME", "PMC Managers Limited")
 EMAIL_REPLY_TO = os.environ.get("EMAIL_REPLY_TO", "")
-# Base URL is a CONSTANT per the Emergent playbook — do NOT read from env.
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
+EMAIL_FROM_ADDRESS = os.environ.get("EMAIL_FROM_ADDRESS", "admin@pmcmanagers.com")
+# Base URL is a CONSTANT per the relay playbook — do NOT read from env.
 EMAIL_BASE_URL = "https://integrations.emergentagent.com"
 
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")

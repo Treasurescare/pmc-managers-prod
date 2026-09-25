@@ -152,6 +152,9 @@ export default function VendorsPanel() {
           description: `Vendor ref ${r.vendor_ref} can now sign in`,
         });
       }
+      // The activated vendor no longer matches "pending"/"inactive" filters —
+      // reset to "all" so the row stays visible instead of appearing to vanish.
+      setStatusFilter("all");
       load(v.vendor_ref);
     } catch (e) { showApiError(e); }
     finally { setActivatingRef(null); }

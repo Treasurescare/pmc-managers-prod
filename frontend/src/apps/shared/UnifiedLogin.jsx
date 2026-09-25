@@ -289,7 +289,7 @@ function PortalCredentialForm({ portal, nav, t }) {
       </button>
 
       <div className="text-[11px] font-mono uppercase tracking-[0.2em] text-white/40 pt-3 border-t border-white/10">
-        Session secured · TLS 1.3 · Emergent audit log
+        Session secured · TLS 1.3 · Full audit log
       </div>
     </form>
   );
@@ -312,7 +312,7 @@ function PortalSideRail({ portal, onBack, onForgot }) {
       <div className="mt-8 space-y-2 text-[13px] text-white/80">
         <Bullet>Role-scoped dashboards & permissions</Bullet>
         <Bullet>Encrypted session cookie, per-portal audit trail</Bullet>
-        <Bullet>Emergent Multi-Factor when configured</Bullet>
+        <Bullet>Multi-factor authentication when configured</Bullet>
       </div>
 
       <div className="mt-8 pt-5 border-t border-white/10 text-[11px] text-white/50 space-y-2">

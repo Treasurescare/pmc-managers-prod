@@ -116,7 +116,7 @@ export default function AnalyticsPanel() {
           <button onClick={runAnomaly} data-testid="anomaly-run"
             className="px-4 py-2 text-[11px] uppercase tracking-widest bg-brand-navy text-white">
             {tt("panels.analytics.run_ai_check")}
-            <InfoDot tip="Runs Emergent LLM copilot: compares bid price to peer distribution and vendor's history to flag potential collusion or dumping." />
+            <InfoDot tip="Runs the AI copilot: compares bid price to peer distribution and vendor's history to flag potential collusion or dumping." />
           </button>
         </div>
         {anomaly && (
