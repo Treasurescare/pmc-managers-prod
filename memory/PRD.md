@@ -59,6 +59,8 @@ See `/app/memory/test_credentials.md`.
 - Zoom bid-opening auto-scheduling polish.
 
 ## Deployment ledger
-- v46v (Feb 2026) — vendor first-login redirect fix + Resend sender switch to `mail.pmcmanagers.com`.
+- v46x (Sep 2026) — axios 20s timeout (no more silent "VERIFYING…" hangs), SW cache bumped to `pmc-shell-v46x` (evicts all stale caches on activate). Frontend-only patch on top of v46w. Diagnosed prod outage: S3 missing `static/` folder + user browser stuck on 2024-era service worker → recovery playbook in `RECOVER_v46w_BLANK_SCREEN.md`.
+- v46w (Sep 2026) — all 5 portals authenticate (admin/owner backfilled with full executive roles; frontend falls back portal-role → admin).
+- v46v — vendor first-login redirect fix + Resend sender switch to `mail.pmcmanagers.com`.
 - v46u — universal search bars, dashboard drill-through, KYC admin controls, SW crash fix.
 - v46t and earlier — see `/app/frontend/public/downloads/DOWNLOAD_v46*.md`.

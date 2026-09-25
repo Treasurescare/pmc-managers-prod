@@ -9,6 +9,9 @@ export const api = axios.create({
   baseURL: BACKEND_URL,
   withCredentials: true,
   headers: { "Content-Type": "application/json" },
+  // v46x — never let a request hang forever (a stale service worker once
+  // swallowed POST /api/* responses and left the UI stuck on "Verifying…").
+  timeout: 20000,
 });
 
 function readCookie(name) {
