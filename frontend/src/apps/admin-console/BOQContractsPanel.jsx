@@ -15,6 +15,7 @@ export default function BOQContractsPanel() {
   const [tmplDraft, setTmplDraft] = useState({ name: "", notice_ref: "", currency: "USD" });
   const [selectedTmpl, setSelectedTmpl] = useState(null);
   const [showNewContract, setShowNewContract] = useState(false);
+  const [search, setSearch] = useState("");
   const [contractDraft, setContractDraft] = useState({
     notice_ref: "", bid_id: "", vendor_id: "", title: "", value: 0,
     currency: "USD", start_date: "", end_date: "",
@@ -35,17 +36,24 @@ export default function BOQContractsPanel() {
 
   return (
     <div data-testid="admin-boq-panel">
-      <div className="flex gap-2 mb-4 border-b">
+      <div className="flex gap-2 mb-4 border-b items-center">
         {[["boq", t("panels.boq.tab_boq")], ["contracts", t("panels.boq.tab_contracts")]].map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)}
             className={`px-4 py-2 text-xs uppercase tracking-widest ${tab === k ? "border-b-2 border-brand-navy font-semibold" : "text-slate-500"}`}
             data-testid={`boq-tab-${k}`}>{l}</button>
         ))}
+        <input value={search} onChange={(e) => setSearch(e.target.value)}
+          placeholder={tab === "boq" ? "Search templates by name or notice ref…" : "Search contracts by title or notice ref…"}
+          data-testid="boq-search"
+          className="ml-auto mb-1 px-3 py-1.5 border border-brand-navy/20 text-sm bg-white min-w-[240px]" />
       </div>
 
       {tab === "boq" && (
         <BOQTemplatesTab
-          templates={templates}
+          templates={(() => { const q = search.trim().toLowerCase(); return q
+            ? templates.filter((x) => (x.name || "").toLowerCase().includes(q)
+                || (x.notice_ref || "").toLowerCase().includes(q))
+            : templates; })()}
           showNewTmpl={showNewTmpl} setShowNewTmpl={setShowNewTmpl}
           tmplDraft={tmplDraft} setTmplDraft={setTmplDraft}
           selectedTmpl={selectedTmpl} setSelectedTmpl={setSelectedTmpl}
@@ -55,7 +63,12 @@ export default function BOQContractsPanel() {
 
       {tab === "contracts" && (
         <ContractsTab
-          contracts={contracts} awardedBids={awardedBids}
+          contracts={(() => { const q = search.trim().toLowerCase(); return q
+            ? contracts.filter((c) => (c.title || "").toLowerCase().includes(q)
+                || (c.notice_ref || "").toLowerCase().includes(q)
+                || (c.vendor_name || "").toLowerCase().includes(q))
+            : contracts; })()}
+          awardedBids={awardedBids}
           showNewContract={showNewContract} setShowNewContract={setShowNewContract}
           contractDraft={contractDraft} setContractDraft={setContractDraft}
           onReload={load}

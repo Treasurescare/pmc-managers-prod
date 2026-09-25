@@ -307,12 +307,18 @@ export default function ProductCatalogPanel() {
   useEffect(() => { reload(); }, [reload]);
 
   const categories = useMemo(() => Array.from(new Set(items.map((i) => i.category).filter(Boolean))).sort(), [items]);
+  const [search, setSearch] = useState("");
 
   const filtered = useMemo(() => items.filter((i) => {
     if (sideFilter !== "all" && i.side !== sideFilter && i.side !== "both") return false;
     if (categoryFilter !== "all" && i.category !== categoryFilter) return false;
+    const q = search.trim().toLowerCase();
+    if (q && !((i.name || "").toLowerCase().includes(q)
+        || (i.code || "").toLowerCase().includes(q)
+        || (i.category || "").toLowerCase().includes(q)
+        || (i.description || "").toLowerCase().includes(q))) return false;
     return true;
-  }), [items, sideFilter, categoryFilter]);
+  }), [items, sideFilter, categoryFilter, search]);
 
   const toggleActive = async (p) => {
     try {
@@ -383,6 +389,10 @@ export default function ProductCatalogPanel() {
           <option value="all">All categories</option>
           {categories.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
+        <input value={search} onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by code, name or category…"
+          data-testid="catalog-search"
+          className="flex-1 min-w-[200px] px-3 py-1 border border-brand-navy/20 text-sm bg-white" />
       </div>
 
       {loading ? (

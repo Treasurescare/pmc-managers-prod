@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { analyticsApi, bidApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
@@ -7,6 +8,8 @@ import { InfoDot } from "@/components/InfoDot";
 
 export default function AnalyticsPanel() {
   const { t: tt } = useI18n();
+  const nav = useNavigate();
+  const go = (tab) => nav(`/admin?tab=${tab}`);
   const [data, setData] = useState(null);
   const [anomaly, setAnomaly] = useState(null);
   const [bidId, setBidId] = useState("");
@@ -38,18 +41,22 @@ export default function AnalyticsPanel() {
       <DashboardDrillCards />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          [tt("panels.analytics.kpi_published_notices"), t.published_notices, "/" + t.notices],
-          [tt("panels.analytics.kpi_vendors"), t.vendors, ""],
-          [tt("panels.analytics.kpi_bids"), t.bids, ""],
-          [tt("panels.analytics.kpi_awarded"), t.awarded, ""],
-          [tt("panels.analytics.kpi_pending_emd"), t.pending_emd, ""],
-          [tt("panels.analytics.kpi_emd_collected"), (t.emd_collected || 0).toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }), ""],
-          [tt("panels.analytics.kpi_active_contracts"), t.active_contracts, ""],
-        ].map(([label, val, suf]) => (
-          <div key={label} className="bg-white border p-4" data-testid={`kpi-${label.toLowerCase().replace(/ /g, "-")}`}>
-            <div className="text-xs text-slate-500 uppercase tracking-widest">{label}</div>
+          [tt("panels.analytics.kpi_published_notices"), t.published_notices, "/" + t.notices, "notices"],
+          [tt("panels.analytics.kpi_vendors"), t.vendors, "", "vendors"],
+          [tt("panels.analytics.kpi_bids"), t.bids, "", "bidding"],
+          [tt("panels.analytics.kpi_awarded"), t.awarded, "", "awards"],
+          [tt("panels.analytics.kpi_pending_emd"), t.pending_emd, "", "escrow"],
+          [tt("panels.analytics.kpi_emd_collected"), (t.emd_collected || 0).toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 }), "", "billing"],
+          [tt("panels.analytics.kpi_active_contracts"), t.active_contracts, "", "boq"],
+        ].map(([label, val, suf, target]) => (
+          <button key={label} type="button" onClick={() => go(target)}
+            title={`Open ${label}`}
+            className="bg-white border p-4 text-left cursor-pointer transition-colors hover:border-brand-navy hover:bg-brand-navy/5 group"
+            data-testid={`kpi-${label.toLowerCase().replace(/ /g, "-")}`}>
+            <div className="text-xs text-slate-500 uppercase tracking-widest group-hover:text-brand-navy">{label}</div>
             <div className="text-2xl font-serif mt-1">{val ?? "—"}<span className="text-xs text-slate-400">{suf}</span></div>
-          </div>
+            <div className="text-[10px] uppercase tracking-widest text-brand-navy/0 group-hover:text-brand-navy-soft mt-1 transition-colors">Open →</div>
+          </button>
         ))}
       </div>
 
@@ -60,10 +67,13 @@ export default function AnalyticsPanel() {
             steps and let labels wrap. */}
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 text-xs">
           {Object.entries(data.funnel || {}).map(([k, v]) => (
-            <div key={k} className="border p-2 text-center min-w-0">
+            <button key={k} type="button" onClick={() => go("bidding")}
+              title="Open bid pipeline"
+              className="border p-2 text-center min-w-0 cursor-pointer hover:border-brand-navy hover:bg-brand-navy/5 transition-colors"
+              data-testid={`funnel-stage-btn-${k}`}>
               <div className="text-slate-500 break-words leading-tight" data-testid={`funnel-stage-${k}`}>{k}</div>
               <div className="text-lg mt-1">{v}</div>
-            </div>
+            </button>
           ))}
         </div>
       </div>
@@ -77,7 +87,9 @@ export default function AnalyticsPanel() {
           </thead>
           <tbody>
             {data.top_bids?.map((b) => (
-              <tr key={b.bid_ref} className="border-t">
+              <tr key={b.bid_ref} className="border-t cursor-pointer hover:bg-brand-navy/5"
+                onClick={() => go("bidding")} title="Open bid pipeline"
+                data-testid={`top-bid-row-${b.bid_ref}`}>
                 <td className="py-1 font-mono text-xs">{b.bid_ref}</td>
                 <td className="py-1">{b.vendor}</td>
                 <td className="py-1 text-right">{(b.price || 0).toLocaleString()}</td>

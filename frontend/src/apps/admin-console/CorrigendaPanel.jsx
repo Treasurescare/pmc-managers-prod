@@ -11,6 +11,8 @@ export default function CorrigendaPanel() {
   const [pickedNoticeRef, setPickedNoticeRef] = useState("");
   const [items, setItems] = useState([]);
   const [showNew, setShowNew] = useState(false);
+  const [noticeSearch, setNoticeSearch] = useState("");
+  const [corrSearch, setCorrSearch] = useState("");
   const [draft, setDraft] = useState({
     title: "", summary: "", effective_from: "", new_submission_deadline: "",
   });
@@ -83,12 +85,23 @@ export default function CorrigendaPanel() {
 
       <label className="block mb-4">
         <span className="pmc-label">{t("panels.corrigenda.notice_label")}<InfoDot tip="Pick the parent notice to which the corrigendum applies. All published corrigenda are attached to this notice's public page." /></span>
+        <input value={noticeSearch} onChange={(e) => setNoticeSearch(e.target.value)}
+          placeholder="Search notices by ref or title…"
+          data-testid="corr-notice-search"
+          className="mt-1 mb-2 w-full px-4 py-2 border border-brand-navy/20 text-sm" />
         <select value={pickedNoticeRef} onChange={(e) => setPickedNoticeRef(e.target.value)}
                 data-testid="corr-notice-picker"
                 className="mt-1 w-full px-4 py-3 border border-brand-navy/20">
-          {notices.map((n) => (
-            <option key={n.id} value={n.notice_ref}>{n.notice_ref} — {n.title}</option>
-          ))}
+          {(() => {
+            const q = noticeSearch.trim().toLowerCase();
+            const list = q ? notices.filter((n) =>
+              (n.notice_ref || "").toLowerCase().includes(q)
+              || (n.title || "").toLowerCase().includes(q)) : notices;
+            if (list.length === 0) return <option value="">No matches</option>;
+            return list.map((n) => (
+              <option key={n.id} value={n.notice_ref}>{n.notice_ref} — {n.title}</option>
+            ));
+          })()}
         </select>
       </label>
 
@@ -125,8 +138,13 @@ export default function CorrigendaPanel() {
       )}
 
       {(() => {
-        const active = items.filter((c) => c.is_active);
-        const withdrawn = items.filter((c) => !c.is_active);
+        const q = corrSearch.trim().toLowerCase();
+        const visible = q ? items.filter((c) =>
+          (c.title || "").toLowerCase().includes(q)
+          || (c.summary || "").toLowerCase().includes(q)
+          || String(c.corrigendum_no || "").includes(q)) : items;
+        const active = visible.filter((c) => c.is_active);
+        const withdrawn = visible.filter((c) => !c.is_active);
         const renderRow = (c) => (
           <div key={c.id}
                className={`p-4 border-b border-brand-navy/10 ${c.is_active ? "" : "bg-slate-50"}`}
@@ -168,6 +186,10 @@ export default function CorrigendaPanel() {
         );
         return (
           <>
+            <input value={corrSearch} onChange={(e) => setCorrSearch(e.target.value)}
+              placeholder="Search corrigenda by number, title or summary…"
+              data-testid="corr-search"
+              className="w-full mb-3 px-4 py-2 border border-brand-navy/20 text-sm bg-white" />
             <div className="pmc-label mb-2" data-testid="corr-section-active">
               Active corrigenda ({active.length})
             </div>

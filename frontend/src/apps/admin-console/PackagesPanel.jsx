@@ -21,6 +21,7 @@ export default function PackagesPanel() {
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const [showNew, setShowNew] = useState(false);
+  const [search, setSearch] = useState("");
   const [newDraft, setNewDraft] = useState({ title: "", category: "", phase: "", value: "", float_target_date: "", status: "backlog" });
 
   const load = useCallback(() => {
@@ -33,7 +34,12 @@ export default function PackagesPanel() {
   useEffect(() => { load(); }, [load]);
 
   const grouped = COLUMNS.reduce((acc, col) => {
-    acc[col.code] = packages.filter((p) => p.status === col.code);
+    const q = search.trim().toLowerCase();
+    const visible = q ? packages.filter((p) =>
+      (p.title || "").toLowerCase().includes(q)
+      || (p.category || "").toLowerCase().includes(q)
+      || (p.phase || "").toLowerCase().includes(q)) : packages;
+    acc[col.code] = visible.filter((p) => p.status === col.code);
     return acc;
   }, {});
 
@@ -107,6 +113,10 @@ export default function PackagesPanel() {
           {loading ? "Loading packages…" : `${packages.length} packages in pipeline · drag cards between columns to move status`}
         </div>
         <div className="flex items-center gap-2">
+          <input value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search packages by title, category or phase…"
+            data-testid="pkg-search"
+            className="px-3 py-2 border border-brand-navy/20 text-sm bg-white min-w-[220px]" />
           <label data-testid="pkg-import-label"
             className={"px-4 py-2 text-[11px] font-semibold uppercase tracking-widest border border-brand-navy/20 text-brand-navy bg-white hover:border-brand-navy-soft/60 cursor-pointer " + (importing ? "opacity-50" : "")}>
             {importing ? "Importing…" : "Import CSV"}
