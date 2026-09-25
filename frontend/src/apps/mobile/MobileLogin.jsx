@@ -47,8 +47,8 @@ export default function MobileLogin() {
     }
     // 3. Vendor
     try {
-      await vendorApi.login(email, password);
-      return { kind: "vendor", role: "vendor" };
+      const vr = await vendorApi.login(email, password);
+      return { kind: "vendor", role: "vendor", must_change_password: !!vr?.must_change_password };
     } catch (err) {
       if (process.env.NODE_ENV !== "production") console.debug("mobile vendor login skipped:", err?.response?.status);
     }
@@ -63,7 +63,10 @@ export default function MobileLogin() {
       const who = await tryDetect(email, password);
       await saveSecure("pmc.lastEmail", email);
       toast.success(`Signed in as ${who.role}`);
-      if (who.kind === "vendor") return nav("/vendor");
+      if (who.kind === "vendor") {
+        if (who.must_change_password) return nav("/vendor/change-password");
+        return nav("/vendor");
+      }
       if (who.kind === "admin" || ["admin", "reviewer"].includes(who.role)) return nav("/admin");
       return nav("/staff");
     } catch (err) {

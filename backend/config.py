@@ -71,7 +71,7 @@ EMAIL_KEY = os.environ.get("EMERGENT_EMAIL_KEY", "") \
 EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME", "PMC Managers Limited")
 EMAIL_REPLY_TO = os.environ.get("EMAIL_REPLY_TO", "")
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
-EMAIL_FROM_ADDRESS = os.environ.get("EMAIL_FROM_ADDRESS", "admin@pmcmanagers.com")
+EMAIL_FROM_ADDRESS = os.environ.get("EMAIL_FROM_ADDRESS", "admin@mail.pmcmanagers.com")
 # Base URL is a CONSTANT per the relay playbook — do NOT read from env.
 EMAIL_BASE_URL = "https://integrations.emergentagent.com"
 

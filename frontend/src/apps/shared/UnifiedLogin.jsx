@@ -211,8 +211,9 @@ function PortalCredentialForm({ portal, nav, t }) {
     setBusy(true);
     try {
       if (portal.kind === "vendor") {
-        await vendorApi.login(email, password);
+        const vr = await vendorApi.login(email, password);
         toast.success("Signed in · vendor");
+        if (vr && vr.must_change_password) return nav("/vendor/change-password");
         return nav("/vendor");
       }
       // staff kinds — always try staff login with the portal role first, then admin
