@@ -14,6 +14,10 @@ Build and operate PMC Managers Limited (pmcmanagers.com), a multi-role procureme
 
 - **v46u KYC admin controls + universal search (P1)** — new `POST /api/v1/kyc/manual` endpoint lets admins override a vendor's KYC status (verified / pending / rejected) with an audit row per change. VendorsPanel: added a KYC controls block on the selected vendor's KPI panel with **Run KYC provider**, **Mark verified**, **Mark pending**, **Mark rejected** buttons and a colored current-status pill. `RegistrationsPanel` and `VendorIntelPanel` now each have a search input (`reg-search` / `vintel-search`) that filters by company/email/reference — matching the existing `VendorsPanel` search UX. E2E verified via curl: admin login → `/api/v1/kyc/manual` → vendor kyc_status set to `verified` → vendor successfully created bid `PMC-BID-2026-00018` on PMC-NOT-2026-0013.
 
+## Implemented (as of 2026-09-25 pm3 — v46u production bundles built)
+
+- **v46u production bundles staged** — `pmc-frontend-v46u-prod-build.zip` (2.3 MB, same-origin build, zero preview-URL hits in app code, `/downloads/` excluded per S3-sync convention, SW cache `pmc-shell-v46u`) and `pmc-backend-v46u.zip` (288 KB, Dockerfile + Dockerrun + .platform/nginx + backend incl. new `kyc.py /manual` endpoint and `push.py`; no `.env` inside). Manifest: `DOWNLOAD_v46u.md` with EB + S3/CloudFront deploy steps. Awaiting user upload to AWS.
+
 ## Implemented (as of 2026-09-25 pm2 — v46u clickable dashboard + procurement-wide search)
 
 - **Dashboard KPI tiles now drill through (P1)** — every tile in `AnalyticsPanel.jsx` (Published notices, Vendors, Bids, Awarded, Pending EMD, EMD collected, Active contracts) is now a button navigating to its owning tab (`?tab=notices/vendors/bidding/awards/escrow/billing/boq`). Pipeline-funnel stage boxes and Top-priced-bids rows also click through to the bid pipeline. Verified: Published-notices tile → Notices tab; `emd_paid` funnel stage → Bidding tab.
