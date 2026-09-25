@@ -61,7 +61,7 @@ See `/app/memory/test_credentials.md`.
 - Zoom automated bid-opening session scheduler.
 
 ## Deployment ledger
-- v46x (Sep 2026) — axios 20s timeout, SW cache bumped to `pmc-shell-v46x`.
+- v46x (Sep 2026) — axios 20s timeout, SW cache bumped to `pmc-shell-v46x`. **Deployed to production Sep 25** and verified live: index.html → `main.a89672e6.js` serves as JS, SW serves `pmc-shell-v46x`, vendor login → change-password redirect confirmed via real browser test on pmcmanagers.com.
 - v46w (Sep 2026) — all 5 portals authenticate, Resend DNS routing guide, EB env properties wired.
 - v46v (Sep 2026) — vendor first-login redirect fix + Resend sender switch.
 - v46u and earlier — see `/app/frontend/public/downloads/DOWNLOAD_v46*.md`.
