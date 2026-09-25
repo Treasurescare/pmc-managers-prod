@@ -14,6 +14,8 @@ Build and operate PMC Managers Limited (pmcmanagers.com), a multi-role procureme
 
 ## Implemented (as of 2026-09-25 — v46u bid-submit UX + SW crash fix)
 
+- **v46u KYC/EMD verification pass** — test vendor `manualvendor@pmcmanagers.com` had no KYC record (kyc: None) so every bid returned 412; marked `kyc.status=verified` in preview DB. Full chain verified via curl: bid create on PMC-NOT-2026-0014 → `PMC-BID-2026-00016` (EMD USD 10,500) → Stripe checkout URL generated (test mode) → bid withdrawn to free the slot. EMD payment pipeline is functional.
+
 - **v46u Bid-submit silent-failure fix (P0)** — root cause: notice `PMC-NOT-2026-0020` deadline (2026-05-07) had passed and the vendor already held an active bid; backend correctly returned 400/409 but the page only showed a fleeting toast. `BidSubmit.jsx` now: shows a persistent red inline banner when the deadline has passed and disables the submit button ("Deadline passed"); renders any API error inline under the form (`bid-submit-error` testid) in addition to the toast; strips partially-uploaded documents from the payload (eliminates the 422 "Field required ×6" regression); upload guard refuses to push docs without a storage key. Verified in preview via Playwright: banner visible, button disabled.
 - **v46u Service worker crash fix** — `TypeError: Failed to convert value to 'Response'` eliminated; navigate + static-asset branches now always resolve to a real Response (503/504 fallbacks). Cache bumped to `pmc-shell-v46u`.
 - **v46t lint unblock** — missing `EnablePushButton` import added in `TopBar.jsx`; oxlint 0 errors.
