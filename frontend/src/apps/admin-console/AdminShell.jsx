@@ -184,6 +184,20 @@ export default function AdminShell({ tab, setTab, header, children }) {
               {GROUPS.flatMap((g) => g.tabs).find(([c]) => c === tab)?.[1] || "Admin"}
             </div>
             <div className="flex-1" />
+            {/* Floating "Help for this page" pill — routes to the Help tab and
+                pre-filters the search to the current section for a fast jump. */}
+            {tab !== "help" && (
+              <button type="button"
+                onClick={() => { try { sessionStorage.setItem("pmc.help.jumpTo", tab); } catch {}; setTab("help"); }}
+                data-testid="admin-help-pill"
+                title={`Help for ${GROUPS.flatMap((g) => g.tabs).find(([c]) => c === tab)?.[1] || "this page"}`}
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 border border-brand-navy/20 text-brand-navy text-[11px] uppercase tracking-widest hover:bg-brand-navy hover:text-white transition-colors">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="9"/><path d="M12 17h.01"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3v2.2"/>
+                </svg>
+                Help
+              </button>
+            )}
             {header}
           </div>
         </header>

@@ -14,6 +14,19 @@ Build and operate PMC Managers Limited (pmcmanagers.com), a multi-role procureme
 
 - **v46u KYC admin controls + universal search (P1)** — new `POST /api/v1/kyc/manual` endpoint lets admins override a vendor's KYC status (verified / pending / rejected) with an audit row per change. VendorsPanel: added a KYC controls block on the selected vendor's KPI panel with **Run KYC provider**, **Mark verified**, **Mark pending**, **Mark rejected** buttons and a colored current-status pill. `RegistrationsPanel` and `VendorIntelPanel` now each have a search input (`reg-search` / `vintel-search`) that filters by company/email/reference — matching the existing `VendorsPanel` search UX. E2E verified via curl: admin login → `/api/v1/kyc/manual` → vendor kyc_status set to `verified` → vendor successfully created bid `PMC-BID-2026-00018` on PMC-NOT-2026-0013.
 
+## Implemented (as of 2026-09-25 pm — v46u universal filters + help pill + LiveAuctions crash fix)
+
+- **Reverse Auctions crash fix (P0)** — `LiveAuctionsPanel.jsx` referenced `publicApi.listNotices` without importing `publicApi`; ReferenceError bubbled up to the panel error boundary ("This panel hit an error"). Added the missing import.
+- **Universal filter + search rollout** across:
+  - **Live Auctions** — status filter (All / Draft / Live / Closed) + free-text search by title or notice ref.
+  - **Engagements** — existing status filter kept; added search on product, buyer email, buyer company.
+  - **Billing transactions** — new status filter (All / Paid / Unpaid / Refunded) + search on buyer, product code, session id, context ref.
+  - **Awards** — search bar above the awarded-bid picker (filters bids by bid_ref, company, vendor email, award_ref, notice_ref).
+  - **DocuSign** — envelope log now has status filter (All / Sent / Waiting / Signed / Rejected / Voided) + search by ref / signer / email.
+  - **Masters** — universal search bar per data tab (staff, companies, tenants, hierarchy) that filters the visible list live.
+- **Help panel** — sticky search bar and module counter at the top of the left rail (no more scrolling down to search).
+- **Context-help pill** — new "Help" button in the admin top bar on every tab (except Help itself). Clicking it jumps to the Help panel with the search pre-filtered to the tab you were on. Verified end-to-end: pressing Help on Vendors landed on the Help tab with search value = `vendors`.
+
 ## Implemented (as of 2026-09-25 — v46u bid-submit UX + SW crash fix)
 
 - **v46u KYC/EMD verification pass** — test vendor `manualvendor@pmcmanagers.com` had no KYC record (kyc: None) so every bid returned 412; marked `kyc.status=verified` in preview DB. Full chain verified via curl: bid create on PMC-NOT-2026-0014 → `PMC-BID-2026-00016` (EMD USD 10,500) → Stripe checkout URL generated (test mode) → bid withdrawn to free the slot. EMD payment pipeline is functional.

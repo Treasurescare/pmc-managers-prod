@@ -26,6 +26,8 @@ export default function DocuSignPanel() {
   const [busy, setBusy] = useState(false);
   const [signingUrl, setSigningUrl] = useState("");
   const [emailSent, setEmailSent] = useState(false);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [search, setSearch] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -236,8 +238,23 @@ export default function DocuSignPanel() {
 
       <section className="border border-brand-navy/10 bg-white overflow-x-auto"
                data-testid="ds-envelope-list">
-        <div className="pmc-label p-3 border-b border-brand-navy/10">
-          {t("panels.docusign.envelopes")} · {envelopes.length}
+        <div className="p-3 border-b border-brand-navy/10 flex flex-wrap items-center gap-2">
+          <div className="pmc-label">
+            {t("panels.docusign.envelopes")} · {envelopes.length}
+          </div>
+          {[["all","All"],["sent","Sent"],["delivered","Waiting"],["completed","Signed"],["declined","Rejected"],["voided","Voided"]].map(([k,l]) => (
+            <button key={k} type="button" onClick={() => setStatusFilter(k)}
+              data-testid={`ds-filter-${k}`}
+              className={`px-3 py-1 text-[10px] uppercase tracking-widest border ${
+                statusFilter === k ? "bg-brand-navy text-white border-brand-navy"
+                  : "border-brand-navy/20 text-brand-navy/70 hover:border-brand-navy"}`}>
+              {l}
+            </button>
+          ))}
+          <input value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by ref, signer, email…"
+            data-testid="ds-search"
+            className="flex-1 min-w-[200px] px-3 py-1.5 border border-brand-navy/20 text-sm bg-white" />
         </div>
         <table className="w-full text-sm">
           <thead className="text-xs text-brand-navy/60 bg-brand-navy/5">
@@ -252,7 +269,23 @@ export default function DocuSignPanel() {
             </tr>
           </thead>
           <tbody>
-            {envelopes.map((e) => (
+            {(() => {
+              const q = search.trim().toLowerCase();
+              const filtered = envelopes.filter((e) => {
+                const matchStatus = statusFilter === "all" || e.status === statusFilter;
+                const matchSearch = !q
+                  || (e.award_ref || "").toLowerCase().includes(q)
+                  || (e.bid_ref || "").toLowerCase().includes(q)
+                  || (e.signer_name || "").toLowerCase().includes(q)
+                  || (e.signer_email || "").toLowerCase().includes(q);
+                return matchStatus && matchSearch;
+              });
+              if (filtered.length === 0) {
+                return (<tr><td colSpan={7} className="p-6 text-center text-brand-navy/50">
+                  {envelopes.length === 0 ? t("panels.docusign.empty") : "No matches"}
+                </td></tr>);
+              }
+              return filtered.map((e) => (
               <tr key={e.envelope_id} className="border-t border-brand-navy/10"
                   data-testid={`ds-envelope-${e.envelope_id}`}>
                 <td className="px-3 py-2">
@@ -273,12 +306,8 @@ export default function DocuSignPanel() {
                   ) : <span className="text-[10px] text-brand-navy/30">—</span>}
                 </td>
               </tr>
-            ))}
-            {envelopes.length === 0 && (
-              <tr><td colSpan={7} className="p-6 text-center text-brand-navy/50">
-                {t("panels.docusign.empty")}
-              </td></tr>
-            )}
+              ));
+            })()}
           </tbody>
         </table>
       </section>

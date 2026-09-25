@@ -156,6 +156,7 @@ export default function EngagementsPanel() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [search, setSearch] = useState("");
   const [quoting, setQuoting] = useState(null);
 
   const reload = useCallback(async () => {
@@ -187,10 +188,16 @@ export default function EngagementsPanel() {
     } catch (err) { showApiError(err, { fallbackTitle: "Cancel failed" }); }
   };
 
-  const filtered = useMemo(
-    () => (statusFilter === "all" ? items : items.filter((i) => i.status === statusFilter)),
-    [items, statusFilter],
-  );
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return items.filter((i) =>
+      (statusFilter === "all" || i.status === statusFilter)
+      && (!q || (i.product_name || "").toLowerCase().includes(q)
+             || (i.product_code || "").toLowerCase().includes(q)
+             || (i.buyer_email || "").toLowerCase().includes(q)
+             || (i.buyer_company || "").toLowerCase().includes(q))
+    );
+  }, [items, statusFilter, search]);
 
   const counts = useMemo(() => {
     const c = { all: items.length };
@@ -218,6 +225,10 @@ export default function EngagementsPanel() {
             {s === "all" ? t("panels.engagements.filter_all") : s.replace(/_/g, " ")} ({counts[s] || 0})
           </button>
         ))}
+        <input value={search} onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by product, buyer email or company…"
+          data-testid="engagement-search"
+          className="flex-1 min-w-[220px] px-3 py-1.5 border border-brand-navy/20 text-sm bg-white" />
       </div>
 
       {loading ? (

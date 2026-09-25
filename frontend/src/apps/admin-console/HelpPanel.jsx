@@ -12,7 +12,13 @@ export default function HelpPanel() {
   const [data, setData]     = useState(null);
   const [error, setError]   = useState(null);
   const [active, setActive] = useState(null);
-  const [q, setQ]           = useState("");
+  const [q, setQ]           = useState(() => {
+    try {
+      const jump = sessionStorage.getItem("pmc.help.jumpTo");
+      if (jump) { sessionStorage.removeItem("pmc.help.jumpTo"); return jump; }
+    } catch {}
+    return "";
+  });
 
   useEffect(() => {
     api.get("/api/v1/meta/help")
@@ -62,13 +68,16 @@ export default function HelpPanel() {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[4fr_8fr]" data-testid="admin-help-panel">
-      <aside>
-        <input
-          type="search" value={q} onChange={(e) => setQ(e.target.value)}
-          placeholder="Search modules or actions…"
-          data-testid="help-search"
-          className="w-full px-3 py-2 border border-brand-navy/20 text-sm bg-white mb-3"
-        />
+      <aside className="lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+        <div className="sticky top-0 bg-brand-pale/95 backdrop-blur pb-2 z-10">
+          <input
+            type="search" value={q} onChange={(e) => setQ(e.target.value)}
+            placeholder="Search modules or actions…"
+            data-testid="help-search"
+            className="w-full px-3 py-2 border border-brand-navy/20 text-sm bg-white"
+          />
+          <div className="text-[10px] text-brand-navy/50 mt-1">{filtered.length} of {Object.keys(modules).length} modules</div>
+        </div>
         {Object.entries(bySurface).map(([surface, items]) => (
           <div key={surface} className="mb-4">
             <div className="pmc-label mb-1 uppercase">{surface}</div>

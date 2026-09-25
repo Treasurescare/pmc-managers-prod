@@ -25,6 +25,7 @@ export default function AwardsPanel() {
   const [signerEmail, setSignerEmail] = useState("");
   const [signDelivery, setSignDelivery] = useState("email");
   const [signBusy, setSignBusy] = useState(false);
+  const [bidSearch, setBidSearch] = useState("");
 
   const loadBids = useCallback(() => {
     bidApi.listAll({ status: "awarded" }).then((rows) => {
@@ -137,15 +138,30 @@ export default function AwardsPanel() {
 
       <label className="block mb-4">
         <span className="pmc-label">{t("panels.awards.awarded_bid")}<InfoDot tip="Only bids that reached Awarded state are eligible. Selecting a bid loads its auto-generated PO / SLA / Contract PDFs." /></span>
+        <input value={bidSearch} onChange={(e) => setBidSearch(e.target.value)}
+          placeholder="Search by bid ref, vendor or award ref…"
+          data-testid="awards-bid-search"
+          className="mt-1 mb-2 w-full px-4 py-2 border border-brand-navy/20 text-sm" />
         <select value={pickedBidId} onChange={(e) => setPickedBidId(e.target.value)}
                 data-testid="awards-bid-picker"
                 className="mt-1 w-full px-4 py-3 border border-brand-navy/20">
-          {awardedBids.length === 0 && <option value="">{t("panels.awards.no_awarded_bids")}</option>}
-          {awardedBids.map((b) => (
-            <option key={b.id} value={b.id}>
-              {b.bid_ref} · {b.company_name || b.vendor_email} · {b.award_ref || b.notice_ref}
-            </option>
-          ))}
+          {(() => {
+            const q = bidSearch.trim().toLowerCase();
+            const list = q
+              ? awardedBids.filter((b) =>
+                  (b.bid_ref || "").toLowerCase().includes(q)
+                  || (b.company_name || "").toLowerCase().includes(q)
+                  || (b.vendor_email || "").toLowerCase().includes(q)
+                  || (b.award_ref || "").toLowerCase().includes(q)
+                  || (b.notice_ref || "").toLowerCase().includes(q))
+              : awardedBids;
+            if (list.length === 0) return <option value="">{q ? "No matches" : t("panels.awards.no_awarded_bids")}</option>;
+            return list.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.bid_ref} · {b.company_name || b.vendor_email} · {b.award_ref || b.notice_ref}
+              </option>
+            ));
+          })()}
         </select>
       </label>
 

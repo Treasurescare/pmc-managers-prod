@@ -10,6 +10,8 @@ import { feeBillingApi, showApiError } from "@/lib/api";
 export default function BillingTransactionsPanel() {
   const [rows, setRows]     = useState([]);
   const [busy, setBusy]     = useState(null);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [search, setSearch] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -47,6 +49,21 @@ export default function BillingTransactionsPanel() {
           Refresh
         </button>
       </div>
+      <div className="mb-3 flex flex-wrap items-center gap-2" data-testid="btp-filter-bar">
+        {[["all","All"],["paid","Paid"],["unpaid","Unpaid"],["refunded","Refunded"]].map(([k,l]) => (
+          <button key={k} type="button" onClick={() => setStatusFilter(k)}
+            data-testid={`btp-filter-${k}`}
+            className={`px-3 py-1 text-[11px] uppercase tracking-widest border ${
+              statusFilter === k ? "bg-brand-navy text-white border-brand-navy"
+                : "border-brand-navy/20 text-brand-navy/70 hover:border-brand-navy"}`}>
+            {l}
+          </button>
+        ))}
+        <input value={search} onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search buyer, product, session…"
+          data-testid="btp-search"
+          className="flex-1 min-w-[220px] px-3 py-1.5 border border-brand-navy/20 text-sm bg-white" />
+      </div>
       <div className="bg-white border">
         <div className="w-full overflow-x-auto">
           <table className="w-full text-sm min-w-[860px]">
@@ -62,7 +79,27 @@ export default function BillingTransactionsPanel() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {(() => {
+                const q = search.trim().toLowerCase();
+                const filtered = rows.filter((r) => {
+                  const status = (r.payment_status || r.status || "").toLowerCase();
+                  const matchStatus = statusFilter === "all"
+                    || (statusFilter === "paid" && status === "paid")
+                    || (statusFilter === "refunded" && status === "refunded")
+                    || (statusFilter === "unpaid" && !["paid","refunded"].includes(status));
+                  const matchSearch = !q
+                    || (r.buyer_email || "").toLowerCase().includes(q)
+                    || (r.product_code || "").toLowerCase().includes(q)
+                    || (r.session_id || "").toLowerCase().includes(q)
+                    || (r.context_ref || "").toLowerCase().includes(q);
+                  return matchStatus && matchSearch;
+                });
+                if (filtered.length === 0) {
+                  return (<tr><td colSpan={7} className="p-6 text-center text-slate-500">
+                    {rows.length === 0 ? "No transactions yet." : "No matches"}
+                  </td></tr>);
+                }
+                return filtered.map((r) => (
                 <tr key={r.id} className="border-t align-top" data-testid={`btp-row-${r.session_id}`}>
                   <td className="px-3 py-2 font-mono text-[10px] max-w-[180px]"><div className="truncate">{r.session_id}</div></td>
                   <td className="px-3 py-2 text-xs">
@@ -97,8 +134,9 @@ export default function BillingTransactionsPanel() {
                     )}
                   </td>
                 </tr>
-              ))}
-              {rows.length === 0 && (
+                ));
+              })()}
+              {false && rows.length === 0 && (
                 <tr><td colSpan={7} className="p-6 text-center text-slate-500">No transactions yet.</td></tr>
               )}
             </tbody>

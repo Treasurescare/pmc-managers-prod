@@ -12,6 +12,7 @@ import { InfoDot } from "@/components/InfoDot";
 export default function MastersPanel() {
   const { t } = useI18n();
   const [tab, setTab] = useState("staff");
+  const [search, setSearch] = useState("");
   const [staff, setStaff] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [matrices, setMatrices] = useState([]);
@@ -111,15 +112,27 @@ export default function MastersPanel() {
     <div data-testid="admin-masters-panel">
       <div className="flex gap-2 mb-4 border-b">
         {[["staff", t("panels.masters.tab_staff")], ["companies", t("panels.masters.tab_companies")], ["tenants", t("panels.masters.tab_tenants")], ["matrix", t("panels.masters.tab_matrix")], ["hierarchy", t("panels.masters.tab_hierarchy")], ["rating", "Rating & Fees"], ["fees", "Charge Fee"], ["demo", "Investor Demo"]].map(([k, l]) => (
-          <button key={k} onClick={() => setTab(k)}
+          <button key={k} onClick={() => { setTab(k); setSearch(""); }}
             className={`px-4 py-2 text-xs uppercase tracking-widest ${tab === k ? "border-b-2 border-brand-navy font-semibold" : "text-slate-500"}`}
             data-testid={`masters-tab-${k}`}>{l}</button>
         ))}
       </div>
 
+      {/* Universal search bar — active on data-list tabs. */}
+      {["staff","companies","tenants","matrix","hierarchy"].includes(tab) && (
+        <input value={search} onChange={(e) => setSearch(e.target.value)}
+          placeholder={`Search ${tab}…`}
+          data-testid={`masters-search-${tab}`}
+          className="w-full mb-4 px-3 py-2 border border-brand-navy/20 text-sm bg-white" />
+      )}
+
       {tab === "staff" && (
         <StaffTab
-          staff={staff}
+          staff={(() => { const q = search.trim().toLowerCase(); return q
+            ? staff.filter((s) => (s.name||"").toLowerCase().includes(q)
+                || (s.email||"").toLowerCase().includes(q)
+                || (s.roles||[s.role]||[]).some((r) => (r||"").toLowerCase().includes(q)))
+            : staff; })()}
           showStaffNew={showStaffNew} setShowStaffNew={setShowStaffNew}
           staffDraft={staffDraft} setStaffDraft={setStaffDraft}
           onCreate={createStaff} onToggleRole={toggleRole} onUpdate={updateStaff}
@@ -153,14 +166,20 @@ export default function MastersPanel() {
             </button>
           </div>
           <div className="bg-white border">
-            {companies.map((c) => (
+            {(() => { const q = search.trim().toLowerCase();
+              const list = q ? companies.filter((c) => (c.name||"").toLowerCase().includes(q)
+                    || (c.code||"").toLowerCase().includes(q)
+                    || (c.country||"").toLowerCase().includes(q)) : companies;
+              if (list.length === 0) return <div className="p-6 text-sm text-slate-500">
+                {companies.length === 0 ? t("panels.masters.no_companies") : "No matches"}
+              </div>;
+              return list.map((c) => (
               <div key={c.id} className="border-b p-3 text-sm" data-testid={`company-row-${c.code}`}>
                 <span className="font-mono text-xs mr-3">{c.code}</span>
                 <strong>{c.name}</strong>
                 <span className="ml-3 text-xs text-slate-500">{c.country}</span>
               </div>
-            ))}
-            {companies.length === 0 && <div className="p-6 text-sm text-slate-500">{t("panels.masters.no_companies")}</div>}
+            )); })()}
           </div>
         </>
       )}
@@ -175,11 +194,17 @@ export default function MastersPanel() {
       {tab === "hierarchy" && (
         <div className="bg-white border p-4" data-testid="hierarchy-view">
           <div className="pmc-label mb-2">{t("panels.masters.hierarchy_title")}</div>
-          {[10, 5, 3, 1].map((lvl) => (
+          {[10, 5, 3, 1].map((lvl) => {
+            const q = search.trim().toLowerCase();
+            const row = staff.filter((s) => (s.hierarchy_level || 1) === lvl
+              && (!q || (s.name||"").toLowerCase().includes(q)
+                    || (s.email||"").toLowerCase().includes(q)
+                    || (s.roles||[s.role]||[]).some((r) => (r||"").toLowerCase().includes(q))));
+            return (
             <div key={lvl} className="mb-3">
               <div className="text-xs uppercase tracking-widest text-slate-500">{t("panels.masters.level_prefix")} {lvl}</div>
               <div className="grid grid-cols-3 gap-2 mt-1">
-                {staff.filter((s) => (s.hierarchy_level || 1) === lvl).map((s) => (
+                {row.map((s) => (
                   <div key={s.id} className="border p-2 text-sm">
                     <div>{s.name}</div>
                     <div className="text-xs text-slate-500">{s.email}</div>
@@ -188,7 +213,7 @@ export default function MastersPanel() {
                 ))}
               </div>
             </div>
-          ))}
+          );})}
         </div>
       )}
 
@@ -229,15 +254,21 @@ export default function MastersPanel() {
             </button>
           </div>
           <div className="bg-white border">
-            {tenants.map((tn) => (
+            {(() => { const q = search.trim().toLowerCase();
+              const list = q ? tenants.filter((tn) => (tn.name||"").toLowerCase().includes(q)
+                    || (tn.code||"").toLowerCase().includes(q)
+                    || (tn.kind||"").toLowerCase().includes(q)) : tenants;
+              if (list.length === 0) return <div className="p-6 text-sm text-slate-500">
+                {tenants.length === 0 ? t("panels.masters.no_tenants") : "No matches"}
+              </div>;
+              return list.map((tn) => (
               <div key={tn.id} className="border-b p-3 text-sm" data-testid={`tenant-row-${tn.code}`}>
                 <span className="font-mono text-xs mr-3">{tn.code}</span>
                 <strong>{tn.name}</strong>
                 <span className="ml-3 text-xs bg-slate-100 px-2 py-0.5 rounded">{tn.kind}</span>
                 <span className="ml-2 text-xs text-slate-500">{tn.country}</span>
               </div>
-            ))}
-            {tenants.length === 0 && <div className="p-6 text-sm text-slate-500">{t("panels.masters.no_tenants")}</div>}
+            )); })()}
           </div>
         </>
       )}

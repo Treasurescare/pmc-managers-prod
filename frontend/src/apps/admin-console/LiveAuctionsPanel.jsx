@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { reverseAuctionApi, formatApiError, showApiError} from "@/lib/api";
+import { reverseAuctionApi, publicApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import { InfoDot } from "@/components/InfoDot";
 import AuctionInvitations from "./auction/AuctionInvitations";
@@ -12,6 +12,8 @@ export default function LiveAuctionsPanel() {
   const [notices, setNotices] = useState([]);
   const [showNew, setShowNew] = useState(false);
   const [summaryFor, setSummaryFor] = useState(null);  // RA-01 fix
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [search, setSearch] = useState("");
   const [draft, setDraft] = useState({
     notice_ref: "", title: "", currency: "USD",
     starting_price: 1000000, floor_price: 800000,
@@ -137,9 +139,36 @@ export default function LiveAuctionsPanel() {
         </div>
       )}
 
+      <div className="flex flex-wrap gap-2 items-center mb-3" data-testid="ra-filter-bar">
+        {[["all","All"],["draft","Draft"],["live","Live"],["closed","Closed"]].map(([k,l]) => (
+          <button key={k} type="button" onClick={() => setStatusFilter(k)}
+            data-testid={`ra-filter-${k}`}
+            className={`px-3 py-1 text-[11px] uppercase tracking-widest border ${
+              statusFilter === k ? "bg-brand-navy text-white border-brand-navy"
+                : "border-brand-navy/20 text-brand-navy/70 hover:border-brand-navy"}`}>
+            {l}
+          </button>
+        ))}
+        <input value={search} onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by title or notice ref…"
+          data-testid="ra-search"
+          className="flex-1 min-w-[220px] px-3 py-1.5 border border-brand-navy/20 text-sm bg-white" />
+      </div>
+
       <div className="border border-brand-navy/10 bg-white">
-        {items.length === 0 && <div className="p-6 text-brand-navy/50 text-sm">{t("panels.live_auctions.empty")}</div>}
-        {items.map((a) => {
+        {(() => {
+          const q = search.trim().toLowerCase();
+          const filtered = items.filter((a) =>
+            (statusFilter === "all" || a.status === statusFilter)
+            && (!q || (a.title || "").toLowerCase().includes(q)
+                  || (a.notice_ref || "").toLowerCase().includes(q))
+          );
+          if (filtered.length === 0) {
+            return <div className="p-6 text-brand-navy/50 text-sm">
+              {items.length === 0 ? t("panels.live_auctions.empty") : "No matches"}
+            </div>;
+          }
+          return filtered.map((a) => {
           const url = `${window.location.origin}/vendor/auction/${a.id}`;
           return (
             <div key={a.id} className="p-4 border-b border-brand-navy/10" data-testid={`ra-row-${a.id}`}>
@@ -221,7 +250,8 @@ export default function LiveAuctionsPanel() {
               {a.status !== "closed" && <AuctionInvitations auctionId={a.id} />}
             </div>
           );
-        })}
+        });
+        })()}
       </div>
     </div>
   );
