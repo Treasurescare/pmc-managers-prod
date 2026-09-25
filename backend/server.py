@@ -21,7 +21,7 @@ from routers import (
     docusign, profile_ops, _temp_downloads,
     stakeholder_reports, dashboard_drill, branding_theme,
     envelope_authoritative, contracts_export,
-    admin_demo,
+    admin_demo, push,
 )
 
 
@@ -88,6 +88,7 @@ app.include_router(_vendor_ratings.router)
 app.include_router(analytics.router)
 app.include_router(governance.router)
 app.include_router(notifications.router)
+app.include_router(push.router)
 app.include_router(payments_sandbox.router)
 # Wave 7 — MFA + Tenants
 app.include_router(mfa.router)

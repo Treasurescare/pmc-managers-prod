@@ -16,10 +16,15 @@ export default [
     ],
   },
   {
-    files: ["frontend/src/**/*.{js,jsx}", "frontend/craco.config.js"],
+    files: ["**/*.{js,jsx,mjs,cjs}"],
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",
+      parserOptions: {
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
       globals: {
         window: "readonly", document: "readonly", navigator: "readonly",
         fetch: "readonly", localStorage: "readonly", sessionStorage: "readonly",
@@ -37,8 +42,8 @@ export default [
         module: "readonly", require: "readonly", __dirname: "readonly", __filename: "readonly",
         jest: "readonly", describe: "readonly", it: "readonly", expect: "readonly",
         test: "readonly", beforeEach: "readonly", afterEach: "readonly", global: "readonly",
+        exports: "readonly", Buffer: "readonly",
       },
-      parserOptions: { ecmaFeatures: { jsx: true } },
     },
     rules: {
       "no-unused-vars": "off",

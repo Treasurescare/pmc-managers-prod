@@ -6,6 +6,7 @@ import LangSwitcher from "./LangSwitcher";
 import { useI18n } from "@/context/I18nContext";
 import { adminApi, staffApi, vendorApi } from "@/lib/api";
 import useTenantSkin from "./useTenantSkin";
+import EnablePushButton from "@/components/EnablePushButton";
 
 /**
  * TopBar — responsive header with hamburger drawer for mobile.
@@ -107,6 +108,7 @@ export default function TopBar({ dark = false, rightExtras = null }) {
           <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end">
             {rightExtras}
             <div className="hidden sm:block"><LangSwitcher dark={dark} /></div>
+            <div className="hidden lg:block"><EnablePushButton role="vendor" compact /></div>
 
             {/* Always-visible sign out for authed routes (desktop) */}
             {showSignOut && (

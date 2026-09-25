@@ -81,6 +81,17 @@ async def publish_corrigendum(
 
     await audit_log("corrigendum.publish", admin, "notice", notice_ref,
                     {"corrigendum_no": corr_no, "title": payload.title})
+    # v46t — fan out a Web Push to every subscription so bidders learn instantly.
+    try:
+        from routers.push import fanout as _push_fanout
+        await _push_fanout(
+            f"Corrigendum #{corr_no} · {notice_ref}",
+            (payload.summary or payload.title or "A material amendment has been published.")[:200],
+            f"/notices/{notice_ref}",
+        )
+    except Exception as e:
+        import logging
+        logging.info("push: corrigendum notify skipped (%s)", e)
     return {"ok": True, "corrigendum": _out(doc)}
 
 

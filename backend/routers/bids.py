@@ -295,6 +295,17 @@ async def decide_bid(bid_id: str, payload: BidDecisionIn,
         except Exception as e:
             import logging
             logging.warning(f"Award document auto-generation failed for bid {bid_id}: {e}")
+        # v46t — fan out a Web Push to the awarded vendor + any admins subscribed.
+        try:
+            from routers.push import fanout as _push_fanout
+            b_now = await db.bids.find_one({"_id": ObjectId(bid_id)}) or {}
+            title = "Contract awarded"
+            body = f"Your bid for {b_now.get('notice_ref','')} is the L1 winner. Open to sign the PO."
+            url = f"/vendor/bids/{bid_id}"
+            await _push_fanout(title, body, url, user_ref=b_now.get("vendor_ref"))
+        except Exception as e:
+            import logging
+            logging.info("push: award notify skipped (%s)", e)
     return {"ok": True, "status": next_status}
 
 

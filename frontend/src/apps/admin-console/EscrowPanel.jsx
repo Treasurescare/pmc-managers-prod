@@ -16,6 +16,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { escrowApi } from "@/lib/api";
 import EscrowAccountsSection from "./escrow/EscrowAccountsSection";
 import EscrowTransactionsSection from "./escrow/EscrowTransactionsSection";
+import EscrowSignerEditor from "./escrow/EscrowSignerEditor";
 
 // E-03 fix — reconciliation-vs-bank sub-panel.
 // Renders one row per joint account with Ledger balance vs Bank balance and
@@ -103,6 +104,7 @@ export default function EscrowPanel() {
   return (
     <div className="space-y-8" data-testid="escrow-panel">
       <EscrowAccountsSection accounts={accounts} onReload={load}/>
+      <EscrowSignerEditor accounts={accounts} onReload={load}/>
       <EscrowTransactionsSection accounts={accounts} txs={txs} onReload={load}/>
       <ReconciliationSection accounts={accounts} txs={txs}/>
     </div>

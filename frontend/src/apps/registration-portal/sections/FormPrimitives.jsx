@@ -62,11 +62,17 @@ export function EmailInput({ testId, value, onChange, ...rest }) {
  * the user pastes garbage we still preserve the raw value in state (so nothing
  * is lost) — we just surface an inline error until it's cleaned up.
  */
-const PHONE_RE = /^\+?[0-9\s\-()]{7,20}$/;
+const PHONE_RE = /^\+?[0-9][0-9\s\-()]{6,19}$/;
+// v46t — tighter E.164 rule: after stripping spaces/hyphens/brackets the digit
+// count must be 7-15 and (if provided) start with '+'.
+const E164_RE = /^\+?[1-9]\d{6,14}$/;
 export function PhoneInput({ testId, value, onChange, ...rest }) {
   const [touched, setTouched] = useState(false);
   const raw = value == null ? "" : String(value);
-  const showError = touched && raw && !PHONE_RE.test(raw.trim());
+  const compact = raw.replace(/[\s\-()]/g, "");
+  const shapeOk = !raw || PHONE_RE.test(raw.trim());
+  const e164Ok = !compact || E164_RE.test(compact);
+  const showError = touched && raw && (!shapeOk || !e164Ok);
   return (
     <>
       <input
@@ -90,7 +96,7 @@ export function PhoneInput({ testId, value, onChange, ...rest }) {
       {showError && (
         <span className="block text-[11px] text-red-600 mt-1"
               data-testid={testId ? `${testId}-error` : undefined}>
-          Enter 7–20 digits, e.g. +7 701 555 0100
+          Enter international format 7–15 digits, e.g. +7 701 555 0100
         </span>
       )}
     </>

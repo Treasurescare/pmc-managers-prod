@@ -12,12 +12,42 @@
  * page load; no manual "clear cache" needed.
  */
 
-const CACHE_VERSION = "pmc-shell-v46p";
+const CACHE_VERSION = "pmc-shell-v46u";
 const SHELL_ASSETS = [
   "/",
   "/manifest.json",
   "/pmc-logo.png",
 ];
+
+/* Push handler — displays the notification and reveals the URL when tapped. */
+self.addEventListener("push", (event) => {
+  let data = { title: "PMC Managers", body: "You have a new notification", url: "/" };
+  try {
+    if (event.data) data = { ...data, ...event.data.json() };
+  } catch (_) { /* keep defaults */ }
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: "/pmc-logo.png",
+      badge: "/pmc-logo.png",
+      data: { url: data.url },
+      tag: data.tag || "pmc-msg",
+      renotify: true,
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || "/";
+  event.waitUntil((async () => {
+    const clientList = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const c of clientList) {
+      if ("focus" in c) { try { await c.navigate(targetUrl); } catch(_){} return c.focus(); }
+    }
+    return self.clients.openWindow(targetUrl);
+  })());
+});
 
 self.addEventListener("install", (event) => {
   event.waitUntil((async () => {
@@ -60,27 +90,38 @@ self.addEventListener("fetch", (event) => {
     event.respondWith((async () => {
       try {
         const fresh = await fetch(req);
-        return fresh;
-      } catch (_) {
-        const cache = await caches.open(CACHE_VERSION);
-        return (await cache.match("/")) || Response.error();
-      }
+        if (fresh) return fresh;
+      } catch (_) { /* fall through */ }
+      const cache = await caches.open(CACHE_VERSION);
+      const shell = await cache.match("/");
+      if (shell) return shell;
+      // Always resolve with a real Response so the browser never sees `undefined`.
+      return new Response("Offline", { status: 503, statusText: "Offline" });
     })());
     return;
   }
 
-  // 3. Static assets — stale-while-revalidate.
+  // 3. Static assets — stale-while-revalidate. Guarantees a Response.
   event.respondWith((async () => {
     const cache = await caches.open(CACHE_VERSION);
     const cached = await cache.match(req);
-    const fetchPromise = fetch(req)
-      .then((res) => {
+    if (cached) {
+      // Refresh in background.
+      fetch(req).then((res) => {
         if (res && res.status === 200 && res.type === "basic") {
           cache.put(req, res.clone()).catch(() => {});
         }
-        return res;
-      })
-      .catch(() => cached);
-    return cached || fetchPromise;
+      }).catch(() => {});
+      return cached;
+    }
+    try {
+      const res = await fetch(req);
+      if (res && res.status === 200 && res.type === "basic") {
+        cache.put(req, res.clone()).catch(() => {});
+      }
+      return res;
+    } catch (_) {
+      return new Response("", { status: 504, statusText: "Gateway Timeout" });
+    }
   })());
 });

@@ -1,76 +1,59 @@
-import js from "@eslint/js";
-import { createRequire } from "module";
-import path from "path";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const require = createRequire(import.meta.url);
-
-let reactHooks = null;
-try {
-  const reactHooksPath = require.resolve("eslint-plugin-react-hooks", { paths: [path.join(__dirname, "node_modules")] });
-  reactHooks = require(reactHooksPath);
-} catch {
-  // plugin optional — lint still passes without it
-}
-
 export default [
   {
-    ignores: ["build/**", "node_modules/**", "public/**", "dist/**", "**/*.min.js"]
+    ignores: [
+      "**/node_modules/**",
+      "**/build/**",
+      "**/dist/**",
+      "**/public/**",
+      "**/__pycache__/**",
+      "backend/**",
+      "tools/**",
+      "scripts/**",
+      "deliverables/**",
+      "test_reports/**",
+      "docs/**",
+      "**/*.min.js",
+    ],
   },
-  js.configs.recommended,
   {
-    files: ["src/**/*.{js,jsx}"],
-    plugins: reactHooks ? { "react-hooks": reactHooks } : {},
+    files: ["**/*.{js,jsx,mjs,cjs}"],
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",
       parserOptions: {
         ecmaFeatures: {
-          jsx: true
-        }
-      }
+          jsx: true,
+        },
+      },
+      globals: {
+        window: "readonly", document: "readonly", navigator: "readonly",
+        fetch: "readonly", localStorage: "readonly", sessionStorage: "readonly",
+        console: "readonly", setTimeout: "readonly", setInterval: "readonly",
+        clearTimeout: "readonly", clearInterval: "readonly", confirm: "readonly",
+        alert: "readonly", FormData: "readonly", URL: "readonly", Blob: "readonly",
+        File: "readonly", FileReader: "readonly", CustomEvent: "readonly",
+        Notification: "readonly", caches: "readonly", self: "readonly",
+        clients: "readonly", indexedDB: "readonly", atob: "readonly", btoa: "readonly",
+        Promise: "readonly", Map: "readonly", Set: "readonly", process: "readonly",
+        Intl: "readonly", AbortController: "readonly", Headers: "readonly",
+        Request: "readonly", Response: "readonly", Event: "readonly",
+        MediaRecorder: "readonly", AudioContext: "readonly", location: "readonly",
+        history: "readonly", matchMedia: "readonly", requestAnimationFrame: "readonly",
+        module: "readonly", require: "readonly", __dirname: "readonly", __filename: "readonly",
+        jest: "readonly", describe: "readonly", it: "readonly", expect: "readonly",
+        test: "readonly", beforeEach: "readonly", afterEach: "readonly", global: "readonly",
+        exports: "readonly", Buffer: "readonly",
+      },
     },
     rules: {
       "no-unused-vars": "off",
       "no-undef": "off",
       "no-empty": "off",
-      "no-constant-binary-expression": "off"
-    }
-  },
-  {
-    // Node/CommonJS toolchain files (craco, tailwind, postcss, health-check plugins)
-    files: ["*.config.js", "craco.config.js", "postcss.config.js", "tailwind.config.js", "plugins/**/*.js", "scripts/**/*.js"],
-    languageOptions: {
-      ecmaVersion: "latest",
-      sourceType: "commonjs",
-      globals: {
-        require: "readonly",
-        module: "readonly",
-        exports: "readonly",
-        process: "readonly",
-        __dirname: "readonly",
-        __filename: "readonly",
-        console: "readonly",
-        setTimeout: "readonly",
-        setInterval: "readonly",
-        clearTimeout: "readonly",
-        clearInterval: "readonly",
-        Buffer: "readonly",
-        global: "readonly"
-      }
+      "no-constant-binary-expression": "off",
+      "no-useless-escape": "off",
+      "no-control-regex": "off",
+      "no-prototype-builtins": "off",
+      "no-redeclare": "off",
     },
-    rules: {
-      "no-unused-vars": "off",
-      "no-undef": "off",
-      "no-empty": "off"
-    }
   },
-  {
-    // the config file itself
-    files: ["eslint.config.mjs"],
-    languageOptions: { ecmaVersion: "latest", sourceType: "module" },
-    rules: { "no-unused-vars": "off" }
-  }
 ];

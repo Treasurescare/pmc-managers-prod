@@ -37,9 +37,16 @@ export default function BidSubmit() {
     try {
       const p = await uploadsApi.presign(file.name, file.type || "application/pdf", "bid-docs", file.size);
       const r = await uploadsApi.direct(p.key, file);
+      // Guard: never push a partial BidDocument — backend requires all 5 fields.
+      const key = r?.key || p?.key;
+      const size_bytes = r?.size_bytes ?? file.size;
+      if (!key) {
+        toast.error(`Upload failed for ${file.name} — missing storage key`);
+        return;
+      }
       setDocs((d) => [...d, {
-        kind, key: r.key, filename: file.name,
-        size_bytes: r.size_bytes, uploaded_at: new Date().toISOString(),
+        kind, key, filename: file.name,
+        size_bytes, uploaded_at: new Date().toISOString(),
       }]);
       toast.success(`Uploaded ${file.name}`);
     } catch (err) { showApiError(err); }
@@ -50,6 +57,12 @@ export default function BidSubmit() {
   const submit = async (e) => {
     e.preventDefault();
     if (!price || Number(price) <= 0) return toast.error("Enter a valid bid price");
+    // Strip any partially-uploaded documents so the payload always matches
+    // BidCreateIn / BidDocument on the backend (avoids the six "Field required"
+    // 422 errors seen when an upload silently returned an incomplete object).
+    const cleanDocs = docs.filter(
+      (d) => d && d.kind && d.key && d.filename && typeof d.size_bytes === "number" && d.uploaded_at
+    );
     setBusy(true);
     try {
       const bid = await bidApi.create({
@@ -57,7 +70,7 @@ export default function BidSubmit() {
         price_amount: Number(price),
         price_currency: notice.budget_currency || "USD",
         technical_notes: technical, commercial_notes: commercial,
-        documents: docs,
+        documents: cleanDocs,
       });
       toast.success(`Bid ${bid.bid_ref} submitted`);
       // If EMD due, immediately go to selected gateway
