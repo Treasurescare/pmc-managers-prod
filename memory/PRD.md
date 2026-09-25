@@ -12,6 +12,12 @@ Build and operate PMC Managers Limited (pmcmanagers.com), a multi-role procureme
 - Auth: Cookie sessions, three realms (admin, staff, vendor). Same-origin `/api` calls required in production bundles.
 - Assets: Public `/downloads/` folder for release artifacts and manuals — NEVER deleted with `s3 sync --delete` at bucket root.
 
+## Implemented (as of 2026-09-25 — v46u bid-submit UX + SW crash fix)
+
+- **v46u Bid-submit silent-failure fix (P0)** — root cause: notice `PMC-NOT-2026-0020` deadline (2026-05-07) had passed and the vendor already held an active bid; backend correctly returned 400/409 but the page only showed a fleeting toast. `BidSubmit.jsx` now: shows a persistent red inline banner when the deadline has passed and disables the submit button ("Deadline passed"); renders any API error inline under the form (`bid-submit-error` testid) in addition to the toast; strips partially-uploaded documents from the payload (eliminates the 422 "Field required ×6" regression); upload guard refuses to push docs without a storage key. Verified in preview via Playwright: banner visible, button disabled.
+- **v46u Service worker crash fix** — `TypeError: Failed to convert value to 'Response'` eliminated; navigate + static-asset branches now always resolve to a real Response (503/504 fallbacks). Cache bumped to `pmc-shell-v46u`.
+- **v46t lint unblock** — missing `EnablePushButton` import added in `TopBar.jsx`; oxlint 0 errors.
+
 ## Implemented (as of 2026-09-24 pm — v46t push + escrow signer edit + E.164)
 
 - **v46t Web Push (Firebase-free, standard VAPID)** — full stack shipped: `backend/routers/push.py` (subscribe / unsubscribe / config / test / admin list); service worker `push` + `notificationclick` handlers; frontend hook `lib/push.js` + `EnablePushButton` mounted in TopBar; trigger hooks fan out on `bid.awarded` and on new corrigendum publish. VAPID key generator at `tools/push/generate_vapid_keys.py`. Works on Android Chrome/Edge/Samsung and iOS 16.4+ **installed** PWAs.

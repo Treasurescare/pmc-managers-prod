@@ -20,6 +20,7 @@ export default function BidSubmit() {
   const [docs, setDocs] = useState([]);
   const [gateway, setGateway] = useState("stripe");
   const [busy, setBusy] = useState(false);
+  const [formError, setFormError] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -56,6 +57,7 @@ export default function BidSubmit() {
 
   const submit = async (e) => {
     e.preventDefault();
+    setFormError(null);
     if (!price || Number(price) <= 0) return toast.error("Enter a valid bid price");
     // Strip any partially-uploaded documents so the payload always matches
     // BidCreateIn / BidDocument on the backend (avoids the six "Field required"
@@ -96,7 +98,9 @@ export default function BidSubmit() {
         nav("/vendor");
       }
     } catch (err) {
+      const msg = formatApiError(err);
       showApiError(err);
+      setFormError(msg);
       setBusy(false);
     }
   };
@@ -105,6 +109,7 @@ export default function BidSubmit() {
 
   const emdConfig = notice.emd_config || { fixed_amount: 0, percentage: 0, currency: notice.budget_currency };
   const emdDue = (emdConfig.fixed_amount || 0) + ((emdConfig.percentage || 0) / 100) * (notice.budget_amount || 0);
+  const deadlinePassed = !!notice.submission_deadline && new Date(notice.submission_deadline) < new Date();
 
   return (
     <div className="min-h-screen bg-slate-50 py-10" data-testid="bid-submit-page">
@@ -128,6 +133,19 @@ export default function BidSubmit() {
         </div>
 
         <form onSubmit={submit} className="bg-white border rounded-lg p-5 mt-5 space-y-5" data-testid="bid-form">
+          {deadlinePassed && (
+            <div className="border border-red-300 bg-red-50 text-red-800 text-sm rounded-md px-4 py-3"
+              data-testid="bid-deadline-passed">
+              <strong>Submission deadline has passed</strong> ({(notice.submission_deadline || "").slice(0, 10)}).
+              This notice is no longer accepting bids.
+            </div>
+          )}
+          {formError && (
+            <div className="border border-red-300 bg-red-50 text-red-800 text-sm rounded-md px-4 py-3"
+              data-testid="bid-submit-error">
+              {formError}
+            </div>
+          )}
           <label className="block text-sm">
             <span>Your bid price ({notice.budget_currency})</span>
             <input type="number" required min="1" step="0.01" value={price}
@@ -195,10 +213,10 @@ export default function BidSubmit() {
             </div>
           )}
 
-          <button type="submit" disabled={busy}
-            className="w-full bg-slate-900 text-white rounded-md py-3 text-sm hover:bg-slate-800 disabled:opacity-60"
+          <button type="submit" disabled={busy || deadlinePassed}
+            className="w-full bg-slate-900 text-white rounded-md py-3 text-sm hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed"
             data-testid="bid-submit-btn">
-            {busy ? "Submitting…" : (emdDue > 0 ? `Submit & pay EMD (${emdConfig.currency} ${emdDue.toLocaleString()})` : "Submit bid")}
+            {busy ? "Submitting…" : deadlinePassed ? "Deadline passed" : (emdDue > 0 ? `Submit & pay EMD (${emdConfig.currency} ${emdDue.toLocaleString()})` : "Submit bid")}
           </button>
         </form>
       </div>
