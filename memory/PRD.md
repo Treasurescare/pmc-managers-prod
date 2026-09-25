@@ -14,54 +14,54 @@ Multi-role procurement & tender platform for PMC Managers Limited: engagements, 
 - Backend: FastAPI, MongoDB (Motor), JWT + httpOnly cookies, Resend (direct API, no relay).
 - 3rd-party: Stripe (test key), DocuSign (JWT sandbox), Zoom (S2S OAuth), Resend, Emergent LLM key (for AI drafting).
 
-## Delivered (Feb 2026 · v46v)
-### Vendor login end-to-end
+## Delivered & Live on Production
+### 1 · Vendor login end-to-end
 - `POST /api/v1/vendor/auth/login` returns `must_change_password` flag.
-- `/vendor/login`, `/login` (unified vendor tile), and mobile `/m/login` all honour the flag and route to `/vendor/change-password` on first sign-in. **Fixed in v46v** — was broken on the unified + mobile entry points.
+- `/vendor/login`, `/login` (unified vendor tile), and mobile `/m/login` all honour the flag and route to `/vendor/change-password` on first sign-in.
 - Admin activation (`POST /api/v1/vendors/{ref}/activate`) supports `mode=set_password` and `mode=resend_link`.
+- All 5 portals authenticate: master admin / owner backfilled with executive roles (`admin`, `reviewer`, `management`, `partner`, `agent`, `committee_member`, `support`, `auditor`) on cold-start; frontend cascades portal-role → admin fallback.
 
-### KYC admin overrides
+### 2 · Branded Email Sending (`mail.pmcmanagers.com`) — VERIFIED LIVE
+- Resend sender domain `mail.pmcmanagers.com` verified in Resend (DKIM TXT + `send.mail`/`rsend.mail` CNAMEs in Route 53).
+- EB environment properties configured with `RESEND_API_KEY` and `EMAIL_FROM_ADDRESS=admin@mail.pmcmanagers.com`.
+- Real-flow test verified live: vendor activation of `PMC-SUP-000080` (`ranjana@gmail.com`) sent via Resend with DKIM signature `d=mail.pmcmanagers.com`.
+
+### 3 · Web Push Notifications (VAPID) — LIVE
+- `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (PEM single-line), and `VAPID_CLAIM_EMAIL` active on EB.
+- `GET /api/v1/push/config` returns `{"public_key":"BFaNQAW9...","enabled":true}` on production.
+- Auto-registers vendor subscriptions for tender-publish and bid-deadline alerts.
+
+### 4 · KYC admin overrides
 - `POST /api/v1/kyc/manual` (admin, legal_counsel): verified / pending / rejected + audit log.
 - VendorsPanel → KYC block on selected vendor.
 
-### Universal search & filters across admin console
-- Registrations, Vendor Intel, Live Auctions, Engagements, Billing, Awards, DocuSign, Masters (staff/companies/tenants/hierarchy), Corrigenda, Work Packages, BOQ & Contracts, Catalog. Notices + Tender Builder had it earlier.
+### 5 · Universal search & filters across admin console
+- Registrations, Vendor Intel, Live Auctions, Engagements, Billing, Awards, DocuSign, Masters (staff/companies/tenants/hierarchy), Corrigenda, Work Packages, BOQ & Contracts, Catalog.
 
-### Dashboard drill-through
+### 6 · Dashboard drill-through & Help UX
 - Every KPI tile + funnel stage is clickable → routes to the owning tab.
+- Sticky search on Help panel + context-aware floating Help pill in top bar.
 
-### Help UX
-- Sticky search on the Help panel.
-- Floating context-aware **Help pill** in top bar; pre-fills tab-specific search.
-
-### Bid submit hardening
-- Deadline banner + disabled submit past deadline.
-- Inline API errors under the form.
-- Strip partial doc uploads (fixes 422s).
-- Service worker `pmc-shell-v46u`: all fetch branches return a real Response (503/504 fallbacks).
-
-### Emails
-- Sender switched to `admin@mail.pmcmanagers.com` (v46v). Domain **verified in Resend on Sep 25, 2026** (DKIM TXT + `send.mail`/`rsend.mail` CNAMEs to forge.rmta.net; region ap-northeast-1, provider Route 53). Verified live: raw API send → HTTP 200, platform `send_email()` path → True.
-- Legacy `emergentmails.com` relay removed from the code path; only Resend is used.
-- ⚠️ EB env-var caveat: if `EMAIL_FROM_ADDRESS` is explicitly set on Elastic Beanstalk to the unverified root `admin@pmcmanagers.com`, it overrides the code default — must be updated to `admin@mail.pmcmanagers.com` or removed.
+### 7 · Frontend Hardening (v46x)
+- 20-second axios timeout in `src/lib/api.js` prevents silent UI hangs.
+- Service worker `pmc-shell-v46x` evicts stale caches on activate.
 
 ## Test credentials
 See `/app/memory/test_credentials.md`.
 
-## Backlog
-### P1
-- Verify Web Push end-to-end once VAPID keys are set in EB.
-- Verify `mail.pmcmanagers.com` in Resend and confirm outgoing emails are landing (waiting on owner DNS action).
+## Prioritized Backlog
+### P1 — Near term
+- Template polish: style outgoing vendor activation & bid emails with sovereign navy + gold branding.
+- Deploy v46x frontend build (`pmc-frontend-v46x-prod-build.zip`) during next routine maintenance window.
 
-### P2
-- Playwright regression suite (currently manual QA).
-- LSEG / World-Check KYC provider swap-in.
-- PayPal + Kaspi payments (Stripe is the sole rail today).
-- Zoom bid-opening auto-scheduling polish.
+### P2 — Future Integrations & Hardening
+- Automated Playwright end-to-end regression test suite.
+- LSEG / World-Check KYC provider integration.
+- Alternative payment rails (PayPal, Kaspi).
+- Zoom automated bid-opening session scheduler.
 
 ## Deployment ledger
-- v46x (Sep 2026) — axios 20s timeout (no more silent "VERIFYING…" hangs), SW cache bumped to `pmc-shell-v46x` (evicts all stale caches on activate). Frontend-only patch on top of v46w. Diagnosed prod outage: S3 missing `static/` folder + user browser stuck on 2024-era service worker → recovery playbook in `RECOVER_v46w_BLANK_SCREEN.md`.
-- v46w (Sep 2026) — all 5 portals authenticate (admin/owner backfilled with full executive roles; frontend falls back portal-role → admin).
-- v46v — vendor first-login redirect fix + Resend sender switch to `mail.pmcmanagers.com`.
-- v46u — universal search bars, dashboard drill-through, KYC admin controls, SW crash fix.
-- v46t and earlier — see `/app/frontend/public/downloads/DOWNLOAD_v46*.md`.
+- v46x (Sep 2026) — axios 20s timeout, SW cache bumped to `pmc-shell-v46x`.
+- v46w (Sep 2026) — all 5 portals authenticate, Resend DNS routing guide, EB env properties wired.
+- v46v (Sep 2026) — vendor first-login redirect fix + Resend sender switch.
+- v46u and earlier — see `/app/frontend/public/downloads/DOWNLOAD_v46*.md`.
