@@ -56,6 +56,59 @@ export default function TendersList() {
   return (
     <div className="min-h-screen bg-brand-pale flex flex-col" data-testid={`page-tenders-${mode}`} data-ui={isE ? "e" : undefined}>
       <TopBar />
+
+      {/* Option E — hero band (opt-in) matching E-Tenders.html */}
+      {isE && (
+        <section className="e-hero-band" data-testid="tenders-hero-e">
+          <svg aria-hidden="true" fill="none" viewBox="0 0 1440 440" className="absolute right-0 top-0 h-full w-full pointer-events-none opacity-90" preserveAspectRatio="xMaxYMid slice">
+            <circle stroke="rgba(210,180,106,0.20)" r="170" cy="250" cx="1180" />
+            <circle stroke="rgba(210,180,106,0.14)" r="270" cy="250" cx="1180" />
+            <circle stroke="rgba(210,180,106,0.09)" r="390" cy="250" cx="1180" />
+            <circle stroke="rgba(210,180,106,0.05)" r="530" cy="250" cx="1180" />
+          </svg>
+          <div className="e-hero-inner">
+            <div className="grid gap-10 lg:grid-cols-[1fr_420px] lg:gap-16 items-end">
+              <div className="flex flex-col gap-4">
+                <span className="e-hero-kicker">The register · Open to all bidders</span>
+                <h1 className="e-hero-title text-5xl md:text-6xl lg:text-[72px]">
+                  Live <em>tenders</em>
+                </h1>
+                <p className="e-hero-sub">Every notice is published to all registered vendors at the same moment. Deadlines are fixed to server time and recorded on the audit log.</p>
+              </div>
+              {(() => {
+                const upcoming = (notices || [])
+                  .filter((n) => n.is_published && n.submission_deadline && (new Date(n.submission_deadline) - new Date()) > 0)
+                  .sort((a, b) => new Date(a.submission_deadline) - new Date(b.submission_deadline))[0];
+                if (!upcoming) return <div />;
+                const rem = new Date(upcoming.submission_deadline) - new Date();
+                const days = Math.floor(rem / (1000*60*60*24));
+                const hours = Math.floor((rem / (1000*60*60)) % 24);
+                const mins = Math.floor((rem / (1000*60)) % 60);
+                return (
+                  <div className="e-live-board" data-testid="tenders-next-to-close">
+                    <div className="e-live-head">
+                      <span>Next to close</span>
+                      <span className="inline-flex items-center gap-1.5 text-[#8FD9C4] normal-case tracking-normal">
+                        <span className="e-live-dot" /> LIVE
+                      </span>
+                    </div>
+                    <Link to={`/notices/${upcoming.notice_ref}`} className="e-live-row" style={{gridTemplateColumns:"1fr auto"}}>
+                      <span className="min-w-0">
+                        <span className="e-live-ref block">{upcoming.notice_ref} · {(upcoming.category || "—").slice(0,10).toUpperCase()} · {upcoming.delivery_country || "—"}</span>
+                        <span className="e-live-title block mt-1">{upcoming.title}</span>
+                      </span>
+                      <span className="e-live-count font-mono text-lg">
+                        {String(days).padStart(2,"0")}d {String(hours).padStart(2,"0")}:{String(mins).padStart(2,"0")}
+                      </span>
+                    </Link>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </section>
+      )}
+
       <main className="flex-1 max-w-6xl mx-auto w-full px-6 lg:px-10 pt-12 pb-16">
         <div className="pmc-label text-brand-gold">Public Notice Board</div>
         <h1 className="font-display text-4xl lg:text-5xl text-brand-navy mt-2">{title}</h1>

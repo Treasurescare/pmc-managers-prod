@@ -55,6 +55,84 @@ export default function NoticeDetail() {
   return (
     <div className="min-h-screen bg-brand-pale flex flex-col" data-ui={isE ? "e" : undefined}>
       <TopBar />
+
+      {/* Option E — hero band (opt-in) with notice ref, chips, big title, KPI strip */}
+      {isE && notice && (
+        <section className="e-hero-band" data-testid="notice-detail-hero-e">
+          <svg aria-hidden="true" fill="none" viewBox="0 0 1440 600" className="absolute right-0 top-0 h-full w-full pointer-events-none opacity-90" preserveAspectRatio="xMaxYMid slice">
+            <circle stroke="rgba(210,180,106,0.20)" r="180" cy="300" cx="1220" />
+            <circle stroke="rgba(210,180,106,0.14)" r="290" cy="300" cx="1220" />
+            <circle stroke="rgba(210,180,106,0.09)" r="420" cy="300" cx="1220" />
+            <circle stroke="rgba(210,180,106,0.05)" r="570" cy="300" cx="1220" />
+          </svg>
+          <div className="e-hero-inner">
+            <nav className="e-hero-breadcrumb" aria-label="Breadcrumb">
+              <Link to="/tenders/live">Live tenders</Link>
+              <span className="e-sep" aria-hidden="true">·</span>
+              <span>{notice.category || "General"}</span>
+              <span className="e-sep" aria-hidden="true">·</span>
+              <span className="e-crumb-current" aria-current="page">{notice.notice_ref}</span>
+            </nav>
+            <div className="mt-6 flex flex-wrap items-center gap-2.5">
+              <span className="font-mono text-xs tracking-[0.12em] text-brand-gold uppercase mr-1">
+                Notice {notice.notice_ref}
+              </span>
+              {deadline && (deadline - new Date()) < 1000*60*60*24*7 && (deadline - new Date()) > 0 && (
+                <span className="e-chip e-chip-warn">
+                  <span className="e-live-dot" /> Closing soon
+                </span>
+              )}
+              {notice.document_type && (
+                <span className="e-chip">{notice.document_type.toUpperCase()} · Open tender</span>
+              )}
+              {(notice.corrigenda?.length || 0) > 0 && (
+                <span className="e-chip e-chip-live">
+                  <span className="font-mono text-[11px] text-brand-gold">REV</span>
+                  Corrigendum #{notice.corrigenda.length} in force
+                </span>
+              )}
+            </div>
+            <h1 className="mt-6 e-hero-title text-4xl md:text-5xl lg:text-[64px]" data-testid={`hero-title-${notice.notice_ref}`}>
+              {notice.title}
+            </h1>
+            <div className="mt-4 text-[#D9D3BF] text-base md:text-lg">
+              {notice.delivery_country ? `Issued for ${notice.delivery_country}` : "Public tender"}
+              {publishedAt && ` · Published ${publishedAt.toISOString().slice(0,10)}`}
+            </div>
+          </div>
+          <dl className="e-hero-kpi-strip">
+            <div>
+              <dt>Estimated value</dt>
+              <dd>{budget || "—"}</dd>
+            </div>
+            <div>
+              <dt>EMD</dt>
+              <dd>
+                {notice.emd_amount
+                  ? new Intl.NumberFormat("en-US", { style: "currency", currency: notice.emd_currency || notice.budget_currency || "USD", maximumFractionDigits: 0 }).format(notice.emd_amount)
+                  : "As per pack"}
+              </dd>
+            </div>
+            <div>
+              <dt>Tender fee</dt>
+              <dd>{notice.tender_fee || "Nil"}</dd>
+            </div>
+            <div>
+              <dt>Deadline</dt>
+              <dd className="font-mono text-lg">{deadline ? deadline.toISOString().slice(0,10) : "—"}</dd>
+            </div>
+            <div>
+              <dt>Pre-bid</dt>
+              <dd className="font-mono text-lg">{preBid ? preBid.toISOString().slice(0,10) : "Nil"}</dd>
+            </div>
+            <div>
+              <dt>Evaluation</dt>
+              <dd>{notice.evaluation_method || "QCBS"}</dd>
+            </div>
+          </dl>
+        </section>
+      )}
+
       <main className="flex-1 max-w-7xl mx-auto w-full px-6 lg:px-10 py-10">
         <div className="flex items-center justify-between gap-4">
           <Link to="/notices" className="text-xs uppercase tracking-widest text-brand-navy/60 hover:text-brand-navy inline-flex items-center gap-2" data-testid="back-to-list">

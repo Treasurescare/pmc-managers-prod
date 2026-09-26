@@ -396,6 +396,191 @@
   color: var(--e-ink);
 }
 
+/* Option E — hero band re-usable component styles */
+[data-ui="e"] .e-hero-band {
+  position: relative;
+  overflow: hidden;
+  background: var(--e-bg-hero);
+  color: var(--e-cream-text);
+}
+[data-ui="e"] .e-hero-band .e-hero-inner {
+  position: relative;
+  padding: 40px 32px 48px;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+[data-ui="e"] .e-hero-kicker {
+  font-size: 12px;
+  letter-spacing: 0.28em;
+  color: var(--e-gold);
+  text-transform: uppercase;
+  font-weight: 500;
+}
+[data-ui="e"] .e-hero-title {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-weight: 500;
+  color: #F3EFE4;
+  letter-spacing: -0.01em;
+  line-height: 0.98;
+  margin: 0;
+}
+[data-ui="e"] .e-hero-title em { color: var(--e-gold); font-style: italic; }
+[data-ui="e"] .e-hero-sub {
+  color: #D9D3BF;
+  font-size: 17px;
+  line-height: 1.6;
+  max-width: 600px;
+}
+[data-ui="e"] .e-hero-breadcrumb {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 14px;
+  color: #D9D3BF;
+  flex-wrap: wrap;
+}
+[data-ui="e"] .e-hero-breadcrumb a { color: #E4DDC8; text-decoration: none; }
+[data-ui="e"] .e-hero-breadcrumb a:hover { color: var(--e-gold); }
+[data-ui="e"] .e-hero-breadcrumb .e-sep { color: var(--e-gold); }
+[data-ui="e"] .e-hero-breadcrumb .e-crumb-current {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: #F3EFE4;
+}
+
+/* Chips shown on hero bands (Option E) */
+[data-ui="e"] .e-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #F3EFE4;
+  border: 1px solid rgba(243,239,228,0.4);
+  padding: 5px 14px;
+  border-radius: 999px;
+}
+[data-ui="e"] .e-chip-warn {
+  color: var(--e-attention);
+  border-color: var(--e-attention);
+  font-weight: 600;
+}
+[data-ui="e"] .e-chip-warn .e-live-dot { background: var(--e-attention); box-shadow: 0 0 0 3px rgba(227,181,92,0.25); }
+[data-ui="e"] .e-chip-live { color: var(--e-mint); border-color: rgba(143,217,196,0.4); font-weight: 600; }
+
+/* KPI strip inside hero (Option E tender-detail band) */
+[data-ui="e"] .e-hero-kpi-strip {
+  position: relative;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  border-top: 1px solid rgba(210,180,106,0.3);
+  background: rgba(6,32,26,0.35);
+}
+[data-ui="e"] .e-hero-kpi-strip > div {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-right: 1px solid rgba(210,180,106,0.3);
+}
+[data-ui="e"] .e-hero-kpi-strip > div:last-child { border-right: 0; }
+[data-ui="e"] .e-hero-kpi-strip dt {
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: var(--e-gold);
+  text-transform: uppercase;
+}
+[data-ui="e"] .e-hero-kpi-strip dd {
+  margin: 0;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 26px;
+  line-height: 1;
+  color: #F3EFE4;
+}
+
+/* Vendor Portal Option E greeting band + KPI cards */
+[data-ui="e"] .e-portal-greeting {
+  padding: 32px 40px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+[data-ui="e"] .e-portal-greeting .e-portal-datechip {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  color: var(--e-gold);
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 10px;
+}
+[data-ui="e"] .e-portal-greeting h1 {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-weight: 500;
+  font-size: 48px;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  margin: 0;
+  color: #F3EFE4;
+}
+[data-ui="e"] .e-portal-greeting h1 em { color: var(--e-gold); font-style: italic; }
+
+[data-ui="e"] .e-portal-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  padding: 0 40px 24px;
+}
+[data-ui="e"] .e-portal-kpi {
+  background: var(--e-bg-panel);
+  border: 1px solid var(--e-border-dark);
+  border-radius: 10px;
+  padding: 18px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #EAF0EA;
+}
+[data-ui="e"] .e-portal-kpi.e-attn {
+  background: #3A2E12;
+  border-color: var(--e-attention);
+}
+[data-ui="e"] .e-portal-kpi .e-portal-kpi-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: #A7BDB2;
+  text-transform: uppercase;
+}
+[data-ui="e"] .e-portal-kpi .e-portal-kpi-value {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 48px;
+  font-weight: 500;
+  line-height: 1;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+[data-ui="e"] .e-portal-kpi .e-portal-kpi-foot {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: #CFDCD4;
+}
+
+/* When Vendor Portal is themed, its slate-50 shell becomes deep dark */
+[data-ui="e"] [data-testid="vendor-dashboard"] { background: var(--e-bg-deep) !important; color: #EAF0EA; }
+[data-ui="e"] [data-testid="vendor-dashboard"] .bg-white,
+[data-ui="e"] [data-testid="vendor-dashboard"] .bg-slate-50 {
+  background: var(--e-bg-panel) !important;
+  color: #EAF0EA;
+  border-color: var(--e-border-dark) !important;
+}
+[data-ui="e"] [data-testid="vendor-dashboard"] .text-slate-500,
+[data-ui="e"] [data-testid="vendor-dashboard"] .text-slate-600 { color: #A7BDB2 !important; }
+[data-ui="e"] [data-testid="vendor-dashboard"] .border { border-color: var(--e-border-dark) !important; }
+[data-ui="e"] [data-testid="vendor-dashboard"] .border-b { border-bottom-color: var(--e-border-dark) !important; }
+
 /* Print-friendly notice detail page */
 @media print {
   header, footer, nav,

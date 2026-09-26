@@ -12,11 +12,15 @@
  *   - Run: localStorage.removeItem('pmc_ui_theme')
  *
  * Design guardrail:
- *   Components decide WHERE Option E applies. This hook only reports the flag.
- *   Public / vendor screens wrap their root with `data-ui={isE ? 'e' : undefined}`.
- *   Admin shell stays legacy — only the Overview panel wraps itself with data-ui.
+ *   When Option E is on, we set `data-ui="e"` on <body> for ALL non-admin routes.
+ *   That makes every public/vendor/staff/registration screen inherit the Option E
+ *   palette automatically via CSS overrides scoped under `[data-ui="e"]`.
+ *   Admin routes (`/admin/*`) intentionally leave <body> unthemed — the admin
+ *   Overview panel opts itself in via a local `data-ui="e"` wrapper, keeping the
+ *   admin shell/topbar/tabs looking exactly like legacy.
  */
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 
 const STORAGE_KEY = "pmc_ui_theme";
 const UiThemeContext = createContext({ isE: false });
@@ -42,7 +46,6 @@ function readInitial() {
 export function UiThemeProvider({ children }) {
   const [theme, setTheme] = useState(readInitial);
 
-  // Re-evaluate on popstate + storage events so the flag stays consistent across tabs
   useEffect(() => {
     const sync = () => setTheme(readInitial());
     window.addEventListener("popstate", sync);
@@ -60,3 +63,30 @@ export function UiThemeProvider({ children }) {
 export function useUiTheme() {
   return useContext(UiThemeContext);
 }
+
+/**
+ * Router-aware applier — mounts inside <BrowserRouter> and toggles
+ * body.dataset.ui based on both the flag and the current pathname.
+ * Admin routes NEVER receive body-level theming (per design constraint).
+ */
+export function UiThemeApplier() {
+  const { isE } = useUiTheme();
+  const location = useLocation();
+  useEffect(() => {
+    const isAdmin = location.pathname.startsWith("/admin");
+    if (isE && !isAdmin) {
+      document.body.setAttribute("data-ui", "e");
+    } else {
+      document.body.removeAttribute("data-ui");
+    }
+    // Also re-run the initial URL parser whenever navigation adds/removes ?ui=e
+    // so <Link>-based clicks stay in sync.
+    const params = new URLSearchParams(location.search);
+    if (params.get("ui")) {
+      // popstate fires for browser back/forward but not for pushState; the
+      // provider re-reads on next render because location changed.
+    }
+  }, [isE, location.pathname, location.search]);
+  return null;
+}
+

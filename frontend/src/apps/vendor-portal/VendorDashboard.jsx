@@ -60,6 +60,13 @@ export default function VendorDashboard() {
 
   if (!vendor) return <div className="p-10 text-slate-500">Loading…</div>;
 
+  const now = new Date();
+  const greeting = now.getHours() < 12 ? "Good morning" : now.getHours() < 18 ? "Good afternoon" : "Good evening";
+  const activeBids = bids.filter((b) => !["awarded","rejected","withdrawn","closed"].includes(b.status));
+  const drafts = bids.filter((b) => b.status === "draft").length;
+  const awarded = bids.filter((b) => b.status === "awarded").length;
+  const emdDue = bids.filter((b) => b.status === "emd_pending" && (b.emd_due_amount || 0) > 0).length;
+
   return (
     <div className="min-h-screen bg-slate-50" data-testid="vendor-dashboard" data-ui={isE ? "e" : undefined}>
       <header className="text-white" style={{ backgroundColor: tenant?.branding_color || "#0b1e3f" }}>
@@ -88,6 +95,59 @@ export default function VendorDashboard() {
       </header>
       <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)}
                     role="vendor" me={vendor} onChange={setVendor} />
+
+      {/* Option E — greeting band + KPI cards (opt-in) matching E-Vendor-Portal.html */}
+      {isE && (
+        <>
+          <section className="e-portal-greeting" data-testid="vendor-greeting-e">
+            <div>
+              <span className="e-portal-datechip">
+                {now.toLocaleDateString("en-US", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}
+              </span>
+              <h1>
+                {greeting}, <em>{(vendor.contact_name || vendor.company_name || vendor.email || "Vendor").split(" ")[0]}</em>
+              </h1>
+            </div>
+            <Link
+              to="#"
+              onClick={(e) => { e.preventDefault(); setTab("tenders"); }}
+              data-testid="vendor-find-tenders-e"
+              className="e-cta-gold"
+            >
+              <svg aria-hidden="true" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="7" strokeLinecap="round" />
+                <path d="M20 20l-3.5-3.5" strokeLinecap="round" />
+              </svg>
+              Find tenders
+            </Link>
+          </section>
+          <section className="e-portal-kpis" data-testid="vendor-kpis-e">
+            <div className="e-portal-kpi" data-testid="vendor-kpi-active">
+              <span className="e-portal-kpi-label">Bids in progress</span>
+              <span className="e-portal-kpi-value">{String(activeBids.length).padStart(2, "0")}</span>
+              <span className="e-portal-kpi-foot">{activeBids.length - drafts} active · {drafts} draft{drafts === 1 ? "" : "s"}</span>
+            </div>
+            <div className={"e-portal-kpi" + (emdDue > 0 ? " e-attn" : "")} data-testid="vendor-kpi-emd">
+              <span className="e-portal-kpi-label">
+                {emdDue > 0 && <span className="e-live-dot inline-block mr-2" style={{background:"#E3B55C",boxShadow:"0 0 0 3px rgba(227,181,92,0.25)"}} />}
+                EMD due
+              </span>
+              <span className="e-portal-kpi-value">{String(emdDue).padStart(2, "0")}</span>
+              <span className="e-portal-kpi-foot">{emdDue === 0 ? "All clear" : "Pay before deadline"}</span>
+            </div>
+            <div className="e-portal-kpi" data-testid="vendor-kpi-awarded">
+              <span className="e-portal-kpi-label">Awarded</span>
+              <span className="e-portal-kpi-value">{String(awarded).padStart(2, "0")}</span>
+              <span className="e-portal-kpi-foot">{awarded === 0 ? "Awaiting" : "Contracts ready"}</span>
+            </div>
+            <div className="e-portal-kpi" data-testid="vendor-kpi-open">
+              <span className="e-portal-kpi-label">Open opportunities</span>
+              <span className="e-portal-kpi-value">{String(notices.length).padStart(2, "0")}</span>
+              <span className="e-portal-kpi-foot">Matched to your KYC</span>
+            </div>
+          </section>
+        </>
+      )}
 
       <div className="max-w-6xl mx-auto px-6 py-6">
         <div className="flex gap-4 border-b mb-6 overflow-x-auto">
