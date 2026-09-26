@@ -101,6 +101,20 @@ async def _notify_vendor(bid: dict, new_status: str) -> None:
     asyncio.create_task(send_email(bid.get("vendor_email"), f"[PMC] {subject}", body))
 
 
+async def vendor_confirm(vendor_email: str, subject: str, body_html: str,
+                          cta_label: Optional[str] = None,
+                          cta_url: Optional[str] = None) -> None:
+    """v47c — fire-and-forget confirmatory email to a vendor. Never raises;
+    email failures must not break the underlying business action."""
+    if not vendor_email:
+        return
+    try:
+        html = wrap(subject, body_html, cta_label, cta_url)
+        asyncio.create_task(send_email(vendor_email, f"[PMC] {subject}", html))
+    except Exception as e:
+        log.warning("vendor_confirm failed for %s: %s", vendor_email, e)
+
+
 async def notify_bid_transition(bid: dict, new_status: str) -> None:
     """Called by /bids/{id}/decision after a state advance."""
     # v47b — always email the bidder on vendor-visible transitions.

@@ -6,6 +6,7 @@ Escrow → Admin → Certifier → Legal → Accounting → Committee pipeline.
 """
 import os
 import logging
+import config
 from datetime import datetime, timezone
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Request, Depends
@@ -130,11 +131,25 @@ async def _mark_paid(session_id: str, payment_status: str = "paid") -> None:
                         {"session_id": session_id, "amount": tx.get("amount")})
         # Notify Escrow that a new EMD-paid bid is ready
         try:
-            from notify import notify_bid_transition
+            from notify import notify_bid_transition, vendor_confirm
             b = await db.bids.find_one({"_id": ObjectId(bid_id)})
             await notify_bid_transition(b, "emd_paid")
-        except Exception:
-            pass
+            # v47c — payment confirmation email to the bidder (fires exactly
+            # once thanks to the idempotent find_one_and_update guard above).
+            if b:
+                await vendor_confirm(
+                    b.get("vendor_email"),
+                    f"EMD payment received — {b.get('bid_ref')}",
+                    f"<p>Dear {b.get('company_name') or 'Vendor'},</p>"
+                    f"<p>We confirm receipt of your EMD payment of "
+                    f"<strong>{(tx.get('currency') or 'USD').upper()} {float(tx.get('amount') or 0):,.2f}</strong> "
+                    f"for bid <strong>{b.get('bid_ref')}</strong> on tender "
+                    f"<code>{b.get('notice_ref')}</code>.</p>"
+                    f"<p>Payment reference: <code>{session_id}</code><br/>"
+                    f"Your bid is now in the evaluation pipeline — no further action is needed.</p>",
+                    "View my bids", f"{config.FRONTEND_URL}/vendor")
+        except Exception as e:
+            log.warning(f"post-payment notifications failed for {session_id}: {e}")
 
 
 @router.post("/webhook/stripe")
@@ -186,4 +201,18 @@ async def refund_emd(payload: EMDRefundIn,
         {"$set": {"emd_refunded_at": now_iso(), "emd_refund_reason": payload.reason}},
     )
     await audit_log("bid.emd_refund", admin, "bid", bid.get("bid_ref"), {"reason": payload.reason})
+    # v47c — refund confirmation email to the bidder
+    try:
+        from notify import vendor_confirm
+        await vendor_confirm(
+            bid.get("vendor_email"),
+            f"EMD refunded — {bid.get('bid_ref')}",
+            f"<p>Dear {bid.get('company_name') or 'Vendor'},</p>"
+            f"<p>The EMD of <strong>{bid.get('emd_currency')} {float(bid.get('emd_paid_amount') or 0):,.2f}</strong> "
+            f"for bid <strong>{bid.get('bid_ref')}</strong> on tender "
+            f"<code>{bid.get('notice_ref')}</code> has been refunded to your original payment method."
+            + (f"<br/>Reason: <em>{payload.reason}</em>" if payload.reason else "")
+            + "</p><p>Refunds typically reflect within 5–10 business days depending on your bank.</p>")
+    except Exception as e:
+        log.warning(f"refund confirmation email failed: {e}")
     return {"ok": True}

@@ -144,6 +144,28 @@ async def create_bid(payload: BidCreateIn, vendor=Depends(current_vendor)) -> di
     doc["_id"] = res.inserted_id
     await audit_log("bid.submit", None, "bid", bid_ref,
                     {"vendor": vendor["email"], "notice": payload.notice_ref, "price": payload.price_amount})
+    # v47c — confirmatory email to the bidder. EMD-due bids include the direct
+    # payment deep-link so the vendor can pay without hunting the dashboard.
+    try:
+        from notify import vendor_confirm
+        body = (f"<p>Dear {vendor.get('company_name') or 'Vendor'},</p>"
+                f"<p>We have received your bid <strong>{bid_ref}</strong> for tender "
+                f"<code>{payload.notice_ref}</code>.</p>"
+                f"<p>Quoted price: <strong>{payload.price_currency} {payload.price_amount:,.2f}</strong><br/>"
+                f"Status: <strong>{doc['status']}</strong></p>")
+        if emd_due > 0:
+            body += (f"<p>EMD due: <strong>{emd_currency} {emd_due:,.2f}</strong>. "
+                     f"Your bid enters the evaluation pipeline once the EMD is paid.</p>")
+            await vendor_confirm(vendor["email"], f"Bid received — {bid_ref}", body,
+                                 "Pay EMD securely",
+                                 f"{config.FRONTEND_URL}/vendor/bids/{res.inserted_id}/pay")
+        else:
+            body += "<p>No EMD is due on this tender — your bid is already in the evaluation pipeline.</p>"
+            await vendor_confirm(vendor["email"], f"Bid received — {bid_ref}", body,
+                                 "View my bids", f"{config.FRONTEND_URL}/vendor")
+    except Exception as e:
+        import logging
+        logging.getLogger("bids").warning("bid-confirmation email failed for %s: %s", bid_ref, e)
     return _out(doc)
 
 
@@ -214,6 +236,17 @@ async def withdraw_bid(bid_id: str, vendor=Depends(current_vendor)) -> dict:
     await db.bids.update_one({"_id": ObjectId(bid_id)},
                              {"$set": {"status": "withdrawn", "withdrawn_at": now_iso()}})
     await audit_log("bid.withdraw", None, "bid", b.get("bid_ref"), {})
+    # v47c — confirmatory email to the bidder
+    try:
+        from notify import vendor_confirm
+        await vendor_confirm(
+            vendor.get("email"), f"Bid withdrawn — {b.get('bid_ref')}",
+            f"<p>Your bid <strong>{b.get('bid_ref')}</strong> on tender "
+            f"<code>{b.get('notice_ref')}</code> has been withdrawn at your request. "
+            f"If you paid an EMD, it will be refunded per the tender terms.</p>",
+            "View my bids", f"{config.FRONTEND_URL}/vendor")
+    except Exception:
+        pass
     return {"ok": True}
 
 

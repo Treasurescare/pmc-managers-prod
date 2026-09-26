@@ -142,4 +142,18 @@ async def change_password(payload: VendorPasswordChangeIn, vendor=Depends(curren
                   "password_changed_at": datetime.now(timezone.utc).isoformat()}},
     )
     await audit_log("vendor.password_change", None, "vendor", vendor["id"], {})
+    # v47c — security confirmation email on password change
+    try:
+        from notify import vendor_confirm
+        import config as _cfg
+        await vendor_confirm(
+            v.get("email"),
+            "Your vendor password was changed",
+            f"<p>Dear {v.get('company_name') or 'Vendor'},</p>"
+            f"<p>The password for your vendor account (<code>{v.get('email')}</code>) "
+            f"was changed at {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}.</p>"
+            f"<p>If you did not make this change, contact PMC support immediately.</p>",
+            "Open vendor portal", f"{_cfg.FRONTEND_URL}/vendor")
+    except Exception:
+        pass
     return {"ok": True}
