@@ -61,7 +61,8 @@ See `/app/memory/test_credentials.md`.
 - Zoom automated bid-opening session scheduler.
 
 ## Deployment ledger
-- v47c (Sep 2026) — **Vendor confirmatory emails for every action**: bid received (w/ Pay-EMD CTA), EMD payment received (idempotent, once), EMD refunded (w/ reason), bid withdrawn, password changed. Backend-only. Registration-submit email already existed.
+- v47d (Sep 2026) — **Security sign-in alerts on every login** (admin / staff all roles / vendor), post-MFA only, with IP + user-agent + "wasn't you?" CTA. Backend-only; verified with live Resend 200s on all three portals.
+- v47c (Sep 2026) — **Vendor confirmatory emails for every action**: bid received (w/ Pay-EMD CTA), EMD payment received (idempotent, once), EMD refunded (w/ reason), bid withdrawn, password changed.
 - v47b (Sep 2026) — **Send EMD link** (admin-triggered branded email w/ Stripe deep-link `/vendor/bids/:id/pay`) + **vendor transition emails** on all vendor-visible stages.
 - v47a (Sep 2026) — **Admin bid actions**: Approve→Certifier (renamed flag), Hold/Resume (`on_hold` status, admin-only, restores prior stage), Reject extended to held bids. Verified: hold→on_hold, resume→restores status, non-admin hold→403. Bundles: `pmc-backend-v47a.zip`, `pmc-frontend-v47a-prod-build.zip`.
 - v46z (Sep 2026) — **EMD fallback** (1%/$500 floor when notice missing `emd_config`) + **View/Print** bid detail modal (BidDetailModal.jsx). Live-verified: bid on unconfigured notice now correctly enters `emd_pending` with `emd_source=default_fallback`. Bundles: `pmc-backend-v46z.zip`, `pmc-frontend-v46z-prod-build.zip`.

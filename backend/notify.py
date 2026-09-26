@@ -115,6 +115,35 @@ async def vendor_confirm(vendor_email: str, subject: str, body_html: str,
         log.warning("vendor_confirm failed for %s: %s", vendor_email, e)
 
 
+async def login_alert(email: str, name: Optional[str], portal: str,
+                       ip: Optional[str] = None, user_agent: Optional[str] = None) -> None:
+    """v47d — security sign-in alert emailed on EVERY successful login,
+    across all portals (admin / staff roles / vendor). Fire-and-forget and
+    never raises — an email outage must not block authentication."""
+    if not email:
+        return
+    try:
+        from datetime import datetime, timezone
+        when = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        body_html = (
+            f"<p>Dear {name or email},</p>"
+            f"<p>A sign-in to your PMC Managers account was just completed:</p>"
+            f"<ul>"
+            f"<li>Portal: <strong>{portal}</strong></li>"
+            f"<li>Time: <strong>{when}</strong></li>"
+            + (f"<li>IP address: <code>{ip}</code></li>" if ip else "")
+            + (f"<li>Device: <em>{user_agent[:160]}</em></li>" if user_agent else "")
+            + f"</ul>"
+            f"<p>If this was you, no action is needed. If you do not recognise "
+            f"this sign-in, change your password immediately and contact PMC support.</p>"
+        )
+        html = wrap(f"New sign-in to your account ({portal})", body_html,
+                    "Open portal", f"{config.FRONTEND_URL}/login")
+        asyncio.create_task(send_email(email, f"[PMC] New sign-in to your account ({portal})", html))
+    except Exception as e:
+        log.warning("login_alert failed for %s: %s", email, e)
+
+
 async def notify_bid_transition(bid: dict, new_status: str) -> None:
     """Called by /bids/{id}/decision after a state advance."""
     # v47b — always email the bidder on vendor-visible transitions.

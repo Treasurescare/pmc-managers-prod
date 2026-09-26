@@ -1,6 +1,6 @@
 from typing import Dict, Any
 from bson import ObjectId
-from fastapi import APIRouter, HTTPException, Response, Depends
+from fastapi import APIRouter, HTTPException, Response, Depends, Request
 
 from db import db
 from models import AdminLoginIn, AdminPasswordChangeIn
@@ -29,7 +29,7 @@ def _set_session_cookies(response: Response, access_token: str) -> str:
 
 
 @router.post("/login")
-async def admin_login(payload: AdminLoginIn, response: Response) -> Dict[str, Any]:
+async def admin_login(payload: AdminLoginIn, response: Response, request: Request) -> Dict[str, Any]:
     user = await db.admin_users.find_one({"email": payload.email.lower()})
     if not user or not verify_password(payload.password, user.get("password_hash", "")):
         raise HTTPException(status_code=401, detail="Invalid email or password")
@@ -37,6 +37,14 @@ async def admin_login(payload: AdminLoginIn, response: Response) -> Dict[str, An
     csrf = _set_session_cookies(response, token)
     await audit_log("admin.login", {"id": str(user["_id"]), "email": user["email"]},
                     "admin_user", str(user["_id"]), {})
+    # v47d — security sign-in alert email on every successful login
+    try:
+        from notify import login_alert
+        await login_alert(user["email"], user.get("name"), "Admin Console",
+                          ip=request.client.host if request.client else None,
+                          user_agent=request.headers.get("user-agent"))
+    except Exception:
+        pass
     return {"id": str(user["_id"]), "email": user["email"], "name": user.get("name"),
             "role": user.get("role", "admin"), "token": token, "csrf_token": csrf,
             "avatar_data_url": user.get("avatar_data_url")}

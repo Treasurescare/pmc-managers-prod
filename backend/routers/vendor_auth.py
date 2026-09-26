@@ -66,7 +66,7 @@ async def current_vendor(request: Request) -> Dict[str, Any]:
 
 
 @router.post("/auth/login")
-async def vendor_login(payload: VendorLoginIn, response: Response) -> Dict[str, Any]:
+async def vendor_login(payload: VendorLoginIn, response: Response, request: Request) -> Dict[str, Any]:
     v = await db.vendors.find_one({"email": payload.email.lower()})
     if not v or not verify_password(payload.password, v.get("password_hash", "")):
         raise HTTPException(status_code=401, detail="Invalid email or password")
@@ -75,6 +75,14 @@ async def vendor_login(payload: VendorLoginIn, response: Response) -> Dict[str, 
     token = _create_vendor_token(str(v["_id"]), v["email"])
     csrf = _set_cookies(response, token)
     await audit_log("vendor.login", None, "vendor", str(v["_id"]), {"email": v["email"]})
+    # v47d — security sign-in alert email on every successful login
+    try:
+        from notify import login_alert
+        await login_alert(v["email"], v.get("company_name"), "Vendor Portal",
+                          ip=request.client.host if request.client else None,
+                          user_agent=request.headers.get("user-agent"))
+    except Exception:
+        pass
     return {
         "id": str(v["_id"]),
         "email": v["email"],

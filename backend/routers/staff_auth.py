@@ -5,7 +5,7 @@ Same cookie/CSRF mechanics as admin_auth. Backwards-compatible with the
 legacy `admin_users` collection: existing admins are auto-migrated on login.
 """
 from typing import Dict, Any, List
-from fastapi import APIRouter, HTTPException, Response, Depends
+from fastapi import APIRouter, HTTPException, Response, Depends, Request
 from bson import ObjectId
 
 from db import db
@@ -43,7 +43,7 @@ def _out(doc: dict) -> dict:
 
 
 @router.post("/auth/login")
-async def staff_login(payload: StaffLoginIn, response: Response) -> Dict[str, Any]:
+async def staff_login(payload: StaffLoginIn, response: Response, request: Request) -> Dict[str, Any]:
     user = await db.admin_users.find_one({"email": payload.email.lower()})
     if not user or not verify_password(payload.password, user.get("password_hash", "")):
         raise HTTPException(status_code=401, detail="Invalid email or password")
@@ -74,6 +74,15 @@ async def staff_login(payload: StaffLoginIn, response: Response) -> Dict[str, An
     csrf = _set_session_cookies(response, token)
     await audit_log("staff.login", {"id": str(user["_id"]), "email": user["email"]},
                     "admin_user", str(user["_id"]), {"active_role": payload.active_role})
+    # v47d — security sign-in alert email on every successful login (post-MFA)
+    try:
+        from notify import login_alert
+        await login_alert(user["email"], user.get("name"),
+                          f"Staff Portal · {payload.active_role}",
+                          ip=request.client.host if request.client else None,
+                          user_agent=request.headers.get("user-agent"))
+    except Exception:
+        pass
     return {
         "id": str(user["_id"]),
         "email": user["email"],
