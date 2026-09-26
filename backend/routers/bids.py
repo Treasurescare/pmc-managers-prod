@@ -162,6 +162,48 @@ async def get_bid(bid_id: str, vendor=Depends(current_vendor)) -> dict:
     return _out(b)
 
 
+@router.post("/{bid_id}/emd/send-link")
+async def send_emd_payment_link(bid_id: str,
+                                 admin=Depends(require_role("admin", "reviewer"))):
+    """v47b — admin sends the bidder a direct EMD-payment link by email after
+    reviewing the bid. The link deep-opens the vendor portal, auto-starts the
+    Stripe checkout for this bid, and returns the vendor to the success page.
+    This complements (not replaces) the in-dashboard Pay EMD button — both
+    paths are live so a vendor can never miss the step."""
+    from emails import send_email, wrap
+    b = await db.bids.find_one({"_id": ObjectId(bid_id)})
+    if not b:
+        raise HTTPException(status_code=404, detail="Bid not found")
+    due = float(b.get("emd_due_amount") or 0)
+    if due <= 0:
+        raise HTTPException(status_code=400, detail="No EMD due on this bid")
+    if b.get("status") not in ("emd_pending", "submitted"):
+        raise HTTPException(status_code=400,
+            detail=f"EMD link only valid while payment is pending (current: {b.get('status')})")
+    if float(b.get("emd_paid_amount") or 0) >= due:
+        raise HTTPException(status_code=400, detail="EMD already paid for this bid")
+    link = f"{config.FRONTEND_URL}/vendor/bids/{bid_id}/pay"
+    body = wrap(
+        f"EMD payment link — {b.get('bid_ref')}",
+        f"<p>Dear {b.get('company_name') or 'Vendor'},</p>"
+        f"<p>Your bid <strong>{b.get('bid_ref')}</strong> on tender "
+        f"<code>{b.get('notice_ref')}</code> has been reviewed by PMC and is "
+        f"approved to proceed to the EMD (Earnest Money Deposit) step.</p>"
+        f"<p>EMD due: <strong>{b.get('emd_currency')} {due:,.2f}</strong></p>"
+        f"<p>Click the button below to pay securely. You can also pay any time "
+        f"from Vendor Portal → My bids → Pay EMD.</p>",
+        "Pay EMD securely", link,
+    )
+    await send_email(
+        b.get("vendor_email"),
+        f"[PMC] EMD payment link — {b.get('bid_ref')}",
+        body,
+    )
+    await audit_log("bid.emd_link_sent", admin, "bid", b.get("bid_ref"),
+                    {"to": b.get("vendor_email"), "amount": due})
+    return {"ok": True, "emailed_to": b.get("vendor_email"), "link": link}
+
+
 @router.post("/{bid_id}/withdraw")
 async def withdraw_bid(bid_id: str, vendor=Depends(current_vendor)) -> dict:
     b = await db.bids.find_one({"_id": ObjectId(bid_id), "vendor_id": vendor["id"]})

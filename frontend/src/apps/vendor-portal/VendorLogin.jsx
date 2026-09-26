@@ -16,7 +16,7 @@ export default function VendorLogin() {
       const res = await vendorApi.login(email, password);
       toast.success(`Welcome, ${res.company_name || res.email}`);
       if (res.must_change_password) nav("/vendor/change-password");
-      else nav("/vendor");
+      else nav(window.history.state?.usr?.next || "/vendor");
     } catch (err) {
       showApiError(err);
     } finally {

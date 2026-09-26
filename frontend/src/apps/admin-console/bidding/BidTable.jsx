@@ -18,7 +18,7 @@ const HOLDABLE = ["submitted", "emd_pending", "emd_paid", "escrow_accepted",
  * BidTable — extracted from BiddingOpsPanel. Renders the bids pipeline table
  * and the per-row action buttons.
  */
-export default function BidTable({ bids, onAdminFlag, onReject, onOpenAssign, onHold, onResume }) {
+export default function BidTable({ bids, onAdminFlag, onReject, onOpenAssign, onHold, onResume, onSendEmdLink }) {
   return (
     <div className="border border-brand-navy/10 bg-white overflow-x-auto" data-testid="bid-table">
       <table className="w-full text-sm">
@@ -66,6 +66,10 @@ export default function BidTable({ bids, onAdminFlag, onReject, onOpenAssign, on
                 {b.status === "admin_flagged" && !b.assigned_certifier_id && (
                   <button onClick={() => onOpenAssign(b)} data-testid={`assign-certifier-${b.bid_ref}`}
                     className="text-[10px] bg-amber-500 text-white px-2 py-1 rounded hover:bg-amber-600">Assign Certifier</button>
+                )}
+                {b.status === "emd_pending" && (b.emd_due_amount || 0) > 0 && (
+                  <button onClick={() => onSendEmdLink(b)} data-testid={`send-emd-link-${b.bid_ref}`}
+                    className="text-[10px] bg-indigo-600 text-white px-2 py-1 rounded hover:bg-indigo-700">Send EMD link</button>
                 )}
                 {HOLDABLE.includes(b.status) && (
                   <button onClick={() => onHold(b)} data-testid={`admin-hold-${b.bid_ref}`}

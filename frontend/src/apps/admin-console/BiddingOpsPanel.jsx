@@ -82,6 +82,14 @@ export default function BiddingOpsPanel() {
     } catch (e) { showApiError(e); }
   };
 
+  const doSendEmdLink = async (b) => {
+    try {
+      const r = await bidApi.sendEmdLink(b.id);
+      toast.success(`EMD payment link emailed to ${r.emailed_to}`);
+      await load();
+    } catch (e) { showApiError(e); }
+  };
+
   const openAssign = (b) => {
     setAssignFor(b);
     setInspDraft({ certifier_id: "", scheduled_at: "", location: "" });
@@ -174,6 +182,7 @@ export default function BiddingOpsPanel() {
         onReject={doReject}
         onHold={doHold}
         onResume={doResume}
+        onSendEmdLink={doSendEmdLink}
         onOpenAssign={openAssign}
       />
 

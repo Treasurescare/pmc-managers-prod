@@ -24,6 +24,7 @@ import VendorChangePassword from "@/apps/vendor-portal/VendorChangePassword";
 import VendorDashboard from "@/apps/vendor-portal/VendorDashboard";
 import BidSubmit from "@/apps/vendor-portal/BidSubmit";
 import PaymentResult from "@/apps/vendor-portal/PaymentResult";
+import BidPayRedirect from "@/apps/vendor-portal/BidPayRedirect";
 import SandboxCheckout from "@/apps/vendor-portal/SandboxCheckout";
 import VendorVerifyEmail from "@/apps/vendor-portal/VendorVerifyEmail";
 
@@ -116,6 +117,7 @@ export default function App() {
             <Route path="/vendor/change-password" element={<VendorChangePassword />} />
             <Route path="/vendor" element={<VendorDashboard />} />
             <Route path="/vendor/bid/new/:noticeRef" element={<BidSubmit />} />
+            <Route path="/vendor/bids/:bidId/pay" element={<BidPayRedirect />} />
             <Route path="/vendor/payment/success" element={<PaymentResult outcome="success" />} />
             <Route path="/vendor/payment/cancel" element={<PaymentResult outcome="cancel" />} />
             <Route path="/vendor/payment/sandbox" element={<SandboxCheckout />} />
