@@ -686,6 +686,26 @@
 [data-ui="e"] .e-pipeline-stage.active .e-pipe-name { color: #F0D9A8; font-weight: 600; }
 [data-ui="e"] .e-pipeline-stage.awarded .e-bar { background: var(--e-gold); }
 
+/* Admin shell overrides in Option E — dark forest palette across sidebar/topbar */
+[data-ui="e"] .admin-shell,
+[data-ui="e"] aside.admin-shell-sidebar,
+[data-ui="e"] header.admin-shell-topbar { background: var(--e-bg-panel) !important; color: #EAF0EA !important; border-color: var(--e-border-dark) !important; }
+[data-ui="e"] .bg-slate-50 { background: var(--e-bg-deep) !important; }
+[data-ui="e"] .bg-slate-100 { background: var(--e-bg-panel) !important; }
+[data-ui="e"] .text-slate-500 { color: #A7BDB2 !important; }
+[data-ui="e"] .text-slate-600 { color: #CFDCD4 !important; }
+[data-ui="e"] .text-slate-700 { color: #EAF0EA !important; }
+[data-ui="e"] .text-slate-800, [data-ui="e"] .text-slate-900 { color: #F3EFE4 !important; }
+[data-ui="e"] .bg-white { background: var(--e-bg-surface) !important; }
+[data-ui="e"] .border-slate-200 { border-color: var(--e-border-light) !important; }
+
+/* Admin analytics panel — when isE, dark cards */
+[data-ui="e"] [data-testid="admin-analytics-panel"] .bg-white,
+[data-ui="e"] [data-testid="admin-analytics-panel"] .bg-slate-50,
+[data-ui="e"] [data-testid="admin-analytics-panel"] .bg-slate-100 { background: var(--e-bg-panel) !important; color: #EAF0EA; border-color: var(--e-border-dark) !important; }
+[data-ui="e"] [data-testid="admin-analytics-panel"] .text-slate-500,
+[data-ui="e"] [data-testid="admin-analytics-panel"] .text-slate-600 { color: #A7BDB2 !important; }
+
 /* Print-friendly notice detail page */
 @media print {
   header, footer, nav,

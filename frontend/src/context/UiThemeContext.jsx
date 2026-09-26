@@ -73,18 +73,10 @@ export function UiThemeApplier() {
   const { isE } = useUiTheme();
   const location = useLocation();
   useEffect(() => {
-    const isAdmin = location.pathname.startsWith("/admin");
-    if (isE && !isAdmin) {
+    if (isE) {
       document.body.setAttribute("data-ui", "e");
     } else {
       document.body.removeAttribute("data-ui");
-    }
-    // Also re-run the initial URL parser whenever navigation adds/removes ?ui=e
-    // so <Link>-based clicks stay in sync.
-    const params = new URLSearchParams(location.search);
-    if (params.get("ui")) {
-      // popstate fires for browser back/forward but not for pushState; the
-      // provider re-reads on next render because location changed.
     }
   }, [isE, location.pathname, location.search]);
   return null;

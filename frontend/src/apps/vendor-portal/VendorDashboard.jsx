@@ -29,6 +29,7 @@ export default function VendorDashboard() {
   const [notices, setNotices] = useState([]);
   const [bids, setBids] = useState([]);
   const [tab, setTab] = useState("tenders");
+  const [bidFilter, setBidFilter] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [viewBidId, setViewBidId] = useState(null);
   const tenant = useTenantSkin();
@@ -69,7 +70,7 @@ export default function VendorDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50" data-testid="vendor-dashboard" data-ui={isE ? "e" : undefined}>
-      <header className="text-white" style={{ backgroundColor: tenant?.branding_color || "#0b1e3f" }}>
+      <header className="text-white" style={{ backgroundColor: isE ? "#0F3B2E" : (tenant?.branding_color || "#0b1e3f") }}>
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div>
             <div className="text-xs tracking-widest uppercase text-amber-300">
@@ -122,29 +123,33 @@ export default function VendorDashboard() {
             </Link>
           </section>
           <section className="e-portal-kpis" data-testid="vendor-kpis-e">
-            <div className="e-portal-kpi" data-testid="vendor-kpi-active">
+            <button type="button" className="e-portal-kpi text-left cursor-pointer transition-colors hover:brightness-110" data-testid="vendor-kpi-active"
+                    onClick={() => { setTab("bids"); setBidFilter("active"); }}>
               <span className="e-portal-kpi-label">Bids in progress</span>
               <span className="e-portal-kpi-value">{String(activeBids.length).padStart(2, "0")}</span>
               <span className="e-portal-kpi-foot">{activeBids.length - drafts} active · {drafts} draft{drafts === 1 ? "" : "s"}</span>
-            </div>
-            <div className={"e-portal-kpi" + (emdDue > 0 ? " e-attn" : "")} data-testid="vendor-kpi-emd">
+            </button>
+            <button type="button" className={"text-left cursor-pointer transition-colors hover:brightness-110 e-portal-kpi" + (emdDue > 0 ? " e-attn" : "")} data-testid="vendor-kpi-emd"
+                    onClick={() => { setTab("bids"); setBidFilter("emd"); }}>
               <span className="e-portal-kpi-label">
                 {emdDue > 0 && <span className="e-live-dot inline-block mr-2" style={{background:"#E3B55C",boxShadow:"0 0 0 3px rgba(227,181,92,0.25)"}} />}
                 EMD due
               </span>
               <span className="e-portal-kpi-value">{String(emdDue).padStart(2, "0")}</span>
               <span className="e-portal-kpi-foot">{emdDue === 0 ? "All clear" : "Pay before deadline"}</span>
-            </div>
-            <div className="e-portal-kpi" data-testid="vendor-kpi-awarded">
+            </button>
+            <button type="button" className="e-portal-kpi text-left cursor-pointer transition-colors hover:brightness-110" data-testid="vendor-kpi-awarded"
+                    onClick={() => { setTab("bids"); setBidFilter("awarded"); }}>
               <span className="e-portal-kpi-label">Awarded</span>
               <span className="e-portal-kpi-value">{String(awarded).padStart(2, "0")}</span>
               <span className="e-portal-kpi-foot">{awarded === 0 ? "Awaiting" : "Contracts ready"}</span>
-            </div>
-            <div className="e-portal-kpi" data-testid="vendor-kpi-open">
+            </button>
+            <button type="button" className="e-portal-kpi text-left cursor-pointer transition-colors hover:brightness-110" data-testid="vendor-kpi-open"
+                    onClick={() => { setTab("tenders"); setBidFilter(null); }}>
               <span className="e-portal-kpi-label">Open opportunities</span>
               <span className="e-portal-kpi-value">{String(notices.length).padStart(2, "0")}</span>
               <span className="e-portal-kpi-foot">Matched to your KYC</span>
-            </div>
+            </button>
           </section>
         </>
       )}
@@ -261,8 +266,26 @@ export default function VendorDashboard() {
 
         {tab === "bids" && (
           <>
+          {bidFilter && (
+            <div className="mb-3 flex items-center gap-2 text-sm" data-testid="vendor-bid-filter-banner">
+              <span className="text-slate-600">Filter:</span>
+              <span className="px-3 py-1 rounded-full bg-slate-100 border font-medium">
+                {bidFilter === "active" ? "In progress" : bidFilter === "emd" ? "EMD due" : bidFilter === "awarded" ? "Awarded" : bidFilter}
+              </span>
+              <button onClick={() => setBidFilter(null)} className="text-xs underline text-slate-500 hover:text-slate-800"
+                      data-testid="vendor-bid-filter-clear">Clear</button>
+            </div>
+          )}
           <div className="space-y-3" data-testid="vendor-bid-list">
-            {bidPager.paged.map((b) => (
+            {bidPager.paged
+              .filter((b) => {
+                if (!bidFilter) return true;
+                if (bidFilter === "active") return !["awarded","rejected","withdrawn","closed"].includes(b.status);
+                if (bidFilter === "emd") return b.status === "emd_pending" && (b.emd_due_amount || 0) > 0;
+                if (bidFilter === "awarded") return b.status === "awarded";
+                return true;
+              })
+              .map((b) => (
               <div key={b.id} className="bg-white border rounded-lg p-4 flex items-center justify-between"
                 data-testid={`bid-row-${b.bid_ref}`}>
                 <div>
