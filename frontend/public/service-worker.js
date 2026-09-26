@@ -12,7 +12,7 @@
  * page load; no manual "clear cache" needed.
  */
 
-const CACHE_VERSION = "pmc-shell-v46x";
+const CACHE_VERSION = "pmc-shell-v47g";
 const SHELL_ASSETS = [
   "/",
   "/manifest.json",

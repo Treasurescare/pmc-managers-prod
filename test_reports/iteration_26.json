@@ -1,0 +1,30 @@
+{
+  "summary": "v47g full test: 6/6 backend contract tests PASS (admin bid detail, DocuSign resend status rules, nonexistent 404, combined-pdf no-crash). Frontend: admin bid detail modal opens/closes correctly; list-pager on bidding works with 10/20/30/All + prev/next (verified 12 bids -> 10 + 2 across 2 pages); all 20 target pagers render across admin panels and vendor portal (bidding, docusign, registrations, vendors, notices, auctions, engagements, billing, audit, vintel, meetings, masters staff/companies/tenants, boq, contracts, catalog, escrow, corrigenda + vendor-tender/vendor-bid/vendor-env). DocuSign per-row buttons correct: Resend appears only on non-completed rows, Print only on completed; ds-view-modal opens with envelope details. No blocking issues.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin panels (AnalyticsPanel, BiddingOpsPanel, AuditPanel)", "issues": ["React hydration warning: <button> inside <button> caused by <info-dot> Radix tooltip trigger (asChild) nested inside outer action buttons (anomaly-run, committee-new-toggle, audit-verify). Non-blocking but should wrap info-dot outside the button or remove asChild."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v47g_contract.py", "/app/test_reports/pytest/v47g_results.xml"],
+  "action_items": [
+    "Task description had incorrect admin tab keys — real keys are: auctions (not live-auctions), vintel (not vendor-intel). contract-pager lives under boq tab's 'Contracts' subtab (boq-tab-contracts), and masters company-pager/tenant-pager are behind masters-tab-companies/masters-tab-tenants subtabs. Update docs.",
+    "(Low) Fix nested <button> inside <button> hydration warning caused by Radix Tooltip info-dot with asChild inside outer buttons in AnalyticsPanel/BiddingOpsPanel/AuditPanel.",
+    "(Info) External resend endpoint returns 502 via Cloudflare which replaces JSON body with HTML — backend itself returns well-formed JSON {detail: 'DocuSign resend failed: ...'} on port 8001. Contract is correct; expected in preview env (DocuSign JWT invalid_grant / no_valid_keys_or_signatures)."
+  ],
+  "critical_code_review_comments": [
+    "DocuSignPanel bug fix from v47g (useListPager was previously in an IIFE, discarding controls) is confirmed working — pager renders and per-row buttons appear correctly.",
+    "Consistent use of data-testid across 20 pagers is good practice — enables robust regression testing.",
+    "Tab-key naming inconsistent (auctions vs vendor-intel-style plural, vintel abbreviation) — consider aligning on convention."
+  ],
+  "updated_files": ["/app/backend/tests/test_v47g_contract.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "Admin adminsupport@pmcmanagers.com / Admin@12345; Vendor manualvendor@pmcmanagers.com / Vendor@12345 (both valid).",
+  "seed_data_creation": "None. Used existing bid PMC-BID-2026-00022 (id 6ab7349dbd6e363382301c69) and existing envelopes.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Correct admin tab keys: analytics, registrations, vendors, notices, corrigenda, tender-builder, bidding, escrow, evaluation, awards, docusign, auctions, meetings, l1, boq (has subtabs boq-tab-templates/boq-tab-contracts), vintel, masters (subtabs masters-tab-staff/companies/tenants), permissions, packages, audit, catalog, engagements, billing, help. DocuSign 502 is expected in preview because JWT grant is invalid; backend still returns well-formed error JSON on localhost:8001 (Cloudflare strips it on 502 externally). Use internal localhost:8001 to inspect real 502 error bodies.",
+  "rca of the issue": "N/A - all tests pass. Prior fork's DocuSignPanel useListPager IIFE bug is confirmed fixed (pager + row buttons render)."
+}
