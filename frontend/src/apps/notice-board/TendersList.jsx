@@ -110,6 +110,156 @@ export default function TendersList() {
       )}
 
       <main className="flex-1 max-w-6xl mx-auto w-full px-6 lg:px-10 pt-12 pb-16">
+        {isE ? (
+          <div className="grid gap-10 lg:grid-cols-[240px_minmax(0,1fr)] items-start">
+            {/* Refine aside — matches E-Tenders.html */}
+            <aside className="e-refine-aside" data-testid="tenders-refine-aside" aria-label="Filters">
+              <div className="e-refine-head">
+                <h2 className="e-refine-title">Refine</h2>
+                <span className="text-sm text-[#4F5C55]">{(q || country) ? "Applied" : "0 applied"}</span>
+              </div>
+              <div className="flex flex-col gap-2">
+                <div className="e-refine-label">
+                  <span className="e-numeral">I</span>
+                  <span className="e-tag">Search</span>
+                </div>
+                <input value={q} onChange={(e) => setQ(e.target.value)} data-testid="tenders-search"
+                       placeholder="Keyword, ref…" className="h-11 px-4 rounded-full border border-[#C9C1AA] bg-[#FBF9F3] text-sm outline-none focus:border-[#0F3B2E]" />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="e-refine-label" htmlFor="e-f-country">
+                  <span className="e-numeral">II</span>
+                  <span className="e-tag">Country</span>
+                </label>
+                <input id="e-f-country" value={country} onChange={(e) => setCountry(e.target.value.toUpperCase())}
+                       placeholder="KZ, IN, GB…" maxLength={2}
+                       data-testid="tenders-country-filter"
+                       className="h-11 px-4 rounded-full border border-[#C9C1AA] bg-[#FBF9F3] text-sm outline-none uppercase focus:border-[#0F3B2E]" />
+              </div>
+              <button
+                type="button"
+                onClick={() => { setQ(""); setCountry(""); }}
+                data-testid="tenders-clear-filters"
+                className="h-11 rounded-full border border-[#14261F] text-sm font-medium hover:bg-[#14261F] hover:text-[#F3EFE4] transition-colors"
+              >
+                Clear all filters
+              </button>
+              <div className="border-t border-[#C9C1AA] pt-4 flex flex-col gap-3 text-sm text-[#14261F]">
+                <h3 className="m-0 text-xs font-medium tracking-[0.2em] text-[#3B4A43] uppercase">Status key</h3>
+                <span className="flex gap-3 items-center"><span className="w-2 h-2 rounded-full bg-[#0F3B2E]" style={{boxShadow:"0 0 0 4px rgba(15,59,46,0.14)"}} />Open for bids</span>
+                <span className="flex gap-3 items-center"><span className="w-2 h-2 rounded-full bg-[#B8741A]" style={{boxShadow:"0 0 0 4px #F6E6CC"}} />Closing within 7 days</span>
+                <span className="flex gap-3 items-center"><span className="inline-block w-3 h-3 rounded-full" style={{border:"1.5px dashed #4F5C55"}} />Under evaluation</span>
+                <span className="flex gap-3 items-center"><span className="w-3.5 h-3.5 rounded-full bg-[#0F3B2E] flex items-center justify-center"><svg width="8" height="8" fill="none" stroke="#D2B46A" strokeWidth="3" viewBox="0 0 24 24"><path d="M5 12l5 5L19 7" /></svg></span>Awarded</span>
+              </div>
+            </aside>
+
+            <div className="flex flex-col gap-6 min-w-0">
+              {/* Tab-pill switcher — All / Live / Completed */}
+              <div className="flex justify-between items-center flex-wrap gap-3">
+                <div className="e-tab-pill-wrap" role="tablist" aria-label="Tender status">
+                  {[["live","Live"], ["completed","Completed"], ["all","All"]].map(([m, l]) => (
+                    <Link key={m} to={`/tenders/${m}`} data-testid={`tenders-mode-${m}`}
+                          className={"e-tab-pill" + (mode === m ? " active" : "")}>
+                      {l}
+                    </Link>
+                  ))}
+                </div>
+                <span className="font-mono text-xs tracking-widest text-[#4F5C55]">
+                  <span className="text-[#14261F]">{String(filtered.length).padStart(2,"0")}</span> ENTRIES · SORTED BY CLOSING
+                </span>
+              </div>
+
+              {err && <div className="text-red-700 bg-red-50 border border-red-200 px-4 py-2 text-sm">{err}</div>}
+              {loading ? (
+                <div className="text-[#4F5C55] text-sm">Loading tenders…</div>
+              ) : filtered.length === 0 ? (
+                <div className="e-cream-card p-14 text-center text-[#4F5C55]">
+                  No {mode === "completed" ? "completed" : mode === "all" ? "" : "live"} tenders match this filter.
+                </div>
+              ) : (
+                <div className="e-register-wrap">
+                  <div className="e-register-inner">
+                    <div className="e-register-head">
+                      <span className="e-title">{title}</span>
+                      <span className="e-meta"><span className="text-[#14261F]">{String(filtered.length).padStart(2,"0")}</span> ENTRIES</span>
+                    </div>
+                    <table className="e-register-table" data-testid="tenders-grid">
+                      <thead>
+                        <tr>
+                          <th className="w-11">No.</th>
+                          <th>Ref · Tender · Buyer</th>
+                          <th className="w-32">Sector · Country</th>
+                          <th className="w-24">Est. Value</th>
+                          <th className="w-40">Time Left</th>
+                          <th className="w-36 text-right">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filtered.slice(0, 20).map((n, idx) => {
+                          const roman = ["i","ii","iii","iv","v","vi","vii","viii","ix","x","xi","xii","xiii","xiv","xv","xvi","xvii","xviii","xix","xx"][idx] || String(idx+1);
+                          const past = (n.submission_deadline || "9999") <= now;
+                          const isAwarded = n.award_status === "awarded";
+                          const rem = n.submission_deadline ? new Date(n.submission_deadline) - new Date() : 0;
+                          const days = Math.max(0, Math.floor(rem / (1000*60*60*24)));
+                          const hours = Math.max(0, Math.floor((rem / (1000*60*60)) % 24));
+                          const mins = Math.max(0, Math.floor((rem / (1000*60)) % 60));
+                          const closingSoon = rem > 0 && rem < 1000*60*60*24*7;
+                          return (
+                            <tr key={n.id} data-testid={`tender-card-${n.notice_ref}`}>
+                              <td className="e-roman">{roman}</td>
+                              <td>
+                                <Link to={`/notices/${n.notice_ref}`} className="e-title-cell">
+                                  <span className="e-ref">{n.notice_ref}</span>
+                                  <span>{n.title}</span>
+                                </Link>
+                              </td>
+                              <td>
+                                <span className="flex flex-col gap-1 text-sm text-[#3B4A43]">
+                                  <span className="text-[#14261F]">{n.category || "General"}</span>
+                                  <span>{n.delivery_country || "—"}</span>
+                                </span>
+                              </td>
+                              <td className="text-[15px] font-semibold text-[#14261F] pt-6">
+                                {n.budget_amount ? `${n.budget_currency || ""} ${Number(n.budget_amount).toLocaleString()}` : "—"}
+                              </td>
+                              <td>
+                                <span className="flex flex-col gap-1.5 items-start pt-4">
+                                  {rem > 0 ? (
+                                    <span className="e-countdown-chip">
+                                      {String(days).padStart(2,"0")}d {String(hours).padStart(2,"0")}:{String(mins).padStart(2,"0")}
+                                    </span>
+                                  ) : (
+                                    <span className="e-countdown-chip" style={{background:"#E7E1D0",color:"#4F5C55"}}>Closed</span>
+                                  )}
+                                  <span className="text-xs text-[#4F5C55]">
+                                    {n.submission_deadline ? `Closes ${new Date(n.submission_deadline).toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" })}` : ""}
+                                  </span>
+                                </span>
+                              </td>
+                              <td className="text-right pt-6">
+                                {isAwarded ? (
+                                  <span className="e-status-chip awarded">★ Awarded</span>
+                                ) : closingSoon ? (
+                                  <span className="e-status-chip closing-soon">Closing soon</span>
+                                ) : past ? (
+                                  <span className="e-status-chip" style={{color:"#4F5C55",background:"#E7E1D0"}}>Closed</span>
+                                ) : (
+                                  <span className="e-status-chip open">Open for bids</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          /* Legacy layout */
+        <div className="legacy-layout">
         <div className="pmc-label text-brand-gold">Public Notice Board</div>
         <h1 className="font-display text-4xl lg:text-5xl text-brand-navy mt-2">{title}</h1>
         <p className="mt-3 text-brand-navy/70 max-w-2xl">{subtitle}</p>
@@ -186,6 +336,8 @@ export default function TendersList() {
               );
             })}
           </div>
+        )}
+        </div>
         )}
       </main>
       <PmcFooter />

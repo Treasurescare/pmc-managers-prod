@@ -40,6 +40,62 @@ export default function AnalyticsPanel() {
   const t = data.totals || {};
   return (
     <div data-testid="admin-analytics-panel" className="space-y-6" data-ui={isE ? "e" : undefined}>
+      {isE && (
+        <>
+          {/* Attention strip — matches E-Admin-Dashboard.html */}
+          <section className="e-attention-strip" data-testid="admin-attention-strip" aria-label="Needs attention">
+            <div className="e-attn-label">Attention</div>
+            <a href="#" onClick={(e) => { e.preventDefault(); go("bidding"); }} data-testid="admin-attn-closing">
+              <span><span className="e-num">{String(t.bids_open || 0).padStart(2,"0")}</span> tenders in bidding stage</span>
+            </a>
+            <a href="#" onClick={(e) => { e.preventDefault(); go("evaluation"); }} data-testid="admin-attn-approvals">
+              <span><span className="e-num">{String(t.pending_emd || 0).padStart(2,"0")}</span> items awaiting approval</span>
+            </a>
+            <a href="#" onClick={(e) => { e.preventDefault(); go("evaluation"); }} data-testid="admin-attn-eval">
+              <span><span className="e-num">{String(t.bids || 0).padStart(2,"0")}</span> bids under evaluation</span>
+            </a>
+          </section>
+
+          {/* 7-stage pipeline */}
+          <section className="e-pipeline" data-testid="admin-pipeline" aria-labelledby="admin-pipeline-h">
+            <div className="e-pipeline-head">
+              <h2 id="admin-pipeline-h">Tender pipeline <span className="e-tag">by stage</span></h2>
+              <span className="e-tag">Live counts</span>
+            </div>
+            <ol className="e-pipeline-grid">
+              {(() => {
+                const stages = [
+                  { r: "I",   name: "Draft",         v: (t.notices || 0) - (t.published_notices || 0), tab: "notices" },
+                  { r: "II",  name: "Published",     v: t.published_notices || 0, tab: "notices" },
+                  { r: "III", name: "Clarifications", v: 0, tab: "notices" },
+                  { r: "IV",  name: "Bidding",       v: t.bids_open || t.bids || 0, tab: "bidding", active: true },
+                  { r: "V",   name: "Technical eval", v: t.pending_emd || 0, tab: "evaluation" },
+                  { r: "VI",  name: "Commercial",    v: t.active_contracts || 0, tab: "l1" },
+                  { r: "VII", name: "Awarded",       v: t.awarded || 0, tab: "awards", awarded: true },
+                ];
+                const maxV = Math.max(1, ...stages.map((s) => s.v || 0));
+                return stages.map((s) => (
+                  <li key={s.r}>
+                    <a href="#" onClick={(e) => { e.preventDefault(); go(s.tab); }}
+                       className={"e-pipeline-stage" + (s.active ? " active" : s.awarded ? " awarded" : "")}
+                       data-testid={`admin-pipeline-${s.tab}`}>
+                      <span className="flex justify-between items-baseline">
+                        <span className="e-numeral">{s.r}</span>
+                        {s.active && <span className="font-mono text-[10px] tracking-wider text-[#F0D9A8]">NOW</span>}
+                      </span>
+                      <span className="e-bar-track" aria-hidden="true">
+                        <span className={"e-bar" + ((s.v || 0) === 0 ? " muted" : "")} style={{ height: `${Math.max(15, ((s.v || 0) / maxV) * 100)}%` }} />
+                      </span>
+                      <span className="e-pipe-count">{String(s.v || 0).padStart(2, "0")}</span>
+                      <span className="e-pipe-name">{s.name}</span>
+                    </a>
+                  </li>
+                ));
+              })()}
+            </ol>
+          </section>
+        </>
+      )}
       <DashboardDrillCards />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[

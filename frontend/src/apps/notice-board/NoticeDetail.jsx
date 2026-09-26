@@ -162,6 +162,7 @@ export default function NoticeDetail() {
               <h1 className="font-display text-3xl lg:text-4xl mt-4 leading-tight text-brand-navy">{notice.title}</h1>
 
               <div className="mt-8 prose max-w-none">
+                {isE && <span className="font-serif text-[40px] leading-none text-[#7A5F1E] float-left mr-3">I</span>}
                 <div className="pmc-label">Scope of work</div>
                 <p className="whitespace-pre-wrap text-brand-navy/85 text-[15px] leading-7 mt-2">{notice.description}</p>
               </div>

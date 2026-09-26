@@ -149,6 +149,67 @@ export default function VendorDashboard() {
         </>
       )}
 
+      {/* Option E — Sealed bid in progress card (matches E-Vendor-Portal.html) */}
+      {isE && activeBids.length > 0 && (() => {
+        const bip = activeBids[0];
+        const notice = notices.find((n) => n.notice_ref === bip.notice_ref);
+        const rem = notice?.submission_deadline ? new Date(notice.submission_deadline) - new Date() : 0;
+        const days = Math.max(0, Math.floor(rem / (1000*60*60*24)));
+        const hours = Math.max(0, Math.floor((rem / (1000*60*60)) % 24));
+        const mins = Math.max(0, Math.floor((rem / (1000*60)) % 60));
+        const statusRank = { draft: 0, submitted: 1, emd_pending: 2, emd_paid: 3, escrow_accepted: 3, certifier_review: 4, awarded: 4 };
+        const currentStep = Math.min(4, statusRank[bip.status] ?? 2);
+        const stepNames = ["Eligibility", "Technical envelope", "Commercial envelope", "EMD / bank guarantee", "Review, sign & seal"];
+        return (
+          <section className="e-bid-progress" data-testid="vendor-bid-progress-e">
+            <div className="e-bid-progress-inner">
+              <div className="e-bid-progress-head">
+                <span className="e-tag">
+                  <svg aria-hidden="true" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="1.5" /><path d="M8 10V7a4 4 0 0 1 8 0v3" strokeLinejoin="round" /></svg>
+                  Sealed bid in progress · {bip.bid_ref}
+                </span>
+                {rem > 0 && (
+                  <span className="e-timer" role="timer">
+                    <span className="e-live-dot" style={{background:"#E3B55C",boxShadow:"0 0 0 3px rgba(227,181,92,0.25)"}} />
+                    CLOSES IN <span className="e-num">{String(days).padStart(2,"0")}d {String(hours).padStart(2,"0")}:{String(mins).padStart(2,"0")}</span>
+                  </span>
+                )}
+              </div>
+              <div className="e-bid-progress-body">
+                <Link to={`/notices/${bip.notice_ref}`} className="e-bid-progress-title">
+                  {notice?.title || bip.notice_ref}
+                </Link>
+                <ol className="e-bid-steps">
+                  {stepNames.map((name, i) => {
+                    const isDone = i < currentStep;
+                    const isActive = i === currentStep;
+                    const roman = ["I","II","III","IV","V"][i];
+                    return (
+                      <li key={i} className="e-bid-step">
+                        <span className="e-bid-step-marker">
+                          <span className={"e-bid-step-dot" + (isDone ? " done" : isActive ? " active" : "")}>
+                            {isDone ? (
+                              <svg width="14" height="14" fill="none" stroke="#8FD9C4" strokeWidth="2.4" viewBox="0 0 24 24"><path d="M5 12l5 5L19 7" strokeLinejoin="round" strokeLinecap="round"/></svg>
+                            ) : roman}
+                          </span>
+                          {i < 4 && <span className={"e-bid-step-line" + (isDone ? " done" : " dashed")} />}
+                        </span>
+                        <span className="e-bid-step-label">
+                          <span className={"e-bid-step-tag" + (isDone ? " done" : isActive ? " active" : "")}>
+                            {roman} · {isDone ? "DONE" : isActive ? "IN PROGRESS" : "TO DO"}
+                          </span>
+                          <span className="e-bid-step-name">{name}</span>
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
+            </div>
+          </section>
+        );
+      })()}
+
       <div className="max-w-6xl mx-auto px-6 py-6">
         <div className="flex gap-4 border-b mb-6 overflow-x-auto">
           <button onClick={() => setTab("tenders")}
