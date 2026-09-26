@@ -80,7 +80,8 @@ async def staff_login(payload: StaffLoginIn, response: Response, request: Reques
         await login_alert(user["email"], user.get("name"),
                           f"Staff Portal · {payload.active_role}",
                           ip=request.client.host if request.client else None,
-                          user_agent=request.headers.get("user-agent"))
+                          user_agent=request.headers.get("user-agent"),
+                          user_id=str(user["_id"]))
     except Exception:
         pass
     return {

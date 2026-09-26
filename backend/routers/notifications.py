@@ -44,3 +44,42 @@ async def mark_all_read(admin=Depends(current_admin)):
         {"$set": {"read": True, "read_at": now_iso()}},
     )
     return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# v47e — Vendor-facing in-app notifications (bell on the vendor portal)
+# ---------------------------------------------------------------------------
+
+from routers.vendor_auth import current_vendor  # noqa: E402
+
+
+@router.get("/vendor/mine")
+async def list_vendor_notifications(vendor=Depends(current_vendor)):
+    q = {"$or": [
+        {"user_ref": vendor.get("vendor_ref")},
+        {"user_email": vendor.get("email")},
+    ]}
+    return [_out(n) async for n in db.notifications.find(q).sort("created_at", -1).limit(50)]
+
+
+@router.post("/vendor/{notification_id}/read")
+async def vendor_mark_read(notification_id: str, vendor=Depends(current_vendor)):
+    r = await db.notifications.update_one(
+        {"_id": ObjectId(notification_id),
+         "$or": [{"user_ref": vendor.get("vendor_ref")},
+                 {"user_email": vendor.get("email")}]},
+        {"$set": {"read": True, "read_at": now_iso()}},
+    )
+    if r.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"ok": True}
+
+
+@router.post("/vendor/read-all")
+async def vendor_mark_all_read(vendor=Depends(current_vendor)):
+    await db.notifications.update_many(
+        {"$or": [{"user_ref": vendor.get("vendor_ref")},
+                 {"user_email": vendor.get("email")}]},
+        {"$set": {"read": True, "read_at": now_iso()}},
+    )
+    return {"ok": True}

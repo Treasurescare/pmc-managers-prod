@@ -42,7 +42,8 @@ async def admin_login(payload: AdminLoginIn, response: Response, request: Reques
         from notify import login_alert
         await login_alert(user["email"], user.get("name"), "Admin Console",
                           ip=request.client.host if request.client else None,
-                          user_agent=request.headers.get("user-agent"))
+                          user_agent=request.headers.get("user-agent"),
+                          user_id=str(user["_id"]))
     except Exception:
         pass
     return {"id": str(user["_id"]), "email": user["email"], "name": user.get("name"),

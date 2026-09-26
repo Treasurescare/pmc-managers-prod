@@ -582,6 +582,13 @@ export const notifyApi = {
   markAllRead: () => api.post("/api/v1/notifications/read-all").then((r) => r.data),
 };
 
+// v47e — vendor-facing in-app notifications
+export const vendorNotifyApi = {
+  list: () => api.get("/api/v1/notifications/vendor/mine").then((r) => r.data),
+  markRead: (id) => api.post(`/api/v1/notifications/vendor/${id}/read`).then((r) => r.data),
+  markAllRead: () => api.post("/api/v1/notifications/vendor/read-all").then((r) => r.data),
+};
+
 // ---------- Wave 39: Corrigenda ----------
 export const corrigendaApi = {
   listPublic: (ref) => api.get(`/api/v1/notices/${ref}/corrigenda`).then((r) => r.data),

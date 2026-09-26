@@ -80,7 +80,8 @@ async def vendor_login(payload: VendorLoginIn, response: Response, request: Requ
         from notify import login_alert
         await login_alert(v["email"], v.get("company_name"), "Vendor Portal",
                           ip=request.client.host if request.client else None,
-                          user_agent=request.headers.get("user-agent"))
+                          user_agent=request.headers.get("user-agent"),
+                          user_ref=v.get("vendor_ref"))
     except Exception:
         pass
     return {

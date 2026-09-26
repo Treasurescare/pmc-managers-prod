@@ -5,6 +5,7 @@ import { vendorApi, publicApi, bidApi, formatApiError, showApiError} from "@/lib
 import VendorGdprButton from "./VendorGdprButton";
 import VendorSignatures from "./VendorSignatures";
 import RateAVendor from "./RateAVendor";
+import VendorNotificationBell from "./VendorNotificationBell";
 import BidDetailModal from "./BidDetailModal";
 import ProfileModal from "@/apps/shared/ProfileModal";
 import useTenantSkin from "@/apps/shared/useTenantSkin";
@@ -66,6 +67,7 @@ export default function VendorDashboard() {
           </div>
           <div className="text-sm flex items-center gap-4">
             <span className="text-white/70">{vendor.vendor_ref}</span>
+            <VendorNotificationBell />
             <button onClick={() => setProfileOpen(true)}
                     data-testid="vendor-profile-open"
                     className="w-9 h-9 rounded-full overflow-hidden border border-white/30 flex items-center justify-center bg-white/10 hover:ring-2 hover:ring-white/40">
