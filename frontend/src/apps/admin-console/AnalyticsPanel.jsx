@@ -3,11 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { analyticsApi, bidApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
+import { useUiTheme } from "@/context/UiThemeContext";
 import DashboardDrillCards from "./DashboardDrillCards";
 import { InfoDot } from "@/components/InfoDot";
 
 export default function AnalyticsPanel() {
   const { t: tt } = useI18n();
+  const { isE } = useUiTheme();
   const nav = useNavigate();
   const go = (tab) => nav(`/admin?tab=${tab}`);
   const [data, setData] = useState(null);
@@ -37,7 +39,7 @@ export default function AnalyticsPanel() {
   if (!data) return <div className="p-6 text-slate-500 text-sm">{tt("panels.analytics.loading")}</div>;
   const t = data.totals || {};
   return (
-    <div data-testid="admin-analytics-panel" className="space-y-6">
+    <div data-testid="admin-analytics-panel" className="space-y-6" data-ui={isE ? "e" : undefined}>
       <DashboardDrillCards />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[

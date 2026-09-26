@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -170,6 +171,230 @@
 /* Legacy compatibility (in case any old code references pmc-hard-shadow) */
 .pmc-hard-shadow { box-shadow: 0 10px 25px -5px rgba(15,27,61,0.25); }
 .pmc-hard-shadow-primary { box-shadow: 0 10px 25px -5px rgba(15,27,61,0.25); }
+
+/* =====================================================================
+ * PMC v48a — Option E theme (opt-in only, scoped under [data-ui="e"])
+ *
+ * The default UI (Tender-Hub / Navy Trust) is preserved as-is. Every rule
+ * below is scoped under `[data-ui="e"]` so it only activates when a
+ * component wrapper explicitly opts in. Admin shell/topbar/tabs never
+ * receive this attribute; only the admin "Overview" tab does.
+ * ===================================================================== */
+[data-ui="e"] {
+  --e-bg-page: #F3EFE4;
+  --e-bg-surface: #FBF9F3;
+  --e-bg-hero: #0F3B2E;
+  --e-bg-deep: #06201A;
+  --e-bg-panel: #0B2C23;
+  --e-border-dark: #1D4A3C;
+  --e-ink: #14261F;
+  --e-muted: #3B4A43;
+  --e-cream-text: #F3EFE4;
+  --e-gold: #D2B46A;
+  --e-gold-hover: #B89628;
+  --e-gold-link: #7A5F1E;
+  --e-attention: #E3B55C;
+  --e-mint: #8FD9C4;
+  --e-border-light: #E2DBC7;
+
+  color: var(--e-ink);
+  font-family: 'Public Sans', system-ui, sans-serif;
+}
+
+/* Typography overrides — headings + display + serif -> Cormorant */
+[data-ui="e"] h1,
+[data-ui="e"] h2,
+[data-ui="e"] h3,
+[data-ui="e"] .font-serif,
+[data-ui="e"] .font-display {
+  font-family: 'Cormorant Garamond', Georgia, serif !important;
+  letter-spacing: -0.01em;
+}
+[data-ui="e"],
+[data-ui="e"] body,
+[data-ui="e"] p,
+[data-ui="e"] button,
+[data-ui="e"] input,
+[data-ui="e"] select,
+[data-ui="e"] textarea,
+[data-ui="e"] a {
+  font-family: 'Public Sans', system-ui, sans-serif;
+}
+[data-ui="e"] .font-mono,
+[data-ui="e"] code,
+[data-ui="e"] .pmc-label,
+[data-ui="e"] .pmc-kicker {
+  font-family: 'JetBrains Mono', ui-monospace, monospace !important;
+}
+
+/* Palette overrides — legacy brand-* Tailwind classes remap to Option E */
+[data-ui="e"] .bg-brand-navy,
+[data-ui="e"] .bg-brand-navy-sovereign,
+[data-ui="e"] .bg-brand-navy-deep { background-color: var(--e-bg-hero) !important; }
+[data-ui="e"] .bg-brand-navy-soft { background-color: var(--e-bg-panel) !important; }
+[data-ui="e"] .bg-brand-pale { background-color: var(--e-bg-page) !important; }
+[data-ui="e"] .bg-brand-surface { background-color: var(--e-bg-surface) !important; }
+[data-ui="e"] .bg-brand-gold { background-color: var(--e-gold) !important; }
+[data-ui="e"] .bg-brand-gold-hover { background-color: var(--e-gold-hover) !important; }
+[data-ui="e"] .hover\:bg-brand-gold-hover:hover { background-color: var(--e-gold-hover) !important; }
+
+[data-ui="e"] .text-brand-navy,
+[data-ui="e"] .text-brand-navy-sovereign,
+[data-ui="e"] .text-brand-navy-deep { color: var(--e-ink) !important; }
+[data-ui="e"] .text-brand-navy-soft { color: var(--e-muted) !important; }
+[data-ui="e"] .text-brand-gold { color: var(--e-gold) !important; }
+[data-ui="e"] .hover\:text-brand-gold:hover { color: var(--e-gold) !important; }
+
+[data-ui="e"] .border-brand-navy { border-color: rgba(15,59,46,0.18) !important; }
+[data-ui="e"] .border-brand-navy-soft { border-color: rgba(15,59,46,0.6) !important; }
+[data-ui="e"] .border-brand-gold { border-color: var(--e-gold) !important; }
+[data-ui="e"] .hover\:border-brand-navy:hover { border-color: rgba(15,59,46,0.7) !important; }
+[data-ui="e"] .hover\:border-brand-navy-soft\/60:hover { border-color: rgba(15,59,46,0.6) !important; }
+
+/* Legacy stat/label helpers pick up the new palette */
+[data-ui="e"] .pmc-stat,
+[data-ui="e"] .pmc-stat-lg {
+  font-family: 'Cormorant Garamond', Georgia, serif !important;
+  color: var(--e-ink) !important;
+  font-weight: 500;
+}
+[data-ui="e"] .pmc-label,
+[data-ui="e"] .pmc-kicker { color: var(--e-gold-link) !important; }
+
+/* Selection + focus in Option E */
+[data-ui="e"] ::selection { background: var(--e-gold); color: var(--e-bg-hero); }
+
+/* Buttons — inherit navy backgrounds already remapped; add gold-CTA helper */
+[data-ui="e"] .e-cta-gold {
+  background: var(--e-gold);
+  color: var(--e-bg-hero);
+  padding: 12px 22px;
+  border-radius: 999px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  border: 0;
+  cursor: pointer;
+  transition: background 160ms ease;
+}
+[data-ui="e"] .e-cta-gold:hover { background: var(--e-gold-hover); }
+[data-ui="e"] .e-cta-outline {
+  border: 1px solid rgba(210,180,106,0.4);
+  color: var(--e-cream-text);
+  padding: 10px 18px;
+  border-radius: 999px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+[data-ui="e"] .e-cta-outline:hover { border-color: var(--e-gold); background: rgba(210,180,106,0.08); }
+
+/* Option E hero pill / search pill */
+[data-ui="e"] .e-search-pill {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto auto;
+  background: var(--e-bg-page);
+  border-radius: 999px;
+  padding: 6px;
+  gap: 4px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.30);
+}
+[data-ui="e"] .e-search-pill input,
+[data-ui="e"] .e-search-pill select {
+  border: 0;
+  background: transparent;
+  outline: none;
+  height: 48px;
+  font-size: 15px;
+  color: var(--e-ink);
+}
+[data-ui="e"] .e-search-pill .e-search-submit {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 26px;
+  background: var(--e-bg-hero);
+  color: var(--e-cream-text);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 15px;
+  border-radius: 999px;
+  border: 0;
+  cursor: pointer;
+}
+
+/* Live-board card */
+[data-ui="e"] .e-live-board {
+  background: var(--e-bg-deep);
+  border: 1px solid var(--e-border-dark);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 40px 90px rgba(0,0,0,0.45);
+  color: #EAF0EA;
+}
+[data-ui="e"] .e-live-board .e-live-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--e-border-dark);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: #A7BDB2;
+  text-transform: uppercase;
+}
+[data-ui="e"] .e-live-board .e-live-row {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) 140px;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 20px;
+  border-bottom: 1px solid #12382D;
+  color: #EAF0EA;
+  text-decoration: none;
+  transition: background 160ms;
+}
+[data-ui="e"] .e-live-board .e-live-row:hover { background: rgba(210,180,106,0.05); }
+[data-ui="e"] .e-live-board .e-live-ref { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #A7BDB2; }
+[data-ui="e"] .e-live-board .e-live-title { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+[data-ui="e"] .e-live-board .e-live-count { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 500; color: var(--e-attention); text-align: right; }
+
+/* Live status dot with glow */
+[data-ui="e"] .e-live-dot {
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--e-mint);
+  box-shadow: 0 0 0 4px rgba(143,217,196,0.18);
+}
+@media (prefers-reduced-motion: no-preference) {
+  [data-ui="e"] .e-live-dot { animation: e-live-pulse 2s ease-in-out infinite; }
+  @keyframes e-live-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+}
+
+/* Section separators and cream cards */
+[data-ui="e"] .e-cream-card {
+  background: var(--e-bg-surface);
+  border: 1px solid var(--e-border-light);
+  border-radius: 4px;
+}
+[data-ui="e"] .e-hairline { border-color: var(--e-border-light) !important; }
+
+/* Hero SVG concentric ring background */
+[data-ui="e"] .e-hero-rings {
+  position: absolute; inset: 0; pointer-events: none; overflow: hidden;
+}
+
+/* Option E stat number style — Cormorant hero-scale */
+[data-ui="e"] .e-stat-hero {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-weight: 500;
+  font-size: 64px;
+  line-height: 1;
+  color: var(--e-ink);
+}
 
 /* Print-friendly notice detail page */
 @media print {

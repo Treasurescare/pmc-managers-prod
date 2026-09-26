@@ -1,174 +1,47 @@
 {
-  "brand_identity": {
-    "company_name": "PMC Managers Limited",
-    "domain": "pmcmanagers.com",
-    "market": "Kazakhstan & CIS Procurement & Tender Management SaaS",
-    "positioning": "Institutional, Sovereign & Enterprise Procurement Gateway. Blends sovereign authority with modern high-density financial UI.",
-    "archetype": "Swiss & Sovereign High-Contrast Authority (Archetype 4 with Sovereign Gold accents)",
-    "tone": "Authoritative, Editorial, Command-Grade, Transparent, Sovereign"
-  },
   "typography": {
-    "google_fonts_import": "@import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');",
-    "fonts": {
-      "serif_display": "'Libre Baskerville', Georgia, serif",
-      "sans_body": "'IBM Plex Sans', system-ui, -apple-system, sans-serif",
-      "mono_data": "'IBM Plex Mono', ui-monospace, monospace"
+    "font_families": {
+      "display": "Cormorant Garamond, Georgia, serif",
+      "body": "Public Sans, system-ui, sans-serif",
+      "mono": "JetBrains Mono, monospace"
     },
-    "hierarchy": {
-      "h1_hero": "text-4xl sm:text-5xl lg:text-6xl font-serif font-normal tracking-tight text-slate-900 dark:text-white leading-[1.1]",
-      "h2_section": "text-2xl sm:text-3xl lg:text-4xl font-serif font-normal tracking-tight text-slate-900 dark:text-slate-100",
-      "h3_card": "text-xl sm:text-2xl font-serif font-semibold text-slate-900 dark:text-slate-100",
-      "kicker_label": "text-[11px] font-mono font-semibold uppercase tracking-[0.2em] text-amber-600 dark:text-amber-400",
-      "body": "text-sm sm:text-base font-sans text-slate-700 dark:text-slate-300 leading-relaxed",
-      "caption": "text-xs font-mono text-slate-500 dark:text-slate-400"
+    "scale": {
+      "h1": "text-4xl sm:text-5xl lg:text-6xl xl:text-[108px] leading-[0.92]",
+      "h2": "text-2xl sm:text-3xl lg:text-5xl xl:text-[68px] leading-none",
+      "h3": "text-xl sm:text-2xl lg:text-3xl xl:text-[32px] leading-tight",
+      "body": "text-base leading-relaxed text-[#3B4A43]",
+      "label": "font-mono text-xs tracking-widest uppercase"
     }
   },
   "colors": {
-    "palette": {
-      "navy_sovereign": "#0B132B",
-      "navy_deep": "#1C2541",
-      "navy_soft": "#2A385B",
-      "gold_accent": "#D4AF37",
-      "gold_hover": "#B89628",
-      "gold_soft_bg": "rgba(212, 175, 55, 0.08)",
-      "canvas_light": "#F8FAFC",
-      "card_light": "#FFFFFF",
-      "border_light": "#E2E8F0",
-      "text_main_light": "#0F172A",
-      "text_muted_light": "#475569",
-      "canvas_dark": "#070B19",
-      "card_dark": "#0F172A",
-      "border_dark": "#1E293B",
-      "text_main_dark": "#F8FAFC",
-      "text_muted_dark": "#94A3B8"
-    },
-    "css_variables": {
-      "--background": "220 22% 96%",
-      "--foreground": "222 47% 11%",
-      "--card": "0 0% 100%",
-      "--card-foreground": "222 47% 11%",
-      "--primary": "222 47% 11%",
-      "--primary-foreground": "210 40% 98%",
-      "--accent-gold": "#D4AF37",
-      "--border": "214 32% 91%"
-    }
+    "hero_green": "#0F3B2E",
+    "deep_dark": "#06201A",
+    "panel_dark": "#0B2C23",
+    "dark_border": "#1D4A3C",
+    "sovereign_gold": "#D2B46A",
+    "attention_gold": "#E3B55C",
+    "live_mint": "#8FD9C4",
+    "cream_page": "#F3EFE4",
+    "cream_surface": "#FBF9F3",
+    "ink_text": "#14261F",
+    "link_gold": "#7A5F1E",
+    "muted_text": "#3B4A43"
   },
-  "key_blueprints": {
-    "public_home": {
-      "hero_section": "Hero banner featuring a subtle dark sovereign navy mesh gradient with Astana skyline watermark, high-impact headline with gold accent kicker, 2-column key metric stat counter (Total Tender Volume, Active Bidders, Compliance Rate), and direct action buttons for 'Explore Live Tenders' and 'Portal Gateways'.",
-      "credibility_strip": "Trust bar displaying verified certifications (EBRD compliant, Samruk-Kazyna gateway, CIS ISO-9001 certified) and enterprise counters.",
-      "live_tenders_teaser": "Bento-style 3-card preview of highest-value active procurement notices with countdown timer, sector pill tag, and immediate action link.",
-      "sector_coverage": "Grid of 6 major procurement verticals: Energy & Resources, Infrastructure & Civil, Health & Pharma, Defense & Security, IT & Telecom, Agricultural Logistics."
-    },
-    "five_portal_login": {
-      "path": "/app/frontend/src/apps/shared/UnifiedLogin.jsx",
-      "concept": "A 5-card role selector replacing the outdated 2-card tab. Each role is represented as an enterprise credential badge.",
-      "portals": [
-        {
-          "role_id": "admin",
-          "title": "System Administrator",
-          "badge": "SUPERVISORY",
-          "icon": "ShieldCheck",
-          "gradient": "from-slate-900 to-indigo-950",
-          "border": "border-amber-500/40",
-          "description": "System configuration, user provisioning, master catalogs, and platform audit logs."
-        },
-        {
-          "role_id": "management",
-          "title": "PMC Management",
-          "badge": "EXECUTIVE",
-          "icon": "Building2",
-          "gradient": "from-slate-900 to-blue-950",
-          "border": "border-blue-500/40",
-          "description": "Executive oversight, tender awards, committee evaluations, and financial escrow analytics."
-        },
-        {
-          "role_id": "partners",
-          "title": "Strategic Partners",
-          "badge": "GOC / BANK",
-          "icon": "Handshake",
-          "gradient": "from-slate-900 to-cyan-950",
-          "border": "border-cyan-500/40",
-          "description": "Bank guarantee verifications, regulatory auditing, and co-procurement dashboards."
-        },
-        {
-          "role_id": "agents",
-          "title": "Procurement Agents",
-          "badge": "FIELD OPS",
-          "icon": "Briefcase",
-          "gradient": "from-slate-900 to-emerald-950",
-          "border": "border-emerald-500/40",
-          "description": "Tender drafting, bidder dossier review, Corrigenda releases, and BOQ verification."
-        },
-        {
-          "role_id": "vendors",
-          "title": "Registered Vendors",
-          "badge": "BIDDER",
-          "icon": "Store",
-          "gradient": "from-slate-900 to-amber-950",
-          "border": "border-amber-500/50",
-          "description": "Tender purchasing, digital bid submission, live reverse auctions, and contract signatures."
-        }
-      ]
-    },
-    "public_tender_listings": {
-      "path": "/app/frontend/src/apps/notice-board/TendersList.jsx",
-      "filters": "Search bar with multi-select dropdowns for Category/Sector, Status (Live, Under Evaluation, Awarded), Minimum/Maximum Estimate (KZT/USD), and Closing Date picker.",
-      "card_design": "Clean border-encased cards with bold tender reference number, status indicator light (pulsing green for Live, amber for Extended, neutral for Closed), region/location badge, EMD requirements, and 'View Tender Specification' button."
-    },
-    "footer": {
-      "path": "/app/frontend/src/components/PmcFooter.jsx",
-      "layout": "4-column dark sovereign navy footer (#0B132B) with gold line separator.",
-      "required_social_icons": [
-        {
-          "platform": "WhatsApp",
-          "icon": "MessageSquare / FaWhatsapp",
-          "link": "https://wa.me/77000000000",
-          "aria_label": "Official PMC Managers WhatsApp support channel"
-        },
-        {
-          "platform": "Instagram",
-          "icon": "Instagram",
-          "link": "https://instagram.com/pmcmanagers",
-          "aria_label": "Official PMC Managers Instagram page"
-        },
-        {
-          "platform": "Snapchat",
-          "icon": "Ghost / FaSnapchat",
-          "link": "https://snapchat.com/add/pmcmanagers",
-          "aria_label": "PMC Managers Snapchat updates channel"
-        }
-      ]
-    },
-    "admin_console_shell": {
-      "path": "/app/frontend/src/apps/admin-console/AdminShell.jsx",
-      "pattern": "Retain 5-section collapsible left sidebar + top hamburger drawer for mobile viewports.",
-      "sections": [
-        "1. Tender Operations (Builder, Notices, Corrigenda, Packages)",
-        "2. Bidding & Evaluation (Bid Table, L1 Matrix, Committees, Awards)",
-        "3. Financials & Escrow (Billing, Escrow Accounts, Transactions)",
-        "4. Vendor Management (Registrations, Catalogs, Vendor Intel)",
-        "5. System & Masters (Permissions, Master Matrices, Audit Copilot)"
-      ]
-    }
+  "visual_enhancers": {
+    "borders": "1px solid #1D4A3C (dark) / 1px solid #E2DBC7 (light)",
+    "shadows": "box-shadow: 0 24px 60px rgba(0,0,0,0.3)",
+    "pills": "rounded-full pill buttons and badges",
+    "grid": "Swiss 12-column asymmetric grid"
   },
+  "component_path": "/app/frontend/src/apps/",
   "image_urls": {
-    "astana_architecture": "https://images.pexels.com/photos/16282743/pexels-photo-16282743.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
-    "astana_night_skyline": "https://images.pexels.com/photos/18549878/pexels-photo-18549878.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
-    "contract_signing": "https://images.unsplash.com/photo-1562564055-71e051d33c19?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzJ8MHwxfHNlYXJjaHwyfHxjb3Jwb3JhdGUlMjBidXNpbmVzcyUyMG1lZXRpbmclMjBwcm9jdXJlbWVudCUyMGNvbnRyYWN0JTIwc2lnbmluZ3xlbnwwfHx8fDE3OTAyMjMxMTV8MA&ixlib=rb-4.1.0&q=85",
-    "executive_leadership": "https://images.pexels.com/photos/8353836/pexels-photo-8353836.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
-    "procurement_meeting": "https://images.pexels.com/photos/8428061/pexels-photo-8428061.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940"
+    "brand_logo": "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=100&q=80",
+    "hero_bg_accent": "concentric SVG gold circles on #0F3B2E"
   },
-  "testing_and_accessibility": {
-    "data_testid_convention": "kebab-case role-based test IDs on all interactive elements (e.g., data-testid='portal-card-admin', data-testid='tender-filter-search-input', data-testid='footer-social-whatsapp')",
-    "contrast_rules": "All text must maintain 4.5:1 contrast minimum against dark navy (#0B132B) or light canvas (#F8FAFC). Gold accents on text must use deep gold (#B89628 or #D4AF37 with text-shadow) for high readability.",
-    "hover_states": "All buttons and portal cards must specify explicit text color on hover (e.g., hover:bg-amber-500 hover:text-slate-950)."
-  },
-  "instructions_to_main_agent": [
-    "Apply this design system consistently across all public components under /app/frontend/src/apps/notice-board/ and shared components.",
-    "Update /app/frontend/src/apps/shared/UnifiedLogin.jsx to present the 5 dedicated portal login cards (Admin, Management, Partners, Agents, Vendors).",
-    "Update /app/frontend/src/components/PmcFooter.jsx to render Snapchat, Instagram, and WhatsApp social icons with proper attributes and tooltips.",
-    "Maintain high typography contrast with Libre Baskerville headings and IBM Plex Sans body text.",
-    "Ensure all interactive elements have data-testid attributes for automated testing."
-  ]
+  "instructions_to_main_agent": "Implement Option E theme across all public, admin, and vendor screens using tailwind tokens. Ensure data-testid attributes are preserved on all interactive elements.",
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": {
+    "no_transparent_header": "Header must have semi-solid or glassmorphism background with blur",
+    "contrast_check": "Maintain WCAG AA minimum 4.5:1 for all text elements",
+    "data_testid": "Add data-testid to all buttons, inputs, links, and key status badges"
+  }
 }

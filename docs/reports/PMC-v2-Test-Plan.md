@@ -1,7 +1,7 @@
 # PMC Managers v2 · End-to-End Test Plan
 
 **Version:** Wave 43 (2026-08-07) · DocuSign live, trilingual sweep, mobile responsive complete
-**Preview:** https://tender-hub-57.preview.emergentagent.com
+**Preview:** https://pmc-forest-green.preview.emergentagent.com
 **Production:** https://tender-hub-57.emergent.host
 
 Hand this file to a human tester or feed it directly to an AI testing agent (Playwright, Cypress, Testim, QA.tech, MagicTest, BrowserStack Test-O). Every test case names a **data-testid** wherever one exists so selectors are stable.
@@ -358,7 +358,7 @@ Run these against **preview only**, never against production without permission.
 |---|---|
 | **Burp Suite (Community/Pro)** | Manual pentest of every §15 hack |
 | **OWASP ZAP** | Automated DAST — point it at preview and run baseline scan |
-| **Nuclei** | Templated vuln scanning (`nuclei -u https://tender-hub-57.preview.emergentagent.com -t cves/`) |
+| **Nuclei** | Templated vuln scanning (`nuclei -u https://pmc-forest-green.preview.emergentagent.com -t cves/`) |
 | **Semgrep** | Static analysis on the codebase itself |
 
 ### For AI testing agents specifically

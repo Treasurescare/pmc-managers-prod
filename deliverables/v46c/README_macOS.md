@@ -1,6 +1,6 @@
 # v46c Delivery Bundle — macOS download guide
 
-Preview URL: `https://tender-hub-57.preview.emergentagent.com`
+Preview URL: `https://pmc-forest-green.preview.emergentagent.com`
 
 ## One-shot download to your Desktop folder
 
@@ -9,7 +9,7 @@ Paste this into Terminal on your Mac (zsh) — it downloads all three files into
 ```bash
 mkdir -p ~/Desktop/pmcmanagers && cd ~/Desktop/pmcmanagers
 
-BASE="https://tender-hub-57.preview.emergentagent.com/downloads"
+BASE="https://pmc-forest-green.preview.emergentagent.com/downloads"
 
 curl -fSLO "$BASE/pmc-backend-v46c.zip"
 curl -fSLO "$BASE/pmc-frontend-v46c-build.zip"

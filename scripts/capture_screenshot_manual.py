@@ -15,7 +15,7 @@ from pathlib import Path
 from playwright.async_api import async_playwright
 
 BASE = os.environ.get("REACT_APP_BACKEND_URL",
-                       "https://tender-hub-57.preview.emergentagent.com")
+                       "https://pmc-forest-green.preview.emergentagent.com")
 OUT_DIR = Path("/app/deliverables/manual_screenshots")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 

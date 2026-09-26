@@ -30,7 +30,7 @@ const config: CapacitorConfig = {
   server: {
     // For production leave this out — the app serves /build directly.
     // For dev, uncomment and point at your preview URL:
-    // url: 'https://tender-hub-57.preview.emergentagent.com',
+    // url: 'https://pmc-forest-green.preview.emergentagent.com',
     // cleartext: false,
     androidScheme: 'https',
   },

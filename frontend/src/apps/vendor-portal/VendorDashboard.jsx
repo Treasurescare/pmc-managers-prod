@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { vendorApi, publicApi, bidApi, formatApiError, showApiError} from "@/lib/api";
+import { useUiTheme } from "@/context/UiThemeContext";
 import VendorGdprButton from "./VendorGdprButton";
 import VendorSignatures from "./VendorSignatures";
 import RateAVendor from "./RateAVendor";
@@ -23,6 +24,7 @@ const STATUS_LABELS = {
 
 export default function VendorDashboard() {
   const nav = useNavigate();
+  const { isE } = useUiTheme();
   const [vendor, setVendor] = useState(null);
   const [notices, setNotices] = useState([]);
   const [bids, setBids] = useState([]);
@@ -59,7 +61,7 @@ export default function VendorDashboard() {
   if (!vendor) return <div className="p-10 text-slate-500">Loading…</div>;
 
   return (
-    <div className="min-h-screen bg-slate-50" data-testid="vendor-dashboard">
+    <div className="min-h-screen bg-slate-50" data-testid="vendor-dashboard" data-ui={isE ? "e" : undefined}>
       <header className="text-white" style={{ backgroundColor: tenant?.branding_color || "#0b1e3f" }}>
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div>

@@ -48,7 +48,7 @@ Assumes your working dir is `C:\Users\abcd\pmcmanagers\` and AWS CLI is configur
 
 ```powershell
 Set-Location C:\Users\abcd\pmcmanagers\
-$base = 'https://tender-hub-57.preview.emergentagent.com/downloads'
+$base = 'https://pmc-forest-green.preview.emergentagent.com/downloads'
 curl.exe -fSLo pmc-frontend-v44-build.zip  "$base/pmc-frontend-v44-build.zip"
 curl.exe -fSLo pmc-backend-v22h.zip        "$base/pmc-backend-v22h.zip"
 curl.exe -fSLo deploy-frontend-v44.ps1     "$base/deploy-frontend-v44.ps1"

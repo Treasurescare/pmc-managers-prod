@@ -2,6 +2,7 @@ import "@/App.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { I18nProvider } from "@/context/I18nContext";
+import { UiThemeProvider } from "@/context/UiThemeContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 
@@ -68,6 +69,7 @@ export default function App() {
   return (
     <div className="App">
       <ErrorBoundary>
+      <UiThemeProvider>
       <I18nProvider>
         <BrowserRouter>
           <Toaster
@@ -164,6 +166,7 @@ export default function App() {
           <PwaInstallPrompt />
         </BrowserRouter>
       </I18nProvider>
+      </UiThemeProvider>
       </ErrorBoundary>
     </div>
   );

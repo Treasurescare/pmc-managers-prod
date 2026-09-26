@@ -3,7 +3,7 @@
 **Target length:** ~12 minutes
 **Audience:** QA engineers, PMC compliance team, prospective enterprise clients doing due diligence
 **Tone:** Precise, technical, evidence-forward
-**Recording setup:** Chrome + DevTools open (Console + Network panels). Preview URL: https://tender-hub-57.preview.emergentagent.com
+**Recording setup:** Chrome + DevTools open (Console + Network panels). Preview URL: https://pmc-forest-green.preview.emergentagent.com
 
 ---
 
@@ -16,7 +16,7 @@
 
 **Terminal:**
 ```bash
-curl -s https://tender-hub-57.preview.emergentagent.com/api/health
+curl -s https://pmc-forest-green.preview.emergentagent.com/api/health
 # → {"ok":true,"service":"pmc-tender-api"}
 ```
 

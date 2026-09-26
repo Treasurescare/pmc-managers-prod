@@ -6,7 +6,7 @@ import io
 import pytest
 import requests
 
-BASE = os.environ.get("REACT_APP_BACKEND_URL", "https://tender-hub-57.preview.emergentagent.com").rstrip("/")
+BASE = os.environ.get("REACT_APP_BACKEND_URL", "https://pmc-forest-green.preview.emergentagent.com").rstrip("/")
 RA_API = f"{BASE}/api/v1/reverse-auctions"
 BILLING = f"{BASE}/api/v1/billing"
 TP = f"{BASE}/api/v1/tender-pro"

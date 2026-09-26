@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { publicApi, formatApiError } from "@/lib/api";
+import { useUiTheme } from "@/context/UiThemeContext";
 import TopBar from "@/apps/shared/TopBar";
 import PmcFooter from "@/components/PmcFooter";
 
@@ -10,6 +11,7 @@ import PmcFooter from "@/components/PmcFooter";
  *  mode = "all"        → any published */
 export default function TendersList() {
   const { mode = "live" } = useParams();
+  const { isE } = useUiTheme();
   const [notices, setNotices] = useState([]);
   const [q, setQ] = useState("");
   const [country, setCountry] = useState("");
@@ -52,7 +54,7 @@ export default function TendersList() {
       : "Open for bidding right now — click any card for full documents";
 
   return (
-    <div className="min-h-screen bg-brand-pale flex flex-col" data-testid={`page-tenders-${mode}`}>
+    <div className="min-h-screen bg-brand-pale flex flex-col" data-testid={`page-tenders-${mode}`} data-ui={isE ? "e" : undefined}>
       <TopBar />
       <main className="flex-1 max-w-6xl mx-auto w-full px-6 lg:px-10 pt-12 pb-16">
         <div className="pmc-label text-brand-gold">Public Notice Board</div>

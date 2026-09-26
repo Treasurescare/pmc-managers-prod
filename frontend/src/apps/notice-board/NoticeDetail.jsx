@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { publicApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
+import { useUiTheme } from "@/context/UiThemeContext";
 import TopBar from "@/apps/shared/TopBar";
 import Footer from "@/apps/shared/Footer";
 import NoticeQa from "./NoticeQa";
@@ -19,6 +20,7 @@ function DetailField({ label, value, mono = false }) {
 
 export default function NoticeDetail() {
   const { t } = useI18n();
+  const { isE } = useUiTheme();
   const { noticeRef } = useParams();
   const navigate = useNavigate();
   const [notice, setNotice] = useState(null);
@@ -51,7 +53,7 @@ export default function NoticeDetail() {
   const publishedAt = notice?.published_at ? new Date(notice.published_at) : null;
 
   return (
-    <div className="min-h-screen bg-brand-pale flex flex-col">
+    <div className="min-h-screen bg-brand-pale flex flex-col" data-ui={isE ? "e" : undefined}>
       <TopBar />
       <main className="flex-1 max-w-7xl mx-auto w-full px-6 lg:px-10 py-10">
         <div className="flex items-center justify-between gap-4">

@@ -300,7 +300,7 @@ Same as before — EB upload for backend, S3+CloudFront for frontend, invalidati
 ## 🎯 TOMORROW'S FIRST STEP FOR USER
 
 **Download link (still active, preview backend):**
-👉 https://tender-hub-57.preview.emergentagent.com/api/v1/_dl/sVGqLYK9RXjE8UnvXwT-uzDkV5wpdN2GfyAsHIYpQr4
+👉 https://pmc-forest-green.preview.emergentagent.com/api/v1/_dl/sVGqLYK9RXjE8UnvXwT-uzDkV5wpdN2GfyAsHIYpQr4
 
 Files to grab:
 - `pmc-backend-v5.zip` (225 KB) — 6 bug fixes + reportlab + Resend wiring

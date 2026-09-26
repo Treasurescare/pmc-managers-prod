@@ -6,7 +6,7 @@ Your production frontend today points at the PREVIEW backend (that's why login f
 
 ```powershell
 Set-Location C:\Users\abcd\pmcmanagers\
-$base = 'https://tender-hub-57.preview.emergentagent.com/downloads'
+$base = 'https://pmc-forest-green.preview.emergentagent.com/downloads'
 
 # --- v44b (login fix) ---
 Remove-Item .\pmc-frontend-v44b-build.zip -ErrorAction SilentlyContinue
@@ -73,7 +73,7 @@ Assumes `C:\Users\abcd\pmcmanagers\` and AWS CLI with `pmc-admin` profile.
 
 ```powershell
 Set-Location C:\Users\abcd\pmcmanagers\
-$base = 'https://tender-hub-57.preview.emergentagent.com/downloads'
+$base = 'https://pmc-forest-green.preview.emergentagent.com/downloads'
 
 Remove-Item .\pmc-frontend-v45-build.zip -ErrorAction SilentlyContinue
 Remove-Item .\pmc-backend-v22i.zip -ErrorAction SilentlyContinue

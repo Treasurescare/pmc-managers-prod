@@ -12,7 +12,7 @@ from pathlib import Path
 from playwright.async_api import async_playwright
 
 BASE = os.environ.get("REACT_APP_BACKEND_URL",
-                     "https://tender-hub-57.preview.emergentagent.com").rstrip("/")
+                     "https://pmc-forest-green.preview.emergentagent.com").rstrip("/")
 ADMIN_EMAIL = "adminsupport@pmcmanagers.com"
 ADMIN_PASSWORD = "Admin@12345"
 VENDOR_EMAIL = "manualvendor@pmcmanagers.com"
