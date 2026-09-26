@@ -1,0 +1,40 @@
+{
+  "summary": "v48a Option E UI toggle frontend-only verification. Executed all 9 scenarios from review request via Playwright on preview URL. All test IDs, data-ui attributes, persistence semantics, scoping rules and legacy regression pass. No JS runtime errors related to the toggle. Backend untouched — not tested per request.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin Overview (?ui=e)", "issues": ["Pre-existing React hydration warning: <button> inside <button> nesting on anomaly-run (info-dot Radix Tooltip Trigger with asChild rendered inside the anomaly-run button). Not caused by v48a but visible in console. Recommend wrapping info-dot outside the button, or removing asChild."]},
+    {"screen": "Multiple pages", "issues": ["Several 404 console errors for missing assets/resources (unclear which — likely icons/manifest). Pre-existing, not blocking Option E."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(Optional) Fix pre-existing button-in-button nesting in AnalyticsPanel (info-dot inside anomaly-run) to remove hydration warning.",
+    "(Optional) Investigate the recurring 404s on public/admin pages."
+  ],
+  "critical_code_review_comments": [
+    "UiThemeContext correctly writes to localStorage only when explicit ?ui=e/?ui=default is present; plain / respects the stored value — matches spec.",
+    "NoticeBoardHome, TendersList, NoticeDetail, VendorDashboard, AnalyticsPanel all set data-ui={isE ? 'e' : undefined} on root only — admin shell/tabs remain unthemed as required.",
+    "hero-e-find-btn is a Link (anchor). Spec says 'Find tenders button' — works functionally but semantically a form submit button might be preferable; keeping since spec just requires the test ID and navigation."
+  ],
+  "updated_files": [],
+  "success_rate": {"frontend": "100%"},
+  "test_credentials": "Admin adminsupport@pmcmanagers.com / Admin@12345; Vendor manualvendor@pmcmanagers.com / Vendor@12345 — both logins succeeded.",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "v48a Option E toggle passes all acceptance criteria. Test IDs verified: hero-e-live-pill, hero-e-search-input, hero-e-country-select, hero-e-find-btn, hero-e-register, hero-e-signin, hero-e-live-board on home; page-tenders-live data-ui=e; notice-detail-{ref} renders with data-ui=e root; vendor-dashboard data-ui=e; admin-analytics-panel data-ui=e while admin-shell does NOT carry data-ui. Switching to ?tab=vendors&ui=e removes theming (only Overview themed). Persistence via localStorage pmc_ui_theme=e confirmed; ?ui=default clears storage.",
+  "verified_scenarios": {
+    "home_ui_default": {"data-ui": null, "hero-cta-notices": true, "hero-e-live-pill": false},
+    "home_ui_e": {"data-ui": "e", "all_hero_e_testids": true},
+    "persistence_plain_after_e": {"data-ui": "e", "localStorage": "e"},
+    "revert_ui_default": {"data-ui": null, "localStorage": null},
+    "tenders_live_ui_e": {"data-ui": "e", "existing_testids_work": true},
+    "notice_detail_ui_e": {"article_present": true, "data-ui": "e"},
+    "vendor_dashboard_ui_e": {"data-ui": "e"},
+    "admin_overview_ui_e": {"analytics_data-ui": "e", "admin_shell_data-ui": "absent (only analytics node themed)"},
+    "admin_vendors_tab_ui_e": {"themed_nodes": 0, "correct_scoping": true}
+  }
+}
