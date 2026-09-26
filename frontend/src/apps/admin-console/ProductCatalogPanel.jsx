@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import UnspscPicker from "@/components/UnspscPicker";
 import { InfoDot } from "@/components/InfoDot";
 import { productCatalogApi, showApiError } from "@/lib/api";
+import { useListPager } from "@/components/ListPager";
 
 const PRICING_MODELS = [
   { v: "fixed", l: "Fixed one-off" },
@@ -320,6 +321,8 @@ export default function ProductCatalogPanel() {
     return true;
   }), [items, sideFilter, categoryFilter, search]);
 
+  const { paged, controls } = useListPager(filtered, { testid: "catalog-pager" });
+
   const toggleActive = async (p) => {
     try {
       await productCatalogApi.update(p.id, { is_active: !p.is_active });
@@ -411,7 +414,7 @@ export default function ProductCatalogPanel() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((p) => (
+              {paged.map((p) => (
                 <ProductRow key={p.id} p={p}
                             onEdit={setEditing}
                             onToggle={toggleActive}/>
@@ -421,6 +424,7 @@ export default function ProductCatalogPanel() {
               )}
             </tbody>
           </table>
+          {controls}
         </div>
       )}
 

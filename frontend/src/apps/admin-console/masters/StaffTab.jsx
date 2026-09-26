@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { InfoDot } from "@/components/InfoDot";
+import { useListPager } from "@/components/ListPager";
 
 const ROLE_LABELS = {
   admin: "Admin", reviewer: "Reviewer", escrow_agent: "Escrow Agent",
@@ -20,6 +21,7 @@ export default function StaffTab({
   const [editingId, setEditingId] = useState(null);
   const [editDraft, setEditDraft] = useState(null);
   const [saving, setSaving] = useState(false);
+  const { paged, controls } = useListPager(staff, { testid: "staff-pager" });
 
   const startEdit = (s) => {
     setEditingId(s.id);
@@ -135,7 +137,7 @@ export default function StaffTab({
             </tr>
           </thead>
           <tbody>
-            {staff.map((s) => {
+            {paged.map((s) => {
               const isEditing = editingId === s.id;
               if (isEditing) {
                 return (
@@ -228,6 +230,7 @@ export default function StaffTab({
             })}
           </tbody>
         </table>
+        {controls}
       </div>
     </>
   );

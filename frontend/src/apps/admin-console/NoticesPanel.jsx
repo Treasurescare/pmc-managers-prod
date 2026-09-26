@@ -4,6 +4,7 @@ import { adminApi, mastersApi, noticeDocsApi, tenderTemplateApi, formatApiError,
 import { useI18n } from "@/context/I18nContext";
 import { InfoDot } from "@/components/InfoDot";
 import EmdMasterPicker from "./notice/EmdMasterPicker";
+import { useListPager } from "@/components/ListPager";
 
 export default function NoticesPanel() {
   const { t } = useI18n();
@@ -51,6 +52,22 @@ export default function NoticesPanel() {
   // token said "master_admin" or had different casing/separators.
   const roleNorm = (me?.role || "").toString().toLowerCase().replace(/[\s-]+/g, "_");
   const isMasterAdmin = ["admin", "master_admin", "superadmin", "staff_admin"].includes(roleNorm);
+
+  const nowIso = new Date().toISOString();
+  const filteredNotices = items.filter((n) => {
+    if (showTemplateOnly && !n.tender_template_id) return false;
+    if (filterStatus === "published" && !n.is_published) return false;
+    if (filterStatus === "draft" && n.is_published) return false;
+    if (filterStatus === "expired" && (n.submission_deadline || "9999") > nowIso) return false;
+    if (filterQuery) {
+      const q = filterQuery.toLowerCase();
+      if (!(n.title || "").toLowerCase().includes(q) &&
+          !(n.notice_ref || "").toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+  const { paged: pagedNotices, controls: noticeControls } =
+    useListPager(filteredNotices, { testid: "notice-pager" });
 
   const create = async () => {
     // Bug #31 — spell out which field failed AND the exact minimum, so testers
@@ -271,22 +288,9 @@ export default function NoticesPanel() {
       </div>
 
       <div className="border border-brand-navy/10 bg-white">
-        {(() => {
-          const now = new Date().toISOString();
-          const filtered = items.filter((n) => {
-            if (showTemplateOnly && !n.tender_template_id) return false;
-            if (filterStatus === "published" && !n.is_published) return false;
-            if (filterStatus === "draft" && n.is_published) return false;
-            if (filterStatus === "expired" && (n.submission_deadline || "9999") > now) return false;
-            if (filterQuery) {
-              const q = filterQuery.toLowerCase();
-              if (!(n.title || "").toLowerCase().includes(q) &&
-                  !(n.notice_ref || "").toLowerCase().includes(q)) return false;
-            }
-            return true;
-          });
-          if (filtered.length === 0) return <div className="p-6 text-brand-navy/50 text-sm">{t("admin.notices_empty")}</div>;
-          return filtered.map((n) => (
+        {filteredNotices.length === 0 ? (
+          <div className="p-6 text-brand-navy/50 text-sm">{t("admin.notices_empty")}</div>
+        ) : pagedNotices.map((n) => (
           <div key={n.id} className="p-4 border-b border-brand-navy/10 flex items-baseline gap-4 flex-wrap" data-testid={`notice-row-${n.notice_ref}`}>
             <span className="font-mono text-xs text-brand-navy-soft">{n.notice_ref}</span>
             <span className="pmc-pill uppercase text-[10px]">{n.document_type}</span>
@@ -332,8 +336,8 @@ export default function NoticesPanel() {
             </a>
             <span className="text-xs text-brand-navy/50 font-mono">{n.submission_deadline?.slice(0, 10)}</span>
           </div>
-          ));
-        })()}
+        ))}
+        {noticeControls}
       </div>
     </div>
   );

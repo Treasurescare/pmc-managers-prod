@@ -671,6 +671,8 @@ export const comparisonApi = {
 
 // ---------- Wave 43: DocuSign eSignature ----------
 export const docusignApi = {
+  resendEnvelope: (envelopeId) =>
+    api.post(`/api/v1/docusign/envelopes/${envelopeId}/resend`).then((r) => r.data),
   status: () => api.get("/api/v1/docusign/status").then((r) => r.data),
   consentUrl: () => api.get("/api/v1/docusign/consent-url").then((r) => r.data),
   signAward: (bidId, kind, payload) =>

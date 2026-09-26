@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { corrigendaApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import { InfoDot } from "@/components/InfoDot";
+import { useListPager } from "@/components/ListPager";
 
 /** Wave 39 — Corrigendum publisher. Attached under Notices admin flow. */
 export default function CorrigendaPanel() {
@@ -72,6 +73,16 @@ export default function CorrigendaPanel() {
     } catch (err) { showApiError(err); }
   };
 
+  const corrQ = corrSearch.trim().toLowerCase();
+  const visibleCorr = corrQ ? items.filter((c) =>
+    (c.title || "").toLowerCase().includes(corrQ)
+    || (c.summary || "").toLowerCase().includes(corrQ)
+    || String(c.corrigendum_no || "").includes(corrQ)) : items;
+  const activeCorr = visibleCorr.filter((c) => c.is_active);
+  const withdrawnCorr = visibleCorr.filter((c) => !c.is_active);
+  const activePager = useListPager(activeCorr, { testid: "corr-active-pager" });
+  const withdrawnPager = useListPager(withdrawnCorr, { testid: "corr-withdrawn-pager" });
+
   return (
     <div data-testid="admin-corrigenda-panel">
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
@@ -138,13 +149,8 @@ export default function CorrigendaPanel() {
       )}
 
       {(() => {
-        const q = corrSearch.trim().toLowerCase();
-        const visible = q ? items.filter((c) =>
-          (c.title || "").toLowerCase().includes(q)
-          || (c.summary || "").toLowerCase().includes(q)
-          || String(c.corrigendum_no || "").includes(q)) : items;
-        const active = visible.filter((c) => c.is_active);
-        const withdrawn = visible.filter((c) => !c.is_active);
+        const active = activeCorr;
+        const withdrawn = withdrawnCorr;
         const renderRow = (c) => (
           <div key={c.id}
                className={`p-4 border-b border-brand-navy/10 ${c.is_active ? "" : "bg-slate-50"}`}
@@ -199,8 +205,9 @@ export default function CorrigendaPanel() {
                   No active corrigenda for this notice.
                 </div>
               ) : (
-                active.map(renderRow)
+                activePager.paged.map(renderRow)
               )}
+              {activePager.controls}
             </div>
             {withdrawn.length > 0 && (
               <>
@@ -208,7 +215,8 @@ export default function CorrigendaPanel() {
                   Withdrawn (historical) — {withdrawn.length}
                 </div>
                 <div className="border border-slate-200 bg-slate-50/50">
-                  {withdrawn.map(renderRow)}
+                  {withdrawnPager.paged.map(renderRow)}
+                  {withdrawnPager.controls}
                 </div>
               </>
             )}

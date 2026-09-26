@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { adminApi, api, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import { InfoDot } from "@/components/InfoDot";
+import { useListPager } from "@/components/ListPager";
 
 export default function RegistrationsPanel() {
   const { t } = useI18n();
@@ -90,6 +91,15 @@ export default function RegistrationsPanel() {
     draft: t("panels.registrations.filter_draft"),
   };
 
+  const q = search.trim().toLowerCase();
+  const filtered = q
+    ? items.filter((r) =>
+        (r.company_name || "").toLowerCase().includes(q)
+        || (r.email || "").toLowerCase().includes(q)
+        || (r.registration_number || "").toLowerCase().includes(q))
+    : items;
+  const { paged, controls } = useListPager(filtered, { testid: "reg-pager" });
+
   return (
     <div className="grid gap-6 lg:grid-cols-[5fr_7fr]" data-testid="admin-registrations-panel">
       <div>
@@ -114,18 +124,9 @@ export default function RegistrationsPanel() {
           className="w-full px-4 py-2 border border-brand-navy/20 focus:outline-none focus:border-brand-navy-soft text-brand-navy bg-white text-sm mb-3"
         />
         <div className="border border-brand-navy/10 bg-white">
-          {(() => {
-            const q = search.trim().toLowerCase();
-            const filtered = q
-              ? items.filter((r) =>
-                  (r.company_name || "").toLowerCase().includes(q)
-                  || (r.email || "").toLowerCase().includes(q)
-                  || (r.registration_number || "").toLowerCase().includes(q))
-              : items;
-            if (filtered.length === 0) {
-              return <div className="p-6 text-brand-navy/50 text-sm">{q ? "No matches" : t("panels.registrations.empty")}</div>;
-            }
-            return filtered.map((r) => (
+          {filtered.length === 0 ? (
+            <div className="p-6 text-brand-navy/50 text-sm">{q ? "No matches" : t("panels.registrations.empty")}</div>
+          ) : paged.map((r) => (
             <button key={r.id} type="button" onClick={() => { setSelected(r); setNotes(""); }}
               data-testid={`reg-row-${r.id}`}
               className={"w-full text-left p-4 border-b border-brand-navy/10 hover:bg-brand-navy/5 " + (selected?.id === r.id ? "bg-brand-navy/5" : "")}>
@@ -140,8 +141,8 @@ export default function RegistrationsPanel() {
                 )}
               </div>
             </button>
-            ));
-          })()}
+          ))}
+          {controls}
         </div>
       </div>
       <div>

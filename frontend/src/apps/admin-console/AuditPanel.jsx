@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { adminApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import { InfoDot } from "@/components/InfoDot";
+import { useListPager } from "@/components/ListPager";
 
 export default function AuditPanel() {
   const { t } = useI18n();
@@ -24,6 +25,8 @@ export default function AuditPanel() {
     if (flt.to && e.at && e.at > flt.to + "T23:59:59Z") return false;
     return true;
   });
+
+  const { paged, controls } = useListPager(filtered, { testid: "audit-pager" });
 
   const verify = async () => {
     try { setVerifyResult(await adminApi.verifyAudit()); }
@@ -85,7 +88,7 @@ export default function AuditPanel() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((e) => (
+            {paged.map((e) => (
               <tr key={e.id} className="border-t border-brand-navy/10" data-testid={`audit-row-${e.seq}`}>
                 <td className="px-4 py-2 font-mono">{e.seq}</td>
                 <td className="px-4 py-2">{e.event_type}</td>
@@ -97,6 +100,7 @@ export default function AuditPanel() {
             ))}
           </tbody>
         </table>
+        {controls}
       </div>
     </div>
   );

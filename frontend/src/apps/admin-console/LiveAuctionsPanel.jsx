@@ -4,6 +4,7 @@ import { reverseAuctionApi, publicApi, formatApiError, showApiError} from "@/lib
 import { useI18n } from "@/context/I18nContext";
 import { InfoDot } from "@/components/InfoDot";
 import AuctionInvitations from "./auction/AuctionInvitations";
+import { useListPager } from "@/components/ListPager";
 
 /** Wave 40 — Admin live-auction management. */
 export default function LiveAuctionsPanel() {
@@ -65,6 +66,14 @@ export default function LiveAuctionsPanel() {
     live:  "bg-emerald-100 text-emerald-800 border-emerald-300",
     closed:"bg-slate-200 text-slate-700 border-slate-400",
   }[status] || "");
+
+  const q = search.trim().toLowerCase();
+  const filtered = items.filter((a) =>
+    (statusFilter === "all" || a.status === statusFilter)
+    && (!q || (a.title || "").toLowerCase().includes(q)
+          || (a.notice_ref || "").toLowerCase().includes(q))
+  );
+  const { paged, controls } = useListPager(filtered, { testid: "ra-pager" });
 
   return (
     <div data-testid="admin-live-auctions">
@@ -156,19 +165,11 @@ export default function LiveAuctionsPanel() {
       </div>
 
       <div className="border border-brand-navy/10 bg-white">
-        {(() => {
-          const q = search.trim().toLowerCase();
-          const filtered = items.filter((a) =>
-            (statusFilter === "all" || a.status === statusFilter)
-            && (!q || (a.title || "").toLowerCase().includes(q)
-                  || (a.notice_ref || "").toLowerCase().includes(q))
-          );
-          if (filtered.length === 0) {
-            return <div className="p-6 text-brand-navy/50 text-sm">
-              {items.length === 0 ? t("panels.live_auctions.empty") : "No matches"}
-            </div>;
-          }
-          return filtered.map((a) => {
+        {filtered.length === 0 ? (
+          <div className="p-6 text-brand-navy/50 text-sm">
+            {items.length === 0 ? t("panels.live_auctions.empty") : "No matches"}
+          </div>
+        ) : paged.map((a) => {
           const url = `${window.location.origin}/vendor/auction/${a.id}`;
           return (
             <div key={a.id} className="p-4 border-b border-brand-navy/10" data-testid={`ra-row-${a.id}`}>
@@ -250,8 +251,8 @@ export default function LiveAuctionsPanel() {
               {a.status !== "closed" && <AuctionInvitations auctionId={a.id} />}
             </div>
           );
-        });
-        })()}
+        })}
+        {controls}
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { docusignApi, bidApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import { InfoDot } from "@/components/InfoDot";
+import { useListPager } from "@/components/ListPager";
 
 /** Wave 43 — DocuSign eSignature admin panel.
  *
@@ -28,6 +29,33 @@ export default function DocuSignPanel() {
   const [emailSent, setEmailSent] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [viewEnv, setViewEnv] = useState(null);
+
+  const filteredEnvelopes = envelopes.filter((e) => {
+    const q = search.trim().toLowerCase();
+    const matchStatus = statusFilter === "all" || e.status === statusFilter;
+    const matchSearch = !q
+      || (e.award_ref || "").toLowerCase().includes(q)
+      || (e.bid_ref || "").toLowerCase().includes(q)
+      || (e.signer_name || "").toLowerCase().includes(q)
+      || (e.signer_email || "").toLowerCase().includes(q);
+    return matchStatus && matchSearch;
+  });
+  const { paged: pagedEnvelopes, controls: envelopeControls } =
+    useListPager(filteredEnvelopes, { defaultSize: 20, testid: "ds-pager" });
+
+  const resendEnvelope = async (envelopeId) => {
+    try {
+      const r = await docusignApi.resendEnvelope(envelopeId);
+      if (r.signing_url) {
+        window.open(r.signing_url, "_blank", "noopener");
+        toast.success("New signing link opened");
+      } else {
+        toast.success("Envelope resent to signer via email");
+      }
+      load();
+    } catch (e) { showApiError(e); }
+  };
 
   const load = useCallback(async () => {
     try {
@@ -266,26 +294,15 @@ export default function DocuSignPanel() {
               <th className="text-left px-3 py-2">{t("panels.docusign.col_status")}</th>
               <th className="text-left px-3 py-2">{t("panels.docusign.col_created")}</th>
               <th className="text-left px-3 py-2">PDF</th>
+              <th className="text-left px-3 py-2">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {(() => {
-              const q = search.trim().toLowerCase();
-              const filtered = envelopes.filter((e) => {
-                const matchStatus = statusFilter === "all" || e.status === statusFilter;
-                const matchSearch = !q
-                  || (e.award_ref || "").toLowerCase().includes(q)
-                  || (e.bid_ref || "").toLowerCase().includes(q)
-                  || (e.signer_name || "").toLowerCase().includes(q)
-                  || (e.signer_email || "").toLowerCase().includes(q);
-                return matchStatus && matchSearch;
-              });
-              if (filtered.length === 0) {
-                return (<tr><td colSpan={7} className="p-6 text-center text-brand-navy/50">
-                  {envelopes.length === 0 ? t("panels.docusign.empty") : "No matches"}
-                </td></tr>);
-              }
-              return filtered.map((e) => (
+            {filteredEnvelopes.length === 0 ? (
+              <tr><td colSpan={8} className="p-6 text-center text-brand-navy/50">
+                {envelopes.length === 0 ? t("panels.docusign.empty") : "No matches"}
+              </td></tr>
+            ) : pagedEnvelopes.map((e) => (
               <tr key={e.envelope_id} className="border-t border-brand-navy/10"
                   data-testid={`ds-envelope-${e.envelope_id}`}>
                 <td className="px-3 py-2">
@@ -305,12 +322,68 @@ export default function DocuSignPanel() {
                     </button>
                   ) : <span className="text-[10px] text-brand-navy/30">—</span>}
                 </td>
+                <td className="px-3 py-2 flex gap-1 flex-wrap">
+                  <button onClick={() => setViewEnv(e)} data-testid={`ds-view-${e.envelope_id}`}
+                    className="text-[10px] bg-slate-700 text-white px-2 py-1 rounded hover:bg-slate-900">👁 View</button>
+                  {!["completed","declined","voided"].includes(e.status) && (
+                    <button onClick={() => resendEnvelope(e.envelope_id)}
+                      data-testid={`ds-resend-${e.envelope_id}`}
+                      className="text-[10px] bg-indigo-600 text-white px-2 py-1 rounded hover:bg-indigo-700">↻ Resend</button>
+                  )}
+                  {e.status === "completed" && (
+                    <button onClick={() => downloadSigned(e.envelope_id)}
+                      data-testid={`ds-print-${e.envelope_id}`}
+                      className="text-[10px] bg-emerald-600 text-white px-2 py-1 rounded hover:bg-emerald-700">🖨 Print</button>
+                  )}
+                </td>
               </tr>
-              ));
-            })()}
+            ))}
           </tbody>
         </table>
+        {envelopeControls}
       </section>
+
+      {viewEnv && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+             data-testid="ds-view-modal" onClick={() => setViewEnv(null)}>
+          <div className="bg-white max-w-2xl w-full p-6 space-y-3" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-start border-b pb-3">
+              <div>
+                <div className="text-xs uppercase tracking-widest text-slate-500">DocuSign envelope</div>
+                <div className="font-mono text-sm">{viewEnv.envelope_id}</div>
+              </div>
+              <button onClick={() => setViewEnv(null)} data-testid="ds-view-close"
+                className="px-3 py-1.5 text-xs border">Close</button>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div><div className="text-[10px] uppercase text-slate-500">Kind</div>{viewEnv.kind} · {viewEnv.sub_kind || "—"}</div>
+              <div><div className="text-[10px] uppercase text-slate-500">Ref</div><span className="font-mono">{viewEnv.award_ref || viewEnv.bid_ref || "—"}</span></div>
+              <div><div className="text-[10px] uppercase text-slate-500">Signer</div>{viewEnv.signer_name}<br/><span className="text-xs text-slate-500">{viewEnv.signer_email}</span></div>
+              <div><div className="text-[10px] uppercase text-slate-500">Delivery</div>{viewEnv.delivery || "embedded"}</div>
+              <div><div className="text-[10px] uppercase text-slate-500">Status</div>{statusChip(viewEnv.status)}</div>
+              <div><div className="text-[10px] uppercase text-slate-500">Created</div>{viewEnv.created_at?.slice(0, 16).replace("T", " ")}</div>
+              {viewEnv.completed_at && (
+                <div><div className="text-[10px] uppercase text-slate-500">Signed at</div>{viewEnv.completed_at?.slice(0, 16).replace("T", " ")}</div>
+              )}
+              {viewEnv.last_resent_at && (
+                <div><div className="text-[10px] uppercase text-slate-500">Last resent</div>{viewEnv.last_resent_at?.slice(0, 16).replace("T", " ")}</div>
+              )}
+            </div>
+            <div className="flex gap-2 pt-3 border-t">
+              {!["completed","declined","voided"].includes(viewEnv.status) && (
+                <button onClick={() => { resendEnvelope(viewEnv.envelope_id); setViewEnv(null); }}
+                  data-testid="ds-view-resend"
+                  className="px-3 py-1.5 text-xs bg-indigo-600 text-white">↻ Resend</button>
+              )}
+              {viewEnv.status === "completed" && (
+                <button onClick={() => downloadSigned(viewEnv.envelope_id)}
+                  data-testid="ds-view-download"
+                  className="px-3 py-1.5 text-xs bg-emerald-600 text-white">🖨 Print / download signed</button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

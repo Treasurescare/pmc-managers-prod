@@ -61,7 +61,8 @@ See `/app/memory/test_credentials.md`.
 - Zoom automated bid-opening session scheduler.
 
 ## Deployment ledger
-- v47e (Sep 2026) — **Vendor in-app notifications**: vendor-scoped endpoints (`/notifications/vendor/mine|read|read-all`), bell in Vendor Portal header (20s poll, unread badge), sign-in alerts + bid transitions now also drop in-app records. Staff bell unchanged. Homepage top-right bell = Web Push subscribe toggle (VAPID live).
+- v47f (Sep 2026) — **Admin bid detail modal** (full submission incl. attachments preview + workflow history via new `/bids/admin/{id}`), **reusable ListPager** (10/20/30/All + prev/next), **DocuSign per-row View/Resend/Print** (new `POST /docusign/envelopes/{id}/resend`). Bids table + DocuSign list use the pager; extending to other admin lists is a mechanical two-liner per list.
+- v47e (Sep 2026) — **Vendor in-app notifications**: vendor-scoped endpoints (`/notifications/vendor/mine|read|read-all`), bell in Vendor Portal header (20s poll, unread badge).
 - v47d (Sep 2026) — **Security sign-in alerts on every login** (admin / staff all roles / vendor), post-MFA only, with IP + user-agent + "wasn't you?" CTA.
 - v47c (Sep 2026) — **Vendor confirmatory emails for every action**: bid received (w/ Pay-EMD CTA), EMD payment received (idempotent, once), EMD refunded (w/ reason), bid withdrawn, password changed.
 - v47b (Sep 2026) — **Send EMD link** (admin-triggered branded email w/ Stripe deep-link `/vendor/bids/:id/pay`) + **vendor transition emails** on all vendor-visible stages.

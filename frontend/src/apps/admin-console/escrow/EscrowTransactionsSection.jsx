@@ -7,6 +7,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { escrowApi, formatApiError, showApiError } from "@/lib/api";
 import { InfoDot } from "@/components/InfoDot";
+import { useListPager } from "@/components/ListPager";
 
 const ACTIONS = ["release_to_contractor", "release_to_vendor", "forfeit"];
 const CLOSED = new Set(["released_to_contractor", "released_to_vendor", "forfeited", "cancelled"]);
@@ -104,6 +105,7 @@ export default function EscrowTransactionsSection({ accounts, txs, onReload }) {
   const [showNew, setShowNew] = useState(false);
   const [tx, setTx] = useState(EMPTY_TX);
   const activeAccounts = useMemo(() => accounts.filter((a) => a.active), [accounts]);
+  const { paged, controls } = useListPager(txs, { testid: "escrow-tx-pager" });
 
   const createTx = async () => {
     if (!tx.escrow_account_id) return toast.error("Pick an escrow account");
@@ -227,9 +229,10 @@ export default function EscrowTransactionsSection({ accounts, txs, onReload }) {
 
       <div className="border border-brand-navy/10 bg-white divide-y divide-brand-navy/10">
         {txs.length === 0 && <div className="p-6 text-sm text-brand-navy/50">No transactions yet.</div>}
-        {txs.map((t) => (
+        {paged.map((t) => (
           <TransactionRow key={t.id} t={t} onSign={signAction} onRelease={release}/>
         ))}
+        {controls}
       </div>
     </section>
   );

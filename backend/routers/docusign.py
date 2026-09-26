@@ -28,6 +28,11 @@ from pathlib import Path
 from typing import Optional
 from urllib.parse import urlencode
 
+
+def now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr
 
@@ -403,6 +408,49 @@ async def create_bid_ack_envelope(
 
 
 # ---------------- Status + list ----------------
+
+@router.post("/envelopes/{envelope_id}/resend")
+async def resend_envelope(envelope_id: str, admin=Depends(current_admin)):
+    """v47f — re-send the DocuSign envelope reminder to the current signer.
+    Uses the SDK's resend by re-issuing the recipient view URL for embedded
+    envelopes, or triggering a reminder for email delivery."""
+    env = await db.docusign_envelopes.find_one({"envelope_id": envelope_id})
+    if not env:
+        raise HTTPException(status_code=404, detail="Envelope not found")
+    if env.get("status") in ("completed", "declined", "voided"):
+        raise HTTPException(status_code=400,
+            detail=f"Cannot resend an envelope in status '{env.get('status')}'")
+    try:
+        client = _client()
+        # For both embedded and email delivery, DocuSign provides a resend endpoint
+        # via ModifyRecipients (resend_envelope=true). Simpler: recreate the
+        # recipient-view URL (embedded) or hit the Envelopes::update with resend.
+        signer_name  = env.get("signer_name") or "Signer"
+        signer_email = env.get("signer_email") or ""
+        if env.get("delivery") == "embedded":
+            signing_url = _recipient_view(client, envelope_id, signer_name, signer_email)
+            await db.docusign_envelopes.update_one(
+                {"envelope_id": envelope_id},
+                {"$set": {"last_resent_at": now_iso(),
+                          "last_resent_by": admin.get("email")}})
+            return {"ok": True, "signing_url": signing_url, "delivery": "embedded"}
+        # Email delivery: re-issue via ModifyRecipients with resend flag.
+        envelopes = ds.EnvelopesApi(client)
+        recips = envelopes.list_recipients(DS_ACCOUNT_ID, envelope_id)
+        signers = recips.signers or []
+        for s in signers:
+            s.email = signer_email
+        envelopes.update_recipients(DS_ACCOUNT_ID, envelope_id,
+                                     recipients=ds.Recipients(signers=signers),
+                                     resend_envelope="true")
+        await db.docusign_envelopes.update_one(
+            {"envelope_id": envelope_id},
+            {"$set": {"last_resent_at": now_iso(),
+                      "last_resent_by": admin.get("email")}})
+        return {"ok": True, "delivery": "email"}
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"DocuSign resend failed: {e}")
+
 
 @router.get("/envelopes/{envelope_id}")
 async def get_envelope(envelope_id: str, admin=Depends(current_admin)):

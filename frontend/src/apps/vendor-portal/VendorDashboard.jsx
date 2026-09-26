@@ -9,6 +9,7 @@ import VendorNotificationBell from "./VendorNotificationBell";
 import BidDetailModal from "./BidDetailModal";
 import ProfileModal from "@/apps/shared/ProfileModal";
 import useTenantSkin from "@/apps/shared/useTenantSkin";
+import { useListPager } from "@/components/ListPager";
 
 const STATUS_LABELS = {
   draft: "Draft", submitted: "Submitted", emd_pending: "EMD Pending", emd_paid: "EMD Paid",
@@ -29,6 +30,8 @@ export default function VendorDashboard() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [viewBidId, setViewBidId] = useState(null);
   const tenant = useTenantSkin();
+  const tenderPager = useListPager(notices, { testid: "vendor-tender-pager" });
+  const bidPager = useListPager(bids, { testid: "vendor-bid-pager" });
 
   useEffect(() => {
     (async () => {
@@ -106,8 +109,9 @@ export default function VendorDashboard() {
         {tab === "rate" && <RateAVendor me={vendor} />}
 
         {tab === "tenders" && (
+          <>
           <div className="grid md:grid-cols-2 gap-4" data-testid="vendor-tender-list">
-            {notices.map((n) => (
+            {tenderPager.paged.map((n) => (
               <Link key={n.id} to={`/vendor/bid/new/${n.notice_ref}`}
                 className="bg-white border rounded-lg p-5 hover:shadow-md transition"
                 data-testid={`tender-card-${n.notice_ref}`}>
@@ -128,11 +132,14 @@ export default function VendorDashboard() {
               <div className="text-slate-500 col-span-2 text-sm">No open tenders right now.</div>
             )}
           </div>
+          {tenderPager.controls}
+          </>
         )}
 
         {tab === "bids" && (
+          <>
           <div className="space-y-3" data-testid="vendor-bid-list">
-            {bids.map((b) => (
+            {bidPager.paged.map((b) => (
               <div key={b.id} className="bg-white border rounded-lg p-4 flex items-center justify-between"
                 data-testid={`bid-row-${b.bid_ref}`}>
                 <div>
@@ -183,6 +190,8 @@ export default function VendorDashboard() {
             ))}
             {bids.length === 0 && <div className="text-slate-500 text-sm">You haven't placed any bids yet.</div>}
           </div>
+          {bidPager.controls}
+          </>
         )}
         <BidDetailModal bidId={viewBidId} onClose={() => setViewBidId(null)} />
       </div>

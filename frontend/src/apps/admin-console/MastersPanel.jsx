@@ -8,6 +8,7 @@ import DemoModeTab from "./masters/DemoModeTab";
 import RatingCriteriaTab from "./masters/RatingCriteriaTab";
 import FeeCharger from "./masters/FeeCharger";
 import { InfoDot } from "@/components/InfoDot";
+import { useListPager } from "@/components/ListPager";
 
 export default function MastersPanel() {
   const { t } = useI18n();
@@ -53,6 +54,16 @@ export default function MastersPanel() {
     if (first) showApiError(first.reason);
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  const mq = search.trim().toLowerCase();
+  const filteredCompanies = mq ? companies.filter((c) => (c.name||"").toLowerCase().includes(mq)
+      || (c.code||"").toLowerCase().includes(mq)
+      || (c.country||"").toLowerCase().includes(mq)) : companies;
+  const filteredTenants = mq ? tenants.filter((tn) => (tn.name||"").toLowerCase().includes(mq)
+      || (tn.code||"").toLowerCase().includes(mq)
+      || (tn.kind||"").toLowerCase().includes(mq)) : tenants;
+  const companiesPager = useListPager(filteredCompanies, { testid: "company-pager" });
+  const tenantsPager = useListPager(filteredTenants, { testid: "tenant-pager" });
 
   const createStaff = async () => {
     if (!staffDraft.email || !staffDraft.name) return toast.error(t("panels.masters.email_name_required"));
@@ -166,20 +177,18 @@ export default function MastersPanel() {
             </button>
           </div>
           <div className="bg-white border">
-            {(() => { const q = search.trim().toLowerCase();
-              const list = q ? companies.filter((c) => (c.name||"").toLowerCase().includes(q)
-                    || (c.code||"").toLowerCase().includes(q)
-                    || (c.country||"").toLowerCase().includes(q)) : companies;
-              if (list.length === 0) return <div className="p-6 text-sm text-slate-500">
+            {filteredCompanies.length === 0 ? (
+              <div className="p-6 text-sm text-slate-500">
                 {companies.length === 0 ? t("panels.masters.no_companies") : "No matches"}
-              </div>;
-              return list.map((c) => (
+              </div>
+            ) : companiesPager.paged.map((c) => (
               <div key={c.id} className="border-b p-3 text-sm" data-testid={`company-row-${c.code}`}>
                 <span className="font-mono text-xs mr-3">{c.code}</span>
                 <strong>{c.name}</strong>
                 <span className="ml-3 text-xs text-slate-500">{c.country}</span>
               </div>
-            )); })()}
+            ))}
+            {companiesPager.controls}
           </div>
         </>
       )}
@@ -254,21 +263,19 @@ export default function MastersPanel() {
             </button>
           </div>
           <div className="bg-white border">
-            {(() => { const q = search.trim().toLowerCase();
-              const list = q ? tenants.filter((tn) => (tn.name||"").toLowerCase().includes(q)
-                    || (tn.code||"").toLowerCase().includes(q)
-                    || (tn.kind||"").toLowerCase().includes(q)) : tenants;
-              if (list.length === 0) return <div className="p-6 text-sm text-slate-500">
+            {filteredTenants.length === 0 ? (
+              <div className="p-6 text-sm text-slate-500">
                 {tenants.length === 0 ? t("panels.masters.no_tenants") : "No matches"}
-              </div>;
-              return list.map((tn) => (
+              </div>
+            ) : tenantsPager.paged.map((tn) => (
               <div key={tn.id} className="border-b p-3 text-sm" data-testid={`tenant-row-${tn.code}`}>
                 <span className="font-mono text-xs mr-3">{tn.code}</span>
                 <strong>{tn.name}</strong>
                 <span className="ml-3 text-xs bg-slate-100 px-2 py-0.5 rounded">{tn.kind}</span>
                 <span className="ml-2 text-xs text-slate-500">{tn.country}</span>
               </div>
-            )); })()}
+            ))}
+            {tenantsPager.controls}
           </div>
         </>
       )}

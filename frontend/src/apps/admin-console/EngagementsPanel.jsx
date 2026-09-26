@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useI18n } from "@/context/I18nContext";
 import { InfoDot } from "@/components/InfoDot";
 import { engagementsApi, showApiError } from "@/lib/api";
+import { useListPager } from "@/components/ListPager";
 
 const STATUS_STYLE = {
   quote_requested: "bg-amber-100 text-amber-900 border-amber-400",
@@ -199,6 +200,8 @@ export default function EngagementsPanel() {
     );
   }, [items, statusFilter, search]);
 
+  const { paged, controls } = useListPager(filtered, { testid: "engagement-pager" });
+
   const counts = useMemo(() => {
     const c = { all: items.length };
     for (const i of items) c[i.status] = (c[i.status] || 0) + 1;
@@ -247,7 +250,7 @@ export default function EngagementsPanel() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((e) => (
+              {paged.map((e) => (
                 <EngagementRow key={e.id} e={e} onQuote={setQuoting} onInvoice={invoice} onCancel={cancel}/>
               ))}
               {filtered.length === 0 && (
@@ -257,6 +260,7 @@ export default function EngagementsPanel() {
               )}
             </tbody>
           </table>
+          {controls}
         </div>
       )}
 

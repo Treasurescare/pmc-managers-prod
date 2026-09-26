@@ -4,6 +4,7 @@ import { api, vendorInviteApi, kycApi, formatApiError, showApiError} from "@/lib
 import { useI18n } from "@/context/I18nContext";
 import BulkInviteModal from "./BulkInviteModal";
 import { InfoDot } from "@/components/InfoDot";
+import { useListPager } from "@/components/ListPager";
 
 function KpiTile({ label, value }) {
   return (
@@ -179,6 +180,15 @@ export default function VendorsPanel() {
     }
   };
 
+  const filteredVendors = vendors.filter((v) => {
+    if (statusFilter === "pending") return v.email_verified === false;
+    if (statusFilter === "active") return v.email_verified !== false && v.is_active !== false;
+    if (statusFilter === "inactive") return v.is_active === false;
+    return true;
+  });
+  const { paged: pagedVendors, controls: vendorControls } =
+    useListPager(filteredVendors, { testid: "vendor-pager" });
+
   return (
     <div className="space-y-4" data-testid="admin-vendors-panel">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -289,14 +299,7 @@ export default function VendorsPanel() {
                 {t("panels.vendors.empty")}
               </div>
             )}
-            {vendors
-              .filter((v) => {
-                if (statusFilter === "pending") return v.email_verified === false;
-                if (statusFilter === "active") return v.email_verified !== false && v.is_active !== false;
-                if (statusFilter === "inactive") return v.is_active === false;
-                return true;
-              })
-              .map((v) => {
+            {pagedVendors.map((v) => {
                 const isInactive = v.is_active === false || v.email_verified === false;
                 const isHighlighted = highlightRef === v.vendor_ref;
                 return (
@@ -345,6 +348,7 @@ export default function VendorsPanel() {
                   </div>
                 );
               })}
+            {vendorControls}
           </div>
         </div>
 

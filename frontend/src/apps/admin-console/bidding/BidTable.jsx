@@ -1,3 +1,9 @@
+import { useState } from "react";
+import { bidApi, showApiError } from "@/lib/api";
+import { useListPager } from "@/components/ListPager";
+import { toast } from "sonner";
+import AdminBidDetailModal from "./AdminBidDetailModal";
+
 const STATUS_LABELS = {
   emd_pending: "EMD pending", emd_paid: "EMD paid — Awaits Escrow",
   escrow_accepted: "Escrow accepted — Awaits Admin approval",
@@ -19,6 +25,10 @@ const HOLDABLE = ["submitted", "emd_pending", "emd_paid", "escrow_accepted",
  * and the per-row action buttons.
  */
 export default function BidTable({ bids, onAdminFlag, onReject, onOpenAssign, onHold, onResume, onSendEmdLink }) {
+  const [viewId, setViewId] = useState(null);
+  const { paged, controls } = useListPager(bids || [], { defaultSize: 20 });
+  void bidApi; void showApiError; void toast;
+  const rows = paged;
   return (
     <div className="border border-brand-navy/10 bg-white overflow-x-auto" data-testid="bid-table">
       <table className="w-full text-sm">
@@ -32,7 +42,7 @@ export default function BidTable({ bids, onAdminFlag, onReject, onOpenAssign, on
           </tr>
         </thead>
         <tbody>
-          {bids.map((b) => (
+          {rows.map((b) => (
             <tr key={b.id} className="border-t border-brand-navy/10" data-testid={`bid-row-${b.bid_ref}`}>
               <td className="px-3 py-2 font-mono text-xs">{b.bid_ref}</td>
               <td className="px-3 py-2 font-mono text-xs">{b.notice_ref}</td>
@@ -59,6 +69,8 @@ export default function BidTable({ bids, onAdminFlag, onReject, onOpenAssign, on
                 )}
               </td>
               <td className="px-3 py-2 flex gap-1 flex-wrap">
+                <button onClick={() => setViewId(b.id)} data-testid={`admin-view-bid-${b.bid_ref}`}
+                  className="text-[10px] bg-slate-700 text-white px-2 py-1 rounded hover:bg-slate-900">View</button>
                 {b.status === "escrow_accepted" && b.active_step?.role_code === "admin" && (
                   <button onClick={() => onAdminFlag(b)} data-testid={`admin-approve-${b.bid_ref}`}
                     className="text-[10px] bg-emerald-600 text-white px-2 py-1 rounded hover:bg-emerald-700">Approve → Certifier</button>
@@ -86,11 +98,13 @@ export default function BidTable({ bids, onAdminFlag, onReject, onOpenAssign, on
               </td>
             </tr>
           ))}
-          {bids.length === 0 && (
+          {rows.length === 0 && (
             <tr><td colSpan={8} className="px-3 py-8 text-center text-brand-navy/40">No bids yet.</td></tr>
           )}
         </tbody>
       </table>
+      {controls}
+      <AdminBidDetailModal bidId={viewId} onClose={() => setViewId(null)} />
     </div>
   );
 }

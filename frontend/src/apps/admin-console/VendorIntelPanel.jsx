@@ -4,6 +4,7 @@ import { vendorIntelApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import { InfoDot } from "@/components/InfoDot";
 import ReviewModerationSection, { AdminBadgePreview } from "@/apps/admin-console/vendor/ReviewModerationSection";
+import { useListPager } from "@/components/ListPager";
 
 const BANDS = ["excellent", "good", "fair", "poor", "blacklisted"];
 
@@ -20,6 +21,14 @@ export default function VendorIntelPanel() {
     catch (e) { showApiError(e); }
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  const q = search.trim().toLowerCase();
+  const filtered = q
+    ? rows.filter((v) => (v.company_name || "").toLowerCase().includes(q)
+        || (v.email || "").toLowerCase().includes(q)
+        || (v.vendor_ref || "").toLowerCase().includes(q))
+    : rows;
+  const { paged, controls } = useListPager(filtered, { testid: "vintel-pager" });
 
   const saveRating = async (v) => {
     try {
@@ -73,19 +82,11 @@ export default function VendorIntelPanel() {
             <th className="px-3 py-2">{t("panels.vendor_intel.col_actions")}</th></tr>
         </thead>
         <tbody>
-          {(() => {
-            const q = search.trim().toLowerCase();
-            const filtered = q
-              ? rows.filter((v) => (v.company_name || "").toLowerCase().includes(q)
-                  || (v.email || "").toLowerCase().includes(q)
-                  || (v.vendor_ref || "").toLowerCase().includes(q))
-              : rows;
-            if (filtered.length === 0) {
-              return (<tr><td colSpan={7} className="p-6 text-center text-slate-500">
-                {q ? "No matches" : t("panels.vendor_intel.empty")}
-              </td></tr>);
-            }
-            return filtered.map((v) => (
+          {filtered.length === 0 ? (
+            <tr><td colSpan={7} className="p-6 text-center text-slate-500">
+              {q ? "No matches" : t("panels.vendor_intel.empty")}
+            </td></tr>
+          ) : paged.map((v) => (
             <tr key={v.id} className="border-t" data-testid={`vintel-row-${v.vendor_ref}`}>
               <td className="px-3 py-2">{v.company_name || v.email}</td>
               <td className="px-3 py-2 font-mono text-xs">{v.vendor_ref}</td>
@@ -101,10 +102,10 @@ export default function VendorIntelPanel() {
                   className="text-xs border px-2 py-1">{t("panels.vendor_intel.manage")}</button>
               </td>
             </tr>
-            ));
-          })()}
+          ))}
         </tbody>
       </table>
+      {controls}
       </div>
 
       {selected && (

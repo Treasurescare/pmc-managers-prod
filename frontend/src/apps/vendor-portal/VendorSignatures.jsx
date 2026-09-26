@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { docusignApi, bidApi, formatApiError, showApiError} from "@/lib/api";
+import { useListPager } from "@/components/ListPager";
 
 /** Wave 44 — Vendor Signing Dashboard.
  *
@@ -87,6 +88,9 @@ export default function VendorSignatures() {
   envelopes.forEach((e) => {
     if (e.bid_id && e.sub_kind) envMap[`${e.bid_id}:${e.sub_kind}`] = e;
   });
+
+  const { paged: pagedEnvelopes, controls: envelopeControls } =
+    useListPager(envelopes, { testid: "vendor-env-pager" });
 
   return (
     <div className="space-y-6" data-testid="vendor-signatures">
@@ -200,7 +204,7 @@ export default function VendorSignatures() {
               </tr>
             </thead>
             <tbody>
-              {envelopes.map((e) => (
+              {pagedEnvelopes.map((e) => (
                 <tr key={e.envelope_id} className="border-t"
                     data-testid={`vendor-envelope-${e.envelope_id}`}>
                   <td className="py-2 font-mono text-xs">{e.award_ref || e.bid_ref || "—"}</td>
@@ -214,6 +218,7 @@ export default function VendorSignatures() {
             </tbody>
           </table>
         )}
+        {envelopeControls}
       </section>
     </div>
   );

@@ -184,6 +184,21 @@ async def get_bid(bid_id: str, vendor=Depends(current_vendor)) -> dict:
     return _out(b)
 
 
+@router.get("/admin/{bid_id}")
+async def admin_get_bid(bid_id: str,
+                          admin=Depends(require_role("admin", "reviewer",
+                                                     "escrow_agent", "certifier",
+                                                     "legal_counsel", "accounting",
+                                                     "committee_member"))) -> dict:
+    """v47f — admin-scoped bid detail: any staff role that acts on bids can
+    view the full submission, attachments, technical/commercial notes and the
+    complete workflow history."""
+    b = await db.bids.find_one({"_id": ObjectId(bid_id)})
+    if not b:
+        raise HTTPException(status_code=404, detail="Bid not found")
+    return _out(b)
+
+
 @router.post("/{bid_id}/emd/send-link")
 async def send_emd_payment_link(bid_id: str,
                                  admin=Depends(require_role("admin", "reviewer"))):

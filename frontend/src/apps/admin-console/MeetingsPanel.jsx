@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { meetingsApi, publicApi, formatApiError, showApiError} from "@/lib/api";
 import { InfoDot } from "@/components/InfoDot";
+import { useListPager } from "@/components/ListPager";
 
 /** Wave 41 — Admin meeting scheduler with Jitsi Meet embed. */
 export default function MeetingsPanel() {
@@ -93,6 +94,8 @@ export default function MeetingsPanel() {
     cancelled: "bg-red-100 text-red-700 border-red-300",
   }[s] || "bg-gray-100 text-gray-700 border-gray-300");
 
+  const { paged, controls } = useListPager(items, { testid: "mtg-pager" });
+
   return (
     <div data-testid="admin-meetings-panel">
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
@@ -177,7 +180,7 @@ export default function MeetingsPanel() {
 
       <div className="border border-brand-navy/10 bg-white">
         {items.length === 0 && <div className="p-6 text-brand-navy/50 text-sm">No meetings scheduled yet.</div>}
-        {items.map((m) => (
+        {paged.map((m) => (
           <div key={m.id} className="p-4 border-b border-brand-navy/10" data-testid={`mtg-row-${m.id}`}>
             <div className="flex items-baseline gap-4 flex-wrap">
               <span className={`text-[10px] uppercase tracking-widest px-2 py-1 border ${badge(m.status)}`}>{m.status}</span>
@@ -203,6 +206,7 @@ export default function MeetingsPanel() {
             {showInvitees === m.id && <InviteeLinks mid={m.id} onCopy={copyLink} />}
           </div>
         ))}
+        {controls}
       </div>
     </div>
   );

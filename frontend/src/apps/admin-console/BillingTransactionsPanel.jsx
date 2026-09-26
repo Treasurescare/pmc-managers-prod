@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { feeBillingApi, showApiError } from "@/lib/api";
+import { useListPager } from "@/components/ListPager";
 
 /**
  * v46c — Admin transactions panel with Stripe refund.
@@ -33,6 +34,22 @@ export default function BillingTransactionsPanel() {
     } catch (e) { showApiError(e); }
     finally { setBusy(null); }
   };
+
+  const q = search.trim().toLowerCase();
+  const filtered = rows.filter((r) => {
+    const status = (r.payment_status || r.status || "").toLowerCase();
+    const matchStatus = statusFilter === "all"
+      || (statusFilter === "paid" && status === "paid")
+      || (statusFilter === "refunded" && status === "refunded")
+      || (statusFilter === "unpaid" && !["paid","refunded"].includes(status));
+    const matchSearch = !q
+      || (r.buyer_email || "").toLowerCase().includes(q)
+      || (r.product_code || "").toLowerCase().includes(q)
+      || (r.session_id || "").toLowerCase().includes(q)
+      || (r.context_ref || "").toLowerCase().includes(q);
+    return matchStatus && matchSearch;
+  });
+  const { paged, controls } = useListPager(filtered, { testid: "btp-pager" });
 
   return (
     <div data-testid="billing-transactions-panel">
@@ -79,27 +96,11 @@ export default function BillingTransactionsPanel() {
               </tr>
             </thead>
             <tbody>
-              {(() => {
-                const q = search.trim().toLowerCase();
-                const filtered = rows.filter((r) => {
-                  const status = (r.payment_status || r.status || "").toLowerCase();
-                  const matchStatus = statusFilter === "all"
-                    || (statusFilter === "paid" && status === "paid")
-                    || (statusFilter === "refunded" && status === "refunded")
-                    || (statusFilter === "unpaid" && !["paid","refunded"].includes(status));
-                  const matchSearch = !q
-                    || (r.buyer_email || "").toLowerCase().includes(q)
-                    || (r.product_code || "").toLowerCase().includes(q)
-                    || (r.session_id || "").toLowerCase().includes(q)
-                    || (r.context_ref || "").toLowerCase().includes(q);
-                  return matchStatus && matchSearch;
-                });
-                if (filtered.length === 0) {
-                  return (<tr><td colSpan={7} className="p-6 text-center text-slate-500">
-                    {rows.length === 0 ? "No transactions yet." : "No matches"}
-                  </td></tr>);
-                }
-                return filtered.map((r) => (
+              {filtered.length === 0 ? (
+                <tr><td colSpan={7} className="p-6 text-center text-slate-500">
+                  {rows.length === 0 ? "No transactions yet." : "No matches"}
+                </td></tr>
+              ) : paged.map((r) => (
                 <tr key={r.id} className="border-t align-top" data-testid={`btp-row-${r.session_id}`}>
                   <td className="px-3 py-2 font-mono text-[10px] max-w-[180px]"><div className="truncate">{r.session_id}</div></td>
                   <td className="px-3 py-2 text-xs">
@@ -134,14 +135,11 @@ export default function BillingTransactionsPanel() {
                     )}
                   </td>
                 </tr>
-                ));
-              })()}
-              {false && rows.length === 0 && (
-                <tr><td colSpan={7} className="p-6 text-center text-slate-500">No transactions yet.</td></tr>
-              )}
+              ))}
             </tbody>
           </table>
         </div>
+        {controls}
       </div>
     </div>
   );

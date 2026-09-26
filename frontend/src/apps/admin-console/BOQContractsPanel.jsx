@@ -4,6 +4,7 @@ import { boqApi, contractApi, bidApi, formatApiError, showApiError} from "@/lib/
 import { useI18n } from "@/context/I18nContext";
 import BOQTemplatesTab from "./boq/BOQTemplatesTab";
 import ContractsTab from "./boq/ContractsTab";
+import { useListPager } from "@/components/ListPager";
 
 export default function BOQContractsPanel() {
   const { t } = useI18n();
@@ -34,6 +35,19 @@ export default function BOQContractsPanel() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
+  const q = search.trim().toLowerCase();
+  const filteredTemplates = q
+    ? templates.filter((x) => (x.name || "").toLowerCase().includes(q)
+        || (x.notice_ref || "").toLowerCase().includes(q))
+    : templates;
+  const filteredContracts = q
+    ? contracts.filter((c) => (c.title || "").toLowerCase().includes(q)
+        || (c.notice_ref || "").toLowerCase().includes(q)
+        || (c.vendor_name || "").toLowerCase().includes(q))
+    : contracts;
+  const boqPager = useListPager(filteredTemplates, { testid: "boq-pager" });
+  const contractsPager = useListPager(filteredContracts, { testid: "contract-pager" });
+
   return (
     <div data-testid="admin-boq-panel">
       <div className="flex gap-2 mb-4 border-b items-center">
@@ -49,30 +63,29 @@ export default function BOQContractsPanel() {
       </div>
 
       {tab === "boq" && (
-        <BOQTemplatesTab
-          templates={(() => { const q = search.trim().toLowerCase(); return q
-            ? templates.filter((x) => (x.name || "").toLowerCase().includes(q)
-                || (x.notice_ref || "").toLowerCase().includes(q))
-            : templates; })()}
-          showNewTmpl={showNewTmpl} setShowNewTmpl={setShowNewTmpl}
-          tmplDraft={tmplDraft} setTmplDraft={setTmplDraft}
-          selectedTmpl={selectedTmpl} setSelectedTmpl={setSelectedTmpl}
-          onReload={load}
-        />
+        <>
+          <BOQTemplatesTab
+            templates={boqPager.paged}
+            showNewTmpl={showNewTmpl} setShowNewTmpl={setShowNewTmpl}
+            tmplDraft={tmplDraft} setTmplDraft={setTmplDraft}
+            selectedTmpl={selectedTmpl} setSelectedTmpl={setSelectedTmpl}
+            onReload={load}
+          />
+          {boqPager.controls}
+        </>
       )}
 
       {tab === "contracts" && (
-        <ContractsTab
-          contracts={(() => { const q = search.trim().toLowerCase(); return q
-            ? contracts.filter((c) => (c.title || "").toLowerCase().includes(q)
-                || (c.notice_ref || "").toLowerCase().includes(q)
-                || (c.vendor_name || "").toLowerCase().includes(q))
-            : contracts; })()}
-          awardedBids={awardedBids}
-          showNewContract={showNewContract} setShowNewContract={setShowNewContract}
-          contractDraft={contractDraft} setContractDraft={setContractDraft}
-          onReload={load}
-        />
+        <>
+          <ContractsTab
+            contracts={contractsPager.paged}
+            awardedBids={awardedBids}
+            showNewContract={showNewContract} setShowNewContract={setShowNewContract}
+            contractDraft={contractDraft} setContractDraft={setContractDraft}
+            onReload={load}
+          />
+          {contractsPager.controls}
+        </>
       )}
     </div>
   );
