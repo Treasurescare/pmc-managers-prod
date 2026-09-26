@@ -61,8 +61,9 @@ See `/app/memory/test_credentials.md`.
 - Zoom automated bid-opening session scheduler.
 
 ## Deployment ledger
-- v46y (Sep 2026) — **Rate-a-Peer overhaul**: co-participation gate (only vendors who bid on the same tender can rate each other), 1-10 scoring, weightage locked to super-admin (hierarchy_level>=10), default rubric seeder migrates 1-5 → 1-10 on cold start. Fixes silent submit bug (rubric was 404 in prod). Ready to ship as `pmc-frontend-v46y-prod-build.zip` + `pmc-backend-v46y.zip`.
-- v46x (Sep 2026) — axios 20s timeout, SW cache bumped to `pmc-shell-v46x`. **Deployed to production Sep 25** and verified live: index.html → `main.a89672e6.js` serves as JS, SW serves `pmc-shell-v46x`, vendor login → change-password redirect confirmed via real browser test on pmcmanagers.com.
+- v46z (Sep 2026) — **EMD fallback** (1%/$500 floor when notice missing `emd_config`) + **View/Print** bid detail modal (BidDetailModal.jsx). Live-verified: bid on unconfigured notice now correctly enters `emd_pending` with `emd_source=default_fallback`. Bundles: `pmc-backend-v46z.zip`, `pmc-frontend-v46z-prod-build.zip`.
+- v46y (Sep 2026) — **Rate-a-Peer overhaul**: co-participation gate (only vendors who bid on the same tender can rate each other), 1-10 scoring, weightage locked to super-admin (hierarchy_level>=10), default rubric seeder migrates 1-5 → 1-10 on cold start. Fixes silent submit bug (rubric was 404 in prod).
+- v46x (Sep 2026) — axios 20s timeout, SW cache bumped to `pmc-shell-v46x`. **Deployed to production Sep 25** and verified live.
 - v46w (Sep 2026) — all 5 portals authenticate, Resend DNS routing guide, EB env properties wired.
 - v46v (Sep 2026) — vendor first-login redirect fix + Resend sender switch.
 - v46u and earlier — see `/app/frontend/public/downloads/DOWNLOAD_v46*.md`.

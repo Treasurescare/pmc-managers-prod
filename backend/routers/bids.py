@@ -99,9 +99,20 @@ async def create_bid(payload: BidCreateIn, vendor=Depends(current_vendor)) -> di
             raise HTTPException(status_code=412,
                 detail="KYC verification required before submitting a bid. Please complete KYC from your vendor dashboard.")
 
-    # Compute EMD due
-    emd_cfg = EMDConfig(**(notice.get("emd_config") or {}))
-    emd_due = emd_cfg.compute(notice.get("budget_amount") or 0.0)
+    # Compute EMD due. v46z — if notice has no `emd_config` at all, fall back
+    # to 1% of the budget (Kazakh procurement default) with a $500 floor so
+    # vendors never silently skip the EMD step because of an admin oversight.
+    if notice.get("emd_config") is None and (notice.get("budget_amount") or 0) > 0:
+        fallback_pct = 1.0
+        fallback_min = 500.0
+        emd_due = max(fallback_min, round((fallback_pct / 100.0) * float(notice["budget_amount"]), 2))
+        emd_currency = notice.get("budget_currency") or "USD"
+        emd_source = "default_fallback"
+    else:
+        emd_cfg = EMDConfig(**(notice.get("emd_config") or {}))
+        emd_due = emd_cfg.compute(notice.get("budget_amount") or 0.0)
+        emd_currency = emd_cfg.currency
+        emd_source = "notice_config" if notice.get("emd_config") else "none"
 
     seq = await next_sequence("bid_seq")
     year = datetime.now(timezone.utc).year
@@ -120,8 +131,9 @@ async def create_bid(payload: BidCreateIn, vendor=Depends(current_vendor)) -> di
         "commercial_notes": payload.commercial_notes,
         "documents": [d.model_dump() for d in payload.documents],
         "emd_due_amount": emd_due,
-        "emd_currency": emd_cfg.currency,
+        "emd_currency": emd_currency,
         "emd_paid_amount": 0.0,
+        "emd_source": emd_source,
         "status": "emd_pending" if emd_due > 0 else "submitted",
         "tenant_id": config.DEFAULT_TENANT_ID,
         "workflow_history": [],

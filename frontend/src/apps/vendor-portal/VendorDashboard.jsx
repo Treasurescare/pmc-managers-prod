@@ -5,6 +5,7 @@ import { vendorApi, publicApi, bidApi, formatApiError, showApiError} from "@/lib
 import VendorGdprButton from "./VendorGdprButton";
 import VendorSignatures from "./VendorSignatures";
 import RateAVendor from "./RateAVendor";
+import BidDetailModal from "./BidDetailModal";
 import ProfileModal from "@/apps/shared/ProfileModal";
 import useTenantSkin from "@/apps/shared/useTenantSkin";
 
@@ -25,6 +26,7 @@ export default function VendorDashboard() {
   const [bids, setBids] = useState([]);
   const [tab, setTab] = useState("tenders");
   const [profileOpen, setProfileOpen] = useState(false);
+  const [viewBidId, setViewBidId] = useState(null);
   const tenant = useTenantSkin();
 
   useEffect(() => {
@@ -142,6 +144,16 @@ export default function VendorDashboard() {
                   <span className="text-xs px-2 py-1 rounded bg-slate-100">
                     {STATUS_LABELS[b.status] || b.status}
                   </span>
+                  {b.status === "submitted" && (b.emd_due_amount || 0) === 0 && (
+                    <span className="text-[10px] uppercase tracking-widest text-emerald-700"
+                          data-testid={`no-emd-${b.bid_ref}`}>No EMD required</span>
+                  )}
+                  <button
+                    onClick={() => setViewBidId(b.id)}
+                    data-testid={`view-bid-${b.bid_ref}`}
+                    className="text-xs border px-3 py-1.5 hover:bg-slate-50">
+                    View
+                  </button>
                   {(b.status === "emd_pending" || b.status === "submitted") && b.emd_due_amount > 0 && (
                     <button
                       onClick={async () => {
@@ -170,6 +182,7 @@ export default function VendorDashboard() {
             {bids.length === 0 && <div className="text-slate-500 text-sm">You haven't placed any bids yet.</div>}
           </div>
         )}
+        <BidDetailModal bidId={viewBidId} onClose={() => setViewBidId(null)} />
       </div>
     </div>
   );
