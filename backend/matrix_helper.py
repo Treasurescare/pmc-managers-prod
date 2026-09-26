@@ -24,7 +24,7 @@ _STATUS_TO_ROLE_INDEX = {
     "admin_flagged": 2, "certifier_cleared": 3,
     "legal_cleared": 4, "accounting_cleared": 5,
     "awarded": 6, "rejected": 99, "withdrawn": 99,
-    "closed": 99,
+    "closed": 99, "on_hold": -2,
 }
 
 
@@ -37,6 +37,8 @@ async def active_step(bid: Dict[str, Any]) -> Dict[str, Any]:
 
     if status in ("awarded", "rejected", "withdrawn", "closed"):
         return {"role_code": None, "label": f"Closed ({status})", "step_number": None}
+    if status == "on_hold":
+        return {"role_code": "admin", "label": "On hold — admin to resume", "step_number": None}
     if status in ("emd_pending", "submitted"):
         return {"role_code": "vendor", "label": "Awaiting vendor EMD payment", "step_number": 0}
 

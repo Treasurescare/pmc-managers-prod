@@ -10,11 +10,12 @@ import { InfoDot } from "@/components/InfoDot";
 
 const STATUS_LABELS = {
   emd_pending: "EMD pending", emd_paid: "EMD paid — Awaits Escrow",
-  escrow_accepted: "Escrow accepted — Awaits Admin flag",
-  admin_flagged: "Admin flagged — Awaits Certifier",
+  escrow_accepted: "Escrow accepted — Awaits Admin approval",
+  admin_flagged: "Approved — Awaits Certifier",
   certifier_cleared: "Certifier cleared — Awaits Legal",
   legal_cleared: "Legal cleared — Awaits Accounting",
   accounting_cleared: "Accounting cleared — Awaits Committee",
+  on_hold: "ON HOLD",
   awarded: "AWARDED", rejected: "Rejected", withdrawn: "Withdrawn", closed: "Closed",
 };
 
@@ -60,6 +61,23 @@ export default function BiddingOpsPanel() {
     try {
       await bidApi.decide(b.id, { action: "reject", role: "admin", notes: "" });
       toast.success("Bid rejected");
+      await load();
+    } catch (e) { showApiError(e); }
+  };
+
+  const doHold = async (b) => {
+    const reason = window.prompt(`Hold bid ${b.bid_ref}? Optional reason:`, "") ?? "";
+    try {
+      await bidApi.decide(b.id, { action: "hold", role: "admin", notes: reason });
+      toast.success("Bid put on hold");
+      await load();
+    } catch (e) { showApiError(e); }
+  };
+
+  const doResume = async (b) => {
+    try {
+      await bidApi.decide(b.id, { action: "resume", role: "admin", notes: "" });
+      toast.success("Bid resumed — back in the pipeline");
       await load();
     } catch (e) { showApiError(e); }
   };
@@ -154,6 +172,8 @@ export default function BiddingOpsPanel() {
         bids={bids}
         onAdminFlag={doAdminFlag}
         onReject={doReject}
+        onHold={doHold}
+        onResume={doResume}
         onOpenAssign={openAssign}
       />
 

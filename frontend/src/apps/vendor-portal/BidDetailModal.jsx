@@ -13,6 +13,7 @@ const LABELS = {
   accounting_review: "Accounting review",
   accounting_cleared: "Accounting cleared",
   committee_review: "Committee review",
+  on_hold: "On hold by PMC admin",
   awarded: "Awarded",
   rejected: "Rejected",
   withdrawn: "Withdrawn",

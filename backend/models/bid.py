@@ -35,6 +35,6 @@ class BidUpdateIn(BaseModel):
 
 
 class BidDecisionIn(BaseModel):
-    action: Literal["accept", "reject", "flag", "clear", "award"]
+    action: Literal["accept", "reject", "flag", "clear", "award", "hold", "resume"]
     role: Literal["escrow_agent", "certifier", "legal_counsel", "accounting", "admin", "committee"]
     notes: Optional[str] = None

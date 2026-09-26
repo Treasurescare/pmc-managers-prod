@@ -269,17 +269,41 @@ async def decide_bid(bid_id: str, payload: BidDecisionIn,
     check_role_match(admin.get("role"), payload.role)
 
     prev_status = b.get("status")
-    expected, next_status = _ROLE_TO_TARGET_STATUS.get(payload.role, (None, None))
 
-    # Matrix override on accept: matrix ordering supersedes the fixed pipeline.
-    if payload.action == "accept":
-        matrix_next, matrix_used = await resolve_matrix_next_status(b, payload.role)
-        if matrix_used:
-            next_status = matrix_next
-            expected = None
+    # v47a — Hold / Resume. Admin-only; pauses a bid at any in-flight stage
+    # and remembers the prior stage so Resume restores it exactly.
+    if payload.action in ("hold", "resume"):
+        if payload.role != "admin":
+            raise HTTPException(status_code=403, detail="Only admin can hold or resume a bid")
+        if payload.action == "hold":
+            if prev_status in ("awarded", "rejected", "withdrawn", "closed", "on_hold"):
+                raise HTTPException(status_code=400,
+                    detail=f"Cannot hold a bid in status '{prev_status}'")
+            next_status = "on_hold"
+            extra_set = {"held_from_status": prev_status,
+                         "hold_reason": payload.notes or None,
+                         "held_by": admin.get("email"), "held_at": now_iso()}
+        else:
+            if prev_status != "on_hold":
+                raise HTTPException(status_code=400,
+                    detail=f"Cannot resume a bid in status '{prev_status}'")
+            next_status = b.get("held_from_status") or "escrow_accepted"
+            extra_set = {"held_from_status": None, "resumed_by": admin.get("email"),
+                         "resumed_at": now_iso()}
+        expected = None
+    else:
+        expected, next_status = _ROLE_TO_TARGET_STATUS.get(payload.role, (None, None))
 
-    next_status = resolve_action_next_status(payload.action, payload.role, next_status)
-    validate_transition(payload.action, expected, prev_status, payload.role)
+        # Matrix override on accept: matrix ordering supersedes the fixed pipeline.
+        if payload.action == "accept":
+            matrix_next, matrix_used = await resolve_matrix_next_status(b, payload.role)
+            if matrix_used:
+                next_status = matrix_next
+                expected = None
+
+        next_status = resolve_action_next_status(payload.action, payload.role, next_status)
+        validate_transition(payload.action, expected, prev_status, payload.role)
+        extra_set = {}
 
     entry = {
         "role": payload.role, "action": payload.action, "from_status": prev_status,
@@ -288,7 +312,7 @@ async def decide_bid(bid_id: str, payload: BidDecisionIn,
     }
     await db.bids.update_one(
         {"_id": ObjectId(bid_id)},
-        {"$set": {"status": next_status, "updated_at": now_iso()},
+        {"$set": {"status": next_status, "updated_at": now_iso(), **extra_set},
          "$push": {"workflow_history": entry}},
     )
     await audit_log(f"bid.{payload.role}.{payload.action}", admin, "bid", b.get("bid_ref"), entry)

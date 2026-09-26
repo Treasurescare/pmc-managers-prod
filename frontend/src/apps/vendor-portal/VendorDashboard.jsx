@@ -15,7 +15,7 @@ const STATUS_LABELS = {
   certifier_review: "Certifier Reviewing", certifier_cleared: "Certifier Cleared",
   legal_review: "Legal Reviewing", legal_cleared: "Legal Cleared",
   accounting_review: "Accounting Reviewing", accounting_cleared: "Accounting Cleared",
-  committee_review: "Committee Reviewing", awarded: "Awarded", rejected: "Rejected",
+  committee_review: "Committee Reviewing", on_hold: "On Hold", awarded: "Awarded", rejected: "Rejected",
   withdrawn: "Withdrawn", closed: "Closed",
 };
 

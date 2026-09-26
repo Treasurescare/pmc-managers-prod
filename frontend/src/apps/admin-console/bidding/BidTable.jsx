@@ -1,18 +1,24 @@
 const STATUS_LABELS = {
   emd_pending: "EMD pending", emd_paid: "EMD paid — Awaits Escrow",
-  escrow_accepted: "Escrow accepted — Awaits Admin flag",
-  admin_flagged: "Admin flagged — Awaits Certifier",
+  escrow_accepted: "Escrow accepted — Awaits Admin approval",
+  admin_flagged: "Approved — Awaits Certifier",
   certifier_cleared: "Certifier cleared — Awaits Legal",
   legal_cleared: "Legal cleared — Awaits Accounting",
   accounting_cleared: "Accounting cleared — Awaits Committee",
+  on_hold: "ON HOLD",
   awarded: "AWARDED", rejected: "Rejected", withdrawn: "Withdrawn", closed: "Closed",
 };
+
+const HOLDABLE = ["submitted", "emd_pending", "emd_paid", "escrow_accepted",
+                  "admin_flagged", "certifier_review", "certifier_cleared",
+                  "legal_review", "legal_cleared", "accounting_review", "accounting_cleared",
+                  "committee_review"];
 
 /**
  * BidTable — extracted from BiddingOpsPanel. Renders the bids pipeline table
  * and the per-row action buttons.
  */
-export default function BidTable({ bids, onAdminFlag, onReject, onOpenAssign }) {
+export default function BidTable({ bids, onAdminFlag, onReject, onOpenAssign, onHold, onResume }) {
   return (
     <div className="border border-brand-navy/10 bg-white overflow-x-auto" data-testid="bid-table">
       <table className="w-full text-sm">
@@ -54,14 +60,22 @@ export default function BidTable({ bids, onAdminFlag, onReject, onOpenAssign }) 
               </td>
               <td className="px-3 py-2 flex gap-1 flex-wrap">
                 {b.status === "escrow_accepted" && b.active_step?.role_code === "admin" && (
-                  <button onClick={() => onAdminFlag(b)} data-testid={`admin-flag-${b.bid_ref}`}
-                    className="text-[10px] bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">Flag→Certifier</button>
+                  <button onClick={() => onAdminFlag(b)} data-testid={`admin-approve-${b.bid_ref}`}
+                    className="text-[10px] bg-emerald-600 text-white px-2 py-1 rounded hover:bg-emerald-700">Approve → Certifier</button>
                 )}
                 {b.status === "admin_flagged" && !b.assigned_certifier_id && (
                   <button onClick={() => onOpenAssign(b)} data-testid={`assign-certifier-${b.bid_ref}`}
                     className="text-[10px] bg-amber-500 text-white px-2 py-1 rounded hover:bg-amber-600">Assign Certifier</button>
                 )}
-                {["emd_paid", "escrow_accepted", "admin_flagged"].includes(b.status) && (
+                {HOLDABLE.includes(b.status) && (
+                  <button onClick={() => onHold(b)} data-testid={`admin-hold-${b.bid_ref}`}
+                    className="text-[10px] bg-slate-500 text-white px-2 py-1 rounded hover:bg-slate-600">Hold</button>
+                )}
+                {b.status === "on_hold" && (
+                  <button onClick={() => onResume(b)} data-testid={`admin-resume-${b.bid_ref}`}
+                    className="text-[10px] bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">Resume</button>
+                )}
+                {["emd_paid", "escrow_accepted", "admin_flagged", "on_hold"].includes(b.status) && (
                   <button onClick={() => onReject(b)} data-testid={`admin-reject-${b.bid_ref}`}
                     className="text-[10px] bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700">Reject</button>
                 )}

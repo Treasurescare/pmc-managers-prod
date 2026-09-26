@@ -61,6 +61,7 @@ See `/app/memory/test_credentials.md`.
 - Zoom automated bid-opening session scheduler.
 
 ## Deployment ledger
+- v47a (Sep 2026) — **Admin bid actions**: Approve→Certifier (renamed flag), Hold/Resume (`on_hold` status, admin-only, restores prior stage), Reject extended to held bids. Verified: hold→on_hold, resume→restores status, non-admin hold→403. Bundles: `pmc-backend-v47a.zip`, `pmc-frontend-v47a-prod-build.zip`.
 - v46z (Sep 2026) — **EMD fallback** (1%/$500 floor when notice missing `emd_config`) + **View/Print** bid detail modal (BidDetailModal.jsx). Live-verified: bid on unconfigured notice now correctly enters `emd_pending` with `emd_source=default_fallback`. Bundles: `pmc-backend-v46z.zip`, `pmc-frontend-v46z-prod-build.zip`.
 - v46y (Sep 2026) — **Rate-a-Peer overhaul**: co-participation gate (only vendors who bid on the same tender can rate each other), 1-10 scoring, weightage locked to super-admin (hierarchy_level>=10), default rubric seeder migrates 1-5 → 1-10 on cold start. Fixes silent submit bug (rubric was 404 in prod).
 - v46x (Sep 2026) — axios 20s timeout, SW cache bumped to `pmc-shell-v46x`. **Deployed to production Sep 25** and verified live.
