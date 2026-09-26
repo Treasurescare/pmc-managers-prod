@@ -41,6 +41,7 @@ import MobileLogin from "@/apps/mobile/MobileLogin";
 // Wave 14 — Unified web login + Admin creates full vendor
 import UnifiedLogin from "@/apps/shared/UnifiedLogin";
 import AdminVendorCreate from "@/apps/admin-console/AdminVendorCreate";
+import AdminBidDetailPage from "@/apps/admin-console/bidding/AdminBidDetailPage";
 
 // Wave 35/36/37 — Revenue surfaces + billing result + public roadmap + escrow magic-link
 import ClientPurchase from "@/apps/client-portal/ClientPurchase";
@@ -109,6 +110,7 @@ export default function App() {
 
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin/vendors/new" element={<AdminVendorCreate />} />
+            <Route path="/admin/bids/:bidId" element={<AdminBidDetailPage />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/*" element={<AdminDashboard />} />
 

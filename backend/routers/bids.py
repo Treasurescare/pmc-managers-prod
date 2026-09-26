@@ -6,6 +6,7 @@ approval pipeline: emd_paid → escrow_accepted → admin_flagged → certifier_
 """
 from typing import Optional, List
 from datetime import datetime, timezone
+import os
 from fastapi import APIRouter, HTTPException, Depends
 from bson import ObjectId
 
@@ -56,6 +57,43 @@ def _viewer_role_set(user: dict) -> set:
 
 def _out(doc: dict) -> dict:
     return BaseDocument.out(doc)
+
+
+_MIME_BY_EXT = {
+    ".pdf": "application/pdf", ".png": "image/png", ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp",
+    ".bmp": "image/bmp", ".doc": "application/msword",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".xls": "application/vnd.ms-excel",
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+}
+
+
+async def _enrich_docs(doc: dict) -> dict:
+    """v47h — attach a servable url + mime to every stored bid document so
+    admin/vendor detail views can open, preview and download the vendor's
+    actual uploads (older rows only stored the storage key, never the url)."""
+    docs = doc.get("documents") or []
+    if not docs:
+        return doc
+    keys = [d.get("key") for d in docs if d.get("key")]
+    mime_by_key = {}
+    if keys:
+        async for u in db.uploads.find({"key": {"$in": keys}}, {"key": 1, "content_type": 1}):
+            mime_by_key[u["key"]] = u.get("content_type")
+    enriched = []
+    for d in docs:
+        d = dict(d)
+        k = d.get("key")
+        if k and not d.get("url"):
+            d["url"] = f"/api/v1/uploads/files/{k}"
+        if not d.get("mime"):
+            ext = os.path.splitext((d.get("filename") or d.get("name") or "").lower())[1]
+            d["mime"] = mime_by_key.get(k) or _MIME_BY_EXT.get(ext) or ""
+        enriched.append(d)
+    doc = dict(doc)
+    doc["documents"] = enriched
+    return doc
 
 
 # ---------- Vendor endpoints ----------
@@ -181,7 +219,7 @@ async def get_bid(bid_id: str, vendor=Depends(current_vendor)) -> dict:
     b = await db.bids.find_one({"_id": ObjectId(bid_id)})
     if not b or b.get("vendor_id") != vendor["id"]:
         raise HTTPException(status_code=404, detail="Bid not found")
-    return _out(b)
+    return _out(await _enrich_docs(b))
 
 
 @router.get("/admin/{bid_id}")
@@ -196,7 +234,7 @@ async def admin_get_bid(bid_id: str,
     b = await db.bids.find_one({"_id": ObjectId(bid_id)})
     if not b:
         raise HTTPException(status_code=404, detail="Bid not found")
-    return _out(b)
+    return _out(await _enrich_docs(b))
 
 
 @router.post("/{bid_id}/emd/send-link")
