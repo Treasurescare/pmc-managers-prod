@@ -800,13 +800,20 @@ async def compute_emd(payload: EmdComputeIn,
 # PHASE D — Vendor rating criteria master + multi-rater aggregate
 # =============================================================================
 
+def _is_super_admin(admin: dict) -> bool:
+    """v46y — super admin = admin/owner at hierarchy_level >= 10.
+    Only super admins may set the `weight` on a rating criterion; regular
+    admins can create/edit criteria labels/scales but the weight is locked."""
+    return "admin" in (admin.get("roles") or [admin.get("role")]) and (admin.get("hierarchy_level") or 0) >= 10
+
+
 class RatingCriterionIn(BaseModel):
     code: str = Field(min_length=2, max_length=40)
     label: str = Field(min_length=2, max_length=120)
     description: Optional[str] = None
-    weight: float = 1.0  # relative
+    weight: float = 1.0  # relative — super-admin only (see _is_super_admin)
     scale_min: int = 1
-    scale_max: int = 5
+    scale_max: int = 10  # v46y — default 1-10 scoring range
 
 
 class RatingCriteriaSetIn(BaseModel):
@@ -829,6 +836,10 @@ async def create_criteria_set(payload: RatingCriteriaSetIn,
     doc = payload.model_dump()
     doc["created_at"] = now_iso()
     doc["created_by"] = admin["id"]
+    # v46y — regular admins cannot set weights on new criteria; force 1.0.
+    if not _is_super_admin(admin):
+        for c in doc.get("criteria") or []:
+            c["weight"] = 1.0
     if doc.get("is_default"):
         await db.rating_criteria_sets.update_many({}, {"$set": {"is_default": False}})
     res = await db.rating_criteria_sets.insert_one(doc)
@@ -840,6 +851,14 @@ async def update_criteria_set(sid: str, payload: RatingCriteriaSetIn,
                                 admin=Depends(require_role("admin"))):
     body = payload.model_dump()
     body["updated_at"] = now_iso()
+    # v46y — non-super-admins cannot mutate weights: preserve the existing
+    # weight for each criterion by its code, ignoring the incoming values.
+    if not _is_super_admin(admin):
+        existing = await db.rating_criteria_sets.find_one({"_id": ObjectId(sid)})
+        old_weights = {c.get("code"): c.get("weight", 1.0)
+                       for c in (existing or {}).get("criteria") or []}
+        for c in body.get("criteria") or []:
+            c["weight"] = old_weights.get(c.get("code"), 1.0)
     if body.get("is_default"):
         await db.rating_criteria_sets.update_many({"_id": {"$ne": ObjectId(sid)}},
                                                     {"$set": {"is_default": False}})
@@ -847,6 +866,14 @@ async def update_criteria_set(sid: str, payload: RatingCriteriaSetIn,
     if not r.matched_count:
         raise HTTPException(status_code=404, detail="Criteria set not found")
     return _out(await db.rating_criteria_sets.find_one({"_id": ObjectId(sid)}))
+
+
+@router.get("/rating-criteria/me")
+async def rating_admin_context(admin=Depends(require_role("admin", "reviewer"))):
+    """v46y — tell the frontend whether this admin can edit weights."""
+    return {"is_super_admin": _is_super_admin(admin),
+            "hierarchy_level": admin.get("hierarchy_level") or 0,
+            "roles": admin.get("roles") or [admin.get("role")]}
 
 
 @router.delete("/rating-criteria/{sid}")

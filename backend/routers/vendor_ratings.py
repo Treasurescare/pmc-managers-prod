@@ -31,9 +31,43 @@ from audit import audit_log
 
 router = APIRouter(prefix="/api/v1/vendor-ratings", tags=["vendor-ratings"])
 
+# Bids in these statuses count as "participation" — draft/withdrawn do not.
+PARTICIPATION_STATUSES = {
+    "submitted", "emd_pending", "emd_paid", "escrow_accepted",
+    "admin_flagged", "certifier_review", "certifier_cleared",
+    "legal_review", "legal_cleared", "accounting_review", "accounting_cleared",
+    "committee_review", "awarded", "rejected", "closed",
+}
+
 
 def _out(doc: dict) -> dict:
     return BaseDocument.out(doc)
+
+
+async def _co_participation_map(vendor_ref: str) -> dict:
+    """Return {other_vendor_ref: [notice_ref, ...]} — vendors who bid on the
+    same notice as `vendor_ref`. Excludes self, draft and withdrawn bids."""
+    my_notices = [b.get("notice_ref") async for b in db.bids.find(
+        {"vendor_ref": vendor_ref, "status": {"$in": list(PARTICIPATION_STATUSES)}},
+        {"notice_ref": 1},
+    )]
+    my_notices = list({n for n in my_notices if n})
+    if not my_notices:
+        return {}
+    out: dict = {}
+    async for b in db.bids.find(
+        {"notice_ref": {"$in": my_notices},
+         "vendor_ref": {"$ne": vendor_ref},
+         "status": {"$in": list(PARTICIPATION_STATUSES)}},
+        {"vendor_ref": 1, "notice_ref": 1},
+    ):
+        vr, nr = b.get("vendor_ref"), b.get("notice_ref")
+        if not vr or not nr:
+            continue
+        out.setdefault(vr, [])
+        if nr not in out[vr]:
+            out[vr].append(nr)
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -308,13 +342,32 @@ class PeerReviewIn(BaseModel):
 
 @router.post("/peer/submit")
 async def peer_submit(payload: PeerReviewIn, vendor=Depends(current_vendor)):
-    """Verified vendor rates another vendor. Auto-approved once the vendor is
-    active/verified — otherwise held for moderation."""
+    """Verified vendor rates another vendor. **Co-participation required** —
+    both vendors must have submitted a non-draft bid on the same tender."""
     if payload.vendor_ref == vendor.get("vendor_ref"):
         raise HTTPException(status_code=400, detail="You cannot rate your own company")
     target = await db.vendors.find_one({"vendor_ref": payload.vendor_ref})
     if not target:
         raise HTTPException(status_code=404, detail="Target vendor not found")
+
+    # v46y — co-participation gate. Client MUST tell us which tender they
+    # co-participated on, and the server verifies both parties actually bid.
+    if not payload.tender_ref:
+        raise HTTPException(status_code=400,
+                             detail="You must select the tender you co-participated on with this vendor.")
+    mine = await db.bids.find_one({
+        "vendor_ref": vendor.get("vendor_ref"),
+        "notice_ref": payload.tender_ref,
+        "status": {"$in": list(PARTICIPATION_STATUSES)},
+    })
+    theirs = await db.bids.find_one({
+        "vendor_ref": payload.vendor_ref,
+        "notice_ref": payload.tender_ref,
+        "status": {"$in": list(PARTICIPATION_STATUSES)},
+    })
+    if not mine or not theirs:
+        raise HTTPException(status_code=403,
+                             detail="You can only rate vendors you have co-participated with on the same tender.")
 
     if payload.criteria_set_id:
         try:
@@ -374,28 +427,62 @@ async def peer_list_mine(vendor=Depends(current_vendor)):
 @router.get("/directory")
 async def peer_directory(
     q: Optional[str] = None,
-    limit: int = 200,
+    tender_ref: Optional[str] = None,
     vendor=Depends(current_vendor),
 ):
-    """Vendor-scoped directory: lists all other active vendors so peers can
-    pick a target for a review. Excludes the caller and blacklisted vendors."""
-    limit = max(1, min(500, int(limit)))
-    filt: dict = {"vendor_ref": {"$ne": vendor.get("vendor_ref")}}
+    """v46y — co-participant directory only. Returns vendors who bid on the
+    same tender(s) as the caller. When `tender_ref` is passed, scoped to that
+    single tender. Includes `shared_tenders` array so the UI can preview
+    which project the review will pertain to."""
+    coparts = await _co_participation_map(vendor.get("vendor_ref"))
+    if tender_ref:
+        coparts = {vr: [tender_ref] for vr, notes in coparts.items() if tender_ref in notes}
+    if not coparts:
+        return []
+    refs = list(coparts.keys())
+    filt: dict = {"vendor_ref": {"$in": refs}}
     if q:
-        filt["$or"] = [
+        filt["$and"] = [{"$or": [
             {"company_name": {"$regex": q, "$options": "i"}},
             {"vendor_ref": {"$regex": q, "$options": "i"}},
             {"email": {"$regex": q, "$options": "i"}},
-        ]
-    cursor = db.vendors.find(filt, {"password_hash": 0}).sort("company_name", 1).limit(limit)
+        ]}]
+    cursor = db.vendors.find(filt, {"password_hash": 0}).sort("company_name", 1)
     out = []
     async for v in cursor:
+        vr = v.get("vendor_ref")
         out.append({
-            "vendor_ref": v.get("vendor_ref"),
+            "vendor_ref": vr,
             "company_name": v.get("company_name") or v.get("email"),
             "country": v.get("country"),
             "email": v.get("email"),
+            "shared_tenders": coparts.get(vr, []),
         })
+    return out
+
+
+@router.get("/my-tenders")
+async def peer_my_tenders(vendor=Depends(current_vendor)):
+    """List distinct tenders where the caller has a live (non-draft) bid,
+    each enriched with the count of other vendors who also participated."""
+    coparts = await _co_participation_map(vendor.get("vendor_ref"))
+    counts: dict = {}
+    for _vr, notices in coparts.items():
+        for n in notices:
+            counts[n] = counts.get(n, 0) + 1
+    if not counts:
+        return []
+    notice_docs = {}
+    async for n in db.notices.find({"notice_ref": {"$in": list(counts.keys())}},
+                                    {"notice_ref": 1, "title": 1, "category": 1, "published_at": 1}):
+        notice_docs[n.get("notice_ref")] = n
+    out = [{
+        "notice_ref": nr,
+        "title": (notice_docs.get(nr) or {}).get("title") or nr,
+        "category": (notice_docs.get(nr) or {}).get("category"),
+        "co_participant_count": counts[nr],
+    } for nr in counts]
+    out.sort(key=lambda x: -x["co_participant_count"])
     return out
 
 

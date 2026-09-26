@@ -206,6 +206,45 @@ async def _seed_staff() -> None:
         logging.info(f"Seeded staff {email} with roles {roles}")
 
 
+async def _seed_default_rubric() -> None:
+    """v46y — ensure a default 1-10 rating rubric exists so the vendor peer
+    review flow always finds a rubric. Idempotent — migrates any existing
+    1-5 rubric to 1-10 on cold-start."""
+    existing = await db.rating_criteria_sets.find_one({"is_default": True})
+    default_criteria = [
+        {"code": "quality",   "label": "Quality of work",         "description": "Overall workmanship and finish",       "weight": 3.0, "scale_min": 1, "scale_max": 10},
+        {"code": "delivery",  "label": "Delivery timeliness",     "description": "Adherence to agreed schedule",         "weight": 2.0, "scale_min": 1, "scale_max": 10},
+        {"code": "comms",     "label": "Communication",           "description": "Responsiveness and clarity",           "weight": 1.0, "scale_min": 1, "scale_max": 10},
+        {"code": "compliance","label": "Compliance & paperwork",  "description": "KYC, licences, HSE, documentation",    "weight": 2.0, "scale_min": 1, "scale_max": 10},
+        {"code": "cost",      "label": "Cost discipline",         "description": "Sticking to quoted cost, no scope-creep","weight": 2.0, "scale_min": 1, "scale_max": 10},
+    ]
+    if not existing:
+        await db.rating_criteria_sets.insert_one({
+            "name": "PMC default vendor scorecard",
+            "country": None, "industry": None,
+            "criteria": default_criteria,
+            "is_default": True, "is_active": True,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+        logging.info("Seeded default vendor rating rubric (1-10 scale)")
+        return
+    # Migrate any 1-5 rubric to 1-10 (keep custom codes but bump the range).
+    migrated = False
+    new_crit = []
+    for c in existing.get("criteria") or []:
+        if int(c.get("scale_max", 10)) < 10:
+            c = {**c, "scale_min": 1, "scale_max": 10}
+            migrated = True
+        new_crit.append(c)
+    if migrated:
+        await db.rating_criteria_sets.update_one(
+            {"_id": existing["_id"]},
+            {"$set": {"criteria": new_crit,
+                      "updated_at": datetime.now(timezone.utc).isoformat()}},
+        )
+        logging.info("Migrated default rubric to 1-10 scale")
+
+
 async def _seed_demo_notices() -> None:
     """Seed a couple of published tender notices so the public board isn't empty."""
     if await db.notices.count_documents({}) > 0:
@@ -290,6 +329,7 @@ async def on_start() -> None:
     await create_indexes()
     await _seed_admin()
     await _seed_staff()
+    await _seed_default_rubric()
     await _seed_demo_notices()
     await _seed_packages()
     await _seed_product_catalog()

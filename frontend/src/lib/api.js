@@ -521,8 +521,10 @@ export const vendorRatingsApi = {
   publicSubmit: (payload) =>
     api.post(`/api/v1/vendor-ratings/public/submit`, payload).then((r) => r.data),
   // Peer vendor — authenticated vendor
-  peerDirectory: (q) =>
-    api.get(`/api/v1/vendor-ratings/directory`, { params: q ? { q } : {} }).then((r) => r.data),
+  peerDirectory: (q, tender_ref) =>
+    api.get(`/api/v1/vendor-ratings/directory`, { params: { ...(q ? { q } : {}), ...(tender_ref ? { tender_ref } : {}) } }).then((r) => r.data),
+  peerMyTenders: () =>
+    api.get(`/api/v1/vendor-ratings/my-tenders`).then((r) => r.data),
   peerSubmit: (payload) =>
     api.post(`/api/v1/vendor-ratings/peer/submit`, payload).then((r) => r.data),
   peerListMine: () =>
