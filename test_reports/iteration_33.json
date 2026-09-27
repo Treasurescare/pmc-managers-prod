@@ -1,0 +1,25 @@
+{
+  "summary": "v48c-rev4 frontend-only test: verified always-visible View button on package Kanban cards (/admin?tab=packages). All 48 cards render both [data-testid=pkg-card-<ref>] and [data-testid=pkg-card-view-<ref>]. View button shows 'View' text + eye SVG, is visible in the top-right, is the ONLY way to open the modal (clicking card body no longer opens modal), and successfully opens [data-testid=pkg-detail-modal-<ref>] containing Print, Download CSV and Close buttons. Modal closes via [data-testid=pkg-detail-close-<ref>]. Card still has draggable=true for drag-and-drop. Regression checks: /register template view+download anchors present, /admin?tab=analytics&ui=e admin-attn-reviews chip shows '24 vendor reviews pending', ?ui=e toggle works.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/admin?tab=analytics&ui=e", "issues": ["Pre-existing React hydration warning: <button> nested inside <button> at data-testid=info-dot within anomaly section (Radix Tooltip asChild wrapping an already-<button> element). Not related to v48c-rev4 fix but worth cleaning up."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "PackageCard.jsx: The View button uses text-[9px]/px-2 py-1 which is quite small; may be hard to hit on touch devices — consider min-height 24-28px for accessibility.",
+    "Pre-existing hydration warning about nested buttons under data-testid=info-dot in AnalyticsPanel (Radix Tooltip). Should be fixed by removing inner <button> or the asChild wrapper."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100%"},
+  "test_credentials": "adminsupport@pmcmanagers.com / Admin@12345",
+  "seed_data_creation": "None — used existing 48 seeded packages.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "v48c-rev4 View-button fix validated end-to-end. Ref used: PMC-PKG-2026-0045. The registrations approved-banner regression check returned 0 approved rows in current dataset — not a bug, just no approved rows currently visible on the default filter; if retesting, expand filter or seed approved data. Console shows a benign hydration warning at info-dot (nested button under Radix Tooltip) unrelated to this fix.",
+  "rca_of_the_issue": "Original user complaint 'i don't have a view option on catalog' — PackageCard previously relied on whole-card onClick to open the modal, giving no affordance. Fix adds an explicit absolute-positioned pill button (data-testid=pkg-card-view-<ref>) with eye SVG + 'View' text in top-right; stopPropagation prevents interference with drag. Body-click no longer opens modal, which is the intended behavior (drag-only body, click-only via button)."
+}
