@@ -1,0 +1,28 @@
+{
+  "summary": "v48c Option E — two new bug fixes verified end-to-end. BUG A (vendor registration template PDF): backend returns valid inline PDF (%PDF header, %%EOF trailer, >3KB, pypdf opens 2 pages), ?inline=false switches to attachment, Cache-Control: no-store present. Frontend /register anchor [data-testid=reg-template-download] has target=_blank and correct API href. BUG B (Work Package detail modal): admin login via portal selector -> /admin?tab=packages -> 48 cards rendered; clicking first card opens [data-testid=pkg-detail-modal-<ref>] with 'Work Package · <ref>' kicker, category/status/country/notice badges, Print button (type=button) invokes window.open (verified via stub), Download CSV button creates a text/csv blob (verified via URL.createObjectURL hook), 13 dl rows (>=12 required), close button removes modal, card draggable=true intact. Regression: 2 existing v48c backend tests (auction start guard + meeting invites_sent) still pass. Total 5/5 backend pytest passing.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin analytics tab", "issues": ["React hydration warning: <button> nested inside <button> (info-dot Radix tooltip trigger inside 'anomaly-run' button). Not related to current bugs but flagged for cleanup."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_v48c_bug_a_pdf.py",
+    "/app/backend/tests/test_v48c_bugfixes.py",
+    "/app/test_reports/pytest/v48c_iter31.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "PackageCard.jsx handlePrint uses document.write on a new window without a Content-Security-Policy nonce — fine for internal admin, worth noting.",
+    "Nested <button> inside <button> hydration warning on analytics tab (info-dot inside anomaly-run) should be refactored to use asChild-safe wrapper or move info-dot outside the button."
+  ],
+  "updated_files": ["/app/backend/tests/test_v48c_bug_a_pdf.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "admin: adminsupport@pmcmanagers.com / Admin@12345 (login via /admin portal selector -> System Administrator card)",
+  "seed_data_creation": "None. Test used existing 48 seeded work packages.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "BUG A and BUG B are fully verified. Note that /admin?tab=<x> first shows a portal selector — click 'System Administrator' before landing on the admin login form. Package refs use pattern PMC-PKG-YYYY-#### (e.g., PMC-PKG-2026-0045). Backend pytest suite for v48c: test_v48c_bug_a_pdf.py + test_v48c_bugfixes.py, all 5 pass in ~2s."
+}
