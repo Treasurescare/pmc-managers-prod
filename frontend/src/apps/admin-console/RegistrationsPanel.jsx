@@ -184,6 +184,28 @@ export default function RegistrationsPanel() {
                 className="mt-1 w-full px-4 py-3 border border-brand-navy/20 focus:outline-none focus:border-brand-navy-soft text-brand-navy" />
             </div>
             <div className="mt-4 flex gap-2 flex-wrap">
+              {(selected.status === "approved" || selected.status === "rejected") ? (
+                <div className={"w-full flex items-center justify-between gap-3 px-4 py-3 border " +
+                                (selected.status === "approved"
+                                  ? "border-emerald-500/40 bg-emerald-50 text-emerald-800"
+                                  : "border-red-500/40 bg-red-50 text-red-700")}
+                     data-testid={`reg-status-banner-${selected.status}`}>
+                  <div>
+                    <div className="text-[10px] font-mono uppercase tracking-widest">
+                      Registration {selected.status}
+                    </div>
+                    <div className="text-sm mt-0.5">
+                      {selected.status === "approved"
+                        ? `Approved on ${selected.reviewed_at ? new Date(selected.reviewed_at).toLocaleDateString() : "—"}${selected.vendor_ref ? ` · vendor ${selected.vendor_ref}` : ""}. No further action required.`
+                        : `Rejected on ${selected.reviewed_at ? new Date(selected.reviewed_at).toLocaleDateString() : "—"}. Vendor cannot re-apply with the same email for 90 days.`}
+                    </div>
+                    {selected.reviewer_notes && (
+                      <div className="mt-2 text-xs whitespace-pre-wrap">Notes: {selected.reviewer_notes}</div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <>
               <button type="button" onClick={() => decide("approve")} disabled={deciding} data-testid="reg-approve" className="px-6 py-3 text-[12px] font-semibold uppercase tracking-widest bg-brand-navy-soft text-white hover:bg-brand-navy-soft/90 disabled:opacity-50 disabled:cursor-not-allowed">
                 {deciding ? t("panels.registrations.approve_working") : t("panels.registrations.approve")}
                 <InfoDot tip="Grants vendor account access. Notes optional. Vendor receives welcome email with password-set link." />
@@ -196,6 +218,8 @@ export default function RegistrationsPanel() {
                 {t("panels.registrations.reject")}
                 <InfoDot tip="Terminal decision. Notes required and recorded in the audit log. Vendor cannot re-apply with the same email for 90 days." />
               </button>
+                </>
+              )}
             </div>
           </div>
         ) : (

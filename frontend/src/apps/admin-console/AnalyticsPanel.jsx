@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { analyticsApi, bidApi, formatApiError, showApiError} from "@/lib/api";
+import { analyticsApi, bidApi, vendorRatingsApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import { useUiTheme } from "@/context/UiThemeContext";
 import DashboardDrillCards from "./DashboardDrillCards";
@@ -16,14 +16,16 @@ export default function AnalyticsPanel() {
   const [anomaly, setAnomaly] = useState(null);
   const [bidId, setBidId] = useState("");
   const [bids, setBids] = useState([]);
+  const [pendingReviews, setPendingReviews] = useState(0);
 
   const load = useCallback(async () => {
     try {
-      const [d, b] = await Promise.all([
+      const [d, b, pr] = await Promise.all([
         analyticsApi.dashboard(),
         bidApi.list().catch(() => []),
+        vendorRatingsApi.adminPendingCount().catch(() => ({ pending: 0 })),
       ]);
-      setData(d); setBids(b);
+      setData(d); setBids(b); setPendingReviews(pr.pending ?? 0);
     } catch (e) { showApiError(e); }
   }, []);
   useEffect(() => { load(); }, [load]);
@@ -43,7 +45,7 @@ export default function AnalyticsPanel() {
       {isE && (
         <>
           {/* Attention strip — matches E-Admin-Dashboard.html */}
-          <section className="e-attention-strip" data-testid="admin-attention-strip" aria-label="Needs attention">
+          <section className="e-attention-strip" data-testid="admin-attention-strip" aria-label="Needs attention" style={{gridTemplateColumns:"160px repeat(4, minmax(0,1fr))"}}>
             <div className="e-attn-label">Attention</div>
             <a href="#" onClick={(e) => { e.preventDefault(); go("bidding"); }} data-testid="admin-attn-closing">
               <span><span className="e-num">{String(t.bids_open || 0).padStart(2,"0")}</span> tenders in bidding stage</span>
@@ -53,6 +55,9 @@ export default function AnalyticsPanel() {
             </a>
             <a href="#" onClick={(e) => { e.preventDefault(); go("evaluation"); }} data-testid="admin-attn-eval">
               <span><span className="e-num">{String(t.bids || 0).padStart(2,"0")}</span> bids under evaluation</span>
+            </a>
+            <a href="#" onClick={(e) => { e.preventDefault(); go("vintel"); setTimeout(() => { const el = document.querySelector('[data-testid="review-moderation-section"]'); if (el) el.scrollIntoView({behavior:"smooth", block:"start"}); }, 400); }} data-testid="admin-attn-reviews">
+              <span><span className="e-num">{String(pendingReviews).padStart(2,"0")}</span> vendor reviews pending</span>
             </a>
           </section>
 

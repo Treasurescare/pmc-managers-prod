@@ -56,9 +56,15 @@ export default function RegistrationStart() {
                 {t("register.template_lede")}
               </div>
             </div>
-            <a href={vendorInviteApi.templateDownloadUrl()} target="_blank" rel="noreferrer"
-               data-testid="reg-template-download"
+            <a href={vendorInviteApi.templateDownloadUrl() + "?inline=true"} target="_blank" rel="noreferrer"
+               data-testid="reg-template-view"
                className="px-5 py-2.5 text-[11px] font-semibold uppercase tracking-widest border border-brand-navy text-brand-navy hover:bg-brand-navy hover:text-white">
+              View
+            </a>
+            <a href={vendorInviteApi.templateDownloadUrl() + "?inline=false"}
+               download={template.file_name || "pmc-registration-form.pdf"}
+               data-testid="reg-template-download"
+               className="px-5 py-2.5 text-[11px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-soft">
               {t("register.template_download")}
             </a>
           </div>
