@@ -200,10 +200,13 @@ export default function LiveAuctionsPanel() {
                   </>
                 )}
                 {a.status === "draft" && (
-                  <button type="button" onClick={() => start(a.id)}
+                  <button type="button"
+                          onClick={() => start(a.id)}
+                          disabled={(a.participant_count ?? a.participants?.length ?? 0) < 2}
+                          title={((a.participant_count ?? a.participants?.length ?? 0) < 2) ? "Need at least 2 registered participants — share the vendor invite link first" : "Start the auction now"}
                           data-testid={`ra-start-${a.id}`}
-                          className="text-[10px] uppercase tracking-widest px-3 py-1 bg-emerald-600 text-white hover:bg-emerald-700">
-                    {t("panels.live_auctions.start")}
+                          className={"text-[10px] uppercase tracking-widest px-3 py-1 text-white " + (((a.participant_count ?? a.participants?.length ?? 0) < 2) ? "bg-gray-400 cursor-not-allowed" : "bg-emerald-600 hover:bg-emerald-700")}>
+                    {t("panels.live_auctions.start")} · {(a.participant_count ?? a.participants?.length ?? 0)}/2
                   </button>
                 )}
                 {a.status === "live" && (

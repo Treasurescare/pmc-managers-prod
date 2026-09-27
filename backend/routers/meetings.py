@@ -28,8 +28,58 @@ from db import db
 from models.base import BaseDocument, now_iso
 from security import require_role, current_admin
 from audit import audit_log
+from emails import send_email
 
 router = APIRouter(prefix="/api/v1/meetings", tags=["meetings"])
+
+
+def _get_public_base_url() -> str:
+    """External URL for building magic-links in emails."""
+    return (os.environ.get("PUBLIC_BASE_URL")
+            or os.environ.get("REACT_APP_BACKEND_URL")
+            or "").rstrip("/")
+
+
+async def _dispatch_meeting_invites(meeting: dict, invitees: list) -> int:
+    """Send Resend emails to each invitee with their unique join magic-link.
+    Returns count of successfully queued messages. Never raises — meeting
+    creation must not fail if Resend is down; missed invites can be resent."""
+    base = _get_public_base_url()
+    subject = meeting.get("subject") or "PMC Managers meeting invite"
+    agenda = (meeting.get("agenda") or "").strip()
+    when = meeting.get("scheduled_at") or ""
+    duration = meeting.get("duration_min") or 45
+    provider = (meeting.get("provider") or "jitsi").upper()
+    sent = 0
+    for inv in invitees:
+        join_url = f"{base}/meet/{inv['token']}" if base else f"/meet/{inv['token']}"
+        html = f"""
+        <div style="font-family:Georgia,serif;max-width:560px;margin:0 auto;padding:24px;color:#0f1b3d">
+          <h1 style="font-size:22px;color:#0f1b3d;margin:0 0 8px">You're invited to a PMC Managers meeting</h1>
+          <p style="color:#3B4A43;font-size:14px;margin:0 0 12px">Hi {inv.get('name','')},</p>
+          <table style="width:100%;font-size:14px;border-collapse:collapse;margin:16px 0">
+            <tr><td style="padding:6px 0;color:#7A5F1E;letter-spacing:0.1em;text-transform:uppercase;font-size:11px;width:120px">Subject</td><td style="padding:6px 0">{subject}</td></tr>
+            <tr><td style="padding:6px 0;color:#7A5F1E;letter-spacing:0.1em;text-transform:uppercase;font-size:11px">When</td><td style="padding:6px 0">{when}</td></tr>
+            <tr><td style="padding:6px 0;color:#7A5F1E;letter-spacing:0.1em;text-transform:uppercase;font-size:11px">Duration</td><td style="padding:6px 0">{duration} min</td></tr>
+            <tr><td style="padding:6px 0;color:#7A5F1E;letter-spacing:0.1em;text-transform:uppercase;font-size:11px">Provider</td><td style="padding:6px 0">{provider}</td></tr>
+            <tr><td style="padding:6px 0;color:#7A5F1E;letter-spacing:0.1em;text-transform:uppercase;font-size:11px">Your role</td><td style="padding:6px 0">{inv.get('role','attendee')}</td></tr>
+          </table>
+          {"<p style='color:#3B4A43;font-size:14px;line-height:1.6'>" + agenda + "</p>" if agenda else ""}
+          <p style="margin:24px 0 0">
+            <a href="{join_url}" style="display:inline-block;background:#0F3B2E;color:#F3EFE4;text-decoration:none;padding:12px 22px;border-radius:999px;font-weight:600">Join the meeting</a>
+          </p>
+          <p style="color:#3B4A43;font-size:12px;margin:20px 0 0">If the button does not work, copy this link:<br><span style="font-family:monospace;color:#0F3B2E">{join_url}</span></p>
+          <p style="color:#4F5C55;font-size:11px;margin:24px 0 0;border-top:1px solid #E2DBC7;padding-top:12px">PMC Managers Limited · e-Tender platform</p>
+        </div>
+        """
+        try:
+            ok = await send_email(inv["email"], subject, html)
+            if ok:
+                sent += 1
+        except Exception as e:
+            logging.warning(f"meeting-invite send failed to {inv['email']}: {e}")
+    return sent
+
 
 
 # ----------- Zoom Server-to-Server OAuth client ---------------------------
@@ -179,8 +229,11 @@ async def create_meeting(payload: MeetingIn,
     await audit_log("meeting.create", admin, "meeting", str(r.inserted_id),
                     {"subject": payload.subject, "invitees": len(invitees),
                      "provider": payload.provider})
+    # BUG-FIX (v48c): send Resend email invite to each invitee with join link.
+    sent = await _dispatch_meeting_invites(doc, invitees)
     out = BaseDocument.out(doc)
     out.pop("zoom_start_url", None)
+    out["invites_sent"] = sent
     out["invite_links"] = [
         {"email": i["email"], "name": i["name"], "role": i["role"],
          "url": f"/meet/{i['token']}"}
@@ -238,7 +291,11 @@ async def add_invitees(mid: str, payload: List[Invitee],
                                       {"$push": {"invitees": {"$each": new_invitees}}})
     await audit_log("meeting.invite", admin, "meeting", mid,
                     {"added": len(new_invitees)})
-    return {"ok": True, "added": len(new_invitees),
+    # BUG-FIX (v48c): dispatch Resend email invites to newly added invitees.
+    sent = 0
+    if new_invitees:
+        sent = await _dispatch_meeting_invites(m, new_invitees)
+    return {"ok": True, "added": len(new_invitees), "invites_sent": sent,
             "invite_links": [{"email": i["email"], "url": f"/meet/{i['token']}"}
                              for i in new_invitees]}
 
