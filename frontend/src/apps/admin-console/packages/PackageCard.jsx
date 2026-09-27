@@ -90,20 +90,30 @@ export default function PackageCard({ pkg, onDragStart, fmt }) {
       <div
         draggable
         onDragStart={(e) => onDragStart(e, pkg)}
-        onClick={() => setOpen(true)}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(true); } }}
+        role="article"
         data-testid={`pkg-card-${pkg.package_ref}`}
-        className="border border-brand-navy/15 bg-white p-3 cursor-pointer active:cursor-grabbing hover:border-brand-navy-soft/60 hover:shadow-sm transition-all"
+        className="relative border border-brand-navy/15 bg-white p-3 active:cursor-grabbing hover:border-brand-navy-soft/60 hover:shadow-sm transition-all group"
       >
-        <div className="text-[9px] font-mono uppercase tracking-widest text-brand-navy-soft">{pkg.package_ref}</div>
+        <div className="text-[9px] font-mono uppercase tracking-widest text-brand-navy-soft pr-14">{pkg.package_ref}</div>
         <div className="text-[13px] font-semibold text-brand-navy mt-1 leading-tight">{pkg.title}</div>
         <div className="text-[11px] text-brand-navy/60 mt-1">{pkg.category}</div>
         <div className="flex items-center justify-between mt-2 text-[10px] font-mono">
           <span className="text-brand-navy/70">{fmt(pkg.value, pkg.currency)}</span>
           {pkg.float_target_date && <span className="text-brand-navy/50">{pkg.float_target_date.slice(0, 10)}</span>}
         </div>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+          data-testid={`pkg-card-view-${pkg.package_ref}`}
+          title="View full package details"
+          aria-label={`View ${pkg.package_ref}`}
+          className="absolute top-2 right-2 inline-flex items-center gap-1 px-2 py-1 text-[9px] font-semibold uppercase tracking-widest border border-brand-navy/40 bg-white text-brand-navy hover:bg-brand-navy hover:text-white transition-colors">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+          View
+        </button>
       </div>
       {open && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-auto"
