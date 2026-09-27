@@ -111,7 +111,7 @@ export default function TendersList() {
 
       <main className="flex-1 max-w-6xl mx-auto w-full px-6 lg:px-10 pt-12 pb-16">
         {isE ? (
-          <div className="grid gap-10 lg:grid-cols-[240px_minmax(0,1fr)] items-start">
+          <div className="grid gap-6 lg:gap-10 lg:grid-cols-[240px_minmax(0,1fr)] items-start">
             {/* Refine aside — matches E-Tenders.html */}
             <aside className="e-refine-aside" data-testid="tenders-refine-aside" aria-label="Filters">
               <div className="e-refine-head">
@@ -177,8 +177,8 @@ export default function TendersList() {
                   No {mode === "completed" ? "completed" : mode === "all" ? "" : "live"} tenders match this filter.
                 </div>
               ) : (
-                <div className="e-register-wrap">
-                  <div className="e-register-inner">
+                <div className="e-register-wrap overflow-x-auto">
+                  <div className="e-register-inner min-w-[720px] md:min-w-0">
                     <div className="e-register-head">
                       <span className="e-title">{title}</span>
                       <span className="e-meta"><span className="text-[#14261F]">{String(filtered.length).padStart(2,"0")}</span> ENTRIES</span>
@@ -187,11 +187,11 @@ export default function TendersList() {
                       <thead>
                         <tr>
                           <th className="w-11">No.</th>
-                          <th>Ref · Tender · Buyer</th>
-                          <th className="w-32">Sector · Country</th>
-                          <th className="w-24">Est. Value</th>
+                          <th className="min-w-[240px]">Ref · Tender · Buyer</th>
+                          <th className="w-36">Sector · Country</th>
+                          <th className="w-28">Est. Value</th>
                           <th className="w-40">Time Left</th>
-                          <th className="w-36 text-right">Status</th>
+                          <th className="w-32 text-right">Status</th>
                         </tr>
                       </thead>
                       <tbody>

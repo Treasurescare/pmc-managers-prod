@@ -596,8 +596,10 @@
 [data-ui="e"] .e-register-table td { padding: 20px 16px 20px 0; border-bottom: 1px solid var(--e-border-light); vertical-align: top; }
 [data-ui="e"] .e-register-table tbody tr:hover { background: rgba(15,59,46,0.03); }
 [data-ui="e"] .e-register-table .e-roman { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 28px; line-height: 1; color: var(--e-gold-link); padding-top: 22px; text-transform: lowercase; }
-[data-ui="e"] .e-register-table .e-ref { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #4F5C55; }
-[data-ui="e"] .e-register-table .e-title-cell { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 22px; font-weight: 600; line-height: 1.2; color: var(--e-ink); display: block; margin-top: 4px; text-decoration: none; }
+[data-ui="e"] .e-register-table .e-ref { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #4F5C55; display: block; margin-bottom: 4px; }
+[data-ui="e"] .e-register-table .e-title-cell { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 22px; font-weight: 600; line-height: 1.2; color: var(--e-ink); display: block; margin-top: 4px; text-decoration: none; word-break: break-word; }
+[data-ui="e"] .e-register-table .e-title-cell > span:not(.e-ref) { display: block; }
+[data-ui="e"] .e-register-table td:last-child { padding-right: 0; }
 [data-ui="e"] .e-register-table a.e-title-cell:hover { color: var(--e-bg-hero); }
 
 /* Countdown chip + status chip */
@@ -705,6 +707,106 @@
 [data-ui="e"] [data-testid="admin-analytics-panel"] .bg-slate-100 { background: var(--e-bg-panel) !important; color: #EAF0EA; border-color: var(--e-border-dark) !important; }
 [data-ui="e"] [data-testid="admin-analytics-panel"] .text-slate-500,
 [data-ui="e"] [data-testid="admin-analytics-panel"] .text-slate-600 { color: #A7BDB2 !important; }
+
+/* =========================================================================
+ * Option E — mobile & compact-viewport polish
+ * ======================================================================= */
+@media (max-width: 767px) {
+  /* Hero band */
+  [data-ui="e"] .e-hero-band .e-hero-inner { padding: 28px 20px 32px; }
+  [data-ui="e"] .e-hero-title { font-size: 40px !important; line-height: 1 !important; }
+  [data-ui="e"] .e-hero-sub { font-size: 15px; }
+  [data-ui="e"] .e-hero-breadcrumb { font-size: 12px; }
+
+  /* Home hero — search pill stacks */
+  [data-ui="e"] .e-search-pill { grid-template-columns: 1fr; padding: 6px; border-radius: 18px; }
+  [data-ui="e"] .e-search-pill > label { border-left: 0 !important; padding-left: 12px !important; }
+  [data-ui="e"] .e-search-pill input,
+  [data-ui="e"] .e-search-pill select { height: 44px; font-size: 14px; }
+  [data-ui="e"] .e-search-pill .e-search-submit { justify-content: center; margin-top: 4px; padding: 10px 18px; }
+
+  /* Home hero — outer 2-col grid stacks (Tailwind lg:grid-cols already handles) */
+
+  /* KPI strip on notice detail — 6 cols → 2 cols */
+  [data-ui="e"] .e-hero-kpi-strip { grid-template-columns: repeat(2, 1fr); border-top: 0; }
+  [data-ui="e"] .e-hero-kpi-strip > div {
+    padding: 14px 16px;
+    border-right: 1px solid rgba(210,180,106,0.28);
+    border-top: 1px solid rgba(210,180,106,0.28);
+  }
+  [data-ui="e"] .e-hero-kpi-strip > div:nth-child(2n) { border-right: 0; }
+  [data-ui="e"] .e-hero-kpi-strip dd { font-size: 20px; }
+
+  /* Vendor portal — greeting + KPIs */
+  [data-ui="e"] .e-portal-greeting { padding: 24px 20px 12px; }
+  [data-ui="e"] .e-portal-greeting h1 { font-size: 32px !important; }
+  [data-ui="e"] .e-portal-kpis { grid-template-columns: repeat(2, 1fr); padding: 0 20px 20px; gap: 10px; }
+  [data-ui="e"] .e-portal-kpi { padding: 14px 16px; }
+  [data-ui="e"] .e-portal-kpi .e-portal-kpi-value { font-size: 36px !important; }
+
+  /* Sealed-bid progress card — stack steps vertically */
+  [data-ui="e"] .e-bid-progress { margin: 0 20px 20px; }
+  [data-ui="e"] .e-bid-progress-head { flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px 16px; }
+  [data-ui="e"] .e-bid-progress-body { padding: 16px 18px; gap: 16px; }
+  [data-ui="e"] .e-bid-progress-title { font-size: 24px !important; }
+  [data-ui="e"] .e-bid-steps { grid-template-columns: 1fr; gap: 12px; }
+  [data-ui="e"] .e-bid-step-line { display: none; }
+  [data-ui="e"] .e-bid-step { flex-direction: row; align-items: center; gap: 14px; }
+  [data-ui="e"] .e-bid-step-marker { flex-shrink: 0; }
+  [data-ui="e"] .e-bid-step-label { flex: 1; padding-right: 0; }
+
+  /* Admin overview — attention strip + pipeline */
+  [data-ui="e"] .e-attention-strip { grid-template-columns: 1fr; }
+  [data-ui="e"] .e-attention-strip .e-attn-label { justify-content: center; text-align: center; }
+  [data-ui="e"] .e-pipeline-grid { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  [data-ui="e"] .e-pipeline-stage { padding: 12px; }
+  [data-ui="e"] .e-pipeline-stage .e-bar-track { height: 40px; }
+  [data-ui="e"] .e-pipeline-stage .e-pipe-count { font-size: 24px; }
+  [data-ui="e"] .e-pipeline-head { padding: 12px 16px; }
+  [data-ui="e"] .e-pipeline-head h2 { font-size: 20px; gap: 8px; flex-wrap: wrap; }
+
+  /* Tenders list — Refine aside above table, register table becomes cards */
+  [data-ui="e"] .e-refine-aside { border-bottom: 1px solid #C9C1AA; padding-bottom: 20px; margin-bottom: 4px; }
+  [data-ui="e"] .e-refine-aside .e-refine-title { font-size: 22px; }
+  [data-ui="e"] .e-register-wrap { padding: 6px; }
+  [data-ui="e"] .e-register-inner { padding: 4px 12px 8px; }
+  [data-ui="e"] .e-register-head { flex-direction: column; align-items: flex-start; gap: 6px; padding: 14px 0 10px; }
+  [data-ui="e"] .e-register-head .e-title { font-size: 22px; }
+  [data-ui="e"] .e-register-table { display: block; }
+  [data-ui="e"] .e-register-table thead { display: none; }
+  [data-ui="e"] .e-register-table tbody { display: block; }
+  [data-ui="e"] .e-register-table tr { display: grid; grid-template-columns: 1fr auto; column-gap: 12px; row-gap: 4px; padding: 16px 0; border-bottom: 1px solid var(--e-border-light); }
+  [data-ui="e"] .e-register-table td { display: block; padding: 0; border-bottom: 0; }
+  [data-ui="e"] .e-register-table .e-roman { display: none; }
+  [data-ui="e"] .e-register-table td:nth-child(2) { grid-column: 1 / 2; grid-row: 1; }
+  [data-ui="e"] .e-register-table td:nth-child(3) { grid-column: 1 / 2; grid-row: 2; font-size: 12px; color: #4F5C55; }
+  [data-ui="e"] .e-register-table td:nth-child(3) span.flex { flex-direction: row !important; gap: 8px !important; font-size: 12px; }
+  [data-ui="e"] .e-register-table td:nth-child(4) { grid-column: 1 / 2; grid-row: 3; padding: 4px 0 0 !important; font-size: 13px !important; }
+  [data-ui="e"] .e-register-table td:nth-child(5) { grid-column: 2 / 3; grid-row: 1; text-align: right; }
+  [data-ui="e"] .e-register-table td:nth-child(5) span.flex { align-items: flex-end !important; padding-top: 0 !important; }
+  [data-ui="e"] .e-register-table td:nth-child(6) { grid-column: 2 / 3; grid-row: 2 / 4; text-align: right; align-self: end; }
+  [data-ui="e"] .e-register-table .e-title-cell { font-size: 18px; }
+  [data-ui="e"] .e-tab-pill { height: 40px; padding: 0 14px; font-size: 13px; }
+
+  /* Tab pill wrap can scroll horizontally on narrow screens */
+  [data-ui="e"] .e-tab-pill-wrap { overflow-x: auto; max-width: 100%; }
+
+  /* Live board on home hero — hide on mobile (already hidden lg:block) */
+
+  /* Prevent horizontal scroll caused by rings */
+  [data-ui="e"] body { overflow-x: hidden; }
+}
+
+/* Tablet — smaller downgrades */
+@media (min-width: 768px) and (max-width: 1023px) {
+  [data-ui="e"] .e-hero-kpi-strip { grid-template-columns: repeat(3, 1fr); }
+  [data-ui="e"] .e-hero-kpi-strip > div:nth-child(3n) { border-right: 0; }
+  [data-ui="e"] .e-hero-kpi-strip > div:nth-child(n+4) { border-top: 1px solid rgba(210,180,106,0.28); }
+  [data-ui="e"] .e-portal-kpis { grid-template-columns: repeat(2, 1fr); }
+  [data-ui="e"] .e-pipeline-grid { grid-template-columns: repeat(4, 1fr); }
+  [data-ui="e"] .e-attention-strip { grid-template-columns: 160px 1fr; }
+  [data-ui="e"] .e-attention-strip .e-attn-label { grid-column: 1 / 2; grid-row: 1 / 4; }
+}
 
 /* Print-friendly notice detail page */
 @media print {

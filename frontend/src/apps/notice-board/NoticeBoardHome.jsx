@@ -133,10 +133,10 @@ export default function NoticeBoardHome() {
                 </span>
                 <span>{stats?.notices_published ?? "—"} tenders open for bids →</span>
               </Link>
-              <h1 className="font-display font-medium text-white leading-[0.95] tracking-tight text-5xl md:text-6xl lg:text-7xl xl:text-[96px]">
+              <h1 className="font-display font-medium text-white leading-[0.95] tracking-tight text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-[96px]">
                 Public trust, <em className="italic text-brand-gold not-italic md:italic">sealed</em> into every tender.
               </h1>
-              <p className="text-white/75 max-w-xl text-lg leading-relaxed">
+              <p className="text-white/75 max-w-xl text-base md:text-lg leading-relaxed">
                 Publish, clarify, receive sealed bids, evaluate and award on one platform — where every action is time-stamped and every decision can be shown.
               </p>
               {/* Search pill */}
