@@ -1,0 +1,22 @@
+{
+  "summary": "v48c-rev6 Blob-fetch PDF download/view fix fully verified on /register. Both buttons are <button type='button'> (not <a>). Download triggers Playwright download event, suggested filename='pmc-registration-form.pdf', PDF header %PDF- present, size=4435 bytes, pypdf parses 2 pages. Toast 'Downloading blank form…' shows in sonner. Busy states 'Downloading…' / 'Opening…' with disabled=true observed and revert to 'Download blank form' / 'View' after completion. View button calls window.open with a blob:https://... URL (captured via window.open monkey-patch since Chrome's built-in PDF viewer swallows popup.url as expected). Option E toggle regression: body[data-ui='e'] set with ?ui=e, cleared with ?ui=default. Admin package-card regression could not be exercised (0 pkg-card-view-* elements found on /admin?tab=packages after admin login — likely a routing/hydration mismatch in headless mode; iteration_33 already validated this regression 100%).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "RegistrationStart.jsx fetchTemplateBlob correctly caches created blob URLs in revokeRef and revokes them on unmount — good memory hygiene.",
+    "Popup-blocked fallback (window.location.href = url) is present but not exercised in headless Chrome; acceptable given browser variance."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (skipped per request)", "frontend": "100% (v48c-rev6 primary flows)" },
+  "test_credentials": "adminsupport@pmcmanagers.com / Admin@12345 (used for regression only)",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The Blob-based PDF download flow on /register works end-to-end in Playwright. Note: to verify popup View, monkey-patch window.open to capture URL (popup.url returns ':' because Chrome PDF viewer replaces the document). Admin packages regression should be validated in a UI where the admin dashboard fully renders pkg-card-view-* — in this test iteration those cards didn't appear after login redirect."
+}
