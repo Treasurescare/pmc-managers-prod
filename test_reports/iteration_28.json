@@ -1,0 +1,48 @@
+{
+  "summary": "v48c bug-fix regression pass — all 4 targeted bugs (BUG 2, 3, 5, 6) verified fixed in preview. Backend pytest 2/2 pass; frontend Playwright verifications 4/4 pass. Regressions: Option E toggle still works; no new JS runtime errors introduced by the fixes.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "BUG 2 — Bidding ops tab click",
+        "issue": "Clicking 'Bidding ops' loads the BiddingOpsPanel (verified) but the browser URL is NOT updated to include ?tab=bidding — remains /admin. Review request specified 'expect URL to include tab=bidding'. Functionally OK (state-based routing), but a deep-link/bookmark for tab=bidding won't be created by the click. Deep-link works when arrived via ?tab=bidding in URL. Low priority — cosmetic.",
+        "affected_selectors": ["[data-testid=admin-tab-bidding]"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_v48c_bugfixes.py",
+    "/app/test_reports/pytest/v48c_results.xml"
+  ],
+  "action_items": [
+    "OPTIONAL: When clicking sidebar tabs in AdminShell, update the URL query (?tab=<code>) via history.pushState so deep-links match on click (currently only initial URL param is honoured on load).",
+    "None blocking. Main agent may proceed."
+  ],
+  "critical_code_review_comments": [
+    "AdminShell.jsx setTab() does not sync to URL query string — inconsistent with review-request expectation that 'clicking tab makes URL include tab=bidding'. Minor.",
+    "meetings.py _dispatch_meeting_invites logs individual send failures at warning level but does not surface a summary log. Consider a single INFO log 'meeting-invite dispatch: sent N/M' for observability.",
+    "PackageCard.jsx: modal has no aria-modal / role='dialog' / focus trap — accessibility gap (not a functional bug)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_v48c_bugfixes.py (new)"
+  ],
+  "success_rate": {"backend": "100% (2/2)", "frontend": "100% (4/4 checks)"},
+  "test_credentials": "adminsupport@pmcmanagers.com / Admin@12345 — logged in successfully via /api/v1/admin/auth/login",
+  "seed_data_creation": "Created 1 TEST_ draft reverse auction ('TEST_v48c auction guard') and 1 TEST_ meeting ('TEST_v48c Test Invite Email'). Not cleaned up — safe test data; ignore or purge later.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "BUG 2/3/5/6 all verified fixed in v48c. Backend regression file at /app/backend/tests/test_v48c_bugfixes.py — includes Resend-invited meeting test that hits Resend API (RESEND_API_KEY is present on preview; example.com invites return 422 from Resend but code path attempts send and 'invites_sent' returns 0 which is acceptable per review request). BUG 2 minor: clicking sidebar tab does not update URL query; only initial deep-link via ?tab= works.",
+  "verification_details": {
+    "BUG_2": "Sidebar contains data-testid=admin-tab-bidding as FIRST child under admin-sb-group-money in both default UI and Option E (?ui=e). Clicking renders BiddingOpsPanel (table content visible). Money group tab order confirmed: [bidding, escrow, billing, evaluation, l1, awards, docusign, permissions].",
+    "BUG_3": "48 pkg-card-* cards found on /admin?tab=packages. Click on pkg-card-PMC-PKG-2026-0045 opens pkg-detail-modal-<ref> with all metadata fields; close button (pkg-detail-close-<ref>) closes it; backdrop click also closes. Draggable attribute preserved on card wrapper (drag-and-drop not regressed).",
+    "BUG_5": "3/3 draft auctions show disabled Start button labelled 'START · 0/2', bg-gray-400 cursor-not-allowed class, tooltip 'Need at least 2 registered participants — share the vendor invite link first'. Backend POST /api/v1/reverse-auctions/{aid}/start with <2 participants returns 400 with detail containing '2' and 'participant' (verified in pytest).",
+    "BUG_6": "POST /api/v1/meetings returns JSON containing 'invites_sent' (int) and 'invite_links'. POST /api/v1/meetings/{mid}/invitees also returns 'invites_sent'. Backend logs show Resend HTTP POST attempts triggered by the test (some 200 OK for real domains, 422 for example.com — Resend sandbox restriction, expected). Code path fully exercised.",
+    "Regression_OptionE": "?ui=e sets body[data-ui='e']; ?ui=default clears/switches. localStorage flag persists across reloads. Verified.",
+    "Regression_ConsoleErrors": "No NEW runtime errors on /admin?tab=packages, /admin?tab=auctions, /admin?tab=bidding. Pre-existing 404s for optional assets and a React hydration warning ('<button> cannot be a descendant of <button>') are unchanged from iteration_27."
+  }
+}
