@@ -795,6 +795,19 @@
 
   /* Prevent horizontal scroll caused by rings */
   [data-ui="e"] body { overflow-x: hidden; }
+  [data-ui="e"] .e-hero-band { overflow: hidden; }
+  [data-ui="e"] .e-hero-band > svg { max-width: 100vw; }
+
+  /* Notice detail — clamp article padding on mobile so it fits 390px viewport */
+  [data-ui="e"] article.bg-white.border.p-8 { padding: 20px !important; }
+  [data-ui="e"] main.flex-1 { min-width: 0; }
+
+  /* Vendor portal — hard-clamp any fixed-width overflow */
+  [data-ui="e"] [data-testid="vendor-dashboard"] { overflow-x: hidden; }
+  [data-ui="e"] .e-portal-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  [data-ui="e"] .e-portal-greeting { padding: 24px 16px 12px !important; }
+  [data-ui="e"] .e-portal-kpis { padding: 0 16px 20px !important; }
+  [data-ui="e"] .e-bid-progress { margin: 0 16px 20px !important; }
 }
 
 /* Tablet — smaller downgrades */

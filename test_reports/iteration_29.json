@@ -1,0 +1,57 @@
+{
+  "summary": "v48c UX/mobile-responsive pass — verified all 11 review items across desktop 1440x900, tablet 768/1023 and mobile 390x844. 9/11 fully pass; 2 minor overflow issues found on notice-detail (mobile) and vendor portal (mobile). No JS runtime errors introduced. Legacy ?ui=default renders as v47h with no data-ui attribute and no forest-green leakage.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "NoticeDetail (/notices/PMC-NOT-2026-0020?ui=e) at 390x844",
+        "issue": "Horizontal page overflow — documentElement.scrollWidth=457 > window=390 (67px overflow). Root cause: decorative SVG <circle> elements inside e-hero (widths 486/704/956px) and the article container computed width=433 (right edge=457) exceed viewport. h1 font-size correctly scales to 40px and KPI strip correctly drops to 2 cols. The offending elements need overflow-x:hidden on their nearest ancestor (e-hero / article wrapper) at mobile breakpoint.",
+        "selector": "article.bg-white.border.p-8 and svg circle inside .e-hero",
+        "priority": "MEDIUM"
+      },
+      {
+        "component": "Vendor portal (/vendor?ui=e) at 390x844",
+        "issue": "Minor horizontal overflow — scrollWidth=396 vs window=390 (6px). Not visually catastrophic but strictly violates 'no horizontal page overflow'. Likely a padding/border rounding on a KPI card or the greeting band. KPI grid correctly drops to 2x2 (170px 170px).",
+        "selector": "unknown — needs inspection near .e-portal-kpis parent or greeting band",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Vendor portal mobile",
+        "issues": ["Visible h1 has font-size 18px ('Manual Preview Vendor Pvt Ltd' — the company subheading). If review spec intended greeting-band 'Good morning, X' to be the h1 scaled to ~32px, then either the greeting is not marked as h1 or the responsive scale isn't applied. Suggest confirming semantic hierarchy or updating the .e-portal-greeting rule."]
+      }
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix mobile horizontal overflow on /notices/:ref?ui=e — add overflow-x:hidden to the .e-hero container and/or clamp article width to 100% at max-width:767px (padding p-8 (=32px×2=64px) combined with min-content pushes width beyond 390).",
+    "Fix 6px overflow on /vendor?ui=e mobile — inspect greeting band + KPI card widths at 390x844.",
+    "Confirm which element is intended as the h1 on vendor portal (greeting 'Good morning' vs company name). Current visible h1 renders at 18px which does not match the ~32px spec."
+  ],
+  "critical_code_review_comments": [
+    "Notice-detail mobile overflow is caused by decorative SVG circles in .e-hero that are absolutely sized larger than viewport — always guard with overflow-x:hidden or clip-path on their parent when supporting mobile.",
+    "Vendor portal 6px overflow suggests a fixed-px width somewhere in .e-portal-kpis calc (170px × 2 + gap may exceed 390 - horizontal padding); consider grid-template-columns: repeat(2, minmax(0,1fr))."
+  ],
+  "updated_files": [],
+  "success_rate": {"frontend": "9/11 pass (82%)"},
+  "test_credentials": "adminsupport@pmcmanagers.com / Admin@12345 and manualvendor@pmcmanagers.com / Vendor@12345 — both logins succeeded.",
+  "seed_data_creation": "none",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 3 DESKTOP fixes verified PASS at 1440x900: e-ref display:block confirmed (ref on its own line above title), status chip fully visible (chipRight==tableRight==1222, not clipped), sidebar and register wrap side-by-side (asideRight=424 < wrapLeft=498). MOBILE 1 /tenders PASS (thead hidden, no page overflow, aside stacked above table). MOBILE 2 /home PASS (h1=36px, no overflow). MOBILE 3 /notices FAIL (67px horizontal overflow from SVG circles + article). MOBILE 4 /vendor mostly PASS (KPI 2x2 grid ok, 6px overflow). MOBILE 5 /admin PASS (attention 1-col, pipeline 2-col, no overflow). TABLET 768 notice: KPI shows 3 cols ✓. TABLET 1023 admin: attention 2-col, pipeline 4-col ✓. Regression /?ui=default: body has no data-ui attr, no forest-green class present, title correct. No new JS runtime errors — only pre-existing 404s for optional assets.",
+  "verification_matrix": {
+    "DESKTOP_FIX_1_e_ref_display_block": "PASS — .e-ref computed display=block, 14 instances found, sibling title span also block. HTML confirmed <span class='e-ref'>PMC-NOT-2026-0020</span><span>TEST_committee_notice_...</span>",
+    "DESKTOP_FIX_2_status_chip_not_clipped": "PASS — chip 'Open for bids' right=1222 equals table right=1222; not overflowing.",
+    "DESKTOP_FIX_3_sidebar_no_overlap": "PASS — aside right=424, wrap left=498, gap=74px, no overlap.",
+    "MOBILE_1_tenders_stack_card_style": "PASS — thead display=none, aside stacked above table (asideBottom<=tableTop), no horizontal page scroll.",
+    "MOBILE_2_home_hero": "PASS — h1=36px (text-4xl), no page overflow, only 1 input visible (country is <select>).",
+    "MOBILE_3_notice_detail": "PARTIAL — h1=40px ✓, KPI strip=2 cols ✓, BUT scrollWidth=457 > 390 (horizontal overflow).",
+    "MOBILE_4_vendor": "MOSTLY PASS — KPI 2x2 grid ✓, 6px scrollW overflow; visible h1='Manual Preview Vendor Pvt Ltd' at 18px (may not be the greeting-band element the spec targets).",
+    "MOBILE_5_admin": "PASS — .e-attention-strip=1 col, .e-pipeline-grid=2 cols, scrollW=390 no overflow.",
+    "TABLET_768_notice_KPI_3_cols": "PASS — .e-hero-kpi-strip=3 cols.",
+    "TABLET_1023_admin": "PASS — attention=2 cols, pipeline=4 cols.",
+    "REGRESSION_default_UI": "PASS — body has no data-ui attribute, no 'forest' class on any element, title 'PMC Managers | Global Tender Board'."
+  }
+}
