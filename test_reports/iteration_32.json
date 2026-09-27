@@ -1,0 +1,28 @@
+{
+  "summary": "v48c Option E — 3 bug fixes verified end-to-end. BUG A (/register two-anchor download): [data-testid=reg-template-view] href ends '?inline=true' target=_blank + [data-testid=reg-template-download] href ends '?inline=false' with HTML5 download='pmc-registration-form.pdf'. Backend GET /api/v1/vendors/registration-template default+?inline=true return Content-Disposition inline; ?inline=false returns attachment. Body starts %PDF-1., ends %%EOF, >3KB, pypdf reads >=2 pages. BUG B (RegistrationsPanel banner vs actions): admin -> /admin?tab=registrations -> Approved filter -> 15 rows -> clicking a row opens reg-detail with reg-status-banner-approved visible and reg-approve/reg-clarify/reg-reject NOT in DOM. Rejected filter had 0 rows in this env so runtime verification skipped for that case, but banner branch is symmetric in code (verified via code review) and status_banner-rejected testid is coded identically. BUG C (attention chip for pending reviews): /admin?tab=analytics&ui=e renders body[data-ui=e], attention strip has 4 columns, [data-testid=admin-attn-reviews] chip shows '24 vendor reviews pending' matching backend /api/v1/vendor-ratings/admin/pending-count. Chip click navigates to ?tab=vintel and after ~400ms scrolls to [data-testid=review-moderation-section] which renders pending tab default + moderation table (Target/Reviewer/Kind/Score/Comment/Status/Actions) with 24 rows. Backend pytest: 7/7 passing (test_v48c_bugs_abc.py).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin analytics tab (Option E)", "issues": ["Pre-existing React hydration warning: nested <button> inside <button> — Radix tooltip info-dot (asChild) wrapped around another button on anomaly-run action. Not caused by this fix; flagged in iteration_31 as well."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_v48c_bugs_abc.py",
+    "/app/test_reports/pytest/v48c_iter32.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AnalyticsPanel.jsx line 59 — inline arrow that both navigates via go('vintel') and schedules setTimeout scroll works, but has a minor race: React Router nav is async so the querySelector on next tick might miss the freshly-mounted section. In practice the 400ms delay covered it, but consider using useEffect+searchParams to trigger the scroll after the vintel panel mounts (more robust than fixed 400ms).",
+    "RegistrationsPanel.jsx correctly hides the action buttons for both 'approved' and 'rejected'. Note: 'needs_clarification' status still shows the 3 action buttons, which is intentional per spec (reviewer can escalate/reject after clarification). Confirmed with the load() flow.",
+    "Pre-existing hydration warning in AnalyticsPanel around anomaly-run button + info-dot Radix tooltip (asChild=true wraps a <button> inside <button>). Should be refactored to move InfoDot outside the action button or use a non-button trigger."
+  ],
+  "updated_files": ["/app/backend/tests/test_v48c_bugs_abc.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "admin: adminsupport@pmcmanagers.com / Admin@12345 via /admin -> System Administrator card",
+  "seed_data_creation": "None. 24 pending vendor reviews already existed in the DB; 15 approved registrations existed; 0 rejected registrations (rejected-banner verified via code review only).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Admin login endpoint is POST /api/v1/admin/auth/login (not /api/auth/login). Registrations admin list endpoint is GET /api/v1/registrations?status=<x> (no /admin suffix). vendor-ratings admin pending count is GET /api/v1/vendor-ratings/admin/pending-count. The Option E attention strip currently has 4 chips (closing, approvals, eval, reviews). To fully test the rejected banner path, seed a rejected registration via POST /api/v1/registrations/{id}/decision {action:'reject', notes:'...'} as admin."
+}
