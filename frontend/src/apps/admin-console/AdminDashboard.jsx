@@ -42,7 +42,19 @@ export default function AdminDashboard() {
     try { return new URLSearchParams(location.search).get("tab") || "analytics"; }
     catch { return "analytics"; }
   })();
-  const [tab, setTab] = useState(initialTab);
+  const [tab, setTabRaw] = useState(initialTab);
+  // Sync tab switches back into the URL query string so links can be shared /
+  // bookmarked / hit browser-back. Preserves any other query params (e.g. ?ui=e).
+  const setTab = (next) => {
+    setTabRaw(next);
+    try {
+      const params = new URLSearchParams(location.search);
+      if (next && next !== "analytics") params.set("tab", next);
+      else params.delete("tab");
+      const q = params.toString();
+      navigate(`${location.pathname}${q ? "?" + q : ""}`, { replace: false });
+    } catch {}
+  };
   const [mfaOpen, setMfaOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const tenant = useTenantSkin();
