@@ -38,13 +38,30 @@ Cormorant Garamond display serif + Public Sans + JetBrains Mono, built to match 
   (AdminShell.jsx).
 - **Work-package Kanban cards** are now clickable → opens detail modal with ref, title,
   status, category, value, float date, owner, notice, description, milestones. Drag-drop
-  preserved.
+  preserved. **Rev-5** — each card also shows an always-visible "View" pill in the
+  top-right so the entry point is unmistakable.
 - **Reverse auction Start button** now shows `<count>/2` and is disabled with tooltip
-  when fewer than 2 participants are registered. Backend already surfaces a clear 400.
+  when fewer than 2 participants are registered.
 - **Meeting invite emails** now dispatch via Resend on `POST /api/v1/meetings` AND
   `POST /api/v1/meetings/{id}/invitees`. Response includes `invites_sent`.
-- **Admin sidebar tab clicks** now sync to the URL query (`?tab=<code>`) so links
-  can be shared and bookmarked.
+- **Admin sidebar tab clicks** now sync to the URL query (`?tab=<code>`) so links can
+  be shared and bookmarked.
+- **Rev-4 — Android download prompt** — /register now shows two buttons: `View` opens
+  the PDF inline in a new tab, `Download` uses `?inline=false` + HTML5 `download`
+  attribute so Android Chrome reliably saves the file.
+- **Rev-4 — Approved / rejected registration guard** — once a registration is decided,
+  the detail pane hides the Approve/Clarify/Reject buttons and shows a coloured status
+  banner instead.
+- **Rev-4 — Pending review moderation chip** — Option E admin Overview attention strip
+  now surfaces `N vendor reviews pending`; click to jump into Vendor Intel and scroll to
+  the moderation table.
+- **Rev-6 — Bulletproof blank-form download** — the two /register buttons now go via
+  `fetch → Blob → URL.createObjectURL` instead of a plain `<a download>` anchor. This
+  sidesteps Android Chrome / in-app WebView / corporate-proxy issues that would drop
+  the Content-Disposition attachment header, and force-names the file
+  `pmc-registration-form.pdf` so Windows always associates it with a PDF viewer.
+- **Rev-6 — Service worker cache bumped to `pmc-shell-v48c-rev6`** so browsers actually
+  pick up the new bundle without needing a hard-refresh.
 
 ### 4. Email sender
 All outbound emails send **FROM `admin@mail.pmcmanagers.com`** (verified Resend domain).

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { publicApi, registrationApi, vendorInviteApi, formatApiError, showApiError} from "@/lib/api";
@@ -16,11 +16,77 @@ export default function RegistrationStart() {
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(null);
   const [template, setTemplate] = useState({ available: false });
+  const [tplBusy, setTplBusy] = useState(null); // 'view' | 'download' | null
+  const revokeRef = useRef([]);
 
   useEffect(() => {
     publicApi.countries().then(setCountries).catch(() => {});
     vendorInviteApi.templateMeta().then(setTemplate).catch(() => {});
+    return () => { revokeRef.current.forEach((u) => { try { URL.revokeObjectURL(u); } catch {} }); };
   }, []);
+
+  /**
+   * BUG-FIX (v48c-rev6) — bulletproof PDF fetch:
+   * A plain `<a href download>` fails on Android Chrome / WebViews / corporate
+   * proxies because they mangle Content-Disposition or refuse cross-origin
+   * downloads. Instead we fetch the endpoint, materialise a Blob, and either
+   * open it in a new tab (View) or trigger a real download via a blob: URL
+   * (Download). This works everywhere the fetch itself succeeds.
+   */
+  const fetchTemplateBlob = async () => {
+    const res = await fetch(vendorInviteApi.templateDownloadUrl() + "?inline=false", {
+      credentials: "omit",
+      cache: "no-store",
+      headers: { "Accept": "application/pdf, application/octet-stream, */*" },
+    });
+    if (!res.ok) throw new Error(`Server returned ${res.status}`);
+    const blob = await res.blob();
+    if (blob.size === 0) throw new Error("Empty PDF response");
+    const url = URL.createObjectURL(blob);
+    revokeRef.current.push(url);
+    return { url, type: blob.type || "application/pdf" };
+  };
+
+  const filename = template.file_name || "pmc-registration-form.pdf";
+
+  const handleView = async (e) => {
+    e.preventDefault();
+    if (tplBusy) return;
+    setTplBusy("view");
+    try {
+      const { url } = await fetchTemplateBlob();
+      const w = window.open(url, "_blank", "noopener,noreferrer");
+      if (!w) {
+        // Popup blocked — fall back to same-tab navigation
+        window.location.href = url;
+      }
+    } catch (err) {
+      toast.error(`Could not fetch form: ${err.message}. Try Download instead.`);
+    } finally {
+      setTplBusy(null);
+    }
+  };
+
+  const handleDownload = async (e) => {
+    e.preventDefault();
+    if (tplBusy) return;
+    setTplBusy("download");
+    try {
+      const { url } = await fetchTemplateBlob();
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast.success("Downloading blank form…");
+    } catch (err) {
+      toast.error(`Download failed: ${err.message}`);
+    } finally {
+      setTplBusy(null);
+    }
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -56,17 +122,16 @@ export default function RegistrationStart() {
                 {t("register.template_lede")}
               </div>
             </div>
-            <a href={vendorInviteApi.templateDownloadUrl() + "?inline=true"} target="_blank" rel="noreferrer"
-               data-testid="reg-template-view"
-               className="px-5 py-2.5 text-[11px] font-semibold uppercase tracking-widest border border-brand-navy text-brand-navy hover:bg-brand-navy hover:text-white">
-              View
-            </a>
-            <a href={vendorInviteApi.templateDownloadUrl() + "?inline=false"}
-               download={template.file_name || "pmc-registration-form.pdf"}
-               data-testid="reg-template-download"
-               className="px-5 py-2.5 text-[11px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-soft">
-              {t("register.template_download")}
-            </a>
+            <button type="button" onClick={handleView} disabled={tplBusy === "view"}
+                    data-testid="reg-template-view"
+                    className="px-5 py-2.5 text-[11px] font-semibold uppercase tracking-widest border border-brand-navy text-brand-navy hover:bg-brand-navy hover:text-white disabled:opacity-50">
+              {tplBusy === "view" ? "Opening…" : "View"}
+            </button>
+            <button type="button" onClick={handleDownload} disabled={tplBusy === "download"}
+                    data-testid="reg-template-download"
+                    className="px-5 py-2.5 text-[11px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-soft disabled:opacity-50">
+              {tplBusy === "download" ? "Downloading…" : t("register.template_download")}
+            </button>
           </div>
         )}
 
