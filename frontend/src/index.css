@@ -801,6 +801,11 @@
   /* Notice detail — clamp article padding on mobile so it fits 390px viewport */
   [data-ui="e"] article.bg-white.border.p-8 { padding: 20px !important; }
   [data-ui="e"] main.flex-1 { min-width: 0; }
+  /* Grid tracks were auto-sizing to intrinsic content (long unbreakable H1) — force tracks to shrink */
+  [data-ui="e"] main.flex-1 > .grid { grid-template-columns: minmax(0, 1fr) !important; }
+  [data-ui="e"] main.flex-1 > .grid > article,
+  [data-ui="e"] main.flex-1 > .grid > aside { min-width: 0; }
+  [data-ui="e"] main.flex-1 h1 { overflow-wrap: anywhere; word-break: break-word; }
 
   /* Vendor portal — hard-clamp any fixed-width overflow */
   [data-ui="e"] [data-testid="vendor-dashboard"] { overflow-x: hidden; }

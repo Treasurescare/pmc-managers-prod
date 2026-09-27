@@ -1,0 +1,36 @@
+{
+  "summary": "v48c Option E mobile responsive re-test after iteration_29 fixes. Vendor mobile overflow is FIXED. Notice detail mobile overflow required an additional CSS fix (grid tracks were auto-sizing to intrinsic H1 content). Applied that fix; all originally-failing scenarios + regressions now pass.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/vendor?ui=e header at 390x844", "issues": ["Top header (VENDOR PORTAL label, vendor name, Alerts, Delete my data, Sign out) is cramped and wraps to many lines on mobile — poor visual density. Not part of this retest scope but flagging for main agent."]}
+    ]
+  },
+  "test_results": {
+    "RETEST_1_notice_mobile_390": {"scrollWidth": 390, "innerWidth": 390, "overflow_px": 0, "h1_fontSize": "40px", "hero_kpi_strip_cols": "195px 195px (2-col)", "status": "PASS after additional fix"},
+    "RETEST_1b_notice_default_no_bleed": {"data_ui_attr": null, "status": "PASS"},
+    "RETEST_2_vendor_mobile_390": {"scrollWidth": 390, "innerWidth": 390, "overflow_px": 0, "kpi_cols": "174px 174px (2x2 grid)", "greeting_padding_side": "16px", "kpis_padding_side": "16px", "bidprog_effective_side": "16px margin + 6px inner pad", "status": "PASS"},
+    "REGRESSION_tenders_live_desktop_1440": {"scrollWidth": 1440, "table_present": true, "thead": "table-header-group", "e-ref_display": "block", "status": "PASS"},
+    "REGRESSION_tenders_live_mobile_390": {"scrollWidth": 390, "thead": "none (cards)", "status": "PASS"},
+    "REGRESSION_default_1440": {"data_ui": null, "nav_bg": "rgb(255,255,255)", "scrollWidth": 1440, "status": "PASS - no forest-green leakage"},
+    "REGRESSION_default_390": {"data_ui": null, "nav_bg": "rgb(255,255,255)", "scrollWidth": 390, "status": "PASS"}
+  },
+  "rca of the issue": "iteration_29 fix for /notices/:ref?ui=e mobile overflow was incomplete. The `article.bg-white.border.p-8 { padding:20px }` and `main.flex-1 { min-width:0 }` rules did apply (verified in computed styles), but the parent CSS Grid (`.grid.gap-10.lg:grid-cols-[8fr_4fr]`) was auto-sizing its single mobile track to the max-content of its children. The H1 contained an unbreakable string 'TEST_committee_notice_2e17b6' at 40px which forced a 408.6px min-content — making the grid track 408.6px wide inside a 342px container, spilling 43px past viewport. Fix: force grid track to `minmax(0, 1fr)`, set min-width:0 on grid children, and add overflow-wrap:anywhere on H1.",
+  "updated_files": ["/app/frontend/src/index.css (added 4 mobile CSS rules at line ~803 to constrain grid tracks and wrap long H1)"],
+  "test_report_links": [],
+  "action_items": [
+    "Consider improving /vendor?ui=e mobile header layout (VENDOR PORTAL label + user info + 4 buttons don't fit gracefully on 390px). Not blocking."
+  ],
+  "critical_code_review_comments": [
+    "The Notice Detail grid used auto-sized tracks that ignored container width. This is a common CSS-Grid pitfall — recommend adding `min-width:0` to grid children as a defensive pattern across other grid layouts in the codebase.",
+    "Multiple !important rules stacking up in @media block at index.css tail — could be consolidated into a mobile.css module for maintainability."
+  ],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100% (7/7 scenarios pass)"},
+  "test_credentials": "Vendor: manualvendor@pmcmanagers.com / Vendor@12345 (login flow: /login → click portal-card-vendors → fill portal-vendors-email + portal-vendors-password → submit)",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "iteration_29 had 2 mobile overflow failures. Iteration_30 verified both. Vendor was already fixed by main agent's CSS from iter_29. Notice required extra fix (grid track + h1 word-break) applied here in index.css lines 801-808. All Option E scenarios now pass at 390x844. Vendor mobile top header still visually crowded but not part of retest scope."
+}
