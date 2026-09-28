@@ -8,6 +8,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 import PmcIconSprite from "@/components/PmcIconSprite";
 import PmcHelpDrawer from "@/components/PmcHelpDrawer";
+import PmcLinkPatcher from "@/components/PmcLinkPatcher";
 
 // App 4 — Public Tender Notice Board
 import NoticeBoardHome from "@/apps/notice-board/NoticeBoardHome";
@@ -158,6 +159,7 @@ export default function App() {
           />
           <PmcIconSprite />
           <PmcHelpDrawer />
+          <PmcLinkPatcher />
           <Routes>
             <Route path="/" element={<HomeE legacy={NoticeBoardHome} />} />
             <Route path="/notices" element={<HomeE legacy={NoticeBoardHome} />} />

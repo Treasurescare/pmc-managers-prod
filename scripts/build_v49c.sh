@@ -57,6 +57,9 @@ cat > "$DL/DOWNLOAD_${VER}.md" << EOF
 
 ## Deploy
 * Frontend: unzip into your S3 bucket; invalidate CloudFront cache.
+* **IMPORTANT — SPA routing on S3/CloudFront**: add CloudFront custom error
+  responses mapping BOTH `403` and `404` → `/index.html` with HTTP `200`.
+  Without this, direct loads of deep links like `/tenders/live` will 404.
 * Backend: unzip into your Elastic Beanstalk root. No new env vars needed.
 
 ## New/changed endpoints
