@@ -1,10 +1,13 @@
 import "@/App.css";
+import "@/pmc-theme-e.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { I18nProvider } from "@/context/I18nContext";
 import { UiThemeProvider, UiThemeApplier } from "@/context/UiThemeContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
+import PmcIconSprite from "@/components/PmcIconSprite";
+import PmcHelpDrawer from "@/components/PmcHelpDrawer";
 
 // App 4 — Public Tender Notice Board
 import NoticeBoardHome from "@/apps/notice-board/NoticeBoardHome";
@@ -65,6 +68,38 @@ import AboutUs from "@/apps/notice-board/AboutUs";
 import VisionMission from "@/apps/notice-board/VisionMission";
 import TendersList from "@/apps/notice-board/TendersList";
 
+// v49a — Option E design overhaul (routes exposed when ?ui=e is active)
+import HomeE from "@/apps/notice-board-e/HomeE";
+import TendersListE from "@/apps/notice-board-e/TendersListE";
+import NoticeDetailE from "@/apps/notice-board-e/NoticeDetailE";
+import AwardsPublicE from "@/apps/notice-board-e/AwardsPublicE";
+import AboutVisionE from "@/apps/notice-board-e/AboutVisionE";
+import TrustSecurityE from "@/apps/notice-board-e/TrustSecurityE";
+import RegistrationE from "@/apps/registration-e/RegistrationE";
+import SignInE from "@/apps/auth-e/SignInE";
+import HelpCentreE from "@/apps/help-centre/HelpCentreE";
+import HelpArticleE from "@/apps/help-centre/HelpArticleE";
+import VendorHomeE from "@/apps/vendor-portal-e/VendorHomeE";
+import VendorMyBidsE from "@/apps/vendor-portal-e/VendorMyBidsE";
+import VendorBidWorkspaceE from "@/apps/vendor-portal-e/VendorBidWorkspaceE";
+import VendorEmdE from "@/apps/vendor-portal-e/VendorEmdE";
+import VendorSignaturesE from "@/apps/vendor-portal-e/VendorSignaturesE";
+import VendorCompanyKycE from "@/apps/vendor-portal-e/VendorCompanyKycE";
+import VendorAccountE from "@/apps/vendor-portal-e/VendorAccountE";
+import AdminDashboardE from "@/apps/admin-console-e/AdminDashboardE";
+import AdminAuditE from "@/apps/admin-console-e/AdminAuditE";
+import AdminNoticesE from "@/apps/admin-console-e/AdminNoticesE";
+import AdminTenderBuilderE from "@/apps/admin-console-e/AdminTenderBuilderE";
+import AdminBoqContractsE from "@/apps/admin-console-e/AdminBoqContractsE";
+import AdminVendorIntelE from "@/apps/admin-console-e/AdminVendorIntelE";
+import AdminVendorKycE from "@/apps/admin-console-e/AdminVendorKycE";
+import AdminBiddingOpsE from "@/apps/admin-console-e/AdminBiddingOpsE";
+import AdminEscrowE from "@/apps/admin-console-e/AdminEscrowE";
+import AdminEvaluationE from "@/apps/admin-console-e/AdminEvaluationE";
+import AdminL1AwardE from "@/apps/admin-console-e/AdminL1AwardE";
+import AdminDocuSignE from "@/apps/admin-console-e/AdminDocuSignE";
+import AdminPermissionsE from "@/apps/admin-console-e/AdminPermissionsE";
+
 export default function App() {
   return (
     <div className="App">
@@ -96,31 +131,59 @@ export default function App() {
               },
             }}
           />
+          <PmcIconSprite />
+          <PmcHelpDrawer />
           <Routes>
-            <Route path="/" element={<NoticeBoardHome />} />
-            <Route path="/notices" element={<NoticeBoardHome />} />
-            <Route path="/notices/:noticeRef" element={<NoticeDetail />} />
-            <Route path="/about" element={<AboutUs />} />
-            <Route path="/vision" element={<VisionMission />} />
+            <Route path="/" element={<HomeE legacy={NoticeBoardHome} />} />
+            <Route path="/notices" element={<HomeE legacy={NoticeBoardHome} />} />
+            <Route path="/notices/:noticeRef" element={<NoticeDetailE legacy={NoticeDetail} />} />
+            <Route path="/about" element={<AboutVisionE legacy={AboutUs} />} />
+            <Route path="/vision" element={<AboutVisionE legacy={VisionMission} />} />
             <Route path="/tenders" element={<Navigate to="/tenders/live" replace />} />
+            <Route path="/tenders/live" element={<TendersListE legacy={TendersList} />} />
+            <Route path="/tenders/completed" element={<AwardsPublicE legacy={TendersList} />} />
             <Route path="/tenders/:mode" element={<TendersList />} />
+            <Route path="/trust" element={<TrustSecurityE />} />
+            <Route path="/help" element={<HelpCentreE />} />
+            <Route path="/help/:slug" element={<HelpArticleE />} />
             <Route path="/vendors/:vendorRef" element={<PublicVendorProfile />} />
             <Route path="/auctions/:aid/live" element={<PublicAuctionRoom />} />
 
-            <Route path="/register" element={<RegistrationStart />} />
+            <Route path="/register" element={<RegistrationE legacy={RegistrationStart} />} />
             <Route path="/register/resume" element={<RegistrationResume />} />
             <Route path="/register/status" element={<RegistrationStatus />} />
 
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin/vendors/new" element={<AdminVendorCreate />} />
             <Route path="/admin/bids/:bidId" element={<AdminBidDetailPage />} />
+            {/* Admin Option-E multi-page routes (active when ?ui=e) */}
+            <Route path="/admin/e/dashboard" element={<AdminDashboardE />} />
+            <Route path="/admin/e/audit" element={<AdminAuditE />} />
+            <Route path="/admin/e/notices" element={<AdminNoticesE />} />
+            <Route path="/admin/e/tender-builder" element={<AdminTenderBuilderE />} />
+            <Route path="/admin/e/boq" element={<AdminBoqContractsE />} />
+            <Route path="/admin/e/vendor-intel" element={<AdminVendorIntelE />} />
+            <Route path="/admin/e/vendor-kyc" element={<AdminVendorKycE />} />
+            <Route path="/admin/e/bidding" element={<AdminBiddingOpsE />} />
+            <Route path="/admin/e/escrow" element={<AdminEscrowE />} />
+            <Route path="/admin/e/evaluation" element={<AdminEvaluationE />} />
+            <Route path="/admin/e/l1-award" element={<AdminL1AwardE />} />
+            <Route path="/admin/e/docusign" element={<AdminDocuSignE />} />
+            <Route path="/admin/e/permissions" element={<AdminPermissionsE />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/*" element={<AdminDashboard />} />
 
             {/* Vendor Portal */}
             <Route path="/vendor/login" element={<VendorLogin />} />
             <Route path="/vendor/change-password" element={<VendorChangePassword />} />
-            <Route path="/vendor" element={<VendorDashboard />} />
+            <Route path="/vendor" element={<VendorHomeE legacy={VendorDashboard} />} />
+            {/* Vendor Option-E multi-page routes */}
+            <Route path="/vendor/mybids" element={<VendorMyBidsE />} />
+            <Route path="/vendor/workspace/:bidId" element={<VendorBidWorkspaceE />} />
+            <Route path="/vendor/emd" element={<VendorEmdE />} />
+            <Route path="/vendor/signatures" element={<VendorSignaturesE />} />
+            <Route path="/vendor/company" element={<VendorCompanyKycE />} />
+            <Route path="/vendor/account" element={<VendorAccountE />} />
             <Route path="/vendor/bid/new/:noticeRef" element={<BidSubmit />} />
             <Route path="/vendor/bids/:bidId/pay" element={<BidPayRedirect />} />
             <Route path="/vendor/payment/success" element={<PaymentResult outcome="success" />} />
@@ -141,7 +204,7 @@ export default function App() {
             <Route path="/m/login" element={<MobileLogin />} />
 
             {/* Web — unified sign-in (parallel to /m) */}
-            <Route path="/login" element={<UnifiedLogin />} />
+            <Route path="/login" element={<SignInE legacy={UnifiedLogin} />} />
 
             {/* Wave 36/37 — Purchase surfaces */}
             <Route path="/services" element={<ClientPurchase />} />
