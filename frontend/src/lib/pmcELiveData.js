@@ -43,6 +43,223 @@ const shortDate = (iso) => {
 const tag = (t) => (t || "TENDER").toString().toUpperCase();
 
 // ────────────────────────────────────────────────────────────────────
+// Tenders list — interactive filter engine (status/type/country/category/
+// budget/search/sort) over the real notices dataset.
+// ────────────────────────────────────────────────────────────────────
+const FX_TO_USD = { USD: 1, INR: 0.012, KZT: 0.0021, EUR: 1.08, GBP: 1.27 };
+const COUNTRY_NAMES = { KZ: "Kazakhstan", IN: "India", AE: "UAE", UAE: "UAE", GB: "UK", UK: "UK", US: "USA" };
+const countryLabel = (c) => COUNTRY_NAMES[(c || "").toUpperCase()] || c || "—";
+const usdEquiv = (n) => (n.budget_amount || 0) * (FX_TO_USD[(n.budget_currency || "USD").toUpperCase()] ?? 1);
+
+function initTenderFilters(list, allItems) {
+  const now = Date.now();
+  const WEEK = 7 * 86400 * 1000;
+  const isOpen = (n) => !n.submission_deadline || new Date(n.submission_deadline).getTime() > now;
+  const isClosing = (n) => isOpen(n) && !!n.submission_deadline && (new Date(n.submission_deadline).getTime() - now) < WEEK;
+  const isClosed = (n) => !isOpen(n);
+  const isAwarded = (n) => !!(n.award_ref || n.awarded_to || n.award);
+
+  const panel = list.querySelector(".pmc-panel:has(.tl-row)") || list.querySelector(".tl-row")?.parentElement;
+  if (!panel) return;
+  const template = panel.querySelector(".tl-row").cloneNode(true);
+
+  const fieldsets = list.querySelectorAll("fieldset");
+  const statusFs = fieldsets[0], typeFs = fieldsets[1], countryFs = fieldsets[2], catFs = fieldsets[3], budgetFs = fieldsets[4];
+
+  const openC = allItems.filter(isOpen).length;
+  const closingC = allItems.filter(isClosing).length;
+  const closedC = allItems.filter(isClosed).length;
+  const awardedC = allItems.filter(isAwarded).length;
+  if (statusFs) {
+    const vals = [openC, closingC, closedC, awardedC];
+    statusFs.querySelectorAll(".pmc-check .c").forEach((el, i) => { el.textContent = vals[i] ?? 0; });
+  }
+  if (typeFs) {
+    const tCounts = { tender: 0, rfp: 0, rfq: 0 };
+    allItems.forEach((n) => { const d = (n.document_type || "").toLowerCase(); if (d in tCounts) tCounts[d] += 1; });
+    typeFs.querySelectorAll(".pmc-check .c").forEach((el, i) => { el.textContent = Object.values(tCounts)[i] ?? 0; });
+  }
+
+  // Rebuild country + category facets from real distinct values
+  const rebuildFacet = (fs, pairs) => {
+    if (!fs || !pairs.length) return;
+    const legend = fs.querySelector("legend");
+    fs.innerHTML = "";
+    if (legend) fs.appendChild(legend);
+    pairs.forEach(([labelText, count]) => {
+      const lab = document.createElement("label");
+      lab.className = "pmc-check";
+      lab.innerHTML = `<input type="checkbox" />${labelText}<span class="c">${count}</span>`;
+      lab.querySelector("input").addEventListener("change", apply);
+      fs.appendChild(lab);
+    });
+  };
+  const countryMap = {};
+  allItems.forEach((n) => { const c = countryLabel(n.delivery_country); countryMap[c] = (countryMap[c] || 0) + 1; });
+  rebuildFacet(countryFs, Object.entries(countryMap).sort((a, b) => b[1] - a[1]));
+  const catMap = {};
+  allItems.forEach((n) => { const c = (n.category || "General").trim(); catMap[c] = (catMap[c] || 0) + 1; });
+  rebuildFacet(catFs, Object.entries(catMap).sort((a, b) => b[1] - a[1]).slice(0, 8));
+
+  const searchForm = list.querySelector("form");
+  const searchInput = searchForm ? searchForm.querySelector("input") : null;
+  const sortSel = Array.from(list.querySelectorAll("select.pmc-input"))
+    .find((s) => /closing first/i.test(s.textContent));
+  const budgetInputs = budgetFs ? Array.from(budgetFs.querySelectorAll("input")) : [];
+
+  const facetValues = (fs) => fs
+    ? Array.from(fs.querySelectorAll("input:checked")).map((i) =>
+        i.parentElement.textContent.replace(/[\d\s]+$/, "").trim().toLowerCase())
+    : [];
+
+  function currentFilters() {
+    let status = "open";
+    if (statusFs) {
+      const order = ["open", "closing", "closed", "awarded"];
+      statusFs.querySelectorAll("input[type=radio]").forEach((r, i) => { if (r.checked) status = order[i] || "open"; });
+    }
+    return {
+      status,
+      types: facetValues(typeFs),
+      countries: facetValues(countryFs),
+      cats: facetValues(catFs),
+      min: parseFloat(budgetInputs[0]?.value) || null,
+      max: parseFloat(budgetInputs[1]?.value) || null,
+      q: (searchInput?.value || "").trim().toLowerCase(),
+      sort: sortSel ? sortSel.value : "Closing first",
+    };
+  }
+
+  function patchRow(row, n) {
+    const tg = row.querySelector(".pmc-tag");
+    const rf = row.querySelector(".pmc-ref");
+    const h3a = row.querySelector("h3 a, h3");
+    const mm = row.querySelector(".tl-main .pmc-muted");
+    const nums = row.querySelectorAll(".tl-num");
+    const cd = row.querySelector(".pmc-countdown");
+    const viewBtn = row.querySelector(".tl-act a");
+    if (tg) tg.textContent = tag(n.document_type);
+    if (rf) rf.textContent = n.notice_ref;
+    if (h3a) {
+      h3a.textContent = n.title || "";
+      if (h3a.tagName === "A") h3a.setAttribute("href", `/notices/${n.notice_ref}`);
+    }
+    if (mm) mm.textContent = `${(n.category || "General").trim()} · ${countryLabel(n.delivery_country)}`;
+    if (nums[0]) {
+      const v = nums[0].querySelector(".v");
+      if (v) v.textContent = money(n.budget_amount, n.budget_currency);
+    }
+    if (nums[1]) {
+      const l = nums[1].querySelector(".l");
+      if (l) l.textContent = n.submission_deadline ? `Closes ${shortDate(n.submission_deadline)}` : "No deadline";
+    }
+    if (cd) cd.textContent = isOpen(n) ? relTime(n.submission_deadline) : "Closed";
+    if (viewBtn) viewBtn.setAttribute("href", `/notices/${n.notice_ref}`);
+    const corr = row.querySelector(".pmc-pill--info");
+    if (corr) corr.style.display = n.deadline_last_amended_by_corr ? "" : "none";
+    const newPill = Array.from(row.querySelectorAll(".pmc-pill")).find((p) => /new/i.test(p.textContent));
+    if (newPill) {
+      const isNew = n.published_at && (now - new Date(n.published_at).getTime()) < WEEK;
+      newPill.style.display = isNew ? "" : "none";
+    }
+    return row;
+  }
+
+  function renderRows(items, f) {
+    panel.innerHTML = "";
+    const CAP = 50;
+    items.slice(0, CAP).forEach((n) => panel.appendChild(patchRow(template.cloneNode(true), n)));
+    if (!items.length) {
+      const empty = document.createElement("div");
+      empty.className = "pmc-muted";
+      empty.style.cssText = "padding:48px 24px;text-align:center";
+      empty.textContent = "No notices match these filters. Try Clear all.";
+      panel.appendChild(empty);
+    } else if (items.length > CAP) {
+      const more = document.createElement("div");
+      more.className = "pmc-muted";
+      more.style.cssText = "padding:16px;text-align:center;font-size:13px";
+      more.textContent = `Showing ${CAP} of ${items.length} — refine filters to narrow down.`;
+      panel.appendChild(more);
+    }
+    // Results header "N results for “q” in Status"
+    const resSpan = Array.from(list.querySelectorAll("span"))
+      .find((s) => s.querySelector("b") && /results/i.test(s.textContent));
+    if (resSpan) {
+      const names = { open: "Open", closing: "Closing this week", closed: "Closed", awarded: "Awarded" };
+      resSpan.innerHTML = `<b>${items.length} results</b>${f.q ? ` for \u201C${f.q}\u201D` : ""} in ${names[f.status] || "Open"}`;
+    }
+    // Type chips reflect checkbox state; clicking re-enables
+    list.querySelectorAll(".pmc-chip").forEach((chip) => {
+      const label = chip.textContent.replace("×", "").trim().toLowerCase();
+      chip.style.display = f.types.length && !f.types.includes(label) ? "none" : "";
+      if (!chip.dataset.wired) {
+        chip.dataset.wired = "1";
+        chip.style.cursor = "pointer";
+        chip.addEventListener("click", () => {
+          if (typeFs) typeFs.querySelectorAll("label.pmc-check").forEach((lab) => {
+            if (lab.textContent.replace(/[\d\s]+$/, "").trim().toLowerCase() === label) {
+              lab.querySelector("input").checked = true;
+            }
+          });
+          apply();
+        });
+      }
+    });
+  }
+
+  function apply() {
+    const f = currentFilters();
+    let out = allItems.filter((n) => {
+      if (f.status === "open" && !isOpen(n)) return false;
+      if (f.status === "closing" && !isClosing(n)) return false;
+      if (f.status === "closed" && !isClosed(n)) return false;
+      if (f.status === "awarded" && !isAwarded(n)) return false;
+      if (f.types.length && !f.types.includes((n.document_type || "tender").toLowerCase())) return false;
+      if (f.countries.length && !f.countries.includes(countryLabel(n.delivery_country).toLowerCase())) return false;
+      if (f.cats.length && !f.cats.includes((n.category || "General").trim().toLowerCase())) return false;
+      const usd = usdEquiv(n);
+      if (f.min != null && usd < f.min) return false;
+      if (f.max != null && usd > f.max) return false;
+      if (f.q) {
+        const hay = `${n.title || ""} ${n.notice_ref || ""} ${n.category || ""} ${countryLabel(n.delivery_country)}`.toLowerCase();
+        if (!hay.includes(f.q)) return false;
+      }
+      return true;
+    });
+    if (f.sort === "Newest") out.sort((a, b) => new Date(b.published_at || 0) - new Date(a.published_at || 0));
+    else if (f.sort === "Highest budget") out.sort((a, b) => usdEquiv(b) - usdEquiv(a));
+    else out.sort((a, b) => new Date(a.submission_deadline || 9e15) - new Date(b.submission_deadline || 9e15));
+    renderRows(out, f);
+  }
+
+  // Wire events
+  list.querySelectorAll("fieldset input").forEach((i) => i.addEventListener("change", apply));
+  budgetInputs.forEach((i) => i.addEventListener("input", apply));
+  if (sortSel) sortSel.addEventListener("change", apply);
+  if (searchInput) searchInput.addEventListener("input", apply);
+  if (searchForm) searchForm.addEventListener("submit", (e) => { e.preventDefault(); apply(); });
+
+  const clearAll = Array.from(list.querySelectorAll("a")).find((a) => a.textContent.trim() === "Clear all");
+  if (clearAll) clearAll.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (statusFs) { const r = statusFs.querySelectorAll("input[type=radio]"); if (r[0]) r[0].checked = true; }
+    if (typeFs) typeFs.querySelectorAll("input").forEach((i) => { i.checked = true; });
+    [countryFs, catFs].forEach((fs) => fs && fs.querySelectorAll("input").forEach((i) => { i.checked = false; }));
+    budgetInputs.forEach((i) => { i.value = ""; });
+    if (searchInput) searchInput.value = "";
+    if (sortSel) sortSel.value = "Closing first";
+    apply();
+  });
+
+  // Top-right summary line next to the H1
+  const summary = list.querySelector("h1.pmc-display")?.parentElement?.querySelector(".pmc-muted");
+  if (summary) summary.textContent = `${openC} open · ${closedC} closed${awardedC ? ` · ${awardedC} awarded` : ""}`;
+
+  apply();
+}
+
+// ────────────────────────────────────────────────────────────────────
 // Public: Homepage + Tenders list
 // ────────────────────────────────────────────────────────────────────
 export function usePublicLiveData({ enabled = true } = {}) {
@@ -128,64 +345,9 @@ export function usePublicLiveData({ enabled = true } = {}) {
           cards.forEach((c, i) => { if (i >= openItems.length) c.style.display = "none"; });
         }
 
-        // 5) Tenders list page — .tl-row rows
+        // 5) Tenders list page — full client-side filter engine
         const list = document.querySelector('[data-pmc-e-page="tenders-list-e"]');
-        if (list) {
-          const rows = list.querySelectorAll(".tl-row");
-          openItems.slice(0, rows.length).forEach((n, i) => {
-            const row = rows[i];
-            const tg = row.querySelector(".pmc-tag");
-            const rf = row.querySelector(".pmc-ref");
-            const h3 = row.querySelector("h3 a, h3");
-            const mm = row.querySelector(".tl-main .pmc-muted");
-            const dtLbl = row.querySelector(".tl-num .l");
-            const cd = row.querySelector(".pmc-countdown");
-            const viewBtn = row.querySelector(".tl-act a");
-            if (tg) tg.textContent = tag(n.document_type);
-            if (rf) rf.textContent = n.notice_ref;
-            if (h3) h3.textContent = n.title || "";
-            if (mm) mm.textContent = `${n.category || "General"} · ${n.delivery_country || "—"}`;
-            if (dtLbl) dtLbl.textContent = n.submission_deadline ? `Closes ${shortDate(n.submission_deadline)}` : "";
-            if (cd) cd.textContent = relTime(n.submission_deadline);
-            if (viewBtn) viewBtn.setAttribute("href", `/notices/${n.notice_ref}`);
-            const corrPill = row.querySelector(".pmc-pill--info");
-            if (corrPill && !n.deadline_last_amended_by_corr) corrPill.style.display = "none";
-          });
-          rows.forEach((r, i) => { if (i >= openItems.length) r.style.display = "none"; });
-          // Summary line "29 open · 14 closed · 3 awarded"
-          const closed = items.length - openItems.length;
-          const summary = list.querySelector(".pmc-crumb + div .pmc-muted, [style*=\"space-between\"] .pmc-muted");
-          if (summary && summary.textContent.match(/open|closed|awarded/i)) {
-            summary.textContent = `${openItems.length} open · ${closed} closed`;
-          }
-          // Left rail status counts (Open / Closing this week / Closed / Awarded)
-          const closingThisWeek = openItems.filter((n) => n.submission_deadline
-            && (new Date(n.submission_deadline) - new Date()) < 7 * 86400 * 1000).length;
-          const counts = list.querySelectorAll("fieldset:first-of-type .pmc-check .c");
-          if (counts.length >= 3) {
-            counts[0].textContent = openItems.length;
-            counts[1].textContent = closingThisWeek;
-            counts[2].textContent = closed;
-          }
-          // Notice-type counts
-          const typeCounts = { tender: 0, rfp: 0, rfq: 0 };
-          openItems.forEach((n) => {
-            const dt = (n.document_type || "").toLowerCase();
-            if (typeCounts[dt] != null) typeCounts[dt] += 1;
-          });
-          const typeC = list.querySelectorAll("fieldset:nth-of-type(2) .pmc-check .c");
-          if (typeC.length >= 3) {
-            typeC[0].textContent = typeCounts.tender;
-            typeC[1].textContent = typeCounts.rfp;
-            typeC[2].textContent = typeCounts.rfq;
-          }
-          // Header summary "7 results for laboratory"
-          const resHdr = list.querySelector('div[style*="space-between"] + div div[style*="gap"] > span:first-child, div[style*="space-between"] + div span > b');
-          if (resHdr) {
-            const b = resHdr.tagName === "SPAN" ? resHdr.querySelector("b") : resHdr;
-            if (b) b.textContent = `${openItems.length} results`;
-          }
-        }
+        if (list) initTenderFilters(list, items);
       } catch (e) {
         if (process.env.NODE_ENV !== "production") console.debug("Public live data skipped:", e);
       }
