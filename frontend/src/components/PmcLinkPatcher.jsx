@@ -82,15 +82,17 @@ function patchScope(navigate) {
     const pageId = root.getAttribute("data-pmc-e-page") || "";
     const isVendor = pageId.startsWith("vendor-");
     const isAdmin = pageId.startsWith("admin-");
+    const map = isVendor ? { ...PUBLIC_LINKS, ...VENDOR_LINKS }
+              : isAdmin ? ADMIN_LINKS
+              : PUBLIC_LINKS;
 
+    // 1) Anchor tags
     root.querySelectorAll("a").forEach((a) => {
       if (a.dataset.pmcPatched) return;
       const href = a.getAttribute("href") || "";
       const label = labelOf(a);
 
-      // Never touch links that already have a real route
       if (href && href !== "#" && !href.startsWith("#")) {
-        // Convert any same-origin absolute/relative route to SPA nav
         a.dataset.pmcPatched = "1";
         a.addEventListener("click", (e) => {
           if (href.startsWith("/") && !href.startsWith("//")) {
@@ -101,7 +103,6 @@ function patchScope(navigate) {
         return;
       }
 
-      // Brand link → home
       if (a.classList.contains("pmc-brand") || a.querySelector(".pmc-brand__n")) {
         a.dataset.pmcPatched = "1";
         a.setAttribute("href", isVendor ? "/vendor" : isAdmin ? "/admin/e/dashboard" : "/");
@@ -112,32 +113,76 @@ function patchScope(navigate) {
         return;
       }
 
-      // Help drawer trigger
       if (a.hasAttribute("data-help-open")) {
         a.dataset.pmcPatched = "1";
-        a.addEventListener("click", (e) => {
-          e.preventDefault();
-          document.querySelector(".pmc-helpfab")?.click();
-        });
+        a.addEventListener("click", (e) => { e.preventDefault(); document.querySelector(".pmc-helpfab")?.click(); });
         return;
       }
-
-      const map = isVendor ? { ...PUBLIC_LINKS, ...VENDOR_LINKS }
-                : isAdmin ? ADMIN_LINKS
-                : PUBLIC_LINKS;
 
       const target = map[label];
       if (target) {
         a.dataset.pmcPatched = "1";
         a.setAttribute("href", target);
-        a.addEventListener("click", (e) => {
-          e.preventDefault();
-          navigate(target);
-        });
+        a.addEventListener("click", (e) => { e.preventDefault(); navigate(target); });
       } else if (href === "#") {
-        // Unknown dead link — keep but stop the page-jump
         a.dataset.pmcPatched = "1";
         a.addEventListener("click", (e) => e.preventDefault());
+      }
+    });
+
+    // 2) Button elements — wire by label + chip pattern
+    root.querySelectorAll("button").forEach((b) => {
+      if (b.dataset.pmcPatched) return;
+      const label = labelOf(b);
+      // Chips: keep local (aria-pressed toggle) — handled per-page (filter engine)
+      if (b.classList.contains("pmc-chip")) {
+        b.dataset.pmcPatched = "1";
+        b.addEventListener("click", () => {
+          // Toggle pressed state within the same chip row
+          const row = b.parentElement;
+          row?.querySelectorAll(".pmc-chip").forEach((c) => c.setAttribute("aria-pressed", "false"));
+          b.setAttribute("aria-pressed", "true");
+        });
+        return;
+      }
+      // Help drawer trigger
+      if (b.hasAttribute("data-help-open") || /help|faqs?/.test(label)) {
+        b.dataset.pmcPatched = "1";
+        b.addEventListener("click", (e) => { e.preventDefault(); document.querySelector(".pmc-helpfab")?.click(); });
+        return;
+      }
+      // Known route label
+      const target = map[label];
+      if (target) {
+        b.dataset.pmcPatched = "1";
+        b.addEventListener("click", (e) => { e.preventDefault(); navigate(target); });
+        return;
+      }
+      // Common CTA fallbacks
+      if (/^(find\s*tenders|explore\s*tenders|browse\s*all)/.test(label)) {
+        b.dataset.pmcPatched = "1";
+        b.addEventListener("click", (e) => { e.preventDefault(); navigate("/tenders/live"); });
+        return;
+      }
+      if (/^(create|new\s+(tender|notice|package))/.test(label) && isAdmin) {
+        b.dataset.pmcPatched = "1";
+        b.addEventListener("click", (e) => { e.preventDefault(); navigate("/admin/e/tender-builder"); });
+        return;
+      }
+      if (/(sign\s*in|log\s*in)/.test(label)) {
+        b.dataset.pmcPatched = "1";
+        b.addEventListener("click", (e) => { e.preventDefault(); navigate("/login"); });
+        return;
+      }
+      if (/register/.test(label) && !isVendor && !isAdmin) {
+        b.dataset.pmcPatched = "1";
+        b.addEventListener("click", (e) => { e.preventDefault(); navigate("/register"); });
+        return;
+      }
+      // Language switcher — no-op but stops the click bounce
+      if (b.textContent.trim().length <= 3) {
+        b.dataset.pmcPatched = "1";
+        b.addEventListener("click", (e) => e.preventDefault());
       }
     });
   });
