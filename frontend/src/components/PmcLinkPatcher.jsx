@@ -272,13 +272,63 @@ function tryWireAction(el, label, isVendor, isAdmin, navigate) {
 }
 
 function patchScope(navigate) {
+  // v49i — detect vendor auth by presence of the csrf_token cookie (set on
+  // vendor login; not httpOnly). Used to route "Live board" and "Open for
+  // bids" cards on the PUBLIC home page: registered users go straight to
+  // the vendor tenders list; guests are dropped on the register page.
+  const isAuthed = /(?:^|;\s*)csrf_token=/.test(document.cookie || "");
+
   document.querySelectorAll("[data-pmc-e-page]").forEach((root) => {
     const pageId = root.getAttribute("data-pmc-e-page") || "";
     const isVendor = pageId.startsWith("vendor-");
     const isAdmin = pageId.startsWith("admin-");
+    const isPublic = !isVendor && !isAdmin;
     const map = isVendor ? { ...PUBLIC_LINKS, ...VENDOR_LINKS }
               : isAdmin ? ADMIN_LINKS
               : PUBLIC_LINKS;
+
+    // v49i — wire the home hero search form to navigate to the tenders list
+    // with the country dropdown + search box baked into the URL.
+    root.querySelectorAll("form.pmc-hero__search").forEach((f) => {
+      if (f.dataset.pmcPatched) return;
+      f.dataset.pmcPatched = "1";
+      f.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const q = f.querySelector("input")?.value?.trim() || "";
+        const sel = f.querySelector("select");
+        const country = sel && sel.selectedIndex > 0 ? sel.options[sel.selectedIndex].text.trim() : "";
+        const params = new URLSearchParams();
+        if (q) params.set("q", q);
+        if (country && !/^all/i.test(country)) params.set("country", country);
+        navigate("/tenders/live" + (params.toString() ? `?${params.toString()}` : ""));
+      });
+    });
+
+    // v49i — Live board rows + "Open for bids" tender cards on the PUBLIC
+    // home page → gate behind register / login. This intercepts the whole
+    // card / row click (both the link body and the "View notice" CTA).
+    if (isPublic) {
+      root.querySelectorAll("a.pmc-live__row, a.pmc-live__all, article.pmc-tender a[href='#']").forEach((el) => {
+        if (el.dataset.pmcPatched) return;
+        el.dataset.pmcPatched = "1";
+        const target = isAuthed ? "/vendor/tenders" : "/register";
+        el.setAttribute("href", target);
+        el.addEventListener("click", (e) => { e.preventDefault(); navigate(target); });
+      });
+      // Whole article.pmc-tender should also be clickable
+      root.querySelectorAll("article.pmc-tender").forEach((art) => {
+        if (art.dataset.pmcPatched) return;
+        art.dataset.pmcPatched = "1";
+        art.style.cursor = "pointer";
+        const target = isAuthed ? "/vendor/tenders" : "/register";
+        art.addEventListener("click", (e) => {
+          // only intercept if the click didn't already hit a specific action
+          if (e.target.closest("a, button")) return;
+          navigate(target);
+        });
+      });
+    }
+
 
     // 1) Anchor tags
     root.querySelectorAll("a").forEach((a) => {
@@ -335,6 +385,11 @@ function patchScope(navigate) {
     // 2) Button elements
     root.querySelectorAll("button").forEach((b) => {
       if (b.dataset.pmcPatched) return;
+      // v49i — if this button is inside the home hero's Find-tenders form,
+      // do NOT hijack the click; the form's submit handler will run and
+      // preserve the country + keyword query params. Same for any generic
+      // form we later wire that owns a submit button.
+      if (b.type === "submit" || b.closest("form.pmc-hero__search")) return;
       const label = labelOf(b);
 
       if (b.classList.contains("pmc-chip")) {

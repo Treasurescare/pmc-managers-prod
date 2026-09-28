@@ -857,3 +857,72 @@
   h2 { font-size: 16pt !important; }
   .pmc-label { font-size: 8pt !important; letter-spacing: 0.15em !important; }
 }
+
+/* =====================================================================
+ * v49i — Mobile responsive overrides for Option E pages.
+ * The consolidated pmc-theme-e.css was authored for desktop widths
+ * (fixed 1280 wrap, 4-col stat/tender/KPI grids, two-column heroes).
+ * These rules stack everything on ≤720 px so the site is usable on
+ * phones without changing any component markup.
+ * ===================================================================== */
+@media (max-width: 720px) {
+  [data-ui="e"] .pmc-wrap { max-width: calc(100% - 20px) !important; padding: 0 !important; }
+  [data-ui="e"] .pmc-hero { padding: 20px 0 32px !important; }
+  [data-ui="e"] .pmc-hero__in { grid-template-columns: 1fr !important; gap: 24px !important; }
+  [data-ui="e"] .pmc-hero__h { font-size: 40px !important; line-height: 44px !important; }
+  [data-ui="e"] .pmc-hero__p { font-size: 15px !important; line-height: 24px !important; }
+  [data-ui="e"] .pmc-hero__search { flex-direction: column !important; align-items: stretch !important; gap: 10px !important; }
+  [data-ui="e"] .pmc-hero__search .pmc-search,
+  [data-ui="e"] .pmc-hero__search select,
+  [data-ui="e"] .pmc-hero__search button { width: 100% !important; }
+
+  [data-ui="e"] .pmc-nav { display: none !important; }
+  [data-ui="e"] header .pmc-brand__s { display: none !important; }
+
+  [data-ui="e"] .pmc-live { padding: 16px !important; }
+  [data-ui="e"] .pmc-live__row { flex-direction: column !important; align-items: flex-start !important; gap: 6px !important; }
+
+  [data-ui="e"] .pmc-stats { grid-template-columns: repeat(2, minmax(0,1fr)) !important; gap: 16px !important; padding: 24px 0 !important; }
+  [data-ui="e"] .pmc-figure { font-size: 38px !important; line-height: 42px !important; }
+
+  [data-ui="e"] .pmc-kpis { grid-template-columns: repeat(2, minmax(0,1fr)) !important; }
+
+  /* Open-for-bids + generic 3/4-col grids collapse to single column */
+  [data-ui="e"] section > div[style*="grid-template-columns: repeat(4,1fr)"],
+  [data-ui="e"] section > div[style*="grid-template-columns: repeat(3,1fr)"],
+  [data-ui="e"] section > div[style*="grid-template-columns: 1fr 1fr"] { grid-template-columns: 1fr !important; }
+
+  [data-ui="e"] .pmc-tender__meta { grid-template-columns: 1fr !important; }
+
+  /* Admin shell: hide the fixed sidebar, let the main pane use full width */
+  [data-ui="e"] .pmc-adm { grid-template-columns: 1fr !important; }
+  [data-ui="e"] .pmc-adm .pmc-side { display: none !important; }
+  [data-ui="e"] .pmc-atop { flex-wrap: wrap !important; height: auto !important; padding: 10px !important; gap: 8px !important; }
+  [data-ui="e"] .pmc-atop .pmc-search { order: 3 !important; width: 100% !important; }
+
+  /* Vendor left-rail: collapse to a horizontal scroll bar on phones */
+  [data-ui="e"] .pmc-app { grid-template-columns: 1fr !important; }
+  [data-ui="e"] .pmc-lnav {
+    position: relative !important;
+    display: flex !important;
+    overflow-x: auto !important;
+    padding: 8px !important;
+    border: 0 !important;
+    border-bottom: 1px solid var(--line, rgba(0,0,0,.08)) !important;
+    white-space: nowrap !important;
+  }
+  [data-ui="e"] .pmc-lnav a { flex: 0 0 auto !important; padding: 8px 12px !important; }
+  [data-ui="e"] .pmc-lnav hr, [data-ui="e"] .pmc-lnav .pmc-desk { display: none !important; }
+
+  /* Stages/tabs row: horizontal scroll instead of overflow */
+  [data-ui="e"] .pmc-stages { overflow-x: auto !important; }
+
+  /* Drawers/dialogs: full-screen on phones */
+  [data-ui="e"] .pmc-drawer { width: 100% !important; }
+
+  /* Any 2-col split panels stack */
+  [data-ui="e"] section[style*="grid-template-columns: 1.1fr .9fr"],
+  [data-ui="e"] section[style*="grid-template-columns: minmax(0,1fr) 380px"] { grid-template-columns: 1fr !important; }
+  [data-ui="e"] div[style*="grid-template-columns: 280px minmax(0,1fr) 300px"] { grid-template-columns: 1fr !important; }
+  [data-ui="e"] div[style*="grid-template-columns: minmax(0,1fr) minmax(0,1fr)"] { grid-template-columns: 1fr !important; }
+}

@@ -59,6 +59,11 @@ function initTenderFilters(list, allItems) {
   const isClosed = (n) => !isOpen(n);
   const isAwarded = (n) => !!(n.award_ref || n.awarded_to || n.award);
 
+  // v49i — read URL query so the home hero's Find-tenders form can prefill.
+  const urlParams = new URLSearchParams(window.location.search || "");
+  const urlCountry = (urlParams.get("country") || "").toLowerCase();
+  const urlQ = urlParams.get("q") || "";
+
   const panel = list.querySelector(".pmc-panel:has(.tl-row)") || list.querySelector(".tl-row")?.parentElement;
   if (!panel) return;
   const template = panel.querySelector(".tl-row").cloneNode(true);
@@ -97,12 +102,24 @@ function initTenderFilters(list, allItems) {
   const countryMap = {};
   allItems.forEach((n) => { const c = countryLabel(n.delivery_country); countryMap[c] = (countryMap[c] || 0) + 1; });
   rebuildFacet(countryFs, Object.entries(countryMap).sort((a, b) => b[1] - a[1]));
+  // v49i — apply URL ?country=xx by ticking the matching checkbox
+  if (urlCountry && countryFs) {
+    countryFs.querySelectorAll("label.pmc-check").forEach((lab) => {
+      const name = lab.textContent.replace(/[\d\s]+$/, "").trim().toLowerCase();
+      if (name === urlCountry || name.startsWith(urlCountry) || urlCountry.startsWith(name.slice(0, 2))) {
+        const cb = lab.querySelector("input");
+        if (cb) cb.checked = true;
+      }
+    });
+  }
   const catMap = {};
   allItems.forEach((n) => { const c = (n.category || "General").trim(); catMap[c] = (catMap[c] || 0) + 1; });
   rebuildFacet(catFs, Object.entries(catMap).sort((a, b) => b[1] - a[1]).slice(0, 8));
 
   const searchForm = list.querySelector("form");
   const searchInput = searchForm ? searchForm.querySelector("input") : null;
+  // v49i — prefill search box from ?q=…
+  if (urlQ && searchInput) searchInput.value = urlQ;
   const sortSel = Array.from(list.querySelectorAll("select.pmc-input"))
     .find((s) => /closing first/i.test(s.textContent));
   const budgetInputs = budgetFs ? Array.from(budgetFs.querySelectorAll("input")) : [];
