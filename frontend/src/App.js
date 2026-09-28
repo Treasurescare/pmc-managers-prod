@@ -1,5 +1,6 @@
 import "@/App.css";
 import "@/pmc-theme-e.css";
+import "@/mobile-fix.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { I18nProvider } from "@/context/I18nContext";
@@ -9,6 +10,7 @@ import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 import PmcIconSprite from "@/components/PmcIconSprite";
 import PmcHelpDrawer from "@/components/PmcHelpDrawer";
 import PmcLinkPatcher from "@/components/PmcLinkPatcher";
+import PmcMobileNav from "@/components/PmcMobileNav";
 
 // App 4 — Public Tender Notice Board
 import NoticeBoardHome from "@/apps/notice-board/NoticeBoardHome";
@@ -163,6 +165,7 @@ export default function App() {
           <PmcIconSprite />
           <PmcHelpDrawer />
           <PmcLinkPatcher />
+          <PmcMobileNav />
           <Routes>
             <Route path="/" element={<HomeE legacy={NoticeBoardHome} />} />
             <Route path="/notices" element={<HomeE legacy={NoticeBoardHome} />} />
