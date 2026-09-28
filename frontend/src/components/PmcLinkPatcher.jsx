@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useUiTheme } from "@/context/UiThemeContext";
-import { adminApi, vendorApi } from "@/lib/api";
+import { adminApi, vendorApi, bidApi, paymentApi } from "@/lib/api";
 
 /**
  * PMC v49j — Option-E interactivity via GLOBAL EVENT DELEGATION.
@@ -51,7 +51,7 @@ const VENDOR_LINKS = {
 };
 
 const VENDOR_CTA_MATCHERS = [
-  { rx: /^pay\b/i,                               path: "/vendor/emd" },      // covers "Pay EMD USD 61,380"
+  // { rx: /^pay\b/i,                               path: "/vendor/emd" },  // v49m — replaced by handlePayEmd which fires Stripe checkout
   { rx: /upload\s+bank\s+guarantee/i,            path: "/vendor/emd" },
   { rx: /^view\s+bid$/i,                         path: "/vendor/mybids" },
   { rx: /^continue\s+draft$/i,                   path: "/vendor/mybids" },
@@ -321,6 +321,62 @@ function handleStartBid(el, isPublic, navigate) {
   navigate(ref ? `/notices/${ref}` : "/vendor/tenders");
 }
 
+// v49m — Pay EMD click now genuinely opens the Stripe checkout instead of
+// just navigating to the deposits list. Flow:
+//   1. Look at the clicked element's parent row for a bid reference
+//      (`.pmc-ref` text or a `PMC-BID-YYYY-#####` regex match).
+//   2. If a specific bid_ref is found → fetch /bids/mine → resolve to id.
+//   3. If no ref (top-of-page "Pay EMD" button) → fetch /bids/mine and
+//      collect every `emd_pending` bid. If exactly one, use that one.
+//      If several, drop the user on /vendor/emd with a toast.
+//   4. Call POST /payments/emd/checkout via paymentApi.checkout and
+//      HARD-redirect the tab to the returned Stripe checkout_url.
+async function handlePayEmd(el, navigate) {
+  try {
+    const row = el.closest("tr, li, article, .pmc-bidrow, .pmc-tender, [data-bid-ref]");
+    let bidRef = row?.getAttribute?.("data-bid-ref") || null;
+    if (!bidRef && row) {
+      const refEl = row.querySelector(".pmc-ref");
+      const src = (refEl?.textContent || row.textContent || "");
+      const m = src.match(/PMC-BID-\d{4}-\d+/);
+      if (m) bidRef = m[0];
+    }
+
+    const bids = await bidApi.mine().catch(() => []);
+    const pending = (Array.isArray(bids) ? bids : []).filter((b) => b.status === "emd_pending");
+    if (!pending.length) {
+      toast.info("No EMD payments are pending on your account.");
+      navigate("/vendor/emd");
+      return;
+    }
+
+    let target = bidRef ? pending.find((b) => b.bid_ref === bidRef) : null;
+    if (!target) target = pending[0]; // v49m — always pick the first pending
+                                      // when the banner is clicked from a
+                                      // non-row context so the user always
+                                      // lands on Stripe, not the list.
+    if (!target.id) {
+      toast.error("Couldn't resolve that bid. Try again from My bids.");
+      navigate("/vendor/mybids");
+      return;
+    }
+
+    toast.info("Opening secure Stripe checkout…");
+    const chk = await paymentApi.checkout(target.id, window.location.origin);
+    if (chk?.checkout_url) {
+      window.location.href = chk.checkout_url;
+    } else {
+      toast.error("Payment gateway did not return a checkout URL.");
+      navigate("/vendor/emd");
+    }
+  } catch (err) {
+    const s = err?.response?.status;
+    if (s === 401) { navigate("/login"); return; }
+    toast.error(err?.response?.data?.detail || "Couldn't start the EMD payment.");
+    navigate("/vendor/emd");
+  }
+}
+
 function handleStatementPdf(navigate) {
   toast.info("Generating your EMD statement…");
   // v49l — hit the real endpoint. Blob download so the browser saves with the
@@ -405,6 +461,7 @@ function resolveClickAction(el, label, { isVendor, isAdmin, isPublic }, navigate
   if (isVendor && /change\s+(avatar|photo|logo)|upload\s+photo/i.test(label)) { openAvatarPicker(); return true; }
   if (isVendor && /^change\s+password$/i.test(label)) { openChangePasswordModal(); return true; }
   if (isVendor && /^change$/i.test(label)) { handleChangeButton(el, navigate); return true; }
+  if (isVendor && /^pay(\s+emd)?$/i.test(label)) { handlePayEmd(el, navigate); return true; }
   if (/^start\s+bid$/i.test(label)) { handleStartBid(el, isPublic, navigate); return true; }
   if (isVendor && /statement\s*\(?pdf\)?/i.test(label)) { handleStatementPdf(navigate); return true; }
   if (/^download(\s+pack)?$/i.test(label)) { handleDownload(el, isPublic, navigate); return true; }
