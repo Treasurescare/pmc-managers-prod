@@ -6,7 +6,7 @@
  * showing production data. Zero template rewrites.
  */
 import { useEffect } from "react";
-import { publicApi, vendorApi, api } from "@/lib/api";
+import { publicApi, vendorApi, bidApi, api } from "@/lib/api";
 
 const relTime = (iso) => {
   if (!iso) return "—";
@@ -258,7 +258,7 @@ export function useVendorLiveData({ enabled = true } = {}) {
       try {
         const [meRes, bidsRes, noticesRes] = await Promise.all([
           vendorApi.me().catch(() => null),
-          vendorApi.myBids().catch(() => ({ items: [] })),
+          bidApi.mine().catch(() => []),
           publicApi.listNotices({}).catch(() => ({ items: [] })),
         ]);
         if (cancelled) return;
@@ -336,11 +336,12 @@ export function useAdminDashboardLive({ enabled = true } = {}) {
     (async () => {
       try {
         // Best-effort parallel fetch of everything we can reach without extra auth.
-        const [notices, vendors, packages, stats] = await Promise.all([
+        const [notices, vendors, packages, stats, escrow] = await Promise.all([
           publicApi.listNotices({}).catch(() => ({ items: [] })),
           api.get("/api/v1/vendors/all").then((r) => r.data).catch(() => ({ items: [] })),
           api.get("/api/v1/packages/all").then((r) => r.data).catch(() => ({ items: [] })),
           publicApi.publicStats().catch(() => ({})),
+          api.get("/api/v1/meta/public/escrow-summary").then((r) => r.data).catch(() => null),
         ]);
         if (cancelled) return;
         const nItems = notices.items || [];
@@ -373,15 +374,18 @@ export function useAdminDashboardLive({ enabled = true } = {}) {
         const kpis = document.querySelectorAll('[data-pmc-e-page="admin-dashboard-e"] .pmc-kpi');
         if (kpis.length >= 4) {
           const f0 = kpis[0].querySelector(".pmc-figure");
+          const s0 = kpis[0].querySelector(".s");
           const f1 = kpis[1].querySelector(".pmc-figure");
           const f2 = kpis[2].querySelector(".pmc-figure");
           const f3 = kpis[3].querySelector(".pmc-figure");
           if (f2) f2.textContent = bidding;
           if (f3) f3.textContent = vItems.length || stats.suppliers_approved || 0;
           if (f1) f1.textContent = openN.filter((n) => n.form_of_contract || n.is_published).length || 0;
-          // Keep EMD USD figure as-is unless we have an escrow API — leave placeholder.
-          if (f0 && f0.textContent && !f0.dataset.wired) {
-            f0.dataset.wired = "1";
+          // EMD KPI live — from /meta/public/escrow-summary aggregate
+          if (f0 && escrow) {
+            const total = escrow.total_usd_equiv || 0;
+            f0.textContent = `$${Math.round(total).toLocaleString()}`;
+            if (s0) s0.textContent = `${escrow.bids_pending || 0} pending · ${escrow.bids_paid || 0} paid`;
           }
         }
 

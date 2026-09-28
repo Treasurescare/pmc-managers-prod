@@ -47,3 +47,31 @@ async def public_stats() -> Dict[str, int]:
         "packages_total": await db.packages.count_documents({}),
         "ledger_events": ledger_events,
     }
+
+
+@router.get("/public/escrow-summary")
+async def public_escrow_summary() -> Dict[str, Any]:
+    """Aggregate EMD figures — safe, only totals never per-vendor amounts.
+
+    Returns per-currency totals plus a USD-equivalent estimate (using a very
+    coarse fixed FX table; refined by the reporting job downstream).
+    """
+    FX_TO_USD = {"USD": 1.0, "INR": 0.012, "KZT": 0.0021, "EUR": 1.08, "GBP": 1.27}
+    per_currency: Dict[str, Dict[str, Any]] = {}
+    total_usd = 0.0
+    total_bids = 0
+    async for row in db.bids.aggregate([
+        {"$match": {"emd_paid_amount": {"$gt": 0}}},
+        {"$group": {"_id": "$emd_currency", "total": {"$sum": "$emd_paid_amount"}, "count": {"$sum": 1}}},
+    ]):
+        cur = row["_id"] or "USD"
+        per_currency[cur] = {"total": float(row["total"]), "bids": int(row["count"])}
+        total_usd += float(row["total"]) * FX_TO_USD.get(cur, 1.0)
+        total_bids += int(row["count"])
+    pending = await db.bids.count_documents({"status": "emd_pending"})
+    return {
+        "per_currency": per_currency,
+        "total_usd_equiv": round(total_usd, 2),
+        "bids_paid": total_bids,
+        "bids_pending": pending,
+    }
