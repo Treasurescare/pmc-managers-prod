@@ -1,0 +1,29 @@
+{
+  "summary": "Retested iteration_35 single item: Admin dashboard '+ Create' anchor navigation. Clicking Create on /admin/e/dashboard now navigates to /admin/e/tender-builder and the target page renders with data-pmc-e-page='admin-tender-builder-e'. PASS. However, during retest the tender-builder page initially crashed with React ErrorBoundary due to invalid `style=\"\"` (empty string) attributes on <div className=\"pmc-field\"> elements in AdminTenderBuilderE.jsx — React requires style prop to be an object, not a string. Fixed by removing all 6 empty style=\"\" attributes in that file. After the fix, the +Create flow passes end-to-end.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AdminTenderBuilderE.jsx (/admin/e/tender-builder)", "issue": "Page crashed on render due to invalid JSX attribute style=\"\" (empty string) on 6 <div className='pmc-field'> elements. React: 'The style prop expects a mapping from style properties to values, not a string.' ErrorBoundary caught it and page showed 'This panel hit an error'. Fixed by removing style=\"\" attributes. Same pattern exists in /app/frontend/src/apps/registration-e/RegistrationE.jsx line 40 (3 occurrences on <span className='i' style=''>) — main agent should audit and fix there too before it surfaces.", "selector": "div.pmc-field", "priority": "HIGH (fixed by tester)"},
+      {"component": "AdminTenderBuilderE.jsx form inputs", "issue": "React warning: 'You provided a value prop to a form field without an onChange handler' for multiple <input>/<select> elements. Use defaultValue or add onChange. Non-blocking but noisy.", "selector": "input.pmc-input, select.pmc-input", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/test_reports/iteration_36.json"],
+  "action_items": [
+    "Audit remaining `style=\"\"` occurrences project-wide (found in RegistrationE.jsx line 40) — they will cause the same ErrorBoundary crash whenever those pages render.",
+    "Consider adding an ESLint rule (react/style-prop-object or a custom check) to prevent literal string style attributes.",
+    "Add onChange/defaultValue to controlled form fields in AdminTenderBuilderE.jsx to silence React warnings."
+  ],
+  "critical_code_review_comments": [
+    "AdminTenderBuilderE.jsx is a very large single JSX blob (~700+ chars per line) — hard to review and prone to attribute typos like style=\"\". Split into subcomponents.",
+    "PmcLinkPatcher-based click routing is a fragile pattern (relies on label text). The +Create anchor should ideally use a real React Router <Link to='/admin/e/tender-builder'>."
+  ],
+  "updated_files": ["/app/frontend/src/apps/admin-console-e/AdminTenderBuilderE.jsx"],
+  "success_rate": {"backend": "N/A (skipped per request)", "frontend": "100% for the single retested item after tester's style=\"\" fix"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "iteration_36 verified only the +Create anchor navigation from /admin/e/dashboard. During verification, tester fixed a blocking React crash on AdminTenderBuilderE.jsx caused by literal style=\"\" attributes (6 removed). Same anti-pattern still exists in RegistrationE.jsx line 40 (3 occurrences) — will crash /vendor/e/registration or wherever it's mounted. Retested with real click flow: URL -> /admin/e/tender-builder, data-pmc-e-page='admin-tender-builder-e' present, no ErrorBoundary. PASS.",
+  "rca of the issue": "React treats a raw string in the `style` prop as invalid — it must be an object. AdminTenderBuilderE.jsx had `<div className=\"pmc-field\" style=\"\">` in 6 spots (line 47). During initial render React threw, ErrorBoundary rendered fallback, so the required data-pmc-e-page marker was never mounted, causing the retest acceptance to fail. Reproduction: direct nav to /admin/e/tender-builder shows 'This panel hit an error'. Mitigation: removed all 6 `style=\"\"` attributes; page now renders cleanly and +Create navigation acceptance passes."
+}

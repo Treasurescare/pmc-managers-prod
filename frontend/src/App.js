@@ -190,7 +190,11 @@ export default function App() {
             <Route path="/vendors/:vendorRef" element={<PublicVendorProfile />} />
             <Route path="/auctions/:aid/live" element={<PublicAuctionRoom />} />
 
-            <Route path="/register" element={<RegistrationE legacy={RegistrationStart} />} />
+            {/* v50-login-fix: /register now serves the fully-functional legacy
+                RegistrationStart flow (PDF download, resume link, real
+                submission). The Option E RegistrationE mockup is a static
+                template with no data collection and shouldn't gate real users. */}
+            <Route path="/register" element={<RegistrationStart />} />
             <Route path="/register/resume" element={<RegistrationResume />} />
             <Route path="/register/status" element={<RegistrationStatus />} />
 
