@@ -1,0 +1,34 @@
+{
+  "summary": "v49o testing: guest gates (Download/Follow/Ask) on public notice detail correctly route to /login. Notice-detail tabs now genuinely switch .dt-sec visibility (Overview→Scope, Eligibility→Who can bid, Documents→Documents (5 docrows), Clarifications→Clarifications). Regression: Pay EMD → Stripe checkout PASS, Signatures empty-state PASS ('Nothing to sign right now' visible, static Letter-of-award hidden, sidebar badge shows 'Signatures0', Review&sign toasts 'No documents awaiting your signature right now'), Change-password modal PASS, sidebar nav + identity-pill Sign out PASS. Two issues found: (a) Start bid regression FAILED as originally shipped — fixed by tester (see updated_files); (b) Corrigenda tab hides all sections because there is no .dt-sec[h2='Corrigenda'] for notices that only expose corrigenda in the sidebar timeline.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PmcLinkPatcher.jsx → extractNoticeRef()", "issue": "Start bid on /vendor/tenders navigated to /vendor/tenders (no-op) instead of /vendor/bid/new/<ref>. Root cause: extractNoticeRef only checked descendants of the clicked element. The 'Start bid' anchor <a href='/notices/PMC-NOT-...'>Start bid</a> has no children so .pmc-ref lookup failed, ref stayed null, and handleStartBid fell through to '/vendor/tenders'. Fixed by adding closest('article.pmc-tender, article, .pmc-tender, .pmc-bidrow, .tl-row, tr, li') fallback and an anchor-href PMC-NOT regex fallback. Verified after fix: click lands on /vendor/bid/new/PMC-NOT-2026-0018 with bid-form/bid-price/bid-submit-btn testids present.", "selector": "a.pmc-btn on article.pmc-tender", "priority": "HIGH (fixed by tester)"},
+      {"component": "PmcLinkPatcher.jsx → switchTabSections() + notice detail 'Corrigenda' tab", "issue": "On notices that carry a Corrigendum badge/timeline entry but no dedicated .dt-sec section with h2='Corrigenda' (e.g. PMC-NOT-2026-0012), clicking the Corrigenda tab hides ALL .dt-sec sections. Root cause: TAB_KEYWORDS.corrigenda=['corrigenda'] doesn't match any section h2, and the positional fallback picks index 4 (out of 4 sections → nothing shown). Expected: either render a synthetic 'Corrigenda' .dt-sec listing corrigenda items (preferred) or fall back to keeping Overview/Scope visible with a small 'no corrigenda body attached' note.", "selector": ".pmc-tab[text=Corrigenda]", "priority": "MEDIUM"},
+      {"component": "Submit-a-bid page /vendor/bid/new/<ref>", "issue": "Page heading 'Submit a bid' and PMC-NOT ref are rendered as dark text on a dark forest-green background — nearly invisible. See screenshot on iteration completion.", "selector": ".pmc-h1 (bid form top)", "priority": "MEDIUM"},
+      {"component": "Vendor Account page", "issue": "React warns 'You provided a `checked` prop to a form field without an `onChange` handler' 11× on /vendor/account. Non-blocking but noisy.", "selector": "input[type=checkbox|radio] with checked", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/vendor/bid/new/<ref>", "issues": ["'Submit a bid' heading + PMC-NOT ref are dark on dark and effectively invisible"]}
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_37.json"],
+  "action_items": [
+    "Corrigenda tab: either render a real .dt-sec[h2='Corrigenda'] with the corrigendum list, or update switchTabSections to keep at least Overview visible when no matching section is found (avoid empty screen).",
+    "Fix contrast on /vendor/bid/new/<ref> page heading — currently dark ink on dark green.",
+    "Silence /vendor/account React `checked` without `onChange` warnings (use defaultChecked or add onChange)."
+  ],
+  "critical_code_review_comments": [
+    "extractNoticeRef was fragile — any button not wrapped in a card silently produced null and callers fell through to safe defaults, masking navigation bugs. The new closest() + href regex fallbacks should be documented so future patch authors don't remove them.",
+    "PmcLinkPatcher is now ~740 lines of global click delegation with many string-match rules. Consider splitting into per-role handlers (public.js, vendor.js, admin.js) and building action tables from a config, then unit-testing resolveClickAction against fixture DOM."
+  ],
+  "updated_files": ["/app/frontend/src/components/PmcLinkPatcher.jsx"],
+  "success_rate": {"backend": "N/A (frontend/interaction only)", "frontend": "10/11 acceptance items PASS after tester fix; 1 (Corrigenda tab) still fails on notices without a corrigenda body section"},
+  "test_credentials": "manualvendor@pmcmanagers.com / Vendor@12345 (worked as expected)",
+  "seed_data_creation": "None. Reused seeded notices PMC-NOT-2026-0012/0018 and vendor account.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The two primary bugs in the review request (guest Download/Follow/Ask → /login, and real tab switching) are verified GREEN. All v49k–v49n regressions except Start bid were also green out of the box. Start bid failed and tester fixed extractNoticeRef; Start bid now lands on /vendor/bid/new/<ref> with bid-form testid. Only outstanding functional gap is the Corrigenda tab on notices without a dedicated corrigenda .dt-sec — main agent should decide between (a) rendering a real corrigenda section or (b) softening switchTabSections' hide-all behaviour.",
+  "rca of the issue": "Start bid regression RCA: PmcLinkPatcher.extractNoticeRef(scopeEl) treated the clicked element as the entire scope (`card = scopeEl.closest('[data-notice-ref]') || scopeEl`). When live-data rendered Start bid as a simple <a> without a wrapping data-notice-ref, `card` became the anchor itself and the .pmc-ref query + textContent regex both returned null. handleStartBid then chose the '/vendor/tenders' fallback path, so a click while already on /vendor/tenders looked like a no-op. Mitigation: extended extractNoticeRef to also .closest('article.pmc-tender, article, .pmc-tender, .pmc-bidrow, .tl-row, tr, li') and, as a last resort, parse a PMC-NOT ref from the anchor's own href. Verified in browser: /vendor/tenders → click Start bid → URL becomes /vendor/bid/new/PMC-NOT-2026-0018 with data-testid=bid-form / bid-price / bid-submit-btn all present."
+}

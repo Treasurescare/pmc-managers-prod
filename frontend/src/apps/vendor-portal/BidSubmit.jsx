@@ -115,8 +115,8 @@ export default function BidSubmit() {
     <div className="min-h-screen bg-slate-50 py-10" data-testid="bid-submit-page">
       <div className="max-w-3xl mx-auto px-6">
         <button onClick={() => nav("/vendor")} className="text-xs text-slate-500 hover:underline">← Back</button>
-        <h1 className="text-3xl font-serif mt-2">Submit a bid</h1>
-        <div className="text-sm text-slate-500">{notice.notice_ref}</div>
+        <h1 className="text-3xl font-serif mt-2 text-slate-900">Submit a bid</h1>
+        <div className="text-sm text-slate-600">{notice.notice_ref}</div>
 
         <div className="bg-white border rounded-lg p-5 mt-5">
           <div className="text-xs text-slate-500 uppercase tracking-wider">Tender</div>

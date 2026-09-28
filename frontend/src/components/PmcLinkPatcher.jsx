@@ -142,7 +142,22 @@ function switchTabSections(tabEl, tabRow) {
   if (!matched) {
     const tabs = Array.from(tabRow.querySelectorAll(".pmc-tab"));
     const idx = tabs.indexOf(tabEl);
-    secs.forEach((s, i) => { s.style.display = i === idx ? "" : "none"; });
+    if (idx < secs.length) {
+      secs.forEach((s, i) => { s.style.display = i === idx ? "" : "none"; });
+    } else {
+      // v49o — e.g. a "Corrigenda" tab on a notice whose corrigenda only live
+      // in the Key-dates timeline: never blank the page. Keep the first
+      // (Overview) section visible and prepend a one-line note.
+      secs.forEach((s, i) => { s.style.display = i === 0 ? "" : "none"; });
+      const first = secs[0];
+      if (first && !first.querySelector(".pmc-tab-empty-note")) {
+        const note = document.createElement("div");
+        note.className = "pmc-tab-empty-note pmc-muted";
+        note.style.cssText = "margin-top:10px;padding:10px 14px;border:1px dashed var(--line, rgba(0,0,0,.15));border-radius:8px;font-size:13px";
+        note.textContent = `No ${key} section published on this notice — check the Key dates timeline on the right.`;
+        first.appendChild(note);
+      }
+    }
   }
   // Bring the sections back into view after switching
   tabRow.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -340,7 +355,12 @@ function handleChangeButton(btn, navigate) {
 
 function extractNoticeRef(scopeEl) {
   if (!scopeEl) return null;
-  const card = scopeEl.closest("[data-notice-ref]") || scopeEl;
+  // v49o+ fix — walk up to nearest card/row so buttons without a wrapping
+  // data-notice-ref (e.g. <a>Start bid</a> inside an article) still resolve.
+  const card =
+    scopeEl.closest("[data-notice-ref]") ||
+    scopeEl.closest("article.pmc-tender, article, .pmc-tender, .pmc-bidrow, .tl-row, tr, li") ||
+    scopeEl;
   let ref = card.getAttribute && card.getAttribute("data-notice-ref");
   if (ref) return ref;
   const refEl = card.querySelector && card.querySelector(".pmc-ref");
@@ -349,7 +369,14 @@ function extractNoticeRef(scopeEl) {
     if (m) return m[0];
   }
   const m = (card.textContent || "").match(/PMC-NOT-\d{4}-\d+/);
-  return m ? m[0] : null;
+  if (m) return m[0];
+  // Fallback: check the anchor's own href like /notices/PMC-NOT-YYYY-###
+  if (scopeEl.tagName === "A") {
+    const href = scopeEl.getAttribute("href") || "";
+    const m2 = href.match(/PMC-NOT-\d{4}-\d+/);
+    if (m2) return m2[0];
+  }
+  return null;
 }
 
 function handleStartBid(el, isPublic, navigate) {
