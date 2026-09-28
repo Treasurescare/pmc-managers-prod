@@ -426,26 +426,32 @@ html, body { overflow-x: clip; }
     gap: 12px !important;
     margin-bottom: 16px !important;
   }
-  /* Their second child (typically the chips/buttons row) becomes a
-     scrollable chip row that spans full width. */
+  /* Their second child (typically the chips/buttons row) wraps to multiple
+     lines so every chip and the "Browse all" button stays on screen. */
   [data-ui="e"] section > div[style*="justify-content: space-between"][style*="display: flex"] > div:last-child,
   [data-ui="e"] div[style*="display: flex"][style*="align-items: end"] > div:last-child {
     display: flex !important;
-    flex-wrap: nowrap !important;
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch !important;
+    flex-wrap: wrap !important;
+    overflow: visible !important;
     gap: 8px !important;
     width: 100% !important;
-    padding: 2px 16px 4px !important;
-    margin: 0 -16px !important;
-    scrollbar-width: none !important;
+    padding: 2px 0 4px !important;
+    margin: 0 !important;
     align-items: center !important;
   }
-  [data-ui="e"] section > div[style*="justify-content: space-between"] > div:last-child::-webkit-scrollbar { display: none !important; }
   [data-ui="e"] section > div[style*="justify-content: space-between"] > div:last-child > *,
   [data-ui="e"] div[style*="display: flex"][style*="align-items: end"] > div:last-child > * {
-    flex: 0 0 auto !important;
+    flex: 0 1 auto !important;
     white-space: nowrap !important;
+  }
+  /* Trailing CTA inside those chip rows (e.g. "Browse all notices") gets its
+     own full-width line so it's never clipped or pushed off-screen. */
+  [data-ui="e"] section > div[style*="justify-content: space-between"] > div:last-child > a.pmc-btn,
+  [data-ui="e"] div[style*="display: flex"][style*="align-items: end"] > div:last-child > a.pmc-btn {
+    flex: 1 1 100% !important;
+    margin-left: 0 !important;
+    justify-content: center !important;
+    text-align: center !important;
   }
 
   /* Inline oversized display headings (`style="fontSize: 40px/52px/36px"`) —
@@ -483,27 +489,23 @@ html, body { overflow-x: clip; }
   }
 
   /* ==========================================================================
-   * Chip / pill filter rows — horizontally scrollable (no overflow, no wrap)
+   * Chip / pill filter rows — wrap to multiple lines so every chip stays
+   * on screen (horizontal scrolling hid trailing items like "Browse all").
    * ======================================================================== */
   [data-ui="e"] .pmc-chips,
   [data-ui="e"] .pmc-filters,
   [data-ui="e"] [data-mobile-scroll="chips"],
   [data-ui="e"] div[role="tablist"]:not(.pmc-track):not(.pmc-tabs) {
     display: flex !important;
-    flex-wrap: nowrap !important;
+    flex-wrap: wrap !important;
+    overflow: visible !important;
     gap: 8px !important;
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-    padding: 4px 16px 4px !important;
-    margin: 0 -16px 12px !important;
-    scrollbar-width: none !important;
+    padding: 4px 0 !important;
+    margin: 0 0 12px !important;
   }
-  [data-ui="e"] .pmc-chips::-webkit-scrollbar,
-  [data-ui="e"] .pmc-filters::-webkit-scrollbar,
-  [data-ui="e"] [data-mobile-scroll="chips"]::-webkit-scrollbar { display: none !important; }
   [data-ui="e"] .pmc-chips > *,
   [data-ui="e"] .pmc-filters > *,
-  [data-ui="e"] [data-mobile-scroll="chips"] > * { flex: 0 0 auto !important; white-space: nowrap !important; }
+  [data-ui="e"] [data-mobile-scroll="chips"] > * { flex: 0 1 auto !important; white-space: nowrap !important; }
 
   /* Rows of small pill buttons ("All", "Tender", "RFP" etc.) — horizontal scroll */
   [data-ui="e"] .pmc-chip {

@@ -224,3 +224,11 @@ Fixed in this iteration:
   /admin/e/awards, /admin/e/audit
 All 28 routes report `document.documentElement.scrollWidth === 390` at
 390×844 viewport → zero horizontal overflow.
+
+### v49p — Chips wrap fix (final mobile pass) — 28 Feb 2026
+User spotted in screenshots: "Browse all notices" button rendered off-screen
+because chip rows were set to horizontal scroll. Changed all chip/pill/tab
+rows (section-header chips + generic .pmc-chips/.pmc-filters) from
+`overflow-x: auto` to `flex-wrap: wrap`; trailing CTA buttons inside chip
+rows get their own full-width line. Verified: button rect right=370 ≤ vw=390,
+fullyVisible=true, scrollW=390. Bundle rebuilt at 16:52 UTC.
