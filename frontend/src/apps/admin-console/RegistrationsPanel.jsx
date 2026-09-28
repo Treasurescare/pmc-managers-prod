@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { adminApi, api, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
@@ -163,17 +163,7 @@ export default function RegistrationsPanel() {
                 <div className="pmc-label mb-2">{t("panels.registrations.uploaded_docs_prefix")} ({Object.keys(selected.document_slots).length})</div>
                 <ul className="grid gap-2 md:grid-cols-2">
                   {Object.entries(selected.document_slots).map(([slot, meta]) => (
-                    <li key={slot} className="border border-brand-navy/10 p-2 text-xs bg-slate-50"
-                        data-testid={`reg-doc-${slot}`}>
-                      <div className="font-semibold text-brand-navy">{slot.replace(/_/g, " ")}</div>
-                      <div className="text-brand-navy/60 mt-0.5 truncate">{meta.file_name}</div>
-                      <div className="mt-1 flex gap-1">
-                        <a href={`${process.env.REACT_APP_BACKEND_URL}${meta.url}`} target="_blank" rel="noreferrer"
-                           className="text-[10px] uppercase tracking-widest px-2 py-1 border border-brand-navy/20 text-brand-navy hover:bg-white">{t("panels.registrations.view")}</a>
-                        <a href={`${process.env.REACT_APP_BACKEND_URL}${meta.url}`} download={meta.file_name}
-                           className="text-[10px] uppercase tracking-widest px-2 py-1 border border-brand-navy/20 text-brand-navy hover:bg-white">{t("panels.registrations.download")}</a>
-                      </div>
-                    </li>
+                    <RegDocCard key={slot} slot={slot} meta={meta} t={t} />
                   ))}
                 </ul>
               </div>
@@ -231,3 +221,98 @@ export default function RegistrationsPanel() {
     </div>
   );
 }
+
+// v49g — Registration document card with real view/download/inline preview.
+// Plain <a href> anchors drop Content-Disposition on Android/in-app WebViews
+// and can 401 when the preview domain differs from the API domain, so all
+// file access goes through axios (withCredentials) → Blob → object URL.
+function RegDocCard({ slot, meta, t }) {
+  const [busy, setBusy] = useState(null); // "view" | "download" | null
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const blobRef = useRef([]);
+
+  useEffect(() => () => {
+    blobRef.current.forEach((u) => URL.revokeObjectURL(u));
+  }, []);
+
+  const ct = meta.content_type || "application/octet-stream";
+  const isImage = ct.startsWith("image/");
+  const isPdf = ct === "application/pdf";
+  const canPreview = isImage || isPdf;
+  const sizeKb = meta.size_bytes ? Math.max(1, Math.round(meta.size_bytes / 1024)) : null;
+
+  const fetchBlobUrl = async () => {
+    const r = await api.get(meta.url, { responseType: "blob" });
+    const blob = new Blob([r.data], { type: ct });
+    const u = URL.createObjectURL(blob);
+    blobRef.current.push(u);
+    return u;
+  };
+
+  const onView = async () => {
+    if (busy) return;
+    setBusy("view");
+    try {
+      const u = await fetchBlobUrl();
+      if (canPreview) {
+        setPreviewUrl((prev) => (prev ? null : u)); // toggle inline preview
+      } else {
+        window.open(u, "_blank", "noopener");
+      }
+    } catch (e) {
+      showApiError(e);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const onDownload = async () => {
+    if (busy) return;
+    setBusy("download");
+    try {
+      const u = await fetchBlobUrl();
+      const a = document.createElement("a");
+      a.href = u;
+      a.download = meta.file_name || `${slot}.bin`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (e) {
+      showApiError(e);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <li className="border border-brand-navy/10 p-2 text-xs bg-slate-50" data-testid={`reg-doc-${slot}`}>
+      <div className="font-semibold text-brand-navy">{slot.replace(/_/g, " ")}</div>
+      <div className="text-brand-navy/60 mt-0.5 truncate" title={meta.file_name}>{meta.file_name}</div>
+      <div className="text-[10px] text-brand-navy/40 mt-0.5 font-mono">
+        {ct}{sizeKb ? ` · ${sizeKb} KB` : ""}
+      </div>
+      <div className="mt-1 flex gap-1">
+        <button type="button" onClick={onView} disabled={!!busy}
+          data-testid={`reg-doc-view-${slot}`}
+          className="text-[10px] uppercase tracking-widest px-2 py-1 border border-brand-navy/20 text-brand-navy hover:bg-white disabled:opacity-50">
+          {busy === "view" ? "Opening…" : previewUrl ? "Hide" : t("panels.registrations.view")}
+        </button>
+        <button type="button" onClick={onDownload} disabled={!!busy}
+          data-testid={`reg-doc-download-${slot}`}
+          className="text-[10px] uppercase tracking-widest px-2 py-1 border border-brand-navy/20 text-brand-navy hover:bg-white disabled:opacity-50">
+          {busy === "download" ? "Saving…" : t("panels.registrations.download")}
+        </button>
+      </div>
+      {previewUrl && (
+        <div className="mt-2 border border-brand-navy/10 bg-white" data-testid={`reg-doc-preview-${slot}`}>
+          {isImage ? (
+            <img src={previewUrl} alt={meta.file_name} className="max-h-64 w-full object-contain" />
+          ) : (
+            <iframe src={previewUrl} title={meta.file_name} className="w-full h-72" />
+          )}
+        </div>
+      )}
+    </li>
+  );
+}
+

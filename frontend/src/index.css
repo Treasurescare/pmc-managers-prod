@@ -694,6 +694,13 @@
 [data-ui="e"] header.admin-shell-topbar { background: var(--e-bg-panel) !important; color: #EAF0EA !important; border-color: var(--e-border-dark) !important; }
 [data-ui="e"] .bg-slate-50 { background: var(--e-bg-deep) !important; }
 [data-ui="e"] .bg-slate-100 { background: var(--e-bg-panel) !important; }
+/* v49g — registration review doc cards must stay light/readable; the global
+   slate remap above paints them deep green with invisible dark text. */
+[data-ui="e"] [data-testid^="reg-doc-"] {
+  background: #F8FAFC !important;
+  color: var(--e-ink) !important;
+  border-color: rgba(15,59,46,0.15) !important;
+}
 [data-ui="e"] .text-slate-500 { color: #A7BDB2 !important; }
 [data-ui="e"] .text-slate-600 { color: #CFDCD4 !important; }
 [data-ui="e"] .text-slate-700 { color: #EAF0EA !important; }
