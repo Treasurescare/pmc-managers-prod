@@ -113,6 +113,9 @@ app.include_router(reports.router)
 app.include_router(stakeholder_reports.router)
 app.include_router(dashboard_drill.router)
 app.include_router(branding_theme.router)
+# v50 — Option E email templates + preview
+from routers import admin_emails as _admin_emails
+app.include_router(_admin_emails.router)
 app.include_router(envelope_authoritative.router)
 app.include_router(contracts_export.router)
 from routers import help_content as _help_content
