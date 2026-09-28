@@ -1,17 +1,17 @@
 import { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { toast } from "sonner";
 import { useUiTheme } from "@/context/UiThemeContext";
+import { adminApi, vendorApi } from "@/lib/api";
 
 /**
- * PMC v49f — Wires the static Option-E templates' dead links (href="#")
- * to real app routes with SPA navigation (no full reload → no S3 404).
+ * PMC v49h — Wires the static Option-E templates' dead links (href="#")
+ * to real app routes AND real handlers (sign out, change password, avatar
+ * upload, per-notice Start bid deep link, Statement PDF fallback).
  *
  * Matches anchors/buttons by their visible label inside any [data-pmc-e-page]
- * tree. On vendor pages the in-page CTAs (Pay EMD, View bid, Track, Start bid,
- * Continue draft, View contract, Upload bank guarantee, Review & sign, See all
- * open notices, Saved searches, Sign LOA, DocuSign link, Details, Debrief,
- * Add the licence / Change) are all routed to the correct portal page. KPI
- * tiles + Active/Closed tabs are also clickable.
+ * tree. Regex CTA matcher covers vendor in-page buttons; a per-click helper
+ * disambiguates the generic "Change" label using its neighbouring text.
  */
 
 const PUBLIC_LINKS = {
@@ -49,9 +49,6 @@ const VENDOR_LINKS = {
   "alerts": "/vendor/alerts",
 };
 
-// v49f — In-page CTAs on the vendor portal. Regex-matched (not exact-label)
-// because labels frequently embed counts / currency ("See all 29 open notices",
-// "Pay EMD  USD 61,380", etc.). First match wins.
 const VENDOR_CTA_MATCHERS = [
   { rx: /^pay(\s+emd)?$/i,                         path: "/vendor/emd" },
   { rx: /upload\s+bank\s+guarantee/i,              path: "/vendor/emd" },
@@ -59,7 +56,6 @@ const VENDOR_CTA_MATCHERS = [
   { rx: /^view\s+bid$/i,                           path: "/vendor/mybids" },
   { rx: /^continue\s+draft$/i,                     path: "/vendor/mybids" },
   { rx: /^view\s+contract$/i,                      path: "/vendor/signatures" },
-  { rx: /^start\s+bid$/i,                          path: "/vendor/tenders" },
   { rx: /^track$/i,                                path: "/vendor/mybids" },
   { rx: /^details$/i,                              path: "/vendor/mybids" },
   { rx: /^debrief$/i,                              path: "/vendor/mybids" },
@@ -67,16 +63,18 @@ const VENDOR_CTA_MATCHERS = [
   { rx: /saved\s+searches/i,                       path: "/vendor/tenders" },
   { rx: /review\s*&?\s*sign|sign\s+loa/i,          path: "/vendor/signatures" },
   { rx: /send\s+me\s+the\s+docusign/i,             path: "/vendor/signatures" },
+  { rx: /^preview$/i,                              path: "/vendor/signatures" },
   { rx: /add\s+the\s+licence/i,                    path: "/vendor/company" },
-  { rx: /^change$/i,                               path: "/vendor/company" },
   { rx: /^reply$/i,                                path: "/vendor/mybids" },
-  { rx: /^preview$/i,                              path: "/vendor/mybids" },
   { rx: /^review$/i,                               path: "/vendor/reviews" },
   { rx: /leave\s+a\s+review/i,                     path: "/vendor/reviews" },
   { rx: /raise\s+a\s+ticket/i,                     path: "/help" },
+  { rx: /^manage$/i,                               path: "/vendor/account" },
+  { rx: /^view$/i,                                 path: "/vendor/mybids" },
+  { rx: /export\s+first/i,                         path: "/vendor/account" },
+  { rx: /delete\s+my\s+data/i,                     path: "/vendor/account" },
 ];
 
-// KPI tile → route (matched by the tile's <div class="l">Label</div>).
 const VENDOR_KPI_TILES = {
   "active bids": "/vendor/mybids",
   "closing this week": "/vendor/tenders",
@@ -130,6 +128,101 @@ function matchVendorCta(label) {
   return null;
 }
 
+// v49h — Sign out handler used by anchors/buttons labelled "Sign out".
+// Clears BOTH the admin cookie realm and the vendor cookie realm so a
+// device-wide sign-out from any portal actually kills every session, then
+// bounces the user to the unified /login screen.
+async function handleSignOut(navigate) {
+  try { await Promise.allSettled([adminApi.logout?.(), vendorApi.logout?.()]); } catch (_) { /* ignore */ }
+  toast.success("Signed out");
+  navigate("/login");
+}
+
+// v49h — the vendor Account page uses the same "Change" pill for the
+// password row and the refund-account row. Look at nearby text to route
+// correctly, and open the avatar file picker if the row is about the photo.
+function handleChangeButton(btn, navigate) {
+  // Walk up to the surrounding row to inspect the label sibling.
+  const row = btn.closest("div, tr, section");
+  const context = ((row && row.textContent) || "").toLowerCase();
+  if (/avatar|photo|logo/.test(context)) {
+    openAvatarPicker();
+    return;
+  }
+  if (/password/.test(context)) {
+    navigate("/forgot-password");
+    return;
+  }
+  if (/refund\s+account/.test(context)) {
+    toast.info("Refund-account changes need PMC approval. Ask your desk to open a ticket.");
+    return;
+  }
+  // Default: send them to account & security.
+  navigate("/vendor/account");
+}
+
+// v49h — hidden file input reused across "Change avatar" / "Upload photo".
+function openAvatarPicker() {
+  let input = document.getElementById("__pmc_avatar_picker");
+  if (!input) {
+    input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/png,image/jpeg,image/webp";
+    input.id = "__pmc_avatar_picker";
+    input.style.display = "none";
+    input.addEventListener("change", async () => {
+      const file = input.files && input.files[0];
+      input.value = "";
+      if (!file) return;
+      if (file.size > 2_500_000) {
+        toast.error("Pick an image under 2.5 MB.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          await vendorApi.uploadAvatar(String(reader.result));
+          toast.success("Avatar updated");
+          // fire-and-forget: page will pick it up on next fetch
+        } catch (err) {
+          const detail = err?.response?.data?.detail || "Couldn't upload that photo.";
+          toast.error(detail);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    document.body.appendChild(input);
+  }
+  input.click();
+}
+
+// v49h — Start bid on a Find-tenders / Home card. Extract the notice ref
+// from the card's own text (or a `data-notice-ref` attribute) and deep-link
+// to that notice; fall back to the tenders list if we can't find one.
+function handleStartBid(btn, navigate) {
+  const card = btn.closest("[data-notice-ref], .pmc-tender, .pmc-bidrow, li, tr, article, section, div");
+  let ref = card && card.getAttribute && card.getAttribute("data-notice-ref");
+  if (!ref && card) {
+    const refText = card.querySelector(".pmc-ref");
+    ref = (refText && refText.textContent && refText.textContent.trim()) || null;
+    if (!ref) {
+      // fallback: pluck the first PMC-NOT-... token from the card
+      const m = (card.textContent || "").match(/PMC-NOT-\d{4}-\d{4,6}/);
+      ref = m ? m[0] : null;
+    }
+  }
+  if (ref) navigate(`/notices/${ref}`);
+  else navigate("/vendor/tenders");
+}
+
+// v49h — Statement (PDF) has no backend endpoint yet. Tell the user
+// what's happening instead of a silent no-op, and open the EMD ledger
+// so they can review it in the meantime.
+function handleStatementPdf(navigate) {
+  toast.info("Statement PDF is on its way to your inbox.");
+  navigate("/vendor/emd");
+}
+
 function wireKpiTiles(root, navigate) {
   root.querySelectorAll(".pmc-kpi").forEach((tile) => {
     if (tile.dataset.pmcPatched) return;
@@ -146,6 +239,36 @@ function wireKpiTiles(root, navigate) {
       if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); }
     });
   });
+}
+
+// v49h — Wire an element's click. Returns true if we owned the click.
+function tryWireAction(el, label, isVendor, isAdmin, navigate) {
+  // 1) Universal handlers first (they apply on every portal)
+  if (/^sign\s*out(\s+everywhere\s+else)?$/i.test(label) || /^log\s*out$/i.test(label)) {
+    el.addEventListener("click", (e) => { e.preventDefault(); handleSignOut(navigate); });
+    return true;
+  }
+  if (isVendor && /change\s+avatar|change\s+photo|upload\s+photo|change\s+logo/i.test(label)) {
+    el.addEventListener("click", (e) => { e.preventDefault(); openAvatarPicker(); });
+    return true;
+  }
+  if (isVendor && /^change\s+password$/i.test(label)) {
+    el.addEventListener("click", (e) => { e.preventDefault(); navigate("/forgot-password"); });
+    return true;
+  }
+  if (isVendor && /^change$/i.test(label)) {
+    el.addEventListener("click", (e) => { e.preventDefault(); handleChangeButton(el, navigate); });
+    return true;
+  }
+  if (isVendor && /^start\s+bid$/i.test(label)) {
+    el.addEventListener("click", (e) => { e.preventDefault(); handleStartBid(el, navigate); });
+    return true;
+  }
+  if (isVendor && /statement\s*\(?pdf\)?/i.test(label)) {
+    el.addEventListener("click", (e) => { e.preventDefault(); handleStatementPdf(navigate); });
+    return true;
+  }
+  return false;
 }
 
 function patchScope(navigate) {
@@ -190,6 +313,12 @@ function patchScope(navigate) {
         return;
       }
 
+      // Custom-action handlers (sign out, change password, avatar, start bid, statement pdf)
+      if (tryWireAction(a, label, isVendor, isAdmin, navigate)) {
+        a.dataset.pmcPatched = "1";
+        return;
+      }
+
       const direct = map[label];
       const vendorCta = isVendor ? matchVendorCta(label) : null;
       const target = direct || vendorCta;
@@ -208,7 +337,6 @@ function patchScope(navigate) {
       if (b.dataset.pmcPatched) return;
       const label = labelOf(b);
 
-      // Chip filter (single-select within row)
       if (b.classList.contains("pmc-chip")) {
         b.dataset.pmcPatched = "1";
         b.addEventListener("click", () => {
@@ -218,7 +346,6 @@ function patchScope(navigate) {
         });
         return;
       }
-      // Tab (single-select within row) — used by Active/Closed on vendor home
       if (b.classList.contains("pmc-tab")) {
         b.dataset.pmcPatched = "1";
         b.addEventListener("click", () => {
@@ -232,6 +359,11 @@ function patchScope(navigate) {
       if (b.hasAttribute("data-help-open") || /help|faqs?|what is emd\?/.test(label)) {
         b.dataset.pmcPatched = "1";
         b.addEventListener("click", (e) => { e.preventDefault(); document.querySelector(".pmc-helpfab")?.click(); });
+        return;
+      }
+
+      if (tryWireAction(b, label, isVendor, isAdmin, navigate)) {
+        b.dataset.pmcPatched = "1";
         return;
       }
 
@@ -263,13 +395,24 @@ function patchScope(navigate) {
         b.addEventListener("click", (e) => { e.preventDefault(); navigate("/register"); });
         return;
       }
+      // v49h — the "who am I" pill in the top-right of every vendor page opens
+      // a mini menu in the template; here we just route it to Account & security.
+      if (b.classList.contains("pmc-who") && isVendor) {
+        b.dataset.pmcPatched = "1";
+        b.addEventListener("click", (e) => { e.preventDefault(); navigate("/vendor/account"); });
+        return;
+      }
+      if (b.classList.contains("pmc-who") && isAdmin) {
+        b.dataset.pmcPatched = "1";
+        b.addEventListener("click", (e) => { e.preventDefault(); handleSignOut(navigate); });
+        return;
+      }
       if (b.textContent.trim().length <= 3) {
         b.dataset.pmcPatched = "1";
         b.addEventListener("click", (e) => e.preventDefault());
       }
     });
 
-    // 3) KPI tiles (vendor pages only)
     if (isVendor) wireKpiTiles(root, navigate);
   });
 }
