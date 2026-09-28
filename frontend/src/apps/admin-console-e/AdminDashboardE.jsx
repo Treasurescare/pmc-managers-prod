@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
+import { useAdminDashboardLive } from "@/lib/pmcELiveData";
 
 export default function AdminDashboardE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
+  useAdminDashboardLive({ enabled: isE });
   useEffect(() => {
     if (!isE) return;
     const tick = () => {

@@ -1,8 +1,12 @@
 import { useEffect } from "react";
+import { useParams } from "react-router-dom";
 import { useUiTheme } from "@/context/UiThemeContext";
+import { useNoticeDetailLive } from "@/lib/pmcELiveData";
 
 export default function NoticeDetailE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
+  const { noticeRef } = useParams();
+  useNoticeDetailLive({ enabled: isE, noticeRef });
   useEffect(() => {
     if (!isE) return;
     const tick = () => {

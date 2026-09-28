@@ -30,8 +30,20 @@ async def countries() -> List[Dict[str, str]]:
 @router.get("/public/stats")
 async def public_stats() -> Dict[str, int]:
     """Homepage counters — public, no auth."""
+    # Ledger event count: pick the first collection that exists among the known
+    # audit-ledger names so this remains valid whichever migration ran.
+    ledger_events = 0
+    for coll_name in ("audit_events", "audit_ledger", "ledger_events", "events"):
+        try:
+            n = await db[coll_name].count_documents({})
+            if n:
+                ledger_events = n
+                break
+        except Exception:
+            continue
     return {
         "notices_published": await db.notices.count_documents({"is_published": True}),
         "suppliers_approved": await db.vendors.count_documents({}),
         "packages_total": await db.packages.count_documents({}),
+        "ledger_events": ledger_events,
     }
