@@ -3,10 +3,15 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useUiTheme } from "@/context/UiThemeContext";
 
 /**
- * PMC v49d — Wires the static Option-E templates' dead links (href="#")
- * to real app routes, with SPA navigation (no full reload → no S3 404).
+ * PMC v49f — Wires the static Option-E templates' dead links (href="#")
+ * to real app routes with SPA navigation (no full reload → no S3 404).
  *
- * Matches anchors by their visible label inside any [data-pmc-e-page] tree.
+ * Matches anchors/buttons by their visible label inside any [data-pmc-e-page]
+ * tree. On vendor pages the in-page CTAs (Pay EMD, View bid, Track, Start bid,
+ * Continue draft, View contract, Upload bank guarantee, Review & sign, See all
+ * open notices, Saved searches, Sign LOA, DocuSign link, Details, Debrief,
+ * Add the licence / Change) are all routed to the correct portal page. KPI
+ * tiles + Active/Closed tabs are also clickable.
  */
 
 const PUBLIC_LINKS = {
@@ -44,6 +49,43 @@ const VENDOR_LINKS = {
   "alerts": "/vendor/alerts",
 };
 
+// v49f — In-page CTAs on the vendor portal. Regex-matched (not exact-label)
+// because labels frequently embed counts / currency ("See all 29 open notices",
+// "Pay EMD  USD 61,380", etc.). First match wins.
+const VENDOR_CTA_MATCHERS = [
+  { rx: /^pay(\s+emd)?$/i,                         path: "/vendor/emd" },
+  { rx: /upload\s+bank\s+guarantee/i,              path: "/vendor/emd" },
+  { rx: /pay\s+with\s+card/i,                      path: "/vendor/emd" },
+  { rx: /^view\s+bid$/i,                           path: "/vendor/mybids" },
+  { rx: /^continue\s+draft$/i,                     path: "/vendor/mybids" },
+  { rx: /^view\s+contract$/i,                      path: "/vendor/signatures" },
+  { rx: /^start\s+bid$/i,                          path: "/vendor/tenders" },
+  { rx: /^track$/i,                                path: "/vendor/mybids" },
+  { rx: /^details$/i,                              path: "/vendor/mybids" },
+  { rx: /^debrief$/i,                              path: "/vendor/mybids" },
+  { rx: /see\s+all.*(open\s+)?notices?/i,          path: "/vendor/tenders" },
+  { rx: /saved\s+searches/i,                       path: "/vendor/tenders" },
+  { rx: /review\s*&?\s*sign|sign\s+loa/i,          path: "/vendor/signatures" },
+  { rx: /send\s+me\s+the\s+docusign/i,             path: "/vendor/signatures" },
+  { rx: /add\s+the\s+licence/i,                    path: "/vendor/company" },
+  { rx: /^change$/i,                               path: "/vendor/company" },
+  { rx: /^reply$/i,                                path: "/vendor/mybids" },
+  { rx: /^preview$/i,                              path: "/vendor/mybids" },
+  { rx: /^review$/i,                               path: "/vendor/reviews" },
+  { rx: /leave\s+a\s+review/i,                     path: "/vendor/reviews" },
+  { rx: /raise\s+a\s+ticket/i,                     path: "/help" },
+];
+
+// KPI tile → route (matched by the tile's <div class="l">Label</div>).
+const VENDOR_KPI_TILES = {
+  "active bids": "/vendor/mybids",
+  "closing this week": "/vendor/tenders",
+  "matched to your kyc": "/vendor/tenders",
+  "kyc status": "/vendor/company",
+  "escrow balance": "/vendor/emd",
+  "pending emd": "/vendor/emd",
+};
+
 const ADMIN_LINKS = {
   "dashboard": "/admin/e/dashboard",
   "audit ledger": "/admin/e/audit",
@@ -75,11 +117,35 @@ const ADMIN_LINKS = {
   "programme at a glance": "/admin/e/programme",
 };
 
-function labelOf(a) {
-  // Strip trailing count-badge digits ("Notices17" -> "notices")
-  let t = (a.textContent || "").trim().replace(/\s+/g, " ").toLowerCase();
+function labelOf(el) {
+  let t = (el.textContent || "").trim().replace(/\s+/g, " ").toLowerCase();
   t = t.replace(/\s*\d+\s*$/, "").trim();
   return t;
+}
+
+function matchVendorCta(label) {
+  for (const { rx, path } of VENDOR_CTA_MATCHERS) {
+    if (rx.test(label)) return path;
+  }
+  return null;
+}
+
+function wireKpiTiles(root, navigate) {
+  root.querySelectorAll(".pmc-kpi").forEach((tile) => {
+    if (tile.dataset.pmcPatched) return;
+    const label = (tile.querySelector(".l")?.textContent || "").trim().toLowerCase();
+    const target = VENDOR_KPI_TILES[label];
+    if (!target) return;
+    tile.dataset.pmcPatched = "1";
+    tile.style.cursor = "pointer";
+    tile.setAttribute("role", "link");
+    tile.setAttribute("tabindex", "0");
+    const go = () => navigate(target);
+    tile.addEventListener("click", go);
+    tile.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); }
+    });
+  });
 }
 
 function patchScope(navigate) {
@@ -97,7 +163,7 @@ function patchScope(navigate) {
       const href = a.getAttribute("href") || "";
       const label = labelOf(a);
 
-      if (href && href !== "#" && !href.startsWith("#")) {
+      if (href && href !== "#" && !href.startsWith("#") && !href.startsWith("mailto:")) {
         a.dataset.pmcPatched = "1";
         a.addEventListener("click", (e) => {
           if (href.startsWith("/") && !href.startsWith("//")) {
@@ -124,7 +190,9 @@ function patchScope(navigate) {
         return;
       }
 
-      const target = map[label];
+      const direct = map[label];
+      const vendorCta = isVendor ? matchVendorCta(label) : null;
+      const target = direct || vendorCta;
       if (target) {
         a.dataset.pmcPatched = "1";
         a.setAttribute("href", target);
@@ -135,38 +203,49 @@ function patchScope(navigate) {
       }
     });
 
-    // 2) Button elements — wire by label + chip pattern
+    // 2) Button elements
     root.querySelectorAll("button").forEach((b) => {
       if (b.dataset.pmcPatched) return;
       const label = labelOf(b);
-      // Chips: keep local (aria-pressed toggle) — handled per-page (filter engine)
+
+      // Chip filter (single-select within row)
       if (b.classList.contains("pmc-chip")) {
         b.dataset.pmcPatched = "1";
         b.addEventListener("click", () => {
-          // Toggle pressed state within the same chip row
           const row = b.parentElement;
           row?.querySelectorAll(".pmc-chip").forEach((c) => c.setAttribute("aria-pressed", "false"));
           b.setAttribute("aria-pressed", "true");
         });
         return;
       }
-      // Help drawer trigger
-      if (b.hasAttribute("data-help-open") || /help|faqs?/.test(label)) {
+      // Tab (single-select within row) — used by Active/Closed on vendor home
+      if (b.classList.contains("pmc-tab")) {
+        b.dataset.pmcPatched = "1";
+        b.addEventListener("click", () => {
+          const row = b.parentElement;
+          row?.querySelectorAll(".pmc-tab").forEach((t) => t.setAttribute("aria-selected", "false"));
+          b.setAttribute("aria-selected", "true");
+        });
+        return;
+      }
+
+      if (b.hasAttribute("data-help-open") || /help|faqs?|what is emd\?/.test(label)) {
         b.dataset.pmcPatched = "1";
         b.addEventListener("click", (e) => { e.preventDefault(); document.querySelector(".pmc-helpfab")?.click(); });
         return;
       }
-      // Known route label
-      const target = map[label];
+
+      const direct = map[label];
+      const vendorCta = isVendor ? matchVendorCta(label) : null;
+      const target = direct || vendorCta;
       if (target) {
         b.dataset.pmcPatched = "1";
         b.addEventListener("click", (e) => { e.preventDefault(); navigate(target); });
         return;
       }
-      // Common CTA fallbacks
       if (/^(find\s*tenders|explore\s*tenders|browse\s*all)/.test(label)) {
         b.dataset.pmcPatched = "1";
-        b.addEventListener("click", (e) => { e.preventDefault(); navigate("/tenders/live"); });
+        b.addEventListener("click", (e) => { e.preventDefault(); navigate(isVendor ? "/vendor/tenders" : "/tenders/live"); });
         return;
       }
       if (/^(create|new\s+(tender|notice|package))/.test(label) && isAdmin) {
@@ -184,12 +263,14 @@ function patchScope(navigate) {
         b.addEventListener("click", (e) => { e.preventDefault(); navigate("/register"); });
         return;
       }
-      // Language switcher — no-op but stops the click bounce
       if (b.textContent.trim().length <= 3) {
         b.dataset.pmcPatched = "1";
         b.addEventListener("click", (e) => e.preventDefault());
       }
     });
+
+    // 3) KPI tiles (vendor pages only)
+    if (isVendor) wireKpiTiles(root, navigate);
   });
 }
 
@@ -200,7 +281,6 @@ export default function PmcLinkPatcher() {
 
   useEffect(() => {
     if (!isE) return;
-    // Patch after templates mount; re-run on every route change
     const t1 = setTimeout(() => patchScope(navigate), 50);
     const t2 = setTimeout(() => patchScope(navigate), 600);
     return () => { clearTimeout(t1); clearTimeout(t2); };

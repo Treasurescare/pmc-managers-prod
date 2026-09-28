@@ -4,6 +4,7 @@ Endpoints (all under /api/v1/auth/password-reset):
 - POST /request  {email, portal}      — always returns ok (no user enumeration).
                                         Emails a signed reset link if the
                                         account exists in the picked realm.
+                                        Rate-limited per-email + per-IP.
 - POST /verify   {token}              — returns {ok, email, portal} if the
                                         token signature is valid, otherwise 400.
 - POST /confirm  {token, new_password}— writes password_hash on the correct
@@ -15,8 +16,10 @@ so a successful reset invalidates the link. Prevents replay after use.
 """
 from __future__ import annotations
 
+import time
+from collections import deque
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Deque, Dict, Optional
 from uuid import uuid4
 
 import jwt
@@ -33,6 +36,41 @@ from security import hash_password
 router = APIRouter(prefix="/api/v1/auth/password-reset", tags=["auth-password-reset"])
 
 RESET_TTL_MIN = 30
+
+# ── Rate limiting ────────────────────────────────────────────────────────
+# Single-pod in-memory throttle. Fine for the current EB single-instance
+# deployment; if we scale to multiple pods, swap for Redis-backed limits.
+# Applied BEFORE we look up the account so a 429 never leaks whether an
+# email exists (attackers see 429 whether or not the account is real).
+_EMAIL_COOLDOWN_SEC = 60         # one reset per email per minute
+_IP_WINDOW_SEC = 300             # 5-minute sliding window per IP
+_IP_MAX_IN_WINDOW = 10           # at most 10 reset requests per IP per 5 min
+
+_email_last: Dict[str, float] = {}
+_ip_hits: Dict[str, Deque[float]] = {}
+
+
+def _rate_check(email: str, ip: str) -> Optional[str]:
+    now = time.time()
+    # Per-email cooldown
+    last = _email_last.get(email)
+    if last is not None and (now - last) < _EMAIL_COOLDOWN_SEC:
+        wait = int(_EMAIL_COOLDOWN_SEC - (now - last))
+        return f"Please wait {wait}s before requesting another reset for this email."
+    # Per-IP sliding window
+    hits = _ip_hits.setdefault(ip, deque())
+    while hits and (now - hits[0]) > _IP_WINDOW_SEC:
+        hits.popleft()
+    if len(hits) >= _IP_MAX_IN_WINDOW:
+        return "Too many reset requests from this network. Try again in a few minutes."
+    hits.append(now)
+    _email_last[email] = now
+    # Trim the email table if it grows unbounded.
+    if len(_email_last) > 10000:
+        cutoff = now - _EMAIL_COOLDOWN_SEC
+        for k in [k for k, v in _email_last.items() if v < cutoff]:
+            _email_last.pop(k, None)
+    return None
 
 
 class RequestIn(BaseModel):
@@ -90,6 +128,15 @@ def _decode_reset_token(token: str) -> dict:
 async def request_reset(payload: RequestIn, request: Request):
     email = payload.email.lower()
     portal = payload.portal
+    ip = request.client.host if request.client else "unknown"
+
+    # Rate-limit BEFORE the account lookup so 429 never leaks existence.
+    err = _rate_check(email, ip)
+    if err:
+        await audit_log("auth.reset_rate_limited", None, "auth", email,
+                        {"portal": portal, "ip": ip})
+        raise HTTPException(status_code=429, detail=err)
+
     user = await _find_user(portal, email)
     # Always return the same shape (do not leak account existence).
     if not user:
