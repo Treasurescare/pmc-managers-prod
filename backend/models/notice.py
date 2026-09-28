@@ -1,5 +1,5 @@
 from typing import Optional, List, Literal
-from pydantic import BaseModel, Field, EmailStr, ConfigDict
+from pydantic import BaseModel, Field, EmailStr, ConfigDict, model_validator
 
 
 DocumentType = Literal["tender", "rfp", "rfq"]
@@ -36,6 +36,32 @@ class NoticeIn(BaseModel):
     # Notice detail exposes a "Download composed tender PDF" button that renders
     # the template via WeasyPrint.
     tender_template_id: Optional[str] = None
+
+    @model_validator(mode="after")
+    def _no_negative_amounts(self):
+        """v49k — reject negative money anywhere in the payload.
+
+        budget_amount is typed with ge=0, but extra="allow" lets fields like
+        tender_fee and emd_config pass through unvalidated. Sweep every
+        numeric field whose name mentions amount/fee/emd/value/price and
+        refuse negatives so a tender can never be created with -$3,000 etc.
+        """
+        def check(name: str, val):
+            if isinstance(val, (int, float)) and val < 0:
+                raise ValueError(f"{name} cannot be negative")
+            if isinstance(val, dict):
+                for k, v in val.items():
+                    check(f"{name}.{k}", v)
+
+        check("budget_amount", self.budget_amount)
+        for fname in ("tender_fee",):
+            check(fname, getattr(self, fname, None))
+        check("emd_config", self.emd_config)
+        # extras accepted via extra="allow"
+        for k, v in (self.model_extra or {}).items():
+            if any(t in k.lower() for t in ("amount", "fee", "emd", "price", "value")):
+                check(k, v)
+        return self
 
 
 class NoticePublic(BaseModel):

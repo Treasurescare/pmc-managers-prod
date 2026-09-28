@@ -416,6 +416,22 @@ export function useNoticeDetailLive({ enabled = true, noticeRef } = {}) {
         // Description / scope paragraph — first <p> under the .dt-sec or main col
         const scopeP = root.querySelector(".dt-sec p, main p");
         if (scopeP && n.description) scopeP.textContent = n.description;
+        // v49j — wire Download buttons on the document rows to the notice's
+        // real attachments (primary doc first). The delegated click handler
+        // in PmcLinkPatcher opens data-doc-url links; rows without one get
+        // the register gate / tender-desk toast instead.
+        const atts = [];
+        if (n.primary_document && n.primary_document.url) atts.push(n.primary_document);
+        (n.attachments || []).forEach((a) => { if (a && a.url) atts.push(a); });
+        root.querySelectorAll(".pmc-docrow").forEach((rowEl, i) => {
+          const a = atts[i];
+          if (!a) return;
+          rowEl.setAttribute("data-doc-url", a.url);
+          const dl = rowEl.querySelector("a.pmc-btn");
+          if (dl) dl.setAttribute("data-doc-url", a.url);
+          const nm = rowEl.querySelector("b");
+          if (nm && a.file_name) nm.textContent = a.file_name;
+        });
         // Update page title
         document.title = `${n.title || n.notice_ref} · PMC Managers`;
       } catch (e) {
