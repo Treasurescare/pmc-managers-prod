@@ -1,0 +1,33 @@
+{
+  "summary": "Tested PMC Managers v2 Option E button-navigation fix (PmcLinkPatcher) and Option E email chrome upgrade. 15 of 16 tested items pass. Only failure: admin dashboard topbar '+ Create' anchor (href='#') is NOT wired by PmcLinkPatcher — click stays on /admin/e/dashboard. All other public/vendor/admin buttons navigate correctly. Backend email endpoints return 52 templates and render Option E forest-green chrome (Cormorant Garamond, forest-green header, brass CTA, cream bg) — but with slightly different hex values than spec.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/v1/admin/emails/preview/award.notification", "issue": "Renders Option E chrome correctly (forest-green header, brass CTA, cream bg, Cormorant Garamond) but uses hex #0f2a22 / #14201a / #d9bd72 instead of the spec values #0F3B2E / #0B1A14 / #B08E4A. Visual design intent met; only exact hex values differ."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AdminTopbar (/admin/e/dashboard)", "issue": "'+ Create' anchor in the top-right topbar has href='#' and is NOT wired by PmcLinkPatcher — click stays on same page. Sidebar 'Tender builder' anchor works (has real href /admin/e/tender-builder). Add 'Create' label to ADMIN_LINKS map so it navigates to /admin/e/tender-builder.", "selector": "header a:has-text('Create')[href='#']", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Wire the admin dashboard top-bar '+ Create' anchor (currently href='#') to /admin/e/tender-builder by adding 'Create' → tender-builder in ADMIN_LINKS map inside /app/frontend/src/components/PmcLinkPatcher.jsx (button/anchor whose textContent is exactly 'Create' or '+ Create' inside the admin topbar).",
+    "OPTIONAL: Align legacy emails.py _wrap() and emails_option_e.py chrome colors to the exact spec hex values (#0F3B2E header, #B08E4A brass, #0B1A14) if pixel-perfect brand consistency is required; current values (#0f2a22, #d9bd72) are already forest-green Option E and visually correct."
+  ],
+  "critical_code_review_comments": [
+    "PmcLinkPatcher label-matching approach is fragile for anchors that are labelled generically (e.g. 'Create'). Consider walking parent context (topbar vs sidebar) or adding data-pmc-link='tender-builder' attributes to the static HTML rather than string-matching text.",
+    "Multiple anchors share href='#' fallback in Option E static HTML — any anchor Text label not present in *_LINKS maps will silently no-op. Recommend adding a dev-only console.warn in PmcLinkPatcher for any [data-pmc-e-page] anchor with href='#' that was not matched to a route."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "93% (14/15 clicks navigate; admin +Create fails)"},
+  "test_credentials": "adminsupport@pmcmanagers.com / Admin@12345; manualvendor@pmcmanagers.com / Vendor@12345",
+  "seed_data_creation": "none",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "PASSING (verified this iteration): home Find tenders → /tenders/live, Sign in → /login, Register as supplier → /register, View notice (anchor) → /notices/PMC-NOT-2026-0012, Help & FAQs → opens .pmc-drawer (420px), Tenders list Closed filter shows 3 real refs (0001/0002/0003), search 'wave' reduces 14→5 results, Clear all resets to 14, row View → /notices/*, admin Vendors sidebar shows real count '41', admin Vendors nav → /admin/e/vendors, admin Escrow nav → /admin/e/escrow, vendor login → /vendor with greeting 'Good morning, Manual Preview Vendor Pvt Ltd' (real name, not template default), vendor My bids → /vendor/mybids with data-pmc-e-page='vendor-mybids-e' present, backend /templates returns 52, /preview/award.notification returns Option E chrome HTML. FAILING: admin topbar '+ Create' anchor (href='#') not wired. After the fix, retest ONLY that click.",
+  "rca of the issue": "Root cause: PmcLinkPatcher.jsx maintains a text→route map (PUBLIC_LINKS/VENDOR_LINKS/ADMIN_LINKS). It walks anchors/buttons and rewrites their href / attaches onClick when the innerText matches a known label. The admin dashboard topbar anchor renders as '+ Create' (or 'Create' after trimming) but the ADMIN_LINKS map likely does not contain that key, so the anchor is left with its static href='#'. Fix: add 'Create': '/admin/e/tender-builder' (and possibly '+ Create') to ADMIN_LINKS. Reproduction: login as admin → /admin/e/dashboard → click top-right '+ Create' button → URL unchanged. Verified query: document.querySelector(\"header a:has-text('Create')\").getAttribute('href') === '#'."
+}
