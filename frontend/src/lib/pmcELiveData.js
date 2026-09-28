@@ -6,7 +6,7 @@
  * showing production data. Zero template rewrites.
  */
 import { useEffect } from "react";
-import { publicApi, vendorApi, bidApi, api } from "@/lib/api";
+import { publicApi, vendorApi, bidApi, api, docusignApi } from "@/lib/api";
 
 const relTime = (iso) => {
   if (!iso) return "—";
@@ -757,23 +757,89 @@ export function useVendorEmdLive({ enabled = true } = {}) {
 // ────────────────────────────────────────────────────────────────────
 // Vendor: Signatures
 // ────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────
+// Vendor: Signatures — v49n wired to real DocuSign envelopes
+// ────────────────────────────────────────────────────────────────────
 export function useVendorSignaturesLive({ enabled = true } = {}) {
   useEffect(() => {
     if (!enabled) return;
     (async () => {
       try {
-        const bids = await bidApi.mine().catch(() => []);
         const root = document.querySelector('[data-pmc-e-page="vendor-signatures-e"]');
         if (!root) return;
-        const toSign = bids.filter((b) => b.status === "awaiting_signature" || b.awaiting_signature);
-        const signed = bids.filter((b) => b.status === "awarded" || b.signed_at);
-        _patchKpiFigures(root, [toSign.length, signed.length]);
-        const rows = root.querySelectorAll("tbody tr, .pmc-sig-row");
-        toSign.slice(0, rows.length).forEach((b, i) => {
-          const r = rows[i];
-          const ref = r.querySelector(".pmc-ref"); if (ref) ref.textContent = b.bid_ref;
+        const data = await docusignApi.listMine().catch(() => ({ items: [] }));
+        const items = Array.isArray(data?.items) ? data.items : [];
+        const pending = items.filter((e) => e.status === "sent" || e.status === "delivered");
+        const done = items.filter((e) => e.status === "completed");
+        _patchKpiFigures(root, [pending.length, done.length]);
+
+        // Sidebar "Signatures" count badge
+        root.querySelectorAll(".pmc-lnav a").forEach((a) => {
+          if ((a.textContent || "").includes("Signatures")) {
+            const c = a.querySelector(".c");
+            if (c) c.textContent = String(pending.length);
+          }
         });
-        rows.forEach((r, i) => { if (i >= toSign.length) r.style.display = "none"; });
+
+        // "Needs your signature" hero card
+        const nextCard = root.querySelector(".pmc-next");
+        if (nextCard) {
+          if (pending.length) {
+            const e0 = pending[0];
+            nextCard.setAttribute("data-envelope-id", e0.envelope_id);
+            nextCard.querySelectorAll("a.pmc-btn, button.pmc-btn").forEach((b) =>
+              b.setAttribute("data-envelope-id", e0.envelope_id));
+            const h2 = nextCard.querySelector("h2");
+            if (h2) h2.textContent = e0.subject || e0.award_ref || "Award document";
+            const sub = nextCard.querySelector(".pmc-muted");
+            if (sub) sub.textContent = `${e0.signer_name || "You"} · sent ${(e0.created_at || "").slice(0, 10)} · signing with DocuSign takes about 2 minutes.`;
+          } else {
+            nextCard.style.display = "none";
+          }
+        }
+
+        // Status table rows
+        const rows = Array.from(root.querySelectorAll("tbody tr"));
+        rows.forEach((r, i) => {
+          const env = items[i];
+          if (!env) { r.style.display = "none"; return; }
+          const ref = r.querySelector(".pmc-ref");
+          if (ref) ref.textContent = env.award_ref || env.envelope_id || "—";
+          const ttl = r.querySelector("td div");
+          if (ttl) ttl.textContent = env.subject || env.kind || "Document";
+          const pill = r.querySelector(".pmc-pill");
+          if (pill) {
+            const map = {
+              sent: ["Awaiting your signature", "pmc-pill--warning"],
+              delivered: ["Awaiting your signature", "pmc-pill--warning"],
+              completed: ["Completed", "pmc-pill--success"],
+              voided: ["Cancelled", ""],
+              declined: ["Declined", ""],
+            };
+            const [txt, cls] = map[env.status] || [env.status, ""];
+            pill.textContent = txt;
+            pill.className = `pmc-pill ${cls}`.trim();
+          }
+          // Row-level action: pending envelopes get Review & sign wired to
+          // this specific envelope; completed rows keep View/Download labels.
+          const btn = r.querySelector("a.pmc-btn, button.pmc-btn");
+          if (btn) {
+            btn.setAttribute("data-envelope-id", env.envelope_id);
+            if (env.status === "sent" || env.status === "delivered") btn.textContent = "Review & sign";
+            else if (env.status === "completed") btn.textContent = "View";
+          }
+          const det = r.querySelectorAll("td")[2];
+          if (det) det.textContent = `Sent ${(env.created_at || "").slice(0, 10)} · ${env.signer_name || ""}`;
+        });
+        // If the page has no envelopes at all, drop a friendly empty note
+        const table = root.querySelector(".pmc-table");
+        if (table && !items.length) {
+          const note = document.createElement("div");
+          note.className = "pmc-muted";
+          note.style.cssText = "padding:20px;text-align:center;font-size:14px";
+          note.textContent = "Nothing to sign right now — award documents will appear here when PMC sends them.";
+          table.replaceWith(note);
+        }
       } catch (e) { console.debug("VendorSignatures skip:", e); }
     })();
   }, [enabled]);

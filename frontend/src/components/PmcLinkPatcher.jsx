@@ -1,8 +1,8 @@
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { useUiTheme } from "@/context/UiThemeContext";
-import { adminApi, vendorApi, bidApi, paymentApi } from "@/lib/api";
+import { adminApi, vendorApi, bidApi, paymentApi, docusignApi } from "@/lib/api";
 
 /**
  * PMC v49j — Option-E interactivity via GLOBAL EVENT DELEGATION.
@@ -61,9 +61,9 @@ const VENDOR_CTA_MATCHERS = [
   { rx: /^debrief$/i,                            path: "/vendor/mybids" },
   { rx: /see\s+all.*(open\s+)?notices?/i,        path: "/vendor/tenders" },
   { rx: /saved\s+searches/i,                     path: "/vendor/tenders" },
-  { rx: /review\s*&?\s*sign|sign\s+loa/i,        path: "/vendor/signatures" },
-  { rx: /send\s+me\s+the\s+docusign/i,           path: "/vendor/signatures" },
-  { rx: /^preview$/i,                            path: "/vendor/signatures" },
+  // { rx: /review\s*&?\s*sign|sign\s+loa/i,      path: "/vendor/signatures" },  // v49n — handleReviewSign opens DocuSign
+  // { rx: /send\s+me\s+the\s+docusign/i,         path: "/vendor/signatures" },  // v49n — handleReviewSign
+  // { rx: /^preview$/i,                          path: "/vendor/signatures" },    // v49n — handleReviewSign
   { rx: /add\s+the\s+licence/i,                  path: "/vendor/company" },
   { rx: /^reply$/i,                              path: "/vendor/mybids" },
   { rx: /^review$/i,                             path: "/vendor/reviews" },
@@ -114,6 +114,46 @@ const ADMIN_LINKS = {
   "programme": "/admin/e/programme",
   "programme at a glance": "/admin/e/programme",
 };
+
+// v49o — Real tab switching. Maps a clicked .pmc-tab to its .dt-sec section
+// by heading keyword, hides the rest. Falls back to positional matching.
+const TAB_KEYWORDS = {
+  overview: ["scope", "overview"],
+  eligibility: ["who can bid", "eligibility"],
+  documents: ["documents"],
+  clarifications: ["clarifications"],
+  corrigenda: ["corrigenda"],
+};
+
+function switchTabSections(tabEl, tabRow) {
+  const pageRoot = tabEl.closest("[data-pmc-e-page]");
+  if (!pageRoot) return;
+  const secs = Array.from(pageRoot.querySelectorAll(".dt-sec"));
+  if (!secs.length) return;
+  const key = labelOf(tabEl).replace(/\s*\d+$/, "").trim();
+  const keys = TAB_KEYWORDS[key] || [key];
+  let matched = false;
+  secs.forEach((s) => {
+    const h = (s.querySelector("h2")?.textContent || "").trim().toLowerCase();
+    const show = keys.some((k) => h.includes(k));
+    if (show) matched = true;
+    s.style.display = show ? "" : "none";
+  });
+  if (!matched) {
+    const tabs = Array.from(tabRow.querySelectorAll(".pmc-tab"));
+    const idx = tabs.indexOf(tabEl);
+    secs.forEach((s, i) => { s.style.display = i === idx ? "" : "none"; });
+  }
+  // Bring the sections back into view after switching
+  tabRow.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function applyTabDefaults() {
+  document.querySelectorAll("[data-pmc-e-page] .pmc-tabs").forEach((row) => {
+    const sel = row.querySelector('.pmc-tab[aria-selected="true"]') || row.querySelector(".pmc-tab");
+    if (sel) switchTabSections(sel, row);
+  });
+}
 
 function labelOf(el) {
   let t = (el.textContent || "").trim().replace(/\s+/g, " ").toLowerCase();
@@ -313,12 +353,59 @@ function extractNoticeRef(scopeEl) {
 }
 
 function handleStartBid(el, isPublic, navigate) {
+  let ref = extractNoticeRef(el);
+  if (!ref) {
+    // On the public notice detail page the ref lives in the URL
+    const m = window.location.pathname.match(/\/notices\/(PMC-NOT-\d{4}-\d+)/);
+    if (m) ref = m[1];
+  }
   if (isPublic) {
-    navigate(isVendorAuthed() ? "/vendor/tenders" : "/register");
+    if (!isVendorAuthed()) { navigate("/register"); return; }
+    navigate(ref ? `/vendor/bid/new/${ref}` : "/vendor/tenders");
     return;
   }
-  const ref = extractNoticeRef(el);
-  navigate(ref ? `/notices/${ref}` : "/vendor/tenders");
+  navigate(ref ? `/vendor/bid/new/${ref}` : "/vendor/tenders");
+}
+
+// v49n — Review & sign / Preview on the vendor Signatures page.
+// Prefers the specific envelope attached to the clicked card/row via
+// data-envelope-id (set by useVendorSignaturesLive); otherwise opens the
+// first pending envelope. Mints a fresh recipient-view URL via
+// POST /docusign/mine/{id}/sign and opens it in a new tab.
+async function handleReviewSign(el, navigate) {
+  try {
+    const envId = el.closest("[data-envelope-id]")?.getAttribute("data-envelope-id");
+    toast.info("Opening DocuSign…");
+    if (envId) {
+      const r = await docusignApi.resumeSign(envId);
+      if (r?.signing_url) {
+        window.open(r.signing_url, "_blank", "noopener");
+        toast.success("DocuSign signing window opened in a new tab.");
+        return;
+      }
+      toast.error("DocuSign didn't return a signing link. Ask PMC to resend.");
+      return;
+    }
+    const data = await docusignApi.listMine();
+    const items = data?.items || [];
+    const pending = items.filter((e) => e.status === "sent" || e.status === "delivered");
+    if (!pending.length) {
+      if (items.length) toast.info("Every envelope on your account is already signed.");
+      else toast.info("No documents awaiting your signature right now.");
+      return;
+    }
+    const r = await docusignApi.resumeSign(pending[0].envelope_id);
+    if (r?.signing_url) {
+      window.open(r.signing_url, "_blank", "noopener");
+      toast.success("DocuSign signing window opened in a new tab.");
+    } else {
+      toast.error("DocuSign didn't return a signing link. Ask PMC to resend.");
+    }
+  } catch (err) {
+    const s = err?.response?.status;
+    if (s === 401) { navigate("/login"); return; }
+    toast.error(err?.response?.data?.detail || "Couldn't open the signing view.");
+  }
 }
 
 // v49m — Pay EMD click now genuinely opens the Stripe checkout instead of
@@ -432,19 +519,24 @@ async function handleSignOutRow(el, navigate) {
 }
 
 function handleDownload(el, isPublic, navigate) {
+  // If the live-data hook stamped a REAL file href on this anchor, don't
+  // intercept — let the caller fall through to normal navigation.
+  const raw = el.tagName === "A" ? (el.getAttribute("href") || "") : "";
+  if (raw && raw !== "#" && !raw.startsWith("#") && !raw.startsWith("mailto:")) return false;
   const row = el.closest(".pmc-docrow") || el.closest("[data-doc-url]");
   const url = (row && (row.getAttribute("data-doc-url") || row.querySelector("[data-doc-url]")?.getAttribute("data-doc-url"))) || null;
   if (url) {
     const abs = url.startsWith("http") ? url : `${window.location.origin}${url}`;
     window.open(abs, "_blank", "noopener");
-    return;
+    return true;
   }
   if (isPublic) {
-    toast.info("Register as a supplier to download tender documents.");
-    navigate("/register");
-    return;
+    toast.info("Sign in to download tender documents. New supplier? Register from the sign-in page.");
+    navigate("/login");
+    return true;
   }
   toast.info("Documents are issued to registered bidders by the tender desk.");
+  return true;
 }
 
 // Central click action resolver. Returns true when the click was owned.
@@ -461,17 +553,20 @@ function resolveClickAction(el, label, { isVendor, isAdmin, isPublic }, navigate
   if (isVendor && /change\s+(avatar|photo|logo)|upload\s+photo/i.test(label)) { openAvatarPicker(); return true; }
   if (isVendor && /^change\s+password$/i.test(label)) { openChangePasswordModal(); return true; }
   if (isVendor && /^change$/i.test(label)) { handleChangeButton(el, navigate); return true; }
+  if (isVendor && /review\s*&?\s*sign|sign\s+loa/i.test(label)) { handleReviewSign(el, navigate); return true; }
+  if (isVendor && /^preview$/i.test(label)) { handleReviewSign(el, navigate); return true; }
+  if (isVendor && /send\s+me\s+the\s+docusign/i.test(label)) { handleReviewSign(el, navigate); return true; }
   if (isVendor && /^pay(\s+emd)?$/i.test(label)) { handlePayEmd(el, navigate); return true; }
   if (/^start\s+bid$/i.test(label)) { handleStartBid(el, isPublic, navigate); return true; }
   if (isVendor && /statement\s*\(?pdf\)?/i.test(label)) { handleStatementPdf(navigate); return true; }
-  if (/^download(\s+pack)?$/i.test(label)) { handleDownload(el, isPublic, navigate); return true; }
+  if (/^download(\s+pack)?$/i.test(label)) { return handleDownload(el, isPublic, navigate); }
   if (/^follow$/i.test(label)) {
-    if (isPublic && !isVendorAuthed()) { toast.info("Sign in to follow this notice."); navigate("/register"); }
+    if (isPublic && !isVendorAuthed()) { toast.info("Sign in to follow this notice."); navigate("/login"); }
     else toast.success("You're following this notice — updates go to your inbox.");
     return true;
   }
   if (/ask\s+a\s+question/i.test(label)) {
-    if (isPublic && !isVendorAuthed()) { toast.info("Sign in to ask the tender desk a question."); navigate("/register"); }
+    if (isPublic && !isVendorAuthed()) { toast.info("Sign in to ask the tender desk a question."); navigate("/login"); }
     else toast.info("Email the tender desk at tenders@pmcmanagers.com with the notice reference.");
     return true;
   }
@@ -481,6 +576,16 @@ function resolveClickAction(el, label, { isVendor, isAdmin, isPublic }, navigate
 export default function PmcLinkPatcher() {
   const { isE } = useUiTheme();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // v49o — apply default tab visibility on every route change (the live-data
+  // hooks rewrite the DOM after mount, so we run twice with a delay).
+  useEffect(() => {
+    if (!isE) return;
+    const t1 = setTimeout(applyTabDefaults, 150);
+    const t2 = setTimeout(applyTabDefaults, 900);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [isE, location.pathname]);
 
   useEffect(() => {
     if (!isE) return;
@@ -512,7 +617,7 @@ export default function PmcLinkPatcher() {
 
       const label = labelOf(el);
 
-      // Chips + tabs — cosmetic toggles
+      // Chips + tabs — cosmetic toggles + real section switching (v49o)
       if (el.classList.contains("pmc-chip") && el.tagName === "BUTTON") {
         e.preventDefault();
         const row = el.parentElement;
@@ -525,6 +630,7 @@ export default function PmcLinkPatcher() {
         const row = el.parentElement;
         row?.querySelectorAll(".pmc-tab").forEach((t) => t.setAttribute("aria-selected", "false"));
         el.setAttribute("aria-selected", "true");
+        switchTabSections(el, row);
         return;
       }
 
@@ -542,15 +648,18 @@ export default function PmcLinkPatcher() {
         return;
       }
 
+      // v49n — ACTION LABELS WIN OVER REAL HREFS. The live-data hooks stamp
+      // hrefs like /notices/<ref> onto buttons that must actually DO things
+      // (Start bid → bid form, Pay EMD → Stripe, Review & sign → DocuSign).
+      // If we honoured the href first, those buttons would just navigate.
+      if (resolveClickAction(el, label, ctx, navigate)) { e.preventDefault(); return; }
+
       // Real href — internal paths go through the SPA router
       const href = el.tagName === "A" ? (el.getAttribute("href") || "") : "";
       if (href && href !== "#" && !href.startsWith("#") && !href.startsWith("mailto:")) {
         if (href.startsWith("/") && !href.startsWith("//")) { e.preventDefault(); navigate(href); }
         return;
       }
-
-      // Action handlers (sign out, change password/avatar, start bid, downloads…)
-      if (resolveClickAction(el, label, ctx, navigate)) { e.preventDefault(); return; }
 
       // Label → route maps
       const map = isVendor ? { ...PUBLIC_LINKS, ...VENDOR_LINKS } : isAdmin ? ADMIN_LINKS : PUBLIC_LINKS;

@@ -41,6 +41,7 @@ from docusign_esign.client.api_exception import ApiException
 
 from db import db
 from security import current_admin
+from audit import audit_log
 import config
 
 router = APIRouter(prefix="/api/v1/docusign", tags=["docusign"])
@@ -561,7 +562,45 @@ async def vendor_request_award_envelope(
             "expires_in": 300, "status": "sent"}
 
 
-@router.get("/envelopes/{envelope_id}/combined-pdf")
+@router.post("/mine/{envelope_id}/sign")
+async def vendor_resume_signing(envelope_id: str, vendor=Depends(current_vendor)):
+    """Vendor-facing: regenerate a fresh recipient-view (signing) URL for an
+    envelope the calling vendor is the signer of.
+
+    The vendor Signatures page shows envelopes awaiting signature; the
+    'Review & sign' button needs a URL it can open. Recipient views expire
+    after 5 minutes, so we mint a new one on every click rather than trying
+    to persist one.
+    """
+    row = await db.docusign_envelopes.find_one({"envelope_id": envelope_id})
+    if not row:
+        raise HTTPException(404, "Envelope not found")
+    ve = vendor.get("email")
+    if row.get("signer_email") != ve:
+        # Fall back: allow if the envelope belongs to a bid owned by this vendor
+        bid = await db.bids.find_one({"id": row.get("bid_id")}) if row.get("bid_id") else None
+        if not bid or bid.get("vendor_email") != ve:
+            raise HTTPException(403, "This envelope is not yours to sign")
+    if row.get("status") == "completed":
+        raise HTTPException(409, "Envelope already signed")
+    if row.get("status") in ("voided", "declined"):
+        raise HTTPException(409, f"Envelope is {row.get('status')} — ask PMC to resend")
+    client = _client()
+    return_url = f"{config.FRONTEND_URL}/vendor/signatures?ds_signed=1"
+    try:
+        signing_url = _recipient_view(
+            client, envelope_id,
+            row.get("signer_name") or ve,
+            row.get("signer_email") or ve,
+            row.get("client_user_id") or f"pmc:vendor:{envelope_id}:{ve}",
+            return_url,
+        )
+    except ApiException as e:
+        _log.warning("recipient-view failed for %s: %s", envelope_id, e)
+        raise HTTPException(502, "DocuSign couldn't prepare the signing view. Try again or ask PMC to resend.")
+    await audit_log("docusign.vendor_resume_sign", None, "docusign_envelope",
+                    envelope_id, {"vendor": ve})
+    return {"envelope_id": envelope_id, "signing_url": signing_url, "expires_in": 300}
 async def download_combined_pdf(envelope_id: str, admin=Depends(current_admin)):
     """Return the fully-signed combined PDF for a completed envelope.
 

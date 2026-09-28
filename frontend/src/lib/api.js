@@ -693,6 +693,9 @@ export const docusignApi = {
     api.get(`/api/v1/docusign/envelopes?limit=${limit}`).then((r) => r.data),
   // Vendor-facing (Wave 44)
   listMine: () => api.get("/api/v1/docusign/mine").then((r) => r.data),
+  // v49n — re-mint a recipient-view URL for an envelope the vendor needs to sign
+  resumeSign: (envelopeId) =>
+    api.post(`/api/v1/docusign/mine/${envelopeId}/sign`).then((r) => r.data),
   vendorSignAward: (bidId, kind, payload) =>
     api.post(`/api/v1/docusign/mine/awards/${bidId}/${kind}/envelope`, payload).then((r) => r.data),
   // Wave 44 — signed PDF download
