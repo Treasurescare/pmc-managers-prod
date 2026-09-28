@@ -78,6 +78,8 @@ import AboutVisionE from "@/apps/notice-board-e/AboutVisionE";
 import TrustSecurityE from "@/apps/notice-board-e/TrustSecurityE";
 import RegistrationE from "@/apps/registration-e/RegistrationE";
 import SignInE from "@/apps/auth-e/SignInE";
+import ForgotPasswordE from "@/apps/auth-e/ForgotPasswordE";
+import ResetPasswordE from "@/apps/auth-e/ResetPasswordE";
 import HelpCentreE from "@/apps/help-centre/HelpCentreE";
 import HelpArticleE from "@/apps/help-centre/HelpArticleE";
 import VendorHomeE from "@/apps/vendor-portal-e/VendorHomeE";
@@ -264,6 +266,9 @@ export default function App() {
 
             {/* Web — unified sign-in (parallel to /m) */}
             <Route path="/login" element={<SignInE legacy={UnifiedLogin} />} />
+            {/* v50 — real forgot-password / reset flow (vendor + admin/staff) */}
+            <Route path="/forgot-password" element={<ForgotPasswordE />} />
+            <Route path="/reset-password" element={<ResetPasswordE />} />
 
             {/* Wave 36/37 — Purchase surfaces */}
             <Route path="/services" element={<ClientPurchase />} />

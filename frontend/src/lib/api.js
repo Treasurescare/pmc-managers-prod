@@ -145,12 +145,19 @@ export const adminApi = {
   verifyAudit: () => api.get("/api/v1/audit-events/verify").then((r) => r.data),
 };
 
-// ---------- Public auth helpers (forgot username / help request) ----------
+// ---------- Public auth helpers (forgot username / help request / reset) ----------
 export const authApi = {
   usernameLookup: (payload) =>
     api.post("/api/v1/auth/username-lookup", payload).then((r) => r.data),
   helpRequest: (payload) =>
     api.post("/api/v1/auth/help-request", payload).then((r) => r.data),
+  // v50 — real password reset flow (vendor + admin/staff)
+  requestPasswordReset: (email, portal) =>
+    api.post("/api/v1/auth/password-reset/request", { email, portal }).then((r) => r.data),
+  verifyPasswordReset: (token) =>
+    api.post("/api/v1/auth/password-reset/verify", { token }).then((r) => r.data),
+  confirmPasswordReset: (token, new_password) =>
+    api.post("/api/v1/auth/password-reset/confirm", { token, new_password }).then((r) => r.data),
 };
 
 // ---------- Wave 1: Staff (multi-role) ----------

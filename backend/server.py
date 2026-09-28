@@ -23,6 +23,7 @@ from routers import (
     envelope_authoritative, contracts_export,
     admin_demo, push,
 )
+from routers import password_reset as _password_reset
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -72,6 +73,7 @@ app.include_router(vendors.router)
 # Wave 1 — Bidding, EMD, multi-role pipeline, CRM
 app.include_router(staff_auth.router)
 app.include_router(vendor_auth.router)
+app.include_router(_password_reset.router)
 app.include_router(bids.router)
 app.include_router(payments.router)
 app.include_router(committee.router)
