@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
+import { useVendorMyBidsLive } from "@/lib/pmcELiveData";
 
 export default function VendorMyBidsE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
+  useVendorMyBidsLive({ enabled: isE });
   useEffect(() => {
     if (!isE) return;
     const tick = () => {

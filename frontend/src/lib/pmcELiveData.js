@@ -489,6 +489,162 @@ export function useVendorLiveData({ enabled = true } = {}) {
 }
 
 // ────────────────────────────────────────────────────────────────────
+// Vendor: My bids page
+// ────────────────────────────────────────────────────────────────────
+export function useVendorMyBidsLive({ enabled = true } = {}) {
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const bids = await bidApi.mine();
+        if (cancelled) return;
+        const root = document.querySelector('[data-pmc-e-page="vendor-mybids-e"]');
+        if (!root) return;
+        const active = bids.filter((b) => !["awarded","rejected","withdrawn","closed"].includes(b.status));
+        const drafts = bids.filter((b) => b.status === "draft");
+        const closed = bids.filter((b) => ["closed","rejected"].includes(b.status));
+        const withdrawn = bids.filter((b) => b.status === "withdrawn");
+        const awarded = bids.filter((b) => b.status === "awarded");
+        // KPI figures
+        const kpis = root.querySelectorAll(".pmc-kpi .pmc-figure, .pmc-kpi .pmc-figure b, .pmc-kpi h3");
+        // Tab counts: "Active 4 / Drafts 3 / Closed 7 / Withdrawn 0"
+        const tabs = root.querySelectorAll(".tabs a, .pmc-tabs a, .pmc-tab, [role='tab']");
+        tabs.forEach((t) => {
+          const label = t.textContent.trim().toLowerCase();
+          if (label.startsWith("active")) t.textContent = `Active ${active.length}`;
+          else if (label.startsWith("draft")) t.textContent = `Drafts ${drafts.length}`;
+          else if (label.startsWith("closed")) t.textContent = `Closed ${closed.length}`;
+          else if (label.startsWith("withdrawn")) t.textContent = `Withdrawn ${withdrawn.length}`;
+        });
+        // Rows in the main bids table
+        const table = root.querySelector("table, .pmc-bids, .pmc-panel");
+        if (table) {
+          const rows = table.querySelectorAll("tbody tr, .pmc-bid-row");
+          active.slice(0, rows.length).forEach((b, i) => {
+            const r = rows[i];
+            const ref = r.querySelector(".pmc-ref");
+            if (ref) ref.textContent = b.bid_ref;
+            const priceCell = r.querySelectorAll("td, .cell");
+            if (priceCell[1]) priceCell[1].textContent = money(b.price_amount, b.price_currency);
+          });
+        }
+        // Subtitles
+        const subs = root.querySelectorAll(".pmc-kpi .s");
+        if (kpis[0]) kpis[0].textContent = active.length;
+        if (kpis[1]) kpis[1].textContent = awarded.length ? Math.round(awarded.length / (bids.length || 1) * 100) + "%" : "0%";
+      } catch (e) {
+        if (process.env.NODE_ENV !== "production") console.debug("Vendor mybids live skipped:", e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [enabled]);
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Vendor: Company & KYC page
+// ────────────────────────────────────────────────────────────────────
+export function useVendorCompanyLive({ enabled = true } = {}) {
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const me = await vendorApi.me();
+        if (cancelled || !me) return;
+        const root = document.querySelector('[data-pmc-e-page="vendor-company-kyc-e"]');
+        if (!root) return;
+        // Company name in header
+        const h1 = root.querySelector("h1");
+        if (h1) h1.textContent = me.company_name || "Your company";
+        // Simple field patching: look for dt/dd or label/value pairs
+        const dds = root.querySelectorAll("dd, .pmc-facts dd");
+        const values = [me.company_name, me.vendor_ref, me.email, me.kyc_status || "pending"];
+        dds.forEach((dd, i) => { if (values[i]) dd.textContent = values[i]; });
+      } catch (e) {
+        if (process.env.NODE_ENV !== "production") console.debug("Vendor company live skipped:", e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [enabled]);
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Admin: Notices page
+// ────────────────────────────────────────────────────────────────────
+export function useAdminNoticesLive({ enabled = true } = {}) {
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await publicApi.listNotices({});
+        if (cancelled) return;
+        const items = res.items || [];
+        const root = document.querySelector('[data-pmc-e-page="admin-notices-e"]');
+        if (!root) return;
+        // Populate table rows
+        const rows = root.querySelectorAll("tbody tr, .pmc-notice-row, .tl-row");
+        items.slice(0, rows.length).forEach((n, i) => {
+          const r = rows[i];
+          const ref = r.querySelector(".pmc-ref");
+          const h3 = r.querySelector("h3 a, h3, td:nth-child(2)");
+          const cd = r.querySelector(".pmc-countdown");
+          if (ref) ref.textContent = n.notice_ref;
+          if (h3) {
+            h3.textContent = n.title || "";
+            if (h3.tagName === "A") h3.setAttribute("href", `/notices/${n.notice_ref}`);
+          }
+          if (cd) cd.textContent = n.submission_deadline ? shortDate(n.submission_deadline) : "—";
+        });
+        rows.forEach((r, i) => { if (i >= items.length) r.style.display = "none"; });
+      } catch (e) {
+        if (process.env.NODE_ENV !== "production") console.debug("Admin notices live skipped:", e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [enabled]);
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Admin: Vendors list page
+// ────────────────────────────────────────────────────────────────────
+export function useAdminVendorsLive({ enabled = true } = {}) {
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.get("/api/v1/vendors/all").then((r) => r.data).catch(() => ({ items: [] }));
+        if (cancelled) return;
+        const items = res.items || res.vendors || res || [];
+        const root = document.querySelector('[data-pmc-e-page="admin-vendors-e"]');
+        if (!root) return;
+        // Update the top KPI (Approved N)
+        const kpi = root.querySelector(".pmc-kpi .pmc-figure");
+        if (kpi) kpi.textContent = items.length;
+        // Populate list rows
+        const rows = root.querySelectorAll("tbody tr");
+        items.slice(0, rows.length).forEach((v, i) => {
+          const r = rows[i];
+          const nameCell = r.querySelector("td:first-child, .pmc-vname");
+          const refCell = r.querySelector(".pmc-ref");
+          if (nameCell) {
+            const nb = nameCell.querySelector("b, strong") || nameCell;
+            nb.textContent = v.company_name || v.name || v.vendor_ref;
+          }
+          if (refCell) refCell.textContent = v.vendor_ref;
+        });
+        rows.forEach((r, i) => { if (i >= items.length) r.style.display = "none"; });
+      } catch (e) {
+        if (process.env.NODE_ENV !== "production") console.debug("Admin vendors live skipped:", e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [enabled]);
+}
+
+// ────────────────────────────────────────────────────────────────────
 // Admin: Dashboard (Overview)
 // ────────────────────────────────────────────────────────────────────
 export function useAdminDashboardLive({ enabled = true } = {}) {
