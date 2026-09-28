@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
+import { usePublicLiveData } from "@/lib/pmcELiveData";
 
 export default function TendersListE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
+  usePublicLiveData({ enabled: isE });
   useEffect(() => {
     if (!isE) return;
     const tick = () => {
