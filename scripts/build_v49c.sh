@@ -17,17 +17,19 @@ rm -f "$DL/pmc-frontend-${VER}-prod-build.zip"
 zip -qr "$DL/pmc-frontend-${VER}-prod-build.zip" . -x 'downloads/*' -x 'downloads'
 echo "     -> $DL/pmc-frontend-${VER}-prod-build.zip"
 
-echo ">>> Zipping backend"
+echo ">>> Zipping backend (includes Dockerfile, Dockerrun.aws.json, .platform at zip root)"
 cd "$ROOT"
 rm -f "$DL/pmc-backend-${VER}.zip"
-zip -qr "$DL/pmc-backend-${VER}.zip" backend \
+zip -qr "$DL/pmc-backend-${VER}.zip" backend Dockerfile Dockerrun.aws.json .platform \
     -x 'backend/__pycache__/*' \
     -x 'backend/**/__pycache__/*' \
     -x 'backend/*.pyc' \
     -x 'backend/**/*.pyc' \
     -x 'backend/.env' \
     -x 'backend/venv/*' \
-    -x 'backend/.pytest_cache/*'
+    -x 'backend/.pytest_cache/*' \
+    -x 'backend/tests/*' \
+    -x 'backend/keys/*'
 echo "     -> $DL/pmc-backend-${VER}.zip"
 
 echo ">>> Writing release notes"
