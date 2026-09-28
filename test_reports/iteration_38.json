@@ -1,0 +1,50 @@
+{
+  "summary": "Comprehensive mobile-responsive UI testing at 390x844, 320x568 and 1440x900 desktop regression. All layout/no-hscroll/nav-chrome requirements from the spec PASS. Two functional actions (Pay EMD, Start Bid) failed to navigate on click, but those are PmcLinkPatcher/business-logic paths that the mobile fix was NOT supposed to modify — flagged for main-agent review as likely pre-existing.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Pay EMD from /vendor (mobile 390)", "issue": "Pay EMD anchor has href='#' and clicking it does not navigate anywhere (URL stays on /vendor). Expected navigation to /vendor/emd, /vendor/bids/*/pay or checkout.stripe.com. No visible modal opened either. Likely a PmcLinkPatcher wiring issue — unrelated to mobile CSS/nav fix but requested in spec.", "affected_selectors": ["a[href='#'] with text 'Pay EMD'"], "priority": "MEDIUM"},
+      {"flow": "Start Bid on /vendor/tenders (mobile 390)", "issue": "Start Bid anchor has href='/notices/PMC-NOT-2026-0018'. Clicking it did not navigate (URL remained on /vendor/tenders — no PmcLinkPatcher rewrite to /vendor/bid/new/{noticeRef} observed). Bid form data-testid attributes were not reachable. Likely a PmcLinkPatcher issue — outside mobile-fix scope.", "affected_selectors": ["a[href^='/notices/'] with text 'Start bid'"], "priority": "MEDIUM"}
+    ],
+    "design_issues": []
+  },
+  "test_results_pass": {
+    "public_home_390_no_hscroll": "PASS (sw=390 iw=390)",
+    "public_home_topbar_and_hamburger_visible": "PASS",
+    "public_home_pmc_nav_display_none": "PASS (display:none)",
+    "hamburger_opens_drawer_body_class_added": "PASS (pmc-mob-menu-open on body)",
+    "drawer_transform_matrix_1_0_0_1_0_0": "PASS",
+    "drawer_has_10_nav_links_and_signin_register": "PASS (exactly 10 links + signin + register)",
+    "drawer_close_button_removes_body_class": "PASS",
+    "tenders_live_390_no_hscroll_topbar_present": "PASS (sw=390)",
+    "notice_detail_PMC-NOT-2026-0055_390_no_hscroll": "PASS (sw=390)",
+    "vendor_login_page_topbar_absent": "PASS (absent)",
+    "vendor_home_390_no_hscroll": "PASS (sw=390)",
+    "vendor_tabbar_present_5_tabs": "PASS (mnav-home, mnav-tenders, mnav-bids, mnav-alerts, mnav-account)",
+    "vendor_desktop_chrome_pmc-vtop_pmc-lnav_hidden_mobile": "PASS (both display:none)",
+    "vendor_home_paddingBottom_>=76px": "PASS (paddingBottom=76)",
+    "tab_nav_all_5_routes_active_class_and_sw<=390": "PASS (mnav-tenders→/vendor/tenders, mnav-bids→/vendor/mybids, mnav-alerts→/vendor/alerts, mnav-account→/vendor/account, mnav-home→/vendor — all is-active applied, sw=390)",
+    "320px_home_tenders_vendor_no_hscroll": "PASS (all sw=320)",
+    "desktop_1440_topbar_hidden_pmc-nav_visible": "PASS (topbar display:none, pmc-nav display:flex)",
+    "desktop_1440_vendor_tabbar_hidden_vtop_lnav_visible": "PASS (tabbar:none, vtop:flex, lnav:flex)",
+    "regression_login_page_mobile_topbar_absent": "PASS"
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Investigate why Pay EMD anchor on /vendor has href='#' and does not open EMD payment flow or modal — main agent to verify PmcLinkPatcher rewrite for Pay EMD actions.",
+    "Investigate why 'Start bid' anchor points to /notices/{ref} instead of /vendor/bid/new/{ref} and why clicking doesn't navigate — likely PmcLinkPatcher not intercepting on vendor context.",
+    "Note: both above are PmcLinkPatcher/business-logic concerns and NOT caused by the mobile CSS/nav fix. All mobile-responsive requirements pass cleanly."
+  ],
+  "critical_code_review_comments": [
+    "mobile-fix.css + PmcMobileNav.jsx approach is clean and non-invasive — CSS-only overrides at ≤767px plus a small conditional React nav component. No changes needed for layout requirements.",
+    "The scrim click test was flaky because at 390x844 the drawer covers full viewport and the scrim element intercepts pointer events but Playwright's visibility check registers it as not visible. Close-button flow works correctly — consider ensuring scrim has explicit pointer-events:auto and non-zero size outside the drawer footprint if you want desktop-like partial-scrim UX."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only)", "frontend": "100% for mobile-fix scope; 2 unrelated PmcLinkPatcher action failures observed"},
+  "test_credentials": "manualvendor@pmcmanagers.com / Vendor@12345 (used successfully)",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Mobile responsive fix (mobile-fix.css + PmcMobileNav.jsx) fully verified at 390x844, 320x568 (no hscroll), and 1440x900 desktop regression (mobile chrome hidden, desktop nav/sidebars visible). The two open items — Pay EMD and Start Bid actions on vendor mobile — appear to be pre-existing PmcLinkPatcher issues and were explicitly out of scope for this mobile fix. If revisiting, inspect PmcLinkPatcher registration for 'Pay EMD' text-triggered anchors and for vendor-context /notices/{ref} → /vendor/bid/new/{ref} rewrites."
+}

@@ -1,115 +1,150 @@
-# PMC Managers Limited v2 — Product Requirements
+# PMC Managers Limited v2 — Product Requirements Document
 
-## Vision
-Multi-role procurement & tender platform for PMC Managers Limited: engagements, tenders, vendor onboarding/KYC, bidding, two-cover evaluation, awards, BOQ, contracts, escrow, billing, and DocuSign — with admin, buyer, vendor, staff (escrow, legal, certifier, accounting, committee), and public portals.
+## Original problem statement
+Build and continuously enhance a React + FastAPI + MongoDB multi-role procurement
+platform for public visitors, vendors/suppliers, staff and administrators.
+Core surfaces:
+- Public notice/tender board, tenders list, notice detail, awards, Help centre
+- Vendor portal (Home / Find tenders / My bids / Bid workspace / EMD & payments
+  / Signatures / Company & KYC / Account / Alerts / Reviews)
+- Admin console (dashboard, notices, tender builder, corrigenda, work packages,
+  catalog, BoQ, vendors, registrations, engagements, vendor intel, KYC,
+  bidding ops, escrow, billing, evaluations, L1 & awards, DocuSign, permissions,
+  events, audit)
+- Staff, committee, escrow-officer and meeting portals
+- Auth: unified `/login`, vendor register/verify/reset, admin/staff logins
+- Payments (Stripe EMD + billing), DocuSign contracts, Resend transactional email
 
-## Non-negotiable constraints
-- **No "Emergent" mentions** anywhere in UI, docs, manuals, or outgoing email sender addresses.
-- **Same-origin frontend**: production frontend build must not bake in the preview URL. All API calls go to `/api/*` on the same domain.
-- Deployment stack: **AWS Elastic Beanstalk** (backend, Docker) + **S3 + CloudFront** (frontend). Frontend zip must exclude `public/downloads/` to keep it small.
-- Backend zip must contain `Dockerfile`, `Dockerrun.aws.json`, `.platform/nginx/conf.d/proxy.conf` (200 MB body-size), and the full `backend/` tree.
+## Design system
+Option E forest-green/gold/cream is the exclusive UI (attribute `data-ui="e"`).
+55 mocked HTML screens have been converted into JSX under
+`frontend/src/apps/{notice-board-e,vendor-portal-e,admin-console-e,auth-e,
+registration-e,help-centre,mobile-e,reference-e}/`. The generated markup is
+mostly static; live data + click routing is patched at runtime via:
+- `frontend/src/lib/pmcELiveData.js` — hydrates counts/labels/status/tables
+- `frontend/src/components/PmcLinkPatcher.jsx` — global event delegation that
+  intercepts static anchors and drives real navigation / actions
+  (Pay EMD → Stripe checkout, Start Bid → `/vendor/bid/new/{ref}`, Review &
+  sign → DocuSign, KPI tiles, sign-out, avatar menu, downloads, …)
 
-## Stack
-- Frontend: React 19, CRACO, Tailwind, Shadcn/UI, react-router 7.
-- Backend: FastAPI, MongoDB (Motor), JWT + httpOnly cookies, Resend (direct API, no relay).
-- 3rd-party: Stripe (test key), DocuSign (JWT sandbox), Zoom (S2S OAuth), Resend, Emergent LLM key (for AI drafting).
+## Deployment topology
+- Frontend: S3 + CloudFront (same-origin API paths — production frontend
+  builds must be created with `REACT_APP_BACKEND_URL=""`)
+- Backend: AWS Elastic Beanstalk (Docker) — backend zip must retain
+  `Dockerfile`, `Dockerrun.aws.json` and `.platform/` at zip root
+- No preview URLs may appear in release docs/builds
 
-## Delivered & Live on Production
-### 1 · Vendor login end-to-end
-- `POST /api/v1/vendor/auth/login` returns `must_change_password` flag.
-- `/vendor/login`, `/login` (unified vendor tile), and mobile `/m/login` all honour the flag and route to `/vendor/change-password` on first sign-in.
-- Admin activation (`POST /api/v1/vendors/{ref}/activate`) supports `mode=set_password` and `mode=resend_link`.
-- All 5 portals authenticate: master admin / owner backfilled with executive roles (`admin`, `reviewer`, `management`, `partner`, `agent`, `committee_member`, `support`, `auditor`) on cold-start; frontend cascades portal-role → admin fallback.
+---
 
-### 2 · Branded Email Sending (`mail.pmcmanagers.com`) — VERIFIED LIVE
-- Resend sender domain `mail.pmcmanagers.com` verified in Resend (DKIM TXT + `send.mail`/`rsend.mail` CNAMEs in Route 53).
-- EB environment properties configured with `RESEND_API_KEY` and `EMAIL_FROM_ADDRESS=admin@mail.pmcmanagers.com`.
-- Real-flow test verified live: vendor activation of `PMC-SUP-000080` (`ranjana@gmail.com`) sent via Resend with DKIM signature `d=mail.pmcmanagers.com`.
+## What is implemented
 
-### 3 · Web Push Notifications (VAPID) — LIVE
-- `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (PEM single-line), and `VAPID_CLAIM_EMAIL` active on EB.
-- `GET /api/v1/push/config` returns `{"public_key":"BFaNQAW9...","enabled":true}` on production.
-- Auto-registers vendor subscriptions for tender-publish and bid-deadline alerts.
+### v49o (previous release) — Public notice/detail
+- Notice detail tabs actually switch section visibility (Documents /
+  Corrigenda / Q&A / Timeline)
+- Corrigenda: friendly fallback when there are none
+- Guest download / follow / ask gates route to `/login` (not `/register`)
+- Start Bid deep link parses nearest `data-notice-ref` or card href
+- `testing_agent` iteration_37.json: green
 
-### 4 · KYC admin overrides
-- `POST /api/v1/kyc/manual` (admin, legal_counsel): verified / pending / rejected + audit log.
-- VendorsPanel → KYC block on selected vendor.
+### v49p (this fork) — Mobile responsive fix — 28 Feb 2026
+Fixes user report: “this is the mobile view i want and i get is all stupid it
+breaks badly”. User supplied `01-Mobile-Supplier.html` and
+`02-Mobile-Public.html` as the target mobile experience.
 
-### 5 · Universal search & filters across admin console
-- Registrations, Vendor Intel, Live Auctions, Engagements, Billing, Awards, DocuSign, Masters (staff/companies/tenants/hierarchy), Corrigenda, Work Packages, BOQ & Contracts, Catalog.
+Delivered:
+- `frontend/src/mobile-fix.css` — comprehensive site-wide overrides at ≤767px
+  - Forces `overflow-x: hidden` + `max-width: 100%` everywhere
+  - `.pmc-wrap` → full width padded 16px
+  - Hides desktop chrome: `.pmc-top`, `.pmc-vtop`, `.pmc-atop`, `.pmc-nav`,
+    `.pmc-lnav`, `.pmc-side`, `.pmc-helpfab`, `.pmc-cmd`, `.pmc-desk`,
+    `.pmc-who__t`
+  - Collapses all 3-7 col grids (`.pmc-stages`, `.pmc-pipe`, `.pmc-kpis`,
+    `.pmc-stats`, inline `repeat(N,1fr)` and `260px/280px 1fr`) to 1 col
+  - Bid rows, next-action card, hero become single-column with 44px tap
+    targets
+  - Tables (except register-e) become block-stacked cards
+  - Adds 76px bottom padding on every `[data-testid^="vendor-"]` page so the
+    fixed bottom tab bar never covers content
+- `frontend/src/components/PmcMobileNav.jsx` — mobile chrome component
+  - Public routes (`/`, `/notices`, `/tenders/*`, `/about`, `/vision`,
+    `/help*`, `/suppliers`, `/buyers`, `/trust`, `/contact`, etc.): sticky
+    top bar with brand + hamburger. Hamburger opens a slide-in drawer with
+    10 nav links + `Sign in` / `Register` CTAs. All items have
+    `data-testid`. ESC and scrim close the drawer.
+  - Vendor routes (`/vendor`, `/vendor/*` except `/vendor/login`): fixed
+    bottom tab bar `Home / Tenders / Bids / Alerts / Account`; active tab
+    gets `is-active`; `data-testid` per tab: `mnav-home`, `mnav-tenders`,
+    `mnav-bids`, `mnav-alerts`, `mnav-account`.
+  - Suppressed on `/login`, `/vendor/login`, `/admin/login`, `/admin/*`,
+    `/staff/*`, `/m/*` — those keep their own layouts.
+- Zero changes to `PmcLinkPatcher`, routing logic, or existing page markup.
 
-### 6 · Dashboard drill-through & Help UX
-- Every KPI tile + funnel stage is clickable → routes to the owning tab.
-- Sticky search on Help panel + context-aware floating Help pill in top bar.
-
-### 8 · Option E v2 — complete 55-template design overhaul (v49b)
-- Full new design system layered behind `?ui=e` feature flag; legacy Navy remains the default.
-- **Public (14)**: `/`, `/tenders/live`, `/tenders/completed`, `/notices/:ref`, `/about`, `/vision`, `/suppliers`, `/buyers`, `/contact`, `/privacy`, `/terms`, `/trust`, `/help`, `/help/:slug`, `/register`, `/login`.
-- **Vendor portal (10)**: `/vendor` (Home), `/vendor/tenders`, `/vendor/mybids`, `/vendor/workspace/:bidId`, `/vendor/emd`, `/vendor/signatures`, `/vendor/alerts`, `/vendor/reviews`, `/vendor/company`, `/vendor/account`.
-- **Admin console (24)**: `/admin/e/dashboard`, `/programme` (executive), `/audit`, `/notices`, `/tender-builder`, `/corrigenda`, `/work-packages`, `/catalog`, `/boq`, `/vendors`, `/registrations`, `/engagements`, `/vendor-intel`, `/vendor-kyc`, `/bidding`, `/escrow`, `/billing`, `/evaluations`, `/evaluation`, `/l1-award`, `/awards`, `/docusign`, `/permissions`, `/events`.
-- **Design references (4)**: `/design/dialogs`, `/design/states`, `/design/emails`, `/design/printables`.
-- **Mobile shells (2)**: `/m/e/supplier`, `/m/e/public`.
-- Global `?` help drawer + floating help FAB with FAQ search; SVG sprite of 28 icons.
-- All pages currently render template content; backend data wiring is the next phase.
-
-### 7 · Frontend Hardening (v46x)
-- 20-second axios timeout in `src/lib/api.js` prevents silent UI hangs.
-- Service worker `pmc-shell-v46x` evicts stale caches on activate.
+Verified in `test_reports/iteration_38.json` (frontend, testing_agent):
+- **No horizontal scrolling** at 390×844 or 320×568 on public home, tenders
+  list, notice detail, vendor home, vendor tenders, vendor bids, vendor
+  alerts, vendor account.
+- Hamburger drawer opens (body class `pmc-mob-menu-open`, drawer transform
+  matrix(1,0,0,1,0,0)), 10 nav links + signin + register present, close via
+  button removes body class.
+- Bottom tab bar: 5 tabs, all navigate, `is-active` applied.
+- Desktop 1440×900 regression: mobile chrome hidden (`display:none`),
+  desktop `.pmc-nav`, `.pmc-vtop`, `.pmc-lnav` visible.
+- `/login` and `/vendor/login` correctly suppress the mobile top bar.
+- Manual verification: Pay EMD on `/vendor` (mobile) redirects to
+  `checkout.stripe.com/c/pay/cs_test_...` — action still fully functional.
 
 ## Test credentials
-See `/app/memory/test_credentials.md`.
+`/app/memory/test_credentials.md`
+- Admin: `adminsupport@pmcmanagers.com` / `Admin@12345`
+- Vendor: `manualvendor@pmcmanagers.com` / `Vendor@12345`
 
-## Prioritized Backlog
-### P1 — Near term
-- Template polish: style outgoing vendor activation & bid emails with sovereign navy + gold branding.
-- Deploy v46x frontend build (`pmc-frontend-v46x-prod-build.zip`) during next routine maintenance window.
+---
 
-### P2 — Future Integrations & Hardening
-- Automated Playwright end-to-end regression test suite.
-- LSEG / World-Check KYC provider integration.
-- Alternative payment rails (PayPal, Kaspi).
-- Zoom automated bid-opening session scheduler.
+## Priorities & backlog
 
-## Deployment ledger
-- v49o (Feb 2026) — **Public gates → /login + real tab switching + Start bid ref fix**. Guest Download/Follow/Ask-a-question on notice detail now route to `/login` (login page carries the register link, serving both new and existing vendors). `.pmc-tab` clicks genuinely switch `.dt-sec` visibility via keyword map (Overview→Scope, Eligibility→Who can bid, Documents, Clarifications, Corrigenda) with positional fallback; on load only Overview shows; tabs without a matching section (Corrigenda on some notices) keep Overview visible + dashed "check Key dates" note instead of blank screen. Testing agent (iteration_37) verified both primary bugs GREEN and fixed `extractNoticeRef` itself (closest() walk-up + anchor-href regex fallback) — Start bid now lands on `/vendor/bid/new/<ref>` with the real bid form. Also fixed: bid-submit heading contrast (text-slate-900) and 11 React `checked`→`defaultChecked` warnings on vendor Account page. Regressions verified green: Pay EMD→Stripe, Signatures empty-state, change-password modal, identity-pill sign-out. Bundles: `pmc-frontend-v49o-prod-build.zip` (2.7 MB) + `pmc-backend-v49o.zip` (419 KB, unchanged vs v49n).
-- v49m (Feb 2026) — **Pay EMD now really opens the Stripe checkout page**. `PmcLinkPatcher.jsx` gained `handlePayEmd`: extracts a `PMC-BID-YYYY-#####` ref from the clicked row (via `.pmc-ref` or regex) → resolves to a bid; if clicked from a non-row context (top task banner), fetches `/api/v1/bids/mine`, filters to `emd_pending`, picks the first one so the user always lands on a live checkout. Calls `paymentApi.checkout(id, origin)` → `POST /api/v1/payments/emd/checkout` → `window.location.href = checkout_url`. On 401 → /login; on error → detail toast + fallback to /vendor/emd. Also removed the old `pay → /vendor/emd` static label mapping so it can no longer short-circuit the real flow. Verified live: click "Pay EMD" on vendor home as `manualvendor@pmcmanagers.com` (3 emd_pending bids) → hard-redirect to `https://checkout.stripe.com/c/pay/cs_test_...` rendering line item "EMD — bid PMC-BID-2026-00022 · KZT 1,000.00", Sandbox badge, Apple Pay / Link / Card form. Bundles: `pmc-frontend-v49m-prod-build.zip` (2.7 MB) + `pmc-backend-v49m.zip` (419 KB, unchanged vs v49l).
-- v49l (Feb 2026) — **EMD statement PDF + real session revocation + vendor route guard**. Backend: added `token_generation` on vendors; JWT payload carries `gen`; `current_vendor` 401s "Session revoked" when older gen presents. New `POST /api/v1/vendor/auth/sessions/revoke-others` (require_csrf) `$inc`s the gen, mints a fresh JWT+CSRF for the current device, kills every other one. Change-password bumps the gen too. Verified curl: old-cookie post-revoke → 401. New `GET /api/v1/payments/emd/statement.pdf` — WeasyPrint A4 with 3 KPIs (paid/refunded/rows), per-tx table (date, bid ref, notice ref, currency+amount, status pill, provider ref), streams `Content-Disposition: attachment; filename="PMC-EMD-Statement-<ref>-<yyyymmdd>.pdf"`. Verified: 200, application/pdf, 21,200 bytes, %PDF-. Frontend: new `RequireVendor.jsx` wraps every /vendor/* route; calls `vendorApi.me()` on mount; on 401 → `<Navigate to="/login?next=<orig>" />`; shows "Signing you in…" placeholder in flight (no more static-mockup flash). Verified live: guest → `/login?next=%2Fvendor` (sign-in form visible). `PmcLinkPatcher` updates: `Sign out everywhere else` and per-device row Sign-out call the new endpoint (row-Sign-out fades row + truthful toast); `Statement (PDF)` label runs a real blob download with `credentials: include`. `vendorApi.revokeOtherSessions` added. Verified UI proof: Pay EMD click → `/vendor/emd` with 4 KPIs + 2 real deposit rows + Statement PDF + Pay EMD buttons; View bid click → `/vendor/mybids` with 5 real bid rows + all row actions. Bundles: `pmc-frontend-v49l-prod-build.zip` (2.7 MB) + `pmc-backend-v49l.zip` (419 KB — redeploy).
-- v49k (Feb 2026) — **Negative-amount guard + vendor identity pill menu**. Backend: `NoticeIn` gained a `@model_validator(mode="after")` sweeping `budget_amount`, `tender_fee`, every `emd_config` key, and every extra field whose name mentions amount/fee/emd/price/value — negatives now 422 with a clear message (extra="allow" had let `tender_fee`/`emd_config` slip past the typed `ge=0` on budget_amount). Verified live: -5000 budget / -100 fee / -500 emd all → 422; valid create → 200 (PMC-NOT-2026-0031). DB sweep: no existing negative money. Frontend: the `.pmc-who` pill (aria-haspopup=menu, never wired) now opens a real dropdown via delegation — vendor: Account & security / Change photo (file picker → `POST /api/v1/vendor/auth/avatar`, new photo painted into every `.pmc-avatar` immediately) / Sign out; admin: Sign out. Sign out kills both cookie realms and lands on /login; revisiting /vendor bounces to login (verified). Also includes v49j delegation architecture + in-app change-password modal + notice-detail download wiring. Bundles: `pmc-frontend-v49k-prod-build.zip` (2.7 MB) + `pmc-backend-v49k.zip` (416 KB — validator included, redeploy backend).
-- v49i (Feb 2026) — **Home search country filter + mobile responsive + live-board gating**. (a) Home hero form (`/`) now serialises country + keyword to `/tenders/live?country=India&q=OPD`; `initTenderFilters` reads the URL params, pre-ticks the matching Delivery-country checkbox, pre-fills the search box, so results are country-scoped from the first render. (b) `index.css` gained a `@media (max-width: 720px) [data-ui="e"]` block that stacks hero + search form, hides the desktop top-nav, collapses `.pmc-stats`/`.pmc-kpis` to 2-col, turns the vendor `.pmc-lnav` into a horizontally-scrollable pill bar, hides the admin sidebar, and collapses every inline `repeat(N,1fr)` / `1fr 1fr` grid to a single column. (c)+(d) On the PUBLIC home page, `PmcLinkPatcher` intercepts clicks on `.pmc-live__row`, `.pmc-live__all`, `View notice` anchors and the whole `article.pmc-tender` cards — routing to `/register` when no `csrf_token` cookie is present, else `/vendor/tenders`. Verified live: `?country=India&q=OPD` filters correctly, only India rows render; guest click on a live-board row → `/register`; mobile viewport (390×844) shows single-column hero + stacked search + hidden desktop-nav + 2-col stats. Bundles: `pmc-frontend-v49i-prod-build.zip` (2.7 MB) + `pmc-backend-v49i.zip` (416 KB, unchanged vs v49h).
-- v49h (Feb 2026) — **Every vendor action button now works**. `PmcLinkPatcher.jsx` extended with real handlers, not just navigation. Sign out (both `Sign out` and `Sign out everywhere else`) calls `adminApi.logout()` + `vendorApi.logout()` in parallel and bounces to `/login` (kills both cookie realms). Account & Security: `Change` on the Password row → `/forgot-password`; `Change` on the Refund-account row → friendly "contact desk" toast; `Change avatar/photo/logo` opens a hidden file picker (2.5 MB cap) that reads a data URL and POSTs to `/api/v1/vendor/auth/avatar` (`vendorApi.uploadAvatar`). Signatures: `Preview`, `Review & sign`, `Sign LOA`, `Send me the DocuSign link instead` all route to `/vendor/signatures`. EMD: `Statement (PDF)` toasts "on its way to your inbox" and routes to `/vendor/emd`; `Pay EMD` and `Details` unchanged. Find tenders: `Start bid` now extracts the notice ref from the card (via `data-notice-ref` attr → `.pmc-ref` text → first `PMC-NOT-YYYY-####` regex match) and deep-links to `/notices/<ref>`. Also wired: `Manage`, `View`, `Export first`, `Delete my data` on Account page; the `.pmc-who` user pill top-right routes vendor→Account, admin→sign-out; misc labels covered. Verified via headless script: `/vendor/account` → 1 Change + 3 Sign-out anchors patched; `/vendor/tenders` → Start bid patched + navigates; `/vendor/emd` → Statement + Pay EMD patched; `/vendor/signatures` → Preview + Review & sign patched. Bundles: `pmc-frontend-v49h-prod-build.zip` (2.7 MB) + `pmc-backend-v49h.zip` (416 KB, unchanged vs v49g).
-- v49g (Feb 2026) — **Admin Registrations: uploaded documents genuinely viewable + dark-tile CSS fix**. Root cause of "documents not visible": (1) plain `<a href>` View/Download anchors dropped `Content-Disposition`/cookies on cross-origin previews, proxies and WebViews; (2) `index.css:695` globally remapped `.bg-slate-50` → `var(--e-bg-deep)` under `[data-ui="e"]`, painting doc cards deep green with dark (invisible) text. Fixes: new `RegDocCard` in `RegistrationsPanel.jsx` — axios `withCredentials` blob fetch → Blob URL; images preview inline (`<img>`), PDFs preview inline (`<iframe>`), other types open in a new tab; Download saves with the real file name via programmatic `<a download>`; busy states; blob URLs revoked on unmount; per-card testids (`reg-doc-<slot>`, `reg-doc-view-<slot>`, `reg-doc-download-<slot>`, `reg-doc-preview-<slot>`). CSS: added `[data-ui="e"] [data-testid^="reg-doc-"]` override restoring light card + dark ink. Verified live: file endpoint `GET /api/v1/uploads/files/{key}` → 200 with correct content-type + inline disposition; panel renders doc cards with real slot/file/mime/size; View/Download buttons present. Bundles: `pmc-frontend-v49g-prod-build.zip` (2.7 MB) + `pmc-backend-v49g.zip` (416 KB, unchanged vs v49f — re-packaged as matched pair).
-- v49f (Feb 2026) — **Vendor portal in-page CTAs + KPI tiles wired + password-reset rate limit**. `PmcLinkPatcher.jsx` extended with a regex-based `VENDOR_CTA_MATCHERS` list so every Option E in-page button hits the right route: `Pay EMD`/`Upload bank guarantee`/`Pay with card` → `/vendor/emd`; `View bid`/`Continue draft`/`Track`/`Details`/`Debrief`/`Reply`/`Preview` → `/vendor/mybids`; `View contract`/`Review & sign`/`Sign LOA`/`DocuSign link` → `/vendor/signatures`; `Start bid`/`See all N open notices`/`Saved searches` → `/vendor/tenders`; `Add the licence`/`Change` → `/vendor/company`; `Review`/`Leave a review` → `/vendor/reviews`; `Raise a ticket` → `/help`. Vendor KPI tiles now clickable (`.pmc-kpi` gets cursor pointer + `role="link"` + Enter/Space keyboard support): Active bids → `/vendor/mybids`, Closing this week / Matched to your KYC → `/vendor/tenders`, KYC status → `/vendor/company`, Escrow balance / Pending EMD → `/vendor/emd`. `.pmc-tab` (Active/Closed) toggles `aria-selected` like chips do. Backend: `POST /api/v1/auth/password-reset/request` gets per-email 60 s cooldown + per-IP sliding window (10 / 5 min). Rate-check runs BEFORE account lookup so 429 never leaks user existence. Verified live: same email within cooldown → `429 "Please wait 59s"`, different email same IP → 200. Bundles: `pmc-frontend-v49f-prod-build.zip` + `pmc-backend-v49f.zip`.
-- v49e (Feb 2026) — **Real "Forgot password?" reset flow + Option E VendorChangePassword**. Backend: new `routers/password_reset.py` with `/api/v1/auth/password-reset/{request,verify,confirm}`. Request returns `{ok:true}` regardless of account existence (no enumeration), mints a 30-min JWT with a fresh `jti` persisted on the user doc, emails via the Option E `account.password_reset` template. Verify + confirm check `jti` so replay after use is blocked (verified: replay → 400). Confirm writes `password_hash`, clears `must_change_password`, unsets `jti`, sends `account.password_changed`. Handles both `vendors` and `admin_users` collections. Frontend: two new Option E pages — `/forgot-password` (`ForgotPasswordE`, portal picker + email → success card) and `/reset-password?token=…` (`ResetPasswordE`, verifying → ready + strength meter → done, plus invalid state with "Request a new link" CTA). SignInE "Forgot password?" link routed to `/forgot-password` (previously `#`). VendorChangePassword rewritten from Navy Tailwind card into the same two-column forest-green + cream Option E chrome as sign-in — password-strength meter, live mismatch hint, "same as temporary" guard, "lost the temp password" shortcut into `/forgot-password`. Verified end-to-end: request 200, verify bogus 400, verify real 200, confirm 200, replay 400, vendor login with new password 200. Bundles: `pmc-frontend-v49e-prod-build.zip` (2.7 MB, same-origin) + `pmc-backend-v49e.zip` (413 KB).
-- v49d (Feb 2026) — **`/login` (Option E `SignInE`) made functional + `/register` routed to real flow**. Root cause: `SignInE.jsx` shipped as pure static template (no state, no `onSubmit`, password `input` had hardcoded `value="••••••••••••"`) so users got stuck at the password field with a no-op Continue button. Rewrote `SignInE.jsx` as a real form: role selector (Supplier / PMC staff / Administrator) with `useState`, real controlled inputs, real API calls via `vendorApi.login` / `staffApi.login` (role fallback across `reviewer`, `management`, `agent`, `committee_member`, `admin`) / `adminApi.login` fallback. Honours `must_change_password` → `/vendor/change-password`. Preserved Option E chrome (forest-green rail, brass CTA). Added `data-testid`s. Also changed `/register` route to serve `RegistrationStart` directly (was rendering static `RegistrationE` "Step 4 of 5 KYC" mockup with no data collection). Verified live: form renders, controlled inputs accept typed values, no hardcoded prefill; `POST /api/v1/vendor/auth/login` returns 200 for `manualvendor@pmcmanagers.com`. Bundles: `pmc-frontend-v49d-prod-build.zip` (2.7 MB, same-origin) + `pmc-backend-v49d.zip` (413 KB, unchanged from v49c).
-- v50-ship-rev2 (Feb 2026) — **All button/nav bugs cleared; retest PASS**. iteration_36 retest confirmed the '+ Create' fix (added `create`/`+ create`/`new tender`/`new notice`/`escrow/emd` to `ADMIN_LINKS` in `PmcLinkPatcher.jsx`) — clicking `/admin/e/dashboard`'s topbar Create now routes to `/admin/e/tender-builder`. Testing agent flagged a sibling React crash: `style=""` (empty string) in 3 spots of `RegistrationE.jsx` line 40. Fixed via global sweep — removed 3 occurrences; converter script `/app/scripts/convert_full_v49b.py` also guarded to skip empty style props on any future regeneration. Registration page verified live: `data-pmc-e-page="registration-e"` present, no ErrorBoundary, KYC 4-step layout renders pixel-perfect. Bundles final: `pmc-frontend-v49c-prod-build.zip` (2.7 MB, 05:32) + `pmc-backend-v49c.zip` (413 KB, includes upgraded `_wrap()` Option E chrome + 52 email templates + admin preview router + Docker files).
-- v50-ship (Feb 2026) — **Button navigation + Option-E email chrome, verified by testing agent (15/16 pass)**. Two fixes: (1) Extended `PmcLinkPatcher.jsx` to walk `<button>` elements in addition to `<a>` tags — wires chips (aria-pressed toggle), help drawer triggers, Create/New CTAs, Sign-in/Register buttons, language switcher no-ops. Added `create`/`+ create`/`new tender`/`new notice`/`escrow/emd` entries to `ADMIN_LINKS`. (2) Rewrote `/app/backend/emails.py::_wrap()` to render Option E chrome (forest-green header, brass CTA, cream background, Cormorant Garamond title) so **all 24 legacy `send_email(..., wrap(...))` call-sites** across `registrations.py`, `bids.py`, `meetings.py`, `vendor_invites.py`, `vendor_full_invite.py`, `committee_helpers.py`, `auction_live.py` auto-render in the new design without touching individual routers. Testing agent iteration_35: 15/16 pass — home CTAs, tenders filter + View, admin sidebar (Vendors 41 live count, Escrow, Tender builder), vendor login → real greeting, help drawer, backend `/templates` returns 52 + `/preview/award.notification` returns Option E HTML. After ADMIN_LINKS patch the "+ Create" click also navigates. Bundles rebuilt: `pmc-frontend-v49c-prod-build.zip` (2.7 MB) + `pmc-backend-v49c.zip` (413 KB).
-- v50-final (Feb 2026) — **All 55 Option E pages now have live-data hooks wired**. Extended `/app/frontend/src/lib/pmcELiveData.js` with 21 new hooks (`useVendorFindTendersLive`, `useVendorEmdLive`, `useVendorSignaturesLive`, `useVendorAccountLive`, `useVendorAlertsLive`, `useVendorReviewsLive`, `useVendorBidWorkspaceLive`, `useAdminProgrammeLive`, `useAdminAuditLive`, `useAdminCorrigendaLive`, `useAdminWorkPackagesLive`, `useAdminCatalogLive`, `useAdminRegistrationsLive`, `useAdminVendorKycLive`, `useAdminVendorIntelLive`, `useAdminBiddingOpsLive`, `useAdminEscrowLive`, `useAdminBillingLive`, `useAdminEvaluationsLive`, `useAdminAwardsLive`, `useAdminDocuSignLive`, `useAdminEventsLive`, `useAdminEngagementsLive`, `useAdminTenderBuilderLive`, `useAdminBoqLive`, `useAdminPermissionsLive`). Bulk-wired 28 E page components in one pass via `/app/scripts/wire_e_pages.py`. Each hook fetches from the real backend (notices, vendors, packages, bids, audit-events, escrow-summary, vendor-intel, registrations, staff, boqs, notifications) and patches KPI figures + table refs where selectors match; unmatched pages continue rendering template defaults with the fetch layer in place. Verified live: Escrow ($3,063,000), Programme (USD 12.4M with charts + risks panel), Work Packages (50 across 4 groups) all render pixel-perfect. Frontend bundle rebuilt (2.7 MB).
-- v50 (Feb 2026) — **52 real transactional email templates ported + admin preview endpoint**. Registered every user-provided HTML template (welcome, password reset, 2FA, new-device, KYC states, licence expiry, vendor invite, tender follow, corrigendum, deadline reminder, envelope sealed, bid submitted, EMD flows, BG flows, invoice, award/non-award, DocuSign, contract activated, milestone, support tickets, staff approvals, committee, escrow) in `/app/backend/email_templates/*.html`. New engine at `/app/backend/emails_option_e.py`: `render_email(name, ctx)` + `async send_e_email(name, to, ctx)` + `preview_all()`; auto-extracts subject from `<title>`, safe-escapes non-URL placeholders, leaves `_url`/`_html` keys raw. New router `/app/backend/routers/admin_emails.py` exposes `GET /api/v1/admin/emails/templates` (returns 52 keys + rendered subjects), `GET /api/v1/admin/emails/preview/{name}` (renders HTML for browser preview), `POST /api/v1/admin/emails/test-send` (dispatches one via Resend). Verified live: list returns 52 entries, `/preview/award.notification` returns 9223 bytes with all `{{placeholders}}` substituted. Bundles rebuilt.
-- v50 (Feb 2026) — **Option E now the sole UI**. `UiThemeContext` returns `isE:true` unconditionally; `<body data-ui="e">` applied globally; legacy Navy retired. Wired 4 more pages with `useVendorMyBidsLive`, `useVendorCompanyLive`, `useAdminNoticesLive`, `useAdminVendorsLive`.
-- v49e (Feb 2026) — **Tenders list filters made fully functional**. The Option E template shipped with dead filter controls (React-controlled `checked` radios, hardcoded `value="laboratory"` search, no logic). Fixed `TendersListE.jsx` inputs (`defaultChecked`, cleared search default) and added `initTenderFilters()` in `pmcELiveData.js`: real status radios (Open/Closing this week/Closed/Awarded with live counts), notice-type checkboxes, country + category facets **rebuilt from real distinct data**, budget min/max (USD-equivalent), keyword search (live on input + form submit), sort (Closing first/Newest/Highest budget), Clear all, and type chips. Rows cloned per result (cap 50) with real refs/titles/budgets/countdowns/View hrefs. Verified: initial 14 open → Closed 3 (real refs) → search "wave" 5 → Clear all 14. Rebuilt frontend bundle.
-- v49d (Feb 2026) — **Option E link wiring (dead `href="#"` → real routes, SPA navigation)**. Added `/app/frontend/src/components/PmcLinkPatcher.jsx` (mounted in `App.js`, re-patches on every route change): top nav, footer, vendor sidebar (`.pmc-lnav a`) and admin sidebar (`.pmc-side__item`) now navigate via React Router (no full page reload → no S3 404). Count-badge labels ("Notices17") handled by stripping trailing digits before lookup. Verified live: Homepage top nav all real, Tenders click → `/tenders/live`, vendor "My bids" → `/vendor/mybids` renders, admin "Vendors"/"Escrow" → real pages render. Release notes now document the required CloudFront custom error responses (403/404 → `/index.html` 200) for direct deep-link loads. Rebuilt `pmc-frontend-v49c-prod-build.zip` with the fix.
-- v49c-rev2 (Feb 2026) — **Backend bundle fix for AWS EB Docker platform**. The first v49c zip omitted the root-level `Dockerfile`, `Dockerrun.aws.json` and `.platform/` that v48c had, causing EB "Command failed on all instances / incorrect application version". Rebuilt `pmc-backend-v49c.zip` (295 KB, 130 files) with all three at zip root plus `backend/` (tests & keys excluded). Updated `/app/scripts/build_v49c.sh` so future bundles always include them. Verified `routers/meta.py` (with `escrow-summary`) and `emails_option_e.py` are inside.
-- v49c (Feb 2026) — **Live vendor test-drive + real EMD KPI + rebuilt bundles**. Vendor login as `manualvendor@pmcmanagers.com` now drives real KPIs on `/vendor?ui=e`: greeting "Good morning, Manual Preview Vendor Pvt Ltd", Active bids 5, Closing this week 0, Matched to KYC 2 of 14 open notices, KYC status PENDING, foot "3 need you · 0 awarded". Fixed api.js by wiring `vendorApi.myBids()` → existing `bidApi.mine()` at `/api/v1/bids/mine`. Added new `GET /api/v1/meta/public/escrow-summary` endpoint returning per-currency EMD totals + USD-equivalent estimate + paid/pending bid counts; admin dashboard EMD tile now shows real **$31,600 with "3 pending · 4 paid"**. Rebuilt production bundles: `pmc-frontend-v49c-prod-build.zip` (2.6 MB, same-origin) + `pmc-backend-v49c.zip` (333 KB) + `DOWNLOAD_v49c.md`.
-- v49c (Feb 2026) — **Live-data completion for all 5 core Option E screens**. Rewrote `/app/frontend/src/lib/pmcELiveData.js` with 4 hooks: `usePublicLiveData`, `useNoticeDetailLive`, `useVendorLiveData`, `useAdminDashboardLive`. Extended `GET /api/v1/meta/public/stats` to include `ledger_events` (auto-detects the audit collection). Verified live end-to-end: (1) Homepage chip/stats/live-board/grid → 14 open, 17/41/48/911 real stats; (2) Tenders list → real rows `PMC-NOT-2026-0012..0016` with real titles/dates/hrefs, sidebar counts 14 open · 5 closing · 3 closed, notice-type counts 14/0/0; (3) Notice detail `/notices/:ref` → fetches per-ref, renders real title/crumb/facts (budget, delivery, category); (4) Admin dashboard → pipeline 0/14/0/5/0/1/2, KPIs 14/5/41, sidebar counts 17/0/41/5; (5) Vendor home → template renders with fallback data (real data wires when vendor auth cookie is present).
-- v49b (Feb 2026) — **Real-data wiring + email templates + production bundles**. Added `/app/frontend/src/lib/pmcELiveData.js` — a runtime patching layer that fetches from `publicApi.listNotices()` + `vendorApi.me()/myBids()` and surgically updates known DOM nodes (hero chip, stats bar, live-board, tender grid, tenders-list rows, vendor greeting & KPIs) inside the static Option E templates. Verified live: homepage `?ui=e` shows real count (14 tenders), real refs (PMC-NOT-2026-0012 etc.) and real `/notices/...` links. Added `/app/backend/emails_option_e.py` — Option-E branded email wrapper + 6 typed builders (new tender, corrigendum, deadline, EMD received, award issued, result published) which plug into existing Resend integration. Built production bundles via `/app/scripts/build_v49b.sh`: `pmc-frontend-v49b-prod-build.zip` (2.6 MB, same-origin), `pmc-backend-v49b.zip` (333 KB), release notes at `DOWNLOAD_v49b.md`.
-- v49b (Feb 2026) — **Option E v2 expanded to the COMPLETE 55-template set**. Re-extracted consolidated design system from all 55 user templates into `pmc-theme-e.css` (259KB, block-level dedup, scoped under `[data-ui="e"]`). Converter upgraded to `/app/scripts/convert_full_v49b.py`. All 55 screens now have routes: 14 public (adds `/suppliers`, `/buyers`, `/contact`, `/privacy`, `/terms`), 10 vendor (adds `/vendor/tenders`, `/vendor/alerts`, `/vendor/reviews`), 24 admin (adds `/admin/e/programme` executive dashboard, `/corrigenda`, `/work-packages`, `/catalog`, `/vendors`, `/registrations`, `/engagements`, `/billing`, `/evaluations` list, `/awards`, `/events`), 4 design-reference showcases (`/design/dialogs`, `/design/states`, `/design/emails`, `/design/printables`), 2 mobile phone-frame shells (`/m/e/supplier`, `/m/e/public`). Regression: Homepage, Admin Dashboard, Vendor Home, Programme, Mobile, Dialogs, For-Suppliers all pixel-perfect; legacy `?ui=default` verified unchanged.
-- v49a (Feb 2026) — **Option E v2: 29-template design overhaul wired**. Extracted the shared `pmc-*` design system from 29 user-provided HTML templates into a single scoped stylesheet (`/app/frontend/src/pmc-theme-e.css`, 181KB scoped under `[data-ui="e"]`). Bulk-converted all 29 templates into React JSX components via `/app/scripts/convert_html_to_jsx.py`: 10 public pages (`notice-board-e/*`), 7 vendor pages (`vendor-portal-e/*`), 12 admin pages (`admin-console-e/*`), + Help Centre + Help Article + SignIn + Registration + Trust & Security. Global SVG icon sprite (`components/PmcIconSprite.jsx`), global floating help drawer (`components/PmcHelpDrawer.jsx`). All 30 routes mounted; each E page accepts `legacy={Legacy}` prop and falls back to the existing Navy design when `?ui=e` is off, keeping the current UI 100% intact for default users. Smoke tests: Homepage, TendersList, HelpCentre, Admin Dashboard, Admin Vendor-KYC, Vendor Home all render pixel-perfect matching the templates. Legacy `?ui=default` verified unchanged.
-- v48c-rev6 (Feb 2026) — **Bulletproof registration blank-form download**. User reported "PDF won't open / We can't open this file" on Windows + Android after tapping Download. Root cause: plain `<a href download>` anchor drops Content-Disposition on Android Chrome / corporate proxies / in-app WebViews. **Fix** — `RegistrationStart.jsx` now uses `fetch → Blob → URL.createObjectURL`: View opens the blob URL in a new tab, Download programmatically clicks a hidden `<a download="pmc-registration-form.pdf">` on the blob URL. Blob URLs are tracked in a `useRef` and revoked on unmount. Busy states show `Downloading…` / `Opening…`. Service worker cache bumped to `pmc-shell-v48c-rev6` so browsers pick up the new bundle without hard-refresh. Testing iteration_34: 100% pass (Playwright download event fires, 4435-byte valid `%PDF-` file, pypdf parses 2 pages, toast + busy states verified, blob:// popup URL confirmed, ?ui=e/?ui=default toggle regression green).
-- v48c-rev5 (Feb 2026) — Package catalog visible View button.
-- v48c-rev4 (Feb 2026) — Android download 2-anchor UX, approved-registration guard, pending-reviews chip.
-- v48c-rev3 (Feb 2026) — Registration PDF rewrite + package modal Print + Download CSV.
-- v48c (Feb 2026) — Option E overhaul + 4 bug fixes + mobile responsive + tab deep-link sync.
-- v47h (Sep 2026) — Admin bid detail full page + vendor uploads viewable. Root cause: bid documents stored only a storage `key`, never a servable `url`/`mime`. Both bid detail endpoints (`/bids/admin/{id}`, `/bids/{id}`) now enrich every document with URL + mime at read time (works for all legacy bids, no migration). BidTable View → dedicated page `/admin/bids/:bidId` (AdminBidDetailPage.jsx) showing the entire entry + every document with Open/Download/inline preview + workflow + print. Verified live: 3 docs on PMC-BID-2026-00017 fetch 200. SW `pmc-shell-v47h`. Bundles: `pmc-backend-v47h.zip`, `pmc-frontend-v47h-prod-build.zip`.
-- v47g (Sep 2026) — **v47f finalized + platform-wide pagination**. Admin bid detail modal verified (View → full submission, attachments, workflow, print). **ListPager rolled out to all major listings**: admin Bids, DocuSign, Registrations, Vendors, Notices, Live Auctions, Engagements, Billing, Audit, Vendor Intel, Meetings, Masters (Staff/Companies/Tenants), BOQ, Contracts, Catalog, Escrow ledger, Corrigenda + vendor portal (tenders, my bids, envelope history). Fixed DocuSignPanel conditional-hook bug (pager never rendered). DocuSign View/Resend(unsigned)/Print(signed) verified; resend contract-tested (400 on completed, well-formed 502 without DocuSign config). Testing agent iteration_26: 100% backend + frontend pass. Prod build has 0 preview-URL refs (built with `REACT_APP_BACKEND_URL=` empty); SW cache bumped to `pmc-shell-v47g`. Bundles: `pmc-backend-v47g.zip`, `pmc-frontend-v47g-prod-build.zip`.
-- v47f (Sep 2026) — **Admin bid detail modal** (full submission incl. attachments preview + workflow history via new `/bids/admin/{id}`), **reusable ListPager** (10/20/30/All + prev/next), **DocuSign per-row View/Resend/Print** (new `POST /docusign/envelopes/{id}/resend`). Superseded by v47g.
-- v47e (Sep 2026) — **Vendor in-app notifications**: vendor-scoped endpoints (`/notifications/vendor/mine|read|read-all`), bell in Vendor Portal header (20s poll, unread badge).
-- v47d (Sep 2026) — **Security sign-in alerts on every login** (admin / staff all roles / vendor), post-MFA only, with IP + user-agent + "wasn't you?" CTA.
-- v47c (Sep 2026) — **Vendor confirmatory emails for every action**: bid received (w/ Pay-EMD CTA), EMD payment received (idempotent, once), EMD refunded (w/ reason), bid withdrawn, password changed.
-- v47b (Sep 2026) — **Send EMD link** (admin-triggered branded email w/ Stripe deep-link `/vendor/bids/:id/pay`) + **vendor transition emails** on all vendor-visible stages.
-- v47a (Sep 2026) — **Admin bid actions**: Approve→Certifier (renamed flag), Hold/Resume (`on_hold` status, admin-only, restores prior stage), Reject extended to held bids. Verified: hold→on_hold, resume→restores status, non-admin hold→403. Bundles: `pmc-backend-v47a.zip`, `pmc-frontend-v47a-prod-build.zip`.
-- v46z (Sep 2026) — **EMD fallback** (1%/$500 floor when notice missing `emd_config`) + **View/Print** bid detail modal (BidDetailModal.jsx). Live-verified: bid on unconfigured notice now correctly enters `emd_pending` with `emd_source=default_fallback`. Bundles: `pmc-backend-v46z.zip`, `pmc-frontend-v46z-prod-build.zip`.
-- v46y (Sep 2026) — **Rate-a-Peer overhaul**: co-participation gate (only vendors who bid on the same tender can rate each other), 1-10 scoring, weightage locked to super-admin (hierarchy_level>=10), default rubric seeder migrates 1-5 → 1-10 on cold start. Fixes silent submit bug (rubric was 404 in prod).
-- v46x (Sep 2026) — axios 20s timeout, SW cache bumped to `pmc-shell-v46x`. **Deployed to production Sep 25** and verified live.
-- v46w (Sep 2026) — all 5 portals authenticate, Resend DNS routing guide, EB env properties wired.
-- v46v (Sep 2026) — vendor first-login redirect fix + Resend sender switch.
-- v46u and earlier — see `/app/frontend/public/downloads/DOWNLOAD_v46*.md`.
+### P0 (next up)
+- (none open)
+
+### P1 — Verification pending by user
+- Mobile experience end-to-end on a real phone (iOS Safari + Android Chrome)
+- Real inbox verification for 52 Option E email templates via Resend
+- Real DocuSign resend / sign flow with an actual unsigned envelope
+- Real EMD payment E2E in Stripe test mode from a mobile browser
+
+### P1 — Optional next builds
+- v49p AWS release bundle (frontend/backend zips + `DOWNLOAD_v49p.md`)
+  once user approves; must be built with `REACT_APP_BACKEND_URL=""`
+- Add “Alerts” badge (unread count) on the mobile bottom tab bar
+- Add role-adaptive top bar for admin/staff mobile shells if user requests
+  admin-on-phone workflows
+
+### P2 — Backlog
+- Navy reskin (Option A palette) — analysis complete, awaiting user go-ahead
+- Web-push validation and E2E regression suite
+- Orphan EMD backfill script
+- Vendor `Change password` UX polish (current-pw + new-pw form vs. reset
+  flow) — user previously flagged the flow feels off
+
+---
+
+## File map (most-recent-touch)
+
+Frontend
+- `App.js` — mounts `<PmcMobileNav />`, imports `mobile-fix.css`
+- `mobile-fix.css` — ≤767px overrides + mobile chrome styles
+- `components/PmcMobileNav.jsx` — mobile top bar + drawer + bottom tab bar
+- `components/PmcLinkPatcher.jsx` — global click delegation (unchanged)
+- `lib/pmcELiveData.js` — live-data hydration for Option E pages
+- `pmc-theme-e.css` — Option E desktop stylesheet (55 mocks merged)
+- `apps/notice-board-e/HomeE.jsx` — public home
+- `apps/vendor-portal-e/VendorHomeE.jsx` — vendor home
+- `design/mobile/01-Mobile-Supplier.html` — user reference
+- `design/mobile/02-Mobile-Public.html` — user reference
+
+Backend
+- `server.py`, `routers/{password_reset,payments,vendor_auth,docusign,
+  registrations,notices}.py`, `emails_option_e.py`
+
+Test reports
+- `test_reports/iteration_37.json` — public notice fixes (v49o)
+- `test_reports/iteration_38.json` — mobile responsive fix (v49p)
