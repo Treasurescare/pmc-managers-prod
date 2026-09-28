@@ -128,22 +128,37 @@ html, body { overflow-x: clip; }
   [data-ui="e"] .pmc-kpis,
   [data-ui="e"] .ak {
     grid-template-columns: repeat(2, minmax(0,1fr)) !important;
-    gap: 10px !important;
-    margin: 12px 0 16px !important;
+    gap: 1px !important;
+    margin: 0 0 20px !important;
+    background: var(--line, #e2dccd) !important;
+    border-radius: 10px !important;
+    overflow: hidden !important;
+    border: 1px solid var(--line, #e2dccd) !important;
+    box-shadow: 0 8px 24px rgba(15,42,34,0.06) !important;
   }
   [data-ui="e"] .pmc-stats > div,
   [data-ui="e"] .pmc-kpis > div,
   [data-ui="e"] .ak > div {
     padding: 14px !important;
-    border-left: 1px solid var(--line, #e2dccd) !important;
-    border-top: 0 !important;
+    border: 0 !important;
+    background: var(--surface, #ffffff) !important;
     min-width: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
   }
-  [data-ui="e"] .pmc-stats > div:nth-child(2n+1),
-  [data-ui="e"] .pmc-kpis > div:nth-child(2n+1),
-  [data-ui="e"] .ak > div:nth-child(2n+1) { border-left: 0 !important; }
   [data-ui="e"] .pmc-stats .pmc-figure,
-  [data-ui="e"] .pmc-kpi .pmc-figure { font-size: 26px !important; line-height: 30px !important; }
+  [data-ui="e"] .pmc-kpi .pmc-figure { font-size: 26px !important; line-height: 30px !important; margin: 0 !important; }
+  [data-ui="e"] .pmc-stats > div > *:not(.pmc-figure),
+  [data-ui="e"] .pmc-kpis > div > *:not(.pmc-figure) {
+    font-size: 12px !important;
+    line-height: 16px !important;
+    color: var(--ink-muted, #56625b) !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+  }
+  /* Reset the pmc-stats magic negative margin at mobile */
+  [data-ui="e"] .pmc-stats { margin-top: 0 !important; }
 
   /* ==========================================================================
    * INLINE STYLE grids — every width-based track pattern in JSX collapses
@@ -204,33 +219,58 @@ html, body { overflow-x: clip; }
 
   /* Hero band */
   [data-ui="e"] .pmc-hero {
-    padding: 20px 0 24px !important;
+    padding: 24px 0 32px !important;
     overflow: hidden !important;
   }
   [data-ui="e"] .pmc-hero__h {
-    font-size: 40px !important;
-    line-height: 42px !important;
-    margin: 12px 0 !important;
+    font-size: 34px !important;
+    line-height: 38px !important;
+    letter-spacing: -0.01em !important;
+    margin: 14px 0 !important;
+    max-width: 100% !important;
+    hyphens: none !important;
   }
   [data-ui="e"] .pmc-hero__p {
-    font-size: 15px !important;
-    line-height: 23px !important;
+    font-size: 14.5px !important;
+    line-height: 22px !important;
     max-width: 100% !important;
     margin: 0 0 20px !important;
+    color: rgba(243,239,228,0.82) !important;
   }
   [data-ui="e"] .pmc-hero__search {
     flex-direction: column !important;
     align-items: stretch !important;
-    gap: 8px !important;
+    gap: 10px !important;
     max-width: 100% !important;
-    padding: 8px !important;
+    padding: 10px !important;
+    border-radius: 10px !important;
   }
   [data-ui="e"] .pmc-hero__search > * {
     width: 100% !important;
-    height: 48px !important;
+    height: 46px !important;
     max-width: 100% !important;
+    border-radius: 6px !important;
+  }
+  [data-ui="e"] .pmc-hero .pmc-btn--brass,
+  [data-ui="e"] .pmc-hero__search .pmc-btn {
+    font-weight: 700 !important;
+    font-size: 15px !important;
   }
   [data-ui="e"] .pmc-seal { display: none !important; }
+  /* "14 tenders open for bids now" callout */
+  [data-ui="e"] .pmc-hero .pmc-livechip,
+  [data-ui="e"] .pmc-hero a.pmc-livechip {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    font-size: 13px !important;
+    padding: 8px 12px !important;
+    border-radius: 999px !important;
+    background: rgba(217,189,114,0.12) !important;
+    border: 1px solid rgba(217,189,114,0.35) !important;
+    color: #d9bd72 !important;
+    text-decoration: none !important;
+  }
 
   /* Live board rows */
   [data-ui="e"] .pmc-live { padding: 12px !important; }
@@ -372,16 +412,167 @@ html, body { overflow-x: clip; }
   [data-ui="e"] article, [data-ui="e"] aside { min-width: 0 !important; max-width: 100% !important; }
   [data-ui="e"] article.bg-white.border.p-8 { padding: 16px !important; }
 
+
+  /* ==========================================================================
+   * Inline "flex space-between" section headers — heading on left, chips or
+   * a button-row on right. On desktop these sit side-by-side, on mobile they
+   * MUST stack or the heading gets squeezed to one word per line.
+   * ======================================================================== */
+  [data-ui="e"] section > div[style*="justify-content: space-between"][style*="display: flex"],
+  [data-ui="e"] div[style*="display: flex"][style*="align-items: end"],
+  [data-ui="e"] div[style*="display: flex"][style*="alignItems: end"] {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+    margin-bottom: 16px !important;
+  }
+  /* Their second child (typically the chips/buttons row) becomes a
+     scrollable chip row that spans full width. */
+  [data-ui="e"] section > div[style*="justify-content: space-between"][style*="display: flex"] > div:last-child,
+  [data-ui="e"] div[style*="display: flex"][style*="align-items: end"] > div:last-child {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    gap: 8px !important;
+    width: 100% !important;
+    padding: 2px 16px 4px !important;
+    margin: 0 -16px !important;
+    scrollbar-width: none !important;
+    align-items: center !important;
+  }
+  [data-ui="e"] section > div[style*="justify-content: space-between"] > div:last-child::-webkit-scrollbar { display: none !important; }
+  [data-ui="e"] section > div[style*="justify-content: space-between"] > div:last-child > *,
+  [data-ui="e"] div[style*="display: flex"][style*="align-items: end"] > div:last-child > * {
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+  }
+
+  /* Inline oversized display headings (`style="fontSize: 40px/52px/36px"`) —
+     clamp EVERY inline pmc-display font-size on mobile with !important. */
+  [data-ui="e"] .pmc-display,
+  [data-ui="e"] h1.pmc-display, [data-ui="e"] h2.pmc-display, [data-ui="e"] h3.pmc-display {
+    font-size: 26px !important;
+    line-height: 30px !important;
+    letter-spacing: -0.01em !important;
+    margin: 6px 0 10px !important;
+    max-width: 100% !important;
+  }
+  [data-ui="e"] .pmc-hero__h,
+  [data-ui="e"] h1.pmc-hero__h,
+  [data-ui="e"] .pmc-hero__h.pmc-display {
+    font-size: 34px !important;
+    line-height: 38px !important;
+  }
+  /* Kill decorative <br /> inside display headings on mobile so titles flow.
+     Exception: keep <br> in the hero title (`pmc-hero__h`) so "Tenders you /
+     can prove." wraps naturally onto 2 lines instead of running the words
+     together (source has no space around <br>). */
+  [data-ui="e"] .pmc-display br { display: none !important; }
+  [data-ui="e"] .pmc-hero__h br { display: block !important; }
+  [data-ui="e"] .pmc-display em { font-style: italic; }
+
+  /* Release inline max-width on paragraphs */
+  [data-ui="e"] p[style*="max-width"] { max-width: 100% !important; }
+
   /* Legacy (non Option-E) pages — no horizontal overflow */
   main, section, article, aside, header, footer, .container { min-width: 0 !important; }
   main[class*="max-w-"] { padding-left: 16px !important; padding-right: 16px !important; }
   [class*="grid-cols-4"], [class*="grid-cols-5"], [class*="grid-cols-6"], [class*="grid-cols-7"] {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
+
+  /* ==========================================================================
+   * Chip / pill filter rows — horizontally scrollable (no overflow, no wrap)
+   * ======================================================================== */
+  [data-ui="e"] .pmc-chips,
+  [data-ui="e"] .pmc-filters,
+  [data-ui="e"] [data-mobile-scroll="chips"],
+  [data-ui="e"] div[role="tablist"]:not(.pmc-track):not(.pmc-tabs) {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    gap: 8px !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding: 4px 16px 4px !important;
+    margin: 0 -16px 12px !important;
+    scrollbar-width: none !important;
+  }
+  [data-ui="e"] .pmc-chips::-webkit-scrollbar,
+  [data-ui="e"] .pmc-filters::-webkit-scrollbar,
+  [data-ui="e"] [data-mobile-scroll="chips"]::-webkit-scrollbar { display: none !important; }
+  [data-ui="e"] .pmc-chips > *,
+  [data-ui="e"] .pmc-filters > *,
+  [data-ui="e"] [data-mobile-scroll="chips"] > * { flex: 0 0 auto !important; white-space: nowrap !important; }
+
+  /* Rows of small pill buttons ("All", "Tender", "RFP" etc.) — horizontal scroll */
+  [data-ui="e"] .pmc-chip {
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+  }
+
+  /* ==========================================================================
+   * Card polish — softer shadow, more air, rounded, native feel
+   * ======================================================================== */
+  [data-ui="e"] .pmc-card,
+  [data-ui="e"] .pmc-panel,
+  [data-ui="e"] .pmc-tender {
+    border-radius: 12px !important;
+    border-color: rgba(15,42,34,0.08) !important;
+    box-shadow: 0 6px 18px rgba(15,42,34,0.05) !important;
+    margin-bottom: 12px !important;
+    overflow: hidden !important;
+  }
+  [data-ui="e"] .pmc-tender { padding: 16px !important; }
+  [data-ui="e"] .pmc-tender__meta { padding-top: 10px !important; gap: 6px !important; }
+
+  /* Primary CTA buttons full-width on mobile */
+  [data-ui="e"] .pmc-btn--primary,
+  [data-ui="e"] .pmc-btn--brass,
+  [data-ui="e"] .pmc-btn--onchrome {
+    min-height: 46px !important;
+    padding: 12px 20px !important;
+    font-weight: 700 !important;
+  }
+
+  /* Section header spacing */
+  [data-ui="e"] .pmc-eyebrow {
+    font-size: 10px !important;
+    letter-spacing: 0.18em !important;
+  }
+  [data-ui="e"] .pmc-display {
+    font-size: 26px !important;
+    line-height: 30px !important;
+    letter-spacing: -0.01em !important;
+    margin: 6px 0 12px !important;
+  }
+
+  /* Toast should never overlap the topbar */
+  [data-sonner-toaster] { top: calc(env(safe-area-inset-top, 0px) + 72px) !important; }
+
+  /* Full-width row of "Popular:" quick tag chips */
+  [data-ui="e"] .pmc-hero + div[class*="mt"] > div,
+  [data-ui="e"] .pmc-poptags {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  /* Notice cards on home / tenders list — cleaner spacing */
+  [data-ui="e"] .pmc-tender__title,
+  [data-ui="e"] .pmc-tender h3 {
+    font-size: 16px !important;
+    line-height: 22px !important;
+    margin: 6px 0 8px !important;
+  }
+
+  /* Country/select dropdown inside hero search: match input height */
+  [data-ui="e"] .pmc-hero__search select { appearance: none; -webkit-appearance: none; padding-right: 32px !important; background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%); background-position: calc(100% - 18px) 50%, calc(100% - 12px) 50%; background-size: 6px 6px; background-repeat: no-repeat; }
 }
 
 /* ---------------------------------------------------------------------
- * Mobile top bar (public pages)
+ * Mobile top bar (public pages) — respects iOS safe-area / notch so the
+ * hamburger is always reachable in Safari / installed PWA mode.
  * ------------------------------------------------------------------- */
 .pmc-mobile-topbar {
   position: sticky;
@@ -390,11 +581,16 @@ html, body { overflow-x: clip; }
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 16px;
+  padding:
+    calc(env(safe-area-inset-top, 0px) + 12px)
+    max(16px, env(safe-area-inset-right, 0px))
+    12px
+    max(16px, env(safe-area-inset-left, 0px));
   background: #0f2a22;
   color: #f3efe4;
   border-bottom: 1px solid #2a5446;
-  min-height: 56px;
+  min-height: calc(env(safe-area-inset-top, 0px) + 56px);
+  box-sizing: border-box;
 }
 .pmc-mobile-topbar .pmc-mob-brand {
   display: flex;
@@ -441,16 +637,22 @@ html, body { overflow-x: clip; }
   transition: opacity 0.2s;
 }
 .pmc-mobile-menu-drawer {
-  position: fixed; top: 0; right: 0; bottom: 0;
+  position: fixed;
+  top: 0; right: 0; bottom: 0;
   width: 82vw; max-width: 340px;
   background: #0f2a22; color: #f3efe4;
   z-index: 61;
   transform: translateX(100%);
   transition: transform 0.24s ease;
   display: flex; flex-direction: column;
-  padding: 20px 20px 24px;
+  padding:
+    calc(env(safe-area-inset-top, 0px) + 20px)
+    max(20px, env(safe-area-inset-right, 0px))
+    calc(env(safe-area-inset-bottom, 0px) + 24px)
+    20px;
   box-shadow: -16px 0 40px rgba(0,0,0,0.35);
   overflow-y: auto;
+  box-sizing: border-box;
 }
 body.pmc-mob-menu-open .pmc-mobile-menu-scrim { opacity: 1; pointer-events: auto; }
 body.pmc-mob-menu-open .pmc-mobile-menu-drawer { transform: translateX(0); }

@@ -57,18 +57,17 @@ export default function PmcMobileNav() {
   }, [pathname]);
 
   // Trigger the PWA install flow. Always ends with SOMETHING actionable:
-  //   1. If the browser fired `beforeinstallprompt`, replay it.
-  //   2. Otherwise (Samsung Internet, Firefox Android, iOS Safari, Chrome
-  //      pre-engagement, etc.), show browser-specific step-by-step
-  //      instructions inline in the drawer.
+  //   1. If the browser fired `beforeinstallprompt`, call `.prompt()` — this
+  //      is the ONLY way to invoke the OS-level install dialog. Chrome,
+  //      Edge, Samsung Internet ≥ 4, Opera and Brave all fire this event
+  //      and honour `.prompt()`.
+  //   2. If `.prompt()` fails or the browser never fires the event
+  //      (iOS Safari, Firefox Android, Chrome pre-engagement), fall back to
+  //      browser-specific step-by-step instructions rendered in the drawer.
   const triggerInstall = async () => {
     try { localStorage.removeItem(PWA_DISMISS_KEY); } catch (_) { /* noop */ }
-    const { browser } = detectPmcBrowser();
     const deferred = window.__pmcInstallPromptEvent;
-    // For Samsung Internet + Firefox we ALWAYS show the manual steps —
-    // even when beforeinstallprompt fires, its prompt() often no-ops.
-    const preferManualSteps = browser === "samsung" || browser === "firefox";
-    if (deferred && !preferManualSteps) {
+    if (deferred) {
       try {
         await deferred.prompt();
         const choice = await deferred.userChoice;
@@ -77,8 +76,11 @@ export default function PmcMobileNav() {
           setMenuOpen(false);
           return;
         }
-        // If user dismissed the native prompt, fall through to manual steps
-      } catch (_) { /* fall through */ }
+        // If the user dismissed the native OS dialog, don't nag them with
+        // instructions — they explicitly said no.
+        setMenuOpen(false);
+        return;
+      } catch (_) { /* prompt() rejected → fall back to manual steps */ }
     }
     setInstallSteps(pmcInstallSteps());
   };

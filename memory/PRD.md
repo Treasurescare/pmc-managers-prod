@@ -182,12 +182,38 @@ Test reports
 - `test_reports/iteration_37.json` — public notice fixes (v49o)
 - `test_reports/iteration_38.json` — mobile responsive fix (v49p)
 
-### v49p — Nuclear mobile CSS re-scope — 28 Feb 2026 (later revision)
-User feedback: "none of the 56 screens are mobile friendly … the view is atrocious".
-Previous mobile-fix.css only covered a subset of the theme's grid classes.
-Rebuilt with a nuclear class inventory: every `.pmc-*` grid class from the
-merged 55-screen `pmc-theme-e.css` plus every inline `style` grid pattern in
-the JSX now collapses cleanly at ≤767px. Verified across 28 routes:
+### v49p — Mobile polish + Safari safe-area + Samsung install fix — 28 Feb 2026
+User feedback: "mobile view stupidity continues in the safari the hamburger
+is on top of the screen unaccessible; in samsung i just get the instruction
+when i click the hamburger but after that nothing happens".
+
+Fixed in this iteration:
+1. **Safari (iOS) hamburger unreachable** — the `apple-mobile-web-app-status-
+   bar-style` was `black-translucent`, causing installed-PWA mode to draw
+   content under the notch/status bar. Switched to `default` and added
+   explicit `env(safe-area-inset-top / left / right)` padding on
+   `.pmc-mobile-topbar` and `.pmc-mobile-menu-drawer` so the hamburger and
+   nav drawer always sit below the notch on every iPhone.
+2. **Samsung Internet install** — my code had `preferManualSteps = "samsung"
+   || "firefox"` which SKIPPED calling `deferred.prompt()` on Samsung
+   Internet even when `beforeinstallprompt` had fired. Result: the button
+   only showed instructions, never triggered the OS install dialog.
+   Removed the shortcircuit — now the code ALWAYS tries the captured native
+   prompt first, falls back to instructions only if the browser never fired
+   the event or `.prompt()` rejects.
+3. **Home page "Open for bids this week" one-word-per-line** — the JSX has
+   `<div style="display: flex; justify-content: space-between; align-items: end">`
+   with heading on left + `<button.pmc-chip>All/Tender/RFP/RFQ/Browse all</button>`
+   row on right. On mobile the flex row was preserved so the chips row stole
+   the width, leaving 57 px for the heading. New CSS forces every inline
+   "flex space-between" section header to stack vertically at mobile width;
+   the chips row becomes a full-width horizontally-scrollable strip.
+4. **Card polish** — softer 12 px radius, subtle drop-shadow, 26 px display
+   heading clamp, 34 px hero heading, 46 px min-height CTAs, stats/KPI grid
+   as a bordered 2×2 tile with the accent line as gap.
+5. **Toast position** — pushed down to `env(safe-area-inset-top) + 72 px`
+   so post-login toasts never overlap the mobile top bar.
+
 - Public (11 routes): /, /tenders/live, /tenders/completed, /about, /vision,
   /suppliers, /buyers, /trust, /help, /contact, /privacy
 - Vendor (9 routes): /vendor, /vendor/tenders, /vendor/mybids, /vendor/emd,

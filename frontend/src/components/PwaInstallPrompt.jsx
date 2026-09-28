@@ -86,18 +86,19 @@ export default function PwaInstallPrompt() {
   };
 
   const install = async () => {
-    const { browser } = detectPmcBrowser();
-    const preferManualSteps = browser === "samsung" || browser === "firefox";
-    if (deferred && !preferManualSteps) {
+    if (deferred) {
       try {
         await deferred.prompt();
         const choice = await deferred.userChoice;
+        window.__pmcInstallPromptEvent = null;
+        setDeferred(null);
         if (choice?.outcome === "accepted") {
           setShow(false);
-          setDeferred(null);
-          window.__pmcInstallPromptEvent = null;
           return;
         }
+        // User explicitly dismissed the native prompt — respect that.
+        setShow(false);
+        return;
       } catch { /* fall through to manual steps */ }
     }
     setSteps(pmcInstallSteps());
