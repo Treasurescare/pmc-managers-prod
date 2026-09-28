@@ -16,6 +16,7 @@ export default function VendorBidWorkspaceE({ legacy: Legacy }) {
     tick();
   }, [isE]);
   if (!isE && Legacy) return <Legacy />;
+  if (!isE) return null;
   return (
     <div data-testid="vendor-bid-workspace-e" data-pmc-e-page="vendor-bid-workspace-e">
 <header className="pmc-chrome pmc-vtop">

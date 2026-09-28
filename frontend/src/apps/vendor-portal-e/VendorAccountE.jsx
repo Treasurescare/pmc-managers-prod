@@ -16,6 +16,7 @@ export default function VendorAccountE({ legacy: Legacy }) {
     tick();
   }, [isE]);
   if (!isE && Legacy) return <Legacy />;
+  if (!isE) return null;
   return (
     <div data-testid="vendor-account-e" data-pmc-e-page="vendor-account-e">
 <header className="pmc-chrome pmc-vtop">

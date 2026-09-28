@@ -42,12 +42,15 @@ Multi-role procurement & tender platform for PMC Managers Limited: engagements, 
 - Every KPI tile + funnel stage is clickable → routes to the owning tab.
 - Sticky search on Help panel + context-aware floating Help pill in top bar.
 
-### 8 · Option E v2 — 29-template design overhaul (v49a)
+### 8 · Option E v2 — complete 55-template design overhaul (v49b)
 - Full new design system layered behind `?ui=e` feature flag; legacy Navy remains the default.
-- Public: `/`, `/tenders/live`, `/tenders/completed`, `/notices/:ref`, `/about`, `/vision`, `/trust`, `/help`, `/help/:slug`, `/register`, `/login`.
-- Vendor multi-page portal: `/vendor` (Home), `/vendor/mybids`, `/vendor/workspace/:bidId`, `/vendor/emd`, `/vendor/signatures`, `/vendor/company`, `/vendor/account`.
-- Admin console (all 12 screens under new dark shell): `/admin/e/dashboard`, `/audit`, `/notices`, `/tender-builder`, `/boq`, `/vendor-intel`, `/vendor-kyc`, `/bidding`, `/escrow`, `/evaluation`, `/l1-award`, `/docusign`, `/permissions`.
-- Global `?` help drawer + floating help FAB with FAQ search, keyboard shortcut `?`.
+- **Public (14)**: `/`, `/tenders/live`, `/tenders/completed`, `/notices/:ref`, `/about`, `/vision`, `/suppliers`, `/buyers`, `/contact`, `/privacy`, `/terms`, `/trust`, `/help`, `/help/:slug`, `/register`, `/login`.
+- **Vendor portal (10)**: `/vendor` (Home), `/vendor/tenders`, `/vendor/mybids`, `/vendor/workspace/:bidId`, `/vendor/emd`, `/vendor/signatures`, `/vendor/alerts`, `/vendor/reviews`, `/vendor/company`, `/vendor/account`.
+- **Admin console (24)**: `/admin/e/dashboard`, `/programme` (executive), `/audit`, `/notices`, `/tender-builder`, `/corrigenda`, `/work-packages`, `/catalog`, `/boq`, `/vendors`, `/registrations`, `/engagements`, `/vendor-intel`, `/vendor-kyc`, `/bidding`, `/escrow`, `/billing`, `/evaluations`, `/evaluation`, `/l1-award`, `/awards`, `/docusign`, `/permissions`, `/events`.
+- **Design references (4)**: `/design/dialogs`, `/design/states`, `/design/emails`, `/design/printables`.
+- **Mobile shells (2)**: `/m/e/supplier`, `/m/e/public`.
+- Global `?` help drawer + floating help FAB with FAQ search; SVG sprite of 28 icons.
+- All pages currently render template content; backend data wiring is the next phase.
 
 ### 7 · Frontend Hardening (v46x)
 - 20-second axios timeout in `src/lib/api.js` prevents silent UI hangs.
@@ -68,6 +71,7 @@ See `/app/memory/test_credentials.md`.
 - Zoom automated bid-opening session scheduler.
 
 ## Deployment ledger
+- v49b (Feb 2026) — **Option E v2 expanded to the COMPLETE 55-template set**. Re-extracted consolidated design system from all 55 user templates into `pmc-theme-e.css` (259KB, block-level dedup, scoped under `[data-ui="e"]`). Converter upgraded to `/app/scripts/convert_full_v49b.py`. All 55 screens now have routes: 14 public (adds `/suppliers`, `/buyers`, `/contact`, `/privacy`, `/terms`), 10 vendor (adds `/vendor/tenders`, `/vendor/alerts`, `/vendor/reviews`), 24 admin (adds `/admin/e/programme` executive dashboard, `/corrigenda`, `/work-packages`, `/catalog`, `/vendors`, `/registrations`, `/engagements`, `/billing`, `/evaluations` list, `/awards`, `/events`), 4 design-reference showcases (`/design/dialogs`, `/design/states`, `/design/emails`, `/design/printables`), 2 mobile phone-frame shells (`/m/e/supplier`, `/m/e/public`). Regression: Homepage, Admin Dashboard, Vendor Home, Programme, Mobile, Dialogs, For-Suppliers all pixel-perfect; legacy `?ui=default` verified unchanged.
 - v49a (Feb 2026) — **Option E v2: 29-template design overhaul wired**. Extracted the shared `pmc-*` design system from 29 user-provided HTML templates into a single scoped stylesheet (`/app/frontend/src/pmc-theme-e.css`, 181KB scoped under `[data-ui="e"]`). Bulk-converted all 29 templates into React JSX components via `/app/scripts/convert_html_to_jsx.py`: 10 public pages (`notice-board-e/*`), 7 vendor pages (`vendor-portal-e/*`), 12 admin pages (`admin-console-e/*`), + Help Centre + Help Article + SignIn + Registration + Trust & Security. Global SVG icon sprite (`components/PmcIconSprite.jsx`), global floating help drawer (`components/PmcHelpDrawer.jsx`). All 30 routes mounted; each E page accepts `legacy={Legacy}` prop and falls back to the existing Navy design when `?ui=e` is off, keeping the current UI 100% intact for default users. Smoke tests: Homepage, TendersList, HelpCentre, Admin Dashboard, Admin Vendor-KYC, Vendor Home all render pixel-perfect matching the templates. Legacy `?ui=default` verified unchanged.
 - v48c-rev6 (Feb 2026) — **Bulletproof registration blank-form download**. User reported "PDF won't open / We can't open this file" on Windows + Android after tapping Download. Root cause: plain `<a href download>` anchor drops Content-Disposition on Android Chrome / corporate proxies / in-app WebViews. **Fix** — `RegistrationStart.jsx` now uses `fetch → Blob → URL.createObjectURL`: View opens the blob URL in a new tab, Download programmatically clicks a hidden `<a download="pmc-registration-form.pdf">` on the blob URL. Blob URLs are tracked in a `useRef` and revoked on unmount. Busy states show `Downloading…` / `Opening…`. Service worker cache bumped to `pmc-shell-v48c-rev6` so browsers pick up the new bundle without hard-refresh. Testing iteration_34: 100% pass (Playwright download event fires, 4435-byte valid `%PDF-` file, pypdf parses 2 pages, toast + busy states verified, blob:// popup URL confirmed, ?ui=e/?ui=default toggle regression green).
 - v48c-rev5 (Feb 2026) — Package catalog visible View button.

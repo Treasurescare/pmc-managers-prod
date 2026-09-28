@@ -1,9 +1,6 @@
 import React from "react";
 
-/**
- * PMC v49a — Global SVG icon sprite for Option E theme.
- * Rendered once at app root. Icons referenced via <use href="#i-...">.
- */
+/** PMC v49b - Global SVG icon sprite (Option E). */
 export default function PmcIconSprite() {
   return (
     <svg width="0" height="0" style={{ position: "absolute" }} aria-hidden="true">

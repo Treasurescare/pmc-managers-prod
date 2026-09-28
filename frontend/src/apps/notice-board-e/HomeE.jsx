@@ -16,6 +16,7 @@ export default function HomeE({ legacy: Legacy }) {
     tick();
   }, [isE]);
   if (!isE && Legacy) return <Legacy />;
+  if (!isE) return null;
   return (
     <div data-testid="home-e" data-pmc-e-page="home-e">
 <div className="pmc-site">

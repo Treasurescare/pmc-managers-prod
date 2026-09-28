@@ -16,6 +16,7 @@ export default function TrustSecurityE({ legacy: Legacy }) {
     tick();
   }, [isE]);
   if (!isE && Legacy) return <Legacy />;
+  if (!isE) return null;
   return (
     <div data-testid="trust-security-e" data-pmc-e-page="trust-security-e">
 <header className="pmc-chrome pmc-top"><div className="pmc-wrap pmc-top__in">

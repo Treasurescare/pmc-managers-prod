@@ -16,6 +16,7 @@ export default function AboutVisionE({ legacy: Legacy }) {
     tick();
   }, [isE]);
   if (!isE && Legacy) return <Legacy />;
+  if (!isE) return null;
   return (
     <div data-testid="about-vision-e" data-pmc-e-page="about-vision-e">
 <header className="pmc-chrome pmc-top"><div className="pmc-wrap pmc-top__in">

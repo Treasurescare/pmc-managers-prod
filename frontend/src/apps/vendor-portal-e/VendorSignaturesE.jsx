@@ -16,6 +16,7 @@ export default function VendorSignaturesE({ legacy: Legacy }) {
     tick();
   }, [isE]);
   if (!isE && Legacy) return <Legacy />;
+  if (!isE) return null;
   return (
     <div data-testid="vendor-signatures-e" data-pmc-e-page="vendor-signatures-e">
 <header className="pmc-chrome pmc-vtop">

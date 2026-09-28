@@ -16,6 +16,7 @@ export default function HelpArticleE({ legacy: Legacy }) {
     tick();
   }, [isE]);
   if (!isE && Legacy) return <Legacy />;
+  if (!isE) return null;
   return (
     <div data-testid="help-article-e" data-pmc-e-page="help-article-e">
 <header className="pmc-chrome" style={{ borderBottom: "1px solid var(--chrome-line)" }}><div className="pmc-wrap" style={{ display: "flex", alignItems: "center", height: "64px", gap: "24px" }}>

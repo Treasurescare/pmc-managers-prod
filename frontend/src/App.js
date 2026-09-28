@@ -99,6 +99,31 @@ import AdminEvaluationE from "@/apps/admin-console-e/AdminEvaluationE";
 import AdminL1AwardE from "@/apps/admin-console-e/AdminL1AwardE";
 import AdminDocuSignE from "@/apps/admin-console-e/AdminDocuSignE";
 import AdminPermissionsE from "@/apps/admin-console-e/AdminPermissionsE";
+// v49b — complete 55-template set (new pages)
+import ForSuppliersE from "@/apps/notice-board-e/ForSuppliersE";
+import ForBuyersE from "@/apps/notice-board-e/ForBuyersE";
+import ContactE from "@/apps/notice-board-e/ContactE";
+import PrivacyTermsE from "@/apps/notice-board-e/PrivacyTermsE";
+import VendorFindTendersE from "@/apps/vendor-portal-e/VendorFindTendersE";
+import VendorAlertsE from "@/apps/vendor-portal-e/VendorAlertsE";
+import VendorReviewsE from "@/apps/vendor-portal-e/VendorReviewsE";
+import AdminProgrammeE from "@/apps/admin-console-e/AdminProgrammeE";
+import AdminCorrigendaE from "@/apps/admin-console-e/AdminCorrigendaE";
+import AdminWorkPackagesE from "@/apps/admin-console-e/AdminWorkPackagesE";
+import AdminCatalogE from "@/apps/admin-console-e/AdminCatalogE";
+import AdminVendorsE from "@/apps/admin-console-e/AdminVendorsE";
+import AdminRegistrationsE from "@/apps/admin-console-e/AdminRegistrationsE";
+import AdminEngagementsE from "@/apps/admin-console-e/AdminEngagementsE";
+import AdminBillingE from "@/apps/admin-console-e/AdminBillingE";
+import AdminEvaluationListE from "@/apps/admin-console-e/AdminEvaluationListE";
+import AdminAwardsE from "@/apps/admin-console-e/AdminAwardsE";
+import AdminEventsE from "@/apps/admin-console-e/AdminEventsE";
+import DialogsE from "@/apps/reference-e/DialogsE";
+import StatesE from "@/apps/reference-e/StatesE";
+import EmailsE from "@/apps/reference-e/EmailsE";
+import PrintablesE from "@/apps/reference-e/PrintablesE";
+import MobileSupplierE from "@/apps/mobile-e/MobileSupplierE";
+import MobilePublicE from "@/apps/mobile-e/MobilePublicE";
 
 export default function App() {
   return (
@@ -146,6 +171,20 @@ export default function App() {
             <Route path="/trust" element={<TrustSecurityE />} />
             <Route path="/help" element={<HelpCentreE />} />
             <Route path="/help/:slug" element={<HelpArticleE />} />
+            {/* v49b — new public Option-E pages */}
+            <Route path="/suppliers" element={<ForSuppliersE />} />
+            <Route path="/buyers" element={<ForBuyersE />} />
+            <Route path="/contact" element={<ContactE />} />
+            <Route path="/privacy" element={<PrivacyTermsE />} />
+            <Route path="/terms" element={<PrivacyTermsE />} />
+            {/* v49b — design reference showcases */}
+            <Route path="/design/dialogs" element={<DialogsE />} />
+            <Route path="/design/states" element={<StatesE />} />
+            <Route path="/design/emails" element={<EmailsE />} />
+            <Route path="/design/printables" element={<PrintablesE />} />
+            {/* v49b — mobile Option-E shells */}
+            <Route path="/m/e/supplier" element={<MobileSupplierE />} />
+            <Route path="/m/e/public" element={<MobilePublicE />} />
             <Route path="/vendors/:vendorRef" element={<PublicVendorProfile />} />
             <Route path="/auctions/:aid/live" element={<PublicAuctionRoom />} />
 
@@ -158,18 +197,29 @@ export default function App() {
             <Route path="/admin/bids/:bidId" element={<AdminBidDetailPage />} />
             {/* Admin Option-E multi-page routes (active when ?ui=e) */}
             <Route path="/admin/e/dashboard" element={<AdminDashboardE />} />
+            <Route path="/admin/e/programme" element={<AdminProgrammeE />} />
             <Route path="/admin/e/audit" element={<AdminAuditE />} />
             <Route path="/admin/e/notices" element={<AdminNoticesE />} />
             <Route path="/admin/e/tender-builder" element={<AdminTenderBuilderE />} />
+            <Route path="/admin/e/corrigenda" element={<AdminCorrigendaE />} />
+            <Route path="/admin/e/work-packages" element={<AdminWorkPackagesE />} />
+            <Route path="/admin/e/catalog" element={<AdminCatalogE />} />
             <Route path="/admin/e/boq" element={<AdminBoqContractsE />} />
+            <Route path="/admin/e/vendors" element={<AdminVendorsE />} />
+            <Route path="/admin/e/registrations" element={<AdminRegistrationsE />} />
+            <Route path="/admin/e/engagements" element={<AdminEngagementsE />} />
             <Route path="/admin/e/vendor-intel" element={<AdminVendorIntelE />} />
             <Route path="/admin/e/vendor-kyc" element={<AdminVendorKycE />} />
             <Route path="/admin/e/bidding" element={<AdminBiddingOpsE />} />
             <Route path="/admin/e/escrow" element={<AdminEscrowE />} />
+            <Route path="/admin/e/billing" element={<AdminBillingE />} />
+            <Route path="/admin/e/evaluations" element={<AdminEvaluationListE />} />
             <Route path="/admin/e/evaluation" element={<AdminEvaluationE />} />
             <Route path="/admin/e/l1-award" element={<AdminL1AwardE />} />
+            <Route path="/admin/e/awards" element={<AdminAwardsE />} />
             <Route path="/admin/e/docusign" element={<AdminDocuSignE />} />
             <Route path="/admin/e/permissions" element={<AdminPermissionsE />} />
+            <Route path="/admin/e/events" element={<AdminEventsE />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/*" element={<AdminDashboard />} />
 
@@ -179,9 +229,12 @@ export default function App() {
             <Route path="/vendor" element={<VendorHomeE legacy={VendorDashboard} />} />
             {/* Vendor Option-E multi-page routes */}
             <Route path="/vendor/mybids" element={<VendorMyBidsE />} />
+            <Route path="/vendor/tenders" element={<VendorFindTendersE />} />
             <Route path="/vendor/workspace/:bidId" element={<VendorBidWorkspaceE />} />
             <Route path="/vendor/emd" element={<VendorEmdE />} />
             <Route path="/vendor/signatures" element={<VendorSignaturesE />} />
+            <Route path="/vendor/alerts" element={<VendorAlertsE />} />
+            <Route path="/vendor/reviews" element={<VendorReviewsE />} />
             <Route path="/vendor/company" element={<VendorCompanyKycE />} />
             <Route path="/vendor/account" element={<VendorAccountE />} />
             <Route path="/vendor/bid/new/:noticeRef" element={<BidSubmit />} />

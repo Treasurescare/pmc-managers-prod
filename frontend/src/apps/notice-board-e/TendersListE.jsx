@@ -16,6 +16,7 @@ export default function TendersListE({ legacy: Legacy }) {
     tick();
   }, [isE]);
   if (!isE && Legacy) return <Legacy />;
+  if (!isE) return null;
   return (
     <div data-testid="tenders-list-e" data-pmc-e-page="tenders-list-e">
 <header className="pmc-chrome pmc-top"><div className="pmc-wrap pmc-top__in">

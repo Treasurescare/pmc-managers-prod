@@ -16,6 +16,7 @@ export default function NoticeDetailE({ legacy: Legacy }) {
     tick();
   }, [isE]);
   if (!isE && Legacy) return <Legacy />;
+  if (!isE) return null;
   return (
     <div data-testid="notice-detail-e" data-pmc-e-page="notice-detail-e">
 <header className="pmc-chrome pmc-top"><div className="pmc-wrap pmc-top__in">

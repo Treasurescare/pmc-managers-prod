@@ -16,6 +16,7 @@ export default function VendorCompanyKycE({ legacy: Legacy }) {
     tick();
   }, [isE]);
   if (!isE && Legacy) return <Legacy />;
+  if (!isE) return null;
   return (
     <div data-testid="vendor-company-kyc-e" data-pmc-e-page="vendor-company-kyc-e">
 <header className="pmc-chrome pmc-vtop">
