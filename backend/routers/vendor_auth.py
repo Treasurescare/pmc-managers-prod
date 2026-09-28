@@ -7,7 +7,7 @@ import jwt
 
 from db import db
 from models.vendor_user import VendorLoginIn, VendorPasswordChangeIn
-from security import verify_password, hash_password, new_csrf_token
+from security import verify_password, hash_password, new_csrf_token, require_csrf
 from audit import audit_log
 from models.base import now_iso
 import config
@@ -15,9 +15,10 @@ import config
 router = APIRouter(prefix="/api/v1/vendor", tags=["vendor-auth"])
 
 
-def _create_vendor_token(vendor_id: str, email: str) -> str:
+def _create_vendor_token(vendor_id: str, email: str, gen: int = 0) -> str:
     payload = {
         "sub": vendor_id, "email": email, "type": "vendor_access",
+        "gen": gen,
         "exp": datetime.now(timezone.utc) + timedelta(minutes=config.ACCESS_TOKEN_TTL_MIN),
     }
     return jwt.encode(payload, config.JWT_SECRET, algorithm=config.JWT_ALGORITHM)
@@ -51,6 +52,13 @@ async def current_vendor(request: Request) -> Dict[str, Any]:
         v = await db.vendors.find_one({"_id": ObjectId(payload["sub"])})
         if not v:
             raise HTTPException(status_code=401, detail="Vendor not found")
+        # v49l — session revocation: if the vendor bumped their token_generation
+        # via "Sign out everywhere else", every JWT minted before that point
+        # is dead even if it has not yet expired.
+        current_gen = int(v.get("token_generation") or 0)
+        token_gen = int(payload.get("gen") or 0)
+        if token_gen < current_gen:
+            raise HTTPException(status_code=401, detail="Session revoked")
         return {
             "id": str(v["_id"]),
             "email": v["email"],
@@ -72,7 +80,7 @@ async def vendor_login(payload: VendorLoginIn, response: Response, request: Requ
         raise HTTPException(status_code=401, detail="Invalid email or password")
     if not v.get("is_active", True):
         raise HTTPException(status_code=403, detail="Vendor account disabled")
-    token = _create_vendor_token(str(v["_id"]), v["email"])
+    token = _create_vendor_token(str(v["_id"]), v["email"], int(v.get("token_generation") or 0))
     csrf = _set_cookies(response, token)
     await audit_log("vendor.login", None, "vendor", str(v["_id"]), {"email": v["email"]})
     # v47d — security sign-in alert email on every successful login
@@ -115,6 +123,27 @@ async def vendor_me(vendor=Depends(current_vendor), response: Response = None) -
     return vendor
 
 
+# v49l — Real session revocation.
+# `Sign out everywhere else` and per-device sign-out rows on Account & Security
+# now bump the vendor's `token_generation` and reissue a fresh JWT for the
+# CURRENT device. Every other JWT minted before the bump (i.e. every other
+# device) is rejected by `current_vendor` on its next request.
+@router.post("/auth/sessions/revoke-others", dependencies=[Depends(require_csrf)])
+async def revoke_other_vendor_sessions(response: Response, vendor=Depends(current_vendor)):
+    r = await db.vendors.find_one_and_update(
+        {"_id": ObjectId(vendor["id"])},
+        {"$inc": {"token_generation": 1},
+         "$set": {"sessions_revoked_at": datetime.now(timezone.utc).isoformat()}},
+        return_document=True,
+    )
+    new_gen = int((r or {}).get("token_generation") or 1)
+    token = _create_vendor_token(vendor["id"], vendor["email"], new_gen)
+    csrf = _set_cookies(response, token)
+    await audit_log("vendor.sessions_revoke_others", None, "vendor", vendor["id"], {"gen": new_gen})
+    return {"ok": True, "csrf_token": csrf}
+
+
+
 @router.post("/gdpr-forget")
 async def vendor_self_forget(payload: dict, vendor=Depends(current_vendor)):
     """Vendor self-service GDPR forget — requires current password to confirm."""
@@ -151,6 +180,15 @@ async def change_password(payload: VendorPasswordChangeIn, vendor=Depends(curren
                   "password_changed_at": datetime.now(timezone.utc).isoformat()}},
     )
     await audit_log("vendor.password_change", None, "vendor", vendor["id"], {})
+    # v49l — a password change should invalidate every OTHER device's session
+    # exactly like "Sign out everywhere else". Bump token_generation and mint
+    # a fresh JWT for the CURRENT tab so this user isn't kicked out mid-flow.
+    r = await db.vendors.find_one_and_update(
+        {"_id": ObjectId(vendor["id"])},
+        {"$inc": {"token_generation": 1}},
+        return_document=True,
+    )
+    new_gen = int((r or {}).get("token_generation") or 1)
     # v47c — security confirmation email on password change
     try:
         from notify import vendor_confirm

@@ -126,6 +126,7 @@ import StatesE from "@/apps/reference-e/StatesE";
 import EmailsE from "@/apps/reference-e/EmailsE";
 import PrintablesE from "@/apps/reference-e/PrintablesE";
 import MobileSupplierE from "@/apps/mobile-e/MobileSupplierE";
+import RequireVendor from "@/components/RequireVendor";
 import MobilePublicE from "@/apps/mobile-e/MobilePublicE";
 
 export default function App() {
@@ -233,20 +234,20 @@ export default function App() {
 
             {/* Vendor Portal */}
             <Route path="/vendor/login" element={<VendorLogin />} />
-            <Route path="/vendor/change-password" element={<VendorChangePassword />} />
-            <Route path="/vendor" element={<VendorHomeE legacy={VendorDashboard} />} />
+            <Route path="/vendor/change-password" element={<RequireVendor><VendorChangePassword /></RequireVendor>} />
+            <Route path="/vendor" element={<RequireVendor><VendorHomeE legacy={VendorDashboard} /></RequireVendor>} />
             {/* Vendor Option-E multi-page routes */}
-            <Route path="/vendor/mybids" element={<VendorMyBidsE />} />
-            <Route path="/vendor/tenders" element={<VendorFindTendersE />} />
-            <Route path="/vendor/workspace/:bidId" element={<VendorBidWorkspaceE />} />
-            <Route path="/vendor/emd" element={<VendorEmdE />} />
-            <Route path="/vendor/signatures" element={<VendorSignaturesE />} />
-            <Route path="/vendor/alerts" element={<VendorAlertsE />} />
-            <Route path="/vendor/reviews" element={<VendorReviewsE />} />
-            <Route path="/vendor/company" element={<VendorCompanyKycE />} />
-            <Route path="/vendor/account" element={<VendorAccountE />} />
-            <Route path="/vendor/bid/new/:noticeRef" element={<BidSubmit />} />
-            <Route path="/vendor/bids/:bidId/pay" element={<BidPayRedirect />} />
+            <Route path="/vendor/mybids" element={<RequireVendor><VendorMyBidsE /></RequireVendor>} />
+            <Route path="/vendor/tenders" element={<RequireVendor><VendorFindTendersE /></RequireVendor>} />
+            <Route path="/vendor/workspace/:bidId" element={<RequireVendor><VendorBidWorkspaceE /></RequireVendor>} />
+            <Route path="/vendor/emd" element={<RequireVendor><VendorEmdE /></RequireVendor>} />
+            <Route path="/vendor/signatures" element={<RequireVendor><VendorSignaturesE /></RequireVendor>} />
+            <Route path="/vendor/alerts" element={<RequireVendor><VendorAlertsE /></RequireVendor>} />
+            <Route path="/vendor/reviews" element={<RequireVendor><VendorReviewsE /></RequireVendor>} />
+            <Route path="/vendor/company" element={<RequireVendor><VendorCompanyKycE /></RequireVendor>} />
+            <Route path="/vendor/account" element={<RequireVendor><VendorAccountE /></RequireVendor>} />
+            <Route path="/vendor/bid/new/:noticeRef" element={<RequireVendor><BidSubmit /></RequireVendor>} />
+            <Route path="/vendor/bids/:bidId/pay" element={<RequireVendor><BidPayRedirect /></RequireVendor>} />
             <Route path="/vendor/payment/success" element={<PaymentResult outcome="success" />} />
             <Route path="/vendor/payment/cancel" element={<PaymentResult outcome="cancel" />} />
             <Route path="/vendor/payment/sandbox" element={<SandboxCheckout />} />

@@ -183,6 +183,8 @@ export const vendorApi = {
   uploadAvatar: (data_url) =>
     api.post("/api/v1/vendor/auth/avatar", { data_url }).then((r) => r.data),
   removeAvatar: () => api.delete("/api/v1/vendor/auth/avatar").then((r) => r.data),
+  revokeOtherSessions: () =>
+    api.post("/api/v1/vendor/auth/sessions/revoke-others").then((r) => r.data),
 };
 
 // ---------- Wave 1: Bids ----------

@@ -322,8 +322,57 @@ function handleStartBid(el, isPublic, navigate) {
 }
 
 function handleStatementPdf(navigate) {
-  toast.info("Statement PDF is on its way to your inbox.");
-  navigate("/vendor/emd");
+  toast.info("Generating your EMD statement…");
+  // v49l — hit the real endpoint. Blob download so the browser saves with the
+  // Content-Disposition filename regardless of same-origin quirks.
+  fetch(`${window.location.origin}/api/v1/payments/emd/statement.pdf`, {
+    method: "GET", credentials: "include",
+  })
+    .then(async (r) => {
+      if (!r.ok) throw new Error(String(r.status));
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "PMC-EMD-Statement.pdf";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+      toast.success("Statement downloaded");
+    })
+    .catch(() => {
+      toast.error("Couldn't generate the statement. Sign in again and retry.");
+      navigate("/vendor/emd");
+    });
+}
+
+// v49l — Sign out this device only (self logout) vs. sign out every OTHER device.
+async function handleSignOutOthers(navigate) {
+  try {
+    await vendorApi.revokeOtherSessions();
+    toast.success("Signed out on every other device.");
+  } catch (_) {
+    toast.error("Couldn't revoke the other sessions. Try again.");
+  }
+}
+
+// Row-level sign-out on the "Where you're signed in" table. Backend does
+// not yet track individual devices, so any single-row sign-out revokes all
+// non-current sessions (equivalent to sign-out-everywhere-else). Toasts a
+// truthful message so users know what happened.
+async function handleSignOutRow(el, navigate) {
+  const tr = el.closest("tr");
+  const label = (tr && tr.querySelector("td:first-child")?.textContent || "another device").trim();
+  const isCurrent = tr && !!tr.querySelector(".pmc-pill--brand");
+  if (isCurrent) {
+    return handleSignOut(navigate);
+  }
+  try {
+    await vendorApi.revokeOtherSessions();
+    if (tr) { tr.style.opacity = "0.5"; tr.style.pointerEvents = "none"; }
+    toast.success(`Signed out ${label}. Other devices will need to sign in again.`);
+  } catch (_) {
+    toast.error("Couldn't revoke that session.");
+  }
 }
 
 function handleDownload(el, isPublic, navigate) {
@@ -344,7 +393,13 @@ function handleDownload(el, isPublic, navigate) {
 
 // Central click action resolver. Returns true when the click was owned.
 function resolveClickAction(el, label, { isVendor, isAdmin, isPublic }, navigate) {
+  if (/^sign\s*out\s+everywhere\s+else$/i.test(label)) {
+    handleSignOutOthers(navigate); return true;
+  }
   if (/^sign\s*out(\s+everywhere\s+else)?$/i.test(label) || /^log\s*out$/i.test(label)) {
+    // Row-level sign-out lives inside a <tr>: revoke-others; standalone header
+    // sign-out logs the current session out.
+    if (el.closest && el.closest("tr")) { handleSignOutRow(el, navigate); return true; }
     handleSignOut(navigate); return true;
   }
   if (isVendor && /change\s+(avatar|photo|logo)|upload\s+photo/i.test(label)) { openAvatarPicker(); return true; }

@@ -23,6 +23,106 @@ router = APIRouter(prefix="/api/v1", tags=["payments"])
 log = logging.getLogger("payments")
 
 
+# v49l — Vendor EMD statement PDF.
+# Reads every payment_transactions row + escrow ledger entries for the
+# current vendor and renders an A4 statement via WeasyPrint. Streamed
+# with Content-Disposition: attachment so the browser saves it as
+# "PMC-EMD-Statement-<vendor_ref>-<date>.pdf".
+@router.get("/payments/emd/statement.pdf")
+async def emd_statement_pdf(vendor=Depends(current_vendor)):
+    from fastapi.responses import Response
+    from weasyprint import HTML
+
+    vendor_id = vendor["id"]
+    vendor_ref = vendor.get("vendor_ref") or "—"
+    company = vendor.get("company_name") or vendor.get("email") or vendor_ref
+
+    # Collect vendor's bids so we can label rows with the notice ref
+    vbids = {}
+    async for b in db.bids.find({"vendor_id": vendor_id}):
+        vbids[str(b["_id"])] = b
+
+    rows = []
+    total_paid = 0.0
+    total_refunded = 0.0
+    async for tx in db.payment_transactions.find({"vendor_id": vendor_id, "purpose": "emd"}).sort("created_at", -1):
+        bid = vbids.get(str(tx.get("bid_id") or ""), {}) or {}
+        amt = float(tx.get("amount") or 0.0)
+        status = (tx.get("status") or "").lower()
+        rows.append({
+            "date":   (tx.get("paid_at") or tx.get("created_at") or "")[:19].replace("T", " "),
+            "bid":    bid.get("bid_ref") or "—",
+            "notice": bid.get("notice_ref") or "—",
+            "cur":    tx.get("currency") or "USD",
+            "amount": f"{amt:,.2f}",
+            "status": status or "pending",
+            "ref":    tx.get("provider_ref") or tx.get("session_id") or "—",
+        })
+        if status == "paid":     total_paid += amt
+        if status == "refunded": total_refunded += amt
+
+    from datetime import datetime, timezone
+    generated = datetime.now(timezone.utc).strftime("%d %b %Y, %H:%M UTC")
+
+    tbody = "".join(
+        f"<tr><td>{r['date']}</td><td>{r['bid']}</td><td>{r['notice']}</td>"
+        f"<td class='r'>{r['cur']} {r['amount']}</td>"
+        f"<td class='pill p-{r['status']}'>{r['status'].upper()}</td>"
+        f"<td class='mono'>{r['ref']}</td></tr>"
+        for r in rows
+    ) or "<tr><td colspan='6' class='empty'>No EMD payments recorded for this account yet.</td></tr>"
+
+    html = f"""<!doctype html><html><head><meta charset='utf-8'><style>
+      @page {{ size: A4; margin: 22mm 18mm; }}
+      body {{ font-family: 'Helvetica Neue', Arial, sans-serif; color:#14261F; font-size:11px; }}
+      h1 {{ font-family: 'Times New Roman', serif; font-size:22px; margin:0 0 4px; color:#0F3B2E; }}
+      .brand {{ font-size:10px; letter-spacing:2px; text-transform:uppercase; color:#C9A24B; }}
+      .meta {{ display:flex; justify-content:space-between; margin:14px 0 22px; font-size:11px; }}
+      .meta b {{ display:block; margin-bottom:2px; color:#5B6B63; font-weight:600; font-size:9px; text-transform:uppercase; letter-spacing:1px; }}
+      .kpi {{ display:flex; gap:12px; margin:0 0 18px; }}
+      .kpi .b {{ flex:1; padding:12px; border:1px solid rgba(15,59,46,.15); border-radius:6px; }}
+      .kpi .b .l {{ font-size:9px; text-transform:uppercase; letter-spacing:1px; color:#5B6B63; }}
+      .kpi .b .v {{ font-size:16px; font-weight:600; margin-top:4px; color:#0F3B2E; }}
+      table {{ width:100%; border-collapse:collapse; }}
+      th, td {{ padding:8px 10px; text-align:left; border-bottom:1px solid rgba(15,59,46,.1); }}
+      th {{ font-size:9px; letter-spacing:1px; text-transform:uppercase; color:#5B6B63; }}
+      td.r {{ text-align:right; }}
+      td.mono {{ font-family:'Courier New',monospace; font-size:10px; color:#5B6B63; }}
+      td.empty {{ text-align:center; padding:24px; color:#7B8B83; font-style:italic; }}
+      .pill {{ display:inline-block; padding:2px 8px; border-radius:12px; font-size:9px; letter-spacing:1px; font-weight:600; }}
+      .p-paid {{ background:#DEEEE1; color:#0F3B2E; }}
+      .p-refunded {{ background:#F3E7CE; color:#8B6A1E; }}
+      .p-pending {{ background:#EFE9DA; color:#5B6B63; }}
+      .foot {{ position:fixed; bottom:-14mm; left:0; right:0; font-size:9px; color:#7B8B83; text-align:center; }}
+    </style></head><body>
+      <div class="brand">PMC Managers · Global Tender Board</div>
+      <h1>EMD Statement</h1>
+      <div class="meta">
+        <div><b>Vendor</b>{company}<br/>{vendor_ref}</div>
+        <div><b>Generated</b>{generated}</div>
+      </div>
+      <div class="kpi">
+        <div class="b"><div class="l">Total EMD paid</div><div class="v">{total_paid:,.2f}</div></div>
+        <div class="b"><div class="l">Refunded</div><div class="v">{total_refunded:,.2f}</div></div>
+        <div class="b"><div class="l">Rows</div><div class="v">{len(rows)}</div></div>
+      </div>
+      <table>
+        <thead><tr>
+          <th>Date</th><th>Bid</th><th>Notice</th><th style='text-align:right'>Amount</th>
+          <th>Status</th><th>Reference</th>
+        </tr></thead>
+        <tbody>{tbody}</tbody>
+      </table>
+      <div class="foot">Chained to the audit ledger · every entry is time-stamped and cannot be altered</div>
+    </body></html>"""
+
+    pdf = HTML(string=html).write_pdf()
+    fname = f"PMC-EMD-Statement-{vendor_ref}-{datetime.now(timezone.utc).strftime('%Y%m%d')}.pdf"
+    await audit_log("vendor.emd_statement_pdf", None, "vendor", vendor_id, {"rows": len(rows)})
+    return Response(content=pdf, media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="{fname}"'})
+
+
 def _stripe():
     """Lazy-import to keep dev startup resilient if key is missing."""
     from pmc_lib.payments.stripe.checkout import (
