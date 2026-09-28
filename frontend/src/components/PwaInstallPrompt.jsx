@@ -1,25 +1,28 @@
 import { useEffect, useState } from "react";
+import { pmcInstallSteps, detectPmcBrowser } from "@/lib/pmcInstallInstructions";
 
 /**
  * PwaInstallPrompt — floating "Install App" affordance.
  *
- * Android (Chrome/Edge/Samsung Internet): captures the `beforeinstallprompt`
- * event and replays it on demand — Chrome's auto banner fires unpredictably,
- * so an explicit button is the only reliable way users find the install flow.
+ * Android/Chromium (Chrome, Edge, Brave, Opera): captures the
+ * `beforeinstallprompt` event and replays it on demand — Chrome's auto
+ * banner fires unpredictably, so an explicit button is the only reliable
+ * way users find the install flow.
  *
- * iOS Safari: `beforeinstallprompt` never fires; we show Share → Add to Home
- * Screen instructions instead.
+ * iOS Safari: `beforeinstallprompt` never fires. We show Share → Add to
+ * Home Screen instructions.
  *
- * Hidden entirely when the app is already running in standalone display-mode.
- * Dismissal persists for 7 days (localStorage).
+ * Samsung Internet / Firefox Android / other Chromium forks:
+ * `beforeinstallprompt` is often present but calling `.prompt()` no-ops
+ * silently on some builds. When "How to install" is tapped we ALWAYS
+ * render browser-specific step-by-step instructions via `pmcInstallSteps()`
+ * so no browser leaves the user stuck.
+ *
+ * Hidden entirely when the app is already running in standalone
+ * display-mode. Dismissal persists for 7 days (localStorage).
  */
 const DISMISS_KEY = "pmc_install_dismissed_at";
 const DISMISS_TTL_MS = 7 * 24 * 3600 * 1000;
-
-function isIos() {
-  return /iphone|ipad|ipod/i.test(window.navigator.userAgent)
-      || (window.navigator.platform === "MacIntel" && window.navigator.maxTouchPoints > 1);
-}
 
 function isStandalone() {
   return window.matchMedia?.("(display-mode: standalone)").matches
@@ -36,26 +39,42 @@ function dismissedRecently() {
 export default function PwaInstallPrompt() {
   const [deferred, setDeferred] = useState(null);
   const [show, setShow] = useState(false);
-  const [iosHelp, setIosHelp] = useState(false);
+  const [steps, setSteps] = useState(null);
 
   useEffect(() => {
-    if (isStandalone() || dismissedRecently()) return;
+    // Allow other components (e.g. the mobile hamburger "Install app"
+    // button) to force-show the banner even after a previous dismiss.
+    const forceShow = () => {
+      try { localStorage.removeItem(DISMISS_KEY); } catch (_) { /* noop */ }
+      setShow(true);
+    };
+    window.addEventListener("pmc:show-install-prompt", forceShow);
+
+    const { browser, isIos } = detectPmcBrowser();
+
+    if (isStandalone() || dismissedRecently()) {
+      return () => window.removeEventListener("pmc:show-install-prompt", forceShow);
+    }
 
     const onBeforeInstall = (e) => {
       e.preventDefault();
+      // Cache globally so the mobile menu "Install app" button can replay it
+      window.__pmcInstallPromptEvent = e;
       setDeferred(e);
       setShow(true);
     };
     window.addEventListener("beforeinstallprompt", onBeforeInstall);
 
-    // iOS never fires beforeinstallprompt — show the button after a short
-    // delay so the landing content renders first.
+    // iOS + Samsung Internet + Firefox never fire a reliable
+    // beforeinstallprompt — show the banner after a short delay so the
+    // landing content renders first.
     let t;
-    if (isIos()) {
+    if (isIos || browser === "samsung" || browser === "firefox") {
       t = setTimeout(() => setShow(true), 2500);
     }
     return () => {
       window.removeEventListener("beforeinstallprompt", onBeforeInstall);
+      window.removeEventListener("pmc:show-install-prompt", forceShow);
       if (t) clearTimeout(t);
     };
   }, []);
@@ -63,22 +82,25 @@ export default function PwaInstallPrompt() {
   const dismiss = () => {
     try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch {}
     setShow(false);
-    setIosHelp(false);
+    setSteps(null);
   };
 
   const install = async () => {
-    if (deferred) {
+    const { browser } = detectPmcBrowser();
+    const preferManualSteps = browser === "samsung" || browser === "firefox";
+    if (deferred && !preferManualSteps) {
       try {
         await deferred.prompt();
         const choice = await deferred.userChoice;
         if (choice?.outcome === "accepted") {
           setShow(false);
           setDeferred(null);
+          window.__pmcInstallPromptEvent = null;
           return;
         }
-      } catch { /* fall through to keep the banner */ }
+      } catch { /* fall through to manual steps */ }
     }
-    if (isIos()) setIosHelp(true);
+    setSteps(pmcInstallSteps());
   };
 
   if (!show) return null;
@@ -96,22 +118,25 @@ export default function PwaInstallPrompt() {
             </div>
             <div className="text-sm font-semibold mt-0.5">Install on your phone</div>
             <div className="text-[12px] text-white/70 mt-1 leading-snug">
-              {isIos()
-                ? "Tap Share, then “Add to Home Screen” for the full app experience."
+              {steps
+                ? "Follow the steps below to add PMC to your home screen."
                 : "One-tap access, offline shell, and push alerts once installed."}
             </div>
-            {iosHelp && (
-              <div className="mt-2 text-[12px] bg-white/10 p-2 leading-relaxed" data-testid="pwa-install-ios-steps">
-                1. Tap the <b>Share</b> icon in Safari<br />
-                2. Scroll and tap <b>Add to Home Screen</b><br />
-                3. Tap <b>Add</b> — the PMC crest appears on your home screen
+            {steps && (
+              <div className="mt-2 text-[12px] bg-white/10 p-2 leading-relaxed" data-testid="pwa-install-steps">
+                <div className="font-bold text-brand-gold mb-1">{steps.title}</div>
+                <ol className="list-decimal pl-4 space-y-1">
+                  {steps.steps.map((s, i) => (
+                    <li key={i}>{s}</li>
+                  ))}
+                </ol>
               </div>
             )}
             <div className="mt-3 flex items-center gap-2">
               <button type="button" onClick={install}
                       data-testid="pwa-install-now"
                       className="px-4 py-2 bg-brand-gold text-brand-navy text-[11px] font-bold uppercase tracking-widest hover:bg-white transition-colors">
-                {isIos() ? "How to install" : "Install app"}
+                {steps ? "Got it" : "Install app"}
               </button>
               <button type="button" onClick={dismiss}
                       data-testid="pwa-install-dismiss"

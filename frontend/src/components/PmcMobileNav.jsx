@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, NavLink, Link } from "react-router-dom";
+import { pmcInstallSteps, detectPmcBrowser } from "@/lib/pmcInstallInstructions";
 
 /**
  * PmcMobileNav — mobile-only navigation chrome.
@@ -13,7 +14,15 @@ import { useLocation, NavLink, Link } from "react-router-dom";
  * All visibility is controlled by CSS media queries in mobile-fix.css —
  * this component always renders but display collapses to `none` at
  * ≥768px viewports.
+ *
+ * The drawer footer also exposes an "Install app" button that ALWAYS
+ * shows an actionable path — replays the native install prompt when the
+ * browser has fired one, otherwise shows browser-specific step-by-step
+ * instructions (Samsung Internet, Firefox Android, Opera, Chrome, Edge,
+ * iOS Safari, macOS Safari, desktop Chromium) via pmcInstallSteps().
  */
+
+const PWA_DISMISS_KEY = "pmc_install_dismissed_at";
 
 const PUBLIC_MENU = [
   { to: "/", label: "Home" },
@@ -39,11 +48,40 @@ const VENDOR_TABS = [
 export default function PmcMobileNav() {
   const { pathname } = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [installSteps, setInstallSteps] = useState(null);
 
   // Close drawer on route change
   useEffect(() => {
     setMenuOpen(false);
+    setInstallSteps(null);
   }, [pathname]);
+
+  // Trigger the PWA install flow. Always ends with SOMETHING actionable:
+  //   1. If the browser fired `beforeinstallprompt`, replay it.
+  //   2. Otherwise (Samsung Internet, Firefox Android, iOS Safari, Chrome
+  //      pre-engagement, etc.), show browser-specific step-by-step
+  //      instructions inline in the drawer.
+  const triggerInstall = async () => {
+    try { localStorage.removeItem(PWA_DISMISS_KEY); } catch (_) { /* noop */ }
+    const { browser } = detectPmcBrowser();
+    const deferred = window.__pmcInstallPromptEvent;
+    // For Samsung Internet + Firefox we ALWAYS show the manual steps —
+    // even when beforeinstallprompt fires, its prompt() often no-ops.
+    const preferManualSteps = browser === "samsung" || browser === "firefox";
+    if (deferred && !preferManualSteps) {
+      try {
+        await deferred.prompt();
+        const choice = await deferred.userChoice;
+        window.__pmcInstallPromptEvent = null;
+        if (choice?.outcome === "accepted") {
+          setMenuOpen(false);
+          return;
+        }
+        // If user dismissed the native prompt, fall through to manual steps
+      } catch (_) { /* fall through */ }
+    }
+    setInstallSteps(pmcInstallSteps());
+  };
 
   // Body class toggle for CSS-driven drawer open state
   useEffect(() => {
@@ -176,6 +214,57 @@ export default function PmcMobileNav() {
         </nav>
 
         <div className="pmc-mob-menu-cta">
+          <button
+            type="button"
+            onClick={triggerInstall}
+            className="primary"
+            data-testid="pmc-mobile-menu-install"
+            style={{
+              background: "#d9bd72",
+              color: "#1b1606",
+              border: 0,
+              cursor: "pointer",
+              font: "inherit",
+              display: "inline-flex",
+              justifyContent: "center",
+              alignItems: "center",
+              minHeight: 46,
+              padding: "0 16px",
+              borderRadius: 6,
+              fontWeight: 600,
+              gap: 8,
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 3v12" />
+              <path d="m7 10 5 5 5-5" />
+              <path d="M5 21h14" />
+            </svg>
+            Install app
+          </button>
+          {installSteps && (
+            <div
+              data-testid="pmc-mobile-menu-install-steps"
+              style={{
+                fontSize: 12,
+                lineHeight: "18px",
+                color: "#f3efe4",
+                background: "rgba(217,189,114,0.08)",
+                border: "1px solid rgba(217,189,114,0.35)",
+                padding: "10px 12px",
+                borderRadius: 6,
+              }}
+            >
+              <div style={{ fontWeight: 700, marginBottom: 6, color: "#d9bd72", fontSize: 13 }}>
+                {installSteps.title}
+              </div>
+              <ol style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 4 }}>
+                {installSteps.steps.map((s, i) => (
+                  <li key={i}>{s}</li>
+                ))}
+              </ol>
+            </div>
+          )}
           <Link
             to="/login"
             className="ghost"
