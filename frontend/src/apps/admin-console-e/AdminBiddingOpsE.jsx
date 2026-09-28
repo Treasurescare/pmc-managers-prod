@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
+import { useAdminBiddingOpsLive } from "@/lib/pmcELiveData";
 
 export default function AdminBiddingOpsE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
+  useAdminBiddingOpsLive({ enabled: isE });
   useEffect(() => {
     if (!isE) return;
     const tick = () => {

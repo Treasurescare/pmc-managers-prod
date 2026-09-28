@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
+import { useAdminBillingLive } from "@/lib/pmcELiveData";
 
 export default function AdminBillingE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
+  useAdminBillingLive({ enabled: isE });
   useEffect(() => {
     if (!isE) return;
     const tick = () => {

@@ -645,6 +645,496 @@ export function useAdminVendorsLive({ enabled = true } = {}) {
 }
 
 // ────────────────────────────────────────────────────────────────────
+// Universal small helpers used by v50 hooks below
+// ────────────────────────────────────────────────────────────────────
+function _patchKpiFigures(root, values) {
+  const figs = root.querySelectorAll(".pmc-kpi .pmc-figure");
+  values.forEach((v, i) => { if (figs[i] && v != null) figs[i].textContent = v; });
+}
+function _patchTableRefs(root, refs) {
+  const rows = root.querySelectorAll("tbody tr, .pmc-panel tr, .pmc-notice-row");
+  refs.slice(0, rows.length).forEach((r, i) => {
+    const refEl = rows[i].querySelector(".pmc-ref");
+    if (refEl && r.ref) refEl.textContent = r.ref;
+    const titleCell = rows[i].querySelector("td:nth-child(2) a, td:nth-child(2) b, td:nth-child(1) b");
+    if (titleCell && r.title) titleCell.textContent = r.title;
+    if (r.href) rows[i].querySelectorAll("a").forEach((a) => { if (a.getAttribute("href") === "#") a.setAttribute("href", r.href); });
+  });
+  rows.forEach((r, i) => { if (i >= refs.length) r.style.display = "none"; });
+}
+function _patchSummary(root, text) {
+  const el = root.querySelector(".pmc-crumb + div .pmc-muted, h1.pmc-display + .pmc-muted, h1 + .pmc-muted");
+  if (el) el.textContent = text;
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Vendor: Find tenders  (same feed as public tenders list)
+// ────────────────────────────────────────────────────────────────────
+export function useVendorFindTendersLive({ enabled = true } = {}) {
+  useEffect(() => {
+    if (!enabled) return;
+    (async () => {
+      try {
+        const res = await publicApi.listNotices({});
+        const items = (res.items || []).filter((n) => !n.submission_deadline || new Date(n.submission_deadline) > new Date());
+        const root = document.querySelector('[data-pmc-e-page="vendor-find-tenders-e"]');
+        if (!root) return;
+        const rows = root.querySelectorAll(".tl-row, .pmc-notice, .pmc-tender");
+        items.slice(0, rows.length).forEach((n, i) => {
+          const r = rows[i];
+          const ref = r.querySelector(".pmc-ref"); if (ref) ref.textContent = n.notice_ref;
+          const h3 = r.querySelector("h3 a, h3"); if (h3) h3.textContent = n.title || "";
+          const view = r.querySelector(".tl-act a, .pmc-tender__foot a"); if (view) view.setAttribute("href", `/notices/${n.notice_ref}`);
+          const cd = r.querySelector(".pmc-countdown"); if (cd) cd.textContent = relTime(n.submission_deadline);
+        });
+        rows.forEach((r, i) => { if (i >= items.length) r.style.display = "none"; });
+        _patchSummary(root, `${items.length} open tenders match your profile`);
+      } catch (e) { console.debug("VendorFindTenders skip:", e); }
+    })();
+  }, [enabled]);
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Vendor: EMD & Payments
+// ────────────────────────────────────────────────────────────────────
+export function useVendorEmdLive({ enabled = true } = {}) {
+  useEffect(() => {
+    if (!enabled) return;
+    (async () => {
+      try {
+        const bids = await bidApi.mine().catch(() => []);
+        const root = document.querySelector('[data-pmc-e-page="vendor-emd-e"]');
+        if (!root) return;
+        const paid = bids.filter((b) => b.emd_paid_amount > 0);
+        const pending = bids.filter((b) => b.status === "emd_pending");
+        const totalUsd = paid.reduce((s, b) => s + (b.emd_paid_amount || 0) * (b.emd_currency === "USD" ? 1 : 0.012), 0);
+        _patchKpiFigures(root, [`$${Math.round(totalUsd).toLocaleString()}`, paid.length, pending.length]);
+        const rows = root.querySelectorAll("tbody tr, .pmc-txn");
+        paid.slice(0, rows.length).forEach((b, i) => {
+          const r = rows[i];
+          const ref = r.querySelector(".pmc-ref"); if (ref) ref.textContent = b.bid_ref;
+          const amt = r.querySelector(".pmc-amt, td:last-child"); if (amt) amt.textContent = money(b.emd_paid_amount, b.emd_currency);
+        });
+        rows.forEach((r, i) => { if (i >= paid.length) r.style.display = "none"; });
+      } catch (e) { console.debug("VendorEmd skip:", e); }
+    })();
+  }, [enabled]);
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Vendor: Signatures
+// ────────────────────────────────────────────────────────────────────
+export function useVendorSignaturesLive({ enabled = true } = {}) {
+  useEffect(() => {
+    if (!enabled) return;
+    (async () => {
+      try {
+        const bids = await bidApi.mine().catch(() => []);
+        const root = document.querySelector('[data-pmc-e-page="vendor-signatures-e"]');
+        if (!root) return;
+        const toSign = bids.filter((b) => b.status === "awaiting_signature" || b.awaiting_signature);
+        const signed = bids.filter((b) => b.status === "awarded" || b.signed_at);
+        _patchKpiFigures(root, [toSign.length, signed.length]);
+        const rows = root.querySelectorAll("tbody tr, .pmc-sig-row");
+        toSign.slice(0, rows.length).forEach((b, i) => {
+          const r = rows[i];
+          const ref = r.querySelector(".pmc-ref"); if (ref) ref.textContent = b.bid_ref;
+        });
+        rows.forEach((r, i) => { if (i >= toSign.length) r.style.display = "none"; });
+      } catch (e) { console.debug("VendorSignatures skip:", e); }
+    })();
+  }, [enabled]);
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Vendor: Account & Security
+// ────────────────────────────────────────────────────────────────────
+export function useVendorAccountLive({ enabled = true } = {}) {
+  useEffect(() => {
+    if (!enabled) return;
+    (async () => {
+      try {
+        const me = await vendorApi.me().catch(() => null);
+        if (!me) return;
+        const root = document.querySelector('[data-pmc-e-page="vendor-account-e"]');
+        if (!root) return;
+        const h1 = root.querySelector("h1"); if (h1) h1.textContent = "Account & security";
+        // email + phone + 2FA state
+        root.querySelectorAll("dd").forEach((dd, i) => {
+          if (i === 0 && me.email) dd.textContent = me.email;
+          if (i === 1 && me.contact_name) dd.textContent = me.contact_name;
+          if (i === 2 && me.phone) dd.textContent = me.phone;
+        });
+      } catch (e) { console.debug("VendorAccount skip:", e); }
+    })();
+  }, [enabled]);
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Vendor: Alerts (uses notifications API when available)
+// ────────────────────────────────────────────────────────────────────
+export function useVendorAlertsLive({ enabled = true } = {}) {
+  useEffect(() => {
+    if (!enabled) return;
+    (async () => {
+      try {
+        const res = await api.get("/api/v1/notifications").then((r) => r.data).catch(() => ({ items: [] }));
+        const root = document.querySelector('[data-pmc-e-page="vendor-alerts-e"]');
+        if (!root) return;
+        const items = res.items || res || [];
+        _patchKpiFigures(root, [items.length, items.filter((n) => !n.read_at).length]);
+      } catch (e) { console.debug("VendorAlerts skip:", e); }
+    })();
+  }, [enabled]);
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Vendor: Reviews
+// ────────────────────────────────────────────────────────────────────
+export function useVendorReviewsLive({ enabled = true } = {}) {
+  useEffect(() => {
+    if (!enabled) return;
+    (async () => {
+      try {
+        const me = await vendorApi.me().catch(() => null);
+        if (!me?.vendor_ref) return;
+        const res = await api.get(`/api/v1/vendors/${me.vendor_ref}/reviews`).then((r) => r.data).catch(() => ({ items: [] }));
+        const root = document.querySelector('[data-pmc-e-page="vendor-reviews-e"]');
+        if (!root) return;
+        const items = res.items || res || [];
+        const avg = items.length ? (items.reduce((s, r) => s + (r.stars || 0), 0) / items.length).toFixed(1) : "—";
+        _patchKpiFigures(root, [avg, items.length]);
+      } catch (e) { console.debug("VendorReviews skip:", e); }
+    })();
+  }, [enabled]);
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Vendor: Bid workspace  (uses :bidId from URL)
+// ────────────────────────────────────────────────────────────────────
+export function useVendorBidWorkspaceLive({ enabled = true, bidId } = {}) {
+  useEffect(() => {
+    if (!enabled || !bidId) return;
+    (async () => {
+      try {
+        const bid = await bidApi.get(bidId).catch(() => null);
+        if (!bid) return;
+        const root = document.querySelector('[data-pmc-e-page="vendor-bid-workspace-e"]');
+        if (!root) return;
+        const ref = root.querySelector(".pmc-ref"); if (ref) ref.textContent = bid.bid_ref;
+        const h1 = root.querySelector("h1"); if (h1) h1.textContent = bid.notice_title || bid.notice_ref || "Bid workspace";
+      } catch (e) { console.debug("BidWorkspace skip:", e); }
+    })();
+  }, [enabled, bidId]);
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Admin: helper that just refreshes KPI numbers from a stats bundle
+// ────────────────────────────────────────────────────────────────────
+async function _adminBundle() {
+  const [notices, vendors, packages, stats, escrow, bids] = await Promise.all([
+    publicApi.listNotices({}).catch(() => ({ items: [] })),
+    api.get("/api/v1/vendors/all").then((r) => r.data).catch(() => ({ items: [] })),
+    api.get("/api/v1/packages/all").then((r) => r.data).catch(() => ({ items: [] })),
+    publicApi.publicStats().catch(() => ({})),
+    api.get("/api/v1/meta/public/escrow-summary").then((r) => r.data).catch(() => null),
+    api.get("/api/v1/bids").then((r) => r.data).catch(() => ({ items: [] })),
+  ]);
+  return {
+    notices: notices.items || [],
+    vendors: vendors.items || vendors.vendors || vendors || [],
+    packages: packages.items || packages.packages || packages || [],
+    stats: stats || {},
+    escrow: escrow || {},
+    bids: bids.items || bids || [],
+  };
+}
+
+export function useAdminProgrammeLive({ enabled = true } = {}) {
+  useEffect(() => {
+    if (!enabled) return;
+    (async () => {
+      try {
+        const b = await _adminBundle();
+        const root = document.querySelector('[data-pmc-e-page="admin-programme-e"]');
+        if (!root) return;
+        const openN = b.notices.filter((n) => !n.submission_deadline || new Date(n.submission_deadline) > new Date());
+        _patchKpiFigures(root, [openN.length, b.vendors.length, b.packages.length, `$${Math.round(b.escrow.total_usd_equiv || 0).toLocaleString()}`]);
+      } catch (e) { console.debug("AdminProgramme skip:", e); }
+    })();
+  }, [enabled]);
+}
+
+export function useAdminAuditLive({ enabled = true } = {}) {
+  useEffect(() => {
+    if (!enabled) return;
+    (async () => {
+      try {
+        const res = await api.get("/api/v1/audit-events", { params: { limit: 20 } }).then((r) => r.data).catch(() => null);
+        const root = document.querySelector('[data-pmc-e-page="admin-audit-e"]');
+        if (!root || !res) return;
+        const events = res.items || res || [];
+        _patchKpiFigures(root, [events.length]);
+      } catch (e) { console.debug("AdminAudit skip:", e); }
+    })();
+  }, [enabled]);
+}
+
+export function useAdminCorrigendaLive({ enabled = true } = {}) {
+  useEffect(() => {
+    if (!enabled) return;
+    (async () => {
+      try {
+        const res = await publicApi.listNotices({});
+        const root = document.querySelector('[data-pmc-e-page="admin-corrigenda-e"]');
+        if (!root) return;
+        const corr = (res.items || []).filter((n) => n.deadline_last_amended_by_corr);
+        _patchKpiFigures(root, [corr.length]);
+      } catch (e) { console.debug("AdminCorrigenda skip:", e); }
+    })();
+  }, [enabled]);
+}
+
+export function useAdminWorkPackagesLive({ enabled = true } = {}) {
+  useEffect(() => {
+    if (!enabled) return;
+    (async () => {
+      try {
+        const res = await api.get("/api/v1/packages/all").then((r) => r.data).catch(() => ({ items: [] }));
+        const root = document.querySelector('[data-pmc-e-page="admin-work-packages-e"]');
+        if (!root) return;
+        const items = res.items || res || [];
+        _patchKpiFigures(root, [items.length]);
+        _patchTableRefs(root, items.map((p) => ({ ref: p.package_ref, title: p.title })));
+      } catch (e) { console.debug("AdminWorkPackages skip:", e); }
+    })();
+  }, [enabled]);
+}
+
+export function useAdminCatalogLive({ enabled = true } = {}) {
+  useEffect(() => {
+    if (!enabled) return;
+    (async () => {
+      try {
+        const res = await api.get("/api/v1/packages/all").then((r) => r.data).catch(() => ({ items: [] }));
+        const root = document.querySelector('[data-pmc-e-page="admin-catalog-e"]');
+        if (!root) return;
+        _patchKpiFigures(root, [(res.items || res || []).length]);
+      } catch (e) { console.debug("AdminCatalog skip:", e); }
+    })();
+  }, [enabled]);
+}
+
+export function useAdminRegistrationsLive({ enabled = true } = {}) {
+  useEffect(() => {
+    if (!enabled) return;
+    (async () => {
+      try {
+        const res = await api.get("/api/v1/registrations").then((r) => r.data).catch(() => ({ items: [] }));
+        const root = document.querySelector('[data-pmc-e-page="admin-registrations-e"]');
+        if (!root) return;
+        const items = res.items || res || [];
+        const pending = items.filter((r) => r.status === "pending" || r.status === "submitted").length;
+        _patchKpiFigures(root, [items.length, pending]);
+        _patchTableRefs(root, items.map((r) => ({ ref: r.registration_ref || r.id, title: r.company_name || r.contact_name })));
+      } catch (e) { console.debug("AdminRegistrations skip:", e); }
+    })();
+  }, [enabled]);
+}
+
+export function useAdminVendorKycLive({ enabled = true } = {}) {
+  useEffect(() => {
+    if (!enabled) return;
+    (async () => {
+      try {
+        const res = await api.get("/api/v1/vendors/all").then((r) => r.data).catch(() => ({ items: [] }));
+        const root = document.querySelector('[data-pmc-e-page="admin-vendor-kyc-e"]');
+        if (!root) return;
+        const items = res.items || res.vendors || res || [];
+        const pending = items.filter((v) => v.kyc_status === "pending").length;
+        const verified = items.filter((v) => v.kyc_status === "verified").length;
+        _patchKpiFigures(root, [pending, verified]);
+      } catch (e) { console.debug("AdminVendorKyc skip:", e); }
+    })();
+  }, [enabled]);
+}
+
+export function useAdminVendorIntelLive({ enabled = true } = {}) {
+  useEffect(() => {
+    if (!enabled) return;
+    (async () => {
+      try {
+        const res = await api.get("/api/v1/vendor-intel/pending-count").then((r) => r.data).catch(() => ({ count: 0 }));
+        const root = document.querySelector('[data-pmc-e-page="admin-vendor-intel-e"]');
+        if (!root) return;
+        _patchKpiFigures(root, [res.count]);
+      } catch (e) { console.debug("AdminVendorIntel skip:", e); }
+    })();
+  }, [enabled]);
+}
+
+export function useAdminBiddingOpsLive({ enabled = true } = {}) {
+  useEffect(() => {
+    if (!enabled) return;
+    (async () => {
+      try {
+        const res = await api.get("/api/v1/bids").then((r) => r.data).catch(() => ({ items: [] }));
+        const root = document.querySelector('[data-pmc-e-page="admin-bidding-ops-e"]');
+        if (!root) return;
+        const items = res.items || res || [];
+        const submitted = items.filter((b) => b.status === "submitted" || b.status === "sealed").length;
+        _patchKpiFigures(root, [items.length, submitted]);
+      } catch (e) { console.debug("AdminBiddingOps skip:", e); }
+    })();
+  }, [enabled]);
+}
+
+export function useAdminEscrowLive({ enabled = true } = {}) {
+  useEffect(() => {
+    if (!enabled) return;
+    (async () => {
+      try {
+        const s = await api.get("/api/v1/meta/public/escrow-summary").then((r) => r.data).catch(() => null);
+        const root = document.querySelector('[data-pmc-e-page="admin-escrow-e"]');
+        if (!root || !s) return;
+        _patchKpiFigures(root, [`$${Math.round(s.total_usd_equiv || 0).toLocaleString()}`, s.bids_paid, s.bids_pending]);
+      } catch (e) { console.debug("AdminEscrow skip:", e); }
+    })();
+  }, [enabled]);
+}
+
+export function useAdminBillingLive({ enabled = true } = {}) {
+  useEffect(() => {
+    if (!enabled) return;
+    (async () => {
+      try {
+        const s = await api.get("/api/v1/meta/public/escrow-summary").then((r) => r.data).catch(() => null);
+        const root = document.querySelector('[data-pmc-e-page="admin-billing-e"]');
+        if (!root || !s) return;
+        _patchKpiFigures(root, [`$${Math.round(s.total_usd_equiv || 0).toLocaleString()}`]);
+      } catch (e) { console.debug("AdminBilling skip:", e); }
+    })();
+  }, [enabled]);
+}
+
+export function useAdminEvaluationsLive({ enabled = true } = {}) {
+  useEffect(() => {
+    if (!enabled) return;
+    (async () => {
+      try {
+        const res = await api.get("/api/v1/bids").then((r) => r.data).catch(() => ({ items: [] }));
+        const root = document.querySelector('[data-pmc-e-page="admin-evaluation-list-e"], [data-pmc-e-page="admin-evaluation-e"]');
+        if (!root) return;
+        const items = (res.items || res || []).filter((b) => ["evaluating","tech_eval","comm_eval"].includes(b.status));
+        _patchKpiFigures(root, [items.length]);
+      } catch (e) { console.debug("AdminEvaluations skip:", e); }
+    })();
+  }, [enabled]);
+}
+
+export function useAdminAwardsLive({ enabled = true } = {}) {
+  useEffect(() => {
+    if (!enabled) return;
+    (async () => {
+      try {
+        const res = await api.get("/api/v1/bids").then((r) => r.data).catch(() => ({ items: [] }));
+        const root = document.querySelector('[data-pmc-e-page="admin-awards-e"], [data-pmc-e-page="admin-l1-award-e"]');
+        if (!root) return;
+        const awarded = (res.items || res || []).filter((b) => b.status === "awarded");
+        _patchKpiFigures(root, [awarded.length]);
+      } catch (e) { console.debug("AdminAwards skip:", e); }
+    })();
+  }, [enabled]);
+}
+
+export function useAdminDocuSignLive({ enabled = true } = {}) {
+  useEffect(() => {
+    if (!enabled) return;
+    (async () => {
+      try {
+        const res = await api.get("/api/v1/bids").then((r) => r.data).catch(() => ({ items: [] }));
+        const root = document.querySelector('[data-pmc-e-page="admin-docusign-e"]');
+        if (!root) return;
+        const sig = (res.items || res || []).filter((b) => b.status === "awaiting_signature");
+        _patchKpiFigures(root, [sig.length]);
+      } catch (e) { console.debug("AdminDocuSign skip:", e); }
+    })();
+  }, [enabled]);
+}
+
+export function useAdminEventsLive({ enabled = true } = {}) {
+  useEffect(() => {
+    if (!enabled) return;
+    (async () => {
+      try {
+        const res = await api.get("/api/v1/audit-events", { params: { limit: 30 } }).then((r) => r.data).catch(() => null);
+        const root = document.querySelector('[data-pmc-e-page="admin-events-e"]');
+        if (!root || !res) return;
+        _patchKpiFigures(root, [(res.items || res || []).length]);
+      } catch (e) { console.debug("AdminEvents skip:", e); }
+    })();
+  }, [enabled]);
+}
+
+export function useAdminEngagementsLive({ enabled = true } = {}) {
+  useEffect(() => {
+    if (!enabled) return;
+    (async () => {
+      try {
+        const res = await api.get("/api/v1/notices/admin/all").then((r) => r.data).catch(() => ({ items: [] }));
+        const root = document.querySelector('[data-pmc-e-page="admin-engagements-e"]');
+        if (!root) return;
+        _patchKpiFigures(root, [(res.items || res || []).length]);
+      } catch (e) { console.debug("AdminEngagements skip:", e); }
+    })();
+  }, [enabled]);
+}
+
+export function useAdminTenderBuilderLive({ enabled = true } = {}) {
+  useEffect(() => {
+    if (!enabled) return;
+    (async () => {
+      try {
+        const res = await api.get("/api/v1/notices/admin/all").then((r) => r.data).catch(() => ({ items: [] }));
+        const root = document.querySelector('[data-pmc-e-page="admin-tender-builder-e"]');
+        if (!root) return;
+        const items = res.items || res || [];
+        const drafts = items.filter((n) => n.is_published === false).length;
+        _patchKpiFigures(root, [drafts, items.length]);
+      } catch (e) { console.debug("AdminTenderBuilder skip:", e); }
+    })();
+  }, [enabled]);
+}
+
+export function useAdminBoqLive({ enabled = true } = {}) {
+  useEffect(() => {
+    if (!enabled) return;
+    (async () => {
+      try {
+        const res = await api.get("/api/v1/boqs").then((r) => r.data).catch(() => ({ items: [] }));
+        const root = document.querySelector('[data-pmc-e-page="admin-boq-contracts-e"]');
+        if (!root) return;
+        _patchKpiFigures(root, [(res.items || res || []).length]);
+      } catch (e) { console.debug("AdminBoq skip:", e); }
+    })();
+  }, [enabled]);
+}
+
+export function useAdminPermissionsLive({ enabled = true } = {}) {
+  useEffect(() => {
+    if (!enabled) return;
+    (async () => {
+      try {
+        const res = await api.get("/api/v1/staff").then((r) => r.data).catch(() => ({ items: [] }));
+        const root = document.querySelector('[data-pmc-e-page="admin-permissions-e"]');
+        if (!root) return;
+        _patchKpiFigures(root, [(res.items || res || []).length]);
+      } catch (e) { console.debug("AdminPermissions skip:", e); }
+    })();
+  }, [enabled]);
+}
+
+// ────────────────────────────────────────────────────────────────────
 // Admin: Dashboard (Overview)
 // ────────────────────────────────────────────────────────────────────
 export function useAdminDashboardLive({ enabled = true } = {}) {

@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
+import { useAdminCatalogLive } from "@/lib/pmcELiveData";
 
 export default function AdminCatalogE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
+  useAdminCatalogLive({ enabled: isE });
   useEffect(() => {
     if (!isE) return;
     const tick = () => {

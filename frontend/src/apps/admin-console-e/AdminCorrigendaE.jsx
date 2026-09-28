@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
+import { useAdminCorrigendaLive } from "@/lib/pmcELiveData";
 
 export default function AdminCorrigendaE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
+  useAdminCorrigendaLive({ enabled: isE });
   useEffect(() => {
     if (!isE) return;
     const tick = () => {

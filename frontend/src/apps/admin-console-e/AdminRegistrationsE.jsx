@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
+import { useAdminRegistrationsLive } from "@/lib/pmcELiveData";
 
 export default function AdminRegistrationsE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
+  useAdminRegistrationsLive({ enabled: isE });
   useEffect(() => {
     if (!isE) return;
     const tick = () => {

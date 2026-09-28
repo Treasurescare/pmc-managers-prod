@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
+import { useAdminEscrowLive } from "@/lib/pmcELiveData";
 
 export default function AdminEscrowE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
+  useAdminEscrowLive({ enabled: isE });
   useEffect(() => {
     if (!isE) return;
     const tick = () => {

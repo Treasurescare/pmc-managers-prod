@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
+import { useVendorSignaturesLive } from "@/lib/pmcELiveData";
 
 export default function VendorSignaturesE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
+  useVendorSignaturesLive({ enabled: isE });
   useEffect(() => {
     if (!isE) return;
     const tick = () => {

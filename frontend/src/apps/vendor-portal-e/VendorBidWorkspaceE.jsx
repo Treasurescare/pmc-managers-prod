@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
+import { useVendorBidWorkspaceLive } from "@/lib/pmcELiveData";
 
 export default function VendorBidWorkspaceE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
+  useVendorBidWorkspaceLive({ enabled: isE, bidId: (window.location.pathname.split("/").pop() || "") });
   useEffect(() => {
     if (!isE) return;
     const tick = () => {

@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
+import { useAdminAwardsLive } from "@/lib/pmcELiveData";
 
 export default function AdminL1AwardE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
+  useAdminAwardsLive({ enabled: isE });
   useEffect(() => {
     if (!isE) return;
     const tick = () => {

@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
+import { useAdminBoqLive } from "@/lib/pmcELiveData";
 
 export default function AdminBoqContractsE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
+  useAdminBoqLive({ enabled: isE });
   useEffect(() => {
     if (!isE) return;
     const tick = () => {

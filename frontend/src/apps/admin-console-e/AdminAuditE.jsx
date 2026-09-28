@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
+import { useAdminAuditLive } from "@/lib/pmcELiveData";
 
 export default function AdminAuditE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
+  useAdminAuditLive({ enabled: isE });
   useEffect(() => {
     if (!isE) return;
     const tick = () => {

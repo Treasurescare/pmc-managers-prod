@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
+import { useVendorReviewsLive } from "@/lib/pmcELiveData";
 
 export default function VendorReviewsE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
+  useVendorReviewsLive({ enabled: isE });
   useEffect(() => {
     if (!isE) return;
     const tick = () => {

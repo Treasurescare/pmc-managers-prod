@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
+import { useAdminDocuSignLive } from "@/lib/pmcELiveData";
 
 export default function AdminDocuSignE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
+  useAdminDocuSignLive({ enabled: isE });
   useEffect(() => {
     if (!isE) return;
     const tick = () => {

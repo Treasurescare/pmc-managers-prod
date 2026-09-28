@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
+import { useAdminWorkPackagesLive } from "@/lib/pmcELiveData";
 
 export default function AdminWorkPackagesE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
+  useAdminWorkPackagesLive({ enabled: isE });
   useEffect(() => {
     if (!isE) return;
     const tick = () => {

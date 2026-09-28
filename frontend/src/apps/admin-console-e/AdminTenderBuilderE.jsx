@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
+import { useAdminTenderBuilderLive } from "@/lib/pmcELiveData";
 
 export default function AdminTenderBuilderE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
+  useAdminTenderBuilderLive({ enabled: isE });
   useEffect(() => {
     if (!isE) return;
     const tick = () => {
