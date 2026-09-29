@@ -1472,12 +1472,14 @@ export function useAdminDashboardLive({ enabled = true } = {}) {
     (async () => {
       try {
         // Best-effort parallel fetch of everything we can reach without extra auth.
-        const [notices, vendors, packages, stats, escrow] = await Promise.all([
+        const [notices, vendors, packages, stats, escrow, bids, auditEvents] = await Promise.all([
           publicApi.listNotices({}).catch(() => ({ items: [] })),
           api.get("/api/v1/vendors/all").then((r) => r.data).catch(() => ({ items: [] })),
           api.get("/api/v1/packages/all").then((r) => r.data).catch(() => ({ items: [] })),
           publicApi.publicStats().catch(() => ({})),
           api.get("/api/v1/meta/public/escrow-summary").then((r) => r.data).catch(() => null),
+          api.get("/api/v1/bids").then((r) => r.data).catch(() => []),
+          api.get("/api/v1/audit-events", { params: { limit: 6 } }).then((r) => r.data).catch(() => []),
         ]);
         if (cancelled) return;
         const nItems = notices.items || [];
@@ -1493,18 +1495,23 @@ export function useAdminDashboardLive({ enabled = true } = {}) {
         const closed = nItems.length - openN.length - draft;
         const stageCounts = [draft, published, 0, bidding, 0, Math.floor(closed / 2), closed - Math.floor(closed / 2)];
 
-        const stages = document.querySelectorAll('[data-pmc-e-page="admin-dashboard-e"] .pmc-pipe a');
+        const stages = document.querySelectorAll('[data-pmc-e-page="admin-dashboard-e"] .ad-pipe a');
         stages.forEach((a, i) => {
           const c = a.querySelector(".c");
-          const bar = a.querySelector(".bar i");
+          const bar = a.querySelector(".vb i");
           const l2 = a.querySelector(".l2");
           if (c) c.textContent = stageCounts[i] ?? 0;
           if (bar) {
             const max = Math.max(1, ...stageCounts);
-            bar.style.width = `${Math.round((stageCounts[i] || 0) / max * 100)}%`;
+            bar.style.height = `${Math.max(4, Math.round((stageCounts[i] || 0) / max * 100))}%`;
           }
-          if (l2 && i === 3) l2.textContent = closingThisWeek ? `${closingThisWeek} close this week` : "";
+          if (l2 && i === 3) l2.textContent = closingThisWeek ? `${closingThisWeek} CLOSE THIS WEEK` : "";
+          a.classList.toggle("hot", i === 3 && (stageCounts[i] || 0) > 0);
         });
+        const activeEl = document.querySelector('[data-pmc-e-page="admin-dashboard-e"] [data-dash-active]');
+        if (activeEl) activeEl.textContent = stageCounts.reduce((s, x) => s + (x || 0), 0);
+        const dateEl = document.querySelector('[data-pmc-e-page="admin-dashboard-e"] [data-dash-date]');
+        if (dateEl) dateEl.textContent = `FY 2026–27 · ${new Date().toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short", year: "numeric" }).toUpperCase()}`;
 
         // KPI cards
         const kpis = document.querySelectorAll('[data-pmc-e-page="admin-dashboard-e"] .pmc-kpi');
@@ -1513,16 +1520,99 @@ export function useAdminDashboardLive({ enabled = true } = {}) {
           const s0 = kpis[0].querySelector(".s");
           const f1 = kpis[1].querySelector(".pmc-figure");
           const f2 = kpis[2].querySelector(".pmc-figure");
+          const s2 = kpis[2].querySelector(".s");
           const f3 = kpis[3].querySelector(".pmc-figure");
-          if (f2) f2.textContent = bidding;
+          const s3 = kpis[3].querySelector(".s");
+          const bidItems = Array.isArray(bids) ? bids : (bids.items || []);
+          const awardedBids = bidItems.filter((b) => b.status === "awarded" || b.status === "closed").length;
+          if (f2) f2.textContent = bidItems.filter((b) => !["awarded","closed","rejected","withdrawn"].includes(b.status)).length;
+          if (s2) s2.textContent = `${awardedBids} awarded`;
           if (f3) f3.textContent = vItems.length || stats.suppliers_approved || 0;
+          if (s3) s3.textContent = "KYC verified";
           if (f1) f1.textContent = openN.filter((n) => n.form_of_contract || n.is_published).length || 0;
-          // EMD KPI live — from /meta/public/escrow-summary aggregate
           if (f0 && escrow) {
             const total = escrow.total_usd_equiv || 0;
             f0.textContent = `$${Math.round(total).toLocaleString()}`;
             if (s0) s0.textContent = `${escrow.bids_pending || 0} pending · ${escrow.bids_paid || 0} paid`;
           }
+        }
+
+        // Attention strip
+        const bidItems = Array.isArray(bids) ? bids : (bids.items || []);
+        const emdWaiting = bidItems.filter((b) => b.status === "emd_pending" || b.status === "submitted").length;
+        const attn = (k) => document.querySelector(`[data-pmc-e-page="admin-dashboard-e"] [data-attn="${k}"]`);
+        if (attn("closing")) attn("closing").textContent = String(closingThisWeek).padStart(2, "0");
+        if (attn("approvals")) attn("approvals").textContent = String(draft).padStart(2, "0");
+        if (attn("emd")) attn("emd").textContent = String(emdWaiting).padStart(2, "0");
+
+        // Bids waiting on a step
+        const bidsBody = document.getElementById("dash-bids-rows");
+        if (bidsBody) {
+          const inFlight = bidItems
+            .filter((b) => !["awarded","closed","rejected","withdrawn"].includes(b.status))
+            .sort((a, b2) => new Date(a.updated_at || a.created_at || 0) - new Date(b2.updated_at || b2.created_at || 0))
+            .slice(0, 5);
+          const statusPill = (st) => {
+            const warn = st === "emd_pending" || st === "submitted";
+            const label = { emd_pending: "Awaiting EMD", submitted: "Awaiting EMD", emd_paid: "EMD paid",
+              escrow_accepted: "Escrow accepted", admin_flagged: "Admin flagged", certifier_cleared: "Certifier cleared",
+              legal_cleared: "Legal cleared", accounting_cleared: "Accounts cleared", on_hold: "On hold" }[st] || st;
+            return `<span class="pmc-pill pmc-pill--${warn ? "warning" : "info"}">${label}</span>`;
+          };
+          bidsBody.innerHTML = inFlight.length
+            ? inFlight.map((b) => {
+                const price = b.price_amount != null ? `${b.price_currency || "USD"} ${Number(b.price_amount).toLocaleString()}` : "—";
+                const next = (b.active_step && b.active_step.label) || "—";
+                return `<tr data-testid="dash-bid-row"><td><div style="font-weight:600">${b.notice_title || b.title || "(Untitled bid)"}</div><div style="font-size:12px;color:var(--ink-muted)"><span class="pmc-ref">${b.bid_ref || "—"}</span> · ${b.vendor_ref || b.company_name || "—"}</div></td><td class="num" style="font-weight:600">${price}</td><td>${statusPill(b.status)}</td><td class="pmc-next-owner">${next}</td><td style="text-align:right;width:40px"><a href="/admin/e/bidding" aria-label="Open in bidding ops"><svg class="pmc-ico" aria-hidden="true"><use href="#i-arrow" /></svg></a></td></tr>`;
+              }).join("")
+            : `<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--ink-muted)">No bids waiting on a step right now.</td></tr>`;
+        }
+
+        // Closing this week
+        const cwBody = document.getElementById("dash-closing-rows");
+        const cwCount = document.querySelector('[data-pmc-e-page="admin-dashboard-e"] [data-cw-count]');
+        if (cwBody) {
+          const closing = openN
+            .filter((n) => n.submission_deadline && (new Date(n.submission_deadline) - new Date()) < 7 * 86400 * 1000)
+            .sort((a, b) => new Date(a.submission_deadline) - new Date(b.submission_deadline))
+            .slice(0, 5);
+          if (cwCount) cwCount.textContent = String(closing.length).padStart(2, "0");
+          cwBody.innerHTML = closing.length
+            ? closing.map((n) => {
+                const sealed = bidItems.filter((b) => b.notice_ref === n.notice_ref).length;
+                return `<tr data-testid="dash-closing-row"><td><div style="font-weight:500">${n.title || "(Untitled)"}</div><div class="pmc-ref">${n.notice_ref || "—"}${n.category ? " · " + n.category : ""}${n.country ? " · " + n.country : ""}</div></td><td class="num">${String(sealed).padStart(2, "0")}</td><td class="num">${String(n.clarifications_count || 0).padStart(2, "0")}</td><td class="num"><span class="closes">${relTime(n.submission_deadline)}</span></td></tr>`;
+              }).join("")
+            : `<tr><td colspan="4" style="padding:24px;text-align:center;color:var(--ink-muted)">Nothing closes this week.</td></tr>`;
+        }
+
+        // Approvals queue — draft notices pending publish
+        const apprList = document.getElementById("dash-approvals");
+        const apprPill = document.querySelector('[data-pmc-e-page="admin-dashboard-e"] [data-appr-pill]');
+        if (apprList) {
+          const drafts = nItems.filter((n) => n.is_published === false)
+            .sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0))
+            .slice(0, 3);
+          if (apprPill) apprPill.textContent = `${drafts.length} of ${draft} shown`;
+          apprList.innerHTML = drafts.length
+            ? drafts.map((n) => {
+                const age = n.created_at ? new Date(n.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) : "";
+                return `<li data-testid="dash-approval-row"><span><span class="k">Publish</span><span class="t" style="display:block">${n.notice_ref || "—"} — ${n.title || "(Untitled)"}</span><span class="s">${n.created_by_email || "Tender desk"}${age ? " · " + age : ""}</span></span><a href="/admin/e/notices" class="pmc-btn pmc-btn--secondary pmc-btn--sm">Review</a></li>`;
+              }).join("")
+            : `<li class="ad-appr__empty">No drafts awaiting approval.</li>`;
+        }
+
+        // Audit stream
+        const auditList = document.getElementById("dash-audit");
+        if (auditList) {
+          const events = Array.isArray(auditEvents) ? auditEvents : [];
+          auditList.innerHTML = events.length
+            ? events.map((e) => {
+                let t = "—";
+                try { t = new Date(e.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" }); } catch {}
+                const detail = [e.target_id, e.actor_email].filter(Boolean).join(" · ");
+                return `<li data-testid="dash-audit-row"><time>${t}</time><span><span class="a">${e.event_type || "event"}</span><span class="s" style="display:block">${detail}</span></span></li>`;
+              }).join("")
+            : `<li><time>—</time><span class="s">No audit events yet.</span></li>`;
         }
 
         // Sidebar counts (Notices, Work packages, Vendors, Bidding ops)
@@ -1536,14 +1626,6 @@ export function useAdminDashboardLive({ enabled = true } = {}) {
           else if (label.startsWith("vendors")) counter.textContent = vItems.length || stats.suppliers_approved || 0;
           else if (label.includes("bidding ops")) counter.textContent = bidding;
         });
-
-        // "Needs you today" — pill count only (inbox rows need auth'd endpoint we don't have yet)
-        const needsPill = document.querySelector('[data-pmc-e-page="admin-dashboard-e"] .pmc-panel__head .pmc-pill--warning');
-        if (needsPill) {
-          // Rough proxy: drafts + close-this-week
-          const need = draft + closingThisWeek;
-          needsPill.textContent = `${need} open`;
-        }
       } catch (e) {
         if (process.env.NODE_ENV !== "production") console.debug("Admin live data skipped:", e);
       }

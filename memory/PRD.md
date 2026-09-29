@@ -471,3 +471,24 @@ the new redesign only lived at `/admin/e/bidding`. Fix in
 effect). Verified: login → /admin?tab=bidding → lands on
 /admin/e/bidding with 9 real bids in the new pipeline/table.
 v49q frontend bundle rebuilt to include this redirect.
+
+### v49q — Admin Dashboard redesign ported to light theme — 29 Sep 2026
+User chose option (b): port E-Admin-Dashboard.html sections into the
+light Option E theme (NOT the dark navy palette). Rewrote
+`apps/admin-console-e/AdminDashboardE.jsx` + new scoped
+`admin-dashboard.css` (adh/ad-attn/ad-pipe/ad-appr/ad-audit classes, all
+token-based). Sections: eyebrow+H1 head, ATTENTION strip (closing /
+drafts / EMD-pending counts), 7-stage pipeline with vertical bars
+(I Draft → VII Awarded, hot state on Bidding), 4 KPI cards (EMD
+collected, active contracts, bids in pipeline, approved vendors),
+Bids-waiting table (top 5 in-flight bids with status pills + next step),
+Closing-this-week table (bids sealed + countdown per tender), Approvals
+queue (draft notices), Audit stream (last 6 hash-chained events).
+All wired in rewritten `useAdminDashboardLive` — fetches notices,
+vendors, packages, stats, escrow-summary, /api/v1/bids and
+/api/v1/audit-events in parallel. Verified admin-authed at 1440:
+attn 05/00/04, pipeline 0/14/0/5/0/1/2, KPIs $31,600/14/6/41,
+5 bid rows, 6 audit rows. Mobile 390: attention strip stacks,
+pipeline 2-col. All CTAs are real links (audit, tender-builder,
+notices, bidding). No mock content remains on the page.
+v49q bundle rebuilt again with dashboard + redirect included.
