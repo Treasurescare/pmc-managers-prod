@@ -73,7 +73,22 @@ export default function AdminDashboard() {
   const logout = async () => { await adminApi.logout(); navigate("/"); };
 
   if (!me) return <div className="min-h-screen bg-brand-pale flex items-center justify-center text-brand-navy/60">{t("common.loading")}</div>;
-  if (tab === "bidding") return <Navigate to="/admin/e/bidding" replace />;
+  // Legacy tab console → redirect every tab that has an Option-E page.
+  // Tabs without an E equivalent (auctions, meetings, masters, help) stay here.
+  const E_TAB_ROUTES = {
+    analytics: "/admin/e/dashboard", audit: "/admin/e/audit",
+    notices: "/admin/e/notices", corrigenda: "/admin/e/corrigenda",
+    "tender-builder": "/admin/e/tender-builder", boq: "/admin/e/boq",
+    packages: "/admin/e/work-packages", catalog: "/admin/e/catalog",
+    vendors: "/admin/e/vendors", registrations: "/admin/e/registrations",
+    vintel: "/admin/e/vendor-intel", engagements: "/admin/e/engagements",
+    bidding: "/admin/e/bidding", escrow: "/admin/e/escrow",
+    billing: "/admin/e/billing", evaluation: "/admin/e/evaluation",
+    l1: "/admin/e/l1-award", awards: "/admin/e/awards",
+    docusign: "/admin/e/docusign", permissions: "/admin/e/permissions",
+    events: "/admin/e/events",
+  };
+  if (E_TAB_ROUTES[tab]) return <Navigate to={E_TAB_ROUTES[tab]} replace />;
 
   const header = (
     <>

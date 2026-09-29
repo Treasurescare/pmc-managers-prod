@@ -693,7 +693,7 @@ export function useAdminVendorsLive({ enabled = true } = {}) {
     let cancelled = false;
     (async () => {
       try {
-        const res = await api.get("/api/v1/vendors/all").then((r) => r.data).catch(() => ({ items: [] }));
+        const res = await api.get("/api/v1/vendors").then((r) => ({ items: Array.isArray(r.data) ? r.data : (r.data.items || []) })).catch(() => ({ items: [] }));
         if (cancelled) return;
         const items = res.items || res.vendors || res || [];
         const root = document.querySelector('[data-pmc-e-page="admin-vendors-e"]');
@@ -992,8 +992,8 @@ export function useVendorBidWorkspaceLive({ enabled = true, bidId } = {}) {
 async function _adminBundle() {
   const [notices, vendors, packages, stats, escrow, bids] = await Promise.all([
     publicApi.listNotices({}).catch(() => ({ items: [] })),
-    api.get("/api/v1/vendors/all").then((r) => r.data).catch(() => ({ items: [] })),
-    api.get("/api/v1/packages/all").then((r) => r.data).catch(() => ({ items: [] })),
+    api.get("/api/v1/vendors").then((r) => ({ items: Array.isArray(r.data) ? r.data : (r.data.items || []) })).catch(() => ({ items: [] })),
+    api.get("/api/v1/packages").then((r) => ({ items: Array.isArray(r.data) ? r.data : (r.data.items || []) })).catch(() => ({ items: [] })),
     publicApi.publicStats().catch(() => ({})),
     api.get("/api/v1/meta/public/escrow-summary").then((r) => r.data).catch(() => null),
     api.get("/api/v1/bids").then((r) => r.data).catch(() => ({ items: [] })),
@@ -1058,7 +1058,7 @@ export function useAdminWorkPackagesLive({ enabled = true } = {}) {
     if (!enabled) return;
     (async () => {
       try {
-        const res = await api.get("/api/v1/packages/all").then((r) => r.data).catch(() => ({ items: [] }));
+        const res = await api.get("/api/v1/packages").then((r) => ({ items: Array.isArray(r.data) ? r.data : (r.data.items || []) })).catch(() => ({ items: [] }));
         const root = document.querySelector('[data-pmc-e-page="admin-work-packages-e"]');
         if (!root) return;
         const items = res.items || res || [];
@@ -1074,7 +1074,7 @@ export function useAdminCatalogLive({ enabled = true } = {}) {
     if (!enabled) return;
     (async () => {
       try {
-        const res = await api.get("/api/v1/packages/all").then((r) => r.data).catch(() => ({ items: [] }));
+        const res = await api.get("/api/v1/packages").then((r) => ({ items: Array.isArray(r.data) ? r.data : (r.data.items || []) })).catch(() => ({ items: [] }));
         const root = document.querySelector('[data-pmc-e-page="admin-catalog-e"]');
         if (!root) return;
         _patchKpiFigures(root, [(res.items || res || []).length]);
@@ -1105,7 +1105,7 @@ export function useAdminVendorKycLive({ enabled = true } = {}) {
     if (!enabled) return;
     (async () => {
       try {
-        const res = await api.get("/api/v1/vendors/all").then((r) => r.data).catch(() => ({ items: [] }));
+        const res = await api.get("/api/v1/vendors").then((r) => ({ items: Array.isArray(r.data) ? r.data : (r.data.items || []) })).catch(() => ({ items: [] }));
         const root = document.querySelector('[data-pmc-e-page="admin-vendor-kyc-e"]');
         if (!root) return;
         const items = res.items || res.vendors || res || [];
@@ -1122,7 +1122,7 @@ export function useAdminVendorIntelLive({ enabled = true } = {}) {
     if (!enabled) return;
     (async () => {
       try {
-        const res = await api.get("/api/v1/vendor-intel/pending-count").then((r) => r.data).catch(() => ({ count: 0 }));
+        const res = await api.get("/api/v1/vendor-ratings/admin/pending-count").then((r) => ({ count: r.data.pending ?? r.data.count ?? 0 })).catch(() => ({ count: 0 }));
         const root = document.querySelector('[data-pmc-e-page="admin-vendor-intel-e"]');
         if (!root) return;
         _patchKpiFigures(root, [res.count]);
@@ -1445,7 +1445,7 @@ export function useAdminBoqLive({ enabled = true } = {}) {
     if (!enabled) return;
     (async () => {
       try {
-        const res = await api.get("/api/v1/boqs").then((r) => r.data).catch(() => ({ items: [] }));
+        const res = await api.get("/api/v1/boq/templates").then((r) => ({ items: Array.isArray(r.data) ? r.data : (r.data.items || []) })).catch(() => ({ items: [] }));
         const root = document.querySelector('[data-pmc-e-page="admin-boq-contracts-e"]');
         if (!root) return;
         _patchKpiFigures(root, [(res.items || res || []).length]);
@@ -1480,8 +1480,8 @@ export function useAdminDashboardLive({ enabled = true } = {}) {
         // Best-effort parallel fetch of everything we can reach without extra auth.
         const [notices, vendors, packages, stats, escrow, bids, auditEvents] = await Promise.all([
           publicApi.listNotices({}).catch(() => ({ items: [] })),
-          api.get("/api/v1/vendors/all").then((r) => r.data).catch(() => ({ items: [] })),
-          api.get("/api/v1/packages/all").then((r) => r.data).catch(() => ({ items: [] })),
+          api.get("/api/v1/vendors").then((r) => ({ items: Array.isArray(r.data) ? r.data : (r.data.items || []) })).catch(() => ({ items: [] })),
+          api.get("/api/v1/packages").then((r) => ({ items: Array.isArray(r.data) ? r.data : (r.data.items || []) })).catch(() => ({ items: [] })),
           publicApi.publicStats().catch(() => ({})),
           api.get("/api/v1/meta/public/escrow-summary").then((r) => r.data).catch(() => null),
           api.get("/api/v1/bids").then((r) => r.data).catch(() => []),

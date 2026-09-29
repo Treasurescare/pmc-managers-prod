@@ -526,3 +526,26 @@ populates detail (PMC-BID-2026-00017, Escrow pill, 6-step timeline,
 3 actions). At 1280 and 900: no horizontal scroll, menu button +
 drawer work. eslint warning in AdminDashboard.jsx (exhaustive-deps)
 is benign pre-existing.
+
+### v49q — Full admin sidebar sweep + old-console redirect — 29 Sep 2026
+User: "almost all the leftsidebar options were breaking." Root causes
+found via a 21-page × 2-viewport sweep:
+1. The legacy tab console at `/admin` (dark "PMC Admin" shell) still
+   rendered OLD panels for every tab except bidding — users landing
+   there saw the broken old UI. Fix: `AdminDashboard.jsx` now has an
+   E_TAB_ROUTES map and render-time `<Navigate>` for all 21 tabs with
+   E equivalents (analytics→dashboard, packages→work-packages,
+   vintel→vendor-intel, l1→l1-award, etc.). Tabs without E pages
+   (auctions, meetings, masters, help) stay on the old console.
+2. Dead sidebar link: new Dashboard/BiddingOps sidebars linked
+   `/admin/e/l1` but the route is `/admin/e/l1-award`. Fixed in both.
+   Link audit across all E-pages: no dead links remain.
+3. Hooks called four 404/405 endpoints: `/vendors/all`→`/vendors`,
+   `/packages/all`→`/packages`, `/vendor-intel/pending-count`→
+   `/vendor-ratings/admin/pending-count` (field `pending`→count),
+   `/boqs`→`/boq/templates`. All in pmcELiveData.js.
+Sweep result after fixes: all 21 `/admin/e/*` pages OK at 1440+900
+(no h-scroll, content renders, h1 present), zero 404s on dashboard,
+redirect map verified for 8 sample tabs. Dashboard KPIs now real
+($31,600 EMD, 40 vendors, 48 work packages in sidebar).
+v49q frontend bundle rebuilt (07:31 UTC) with all of this.
