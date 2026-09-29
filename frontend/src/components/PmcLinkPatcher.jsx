@@ -626,22 +626,52 @@ function filterAlertRows(tabEl) {
 }
 
 // v49p — My bids tab filter: Active / Drafts / Closed / Withdrawn filter the
-// bids table rows by their status pill text.
+// bids table rows by their status pill text. The "Recently decided" panel is
+// the historical record of CLOSED bids — it shows only on the Closed tab,
+// otherwise the page always shows rows and the tabs look dead (user report).
 function filterMyBidsRows(tabEl) {
   const root = tabEl.closest('[data-pmc-e-page="vendor-mybids-e"]');
   if (!root) return;
   const key = labelOf(tabEl).replace(/\s*\d+$/, "").trim();
-  const panel = root.querySelector("section.pmc-panel"); // first panel = live bids table
-  if (!panel) return;
-  panel.querySelectorAll("tbody tr").forEach((tr) => {
+  const panels = [...root.querySelectorAll("section.pmc-panel")];
+  const main = panels[0];      // live bids table
+  const decided = panels[1];   // "Recently decided"
+  if (!main) return;
+  let visible = 0;
+  main.querySelectorAll("tbody tr").forEach((tr) => {
     const pill = (tr.querySelector(".pmc-pill")?.textContent || "").toLowerCase();
     let show = true;
     if (key === "drafts") show = pill.includes("draft");
     else if (key === "closed") show = /award|closed|decid|lost/.test(pill);
     else if (key === "withdrawn") show = pill.includes("withdraw");
-    else show = !(pill.includes("draft") || pill.includes("withdraw")); // active
+    else show = !/(draft|withdraw|award|closed|lost|decid)/.test(pill); // active
     tr.style.display = show ? "" : "none";
+    if (show) visible += 1;
   });
+  // Hide the Recently-decided panel (and its heading) unless Closed is active
+  if (decided) {
+    const showDecided = key === "closed";
+    decided.style.display = showDecided ? "" : "none";
+    let sib = decided.previousElementSibling;
+    while (sib && sib !== main) {
+      sib.style.display = showDecided ? "" : "none";
+      sib = sib.previousElementSibling;
+    }
+  }
+  // Empty-state note when nothing matches
+  let note = main.querySelector(".pmc-tab-empty-note");
+  if (visible === 0) {
+    if (!note) {
+      note = document.createElement("div");
+      note.className = "pmc-tab-empty-note pmc-muted";
+      note.style.cssText = "padding:24px 20px;text-align:center;font-size:14px";
+      main.appendChild(note);
+    }
+    note.textContent = `No ${key} bids right now.`;
+    note.style.display = "";
+  } else if (note) {
+    note.style.display = "none";
+  }
 }
 
 // Central click action resolver. Returns true when the click was owned.
