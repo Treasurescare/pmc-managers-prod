@@ -553,8 +553,17 @@ function handleDownload(el, isPublic, navigate) {
   const row = el.closest(".pmc-docrow") || el.closest("[data-doc-url]");
   const url = (row && (row.getAttribute("data-doc-url") || row.querySelector("[data-doc-url]")?.getAttribute("data-doc-url"))) || null;
   if (url) {
-    const abs = url.startsWith("http") ? url : `${window.location.origin}${url}`;
-    window.open(abs, "_blank", "noopener");
+    // Force a real download (backend serves ?download=1 as attachment).
+    // A temp <a download> click works on mobile Safari where window.open is blocked.
+    const sep = url.includes("?") ? "&" : "?";
+    const a = document.createElement("a");
+    a.href = `${url}${sep}download=1`;
+    a.download = "";
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    toast.success("Download started");
     return true;
   }
   if (isPublic) {

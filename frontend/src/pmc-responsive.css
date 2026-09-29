@@ -92,6 +92,12 @@ img, svg, video, canvas, iframe { max-width: 100%; }
 @media (max-width: 1100px) {
   .pmc-adm, .pmc-app { grid-template-columns: minmax(0, 1fr) !important; }
 
+  /* Un-hide admin chrome that index.css / mobile-fix.css hard-hide on
+     small screens — the sidebar must stay in the DOM as the off-canvas
+     drawer and the topbar hosts the hamburger. */
+  [data-ui="e"] .pmc-atop, [data-ui="e"] header.pmc-atop { display: flex !important; }
+  [data-ui="e"] .pmc-adm .pmc-side, [data-ui="e"] .pmc-adm aside.pmc-side { display: flex !important; }
+
   .pmc-side, .pmc-lnav {
     position: fixed !important; top: 0; left: 0; bottom: 0; width: 280px; height: 100vh;
     z-index: 60; overflow-y: auto;
@@ -166,6 +172,17 @@ img, svg, video, canvas, iframe { max-width: 100%; }
   .pmc-atop .pmc-search, .pmc-vtop .pmc-cmd { display: none; }
   .pmc-atop__r .pmc-btn--primary { padding: 0 12px; }
   .pmc-atop__r .pmc-btn--secondary, .pmc-atop__r .pmc-ib[aria-label="AI copilot"] { display: none; }
+  /* Admin topbar must stay visible on mobile — it hosts the hamburger
+     (pmc-responsive.js injects .pmc-menu-btn into it). mobile-fix.css
+     hides it site-wide; un-hide for admin shell pages. Sidebar becomes
+     the off-canvas drawer (see ≤1100px block above), so keep it in the
+     DOM instead of display:none. */
+  [data-ui="e"] .pmc-atop, [data-ui="e"] header.pmc-atop { display: flex !important; }
+  [data-ui="e"] .pmc-side, [data-ui="e"] aside.pmc-side { display: flex !important; }
+  /* index.css also hard-hides the admin sidebar on mobile (higher
+     specificity) — match it so the drawer can slide in. */
+  [data-ui="e"] .pmc-adm .pmc-side { display: flex !important; }
+
   .pmc-vtop .pmc-who__t, .pmc-vtop .pmc-brand__s { display: none; }
   .pmc-vtop__r .pmc-btn--onchrome { font-size: 0; padding: 0 10px; gap: 0; }
   .pmc-vtop__r .pmc-btn--onchrome .pmc-ico { font-size: 14px; }
