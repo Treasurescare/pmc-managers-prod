@@ -11,6 +11,7 @@ import PmcIconSprite from "@/components/PmcIconSprite";
 import PmcHelpDrawer from "@/components/PmcHelpDrawer";
 import PmcLinkPatcher from "@/components/PmcLinkPatcher";
 import PmcMobileNav from "@/components/PmcMobileNav";
+import PmcHomeFilters from "@/components/PmcHomeFilters";
 
 // App 4 — Public Tender Notice Board
 import NoticeBoardHome from "@/apps/notice-board/NoticeBoardHome";
@@ -166,6 +167,7 @@ export default function App() {
           <PmcHelpDrawer />
           <PmcLinkPatcher />
           <PmcMobileNav />
+          <PmcHomeFilters />
           <Routes>
             <Route path="/" element={<HomeE legacy={NoticeBoardHome} />} />
             <Route path="/notices" element={<HomeE legacy={NoticeBoardHome} />} />

@@ -1,0 +1,75 @@
+/* PMC Tender Board — mobile fixes for the live build (data-ui=e and shared utilities)
+   Load AFTER main.css. Breakpoints: 1024 (tablet), 768 (large phone), 480 (phone).
+   Based on selectors found in static/css/main.9969df79.css. Test on 360, 390 and 768 px widths. */
+
+/* 0. Never allow sideways scrolling of the page */
+html, body { max-width: 100%; overflow-x: hidden; }
+img, svg, video, canvas { max-width: 100%; height: auto; }
+
+/* 1. Tables: scroll inside their card, not the page */
+@media (max-width: 1024px) {
+  table { display: block; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  /* fixed min-widths used on table wrappers */
+  .min-w-\[860px\], .min-w-\[720px\], .min-w-\[640px\] { min-width: 0 !important; }
+}
+@media (max-width: 480px) {
+  .min-w-\[380px\] { min-width: 0 !important; }
+  .max-w-\[560px\] { max-width: 100% !important; }
+}
+
+/* 2. Grids that are fixed at 3, 4 and 6 columns */
+@media (max-width: 1024px) {
+  [data-ui=e] .e-hero-kpi-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  [data-ui=e] .e-portal-kpis, .grid-cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid-cols-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 768px) {
+  [data-ui=e] .e-hero-kpi-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid-cols-3 { grid-template-columns: minmax(0, 1fr); }
+  [data-ui=e] .e-section-roman { grid-template-columns: 40px minmax(0, 1fr); }
+}
+@media (max-width: 480px) {
+  [data-ui=e] .e-portal-kpis, .grid-cols-4 { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* 3. Oversized type */
+@media (max-width: 768px) {
+  [data-ui=e] .e-stat-hero { font-size: 44px; line-height: 1.05; }
+  [data-ui=e] .e-portal-greeting h1 { font-size: 32px; line-height: 1.15; }
+  [data-ui=e] .e-portal-kpi .e-portal-kpi-value { font-size: 32px; }
+  .text-5xl { font-size: 2.25rem; line-height: 2.5rem; }
+  h1 { overflow-wrap: anywhere; }
+}
+@media (max-width: 480px) {
+  [data-ui=e] .e-stat-hero { font-size: 36px; }
+}
+
+/* 4. Live board rows: let titles wrap to 2 lines instead of pushing the countdown off-screen */
+@media (max-width: 768px) {
+  [data-ui=e] .e-live-board .e-live-title {
+    white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+}
+
+/* 5. Tap targets and inputs: 44px minimum, 16px text so iOS doesn't zoom on focus */
+@media (max-width: 768px) {
+  button, [role="button"], a.btn, .e-cta, .e-tab-pill { min-height: 44px; }
+  input, select, textarea { font-size: 16px !important; min-height: 44px; }
+}
+
+/* 6. Hero search: stack keyword, country and button */
+@media (max-width: 768px) {
+  [data-ui=e] .e-search, [data-ui=e] .e-search form { flex-direction: column; align-items: stretch; gap: 8px; }
+  [data-ui=e] .e-search select, [data-ui=e] .e-search button { width: 100%; }
+}
+
+/* 7. Filter/tab rows: scroll sideways inside the row, never wrap into a mess */
+@media (max-width: 768px) {
+  [data-ui=e] .e-tab-pill-row, [data-ui=e] .e-refine { display: flex; flex-wrap: nowrap; overflow-x: auto; gap: 8px; scrollbar-width: none; }
+  [data-ui=e] .e-tab-pill-row::-webkit-scrollbar, [data-ui=e] .e-refine::-webkit-scrollbar { display: none; }
+}
+
+/* 8. Page gutters */
+@media (max-width: 768px) {
+  .max-w-7xl { padding-left: 16px !important; padding-right: 16px !important; }
+}

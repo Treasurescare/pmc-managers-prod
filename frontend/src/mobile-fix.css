@@ -41,7 +41,7 @@ html, body { overflow-x: clip; }
   [data-ui="e"] .pmc-wrap {
     width: 100% !important;
     max-width: 100% !important;
-    padding: 0 16px !important;
+    padding: 0 20px !important;
     margin: 0 !important;
   }
   [data-ui="e"] .pmc-site,
@@ -631,7 +631,47 @@ html, body { overflow-x: clip; }
   stroke-width: 2; stroke-linecap: round;
 }
 
-/* Slide-in menu drawer */
+/* Back button on public mobile topbar */
+.pmc-mobile-topbar .pmc-mob-back {
+  display: inline-grid;
+  place-items: center;
+  width: 40px; height: 40px;
+  background: transparent;
+  border: 1px solid rgba(217,189,114,0.35);
+  color: #f3efe4;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-right: 4px;
+}
+.pmc-mobile-topbar .pmc-mob-back svg {
+  width: 22px; height: 22px;
+  stroke: currentColor; fill: none;
+  stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+}
+
+/* 7-stage labels with subtitle line — .pmc-stage__l gets a two-line layout */
+[data-ui="e"] .pmc-stages .pmc-stage__l {
+  display: flex !important;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+[data-ui="e"] .pmc-stages .pmc-stage__l small {
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 500;
+  color: var(--ink-muted, #56625b);
+  letter-spacing: 0;
+  text-transform: none;
+}
+[data-ui="e"] .pmc-stages .pmc-stage[aria-selected="true"] .pmc-stage__l small {
+  color: var(--on-chrome-muted, #b9c7be);
+}
+@media (max-width: 767px) {
+  [data-ui="e"] .pmc-stages .pmc-stage__l small {
+    font-size: 12px; line-height: 16px;
+  }
+}
 .pmc-mobile-menu-scrim {
   position: fixed; inset: 0;
   background: rgba(10,29,23,0.55);

@@ -68,10 +68,11 @@ export function pmcInstallSteps() {
       title: "Add PMC on Samsung Internet",
       icon: "menu",
       steps: [
-        "Tap the ☰ menu at the bottom right",
+        "Tap the ☰ (Tools) icon at the bottom right of Samsung Internet",
         'Tap "Add page to"',
-        'Choose "Home screen" (or "Apps screen")',
-        "Confirm — PMC opens like a native app",
+        'Choose "Home screen" — if you only see "Bookmarks / Saved pages / Quick access", tap the ⋮ menu at the top of the tab and pick "Add page to" → "Home screen"',
+        "On Samsung Internet 4+, the Home screen option only appears after you have scrolled or tapped around the site once — refresh once if it is missing",
+        "Confirm — PMC appears on your home screen with the PMC icon",
       ],
     };
   }

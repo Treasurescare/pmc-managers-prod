@@ -141,6 +141,15 @@ export default function PmcMobileNav() {
   if (isAdmin || isStaff) return null;
 
   // Public routes: compact top bar + slide-in menu.
+  // Show a back button on any non-home public route so users always have a
+  // way back — matches the `.mtop` reference pattern in
+  // /app/design/mobile/02-Mobile-Public.html.
+  const showBack = pathname !== "/" && pathname !== "";
+  const goBack = () => {
+    if (window.history.length > 1) window.history.back();
+    else window.location.href = "/";
+  };
+
   return (
     <>
       <header
@@ -148,6 +157,19 @@ export default function PmcMobileNav() {
         data-testid="pmc-mobile-topbar"
         role="banner"
       >
+        {showBack ? (
+          <button
+            type="button"
+            className="pmc-mob-back"
+            onClick={goBack}
+            aria-label="Go back"
+            data-testid="pmc-mobile-back"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <polyline points="15 6 9 12 15 18" />
+            </svg>
+          </button>
+        ) : null}
         <Link
           to="/"
           className="pmc-mob-brand"
