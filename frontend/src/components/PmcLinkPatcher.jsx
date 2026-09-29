@@ -711,6 +711,17 @@ export default function PmcLinkPatcher() {
     if (!isE) return;
 
     const onClick = (e) => {
+      // v49p — Help drawer scrim taps must work for BOTH the React drawer
+      // (mounted at app level, outside any [data-pmc-e-page] root) and the
+      // static per-page drawers. Handle before the root guard below, and
+      // sync the React drawer's state by clicking its own Close button so a
+      // later FAB click doesn't no-op on stale state.
+      if (e.target.classList?.contains("pmc-drawer-scrim")) {
+        document.querySelector('[data-testid="pmc-help-close"]')?.click();
+        document.documentElement.classList.remove("pmc-help-open");
+        return;
+      }
+
       const root = e.target.closest("[data-pmc-e-page]");
       if (!root) return;
       const pageId = root.getAttribute("data-pmc-e-page") || "";
@@ -768,6 +779,25 @@ export default function PmcLinkPatcher() {
       if (el.hasAttribute("data-help-open") || /help|faqs?|what is emd\?/.test(label)) {
         e.preventDefault();
         document.querySelector(".pmc-helpfab")?.click();
+        return;
+      }
+
+      // v49p — Help drawer CLOSE. Every generated page embeds its own static
+      // .pmc-drawer whose Close button carries data-help-close; those buttons
+      // were dead (only Esc worked) because nothing delegated the click.
+      if (el.hasAttribute("data-help-close") || el.closest("[data-help-close]")) {
+        e.preventDefault();
+        // Sync the React drawer's state as well, otherwise the next FAB
+        // click can no-op on stale open-state.
+        const reactClose = document.querySelector('[data-testid="pmc-help-close"]');
+        if (reactClose && reactClose !== el && !el.contains(reactClose)) reactClose.click();
+        document.documentElement.classList.remove("pmc-help-open");
+        return;
+      }
+      // Scrim tap on a static drawer also closes it (React scrim is handled
+      // at the top of this listener, before the page-root guard).
+      if (el.classList.contains("pmc-drawer-scrim")) {
+        document.documentElement.classList.remove("pmc-help-open");
         return;
       }
 

@@ -308,3 +308,32 @@ Environment note: preview pod's DocuSign sandbox key returns
 `invalid_grant: issuer_not_found` (stale key) — live ceremony can only be
 verified in production, where credentials work (user's screenshot proves the
 view renders there).
+
+### v49p — Help drawer close + tender-detail tabs + footer (mobile) — 29 Sep 2026
+User report (3 items):
+1. Help drawer required Esc to exit; no usable close on mobile. Root cause:
+   every generated page embeds its own static `.pmc-drawer` whose Close button
+   carries `data-help-close` — but no delegated handler existed, so the button
+   was dead and only Esc worked. Fix: PmcLinkPatcher now handles
+   `[data-help-close]` clicks AND scrim taps (scrim is a <div>, handled before
+   the a/button guard) by removing `pmc-help-open` from documentElement.
+   Mobile CSS: drawer becomes full-width sheet with sticky header, 44px close
+   button, safe-area padding, footer CTAs full-width, "Esc" kbd hint hidden.
+2. Tender detail tabs (Overview/Eligibility/Documents/Clarifications/
+   Corrigenda) overflowed → changed from horizontal scroll to wrapped pill
+   row (all 5 visible on one screen, selected = filled primary).
+   Verified: 5/5 tabs in viewport at 390px, wrap=wrap.
+3. Footers overflowed → footer .pmc-wrap stacks column on mobile, links wrap,
+   safe-area bottom padding. Verified: flex-direction=column, all links
+   within viewport, scrollW=390.
+
+### v49p — Drawer close hardening (final) — 29 Sep 2026
+Follow-up: scrim taps on the React help drawer didn't close it because the
+scrim is mounted at app level (outside [data-pmc-e-page]) so the page-root
+guard skipped it; also static-drawer closes could desync React state so the
+next FAB click no-op'd. Fix: scrim taps handled first in the delegated
+listener (before the root guard) and both scrim + data-help-close paths now
+also click the React Close button to sync state. Verified via real open path:
+open → Close btn → closed; reopen → scrim tap → closed. Tabs wrap + footer
+stack verified same session (5/5 tabs visible at 390px; footer column, no
+overflow). Bundle rebuilt 03:55 UTC.
