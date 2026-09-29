@@ -1,4 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { bidApi, showApiError } from "@/lib/api";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { useAdminBiddingOpsLive } from "@/lib/pmcELiveData";
 import "./bidding-ops.css";
@@ -8,7 +11,9 @@ import "./bidding-ops.css";
 // useAdminBiddingOpsLive from /api/v1/bids.
 export default function AdminBiddingOpsE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
-  useAdminBiddingOpsLive({ enabled: isE });
+  const navigate = useNavigate();
+  const [tick, setTick] = useState(0);
+  useAdminBiddingOpsLive({ enabled: isE, tick });
 
   // Wire tabs, hide-test, select-all, row selection — pure DOM so it
   // survives live-data innerHTML replacements.
@@ -21,8 +26,10 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
       const tab = activeTab ? activeTab.dataset.tab : "pmc";
       const hide = root.querySelector('#bo-hidetest')?.checked;
       let visible = 0;
+      const q = (root._boq || "").toLowerCase();
       root.querySelectorAll('.bo-r').forEach((r) => {
-        const ok = (tab === "all" || r.dataset.g === tab) && !(hide && r.dataset.test === "1");
+        const ok = (tab === "all" || r.dataset.g === tab) && !(hide && r.dataset.test === "1")
+          && (!q || r.textContent.toLowerCase().includes(q));
         r.hidden = !ok;
         if (ok) visible++;
       });
@@ -38,10 +45,41 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
       paint();
     };
     const onHide = () => paint();
+    const stageNames = ["EMD", "Escrow", "Admin", "Certifier", "Legal", "Accounts"];
+    const stageOwners = ["Supplier", "Escrow agent", "Tender desk", "Certifier", "Legal counsel", "Accounts"];
+    const stageIndexMap = { emd_paid: 1, escrow_accepted: 2, admin_flagged: 3, certifier_cleared: 4, legal_cleared: 5, accounting_cleared: 6 };
+    const showDetail = (row) => {
+      const b = (root._bids || []).find((x) => (x.id || "") === (row.dataset.bidId || ""));
+      if (!b) return;
+      const st = b.status || "submitted";
+      const awarded = ["awarded", "closed"].includes(st);
+      const supplier = ["emd_pending", "submitted"].includes(st);
+      const idx = awarded ? 7 : supplier ? 0 : (stageIndexMap[st] || 1);
+      const refEl = root.querySelector('#d-ref'); if (refEl) refEl.textContent = b.bid_ref || "—";
+      const tEl = root.querySelector('#d-t'); if (tEl) tEl.textContent = b.notice_title || b.title || "(Untitled bid)";
+      const pill = root.querySelector('#d-pill');
+      if (pill) { pill.textContent = awarded ? "Awarded" : stageNames[Math.min(idx, 5)]; pill.className = "pmc-pill " + (awarded ? "pmc-pill--success" : supplier ? "pmc-pill--warning" : "pmc-pill--info"); }
+      const price = b.price_amount != null ? `${b.price_currency || "USD"} ${Number(b.price_amount).toLocaleString()}` : "—";
+      const emdAmt = Number(b.emd_due_amount || b.emd_amount || 0);
+      const emdCur = b.emd_currency || b.price_currency || "USD";
+      const emdPaid = b.emd_paid_at || b.emd_status === "paid" || idx >= 2 || awarded;
+      const emdTxt = !emdAmt ? "Not due" : emdPaid ? `${emdCur} ${emdAmt.toLocaleString()} · paid` : b.emd_link_sent_at ? `${emdCur} ${emdAmt.toLocaleString()} · link sent` : `${emdCur} ${emdAmt.toLocaleString()} · not paid`;
+      const kv = root.querySelector('#d-kv');
+      if (kv) kv.innerHTML = `<dt>Notice</dt><dd class="pmc-ref" style="color:var(--ink)">${b.notice_ref || "—"}</dd><dt>Vendor</dt><dd>${b.vendor_ref || b.company_name || "—"}</dd><dt>Price</dt><dd>${price}</dd><dt>EMD</dt><dd>${emdTxt}</dd>`;
+      const tl = root.querySelector('#d-tl');
+      if (tl) tl.innerHTML = stageNames.map((s, i) => { const c = awarded || i < idx ? "done" : i === idx ? "now" : ""; return `<div class="${c}"><span class="dot"></span><div><b>${s}</b><span>${stageOwners[i]}${c === "now" ? " · waiting" : c === "done" ? " · cleared" : ""}</span></div></div>`; }).join("");
+      const act = root.querySelector('#d-act');
+      if (act) {
+        if (awarded) act.innerHTML = `<button class="pmc-btn pmc-btn--secondary" data-bo-action="view" data-bid-id="${b.id}">Open award</button>`;
+        else if (supplier) act.innerHTML = (emdAmt > 0 ? `<button class="pmc-btn pmc-btn--primary" data-bo-action="send" data-bid-id="${b.id}">${b.emd_link_sent_at ? "Resend EMD link" : "Send EMD link"}</button>` : "") + `<button class="pmc-btn pmc-btn--secondary" data-bo-action="review" data-bid-id="${b.id}">Open bid</button>`;
+        else act.innerHTML = (st === "escrow_accepted" ? `<button class="pmc-btn pmc-btn--primary" data-bo-action="flag" data-bid-id="${b.id}">Flag to certifier</button>` : `<button class="pmc-btn pmc-btn--primary" data-bo-action="review" data-bid-id="${b.id}">Open bid</button>`) + `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><button class="pmc-btn pmc-btn--secondary" data-bo-action="hold" data-bid-id="${b.id}">Hold…</button><button class="pmc-btn pmc-btn--danger" data-bo-action="reject" data-bid-id="${b.id}">Reject…</button></div>`;
+      }
+    };
     const onRowClick = (e) => {
       if (e.target.closest('.chk') || e.target.closest('.bo-act')) return;
       const r = e.currentTarget;
       root.querySelectorAll('.bo-r').forEach((x) => x.classList.toggle('sel', x === r));
+      showDetail(r);
     };
     const onChk = (e) => {
       e.stopPropagation();
@@ -51,8 +89,74 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
       if (bulk) bulk.hidden = n === 0;
       if (bn) bn.textContent = `${n} selected`;
     };
+    const onAction = async (e) => {
+      const btn = e.target.closest('[data-bo-action]');
+      if (!btn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const bidId = btn.dataset.bidId;
+      const act = btn.dataset.boAction;
+      if (!bidId) return;
+      if (act === 'review' || act === 'view') { navigate(`/admin/bids/${bidId}`); return; }
+      btn.disabled = true;
+      try {
+        if (act === 'send') {
+          const r = await bidApi.sendEmdLink(bidId);
+          toast.success(`EMD payment link emailed to ${r.emailed_to || "bidder"}`);
+        } else if (act === 'flag') {
+          await bidApi.decide(bidId, { action: "accept", role: "admin", notes: "" });
+          toast.success("Bid flagged to certifier");
+        } else if (act === 'hold') {
+          const reason = window.prompt("Hold bid? Optional reason:", "") ?? "";
+          await bidApi.decide(bidId, { action: "hold", role: "admin", notes: reason });
+          toast.success("Bid put on hold");
+        } else if (act === 'reject') {
+          if (!window.confirm("Reject this bid? This is recorded on the audit ledger.")) { btn.disabled = false; return; }
+          await bidApi.decide(bidId, { action: "reject", role: "admin", notes: "" });
+          toast.success("Bid rejected");
+        }
+        setTick((t) => t + 1);
+      } catch (err) { showApiError(err); btn.disabled = false; }
+    };
+    const onBulkRemind = async (e) => {
+      e.preventDefault();
+      const ids = [...root.querySelectorAll('.chk:checked')].map((c) => c.closest('.bo-r')?.dataset.bidId).filter(Boolean);
+      if (!ids.length) return;
+      let ok = 0, fail = 0;
+      for (const id of ids) {
+        try { await bidApi.sendEmdLink(id); ok++; } catch { fail++; }
+      }
+      if (ok) toast.success(`EMD link sent for ${ok} bid${ok > 1 ? "s" : ""}`);
+      if (fail) toast.error(`${fail} reminder${fail > 1 ? "s" : ""} failed`);
+      root.querySelectorAll('.chk:checked').forEach((c) => { c.checked = false; });
+      const bulk = root.querySelector('#bo-bulk'); if (bulk) bulk.hidden = true;
+      setTick((t) => t + 1);
+    };
+    const onBulkClear = (e) => {
+      e.preventDefault();
+      root.querySelectorAll('.chk:checked').forEach((c) => { c.checked = false; });
+      const bulk = root.querySelector('#bo-bulk'); if (bulk) bulk.hidden = true;
+    };
+    const onExport = (e) => {
+      e.preventDefault();
+      const items = root._bids || [];
+      const head = ["bid_ref", "notice_ref", "vendor", "price", "currency", "status"];
+      const rowsCsv = items.map((b) => [b.bid_ref, b.notice_ref, b.vendor_ref || b.company_name || "", b.price_amount ?? "", b.price_currency || "", b.status || ""].map((x) => `"${String(x).replace(/"/g, '""')}"`).join(","));
+      const blob = new Blob([[head.join(","), ...rowsCsv].join("\n")], { type: "text/csv" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `bidding-ops-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    };
+    const onSearch = (e) => { root._boq = e.target.value.trim(); paint(); };
     root.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', onTab));
+    root.querySelector('[data-testid="bo-search-input"]')?.addEventListener('input', onSearch);
     root.querySelector('#bo-hidetest')?.addEventListener('change', onHide);
+    root.addEventListener('click', onAction);
+    root.querySelector('[data-testid="bo-bulk-remind"]')?.addEventListener('click', onBulkRemind);
+    root.querySelector('[data-testid="bo-bulk-clear"]')?.addEventListener('click', onBulkClear);
+    root.querySelector('[data-testid="bo-export-btn"]')?.addEventListener('click', onExport);
     // MutationObserver: re-wire rows whenever live data re-renders them.
     const wireRows = () => {
       root.querySelectorAll('.bo-r').forEach((r) => {
@@ -72,8 +176,8 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
       mo = new MutationObserver(wireRows);
       mo.observe(tbody, { childList: true });
     }
-    return () => { if (mo) mo.disconnect(); };
-  }, [isE]);
+    return () => { if (mo) mo.disconnect(); root.removeEventListener('click', onAction); };
+  }, [isE, navigate]);
 
   if (!isE && Legacy) return <Legacy />;
   if (!isE) return null;

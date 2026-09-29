@@ -1,6 +1,7 @@
 import "@/App.css";
 import "@/pmc-theme-e.css";
 import "@/mobile-fix.css";
+import "@/pmc-responsive.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { I18nProvider } from "@/context/I18nContext";

@@ -1131,7 +1131,7 @@ export function useAdminVendorIntelLive({ enabled = true } = {}) {
   }, [enabled]);
 }
 
-export function useAdminBiddingOpsLive({ enabled = true } = {}) {
+export function useAdminBiddingOpsLive({ enabled = true, tick = 0 } = {}) {
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
@@ -1168,7 +1168,9 @@ export function useAdminBiddingOpsLive({ enabled = true } = {}) {
           const st = b.status || "submitted";
           if (rejected.has(st)) return; // hide withdrawn/rejected from view
           const ref = b.bid_ref || b.id || "—";
-          const isTest = !!(b.is_demo || (b.notice_ref || "").startsWith("PMC-NOT-2026-00") && (b.vendor_ref || "").toLowerCase().startsWith("test"));
+          const _v = (b.vendor_ref || "").toLowerCase();
+          const _t = (b.notice_title || b.title || "").toLowerCase();
+          const isTest = !!(b.is_demo || _v.includes("test") || _t.startsWith("test") || (b.bid_ref || "").toLowerCase().includes("test"));
 
           let group, next, ownerIdx, dots;
           if (supplierS.has(st)) {
@@ -1218,7 +1220,7 @@ export function useAdminBiddingOpsLive({ enabled = true } = {}) {
           }
 
           // EMD line
-          const emdAmt = Number(b.emd_amount || 0);
+          const emdAmt = Number(b.emd_due_amount || b.emd_amount || 0);
           const emdCur = b.emd_currency || b.price_currency || "USD";
           const emdPaid = b.emd_paid_at || b.emd_status === "paid" || st === "emd_paid" || (stageIndex[st] || 0) >= 2 || awardedS.has(st);
           let emdLine;
@@ -1232,15 +1234,18 @@ export function useAdminBiddingOpsLive({ enabled = true } = {}) {
             emdLine = `EMD <span>not paid</span>`;
           }
 
-          // Action button
+          // Action button — real endpoints only (same ones the legacy panel used)
           let actionHtml;
           if (group === "awarded") {
-            actionHtml = `<a href="/admin/e/awards" class="pmc-btn pmc-btn--ghost pmc-btn--sm">View</a>`;
+            actionHtml = `<button type="button" class="pmc-btn pmc-btn--ghost pmc-btn--sm" data-bo-action="view" data-bid-id="${b.id || ""}">View</button>`;
           } else if (group === "supplier") {
-            actionHtml = `<a href="/admin/e/bidding" class="pmc-btn pmc-btn--secondary pmc-btn--sm" data-bo-action="remind" data-bid-id="${b.id || ""}">${b.emd_link_sent_at ? "Resend link" : "Send link"}</a>`;
+            actionHtml = emdAmt > 0
+              ? `<button type="button" class="pmc-btn pmc-btn--secondary pmc-btn--sm" data-bo-action="send" data-bid-id="${b.id || ""}">${b.emd_link_sent_at ? "Resend link" : "Send link"}</button>`
+              : `<button type="button" class="pmc-btn pmc-btn--secondary pmc-btn--sm" data-bo-action="review" data-bid-id="${b.id || ""}">Review</button>`;
+          } else if (st === "escrow_accepted") {
+            actionHtml = `<button type="button" class="pmc-btn pmc-btn--primary pmc-btn--sm" data-bo-action="flag" data-bid-id="${b.id || ""}">Flag to certifier</button>`;
           } else {
-            const primary = ownerIdx === 1 ? "Confirm" : ownerIdx === 4 ? "Clear KYC" : "Review";
-            actionHtml = `<a href="/admin/e/bidding" class="pmc-btn pmc-btn--primary pmc-btn--sm" data-bo-action="review" data-bid-id="${b.id || ""}">${primary}</a>`;
+            actionHtml = `<button type="button" class="pmc-btn pmc-btn--primary pmc-btn--sm" data-bo-action="review" data-bid-id="${b.id || ""}">Review</button>`;
           }
 
           const disabledAttr = group === "awarded" || group === "pmc" ? "disabled" : "";
@@ -1257,7 +1262,7 @@ export function useAdminBiddingOpsLive({ enabled = true } = {}) {
             `<td><div class="bo-ref">${ref}${isTest ? '<span class="bo-test">Test</span>' : ""}</div><div class="bo-t">${title}</div><div class="bo-sub">${notice} · ${vendor}</div></td>` +
             `<td class="num"><b>${priceStr}</b>${anomHtml}<div class="bo-emd">${emdLine}</div></td>` +
             `<td style="width:170px"><span class="bo-dots">${dots.map((d) => `<i class="${d}"></i>`).join("")}</span><div class="bo-next" style="margin-top:6px">${next}</div><div class="bo-sub">${stepLabel}</div>${age ? `<div class="bo-sub">${age}</div>` : ""}</td>` +
-            `<td class="bo-act">${actionHtml}<button class="pmc-ib bo-more" aria-label="More actions" title="Hold · Reject · View history">⋯</button></td>` +
+            `<td class="bo-act">${actionHtml}<button type="button" class="pmc-ib bo-more" aria-label="More actions" title="Hold · Reject · View history" data-bo-action="review" data-bid-id="${b.id || ""}">⋯</button></td>` +
             `</tr>`
           );
         });
@@ -1266,6 +1271,7 @@ export function useAdminBiddingOpsLive({ enabled = true } = {}) {
         if (tbody) {
           tbody.innerHTML = rows.length ? rows.join("") : `<tr><td colspan="5" class="bo-empty">No bids in the pipeline yet.</td></tr>`;
         }
+        root._bids = items;
         // Update flow counters
         Object.entries(flow).forEach(([k, v]) => {
           root.querySelectorAll(`[data-flow-count="${k}"]`).forEach((el) => { el.textContent = v; });
@@ -1314,7 +1320,7 @@ export function useAdminBiddingOpsLive({ enabled = true } = {}) {
       } catch (e) { console.debug("AdminBiddingOps skip:", e); }
     })();
     return () => { cancelled = true; };
-  }, [enabled]);
+  }, [enabled, tick]);
 }
 
 export function useAdminEscrowLive({ enabled = true } = {}) {

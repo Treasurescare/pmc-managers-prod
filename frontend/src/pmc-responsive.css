@@ -1,0 +1,260 @@
+/* =====================================================================
+   PMC Tender Board — responsive layer for the admin, supplier and public app
+   Load AFTER pmc.css (the design-system stylesheet) and the page's own CSS.
+   Pair with pmc-responsive.js (mobile menu + table labels).
+
+   Breakpoints
+     ≤1280  laptop / 150% browser zoom : right rails shrink, KPI rows 2-up
+     ≤1100  small laptop / tablet      : two-column layouts stack, sidebar collapses to a drawer
+     ≤760   phone                      : tables become cards, everything single column
+   ===================================================================== */
+
+/* ---------- 0. Foundations: the root causes of "broken" pages ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { max-width: 100%; overflow-x: hidden; }
+img, svg, video, canvas, iframe { max-width: 100%; }
+
+/* Grid and flex children default to min-width:auto, so any long hash, email,
+   code block or nowrap cell pushes the whole column off-screen. This is the
+   main cause of the Audit ledger / Bidding ops breakage. */
+.pmc-adm > *, .pmc-app > *, .pmc-amain, .pmc-main,
+.pmc-amain *, .pmc-main * { min-width: 0; }
+.pmc-amain [style*="display:grid"] > *, .pmc-main [style*="display:grid"] > * { min-width: 0; }
+
+/* Long unbroken strings: hashes, emails, refs, JSON */
+.pmc-kv dd, .bo-sub, .nt-sub { overflow-wrap: anywhere; }
+.pmc-table td { overflow-wrap: break-word; }
+/* Short IDs, event numbers, dates and money never wrap mid-token */
+.pmc-table td.num, .ad-chain td:first-child, .ad-chain td.pmc-ref, .pmc-table .pmc-ref, .pmc-countdown { white-space: nowrap; }
+.ad-code, pre, code {
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  max-width: 100%;
+}
+
+/* Key/value lists: never let the value column disappear */
+.pmc-kv { grid-template-columns: minmax(90px, auto) minmax(0, 1fr); }
+.pmc-kv dd { min-width: 0; }
+
+/* Panels with tables scroll inside themselves, never the page */
+.pmc-panel { max-width: 100%; }
+.pmc-panel:has(> .pmc-table), .pmc-panel:has(> table) { overflow-x: auto; }
+.pmc-table { width: 100%; }
+
+/* Sticky side rails must not trap content taller than the screen */
+.pmc-amain aside[style*="sticky"], .bo-side, .pmc-amain [style*="position:sticky"] {
+  max-height: calc(100vh - 100px); overflow-y: auto;
+}
+
+/* ---------- 1. App shell ---------- */
+.pmc-adm { grid-template-columns: 260px minmax(0, 1fr) !important; }
+.pmc-app { grid-template-columns: 248px minmax(0, 1fr) !important; }
+
+/* Top bar: search shrinks first, labels drop before anything wraps */
+.pmc-atop, .pmc-vtop { min-width: 0; gap: 12px; }
+.pmc-atop .pmc-search, .pmc-vtop .pmc-cmd { flex: 1 1 200px; min-width: 120px; margin-left: 12px; }
+.pmc-atop .crumb { overflow: hidden; text-overflow: ellipsis; }
+.pmc-atop__r, .pmc-vtop__r { flex: none; }
+
+.pmc-menu-btn { display: none; }
+
+@media (max-width: 1280px) {
+  .pmc-adm { grid-template-columns: 224px minmax(0, 1fr) !important; }
+  .pmc-amain { padding: 20px 20px 80px !important; }
+  .pmc-atop { padding: 0 20px !important; }
+  .pmc-atop .pmc-kbd, .pmc-vtop .pmc-kbd { display: none; }
+  .pmc-atop .crumb { max-width: 220px; }
+
+  /* Right rails shrink: any "1fr + fixed px" two-column layout */
+  .pmc-amain [style*="grid-template-columns:minmax(0,1fr) 3"],
+  .pmc-amain [style*="grid-template-columns:minmax(0,1fr) 4"],
+  .bo-grid, .pmc-cols {
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 30%) !important;
+  }
+  /* Three-column detail layouts: drop the left rail width */
+  .pmc-amain [style*="grid-template-columns:240px"],
+  .pmc-amain [style*="grid-template-columns:260px"],
+  .pmc-amain [style*="grid-template-columns:320px"],
+  .pmc-amain [style*="grid-template-columns:340px"] {
+    grid-template-columns: 220px minmax(0, 1fr) !important;
+  }
+  .pmc-amain [style*="grid-template-columns:240px"] > aside:last-child,
+  .pmc-amain [style*="grid-template-columns:320px"] > aside:last-child,
+  .pmc-amain [style*="grid-template-columns:340px"] > aside:last-child { grid-column: 1 / -1; position: static !important; max-height: none; }
+
+  .ak, .pmc-kpis, .nt-kpis, .sp-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  /* Audit ledger: hash column is the first to go; it's in the detail panel */
+  .ad-chain th:nth-child(4), .ad-chain td:nth-child(4) { display: none; }
+}
+
+/* ---------- 2. Tablet: sidebar becomes a drawer, layouts stack ---------- */
+@media (max-width: 1100px) {
+  .pmc-adm, .pmc-app { grid-template-columns: minmax(0, 1fr) !important; }
+
+  .pmc-side, .pmc-lnav {
+    position: fixed !important; top: 0; left: 0; bottom: 0; width: 280px; height: 100vh;
+    z-index: 60; overflow-y: auto;
+    transform: translateX(-100%); transition: transform .22s ease;
+    box-shadow: var(--shadow-pop);
+  }
+  .pmc-lnav { top: 64px; height: calc(100vh - 64px); }
+  html.pmc-nav-open .pmc-side, html.pmc-nav-open .pmc-lnav { transform: none; }
+  html.pmc-nav-open::after {
+    content: ""; position: fixed; inset: 0; z-index: 55; background: rgba(10, 29, 23, .4);
+  }
+  .pmc-menu-btn {
+    display: inline-grid; place-items: center; flex: none;
+    width: 40px; height: 40px; border-radius: var(--radius-sm);
+    border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink);
+  }
+  .pmc-vtop .pmc-menu-btn { border-color: var(--chrome-line); background: transparent; color: var(--on-chrome); }
+
+  /* Every two- or three-column page layout stacks */
+  .pmc-amain [style*="grid-template-columns:minmax(0,1fr)"],
+  .pmc-amain [style*="grid-template-columns:240px"],
+  .pmc-amain [style*="grid-template-columns:260px"],
+  .pmc-amain [style*="grid-template-columns:320px"],
+  .pmc-amain [style*="grid-template-columns:340px"],
+  .pmc-amain [style*="grid-template-columns:1fr 1fr"],
+  .pmc-main  [style*="grid-template-columns:"],
+  .bo-grid, .pmc-cols, .pmc-bidrow {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .pmc-bidrow .act { align-items: flex-start !important; text-align: left !important; }
+  .pmc-amain aside, .pmc-main aside, .bo-side,
+  .pmc-amain [style*="position:sticky"], .pmc-main [style*="position:sticky"] {
+    position: static !important; max-height: none; overflow: visible;
+  }
+  /* Detail panels move above long lists so the selection is visible */
+  .bo-grid > aside, .pmc-amain [style*="grid-template-columns:minmax(0,1fr)"] > aside { order: -1; }
+
+  .pmc-atop .crumb { display: none; }
+  .pmc-atop__r .pmc-btn span, .pmc-atop__r .pmc-btn { font-size: 13px; }
+
+  /* Stage strips and pipelines scroll sideways inside themselves */
+  .pmc-pipe, .bo-flow, .flow, .pmc-stages {
+    display: flex !important; overflow-x: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+  }
+  .pmc-pipe > *, .bo-flow > .bo-step, .flow > *, .pmc-stages > * { flex: 0 0 150px; scroll-snap-align: start; }
+  .bo-arrow { display: none; }
+
+  .pmc-grid3, .dt-scope, .hc-cats, .ab-vals { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
+
+/* Tables become cards from large-phone / small-tablet width */
+@media (max-width: 900px) {
+  .pmc-table thead { display: none; }
+  .pmc-table, .pmc-table tbody, .pmc-table tr, .pmc-table td { display: block; width: 100%; }
+  .pmc-table tr { position: relative; padding: 12px 14px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .pmc-table td { padding: 0 !important; border: 0 !important; text-align: left !important; white-space: normal !important; }
+  .pmc-table td[data-label]:not([data-label=""])::before {
+    content: attr(data-label); display: block; font-size: 11px; line-height: 16px; font-weight: 600;
+    letter-spacing: .06em; text-transform: uppercase; color: var(--ink-subtle); margin-bottom: 2px;
+  }
+  .pmc-table td:has(> input[type="checkbox"]) { position: absolute; top: 12px; right: 14px; width: auto; }
+  .pmc-table .bo-act, .pmc-table .nt-act, .pmc-table td:last-child:has(.pmc-btn) {
+    display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-start !important; padding-top: 6px !important;
+  }
+  .ad-chain th:nth-child(4), .ad-chain td:nth-child(4) { display: block; }
+}
+
+/* ---------- 3. Phone ---------- */
+@media (max-width: 760px) {
+  .pmc-amain, .pmc-main { padding: 16px 16px 96px !important; }
+  .pmc-atop, .pmc-vtop { height: 56px !important; padding: 0 12px !important; gap: 8px; }
+  .pmc-atop .pmc-search, .pmc-vtop .pmc-cmd { display: none; }
+  .pmc-atop__r .pmc-btn--primary { padding: 0 12px; }
+  .pmc-atop__r .pmc-btn--secondary, .pmc-atop__r .pmc-ib[aria-label="AI copilot"] { display: none; }
+  .pmc-vtop .pmc-who__t, .pmc-vtop .pmc-brand__s { display: none; }
+  .pmc-vtop__r .pmc-btn--onchrome { font-size: 0; padding: 0 10px; gap: 0; }
+  .pmc-vtop__r .pmc-btn--onchrome .pmc-ico { font-size: 14px; }
+  .pmc-who { padding: 4px; }
+  .pmc-lnav { top: 56px; height: calc(100vh - 56px); }
+
+  /* Page headers: title, then actions on their own row */
+  .ah, .bo-head, .pmc-ahead, .sp-head, .pmc-hi,
+  .pmc-amain > div[style*="justify-content:space-between"],
+  .pmc-main > div[style*="justify-content:space-between"] {
+    flex-direction: column; align-items: stretch !important; gap: 12px;
+  }
+  .ah h1, .bo-head h1, .pmc-ahead h1, .sp-head h1, .pmc-hi h1,
+  .pmc-amain h1, .pmc-main h1 { font-size: 28px !important; line-height: 32px !important; }
+  .ah > div:last-child, .bo-head > div:last-child { flex-wrap: wrap; }
+  .ah .pmc-btn, .bo-head .pmc-btn { flex: 1 1 auto; }
+
+  .ak, .pmc-kpis, .nt-kpis, .sp-kpis, .ck-head { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .pmc-next { grid-template-columns: minmax(0, 1fr) !important; gap: 14px !important; }
+  .pmc-next > div:last-child { display: flex; flex-wrap: wrap; }
+  .pmc-next > div:last-child > * { flex: 1 1 auto; }
+  .pmc-track__label { font-size: 11px !important; }
+  .pmc-figure { font-size: 24px !important; line-height: 28px !important; }
+  .pmc-grid3, .dt-scope, .hc-cats, .ab-vals, .pmc-feats, .tr-grid, .pmc-steps { grid-template-columns: minmax(0, 1fr) !important; }
+
+  /* Filter bars: search full width, selects share a row */
+  .pmc-filter, .bo-bar { flex-wrap: wrap; }
+  .pmc-filter > .pmc-search, .bo-bar > .pmc-search { flex: 1 1 100% !important; }
+  .pmc-filter > select, .bo-bar > select { flex: 1 1 40%; }
+  .pmc-seg, .pmc-tabs { max-width: 100%; overflow-x: auto; flex-wrap: nowrap; }
+
+  .ad-chain td:first-child { padding-left: 22px !important; }
+  .ad-chain td:first-child::before { left: 6px; }
+  .ad-chain td:first-child::after { left: 2px; }
+
+  /* Touch targets and iOS zoom */
+  .pmc-btn, .pmc-ib, .pmc-chip, select, .pmc-input { min-height: 44px; }
+  input, select, textarea { font-size: 16px !important; }
+
+  /* Help: smaller floating button, full-width drawer */
+  .pmc-helpfab { right: 14px; bottom: 14px; height: 44px; padding: 0 14px 0 10px; }
+  .pmc-drawer { width: 100% !important; }
+
+  /* Dialogs */
+  .dlg, [role="dialog"] { width: calc(100vw - 24px) !important; max-width: 100%; }
+}
+
+@media (max-width: 420px) {
+  .ak, .pmc-kpis, .nt-kpis, .sp-kpis, .ck-head { grid-template-columns: minmax(0, 1fr) !important; }
+}
+
+/* ---------- 4. Public pages (1280px container, big type) ---------- */
+@media (max-width: 1100px) {
+  .pmc-wrap, .hc-wrap { width: auto !important; max-width: none !important; margin: 0 24px !important; }
+  .pmc-nav { display: none; }
+  .pmc-hero__in, .pmc-top__in + *, .pmc-wrap[style*="grid-template-columns"],
+  .pmc-wrap > [style*="grid-template-columns"] { grid-template-columns: minmax(0, 1fr) !important; }
+  .pmc-hero__h { font-size: 64px !important; line-height: 64px !important; }
+  .pmc-stats { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; margin-top: -32px !important; }
+  .pmc-stats > div:nth-child(3) { border-left: 0; }
+  .pmc-facts { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+}
+@media (max-width: 760px) {
+  .pmc-wrap, .hc-wrap { margin: 0 16px !important; }
+  .pmc-top__act .pmc-btn--onchrome { display: none; }
+  .pmc-top__act .pmc-btn--brass { padding: 0 12px; font-size: 13px; }
+  .pmc-top__in { gap: 12px !important; }
+  .pmc-hero { padding: 40px 0 72px !important; }
+  .pmc-hero__h { font-size: 44px !important; line-height: 46px !important; }
+  .pmc-hero__search { flex-direction: column; }
+  .pmc-hero__search > * { width: 100% !important; }
+  .pmc-display { font-size: clamp(28px, 8vw, 40px) !important; line-height: 1.1 !important; }
+  .pmc-facts { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .pmc-seal { display: none; }
+  .pmc-crumb { flex-wrap: wrap; }
+  .pmc-ref { white-space: nowrap; }
+  .pmc-chrome .pmc-wrap div[style*="display:flex"], .pmc-wrap form[style*="display:flex"],
+  .pmc-wrap > div[style*="display:flex"] { flex-wrap: wrap; }
+  .pmc-wrap form[style*="display:flex"] > * { flex: 1 1 100% !important; width: 100%; }
+  .pmc-chrome .pmc-wrap div[style*="display:flex"] > .pmc-btn { flex: 1 1 auto; }
+  .pmc-live__row { flex-wrap: wrap; }
+  .tl-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important; gap: 10px !important; }
+  .tl-row .tl-main { grid-column: 1 / -1; }
+  .tl-row .tl-act { grid-column: 1 / -1; justify-content: flex-start !important; }
+  .tl-filters { position: static !important; }
+}
+
+/* ---------- 5. Print ---------- */
+@media print {
+  .pmc-side, .pmc-lnav, .pmc-atop, .pmc-vtop, .pmc-helpfab, .pmc-drawer, .pmc-drawer-scrim { display: none !important; }
+  .pmc-adm, .pmc-app { grid-template-columns: 1fr !important; }
+}

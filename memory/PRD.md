@@ -492,3 +492,37 @@ attn 05/00/04, pipeline 0/14/0/5/0/1/2, KPIs $31,600/14/6/41,
 pipeline 2-col. All CTAs are real links (audit, tender-builder,
 notices, bidding). No mock content remains on the page.
 v49q bundle rebuilt again with dashboard + redirect included.
+
+### v49q — Bidding Ops action wiring + responsive layer — 29 Sep 2026
+User reported dashboard pages broken; root causes: (a) the Bidding Ops
+search box was never wired to a filter, (b) long refs/hashes blew out
+grid columns (min-width:auto), tables had no card mode, sidebar never
+collapsed at laptop/zoom widths.
+
+Fixes:
+1. Wired bo-search-input → row text filter in paint(); verified 0
+   visible for junk query, correct subset when cleared.
+2. Adopted user-supplied `pmc-responsive.css` (copied to
+   `frontend/src/pmc-responsive.css`, imported in App.js AFTER
+   mobile-fix.css): box-sizing, min-width:0 on grid children, word-wrap
+   on hashes/refs, panel-internal table scroll, sidebar→drawer ≤1100,
+   tables→cards ≤900 (via data-label), touch targets ≤760, print rules.
+3. Adopted user-supplied `pmc-responsive.js` (copied to
+   `frontend/src/pmc-responsive.js`, imported in index.js): injects
+   .pmc-menu-btn into .pmc-atop/.pmc-vtop, toggles html.pmc-nav-open
+   drawer, stamps data-label from thead onto cells, MutationObserver
+   re-applies after SPA re-renders.
+4. Row click → detail panel now fully populated (ref, pill, KV,
+   6-step timeline, stage-appropriate actions) via root._bids stash
+   set by useAdminBiddingOpsLive.
+5. Row/detail actions wired to real APIs (bidApi): send EMD link,
+   flag to certifier, hold, reject, open bid; bulk EMD remind; CSV
+   export of the bids table.
+6. useAdminBiddingOpsLive now takes {enabled, tick} — tick bumps
+   after any action to re-fetch.
+
+Verified at 1440 (authed admin): 9 bids, search filters, row click
+populates detail (PMC-BID-2026-00017, Escrow pill, 6-step timeline,
+3 actions). At 1280 and 900: no horizontal scroll, menu button +
+drawer work. eslint warning in AdminDashboard.jsx (exhaustive-deps)
+is benign pre-existing.
