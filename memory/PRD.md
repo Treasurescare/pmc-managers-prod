@@ -597,3 +597,32 @@ Verified (authed admin, 1440px):
   View expands item table; CONTRACTS tab switches and lists real
   contracts with milestone Mark-complete actions.
 Bundle rebuilt (10:27 UTC).
+
+### v49q — 5 more static shells rescued (Work packages / Catalog / Vendors / Registrations / Vendor intel) — 29 Sep 2026
+User reported five more broken pages: Work packages Open dead;
+Catalog edit dead; Vendors "invite vendor" links missing + KPIs
+static + KYC review/status tabs dead; Vendor intel Manage/Open-KYC
+dead.
+
+Same root cause + fix pattern: rewrote AdminWorkPackagesE,
+AdminCatalogE, AdminVendorsE, AdminRegistrationsE and
+AdminVendorIntelE to mount the fully-wired legacy panels
+(PackagesPanel, ProductCatalogPanel, VendorsPanel,
+RegistrationsPanel, VendorIntelPanel) inside AdminEShell.
+
+Verified live (admin, 1440px):
+- Work packages: kanban view (48 packages, Backlog 26 / Scoping 13 /
+  SBD 6 / Ready 3), View button on every card, Import CSV, New
+  package.
+- Catalog: Client 33 / Supplier 21 / Both 1 / Active 54 header,
+  EDIT + DISABLE actions per row, filter by side/category.
+- Vendors: Invite vendor + Bulk invite (CSV) + Replace registration
+  template + Download current + Add & fill full form buttons all
+  wired, status tabs (All/Pending verify/Active/Inactive), Activate
+  now per row.
+- Registrations: Submitted/Under review/Needs clarification/Approved/
+  Rejected/Draft + Nudge stale drafts tabs, all clickable, review
+  pane on the right.
+- Vendor intel: real vendor list, Manage buttons per row, ratings
+  and trust badges, flags column live.
+Bundle rebuilt (10:36 UTC).
