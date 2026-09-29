@@ -1,0 +1,49 @@
+{
+  "summary": "Regression sweep at 1440x900 (desktop) and 390x844 (mobile) after the desktop-breakage fix (PmcMobileFilters gating + Recently-decided panel visibility). Most requirements PASS cleanly: no cross-contamination of mobile CSS to desktop, sidebars/tables/grids render, mobile FAB filters sheet opens/closes, drawer works, tab bars & is-active work, no horizontal scroll at 390 anywhere tested. TWO real regressions found: (A) My Bids 'Recently decided' panel is visible on ALL tabs (Active/Drafts/Withdrawn) instead of only on Closed — visibility toggle not wired. (B) /register mobile at 390 renders the PmcMobileNav topbar STACKED on top of the register page's own header (double header overlay). /login and /forgot-password correctly omit the mobile topbar.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "VendorMyBidsE.jsx — Recently decided panel", "issue": "The 'Recently decided' aside is visible on Active, Drafts and Withdrawn tabs (should be hidden). Only Closed should render it per spec. Panel container display remains 'grid' regardless of active tab.", "selector": "aside/section containing h3 'Recently decided'", "priority": "HIGH"},
+      {"component": "Public /register at 390 mobile", "issue": "PmcMobileNav topbar (data-testid=pmc-mobile-topbar) renders sticky at top on the register page, overlaying the register page's own back-arrow header. /login and /forgot-password correctly hide it. Register route needs to be added to the exclusion list (or its own layout should not include PmcMobileNav).", "selector": "[data-testid=pmc-mobile-topbar]", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results_pass": {
+    "desktop_home_1440": "PASS (sw=1440, wrap left=80 width=1280, .pmc-top display:block, mobile topbar display:none)",
+    "desktop_tenders_live_1440": "PASS (aside.tl-filters visible grid width=272px, filters FAB does NOT exist, 14 tl-row rows rendered, no hscroll)",
+    "desktop_notice_PMC-NOT-2026-0018": "PASS (sw=1440, tabs present, no fixed bottom action bar detected — inline hero+aside layout)",
+    "desktop_vendor_home_1440": "PASS (.pmc-lnav flex, width=248px, mobile tabbar display:none, sw=1440)",
+    "desktop_vendor_mybids_1440": "PASS core layout (table exists, thead display:table-header-group, no hscroll). Withdrawn tab shows 'No withdrawn bids' empty note. Closed tab shows Recently decided.",
+    "mobile_home_390": "PASS (sw=390, mobile topbar visible, hamburger exists, drawer opens with Install/Sign in/Register, close button works)",
+    "mobile_tenders_live_390": "PASS (Filters FAB exists inline-flex, tap opens sheet with body.pmc-filters-open + data-testid=pmc-filters-sheet, Show results button closes it)",
+    "mobile_notice_390": "PASS (sw=390, back chevron present, fixed/sticky bottom bars detected, 'Start bid' text present)",
+    "mobile_vendor_home_390": "PASS (all 5 tab data-testids present: mnav-home/tenders/bids/alerts/account, .pmc-lnav display:none, tabbar display:grid, sw=390)",
+    "mobile_vendor_mybids_390": "PASS (sw=390, Pay EMD text present, Withdrawn tab shows empty note)",
+    "mobile_auth_login_390": "PASS (sw=390, mobile topbar NOT rendered on /login)",
+    "mobile_auth_forgot_password_390": "PASS (sw=390, mobile topbar NOT rendered on /forgot-password)"
+  },
+  "test_results_fail": {
+    "mybids_active_hides_recently_decided": "FAIL — panel remains visible when Active tab is selected",
+    "mybids_drafts_hides_recently_decided": "FAIL — panel remains visible on Drafts tab",
+    "mybids_withdrawn_hides_recently_decided": "FAIL — panel remains visible on Withdrawn tab (though the 'No withdrawn bids' empty note also appears)",
+    "mobile_register_no_topbar_overlay": "FAIL — pmc-mobile-topbar (sticky, top=0, height=65px) renders above the register page's own header"
+  },
+  "test_report_links": [],
+  "action_items": [
+    "VendorMyBidsE.jsx: wire the 'Recently decided' aside/section to render only when the active tab === 'closed'. Currently it renders unconditionally.",
+    "PmcMobileNav.jsx (or wherever route-based hide logic lives): add '/register' to the same exclusion set used for /login and /forgot-password so the mobile topbar does not overlay the register layout at ≤767px.",
+    "Consider explicit data-testid on the 'Recently decided' panel container (e.g. data-testid='pmc-mybids-recently-decided') so future regressions can be caught by selector, not text-scan."
+  ],
+  "critical_code_review_comments": [
+    "The visibility toggle for the Recently decided panel appears to be missing a conditional render tied to tab state — likely the panel sits outside the tab-filtered container.",
+    "The public /register route is missing from the mobile-topbar hide list — this is exactly the type of drift that data-testid + a shared 'hideMobileChromeOn' array in one place would prevent."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only)", "frontend": "~86% (12/14 spec items PASS, 2 real regressions)"},
+  "test_credentials": "manualvendor@pmcmanagers.com / Vendor@12345 (used successfully)",
+  "seed_data_creation": "None",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Desktop 1440 layout is fully intact (no mobile CSS leaking). Mobile 390 layout across public + vendor is intact. Two open issues to retest after main-agent fix: (1) VendorMyBids Recently-decided panel must ONLY show on Closed tab — verify Active/Drafts/Withdrawn hide it. (2) /register at 390 must NOT render pmc-mobile-topbar (matches /login and /forgot-password behaviour). Help drawer and signature buttons were not deep-tested this round due to scope prioritisation on the two regressions listed; if next round is broader, add coverage for pmc-helpfab open/close/reopen and /vendor/signatures Preview+Download buttons."
+}

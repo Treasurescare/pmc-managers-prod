@@ -102,7 +102,7 @@ export default function PmcMobileNav() {
 
   // Route classification
   const isAdminLogin = pathname === "/admin/login";
-  const isVendorLogin = pathname === "/vendor/login" || pathname === "/login" || pathname === "/forgot-password" || pathname === "/reset-password";
+  const isVendorLogin = pathname === "/vendor/login" || pathname === "/login" || pathname === "/forgot-password" || pathname === "/reset-password" || pathname === "/register";
   const isVendor = pathname === "/vendor" || pathname.startsWith("/vendor/");
   const isAdmin = pathname.startsWith("/admin");
   const isStaff = pathname.startsWith("/staff");

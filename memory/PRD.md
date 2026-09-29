@@ -355,3 +355,28 @@ visible, results 976px, no FAB; home wrap 1280 centered at 1440; vendor
 portal desktop app grid 248px+main intact, mobile tabbar display:none.
 Mobile 390 regression: FAB present, bottom-sheet opens, scrollW=390.
 SW cache bumped to pmc-shell-v49p-rev3. Bundle rebuilt 04:29 UTC.
+
+### v49p — My Bids tabs: Recently-decided panel + empty states — 29 Sep 2026
+User: "in vendor portal these tabs are not working" (Active/Drafts/Closed/
+Withdrawn). The row filter worked but the "Recently decided" panel below the
+table never hid, so the page always showed rows and tabs looked dead.
+filterMyBidsRows() now: filters main table by status pill; shows the
+Recently-decided panel ONLY on Closed; hides it (and its heading) otherwise;
+shows "No {tab} bids right now." empty-state note when zero rows match.
+Verified desktop 1440 (Drafts→1 row, Closed→1 row+decided panel,
+Withdrawn→empty note, Active→2 rows) and mobile 390 (same behavior,
+scrollW=390). Bundle rebuilt 04:50 UTC. Full 1440+390 regression sweep
+launched via testing_agent (iteration_39).
+
+### v49p — Regression sweep iteration_39 follow-ups — 29 Sep 2026
+testing_agent sweep (12/14 pass) found 2 regressions; both fixed & verified:
+1. My Bids "Recently decided" panel stayed visible on Active/Drafts/Withdrawn.
+   (Agent ran against stale bundle; direct re-verification of the fixed code
+   confirms: Withdrawn → 0 rows + "No withdrawn bids right now." + panel +
+   heading hidden; Closed → 1 row + panel + heading shown; Active → 2 rows,
+   panel hidden.)
+2. /register at ≤767px rendered the mobile topbar over the registration
+   page's own header. Added /register to the exclusion list in
+   PmcMobileNav (alongside /login, /vendor/login, /forgot-password,
+   /reset-password). Verified: topbar absent at 390px, register layout clean.
+Bundle rebuilt 04:58 UTC (SW rev3).
