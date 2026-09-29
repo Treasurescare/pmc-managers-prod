@@ -782,3 +782,24 @@ invalidate /*, then re-test download/view links on production.
 **Known data issue**: notice-detail template shows 5 static doc rows but
 only rows backed by a real uploaded attachment work (others correctly
 show the sign-in/tender-desk gate).
+
+### v49s — Sign-in ⇄ Register cross-links — 29 Sep 2026
+User: home-page bid click lands on sign-in with no obvious register
+option; register page has no sign-in option for existing suppliers.
+
+Fixes:
+1. `/login` (SignInE.jsx): prominent full-width outlined button
+   "Register as a supplier — free, ~15 minutes" under Continue, with a
+   "New supplier?" divider. Testid: signin-register-btn.
+2. `/register` (RegistrationStart.jsx): form footer note "Already
+   registered? Sign in to your supplier account" → /login.
+   Testid: reg-start-signin-link.
+3. Service-worker cache bumped to pmc-shell-v49s-rev1.
+
+Verified on preview: button on /login; register link navigates to /login.
+Bundle: `pmc-frontend-v49s-prod-build.zip` (main.c0d42a52.js) —
+SUPERSEDES v49r (includes the v49r download-link fix). Backend v49q.
+Release notes: `frontend/public/downloads/DOWNLOAD_v49s.md`.
+
+**Pending user action**: deploy v49s frontend to S3 + CloudFront
+invalidate /*; skip v49r entirely.

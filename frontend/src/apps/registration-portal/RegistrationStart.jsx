@@ -179,6 +179,13 @@ export default function RegistrationStart() {
             {busy ? t("common.loading") : t("register.start_submit")}
           </button>
 
+          <div className="text-sm text-brand-navy/70 border-t border-brand-navy/10 pt-5" data-testid="reg-start-signin-note">
+            Already registered?{" "}
+            <Link to="/login" className="underline font-semibold text-brand-navy" data-testid="reg-start-signin-link">
+              Sign in to your supplier account
+            </Link>
+          </div>
+
           {sent && (
             <div className="text-xs text-brand-navy/60 mt-2" data-testid="reg-start-sent">
               Draft created · <Link className="underline" to={`/register/resume?token=${sent.magic_token}`}>continue now</Link>

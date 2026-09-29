@@ -180,6 +180,20 @@ export default function SignInE({ legacy: Legacy }) {
               >
                 {busy ? "Signing in…" : "Continue"}
               </button>
+
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", color: "var(--ink-muted, #5B6B63)", fontSize: "12px", textTransform: "uppercase", letterSpacing: "1.5px" }}>
+                <span style={{ flex: 1, height: "1px", background: "rgba(15,59,46,.15)" }} />
+                New supplier?
+                <span style={{ flex: 1, height: "1px", background: "rgba(15,59,46,.15)" }} />
+              </div>
+              <Link
+                to="/register"
+                className="pmc-btn pmc-btn--lg"
+                style={{ width: "100%", textAlign: "center", display: "block", border: "1px solid var(--primary, #0F3B2E)", color: "var(--primary, #0F3B2E)", fontWeight: 600, textDecoration: "none", lineHeight: "44px" }}
+                data-testid="signin-register-btn"
+              >
+                Register as a supplier — free, ~15 minutes
+              </Link>
             </div>
 
             <div className="pmc-muted" style={{ fontSize: "12px", marginTop: "24px", display: "flex", justifyContent: "space-between" }}>
