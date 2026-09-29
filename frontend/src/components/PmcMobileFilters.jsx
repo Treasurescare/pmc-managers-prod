@@ -67,6 +67,23 @@ export default function PmcMobileFilters() {
         '<button type="button" class="pmc-btn pmc-btn--primary" data-testid="pmc-filters-apply" style="width:100%;min-height:46px">Show results</button>';
       sheet.appendChild(foot);
 
+      // Live count of active filters — reads any checked input inside the
+      // sheet (radios and checkboxes). Updates the FAB label and re-runs on
+      // change so users see "Filters · 3" once they pick a few options.
+      const countEl = fab.querySelector('[data-testid="pmc-filters-count"]');
+      const updateCount = () => {
+        const inputs = aside.querySelectorAll('input[type="radio"], input[type="checkbox"]');
+        // Radios are always exactly one per group — only count non-default.
+        const activeRadio = [...aside.querySelectorAll('input[type="radio"]:checked')]
+          .filter((r) => r.value && r.value.toLowerCase() !== "all" && r.value.toLowerCase() !== "open").length;
+        const activeChecks = [...aside.querySelectorAll('input[type="checkbox"]:checked')].length;
+        const n = activeRadio + activeChecks;
+        countEl.textContent = n > 0 ? String(n) : "Open";
+        countEl.classList.toggle("is-active", n > 0);
+      };
+      aside.addEventListener("change", updateCount);
+      updateCount();
+
       const open = () => document.body.classList.add("pmc-filters-open");
       const close = () => document.body.classList.remove("pmc-filters-open");
       fab.addEventListener("click", open);

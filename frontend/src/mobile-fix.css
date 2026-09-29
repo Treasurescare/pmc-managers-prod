@@ -534,6 +534,143 @@ html, body { overflow-x: clip; }
   /* Release inline max-width on paragraphs */
   [data-ui="e"] p[style*="max-width"] { max-width: 100% !important; }
 
+  /* ==========================================================================
+   * Tender detail page (`data-pmc-e-page="notice-detail-e"`)
+   * ------------------------------------------------------------------------
+   * Desktop hero uses a 2-col grid: [title + tag row] + [Follow/Download/
+   * Start bid buttons]. On mobile the whole hero stacks, the pill row wraps,
+   * the reference id (PMC-NOT-…) never breaks between characters, and the
+   * three CTA buttons move to a **fixed sticky action bar** at the bottom
+   * of the viewport (banking-app pattern from the reference kit).
+   * ======================================================================== */
+  [data-ui="e"] [data-pmc-e-page="notice-detail-e"] { padding-bottom: 96px !important; }
+
+  /* Stack the hero grid */
+  [data-ui="e"] [data-pmc-e-page="notice-detail-e"] section.pmc-chrome > .pmc-wrap > div[style*="grid-template-columns: 1fr auto"] {
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+    align-items: flex-start !important;
+    margin: 12px 0 20px !important;
+  }
+  /* Tag + ref + pills row — wrap, keep ref intact, pills wrap to their own line */
+  [data-ui="e"] [data-pmc-e-page="notice-detail-e"] div[style*="display: flex"][style*="align-items: center"][style*="margin-bottom: 12px"] {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+  [data-ui="e"] .pmc-ref {
+    white-space: nowrap !important;
+    overflow-wrap: normal !important;
+    word-break: keep-all !important;
+    font-variant-numeric: tabular-nums !important;
+  }
+  [data-ui="e"] .pmc-pill {
+    white-space: nowrap !important;
+    font-size: 11px !important;
+    padding: 3px 10px !important;
+  }
+  /* Notice title — 26px, 2-line max feels good */
+  [data-ui="e"] [data-pmc-e-page="notice-detail-e"] h1.pmc-display {
+    font-size: 26px !important;
+    line-height: 32px !important;
+    max-width: 100% !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+  }
+
+  /* Facts strip: 6 items → 2-column grid on mobile */
+  [data-ui="e"] .pmc-facts {
+    grid-template-columns: repeat(2, minmax(0,1fr)) !important;
+    border-radius: 10px !important;
+  }
+  [data-ui="e"] .pmc-facts > div {
+    border-top: 1px solid var(--chrome-line, #2a5446) !important;
+    border-left: 1px solid var(--chrome-line, #2a5446) !important;
+    padding: 12px 14px !important;
+  }
+  [data-ui="e"] .pmc-facts > div:nth-child(-n+2) { border-top: 0 !important; }
+  [data-ui="e"] .pmc-facts > div:nth-child(2n+1) { border-left: 0 !important; }
+  [data-ui="e"] .pmc-facts dt { font-size: 10px !important; letter-spacing: 0.08em !important; }
+  [data-ui="e"] .pmc-facts dd { font-size: 14px !important; margin-top: 2px !important; }
+
+  /* Tabs row — horizontal scroll instead of overflow */
+  [data-ui="e"] .pmc-tabs {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    gap: 6px !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    margin: 0 -20px 16px !important;
+    padding: 0 20px !important;
+  }
+  [data-ui="e"] .pmc-tabs::-webkit-scrollbar { display: none !important; }
+  [data-ui="e"] .pmc-tabs .pmc-tab {
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+    padding: 8px 14px !important;
+    font-size: 13px !important;
+  }
+
+  /* Main + aside layout on notice detail → single column, aside below */
+  [data-ui="e"] [data-pmc-e-page="notice-detail-e"] > .pmc-wrap[style*="grid-template-columns: minmax(0,1fr) 360px"],
+  [data-ui="e"] [data-pmc-e-page="notice-detail-e"] > .pmc-wrap[style*="grid-template-columns:minmax(0,1fr) 360px"] {
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+    padding: 16px 0 40px !important;
+  }
+  [data-ui="e"] [data-pmc-e-page="notice-detail-e"] aside[style*="position: sticky"] {
+    position: static !important;
+  }
+
+  /* Scope 4-fact icon grid → 1 col */
+  [data-ui="e"] .dt-scope { grid-template-columns: 1fr !important; }
+
+  /* ==========================================================================
+   * Sticky action bar — mobile only, floats "Follow / Download / Start bid"
+   * to a fixed bottom row so the primary CTA is one-thumb reachable
+   * ======================================================================== */
+  [data-ui="e"] [data-pmc-e-page="notice-detail-e"] section.pmc-chrome > .pmc-wrap > div[style*="grid-template-columns: 1fr auto"] > div:last-child {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    z-index: 44 !important;
+    display: grid !important;
+    grid-template-columns: 44px 44px 1fr !important;
+    gap: 10px !important;
+    padding: 10px 16px calc(env(safe-area-inset-bottom, 0px) + 10px) !important;
+    background: #ffffff !important;
+    border-top: 1px solid #e2dccd !important;
+    box-shadow: 0 -8px 24px rgba(15,42,34,0.10) !important;
+    align-items: center !important;
+  }
+  /* Compact icon-only for Follow + Download, big primary "Start bid" */
+  [data-ui="e"] [data-pmc-e-page="notice-detail-e"] section.pmc-chrome > .pmc-wrap > div[style*="grid-template-columns: 1fr auto"] > div:last-child > .pmc-btn:not(.pmc-btn--brass) {
+    padding: 0 !important;
+    min-height: 44px !important;
+    background: #f6f3ec !important;
+    color: #14201a !important;
+    border: 1px solid #e2dccd !important;
+    display: inline-grid !important;
+    place-items: center !important;
+    font-size: 0 !important;
+    border-radius: 8px !important;
+  }
+  [data-ui="e"] [data-pmc-e-page="notice-detail-e"] section.pmc-chrome > .pmc-wrap > div[style*="grid-template-columns: 1fr auto"] > div:last-child > .pmc-btn:not(.pmc-btn--brass) svg {
+    width: 20px !important;
+    height: 20px !important;
+    font-size: 20px !important;
+    color: #14201a !important;
+  }
+  [data-ui="e"] [data-pmc-e-page="notice-detail-e"] section.pmc-chrome > .pmc-wrap > div[style*="grid-template-columns: 1fr auto"] > div:last-child > .pmc-btn--brass {
+    width: 100% !important;
+    min-height: 46px !important;
+    justify-content: center !important;
+    font-weight: 700 !important;
+    font-size: 15px !important;
+    border-radius: 8px !important;
+  }
+
   /* Legacy (non Option-E) pages — no horizontal overflow */
   main, section, article, aside, header, footer, .container { min-width: 0 !important; }
   main[class*="max-w-"] { padding-left: 16px !important; padding-right: 16px !important; }
@@ -818,13 +955,18 @@ body.pmc-mob-menu-open { overflow: hidden; }
     cursor: pointer;
   }
   .pmc-filters-fab .pmc-filters-count {
-    background: #1f5a48;
-    color: #ffffff;
+    background: #cbd6ce;
+    color: #14201a;
     font-size: 11px;
     font-weight: 700;
     padding: 2px 8px;
     border-radius: 999px;
     margin-left: 2px;
+    letter-spacing: 0;
+  }
+  .pmc-filters-fab .pmc-filters-count.is-active {
+    background: #1f5a48;
+    color: #ffffff;
   }
 
   /* Scrim */
