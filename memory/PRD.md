@@ -337,3 +337,21 @@ also click the React Close button to sync state. Verified via real open path:
 open → Close btn → closed; reopen → scrim tap → closed. Tabs wrap + footer
 stack verified same session (5/5 tabs visible at 390px; footer column, no
 overflow). Bundle rebuilt 03:55 UTC.
+
+### v49p — Desktop regression fix (PmcMobileFilters DOM surgery) — 29 Sep 2026
+User: "in the enthusiasm to get the mobile view ready the desktop view has
+been screwed". Root cause: PmcMobileFilters restructured the DOM (moved
+aside.tl-filters into a fixed bottom-sheet wrapper) at ALL viewport widths.
+On desktop the sheet is display:none, so the filters sidebar vanished and
+the 272px+1fr results grid collapsed (results section shrank to 272px,
+chips stacked vertically, cards squeezed). Diagnosed live: gridChildren were
+[scrim, sheet, section] instead of [aside, section].
+Fix: component now gates ALL DOM changes behind matchMedia("(max-width:
+767px)") — install() only on mobile; uninstall() restores the aside to its
+original parent/sibling position and removes FAB/scrim/sheet; a matchMedia
+change listener re-applies on resize/rotate. Desktop DOM is never touched.
+Verified: desktop 1920 → gridChildren [tl-filters, section], aside 272px
+visible, results 976px, no FAB; home wrap 1280 centered at 1440; vendor
+portal desktop app grid 248px+main intact, mobile tabbar display:none.
+Mobile 390 regression: FAB present, bottom-sheet opens, scrollW=390.
+SW cache bumped to pmc-shell-v49p-rev3. Bundle rebuilt 04:29 UTC.

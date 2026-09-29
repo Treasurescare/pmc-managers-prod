@@ -3,31 +3,43 @@ import { useLocation } from "react-router-dom";
 
 /**
  * PmcMobileFilters — turns the fixed sidebar filter panel on the tender list
- * page into a GeM-style bottom-sheet on mobile (≤767px). Desktop is
- * untouched; the sidebar shows inline as before.
+ * page into a GeM-style bottom-sheet on mobile (≤767px) ONLY.
  *
- * Approach: mount globally, on route change scan for a `.tl-filters` aside;
- * if found, inject a `.pmc-filters-fab` pill button and a `.pmc-filters-sheet`
- * wrapper around the existing aside. A body class `pmc-filters-open`
- * animates the sheet in from the bottom. The scrim and the close button
- * dismiss the sheet.
+ * CRITICAL: the DOM restructure (wrapping aside.tl-filters into a fixed
+ * sheet) must never happen on desktop — when it did, the sidebar vanished
+ * and the results column collapsed into the 272px grid track, breaking the
+ * desktop tenders page. install() runs only while the mobile media query
+ * matches; uninstall() restores the aside to its original position and
+ * removes the injected FAB/scrim/sheet. A matchMedia listener re-applies on
+ * viewport changes so rotating/resizing never strands the wrong layout.
  */
+const MQ = "(max-width: 767px)";
+
 export default function PmcMobileFilters() {
   const { pathname } = useLocation();
-  const [_, force] = useState(0);
+  const [, force] = useState(0);
   const rerender = useCallback(() => force((x) => x + 1), []);
 
   useEffect(() => {
-    if (!pathname.startsWith("/tenders") && !pathname.startsWith("/notices")) return;
-    let cleanup = () => {};
+    const mq = window.matchMedia(MQ);
+    let restore = () => {};
+
+    const uninstall = () => {
+      try { restore(); } catch (_) { /* noop */ }
+      restore = () => {};
+      document.body.classList.remove("pmc-filters-open");
+    };
+
     const install = () => {
       const aside = document.querySelector("aside.tl-filters");
       if (!aside || aside.dataset.pmcSheetBound === "1") return;
-      aside.dataset.pmcSheetBound = "1";
-
-      // 1. FAB — floating "Filters" button at the top of the results list
-      const results = aside.nextElementSibling; // <section>
+      const results = aside.nextElementSibling; // <section> results column
       if (!results) return;
+      aside.dataset.pmcSheetBound = "1";
+      const originalParent = aside.parentElement;
+      const originalNext = aside.nextElementSibling;
+
+      // 1. FAB — "Filters" pill at the top of the results list
       const fab = document.createElement("button");
       fab.type = "button";
       fab.className = "pmc-filters-fab";
@@ -67,15 +79,11 @@ export default function PmcMobileFilters() {
         '<button type="button" class="pmc-btn pmc-btn--primary" data-testid="pmc-filters-apply" style="width:100%;min-height:46px">Show results</button>';
       sheet.appendChild(foot);
 
-      // Live count of active filters — reads any checked input inside the
-      // sheet (radios and checkboxes). Updates the FAB label and re-runs on
-      // change so users see "Filters · 3" once they pick a few options.
+      // Live count of active filters
       const countEl = fab.querySelector('[data-testid="pmc-filters-count"]');
       const updateCount = () => {
-        const inputs = aside.querySelectorAll('input[type="radio"], input[type="checkbox"]');
-        // Radios are always exactly one per group — only count non-default.
         const activeRadio = [...aside.querySelectorAll('input[type="radio"]:checked')]
-          .filter((r) => r.value && r.value.toLowerCase() !== "all" && r.value.toLowerCase() !== "open").length;
+          .filter((r) => r.value && !["all", "open"].includes(r.value.toLowerCase())).length;
         const activeChecks = [...aside.querySelectorAll('input[type="checkbox"]:checked')].length;
         const n = activeRadio + activeChecks;
         countEl.textContent = n > 0 ? String(n) : "Open";
@@ -92,16 +100,43 @@ export default function PmcMobileFilters() {
       foot.querySelector('[data-testid="pmc-filters-apply"]').addEventListener("click", close);
       const onKey = (e) => { if (e.key === "Escape") close(); };
       window.addEventListener("keydown", onKey);
-      cleanup = () => {
+
+      // Uninstall: put the aside back where it came from and drop the chrome
+      restore = () => {
         window.removeEventListener("keydown", onKey);
-        document.body.classList.remove("pmc-filters-open");
+        aside.classList.remove("pmc-filters-sheet-body");
+        delete aside.dataset.pmcSheetBound;
+        if (originalParent) {
+          if (originalNext && originalNext.parentElement === originalParent) {
+            originalParent.insertBefore(aside, originalNext);
+          } else {
+            originalParent.appendChild(aside);
+          }
+        }
+        fab.remove();
+        sheet.remove();
+        scrim.remove();
       };
       rerender();
     };
-    install();
-    const t = setTimeout(install, 300);
-    const t2 = setTimeout(install, 1200);
-    return () => { clearTimeout(t); clearTimeout(t2); cleanup(); };
+
+    const apply = () => {
+      uninstall();
+      const onPage = pathname.startsWith("/tenders") || pathname.startsWith("/notices");
+      if (mq.matches && onPage) install();
+    };
+
+    apply();
+    // The list hydrates async — retry twice for late-rendered sidebars.
+    const t1 = setTimeout(apply, 300);
+    const t2 = setTimeout(apply, 1200);
+    mq.addEventListener?.("change", apply);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      mq.removeEventListener?.("change", apply);
+      uninstall();
+    };
   }, [pathname, rerender]);
 
   return null;
