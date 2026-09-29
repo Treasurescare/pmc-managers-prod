@@ -793,6 +793,20 @@ export function useVendorSignaturesLive({ enabled = true } = {}) {
             if (h2) h2.textContent = e0.subject || e0.award_ref || "Award document";
             const sub = nextCard.querySelector(".pmc-muted");
             if (sub) sub.textContent = `${e0.signer_name || "You"} · sent ${(e0.created_at || "").slice(0, 10)} · signing with DocuSign takes about 2 minutes.`;
+            // v49p — give the hero card a Download button (user request) so the
+            // document can be saved without entering the signing ceremony.
+            const btnRow = [...nextCard.querySelectorAll("div")].find((d) =>
+              d.querySelector(":scope > a.pmc-btn, :scope > button.pmc-btn"));
+            if (btnRow && !btnRow.querySelector("[data-dl-btn]")) {
+              const dl = document.createElement("a");
+              dl.href = "#";
+              dl.className = "pmc-btn pmc-btn--secondary";
+              dl.textContent = "Download";
+              dl.setAttribute("data-dl-btn", "1");
+              dl.setAttribute("data-envelope-id", e0.envelope_id);
+              dl.setAttribute("data-testid", "sig-hero-download");
+              btnRow.insertBefore(dl, btnRow.lastElementChild);
+            }
           } else {
             nextCard.style.display = "none";
           }

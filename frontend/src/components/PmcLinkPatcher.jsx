@@ -566,8 +566,86 @@ function handleDownload(el, isPublic, navigate) {
   return true;
 }
 
+// v49p — Signatures page document actions. Preview/View open the envelope's
+// current PDF in a new tab (inline), Download saves it (attachment). The
+// signing ceremony itself stays with handleReviewSign.
+async function handleSigDoc(el, mode, navigate) {
+  try {
+    const envId = el.closest("[data-envelope-id]")?.getAttribute("data-envelope-id");
+    if (!envId) { toast.info("This document isn't linked to an envelope yet."); return; }
+    toast.info(mode === "download" ? "Preparing your download…" : "Opening the document…");
+    const blob = await docusignApi.downloadDocPdf(envId, mode === "download" ? "attachment" : "inline");
+    const url = URL.createObjectURL(blob);
+    if (mode === "download") {
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `PMC-${envId}.pdf`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+      toast.success("Document downloaded.");
+    } else {
+      window.open(url, "_blank", "noopener");
+    }
+  } catch (err) {
+    const s = err?.response?.status;
+    if (s === 401) { navigate("/login"); return; }
+    toast.error(err?.response?.data?.detail || "Couldn't open that document.");
+  }
+}
+
+// v49p — Alerts page "Mark all read": hits the vendor read-all endpoint and
+// clears the unread styling in place.
+async function handleMarkAllRead(el) {
+  try {
+    const { api } = await import("@/lib/api");
+    await api.post("/api/v1/notifications/vendor/read-all");
+    const root = el.closest('[data-pmc-e-page="vendor-alerts-e"]');
+    root?.querySelectorAll(".al-r.un").forEach((r) => r.classList.remove("un"));
+    const h1 = root?.querySelector("h1");
+    if (h1) h1.textContent = h1.textContent.replace(/·\s*\d+\s*need action/i, "· 0 need action");
+    toast.success("All alerts marked as read.");
+  } catch (_) {
+    toast.error("Couldn't mark alerts as read. Try again.");
+  }
+}
+
+// v49p — Alerts page tab filter: All / Needs action / Tenders / Payments
+// filter the .al-r alert rows in place (no page reload).
+function filterAlertRows(tabEl) {
+  const root = tabEl.closest('[data-pmc-e-page="vendor-alerts-e"]');
+  if (!root) return;
+  const key = labelOf(tabEl).replace(/\s*\d+$/, "").trim();
+  root.querySelectorAll(".al-r").forEach((r) => {
+    const txt = (r.textContent || "").toLowerCase();
+    let show = true;
+    if (key === "needs action") show = r.classList.contains("un");
+    else if (key === "tenders") show = /corrigendum|tender|notice|bid/.test(txt) && !/emd|escrow|payment/.test(txt);
+    else if (key === "payments") show = /emd|escrow|payment|invoice|refund/.test(txt);
+    r.style.display = show ? "" : "none";
+  });
+}
+
+// v49p — My bids tab filter: Active / Drafts / Closed / Withdrawn filter the
+// bids table rows by their status pill text.
+function filterMyBidsRows(tabEl) {
+  const root = tabEl.closest('[data-pmc-e-page="vendor-mybids-e"]');
+  if (!root) return;
+  const key = labelOf(tabEl).replace(/\s*\d+$/, "").trim();
+  const panel = root.querySelector("section.pmc-panel"); // first panel = live bids table
+  if (!panel) return;
+  panel.querySelectorAll("tbody tr").forEach((tr) => {
+    const pill = (tr.querySelector(".pmc-pill")?.textContent || "").toLowerCase();
+    let show = true;
+    if (key === "drafts") show = pill.includes("draft");
+    else if (key === "closed") show = /award|closed|decid|lost/.test(pill);
+    else if (key === "withdrawn") show = pill.includes("withdraw");
+    else show = !(pill.includes("draft") || pill.includes("withdraw")); // active
+    tr.style.display = show ? "" : "none";
+  });
+}
+
 // Central click action resolver. Returns true when the click was owned.
-function resolveClickAction(el, label, { isVendor, isAdmin, isPublic }, navigate) {
+function resolveClickAction(el, label, { isVendor, isAdmin, isPublic, pageId }, navigate) {
   if (/^sign\s*out\s+everywhere\s+else$/i.test(label)) {
     handleSignOutOthers(navigate); return true;
   }
@@ -580,6 +658,21 @@ function resolveClickAction(el, label, { isVendor, isAdmin, isPublic }, navigate
   if (isVendor && /change\s+(avatar|photo|logo)|upload\s+photo/i.test(label)) { openAvatarPicker(); return true; }
   if (isVendor && /^change\s+password$/i.test(label)) { openChangePasswordModal(); return true; }
   if (isVendor && /^change$/i.test(label)) { handleChangeButton(el, navigate); return true; }
+  // v49p — Signatures page: Preview/View open the document PDF, Download
+  // saves it, Continue resumes the signing ceremony. These run before the
+  // generic review&sign/preview rules so the labels stay page-specific.
+  if (pageId === "vendor-signatures-e") {
+    if (/^(preview|view)$/i.test(label)) { handleSigDoc(el, "preview", navigate); return true; }
+    if (/^download$/i.test(label)) { handleSigDoc(el, "download", navigate); return true; }
+    if (/^continue$/i.test(label)) { handleReviewSign(el, navigate); return true; }
+  }
+  // v49p — Alerts page actions
+  if (pageId === "vendor-alerts-e") {
+    if (/^mark all read$/i.test(label)) { handleMarkAllRead(el); return true; }
+    if (/^see change$/i.test(label)) { const r = extractNoticeRef(el); navigate(r ? `/notices/${r}` : "/tenders/live"); return true; }
+    if (/^see tenders$/i.test(label)) { navigate("/vendor/tenders"); return true; }
+    if (/^alert settings$/i.test(label)) { navigate("/vendor/account"); return true; }
+  }
   if (isVendor && /review\s*&?\s*sign|sign\s+loa/i.test(label)) { handleReviewSign(el, navigate); return true; }
   if (isVendor && /^preview$/i.test(label)) { handleReviewSign(el, navigate); return true; }
   if (isVendor && /send\s+me\s+the\s+docusign/i.test(label)) { handleReviewSign(el, navigate); return true; }
@@ -624,7 +717,7 @@ export default function PmcLinkPatcher() {
       const isVendor = pageId.startsWith("vendor-");
       const isAdmin = pageId.startsWith("admin-");
       const isPublic = !isVendor && !isAdmin;
-      const ctx = { isVendor, isAdmin, isPublic };
+      const ctx = { isVendor, isAdmin, isPublic, pageId };
 
       // KPI tiles (vendor pages)
       const kpi = e.target.closest(".pmc-kpi");
@@ -658,6 +751,9 @@ export default function PmcLinkPatcher() {
         row?.querySelectorAll(".pmc-tab").forEach((t) => t.setAttribute("aria-selected", "false"));
         el.setAttribute("aria-selected", "true");
         switchTabSections(el, row);
+        // v49p — pages whose tabs filter rows instead of switching sections
+        if (pageId === "vendor-alerts-e") filterAlertRows(el);
+        else if (pageId === "vendor-mybids-e") filterMyBidsRows(el);
         return;
       }
 

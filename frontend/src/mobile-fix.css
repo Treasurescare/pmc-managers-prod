@@ -402,7 +402,19 @@ html, body { overflow-x: clip; }
     padding: 10px 0 !important;
   }
   [data-ui="e"] .pmc-table td,
-  [data-ui="e"] table:not(.e-register-table) td { padding: 3px 0 !important; border-bottom: 0 !important; }
+  [data-ui="e"] table:not(.e-register-table) td { padding: 6px 14px !important; border-bottom: 0 !important; }
+
+  /* My bids KPI strip (.sp-kpis) — 4-across on desktop overflows phones;
+     2×2 grid with contained figures */
+  [data-ui="e"] .sp-kpis {
+    grid-template-columns: repeat(2, minmax(0,1fr)) !important;
+    gap: 10px !important;
+    margin-bottom: 16px !important;
+  }
+  [data-ui="e"] .sp-kpis > div { padding: 14px !important; min-width: 0 !important; overflow: hidden !important; }
+  [data-ui="e"] .sp-kpis .pmc-figure { font-size: 24px !important; line-height: 28px !important; overflow-wrap: anywhere !important; }
+  [data-ui="e"] .sp-kpis .l, [data-ui="e"] .sp-kpis .s { overflow-wrap: anywhere !important; }
+  [data-ui="e"] .sp-head h1 { font-size: 28px !important; line-height: 32px !important; }
 
   /* ==========================================================================
    * Doc rows / inbox rows / inrow — 3+ column layouts collapse

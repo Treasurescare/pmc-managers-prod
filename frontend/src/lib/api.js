@@ -67,7 +67,7 @@ export function showApiError(err, { fallbackTitle = "Something went wrong" } = {
   const title = status ? `${fallbackTitle} · HTTP ${status}` : fallbackTitle;
   toast.error(title, {
     description: description ? `${head}${head.endsWith(".") ? "" : "."}\n${description}` : head,
-    duration: status && status >= 400 && status < 500 ? 12000 : 8000,
+    duration: status && status >= 400 && status < 500 ? 10000 : 8000,
     closeButton: true,
   });
   // Also mirror to the browser console so operators / support can copy full
@@ -704,6 +704,12 @@ export const docusignApi = {
       .then((r) => r.data),
   vendorDownloadPdf: (envelopeId) =>
     api.get(`/api/v1/docusign/mine/envelopes/${envelopeId}/combined-pdf`, { responseType: "blob" })
+      .then((r) => r.data),
+  // v49p — envelope's current document as PDF in ANY status (unsigned while
+  // pending, signed once completed). disposition=inline → open in tab,
+  // attachment → browser download.
+  downloadDocPdf: (envelopeId, disposition = "inline") =>
+    api.get(`/api/v1/docusign/mine/envelopes/${envelopeId}/document.pdf?disposition=${disposition}`, { responseType: "blob" })
       .then((r) => r.data),
 };
 

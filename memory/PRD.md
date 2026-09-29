@@ -245,3 +245,34 @@ bottom row); budget/closes sit side-by-side. Also added mobile coverage for
 fixed-column grids the inline-style nuclear rule could not catch).
 Verified: gtc computes to 162px 162px, title width 336px, scrollW=390.
 Bundle rebuilt (01:54 UTC).
+
+### v49p — My Bids + Alerts + Signatures + Toast pass — 29 Sep 2026
+User-reported batch (mobile):
+1. My Bids: 4 KPI boxes misaligned/overflowing → `.sp-kpis` 2×2 grid at ≤767px
+   with contained figures (overflow-wrap). Tabs Active/Drafts/Closed/Withdrawn
+   were cosmetic-only → `filterMyBidsRows()` in PmcLinkPatcher filters the bids
+   table rows by status pill in place. Bid price flush to card edge → stacked
+   `td` padding 6px 14px. Verified: KPIs 2×2 (174px each), Drafts tab 6→3 rows.
+2. Alerts: tabs All/Needs action/Tenders/Payments were dead →
+   `filterAlertRows()` filters `.al-r` rows (Needs action = `.un` class,
+   Tenders/Payments by keyword). "Mark all read" now calls
+   POST /api/v1/notifications/vendor/read-all and clears `.un` + h1 count.
+   "See change" → /notices/{ref}, "See tenders" → /vendor/tenders,
+   "Alert settings" → /vendor/account. Verified: tabs filter 5→2 rows,
+   mark-all-read unread 2→0, toast "All alerts marked as read."
+3. Toasts: error toasts capped at 10s auto-dismiss (was 12s), others 6-8s,
+   close button retained.
+4. Signatures page (vendor): Preview/View now open the envelope's current
+   document PDF in a new tab (inline) via NEW endpoint
+   GET /api/v1/docusign/mine/envelopes/{id}/document.pdf (works in ANY status —
+   unsigned while pending, signed combined once completed); Download saves it
+   (attachment) — new Download button auto-inserted on the hero card; Continue
+   resumes the signing ceremony. Fixed `vendor_resume_signing`: email-mode
+   envelopes previously failed to mint an embedded recipient view (no
+   client_user_id) — now stamps client_user_id onto the recipient and retries.
+   Also fixed dead admin route: `GET /docusign/envelopes/{id}/combined-pdf`
+   was missing its @router decorator.
+5. Bug introduced+fixed same session: `ctx is not defined` ReferenceError in
+   resolveClickAction (destructured pageId missing) — broke all action clicks
+   briefly; fixed and verified via alerts flow.
+Backend restarted clean; bundle rebuilt (03:14 UTC).

@@ -587,20 +587,37 @@ async def vendor_resume_signing(envelope_id: str, vendor=Depends(current_vendor)
         raise HTTPException(409, f"Envelope is {row.get('status')} — ask PMC to resend")
     client = _client()
     return_url = f"{config.FRONTEND_URL}/vendor/signatures?ds_signed=1"
+    signer_name = row.get("signer_name") or ve
+    signer_email = row.get("signer_email") or ve
+    cuid = row.get("client_user_id") or f"pmc:vendor:{envelope_id}:{ve}"
     try:
-        signing_url = _recipient_view(
-            client, envelope_id,
-            row.get("signer_name") or ve,
-            row.get("signer_email") or ve,
-            row.get("client_user_id") or f"pmc:vendor:{envelope_id}:{ve}",
-            return_url,
-        )
+        signing_url = _recipient_view(client, envelope_id, signer_name, signer_email, cuid, return_url)
     except ApiException as e:
-        _log.warning("recipient-view failed for %s: %s", envelope_id, e)
-        raise HTTPException(502, "DocuSign couldn't prepare the signing view. Try again or ask PMC to resend.")
+        # Envelope created in EMAIL mode has no client_user_id on the
+        # recipient, so DocuSign refuses to mint an embedded recipient view.
+        # Repair: stamp a client_user_id onto the recipient, then retry — this
+        # makes in-portal signing work for email-created envelopes too.
+        _log.info("recipient-view retry with client_user_id repair for %s: %s", envelope_id, e)
+        try:
+            envelopes = ds.EnvelopesApi(client)
+            recips = envelopes.list_recipients(DS_ACCOUNT_ID, envelope_id)
+            signers = recips.signers or []
+            if not signers:
+                raise ValueError("envelope has no signer")
+            for s in signers:
+                s.client_user_id = cuid
+            envelopes.update_recipients(DS_ACCOUNT_ID, envelope_id,
+                                        recipients=ds.Recipients(signers=signers))
+            await db.docusign_envelopes.update_one(
+                {"envelope_id": envelope_id}, {"$set": {"client_user_id": cuid}})
+            signing_url = _recipient_view(client, envelope_id, signer_name, signer_email, cuid, return_url)
+        except Exception as e2:
+            _log.warning("recipient-view failed for %s: %s", envelope_id, e2)
+            raise HTTPException(502, "DocuSign couldn't prepare the signing view. Try again or ask PMC to resend.")
     await audit_log("docusign.vendor_resume_sign", None, "docusign_envelope",
                     envelope_id, {"vendor": ve})
     return {"envelope_id": envelope_id, "signing_url": signing_url, "expires_in": 300}
+@router.get("/envelopes/{envelope_id}/combined-pdf")
 async def download_combined_pdf(envelope_id: str, admin=Depends(current_admin)):
     """Return the fully-signed combined PDF for a completed envelope.
 
@@ -653,6 +670,35 @@ async def vendor_download_combined_pdf(envelope_id: str, vendor=Depends(current_
     from fastapi.responses import Response as _R
     return _R(content=pdf_bytes, media_type="application/pdf",
               headers={"Content-Disposition": f'attachment; filename="{fname}"'})
+
+
+@router.get("/mine/envelopes/{envelope_id}/document.pdf")
+async def vendor_download_document(envelope_id: str, disposition: str = "inline", vendor=Depends(current_vendor)):
+    """Vendor-facing: download/preview the envelope's current document PDF in
+    ANY status — the unsigned original while pending, the signed combined PDF
+    once completed. disposition=inline opens in a browser tab (Preview/View),
+    attachment triggers a download (Download button)."""
+    row = await db.docusign_envelopes.find_one({"envelope_id": envelope_id})
+    if not row:
+        raise HTTPException(404, "Envelope not found")
+    ve = vendor.get("email")
+    if row.get("signer_email") != ve:
+        bid = await db.bids.find_one({"id": row.get("bid_id")}) or {}
+        if bid.get("vendor_email") != ve:
+            raise HTTPException(403, "Not your envelope")
+    client = _client()
+    envelopes = ds.EnvelopesApi(client)
+    doc_id = "combined" if row.get("status") == "completed" else "1"
+    try:
+        pdf_path = envelopes.get_document(DS_ACCOUNT_ID, doc_id, envelope_id)
+    except Exception as e:
+        raise HTTPException(502, f"DocuSign document fetch failed: {e}")
+    pdf_bytes = Path(pdf_path).read_bytes()
+    fname = f"{row.get('award_ref') or row.get('bid_ref') or envelope_id}.pdf"
+    disp = "attachment" if disposition == "attachment" else "inline"
+    from fastapi.responses import Response as _R
+    return _R(content=pdf_bytes, media_type="application/pdf",
+              headers={"Content-Disposition": f'{disp}; filename="{fname}"'})
 
 
 # ---------------- Connect webhook ----------------
