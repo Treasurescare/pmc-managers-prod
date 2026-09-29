@@ -571,3 +571,29 @@ Note: rollback restored code but my later edits (sidebar links, E_TAB_
 ROUTES redirect in AdminDashboard.jsx, bidding-ops.css, pmc-responsive
 .*) were re-applied/retained after rollback — all present and verified.
 v49q bundle rebuilt again (08:27 UTC) with tender-builder fix.
+
+### v49q — Notices / Corrigenda / BOQ rescued with legacy panels — 29 Sep 2026
+User: "notices list opens but Open button + checkbox do nothing; same
+for corrigenda view/edit; same for BOQ view/edit/delete + design
+breaks (screenshots showed rows wrapping one-word-per-line)".
+
+Root cause: all three E-pages were static mocks with dead href="#"
+actions and hardcoded rows. Legacy panels (NoticesPanel,
+CorrigendaPanel, BOQContractsPanel) were fully API-wired and working
+in the old console.
+
+Fix: created shared `admin-console-e/AdminEShell.jsx` (Option E
+sidebar + topbar, real links, active-state, testids) and rewrote
+AdminNoticesE / AdminCorrigendaE / AdminBoqContractsE to mount the
+legacy panels inside it. AdminEShell main uses default pmc-amain
+padding (28px 32px 96px).
+
+Verified (authed admin, 1440px):
+- Notices: real list (17+ rows), PREVIEW AS BIDDER navigates to
+  /notices/<ref>, NEW NOTICE toggle, filters work.
+- Corrigenda: NEW CORRIGENDUM opens full form (7 fields), notice
+  picker populated, publish button live.
+- BOQ: templates tab lists real templates with Import Excel + View;
+  View expands item table; CONTRACTS tab switches and lists real
+  contracts with milestone Mark-complete actions.
+Bundle rebuilt (10:27 UTC).
