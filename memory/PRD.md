@@ -709,3 +709,27 @@ Root causes:
    window.open → new tab with inline PDF. Now appends ?download=1 and
    clicks a temporary <a download> anchor — real file download,
    mobile-Safari safe (window.open is popup-blocked there).
+
+### v49q — Bid/Award file downloads + DocuSign resend UX + dashboard mismatch — 29 Sep 2026
+User: still-broken file downloads inside bid detail + awards; resend
+button "doesn't fire the email"; dashboard IV=11 Bidding vs "10 CLOSE
+THIS WEEK" subtitle is inconsistent; ⋯ button in bid rows had no
+distinct purpose.
+
+Fixes:
+1. AdminBidDetailPage: swapped target=_blank "Open" for a real
+   Download button (?download=1 + download attr). Preview link kept
+   as secondary. Same fix in AdminBidDetailModal.
+2. AwardsPanel PO/Contract PDF link now ?download=1 + download attr
+   (was target=_blank on a cross-origin URL that inline-rendered).
+3. DocuSignPanel resend: pre-flight guard toasts a clear error when
+   envelope is completed/voided/rejected (user was clicking Resend on
+   COMPLETED rows with no feedback). Info toast added while waiting.
+4. Dashboard stage IV now: count = closing-this-week (was
+   "bidding=30d"), href = /admin/e/notices?status=closing so click
+   destination matches the "10 CLOSE THIS WEEK" subtitle exactly.
+   Verified: attention 05 = pipeline IV 05 = notices filtered 5 rows.
+5. Bidding Ops ⋯ button: `data-bo-action="detail"` — opens the
+   right-side clearance-path panel where Hold / Reject / History
+   live. No longer redundant with Review (which goes to full bid
+   page).

@@ -179,8 +179,8 @@ export default function AwardsPanel() {
                   <div className="text-xs text-brand-navy/60 mt-1">{t("panels.awards.issued")} {d.awarded_at?.slice(0, 10)}</div>
                   <div className="text-xs text-brand-navy/50 mt-1">{(d.size_bytes / 1024).toFixed(1)} KB</div>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <a href={`${BACKEND_URL}/api/v1/awards/bid/${pickedBidId}/pdf/${k}`}
-                       target="_blank" rel="noreferrer"
+                    <a href={`${BACKEND_URL}/api/v1/awards/bid/${pickedBidId}/pdf/${k}?download=1`}
+                       download rel="noopener"
                        data-testid={`award-download-${k}`}
                        className="inline-block text-[11px] font-semibold uppercase tracking-widest px-4 py-2 bg-brand-navy text-white hover:bg-brand-navy-deep">
                       {t("panels.awards.download_pdf")}

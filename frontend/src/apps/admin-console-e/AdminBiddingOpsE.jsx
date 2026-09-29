@@ -99,6 +99,12 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
       const act = btn.dataset.boAction;
       if (!bidId) return;
       if (act === 'review' || act === 'view') { navigate(`/admin/bids/${bidId}`); return; }
+      if (act === 'detail') {
+        // ⋯ opens the right-side detail panel (Hold / Reject / History live there)
+        const row = root.querySelector(`.bo-r[data-bid-id="${bidId}"]`);
+        if (row) row.click();
+        return;
+      }
       btn.disabled = true;
       try {
         if (act === 'send') {

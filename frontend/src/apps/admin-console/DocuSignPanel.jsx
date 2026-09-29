@@ -45,13 +45,19 @@ export default function DocuSignPanel() {
     useListPager(filteredEnvelopes, { defaultSize: 20, testid: "ds-pager" });
 
   const resendEnvelope = async (envelopeId) => {
+    const env = envelopes.find((x) => x.envelope_id === envelopeId);
+    if (env && ["completed", "voided", "rejected"].includes((env.status || "").toLowerCase())) {
+      toast.error(`Cannot resend a ${env.status} envelope. Create a new one instead.`);
+      return;
+    }
+    toast.info("Resending envelope…");
     try {
       const r = await docusignApi.resendEnvelope(envelopeId);
       if (r.signing_url) {
         window.open(r.signing_url, "_blank", "noopener");
         toast.success("New signing link opened");
       } else {
-        toast.success("Envelope resent to signer via email");
+        toast.success(`Envelope resent to ${r.emailed_to || "signer"} via email`);
       }
       load();
     } catch (e) { showApiError(e); }

@@ -99,7 +99,7 @@ export default function AdminBidDetailModal({ bidId, onClose }) {
                             <span className="font-medium">{d.name || d.filename || `Document ${i + 1}`}</span>
                             {mime && <span className="text-xs text-slate-500 ml-2">· {mime}</span>}
                           </div>
-                          {d.url && <a href={d.url} target="_blank" rel="noopener noreferrer"
+                          {d.url && <a href={`${d.url}${d.url.includes("?") ? "&" : "?"}download=1`} download rel="noopener"
                                         className="text-xs text-blue-700 underline pmc-no-print"
                                         data-testid={`admin-bid-doc-open-${i}`}>Open in new tab</a>}
                         </div>

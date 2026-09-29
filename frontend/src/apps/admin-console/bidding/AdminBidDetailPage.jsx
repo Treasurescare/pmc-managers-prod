@@ -137,12 +137,20 @@ export default function AdminBidDetailPage() {
                           </div>
                           {url && (
                             <div className="flex gap-2 pmc-no-print">
-                              <a href={url} target="_blank" rel="noopener noreferrer"
+                              <a href={`${url}${url.includes("?") ? "&" : "?"}download=1`} download rel="noopener"
                                 data-testid={`admin-bid-doc-open-${i}`}
                                 className="text-[11px] uppercase tracking-widest px-3 py-1.5 bg-brand-navy text-white hover:bg-brand-navy-deep">
-                                Open
+                                Download
                               </a>
-                              <a href={url} download={d.filename || d.name || true}
+                              <a href={url} target="_blank" rel="noopener noreferrer"
+                                data-testid={`admin-bid-doc-preview-${i}`}
+                                className="text-[11px] uppercase tracking-widest px-3 py-1.5 border border-brand-navy/30 text-brand-navy hover:bg-brand-navy/5">
+                                Preview
+                              </a>
+                            </div>
+                          )}
+                          {false && (
+                            <div className="flex gap-2 pmc-no-print"><a href={url} download={d.filename || d.name || true}
                                 data-testid={`admin-bid-doc-download-${i}`}
                                 className="text-[11px] uppercase tracking-widest px-3 py-1.5 border border-brand-navy/30 text-brand-navy hover:bg-brand-navy/5">
                                 Download

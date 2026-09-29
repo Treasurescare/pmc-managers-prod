@@ -1262,7 +1262,7 @@ export function useAdminBiddingOpsLive({ enabled = true, tick = 0 } = {}) {
             `<td><div class="bo-ref">${ref}${isTest ? '<span class="bo-test">Test</span>' : ""}</div><div class="bo-t">${title}</div><div class="bo-sub">${notice} · ${vendor}</div></td>` +
             `<td class="num"><b>${priceStr}</b>${anomHtml}<div class="bo-emd">${emdLine}</div></td>` +
             `<td style="width:170px"><span class="bo-dots">${dots.map((d) => `<i class="${d}"></i>`).join("")}</span><div class="bo-next" style="margin-top:6px">${next}</div><div class="bo-sub">${stepLabel}</div>${age ? `<div class="bo-sub">${age}</div>` : ""}</td>` +
-            `<td class="bo-act">${actionHtml}<button type="button" class="pmc-ib bo-more" aria-label="More actions" title="Hold · Reject · View history" data-bo-action="review" data-bid-id="${b.id || ""}">⋯</button></td>` +
+            `<td class="bo-act">${actionHtml}<button type="button" class="pmc-ib bo-more" aria-label="More actions" title="Hold or reject via the detail panel — click the row" data-bo-action="detail" data-bid-id="${b.id || ""}">⋯</button></td>` +
             `</tr>`
           );
         });
@@ -1516,9 +1516,14 @@ export function useAdminDashboardLive({ enabled = true } = {}) {
             const max = Math.max(1, ...stageCounts);
             bar.style.height = `${Math.max(4, Math.round((stageCounts[i] || 0) / max * 100))}%`;
           }
-          if (l2 && i === 3) l2.textContent = closingThisWeek ? `${closingThisWeek} CLOSE THIS WEEK` : "";
+          if (l2 && i === 3) l2.textContent = closingThisWeek ? `${String(closingThisWeek).padStart(2,"0")} CLOSE THIS WEEK` : "";
           a.classList.toggle("hot", i === 3 && (stageCounts[i] || 0) > 0);
         });
+        // Stage IV: use closing-this-week to match its subtitle and its
+        // click destination (?status=closing). Users found "11 Bidding"
+        // clicking through to 20 published rows confusing.
+        const bidIv = document.querySelector('[data-pmc-e-page="admin-dashboard-e"] [data-testid="dash-stage-3"] .c');
+        if (bidIv) bidIv.textContent = String(closingThisWeek);
         const activeEl = document.querySelector('[data-pmc-e-page="admin-dashboard-e"] [data-dash-active]');
         if (activeEl) activeEl.textContent = stageCounts.reduce((s, x) => s + (x || 0), 0);
         const dateEl = document.querySelector('[data-pmc-e-page="admin-dashboard-e"] [data-dash-date]');

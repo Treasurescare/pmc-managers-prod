@@ -10,7 +10,7 @@ const STAGES = [
 // I–IV are notice stages → filtered notices list; V–VII are bid stages → bidding ops
 const STAGE_HREFS = [
   "/admin/e/notices?status=draft", "/admin/e/notices?status=published",
-  "/admin/e/notices?status=published", "/admin/e/notices?status=published",
+  "/admin/e/notices?status=published", "/admin/e/notices?status=closing",
   "/admin/e/bidding", "/admin/e/bidding", "/admin/e/bidding",
 ];
 
