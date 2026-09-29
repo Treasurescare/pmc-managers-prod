@@ -710,7 +710,20 @@ Root causes:
    clicks a temporary <a download> anchor — real file download,
    mobile-Safari safe (window.open is popup-blocked there).
 
-### v49q — Bid/Award file downloads + DocuSign resend UX + dashboard mismatch — 29 Sep 2026
+### v49q — Open-bid gate + Help Centre link — 29 Sep 2026
+User: (a) clicking an open bid should route unauthenticated users to
+register / sign-in; (b) "Open the full Help Centre" button dead.
+
+Fixes:
+1. NoticeDetailE "Start bid" + "Download pack" — was href="#". Now
+   href="/register" so anonymous visitors land on the registration page
+   which already has a "Sign in" link in the top bar. Post-registration
+   the vendor flow resumes from /vendor/e/find.
+2. "Open the full Help Centre" — 30 files had href="#". Batch sed
+   updated every instance to href="/help" (real HelpCentreE route).
+   Verified: 0 remaining href="#" ... Open the full Help Centre links.
+
+Bundle rebuilt.
 User: still-broken file downloads inside bid detail + awards; resend
 button "doesn't fire the email"; dashboard IV=11 Bidding vs "10 CLOSE
 THIS WEEK" subtitle is inconsistent; ⋯ button in bid rows had no

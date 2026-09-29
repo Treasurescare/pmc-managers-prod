@@ -1,0 +1,58 @@
+{
+  "summary": "Independent frontend verification of 7 fixes (v42): admin login, Bidding Ops ⋯ opens detail panel (no nav), bid-detail Download vs Preview docs with ?download=1+download attr, Awards PDF download link with ?download=1+download attr+no target=_blank, Dashboard attention closing == pipeline stage IV count == subtitle CLOSE THIS WEEK linking to /admin/e/notices?status=closing which pre-sets the 'Closing this week' filter, DocuSign Resend flow for SENT vs COMPLETED envelopes, and 390px mobile hamburger regression. ALL 7 behaviors confirmed working via DOM inspection + click flows.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/v1/docusign/envelopes/{id}/resend", "issue": "SENT envelope resend returned HTTP 502 during test (Cloudflare origin-invalid). Frontend correctly shows api-error toast. Likely upstream DocuSign sandbox flakiness — not a frontend defect."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "download='' (empty string) is used on both admin-bid-doc-open-* and award-download-* anchors. This is spec-valid (browser uses server-supplied filename via Content-Disposition) but a filename hint would be marginally more resilient. Non-blocking.",
+    "DocuSign COMPLETED envelope rows do not render the Resend button at all in the current UI (row action set is View/Print only). The frontend pre-flight guard is therefore defense-in-depth and not user-reachable in normal flow — the user's original bug (Resend not firing) is functionally impossible now."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only run)", "frontend": "100% (7/7 requested behaviors verified)"},
+  "test_credentials": "adminsupport@pmcmanagers.com / Admin@12345 (worked)",
+  "seed_data_creation": "None; used existing seeded bids/notices/envelopes.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Selectors used: [data-bo-action='detail'] (Bidding Ops row ⋯, may be inside hidden tr on non-active tabs — JS .click() bypass works, or switch to 'All' tab first), [data-testid^='admin-bid-doc-open-'] / [data-testid^='admin-bid-doc-preview-'] on /admin/bids/{id}, [data-testid^='award-download-'] on /admin/e/awards, a[href='/admin/e/notices?status=closing'] with [data-testid='dash-attn-closing'] on dashboard, .pmc-menu-btn hamburger + html.pmc-nav-open drawer state on mobile. A bid with attached docs: PMC-BID-2026-00019 (id 6ab5d62c2f26a3389d5d142d). Bid with 0 docs: PMC-BID-2026-00022 (id 6ab7349dbd6e363382301c69).",
+  "detailed_results": {
+    "dashboard_attn_closing_number": "05",
+    "dashboard_stage_iv_number": "5",
+    "dashboard_stage_iv_subtitle": "05 CLOSE THIS WEEK",
+    "dashboard_stage_iv_href": "/admin/e/notices?status=closing",
+    "notices_filter_chip_after_click": "Closing this week (5 rows visible)",
+    "bidding_ops_dots_count": 9,
+    "bidding_ops_dots_testid": "data-bo-action='detail'",
+    "bidding_ops_click_navigates_away": false,
+    "bidding_ops_panel_populated": "Yes: PMC-BID-2026-00022, (Untitled bid), EMD pill, Notice/Vendor/Price/EMD KV, EMD→Escrow→Admin→Certifier→Legal→Accounts timeline",
+    "bid_detail_open_anchor_testid_pattern": "admin-bid-doc-open-N",
+    "bid_detail_open_href_has_download_query": true,
+    "bid_detail_open_has_download_attr": true,
+    "bid_detail_open_text": "DOWNLOAD",
+    "bid_detail_preview_testid_pattern": "admin-bid-doc-preview-N",
+    "bid_detail_preview_href_has_download_query": false,
+    "bid_detail_preview_text": "PREVIEW",
+    "awards_download_count": 3,
+    "awards_download_testids": ["award-download-po", "award-download-sla", "award-download-contract"],
+    "awards_download_href_has_download_query": true,
+    "awards_download_has_download_attr": true,
+    "awards_download_target": null,
+    "awards_download_rel": "noopener",
+    "docusign_sent_resend_calls_api": true,
+    "docusign_sent_resend_api_url": "/api/v1/docusign/envelopes/{id}/resend",
+    "docusign_completed_resend_button_visible": false,
+    "docusign_completed_status_shown_in_signed_tab": true,
+    "mobile_390_hamburger_visible": true,
+    "mobile_390_drawer_opens": true,
+    "mobile_390_notices_navigates": true
+  }
+}
