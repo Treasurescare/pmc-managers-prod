@@ -460,3 +460,14 @@ Two options for the user to pick:
     evaluation / audit stream) into our existing LIGHT theme, keeping
     parity with the other admin screens.
 NOT started until user picks a path.
+
+### v49q — Old-console redirect fix — 29 Sep 2026
+User reported still seeing the old design. Root cause: the legacy
+tab-based console at `/admin?tab=bidding` renders BiddingOpsPanel, while
+the new redesign only lived at `/admin/e/bidding`. Fix in
+`apps/admin-console/AdminDashboard.jsx`: render-time
+`<Navigate to="/admin/e/bidding" replace />` when tab === "bidding"
+(useEffect-based redirect raced and lost to the location.search sync
+effect). Verified: login → /admin?tab=bidding → lands on
+/admin/e/bidding with 9 real bids in the new pipeline/table.
+v49q frontend bundle rebuilt to include this redirect.

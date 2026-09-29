@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Navigate } from "react-router-dom";
 import { adminApi } from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import ProfileModal from "@/apps/shared/ProfileModal";
@@ -73,6 +73,7 @@ export default function AdminDashboard() {
   const logout = async () => { await adminApi.logout(); navigate("/"); };
 
   if (!me) return <div className="min-h-screen bg-brand-pale flex items-center justify-center text-brand-navy/60">{t("common.loading")}</div>;
+  if (tab === "bidding") return <Navigate to="/admin/e/bidding" replace />;
 
   const header = (
     <>
