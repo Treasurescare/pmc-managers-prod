@@ -1134,16 +1134,186 @@ export function useAdminVendorIntelLive({ enabled = true } = {}) {
 export function useAdminBiddingOpsLive({ enabled = true } = {}) {
   useEffect(() => {
     if (!enabled) return;
+    let cancelled = false;
     (async () => {
       try {
-        const res = await api.get("/api/v1/bids").then((r) => r.data).catch(() => ({ items: [] }));
+        const res = await api.get("/api/v1/bids").then((r) => r.data).catch(() => []);
+        if (cancelled) return;
         const root = document.querySelector('[data-pmc-e-page="admin-bidding-ops-e"]');
         if (!root) return;
-        const items = res.items || res || [];
-        const submitted = items.filter((b) => b.status === "submitted" || b.status === "sealed").length;
-        _patchKpiFigures(root, [items.length, submitted]);
+        const items = Array.isArray(res) ? res : (res.items || []);
+
+        // Bucket each bid → supplier (waiting on vendor), pmc (waiting on
+        // a PMC role), awarded (closed L1). Everything else is "other" and
+        // shown only under the All tab.
+        const supplierS = new Set(["emd_pending", "submitted"]);
+        const awardedS = new Set(["awarded", "closed"]);
+        const rejected = new Set(["rejected", "withdrawn"]);
+        // Stage index mirrors the 6-step Escrow→Committee pipeline.
+        const stageIndex = {
+          emd_paid: 1, escrow_accepted: 2, admin_flagged: 3,
+          certifier_cleared: 4, legal_cleared: 5, accounting_cleared: 6,
+        };
+        const stageOwner = ["Supplier","Escrow agent","Tender desk","Certifier","Legal counsel","Accounts"];
+        const stageLabel = ["Pay EMD","Confirm receipt","Flag for review","Site inspection","KYC clearance","Sign-off"];
+
+        // Flow counters
+        const flow = { emd:0, escrow:0, admin:0, certifier:0, legal:0, accounts:0, awarded:0 };
+        const tabCounts = { pmc:0, supplier:0, awarded:0, all:0 };
+        let testCount = 0;
+        const rows = [];
+        let anomalies = 0;
+
+        items.forEach((b) => {
+          const st = b.status || "submitted";
+          if (rejected.has(st)) return; // hide withdrawn/rejected from view
+          const ref = b.bid_ref || b.id || "—";
+          const isTest = !!(b.is_demo || (b.notice_ref || "").startsWith("PMC-NOT-2026-00") && (b.vendor_ref || "").toLowerCase().startsWith("test"));
+
+          let group, next, ownerIdx, dots;
+          if (supplierS.has(st)) {
+            group = "supplier";
+            next = "Pay EMD";
+            ownerIdx = 0;
+            dots = ["n","","","","",""];
+            flow.emd++;
+          } else if (awardedS.has(st)) {
+            group = "awarded";
+            next = "Awarded";
+            ownerIdx = null;
+            dots = ["d","d","d","d","d","d"];
+            flow.awarded++;
+          } else {
+            group = "pmc";
+            const idx = stageIndex[st] || 1;
+            next = stageLabel[idx] || "Review";
+            ownerIdx = idx;
+            dots = Array(6).fill("").map((_, i) => i < idx ? "d" : i === idx ? "n" : "");
+            if (idx === 1) flow.escrow++;
+            else if (idx === 2) flow.admin++;
+            else if (idx === 3) flow.certifier++;
+            else if (idx === 4) flow.legal++;
+            else if (idx === 5) flow.accounts++;
+          }
+          tabCounts[group] = (tabCounts[group] || 0) + 1;
+          tabCounts.all++;
+          if (isTest) testCount++;
+
+          // Waiting age
+          const updatedAt = b.updated_at || b.created_at;
+          let age = "";
+          if (updatedAt) {
+            const days = Math.floor((Date.now() - new Date(updatedAt)) / 86400000);
+            age = days > 0 ? `Waiting ${days}d` : "Waiting today";
+          }
+
+          // Price anomaly: bid vs notice.budget_amount
+          const price = Number(b.price_amount || 0);
+          const budget = Number(b.notice_budget_amount || b.notice?.budget_amount || 0);
+          let anomHtml = "";
+          if (price && budget && price > budget * 1.5) {
+            const times = (price / budget).toFixed(price / budget > 100 ? 0 : 1);
+            anomHtml = `<div class="bo-flag"><svg class="pmc-ico" aria-hidden="true"><use href="#i-flag"/></svg>Price ${times}× estimate</div>`;
+            anomalies++;
+          }
+
+          // EMD line
+          const emdAmt = Number(b.emd_amount || 0);
+          const emdCur = b.emd_currency || b.price_currency || "USD";
+          const emdPaid = b.emd_paid_at || b.emd_status === "paid" || st === "emd_paid" || (stageIndex[st] || 0) >= 2 || awardedS.has(st);
+          let emdLine;
+          if (!emdAmt) {
+            emdLine = `EMD <span>—</span>`;
+          } else if (emdPaid) {
+            emdLine = `EMD <b>${emdCur} ${emdAmt.toLocaleString()}</b> <span style="color:var(--success);font-weight:600">· paid</span>`;
+          } else if (b.emd_link_sent_at) {
+            emdLine = `EMD <b>${emdCur} ${emdAmt.toLocaleString()}</b> <span style="color:var(--warning);font-weight:600">· link sent</span>`;
+          } else {
+            emdLine = `EMD <span>not paid</span>`;
+          }
+
+          // Action button
+          let actionHtml;
+          if (group === "awarded") {
+            actionHtml = `<a href="/admin/e/awards" class="pmc-btn pmc-btn--ghost pmc-btn--sm">View</a>`;
+          } else if (group === "supplier") {
+            actionHtml = `<a href="/admin/e/bidding" class="pmc-btn pmc-btn--secondary pmc-btn--sm" data-bo-action="remind" data-bid-id="${b.id || ""}">${b.emd_link_sent_at ? "Resend link" : "Send link"}</a>`;
+          } else {
+            const primary = ownerIdx === 1 ? "Confirm" : ownerIdx === 4 ? "Clear KYC" : "Review";
+            actionHtml = `<a href="/admin/e/bidding" class="pmc-btn pmc-btn--primary pmc-btn--sm" data-bo-action="review" data-bid-id="${b.id || ""}">${primary}</a>`;
+          }
+
+          const disabledAttr = group === "awarded" || group === "pmc" ? "disabled" : "";
+          const stepLabel = ownerIdx == null ? "Closed"
+                          : `Step ${ownerIdx + 1}/6 · ${stageOwner[ownerIdx] || "—"}`;
+          const priceStr = price ? `${b.price_currency || "USD"} ${price.toLocaleString()}` : "—";
+          const title = b.notice_title || b.title || "(Untitled bid)";
+          const vendor = b.vendor_ref || b.company_name || "—";
+          const notice = b.notice_ref || "—";
+
+          rows.push(
+            `<tr class="bo-r${isTest ? " is-test" : ""}" data-g="${group}" data-test="${isTest ? 1 : 0}" data-ref="${ref}" data-bid-id="${b.id || ""}">` +
+            `<td style="width:34px"><input type="checkbox" class="chk" ${disabledAttr} aria-label="Select ${ref}"/></td>` +
+            `<td><div class="bo-ref">${ref}${isTest ? '<span class="bo-test">Test</span>' : ""}</div><div class="bo-t">${title}</div><div class="bo-sub">${notice} · ${vendor}</div></td>` +
+            `<td class="num"><b>${priceStr}</b>${anomHtml}<div class="bo-emd">${emdLine}</div></td>` +
+            `<td style="width:170px"><span class="bo-dots">${dots.map((d) => `<i class="${d}"></i>`).join("")}</span><div class="bo-next" style="margin-top:6px">${next}</div><div class="bo-sub">${stepLabel}</div>${age ? `<div class="bo-sub">${age}</div>` : ""}</td>` +
+            `<td class="bo-act">${actionHtml}<button class="pmc-ib bo-more" aria-label="More actions" title="Hold · Reject · View history">⋯</button></td>` +
+            `</tr>`
+          );
+        });
+
+        const tbody = root.querySelector("#bo-rows");
+        if (tbody) {
+          tbody.innerHTML = rows.length ? rows.join("") : `<tr><td colspan="5" class="bo-empty">No bids in the pipeline yet.</td></tr>`;
+        }
+        // Update flow counters
+        Object.entries(flow).forEach(([k, v]) => {
+          root.querySelectorAll(`[data-flow-count="${k}"]`).forEach((el) => { el.textContent = v; });
+          // hot glow on stages with load
+          const step = root.querySelector(`.bo-step[data-flow="${k}"]`);
+          if (step && k !== "awarded") {
+            step.classList.toggle("hot", v > 0);
+            step.classList.toggle("sup", v === 0 && k === "emd");
+          }
+        });
+        // Tab counts
+        Object.entries(tabCounts).forEach(([k, v]) => {
+          root.querySelectorAll(`[data-tab-count="${k}"]`).forEach((el) => { el.textContent = v; });
+        });
+        // Subtitle + hidden-test badge + sidebar counter
+        const totalEl = root.querySelector("[data-bo-total]");
+        if (totalEl) totalEl.textContent = tabCounts.all;
+        const tc = root.querySelector("[data-bo-test-count]");
+        if (tc) tc.textContent = testCount;
+        const sideCount = root.querySelector('[data-testid="side-bidding-count"]');
+        if (sideCount) sideCount.textContent = tabCounts.pmc;
+        // Anomaly callout
+        const callout = root.querySelector("#bo-anomaly-callout");
+        const acount = root.querySelector("#bo-anomaly-count");
+        if (callout && acount) {
+          if (anomalies > 0) { callout.style.display = "flex"; acount.textContent = anomalies; }
+          else { callout.style.display = "none"; }
+        }
+
+        // Fetch open committee for the side panel
+        try {
+          const committees = await api.get("/api/v1/committees").then((r) => r.data).catch(() => []);
+          const open = (Array.isArray(committees) ? committees : []).find((c) => c.status === "open");
+          const body = root.querySelector("#bo-committee-body");
+          const pill = root.querySelector("#bo-committee-pill");
+          if (open && body) {
+            pill.textContent = "Open"; pill.className = "pmc-pill pmc-pill--success";
+            const ext = (open.external_invitees || []).filter((i) => i.status === "accepted").length;
+            body.innerHTML =
+              `<div><span class="pmc-ref" style="color:var(--ink)">${open.notice_ref}</span><div class="pmc-muted" style="font-size:13px">${(open.member_ids||[]).length} internal · ${ext} external accepted · quorum ${open.quorum}</div></div>` +
+              `<div style="display:flex;gap:8px"><a href="/admin/e/evaluation" class="pmc-btn pmc-btn--secondary pmc-btn--sm">Open room</a><a href="/admin/e/evaluation" class="pmc-btn pmc-btn--ghost pmc-btn--sm">Invite</a></div>`;
+          } else if (pill) {
+            pill.textContent = "None"; pill.className = "pmc-pill";
+          }
+        } catch (e) { /* committee endpoint requires admin auth; ignore */ }
       } catch (e) { console.debug("AdminBiddingOps skip:", e); }
     })();
+    return () => { cancelled = true; };
   }, [enabled]);
 }
 

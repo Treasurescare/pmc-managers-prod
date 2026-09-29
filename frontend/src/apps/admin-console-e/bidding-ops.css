@@ -1,0 +1,94 @@
+/* Bidding Ops redesign — page-scoped classes. All colours use existing
+   Option E tokens (--primary, --brass, --chrome, etc.) so the sheet
+   drops into the current theme without any extra vars. */
+
+/* Head strip */
+.bo-head{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;margin-bottom:18px;flex-wrap:wrap}
+.bo-head h1{font-family:var(--font-display);font-weight:600;font-size:36px;line-height:40px;margin:4px 0 2px}
+
+/* Clearance pipeline flow */
+.bo-flow{display:flex;align-items:stretch;gap:6px;margin-bottom:18px;flex-wrap:nowrap;overflow-x:auto}
+.bo-step{flex:1;display:grid;gap:2px;padding:12px 14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-md);color:var(--ink);text-decoration:none!important;min-width:110px}
+.bo-step .n{font-size:26px;line-height:30px;font-weight:600}
+.bo-step .l{font-size:13px;font-weight:600}
+.bo-step .o{font-size:12px;color:var(--ink-muted)}
+.bo-step.hot{background:var(--warning-soft);border-color:var(--brass)}
+.bo-step.sup{background:var(--surface-sunken)}
+.bo-step.done{background:var(--chrome);border-color:var(--chrome);color:var(--on-chrome)}
+.bo-step.done .o{color:var(--on-chrome-muted)}
+.bo-step.done .n{color:var(--brass-on-chrome)}
+.bo-arrow{align-self:center;color:var(--ink-subtle);font-size:14px}
+
+/* Two-column layout: table + side panels */
+.bo-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}
+.bo-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.bo-tog{display:flex;gap:6px;align-items:center;font-size:13px;white-space:nowrap;color:var(--ink)}
+.bo-bulk{display:flex;gap:10px;align-items:center;padding:8px 12px;margin-bottom:10px;background:var(--primary-soft);border:1px solid var(--primary);border-radius:var(--radius-sm);font-size:13px}
+
+/* Table rows */
+.bo-table td{vertical-align:top;padding:12px 14px}
+.bo-table th{padding:10px 14px}
+.bo-r{cursor:pointer}
+.bo-r.sel td{background:var(--primary-soft)!important}
+.bo-r.sel td:first-child{box-shadow:inset 3px 0 0 var(--primary)}
+.bo-r.is-test td{color:var(--ink-muted)}
+.bo-ref{font-family:var(--font-mono);font-size:12px;color:var(--ink);white-space:nowrap}
+.bo-t{font-weight:600;font-size:14px;line-height:20px;margin-top:2px;color:var(--ink)}
+.bo-sub{font-size:12px;line-height:17px;color:var(--ink-muted);margin-top:2px}
+.bo-next{font-weight:600;font-size:13px;color:var(--ink)}
+.bo-test{display:inline-block;font-family:var(--font-sans);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:0 5px;border-radius:3px;background:var(--danger-soft);color:var(--danger);vertical-align:1px;margin-left:4px}
+.bo-flag{display:flex;justify-content:flex-end;gap:4px;align-items:center;margin-top:4px;font-size:11px;font-weight:600;color:var(--danger);white-space:nowrap}
+.bo-flag .pmc-ico{width:12px;height:12px}
+.bo-table td.num b{white-space:nowrap;color:var(--ink)}
+.bo-emd{margin-top:6px;font-size:12px;color:var(--ink-muted)}
+.bo-emd b{color:var(--ink)}
+
+/* Stage dots */
+.bo-dots{display:inline-flex;gap:3px}
+.bo-dots i{width:14px;height:6px;border-radius:3px;background:var(--line);display:inline-block}
+.bo-dots i.d{background:var(--primary)}
+.bo-dots i.n{background:var(--brass)}
+
+.bo-act{text-align:right;white-space:nowrap;width:1%}
+.bo-more{width:30px;height:30px;margin-left:4px;display:inline-grid;place-items:center;border:1px solid var(--line-strong);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink);font-size:16px;line-height:1;cursor:pointer}
+.bo-foot{display:flex;justify-content:space-between;padding:10px 16px;border-top:1px solid var(--line);font-size:12px}
+.bo-empty{padding:40px;text-align:center;color:var(--ink-muted)}
+
+/* Side panels */
+.bo-side{display:grid;gap:14px;position:sticky;top:84px}
+.bo-inv{display:flex;gap:10px;align-items:center}
+.bo-inv .pmc-ico{color:var(--success)}
+.bo-inv b{display:block;font-size:14px}
+.bo-inv span{font-size:12px;color:var(--ink-muted)}
+.bo-dis summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;padding:14px 20px}
+.bo-dis summary::-webkit-details-marker{display:none}
+.bo-bad{color:var(--warning);font-size:12px}
+
+/* Timeline used inside detail panel */
+.bo-tl{display:grid;gap:0}
+.bo-tl>div{display:grid;grid-template-columns:20px 1fr;gap:14px;padding-bottom:14px;position:relative}
+.bo-tl>div::before{content:"";position:absolute;left:9px;top:20px;bottom:0;width:2px;background:var(--line)}
+.bo-tl>div:last-child{padding-bottom:0}
+.bo-tl>div:last-child::before{display:none}
+.bo-tl .dot{width:20px;height:20px;border-radius:50%;border:2px solid var(--line-strong);background:var(--surface);margin-top:2px}
+.bo-tl>div.done .dot{background:var(--primary);border-color:var(--primary)}
+.bo-tl>div.now .dot{background:var(--brass);border-color:var(--brass)}
+.bo-tl b{display:block;font-size:13px;color:var(--ink)}
+.bo-tl span{font-size:12px;color:var(--ink-muted)}
+
+/* Responsive */
+@media (max-width:1180px){
+  .bo-grid{grid-template-columns:1fr}
+  .bo-side{position:static}
+}
+@media (max-width:760px){
+  .bo-table thead{display:none}
+  .bo-table tr{display:grid;grid-template-columns:24px 1fr;gap:4px 10px;padding:12px;border-bottom:1px solid var(--line)}
+  .bo-table td{padding:0;border:0}
+  .bo-table td:nth-child(2){grid-column:2/3}
+  .bo-table td:nth-child(n+3){grid-column:1/3}
+  .bo-act{text-align:left!important;width:auto!important}
+  .bo-flow{overflow-x:auto}
+  .bo-arrow{display:none}
+  .bo-head h1{font-size:26px;line-height:30px}
+}

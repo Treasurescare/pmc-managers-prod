@@ -408,14 +408,55 @@ compatible. Awaiting user go-ahead to implement.
 
 ### v49p — Tender card equal-height fix — 29 Sep 2026
 User screenshot: "Open for bids this week" home cards had 4 different
-heights and misaligned content (countdown wrapped to 2nd line, long titles
-pushed meta/footer down). Fix in pmc-theme-e.css .pmc-tender block:
-- .pmc-tender: height 100% so grid stretches all cards equally
-- .pmc-tender__top: flex-wrap nowrap; tag/countdown flex-shrink 0; ref
-  truncates with ellipsis; countdown pinned right via margin-left auto
-- .pmc-tender__title: 2-line clamp with min-height 2.83em so meta row
-  starts at same Y on every card
-- .pmc-tender__meta dd: 2-line clamp so category text can't stretch cards
-Applies everywhere .pmc-tender is used (home, tenders live, vendor find).
-Self-tested via screenshots: home desktop 1440 + mobile 390, tenders/live
-desktop + mobile — all equal-height, aligned, no regression.
+heights and misaligned content. Fixed .pmc-tender in pmc-theme-e.css:
+height:100%, top row nowrap with ellipsis on ref and pinned countdown,
+2-line clamp on title (min-height 2.83em) and 2-line clamp on meta dd.
+Applies everywhere .pmc-tender is used. Screenshots at 1440 and 390
+confirm alignment; no regression.
+
+### v49q — Bidding Ops redesign adopted — 29 Sep 2026
+Rewrote `apps/admin-console-e/AdminBiddingOpsE.jsx` using the supplied
+`design/user/Bidding-Ops-redesign.html` shell and added scoped CSS at
+`apps/admin-console-e/bidding-ops.css` (~90 lines of bo-* classes,
+all using existing Option E tokens — zero new vars).
+
+Wired to real data via a rewritten `useAdminBiddingOpsLive` in
+`lib/pmcELiveData.js`:
+- Fetches `/api/v1/bids`, buckets each row (supplier / pmc / awarded)
+  from `status`, computes stage index & dots (6-step Escrow→Committee).
+- Fills 7 flow counters (EMD/Escrow/Admin/Certifier/Legal/Accounts/
+  Awarded), 4 tab counts, subtitle total + test-data count, and the
+  sidebar `Bidding ops` badge (Needs-PMC count).
+- Per-row: reference, title, notice+vendor sub-line, price, price-anomaly
+  flag if bid > 1.5× notice budget, EMD line (paid / link sent / —),
+  stage dots, next step, owner, waiting age, and a primary action button.
+- Right panel: detail placeholder + Active-committee card driven by
+  `/api/v1/committees` (open committee if any).
+
+Component wires tabs, hide-test toggle, row select and bulk-select bar
+via a `MutationObserver` so live data reflows work after `innerHTML`
+replaces. All interactive elements have `data-testid`.
+
+Smoke test at 1440 (admin authed): 9 real bids rendered, flow=4/1/0/1/
+0/0/3, tabs=2/4/3/9, sidebar count=2. Mobile 390 layout stacks
+correctly (empty state without auth).
+
+New build script: `scripts/build_v49q.sh` produces
+`pmc-frontend-v49q-prod-build.zip` (same-origin) and
+`pmc-backend-v49q.zip`, plus release notes.
+
+### v49q — Admin Dashboard redesign BLOCKED — 29 Sep 2026
+User uploaded `E-Admin-Dashboard.html` (355 lines) with a new admin
+dashboard layout (attention strip, tender pipeline chart, evaluation
+scoring table, closing-this-week, approvals queue, live audit stream).
+Blocker: the redesign uses a completely different DARK palette
+(`#06201A` background, `#0B2C23` cards, `#EAF0EA` text, `#D2B46A` brass)
+whereas the current Option E admin console is a LIGHT palette
+(`--paper #f6f3ec`, `--surface #ffffff`, `--ink #14201a`). This is not
+a drop-in adoption — it's an "admin goes dark" decision.
+Two options for the user to pick:
+(a) Full dark-admin refactor — new palette applies to every admin page.
+(b) Port only the layout blocks (attention strip / pipeline chart /
+    evaluation / audit stream) into our existing LIGHT theme, keeping
+    parity with the other admin screens.
+NOT started until user picks a path.
