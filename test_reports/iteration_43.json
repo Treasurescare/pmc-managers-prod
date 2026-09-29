@@ -1,0 +1,25 @@
+{
+  "summary": "Frontend-only verification of two bug fixes: (a) unauthenticated notice detail actions route to /register, (b) 'Open the full Help Centre' anchor now points to /help across public/vendor/admin help drawers. All requested checks passed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "verifications": [
+    "Public home / loads (title 'PMC Managers | Global Tender Board').",
+    "'View notice' card link navigates to /notices/PMC-NOT-2026-0012.",
+    "[data-testid=notice-start-bid] is <a href='/register'> — click navigates to /register.",
+    "[data-testid=notice-download-pack] has href='/register'.",
+    "/register top-bar 'Sign in' link href=/login exists for returning suppliers.",
+    "Help drawer 'Open the full Help Centre' href=/help on: /, /vendor/e/find, /admin/e/dashboard.",
+    "/help renders HelpCentreE with h1 'What do you need to do?', topic grid and article sections."
+  ],
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": ["Unauthenticated visits to /vendor/e/find and /admin/e/dashboard emit multiple 401 console errors (likely prefetch calls); non-blocking but noisy."],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100%"},
+  "test_credentials": "Not required — anonymous flows only.",
+  "seed_data_creation": "",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "notice-start-bid/notice-download-pack -> /register and 'Open the full Help Centre' -> /help fixes verified. /help HelpCentreE renders correctly.",
+  "rca of the issue": "Prior: Start bid/Download pack lacked correct href; 'Open the full Help Centre' had href='#' across 30 files. Fix set anchors' href to /register and /help. Verified in live DOM."
+}
