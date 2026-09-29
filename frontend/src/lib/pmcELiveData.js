@@ -184,27 +184,72 @@ function initTenderFilters(list, allItems) {
 
   function renderRows(items, f) {
     panel.innerHTML = "";
-    const CAP = 50;
-    items.slice(0, CAP).forEach((n) => panel.appendChild(patchRow(template.cloneNode(true), n)));
-    if (!items.length) {
+    const PAGE_SIZE = 10;
+    const total = items.length;
+    // Reset to page 1 whenever the filter/query changes
+    const filterKey = JSON.stringify({ q: f.q, s: f.status, t: f.types, c: f.country });
+    if (panel.dataset.pmcFilterKey !== filterKey) {
+      panel.dataset.pmcFilterKey = filterKey;
+      panel.dataset.pmcPage = "1";
+    }
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    let page = Math.min(Math.max(1, parseInt(panel.dataset.pmcPage || "1", 10) || 1), totalPages);
+    panel.dataset.pmcPage = String(page);
+    const start = (page - 1) * PAGE_SIZE;
+    const end = Math.min(start + PAGE_SIZE, total);
+    items.slice(start, end).forEach((n) => panel.appendChild(patchRow(template.cloneNode(true), n)));
+    if (!total) {
       const empty = document.createElement("div");
       empty.className = "pmc-muted";
       empty.style.cssText = "padding:48px 24px;text-align:center";
       empty.textContent = "No notices match these filters. Try Clear all.";
       panel.appendChild(empty);
-    } else if (items.length > CAP) {
-      const more = document.createElement("div");
-      more.className = "pmc-muted";
-      more.style.cssText = "padding:16px;text-align:center;font-size:13px";
-      more.textContent = `Showing ${CAP} of ${items.length} — refine filters to narrow down.`;
-      panel.appendChild(more);
     }
     // Results header "N results for “q” in Status"
     const resSpan = Array.from(list.querySelectorAll("span"))
       .find((s) => s.querySelector("b") && /results/i.test(s.textContent));
     if (resSpan) {
       const names = { open: "Open", closing: "Closing this week", closed: "Closed", awarded: "Awarded" };
-      resSpan.innerHTML = `<b>${items.length} results</b>${f.q ? ` for \u201C${f.q}\u201D` : ""} in ${names[f.status] || "Open"}`;
+      resSpan.innerHTML = `<b>${total} results</b>${f.q ? ` for \u201C${f.q}\u201D` : ""} in ${names[f.status] || "Open"}`;
+    }
+    // v49p — wire the hardcoded pagination footer: update the "Showing X–Y of Z"
+    // text, render numbered page buttons, and enable Prev/Next handlers.
+    const footer = panel.parentElement?.querySelector(':scope > div[style*="justify-content: space-between"]:last-child')
+                || Array.from(list.querySelectorAll("div"))
+                        .find((d) => /showing\s+\d+/i.test((d.textContent || "")));
+    if (footer) {
+      const label = footer.querySelector("span.pmc-muted");
+      if (label) label.textContent = total ? `Showing ${start + 1}–${end} of ${total}` : "No results";
+      const btnRow = footer.querySelector('div[style*="gap: 6px"]') || footer.querySelector("div:last-child");
+      if (btnRow) {
+        btnRow.innerHTML = "";
+        const mk = (txt, cls, disabled, onClick) => {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = `pmc-btn pmc-btn--sm ${cls}`;
+          b.textContent = txt;
+          if (disabled) b.disabled = true;
+          else b.addEventListener("click", (e) => { e.preventDefault(); onClick(); });
+          return b;
+        };
+        btnRow.appendChild(mk("Previous", "pmc-btn--secondary", page <= 1, () => {
+          panel.dataset.pmcPage = String(page - 1);
+          renderRows(items, f);
+        }));
+        // Numbered page buttons — up to 7 windowed around the current page
+        const windowStart = Math.max(1, Math.min(page - 3, totalPages - 6));
+        const windowEnd = Math.min(totalPages, windowStart + 6);
+        for (let p = windowStart; p <= windowEnd; p += 1) {
+          btnRow.appendChild(mk(String(p),
+            p === page ? "pmc-btn--primary" : "pmc-btn--secondary",
+            false,
+            () => { panel.dataset.pmcPage = String(p); renderRows(items, f); }));
+        }
+        btnRow.appendChild(mk("Next", "pmc-btn--secondary", page >= totalPages, () => {
+          panel.dataset.pmcPage = String(page + 1);
+          renderRows(items, f);
+        }));
+      }
     }
     // Type chips reflect checkbox state; clicking re-enables
     list.querySelectorAll(".pmc-chip").forEach((chip) => {
