@@ -198,20 +198,42 @@ def _create_envelope(client: ds.ApiClient, pdf_bytes: bytes, filename: str,
         file_extension="pdf",
         document_id="1",
     )
-    # Anchor at "/sig_here/" if present, else drop a Sign-Here on the last page bottom.
-    sign_here = ds.SignHere(
+    # v49p fix — tabs MUST carry recipient_id + document_id or DocuSign drops
+    # them silently (signer then sees a read-only view with just "Close").
+    # Anchor at "/sig_here/" (embedded invisibly in PMC award PDFs at the
+    # supplier signature box); fixed fallback at the supplier box position on
+    # page 1 for PDFs that predate the marker.
+    sign_anchor = ds.SignHere(
         anchor_string="/sig_here/",
         anchor_units="pixels",
-        anchor_y_offset="-20",
+        anchor_y_offset="-6",
         anchor_x_offset="0",
-    )
-    # Fallback fixed position — used only if the anchor isn't found in the PDF.
-    sign_here_fixed = ds.SignHere(
         recipient_id="1",
-        tab_label="SignHereTab",
+        document_id="1",
+        tab_label="Supplier signature",
+    )
+    date_anchor = ds.DateSigned(
+        anchor_string="/ds_here/",
+        anchor_units="pixels",
+        anchor_y_offset="-6",
+        recipient_id="1",
+        document_id="1",
+        tab_label="Date signed",
+    )
+    sign_fixed = ds.SignHere(
+        recipient_id="1",
+        tab_label="SupplierSignHereFixed",
         page_number="1",
-        x_position="80",
-        y_position="700",
+        x_position="330",
+        y_position="240",
+        document_id="1",
+    )
+    date_fixed = ds.DateSigned(
+        recipient_id="1",
+        tab_label="SupplierDateFixed",
+        page_number="1",
+        x_position="330",
+        y_position="285",
         document_id="1",
     )
     signer_kwargs = dict(
@@ -219,7 +241,8 @@ def _create_envelope(client: ds.ApiClient, pdf_bytes: bytes, filename: str,
         name=signer_name,
         recipient_id="1",
         routing_order="1",
-        tabs=ds.Tabs(sign_here_tabs=[sign_here, sign_here_fixed]),
+        tabs=ds.Tabs(sign_here_tabs=[sign_anchor, sign_fixed],
+                     date_signed_tabs=[date_anchor, date_fixed]),
     )
     # Only include client_user_id when embedded signing is requested. If it
     # is set, DocuSign will NOT email the signer (embedded flow). When left
@@ -590,30 +613,59 @@ async def vendor_resume_signing(envelope_id: str, vendor=Depends(current_vendor)
     signer_name = row.get("signer_name") or ve
     signer_email = row.get("signer_email") or ve
     cuid = row.get("client_user_id") or f"pmc:vendor:{envelope_id}:{ve}"
+    envelopes = ds.EnvelopesApi(client)
+
+    # v49p — REPAIR PASS 1: email-mode envelopes have no client_user_id on the
+    # recipient, so DocuSign refuses to mint an embedded recipient view.
+    # Stamp one on if missing.
     try:
-        signing_url = _recipient_view(client, envelope_id, signer_name, signer_email, cuid, return_url)
-    except ApiException as e:
-        # Envelope created in EMAIL mode has no client_user_id on the
-        # recipient, so DocuSign refuses to mint an embedded recipient view.
-        # Repair: stamp a client_user_id onto the recipient, then retry — this
-        # makes in-portal signing work for email-created envelopes too.
-        _log.info("recipient-view retry with client_user_id repair for %s: %s", envelope_id, e)
-        try:
-            envelopes = ds.EnvelopesApi(client)
-            recips = envelopes.list_recipients(DS_ACCOUNT_ID, envelope_id)
-            signers = recips.signers or []
-            if not signers:
-                raise ValueError("envelope has no signer")
-            for s in signers:
-                s.client_user_id = cuid
+        recips = envelopes.list_recipients(DS_ACCOUNT_ID, envelope_id)
+        signers = recips.signers or []
+        target = next((s for s in signers
+                       if (s.email or "").lower() == signer_email.lower()),
+                      signers[0] if signers else None)
+        if target and not getattr(target, "client_user_id", None):
+            target.client_user_id = cuid
             envelopes.update_recipients(DS_ACCOUNT_ID, envelope_id,
                                         recipients=ds.Recipients(signers=signers))
             await db.docusign_envelopes.update_one(
                 {"envelope_id": envelope_id}, {"$set": {"client_user_id": cuid}})
-            signing_url = _recipient_view(client, envelope_id, signer_name, signer_email, cuid, return_url)
-        except Exception as e2:
-            _log.warning("recipient-view failed for %s: %s", envelope_id, e2)
-            raise HTTPException(502, "DocuSign couldn't prepare the signing view. Try again or ask PMC to resend.")
+    except Exception as e:
+        _log.warning("resumeSign: recipient repair failed for %s: %s", envelope_id, e)
+        target = None
+
+    # v49p — REPAIR PASS 2: the actual reason the user sees only "Close" —
+    # the signer has NO tabs on the envelope (older envelopes were created
+    # with a malformed anchor tab that DocuSign silently dropped). Without a
+    # SignHere tab the recipient view is read-only. Add tabs if missing.
+    if target is not None:
+        try:
+            tabs = envelopes.list_tabs(DS_ACCOUNT_ID, envelope_id, target.recipient_id)
+            has_sign = bool(getattr(tabs, "sign_here_tabs", None))
+            if not has_sign:
+                envelopes.create_tabs(
+                    DS_ACCOUNT_ID, envelope_id, target.recipient_id,
+                    ds.Tabs(
+                        sign_here_tabs=[ds.SignHere(
+                            document_id="1", recipient_id=target.recipient_id,
+                            page_number="1", x_position="330", y_position="240",
+                            tab_label="Supplier signature")],
+                        date_signed_tabs=[ds.DateSigned(
+                            document_id="1", recipient_id=target.recipient_id,
+                            page_number="1", x_position="330", y_position="285",
+                            tab_label="Date signed")],
+                    ),
+                )
+                await audit_log("docusign.tabs_repaired", None, "docusign_envelope",
+                                envelope_id, {"vendor": ve})
+        except Exception as e:
+            _log.warning("resumeSign: tab repair failed for %s: %s", envelope_id, e)
+
+    try:
+        signing_url = _recipient_view(client, envelope_id, signer_name, signer_email, cuid, return_url)
+    except ApiException as e:
+        _log.warning("recipient-view failed for %s: %s", envelope_id, e)
+        raise HTTPException(502, "DocuSign couldn't prepare the signing view. Try again or ask PMC to resend.")
     await audit_log("docusign.vendor_resume_sign", None, "docusign_envelope",
                     envelope_id, {"vendor": ve})
     return {"envelope_id": envelope_id, "signing_url": signing_url, "expires_in": 300}

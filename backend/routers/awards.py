@@ -105,7 +105,7 @@ def _render_po_html(bid: dict, notice: dict, po_no: str, awarded_at: str, award_
         <div class='sig-box'><div class='role'>For &amp; on behalf of the Buyer</div>
           PMC Managers Limited<br/>Authorised Signatory<br/>Date: {awarded_at[:10]}</div>
         <div class='sig-box'><div class='role'>For &amp; on behalf of the Supplier</div>
-          {_html.escape(str(supplier))}<br/>Authorised Signatory<br/>Date: ______________</div>
+          <span style="color:#ffffff;font-size:1pt">/sig_here/</span><br/>{_html.escape(str(supplier))}<br/>Authorised Signatory<br/>Date: <span style="color:#ffffff;font-size:1pt">/ds_here/</span>______________</div>
       </div>
       <p class='small'>System-generated document — this Purchase Order is issued from the PMC Managers e-Tender platform.</p>
     </body></html>"""
@@ -150,7 +150,7 @@ def _render_sla_html(bid: dict, notice: dict, awarded_at: str, award_ref: str) -
 
       <div class='sig-grid'>
         <div class='sig-box'><div class='role'>Buyer — PMC Managers Limited</div>Authorised Signatory<br/>Date: {awarded_at[:10]}</div>
-        <div class='sig-box'><div class='role'>Supplier</div>{_html.escape(str(supplier))}<br/>Authorised Signatory<br/>Date: ______________</div>
+        <div class='sig-box'><div class='role'>Supplier</div><span style="color:#ffffff;font-size:1pt">/sig_here/</span><br/>{_html.escape(str(supplier))}<br/>Authorised Signatory<br/>Date: <span style="color:#ffffff;font-size:1pt">/ds_here/</span>______________</div>
       </div>
       <p class='small'>System-generated — governed by the master tender documents and applicable local law.</p>
     </body></html>"""
@@ -196,7 +196,7 @@ def _render_contract_html(bid: dict, notice: dict, awarded_at: str, award_ref: s
 
       <div class='sig-grid'>
         <div class='sig-box'><div class='role'>PMC Managers Limited</div>Authorised Signatory<br/>Date: {awarded_at[:10]}</div>
-        <div class='sig-box'><div class='role'>Accepted by Supplier</div>{_html.escape(str(supplier))}<br/>Authorised Signatory<br/>Date: ______________</div>
+        <div class='sig-box'><div class='role'>Accepted by Supplier</div><span style="color:#ffffff;font-size:1pt">/sig_here/</span><br/>{_html.escape(str(supplier))}<br/>Authorised Signatory<br/>Date: <span style="color:#ffffff;font-size:1pt">/ds_here/</span>______________</div>
       </div>
       <p class='small'>System-generated Letter of Acceptance — retain a signed copy for your records.</p>
     </body></html>"""

@@ -187,7 +187,7 @@ def preview_all(default_ctx: Optional[Dict[str, Any]] = None) -> Dict[str, Dict[
         "change_summary": "Deadline extended by 7 days; BOQ v2 attached.",
         "amount": "USD 31,600",
         "reference": "TXN-882312",
-        "sign_url": "https://pmcmanagers.com/docusign/env/abc123",
+        "sign_url": "https://pmcmanagers.com/vendor/signatures",
         "sign_by": "5 Mar 2026",
         "award_ref": "PMC-AWD-2026-00007",
         "award_value": "USD 2,090,000",

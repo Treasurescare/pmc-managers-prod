@@ -276,3 +276,35 @@ User-reported batch (mobile):
    resolveClickAction (destructured pageId missing) — broke all action clicks
    briefly; fixed and verified via alerts flow.
 Backend restarted clean; bundle rebuilt (03:14 UTC).
+
+### v49p — DocuSign "Close-only, cannot sign" root-cause fix — 29 Sep 2026
+User: "docusign still does not let me sign" — screenshot showed the recipient
+view rendering the PO with ONLY a "Close" button. That state means the signer
+has ZERO tabs on the envelope (DocuSign hides Finish/Sign entirely).
+
+Root causes found and fixed in backend/routers/docusign.py:
+1. `_create_envelope` anchor SignHere tab was missing recipient_id and
+   document_id → DocuSign silently dropped it. The fixed-position fallback
+   (y=700) sat below the signature area. Result: envelopes went out with no
+   usable Sign Here tab.
+2. Award PDFs (PO/SLA/contract in routers/awards.py) contained no `/sig_here/`
+   anchor marker, so even a well-formed anchor tab had nothing to land on.
+
+Fixes:
+- All tabs now carry recipient_id="1" + document_id="1". Anchored SignHere at
+  `/sig_here/` + DateSigned at `/ds_here/`, plus fixed-position fallbacks at
+  the supplier signature box (page 1, x=330, y=240 / y=285).
+- awards.py PO/SLA/contract templates now embed invisible 1pt white
+  `/sig_here/` and `/ds_here/` markers inside the supplier sig-box, so future
+  envelopes anchor the tab exactly on the supplier line.
+- `vendor_resume_signing` (POST /docusign/mine/{id}/sign) now runs two repair
+  passes before minting the recipient view: (1) stamp client_user_id onto
+  email-mode recipients, (2) list recipient tabs and CREATE a SignHere +
+  DateSigned tab if none exist — this retro-fixes ALREADY-SENT envelopes like
+  PMC-AWD-2026-00027 on the vendor's next "Review & sign" click. Repairs are
+  audit-logged (`docusign.tabs_repaired`).
+
+Environment note: preview pod's DocuSign sandbox key returns
+`invalid_grant: issuer_not_found` (stale key) — live ceremony can only be
+verified in production, where credentials work (user's screenshot proves the
+view renders there).
