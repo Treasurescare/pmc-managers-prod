@@ -857,3 +857,31 @@ v49t). Backend unchanged (v49q). Release notes: DOWNLOAD_v49u.md.
 
 **Pending user action**: deploy v49u frontend to S3 + CloudFront
 invalidate /* — this single zip supersedes v49r/v49s/v49t.
+
+### v49v — Safari DocuSign popup fix — 29 Sep 2026
+User: in Safari, "Review & sign" / Preview never opens the DocuSign
+page; suspected popup blocker.
+
+Root cause (frontend): every signing flow called window.open() AFTER an
+await on the DocuSign API. Safari only allows popups synchronously
+inside the click gesture, so the open was silently blocked.
+
+Fix pattern (open blank tab in the click → steer to URL after await →
+same-tab fallback if even sync open blocked → close placeholder tab on
+error paths) applied to:
+1. PmcLinkPatcher.jsx — handleReviewSign (vendor signatures Review &
+   sign / Preview / Continue) via new _openSteeredTab/_steerTab/
+   _closeTab helpers; handleSigDoc preview mode too.
+2. VendorSignatures.jsx — legacy award signing popup.
+3. DocuSignPanel.jsx — admin Sign + Resend + consent-URL redirect.
+4. AwardsPanel.jsx — award signing + consent-URL redirect.
+5. SW cache bumped to pmc-shell-v49v-rev1.
+
+Verified on preview (Chromium): popup opens synchronously on click
+(before API resolves) — the exact behaviour Safari requires.
+Bundle: `pmc-frontend-v49v-prod-build.zip` — supersedes v49r–v49u.
+Backend unchanged (v49q). Release notes: DOWNLOAD_v49v.md.
+
+**Pending user action**: deploy v49v frontend, invalidate /*, then
+verify DocuSign signing in Safari on production (also covers P1
+DocuSign live-signing validation once a fresh envelope is created).

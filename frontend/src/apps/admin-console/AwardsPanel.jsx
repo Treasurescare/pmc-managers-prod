@@ -97,6 +97,9 @@ export default function AwardsPanel() {
       return;
     }
     setSignBusy(true);
+    // v49v — Safari blocks window.open after an await; open inside the
+    // click gesture and steer once the signing/consent URL arrives.
+    const w = window.open("", "_blank");
     try {
       const r = await docusignApi.signAward(pickedBidId, signKind, {
         signer_name: signerName,
@@ -104,18 +107,22 @@ export default function AwardsPanel() {
         delivery: signDelivery,
       });
       if (r.signing_url) {
-        window.open(r.signing_url, "_blank", "noopener");
+        if (w) { try { w.location.href = r.signing_url; } catch (_) { window.location.href = r.signing_url; } }
+        else window.location.href = r.signing_url;
         toast.success(t("panels.awards.envelope_sent_embedded"));
       } else {
+        try { w && w.close(); } catch (_) { /* ignore */ }
         toast.success(`${t("panels.awards.envelope_sent_email")} ${signerEmail}`);
       }
       setSignKind("");
     } catch (err) {
       const detail = err?.response?.data?.detail;
       if (detail?.code === "DOCUSIGN_CONSENT_REQUIRED" && detail.consent_url) {
-        window.open(detail.consent_url, "_blank", "noopener");
+        if (w) { try { w.location.href = detail.consent_url; } catch (_) { window.location.href = detail.consent_url; } }
+        else window.location.href = detail.consent_url;
         toast.error(t("panels.docusign.consent_required"));
       } else {
+        try { w && w.close(); } catch (_) { /* ignore */ }
         showApiError(err);
       }
     } finally {

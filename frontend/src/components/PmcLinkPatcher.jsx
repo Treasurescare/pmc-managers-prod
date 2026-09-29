@@ -394,22 +394,47 @@ function handleStartBid(el, isPublic, navigate) {
   navigate(ref ? `/vendor/bid/new/${ref}` : "/vendor/tenders");
 }
 
+// v49v — Safari popup fix. window.open() AFTER an await is treated as
+// non-user-initiated and silently blocked (Safari strictest, iOS worst).
+// Open a blank tab synchronously inside the click gesture, then steer it
+// to the real URL once the API responds. If even the sync open is blocked,
+// fall back to same-tab navigation so the user always reaches DocuSign.
+function _openSteeredTab() {
+  const w = window.open("", "_blank");
+  if (w) {
+    try {
+      w.document.write('<p style="font-family:sans-serif;padding:32px;color:#0F3B2E">Contacting DocuSign&hellip;</p>');
+    } catch (_) { /* ignore */ }
+  }
+  return w;
+}
+function _steerTab(w, url, okMsg) {
+  if (w) {
+    try { w.location.href = url; } catch (_) { window.location.href = url; }
+    if (okMsg) toast.success(okMsg);
+  } else {
+    window.location.href = url; // popup blocked even synchronously — same tab
+  }
+}
+function _closeTab(w) { try { w && w.close(); } catch (_) { /* ignore */ } }
+
 // v49n — Review & sign / Preview on the vendor Signatures page.
 // Prefers the specific envelope attached to the clicked card/row via
 // data-envelope-id (set by useVendorSignaturesLive); otherwise opens the
 // first pending envelope. Mints a fresh recipient-view URL via
 // POST /docusign/mine/{id}/sign and opens it in a new tab.
 async function handleReviewSign(el, navigate) {
+  const w = _openSteeredTab(); // v49v — must precede every await (Safari)
   try {
     const envId = el.closest("[data-envelope-id]")?.getAttribute("data-envelope-id");
     toast.info("Opening DocuSign…");
     if (envId) {
       const r = await docusignApi.resumeSign(envId);
       if (r?.signing_url) {
-        window.open(r.signing_url, "_blank", "noopener");
-        toast.success("DocuSign signing window opened in a new tab.");
+        _steerTab(w, r.signing_url, "DocuSign signing window opened in a new tab.");
         return;
       }
+      _closeTab(w);
       toast.error("DocuSign didn't return a signing link. Ask PMC to resend.");
       return;
     }
@@ -417,18 +442,20 @@ async function handleReviewSign(el, navigate) {
     const items = data?.items || [];
     const pending = items.filter((e) => e.status === "sent" || e.status === "delivered");
     if (!pending.length) {
+      _closeTab(w);
       if (items.length) toast.info("Every envelope on your account is already signed.");
       else toast.info("No documents awaiting your signature right now.");
       return;
     }
     const r = await docusignApi.resumeSign(pending[0].envelope_id);
     if (r?.signing_url) {
-      window.open(r.signing_url, "_blank", "noopener");
-      toast.success("DocuSign signing window opened in a new tab.");
+      _steerTab(w, r.signing_url, "DocuSign signing window opened in a new tab.");
     } else {
+      _closeTab(w);
       toast.error("DocuSign didn't return a signing link. Ask PMC to resend.");
     }
   } catch (err) {
+    _closeTab(w);
     const s = err?.response?.status;
     if (s === 401) { navigate("/login"); return; }
     toast.error(err?.response?.data?.detail || "Couldn't open the signing view.");
@@ -594,9 +621,12 @@ function handleDownload(el, isPublic, navigate) {
 // current PDF in a new tab (inline), Download saves it (attachment). The
 // signing ceremony itself stays with handleReviewSign.
 async function handleSigDoc(el, mode, navigate) {
+  // v49v — Safari blocks window.open after an await; open the tab inside
+  // the click gesture (preview mode only) and steer once the PDF is ready.
+  const w = mode === "download" ? null : _openSteeredTab();
   try {
     const envId = el.closest("[data-envelope-id]")?.getAttribute("data-envelope-id");
-    if (!envId) { toast.info("This document isn't linked to an envelope yet."); return; }
+    if (!envId) { _closeTab(w); toast.info("This document isn't linked to an envelope yet."); return; }
     toast.info(mode === "download" ? "Preparing your download…" : "Opening the document…");
     const blob = await docusignApi.downloadDocPdf(envId, mode === "download" ? "attachment" : "inline");
     const url = URL.createObjectURL(blob);
@@ -608,9 +638,10 @@ async function handleSigDoc(el, mode, navigate) {
       setTimeout(() => URL.revokeObjectURL(url), 30000);
       toast.success("Document downloaded.");
     } else {
-      window.open(url, "_blank", "noopener");
+      _steerTab(w, url, null);
     }
   } catch (err) {
+    _closeTab(w);
     const s = err?.response?.status;
     if (s === 401) { navigate("/login"); return; }
     toast.error(err?.response?.data?.detail || "Couldn't open that document.");

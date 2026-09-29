@@ -48,17 +48,22 @@ export default function VendorSignatures() {
     const key = `${bid.id}:${kind}`;
     setBusy(key);
     setSigningUrl("");
+    // v49v — Safari blocks window.open after an await; open the tab inside
+    // the click gesture and steer it once the signing URL arrives.
+    const w = window.open("", "_blank");
     try {
       const r = await docusignApi.vendorSignAward(bid.id, kind, {
         signer_name: bid.company_name || bid.vendor_email,
         signer_email: bid.vendor_email,
       });
       setSigningUrl(r.signing_url);
-      // Open in a popup — vendor can also click the button below.
-      window.open(r.signing_url, "_blank", "noopener,noreferrer,width=1100,height=800");
+      // Steer the pre-opened tab; same-tab fallback if even that was blocked.
+      if (w) { try { w.location.href = r.signing_url; } catch (_) { window.location.href = r.signing_url; } }
+      else window.location.href = r.signing_url;
       toast.success("Signing session ready");
       load();
     } catch (e) {
+      try { w && w.close(); } catch (_) { /* ignore */ }
       const d = e?.response?.data?.detail;
       if (d?.code === "DOCUSIGN_CONSENT_REQUIRED") {
         toast.error("DocuSign consent not granted — contact admin");
