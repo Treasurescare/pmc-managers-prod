@@ -830,3 +830,30 @@ Backend unchanged (v49q). Release notes: DOWNLOAD_v49t.md.
 
 **Pending user action**: deploy v49t frontend, invalidate `/*`,
 re-check dashboard counts against list pages.
+
+### v49u — Notifications fixed (vendor alerts + bells) — 29 Sep 2026
+User: "notifications not working."
+
+Root causes (frontend only):
+1. `useVendorAlertsLive` hit `/api/v1/notifications` (admin-only
+   `current_admin`) → vendors got 401 → page kept 5 static mock rows.
+2. `.pmc-bell` on vendor/admin pages had no click handler;
+   `.pmc-bell__n` badge hardcoded 0.
+
+Fixes (pmcELiveData.js + PmcLinkPatcher.jsx):
+1. Vendor alerts now use `/api/v1/notifications/vendor/mine`, render
+   real rows (subject, body preview, relTime, unread highlight, View →
+   /vendor/mybids), and patch the static H1 ("N alerts · N need action")
+   + "All N" / "Needs action N" tab counts. Rows: vendor-alert-row.
+2. Bell click → /vendor/alerts (vendor) or /admin/e/events (admin).
+3. Bell unread badge refreshed on every route change from the correct
+   realm endpoint; hidden at 0.
+4. SW cache bumped to pmc-shell-v49u-rev1.
+
+Verified on preview: vendor login → 50 real alert rows, badge 10;
+admin dashboard bell badge 50, click → Events & alerts page.
+Bundle: `pmc-frontend-v49u-prod-build.zip` (includes v49r + v49s +
+v49t). Backend unchanged (v49q). Release notes: DOWNLOAD_v49u.md.
+
+**Pending user action**: deploy v49u frontend to S3 + CloudFront
+invalidate /* — this single zip supersedes v49r/v49s/v49t.

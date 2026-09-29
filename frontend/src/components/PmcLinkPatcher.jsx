@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { useUiTheme } from "@/context/UiThemeContext";
-import { adminApi, vendorApi, bidApi, paymentApi, docusignApi } from "@/lib/api";
+import { api, adminApi, vendorApi, bidApi, paymentApi, docusignApi } from "@/lib/api";
 
 /**
  * PMC v49j — Option-E interactivity via GLOBAL EVENT DELEGATION.
@@ -761,6 +761,34 @@ export default function PmcLinkPatcher() {
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [isE, location.pathname]);
 
+  // v49u — live unread-count on every .pmc-bell badge. Runs on each route
+  // change; vendor pages query the vendor endpoint, admin pages the admin
+  // one. Badge hides itself when there is nothing unread.
+  useEffect(() => {
+    if (!isE) return;
+    let cancelled = false;
+    const refresh = async () => {
+      const pageEl = document.querySelector("[data-pmc-e-page]");
+      const pageId = pageEl?.getAttribute("data-pmc-e-page") || "";
+      const isVendor = pageId.startsWith("vendor-");
+      const isAdmin = pageId.startsWith("admin-");
+      if (!isVendor && !isAdmin) return;
+      try {
+        const r = await api.get(isVendor ? "/api/v1/notifications/vendor/mine" : "/api/v1/notifications");
+        if (cancelled) return;
+        const items = Array.isArray(r.data) ? r.data : (r.data.items || []);
+        const unread = items.filter((n) => !n.read && !n.read_at).length;
+        document.querySelectorAll(".pmc-bell__n").forEach((el) => {
+          el.textContent = String(unread);
+          el.style.display = unread ? "" : "none";
+        });
+      } catch (_) { /* not signed in for this realm — leave badge alone */ }
+    };
+    refresh();
+    const t = setTimeout(refresh, 800);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [isE, location.pathname]);
+
   useEffect(() => {
     if (!isE) return;
 
@@ -801,6 +829,15 @@ export default function PmcLinkPatcher() {
       if (el.tagName === "BUTTON" && el.closest("form")) return;
 
       const label = labelOf(el);
+
+      // v49u — Notification bell: vendor pages → /vendor/alerts,
+      // admin pages → /admin/e/events. Previously the bell was completely
+      // dead (no count, no click).
+      if (el.classList.contains("pmc-bell") || el.closest(".pmc-bell")) {
+        e.preventDefault();
+        navigate(isVendor ? "/vendor/alerts" : isAdmin ? "/admin/e/events" : "/login");
+        return;
+      }
 
       // Chips + tabs — cosmetic toggles + real section switching (v49o)
       if (el.classList.contains("pmc-chip") && el.tagName === "BUTTON") {

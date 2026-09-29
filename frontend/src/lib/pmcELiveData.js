@@ -936,11 +936,41 @@ export function useVendorAlertsLive({ enabled = true } = {}) {
     if (!enabled) return;
     (async () => {
       try {
-        const res = await api.get("/api/v1/notifications").then((r) => r.data).catch(() => ({ items: [] }));
+        // v49u — was hitting the ADMIN endpoint (/notifications requires
+        // current_admin) so vendors always got 401 → empty KPIs and only
+        // static mock rows. Use the vendor endpoint and render real rows.
+        const res = await api.get("/api/v1/notifications/vendor/mine").then((r) => r.data).catch(() => []);
         const root = document.querySelector('[data-pmc-e-page="vendor-alerts-e"]');
         if (!root) return;
-        const items = res.items || res || [];
-        _patchKpiFigures(root, [items.length, items.filter((n) => !n.read_at).length]);
+        const items = Array.isArray(res) ? res : (res.items || []);
+        const unread = items.filter((n) => !n.read && !n.read_at);
+        _patchKpiFigures(root, [items.length, unread.length]);
+        // v49u — the page H1 and tab counts are static template text;
+        // replace with the real totals so they match the rendered rows.
+        const h1 = root.querySelector("h1");
+        if (h1) h1.textContent = `${items.length} alert${items.length === 1 ? "" : "s"} · ${unread.length} need action`;
+        root.querySelectorAll(".pmc-tab").forEach((tab) => {
+          const t = (tab.textContent || "").trim().toLowerCase();
+          if (t.startsWith("all")) tab.textContent = `All ${items.length}`;
+          else if (t.startsWith("needs action")) tab.textContent = `Needs action ${unread.length}`;
+        });
+        const strip = (html) => {
+          const d = document.createElement("div");
+          d.innerHTML = html || "";
+          return (d.textContent || "").trim();
+        };
+        const panel = root.querySelector("section.pmc-panel");
+        if (panel) {
+          panel.innerHTML = items.length
+            ? items.map((n) =>
+                `<div class="al-r${(n.read || n.read_at) ? "" : " un"}" data-notif-id="${n.id || ""}" data-testid="vendor-alert-row">` +
+                `<span class="al-i" style="color:var(--info)"><svg class="pmc-ico" aria-hidden="true"><use href="#i-bell" /></svg></span>` +
+                `<div><b>${strip(n.subject) || "Notification"}</b><span>${strip(n.body).slice(0, 160)}</span></div>` +
+                `<span class="pmc-muted" style="font-size:12px">${relTime(n.created_at)}</span>` +
+                `<a href="/vendor/mybids" class="pmc-btn pmc-btn--secondary pmc-btn--sm">View</a></div>`
+              ).join("")
+            : `<div style="padding:24px;text-align:center;color:var(--ink-muted)">No alerts yet — bid activity will show up here.</div>`;
+        }
       } catch (e) { console.debug("VendorAlerts skip:", e); }
     })();
   }, [enabled]);
