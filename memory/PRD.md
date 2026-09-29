@@ -232,3 +232,16 @@ rows (section-header chips + generic .pmc-chips/.pmc-filters) from
 `overflow-x: auto` to `flex-wrap: wrap`; trailing CTA buttons inside chip
 rows get their own full-width line. Verified: button rect right=370 ≤ vw=390,
 fullyVisible=true, scrollW=390. Bundle rebuilt at 16:52 UTC.
+
+### v49p — Tender list row (.tl-row) mobile collapse fix — 29 Sep 2026
+User: "in home page when i click browse all notices it is breaking totally".
+Root cause: theme rule `.tl-row{display:grid;grid-template-columns:minmax(0,1fr) 170px 150px 110px}`
+— on 390px the fixed tracks (430px) overflow the container, so the flexible
+title column collapsed to 0px → title rendered one character per line.
+Fix in mobile-fix.css (≤767px): `.tl-row` becomes `1fr 1fr`; `.tl-main` and
+`.tl-act` span full width (title/tag row on top, follow+View actions as a
+bottom row); budget/closes sit side-by-side. Also added mobile coverage for
+`.pmc-kv`, `.pmc-inrow`, `.pmc-docrow`, `.dlg-h`, `.pmc-cols` (class-based
+fixed-column grids the inline-style nuclear rule could not catch).
+Verified: gtc computes to 162px 162px, title width 336px, scrollW=390.
+Bundle rebuilt (01:54 UTC).

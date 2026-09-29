@@ -161,6 +161,44 @@ html, body { overflow-x: clip; }
   [data-ui="e"] .pmc-stats { margin-top: 0 !important; }
 
   /* ==========================================================================
+   * Tender list rows (.tl-row) — desktop: minmax(0,1fr) 170px 150px 110px.
+   * On phones the fixed columns overflow and squeeze the title column to 0px
+   * (one character per line). Stack: main full width, budget|closes 2-up,
+   * actions full-width row below.
+   * ======================================================================== */
+  [data-ui="e"] .tl-row {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 12px !important;
+    padding: 16px !important;
+    align-items: start !important;
+  }
+  [data-ui="e"] .tl-row .tl-main {
+    grid-column: 1 / -1 !important;
+    min-width: 0 !important;
+  }
+  [data-ui="e"] .tl-row .tl-main h3 {
+    font-size: 15px !important;
+    line-height: 21px !important;
+    margin: 8px 0 4px !important;
+  }
+  [data-ui="e"] .tl-row .tl-num { min-width: 0 !important; }
+  [data-ui="e"] .tl-row .tl-num .l {
+    font-size: 10px !important;
+    line-height: 14px !important;
+    letter-spacing: 0.08em !important;
+    overflow-wrap: anywhere !important;
+  }
+  [data-ui="e"] .tl-row .tl-num .v { font-size: 15px !important; }
+  [data-ui="e"] .tl-row .tl-act {
+    grid-column: 1 / -1 !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 10px !important;
+  }
+  [data-ui="e"] .tl-row .tl-act .pmc-btn { flex: 1 !important; justify-content: center !important; }
+
+  /* ==========================================================================
    * INLINE STYLE grids — every width-based track pattern in JSX collapses
    * ======================================================================== */
   [data-ui="e"] [style*="grid-template-columns:"] {
@@ -384,6 +422,14 @@ html, body { overflow-x: clip; }
     grid-template-columns: 40px minmax(0,1fr) auto !important;
     font-size: 13px !important;
   }
+
+  /* Remaining class-based fixed-column grids that can overflow phones */
+  [data-ui="e"] .pmc-kv { grid-template-columns: minmax(0,1fr) !important; gap: 4px !important; }
+  [data-ui="e"] .pmc-inrow { grid-template-columns: 36px minmax(0,1fr) !important; }
+  [data-ui="e"] .pmc-inrow > *:last-child { grid-column: 1 / -1 !important; justify-self: end !important; }
+  [data-ui="e"] .pmc-docrow > *:nth-child(n+3) { justify-self: start !important; }
+  [data-ui="e"] .dlg-h { grid-template-columns: 36px minmax(0,1fr) auto !important; }
+  [data-ui="e"] .pmc-cols { grid-template-columns: 1fr !important; }
 
   /* ==========================================================================
    * Long titles wrap
