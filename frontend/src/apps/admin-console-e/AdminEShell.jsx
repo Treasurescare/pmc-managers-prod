@@ -1,3 +1,5 @@
+import AdminAvatarMenu from "./AdminAvatarMenu";
+
 // Shared Option E admin shell (sidebar + top bar) so E pages can mount the
 // fully-wired legacy panels without duplicating chrome markup.
 export default function AdminEShell({ active, crumb, children }) {
@@ -48,7 +50,7 @@ export default function AdminEShell({ active, crumb, children }) {
           <div className="pmc-atop__r">
             <button className="pmc-btn pmc-btn--secondary" data-help-open="" data-testid="shell-help-btn"><svg className="pmc-ico" aria-hidden="true"><use href="#i-help" /></svg> Help</button>
             <button className="pmc-ib pmc-bell" aria-label="Alerts" data-testid="shell-bell-btn"><svg className="pmc-ico" aria-hidden="true"><use href="#i-bell" /></svg></button>
-            <span className="pmc-avatar" title="Admin">A</span>
+            <AdminAvatarMenu />
           </div>
         </header>
         <main className="pmc-amain">{children}</main>

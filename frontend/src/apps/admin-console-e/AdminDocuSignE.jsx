@@ -1,65 +1,12 @@
-import { useEffect } from "react";
-import { useUiTheme } from "@/context/UiThemeContext";
-import { useAdminDocuSignLive } from "@/lib/pmcELiveData";
+import AdminEShell from "./AdminEShell";
+import DocuSignPanel from "@/apps/admin-console/DocuSignPanel";
 
-export default function AdminDocuSignE({ legacy: Legacy }) {
-  const { isE } = useUiTheme();
-  useAdminDocuSignLive({ enabled: isE });
-  useEffect(() => {
-    if (!isE) return;
-    const tick = () => {
-      document.querySelectorAll("[data-in]").forEach((el) => {
-        const secs = parseInt(el.getAttribute("data-in") || "0", 10);
-        if (!secs) return;
-        const d = Math.floor(secs/86400), h = Math.floor((secs%86400)/3600), m = Math.floor((secs%3600)/60);
-        el.textContent = d>0 ? `${d}d ${h}h` : h>0 ? `${h}h ${m}m` : `${m}m`;
-      });
-    };
-    tick();
-  }, [isE]);
-  if (!isE && Legacy) return <Legacy />;
-  if (!isE) return null;
+export default function AdminDocuSignE() {
   return (
     <div data-testid="admin-docusign-e" data-pmc-e-page="admin-docusign-e">
-<div className="pmc-adm"><aside className="pmc-side" aria-label="Admin"><div className="pmc-side__brand"><span className="pmc-brand__n">PMC Managers</span><span className="pmc-brand__s">Admin console</span></div><div className="pmc-side__group">Overview</div><a href="/admin/e/dashboard" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-home" /></svg>Dashboard</a><a href="/admin/e/audit" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-link" /></svg>Audit ledger</a><div className="pmc-side__group">Procurement</div><a href="/admin/e/notices" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg>Notices<span style={{ marginLeft: "auto", fontSize: "12px", color: "var(--on-chrome-muted)" }}>29</span></a><a href="/admin/e/tender-builder" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-spark" /></svg>Tender builder</a><a href="/admin/e/corrigenda" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-flag" /></svg>Corrigenda</a><a href="/admin/e/boq" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-layers" /></svg>BOQ & contracts</a><a href="/admin/e/work-packages" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-box" /></svg>Work packages<span style={{ marginLeft: "auto", fontSize: "12px", color: "var(--on-chrome-muted)" }}>50</span></a><a href="/admin/e/catalog" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-layers" /></svg>Catalog</a><div className="pmc-side__group">Market</div><a href="/admin/e/vendors" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-users" /></svg>Vendors<span style={{ marginLeft: "auto", fontSize: "12px", color: "var(--on-chrome-muted)" }}>76</span></a><a href="/admin/e/registrations" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg>Registrations</a><a href="/admin/e/vendor-intel" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-eye" /></svg>Vendor intel</a><a href="/admin/e/engagements" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-chat" /></svg>Engagements</a><div className="pmc-side__group">Money & compliance</div><a href="/admin/e/bidding" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-gavel" /></svg>Bidding ops<span className="pmc-side__count">10</span></a><a href="/admin/e/escrow" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-coin" /></svg>Escrow / EMD</a><a href="/admin/e/billing" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg>Billing</a><a href="/admin/e/evaluation" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-check" /></svg>Evaluation</a><a href="/admin/e/l1-award" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-chart" /></svg>L1 comparison</a><a href="/admin/e/awards" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-flag" /></svg>Awards</a><a href="/admin/e/docusign" className="pmc-side__item" aria-current="page"><svg className="pmc-ico" aria-hidden="true"><use href="#i-sign" /></svg>DocuSign</a><a href="/admin/e/permissions" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-lock" /></svg>Permissions</a><div className="pmc-side__group">Events</div><a href="/admin/e/events" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-clock" /></svg>Events & alerts</a></aside><div>
-<header className="pmc-atop"><div className="crumb">Money &amp; compliance / <b>DocuSign</b></div>
-  <label className="pmc-search"><svg className="pmc-ico" aria-hidden="true"><use href="#i-search" /></svg><input placeholder="Search tenders, bids, vendors, ledger events…" /><span className="pmc-kbd">Ctrl K</span></label>
-  <div className="pmc-atop__r"><a href="#" className="pmc-btn pmc-btn--primary"><svg className="pmc-ico" aria-hidden="true"><use href="#i-plus" /></svg> Create</a><button className="pmc-btn pmc-btn--secondary" data-help-open=""><svg className="pmc-ico" aria-hidden="true"><use href="#i-help" /></svg> Help</button><button className="pmc-ib pmc-bell" aria-label="6 alerts"><svg className="pmc-ico" aria-hidden="true"><use href="#i-bell" /></svg><span className="pmc-bell__n">6</span></button><button className="pmc-ib" aria-label="AI copilot"><svg className="pmc-ico" aria-hidden="true"><use href="#i-spark" /></svg></button><span className="pmc-avatar" title="adminsupport@pmcmanagers.com · 2FA on">A</span></div>
-</header><main className="pmc-amain"><div className="ah"><div><div className="pmc-eyebrow">Money &amp; compliance</div><h1>DocuSign e-signature</h1></div><div style={{ display: "flex", gap: "8px" }}></div></div>
-<div className="pmc-callout pmc-callout--warn" style={{ marginBottom: "16px", alignItems: "center" }}><svg className="pmc-ico" aria-hidden="true"><use href="#i-flag" /></svg><div style={{ flex: "1" }}><b>Connected to the DocuSign sandbox.</b> Envelopes sent now are not legally binding. Switch to production before launch.</div><button className="pmc-btn pmc-btn--primary pmc-btn--sm">Connect production</button></div>
-<div style={{ display: "grid", gridTemplateColumns: "340px minmax(0,1fr)", gap: "24px", alignItems: "start" }}>
-<section className="pmc-panel"><div className="pmc-panel__head"><h2 className="pmc-panel__title">Send for signature</h2></div><div className="pmc-panel__body" style={{ display: "grid", gap: "14px" }}>
-<div className="pmc-field"><label>Award</label><select className="pmc-input"><option>PMC-AWD-2026-00027 · Emerald Corporates</option></select></div>
-<div className="pmc-field"><label>Document</label><select className="pmc-input"><option>Contract / LOA</option><option>Purchase order</option><option>SLA</option></select></div>
-<div className="pmc-field"><label>Signer</label><input className="pmc-input" value="Signatory on file · Emerald Corporates" /><span className="h">Filled from the supplier's KYC signatory</span></div>
-<div className="pmc-field"><label>Delivery</label><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}><label className="pmc-radio on" style={{ padding: "12px" }}><span className="o"></span><b style={{ fontSize: "14px" }}>In portal</b></label><label className="pmc-radio" style={{ padding: "12px" }}><span className="o"></span><b style={{ fontSize: "14px" }}>By email</b></label></div></div>
-<button className="pmc-btn pmc-btn--primary"><svg className="pmc-ico" aria-hidden="true"><use href="#i-sign" /></svg> Send envelope</button></div></section>
-<section className="pmc-panel"><div className="pmc-panel__head"><h2 className="pmc-panel__title">Envelopes</h2><div className="pmc-tabs" style={{ border: "0" }}><button className="pmc-tab" aria-selected="true">All<span className="n">29</span></button><button className="pmc-tab">Waiting<span className="n">12</span></button><button className="pmc-tab">Completed<span className="n">17</span></button></div></div>
-<table className="pmc-table"><thead><tr><th>Kind</th><th>Award</th><th>Signer · delivery</th><th>Status</th><th>Sent</th><th></th></tr></thead><tbody><tr><td><span className="pmc-tag">PO</span></td><td className="pmc-ref" style={{ color: "var(--ink)", whiteSpace: "nowrap" }}>PMC-AWD-2026-00027</td><td>Emerald Corporates<div className="pmc-muted" style={{ fontSize: "12px" }}>Embedded</div></td><td><span className="pmc-pill pmc-pill--info">Sent</span></td><td className="pmc-muted" style={{ whiteSpace: "nowrap" }}>27 Sep</td><td style={{ textAlign: "right" }}><a href="#" className="pmc-btn pmc-btn--ghost pmc-btn--sm">Resend</a></td></tr><tr><td><span className="pmc-tag">CONTRACT</span></td><td className="pmc-ref" style={{ color: "var(--ink)", whiteSpace: "nowrap" }}>PMC-AWD-2026-00027</td><td>Emerald Corporates<div className="pmc-muted" style={{ fontSize: "12px" }}>Embedded</div></td><td><span className="pmc-pill pmc-pill--info">Sent</span></td><td className="pmc-muted" style={{ whiteSpace: "nowrap" }}>19 Sep</td><td style={{ textAlign: "right" }}><a href="#" className="pmc-btn pmc-btn--ghost pmc-btn--sm">Resend</a></td></tr><tr><td><span className="pmc-tag">LOA</span></td><td className="pmc-ref" style={{ color: "var(--ink)", whiteSpace: "nowrap" }}>PMC-AWD-2026-00026</td><td>Supplier F (sample)<div className="pmc-muted" style={{ fontSize: "12px" }}>Email</div></td><td><span className="pmc-pill pmc-pill--warning">Waiting</span></td><td className="pmc-muted" style={{ whiteSpace: "nowrap" }}>9 Sep</td><td style={{ textAlign: "right" }}><a href="#" className="pmc-btn pmc-btn--ghost pmc-btn--sm">Resend</a></td></tr><tr><td><span className="pmc-tag">PO</span></td><td className="pmc-ref" style={{ color: "var(--ink)", whiteSpace: "nowrap" }}>PMC-AWD-2026-00025</td><td>Supplier A (sample)<div className="pmc-muted" style={{ fontSize: "12px" }}>Embedded</div></td><td><span className="pmc-pill pmc-pill--success">Completed</span></td><td className="pmc-muted" style={{ whiteSpace: "nowrap" }}>12 Aug</td><td style={{ textAlign: "right" }}><a href="#" className="pmc-btn pmc-btn--ghost pmc-btn--sm">Download</a></td></tr><tr><td><span className="pmc-tag">CONTRACT</span></td><td className="pmc-ref" style={{ color: "var(--ink)", whiteSpace: "nowrap" }}>PMC-AWD-2026-00020</td><td>Supplier G (sample)<div className="pmc-muted" style={{ fontSize: "12px" }}>Embedded</div></td><td><span className="pmc-pill pmc-pill--success">Completed</span></td><td className="pmc-muted" style={{ whiteSpace: "nowrap" }}>12 Aug</td><td style={{ textAlign: "right" }}><a href="#" className="pmc-btn pmc-btn--ghost pmc-btn--sm">Download</a></td></tr></tbody></table>
-<div className="pmc-muted" style={{ fontSize: "12px", padding: "12px 16px", borderTop: "1px solid var(--line)" }}>Test envelopes (signer names like “asdf”, “123456”) are hidden. <a href="#">Show test envelopes</a></div></section></div></main></div></div>
-<div className="pmc-drawer-scrim" data-help-close=""></div>
-<aside className="pmc-drawer" role="dialog" aria-modal="true" aria-label="Help and FAQs">
-  <div className="pmc-drawer__head">
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-      <div><div className="pmc-eyebrow">Help &amp; FAQs</div><div style={{ fontSize: "20px", lineHeight: "28px", fontWeight: "600" }}>How can we help?</div></div>
-      <button className="pmc-btn pmc-btn--ghost pmc-btn--sm" data-help-close="" aria-label="Close help">Close <span className="pmc-kbd">Esc</span></button>
-    </div>
-    <label className="pmc-search"><svg className="pmc-ico" aria-hidden="true"><use href="#i-search" /></svg><input data-help-q="" placeholder="Search help, e.g. “bank guarantee”" /></label>
-  </div>
-  <div className="pmc-drawer__body">
-    <div className="pmc-eyebrow" style={{ margin: "4px 0 10px", color: "var(--ink-muted)" }}>On this page · DocuSign</div>
-    <div style={{ display: "grid", gap: "8px", marginBottom: "20px" }}><div className="pmc-tip"><svg className="pmc-ico" aria-hidden="true"><use href="#i-spark" /></svg><div><b>Signer comes from KYC</b>The authorised signatory on file is used by default.</div></div></div>
-    <div className="pmc-eyebrow" style={{ marginBottom: "2px", color: "var(--ink-muted)" }}>Frequently asked</div>
-    <div data-help-list=""><details className="pmc-faq" data-cat="admin"><summary>Why is the sandbox a problem?</summary><p>Sandbox signatures are not legally binding. Connect the production account before issuing real awards.</p></details></div>
-    <p data-help-empty="" hidden style={{ color: "var(--ink-muted)", fontSize: "14px" }}>No answer matches yet. Raise a ticket below and the PMC desk will reply.</p>
-    <a href="#" className="pmc-btn pmc-btn--secondary" style={{ width: "100%", marginTop: "16px" }}><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg> Open the full Help Centre</a>
-  </div>
-  <div className="pmc-drawer__foot">
-    <a href="#" className="pmc-btn pmc-btn--primary"><svg className="pmc-ico" aria-hidden="true"><use href="#i-chat" /></svg> Raise a ticket</a>
-    <a href="mailto:tenders@pmcmanagers.com" className="pmc-btn pmc-btn--secondary"><svg className="pmc-ico" aria-hidden="true"><use href="#i-mail" /></svg> Email the desk</a>
-  </div>
-</aside>
-<button className="pmc-helpfab" data-help-open="" aria-label="Open help"><span className="pmc-helpfab__q">?</span>Help</button>
+      <AdminEShell active="DocuSign" crumb={<>Money &amp; compliance / <b>DocuSign</b></>}>
+        <DocuSignPanel />
+      </AdminEShell>
     </div>
   );
 }

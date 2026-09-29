@@ -626,3 +626,42 @@ Verified live (admin, 1440px):
 - Vendor intel: real vendor list, Manage buttons per row, ratings
   and trust badges, flags column live.
 Bundle rebuilt (10:36 UTC).
+
+### v49q — Remaining 10 static shells cleared — 29 Sep 2026
+Batch-fixed every remaining static E-page via the AdminEShell +
+legacy-panel pattern: Engagements (EngagementsPanel), Escrow/EMD
+(EscrowPanel), Billing (BillingTransactionsPanel), Evaluation
+(EvaluationPanel), L1 comparison (L1ComparisonPanel), Awards
+(AwardsPanel), DocuSign (DocuSignPanel), Permissions
+(PermissionsPanel), Audit ledger (AuditPanel).
+
+Events & alerts had NO legacy panel — rebuilt AdminEventsE as a real
+React component: fetches admin notifications via notifyApi.list(),
+renders real rows with level pills + Acknowledge (markRead) buttons,
+alert-rule checkboxes persist to localStorage. Fixed two build errors
+en route (bad useState initializer; notifyApi vs notificationApi
+export name).
+
+Verified (admin, 1440px): all 10 pages render real content, no
+h-scroll, working buttons; events page shows 50 real notifications,
+rule toggle persists. Zero JS errors on all pages except pre-existing
+benign button-nesting warnings + tenant-probe 404.
+Bundle rebuilt (10:51 UTC). ALL admin E-pages are now functional —
+no static shells remain.
+
+### v49q — Admin avatar menu — 29 Sep 2026
+User: dashboard avatar dead — no change password, no profile photo
+change, no sign out. Root cause: every E top bar rendered a static
+<span class="pmc-avatar">A</span> with no menu.
+
+Fix: new shared `AdminAvatarMenu.jsx` component — dropdown with real
+email (adminApi.me), Change photo (adminApi.uploadAvatar /
+removeAvatar, 400KB cap), Change password (inline form →
+adminApi.changePassword, min 8 chars), Sign out (adminApi.logout →
+/admin/login). Click-outside and Esc close. Swapped into the 3
+places the dead avatar appeared: AdminEShell (shared by 15 pages),
+AdminDashboardE, AdminBiddingOpsE.
+
+Verified live: menu opens with adminsupport@pmcmanagers.com, all 3
+actions present, password form expands, sign-out redirects to login.
+Bundle rebuilt (10:56 UTC).

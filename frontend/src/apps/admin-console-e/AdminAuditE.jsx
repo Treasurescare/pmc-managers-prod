@@ -1,84 +1,12 @@
-import { useEffect } from "react";
-import { useUiTheme } from "@/context/UiThemeContext";
-import { useAdminAuditLive } from "@/lib/pmcELiveData";
+import AdminEShell from "./AdminEShell";
+import AuditPanel from "@/apps/admin-console/AuditPanel";
 
-export default function AdminAuditE({ legacy: Legacy }) {
-  const { isE } = useUiTheme();
-  useAdminAuditLive({ enabled: isE });
-  useEffect(() => {
-    if (!isE) return;
-    const tick = () => {
-      document.querySelectorAll("[data-in]").forEach((el) => {
-        const secs = parseInt(el.getAttribute("data-in") || "0", 10);
-        if (!secs) return;
-        const d = Math.floor(secs/86400), h = Math.floor((secs%86400)/3600), m = Math.floor((secs%3600)/60);
-        el.textContent = d>0 ? `${d}d ${h}h` : h>0 ? `${h}h ${m}m` : `${m}m`;
-      });
-    };
-    tick();
-  }, [isE]);
-  if (!isE && Legacy) return <Legacy />;
-  if (!isE) return null;
+export default function AdminAuditE() {
   return (
     <div data-testid="admin-audit-e" data-pmc-e-page="admin-audit-e">
-<div className="pmc-adm"><aside className="pmc-side" aria-label="Admin"><div className="pmc-side__brand"><span className="pmc-brand__n">PMC Managers</span><span className="pmc-brand__s">Admin console</span></div><div className="pmc-side__group">Overview</div><a href="/admin/e/dashboard" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-home" /></svg>Dashboard</a><a href="/admin/e/audit" className="pmc-side__item" aria-current="page"><svg className="pmc-ico" aria-hidden="true"><use href="#i-link" /></svg>Audit ledger</a><div className="pmc-side__group">Procurement</div><a href="/admin/e/notices" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg>Notices<span style={{ marginLeft: "auto", fontSize: "12px", color: "var(--on-chrome-muted)" }}>29</span></a><a href="/admin/e/tender-builder" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-spark" /></svg>Tender builder</a><a href="/admin/e/corrigenda" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-flag" /></svg>Corrigenda</a><a href="/admin/e/boq" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-layers" /></svg>BOQ & contracts</a><a href="/admin/e/work-packages" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-box" /></svg>Work packages<span style={{ marginLeft: "auto", fontSize: "12px", color: "var(--on-chrome-muted)" }}>50</span></a><a href="/admin/e/catalog" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-layers" /></svg>Catalog</a><div className="pmc-side__group">Market</div><a href="/admin/e/vendors" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-users" /></svg>Vendors<span style={{ marginLeft: "auto", fontSize: "12px", color: "var(--on-chrome-muted)" }}>76</span></a><a href="/admin/e/registrations" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg>Registrations</a><a href="/admin/e/vendor-intel" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-eye" /></svg>Vendor intel</a><a href="/admin/e/engagements" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-chat" /></svg>Engagements</a><div className="pmc-side__group">Money & compliance</div><a href="/admin/e/bidding" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-gavel" /></svg>Bidding ops<span className="pmc-side__count">10</span></a><a href="/admin/e/escrow" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-coin" /></svg>Escrow / EMD</a><a href="/admin/e/billing" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg>Billing</a><a href="/admin/e/evaluation" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-check" /></svg>Evaluation</a><a href="/admin/e/l1-award" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-chart" /></svg>L1 comparison</a><a href="/admin/e/awards" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-flag" /></svg>Awards</a><a href="/admin/e/docusign" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-sign" /></svg>DocuSign</a><a href="/admin/e/permissions" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-lock" /></svg>Permissions</a><div className="pmc-side__group">Events</div><a href="/admin/e/events" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-clock" /></svg>Events & alerts</a></aside><div>
-<header className="pmc-atop"><div className="crumb">Overview / <b>Audit ledger</b></div>
-  <label className="pmc-search"><svg className="pmc-ico" aria-hidden="true"><use href="#i-search" /></svg><input placeholder="Search tenders, bids, vendors, ledger events…" /><span className="pmc-kbd">Ctrl K</span></label>
-  <div className="pmc-atop__r"><a href="#" className="pmc-btn pmc-btn--primary"><svg className="pmc-ico" aria-hidden="true"><use href="#i-plus" /></svg> Create</a><button className="pmc-btn pmc-btn--secondary" data-help-open=""><svg className="pmc-ico" aria-hidden="true"><use href="#i-help" /></svg> Help</button><button className="pmc-ib pmc-bell" aria-label="6 alerts"><svg className="pmc-ico" aria-hidden="true"><use href="#i-bell" /></svg><span className="pmc-bell__n">6</span></button><button className="pmc-ib" aria-label="AI copilot"><svg className="pmc-ico" aria-hidden="true"><use href="#i-spark" /></svg></button><span className="pmc-avatar" title="adminsupport@pmcmanagers.com · 2FA on">A</span></div>
-</header><main className="pmc-amain">
-<div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "20px" }}>
-  <div><div className="pmc-eyebrow">Audit ledger</div><h1 className="pmc-display" style={{ fontSize: "36px", lineHeight: "42px", margin: "6px 0 0" }}>Every action, chained.</h1><div className="pmc-muted" style={{ fontSize: "14px", marginTop: "4px" }}>SHA-256 hash chain · append-only · 1,905 events</div></div>
-  <div style={{ display: "flex", gap: "8px" }}><button className="pmc-btn pmc-btn--secondary"><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg> Export CSV</button><button className="pmc-btn pmc-btn--primary"><svg className="pmc-ico" aria-hidden="true"><use href="#i-link" /></svg> Verify whole chain</button></div></div>
-<div className="pmc-callout pmc-callout--ok" style={{ marginBottom: "16px" }}><svg className="pmc-ico" aria-hidden="true"><use href="#i-check" /></svg><div><b>Chain verified today at 09:12.</b> 1,905 of 1,905 events intact; no breaks since #1. Next scheduled verification 21:00.</div></div>
-<div className="pmc-filter" style={{ margin: "0 0 16px" }}>
-  <label className="pmc-search" style={{ flex: "1" }}><svg className="pmc-ico" aria-hidden="true"><use href="#i-search" /></svg><input placeholder="Actor email, target or event no." /></label>
-  <select className="pmc-input"><option>All event types</option><option>notice.*</option><option>bid.*</option><option>contract.*</option><option>*.login</option></select>
-  <select className="pmc-input"><option>All actors</option><option>Staff</option><option>Suppliers</option><option>System</option></select>
-  <input className="pmc-input" value="From 2026-09-27" style={{ width: "160px" }} /><input className="pmc-input" value="To 2026-09-28" style={{ width: "150px" }} />
-</div>
-<div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 340px", gap: "24px", alignItems: "start" }}>
-  <section className="pmc-panel"><table className="pmc-table ad-chain"><thead><tr><th>Event</th><th>Type · target</th><th>Actor</th><th>Hash</th><th className="num">When (UTC)</th></tr></thead><tbody><tr className=""><td className="pmc-ref" style={{ color: "var(--ink)" }}>#1905</td><td><div style={{ fontWeight: "600" }}>staff.login</div><div className="pmc-ref">admin_user:11774096</div></td><td style={{ fontSize: "12px", maxWidth: "180px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title="adminsupport@pmcmanagers.com">adminsupport@pmcmanagers.com</td><td className="pmc-ref" style={{ color: "var(--brass-text)" }}>98f1a4880023…</td><td className="num pmc-muted">2026-09-28 01:41:34</td></tr><tr className=""><td className="pmc-ref" style={{ color: "var(--ink)" }}>#1904</td><td><div style={{ fontWeight: "600" }}>staff.login</div><div className="pmc-ref">admin_user:11774096</div></td><td style={{ fontSize: "12px", maxWidth: "180px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title="adminsupport@pmcmanagers.com">adminsupport@pmcmanagers.com</td><td className="pmc-ref" style={{ color: "var(--brass-text)" }}>b082d43c664b…</td><td className="num pmc-muted">2026-09-28 01:31:19</td></tr><tr className=""><td className="pmc-ref" style={{ color: "var(--ink)" }}>#1903</td><td><div style={{ fontWeight: "600" }}>vendor.login</div><div className="pmc-ref">vendor:64943c36</div></td><td style={{ fontSize: "12px", maxWidth: "180px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title="—">—</td><td className="pmc-ref" style={{ color: "var(--brass-text)" }}>3e724c7a456a…</td><td className="num pmc-muted">2026-09-28 01:29:44</td></tr><tr className=""><td className="pmc-ref" style={{ color: "var(--ink)" }}>#1902</td><td><div style={{ fontWeight: "600" }}>staff.login</div><div className="pmc-ref">admin_user:11774096</div></td><td style={{ fontSize: "12px", maxWidth: "180px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title="adminsupport@pmcmanagers.com">adminsupport@pmcmanagers.com</td><td className="pmc-ref" style={{ color: "var(--brass-text)" }}>ffbc139cfc78…</td><td className="num pmc-muted">2026-09-27 18:14:12</td></tr><tr className="sel"><td className="pmc-ref" style={{ color: "var(--ink)" }}>#1901</td><td><div style={{ fontWeight: "600" }}>contract.create</div><div className="pmc-ref">contract:026-0015</div></td><td style={{ fontSize: "12px", maxWidth: "180px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title="shiv@innerverse.tech">shiv@innerverse.tech</td><td className="pmc-ref" style={{ color: "var(--brass-text)" }}>a073daa591aa…</td><td className="num pmc-muted">2026-09-27 17:47:36</td></tr><tr className=""><td className="pmc-ref" style={{ color: "var(--ink)" }}>#1900</td><td><div style={{ fontWeight: "600" }}>contract.create</div><div className="pmc-ref">contract:026-0014</div></td><td style={{ fontSize: "12px", maxWidth: "180px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title="shiv@innerverse.tech">shiv@innerverse.tech</td><td className="pmc-ref" style={{ color: "var(--brass-text)" }}>57d32d09f217…</td><td className="num pmc-muted">2026-09-27 17:46:59</td></tr><tr className=""><td className="pmc-ref" style={{ color: "var(--ink)" }}>#1899</td><td><div style={{ fontWeight: "600" }}>contract.create</div><div className="pmc-ref">contract:026-0013</div></td><td style={{ fontSize: "12px", maxWidth: "180px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title="shiv@innerverse.tech">shiv@innerverse.tech</td><td className="pmc-ref" style={{ color: "var(--brass-text)" }}>b19db8b7bee8…</td><td className="num pmc-muted">2026-09-27 17:46:16</td></tr><tr className=""><td className="pmc-ref" style={{ color: "var(--ink)" }}>#1895</td><td><div style={{ fontWeight: "600" }}>milestone.complete</div><div className="pmc-ref">contract:e0e2e15d</div></td><td style={{ fontSize: "12px", maxWidth: "180px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title="shiv@innerverse.tech">shiv@innerverse.tech</td><td className="pmc-ref" style={{ color: "var(--brass-text)" }}>540694573838…</td><td className="num pmc-muted">2026-09-27 17:41:18</td></tr><tr className=""><td className="pmc-ref" style={{ color: "var(--ink)" }}>#1891</td><td><div style={{ fontWeight: "600" }}>boq_template.create</div><div className="pmc-ref">boq_template:e0e2e158</div></td><td style={{ fontSize: "12px", maxWidth: "180px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title="shiv@innerverse.tech">shiv@innerverse.tech</td><td className="pmc-ref" style={{ color: "var(--brass-text)" }}>b46dd08fe8c4…</td><td className="num pmc-muted">2026-09-27 16:32:30</td></tr><tr className=""><td className="pmc-ref" style={{ color: "var(--ink)" }}>#1890</td><td><div style={{ fontWeight: "600" }}>tender_template.delete</div><div className="pmc-ref">tender_template:be1afd51</div></td><td style={{ fontSize: "12px", maxWidth: "180px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title="shiv@innerverse.tech">shiv@innerverse.tech</td><td className="pmc-ref" style={{ color: "var(--brass-text)" }}>c6cc88373b23…</td><td className="num pmc-muted">2026-09-27 16:23:10</td></tr></tbody></table>
-  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderTop: "1px solid var(--line)" }}><span className="pmc-muted" style={{ fontSize: "13px" }}>1–10 of 100 in range</span><div style={{ display: "flex", gap: "6px" }}><button className="pmc-btn pmc-btn--secondary pmc-btn--sm" disabled>Previous</button><button className="pmc-btn pmc-btn--secondary pmc-btn--sm">Next</button></div></div></section>
-  <aside className="pmc-panel" style={{ position: "sticky", top: "88px" }}>
-    <div className="pmc-panel__head"><div><span className="pmc-ref">#1901</span><h2 className="pmc-panel__title">contract.create</h2></div><span className="pmc-pill pmc-pill--success">Link valid</span></div>
-    <div className="pmc-panel__body" style={{ display: "grid", gap: "14px" }}>
-      <dl className="pmc-kv"><dt>Actor</dt><dd>shiv@innerverse.tech</dd><dt>Role</dt><dd>Contracts officer</dd><dt>Target</dt><dd className="pmc-ref" style={{ color: "var(--ink)" }}>contract:026-0015</dd><dt>When</dt><dd>2026-09-27 17:47:36 UTC</dd><dt>IP · device</dt><dd>Recorded</dd></dl>
-      <div><div className="pmc-eyebrow" style={{ color: "var(--ink-muted)", marginBottom: "6px" }}>Chain link</div><div className="ad-code">prev  #1900  57d32d09f217…
-hash  #1901  a073daa591aa…
-      sha256(prev + payload)  ✓</div></div>
-      <div><div className="pmc-eyebrow" style={{ color: "var(--ink-muted)", marginBottom: "6px" }}>Payload</div><div className="ad-code">&#123;
-  "contract": "026-0015",
-  "award": "PMC-AWD-2026-00027",
-  "value": "sealed",
-  "milestones": 4
-&#125;</div></div>
-      <a href="#" className="pmc-btn pmc-btn--secondary"><svg className="pmc-ico" aria-hidden="true"><use href="#i-arrow" /></svg> Open contract 026-0015</a>
-    </div>
-  </aside>
-</div></main></div></div>
-<div className="pmc-drawer-scrim" data-help-close=""></div>
-<aside className="pmc-drawer" role="dialog" aria-modal="true" aria-label="Help and FAQs">
-  <div className="pmc-drawer__head">
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-      <div><div className="pmc-eyebrow">Help &amp; FAQs</div><div style={{ fontSize: "20px", lineHeight: "28px", fontWeight: "600" }}>How can we help?</div></div>
-      <button className="pmc-btn pmc-btn--ghost pmc-btn--sm" data-help-close="" aria-label="Close help">Close <span className="pmc-kbd">Esc</span></button>
-    </div>
-    <label className="pmc-search"><svg className="pmc-ico" aria-hidden="true"><use href="#i-search" /></svg><input data-help-q="" placeholder="Search help, e.g. “bank guarantee”" /></label>
-  </div>
-  <div className="pmc-drawer__body">
-    <div className="pmc-eyebrow" style={{ margin: "4px 0 10px", color: "var(--ink-muted)" }}>On this page · Audit ledger</div>
-    <div style={{ display: "grid", gap: "8px", marginBottom: "20px" }}><div className="pmc-tip"><svg className="pmc-ico" aria-hidden="true"><use href="#i-spark" /></svg><div><b>Verify any time</b>Verify whole chain re-computes every link and reports the first break, if any.</div></div><div className="pmc-tip"><svg className="pmc-ico" aria-hidden="true"><use href="#i-spark" /></svg><div><b>Filter by pattern</b>Use notice.*, bid.* or *.login to see a family of events.</div></div></div>
-    <div className="pmc-eyebrow" style={{ marginBottom: "2px", color: "var(--ink-muted)" }}>Frequently asked</div>
-    <div data-help-list=""><details className="pmc-faq" data-cat="admin"><summary>How do I verify the audit ledger?</summary><p>Choose <b>Verify whole chain</b>. The check re-computes every SHA-256 link and reports the first break, if any.</p></details><details className="pmc-faq" data-cat="admin"><summary>Can an event be edited or deleted?</summary><p>No. The ledger is append-only; a correction is a new event that references the original.</p></details></div>
-    <p data-help-empty="" hidden style={{ color: "var(--ink-muted)", fontSize: "14px" }}>No answer matches yet. Raise a ticket below and the PMC desk will reply.</p>
-    <a href="#" className="pmc-btn pmc-btn--secondary" style={{ width: "100%", marginTop: "16px" }}><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg> Open the full Help Centre</a>
-  </div>
-  <div className="pmc-drawer__foot">
-    <a href="#" className="pmc-btn pmc-btn--primary"><svg className="pmc-ico" aria-hidden="true"><use href="#i-chat" /></svg> Raise a ticket</a>
-    <a href="mailto:tenders@pmcmanagers.com" className="pmc-btn pmc-btn--secondary"><svg className="pmc-ico" aria-hidden="true"><use href="#i-mail" /></svg> Email the desk</a>
-  </div>
-</aside>
-<button className="pmc-helpfab" data-help-open="" aria-label="Open help"><span className="pmc-helpfab__q">?</span>Help</button>
+      <AdminEShell active="Audit ledger" crumb={<>Overview / <b>Audit ledger</b></>}>
+        <AuditPanel />
+      </AdminEShell>
     </div>
   );
 }

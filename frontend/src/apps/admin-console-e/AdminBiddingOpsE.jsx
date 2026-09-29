@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { bidApi, showApiError } from "@/lib/api";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { useAdminBiddingOpsLive } from "@/lib/pmcELiveData";
+import AdminAvatarMenu from "./AdminAvatarMenu";
 import "./bidding-ops.css";
 
 // Sidebar preserved from the existing admin console shell so nav stays
@@ -189,7 +190,7 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
 <header className="pmc-atop">
   <div className="crumb">Money &amp; compliance / <b>Bidding ops</b></div>
   <label className="pmc-search"><svg className="pmc-ico" aria-hidden="true"><use href="#i-search" /></svg><input placeholder="Search tenders, bids, vendors, ledger events…" data-testid="admin-search-input" /><span className="pmc-kbd">Ctrl K</span></label>
-  <div className="pmc-atop__r"><a href="/admin/e/tender-builder" className="pmc-btn pmc-btn--primary" data-testid="bo-create-btn"><svg className="pmc-ico" aria-hidden="true"><use href="#i-plus" /></svg> Create</a><button className="pmc-btn pmc-btn--secondary" data-help-open="" data-testid="bo-help-btn"><svg className="pmc-ico" aria-hidden="true"><use href="#i-help" /></svg> Help</button><button className="pmc-ib pmc-bell" aria-label="Alerts" data-testid="bo-bell-btn"><svg className="pmc-ico" aria-hidden="true"><use href="#i-bell" /></svg><span className="pmc-bell__n">0</span></button><span className="pmc-avatar" title="Admin">A</span></div>
+  <div className="pmc-atop__r"><a href="/admin/e/tender-builder" className="pmc-btn pmc-btn--primary" data-testid="bo-create-btn"><svg className="pmc-ico" aria-hidden="true"><use href="#i-plus" /></svg> Create</a><button className="pmc-btn pmc-btn--secondary" data-help-open="" data-testid="bo-help-btn"><svg className="pmc-ico" aria-hidden="true"><use href="#i-help" /></svg> Help</button><button className="pmc-ib pmc-bell" aria-label="Alerts" data-testid="bo-bell-btn"><svg className="pmc-ico" aria-hidden="true"><use href="#i-bell" /></svg><span className="pmc-bell__n">0</span></button><AdminAvatarMenu /></div>
 </header>
 <main className="pmc-amain">
   <div className="bo-head">

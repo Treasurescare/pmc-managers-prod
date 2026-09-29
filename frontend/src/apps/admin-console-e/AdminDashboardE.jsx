@@ -1,5 +1,6 @@
 import { useUiTheme } from "@/context/UiThemeContext";
 import { useAdminDashboardLive } from "@/lib/pmcELiveData";
+import AdminAvatarMenu from "./AdminAvatarMenu";
 import "./admin-dashboard.css";
 
 const STAGES = [
@@ -28,7 +29,7 @@ export default function AdminDashboardE({ legacy: Legacy }) {
     <a href="/admin/e/tender-builder" className="pmc-btn pmc-btn--primary" data-testid="dash-create-btn"><svg className="pmc-ico" aria-hidden="true"><use href="#i-plus" /></svg> Create</a>
     <button className="pmc-btn pmc-btn--secondary" data-help-open="" data-testid="dash-help-btn"><svg className="pmc-ico" aria-hidden="true"><use href="#i-help" /></svg> Help</button>
     <button className="pmc-ib pmc-bell" aria-label="Alerts" data-testid="dash-bell-btn"><svg className="pmc-ico" aria-hidden="true"><use href="#i-bell" /></svg><span className="pmc-bell__n">0</span></button>
-    <span className="pmc-avatar" title="Admin">A</span>
+    <AdminAvatarMenu />
   </div>
 </header>
 <main className="pmc-amain">

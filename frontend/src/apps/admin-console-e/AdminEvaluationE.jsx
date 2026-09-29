@@ -1,81 +1,12 @@
-import { useEffect } from "react";
-import { useUiTheme } from "@/context/UiThemeContext";
-import { useAdminEvaluationsLive } from "@/lib/pmcELiveData";
+import AdminEShell from "./AdminEShell";
+import EvaluationPanel from "@/apps/admin-console/EvaluationPanel";
 
-export default function AdminEvaluationE({ legacy: Legacy }) {
-  const { isE } = useUiTheme();
-  useAdminEvaluationsLive({ enabled: isE });
-  useEffect(() => {
-    if (!isE) return;
-    const tick = () => {
-      document.querySelectorAll("[data-in]").forEach((el) => {
-        const secs = parseInt(el.getAttribute("data-in") || "0", 10);
-        if (!secs) return;
-        const d = Math.floor(secs/86400), h = Math.floor((secs%86400)/3600), m = Math.floor((secs%3600)/60);
-        el.textContent = d>0 ? `${d}d ${h}h` : h>0 ? `${h}h ${m}m` : `${m}m`;
-      });
-    };
-    tick();
-  }, [isE]);
-  if (!isE && Legacy) return <Legacy />;
-  if (!isE) return null;
+export default function AdminEvaluationE() {
   return (
     <div data-testid="admin-evaluation-e" data-pmc-e-page="admin-evaluation-e">
-<div className="pmc-adm"><aside className="pmc-side" aria-label="Admin"><div className="pmc-side__brand"><span className="pmc-brand__n">PMC Managers</span><span className="pmc-brand__s">Admin console</span></div><div className="pmc-side__group">Overview</div><a href="/admin/e/dashboard" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-home" /></svg>Dashboard</a><a href="/admin/e/audit" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-link" /></svg>Audit ledger</a><div className="pmc-side__group">Procurement</div><a href="/admin/e/notices" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg>Notices<span style={{ marginLeft: "auto", fontSize: "12px", color: "var(--on-chrome-muted)" }}>29</span></a><a href="/admin/e/tender-builder" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-spark" /></svg>Tender builder</a><a href="/admin/e/corrigenda" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-flag" /></svg>Corrigenda</a><a href="/admin/e/boq" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-layers" /></svg>BOQ & contracts</a><a href="/admin/e/work-packages" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-box" /></svg>Work packages<span style={{ marginLeft: "auto", fontSize: "12px", color: "var(--on-chrome-muted)" }}>50</span></a><a href="/admin/e/catalog" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-layers" /></svg>Catalog</a><div className="pmc-side__group">Market</div><a href="/admin/e/vendors" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-users" /></svg>Vendors<span style={{ marginLeft: "auto", fontSize: "12px", color: "var(--on-chrome-muted)" }}>76</span></a><a href="/admin/e/registrations" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg>Registrations</a><a href="/admin/e/vendor-intel" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-eye" /></svg>Vendor intel</a><a href="/admin/e/engagements" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-chat" /></svg>Engagements</a><div className="pmc-side__group">Money & compliance</div><a href="/admin/e/bidding" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-gavel" /></svg>Bidding ops<span className="pmc-side__count">10</span></a><a href="/admin/e/escrow" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-coin" /></svg>Escrow / EMD</a><a href="/admin/e/billing" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg>Billing</a><a href="/admin/e/evaluation" className="pmc-side__item" aria-current="page"><svg className="pmc-ico" aria-hidden="true"><use href="#i-check" /></svg>Evaluation</a><a href="/admin/e/l1-award" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-chart" /></svg>L1 comparison</a><a href="/admin/e/awards" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-flag" /></svg>Awards</a><a href="/admin/e/docusign" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-sign" /></svg>DocuSign</a><a href="/admin/e/permissions" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-lock" /></svg>Permissions</a><div className="pmc-side__group">Events</div><a href="/admin/e/events" className="pmc-side__item"><svg className="pmc-ico" aria-hidden="true"><use href="#i-clock" /></svg>Events & alerts</a></aside><div>
-<header className="pmc-atop"><div className="crumb">Money &amp; compliance / Evaluation / <b>PMC-NOT-2026-0055</b></div>
-  <label className="pmc-search"><svg className="pmc-ico" aria-hidden="true"><use href="#i-search" /></svg><input placeholder="Search tenders, bids, vendors, ledger events…" /><span className="pmc-kbd">Ctrl K</span></label>
-  <div className="pmc-atop__r"><a href="#" className="pmc-btn pmc-btn--primary"><svg className="pmc-ico" aria-hidden="true"><use href="#i-plus" /></svg> Create</a><button className="pmc-btn pmc-btn--secondary" data-help-open=""><svg className="pmc-ico" aria-hidden="true"><use href="#i-help" /></svg> Help</button><button className="pmc-ib pmc-bell" aria-label="6 alerts"><svg className="pmc-ico" aria-hidden="true"><use href="#i-bell" /></svg><span className="pmc-bell__n">6</span></button><button className="pmc-ib" aria-label="AI copilot"><svg className="pmc-ico" aria-hidden="true"><use href="#i-spark" /></svg></button><span className="pmc-avatar" title="adminsupport@pmcmanagers.com · 2FA on">A</span></div>
-</header><main className="pmc-amain">
-<div className="pmc-crumb"><a href="#">Evaluation</a>/<span>PMC-NOT-2026-0055</span></div>
-<div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", margin: "8px 0 20px" }}><div><h1 className="pmc-display" style={{ fontSize: "36px", lineHeight: "42px", margin: "0" }}>Evaluation room · Turnkey IVF Laboratory Setup</h1><div className="pmc-muted" style={{ fontSize: "14px", marginTop: "4px" }}>3 bids received · technical envelopes opened 1 Oct 2026, 10:00 · estimate USD 2,100,000</div></div>
-<div style={{ display: "flex", gap: "8px" }}><button className="pmc-btn pmc-btn--secondary"><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg> Minutes (PDF)</button><button className="pmc-btn pmc-btn--primary"><svg className="pmc-ico" aria-hidden="true"><use href="#i-lock" /></svg> Lock technical scores</button></div></div>
-<div className="pmc-pipe" style={{ gridTemplateColumns: "repeat(4,1fr)", marginBottom: "20px" }}>
-<a href="#"><span className="n">1</span><span className="l">Technical envelopes opened</span><span className="l2 pmc-muted" style={{ fontSize: "12px" }}>1 Oct · 3 of 3</span></a>
-<a href="#" className="is-hot"><span className="n">2</span><span className="l">Technical scoring</span><span className="l2" style={{ fontSize: "12px" }}>3 of 3 members scored · quorum met</span></a>
-<a href="#"><span className="n">3</span><span className="l">Commercial opening &amp; L1</span><span className="l2 pmc-muted" style={{ fontSize: "12px" }}>Sealed until scores are locked</span></a>
-<a href="#"><span className="n">4</span><span className="l">Recommend award</span><span className="l2 pmc-muted" style={{ fontSize: "12px" }}>Committee sign-off</span></a></div>
-<div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 340px", gap: "24px", alignItems: "start" }}>
-  <div style={{ display: "grid", gap: "20px" }}>
-  <section className="pmc-panel"><div className="pmc-panel__head"><h2 className="pmc-panel__title">Technical scoring · consensus of 3 members</h2><div className="pmc-tabs" style={{ border: "0" }}><button className="pmc-tab" aria-selected="true">Consensus</button><button className="pmc-tab">By member</button></div></div>
-    <table className="pmc-table ad-score"><thead><tr><th>Criterion</th><th className="num">Weight</th><th style={{ textAlign: "center" }}>Emerald Corporates</th><th style={{ textAlign: "center" }}>Bidder B</th><th style={{ textAlign: "center" }}>Bidder C</th></tr></thead><tbody><tr><td>Past cleanroom / lab projects (2+ of USD 1M+)</td><td className="num pmc-muted">25</td><td className="s hi"><span>23</span></td><td className="s "><span>18</span></td><td className="s lo"><span>9</span></td></tr><tr><td>Method statement &amp; programme</td><td className="num pmc-muted">20</td><td className="s hi"><span>17</span></td><td className="s hi"><span>16</span></td><td className="s "><span>11</span></td></tr><tr><td>ISO 14644 validation approach</td><td className="num pmc-muted">20</td><td className="s hi"><span>18</span></td><td className="s hi"><span>17</span></td><td className="s lo"><span>8</span></td></tr><tr><td>Team &amp; key personnel</td><td className="num pmc-muted">15</td><td className="s hi"><span>13</span></td><td className="s hi"><span>12</span></td><td className="s "><span>10</span></td></tr><tr><td>Local licensed partner (KZ)</td><td className="num pmc-muted">10</td><td className="s hi"><span>10</span></td><td className="s hi"><span>10</span></td><td className="s lo"><span>4</span></td></tr><tr><td>Warranty &amp; after-sales</td><td className="num pmc-muted">10</td><td className="s hi"><span>8</span></td><td className="s hi"><span>9</span></td><td className="s "><span>5</span></td></tr><tr style={{ fontWeight: "700" }}><td>Technical score</td><td className="num">100</td><td className="s"><span>89</span></td><td className="s"><span>82</span></td><td className="s"><span>47</span></td></tr><tr><td>Qualifies (min 60)</td><td></td><td className="s"><span className="pmc-pill pmc-pill--success">Pass</span></td><td className="s"><span className="pmc-pill pmc-pill--success">Pass</span></td><td className="s"><span className="pmc-pill pmc-pill--danger">Fail</span></td></tr></tbody></table></section>
-  <section className="pmc-panel"><div className="pmc-panel__head"><h2 className="pmc-panel__title">Commercial comparison (L1)</h2><span className="pmc-pill"><svg className="pmc-ico" aria-hidden="true"><use href="#i-lock" /></svg> Sealed</span></div>
-    <div className="pmc-panel__body" style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "20px", alignItems: "center" }}>
-      <div className="bw-env" style={{ border: "0", padding: "0" }}><span className="i" style={{ width: "56px", height: "56px" }}><svg className="pmc-ico" aria-hidden="true"><use href="#i-lock" /></svg></span></div>
-      <div><b>2 commercial envelopes will open when technical scores are locked.</b><div className="pmc-muted" style={{ fontSize: "14px", lineHeight: "22px", marginTop: "4px" }}>Bidder C failed the technical threshold; its commercial envelope stays sealed and is returned unopened. After opening, bids are ranked lowest first with the difference from the estimate and an AI anomaly check.</div></div></div></section>
-  </div>
-  <aside style={{ display: "grid", gap: "16px", position: "sticky", top: "88px" }}>
-    <div className="pmc-panel" style={{ padding: "18px" }}><div style={{ display: "flex", justifyContent: "space-between" }}><b style={{ fontSize: "15px" }}>Committee</b><span className="pmc-pill pmc-pill--success">Quorum 3 of 2</span></div>
-      <div style={{ marginTop: "8px" }}><div className="ad-member"><span className="pmc-avatar" style={{ width: "28px", height: "28px", fontSize: "11px" }}>PH</span><div style={{ flex: "1" }}>Procurement head<div className="pmc-muted" style={{ fontSize: "12px" }}>Chair · internal</div></div><span className="pmc-pill pmc-pill--success">Scored</span></div>
-      <div className="ad-member"><span className="pmc-avatar" style={{ width: "28px", height: "28px", fontSize: "11px" }}>ME</span><div style={{ flex: "1" }}>Medical engineer<div className="pmc-muted" style={{ fontSize: "12px" }}>Internal</div></div><span className="pmc-pill pmc-pill--success">Scored</span></div>
-      <div className="ad-member"><span className="pmc-avatar" style={{ width: "28px", height: "28px", fontSize: "11px" }}>IA</span><div style={{ flex: "1" }}>Independent adviser<div className="pmc-muted" style={{ fontSize: "12px" }}>External · invited</div></div><span className="pmc-pill pmc-pill--success">Scored</span></div></div>
-      <div className="pmc-muted" style={{ fontSize: "12px", marginTop: "6px" }}>Each member scored independently; consensus shown. Conflicts of interest declared by all.</div></div>
-    <div className="pmc-panel" style={{ padding: "18px" }}><b style={{ fontSize: "15px" }}>Flags</b><div className="pmc-callout pmc-callout--warn" style={{ marginTop: "10px", fontSize: "13px", lineHeight: "20px" }}><svg className="pmc-ico" aria-hidden="true"><use href="#i-flag" /></svg><div>Scores for <b>Bidder C</b> differ by more than 30% between members on ISO 14644 validation. Add a note before locking.</div></div></div>
-    <div className="pmc-panel" style={{ padding: "16px 18px" }}><div className="pmc-hashline"><svg className="pmc-ico" aria-hidden="true"><use href="#i-link" /></svg><span>Every score is written to the ledger · <code>eval.score #1920–#1937</code></span></div></div>
-  </aside>
-</div></main></div></div>
-<div className="pmc-drawer-scrim" data-help-close=""></div>
-<aside className="pmc-drawer" role="dialog" aria-modal="true" aria-label="Help and FAQs">
-  <div className="pmc-drawer__head">
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-      <div><div className="pmc-eyebrow">Help &amp; FAQs</div><div style={{ fontSize: "20px", lineHeight: "28px", fontWeight: "600" }}>How can we help?</div></div>
-      <button className="pmc-btn pmc-btn--ghost pmc-btn--sm" data-help-close="" aria-label="Close help">Close <span className="pmc-kbd">Esc</span></button>
-    </div>
-    <label className="pmc-search"><svg className="pmc-ico" aria-hidden="true"><use href="#i-search" /></svg><input data-help-q="" placeholder="Search help, e.g. “bank guarantee”" /></label>
-  </div>
-  <div className="pmc-drawer__body">
-    <div className="pmc-eyebrow" style={{ margin: "4px 0 10px", color: "var(--ink-muted)" }}>On this page · Evaluation room</div>
-    <div style={{ display: "grid", gap: "8px", marginBottom: "20px" }}><div className="pmc-tip"><svg className="pmc-ico" aria-hidden="true"><use href="#i-spark" /></svg><div><b>Technical before price</b>Commercial envelopes open only after technical scores are locked with quorum.</div></div><div className="pmc-tip"><svg className="pmc-ico" aria-hidden="true"><use href="#i-spark" /></svg><div><b>Big disagreements get flagged</b>Add a note explaining the consensus before you lock.</div></div></div>
-    <div className="pmc-eyebrow" style={{ marginBottom: "2px", color: "var(--ink-muted)" }}>Frequently asked</div>
-    <div data-help-list=""><details className="pmc-faq" data-cat="admin"><summary>How do I form an evaluation committee?</summary><p>From <b>Bidding ops</b>, choose <b>Form committee</b>, add members, invite external evaluators and set the quorum.</p></details><details className="pmc-faq" data-cat="admin"><summary>Can scores be changed after locking?</summary><p>No. A locked stage can only be reopened by the chair with a recorded reason, which is written to the ledger.</p></details></div>
-    <p data-help-empty="" hidden style={{ color: "var(--ink-muted)", fontSize: "14px" }}>No answer matches yet. Raise a ticket below and the PMC desk will reply.</p>
-    <a href="#" className="pmc-btn pmc-btn--secondary" style={{ width: "100%", marginTop: "16px" }}><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg> Open the full Help Centre</a>
-  </div>
-  <div className="pmc-drawer__foot">
-    <a href="#" className="pmc-btn pmc-btn--primary"><svg className="pmc-ico" aria-hidden="true"><use href="#i-chat" /></svg> Raise a ticket</a>
-    <a href="mailto:tenders@pmcmanagers.com" className="pmc-btn pmc-btn--secondary"><svg className="pmc-ico" aria-hidden="true"><use href="#i-mail" /></svg> Email the desk</a>
-  </div>
-</aside>
-<button className="pmc-helpfab" data-help-open="" aria-label="Open help"><span className="pmc-helpfab__q">?</span>Help</button>
+      <AdminEShell active="Evaluation" crumb={<>Money &amp; compliance / <b>Evaluation</b></>}>
+        <EvaluationPanel />
+      </AdminEShell>
     </div>
   );
 }
