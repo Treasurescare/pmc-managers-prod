@@ -66,16 +66,19 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .pmc-panel__body { padding: 20px; }
 
 /* ---------- Tender card ---------- */
-.pmc-tender { display: flex; flex-direction: column; gap: 10px; padding: 20px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); transition: border-color .15s, box-shadow .15s; }
+.pmc-tender { display: flex; flex-direction: column; gap: 10px; height: 100%; padding: 20px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); transition: border-color .15s, box-shadow .15s; }
 .pmc-tender:hover { border-color: var(--line-strong); box-shadow: var(--shadow-1); }
-.pmc-tender__top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.pmc-tender__title { font-size: 17px; line-height: 24px; font-weight: 600; margin: 0; color: var(--ink); }
+.pmc-tender__top { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; min-width: 0; }
+.pmc-tender__top .pmc-tag { flex-shrink: 0; }
+.pmc-tender__top .pmc-ref { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pmc-tender__top .pmc-countdown { flex-shrink: 0; margin-left: auto; }
+.pmc-tender__title { font-size: 17px; line-height: 24px; font-weight: 600; margin: 0; color: var(--ink); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.83em; }
 .pmc-tender__desc { margin: 0; font-size: 13px; line-height: 20px; color: var(--ink-muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .pmc-tender__meta { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
 .pmc-tender__meta dt { font-size: 11px; line-height: 16px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-subtle); }
 .pmc-tender__meta .is-budget { grid-column: 1 / -1; }
 .pmc-tender__meta .is-budget dd { font-size: 20px; line-height: 28px; }
-.pmc-tender__meta dd { margin: 2px 0 0; font-size: 14px; line-height: 20px; font-weight: 600; }
+.pmc-tender__meta dd { margin: 2px 0 0; font-size: 14px; line-height: 20px; font-weight: 600; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 20px; }
 .pmc-tender__foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: auto; }
 .pmc-countdown { font-family: var(--font-mono); font-size: 12px; font-weight: 500; color: var(--brass-text); white-space: nowrap; }
 .pmc-countdown--urgent { color: var(--danger); }

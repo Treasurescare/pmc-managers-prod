@@ -380,3 +380,42 @@ testing_agent sweep (12/14 pass) found 2 regressions; both fixed & verified:
    PmcMobileNav (alongside /login, /vendor/login, /forgot-password,
    /reset-password). Verified: topbar absent at 390px, register layout clean.
 Bundle rebuilt 04:58 UTC (SW rev3).
+
+### v49p — /tenders/live pagination fix — 29 Sep 2026
+User: "pagination is not working". TendersListE.jsx had hardcoded footer
+markup ("Showing 1–7 of 7", disabled Prev/Next, single "1"). Fix in
+pmcELiveData.js renderRows(): 10 per page, dynamic label, windowed numbered
+buttons (up to 7), working Prev/Next with correct disabled states, page
+state on panel.dataset.pmcPage, resets to 1 on filter/query change (keyed by
+JSON.stringify({q,status,types,country})). testing_agent iteration_40: 100%
+pass on desktop 1440 + mobile 390. 14 notices → p1 10, p2 4; filter reset
+verified ("TEST_Wave1" from p2 auto-resets to "Showing 1–3 of 3"). Bundle
+rebuilt 05:26 UTC.
+
+### v49p — Bidding-Ops redesign HTML review — 29 Sep 2026
+User supplied /app/design/user/Bidding-Ops-redesign.html (571 lines, 76 KB).
+Assessment: EXCELLENT fit for adoption — reuses our exact Option E theme
+tokens (--primary, --brass, --chrome, --surface, --ink, --line-strong,
+--radius-*, --font-display, --shadow-1) and PMC component classes (pmc-btn,
+pmc-panel, pmc-tender, pmc-tag, pmc-pill — 71 references). Introduces a few
+new page-specific classes (.bo-flow for the bidding operations flow section)
+which we can convert to a component. Recommended plan: (a) extract the new
+Bidding-Ops layout into
+frontend/src/apps/admin-console-e/BiddingOpsE.jsx, (b) mount at
+/admin/e/bidding, (c) verify mobile responsive behaviour with the same
+mobile-fix.css nuclear rules. No conflict with the existing theme; drop-in
+compatible. Awaiting user go-ahead to implement.
+
+### v49p — Tender card equal-height fix — 29 Sep 2026
+User screenshot: "Open for bids this week" home cards had 4 different
+heights and misaligned content (countdown wrapped to 2nd line, long titles
+pushed meta/footer down). Fix in pmc-theme-e.css .pmc-tender block:
+- .pmc-tender: height 100% so grid stretches all cards equally
+- .pmc-tender__top: flex-wrap nowrap; tag/countdown flex-shrink 0; ref
+  truncates with ellipsis; countdown pinned right via margin-left auto
+- .pmc-tender__title: 2-line clamp with min-height 2.83em so meta row
+  starts at same Y on every card
+- .pmc-tender__meta dd: 2-line clamp so category text can't stretch cards
+Applies everywhere .pmc-tender is used (home, tenders live, vendor find).
+Self-tested via screenshots: home desktop 1440 + mobile 390, tenders/live
+desktop + mobile — all equal-height, aligned, no regression.
