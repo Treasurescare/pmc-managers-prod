@@ -1477,9 +1477,15 @@ export function useAdminDashboardLive({ enabled = true } = {}) {
     let cancelled = false;
     (async () => {
       try {
-        // Best-effort parallel fetch of everything we can reach without extra auth.
-        const [notices, vendors, packages, stats, escrow, bids, auditEvents] = await Promise.all([
-          publicApi.listNotices({}).catch(() => ({ items: [] })),
+        // v49t — use the ADMIN notices endpoint so drafts are actually
+        // counted (public /notices filters is_published=true and caps at
+        // limit=30, which is why the dashboard was showing "0 drafts /
+        // 20 published" against a DB that had 29 drafts + more published).
+        const [notices, publicNotices, vendors, packages, stats, escrow, bids, auditEvents] = await Promise.all([
+          api.get("/api/v1/notices/admin/all", { params: { limit: 500 } })
+            .then((r) => ({ items: r.data.items || [], total: r.data.total }))
+            .catch(() => null),
+          publicApi.listNotices({ limit: 100 }).catch(() => ({ items: [] })),
           api.get("/api/v1/vendors").then((r) => ({ items: Array.isArray(r.data) ? r.data : (r.data.items || []) })).catch(() => ({ items: [] })),
           api.get("/api/v1/packages").then((r) => ({ items: Array.isArray(r.data) ? r.data : (r.data.items || []) })).catch(() => ({ items: [] })),
           publicApi.publicStats().catch(() => ({})),
@@ -1488,23 +1494,33 @@ export function useAdminDashboardLive({ enabled = true } = {}) {
           api.get("/api/v1/audit-events", { params: { limit: 6 } }).then((r) => r.data).catch(() => []),
         ]);
         if (cancelled) return;
-        const nItems = notices.items || [];
+        // Prefer admin/all (includes drafts). Fall back to public if the
+        // admin cookie has not landed yet.
+        const nItems = (notices && notices.items) ? notices.items : (publicNotices.items || []);
         const vItems = vendors.items || vendors.vendors || vendors || [];
         const pItems = packages.items || packages.packages || packages || [];
 
         // Pipeline stage counts (7 stages: Draft, Published, Clarifications, Bidding, Tech eval, Comm eval, Awarded)
-        const openN = nItems.filter((n) => !n.submission_deadline || new Date(n.submission_deadline) > new Date());
+        const openN = nItems.filter((n) => n.is_published !== false && (!n.submission_deadline || new Date(n.submission_deadline) > new Date()));
         const draft = nItems.filter((n) => n.is_published === false).length;
-        const published = openN.length;
+        const publishedAll = nItems.filter((n) => n.is_published !== false).length;
         const bidding = openN.filter((n) => n.submission_deadline && (new Date(n.submission_deadline) - new Date()) < 30 * 86400 * 1000).length;
         const closingThisWeek = openN.filter((n) => n.submission_deadline && (new Date(n.submission_deadline) - new Date()) < 7 * 86400 * 1000).length;
         const bidItems0 = Array.isArray(bids) ? bids : (bids.items || []);
-        // V–VII come from real bid stages; clarifications (III) has no
-        // notice-level data source, so it stays 0 rather than fabricated.
-        const techEval = bidItems0.filter((b) => ["admin_flagged", "certifier_cleared"].includes(b.status)).length;
-        const commEval = bidItems0.filter((b) => ["legal_cleared", "accounting_cleared"].includes(b.status)).length;
-        const awardedN = bidItems0.filter((b) => ["awarded", "closed"].includes(b.status)).length;
-        const stageCounts = [draft, published, 0, bidding, techEval, commEval, awardedN];
+        // V–VII stage counts now match the linked Bidding Ops page. The
+        // previous filters were far too narrow: technical eval only
+        // counted admin_flagged+certifier_cleared (2 statuses of ~8),
+        // producing "1" against a Bidding Ops list of 13.
+        //  · Technical eval  = post-EMD, pre-legal (evaluation phase)
+        //  · Commercial eval = post-technical, pre-committee (legal/accts)
+        //  · Awarded         = awarded OR closed (contract stage)
+        const TECH_EVAL_STATUSES = ["emd_paid", "escrow_accepted", "admin_flagged", "certifier_cleared"];
+        const COMM_EVAL_STATUSES = ["legal_cleared", "accounting_cleared"];
+        const AWARDED_STATUSES   = ["awarded", "closed"];
+        const techEval = bidItems0.filter((b) => TECH_EVAL_STATUSES.includes(b.status)).length;
+        const commEval = bidItems0.filter((b) => COMM_EVAL_STATUSES.includes(b.status)).length;
+        const awardedN = bidItems0.filter((b) => AWARDED_STATUSES.includes(b.status)).length;
+        const stageCounts = [draft, publishedAll, 0, bidding, techEval, commEval, awardedN];
 
         const stages = document.querySelectorAll('[data-pmc-e-page="admin-dashboard-e"] .ad-pipe a');
         stages.forEach((a, i) => {
@@ -1540,12 +1556,12 @@ export function useAdminDashboardLive({ enabled = true } = {}) {
           const f3 = kpis[3].querySelector(".pmc-figure");
           const s3 = kpis[3].querySelector(".s");
           const bidItems = Array.isArray(bids) ? bids : (bids.items || []);
-          const awardedBids = bidItems.filter((b) => b.status === "awarded" || b.status === "closed").length;
+          const awardedBids = bidItems.filter((b) => AWARDED_STATUSES.includes(b.status)).length;
           if (f2) f2.textContent = bidItems.filter((b) => !["awarded","closed","rejected","withdrawn"].includes(b.status)).length;
           if (s2) s2.textContent = `${awardedBids} awarded`;
           if (f3) f3.textContent = vItems.length || stats.suppliers_approved || 0;
           if (s3) s3.textContent = "KYC verified";
-          if (f1) f1.textContent = openN.filter((n) => n.form_of_contract || n.is_published).length || 0;
+          if (f1) f1.textContent = awardedBids;
           if (f0 && escrow) {
             const total = escrow.total_usd_equiv || 0;
             f0.textContent = `$${Math.round(total).toLocaleString()}`;
@@ -1555,7 +1571,10 @@ export function useAdminDashboardLive({ enabled = true } = {}) {
 
         // Attention strip
         const bidItems = Array.isArray(bids) ? bids : (bids.items || []);
-        const emdWaiting = bidItems.filter((b) => b.status === "emd_pending" || b.status === "submitted").length;
+        // v49t — "bids awaiting EMD" = every bid whose next action sits
+        // with the supplier (payment pending). Prior filter missed
+        // `on_hold` and blank statuses.
+        const emdWaiting = bidItems.filter((b) => !b.status || ["emd_pending", "submitted"].includes(b.status)).length;
         const attn = (k) => document.querySelector(`[data-pmc-e-page="admin-dashboard-e"] [data-attn="${k}"]`);
         if (attn("closing")) attn("closing").textContent = String(closingThisWeek).padStart(2, "0");
         if (attn("approvals")) attn("approvals").textContent = String(draft).padStart(2, "0");

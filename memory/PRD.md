@@ -803,3 +803,30 @@ Release notes: `frontend/public/downloads/DOWNLOAD_v49s.md`.
 
 **Pending user action**: deploy v49s frontend to S3 + CloudFront
 invalidate /*; skip v49r entirely.
+
+### v49t — Admin dashboard counts match linked lists — 29 Sep 2026
+User: 0 drafts (actual 29); published 20 (actual 29); technical eval 1
+(list 13); awarded 3 (list 13); bids waiting 6 (list >13).
+
+Root cause: `useAdminDashboardLive` in pmcELiveData.js used
+`publicApi.listNotices({})` which server-filters `is_published:True`
+(drafts never returned) and defaults to limit=30 (published capped).
+Stage V/VI/VII filters were too narrow (2 of 8 evaluation statuses).
+
+Fixes (pmcELiveData.js only):
+1. Switch notices source to `/api/v1/notices/admin/all?limit=500` (falls
+   back to public list on 401).
+2. Broaden stage filters:
+   - Tech eval = emd_paid, escrow_accepted, admin_flagged, certifier_cleared
+   - Comm eval = legal_cleared, accounting_cleared
+   - Awarded  = awarded, closed
+3. Attention "bids awaiting EMD" now includes blank status + submitted.
+4. KPI "Active contracts" figure now = awarded bid count (was a
+   form_of_contract heuristic that had no relationship to the list).
+5. SW cache bumped to pmc-shell-v49t-rev1.
+
+Bundle: `pmc-frontend-v49t-prod-build.zip` — supersedes v49r + v49s.
+Backend unchanged (v49q). Release notes: DOWNLOAD_v49t.md.
+
+**Pending user action**: deploy v49t frontend, invalidate `/*`,
+re-check dashboard counts against list pages.
