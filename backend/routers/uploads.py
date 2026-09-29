@@ -60,23 +60,23 @@ async def upload_direct(key: str = Form(...), file: UploadFile = File(...)):
 
 
 @router.get("/files/{key:path}")
-async def get_file(key: str):
+async def get_file(key: str, download: bool = False):
     doc = await db.uploads.find_one({"key": key})
     if not doc:
         raise HTTPException(status_code=404, detail="File not found")
     from fastapi.responses import Response
     body = base64.b64decode(doc["data_b64"])
-    # Serve inline so browsers render PDFs/images in a tab; the filename hint
-    # (the last path segment after the uuid_) lets browsers offer a sane
-    # "Save As" default when the user chooses to download.
+    # Default: serve inline so browsers render PDFs/images in a tab.
+    # ?download=1 forces an attachment so the file saves to disk.
     display_name = key.rsplit("/", 1)[-1]
     if "_" in display_name:
         display_name = display_name.split("_", 1)[1]  # strip the uuid prefix
+    disposition = "attachment" if download else "inline"
     return Response(
         content=body,
         media_type=doc.get("content_type", "application/octet-stream"),
         headers={
-            "Content-Disposition": f'inline; filename="{display_name}"',
+            "Content-Disposition": f'{disposition}; filename="{display_name}"',
             "X-Content-Type-Options": "nosniff",
         },
     )

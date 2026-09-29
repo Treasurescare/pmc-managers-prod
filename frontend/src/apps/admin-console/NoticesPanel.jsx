@@ -24,7 +24,11 @@ export default function NoticesPanel() {
     tender_template_id: "",
   });
 
-  const [filterStatus, setFilterStatus] = useState("");
+  const [filterStatus, setFilterStatus] = useState(() => {
+    // Dashboard pipeline / attention links land here with ?status=…
+    const p = new URLSearchParams(window.location.search).get("status") || "";
+    return ["published", "draft", "expired", "closing"].includes(p) ? p : "";
+  });
   const [filterQuery, setFilterQuery] = useState("");
   const [showTemplateOnly, setShowTemplateOnly] = useState(false);
 
@@ -59,6 +63,9 @@ export default function NoticesPanel() {
     if (filterStatus === "published" && !n.is_published) return false;
     if (filterStatus === "draft" && n.is_published) return false;
     if (filterStatus === "expired" && (n.submission_deadline || "9999") > nowIso) return false;
+    if (filterStatus === "closing" && !(n.is_published && n.submission_deadline
+        && (new Date(n.submission_deadline) - new Date()) < 7 * 86400 * 1000
+        && (new Date(n.submission_deadline) - new Date()) > 0)) return false;
     if (filterQuery) {
       const q = filterQuery.toLowerCase();
       if (!(n.title || "").toLowerCase().includes(q) &&
@@ -272,6 +279,7 @@ export default function NoticesPanel() {
           <option value="">Any status</option>
           <option value="published">Published</option>
           <option value="draft">Draft</option>
+          <option value="closing">Closing this week</option>
           <option value="expired">Deadline past</option>
         </select>
         <label className="text-xs text-brand-navy/70 flex items-center gap-1">
@@ -317,8 +325,9 @@ export default function NoticesPanel() {
               </a>
             )}
             {n.primary_document && (
-              <a href={`${process.env.REACT_APP_BACKEND_URL}${n.primary_document.url}`} target="_blank" rel="noreferrer"
+              <a href={`${n.primary_document.url}?download=1`} download={n.primary_document.file_name}
                  data-testid={`notice-primary-${n.notice_ref}`}
+                 title="Download the file to your device"
                  className="text-xs underline text-brand-navy/70">
                 📎 {n.primary_document.file_name}
               </a>

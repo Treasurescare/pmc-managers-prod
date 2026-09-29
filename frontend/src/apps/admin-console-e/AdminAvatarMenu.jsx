@@ -100,7 +100,7 @@ export default function AdminAvatarMenu() {
               {avatar ? <img src={avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : initial}
             </span>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 600, fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} data-testid="avatar-email">{email}</div>
+              <div style={{ fontWeight: 600, fontSize: 14, maxWidth: 150, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} data-testid="avatar-email">{email}</div>
               <div className="pmc-muted" style={{ fontSize: 12 }}>Administrator</div>
             </div>
           </div>

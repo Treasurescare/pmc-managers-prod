@@ -7,6 +7,12 @@ const STAGES = [
   ["I", "Draft"], ["II", "Published"], ["III", "Clarifications"],
   ["IV", "Bidding"], ["V", "Technical eval"], ["VI", "Commercial eval"], ["VII", "Awarded"],
 ];
+// I–IV are notice stages → filtered notices list; V–VII are bid stages → bidding ops
+const STAGE_HREFS = [
+  "/admin/e/notices?status=draft", "/admin/e/notices?status=published",
+  "/admin/e/notices?status=published", "/admin/e/notices?status=published",
+  "/admin/e/bidding", "/admin/e/bidding", "/admin/e/bidding",
+];
 
 // Admin dashboard v2 — layout ported from the supplied E-Admin-Dashboard
 // redesign into the light Option E theme. Every section is wired to real
@@ -43,8 +49,8 @@ export default function AdminDashboardE({ legacy: Legacy }) {
 
   <section className="ad-attn" aria-label="Needs attention" data-testid="dash-attention">
     <div className="ad-attn__tag">ATTENTION</div>
-    <a href="/admin/e/notices" data-testid="dash-attn-closing"><span><span className="n" data-attn="closing">0</span> tenders close this week</span><span className="arr" aria-hidden="true">→</span></a>
-    <a href="/admin/e/notices" data-testid="dash-attn-approvals"><span><span className="n" data-attn="approvals">0</span> drafts awaiting approval</span><span className="arr" aria-hidden="true">→</span></a>
+    <a href="/admin/e/notices?status=closing" data-testid="dash-attn-closing"><span><span className="n" data-attn="closing">0</span> tenders close this week</span><span className="arr" aria-hidden="true">→</span></a>
+    <a href="/admin/e/notices?status=draft" data-testid="dash-attn-approvals"><span><span className="n" data-attn="approvals">0</span> drafts awaiting approval</span><span className="arr" aria-hidden="true">→</span></a>
     <a href="/admin/e/bidding" data-testid="dash-attn-emd"><span><span className="n" data-attn="emd">0</span> bids awaiting EMD</span><span className="arr" aria-hidden="true">→</span></a>
   </section>
 
@@ -52,7 +58,7 @@ export default function AdminDashboardE({ legacy: Legacy }) {
     <div className="pmc-panel__head"><h2 className="pmc-panel__title">Tender pipeline</h2><span className="pmc-muted" style={{ fontSize: "12px" }}><span data-dash-active>0</span> active · live counts by stage</span></div>
     <div className="ad-pipe" data-testid="dash-pipeline">
       {STAGES.map(([rn, label], i) => (
-        <a key={rn} href="/admin/e/notices" data-stage={i} data-testid={`dash-stage-${i}`}>
+        <a key={rn} href={STAGE_HREFS[i]} data-stage={i} data-testid={`dash-stage-${i}`}>
           <span className="rn">{rn}</span>
           <span className="vb" aria-hidden="true"><i style={{ height: "4%" }}></i></span>
           <span className="c">0</span>

@@ -1498,8 +1498,13 @@ export function useAdminDashboardLive({ enabled = true } = {}) {
         const published = openN.length;
         const bidding = openN.filter((n) => n.submission_deadline && (new Date(n.submission_deadline) - new Date()) < 30 * 86400 * 1000).length;
         const closingThisWeek = openN.filter((n) => n.submission_deadline && (new Date(n.submission_deadline) - new Date()) < 7 * 86400 * 1000).length;
-        const closed = nItems.length - openN.length - draft;
-        const stageCounts = [draft, published, 0, bidding, 0, Math.floor(closed / 2), closed - Math.floor(closed / 2)];
+        const bidItems0 = Array.isArray(bids) ? bids : (bids.items || []);
+        // V–VII come from real bid stages; clarifications (III) has no
+        // notice-level data source, so it stays 0 rather than fabricated.
+        const techEval = bidItems0.filter((b) => ["admin_flagged", "certifier_cleared"].includes(b.status)).length;
+        const commEval = bidItems0.filter((b) => ["legal_cleared", "accounting_cleared"].includes(b.status)).length;
+        const awardedN = bidItems0.filter((b) => ["awarded", "closed"].includes(b.status)).length;
+        const stageCounts = [draft, published, 0, bidding, techEval, commEval, awardedN];
 
         const stages = document.querySelectorAll('[data-pmc-e-page="admin-dashboard-e"] .ad-pipe a');
         stages.forEach((a, i) => {

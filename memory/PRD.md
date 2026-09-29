@@ -665,3 +665,27 @@ AdminDashboardE, AdminBiddingOpsE.
 Verified live: menu opens with adminsupport@pmcmanagers.com, all 3
 actions present, password form expands, sign-out redirects to login.
 Bundle rebuilt (10:56 UTC).
+
+### v49q — Dashboard drill-downs, avatar overflow, downloads — 29 Sep 2026
+User: (a) dashboard pipeline/attention numbers all opened the full
+unfiltered notices list; (b) avatar menu email overflowed; (c) notice
+document links opened a new tab instead of downloading.
+
+Fixes:
+1. AdminDashboardE: stage cards now link to filtered destinations —
+   I Draft→/admin/e/notices?status=draft, II–IV→?status=published,
+   V–VII (bid stages)→/admin/e/bidding; attention strip closing→
+   ?status=closing, drafts→?status=draft. Stage counts V–VII now real
+   (computed from bid statuses: admin_flagged/certifier_cleared →
+   Technical eval; legal/accounting_cleared → Commercial eval;
+   awarded/closed → Awarded) instead of the fabricated closed/2 split.
+2. NoticesPanel: reads ?status= URL param into filterStatus on mount;
+   added "Closing this week" filter (published + deadline within 7d).
+   Verified: clicking Draft shows 7 draft rows with filter pre-set.
+3. AdminAvatarMenu: email clamped (maxWidth 150 + ellipsis). Verified:
+   menuRight 1408 < viewport 1440, no overflow.
+4. Downloads: backend /api/v1/uploads/files/{key} gained ?download=1
+   (Content-Disposition: attachment; default stays inline). Notices
+   primary-document link now uses relative URL + ?download=1 +
+   download attr (drops cross-origin BACKEND_URL prefix that broke
+   the download attribute).
