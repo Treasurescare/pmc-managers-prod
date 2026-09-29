@@ -429,7 +429,14 @@ html, body { overflow-x: clip; }
   [data-ui="e"] .pmc-inrow > *:last-child { grid-column: 1 / -1 !important; justify-self: end !important; }
   [data-ui="e"] .pmc-docrow > *:nth-child(n+3) { justify-self: start !important; }
   [data-ui="e"] .dlg-h { grid-template-columns: 36px minmax(0,1fr) auto !important; }
-  [data-ui="e"] .pmc-cols { grid-template-columns: 1fr !important; }
+  /* Also collapse the 2-column shell `272px 1fr` used by the tender list
+     wrapper so the results section spans full width on mobile. */
+  [data-ui="e"] div.pmc-wrap[style*="grid-template-columns: 272px 1fr"],
+  [data-ui="e"] div.pmc-wrap[style*="grid-template-columns:272px 1fr"] {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+    padding: 16px 0 40px !important;
+  }
 
   /* ==========================================================================
    * Long titles wrap
@@ -783,8 +790,132 @@ body.pmc-mob-menu-open { overflow: hidden; }
 .pmc-mobile-menu-drawer .pmc-mob-menu-cta a.ghost { border: 1px solid rgba(217,189,114,0.4); color: #f3efe4; }
 
 /* ---------------------------------------------------------------------
- * Mobile bottom tab bar (vendor portal)
+ * Filters bottom-sheet (tender list & notices — mobile only)
  * ------------------------------------------------------------------- */
+.pmc-filters-fab,
+.pmc-filters-sheet,
+.pmc-filters-scrim { display: none; }
+
+@media (max-width: 767px) {
+  /* Hide the desktop inline filter sidebar; the sheet is the mobile path */
+  [data-ui="e"] .pmc-filters-sheet-body { display: block !important; }
+  [data-ui="e"] aside.tl-filters:not(.pmc-filters-sheet-body) { display: none !important; }
+
+  /* Floating "Filters" pill at the top of the results list */
+  .pmc-filters-fab {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 8px;
+    background: #ffffff;
+    border: 1px solid #e2dccd;
+    color: #14201a;
+    padding: 10px 14px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 14px;
+    box-shadow: 0 4px 12px rgba(15,42,34,0.06);
+    margin: 0 0 14px;
+    cursor: pointer;
+  }
+  .pmc-filters-fab .pmc-filters-count {
+    background: #1f5a48;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-left: 2px;
+  }
+
+  /* Scrim */
+  .pmc-filters-scrim {
+    display: block !important;
+    position: fixed;
+    inset: 0;
+    background: rgba(10,29,23,0.5);
+    z-index: 70;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  body.pmc-filters-open .pmc-filters-scrim { opacity: 1; pointer-events: auto; }
+
+  /* Sheet */
+  .pmc-filters-sheet {
+    display: flex !important;
+    flex-direction: column;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 71;
+    background: #ffffff;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    box-shadow: 0 -16px 40px rgba(10,29,23,0.28);
+    max-height: 88vh;
+    transform: translateY(100%);
+    transition: transform 0.28s ease;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  body.pmc-filters-open .pmc-filters-sheet { transform: translateY(0); }
+  body.pmc-filters-open { overflow: hidden; }
+
+  .pmc-filters-sheet-head {
+    position: relative;
+    padding: 10px 20px 12px;
+    border-bottom: 1px solid #e2dccd;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    flex: 0 0 auto;
+  }
+  .pmc-filters-sheet-head .grabber {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 42px;
+    height: 4px;
+    border-radius: 2px;
+    background: #d9d3c2;
+  }
+  .pmc-filters-sheet-head .ttl {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 22px;
+    line-height: 26px;
+    font-weight: 600;
+    margin-top: 12px;
+  }
+  .pmc-filters-close {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    border: 1px solid #e2dccd;
+    background: transparent;
+    font-size: 22px;
+    line-height: 1;
+    color: #14201a;
+    cursor: pointer;
+    margin-top: 10px;
+  }
+
+  .pmc-filters-sheet .tl-filters,
+  .pmc-filters-sheet-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    padding: 16px 20px 20px !important;
+    display: block !important;
+    background: #ffffff !important;
+  }
+
+  .pmc-filters-sheet-foot {
+    flex: 0 0 auto;
+    padding: 12px 20px calc(env(safe-area-inset-bottom, 0px) + 14px);
+    border-top: 1px solid #e2dccd;
+    background: #ffffff;
+  }
+}
 .pmc-mobile-tabbar {
   position: fixed; left: 0; right: 0; bottom: 0;
   z-index: 45;
