@@ -689,3 +689,23 @@ Fixes:
    primary-document link now uses relative URL + ?download=1 +
    download attr (drops cross-origin BACKEND_URL prefix that broke
    the download attribute).
+
+### v49q — Mobile hamburger/drawer + real downloads — 29 Sep 2026
+User: on mobile the hamburger is not visible and downloads open pages
+instead of downloading files.
+
+Root causes:
+1. Hamburger: pmc-responsive.js injects .pmc-menu-btn into .pmc-atop,
+   but mobile-fix.css hides .pmc-atop at ≤767px AND index.css hides
+   .pmc-adm .pmc-side at ≤768px (higher specificity), so the button
+   was inside a hidden parent and the drawer sidebar was display:none.
+   Fix in pmc-responsive.css (loaded last): un-hide .pmc-atop and
+   .pmc-adm .pmc-side inside the ≤1100px block with matching
+   specificity ([data-ui="e"] .pmc-adm aside.pmc-side).
+   Verified at 390px: hamburger visible, drawer slides in with all 21
+   nav links, tapping Notices navigates to /admin/e/notices, scrim
+   closes it.
+2. Downloads: PmcLinkPatcher opened data-doc-url links via
+   window.open → new tab with inline PDF. Now appends ?download=1 and
+   clicks a temporary <a download> anchor — real file download,
+   mobile-Safari safe (window.open is popup-blocked there).
