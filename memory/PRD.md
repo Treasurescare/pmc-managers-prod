@@ -746,3 +746,39 @@ Fixes:
    right-side clearance-path panel where Hold / Reject / History
    live. No longer redundant with Review (which goes to full bid
    page).
+
+### v49r — Universal file download/view link fix — 29 Sep 2026
+User: "all links still do not download the files or view the files" on
+production after v49q backend deploy.
+
+Root cause: `PmcLinkPatcher.jsx` global click delegation pushed EVERY
+anchor with a real href starting with "/" through the React SPA router
+(`navigate(href)`). Backend file URLs (`/api/v1/uploads/files/...`)
+match no SPA route → dead/blank page. This broke attachment
+Download/View anchors in admin panels (AdminBidDetailPage,
+AdminBidDetailModal, AwardsPanel) and any page with real file hrefs
+inside a `data-pmc-e-page` root.
+
+Fixes (PmcLinkPatcher.jsx only):
+1. `handleDownload` — real `/api/...` hrefs now force the attachment
+   download in place (`?download=1` + temp `<a download>`) instead of
+   falling through to the router.
+2. Generic href handler — `/api/...` and `/downloads/...` hrefs bypass
+   the SPA router entirely; browser opens them natively (inline view
+   where `target="_blank"`, else Content-Disposition decides).
+
+Verified on preview: notice PMC-NOT-2026-0020 Documents tab → Download
+fires real download (fake_tender.pdf). Production backend already
+confirmed serving attachment with ?download=1 (curl). Production EB
+"100% 5xx" warning after v49q deploy was transient during container
+swap — api.pmcmanagers.com fully healthy (all endpoints 200).
+
+Bundle: `pmc-frontend-v49r-prod-build.zip` (main.7fd85d7d.js,
+REACT_APP_BACKEND_URL="" same-origin). Backend unchanged (v49q).
+Release notes: `frontend/public/downloads/DOWNLOAD_v49r.md`.
+
+**Pending user action**: deploy v49r frontend zip to S3 + CloudFront
+invalidate /*, then re-test download/view links on production.
+**Known data issue**: notice-detail template shows 5 static doc rows but
+only rows backed by a real uploaded attachment work (others correctly
+show the sign-in/tender-desk gate).

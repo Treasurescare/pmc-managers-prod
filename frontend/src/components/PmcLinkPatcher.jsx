@@ -546,10 +546,25 @@ async function handleSignOutRow(el, navigate) {
 }
 
 function handleDownload(el, isPublic, navigate) {
-  // If the live-data hook stamped a REAL file href on this anchor, don't
-  // intercept — let the caller fall through to normal navigation.
+  // v49r — a REAL backend file href must not fall through to the generic
+  // href handler (which would push /api/... into the SPA router and show a
+  // dead page). Force the attachment download right here instead.
   const raw = el.tagName === "A" ? (el.getAttribute("href") || "") : "";
-  if (raw && raw !== "#" && !raw.startsWith("#") && !raw.startsWith("mailto:")) return false;
+  if (raw && raw !== "#" && !raw.startsWith("#") && !raw.startsWith("mailto:")) {
+    if (raw.startsWith("/api/")) {
+      const sep = raw.includes("?") ? "&" : "?";
+      const a = document.createElement("a");
+      a.href = `${raw}${sep}download=1`;
+      a.download = "";
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast.success("Download started");
+      return true;
+    }
+    return false;
+  }
   const row = el.closest(".pmc-docrow") || el.closest("[data-doc-url]");
   const url = (row && (row.getAttribute("data-doc-url") || row.querySelector("[data-doc-url]")?.getAttribute("data-doc-url"))) || null;
   if (url) {
@@ -846,9 +861,12 @@ export default function PmcLinkPatcher() {
       // If we honoured the href first, those buttons would just navigate.
       if (resolveClickAction(el, label, ctx, navigate)) { e.preventDefault(); return; }
 
-      // Real href — internal paths go through the SPA router
+      // Real href — backend file/API URLs and static downloads must NOT go
+      // through the SPA router (no route matches them → dead page). Let the
+      // browser open them natively; only true app paths use the router.
       const href = el.tagName === "A" ? (el.getAttribute("href") || "") : "";
       if (href && href !== "#" && !href.startsWith("#") && !href.startsWith("mailto:")) {
+        if (href.startsWith("/api/") || href.startsWith("/downloads/")) return;
         if (href.startsWith("/") && !href.startsWith("//")) { e.preventDefault(); navigate(href); }
         return;
       }
