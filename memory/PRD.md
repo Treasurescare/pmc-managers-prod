@@ -549,3 +549,25 @@ Sweep result after fixes: all 21 `/admin/e/*` pages OK at 1440+900
 redirect map verified for 8 sample tabs. Dashboard KPIs now real
 ($31,600 EMD, 40 vendors, 48 work packages in sidebar).
 v49q frontend bundle rebuilt (07:31 UTC) with all of this.
+
+### v49q — Post-rollback: sidebar links + Tender Builder rescue — 29 Sep 2026
+User rolled back to v49p via platform checkpoint, then reported "tender
+builder entire section is broken, almost the whole site is".
+
+Diagnosis:
+1. Every E-page sidebar (21 pages) had href="#" dead links — 441 links
+   fixed via label→route map script across admin-console-e/*.jsx.
+2. AdminTenderBuilderE was a static display-only mock (read-only
+   inputs, fake 36 drafts, dead buttons). Rewrote it to mount the fully
+   functional legacy TenderBuilderPanel (drafts, DPR AI fill, sections,
+   save/history/PDF/publish) inside the Option E shell.
+3. Legacy panel's form rows (Tailwind md:grid-cols-[220px_1fr]) broke
+   inside the narrower E shell — labels overlapped inputs (user
+   screenshots). Fix: tender-builder-e.css stacks label above input
+   ≤1480px + min-width guards. Verified: 52 rows, 0 true 2D overlaps at
+   1440/1280/390, no h-scroll; mobile stacks cleanly.
+
+Note: rollback restored code but my later edits (sidebar links, E_TAB_
+ROUTES redirect in AdminDashboard.jsx, bidding-ops.css, pmc-responsive
+.*) were re-applied/retained after rollback — all present and verified.
+v49q bundle rebuilt again (08:27 UTC) with tender-builder fix.

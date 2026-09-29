@@ -1,0 +1,20 @@
+/* Tender Builder — legacy panel inside the Option E shell.
+   The panel's rows are label|input grids with a fixed 220px label column
+   built for the old wide console. Inside the E shell (260px sidebar) the
+   input cell collapses at laptop widths / browser zoom and labels overlap
+   inputs. Stack label above input below 1480px so the form never breaks. */
+@media (max-width: 1480px) {
+  [data-pmc-e-page="admin-tender-builder-e"] div[class*="220px_1fr"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  [data-pmc-e-page="admin-tender-builder-e"] div[class*="md:grid-cols-2"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+/* Inputs must never shrink below usable width inside the squeezed column */
+[data-pmc-e-page="admin-tender-builder-e"] input,
+[data-pmc-e-page="admin-tender-builder-e"] select,
+[data-pmc-e-page="admin-tender-builder-e"] textarea {
+  min-width: 0;
+  max-width: 100%;
+}
