@@ -27,18 +27,24 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
     if (!open) return;
     publicApi.countries().then((rows) => setCountryList(rows || [])).catch(() => setCountryList([]));
   }, [open]);
-  // v46e — if the picked country has no masters, allow the admin to either
-  // (a) borrow a master from any other country (dropdown shows country
-  //     code prefix), or
-  // (b) proceed WITHOUT a master — the AI drafts a fresh template from the
-  //     DPR itself and we save it as a new master under the picked country.
-  const [crossCountry, setCrossCountry] = useState(false);
+  // v50e — Show ALL masters when a country is picked (country-match on top,
+  // others below), always offer "Build a brand-new master" as a sibling
+  // option. The amber-warning gating of borrow / new-master was confusing:
+  // admins hit it only when zero country-masters existed, but an existing
+  // country-master could be the wrong industry/format. Making both options
+  // always visible removes that trap.
+  const [crossCountry, setCrossCountry] = useState(false); // retained for backwards compat; no longer gated
   const [noMasterMode, setNoMasterMode] = useState(false);
+  const countryOf = (m) => (m.country || m.header?.country || "??").toUpperCase();
+  const industryOf = (m) => (m.industry || "general").toString();
   const countryMasters = country
     ? (masters || []).filter((m) => (m.country || m.header?.country) === country)
     : (masters || []);
-  const filteredMasters = (country && crossCountry) ? (masters || []) : countryMasters;
-  const countryOf = (m) => (m.country || m.header?.country || "??").toUpperCase();
+  const otherMasters = country
+    ? (masters || []).filter((m) => (m.country || m.header?.country) !== country)
+    : [];
+  // Full list (dropdown source) — kept for any legacy reference.
+  const filteredMasters = [...countryMasters, ...otherMasters];
 
   if (!open) return null;
 
@@ -247,30 +253,51 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
                     data-testid="dpr-batch-master"
                     className="mt-1 w-full px-3 py-2 border border-brand-navy/20 bg-white disabled:bg-slate-100 disabled:text-slate-400">
               <option value="">— Select master —</option>
-              {filteredMasters.map((m) => (
+              {country && countryMasters.length > 0 && (
+                <optgroup label={`Masters saved for ${country} (${countryMasters.length})`}>
+                  {countryMasters.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      [{industryOf(m)}] {m.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {country && otherMasters.length > 0 && (
+                <optgroup label={`Other saved masters (${otherMasters.length}) — different country, re-usable`}>
+                  {otherMasters.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      [{countryOf(m)} · {industryOf(m)}] {m.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {!country && (masters || []).map((m) => (
                 <option key={m.id} value={m.id}>
-                  {crossCountry ? `[${countryOf(m)}] ` : ""}{m.name}
+                  [{countryOf(m)} · {industryOf(m)}] {m.name}
                 </option>
               ))}
             </select>
-            {country && countryMasters.length === 0 && (
-              <div className="mt-2 border border-amber-300 bg-amber-50 p-3 text-[12px] text-amber-900 space-y-2"
+
+            {/* v50e — "Build brand-new master" is ALWAYS available as a
+                sibling of the dropdown (no amber-box gating). The admin
+                picks a saved master OR ticks the new-master checkbox. */}
+            <label className="mt-2 flex items-start gap-2 cursor-pointer text-[12px] text-brand-navy"
+                   data-testid="dpr-no-master-wrap">
+              <input type="checkbox" checked={noMasterMode}
+                     onChange={(e) => { setNoMasterMode(e.target.checked); if (e.target.checked) setBatchMasterId(""); }}
+                     data-testid="dpr-no-master-mode"
+                     className="mt-0.5" />
+              <span>
+                <b>Build a brand-new master from this DPR.</b>{" "}
+                The AI reads your file, drafts a fresh structure + section headings, and saves it as a new master
+                {country ? <> under <b>{country}</b></> : null} for future re-use. Pick this when none of the saved masters above matches your industry or format.
+              </span>
+            </label>
+
+            {country && countryMasters.length === 0 && otherMasters.length > 0 && !noMasterMode && (
+              <div className="mt-2 border border-amber-300 bg-amber-50 p-2 text-[11px] text-amber-900"
                    data-testid="dpr-no-master-help">
-                <div><b>No master templates saved for {country} yet.</b> Choose an option:</div>
-                <label className="flex items-start gap-2 cursor-pointer">
-                  <input type="checkbox" checked={crossCountry}
-                         onChange={(e) => { setCrossCountry(e.target.checked); if (!e.target.checked) setBatchMasterId(""); }}
-                         data-testid="dpr-cross-country"
-                         className="mt-0.5" />
-                  <span>Borrow a master from another country ({(masters || []).length} available across the platform — country code shown in the dropdown above).</span>
-                </label>
-                <label className="flex items-start gap-2 cursor-pointer">
-                  <input type="checkbox" checked={noMasterMode}
-                         onChange={(e) => { setNoMasterMode(e.target.checked); if (e.target.checked) setBatchMasterId(""); }}
-                         data-testid="dpr-no-master-mode"
-                         className="mt-0.5" />
-                  <span><b>Build a brand-new master from this DPR.</b> The AI drafts the structure and sections from your uploaded file and saves it as a new master under {country} for future re-use.</span>
-                </label>
+                No masters saved for <b>{country}</b> yet — the dropdown lists {otherMasters.length} master{otherMasters.length === 1 ? "" : "s"} from other countries you can re-use, or tick "Build a brand-new master".
               </div>
             )}
           </label>

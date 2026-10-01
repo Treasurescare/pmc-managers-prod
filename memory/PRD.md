@@ -1089,3 +1089,39 @@ cloneAndApply. Master template itself untouched (per-tender override).
 SW cache → pmc-shell-v50d-rev1.
 Bundle: `pmc-frontend-v50d-prod-build.zip`. Backend unchanged (v49y).
 Release notes: DOWNLOAD_v50d.md.
+
+### v50e — DPR flow: show all masters + always-visible "new master" — 01 Oct 2026
+User: when a country has a master, that master might be a different
+industry/format — show ALL masters in the dropdown and still allow
+building brand-new.
+
+Finding: v49x master dropdown filtered to country-only; borrow/new
+options only appeared when ZERO country-masters existed, which
+trapped admins into picking a wrong-industry master.
+
+Fix (DprGenerateModal.jsx):
+1. Dropdown now uses <optgroup> — "Masters saved for <COUNTRY> (N)"
+   above "Other saved masters (N)". Option text always shows
+   [COUNTRY · industry] name.
+2. "Build a brand-new master from this DPR" checkbox is a permanent
+   sibling of the dropdown (not conditional).
+3. Compact amber note only when zero same-country masters (first-time
+   guidance).
+4. Editable section-headings panel (v50d) unchanged.
+
+SW cache → pmc-shell-v50e-rev1.
+Bundle: `pmc-frontend-v50e-prod-build.zip`. Backend unchanged (v49y).
+Release notes: DOWNLOAD_v50e.md.
+
+**Also started in this session**: security_audit_agent returned FAIL
+(SEC-001 CRITICAL hard-coded staff/admin seed passwords in
+config.py:47-62 + server.py:164-211; SEC-002 HIGH unauthenticated
+upload+retrieval in uploads.py:27-82 with same-origin XSS; SEC-003
+MEDIUM DocuSign webhook accepts unsigned callbacks when HMAC secret
+unset). Fixes NOT yet applied — awaiting user prioritisation after
+v50e deploy. See the audit report in-chat for full technical details.
+
+**Prod EMD dry-run**: 14 bids total (6 submitted, 1 emd_pending,
+3 emd_paid, 3 awarded, 1 certifier_cleared). Escrow summary: 5 paid,
+1 pending; 102,576 USD-equivalent across INR/USD/KZT. No obvious
+orphan EMD records; detailed cross-check pending v50e deploy.
