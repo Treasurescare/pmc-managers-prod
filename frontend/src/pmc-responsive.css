@@ -280,11 +280,13 @@ img, svg, video, canvas, iframe { max-width: 100%; }
   .pmc-adm, .pmc-app { grid-template-columns: 1fr !important; }
 }
 
-/* v49z — Definitive sidebar fix. The sticky/fixed approaches both
-   collided with existing overflow and grid rules. Instead we lock the
-   whole admin shell to viewport height and let the sidebar + main
-   pane scroll INDEPENDENTLY. The page itself no longer scrolls, so
-   the sidebar simply cannot move. Desktop only — mobile uses a drawer. */
+/* v50a — Definitive sidebar fix. The sticky/fixed approaches both
+   collided with existing overflow and grid rules, and v49z's scroll
+   rule missed because the main column is an UNNAMED wrapper div
+   (header + main), not `.pmc-adm > main`. Lock the shell to viewport
+   height; sidebar + the wrapper scroll independently; the window never
+   scrolls on admin pages, so the sidebar literally cannot move.
+   Desktop only — mobile uses a drawer. */
 @media (min-width: 1101px) {
   html, body { height: 100%; }
   [data-ui="e"] .pmc-adm {
@@ -298,17 +300,21 @@ img, svg, video, canvas, iframe { max-width: 100%; }
     overflow-y: auto;
     overflow-x: hidden;
     scrollbar-width: thin;
-    position: static;
   }
   [data-ui="e"] .pmc-adm > aside.pmc-side::-webkit-scrollbar { width: 6px; }
   [data-ui="e"] .pmc-adm > aside.pmc-side::-webkit-scrollbar-thumb {
     background: rgba(255,255,255,.18); border-radius: 3px;
   }
-  [data-ui="e"] .pmc-adm > main.pmc-amain,
-  [data-ui="e"] .pmc-adm > .pmc-amain {
+  /* The second grid column: an unnamed wrapper div (header + main) on
+     most pages, a bare <main class="pmc-amain"> on a few. Both become
+     the scroll container; the sticky .pmc-atop top bar keeps sticking
+     inside it. */
+  [data-ui="e"] .pmc-adm > div:not(.pmc-drawer):not(.pmc-drawer-scrim),
+  [data-ui="e"] .pmc-adm > main.pmc-amain {
     height: 100vh;
     max-height: 100vh;
     overflow-y: auto;
     overflow-x: hidden;
+    min-width: 0;
   }
 }

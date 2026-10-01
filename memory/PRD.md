@@ -1002,3 +1002,26 @@ Bundle: `pmc-frontend-v49z-prod-build.zip` (supersedes v49r→v49x).
 Backend v49y unchanged. Release notes: DOWNLOAD_v49z.md.
 
 **Pending user action**: deploy v49z frontend + v49y backend.
+
+### v50a — Admin content scroll fix (v49z regression) — 01 Oct 2026
+User: after v49z, sidebar fixed but content section cannot scroll —
+everything below the fold unreachable (screenshot: DocuSign page).
+
+Root cause: v49z scroll rule targeted `.pmc-adm > main.pmc-amain`, but
+the real DOM wraps header+main in an UNNAMED div (`.pmc-adm > div >
+header + main`) in AdminEShell, AdminDashboardE and AdminBiddingOpsE.
+Rule matched nothing → `.pmc-adm{overflow:hidden;height:100vh}`
+clipped the page with no scrollable element.
+
+Fix (pmc-responsive.css, desktop ≥1101px): scroll container is now
+`.pmc-adm > div:not(.pmc-drawer):not(.pmc-drawer-scrim)` (and
+`.pmc-adm > main.pmc-amain` as fallback). Sticky `.pmc-atop` now sticks
+inside the wrapper for free.
+Verified on preview: /admin/e/docusign wrapper scrolls to 1500px,
+sidebar top unchanged, window.scrollY=0; dashboard identical.
+
+SW cache → pmc-shell-v50a-rev1.
+Bundle: `pmc-frontend-v50a-prod-build.zip` (supersedes v49r→v49z).
+Backend unchanged: `pmc-backend-v49y.zip`. Release notes: DOWNLOAD_v50a.md.
+
+**Pending user action**: deploy v50a frontend + v49y backend.
