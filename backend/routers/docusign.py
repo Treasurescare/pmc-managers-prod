@@ -320,6 +320,99 @@ async def consent_url_endpoint():
     }
 
 
+# ---------------- Status sync + completion side effects ----------------
+
+TERMINAL_STATUSES = ("completed", "declined", "voided")
+
+
+async def _on_envelope_completed(row: dict) -> None:
+    """v49y — the missing confirmation: when an envelope completes, notify
+    PMC admins (in-app + email), confirm to the vendor, audit-log it and
+    stamp the bid. Fired by the webhook AND the polling sync."""
+    env_id = row.get("envelope_id")
+    ref = row.get("award_ref") or row.get("bid_ref") or env_id
+    signer = f"{row.get('signer_name') or ''} ({row.get('signer_email') or ''})".strip()
+    try:
+        await audit_log("docusign.envelope_completed", None, "docusign_envelope",
+                        env_id, {"ref": ref, "signer": row.get("signer_email")})
+    except Exception:
+        pass
+    try:
+        from notify import notify_role
+        await notify_role(
+            "admin",
+            f"Signed: {ref}",
+            f"<p><b>{signer}</b> has completed signing <b>{ref}</b>. "
+            f"The signed PDF is available under DocuSign admin.</p>",
+            "docusign_envelope", env_id)
+    except Exception as e:
+        _log.warning("completion admin notify failed for %s: %s", env_id, e)
+    try:
+        if row.get("signer_email"):
+            from emails import send_email
+            portal = f"{config.FRONTEND_URL}/vendor/signatures"
+            await send_email(
+                row["signer_email"],
+                f"[PMC] Signature complete — {ref}",
+                f"<p>Dear {row.get('signer_name') or 'Signer'},</p>"
+                f"<p>Your signature on <b>{ref}</b> is complete and PMC has been "
+                f"notified. You can download the signed copy any time from your "
+                f"supplier portal &rarr; Signatures:<br>"
+                f"<a href=\"{portal}\">{portal}</a></p>")
+    except Exception as e:
+        _log.warning("completion vendor email failed for %s: %s", env_id, e)
+    try:
+        if row.get("bid_id"):
+            field = f"{row.get('sub_kind') or 'document'}_signed_at"
+            await db.bids.update_one({"id": row["bid_id"]},
+                                     {"$set": {field: now_iso()}})
+    except Exception:
+        pass
+
+
+async def _apply_live_status(envelope_id: str, live_status: str) -> None:
+    """Update the DB row and fire completion side effects on transition."""
+    row = await db.docusign_envelopes.find_one({"envelope_id": envelope_id})
+    if not row or not live_status or row.get("status") == live_status:
+        return
+    prev = row.get("status")
+    await db.docusign_envelopes.update_one(
+        {"envelope_id": envelope_id},
+        {"$set": {"status": live_status,
+                  "updated_at": datetime.now(timezone.utc).isoformat()}},
+    )
+    if live_status == "completed" and prev != "completed":
+        await _on_envelope_completed(row)
+
+
+async def _sync_recent_statuses(days: int = 30) -> int:
+    """v49y — pull DocuSign status changes in ONE API call and apply them.
+    This removes the hard dependency on the Connect webhook being
+    configured in the DocuSign account. Best-effort; never breaks lists."""
+    try:
+        from datetime import timedelta
+        client = _client()
+        envelopes = ds.EnvelopesApi(client)
+        since = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        resp = envelopes.list_status_changes(DS_ACCOUNT_ID, from_date=since)
+        changed = 0
+        for env in (getattr(resp, "envelopes", None) or []):
+            env_id = getattr(env, "envelope_id", None)
+            status = (getattr(env, "status", None) or "").lower()
+            if not env_id or not status:
+                continue
+            row = await db.docusign_envelopes.find_one({"envelope_id": env_id})
+            if row and row.get("status") != status:
+                await _apply_live_status(env_id, status)
+                changed += 1
+        if changed:
+            _log.info("status sync applied %d envelope updates", changed)
+        return changed
+    except Exception as e:
+        _log.warning("status sync failed: %s", e)
+        return 0
+
+
 # ---------------- Award envelope ----------------
 
 # v49x — Embedded envelopes never trigger a DocuSign email (client_user_id
@@ -535,11 +628,7 @@ async def get_envelope(envelope_id: str, admin=Depends(current_admin)):
         live = envelopes.get_envelope(DS_ACCOUNT_ID, envelope_id)
         live_status = live.status
         if live_status and live_status != row.get("status"):
-            await db.docusign_envelopes.update_one(
-                {"envelope_id": envelope_id},
-                {"$set": {"status": live_status,
-                          "updated_at": datetime.now(timezone.utc).isoformat()}},
-            )
+            await _apply_live_status(envelope_id, live_status)
             row["status"] = live_status
     except HTTPException:
         raise
@@ -551,6 +640,9 @@ async def get_envelope(envelope_id: str, admin=Depends(current_admin)):
 
 @router.get("/envelopes")
 async def list_envelopes(admin=Depends(current_admin), limit: int = 100):
+    # v49y — sync live statuses from DocuSign first so the panel reflects
+    # signings even when the Connect webhook is not configured.
+    await _sync_recent_statuses()
     cursor = db.docusign_envelopes.find({}).sort("created_at", -1).limit(limit)
     items = []
     async for row in cursor:
@@ -571,6 +663,8 @@ async def list_my_envelopes(vendor=Depends(current_vendor)):
     ve = vendor.get("email")
     if not ve:
         return {"items": []}
+    # v49y — sync so the vendor sees their completed signature reflected.
+    await _sync_recent_statuses()
     # Find bids owned by this vendor.
     bid_ids = []
     async for b in db.bids.find({"vendor_email": ve}, {"id": 1}):
@@ -831,9 +925,11 @@ async def docusign_webhook(request: Request):
         }
         new_status = status_map.get(event or "", None) or (payload.get("envelopeStatus", {}) or {}).get("status")
         if new_status:
+            # v49y — route through _apply_live_status so completions fire
+            # admin/vendor notifications, audit and bid markers.
+            await _apply_live_status(envelope_id, new_status)
             await db.docusign_envelopes.update_one(
                 {"envelope_id": envelope_id},
-                {"$set": {"status": new_status,
-                          "webhook_at": datetime.now(timezone.utc).isoformat()}},
+                {"$set": {"webhook_at": datetime.now(timezone.utc).isoformat()}},
             )
     return {"received": True}

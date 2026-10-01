@@ -948,3 +948,32 @@ Bundles: `pmc-frontend-v49x-prod-build.zip` + `pmc-backend-v49x.zip`
 **Pending user action**: deploy BOTH v49x zips; verify sidebar fixed,
 help-centre navigation, and DocuSign reminder emails (incl. spam).
 **Then**: user-flagged cyber-security + tender-maker findings.
+
+### v49y — DocuSign completion confirmation + status sync — 01 Oct 2026
+User: signer completes (email + embedded modes) but admin panel never
+shows completion. Also asked how the signing flow works.
+
+Answer documented: single-signer flow (vendor signs; no PMC countersign
+in DocuSign today). Two-party countersign flow offered as next feature.
+
+Root cause: only the DocuSign Connect webhook updated our DB, and
+Connect was never configured in the user's DocuSign account. Admin list
+read stale Mongo rows → "sent" forever.
+
+Fixes (docusign.py):
+1. `_sync_recent_statuses()` — one `list_status_changes` call (30d),
+   applied on admin list (`/docusign/envelopes`) and vendor list
+   (`/docusign/mine`). Best-effort; lists never break if DocuSign down.
+2. `_on_envelope_completed()` — admin notify (in-app + email), vendor
+   confirmation email with portal link, audit entry
+   `docusign.envelope_completed`, bid stamped `<kind>_signed_at`.
+3. Webhook + get_envelope now route through `_apply_live_status()`.
+
+Backend verified: syntax OK, boots clean, health 200 (sync degrades
+gracefully on preview where DocuSign creds are invalid).
+Bundle: `pmc-backend-v49y.zip`. Frontend stays v49x.
+Release notes: DOWNLOAD_v49y.md.
+
+**Pending user action**: deploy frontend v49x + backend v49y (user has
+NOT deployed anything since v49w was built — v49w/x skipped, these two
+zips contain everything). Then: cyber-security + tender-maker findings.
