@@ -1125,3 +1125,13 @@ v50e deploy. See the audit report in-chat for full technical details.
 3 emd_paid, 3 awarded, 1 certifier_cleared). Escrow summary: 5 paid,
 1 pending; 102,576 USD-equivalent across INR/USD/KZT. No obvious
 orphan EMD records; detailed cross-check pending v50e deploy.
+
+### Avatar sign-out verification — 01 Oct 2026
+User reported "signout from avatar not happening". Verified on BOTH
+preview and production (v50e, main.bd6f0867.js confirmed live): avatar
+menu opens, Sign out → /login with "Signed out" toast, and
+/api/v1/admin/auth/me returns 401 after logout (session truly dead).
+No JS errors. Conclusion: code is correct; user's browser was likely
+running the stale service-worker shell. Asked user for specifics
+(which avatar/page, exact behavior, browser) if a hard refresh
+doesn't resolve it.
