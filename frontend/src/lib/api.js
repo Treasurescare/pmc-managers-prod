@@ -36,6 +36,28 @@ api.interceptors.request.use((cfg) => {
   return cfg;
 });
 
+// v50b — stale-session handler. When the auth cookie lapses mid-session
+// (24 h Max-Age), API calls start failing with 401 "Not authenticated".
+// Previously every surface showed that raw string (e.g. the DPR analyzer
+// row). Now we redirect to /login once, with a return path, instead of
+// letting each panel show a cryptic failure.
+api.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    const status = err?.response?.status;
+    const detail = err?.response?.data?.detail;
+    if (status === 401 && (detail === "Not authenticated" || detail === "Token expired")) {
+      const path = window.location.pathname;
+      const onAuthPage = path === "/login" || path.startsWith("/register") || path === "/";
+      if (!onAuthPage && !window.__pmcAuthRedirecting) {
+        window.__pmcAuthRedirecting = true;
+        window.location.href = `/login?expired=1&next=${encodeURIComponent(path)}`;
+      }
+    }
+    return Promise.reject(err);
+  }
+);
+
 export function formatApiError(err) {
   const d = err?.response?.data?.detail;
   if (d == null) return err?.message || "Something went wrong. Please try again.";
@@ -467,7 +489,7 @@ export const tenderProApi = {
         // v45d — template_id makes the AI fill the master's exact sections.
         const tpl = templateId ? `&template_id=${encodeURIComponent(templateId)}` : "";
         api.post(`/api/v1/tender-pro/dpr/analyze-json?kind=${kind}${tpl}`,
-          { filename: file.name, content_b64 })
+          { filename: file.name, content_b64 }, { timeout: 300000 })
           .then((r) => resolve(r.data))
           .catch(reject);
       };
@@ -483,8 +505,11 @@ export const tenderProApi = {
         const dataUrl = String(reader.result || "");
         const content_b64 = dataUrl.substring(dataUrl.indexOf(",") + 1);
         const tpl = templateId ? `&template_id=${encodeURIComponent(templateId)}` : "";
+        // v50b — 20 s default timeout is too short for multi-MB base64
+        // uploads on slow links; the async kick only stores the payload
+        // and returns, but the UPLOAD itself can take minutes.
         api.post(`/api/v1/tender-pro/dpr/analyze-async?kind=${kind}${tpl}`,
-          { filename: file.name, content_b64 })
+          { filename: file.name, content_b64 }, { timeout: 300000 })
           .then((r) => resolve(r.data))
           .catch(reject);
       };

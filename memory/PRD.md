@@ -1025,3 +1025,30 @@ Bundle: `pmc-frontend-v50a-prod-build.zip` (supersedes v49r→v49z).
 Backend unchanged: `pmc-backend-v49y.zip`. Release notes: DOWNLOAD_v50a.md.
 
 **Pending user action**: deploy v50a frontend + v49y backend.
+
+### v50b — DPR "Not authenticated" diagnosis + stale-session UX — 01 Oct 2026
+User: Tender builder → AI from DPR → 20MB PDF → "Not authenticated"
+on the file row, "1 DPR(s) failed" toast.
+
+Investigation on production:
+- POST /dpr/analyze-async verified working with cookies: tiny AND 27MB
+  payloads → 200 job queued. Endpoint, nginx 200MB cap, CloudFront,
+  CSRF all healthy.
+- 401 "Not authenticated" = browser sent no access_token cookie:
+  session lapsed (24h cookie) or stale SW shell. Panel GETs fail
+  silently so the page still "looked" logged in.
+
+Fixes (api.js):
+1. Response interceptor: 401 Not authenticated / Token expired →
+   single redirect to /login?expired=1&next=<path> (skips /login,
+   /register, /).
+2. DPR analyze endpoints (sync + async kick) get timeout: 300000
+   (5 min) — the 20s default was too short for multi-MB base64
+   uploads.
+3. SW cache → pmc-shell-v50b-rev1.
+
+Bundle: `pmc-frontend-v50b-prod-build.zip` (supersedes v50a).
+Backend unchanged: `pmc-backend-v49y.zip`. Release notes: DOWNLOAD_v50b.md.
+
+**Open thread**: if a future failure shows a BACKEND error (not 401)
+on the job row, that's the AI-extraction stage — needs job error text.
