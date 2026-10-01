@@ -460,18 +460,31 @@ async def resend_envelope(envelope_id: str, admin=Depends(current_admin)):
             return {"ok": True, "signing_url": signing_url, "delivery": "embedded"}
         # Email delivery: re-issue via ModifyRecipients with resend flag.
         envelopes = ds.EnvelopesApi(client)
-        recips = envelopes.list_recipients(DS_ACCOUNT_ID, envelope_id)
-        signers = recips.signers or []
-        for s in signers:
-            s.email = signer_email
-        envelopes.update_recipients(DS_ACCOUNT_ID, envelope_id,
-                                     recipients=ds.Recipients(signers=signers),
-                                     resend_envelope="true")
+        # v49w — The previous ModifyRecipients-with-resend_envelope path
+        # was fragile: setting signer.email to the SAME value made DocuSign
+        # treat it as a no-op change and no reminder email went out. Use
+        # the Envelope-level update which is the documented way to trigger
+        # a resend without mutating recipients.
+        try:
+            envelopes.update(DS_ACCOUNT_ID, envelope_id,
+                             envelope=ds.Envelope(status="sent"),
+                             resend_envelope="true")
+        except Exception:
+            # Fallback: refresh the signer email on the first signer and
+            # resend. Some DocuSign API variants require this path.
+            recips = envelopes.list_recipients(DS_ACCOUNT_ID, envelope_id)
+            signers = recips.signers or []
+            for s in signers[:1]:
+                s.email = signer_email
+                s.name = signer_name
+            envelopes.update_recipients(DS_ACCOUNT_ID, envelope_id,
+                                         recipients=ds.Recipients(signers=signers),
+                                         resend_envelope="true")
         await db.docusign_envelopes.update_one(
             {"envelope_id": envelope_id},
             {"$set": {"last_resent_at": now_iso(),
                       "last_resent_by": admin.get("email")}})
-        return {"ok": True, "delivery": "email"}
+        return {"ok": True, "delivery": "email", "resent_to": signer_email}
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"DocuSign resend failed: {e}")
 

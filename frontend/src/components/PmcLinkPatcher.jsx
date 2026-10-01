@@ -898,9 +898,16 @@ export default function PmcLinkPatcher() {
       }
 
       // Help triggers
+      // v49w — direct open via a custom event so the React PmcHelpDrawer
+      // state (open=true) is actually set. Previous code did
+      // `document.querySelector(".pmc-helpfab")?.click()` which returned
+      // the FIRST matching button on the page — usually a static per-page
+      // .pmc-helpfab, whose click just re-fired this handler. That is
+      // why the drawer never opened on the very first page load but did
+      // after navigating away and back (which re-ordered the FABs).
       if (el.hasAttribute("data-help-open") || /help|faqs?|what is emd\?/.test(label)) {
         e.preventDefault();
-        document.querySelector(".pmc-helpfab")?.click();
+        window.dispatchEvent(new CustomEvent("pmc:open-help"));
         return;
       }
 

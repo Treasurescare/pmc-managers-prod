@@ -26,8 +26,16 @@ export default function PmcHelpDrawer() {
       if (e.key === "Escape") setOpen(false);
       if (e.key === "?" && !["INPUT", "TEXTAREA"].includes(e.target.tagName)) setOpen(true);
     };
+    // v49w — PmcLinkPatcher dispatches this when any data-help-open
+    // button is clicked. Direct state flip means the drawer opens on
+    // the very first click, including the first page load.
+    const onOpen = () => setOpen(true);
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("pmc:open-help", onOpen);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("pmc:open-help", onOpen);
+    };
   }, [isE]);
 
   useEffect(() => {

@@ -885,3 +885,36 @@ Backend unchanged (v49q). Release notes: DOWNLOAD_v49v.md.
 **Pending user action**: deploy v49v frontend, invalidate /*, then
 verify DocuSign signing in Safari on production (also covers P1
 DocuSign live-signing validation once a fresh envelope is created).
+
+### v49w — 4 bugs fixed (DocuSign resend, sticky sidebar, sign-out dest, first-load Help) — 29 Sep 2026
+User reports:
+1. DocuSign resend doesn't email the signer (list-view + detail-view).
+2. Admin left sidebar scrolls away with the page.
+3. Sign-out from admin or supplier lands anywhere EXCEPT `/login`.
+4. Help FAB / "Open the full Help Centre" dead on the very first page
+   load; works only after navigating away and back.
+
+Root causes & fixes:
+1. docusign.py resend_envelope called `update_recipients` with
+   `s.email = signer_email` (same value → no diff → DocuSign skipped
+   the reminder). Now uses envelope-level
+   `envelopes.update(..., resend_envelope="true")`; fallback refreshes
+   signer name so the diff is non-empty. Returns `resent_to`.
+2. pmc-responsive.css: `[data-ui="e"] .pmc-adm > aside.pmc-side` now
+   `position: sticky; top: 0; height: 100vh; overflow-y: auto;`
+   (desktop ≥1101 px — mobile drawer untouched).
+3. AdminAvatarMenu.onSignOut: `navigate("/login", { replace: true })`
+   (was `/admin/login`). Vendor side already went to `/login`.
+4. PmcLinkPatcher's `data-help-open` branch now dispatches
+   `pmc:open-help` custom event; PmcHelpDrawer listens for it and sets
+   React state `open=true` directly — no more racing with multiple
+   static `.pmc-helpfab` buttons on the page.
+5. SW cache bumped to pmc-shell-v49w-rev1.
+
+Bundles: frontend `pmc-frontend-v49w-prod-build.zip` (supersedes
+v49r–v49v); **backend `pmc-backend-v49w.zip` REQUIRED for the
+DocuSign resend fix** (first backend update since v49q).
+Release notes: DOWNLOAD_v49w.md.
+
+**Pending user action**: deploy BOTH zips (frontend to S3+CloudFront;
+backend to EB), then verify resend actually mails the signer.

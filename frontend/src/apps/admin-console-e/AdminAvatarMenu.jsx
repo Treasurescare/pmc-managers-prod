@@ -72,7 +72,7 @@ export default function AdminAvatarMenu() {
 
   const onSignOut = async () => {
     try { await adminApi.logout(); } catch {}
-    navigate("/admin/login", { replace: true });
+    navigate("/login", { replace: true });
   };
 
   return (
