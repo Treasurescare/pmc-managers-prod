@@ -897,6 +897,19 @@ export default function PmcLinkPatcher() {
         return;
       }
 
+      // v49x — "Open the full Help Centre" anchors carry a real /help
+      // href. Navigate there instead of re-opening the drawer — the
+      // /help|faqs/ label regex below was swallowing them, which is why
+      // the button looked dead.
+      const helpHref = el.tagName === "A" ? (el.getAttribute("href") || "") : "";
+      if (!el.hasAttribute("data-help-open") && helpHref.startsWith("/help")) {
+        e.preventDefault();
+        document.querySelector('[data-testid="pmc-help-close"]')?.click();
+        document.documentElement.classList.remove("pmc-help-open");
+        navigate(helpHref);
+        return;
+      }
+
       // Help triggers
       // v49w — direct open via a custom event so the React PmcHelpDrawer
       // state (open=true) is actually set. Previous code did

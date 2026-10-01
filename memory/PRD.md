@@ -918,3 +918,33 @@ Release notes: DOWNLOAD_v49w.md.
 
 **Pending user action**: deploy BOTH zips (frontend to S3+CloudFront;
 backend to EB), then verify resend actually mails the signer.
+
+### v49x — Sidebar ACTUALLY fixed + Help Centre nav + DocuSign emails — 01 Oct 2026
+User deployed v49w and reported (with screen recordings): sidebar still
+scrolls, help still broken, DocuSign still not emailing. Production
+verification (fresh browser on www.pmcmanagers.com) confirmed all three.
+
+Root causes & fixes:
+1. Sidebar: global `html, body { overflow-x: hidden }` in
+   pmc-responsive.css (all widths) creates a body scroll container →
+   silently breaks position:sticky (v49w fix never had a chance).
+   Changed to `overflow-x: clip` AND hardened sidebar to
+   `position: fixed; width: 260px; height: 100vh; overflow-y: auto`
+   (desktop ≥1101px; grid's explicit 260px track keeps main column).
+2. Help: the `/help|faqs/` label regex swallowed "Open the full Help
+   Centre" anchors (dispatched drawer-open instead of navigating).
+   Anchors with real /help href now navigate + close drawer first.
+3. DocuSign: resend API verified working on prod (v49w backend,
+   `resent_to` returned) BUT real envelopes are delivery=embedded →
+   client_user_id suppresses DocuSign emails BY DESIGN. Added
+   `_email_signer()` (Resend, portal link to /vendor/signatures) fired
+   on: award-envelope create (embedded), bid-ack create, and embedded
+   resend (`emailed` in response).
+4. SW cache bumped to pmc-shell-v49x-rev1.
+
+Bundles: `pmc-frontend-v49x-prod-build.zip` + `pmc-backend-v49x.zip`
+(both required). Release notes: DOWNLOAD_v49x.md.
+
+**Pending user action**: deploy BOTH v49x zips; verify sidebar fixed,
+help-centre navigation, and DocuSign reminder emails (incl. spam).
+**Then**: user-flagged cyber-security + tender-maker findings.

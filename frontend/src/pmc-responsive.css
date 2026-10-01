@@ -11,7 +11,11 @@
 
 /* ---------- 0. Foundations: the root causes of "broken" pages ---------- */
 *, *::before, *::after { box-sizing: border-box; }
-html, body { max-width: 100%; overflow-x: hidden; }
+/* v49x — overflow-x:clip, not hidden. `hidden` on body/html creates a new
+   scroll container, which silently breaks position:sticky everywhere
+   (sidebar, top bars). `clip` still stops horizontal bleed but preserves
+   sticky/fixed behaviour. */
+html, body { max-width: 100%; overflow-x: clip; }
 img, svg, video, canvas, iframe { max-width: 100%; }
 
 /* Grid and flex children default to min-width:auto, so any long hash, email,
@@ -276,19 +280,21 @@ img, svg, video, canvas, iframe { max-width: 100%; }
   .pmc-adm, .pmc-app { grid-template-columns: 1fr !important; }
 }
 
-/* v49w — Keep the admin left sidebar in place while the main pane
-   scrolls. Previous `.pmc-side { position: relative }` meant the
-   sidebar scrolled away with the page, which hid every nav item once
-   the user was deep in a long list. Scoped to desktop so the mobile
-   drawer (handled elsewhere) is unaffected. */
+/* v49x — Keep the admin left sidebar in place while the main pane
+   scrolls. position:sticky was defeated by overflow-x on ancestors; fixed
+   positioning is immune to ancestor overflow. The .pmc-adm grid keeps its
+   explicit 260px first track, so the main column never shifts. Scoped to
+   desktop so the mobile drawer (handled elsewhere) is unaffected. */
 @media (min-width: 1101px) {
   [data-ui="e"] .pmc-adm > aside.pmc-side {
-    position: sticky;
+    position: fixed;
     top: 0;
-    align-self: start;
+    left: 0;
+    width: 260px;
     height: 100vh;
     overflow-y: auto;
     overflow-x: hidden;
+    z-index: 40;
     scrollbar-width: thin;
   }
   [data-ui="e"] .pmc-adm > aside.pmc-side::-webkit-scrollbar { width: 6px; }

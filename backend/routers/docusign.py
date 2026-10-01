@@ -322,6 +322,27 @@ async def consent_url_endpoint():
 
 # ---------------- Award envelope ----------------
 
+# v49x — Embedded envelopes never trigger a DocuSign email (client_user_id
+# suppresses it by design), so signers heard nothing at send or resend.
+# Always email a portal link via Resend so the signer knows a document is
+# waiting. Best-effort: envelope flow must not fail on mail errors.
+async def _email_signer(signer_email: str, signer_name: str, subject: str, ref: str) -> None:
+    try:
+        from emails import send_email
+        portal = f"{config.FRONTEND_URL}/vendor/signatures"
+        html = (
+            f"<p>Dear {signer_name or 'Signer'},</p>"
+            f"<p>{subject}.</p>"
+            f"<p>Please sign in to your PMC supplier portal to review and sign:<br>"
+            f"<a href=\"{portal}\">{portal}</a></p>"
+            f"<p style=\"color:#5B6B63;font-size:13px\">Reference: {ref} · "
+            f"PMC Managers Global Tender Board</p>"
+        )
+        await send_email(str(signer_email), f"[PMC] {subject}", html)
+    except Exception:
+        pass
+
+
 class EnvelopeRequest(BaseModel):
     signer_name: str
     signer_email: EmailStr
@@ -372,6 +393,9 @@ async def create_award_envelope(
     await db.docusign_envelopes.update_one(
         {"envelope_id": envelope_id}, {"$set": doc}, upsert=True,
     )
+    if delivery == "embedded":
+        # v49x — embedded flow suppresses DocuSign's own email; notify via Resend
+        await _email_signer(str(req.signer_email), req.signer_name, subject, award_ref)
     return {"envelope_id": envelope_id, "signing_url": signing_url,
             "delivery": delivery,
             "expires_in": 300 if signing_url else None, "status": "sent"}
@@ -427,6 +451,10 @@ async def create_bid_ack_envelope(
     await db.docusign_envelopes.update_one(
         {"envelope_id": envelope_id}, {"$set": doc}, upsert=True,
     )
+    # v49x — bid-ack envelopes are always embedded → no DocuSign email; notify
+    await _email_signer(str(req.signer_email), req.signer_name,
+                        f"PMC {bid.get('bid_ref')} — bid acknowledgement",
+                        str(bid.get("bid_ref")))
     return {"envelope_id": envelope_id, "signing_url": signing_url,
             "expires_in": 300, "status": "sent"}
 
@@ -457,7 +485,13 @@ async def resend_envelope(envelope_id: str, admin=Depends(current_admin)):
                 {"envelope_id": envelope_id},
                 {"$set": {"last_resent_at": now_iso(),
                           "last_resent_by": admin.get("email")}})
-            return {"ok": True, "signing_url": signing_url, "delivery": "embedded"}
+            # v49x — embedded flow sends no DocuSign email; send a reminder
+            # with the portal link so "Resend" always reaches the signer.
+            await _email_signer(signer_email, signer_name,
+                                "Reminder: document awaiting your signature",
+                                env.get("award_ref") or env.get("bid_ref") or envelope_id)
+            return {"ok": True, "signing_url": signing_url, "delivery": "embedded",
+                    "emailed": signer_email}
         # Email delivery: re-issue via ModifyRecipients with resend flag.
         envelopes = ds.EnvelopesApi(client)
         # v49w — The previous ModifyRecipients-with-resend_envelope path
