@@ -280,25 +280,35 @@ img, svg, video, canvas, iframe { max-width: 100%; }
   .pmc-adm, .pmc-app { grid-template-columns: 1fr !important; }
 }
 
-/* v49x — Keep the admin left sidebar in place while the main pane
-   scrolls. position:sticky was defeated by overflow-x on ancestors; fixed
-   positioning is immune to ancestor overflow. The .pmc-adm grid keeps its
-   explicit 260px first track, so the main column never shifts. Scoped to
-   desktop so the mobile drawer (handled elsewhere) is unaffected. */
+/* v49z — Definitive sidebar fix. The sticky/fixed approaches both
+   collided with existing overflow and grid rules. Instead we lock the
+   whole admin shell to viewport height and let the sidebar + main
+   pane scroll INDEPENDENTLY. The page itself no longer scrolls, so
+   the sidebar simply cannot move. Desktop only — mobile uses a drawer. */
 @media (min-width: 1101px) {
-  [data-ui="e"] .pmc-adm > aside.pmc-side {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 260px;
+  html, body { height: 100%; }
+  [data-ui="e"] .pmc-adm {
     height: 100vh;
+    max-height: 100vh;
+    overflow: hidden;
+  }
+  [data-ui="e"] .pmc-adm > aside.pmc-side {
+    height: 100vh;
+    max-height: 100vh;
     overflow-y: auto;
     overflow-x: hidden;
-    z-index: 40;
     scrollbar-width: thin;
+    position: static;
   }
   [data-ui="e"] .pmc-adm > aside.pmc-side::-webkit-scrollbar { width: 6px; }
   [data-ui="e"] .pmc-adm > aside.pmc-side::-webkit-scrollbar-thumb {
     background: rgba(255,255,255,.18); border-radius: 3px;
+  }
+  [data-ui="e"] .pmc-adm > main.pmc-amain,
+  [data-ui="e"] .pmc-adm > .pmc-amain {
+    height: 100vh;
+    max-height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 }

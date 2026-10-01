@@ -20,8 +20,8 @@ export default function HelpCentreE({ legacy: Legacy }) {
   return (
     <div data-testid="help-centre-e" data-pmc-e-page="help-centre-e">
 <header className="pmc-chrome" style={{ borderBottom: "1px solid var(--chrome-line)" }}><div className="hc-wrap" style={{ display: "flex", alignItems: "center", height: "64px", gap: "24px" }}>
-  <a href="#" style={{ display: "flex", flexDirection: "column", color: "var(--on-chrome)", textDecoration: "none" }}><span style={{ fontFamily: "var(--font-display)", fontSize: "22px", lineHeight: "22px", fontWeight: "600" }}>PMC Managers</span><span className="pmc-eyebrow" style={{ fontSize: "11px" }}>Help Centre</span></a>
-  <div style={{ marginLeft: "auto", display: "flex", gap: "8px" }}><a href="#" className="pmc-btn pmc-btn--onchrome">Back to tender board</a><a href="#" className="pmc-btn pmc-btn--brass">Sign in</a></div></div></header>
+  <a href="/" style={{ display: "flex", flexDirection: "column", color: "var(--on-chrome)", textDecoration: "none" }}><span style={{ fontFamily: "var(--font-display)", fontSize: "22px", lineHeight: "22px", fontWeight: "600" }}>PMC Managers</span><span className="pmc-eyebrow" style={{ fontSize: "11px" }}>Help Centre</span></a>
+  <div style={{ marginLeft: "auto", display: "flex", gap: "8px" }}><a href="/admin/e/dashboard" className="pmc-btn pmc-btn--onchrome" data-testid="help-back-to-board">Back to tender board</a></div></div></header>
 <section className="pmc-chrome" style={{ padding: "56px 0 64px" }}><div className="hc-wrap" style={{ textAlign: "center" }}>
   <div className="pmc-eyebrow">Help Centre</div>
   <h1 className="pmc-display" style={{ fontSize: "60px", lineHeight: "64px", margin: "10px 0 24px", color: "var(--on-chrome)" }}>What do you need to do?</h1>

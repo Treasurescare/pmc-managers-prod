@@ -977,3 +977,28 @@ Release notes: DOWNLOAD_v49y.md.
 **Pending user action**: deploy frontend v49x + backend v49y (user has
 NOT deployed anything since v49w was built — v49w/x skipped, these two
 zips contain everything). Then: cyber-security + tender-maker findings.
+
+### v49z — Layout collapse + Help nav fix — 01 Oct 2026
+User deployed v49w; sidebar + main overlapped (screenshot shared).
+Also: "Back to tender board" dead, "Sign in" button nonsensical for
+logged-in users, "Open the full Help Centre" opens new tab.
+
+Root causes & fixes:
+1. Prior sticky (v49w) + fixed (v49x) sidebar approaches both failed
+   due to pre-existing CSS. v49z switches admin shell to two-pane
+   scroll: `.pmc-adm { height:100vh; overflow:hidden }` + both
+   sidebar and main `.pmc-amain` get `height:100vh; overflow-y:auto`.
+   Window itself never scrolls on admin pages → sidebar literally
+   cannot move. Verified on preview (sidebarStays:true, 500px scroll).
+2. HelpCentreE.jsx + HelpArticleE.jsx: `href="#"` on Back-to-board +
+   stray Sign-in button. Replaced with real `/admin/e/dashboard` href
+   (testid: help-back-to-board) and removed Sign-in. Brand hrefs
+   point to `/` and `/help` respectively.
+3. "Open the full Help Centre" already navigates same-tab via SPA
+   (v49x change retained).
+4. SW cache bumped to pmc-shell-v49z-rev1.
+
+Bundle: `pmc-frontend-v49z-prod-build.zip` (supersedes v49r→v49x).
+Backend v49y unchanged. Release notes: DOWNLOAD_v49z.md.
+
+**Pending user action**: deploy v49z frontend + v49y backend.
