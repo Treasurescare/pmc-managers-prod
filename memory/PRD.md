@@ -1052,3 +1052,26 @@ Backend unchanged: `pmc-backend-v49y.zip`. Release notes: DOWNLOAD_v50b.md.
 
 **Open thread**: if a future failure shows a BACKEND error (not 401)
 on the job row, that's the AI-extraction stage — needs job error text.
+
+### v50c — DPR section headings carried through (editable) — 01 Oct 2026
+User: order sections as read from the DPR, use the real headings as
+tender maker section titles, with a small checkbox near each heading
+to toggle "keep as read / edit before creating".
+
+Finding: backend already returns `sections_blueprint` with ordered
+real titles; the "new master" code path in DprGenerateModal.jsx was
+discarding them and generating "Dpr 1", "Dpr 2"… from the codes.
+
+Fix (DprGenerateModal.jsx):
+1. New-master section titles now sourced from
+   `preview.sections_blueprint` (ordered).
+2. Per-preview panel with checkbox "Use the DPR's own section headings
+   (N found, in order). Uncheck to edit before creating." — edit mode
+   renders an inline input per heading; edited titles flow into the
+   new master on create.
+3. Scoped to new-master only; existing-master titles unchanged.
+Testids: dpr-use-dpr-headings-<idx>, dpr-section-title-<idx>-<i>.
+
+SW cache → pmc-shell-v50c-rev1.
+Bundle: `pmc-frontend-v50c-prod-build.zip`. Backend unchanged (v49y).
+Release notes: DOWNLOAD_v50c.md.

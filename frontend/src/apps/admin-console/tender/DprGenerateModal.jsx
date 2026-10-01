@@ -126,6 +126,12 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
         // the code and the country tagged so it feeds the picker next
         // time.
         const secBodies = p.preview.section_bodies || {};
+        // v50c — carry the DPR's real section headings through (and let
+        // the admin edit them per preview). Prior code used
+        // `code.replace(/[_-]/g, " ")` which turned "dpr-1" into "Dpr 1"
+        // — losing every real heading the AI discovered.
+        const titleOverrides = p.sectionTitles || {};
+        const blueprint = p.preview.sections_blueprint || null;
         const cleanSections = master
           ? (master.sections || []).map((s) => ({
               code: s.code, kind: s.kind || "section", title: s.title,
@@ -133,12 +139,15 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
               body: secBodies[s.code] || s.body || "",
               order: typeof s.order === "number" ? s.order : null,
             }))
-          : Object.keys(secBodies).map((code, i) => ({
-              code, kind: "section",
-              title: code.replace(/[_-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-              hint: null,
-              body: secBodies[code] || "",
-              order: i * 10,
+          : (blueprint || Object.keys(secBodies).map((code, i) => ({
+              code, title: code.replace(/[_-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+              hint: null, order: (i + 1) * 10,
+            }))).map((s, i) => ({
+              code: s.code, kind: "section",
+              title: (titleOverrides[s.code] ?? s.title ?? "Untitled").trim() || `Section ${i+1}`,
+              hint: s.hint ?? null,
+              body: secBodies[s.code] || "",
+              order: typeof s.order === "number" ? s.order : (i + 1) * 10,
             }));
 
         const mergedHeader = { ...((master && master.header) || {}), ...(p.preview.header || {}) };
@@ -340,6 +349,39 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
                       ))}
                     </select>
                   </label>
+
+                  {/* v50c — Section headings from the DPR, in order, editable. */}
+                  {!p.masterId && (p.preview.sections_blueprint || []).length > 0 && (
+                    <div className="mt-3 border border-brand-navy/15 bg-white p-3">
+                      <label className="flex items-center gap-2 text-xs cursor-pointer mb-2">
+                        <input type="checkbox"
+                               checked={p.editTitles ? false : true}
+                               onChange={(e) => patchPreview(idx, { editTitles: !e.target.checked })}
+                               data-testid={`dpr-use-dpr-headings-${idx}`} />
+                        <span><b>Use the DPR's own section headings</b> ({(p.preview.sections_blueprint || []).length} found, in order). Uncheck to edit before creating.</span>
+                      </label>
+                      <div className="max-h-56 overflow-y-auto space-y-1 pr-1">
+                        {(p.preview.sections_blueprint || []).map((s, i) => {
+                          const current = (p.sectionTitles || {})[s.code] ?? s.title ?? "";
+                          return p.editTitles ? (
+                            <div key={s.code} className="flex items-center gap-2 text-[11px]">
+                              <span className="w-6 text-right text-brand-navy/50 font-mono">{i + 1}.</span>
+                              <input value={current}
+                                     onChange={(e) => patchPreview(idx, { sectionTitles: { ...(p.sectionTitles || {}), [s.code]: e.target.value } })}
+                                     data-testid={`dpr-section-title-${idx}-${i}`}
+                                     className="flex-1 px-2 py-1 border border-brand-navy/20 bg-white text-brand-navy" />
+                            </div>
+                          ) : (
+                            <div key={s.code} className="flex items-baseline gap-2 text-[11px] text-brand-navy">
+                              <span className="w-6 text-right text-brand-navy/50 font-mono">{i + 1}.</span>
+                              <span className="flex-1 truncate">{current}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {(p.preview.warnings || []).length > 0 && (
                     <ul className="mt-2 text-[11px] text-amber-800 space-y-0.5">
                       {p.preview.warnings.slice(0, 3).map((w, i) => (
