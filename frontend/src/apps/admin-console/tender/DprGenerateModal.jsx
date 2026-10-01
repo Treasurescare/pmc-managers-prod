@@ -126,15 +126,17 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
         // the code and the country tagged so it feeds the picker next
         // time.
         const secBodies = p.preview.section_bodies || {};
-        // v50c — carry the DPR's real section headings through (and let
-        // the admin edit them per preview). Prior code used
-        // `code.replace(/[_-]/g, " ")` which turned "dpr-1" into "Dpr 1"
-        // — losing every real heading the AI discovered.
+        // v50c/v50d — carry the real section headings through and let the
+        // admin edit them per preview. New-master flow uses the DPR's own
+        // headings (sections_blueprint, in reading order); master flow
+        // starts from the master's titles. Prior code derived titles from
+        // codes ("dpr-1" → "Dpr 1"), losing every real heading.
         const titleOverrides = p.sectionTitles || {};
         const blueprint = p.preview.sections_blueprint || null;
         const cleanSections = master
           ? (master.sections || []).map((s) => ({
-              code: s.code, kind: s.kind || "section", title: s.title,
+              code: s.code, kind: s.kind || "section",
+              title: (titleOverrides[s.code] ?? s.title ?? "").trim() || s.title,
               hint: s.hint ?? null,
               body: secBodies[s.code] || s.body || "",
               order: typeof s.order === "number" ? s.order : null,
@@ -350,37 +352,48 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
                     </select>
                   </label>
 
-                  {/* v50c — Section headings from the DPR, in order, editable. */}
-                  {!p.masterId && (p.preview.sections_blueprint || []).length > 0 && (
-                    <div className="mt-3 border border-brand-navy/15 bg-white p-3">
-                      <label className="flex items-center gap-2 text-xs cursor-pointer mb-2">
-                        <input type="checkbox"
-                               checked={p.editTitles ? false : true}
-                               onChange={(e) => patchPreview(idx, { editTitles: !e.target.checked })}
-                               data-testid={`dpr-use-dpr-headings-${idx}`} />
-                        <span><b>Use the DPR's own section headings</b> ({(p.preview.sections_blueprint || []).length} found, in order). Uncheck to edit before creating.</span>
-                      </label>
-                      <div className="max-h-56 overflow-y-auto space-y-1 pr-1">
-                        {(p.preview.sections_blueprint || []).map((s, i) => {
-                          const current = (p.sectionTitles || {})[s.code] ?? s.title ?? "";
-                          return p.editTitles ? (
-                            <div key={s.code} className="flex items-center gap-2 text-[11px]">
-                              <span className="w-6 text-right text-brand-navy/50 font-mono">{i + 1}.</span>
-                              <input value={current}
-                                     onChange={(e) => patchPreview(idx, { sectionTitles: { ...(p.sectionTitles || {}), [s.code]: e.target.value } })}
-                                     data-testid={`dpr-section-title-${idx}-${i}`}
-                                     className="flex-1 px-2 py-1 border border-brand-navy/20 bg-white text-brand-navy" />
-                            </div>
-                          ) : (
-                            <div key={s.code} className="flex items-baseline gap-2 text-[11px] text-brand-navy">
-                              <span className="w-6 text-right text-brand-navy/50 font-mono">{i + 1}.</span>
-                              <span className="flex-1 truncate">{current}</span>
-                            </div>
-                          );
-                        })}
+                  {/* v50d — Section headings panel, BOTH flows: DPR's own
+                      headings (new-master) or the master's headings (existing
+                      master), always editable before create. */}
+                  {(() => {
+                    const secList = p.masterId
+                      ? ((masters.find((m) => m.id === p.masterId)?.sections) || [])
+                      : (p.preview.sections_blueprint || []);
+                    if (!secList.length) return null;
+                    const headingText = p.masterId
+                      ? `Keep the master template's section headings (${secList.length}). Uncheck to edit them for this tender only.`
+                      : `Use the DPR's own section headings (${secList.length} found, in order). Uncheck to edit before creating.`;
+                    return (
+                      <div className="mt-3 border border-brand-navy/15 bg-white p-3" data-testid={`dpr-headings-panel-${idx}`}>
+                        <label className="flex items-center gap-2 text-xs cursor-pointer mb-2">
+                          <input type="checkbox"
+                                 checked={p.editTitles ? false : true}
+                                 onChange={(e) => patchPreview(idx, { editTitles: !e.target.checked })}
+                                 data-testid={`dpr-use-dpr-headings-${idx}`} />
+                          <span><b>{headingText.split(".")[0]}.</b>{headingText.split(".").slice(1).join(".")}</span>
+                        </label>
+                        <div className="max-h-56 overflow-y-auto space-y-1 pr-1">
+                          {secList.map((s, i) => {
+                            const current = (p.sectionTitles || {})[s.code] ?? s.title ?? "";
+                            return p.editTitles ? (
+                              <div key={s.code} className="flex items-center gap-2 text-[11px]">
+                                <span className="w-6 text-right text-brand-navy/50 font-mono">{i + 1}.</span>
+                                <input value={current}
+                                       onChange={(e) => patchPreview(idx, { sectionTitles: { ...(p.sectionTitles || {}), [s.code]: e.target.value } })}
+                                       data-testid={`dpr-section-title-${idx}-${i}`}
+                                       className="flex-1 px-2 py-1 border border-brand-navy/20 bg-white text-brand-navy" />
+                              </div>
+                            ) : (
+                              <div key={s.code} className="flex items-baseline gap-2 text-[11px] text-brand-navy">
+                                <span className="w-6 text-right text-brand-navy/50 font-mono">{i + 1}.</span>
+                                <span className="flex-1 truncate">{current}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   {(p.preview.warnings || []).length > 0 && (
                     <ul className="mt-2 text-[11px] text-amber-800 space-y-0.5">

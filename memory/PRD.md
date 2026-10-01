@@ -1075,3 +1075,17 @@ Testids: dpr-use-dpr-headings-<idx>, dpr-section-title-<idx>-<i>.
 SW cache → pmc-shell-v50c-rev1.
 Bundle: `pmc-frontend-v50c-prod-build.zip`. Backend unchanged (v49y).
 Release notes: DOWNLOAD_v50c.md.
+
+### v50d — DPR headings panel visible in both flows — 01 Oct 2026
+User: v50c headings panel not visible. Root cause: panel required
+`!p.masterId && sections_blueprint`, but picking a master in step 2
+switches the backend to the template-aware path (no blueprint) and
+sets p.masterId — panel had nothing to render.
+
+Fix (DprGenerateModal.jsx): panel now renders whenever sections exist —
+blueprint (new-master) or master's sections (existing master) — with
+adaptive copy; overrides (`p.sectionTitles`) apply in BOTH branches of
+cloneAndApply. Master template itself untouched (per-tender override).
+SW cache → pmc-shell-v50d-rev1.
+Bundle: `pmc-frontend-v50d-prod-build.zip`. Backend unchanged (v49y).
+Release notes: DOWNLOAD_v50d.md.
