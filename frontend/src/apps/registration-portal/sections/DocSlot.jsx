@@ -55,14 +55,14 @@ export default function DocSlot({ regId, token, slot, label, required, existing,
   return (
     <div className="border border-brand-navy/15 bg-brand-pale/40 p-4"
          data-testid={`docslot-${slot}`}>
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <div className="text-sm font-semibold text-brand-navy">
+      <div className="flex items-start justify-between gap-2 flex-wrap">
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-semibold text-brand-navy truncate">
             {label}
             {required && <span className="ml-1 text-red-600">*</span>}
           </div>
           {existing ? (
-            <div className="mt-1 text-xs text-brand-navy/70">
+            <div className="mt-1 text-xs text-brand-navy/70 truncate">
               {existing.file_name}{kb ? ` · ${kb} KB` : ""}
               <span className="ml-2 text-emerald-700">✓ {t("docs.uploaded_ok")}</span>
             </div>
@@ -72,7 +72,7 @@ export default function DocSlot({ regId, token, slot, label, required, existing,
             </div>
           )}
         </div>
-        <div className="flex gap-1">
+        <div className="flex gap-1 flex-wrap justify-end shrink-0" data-testid={`docslot-actions-${slot}`}>
           {existing && (
             <>
               <a href={viewUrl} target="_blank" rel="noreferrer"

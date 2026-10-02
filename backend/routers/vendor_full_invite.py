@@ -52,6 +52,17 @@ async def admin_create_vendor(payload: AdminVendorFullIn,
     if payload.mode == "activate" and not payload.password:
         raise HTTPException(status_code=400,
                              detail="password is required when mode=activate")
+    # v50j · bug #120 — enforce the 6 Section-E declarations server-side so a
+    # direct API call cannot bypass the admin UI gate.
+    DECLS = ["decl_conflict_of_interest", "decl_integrity", "decl_accuracy",
+             "decl_data_consent", "decl_fee", "decl_notification"]
+    missing_decls = [k for k in DECLS if not (payload.registration or {}).get(k)]
+    if missing_decls:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Section K · {len(missing_decls)} mandatory declaration(s) "
+                   f"not accepted: {', '.join(missing_decls)}",
+        )
     email = payload.email.lower()
     existing = await db.vendors.find_one({"email": email})
     if existing and existing.get("is_active"):

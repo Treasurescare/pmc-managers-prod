@@ -1376,3 +1376,34 @@ at zip root — confirmed with unzip check.
 
 Known residual: 2 inactive probe matrices (`__probe2`,
 `__v50h_schema_test`) in prod; a global DELETE for matrices is in Batch D.
+
+### v50j — SW update prompt + Batch B vendor bugs — 02 Oct 2026
+Delivered:
+1. Permanent cure for stale-shell: `SwUpdateBanner.jsx` + no-auto-skip
+   service worker. New SW installs in background, fires
+   `pmc:sw-update-available` event, banner prompts user to Refresh.
+   `controllerchange` triggers single clean reload. Also fixes the
+   Masters-sidebar-flicker on first login (same root cause).
+2. Batch B vendor bugs:
+   - #59 Invite Undefined — stale cache (fixed by SW banner).
+   - #62 Bulk invite CSV — client pre-validation with row-level reasons.
+   - #119 DocSlot card overlap — action row flex-wrap + truncate on label.
+   - #120 Section-E (team's "Section K") — 6 declarations now hard-
+     required before admin can save/activate; UI meter + amber borders;
+     submit bounces user back to Declarations tab if any missing.
+3. Bugs still open in Batch B deferred until retest after v50j deploys:
+   #6, #8, #9, #27, #63 — team reported these as stale-cache artefacts;
+   SW banner resolves most. Will revisit after team re-tests on v50j.
+
+Bundles: `pmc-frontend-v50j-prod-build.zip`, `pmc-backend-v50j.zip`,
+`DOWNLOAD_v50j.md`. Dockerfile + Dockerrun + .platform at zip root.
+
+### v50j backend addendum — Section K enforced server-side
+`routers/vendor_full_invite.py` admin-create now rejects with 400 if any of
+the 6 Section E declarations is missing on the registration payload.
+Error detail: "Section K · N mandatory declaration(s) not accepted: …".
+Prevents API-level bypass of the UI gate. Live-tested on preview:
+- Missing decls → 400 as expected
+- All decls true → 200 vendor created
+
+Final v50j bundles rebuilt after this change.

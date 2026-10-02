@@ -12,12 +12,20 @@
  * page load; no manual "clear cache" needed.
  */
 
-const CACHE_VERSION = "pmc-shell-v50f-rev1";
+const CACHE_VERSION = "pmc-shell-v50j-rev1";
 const SHELL_ASSETS = [
   "/",
   "/manifest.json",
   "/pmc-logo.png",
 ];
+
+/* v50j — accept SKIP_WAITING messages from SwUpdateBanner so the user can
+ * trigger the new SW to take control immediately. */
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
 
 /* Push handler — displays the notification and reveals the URL when tapped. */
 self.addEventListener("push", (event) => {
@@ -53,7 +61,10 @@ self.addEventListener("install", (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_VERSION);
     try { await cache.addAll(SHELL_ASSETS); } catch (_) { /* offline install */ }
-    self.skipWaiting();
+    // v50j — do NOT auto skipWaiting on install. We now wait for an explicit
+    // SKIP_WAITING message from the page (triggered when the user taps the
+    // "New version available" banner), so the old controller keeps serving
+    // the current session until the user chooses to upgrade.
   })());
 });
 

@@ -12,13 +12,23 @@ const DECL_KEYS = [
 
 export default function SectionE({ reg, update }) {
   const { t } = useI18n();
+  const missing = DECL_KEYS.filter((k) => !reg[k]).length;
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-5" data-testid="section-e">
       <div>
-        <div className="pmc-label mb-3">{t("section_e.declarations_title")}</div>
+        <div className="flex items-baseline justify-between flex-wrap gap-2 mb-3">
+          <div className="pmc-label">{t("section_e.declarations_title")}</div>
+          <div className={"text-xs font-semibold " + (missing === 0 ? "text-emerald-700" : "text-amber-700")}
+               data-testid="section-e-missing">
+            {DECL_KEYS.length - missing} / {DECL_KEYS.length} declarations accepted
+            {missing > 0 && " · all are mandatory"}
+          </div>
+        </div>
         <div className="grid gap-2">
           {DECL_KEYS.map((k) => (
-            <label key={k} className="flex items-start gap-3 border border-brand-navy/10 px-4 py-3 bg-white cursor-pointer hover:border-brand-navy-soft/60">
+            <label key={k}
+                   className={"flex items-start gap-3 border px-4 py-3 bg-white cursor-pointer hover:border-brand-navy-soft/60 " +
+                              (!reg[k] ? "border-amber-400" : "border-brand-navy/10")}>
               <input
                 type="checkbox"
                 data-testid={`f-${k}`}
@@ -26,7 +36,10 @@ export default function SectionE({ reg, update }) {
                 onChange={() => update({ [k]: !reg[k] })}
                 className="mt-1"
               />
-              <span className="text-sm text-brand-navy">{t(`section_e.${k}`)}</span>
+              <span className="text-sm text-brand-navy">
+                {t(`section_e.${k}`)}
+                {!reg[k] && <span className="ml-2 text-[10px] uppercase tracking-widest text-amber-700">Required</span>}
+              </span>
             </label>
           ))}
         </div>

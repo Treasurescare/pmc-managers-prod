@@ -124,6 +124,18 @@ export default function AdminVendorCreate() {
     if (!reg.email) return toast.error(t("admin_vendor.email_required"));
     if (!reg.company_name) return toast.error(t("admin_vendor.company_required"));
     if (mode === "activate" && password.length < 8) return toast.error(t("admin_vendor.pwd_short"));
+    // v50j · bug #120 — 6 Section-E (team's "Section K") declarations must
+    // all be accepted before the admin can activate / invite the vendor.
+    const DECLS = ["decl_conflict_of_interest", "decl_integrity", "decl_accuracy",
+                   "decl_data_consent", "decl_fee", "decl_notification"];
+    const missing = DECLS.filter((k) => !reg[k]);
+    if (missing.length > 0) {
+      toast.error(`Section K · ${missing.length} declaration(s) still unchecked`, {
+        description: "Open the Declarations tab and tick every box before saving.",
+      });
+      setStep("e");
+      return;
+    }
     setSaving(true);
     try {
       const r = await vendorInviteApi.adminCreate({

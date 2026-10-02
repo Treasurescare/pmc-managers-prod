@@ -8,6 +8,7 @@ import { I18nProvider } from "@/context/I18nContext";
 import { UiThemeProvider, UiThemeApplier } from "@/context/UiThemeContext";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
+import SwUpdateBanner from "@/components/SwUpdateBanner";
 import PmcIconSprite from "@/components/PmcIconSprite";
 import PmcHelpDrawer from "@/components/PmcHelpDrawer";
 import PmcLinkPatcher from "@/components/PmcLinkPatcher";
@@ -303,6 +304,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           <PwaInstallPrompt />
+          <SwUpdateBanner />
         </BrowserRouter>
       </I18nProvider>
       </UiThemeProvider>

@@ -17,8 +17,26 @@ export default function BulkInviteModal({ open, onClose, onDone }) {
   if (!open) return null;
 
   const submit = async () => {
-    if (csvText.split("\n").filter((l) => l.trim() && !l.toLowerCase().startsWith("email,")).length === 0) {
-      return toast.error("Add at least one row after the header");
+    const dataLines = csvText.split("\n").filter((l) => l.trim() && !l.toLowerCase().startsWith("email,"));
+    if (dataLines.length === 0) {
+      return toast.error("Add at least one row after the header", {
+        description: 'Format: "email,company_name,country,contact_name" — one vendor per line.',
+      });
+    }
+    // v50j — pre-validate every row so backend 400s don't look like generic failures.
+    const bad = [];
+    dataLines.forEach((line, i) => {
+      const cols = line.split(",").map((c) => c.trim());
+      const email = cols[0] || "";
+      if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        bad.push(`Row ${i + 2}: "${email || "(blank)"}" is not a valid email`);
+      }
+    });
+    if (bad.length > 0) {
+      return toast.error(`${bad.length} invalid row(s) — fix before sending`, {
+        description: bad.slice(0, 3).join(" · ") + (bad.length > 3 ? ` · +${bad.length - 3} more` : ""),
+        duration: 8000,
+      });
     }
     setRunning(true); setResults(null);
     try {
