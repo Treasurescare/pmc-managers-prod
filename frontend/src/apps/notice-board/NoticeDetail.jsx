@@ -5,6 +5,7 @@ import { useI18n } from "@/context/I18nContext";
 import { useUiTheme } from "@/context/UiThemeContext";
 import TopBar from "@/apps/shared/TopBar";
 import Footer from "@/apps/shared/Footer";
+import GatedDownload from "@/components/GatedDownload";
 import NoticeQa from "./NoticeQa";
 import { toast } from "sonner";
 
@@ -213,15 +214,11 @@ export default function NoticeDetail() {
                       {" "}to request the official documents.
                     </div>
                   ) : (
-                    <a href={`${process.env.REACT_APP_BACKEND_URL}${notice.primary_document.url}`}
-                       target="_blank" rel="noreferrer"
-                       data-testid="notice-primary-download"
-                       className="mt-2 inline-flex items-center gap-2 px-4 py-3 border border-brand-navy text-brand-navy hover:bg-brand-navy hover:text-white transition-colors text-sm">
-                      📄 <span>{notice.primary_document.file_name}</span>
-                      <span className="text-xs text-brand-navy/50">
-                        ({Math.round((notice.primary_document.size_bytes || 0) / 1024)} KB)
-                      </span>
-                    </a>
+                    <GatedDownload
+                      href={`${process.env.REACT_APP_BACKEND_URL}${notice.primary_document.url}`}
+                      fileName={notice.primary_document.file_name}
+                      sizeKb={Math.round((notice.primary_document.size_bytes || 0) / 1024)}
+                      testid="notice-primary-download" />
                   )}
                 </div>
               )}
@@ -259,12 +256,11 @@ export default function NoticeDetail() {
                     {notice.attachments.map((a, i) => {
                       const href = a.url ? `${process.env.REACT_APP_BACKEND_URL}${a.url}` : "#";
                       const label = a.file_name || a.name || a.key || "attachment";
-                      const sizeKb = a.size_bytes ? ` (${Math.round(a.size_bytes / 1024)} KB)` : "";
+                      const sizeKb = a.size_bytes ? Math.round(a.size_bytes / 1024) : null;
                       return (
-                        <li key={a.key || a.url || i} data-testid={`attachment-${i}`}>
-                          <a href={href} target="_blank" rel="noreferrer" className="hover:underline">
-                            → {label}<span className="text-brand-navy/40">{sizeKb}</span>
-                          </a>
+                        <li key={a.key || a.url || i} data-testid={`attachment-${i}`} className="flex">
+                          <GatedDownload href={href} fileName={label} sizeKb={sizeKb}
+                            testid={`attachment-download-${i}`} compact />
                         </li>
                       );
                     })}

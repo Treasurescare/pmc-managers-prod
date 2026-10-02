@@ -342,72 +342,90 @@ export default function NoticesPanel() {
         {filteredNotices.length === 0 ? (
           <div className="p-6 text-brand-navy/50 text-sm">{t("admin.notices_empty")}</div>
         ) : pagedNotices.map((n) => (
-          <div key={n.id} className="p-4 border-b border-brand-navy/10 flex items-baseline gap-4 flex-wrap" data-testid={`notice-row-${n.notice_ref}`}>
-            <span className="font-mono text-xs text-brand-navy-soft">{n.notice_ref}</span>
-            <span className="pmc-pill uppercase text-[10px]">{n.document_type}</span>
-            {/* Bug #57/#58/#66 fix — visible DRAFT / LIVE status badge */}
-            {n.is_published ? (
-              <span data-testid={`notice-status-${n.notice_ref}`}
-                    className="text-[10px] uppercase tracking-widest text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5">
-                ● Live
+          <div key={n.id}
+               className="px-4 py-3 border-b border-brand-navy/10 hover:bg-brand-pale/30"
+               data-testid={`notice-row-${n.notice_ref}`}>
+            {/* v50k — redesigned 2-row card so long titles no longer collapse
+                into one-word-per-line columns next to the action buttons. */}
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <span className="font-mono text-[11px] text-brand-navy-soft">{n.notice_ref}</span>
+              <span className="pmc-pill uppercase text-[10px]">{n.document_type}</span>
+              {n.is_published ? (
+                <span data-testid={`notice-status-${n.notice_ref}`}
+                      className="text-[10px] uppercase tracking-widest text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5">
+                  ● Live
+                </span>
+              ) : (
+                <span data-testid={`notice-status-${n.notice_ref}`}
+                      className="text-[10px] uppercase tracking-widest text-amber-900 bg-amber-50 border border-amber-300 px-2 py-0.5 font-semibold">
+                  ✎ Draft
+                </span>
+              )}
+              {n.tender_template_id && (
+                <a href={`/admin?tab=tender-builder&template=${n.tender_template_id}`}
+                   data-testid={`notice-template-badge-${n.notice_ref}`}
+                   title="Open this template in Tender Builder"
+                   className="text-[10px] uppercase tracking-widest text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 hover:bg-purple-100 hover:underline">
+                  📐 template linked ↗
+                </a>
+              )}
+              <span className="ml-auto text-xs text-brand-navy/50 font-mono shrink-0"
+                    title="Submission deadline">
+                ⏱ {n.submission_deadline?.slice(0, 10) || "—"}
               </span>
-            ) : (
-              <span data-testid={`notice-status-${n.notice_ref}`}
-                    className="text-[10px] uppercase tracking-widest text-amber-900 bg-amber-50 border border-amber-300 px-2 py-0.5 font-semibold">
-                ✎ Draft
-              </span>
-            )}
-            <span className="text-sm font-semibold text-brand-navy flex-1">{n.title}</span>
-            {n.tender_template_id && (
-              /* N-02 fix — template badge jumps to Tender Builder for that template */
-              <a href={`/admin?tab=tender-builder&template=${n.tender_template_id}`}
-                 data-testid={`notice-template-badge-${n.notice_ref}`}
-                 title="Open this template in Tender Builder"
-                 className="text-[10px] uppercase tracking-widest text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 hover:bg-purple-100 hover:underline">
-                📐 template linked ↗
-              </a>
-            )}
-            {n.primary_document && (
-              <a href={`${n.primary_document.url}?download=1`} download={n.primary_document.file_name}
-                 data-testid={`notice-primary-${n.notice_ref}`}
-                 title="Download the file to your device"
-                 className="text-xs underline text-brand-navy/70">
-                📎 {n.primary_document.file_name}
-              </a>
-            )}
-            {(n.attachments || []).length > 0 && (
-              <span className="text-xs text-brand-navy/50" data-testid={`notice-attach-count-${n.notice_ref}`}>
-                +{n.attachments.length} attachment(s)
-              </span>
-            )}
-            {/* v50i — row actions: Publish (drafts only) · View · Edit · Preview */}
-            {!n.is_published && isMasterAdmin && (
-              <button type="button" onClick={() => publish(n.notice_ref)}
-                data-testid={`notice-publish-btn-${n.notice_ref}`}
-                title="Publish this draft to the public Notice Board"
-                className="text-xs uppercase tracking-widest px-2 py-1 bg-emerald-700 text-white hover:bg-emerald-800">
-                Publish
+              <div className="flex items-center gap-1 shrink-0">
+                {!n.is_published && isMasterAdmin && (
+                  <button type="button" onClick={() => publish(n.notice_ref)}
+                    data-testid={`notice-publish-btn-${n.notice_ref}`}
+                    title="Publish this draft to the public Notice Board"
+                    className="text-[10px] uppercase tracking-widest px-2 py-1 bg-emerald-700 text-white hover:bg-emerald-800">
+                    Publish
+                  </button>
+                )}
+                <button type="button" onClick={() => setViewRef(n.notice_ref)}
+                  data-testid={`notice-view-${n.notice_ref}`}
+                  title="Open complete notice document and uploaded files"
+                  className="text-[10px] uppercase tracking-widest px-2 py-1 border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white">
+                  View
+                </button>
+                <button type="button" onClick={() => setEditRef(n.notice_ref)}
+                  data-testid={`notice-edit-${n.notice_ref}`}
+                  title="Edit this notice — change fields, re-upload documents"
+                  className="text-[10px] uppercase tracking-widest px-2 py-1 border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white">
+                  Edit
+                </button>
+                <a href={`/notices/${n.notice_ref}`} target="_blank" rel="noreferrer"
+                   data-testid={`notice-preview-${n.notice_ref}`}
+                   title="Open the public notice page in a new tab — exactly what bidders see"
+                   className="text-[10px] uppercase tracking-widest px-2 py-1 border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white">
+                  Preview ↗
+                </a>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 min-w-0">
+              <button type="button" onClick={() => setViewRef(n.notice_ref)}
+                className="text-sm font-semibold text-brand-navy text-left hover:underline flex-1 min-w-0 break-words"
+                data-testid={`notice-title-${n.notice_ref}`}>
+                {n.title}
               </button>
-            )}
-            <button type="button" onClick={() => setViewRef(n.notice_ref)}
-              data-testid={`notice-view-${n.notice_ref}`}
-              title="Open complete notice document and uploaded files"
-              className="text-xs uppercase tracking-widest px-2 py-1 border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white">
-              View
-            </button>
-            <button type="button" onClick={() => setEditRef(n.notice_ref)}
-              data-testid={`notice-edit-${n.notice_ref}`}
-              title="Edit this notice — change fields, re-upload documents"
-              className="text-xs uppercase tracking-widest px-2 py-1 border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white">
-              Edit
-            </button>
-            <a href={`/notices/${n.notice_ref}`} target="_blank" rel="noreferrer"
-               data-testid={`notice-preview-${n.notice_ref}`}
-               title="Open the public notice page in a new tab — exactly what bidders see"
-               className="text-xs uppercase tracking-widest px-2 py-1 border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white">
-              {t("admin.notices_preview_bidder")} ↗
-            </a>
-            <span className="text-xs text-brand-navy/50 font-mono">{n.submission_deadline?.slice(0, 10)}</span>
+              <div className="flex flex-col gap-1 items-end shrink-0 text-right">
+                {n.primary_document && (
+                  <a href={`${n.primary_document.url}?download=1`} download={n.primary_document.file_name}
+                     data-testid={`notice-primary-${n.notice_ref}`}
+                     title={`Download primary document · ${n.primary_document.file_name}`}
+                     className="text-xs underline text-brand-navy/70 hover:text-brand-navy max-w-[280px] truncate inline-block">
+                    📎 {n.primary_document.file_name}
+                  </a>
+                )}
+                {(n.attachments || []).length > 0 && (
+                  <span className="text-[11px] text-brand-navy/50"
+                        data-testid={`notice-attach-count-${n.notice_ref}`}>
+                    +{n.attachments.length} attachment(s)
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
         ))}
         {noticeControls}

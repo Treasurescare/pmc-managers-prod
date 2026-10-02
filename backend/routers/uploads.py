@@ -5,16 +5,50 @@ frontend flow is unchanged when we swap to real S3 presign in Phase 2.
 
 Phase 1: returns a direct-upload URL on this backend (`/api/v1/uploads/direct`)
 + a synthetic key. Phase 2: returns a real S3 presigned PUT URL from AWS.
+
+v50k — Download gating:
+Any file byte stream served by `/api/v1/uploads/files/{key}` now requires
+an authenticated session (admin bearer token OR vendor cookie). Public
+notice JSON remains open so the Notice Board can list titles; only the
+attachment downloads themselves are gated. This closes the pre-launch
+security requirement that "without supplier or vendor login no one can
+download any document or notice".
 """
 import base64
 import uuid
-from fastapi import APIRouter, UploadFile, File, HTTPException, Form
+from fastapi import APIRouter, UploadFile, File, HTTPException, Form, Request, Depends
 from pydantic import BaseModel
 import config
 from db import db
 from models.base import now_iso
+from security import current_admin as _bearer_admin
+from routers.vendor_auth import current_vendor
 
 router = APIRouter(prefix="/api/v1/uploads", tags=["uploads"])
+
+
+async def _require_any_signed_in(request: Request) -> dict:
+    """Pass if the caller is a signed-in admin (Bearer token) OR a signed-in
+    vendor (vendor_token cookie). Raise 401 otherwise so the browser's auth
+    UX kicks in cleanly."""
+    # Try admin bearer first (no CSRF required for a safe GET).
+    try:
+        admin = await _bearer_admin(request)
+        if admin:
+            return {"kind": "admin", "id": admin.get("id"), "email": admin.get("email")}
+    except Exception:
+        pass
+    # Try vendor cookie.
+    try:
+        vendor = await current_vendor(request)
+        if vendor:
+            return {"kind": "vendor", "id": vendor.get("id"), "email": vendor.get("email")}
+    except HTTPException:
+        pass
+    except Exception:
+        pass
+    raise HTTPException(status_code=401,
+                         detail="Sign in to download tender documents")
 
 
 class PresignRequest(BaseModel):
@@ -60,7 +94,8 @@ async def upload_direct(key: str = Form(...), file: UploadFile = File(...)):
 
 
 @router.get("/files/{key:path}")
-async def get_file(key: str, download: bool = False):
+async def get_file(key: str, download: bool = False,
+                    _who: dict = Depends(_require_any_signed_in)):
     doc = await db.uploads.find_one({"key": key})
     if not doc:
         raise HTTPException(status_code=404, detail="File not found")

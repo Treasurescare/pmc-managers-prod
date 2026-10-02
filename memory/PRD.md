@@ -1407,3 +1407,52 @@ Prevents API-level bypass of the UI gate. Live-tested on preview:
 - All decls true → 200 vendor created
 
 Final v50j bundles rebuilt after this change.
+
+### v50k — Download gating + Batch C close-out — 02 Oct 2026
+Backend (`routers/uploads.py`):
+- `GET /api/v1/uploads/files/{key}` now requires authentication (admin
+  Bearer OR vendor cookie) via new `_require_any_signed_in` dependency.
+- Anonymous → 401 "Sign in to download tender documents".
+- Live-verified: anon=401, admin=404 (gate passed).
+- Public notice list/detail JSON remains open — only file bytes gated.
+
+Frontend:
+- New `components/GatedDownload.jsx` — checks vendor cookie first,
+  admin token second; renders 🔒 "Sign in to download" CTA with link
+  to /login when not signed in, otherwise normal download link.
+- `apps/notice-board/NoticeDetail.jsx` wraps primary_document and
+  each attachment with GatedDownload. Signed-in users unchanged.
+
+Batch C — status after v50k:
+- #42, #44, #46, #61, #64, #65, #122 — ALL already carried fixes in
+  prior builds; team's "still broken" reports were stale-cache
+  artefacts, now cured by v50j SW banner. Marked Verify-pending in
+  tracker; team re-tests on v50k.
+
+Bundles: `pmc-frontend-v50k-prod-build.zip`, `pmc-backend-v50k.zip`,
+`DOWNLOAD_v50k.md`. Dockerfile + Dockerrun + .platform at zip root.
+
+Remaining backlog (ordered):
+- Batch D — Notices / Escrow / Auctions / L1 / Reports / Dashboard
+  (bugs 5, 13, 37, 39, 40, 41, 45, 66, 118) + build an EMD-master
+  editor UI.
+- P0 Security remediation (SEC-001 default creds, SEC-002 upload
+  authorisation, SEC-003 DocuSign HMAC).
+- E2E procurement regression (DPR → tender → publish → bid → EMD →
+  award → DocuSign).
+
+### v50k UI patch — Notices list row redesign — 02 Oct 2026
+User screenshot showed Safari layout break: a long title with an inline
+primary-document link forced the title column to render one word per line.
+Fix (`NoticesPanel.jsx`): converted each row from a single `flex-wrap`
+line into a 2-row card:
+  Row 1 (header): ref · type · status · (template badge) ·
+                   deadline · action buttons (ml-auto).
+  Row 2 (body): title (left, break-words, full width, clickable to View) ·
+                 attached file name (right, truncated to 280 px) ·
+                 "+N attachment(s)" count badge.
+Primary document link now `truncate` with full name in `title=` tooltip,
+so long filenames never push neighbours off-screen.
+Clicking the title opens the View modal (previously had no row-level
+affordance for the title itself).
+Rebuilt frontend v50k bundle after this patch.
