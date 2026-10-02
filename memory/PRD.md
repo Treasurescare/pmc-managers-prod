@@ -1277,3 +1277,34 @@ dropdown, ⓘ tooltip readable, sign-in error toast appears.
   previously asked for "show all masters grouped by country" (v50e).
   Which wins?
 - #123 translation button: which login screen? (SignInE /login has none.)
+
+### v50h — Create-Notice masters + Approval Matrix assignees — 02 Oct 2026
+User requested: Category + Delivery country from masters; Auto-EMD from
+master per country AND category; Approval Matrix to pick specific
+escrow/legal/accounting users.
+
+Delivered:
+1. **Create Notice form**:
+   - Category: dropdown from `/api/v1/masters/categories` (v50g).
+   - Delivery country: dropdown from `/api/v1/meta/countries`.
+   - Auto-EMD: `EmdMasterPicker` now takes both `country` AND `category`.
+2. **EMD master schema** (`routers/tender_pro.py`):
+   - `EmdMasterIn` adds optional `category`.
+   - `GET /emd-masters?category=X` scoped filter (unscoped masters still
+     return so a KZ generic master still applies to all categories).
+   - `listEmdMasters(country, kind, category)` in `api.js`.
+3. **Approval Matrix** (`MatrixEditor.jsx` + `models/masters.py`):
+   - `ApprovalStepIn` adds optional `assignee_user_id`, `assignee_email`,
+     `assignee_name`.
+   - New per-row Assignee dropdown auto-filtered to staff that carry the
+     step's role_code. "— Any user with this role —" keeps pool routing.
+   - Warning when no staff carries the picked role.
+   - Saved matrices show "has assignees" badge when at least one step is
+     pinned to a user.
+4. **Known gap**: no admin UI exists yet to CREATE/EDIT EMD masters
+   (only backend endpoints). Will be added in Batch D if requested.
+
+Bundles: `pmc-frontend-v50h-prod-build.zip`, `pmc-backend-v50h.zip`,
+`DOWNLOAD_v50h.md`.
+
+Deploy BOTH (backend required for the category + assignee fields).

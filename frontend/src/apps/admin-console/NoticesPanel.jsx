@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { adminApi, mastersApi, noticeDocsApi, tenderTemplateApi, formatApiError, showApiError} from "@/lib/api";
+import { adminApi, mastersApi, publicApi, noticeDocsApi, tenderTemplateApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import { InfoDot } from "@/components/InfoDot";
 import EmdMasterPicker from "./notice/EmdMasterPicker";
@@ -13,6 +13,7 @@ export default function NoticesPanel() {
   const [matrices, setMatrices] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [countries, setCountries] = useState([]);
   const [primaryFile, setPrimaryFile] = useState(null);
   const [attachmentFiles, setAttachmentFiles] = useState([]);
   const [me, setMe] = useState(null);
@@ -48,6 +49,10 @@ export default function NoticesPanel() {
     mastersApi.listMatrices().then(setMatrices).catch(() => {});
     tenderTemplateApi.list().then(setTemplates).catch(() => {});
     adminApi.me().then(setMe).catch(() => {});
+    // v50h — delivery country dropdown fed from /api/v1/meta/countries.
+    publicApi.countries()
+      .then((rows) => setCountries(Array.isArray(rows) ? rows : []))
+      .catch(() => setCountries([]));
   }, [load]);
 
   // v50g — refresh categories when delivery_country changes so the dropdown
@@ -179,9 +184,16 @@ export default function NoticesPanel() {
             <select value={draft.document_type} onChange={(e) => setDraft({ ...draft, document_type: e.target.value })} data-testid="notice-doc-type"
               className="mt-1 w-full px-4 py-3 border border-brand-navy/20">
               <option value="tender">Tender</option><option value="rfp">RFP</option><option value="rfq">RFQ</option></select></label>
-          <label><span className="pmc-label">Delivery country<InfoDot tip="ISO-2 country code (KZ, US, GB, AE, IN…). Filters vendor eligibility and applies country-specific EMD/tax rules." /></span>
-            <input value={draft.delivery_country} onChange={(e) => setDraft({ ...draft, delivery_country: e.target.value })} data-testid="notice-country"
-              className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
+          <label><span className="pmc-label">Delivery country<InfoDot tip="Country where goods/services will be delivered. Pulled from the 30-country master. Drives EMD master selection and vendor matching." /></span>
+            <select value={draft.delivery_country}
+              onChange={(e) => setDraft({ ...draft, delivery_country: e.target.value })}
+              data-testid="notice-country"
+              className="mt-1 w-full px-4 py-3 border border-brand-navy/20 bg-white">
+              {countries.length === 0 && <option value="KZ">KZ · Kazakhstan</option>}
+              {countries.map((c) => (
+                <option key={c.code} value={c.code}>{c.code} · {c.name_en || c.name}</option>
+              ))}
+            </select></label>
           <label><span className="pmc-label">Submission deadline<InfoDot tip="Cut-off timestamp in your local timezone. After this moment bids can no longer be submitted and the notice moves to 'expired'." /></span>
             <input type="datetime-local" value={draft.submission_deadline} onChange={(e) => setDraft({ ...draft, submission_deadline: e.target.value })} data-testid="notice-deadline"
               className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
@@ -200,6 +212,7 @@ export default function NoticesPanel() {
           {/* v45 · Phase B — auto-EMD from country-specific master table */}
           <EmdMasterPicker
             country={draft.delivery_country}
+            category={draft.category}
             tenderValue={draft.budget_amount || 0}
             emdConfig={draft.emd_config}
             onPick={(cfg) => setDraft({ ...draft, emd_config: { ...draft.emd_config, ...cfg } })}

@@ -8,7 +8,7 @@ import { tenderProApi, showApiError } from "@/lib/api";
  * pick one. On pick + tender_value it calls /emd-masters/compute and writes
  * the resolved amount back into the parent's emd_config.
  */
-export default function EmdMasterPicker({ country, tenderValue, emdConfig, onPick }) {
+export default function EmdMasterPicker({ country, category, tenderValue, emdConfig, onPick }) {
   const [masters, setMasters]  = useState([]);
   const [pickId, setPickId]    = useState("");
   const [computed, setComputed] = useState(null);
@@ -17,23 +17,24 @@ export default function EmdMasterPicker({ country, tenderValue, emdConfig, onPic
 
   useEffect(() => {
     let alive = true;
-    tenderProApi.listEmdMasters(country || undefined, "emd")
+    // v50h — refine EMD masters by country AND category so admins can
+    // maintain distinct EMD slabs per (country, category) combination.
+    tenderProApi.listEmdMasters(country || undefined, "emd", category || undefined)
       .then((r) => {
         if (!alive) return;
         const rows = r || [];
         setMasters(rows);
-        // v45b — auto-suggest: prefer is_default on this country, else the
-        // first master returned. Only fires if admin hasn't already picked
-        // one manually and there is at least one candidate.
         if (rows.length && !pickId) {
-          const preferred = rows.find((m) => m.is_default) || rows[0];
+          // Prefer category-exact match, then is_default, then first row.
+          const exact = category ? rows.find((m) => (m.category || "") === category) : null;
+          const preferred = exact || rows.find((m) => m.is_default) || rows[0];
           setAutoPicked(true);
           compute(preferred.id, rows);
         }
       })
       .catch(() => { if (alive) setMasters([]); });
     return () => { alive = false; };
-  }, [country]);
+  }, [country, category]);
 
   const compute = async (mid, mastersOverride) => {
     setPickId(mid);
@@ -87,7 +88,7 @@ export default function EmdMasterPicker({ country, tenderValue, emdConfig, onPic
         <option value="">— Type amounts manually below —</option>
         {masters.map((m) => (
           <option key={m.id} value={m.id}>
-            {m.name} · {m.country} · {(m.slabs || []).length} slab(s)
+            {m.name} · {m.country}{m.category ? ` · ${m.category}` : ""} · {(m.slabs || []).length} slab(s)
           </option>
         ))}
       </select>

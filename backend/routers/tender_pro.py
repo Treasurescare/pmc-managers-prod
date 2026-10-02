@@ -720,7 +720,10 @@ class EmdMasterIn(BaseModel):
     name: str = Field(min_length=2, max_length=120)
     country: str = Field(min_length=2, max_length=3)
     industry: Optional[str] = None
-    # v45f — five fee categories per requirements doc
+    # v50h — optional procurement category (matches masters.categories.name).
+    # When set, the picker auto-selects this master only for notices in the
+    # same category + country. Leave null to apply to all categories.
+    category: Optional[str] = None
     kind: Literal["tender_fee", "emd", "registration", "subscription",
                    "premium_subscription", "transaction", "data_intel"] = "emd"
     currency: str = "USD"
@@ -731,10 +734,19 @@ class EmdMasterIn(BaseModel):
 
 @router.get("/emd-masters")
 async def list_emd_masters(country: Optional[str] = None, kind: Optional[str] = None,
+                            category: Optional[str] = None,
                             admin=Depends(require_role("admin", "reviewer"))):
-    q = {}
+    q: dict = {}
     if country: q["country"] = country.upper()
     if kind:    q["kind"] = kind
+    if category:
+        # Return masters scoped to this category OR unscoped (apply-to-all).
+        q["$or"] = [
+            {"category": category},
+            {"category": {"$exists": False}},
+            {"category": None},
+            {"category": ""},
+        ]
     return [_out(d) async for d in db.emd_masters.find(q).sort("name", 1)]
 
 

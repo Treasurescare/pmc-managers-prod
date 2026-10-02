@@ -26,6 +26,13 @@ class ApprovalStepIn(BaseModel):
     action_label: str  # "Escrow acceptance", "Certifier review", ...
     sla_hours: int = 48
     required: bool = True
+    # v50h — pin a specific person for this step. When null, the step is
+    # pool-routed to anyone with the role. When set, only that user can
+    # approve; email is kept for notifications even if the admin_user_id
+    # is later removed.
+    assignee_user_id: Optional[str] = None
+    assignee_email: Optional[str] = None
+    assignee_name: Optional[str] = None
 
 
 class ApprovalMatrixIn(BaseModel):

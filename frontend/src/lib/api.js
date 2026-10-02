@@ -539,8 +539,8 @@ export const tenderProApi = {
   saveAsMaster: (tid, payload) =>
     api.post(`/api/v1/tender-pro/templates/${tid}/save-as-master`, payload).then((r) => r.data),
   // EMD masters
-  listEmdMasters: (country, kind) =>
-    api.get(`/api/v1/tender-pro/emd-masters`, { params: { country, kind } }).then((r) => r.data),
+  listEmdMasters: (country, kind, category) =>
+    api.get(`/api/v1/tender-pro/emd-masters`, { params: { country, kind, category } }).then((r) => r.data),
   createEmdMaster: (p) => api.post(`/api/v1/tender-pro/emd-masters`, p).then((r) => r.data),
   updateEmdMaster: (id, p) => api.patch(`/api/v1/tender-pro/emd-masters/${id}`, p).then((r) => r.data),
   deleteEmdMaster: (id) => api.delete(`/api/v1/tender-pro/emd-masters/${id}`).then((r) => r.data),
