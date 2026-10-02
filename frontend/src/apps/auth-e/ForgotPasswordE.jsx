@@ -102,7 +102,8 @@ export default function ForgotPasswordE() {
 
                 <div style={{ display: "grid", gap: "8px", marginBottom: "18px" }}>
                   <Radio value="vendor" label="Supplier" sub="Vendor portal" icon="i-users" />
-                  <Radio value="staff" label="PMC staff / Admin" sub="Admin console" icon="i-shield" />
+                  <Radio value="staff" label="Administrator" sub="Admin console (Owner, Master Admin, Support)" icon="i-shield" />
+                  <Radio value="staff" label="PMC staff" sub="Tender desk, evaluation, escrow, committee" icon="i-briefcase" />
                 </div>
 
                 <div className="pmc-field">

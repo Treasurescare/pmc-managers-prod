@@ -1194,3 +1194,27 @@ MX feedback-smtp.us-east-1.amazonses.com pri 10, TXT
 "v=spf1 include:amazonses.com ~all"); verify the adminsupport mailbox
 exists in GoDaddy Email & Office; re-check Resend domain status.
 Awaiting user's Resend dashboard domain status + post-DNS retest.
+
+### v50f — Forgot-password portal split + email DNS clarified — 02 Oct 2026
+User: "reset password button does not differentiate staff and Admin
+user roles" + "I don't have option to add any MX records in GoDaddy".
+
+Finding 1 (DNS): GoDaddy UI confirms "DNS Provider: Amazon Route 53".
+User's screenshot shows the empty DNS Records tab because records
+live in AWS Route 53. Correct action: add MX+TXT for host `mail` in
+Route 53, values from Resend dashboard → Domains →
+mail.pmcmanagers.com. Current public DNS still shows no MX/TXT for
+mail.pmcmanagers.com (nothing added yet). NS records point to Route 53
+awsdns-* servers; website + api traffic unaffected (A records
+separate).
+
+Finding 2 (UI): Admin + staff share admin_users collection → the
+backend portal choice is "staff" for both; UI collapsed them into one
+"PMC staff / Admin" radio. Replaced with three clearly-labelled rows:
+Supplier (vendor), Administrator (Owner/Master Admin/Support), PMC
+staff (tender desk/evaluation/escrow/committee). Both admin rows map
+to portal="staff" so the reset flow works for Owner, Master Admin,
+and all specialist roles equally.
+
+SW cache → pmc-shell-v50f-rev1.
+Bundle: `pmc-frontend-v50f-prod-build.zip`. Backend unchanged (v49y).
