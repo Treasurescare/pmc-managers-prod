@@ -76,6 +76,16 @@ export default function NoticesPanel() {
   const isMasterAdmin = ["admin", "master_admin", "superadmin", "staff_admin"].includes(roleNorm);
 
   const nowIso = new Date().toISOString();
+
+  // v50i — one-click publish for drafts (Master Admin only, matches the
+  // backend /notices/{ref}/publish permission check).
+  const publish = async (ref) => {
+    try {
+      await adminApi.publishNotice(ref);
+      toast.success(`Notice live · ${ref}`, { description: "Visible on the public Notice Board now." });
+      load();
+    } catch (err) { showApiError(err); }
+  };
   const filteredNotices = items.filter((n) => {
     if (showTemplateOnly && !n.tender_template_id) return false;
     if (filterStatus === "published" && !n.is_published) return false;
@@ -370,7 +380,15 @@ export default function NoticesPanel() {
                 +{n.attachments.length} attachment(s)
               </span>
             )}
-            {/* v50i — row actions: View (read-only) · Edit · Preview (public page) */}
+            {/* v50i — row actions: Publish (drafts only) · View · Edit · Preview */}
+            {!n.is_published && isMasterAdmin && (
+              <button type="button" onClick={() => publish(n.notice_ref)}
+                data-testid={`notice-publish-btn-${n.notice_ref}`}
+                title="Publish this draft to the public Notice Board"
+                className="text-xs uppercase tracking-widest px-2 py-1 bg-emerald-700 text-white hover:bg-emerald-800">
+                Publish
+              </button>
+            )}
             <button type="button" onClick={() => setViewRef(n.notice_ref)}
               data-testid={`notice-view-${n.notice_ref}`}
               title="Open complete notice document and uploaded files"
