@@ -689,8 +689,24 @@ async def list_my_envelopes(vendor=Depends(current_vendor)):
     query = {"$or": [{"signer_email": ve}, {"bid_id": {"$in": bid_ids}}]}
     cursor = db.docusign_envelopes.find(query).sort("created_at", -1).limit(50)
     items = []
+    # v50n — surface `has_document` so the UI can hide the Download button
+    # for envelopes DocuSign has no file for (avoids "no document linked"
+    # 404s). Only probed on completed envelopes where Download is relevant.
+    try:
+        client = _client()
+        envelopes_api = ds.EnvelopesApi(client)
+    except Exception:
+        envelopes_api = None
     async for row in cursor:
         row.pop("_id", None)
+        has_doc = False
+        if row.get("status") == "completed" and envelopes_api is not None:
+            try:
+                docs = envelopes_api.list_documents(DS_ACCOUNT_ID, row["envelope_id"])
+                has_doc = bool(getattr(docs, "envelope_documents", None))
+            except Exception:
+                has_doc = False
+        row["has_document"] = has_doc
         items.append(row)
     return {"items": items}
 

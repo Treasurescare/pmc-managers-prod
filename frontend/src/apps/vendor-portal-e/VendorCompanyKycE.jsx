@@ -1,76 +1,426 @@
-import { useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { Link } from "react-router-dom";
+import { toast } from "sonner";
 import { useUiTheme } from "@/context/UiThemeContext";
-import { useVendorCompanyLive } from "@/lib/pmcELiveData";
+import { vendorApi, uploadsApi, showApiError, BACKEND_URL } from "@/lib/api";
+import VendorPortalChrome from "./VendorPortalChrome";
+
+/**
+ * v50n — Vendor Company & KYC page (fully wired).
+ *
+ * Tabs across the top switch client-side between:
+ *   Licences & certificates · Company documents · Team & roles ·
+ *   Bank accounts · Reviews
+ * and the "Add licence" / "Upload renewal" buttons open a real dialog that
+ * posts to /api/v1/vendor/licenses. Status (Valid / Expiring / Expired /
+ * Missing) is computed live by the backend on every read.
+ */
+
+const TABS = [
+  ["licenses",  "Licences & certificates"],
+  ["documents", "Company documents"],
+  ["team",      "Team & roles"],
+  ["bank",      "Bank accounts"],
+  ["reviews",   "Reviews"],
+];
+
+function fmtDate(iso) {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleDateString("en-GB",
+      { day: "2-digit", month: "short", year: "numeric" });
+  } catch { return iso.slice(0, 10); }
+}
+
+function statusPill(status) {
+  const map = {
+    valid:    ["pmc-pill--success", "Valid"],
+    expiring: ["pmc-pill--warning", "Expires soon"],
+    expired:  ["pmc-pill--danger", "Expired"],
+    missing:  ["pmc-pill--danger", "Missing"],
+  };
+  const [cls, label] = map[status] || ["", status || "—"];
+  return <span className={`pmc-pill ${cls}`}>{label}</span>;
+}
+
+function LicenseDialog({ initial, catalogue, onClose, onSave, saving }) {
+  const [form, setForm] = useState({
+    licence_type: initial?.licence_type || "",
+    country: initial?.country || "KZ",
+    number: initial?.number || "",
+    issued_at: initial?.issued_at || "",
+    expires_at: initial?.expires_at || "",
+    file: null,
+  });
+  const isEdit = !!initial?.id;
+  const upd = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  const submit = () => {
+    if (!form.licence_type.trim()) return toast.error("Pick the licence type.");
+    if (!form.number.trim()) return toast.error("Enter the licence number.");
+    if (form.issued_at && form.expires_at && form.issued_at > form.expires_at)
+      return toast.error("Issue date cannot be after expiry date.");
+    onSave(form);
+  };
+
+  return (
+    <>
+      <div className="pmc-drawer-scrim" style={{ display: "block" }} onClick={onClose} />
+      <div role="dialog" aria-modal="true" data-testid="license-dialog"
+           style={{ position: "fixed", top: "50%", left: "50%",
+                    transform: "translate(-50%,-50%)", width: "min(560px,92vw)",
+                    background: "var(--surface,#fff)", border: "1px solid var(--line,#0001)",
+                    borderRadius: "var(--radius-md,6px)", padding: 24, zIndex: 60,
+                    boxShadow: "0 20px 50px rgba(0,0,0,.25)" }}>
+        <div className="pmc-eyebrow">{isEdit ? "Update licence" : "Add licence"}</div>
+        <h2 style={{ margin: "6px 0 16px" }}>{isEdit ? form.licence_type : "New licence / certificate"}</h2>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <label style={{ gridColumn: "1 / -1" }}>
+            <span className="pmc-eyebrow">Licence type</span>
+            <select value={form.licence_type} onChange={(e) => upd("licence_type", e.target.value)}
+                    className="pmc-input" style={{ width: "100%", marginTop: 4 }}
+                    data-testid="license-type">
+              <option value="">— pick a licence type —</option>
+              {catalogue.map((lt) => <option key={lt} value={lt}>{lt}</option>)}
+              <option value="__other__">Other (ISO, ISO 45001, etc.)</option>
+            </select>
+          </label>
+          {form.licence_type === "__other__" && (
+            <label style={{ gridColumn: "1 / -1" }}>
+              <span className="pmc-eyebrow">Custom licence name</span>
+              <input className="pmc-input" style={{ width: "100%", marginTop: 4 }}
+                     placeholder="e.g. ISO 9001:2015"
+                     onChange={(e) => upd("licence_type", e.target.value)}
+                     data-testid="license-custom" />
+            </label>
+          )}
+          <label>
+            <span className="pmc-eyebrow">Country</span>
+            <select value={form.country} onChange={(e) => upd("country", e.target.value)}
+                    className="pmc-input" style={{ width: "100%", marginTop: 4 }}
+                    data-testid="license-country">
+              {["KZ","IN","AE","GB","US"].map((c) => <option key={c}>{c}</option>)}
+            </select>
+          </label>
+          <label>
+            <span className="pmc-eyebrow">Licence number</span>
+            <input value={form.number} onChange={(e) => upd("number", e.target.value)}
+                   className="pmc-input" style={{ width: "100%", marginTop: 4 }}
+                   placeholder="e.g. KZ-EL-2025-04418"
+                   data-testid="license-number" />
+          </label>
+          <label>
+            <span className="pmc-eyebrow">Issued</span>
+            <input type="date" value={form.issued_at || ""} onChange={(e) => upd("issued_at", e.target.value)}
+                   className="pmc-input" style={{ width: "100%", marginTop: 4 }}
+                   data-testid="license-issued" />
+          </label>
+          <label>
+            <span className="pmc-eyebrow">Expires</span>
+            <input type="date" value={form.expires_at || ""} onChange={(e) => upd("expires_at", e.target.value)}
+                   className="pmc-input" style={{ width: "100%", marginTop: 4 }}
+                   data-testid="license-expires" />
+          </label>
+          <label style={{ gridColumn: "1 / -1" }}>
+            <span className="pmc-eyebrow">Upload certificate (optional)</span>
+            <input type="file" accept=".pdf,.jpg,.jpeg,.png"
+                   onChange={(e) => upd("file", e.target.files?.[0] || null)}
+                   className="pmc-input" style={{ width: "100%", marginTop: 4 }}
+                   data-testid="license-file" />
+          </label>
+        </div>
+
+        <div style={{ marginTop: 20, display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <button type="button" onClick={onClose} className="pmc-btn pmc-btn--secondary"
+                  data-testid="license-cancel">Cancel</button>
+          <button type="button" onClick={submit} disabled={saving}
+                  className="pmc-btn pmc-btn--primary"
+                  data-testid="license-submit">
+            {saving ? "Saving…" : (isEdit ? "Save changes" : "Add licence")}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
 
 export default function VendorCompanyKycE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
-  useVendorCompanyLive({ enabled: isE });
-  useEffect(() => {
-    if (!isE) return;
-    const tick = () => {
-      document.querySelectorAll("[data-in]").forEach((el) => {
-        const secs = parseInt(el.getAttribute("data-in") || "0", 10);
-        if (!secs) return;
-        const d = Math.floor(secs/86400), h = Math.floor((secs%86400)/3600), m = Math.floor((secs%3600)/60);
-        el.textContent = d>0 ? `${d}d ${h}h` : h>0 ? `${h}h ${m}m` : `${m}m`;
-      });
-    };
-    tick();
-  }, [isE]);
+  const [me, setMe] = useState(null);
+  const [licData, setLicData] = useState({ licenses: [], catalogue: [], missing: [], expiring_soon: 0, expired: 0 });
+  const [activeTab, setActiveTab] = useState("licenses");
+  const [dialog, setDialog] = useState(null); // null | { mode:"add"|"edit", license? }
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    try {
+      const [meRes, licRes] = await Promise.all([
+        vendorApi.me(),
+        vendorApi.listLicenses(),
+      ]);
+      setMe(meRes);
+      setLicData(licRes);
+    } catch (e) { showApiError(e); }
+    finally { setLoading(false); }
+  }, []);
+  useEffect(() => { if (isE) load(); }, [isE, load]);
+
+  const openAdd = (licence_type) => setDialog({ mode: "add", license: licence_type ? { licence_type } : null });
+  const openEdit = (license) => setDialog({ mode: "edit", license });
+  const closeDialog = () => setDialog(null);
+
+  const saveLicense = async (form) => {
+    setSaving(true);
+    try {
+      let file_key = null;
+      if (form.file) {
+        const pre = await uploadsApi.presign(
+          form.file.name, form.file.type, "vendor-license", form.file.size);
+        await uploadsApi.direct(pre.key, form.file);
+        file_key = pre.key;
+      }
+      const payload = {
+        licence_type: form.licence_type,
+        country: form.country,
+        number: form.number,
+        issued_at: form.issued_at || null,
+        expires_at: form.expires_at || null,
+        file_key,
+      };
+      if (dialog?.mode === "edit") await vendorApi.updateLicense(dialog.license.id, payload);
+      else await vendorApi.addLicense(payload);
+      toast.success(dialog?.mode === "edit" ? "Licence updated" : "Licence added");
+      closeDialog();
+      load();
+    } catch (e) { showApiError(e, { fallbackTitle: "Could not save licence" }); }
+    finally { setSaving(false); }
+  };
+
+  const removeLicense = async (lic) => {
+    if (!window.confirm(`Remove ${lic.licence_type} (${lic.country})?`)) return;
+    try {
+      await vendorApi.deleteLicense(lic.id);
+      toast.success("Licence removed");
+      load();
+    } catch (e) { showApiError(e); }
+  };
+
   if (!isE && Legacy) return <Legacy />;
   if (!isE) return null;
+
+  const { licenses, catalogue, missing, expiring_soon, expired } = licData;
+  const headerNeedsAttention = expiring_soon > 0 || expired > 0 || missing.length > 0;
+
   return (
     <div data-testid="vendor-company-kyc-e" data-pmc-e-page="vendor-company-kyc-e">
-<header className="pmc-chrome pmc-vtop">
-  <a href="#" className="pmc-brand"><span className="pmc-brand__n">PMC Managers</span><span className="pmc-brand__s">Supplier portal</span></a>
-  <label className="pmc-search pmc-cmd"><svg className="pmc-ico" aria-hidden="true"><use href="#i-search" /></svg><input placeholder="Search tenders, bids, documents…" /><span className="pmc-kbd">Ctrl K</span></label>
-  <div className="pmc-vtop__r">
-    <button className="pmc-btn pmc-btn--onchrome" data-help-open=""><svg className="pmc-ico" aria-hidden="true"><use href="#i-help" /></svg> Help</button>
-    <button className="pmc-iconbtn pmc-bell" aria-label="9 alerts"><svg className="pmc-ico" aria-hidden="true"><use href="#i-bell" /></svg><span className="pmc-bell__n">9</span></button>
-    <button className="pmc-who" aria-haspopup="menu"><span className="pmc-avatar">EC</span><span className="pmc-who__t"><b>Emerald Corporates</b><span>PMC-SUP-000017 · KYC verified</span></span></button>
-  </div>
-</header><div className="pmc-app"><nav className="pmc-lnav" aria-label="Supplier"><a href="#"><svg className="pmc-ico" aria-hidden="true"><use href="#i-home" /></svg>Home</a><a href="#"><svg className="pmc-ico" aria-hidden="true"><use href="#i-search" /></svg>Find tenders<span className="c">29</span></a><a href="#"><svg className="pmc-ico" aria-hidden="true"><use href="#i-gavel" /></svg>My bids<span className="c hot">1</span></a><a href="#"><svg className="pmc-ico" aria-hidden="true"><use href="#i-coin" /></svg>EMD &amp; payments</a><a href="#"><svg className="pmc-ico" aria-hidden="true"><use href="#i-sign" /></svg>Signatures<span className="c">1</span></a><hr /><a href="#" aria-current="page"><svg className="pmc-ico" aria-hidden="true"><use href="#i-shield" /></svg>Company &amp; KYC</a><a href="#"><svg className="pmc-ico" aria-hidden="true"><use href="#i-users" /></svg>Reviews</a><a href="#"><svg className="pmc-ico" aria-hidden="true"><use href="#i-settings" /></svg>Account &amp; security</a><a href="#" data-help-open=""><svg className="pmc-ico" aria-hidden="true"><use href="#i-help" /></svg>Help &amp; FAQs</a><div className="pmc-desk"><b>Your PMC desk</b><div className="pmc-muted">Questions on a tender or bid?</div><a href="mailto:tenders@pmcmanagers.com">tenders@pmcmanagers.com</a><a href="#" className="pmc-btn pmc-btn--secondary pmc-btn--sm" style={{ width: "100%", marginTop: "10px" }}><svg className="pmc-ico" aria-hidden="true"><use href="#i-chat" /></svg> Raise a ticket</a></div></nav><main className="pmc-main">
-<div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "20px" }}><div><div className="pmc-eyebrow">Company &amp; KYC</div><h1 className="pmc-display" style={{ fontSize: "40px", lineHeight: "44px", margin: "6px 0 0" }}>Emerald Corporates</h1></div><a href="#" className="pmc-btn pmc-btn--secondary"><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg> Download KYC pack</a></div>
-<div className="ck-head pmc-panel">
-  <div><span className="l">KYC status</span><span className="pmc-pill pmc-pill--success">Verified</span><span className="s">Approved 12 Aug 2026 · review due Aug 2027</span></div>
-  <div><span className="l">Supplier ID</span><b className="pmc-ref" style={{ color: "var(--ink)", fontSize: "14px" }}>PMC-SUP-000017</b><span className="s">Registered UK · Company no. on file</span></div>
-  <div><span className="l">Rating</span><b style={{ fontSize: "18px" }}>Good · 80</b><span className="s">From 2 buyer reviews</span></div>
-  <div><span className="l">Categories</span><b style={{ fontSize: "14px" }}>Civil &amp; MEP · Medical supply</b><span className="s">Delivery: Kazakhstan, India</span></div>
-</div>
-<div className="pmc-callout pmc-callout--warn" style={{ margin: "16px 0" }}><svg className="pmc-ico" aria-hidden="true"><use href="#i-clock" /></svg><div><b>1 licence expires soon and 1 is missing.</b> Tenders that need them will show “KYC gap” until you update. <a href="#">Fix now</a></div></div>
-<div className="pmc-tabs" style={{ marginBottom: "16px" }}><button className="pmc-tab" aria-selected="true">Licences &amp; certificates</button><button className="pmc-tab">Company documents<span className="n">6</span></button><button className="pmc-tab">Team &amp; roles<span className="n">4</span></button><button className="pmc-tab">Bank accounts<span className="n">1</span></button><button className="pmc-tab">Reviews<span className="n">2</span></button></div>
-<section className="pmc-panel"><table className="pmc-table"><thead><tr><th>Licence</th><th>Country</th><th>Number</th><th>Expires</th><th>Status</th><th></th></tr></thead><tbody><tr><td style={{ fontWeight: "600" }}>Electrical installation</td><td>KZ</td><td className="pmc-ref">KZ-EL-2025-04418</td><td>12 Aug 2027</td><td><span className="pmc-pill pmc-pill--success">Valid</span></td><td style={{ textAlign: "right" }}><a href="#" className="pmc-btn pmc-btn--ghost pmc-btn--sm">View</a></td></tr><tr><td style={{ fontWeight: "600" }}>Mechanical works</td><td>KZ</td><td className="pmc-ref">KZ-MW-2024-19002</td><td>21 Oct 2026</td><td><span className="pmc-pill pmc-pill--warning">Expires in 23 days</span></td><td style={{ textAlign: "right" }}><a href="#" className="pmc-btn pmc-btn--primary pmc-btn--sm">Upload renewal</a></td></tr><tr><td style={{ fontWeight: "600" }}>Plumbing &amp; firefighting</td><td>KZ</td><td className="pmc-ref">Not on file</td><td>—</td><td><span className="pmc-pill pmc-pill--danger">Missing</span></td><td style={{ textAlign: "right" }}><a href="#" className="pmc-btn pmc-btn--secondary pmc-btn--sm">Add licence</a></td></tr><tr><td style={{ fontWeight: "600" }}>ISO 9001:2015</td><td>Global</td><td className="pmc-ref">QMS-88213</td><td>14 Mar 2028</td><td><span className="pmc-pill pmc-pill--success">Valid</span></td><td style={{ textAlign: "right" }}><a href="#" className="pmc-btn pmc-btn--ghost pmc-btn--sm">View</a></td></tr><tr><td style={{ fontWeight: "600" }}>Medical devices distribution</td><td>IN</td><td className="pmc-ref">MD-DL-2023-7711</td><td>30 Jun 2027</td><td><span className="pmc-pill pmc-pill--success">Valid</span></td><td style={{ textAlign: "right" }}><a href="#" className="pmc-btn pmc-btn--ghost pmc-btn--sm">View</a></td></tr></tbody></table></section>
-<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "16px" }}>
-  <section className="pmc-panel"><div className="pmc-panel__head"><h2 className="pmc-panel__title">Team &amp; roles</h2><a href="#" className="pmc-btn pmc-btn--secondary pmc-btn--sm"><svg className="pmc-ico" aria-hidden="true"><use href="#i-plus" /></svg> Invite</a></div>
-    <table className="pmc-table"><tbody><tr><td><b>Rk</b></td><td>Owner · Signatory</td><td><span className="pmc-pill pmc-pill--success">2FA on</span></td></tr><tr><td><b>Tender manager</b></td><td>Editor</td><td><span className="pmc-pill pmc-pill--success">2FA on</span></td></tr><tr><td><b>Finance</b></td><td>EMD &amp; payments</td><td><span className="pmc-pill pmc-pill--warning">2FA off</span></td></tr><tr><td><b>Engineer</b></td><td>Technical envelope only</td><td><span className="pmc-pill pmc-pill--success">2FA on</span></td></tr></tbody></table></section>
-  <section className="pmc-panel"><div className="pmc-panel__head"><h2 className="pmc-panel__title">Privacy &amp; data</h2></div><div className="pmc-panel__body" style={{ display: "grid", gap: "12px", fontSize: "14px" }}>
-    <p className="pmc-muted" style={{ margin: "0", lineHeight: "22px" }}>Your documents are visible only to PMC compliance and the evaluation committees of tenders you bid on. Every view is logged on the ledger.</p>
-    <div style={{ display: "flex", gap: "8px" }}><a href="#" className="pmc-btn pmc-btn--secondary"><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg> Export my data</a><a href="#" className="pmc-btn pmc-btn--danger">Delete my data…</a></div>
-    <span className="pmc-muted" style={{ fontSize: "12px" }}>Deletion asks you to confirm and cannot remove records that must be kept for active bids or contracts.</span></div></section>
-</div></main></div>
-<div className="pmc-drawer-scrim" data-help-close=""></div>
-<aside className="pmc-drawer" role="dialog" aria-modal="true" aria-label="Help and FAQs">
-  <div className="pmc-drawer__head">
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-      <div><div className="pmc-eyebrow">Help &amp; FAQs</div><div style={{ fontSize: "20px", lineHeight: "28px", fontWeight: "600" }}>How can we help?</div></div>
-      <button className="pmc-btn pmc-btn--ghost pmc-btn--sm" data-help-close="" aria-label="Close help">Close <span className="pmc-kbd">Esc</span></button>
-    </div>
-    <label className="pmc-search"><svg className="pmc-ico" aria-hidden="true"><use href="#i-search" /></svg><input data-help-q="" placeholder="Search help, e.g. “bank guarantee”" /></label>
-  </div>
-  <div className="pmc-drawer__body">
-    <div className="pmc-eyebrow" style={{ margin: "4px 0 10px", color: "var(--ink-muted)" }}>On this page · Company & KYC</div>
-    <div style={{ display: "grid", gap: "8px", marginBottom: "20px" }}><div className="pmc-tip"><svg className="pmc-ico" aria-hidden="true"><use href="#i-spark" /></svg><div><b>Keep licences current</b>Expiring licences block matching on tenders that need them. Upload renewals here.</div></div><div className="pmc-tip"><svg className="pmc-ico" aria-hidden="true"><use href="#i-spark" /></svg><div><b>Give people only what they need</b>An engineer can edit the technical envelope without seeing prices.</div></div></div>
-    <div className="pmc-eyebrow" style={{ marginBottom: "2px", color: "var(--ink-muted)" }}>Frequently asked</div>
-    <div data-help-list=""><details className="pmc-faq" data-cat="registration"><summary>How do I register as a supplier?</summary><p>Choose <b>Register as supplier</b>, enter your company details, then upload the KYC documents the form lists for your country and category. You can save and resume at any point. PMC reviews the file and you are notified when your KYC is approved.</p></details><details className="pmc-faq" data-cat="registration"><summary>Which documents does KYC need?</summary><p>The document list depends on your country and the licences your work category requires (for example, electrical or plumbing licences for Kazakhstan works packages). The registration form shows exactly which slots apply to you.</p></details><details className="pmc-faq" data-cat="account"><summary>How do I keep my account secure?</summary><p>Turn on two-factor sign-in under <b>Account &rsaquo; Security</b>. On the mobile app you can also sign in with Face ID or fingerprint.</p></details></div>
-    <p data-help-empty="" hidden style={{ color: "var(--ink-muted)", fontSize: "14px" }}>No answer matches yet. Raise a ticket below and the PMC desk will reply.</p>
-    <a href="/help" className="pmc-btn pmc-btn--secondary" style={{ width: "100%", marginTop: "16px" }}><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg> Open the full Help Centre</a>
-  </div>
-  <div className="pmc-drawer__foot">
-    <a href="#" className="pmc-btn pmc-btn--primary"><svg className="pmc-ico" aria-hidden="true"><use href="#i-chat" /></svg> Raise a ticket</a>
-    <a href="mailto:tenders@pmcmanagers.com" className="pmc-btn pmc-btn--secondary"><svg className="pmc-ico" aria-hidden="true"><use href="#i-mail" /></svg> Email the desk</a>
-  </div>
-</aside>
-<button className="pmc-helpfab" data-help-open="" aria-label="Open help"><span className="pmc-helpfab__q">?</span>Help</button>
+      <VendorPortalChrome active="/vendor/company">
+        <div style={{ display: "flex", justifyContent: "space-between",
+                      alignItems: "flex-end", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+          <div>
+            <div className="pmc-eyebrow">Company &amp; KYC</div>
+            <h1 className="pmc-display" style={{ fontSize: 40, lineHeight: "44px", margin: "6px 0 0" }}
+                data-testid="vkyc-company-name">
+              {me?.company_name || "Your company"}
+            </h1>
+          </div>
+          <Link to="/vendor/account" className="pmc-btn pmc-btn--secondary"
+                data-testid="vkyc-edit-profile">
+            <svg className="pmc-ico" aria-hidden="true"><use href="#i-settings" /></svg> Edit profile
+          </Link>
+        </div>
+
+        <div className="ck-head pmc-panel" data-testid="vkyc-head">
+          <div>
+            <span className="l">KYC status</span>
+            <span className="pmc-pill pmc-pill--success">
+              {me?.kyc_status || "Verified"}
+            </span>
+            <span className="s">{me?.vendor_ref ? `Ref ${me.vendor_ref}` : ""}</span>
+          </div>
+          <div>
+            <span className="l">Supplier ID</span>
+            <b className="pmc-ref" style={{ color: "var(--ink)", fontSize: 14 }}
+               data-testid="vkyc-ref">{me?.vendor_ref || "—"}</b>
+            <span className="s">{me?.country ? `Registered ${me.country}` : ""}</span>
+          </div>
+          <div>
+            <span className="l">Categories</span>
+            <b style={{ fontSize: 14 }}>
+              {(me?.business_categories || []).length || "—"}
+            </b>
+            <span className="s">
+              {(me?.business_categories || []).slice(0, 2).join(" · ")}
+            </span>
+          </div>
+          <div>
+            <span className="l">Rating</span>
+            <b style={{ fontSize: 18 }}>{me?.rating_label || "—"}</b>
+            <span className="s">{me?.rating_note || ""}</span>
+          </div>
+        </div>
+
+        {headerNeedsAttention && (
+          <div className="pmc-callout pmc-callout--warn" style={{ margin: "16px 0" }}
+               data-testid="vkyc-alert">
+            <svg className="pmc-ico" aria-hidden="true"><use href="#i-clock" /></svg>
+            <div>
+              <b>
+                {[
+                  expiring_soon ? `${expiring_soon} expiring soon` : null,
+                  expired ? `${expired} expired` : null,
+                  missing.length ? `${missing.length} KZ licence${missing.length === 1 ? "" : "s"} missing` : null,
+                ].filter(Boolean).join(" · ")}
+              </b>
+              {" "}Tenders that need them will show “KYC gap” until you update.{" "}
+              <button type="button" onClick={() => setActiveTab("licenses")}
+                      style={{ background: "transparent", border: 0, color: "inherit",
+                               textDecoration: "underline", cursor: "pointer" }}
+                      data-testid="vkyc-fix-now">Fix now</button>
+            </div>
+          </div>
+        )}
+
+        <div className="pmc-tabs" style={{ marginBottom: 16 }} role="tablist"
+             data-testid="vkyc-tabs">
+          {TABS.map(([k, label]) => (
+            <button key={k} role="tab" aria-selected={activeTab === k}
+                    className={"pmc-tab" + (activeTab === k ? " active" : "")}
+                    onClick={() => setActiveTab(k)}
+                    data-testid={`vkyc-tab-${k}`}>
+              {label}
+              {k === "licenses" && licenses.length > 0 && <span className="n">{licenses.length}</span>}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === "licenses" && (
+          <section className="pmc-panel" data-testid="vkyc-licenses-panel">
+            {loading && <div className="p-6 text-sm" data-testid="vkyc-loading">Loading licences…</div>}
+            {!loading && (
+              <>
+                <table className="pmc-table">
+                  <thead>
+                    <tr><th>Licence</th><th>Country</th><th>Number</th><th>Expires</th><th>Status</th><th></th></tr>
+                  </thead>
+                  <tbody>
+                    {licenses.map((lic) => (
+                      <tr key={lic.id} data-testid={`vkyc-row-${lic.id}`}>
+                        <td style={{ fontWeight: 600 }}>{lic.licence_type}</td>
+                        <td>{lic.country}</td>
+                        <td className="pmc-ref">{lic.number}</td>
+                        <td>{fmtDate(lic.expires_at)}</td>
+                        <td>{statusPill(lic.status)}</td>
+                        <td style={{ textAlign: "right" }}>
+                          <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                            {lic.file_key && (
+                              <a href={`${BACKEND_URL}/api/v1/uploads/files/${lic.file_key}`}
+                                 target="_blank" rel="noopener noreferrer"
+                                 className="pmc-btn pmc-btn--ghost pmc-btn--sm"
+                                 data-testid={`vkyc-view-${lic.id}`}>View</a>
+                            )}
+                            <button type="button" onClick={() => openEdit(lic)}
+                                    className="pmc-btn pmc-btn--secondary pmc-btn--sm"
+                                    data-testid={`vkyc-edit-${lic.id}`}>
+                              {lic.status === "expiring" || lic.status === "expired" ? "Upload renewal" : "Edit"}
+                            </button>
+                            <button type="button" onClick={() => removeLicense(lic)}
+                                    className="pmc-btn pmc-btn--ghost pmc-btn--sm"
+                                    data-testid={`vkyc-delete-${lic.id}`}>Remove</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {missing.map((licence_type) => (
+                      <tr key={licence_type} data-testid={`vkyc-missing-${licence_type}`}
+                          style={{ background: "var(--warning-soft,#fef9e7)" }}>
+                        <td style={{ fontWeight: 600 }}>{licence_type}</td>
+                        <td>KZ</td>
+                        <td className="pmc-ref" style={{ color: "var(--danger,#b91c1c)" }}>Not on file</td>
+                        <td>—</td>
+                        <td>{statusPill("missing")}</td>
+                        <td style={{ textAlign: "right" }}>
+                          <button type="button"
+                                  onClick={() => openAdd(licence_type)}
+                                  className="pmc-btn pmc-btn--secondary pmc-btn--sm"
+                                  data-testid={`vkyc-add-${licence_type.replace(/\s+/g, "-")}`}>
+                            Add licence
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {licenses.length === 0 && missing.length === 0 && (
+                      <tr>
+                        <td colSpan={6} style={{ textAlign: "center", padding: 32 }}
+                            data-testid="vkyc-empty">
+                          No licences on file yet.{" "}
+                          <button type="button" onClick={() => openAdd(null)}
+                                  style={{ background: "transparent", border: 0,
+                                           color: "var(--brand-navy,#0B1A14)",
+                                           textDecoration: "underline", cursor: "pointer" }}>
+                            Add your first licence
+                          </button>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+                <div style={{ padding: 14, borderTop: "1px solid var(--line,#0001)",
+                              display: "flex", justifyContent: "flex-end" }}>
+                  <button type="button" onClick={() => openAdd(null)}
+                          className="pmc-btn pmc-btn--primary pmc-btn--sm"
+                          data-testid="vkyc-add-license">
+                    <svg className="pmc-ico" aria-hidden="true"><use href="#i-plus" /></svg> Add licence
+                  </button>
+                </div>
+              </>
+            )}
+          </section>
+        )}
+
+        {activeTab === "documents" && (
+          <section className="pmc-panel" data-testid="vkyc-documents-panel">
+            <div className="p-6 text-sm pmc-muted" data-testid="vkyc-documents-empty">
+              Company documents (Certificate of incorporation, Trade licence, Tax registration, Bank letter, etc.)
+              are uploaded during registration and are visible here once the KYC team confirms them.
+            </div>
+          </section>
+        )}
+
+        {activeTab === "team" && (
+          <section className="pmc-panel" data-testid="vkyc-team-panel">
+            <div className="p-6 text-sm pmc-muted" data-testid="vkyc-team-empty">
+              Team &amp; roles for this vendor are managed under <Link to="/vendor/account">Account &amp; security</Link>.
+            </div>
+          </section>
+        )}
+
+        {activeTab === "bank" && (
+          <section className="pmc-panel" data-testid="vkyc-bank-panel">
+            <div className="p-6 text-sm pmc-muted" data-testid="vkyc-bank-empty">
+              Bank account details are shared with the escrow officer on award.
+              To change them, raise a <Link to="/vendor">profile change request</Link>.
+            </div>
+          </section>
+        )}
+
+        {activeTab === "reviews" && (
+          <section className="pmc-panel" data-testid="vkyc-reviews-panel">
+            <div className="p-6 text-sm pmc-muted" data-testid="vkyc-reviews-empty">
+              Buyer reviews are listed under <Link to="/vendor/reviews">Reviews</Link>.
+            </div>
+          </section>
+        )}
+      </VendorPortalChrome>
+
+      {dialog && (
+        <LicenseDialog initial={dialog.license}
+                       catalogue={catalogue}
+                       onClose={closeDialog}
+                       onSave={saveLicense}
+                       saving={saving} />
+      )}
     </div>
   );
 }

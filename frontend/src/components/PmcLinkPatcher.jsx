@@ -947,7 +947,17 @@ export default function PmcLinkPatcher() {
       // hrefs like /notices/<ref> onto buttons that must actually DO things
       // (Start bid → bid form, Pay EMD → Stripe, Review & sign → DocuSign).
       // If we honoured the href first, those buttons would just navigate.
-      if (resolveClickAction(el, label, ctx, navigate)) { e.preventDefault(); return; }
+      // v50p — fully-React pages own their clicks: never let the legacy
+      // action-label map hijack them. A "Download" button on the rewritten
+      // Signatures page was being swallowed by handleSigDoc's envelope
+      // lookup, surfacing "This document isn't linked to an envelope yet."
+      // while the component's own onClick never ran.
+      const REACT_OWNED = pageId === "vendor-home-e"
+        || pageId === "vendor-find-tenders-e"
+        || pageId === "vendor-signatures-e"
+        || pageId === "vendor-account-e"
+        || pageId === "vendor-company-kyc-e";
+      if (!REACT_OWNED && resolveClickAction(el, label, ctx, navigate)) { e.preventDefault(); return; }
 
       // Real href — backend file/API URLs and static downloads must NOT go
       // through the SPA router (no route matches them → dead page). Let the

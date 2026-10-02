@@ -21,7 +21,7 @@ from routers import (
     docusign, profile_ops, _temp_downloads,
     stakeholder_reports, dashboard_drill, branding_theme,
     envelope_authoritative, contracts_export,
-    admin_demo, push, vendor_categories, vendor_profile_changes,
+    admin_demo, push, vendor_categories, vendor_profile_changes, vendor_licenses,
 )
 from routers import password_reset as _password_reset
 
@@ -78,6 +78,7 @@ app.include_router(vendors.router)# Wave 1 — Bidding, EMD, multi-role pipeline
 app.include_router(staff_auth.router)
 app.include_router(vendor_auth.router)
 app.include_router(vendor_categories.router)
+app.include_router(vendor_licenses.router)
 app.include_router(_password_reset.router)
 app.include_router(bids.router)
 app.include_router(payments.router)

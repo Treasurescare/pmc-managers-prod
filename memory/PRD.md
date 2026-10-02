@@ -38,6 +38,30 @@ mostly static; live data + click routing is patched at runtime via:
 
 ## What is implemented
 
+### v50p (2026-10-02) — Patcher guard for React-owned vendor pages
+- `PmcLinkPatcher` skips its legacy action-label map on the rewritten
+  vendor pages (home/tenders/signatures/account/company-kyc). Fixes the
+  Signatures Download button being hijacked ("document isn't linked to
+  an envelope yet" toast) — the component handler now always runs.
+
+### v50o (2026-10-02) — Vendor-portal polish
+- Vendor Home rewritten: live greeting + KPI tiles + "Do this next" strip;
+  sidebar Home is a real Router link (stays inside /vendor).
+- Structured address-change dialog (street/city/state/country/zip) with
+  `address_parts` persisted; company_name added to the approval queue.
+- Vendor avatar dropdown: Change profile / Change photo / Change password /
+  Sign out.
+- Find Tenders uses the shared admin `useListPager` widget.
+
+### v50n (2026-10-02) — Company & KYC live + phone validation
+- Company & KYC page rewritten: real tab bar, licences CRUD via
+  `vendor_licenses` router (list/add/renew/delete + status + KZ missing
+  list), certificate upload.
+- Phone fields in profile-edit get a 30-country dropdown + per-country
+  digit validation; email label "New email".
+- DocuSign `mine` returns `has_document`; Download hidden when absent.
+- Restored `vendorApi.myCategories/requestCategory` regression.
+
 ### v50m (2026-02-14) — Vendor Portal rewrite + Profile Edit + SEC fixes
 - Static Option-E Vendor-portal pages replaced with live, API-driven
   components:

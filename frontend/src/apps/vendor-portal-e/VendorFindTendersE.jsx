@@ -2,9 +2,8 @@ import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { publicApi, showApiError } from "@/lib/api";
+import { useListPager } from "@/components/ListPager";
 import VendorPortalChrome from "./VendorPortalChrome";
-
-const PAGE_SIZE = 9;
 
 function fmtMoney(amount, currency) {
   if (amount == null) return "—";
@@ -33,7 +32,6 @@ export default function VendorFindTendersE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -59,8 +57,9 @@ export default function VendorFindTendersE({ legacy: Legacy }) {
     ));
   }, [items, search]);
 
-  const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  // v50o — same pagination widget as the admin console (Show 10/20/30/All,
+  // "1–10 of N", Prev/Next) instead of a one-off pager.
+  const { paged, controls } = useListPager(filtered, { defaultSize: 10, testid: "vft-pager" });
 
   if (!isE && Legacy) return <Legacy />;
   if (!isE) return null;
@@ -82,7 +81,7 @@ export default function VendorFindTendersE({ legacy: Legacy }) {
             <svg className="pmc-ico" aria-hidden="true"><use href="#i-search" /></svg>
             <input placeholder="Keyword, reference or category"
               value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+              onChange={(e) => setSearch(e.target.value)}
               data-testid="vft-search" />
           </label>
         </div>
@@ -145,24 +144,11 @@ export default function VendorFindTendersE({ legacy: Legacy }) {
           ))}
         </div>
 
-        {totalPages > 1 && (
-          <div style={{ marginTop: 20, display: "flex", gap: 8, alignItems: "center",
-                        justifyContent: "space-between" }} data-testid="vft-pager">
-            <button className="pmc-btn pmc-btn--secondary pmc-btn--sm"
-                    onClick={() => setPage((p) => Math.max(0, p - 1))}
-                    disabled={page === 0}
-                    data-testid="vft-page-prev">
-              ← Previous
-            </button>
-            <div className="pmc-muted" style={{ fontSize: 13 }}>
-              Page {page + 1} of {totalPages} · {total} total on board
-            </div>
-            <button className="pmc-btn pmc-btn--secondary pmc-btn--sm"
-                    onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-                    disabled={page >= totalPages - 1}
-                    data-testid="vft-page-next">
-              Next →
-            </button>
+        {filtered.length > 0 && (
+          <div style={{ marginTop: 20, border: "1px solid var(--line, #0001)",
+                        borderRadius: "var(--radius-sm, 4px)", overflow: "hidden" }}
+               data-testid="vft-pager-wrap">
+            {controls}
           </div>
         )}
       </VendorPortalChrome>

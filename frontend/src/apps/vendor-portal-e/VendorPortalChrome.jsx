@@ -1,6 +1,7 @@
-import { Link, useLocation } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { vendorApi } from "@/lib/api";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import { vendorApi, showApiError } from "@/lib/api";
 
 /**
  * Shared Supplier-portal chrome (top bar + left nav) for Option E pages.
@@ -24,12 +25,49 @@ const NAV_SECONDARY = [
 
 export default function VendorPortalChrome({ active, counts = {}, children }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [me, setMe] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+  const fileRef = useRef(null);
   useEffect(() => {
     vendorApi.me().then(setMe).catch(() => {});
   }, []);
+  // v50o — close the avatar dropdown on outside-click / Esc.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDoc = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false); };
+    const onEsc = (e) => { if (e.key === "Escape") setMenuOpen(false); };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onEsc);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onEsc);
+    };
+  }, [menuOpen]);
   const initials = (me?.company_name || me?.email || "V")
     .split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+
+  const onPhoto = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.size > 400 * 1024) { toast.error("Photo must be under 400 KB"); return; }
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        await vendorApi.uploadAvatar(reader.result);
+        setMe((m) => ({ ...m, avatar_data_url: reader.result }));
+        toast.success("Profile photo updated");
+      } catch (err) { showApiError(err); }
+    };
+    reader.readAsDataURL(f);
+    e.target.value = "";
+  };
+
+  const onSignOut = async () => {
+    try { await vendorApi.logout(); } catch {}
+    navigate("/vendor/login", { replace: true });
+  };
 
   const renderLink = (item) => {
     const isActive = active ? active === item.to : location.pathname === item.to;
@@ -65,14 +103,65 @@ export default function VendorPortalChrome({ active, counts = {}, children }) {
                 data-testid="vendor-alerts-link">
             <svg className="pmc-ico" aria-hidden="true"><use href="#i-bell" /></svg>
           </Link>
-          <Link to="/vendor/account" className="pmc-who" aria-haspopup="menu"
-                data-testid="vendor-who-link">
-            <span className="pmc-avatar">{initials}</span>
-            <span className="pmc-who__t">
-              <b>{me?.company_name || "Supplier"}</b>
-              <span>{me?.vendor_ref || ""}</span>
-            </span>
-          </Link>
+          <div ref={menuRef} style={{ position: "relative" }}>
+            <button type="button" className="pmc-who" aria-haspopup="menu"
+                    aria-expanded={menuOpen}
+                    data-testid="vendor-who-link"
+                    onClick={() => setMenuOpen((o) => !o)}
+                    style={{ cursor: "pointer", background: "transparent", border: 0 }}>
+              <span className="pmc-avatar" style={{ overflow: "hidden" }}>
+                {me?.avatar_data_url
+                  ? <img src={me.avatar_data_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  : initials}
+              </span>
+              <span className="pmc-who__t">
+                <b data-testid="vendor-who-name">{me?.company_name || "Supplier"}</b>
+                <span>{me?.vendor_ref || ""}</span>
+              </span>
+            </button>
+            {menuOpen && (
+              <div role="menu" data-testid="vendor-avatar-menu" style={{
+                position: "absolute", right: 0, top: "calc(100% + 8px)", width: 260, zIndex: 60,
+                background: "var(--surface)", border: "1px solid var(--line)",
+                borderRadius: "var(--radius-md)", boxShadow: "var(--shadow-2)",
+                padding: 8, display: "grid", gap: 2,
+              }}>
+                <div style={{ padding: "10px 10px 12px", borderBottom: "1px solid var(--line)", marginBottom: 6 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, overflow: "hidden",
+                                textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                       data-testid="vendor-menu-company">{me?.company_name || "Supplier"}</div>
+                  <div className="pmc-muted" style={{ fontSize: 12 }}>{me?.email}</div>
+                </div>
+                <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPhoto}
+                       data-testid="vendor-avatar-file" />
+                <button type="button" className="pmc-btn pmc-btn--ghost pmc-btn--sm"
+                        style={{ justifyContent: "flex-start" }}
+                        data-testid="vendor-menu-change-profile"
+                        onClick={() => { setMenuOpen(false); navigate("/vendor/company"); }}>
+                  Change profile
+                </button>
+                <button type="button" className="pmc-btn pmc-btn--ghost pmc-btn--sm"
+                        style={{ justifyContent: "flex-start" }}
+                        data-testid="vendor-menu-change-photo"
+                        onClick={() => fileRef.current?.click()}>
+                  Change photo
+                </button>
+                <button type="button" className="pmc-btn pmc-btn--ghost pmc-btn--sm"
+                        style={{ justifyContent: "flex-start" }}
+                        data-testid="vendor-menu-change-password"
+                        onClick={() => { setMenuOpen(false); navigate("/vendor/change-password"); }}>
+                  Change password
+                </button>
+                <div style={{ borderTop: "1px solid var(--line)", marginTop: 6, paddingTop: 6 }}>
+                  <button type="button" className="pmc-btn pmc-btn--ghost pmc-btn--sm"
+                          style={{ justifyContent: "flex-start", color: "var(--danger)" }}
+                          data-testid="vendor-menu-sign-out" onClick={onSignOut}>
+                    Sign out
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </header>
       <div className="pmc-app">

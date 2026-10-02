@@ -1,5 +1,16 @@
 # PMC Managers v2 — Changelog
 
+## 2026-10-02 — v50p PmcLinkPatcher guard (Signatures Download fix)
+
+- `PmcLinkPatcher`: the legacy action-label click map (`/^download$/i` →
+  `handleSigDoc`) hijacked the Download button on the rewritten Signatures
+  page before React's onClick, surfacing "This document isn't linked to an
+  envelope yet." Fully-React vendor pages (`vendor-home-e`,
+  `vendor-find-tenders-e`, `vendor-signatures-e`, `vendor-account-e`,
+  `vendor-company-kyc-e`) are now exempt from the label map — component
+  handlers always win on those pages.
+
+
 ## 2026-09-23 · v46f HOTFIX — production bundle had preview API URL baked in (login CORS-blocked)
 
 ### Incident

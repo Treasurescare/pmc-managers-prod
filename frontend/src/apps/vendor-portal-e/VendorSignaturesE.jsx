@@ -139,13 +139,19 @@ export default function VendorSignaturesE({ legacy: Legacy }) {
                           {launching === e.envelope_id ? "Opening…" : "Review & sign"}
                         </button>
                       )}
-                      {e.status === "completed" && (
+                      {e.status === "completed" && e.has_document !== false && (
                         <button type="button"
                                 onClick={() => downloadSigned(e.envelope_id)}
                                 className="pmc-btn pmc-btn--secondary pmc-btn--sm"
                                 data-testid={`vsig-download-${e.envelope_id}`}>
                           Download
                         </button>
+                      )}
+                      {e.status === "completed" && e.has_document === false && (
+                        <span className="pmc-muted" style={{ fontSize: 12 }}
+                              data-testid={`vsig-nodoc-${e.envelope_id}`}>
+                          PDF not archived — ask PMC to regenerate
+                        </span>
                       )}
                     </td>
                   </tr>

@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { mastersApi, showApiError } from "@/lib/api";
 
 const FIELD_LABELS = {
+  company_name: "Company name",
   address: "Registered address",
   office_phone: "Office telephone",
   mobile: "Mobile",

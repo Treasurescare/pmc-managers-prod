@@ -40,13 +40,16 @@ def _out(doc: dict) -> dict:
     return BaseDocument.out(doc)
 
 
-ALLOWED_FIELDS = {"address", "office_phone", "mobile", "email"}
+ALLOWED_FIELDS = {"address", "office_phone", "mobile", "email", "company_name"}
 
 
 class ChangeRequestIn(BaseModel):
-    field: str = Field(..., description="One of address|office_phone|mobile|email")
-    new_value: str = Field(..., min_length=1, max_length=300)
+    field: str = Field(..., description="One of address|office_phone|mobile|email|company_name")
+    new_value: str = Field(..., min_length=1, max_length=400)
     reason: Optional[str] = Field(default=None, max_length=400)
+    # v50o — structured address parts when field == "address":
+    # {"street": ..., "city": ..., "state": ..., "country": ..., "zip": ...}
+    parts: Optional[dict] = Field(default=None)
 
     @field_validator("field")
     @classmethod
@@ -63,6 +66,8 @@ class DecisionIn(BaseModel):
 def _current_value(v_doc: dict, field: str) -> Optional[str]:
     if field == "email":
         return v_doc.get("email")
+    if field == "company_name":
+        return v_doc.get("company_name")
     # The rest live inside the registration-fingerprint keys on the vendor doc.
     direct = v_doc.get(field)
     if direct:
@@ -160,6 +165,10 @@ async def request_profile_change(payload: ChangeRequestIn, vendor=Depends(curren
         "email_token": email_token,
         "email_verified": None if payload.field == "email" else True,
     }
+    # v50o — keep the structured address parts so the admin panel can render
+    # street/city/state/zip/country cleanly instead of a single blob.
+    if payload.field == "address" and payload.parts:
+        doc["address_parts"] = payload.parts
     res = await db.vendor_profile_requests.insert_one(doc)
     doc["_id"] = res.inserted_id
 
@@ -239,8 +248,12 @@ async def admin_approve_request(request_id: str, payload: DecisionIn,
     update_doc: Dict[str, object] = {}
     if field == "email":
         update_doc["email"] = new_value
+    elif field == "company_name":
+        update_doc["company_name"] = new_value
     else:
         update_doc[field] = new_value
+        if req.get("address_parts"):
+            update_doc["address_parts"] = req["address_parts"]
     await db.vendors.update_one({"_id": ObjectId(req["vendor_id"])},
                                    {"$set": update_doc})
 

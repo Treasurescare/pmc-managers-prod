@@ -213,11 +213,21 @@ export const vendorApi = {
   // v50m — profile edit with admin-approval gate
   getProfile: () => api.get("/api/v1/vendor/profile").then((r) => r.data),
   listProfileRequests: () => api.get("/api/v1/vendor/profile/requests").then((r) => r.data),
-  requestProfileChange: (field, new_value, reason) =>
+  requestProfileChange: (field, new_value, reason, parts) =>
     api.post("/api/v1/vendor/profile/request-change",
-             { field, new_value, reason: reason || null }).then((r) => r.data),
+             { field, new_value, reason: reason || null,
+               ...(parts ? { parts } : {}) }).then((r) => r.data),
   confirmEmailChange: (token) =>
     api.get(`/api/v1/vendor/profile/email-verify/${token}`).then((r) => r.data),
+  // v50l — vendor category interest (vendor side)
+  myCategories: () => api.get("/api/v1/vendor/categories/mine").then((r) => r.data),
+  requestCategory: (p) =>
+    api.post("/api/v1/vendor/categories/request", p).then((r) => r.data),
+  // v50n — licences & certificates (Company & KYC tab)
+  listLicenses: () => api.get("/api/v1/vendor/licenses").then((r) => r.data),
+  addLicense: (p) => api.post("/api/v1/vendor/licenses", p).then((r) => r.data),
+  updateLicense: (id, p) => api.put(`/api/v1/vendor/licenses/${id}`, p).then((r) => r.data),
+  deleteLicense: (id) => api.delete(`/api/v1/vendor/licenses/${id}`).then((r) => r.data),
 };
 
 // ---------- Wave 1: Bids ----------
