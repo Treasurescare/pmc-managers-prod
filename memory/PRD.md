@@ -1162,3 +1162,18 @@ Investigation on production:
   / Bid@1234 hard-coded staff seed grants admin access in production.
   Fix queued for today's security batch (requires operator-set
   ADMIN_PASSWORD/OWNER_PASSWORD env vars in EB + staff seed rotation).
+
+### Password-reset email delivery investigation (02 Oct 2026)
+User: reset email never arrived at adminsupport@pmcmanagers.com.
+Findings:
+- password_reset.py /request wraps send_e_email in try/except and
+  ALWAYS returns {ok:true} — send failures invisible (needs fix).
+- Admin test-send endpoint (/api/v1/admin/emails/test-send, template
+  account.password_reset) returned ok:true on PRODUCTION → Resend API
+  accepted the message. Failure is downstream: spam folder or domain
+  auth (SPF/DKIM for mail.pmcmanagers.com) or bounce.
+- Preview .env RESEND_API_KEY is invalid for the Resend emails-list API
+  (can't pull delivery log from here). User asked to check Resend
+  dashboard → Emails/Logs for bounce/delivered status.
+- TODO (queued): make reset endpoint surface real send failures
+  (return ok:false + log) so UI can warn immediately.
