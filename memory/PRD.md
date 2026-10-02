@@ -1177,3 +1177,20 @@ Findings:
   dashboard → Emails/Logs for bounce/delivered status.
 - TODO (queued): make reset endpoint surface real send failures
   (return ok:false + log) so UI can warn immediately.
+
+### Email DNS diagnosis — pmcmanagers.com (02 Oct 2026)
+User receives NO email at adminsupport@pmcmanagers.com (not even spam).
+Public DNS results:
+- MX pmcmanagers.com: GoDaddy secureserver.net ✓ (receiving host exists)
+- DKIM resend._domainkey.mail.pmcmanagers.com ✓ (partially configured)
+- SPF TXT for mail.pmcmanagers.com: MISSING ✗
+- MX for mail.pmcmanagers.com: MISSING ✗ (Resend bounce record)
+- DMARC _dmarc.pmcmanagers.com: p=quarantine; adkim=r; aspf=r (strict —
+  failing mail quarantined/silently dropped by GoDaddy gateway)
+
+Fix given to user: add MX + TXT records for host `mail` in GoDaddy DNS
+(values from Resend dashboard → Domains → mail.pmcmanagers.com:
+MX feedback-smtp.us-east-1.amazonses.com pri 10, TXT
+"v=spf1 include:amazonses.com ~all"); verify the adminsupport mailbox
+exists in GoDaddy Email & Office; re-check Resend domain status.
+Awaiting user's Resend dashboard domain status + post-DNS retest.
