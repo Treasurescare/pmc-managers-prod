@@ -348,6 +348,13 @@ export const mastersApi = {
   createCategory: (p) => api.post("/api/v1/masters/categories", p).then((r) => r.data),
   updateCategory: (id, p) => api.patch(`/api/v1/masters/categories/${id}`, p).then((r) => r.data),
   deactivateCategory: (id) => api.delete(`/api/v1/masters/categories/${id}`).then((r) => r.data),
+  // v50l — vendor category requests (admin side)
+  listCategoryRequests: (status = "pending") =>
+    api.get("/api/v1/vendors/category-requests", { params: { status } }).then((r) => r.data),
+  approveCategoryRequest: (id, notes) =>
+    api.post(`/api/v1/vendors/category-requests/${id}/approve`, { notes: notes || null }).then((r) => r.data),
+  rejectCategoryRequest: (id, notes) =>
+    api.post(`/api/v1/vendors/category-requests/${id}/reject`, { notes }).then((r) => r.data),
 };
 
 // ---------- Wave 5: Analytics + AI ----------

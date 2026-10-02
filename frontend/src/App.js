@@ -32,6 +32,7 @@ import AdminDashboard from "@/apps/admin-console/AdminDashboard";
 // Wave 1 — Vendor Portal
 import VendorLogin from "@/apps/vendor-portal/VendorLogin";
 import VendorChangePassword from "@/apps/vendor-portal/VendorChangePassword";
+import VendorCategories from "@/apps/vendor-portal/VendorCategories";
 import VendorDashboard from "@/apps/vendor-portal/VendorDashboard";
 import BidSubmit from "@/apps/vendor-portal/BidSubmit";
 import PaymentResult from "@/apps/vendor-portal/PaymentResult";
@@ -247,6 +248,7 @@ export default function App() {
             <Route path="/vendor/login" element={<VendorLogin />} />
             <Route path="/vendor/change-password" element={<RequireVendor><VendorChangePassword /></RequireVendor>} />
             <Route path="/vendor" element={<RequireVendor><VendorHomeE legacy={VendorDashboard} /></RequireVendor>} />
+            <Route path="/vendor/categories" element={<RequireVendor><VendorCategories /></RequireVendor>} />
             {/* Vendor Option-E multi-page routes */}
             <Route path="/vendor/mybids" element={<RequireVendor><VendorMyBidsE /></RequireVendor>} />
             <Route path="/vendor/tenders" element={<RequireVendor><VendorFindTendersE /></RequireVendor>} />

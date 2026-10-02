@@ -1456,3 +1456,20 @@ so long filenames never push neighbours off-screen.
 Clicking the title opens the View modal (previously had no row-level
 affordance for the title itself).
 Rebuilt frontend v50k bundle after this patch.
+
+### v50l — Vendor Category Interest flow — 02 Oct 2026
+Backend (`routers/vendor_categories.py` + registered in `server.py`):
+- Vendor: GET /vendor/categories/mine, POST /vendor/categories/request.
+- Admin: GET /vendors/category-requests, POST .../{id}/approve|reject.
+- Dedupe on (vendor_ref, category_code); approve $addToSets to
+  vendor.business_categories; both decisions audit-logged.
+Frontend:
+- `/vendor/categories` page (VendorCategories.jsx) — approved pills,
+  pending list, picker fed from category master (105 rows), rationale,
+  recent decisions.
+- "My categories" nav button on VendorDashboard.
+- Admin tab `Masters → Vendor requests` (CategoryRequestsPanel.jsx)
+  with Pending/Approved/Rejected filters and approve/reject actions.
+Live-verified end-to-end on preview backend:
+- vendor login → mine → request → admin list → approve → mine (grew).
+Bundle: `pmc-frontend-v50l-prod-build.zip`, `pmc-backend-v50l.zip`.

@@ -21,7 +21,7 @@ from routers import (
     docusign, profile_ops, _temp_downloads,
     stakeholder_reports, dashboard_drill, branding_theme,
     envelope_authoritative, contracts_export,
-    admin_demo, push,
+    admin_demo, push, vendor_categories,
 )
 from routers import password_reset as _password_reset
 
@@ -69,10 +69,10 @@ app.include_router(audit_routes.router)
 # Wave 9 vendor_invites must register BEFORE vendors.router so its specific
 # `/registration-template` path wins over vendors.py `/{vendor_ref}` catch-all
 app.include_router(vendor_invites.router)
-app.include_router(vendors.router)
-# Wave 1 — Bidding, EMD, multi-role pipeline, CRM
+app.include_router(vendors.router)# Wave 1 — Bidding, EMD, multi-role pipeline, CRM
 app.include_router(staff_auth.router)
 app.include_router(vendor_auth.router)
+app.include_router(vendor_categories.router)
 app.include_router(_password_reset.router)
 app.include_router(bids.router)
 app.include_router(payments.router)
