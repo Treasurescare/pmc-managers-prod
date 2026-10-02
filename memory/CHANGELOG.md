@@ -1,5 +1,26 @@
 # PMC Managers v2 — Changelog
 
+## 2026-10-02 — v50q (activation verified · blank form regenerated · DocuSign archive tool · EMD editor)
+
+- **#6 Vendor activation** — full flow re-tested end-to-end via API
+  (admin-create → activate/set_password → listed active → sign-in with
+  must_change_password). No code change needed; marked Fixed.
+- **#60 Blank registration form** — regenerated a branded 2-page PMC blank
+  form (sections A–E + K declarations + signature block) with reportlab and
+  uploaded it as the live registration template; download endpoint verified
+  (application/pdf, valid %PDF payload).
+- **DocuSign admin Archive-PDF tool** — `POST /api/v1/docusign/envelopes/{id}/archive-pdf`
+  fetches the combined signed PDF from DocuSign and stores it in PMC storage;
+  vendor/admin download endpoints serve the archive first; `has_document`
+  reflects archived envelopes; new "⇩ Archive" buttons on completed
+  envelopes in the admin DocuSign console (row + view modal).
+- **EMD Master Editor UI** — new Masters tab "EMD rules"
+  (`EmdMastersPanel.jsx`): create/edit/delete rules with country / kind /
+  category scope, currency, active toggle, notes; slab editor (fixed or %
+  with min/max caps); quick calculator against the compute endpoint.
+  Verified: 2% of 1.2M = USD 24,000 (capped), 100k → fixed USD 5,000.
+
+
 ## 2026-10-02 — v50p PmcLinkPatcher guard (Signatures Download fix)
 
 - `PmcLinkPatcher`: the legacy action-label click map (`/^download$/i` →

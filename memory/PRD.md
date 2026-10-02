@@ -38,6 +38,14 @@ mostly static; live data + click routing is patched at runtime via:
 
 ## What is implemented
 
+### v50q (2026-10-02) — Activation verified · blank form · DocuSign archive · EMD editor
+- #6 vendor activation re-tested end-to-end (no code change needed).
+- #60 blank registration form regenerated (branded 2-page PDF) and uploaded
+  as the live template.
+- DocuSign admin "Archive PDF" repair tool (archive endpoint + archived-first
+  serving + Archive buttons on completed envelopes).
+- EMD Master Editor UI: Masters → EMD rules with slab editor + calculator.
+
 ### v50p (2026-10-02) — Patcher guard for React-owned vendor pages
 - `PmcLinkPatcher` skips its legacy action-label map on the rewritten
   vendor pages (home/tenders/signatures/account/company-kyc). Fixes the

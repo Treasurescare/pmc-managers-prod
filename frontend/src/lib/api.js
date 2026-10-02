@@ -789,6 +789,9 @@ export const docusignApi = {
   vendorDownloadPdf: (envelopeId) =>
     api.get(`/api/v1/docusign/mine/envelopes/${envelopeId}/combined-pdf`, { responseType: "blob" })
       .then((r) => r.data),
+  // v50q — admin: re-archive a completed envelope's signed PDF into our storage
+  archivePdf: (envelopeId) =>
+    api.post(`/api/v1/docusign/envelopes/${envelopeId}/archive-pdf`).then((r) => r.data),
   // v49p — envelope's current document as PDF in ANY status (unsigned while
   // pending, signed once completed). disposition=inline → open in tab,
   // attachment → browser download.

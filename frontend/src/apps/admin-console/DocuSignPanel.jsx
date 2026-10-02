@@ -68,6 +68,18 @@ export default function DocuSignPanel() {
     } catch (e) { try { w && w.close(); } catch (_) { /* ignore */ } showApiError(e); }
   };
 
+  // v50q — admin repair tool: fetch the combined signed PDF from DocuSign
+  // and archive it in our own storage so vendor/admin downloads work even
+  // if DocuSign later fails to serve the documents.
+  const archivePdf = async (envelopeId) => {
+    toast.info("Archiving signed PDF…");
+    try {
+      const r = await docusignApi.archivePdf(envelopeId);
+      toast.success(`Archived ${(r.size_bytes / 1024).toFixed(0)} KB — vendor download now served from PMC storage`);
+      load();
+    } catch (e) { showApiError(e); }
+  };
+
   const load = useCallback(async () => {
     try {
       const [s, e, b] = await Promise.all([
@@ -352,6 +364,12 @@ export default function DocuSignPanel() {
                       data-testid={`ds-print-${e.envelope_id}`}
                       className="text-[10px] bg-emerald-600 text-white px-2 py-1 rounded hover:bg-emerald-700">🖨 Print</button>
                   )}
+                  {e.status === "completed" && (
+                    <button onClick={() => archivePdf(e.envelope_id)}
+                      title="Fetch the signed PDF from DocuSign and archive it in PMC storage (repair 'PDF not archived' envelopes)"
+                      data-testid={`ds-archive-${e.envelope_id}`}
+                      className="text-[10px] bg-amber-600 text-white px-2 py-1 rounded hover:bg-amber-700">⇩ Archive</button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -396,6 +414,11 @@ export default function DocuSignPanel() {
                 <button onClick={() => downloadSigned(viewEnv.envelope_id)}
                   data-testid="ds-view-download"
                   className="px-3 py-1.5 text-xs bg-emerald-600 text-white">🖨 Print / download signed</button>
+              )}
+              {viewEnv.status === "completed" && (
+                <button onClick={() => { archivePdf(viewEnv.envelope_id); }}
+                  data-testid="ds-view-archive"
+                  className="px-3 py-1.5 text-xs bg-amber-600 text-white">⇩ Archive PDF to PMC storage</button>
               )}
             </div>
           </div>

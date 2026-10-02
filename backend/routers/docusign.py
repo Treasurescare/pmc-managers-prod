@@ -40,7 +40,7 @@ import docusign_esign as ds
 from docusign_esign.client.api_exception import ApiException
 
 from db import db
-from security import current_admin
+from security import current_admin, require_role
 from audit import audit_log
 import config
 
@@ -699,8 +699,8 @@ async def list_my_envelopes(vendor=Depends(current_vendor)):
         envelopes_api = None
     async for row in cursor:
         row.pop("_id", None)
-        has_doc = False
-        if row.get("status") == "completed" and envelopes_api is not None:
+        has_doc = bool(row.get("archived_file_key"))
+        if not has_doc and row.get("status") == "completed" and envelopes_api is not None:
             try:
                 docs = envelopes_api.list_documents(DS_ACCOUNT_ID, row["envelope_id"])
                 has_doc = bool(getattr(docs, "envelope_documents", None))
@@ -884,6 +884,16 @@ async def vendor_download_combined_pdf(envelope_id: str, vendor=Depends(current_
             raise HTTPException(403, "Not your envelope")
     if row.get("status") != "completed":
         raise HTTPException(412, "Envelope not completed yet")
+    # v50q — serve the archived copy first when an admin has re-archived the
+    # envelope (repair path for envelopes whose DocuSign documents are no
+    # longer retrievable from DocuSign).
+    if row.get("archived_file_key"):
+        arc = await db.uploads.find_one({"key": row["archived_file_key"]})
+        if arc:
+            from fastapi.responses import Response as _R
+            fname = f"{row.get('award_ref') or row.get('bid_ref') or envelope_id}-signed.pdf"
+            return _R(content=base64.b64decode(arc["data_b64"]), media_type="application/pdf",
+                      headers={"Content-Disposition": f'attachment; filename="{fname}"'})
     client = _client()
     envelopes = ds.EnvelopesApi(client)
     try:
@@ -911,6 +921,15 @@ async def vendor_download_document(envelope_id: str, disposition: str = "inline"
         bid = await db.bids.find_one({"id": row.get("bid_id")}) or {}
         if bid.get("vendor_email") != ve:
             raise HTTPException(403, "Not your envelope")
+    # v50q — archived copy first for completed envelopes (see archive-pdf).
+    if row.get("status") == "completed" and row.get("archived_file_key"):
+        arc = await db.uploads.find_one({"key": row["archived_file_key"]})
+        if arc:
+            from fastapi.responses import Response as _R
+            fname = f"{row.get('award_ref') or row.get('bid_ref') or envelope_id}.pdf"
+            disp = "attachment" if disposition == "attachment" else "inline"
+            return _R(content=base64.b64decode(arc["data_b64"]), media_type="application/pdf",
+                      headers={"Content-Disposition": f'{disp}; filename="{fname}"'})
     client = _client()
     envelopes = ds.EnvelopesApi(client)
     doc_id = "combined" if row.get("status") == "completed" else "1"
@@ -927,6 +946,43 @@ async def vendor_download_document(envelope_id: str, disposition: str = "inline"
 
 
 # ---------------- Connect webhook ----------------
+
+@router.post("/envelopes/{envelope_id}/archive-pdf")
+async def archive_envelope_pdf(envelope_id: str,
+                               admin=Depends(require_role("admin"))):
+    """v50q — Admin repair tool. Fetches the combined signed PDF from DocuSign
+    and archives it in our own storage (db.uploads). Vendor + admin downloads
+    then serve from the archive, so envelopes whose documents DocuSign can no
+    longer return are repaired from the console without DocuSign support."""
+    row = await db.docusign_envelopes.find_one({"envelope_id": envelope_id})
+    if not row:
+        raise HTTPException(404, "Envelope not found")
+    if row.get("status") != "completed":
+        raise HTTPException(412, "Only completed envelopes can be archived")
+    client = _client()
+    envelopes = ds.EnvelopesApi(client)
+    try:
+        pdf_path = envelopes.get_document(DS_ACCOUNT_ID, "combined", envelope_id)
+    except Exception as e:
+        raise HTTPException(502, f"DocuSign document fetch failed: {e}")
+    pdf_bytes = Path(pdf_path).read_bytes()
+    key = f"docusign-archived/{envelope_id}.pdf"
+    now = datetime.now(timezone.utc).isoformat()
+    await db.uploads.update_one(
+        {"key": key},
+        {"$set": {"key": key, "content_type": "application/pdf",
+                  "size_bytes": len(pdf_bytes),
+                  "data_b64": base64.b64encode(pdf_bytes).decode("ascii"),
+                  "created_at": now}},
+        upsert=True)
+    await db.docusign_envelopes.update_one(
+        {"_id": row["_id"]},
+        {"$set": {"archived_file_key": key, "archived_at": now,
+                  "archived_by": admin["id"]}})
+    await audit_log("docusign.archive_pdf", admin, "docusign_envelope",
+                    envelope_id, {"key": key, "size_bytes": len(pdf_bytes)})
+    return {"ok": True, "key": key, "size_bytes": len(pdf_bytes)}
+
 
 @router.post("/webhook")
 async def docusign_webhook(request: Request):
