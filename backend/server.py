@@ -220,19 +220,28 @@ async def _seed_categories() -> None:
         return
     inserted = 0
     now = datetime.now(timezone.utc).isoformat()
+    # Race-guard: EB rolling deploys can boot two instances concurrently and
+    # both pass the count==0 check. Per-insert try/except + a find_one check
+    # keeps the seed idempotent even under a race.
+    async def _try_insert(doc: dict) -> bool:
+        try:
+            if await db.categories.find_one({"code": doc["code"]}):
+                return False
+            await db.categories.insert_one(doc)
+            return True
+        except Exception:
+            return False
     # 1) Hospital/construction legacy categories with licence requirements.
     for name, licences in config.KZ_CATEGORY_LICENSE_MAP.items():
         code = name.lower().replace("&", "and").replace("/", "-")
         code = "-".join(w for w in code.replace("(", "").replace(")", "").split() if w)[:40]
-        if await db.categories.find_one({"code": code}):
-            continue
-        await db.categories.insert_one({
+        if await _try_insert({
             "code": code, "name": name,
             "country_scope": ["KZ"],
             "required_licences": list(licences),
             "source": "legacy", "is_active": True, "created_at": now,
-        })
-        inserted += 1
+        }):
+            inserted += 1
     # 2) UNSPSC taxonomy — populate from pre-seeded taxonomy_nodes collection
     #    if present; else lazy-import the seed module.
     taxo_rows = [n async for n in db.taxonomy_nodes.find({}).sort("code", 1)]
@@ -245,16 +254,14 @@ async def _seed_categories() -> None:
     for n in taxo_rows:
         # Use UNSPSC code as unique category code (prefixed to avoid collisions).
         code = f"unspsc-{n['code']}"
-        if await db.categories.find_one({"code": code}):
-            continue
-        await db.categories.insert_one({
+        if await _try_insert({
             "code": code, "name": n["title"],
             "country_scope": None,
             "unspsc_code": n["code"],
             "parent_code": (f"unspsc-{n['parent_code']}" if n.get("parent_code") else None),
             "source": "unspsc", "is_active": True, "created_at": now,
-        })
-        inserted += 1
+        }):
+            inserted += 1
     if inserted:
         logging.info(f"Seeded {inserted} procurement categories (UNSPSC + legacy KZ)")
 

@@ -1308,3 +1308,30 @@ Bundles: `pmc-frontend-v50h-prod-build.zip`, `pmc-backend-v50h.zip`,
 `DOWNLOAD_v50h.md`.
 
 Deploy BOTH (backend required for the category + assignee fields).
+
+### Post-v50h hotfix — duplicate category seed race — 02 Oct 2026
+Issue: EB rolling deploy booted two instances concurrently; both passed the
+`count_documents == 0` guard in `_seed_categories()` and each inserted 105
+categories → 206 rows with duplicate codes/names in production.
+
+Resolution:
+1. Deduped production via admin API: soft-deactivated 101 duplicate rows
+   (kept earliest `_id` per code). Prod now shows 105/105 unique.
+2. Hardened `_seed_categories()` in `server.py`: every insert now goes
+   through `_try_insert()` (per-code find_one + try/except) so a racing
+   instance simply skips. Goes out with the next bundle (v50i+); no
+   re-upload needed now since the collection is already non-empty.
+3. Two inactive probe rows remain in prod approval_matrices
+   (`__probe2`, `__v50h_schema_test`, both is_active=false) — no DELETE
+   endpoint exists for matrices; harmless, can be ignored or a DELETE
+   route added later.
+
+Current live state (verified 02 Oct 2026 ~04:55 UTC):
+- Frontend v50h live (main.c9a639ec.js) — Masters sidebar, Categories tab,
+  Create-Notice dropdowns, tooltip contrast, role-split login, sign-in
+  error toasts.
+- Backend v50h live — EmdMasterIn.category, category filter on
+  /emd-masters, ApprovalStepIn assignee_* fields.
+- Remaining user-facing gap: stale service worker means some browsers
+  need one hard refresh (Ctrl+Shift+R); permanent SW update-prompt fix
+  is P2 backlog (Issue #7).
