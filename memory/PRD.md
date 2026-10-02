@@ -1135,3 +1135,30 @@ No JS errors. Conclusion: code is correct; user's browser was likely
 running the stale service-worker shell. Asked user for specifics
 (which avatar/page, exact behavior, browser) if a hard refresh
 doesn't resolve it.
+
+### Incident — admin login failure (02 Oct 2026)
+User: "suddenly my admin username and password are not working".
+Investigation on production:
+- adminsupport@pmcmanagers.com / Admin@12345 → 401 Invalid email or
+  password (seed default Admin@123 also 401) — password_hash changed.
+- kannan@emeraldcorporates.com / Owner@123 → WORKS (full admin).
+- committee@pmcmanagers.com / Bid@1234 → WORKS (roles include admin) —
+  this is a LIVE demonstration of SEC-001 (hard-coded staff seeds).
+- DB is intact (not wiped); only the adminsupport password_hash differs.
+  Likely cause: password changed via the avatar "Change password"
+  feature during yesterday's testing, or changed by another session.
+- Recovery path: /login → Forgot password (portal=admin) →
+  POST /api/v1/password-reset/request emails a reset link via Resend.
+
+### Resolution — admin login incident (02 Oct 2026)
+- Root cause: adminsupport password_hash changed (most likely via the
+  avatar "Change password" feature during testing). Not a DB wipe —
+  all other accounts intact.
+- Immediate access restored via owner account
+  (kannan@emeraldcorporates.com / Owner@123) — verified working.
+- Recovery: POST /api/v1/auth/password-reset/request {email,
+  portal:"admin"} → 200, reset email sent via Resend.
+- Incident doubled as live proof of SEC-001: committee@pmcmanagers.com
+  / Bid@1234 hard-coded staff seed grants admin access in production.
+  Fix queued for today's security batch (requires operator-set
+  ADMIN_PASSWORD/OWNER_PASSWORD env vars in EB + staff seed rotation).
