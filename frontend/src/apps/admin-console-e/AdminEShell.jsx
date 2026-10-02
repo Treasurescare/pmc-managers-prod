@@ -28,6 +28,7 @@ export default function AdminEShell({ active, crumb, children }) {
     ["Awards", "/admin/e/awards", "i-flag"],
     ["DocuSign", "/admin/e/docusign", "i-sign"],
     ["Permissions", "/admin/e/permissions", "i-lock"],
+    ["Masters", "/admin/e/masters", "i-layers"],
     ["Events", null, null],
     ["Events & alerts", "/admin/e/events", "i-clock"],
   ];

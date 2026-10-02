@@ -333,6 +333,18 @@ export const mastersApi = {
   createRole: (p) => api.post("/api/v1/masters/roles", p).then((r) => r.data),
   listMatrices: () => api.get("/api/v1/masters/approval-matrices").then((r) => r.data),
   createMatrix: (p) => api.post("/api/v1/masters/approval-matrices", p).then((r) => r.data),
+  // v50g — procurement Category master (replaces hardcoded free-text category).
+  listCategories: (country, { includeInactive = false } = {}) =>
+    api.get("/api/v1/masters/categories", {
+      params: { country: country || undefined, include_inactive: includeInactive },
+    }).then((r) => r.data),
+  listCategoriesPublic: (country) =>
+    api.get("/api/v1/masters/categories/public", {
+      params: { country: country || undefined },
+    }).then((r) => r.data),
+  createCategory: (p) => api.post("/api/v1/masters/categories", p).then((r) => r.data),
+  updateCategory: (id, p) => api.patch(`/api/v1/masters/categories/${id}`, p).then((r) => r.data),
+  deactivateCategory: (id) => api.delete(`/api/v1/masters/categories/${id}`).then((r) => r.data),
 };
 
 // ---------- Wave 5: Analytics + AI ----------

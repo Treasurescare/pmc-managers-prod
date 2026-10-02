@@ -12,6 +12,7 @@ export default function NoticesPanel() {
   const [showNew, setShowNew] = useState(false);
   const [matrices, setMatrices] = useState([]);
   const [templates, setTemplates] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [primaryFile, setPrimaryFile] = useState(null);
   const [attachmentFiles, setAttachmentFiles] = useState([]);
   const [me, setMe] = useState(null);
@@ -48,6 +49,14 @@ export default function NoticesPanel() {
     tenderTemplateApi.list().then(setTemplates).catch(() => {});
     adminApi.me().then(setMe).catch(() => {});
   }, [load]);
+
+  // v50g — refresh categories when delivery_country changes so the dropdown
+  // shows country-scoped + global categories (empty country_scope = all).
+  useEffect(() => {
+    mastersApi.listCategories(draft.delivery_country || undefined)
+      .then((rows) => setCategories(Array.isArray(rows) ? rows : []))
+      .catch(() => setCategories([]));
+  }, [draft.delivery_country]);
 
   // Bug #21/#32 — accept any admin role variant (case-insensitive, tolerates
   // legacy "Master Admin" / "MASTER_ADMIN" / "master-admin" etc.). Backend can
@@ -156,9 +165,16 @@ export default function NoticesPanel() {
           <label className="col-span-2"><span className="pmc-label">Description<InfoDot tip="Full scope, objectives and bidder eligibility. Rendered as body copy on the public notice page. Minimum 10 characters." /></span>
             <textarea rows={4} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} data-testid="notice-description"
               className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <label><span className="pmc-label">Category<InfoDot tip="Industry / commodity code (free text or UNSPSC). Used for filtering on the Notice Board and vendor invite matching." /></span>
-            <input value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })} data-testid="notice-category"
-              className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
+          <label><span className="pmc-label">Category<InfoDot tip="Industry / commodity code. Pulled from the procurement Category master (Masters → Categories). Includes UNSPSC codes plus any custom categories your team adds." /></span>
+            <select value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })} data-testid="notice-category"
+              className="mt-1 w-full px-4 py-3 border border-brand-navy/20 bg-white">
+              <option value="">— Select a category —</option>
+              {categories.map((c) => (
+                <option key={c.id || c.code} value={c.name}>
+                  {c.unspsc_code ? `${c.unspsc_code} · ` : ""}{c.name}
+                </option>
+              ))}
+            </select></label>
           <label><span className="pmc-label">Document type<InfoDot tip="TENDER = works/goods procurement, RFP = solutioning/consulting, RFQ = quick price quote. Drives which template sections are mandatory." /></span>
             <select value={draft.document_type} onChange={(e) => setDraft({ ...draft, document_type: e.target.value })} data-testid="notice-doc-type"
               className="mt-1 w-full px-4 py-3 border border-brand-navy/20">

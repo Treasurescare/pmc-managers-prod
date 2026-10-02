@@ -86,7 +86,7 @@ export default function AdminDashboard() {
     billing: "/admin/e/billing", evaluation: "/admin/e/evaluation",
     l1: "/admin/e/l1-award", awards: "/admin/e/awards",
     docusign: "/admin/e/docusign", permissions: "/admin/e/permissions",
-    events: "/admin/e/events",
+    events: "/admin/e/events", masters: "/admin/e/masters",
   };
   if (E_TAB_ROUTES[tab]) return <Navigate to={E_TAB_ROUTES[tab]} replace />;
 

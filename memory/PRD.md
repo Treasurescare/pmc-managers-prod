@@ -1218,3 +1218,62 @@ and all specialist roles equally.
 
 SW cache → pmc-shell-v50f-rev1.
 Bundle: `pmc-frontend-v50f-prod-build.zip`. Backend unchanged (v49y).
+
+### v50g — Masters restored + Category master + sign-in error + tooltip fix — 02 Oct 2026
+User reported (02 Oct): "tooltip buttons in white on white/cream background",
+"need a Category master from backend", "entire Masters tab is gone".
+Plus Bug Tracker v17 Round 5 — Batch A (login/auth).
+
+Delivered:
+1. **Masters tab restored** at `/admin/e/masters` in Option E shell.
+   - `AdminMastersE.jsx` wraps the fully-wired legacy MastersPanel.
+   - Sidebar entry added to `AdminEShell.jsx` (under Permissions).
+   - `E_TAB_ROUTES` in `AdminDashboard.jsx` now redirects
+     `/admin?tab=masters` → `/admin/e/masters`.
+2. **Procurement Category master** (backend-driven).
+   - `routers/masters.py` adds `GET/POST/PATCH/DELETE /api/v1/masters/categories`
+     + `GET /api/v1/masters/categories/public` for vendor registration.
+   - Fields: code, name (EN/RU/KZ), country_scope, required_licences,
+     parent_code, unspsc_code, source (manual/unspsc/legacy), is_active.
+   - `_seed_categories()` seeds on startup: 87 UNSPSC nodes + 18 KZ legacy
+     licence-mapped categories = **105 total**. Idempotent.
+   - New `CategoriesTab.jsx` in MastersPanel — table UI with search,
+     country/source filter, show-inactive toggle, add new, soft deactivate.
+   - `NoticesPanel.jsx` Category field now a dropdown fed from
+     `mastersApi.listCategories(country)` — refreshes when delivery
+     country changes.
+   - `lib/api.js` adds `mastersApi.listCategories / listCategoriesPublic
+     / createCategory / updateCategory / deactivateCategory`.
+3. **Tooltip readability** — `components/ui/tooltip.jsx` TooltipContent
+   now uses dark forest-green (#0B1A14) background, white text, brass
+   border via inline style. Readable on white/cream/dark pages equally.
+4. **Bug #121 (forgot password email)** — closed via today's Resend DNS
+   + suppression + API key work. Live-verified. Retest after v50g deploy.
+5. **Bug #124 (silent sign-in failure)** — `SignInE.jsx` now shows a
+   role-aware 8-second toast on every failure path (supplier/staff/admin).
+   Backend error logged to console only — no user enumeration.
+6. **Bug #123 (translation button)** — DEFERRED. SignInE has no
+   translation button; needs user to confirm which login screen.
+
+Verified live on preview (admin):
+- `/admin/e/masters` → Categories tab shows "105 active · 105 total".
+- `GET /api/v1/masters/categories/public?country=KZ` → 105 rows
+  (87 unscoped UNSPSC + 18 KZ-scoped).
+- Create Notice Category dropdown populated.
+
+Bundles:
+- `pmc-frontend-v50g-prod-build.zip`
+- `pmc-backend-v50g.zip` (REQUIRED — adds endpoints + startup seed)
+- `DOWNLOAD_v50g.md`
+- `PMC_Bug_Tracker_v18_v50g_20261002.xlsx`
+
+**Pending user action**: deploy BOTH v50g zips (frontend to S3+CF
+invalidate `/*`; backend to Elastic Beanstalk). After deploy, verify:
+Masters sidebar entry, Categories tab 105 rows, Create Notice
+dropdown, ⓘ tooltip readable, sign-in error toast appears.
+
+**Open questions for user**:
+- #99 Tender Builder country filter: team wants strict filter; owner
+  previously asked for "show all masters grouped by country" (v50e).
+  Which wins?
+- #123 translation button: which login screen? (SignInE /login has none.)

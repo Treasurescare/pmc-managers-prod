@@ -211,6 +211,54 @@ async def _seed_staff() -> None:
         logging.info(f"Seeded staff {email} with roles {roles}")
 
 
+async def _seed_categories() -> None:
+    """v50g — seed the procurement Category master from UNSPSC taxonomy if the
+    collection is empty. Also backfills from legacy KZ_CATEGORY_LICENSE_MAP
+    (so licence-mapped categories already used in notices stay available).
+    Idempotent — only inserts missing codes. Admin UI can edit / add after."""
+    if await db.categories.count_documents({}) > 0:
+        return
+    inserted = 0
+    now = datetime.now(timezone.utc).isoformat()
+    # 1) Hospital/construction legacy categories with licence requirements.
+    for name, licences in config.KZ_CATEGORY_LICENSE_MAP.items():
+        code = name.lower().replace("&", "and").replace("/", "-")
+        code = "-".join(w for w in code.replace("(", "").replace(")", "").split() if w)[:40]
+        if await db.categories.find_one({"code": code}):
+            continue
+        await db.categories.insert_one({
+            "code": code, "name": name,
+            "country_scope": ["KZ"],
+            "required_licences": list(licences),
+            "source": "legacy", "is_active": True, "created_at": now,
+        })
+        inserted += 1
+    # 2) UNSPSC taxonomy — populate from pre-seeded taxonomy_nodes collection
+    #    if present; else lazy-import the seed module.
+    taxo_rows = [n async for n in db.taxonomy_nodes.find({}).sort("code", 1)]
+    if not taxo_rows:
+        try:
+            from unspsc_seed import UNSPSC_NODES
+            taxo_rows = UNSPSC_NODES
+        except Exception:
+            taxo_rows = []
+    for n in taxo_rows:
+        # Use UNSPSC code as unique category code (prefixed to avoid collisions).
+        code = f"unspsc-{n['code']}"
+        if await db.categories.find_one({"code": code}):
+            continue
+        await db.categories.insert_one({
+            "code": code, "name": n["title"],
+            "country_scope": None,
+            "unspsc_code": n["code"],
+            "parent_code": (f"unspsc-{n['parent_code']}" if n.get("parent_code") else None),
+            "source": "unspsc", "is_active": True, "created_at": now,
+        })
+        inserted += 1
+    if inserted:
+        logging.info(f"Seeded {inserted} procurement categories (UNSPSC + legacy KZ)")
+
+
 async def _seed_default_rubric() -> None:
     """v46y — ensure a default 1-10 rating rubric exists so the vendor peer
     review flow always finds a rubric. Idempotent — migrates any existing
@@ -339,6 +387,7 @@ async def on_start() -> None:
     await _seed_packages()
     await _seed_product_catalog()
     await _seed_taxonomy()
+    await _seed_categories()
     from routers.tender_templates import seed_master_templates
     seeded = await seed_master_templates()
     if seeded:

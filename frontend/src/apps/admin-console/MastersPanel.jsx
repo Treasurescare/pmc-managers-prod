@@ -7,6 +7,7 @@ import MatrixEditor from "./masters/MatrixEditor";
 import DemoModeTab from "./masters/DemoModeTab";
 import RatingCriteriaTab from "./masters/RatingCriteriaTab";
 import FeeCharger from "./masters/FeeCharger";
+import CategoriesTab from "./masters/CategoriesTab";
 import { InfoDot } from "@/components/InfoDot";
 import { useListPager } from "@/components/ListPager";
 
@@ -121,8 +122,8 @@ export default function MastersPanel() {
 
   return (
     <div data-testid="admin-masters-panel">
-      <div className="flex gap-2 mb-4 border-b">
-        {[["staff", t("panels.masters.tab_staff")], ["companies", t("panels.masters.tab_companies")], ["tenants", t("panels.masters.tab_tenants")], ["matrix", t("panels.masters.tab_matrix")], ["hierarchy", t("panels.masters.tab_hierarchy")], ["rating", "Rating & Fees"], ["fees", "Charge Fee"], ["demo", "Investor Demo"]].map(([k, l]) => (
+      <div className="flex gap-2 mb-4 border-b overflow-x-auto">
+        {[["staff", t("panels.masters.tab_staff")], ["companies", t("panels.masters.tab_companies")], ["tenants", t("panels.masters.tab_tenants")], ["matrix", t("panels.masters.tab_matrix")], ["hierarchy", t("panels.masters.tab_hierarchy")], ["rating", "Rating & Fees"], ["fees", "Charge Fee"], ["categories", "Categories"], ["demo", "Investor Demo"]].map(([k, l]) => (
           <button key={k} onClick={() => { setTab(k); setSearch(""); }}
             className={`px-4 py-2 text-xs uppercase tracking-widest ${tab === k ? "border-b-2 border-brand-navy font-semibold" : "text-slate-500"}`}
             data-testid={`masters-tab-${k}`}>{l}</button>
@@ -231,6 +232,8 @@ export default function MastersPanel() {
       {tab === "rating" && <RatingCriteriaTab />}
 
       {tab === "fees" && <FeeCharger />}
+
+      {tab === "categories" && <CategoriesTab />}
 
       {tab === "tenants" && (
         <>

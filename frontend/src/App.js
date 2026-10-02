@@ -95,6 +95,7 @@ import VendorSignaturesE from "@/apps/vendor-portal-e/VendorSignaturesE";
 import VendorCompanyKycE from "@/apps/vendor-portal-e/VendorCompanyKycE";
 import VendorAccountE from "@/apps/vendor-portal-e/VendorAccountE";
 import AdminDashboardE from "@/apps/admin-console-e/AdminDashboardE";
+import AdminMastersE from "@/apps/admin-console-e/AdminMastersE";
 import AdminAuditE from "@/apps/admin-console-e/AdminAuditE";
 import AdminNoticesE from "@/apps/admin-console-e/AdminNoticesE";
 import AdminTenderBuilderE from "@/apps/admin-console-e/AdminTenderBuilderE";
@@ -236,6 +237,7 @@ export default function App() {
             <Route path="/admin/e/awards" element={<AdminAwardsE />} />
             <Route path="/admin/e/docusign" element={<AdminDocuSignE />} />
             <Route path="/admin/e/permissions" element={<AdminPermissionsE />} />
+            <Route path="/admin/e/masters" element={<AdminMastersE />} />
             <Route path="/admin/e/events" element={<AdminEventsE />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/*" element={<AdminDashboard />} />

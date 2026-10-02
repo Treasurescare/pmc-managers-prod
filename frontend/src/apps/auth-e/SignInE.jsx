@@ -29,13 +29,22 @@ export default function SignInE({ legacy: Legacy }) {
     setBusy(true);
     try {
       if (role === "supplier") {
-        const vr = await vendorApi.login(email, password);
-        toast.success("Signed in · vendor");
-        if (vr && vr.must_change_password) return nav("/vendor/change-password");
-        return nav("/vendor");
+        try {
+          const vr = await vendorApi.login(email, password);
+          toast.success("Signed in · vendor");
+          if (vr && vr.must_change_password) return nav("/vendor/change-password");
+          return nav("/vendor");
+        } catch (err) {
+          console.warn("[SignIn] supplier login failed:", err?.response?.data || err?.message);
+          toast.error(
+            "Sign-in failed for the Supplier portal. Check your email, password, and that you picked the right role.",
+            { duration: 8000 }
+          );
+          return;
+        }
       }
-      // staff / admin — try the picked role first, then fall back to admin.
       const roleCandidates = role === "admin" ? ["admin"] : ["reviewer", "management", "agent", "committee_member", "admin"];
+      let lastErr = null;
       for (const rc of roleCandidates) {
         try {
           const r = await staffApi.login(email, password, rc, undefined);
@@ -49,6 +58,7 @@ export default function SignInE({ legacy: Legacy }) {
             return;
           }
         } catch (err) {
+          lastErr = err;
           // try next candidate
         }
       }
@@ -59,10 +69,22 @@ export default function SignInE({ legacy: Legacy }) {
           toast.success("Signed in · admin");
           return nav("/admin");
         } catch (err) {
+          lastErr = err;
           // fall through to the generic error below
         }
       }
-      toast.error("Those credentials didn't match. Check your email and password.");
+      // v50g bug #124 — show a clear role-aware error toast (duration 8s) so
+      // testers never think a wrong-credentials sign-in silently succeeded.
+      const roleLabel = role === "admin" ? "Administrator" : "PMC staff";
+      toast.error(
+        `Sign-in failed for the ${roleLabel} portal. Check your email, password, and that you picked the right role.`,
+        { duration: 8000 }
+      );
+      if (lastErr) {
+        // Log the backend-reported reason to the console for debugging but
+        // keep the user-facing toast consistent to avoid user-enumeration.
+        console.warn("[SignIn] backend error:", lastErr?.response?.data || lastErr?.message);
+      }
     } catch (err) {
       showApiError(err);
     } finally {
