@@ -169,7 +169,8 @@ export default function AnalyticsPanel() {
           <label className="flex-1">
             <span className="text-xs">{tt("panels.analytics.bid_label")}<InfoDot tip="Which bid to run the AI anomaly-detector against. Only bids with a commercial envelope are eligible." /></span>
             <select value={bidId} onChange={(e) => setBidId(e.target.value)}
-              className="mt-1 w-full px-3 py-2 border" data-testid="anomaly-bid-select">
+              className="mt-1 w-full px-3 py-2 border bg-white text-brand-navy"
+              data-testid="anomaly-bid-select">
               <option value="">{tt("panels.analytics.select_bid")}</option>
               {bids.map((b) => (
                 <option key={b.id} value={b.id}>{b.bid_ref} — {b.company_name} — {b.price_amount}</option>

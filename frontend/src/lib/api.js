@@ -728,6 +728,15 @@ export const taxonomyApi = {
   lookup: (code) => api.get(`/api/v1/taxonomy/lookup/${code}`).then((r) => r.data),
 };
 
+// ---------- G4 Rebuild: Stakeholder Reports (v50m — bug #45) ----------
+export const stakeholderReportsApi = {
+  tenders: () => api.get("/api/v1/stakeholder-reports/tenders").then((r) => r.data),
+  awards:  () => api.get("/api/v1/stakeholder-reports/awards").then((r) => r.data),
+  escrow:  () => api.get("/api/v1/stakeholder-reports/escrow").then((r) => r.data),
+  sla:     () => api.get("/api/v1/stakeholder-reports/sla").then((r) => r.data),
+  csvUrl:  (kind) => `${process.env.REACT_APP_BACKEND_URL}/api/v1/stakeholder-reports/${kind}?format=csv`,
+};
+
 // ---------- Wave 41: Meetings + Jitsi ----------
 export const meetingsApi = {
   create: (p) => api.post("/api/v1/meetings", p).then((r) => r.data),

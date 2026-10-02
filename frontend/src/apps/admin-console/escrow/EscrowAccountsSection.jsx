@@ -42,6 +42,27 @@ export default function EscrowAccountsSection({ accounts, onReload }) {
   const [acc, setAcc] = useState(EMPTY);
 
   const create = async () => {
+    // Bug #13 fix — v50m. Mandatory validation client-side so the "Create
+    // joint account" button never appears unresponsive. Backend already
+    // enforces these; the UI now gives a specific toast per missing field
+    // instead of surfacing a generic 422.
+    const miss = [];
+    if (!acc.name.trim())            miss.push("Display name");
+    if (!acc.institution.trim())     miss.push("Institution");
+    if (!acc.account_no.trim())      miss.push("Account no.");
+    if (!acc.pmc_officer.name.trim())    miss.push("PMC officer name");
+    if (!acc.pmc_officer.email.trim())   miss.push("PMC officer email");
+    if (!acc.escrow_officer.name.trim()) miss.push("Escrow officer name");
+    if (!acc.escrow_officer.email.trim())miss.push("Escrow officer email");
+    if (miss.length) {
+      toast.error(`Please fill in: ${miss.join(", ")}`);
+      return;
+    }
+    if (acc.pmc_officer.email.trim().toLowerCase() ===
+        acc.escrow_officer.email.trim().toLowerCase()) {
+      toast.error("PMC and Escrow officer emails must be different.");
+      return;
+    }
     try {
       await escrowApi.createAccount({ ...acc, currency: acc.currency.toUpperCase() });
       toast.success("Joint escrow account created");

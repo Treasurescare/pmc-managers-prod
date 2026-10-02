@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { comparisonApi, publicApi, formatApiError, showApiError} from "@/lib/api";
+import { adminApi, comparisonApi, formatApiError, showApiError} from "@/lib/api";
 import { InfoDot } from "@/components/InfoDot";
 
 /** Wave 41 — L1 Auto-Comparison Engine (rule-based lowest-price shortlist). */
@@ -11,7 +11,11 @@ export default function L1ComparisonPanel() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    publicApi.listNotices({ limit: 200 })
+    // Bug #37 fix — v50m. Was `publicApi.listNotices({limit:200})` which only
+    // returned PUBLISHED notices; L1 can be run on any notice regardless of
+    // publish state (including drafts admin wants to dry-run against). Switch
+    // to admin all-notices endpoint and raise the cap.
+    adminApi.listAllNotices({ limit: 500 })
       .then((d) => setNotices(d.items || []))
       .catch(() => {});
   }, []);
