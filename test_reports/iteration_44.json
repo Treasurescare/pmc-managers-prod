@@ -1,0 +1,57 @@
+{
+  "summary": "Full regression on v50m vendor profile changes + SEC fixes. Backend: 13/13 pytest cases pass (profile request CRUD, email verify flow with 412 pre-verify guard, admin approve/reject, DocuSign webhook HMAC fail-closed/accept). Frontend: Admin masters 'Profile changes' tab wired correctly, Account page edit test-ids present, Verify-email page renders error for bogus token, Tenders page renders cards with pagination. CRITICAL BUG FOUND: the Vendor Portal left sidebar <nav class='pmc-lnav'> still renders every link as <a href='#'> — the React Router Link conversion that was the headline fix of this iteration was NOT shipped for the main sidebar. aria-current flipping works (because something imperatively toggles it on route change) but the actual DOM is still the static Option-E mockup markup.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "VendorPortalChrome / pmc-lnav sidebar",
+        "issue": "CRITICAL — The vendor-portal left sidebar is STILL the static Option-E mockup. All sidebar <a> elements render with href='#' (Home, Find tenders, My bids, EMD & payments, Signatures, Company & KYC, Reviews, Account & security, Help & FAQs). No React Router <Link> / <NavLink> is used. The user's exact bug report ('nav items navigate via href=# causing hard reloads') is NOT fixed. Confirmed by evaluating the live DOM: `<nav class='pmc-lnav'>...<a href='#'><svg...>Home</a>...</nav>`. Interestingly aria-current='page' does flip on the correct link when the route changes (so some JS listens to the route) — but the hrefs themselves are hash-only, so Cmd/Ctrl+Click (open in new tab), right-click→copy link, screen-readers announcing destinations, and middle-click will all break.",
+        "selector": "nav.pmc-lnav a",
+        "priority": "CRITICAL"
+      },
+      {
+        "component": "VendorFindTendersE heading vs sidebar badge",
+        "issue": "Mismatch between sidebar badge count and page heading: sidebar shows 'Find tenders 29' but the /vendor/tenders page heading says '17 tenders available'. Either the sidebar badge is pulling a different (older/wider) list than the page query, or the page is filtering out 12 notices without surfacing why. Not a blocking bug but inconsistent to the user.",
+        "selector": ".pmc-lnav .c, h1",
+        "priority": "MEDIUM"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Vendor Account → Request change dialog",
+        "issue": "The 'new value' control in the Request-change dialog is pre-filled with the CURRENT value for address (`New Street 123, Astana, Kazakhstan`). If the user clicks Submit without editing, the backend correctly rejects with 400 'same as current', but the UI treats this as a hard error toast rather than disabling Submit while value===current. Minor UX improvement.",
+        "affected_selectors": ["[role='dialog'] textarea", "button:has-text('Submit request')"]
+      }
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_v50m_profile_changes.py",
+    "/app/test_reports/pytest/v50m_results.xml"
+  ],
+  "action_items": [
+    "CRITICAL: Rewrite /app/frontend/src/apps/vendor-portal-e/VendorPortalChrome.jsx so the <nav class='pmc-lnav'> list uses react-router-dom <NavLink to='/vendor/tenders'> etc. instead of <a href='#'>. Verify by opening devtools and confirming hrefs render as real routes (/vendor, /vendor/tenders, /vendor/mybids, /vendor/emd, /vendor/signatures, /vendor/company, /vendor/categories, /vendor/reviews, /vendor/account, /help). The 'Help & FAQs' row should keep its data-help-open behaviour (button) OR open /help.",
+    "Investigate the 29 vs 17 count discrepancy between sidebar Find-tenders badge and /vendor/tenders heading. Make them pull from the same source (GET /api/v1/notices).",
+    "(Nice-to-have) Disable the dialog's Submit button when new value is unchanged or empty to avoid the 400 round-trip."
+  ],
+  "critical_code_review_comments": [
+    "vendor_profile_changes.py line 161: `email_verified` is set to None for email requests but to True for all other fields — this is deliberate, but the admin list endpoint returns these mixed-type booleans/null raw; frontend badge code needs to handle `== null`, `== true`, `== false` cases.",
+    "vendor_profile_changes.py line 183: email-send failure is swallowed silently (`except Exception: pass`). Consider logging to help admin diagnose when the vendor says they never got the mail.",
+    "docusign.py _verify_hmac correctly fails-closed in production and warn+accepts in non-prod; implementation looks solid.",
+    "server.py line 76 correctly registers vendor_profile_changes BEFORE vendors.router so /vendors/profile-change-requests avoids the /{vendor_ref} catch-all.",
+    "Frontend sidebar still ships pre-React static Option-E markup — this is the headline deliverable of v50m and is incomplete."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_v50m_profile_changes.py (new)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "70%"},
+  "test_credentials": "manualvendor@pmcmanagers.com / Vendor@12345 ; adminsupport@pmcmanagers.com / Admin@12345",
+  "seed_data_creation": "Created and cleaned up several TEST_ADDR_* / email-change requests during pytest. All cycled through approve/reject so DB is clean. Vendor email reverted back to manualvendor@pmcmanagers.com.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Core blocking issue is purely in VendorPortalChrome.jsx — the <nav class='pmc-lnav'> block still uses <a href='#'>. Once that is fixed, re-run the UI test checking: (1) sidebar links render with real routes (not '#'), (2) clicking them does NOT trigger a full page reload (window.performance.navigation / absence of a React remount), (3) aria-current='page' stays correct, (4) sidebar Find-tenders badge count matches /vendor/tenders page heading count. Backend already fully verified by /app/backend/tests/test_v50m_profile_changes.py — just rerun that file to confirm nothing regressed.",
+  "rca of the issue": "RCA for sidebar href='#' bug: VendorPortalChrome.jsx appears to have been copied verbatim from the Option-E HTML mockup, which hard-codes <a href='#'> because the mockup never had routing. The main agent likely added a route-watching effect that sets aria-current but forgot to swap the <a> tags for <NavLink>. Reproduction: 1) log in as manualvendor@pmcmanagers.com, 2) open DevTools, 3) inspect any item in nav.pmc-lnav — href='#'. Fix: replace each sidebar anchor with <NavLink to='/vendor/tenders' end>...</NavLink> and let NavLink handle both href and aria-current='page' automatically."
+}

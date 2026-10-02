@@ -80,9 +80,14 @@ export default function VendorPortalChrome({ active, counts = {}, children }) {
           {NAV.map(renderLink)}
           <hr />
           {NAV_SECONDARY.map(renderLink)}
-          <a href="#" data-help-open="">
+          <button type="button" className="pmc-lnav__helpbtn" data-help-open=""
+                  data-testid="vendor-nav-help"
+                  style={{ background: "transparent", border: 0, textAlign: "left",
+                           cursor: "pointer", padding: 0, font: "inherit", color: "inherit",
+                           display: "flex", alignItems: "center", gap: 10,
+                           width: "100%" }}>
             <svg className="pmc-ico" aria-hidden="true"><use href="#i-help" /></svg>Help &amp; FAQs
-          </a>
+          </button>
           <div className="pmc-desk">
             <b>Your PMC desk</b>
             <div className="pmc-muted">Questions on a tender or bid?</div>

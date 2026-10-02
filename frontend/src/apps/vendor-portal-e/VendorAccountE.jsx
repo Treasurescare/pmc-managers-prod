@@ -39,7 +39,10 @@ export default function VendorAccountE({ legacy: Legacy }) {
 
   const openEdit = (field) => {
     setEditing(field);
-    setDraft(profile?.[field] || "");
+    // Start with an empty draft so the Submit button only enables once the
+    // user has actually typed a NEW value (prevents a 400 round-trip when
+    // nothing has changed).
+    setDraft("");
     setReason("");
   };
   const closeEdit = () => { setEditing(null); setDraft(""); setReason(""); };
@@ -189,7 +192,8 @@ export default function VendorAccountE({ legacy: Legacy }) {
               <button type="button" onClick={closeEdit}
                       className="pmc-btn pmc-btn--secondary"
                       data-testid="vacc-cancel-btn">Cancel</button>
-              <button type="button" onClick={submit} disabled={saving}
+              <button type="button" onClick={submit}
+                      disabled={saving || !draft.trim() || draft.trim() === (profile?.[editing] || "")}
                       className="pmc-btn pmc-btn--primary"
                       data-testid="vacc-submit-btn">
                 {saving ? "Submitting…" : "Submit request"}

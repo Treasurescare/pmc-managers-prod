@@ -38,6 +38,26 @@ mostly static; live data + click routing is patched at runtime via:
 
 ## What is implemented
 
+### v50m (2026-02-14) — Vendor Portal rewrite + Profile Edit + SEC fixes
+- Static Option-E Vendor-portal pages replaced with live, API-driven
+  components:
+  - `/vendor/tenders` — `publicApi.listNotices` + search + pagination
+  - `/vendor/signatures` — `docusignApi.listMine` + resume-sign + download
+  - `/vendor/account` — Profile edit form submitting to approval queue
+- Shared `VendorPortalChrome` wires every sidebar entry as a react-router
+  `<Link>` (no more `href="#"`).
+- New backend router `vendor_profile_changes.py` provides the full
+  address / telephone / mobile / email edit flow with:
+  - Admin approval queue (`/api/v1/vendors/profile-change-requests`)
+  - Email changes additionally require the vendor to click a verification
+    link sent to the NEW email before an admin can approve.
+- Admin console → Masters tab adds "Profile changes" alongside the
+  existing "Vendor requests" (category) tab.
+- SEC-001: `config.py::_seed_password` fails fast in production when any
+  admin / owner / staff seed password env var is missing.
+- SEC-003: DocuSign Connect webhook HMAC verification now fail-closes in
+  production when the shared secret is not configured.
+
 ### v49o (previous release) — Public notice/detail
 - Notice detail tabs actually switch section visibility (Documents /
   Corrigenda / Q&A / Timeline)
