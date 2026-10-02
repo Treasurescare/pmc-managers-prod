@@ -25,7 +25,8 @@ export default function ProfileChangeRequestsPanel() {
 
   const load = useCallback(() => {
     mastersApi.listProfileChangeRequests(status)
-      .then(setRows).catch(showApiError);
+      .then((d) => setRows(Array.isArray(d) ? d : (d?.items || [])))
+      .catch(showApiError);
   }, [status]);
   useEffect(() => { load(); }, [load]);
 

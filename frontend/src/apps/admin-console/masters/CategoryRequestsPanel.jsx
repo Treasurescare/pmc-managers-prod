@@ -15,7 +15,11 @@ export default function CategoryRequestsPanel() {
 
   const load = useCallback(() => {
     mastersApi.listCategoryRequests(status)
-      .then(setRows).catch(showApiError);
+      // v50r — defensive: wrong-router-order used to return the
+      // {"detail": "Vendor not found"} dict instead of an array and the
+      // panel would crash on rows.map. Keep guard even after fix.
+      .then((d) => setRows(Array.isArray(d) ? d : (d?.items || [])))
+      .catch(showApiError);
   }, [status]);
   useEffect(() => { load(); }, [load]);
 

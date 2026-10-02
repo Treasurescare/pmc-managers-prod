@@ -19,6 +19,8 @@ export default function AdminEShell({ active, crumb, children }) {
     ["Registrations", "/admin/e/registrations", "i-file"],
     ["Vendor intel", "/admin/e/vendor-intel", "i-eye"],
     ["Engagements", "/admin/e/engagements", "i-chat"],
+    ["Vendor requests", "/admin/e/vendor-requests", "i-tag"],
+    ["Profile changes", "/admin/e/profile-changes", "i-settings"],
     ["Money & compliance", null, null],
     ["Bidding ops", "/admin/e/bidding", "i-gavel"],
     ["Escrow / EMD", "/admin/e/escrow", "i-coin"],

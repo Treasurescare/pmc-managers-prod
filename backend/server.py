@@ -74,10 +74,10 @@ app.include_router(vendor_invites.router)
 # must be registered BEFORE vendors.router or the greedy `/{vendor_ref}`
 # catch-all captures them and 404s with "Vendor not found".
 app.include_router(vendor_profile_changes.router)
+app.include_router(vendor_categories.router)
 app.include_router(vendors.router)# Wave 1 — Bidding, EMD, multi-role pipeline, CRM
 app.include_router(staff_auth.router)
 app.include_router(vendor_auth.router)
-app.include_router(vendor_categories.router)
 app.include_router(vendor_licenses.router)
 app.include_router(_password_reset.router)
 app.include_router(bids.router)

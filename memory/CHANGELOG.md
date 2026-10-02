@@ -1,5 +1,30 @@
 # PMC Managers v2 — Changelog
 
+## 2026-10-02 — v50r Post-prod fix pack
+
+- **Vendor Home redirection** (prod bug): the 4 remaining static Option-E
+  vendor pages (My bids, EMD, Reviews, Alerts) kept the mockup's
+  `href="#"` sidebar; PmcLinkPatcher's text-match fallback sometimes
+  routed Home to the public landing page. Replaced every sidebar entry
+  with real `/vendor/*` hrefs — Home always stays inside the portal now.
+- **Admin Vendor requests crash** (`This panel hit an error`): the
+  `vendor_categories` router was registered AFTER `vendors.router`, so
+  the `/{vendor_ref}` catch-all swallowed `/api/v1/vendors/category-requests`
+  and returned a dict → the panel's `rows.map` blew up. Router order fixed
+  (now BEFORE `vendors.router`, same guard as `vendor_profile_changes`),
+  and both admin panels hardened to coerce non-array payloads.
+- **Sidebar reorg**: Vendor requests + Profile changes moved out of
+  Masters into the Market section as top-level items —
+  `/admin/e/vendor-requests` (AdminVendorRequestsE) and
+  `/admin/e/profile-changes` (AdminProfileChangesE). Masters tabs still
+  render those panels under "(moved → Market)" labels for one release.
+- **Help centre back button**: `/help` and `/help/:slug` headers used to
+  hard-link to `/admin/e/dashboard`. Replaced with a real
+  `window.history.back()` button (fallback: `/help` root). Vendors return
+  to the vendor page, admins return to the admin page.
+
+
+
 ## 2026-10-02 — v50q (activation verified · blank form regenerated · DocuSign archive tool · EMD editor)
 
 - **#6 Vendor activation** — full flow re-tested end-to-end via API
