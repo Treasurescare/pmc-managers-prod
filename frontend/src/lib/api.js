@@ -210,6 +210,14 @@ export const vendorApi = {
   removeAvatar: () => api.delete("/api/v1/vendor/auth/avatar").then((r) => r.data),
   revokeOtherSessions: () =>
     api.post("/api/v1/vendor/auth/sessions/revoke-others").then((r) => r.data),
+  // v50m — profile edit with admin-approval gate
+  getProfile: () => api.get("/api/v1/vendor/profile").then((r) => r.data),
+  listProfileRequests: () => api.get("/api/v1/vendor/profile/requests").then((r) => r.data),
+  requestProfileChange: (field, new_value, reason) =>
+    api.post("/api/v1/vendor/profile/request-change",
+             { field, new_value, reason: reason || null }).then((r) => r.data),
+  confirmEmailChange: (token) =>
+    api.get(`/api/v1/vendor/profile/email-verify/${token}`).then((r) => r.data),
 };
 
 // ---------- Wave 1: Bids ----------
@@ -355,6 +363,13 @@ export const mastersApi = {
     api.post(`/api/v1/vendors/category-requests/${id}/approve`, { notes: notes || null }).then((r) => r.data),
   rejectCategoryRequest: (id, notes) =>
     api.post(`/api/v1/vendors/category-requests/${id}/reject`, { notes }).then((r) => r.data),
+  // v50m — vendor profile change requests (admin side)
+  listProfileChangeRequests: (status = "pending") =>
+    api.get("/api/v1/vendors/profile-change-requests", { params: { status } }).then((r) => r.data),
+  approveProfileChangeRequest: (id, notes) =>
+    api.post(`/api/v1/vendors/profile-change-requests/${id}/approve`, { notes: notes || null }).then((r) => r.data),
+  rejectProfileChangeRequest: (id, notes) =>
+    api.post(`/api/v1/vendors/profile-change-requests/${id}/reject`, { notes }).then((r) => r.data),
 };
 
 // ---------- Wave 5: Analytics + AI ----------

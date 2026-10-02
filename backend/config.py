@@ -43,22 +43,48 @@ MAGIC_LINK_TTL_HOURS = 72
 # Tenant — Phase 1 single default tenant. Phase 2 (AWS) derives from Cognito token.
 DEFAULT_TENANT_ID = "PMC-KZ-01"
 
-# Admin seed
+# Admin seed — SEC-001: passwords MUST come from env in production.
+# In non-production envs we still fall back to defaults so local dev / preview
+# stays frictionless. Production ("ENV=production") is strict: missing seeds
+# refuse to boot rather than silently seed weak credentials.
+_IS_PROD = (os.environ.get("ENV", "").lower() == "production"
+            or os.environ.get("DEPLOY_ENV", "").lower() == "production")
+
+
+def _seed_password(name: str, fallback: str) -> str:
+    val = os.environ.get(name, "")
+    if val:
+        return val
+    if _IS_PROD:
+        return _require_env(name)
+    logging.warning(
+        "[PMC-SEC-001] %s not set — using built-in default (DEV ONLY). "
+        "Set %s in production to a strong value.", name, name,
+    )
+    return fallback
+
+
 ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "adminsupport@pmcmanagers.com").lower()
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "Admin@123")
+ADMIN_PASSWORD = _seed_password("ADMIN_PASSWORD", "Admin@123")
 
 # Second Owner seed — the real user building this app. Same role/level as
 # the master admin but keyed on a real inbox so they can log in on prod.
 OWNER_EMAIL = os.environ.get("OWNER_EMAIL", "kannan@emeraldcorporates.com").lower()
-OWNER_PASSWORD = os.environ.get("OWNER_PASSWORD", "Owner@123")
+OWNER_PASSWORD = _seed_password("OWNER_PASSWORD", "Owner@123")
 
 # Wave 1 — seeded staff accounts for the multi-role pipeline demo.
+# Passwords honour env overrides so prod operators can rotate them without
+# touching source. Env keys: STAFF_PW_ESCROW, STAFF_PW_CERTIFIER, …
+def _staff_pw(key: str, fallback: str) -> str:
+    return _seed_password(f"STAFF_PW_{key}", fallback)
+
+
 STAFF_SEEDS = [
-    ("escrow@pmcmanagers.com",   "Escrow@123", "Escrow Agent",    ["escrow_agent"]),
-    ("certifier@pmcmanagers.com","Certify@123","Site Certifier",  ["certifier"]),
-    ("legal@pmcmanagers.com",    "Legal@123",  "Legal Counsel",   ["legal_counsel"]),
-    ("accounts@pmcmanagers.com", "Accts@123",  "Accounting Team", ["accounting"]),
-    ("committee@pmcmanagers.com","Bid@1234",   "Committee Chair", ["committee_member", "admin"]),
+    ("escrow@pmcmanagers.com",   _staff_pw("ESCROW",    "Escrow@123"), "Escrow Agent",    ["escrow_agent"]),
+    ("certifier@pmcmanagers.com",_staff_pw("CERTIFIER", "Certify@123"),"Site Certifier",  ["certifier"]),
+    ("legal@pmcmanagers.com",    _staff_pw("LEGAL",     "Legal@123"),  "Legal Counsel",   ["legal_counsel"]),
+    ("accounts@pmcmanagers.com", _staff_pw("ACCOUNTS",  "Accts@123"),  "Accounting Team", ["accounting"]),
+    ("committee@pmcmanagers.com",_staff_pw("COMMITTEE", "Bid@1234"),   "Committee Chair", ["committee_member", "admin"]),
 ]
 
 # Email — direct Resend path (preferred) or legacy relay fallback.

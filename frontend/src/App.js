@@ -96,6 +96,7 @@ import VendorEmdE from "@/apps/vendor-portal-e/VendorEmdE";
 import VendorSignaturesE from "@/apps/vendor-portal-e/VendorSignaturesE";
 import VendorCompanyKycE from "@/apps/vendor-portal-e/VendorCompanyKycE";
 import VendorAccountE from "@/apps/vendor-portal-e/VendorAccountE";
+import VendorVerifyEmailChange from "@/apps/vendor-portal-e/VendorVerifyEmailChange";
 import AdminDashboardE from "@/apps/admin-console-e/AdminDashboardE";
 import AdminMastersE from "@/apps/admin-console-e/AdminMastersE";
 import AdminAuditE from "@/apps/admin-console-e/AdminAuditE";
@@ -265,6 +266,7 @@ export default function App() {
             <Route path="/vendor/payment/cancel" element={<PaymentResult outcome="cancel" />} />
             <Route path="/vendor/payment/sandbox" element={<SandboxCheckout />} />
             <Route path="/vendor/verify/:token" element={<VendorVerifyEmail />} />
+            <Route path="/vendor/verify-email-change/:token" element={<VendorVerifyEmailChange />} />
             <Route path="/vendor/auction/invite/:token" element={<AuctionInviteAccept />} />
 
             {/* Staff Portal */}

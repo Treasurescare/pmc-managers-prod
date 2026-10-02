@@ -21,7 +21,7 @@ from routers import (
     docusign, profile_ops, _temp_downloads,
     stakeholder_reports, dashboard_drill, branding_theme,
     envelope_authoritative, contracts_export,
-    admin_demo, push, vendor_categories,
+    admin_demo, push, vendor_categories, vendor_profile_changes,
 )
 from routers import password_reset as _password_reset
 
@@ -69,6 +69,11 @@ app.include_router(audit_routes.router)
 # Wave 9 vendor_invites must register BEFORE vendors.router so its specific
 # `/registration-template` path wins over vendors.py `/{vendor_ref}` catch-all
 app.include_router(vendor_invites.router)
+# v50m — vendor_profile_changes and vendor_categories expose literal paths
+# under /api/v1/vendors/… (profile-change-requests, category-requests) that
+# must be registered BEFORE vendors.router or the greedy `/{vendor_ref}`
+# catch-all captures them and 404s with "Vendor not found".
+app.include_router(vendor_profile_changes.router)
 app.include_router(vendors.router)# Wave 1 — Bidding, EMD, multi-role pipeline, CRM
 app.include_router(staff_auth.router)
 app.include_router(vendor_auth.router)

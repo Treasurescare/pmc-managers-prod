@@ -1,71 +1,270 @@
-import { useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { Link } from "react-router-dom";
+import { toast } from "sonner";
 import { useUiTheme } from "@/context/UiThemeContext";
-import { useVendorAccountLive } from "@/lib/pmcELiveData";
+import { vendorApi, showApiError } from "@/lib/api";
+import VendorPortalChrome from "./VendorPortalChrome";
+
+const FIELD_META = {
+  address:      { label: "Registered address", type: "textarea", placeholder: "Street, city, country" },
+  office_phone: { label: "Office telephone",   type: "text",     placeholder: "+7 ..." },
+  mobile:       { label: "Mobile number",      type: "text",     placeholder: "+7 ..." },
+  email:        { label: "Login email",        type: "email",    placeholder: "name@company.com" },
+};
 
 export default function VendorAccountE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
-  useVendorAccountLive({ enabled: isE });
-  useEffect(() => {
-    if (!isE) return;
-    const tick = () => {
-      document.querySelectorAll("[data-in]").forEach((el) => {
-        const secs = parseInt(el.getAttribute("data-in") || "0", 10);
-        if (!secs) return;
-        const d = Math.floor(secs/86400), h = Math.floor((secs%86400)/3600), m = Math.floor((secs%3600)/60);
-        el.textContent = d>0 ? `${d}d ${h}h` : h>0 ? `${h}h ${m}m` : `${m}m`;
-      });
-    };
-    tick();
-  }, [isE]);
+  const [profile, setProfile] = useState(null);
+  const [pending, setPending] = useState([]);
+  const [recent, setRecent] = useState([]);
+  const [editing, setEditing] = useState(null); // field name
+  const [draft, setDraft] = useState("");
+  const [reason, setReason] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [revoking, setRevoking] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const [p, r] = await Promise.all([
+        vendorApi.getProfile(),
+        vendorApi.listProfileRequests(),
+      ]);
+      setProfile(p);
+      setPending(r.pending || []);
+      setRecent(r.recent || []);
+    } catch (e) { showApiError(e); }
+  }, []);
+
+  useEffect(() => { if (isE) load(); }, [isE, load]);
+
+  const openEdit = (field) => {
+    setEditing(field);
+    setDraft(profile?.[field] || "");
+    setReason("");
+  };
+  const closeEdit = () => { setEditing(null); setDraft(""); setReason(""); };
+
+  const submit = async () => {
+    if (!draft.trim()) {
+      toast.error("Please enter a new value.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await vendorApi.requestProfileChange(editing, draft.trim(), reason.trim() || null);
+      toast.success(
+        editing === "email"
+          ? "Request sent. Confirm the new address from the verification email we just sent, then wait for admin approval."
+          : "Request submitted. A PMC administrator will review and approve shortly.",
+        { duration: 8000 },
+      );
+      closeEdit();
+      load();
+    } catch (e) { showApiError(e, { fallbackTitle: "Could not submit change" }); }
+    finally { setSaving(false); }
+  };
+
+  const revokeAll = async () => {
+    if (!window.confirm("Sign out of every other device? You'll stay signed in on this one.")) return;
+    setRevoking(true);
+    try {
+      await vendorApi.revokeOtherSessions();
+      toast.success("All other sessions have been signed out.");
+    } catch (e) { showApiError(e); }
+    finally { setRevoking(false); }
+  };
+
+  const pendingForField = (f) => pending.find((p) => p.field === f);
+
   if (!isE && Legacy) return <Legacy />;
   if (!isE) return null;
+
   return (
     <div data-testid="vendor-account-e" data-pmc-e-page="vendor-account-e">
-<header className="pmc-chrome pmc-vtop">
-  <a href="#" className="pmc-brand"><span className="pmc-brand__n">PMC Managers</span><span className="pmc-brand__s">Supplier portal</span></a>
-  <label className="pmc-search pmc-cmd"><svg className="pmc-ico" aria-hidden="true"><use href="#i-search" /></svg><input placeholder="Search tenders, bids, documents…" /><span className="pmc-kbd">Ctrl K</span></label>
-  <div className="pmc-vtop__r">
-    <button className="pmc-btn pmc-btn--onchrome" data-help-open=""><svg className="pmc-ico" aria-hidden="true"><use href="#i-help" /></svg> Help</button>
-    <button className="pmc-iconbtn pmc-bell" aria-label="9 alerts"><svg className="pmc-ico" aria-hidden="true"><use href="#i-bell" /></svg><span className="pmc-bell__n">9</span></button>
-    <button className="pmc-who" aria-haspopup="menu"><span className="pmc-avatar">EC</span><span className="pmc-who__t"><b>Emerald Corporates</b><span>PMC-SUP-000017 · KYC verified</span></span></button>
-  </div>
-</header><div className="pmc-app"><nav className="pmc-lnav" aria-label="Supplier"><a href="#"><svg className="pmc-ico" aria-hidden="true"><use href="#i-home" /></svg>Home</a><a href="#"><svg className="pmc-ico" aria-hidden="true"><use href="#i-search" /></svg>Find tenders<span className="c">29</span></a><a href="#"><svg className="pmc-ico" aria-hidden="true"><use href="#i-gavel" /></svg>My bids<span className="c hot">1</span></a><a href="#"><svg className="pmc-ico" aria-hidden="true"><use href="#i-coin" /></svg>EMD &amp; payments</a><a href="#"><svg className="pmc-ico" aria-hidden="true"><use href="#i-sign" /></svg>Signatures<span className="c">1</span></a><hr /><a href="#"><svg className="pmc-ico" aria-hidden="true"><use href="#i-shield" /></svg>Company &amp; KYC</a><a href="#"><svg className="pmc-ico" aria-hidden="true"><use href="#i-users" /></svg>Reviews</a><a href="#" aria-current="page"><svg className="pmc-ico" aria-hidden="true"><use href="#i-settings" /></svg>Account &amp; security</a><a href="#" data-help-open=""><svg className="pmc-ico" aria-hidden="true"><use href="#i-help" /></svg>Help &amp; FAQs</a><div className="pmc-desk"><b>Your PMC desk</b><div className="pmc-muted">Questions on a tender or bid?</div><a href="mailto:tenders@pmcmanagers.com">tenders@pmcmanagers.com</a><a href="#" className="pmc-btn pmc-btn--secondary pmc-btn--sm" style={{ width: "100%", marginTop: "10px" }}><svg className="pmc-ico" aria-hidden="true"><use href="#i-chat" /></svg> Raise a ticket</a></div></nav><main className="pmc-main"><div className="sp-head"><div><div className="pmc-eyebrow">Account &amp; security</div><h1>Your account</h1></div></div>
-<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-  <section className="pmc-panel"><div className="pmc-panel__head"><h2 className="pmc-panel__title">Sign-in &amp; two-factor</h2><span className="pmc-pill pmc-pill--success">Protected</span></div><div className="pmc-panel__body" style={{ display: "grid", gap: "14px", fontSize: "14px" }}>
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><div><b>Password</b><div className="pmc-muted" style={{ fontSize: "13px" }}>Changed 12 Aug 2026</div></div><a href="#" className="pmc-btn pmc-btn--secondary pmc-btn--sm">Change</a></div>
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><div><b>Authenticator app</b><div className="pmc-muted" style={{ fontSize: "13px" }}>On · required for signing and payments</div></div><a href="#" className="pmc-btn pmc-btn--secondary pmc-btn--sm">Manage</a></div>
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><div><b>Face ID / fingerprint</b><div className="pmc-muted" style={{ fontSize: "13px" }}>On for the PMC Tenders app</div></div><a href="#" className="pmc-btn pmc-btn--secondary pmc-btn--sm">Manage</a></div>
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><div><b>Backup codes</b><div className="pmc-muted" style={{ fontSize: "13px" }}>8 of 10 unused</div></div><a href="#" className="pmc-btn pmc-btn--secondary pmc-btn--sm">View</a></div></div></section>
-  <section className="pmc-panel"><div className="pmc-panel__head"><h2 className="pmc-panel__title">Notifications</h2></div><div className="pmc-panel__body" style={{ display: "grid", gap: "4px" }}>
-    <label className="pmc-check" style={{ justifyContent: "space-between" }}><span>New tenders matching my KYC</span><span style={{ display: "flex", gap: "16px" }}><span style={{ display: "flex", gap: "6px", alignItems: "center", fontSize: "13px" }}><input type="checkbox" defaultChecked />Portal</span><span style={{ display: "flex", gap: "6px", alignItems: "center", fontSize: "13px" }}><input type="checkbox" defaultChecked />Email</span></span></label><label className="pmc-check" style={{ justifyContent: "space-between" }}><span>Clarifications &amp; corrigenda on followed tenders</span><span style={{ display: "flex", gap: "16px" }}><span style={{ display: "flex", gap: "6px", alignItems: "center", fontSize: "13px" }}><input type="checkbox" defaultChecked />Portal</span><span style={{ display: "flex", gap: "6px", alignItems: "center", fontSize: "13px" }}><input type="checkbox" defaultChecked />Email</span></span></label><label className="pmc-check" style={{ justifyContent: "space-between" }}><span>Deadline reminders (72h, 24h, 2h)</span><span style={{ display: "flex", gap: "16px" }}><span style={{ display: "flex", gap: "6px", alignItems: "center", fontSize: "13px" }}><input type="checkbox" defaultChecked />Portal</span><span style={{ display: "flex", gap: "6px", alignItems: "center", fontSize: "13px" }}><input type="checkbox" defaultChecked />Email</span></span></label><label className="pmc-check" style={{ justifyContent: "space-between" }}><span>EMD and escrow updates</span><span style={{ display: "flex", gap: "16px" }}><span style={{ display: "flex", gap: "6px", alignItems: "center", fontSize: "13px" }}><input type="checkbox" defaultChecked />Portal</span><span style={{ display: "flex", gap: "6px", alignItems: "center", fontSize: "13px" }}><input type="checkbox" defaultChecked />Email</span></span></label><label className="pmc-check" style={{ justifyContent: "space-between" }}><span>Documents to sign</span><span style={{ display: "flex", gap: "16px" }}><span style={{ display: "flex", gap: "6px", alignItems: "center", fontSize: "13px" }}><input type="checkbox" defaultChecked />Portal</span><span style={{ display: "flex", gap: "6px", alignItems: "center", fontSize: "13px" }}><input type="checkbox" defaultChecked />Email</span></span></label><label className="pmc-check" style={{ justifyContent: "space-between" }}><span>Weekly digest</span><span style={{ display: "flex", gap: "16px" }}><span style={{ display: "flex", gap: "6px", alignItems: "center", fontSize: "13px" }}><input type="checkbox" defaultChecked />Portal</span><span style={{ display: "flex", gap: "6px", alignItems: "center", fontSize: "13px" }}><input type="checkbox" />Email</span></span></label></div></section>
-</div>
-<section className="pmc-panel" style={{ marginTop: "16px" }}><div className="pmc-panel__head"><h2 className="pmc-panel__title">Where you're signed in</h2><a href="#" className="pmc-btn pmc-btn--secondary pmc-btn--sm">Sign out everywhere else</a></div><table className="pmc-table"><tbody><tr><td style={{ fontWeight: "600" }}>Chrome · Windows</td><td>London, UK</td><td><span className="pmc-pill pmc-pill--brand">This device</span></td><td className="pmc-muted">now</td><td style={{ textAlign: "right" }}></td></tr><tr><td style={{ fontWeight: "600" }}>PMC Tenders app · iPhone</td><td>London, UK</td><td><span className="pmc-pill pmc-pill--brand">Face ID</span></td><td className="pmc-muted">2 h ago</td><td style={{ textAlign: "right" }}><a href="#" className="pmc-btn pmc-btn--ghost pmc-btn--sm">Sign out</a></td></tr><tr><td style={{ fontWeight: "600" }}>Safari · macOS</td><td>Chennai, IN</td><td></td><td className="pmc-muted">3 days ago</td><td style={{ textAlign: "right" }}><a href="#" className="pmc-btn pmc-btn--ghost pmc-btn--sm">Sign out</a></td></tr></tbody></table></section>
-<section className="pmc-panel" style={{ marginTop: "16px", borderColor: "var(--danger)" }}><div className="pmc-panel__head"><h2 className="pmc-panel__title" style={{ color: "var(--danger)" }}>Delete my data</h2></div><div className="pmc-panel__body" style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "24px", alignItems: "center" }}>
-  <p className="pmc-muted" style={{ margin: "0", fontSize: "14px", lineHeight: "22px" }}>Deletes your company profile, documents and team. Records that must be kept for active bids, contracts or the audit ledger are retained and anonymised. You'll be asked to type your company name and confirm with two-factor.</p>
-  <div style={{ display: "flex", gap: "8px" }}><a href="#" className="pmc-btn pmc-btn--secondary"><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg> Export first</a><a href="#" className="pmc-btn pmc-btn--danger">Delete my data…</a></div></div></section></main></div>
-<div className="pmc-drawer-scrim" data-help-close=""></div>
-<aside className="pmc-drawer" role="dialog" aria-modal="true" aria-label="Help and FAQs">
-  <div className="pmc-drawer__head">
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-      <div><div className="pmc-eyebrow">Help &amp; FAQs</div><div style={{ fontSize: "20px", lineHeight: "28px", fontWeight: "600" }}>How can we help?</div></div>
-      <button className="pmc-btn pmc-btn--ghost pmc-btn--sm" data-help-close="" aria-label="Close help">Close <span className="pmc-kbd">Esc</span></button>
-    </div>
-    <label className="pmc-search"><svg className="pmc-ico" aria-hidden="true"><use href="#i-search" /></svg><input data-help-q="" placeholder="Search help, e.g. “bank guarantee”" /></label>
-  </div>
-  <div className="pmc-drawer__body">
-    <div className="pmc-eyebrow" style={{ margin: "4px 0 10px", color: "var(--ink-muted)" }}>On this page · Account & security</div>
-    <div style={{ display: "grid", gap: "8px", marginBottom: "20px" }}><div className="pmc-tip"><svg className="pmc-ico" aria-hidden="true"><use href="#i-spark" /></svg><div><b>Two-factor protects money</b>Signing and payment actions always ask for your code.</div></div><div className="pmc-tip"><svg className="pmc-ico" aria-hidden="true"><use href="#i-spark" /></svg><div><b>Lost device</b>Use a backup code, then sign that device out here.</div></div></div>
-    <div className="pmc-eyebrow" style={{ marginBottom: "2px", color: "var(--ink-muted)" }}>Frequently asked</div>
-    <div data-help-list=""><details className="pmc-faq" data-cat="account"><summary>How do I keep my account secure?</summary><p>Turn on two-factor sign-in under <b>Account &rsaquo; Security</b>. On the mobile app you can also sign in with Face ID or fingerprint.</p></details></div>
-    <p data-help-empty="" hidden style={{ color: "var(--ink-muted)", fontSize: "14px" }}>No answer matches yet. Raise a ticket below and the PMC desk will reply.</p>
-    <a href="/help" className="pmc-btn pmc-btn--secondary" style={{ width: "100%", marginTop: "16px" }}><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg> Open the full Help Centre</a>
-  </div>
-  <div className="pmc-drawer__foot">
-    <a href="#" className="pmc-btn pmc-btn--primary"><svg className="pmc-ico" aria-hidden="true"><use href="#i-chat" /></svg> Raise a ticket</a>
-    <a href="mailto:tenders@pmcmanagers.com" className="pmc-btn pmc-btn--secondary"><svg className="pmc-ico" aria-hidden="true"><use href="#i-mail" /></svg> Email the desk</a>
-  </div>
-</aside>
-<button className="pmc-helpfab" data-help-open="" aria-label="Open help"><span className="pmc-helpfab__q">?</span>Help</button>
+      <VendorPortalChrome active="/vendor/account">
+        <div className="sp-head">
+          <div>
+            <div className="pmc-eyebrow">Account &amp; security</div>
+            <h1>Your account</h1>
+          </div>
+        </div>
+
+        <section className="pmc-panel" data-testid="vacc-profile-panel">
+          <div className="pmc-panel__head">
+            <h2 className="pmc-panel__title">Company contact details</h2>
+            <span className="pmc-pill">Changes need admin approval</span>
+          </div>
+          <div className="pmc-panel__body" style={{ display: "grid", gap: 14, fontSize: 14 }}>
+            {["address", "office_phone", "mobile", "email"].map((field) => {
+              const meta = FIELD_META[field];
+              const current = profile?.[field];
+              const req = pendingForField(field);
+              return (
+                <div key={field} data-testid={`vacc-row-${field}`}
+                     style={{ display: "flex", justifyContent: "space-between",
+                              alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+                  <div style={{ minWidth: 240 }}>
+                    <b>{meta.label}</b>
+                    <div className="pmc-muted" style={{ fontSize: 13, whiteSpace: "pre-wrap" }}
+                         data-testid={`vacc-current-${field}`}>
+                      {current || <em>Not set</em>}
+                    </div>
+                    {req && (
+                      <div className="pmc-muted"
+                           style={{ fontSize: 12, color: "var(--brass-text, #B08E4A)", marginTop: 6 }}
+                           data-testid={`vacc-pending-${field}`}>
+                        Pending approval: <b>{req.new_value}</b>
+                        {field === "email" && (
+                          <> · {req.email_verified ? "Email verified" : "Awaiting email verification"}</>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <button type="button" onClick={() => openEdit(field)}
+                          disabled={!!req}
+                          className="pmc-btn pmc-btn--secondary pmc-btn--sm"
+                          data-testid={`vacc-edit-${field}`}>
+                    {req ? "Pending…" : "Request change"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        {editing && (
+          <div className="pmc-drawer-scrim" onClick={closeEdit} style={{ display: "block" }} />
+        )}
+        {editing && (
+          <div role="dialog" aria-modal="true"
+               data-testid="vacc-edit-dialog"
+               style={{
+                 position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)",
+                 width: "min(520px, 92vw)", background: "var(--surface, #fff)",
+                 border: "1px solid var(--line, #0001)", borderRadius: "var(--radius-md, 6px)",
+                 padding: 24, zIndex: 60, boxShadow: "0 20px 50px rgba(0,0,0,.25)",
+               }}>
+            <div className="pmc-eyebrow">Request change</div>
+            <h2 style={{ margin: "6px 0 16px" }}>{FIELD_META[editing].label}</h2>
+            <div style={{ fontSize: 13 }} className="pmc-muted">
+              Current: <b>{profile?.[editing] || "Not set"}</b>
+            </div>
+            {editing === "email" && (
+              <div style={{ marginTop: 8, padding: 10,
+                            background: "var(--warning-soft, #fef9e7)",
+                            fontSize: 12, lineHeight: "18px" }}
+                   data-testid="vacc-email-notice">
+                <b>Email changes need extra verification.</b>{" "}
+                We'll send a confirmation link to the new address. After you click it, an
+                administrator still has to approve before your login email is updated.
+              </div>
+            )}
+            <label style={{ display: "block", marginTop: 14 }}>
+              <span className="pmc-eyebrow">New value</span>
+              {FIELD_META[editing].type === "textarea" ? (
+                <textarea value={draft} onChange={(e) => setDraft(e.target.value)}
+                          placeholder={FIELD_META[editing].placeholder}
+                          rows={3}
+                          className="pmc-input"
+                          style={{ width: "100%", marginTop: 4 }}
+                          data-testid="vacc-draft-input" />
+              ) : (
+                <input type={FIELD_META[editing].type}
+                       value={draft} onChange={(e) => setDraft(e.target.value)}
+                       placeholder={FIELD_META[editing].placeholder}
+                       className="pmc-input"
+                       style={{ width: "100%", marginTop: 4 }}
+                       data-testid="vacc-draft-input" />
+              )}
+            </label>
+            <label style={{ display: "block", marginTop: 12 }}>
+              <span className="pmc-eyebrow">Reason (optional)</span>
+              <input value={reason} onChange={(e) => setReason(e.target.value)}
+                     placeholder="Why are you changing this?"
+                     className="pmc-input"
+                     style={{ width: "100%", marginTop: 4 }}
+                     data-testid="vacc-reason-input" />
+            </label>
+            <div style={{ marginTop: 20, display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button type="button" onClick={closeEdit}
+                      className="pmc-btn pmc-btn--secondary"
+                      data-testid="vacc-cancel-btn">Cancel</button>
+              <button type="button" onClick={submit} disabled={saving}
+                      className="pmc-btn pmc-btn--primary"
+                      data-testid="vacc-submit-btn">
+                {saving ? "Submitting…" : "Submit request"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {recent.length > 0 && (
+          <section className="pmc-panel" style={{ marginTop: 16 }}
+                   data-testid="vacc-recent-panel">
+            <div className="pmc-panel__head">
+              <h2 className="pmc-panel__title">Recent change requests</h2>
+            </div>
+            <table className="pmc-table">
+              <thead>
+                <tr><th>Field</th><th>New value</th><th>Status</th><th>Decided</th><th>Note</th></tr>
+              </thead>
+              <tbody>
+                {recent.map((r) => (
+                  <tr key={r.id} data-testid={`vacc-recent-${r.id}`}>
+                    <td style={{ fontWeight: 600 }}>{FIELD_META[r.field]?.label || r.field}</td>
+                    <td>{r.new_value}</td>
+                    <td>
+                      <span className={"pmc-pill " + (r.status === "approved"
+                        ? "pmc-pill--success" : "pmc-pill--danger")}>
+                        {r.status}
+                      </span>
+                    </td>
+                    <td className="pmc-muted" style={{ fontSize: 13 }}>
+                      {r.decided_at ? r.decided_at.slice(0, 10) : "—"}
+                    </td>
+                    <td className="pmc-muted" style={{ fontSize: 13 }}>
+                      {r.decision_notes || "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        )}
+
+        <section className="pmc-panel" style={{ marginTop: 16 }}
+                 data-testid="vacc-security-panel">
+          <div className="pmc-panel__head">
+            <h2 className="pmc-panel__title">Sign-in &amp; security</h2>
+          </div>
+          <div className="pmc-panel__body" style={{ display: "grid", gap: 14, fontSize: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <b>Password</b>
+                <div className="pmc-muted" style={{ fontSize: 13 }}>
+                  Change your login password.
+                </div>
+              </div>
+              <Link to="/vendor/change-password"
+                    className="pmc-btn pmc-btn--secondary pmc-btn--sm"
+                    data-testid="vacc-change-password-link">Change</Link>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <b>Other devices</b>
+                <div className="pmc-muted" style={{ fontSize: 13 }}>
+                  Sign out of every other browser and mobile session.
+                </div>
+              </div>
+              <button type="button" onClick={revokeAll} disabled={revoking}
+                      className="pmc-btn pmc-btn--secondary pmc-btn--sm"
+                      data-testid="vacc-revoke-sessions-btn">
+                {revoking ? "Signing out…" : "Sign out everywhere else"}
+              </button>
+            </div>
+          </div>
+        </section>
+      </VendorPortalChrome>
     </div>
   );
 }

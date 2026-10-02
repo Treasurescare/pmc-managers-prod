@@ -65,10 +65,26 @@ def _verify_hmac(raw_body: bytes, headers) -> bool:
 
     DocuSign delivers up to 3 signatures via headers x-docusign-signature-1..3
     (base64-encoded HMAC-SHA256 of the raw request body using the shared secret).
-    Any match is accepted. Returns True if secret is not configured (opt-in).
+    Any match is accepted.
+
+    SEC-003: in production the shared secret MUST be configured. If it is
+    missing, we fail CLOSED (reject the webhook) rather than fail open. In
+    non-production envs an unset secret is still accepted with a loud log, so
+    local sandbox webhooks stay testable.
     """
     if not DS_HMAC_SECRET:
-        return True  # HMAC not configured — accept (dev only)
+        env = os.environ.get("ENV", "").lower() or os.environ.get("DEPLOY_ENV", "").lower()
+        if env == "production":
+            _log.error(
+                "[PMC-SEC-003] DOCUSIGN_CONNECT_HMAC_SECRET not set in production — "
+                "rejecting webhook. Configure the secret in EB env vars.",
+            )
+            return False
+        _log.warning(
+            "[PMC-SEC-003] DOCUSIGN_CONNECT_HMAC_SECRET not set — accepting unsigned "
+            "webhook (NON-PROD ONLY).",
+        )
+        return True
     expected = base64.b64encode(
         hmac.new(DS_HMAC_SECRET.encode("utf-8"), raw_body, hashlib.sha256).digest()
     ).decode("ascii")
