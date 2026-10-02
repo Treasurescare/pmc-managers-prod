@@ -207,6 +207,75 @@ async def upload_notice_document(notice_ref: str,
     return {"ok": True, "kind": kind, **meta}
 
 
+@router.patch("/{notice_ref}")
+async def update_notice(notice_ref: str, payload: NoticeIn,
+                         admin=Depends(require_role(
+                             "admin", "reviewer", "legal_counsel", "committee_member"))):
+    """Edit an existing notice. Published notices can be edited by admins but
+    the publish-state can only be flipped by callers with publish rights."""
+    notice = await db.notices.find_one({"notice_ref": notice_ref})
+    if not notice:
+        raise HTTPException(status_code=404, detail="Notice not found")
+    await require_notice_permission(admin, "modify", notice.get("document_type", "*"))
+
+    updates = payload.model_dump()
+    # Primary document / attachments are managed through the dedicated upload
+    # routes — never let a PATCH overwrite them, so a plain "save edits" never
+    # drops a file the admin uploaded via the edit modal.
+    updates.pop("primary_document", None)
+    updates.pop("attachments", None)
+    # tenant_id is immutable after creation.
+    updates.pop("tenant_id", None)
+
+    was_published = bool(notice.get("is_published"))
+    now_pub = bool(updates.get("is_published"))
+    if (not was_published) and now_pub:
+        await require_notice_permission(admin, "publish", updates.get("document_type"))
+        updates["published_at"] = now_iso()
+
+    # Re-apply KZ auto-licence attach so category changes refresh licences too.
+    if (updates.get("delivery_country") or "").upper() == "KZ":
+        auto = config.KZ_CATEGORY_LICENSE_MAP.get(updates.get("category"), [])
+        updates["required_licenses"] = list({*(updates.get("required_licenses") or []), *auto})
+
+    updates["updated_at"] = now_iso()
+    updates["updated_by"] = admin["id"]
+    await db.notices.update_one({"notice_ref": notice_ref}, {"$set": updates})
+    await audit_log("notice.update", admin, "notice", notice_ref,
+                    {"title": updates.get("title"), "is_published": now_pub,
+                     "fields_changed": sorted(k for k in updates if k not in ("updated_at", "updated_by"))})
+    doc = await db.notices.find_one({"notice_ref": notice_ref})
+    return _out(doc)
+
+
+@router.delete("/{notice_ref}/document")
+async def delete_notice_document(notice_ref: str,
+                                   kind: str,
+                                   file_name: Optional[str] = None,
+                                   admin=Depends(require_role(
+                                       "admin", "reviewer", "legal_counsel"))):
+    """Detach a notice document.
+    kind='primary' -> clears primary_document.
+    kind='attachment' -> removes the attachment matching file_name."""
+    notice = await db.notices.find_one({"notice_ref": notice_ref})
+    if not notice:
+        raise HTTPException(status_code=404, detail="Notice not found")
+    await require_notice_permission(admin, "modify", notice.get("document_type", "*"))
+    if kind == "primary":
+        await db.notices.update_one({"notice_ref": notice_ref},
+                                     {"$set": {"primary_document": None}})
+    elif kind == "attachment":
+        if not file_name:
+            raise HTTPException(status_code=400, detail="file_name required for attachment delete")
+        await db.notices.update_one({"notice_ref": notice_ref},
+                                     {"$pull": {"attachments": {"file_name": file_name}}})
+    else:
+        raise HTTPException(status_code=400, detail="kind must be 'primary' or 'attachment'")
+    await audit_log("notice.document_delete", admin, "notice", notice_ref,
+                    {"kind": kind, "file_name": file_name})
+    return {"ok": True}
+
+
 @router.delete("/{notice_ref}")
 async def delete_notice(notice_ref: str,
                          admin=Depends(require_role("admin"))):

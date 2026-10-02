@@ -154,6 +154,9 @@ export const adminApi = {
   decideRegistration: (id, action, notes) =>
     api.post(`/api/v1/registrations/${id}/decision`, { action, notes }).then((r) => r.data),
   createNotice: (payload) => api.post("/api/v1/notices", payload).then((r) => r.data),
+  updateNotice: (ref, payload) => api.patch(`/api/v1/notices/${ref}`, payload).then((r) => r.data),
+  getNoticeAdmin: (ref) => api.get(`/api/v1/notices/${ref}/admin`).then((r) => r.data),
+  deleteNotice: (ref) => api.delete(`/api/v1/notices/${ref}`).then((r) => r.data),
   listAllNotices: (params = {}) => api.get("/api/v1/notices/admin/all", { params }).then((r) => r.data),
   // Investor Demo Mode — one-click seed / reset / status
   demoStatus: () => api.get("/api/v1/admin/demo/status").then((r) => r.data),
@@ -412,6 +415,9 @@ export const noticeDocsApi = {
       { headers: { "Content-Type": "multipart/form-data" } }).then((r) => r.data);
   },
   delete: (notice_ref) => api.delete(`/api/v1/notices/${notice_ref}`).then((r) => r.data),
+  deleteDocument: (notice_ref, kind, file_name) =>
+    api.delete(`/api/v1/notices/${notice_ref}/document`,
+               { params: { kind, file_name } }).then((r) => r.data),
 };
 
 // ---------- Wave 6: Auctions + Helpdesk ----------

@@ -4,12 +4,16 @@ import { adminApi, mastersApi, publicApi, noticeDocsApi, tenderTemplateApi, form
 import { useI18n } from "@/context/I18nContext";
 import { InfoDot } from "@/components/InfoDot";
 import EmdMasterPicker from "./notice/EmdMasterPicker";
+import NoticeViewModal from "./notice/NoticeViewModal";
+import NoticeEditModal from "./notice/NoticeEditModal";
 import { useListPager } from "@/components/ListPager";
 
 export default function NoticesPanel() {
   const { t } = useI18n();
   const [items, setItems] = useState([]);
   const [showNew, setShowNew] = useState(false);
+  const [viewRef, setViewRef] = useState(null);
+  const [editRef, setEditRef] = useState(null);
   const [matrices, setMatrices] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -366,6 +370,19 @@ export default function NoticesPanel() {
                 +{n.attachments.length} attachment(s)
               </span>
             )}
+            {/* v50i — row actions: View (read-only) · Edit · Preview (public page) */}
+            <button type="button" onClick={() => setViewRef(n.notice_ref)}
+              data-testid={`notice-view-${n.notice_ref}`}
+              title="Open complete notice document and uploaded files"
+              className="text-xs uppercase tracking-widest px-2 py-1 border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white">
+              View
+            </button>
+            <button type="button" onClick={() => setEditRef(n.notice_ref)}
+              data-testid={`notice-edit-${n.notice_ref}`}
+              title="Edit this notice — change fields, re-upload documents"
+              className="text-xs uppercase tracking-widest px-2 py-1 border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white">
+              Edit
+            </button>
             <a href={`/notices/${n.notice_ref}`} target="_blank" rel="noreferrer"
                data-testid={`notice-preview-${n.notice_ref}`}
                title="Open the public notice page in a new tab — exactly what bidders see"
@@ -377,6 +394,24 @@ export default function NoticesPanel() {
         ))}
         {noticeControls}
       </div>
+
+      {/* v50i — View modal: full document + uploaded file list with inline delete */}
+      {viewRef && (
+        <NoticeViewModal
+          noticeRef={viewRef}
+          onClose={() => setViewRef(null)}
+          onChanged={load}
+        />
+      )}
+      {/* v50i — Edit modal: edit any field + append documents */}
+      {editRef && (
+        <NoticeEditModal
+          noticeRef={editRef}
+          isMasterAdmin={isMasterAdmin}
+          onClose={() => setEditRef(null)}
+          onSaved={load}
+        />
+      )}
     </div>
   );
 }

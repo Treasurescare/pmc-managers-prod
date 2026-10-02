@@ -1335,3 +1335,44 @@ Current live state (verified 02 Oct 2026 ~04:55 UTC):
 - Remaining user-facing gap: stale service worker means some browsers
   need one hard refresh (Ctrl+Shift+R); permanent SW update-prompt fix
   is P2 backlog (Issue #7).
+
+### v50i — Notice View + Edit modals with document management — 02 Oct 2026
+User requested: "shouldn't the notice list have View and Edit, document edit,
+and view uploaded documents within the view option?"
+
+Delivered:
+Backend (`routers/notices.py`):
+- `PATCH /api/v1/notices/{notice_ref}` edits any editable notice field.
+  Guards: primary_document/attachments/tenant_id never overwritten by
+  PATCH; publish transition requires publish permission; writes a
+  `notice.update` audit event with the list of changed fields.
+- `DELETE /api/v1/notices/{notice_ref}/document` with `kind=primary|
+  attachment&file_name=X` — detaches a single uploaded document.
+  Underlying bytes stay in `uploads` for audit.
+
+Frontend:
+- `adminApi.updateNotice/getNoticeAdmin/deleteNotice` + `noticeDocsApi.
+  deleteDocument` added to `lib/api.js`.
+- `apps/admin-console/notice/NoticeViewModal.jsx` — full read-only
+  document view. All fields rendered, full description block, every
+  uploaded file listed with inline View / Download / Delete actions
+  and a confirmation step. "Open public page" link.
+- `apps/admin-console/notice/NoticeEditModal.jsx` — full editable
+  form (same fields as Create). Documents managed via dedicated
+  upload paths so a plain Save never drops existing files. Add-more
+  inputs for appending uploads without replacing.
+- `NoticesPanel.jsx` — new **View** and **Edit** buttons on every row;
+  modals mounted at panel level; `onSaved`/`onChanged` refresh list.
+
+End-to-end verified on preview backend:
+- Create → PATCH title + category + budget → saved + updated_at set.
+- Upload attachment → appears in `/admin` response.
+- DELETE attachment via new route → list shrinks to 0.
+- Final cleanup (DELETE notice) returns {ok: true}.
+
+Bundles: `pmc-frontend-v50i-prod-build.zip` (2.8M), `pmc-backend-v50i.zip`
+(424K), `DOWNLOAD_v50i.md`. Dockerfile + Dockerrun.aws.json + .platform
+at zip root — confirmed with unzip check.
+
+Known residual: 2 inactive probe matrices (`__probe2`,
+`__v50h_schema_test`) in prod; a global DELETE for matrices is in Batch D.
