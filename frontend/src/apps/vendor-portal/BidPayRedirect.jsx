@@ -37,6 +37,16 @@ export default function BidPayRedirect() {
     return () => { cancelled = true; };
   }, [bidId, nav]);
 
+  // v50v — friendlier copy for the common "already settled" case so vendors
+  // who click Pay on an emd_paid bid don't hit a raw backend error.
+  const friendlyError = (() => {
+    if (!error) return "";
+    if (/not payable|already paid|no emd due/i.test(error)) {
+      return "This EMD is already settled (or not due on this bid). Nothing left to pay — you're all set.";
+    }
+    return error;
+  })();
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-brand-parchment p-6"
          data-testid="bid-pay-redirect">
@@ -51,11 +61,17 @@ export default function BidPayRedirect() {
           </>
         ) : (
           <>
-            <div className="text-sm text-red-700">{error}</div>
-            <Link to="/vendor" className="inline-block px-4 py-2 text-xs bg-brand-navy text-white"
-                  data-testid="bid-pay-fallback">
-              Go to Vendor Portal → My bids
-            </Link>
+            <div className="text-sm text-red-700" data-testid="bid-pay-error">{friendlyError}</div>
+            <div className="flex gap-2 justify-center">
+              <Link to="/vendor/mybids" className="inline-block px-4 py-2 text-xs bg-brand-navy text-white"
+                    data-testid="bid-pay-fallback">
+                Back to My bids
+              </Link>
+              <Link to="/vendor/emd" className="inline-block px-4 py-2 text-xs border border-brand-navy text-brand-navy"
+                    data-testid="bid-pay-emd-link">
+                EMD &amp; payments
+              </Link>
+            </div>
           </>
         )}
       </div>

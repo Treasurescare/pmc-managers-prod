@@ -38,6 +38,18 @@ mostly static; live data + click routing is patched at runtime via:
 
 ## What is implemented
 
+### v50v (2026-10-03) — Bid Workspace live + Reviews/KYC/Signatures + EMD UX
+- VendorBidWorkspaceE fully rewritten from static mockup: live bid data,
+  working Transfer-to-escrow vs Bank-guarantee radios, functional proof
+  upload, Save-and-finish → My bids, Pay EMD now → Stripe checkout.
+  Paid bids show "Settled" pill + disabled "EMD settled" button.
+- BidPayRedirect: 400s (not payable / already paid / no EMD due) render a
+  friendly "already settled, nothing to pay" message with nav links.
+- VendorSignaturesE heading context-aware; Download has document.pdf fallback.
+- VendorCompanyKycE: new "Bidding categories" tab (approved/pending/recent).
+- VendorReviewsE rewritten; Reply opens a dialog (mailto to PMC desk).
+- PmcLinkPatcher: React-owned pages fully bypass the legacy label-map.
+
 ### v50u (2026-10-03) — Vendor portal navigation consistency
 - My Bids View/Continue buttons routed to non-existent `/vendor/bids/:id`
   (fell through to notices catch-all) → now open Bid Workspace

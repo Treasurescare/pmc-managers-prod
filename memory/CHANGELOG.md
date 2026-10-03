@@ -439,3 +439,9 @@ Complete GoDaddy → Route 53 DNS migration. Same-origin frontend (bypasses Safa
 - VendorReviewsE: rewritten as React component; Reply opens a dialog that drafts a mailto to tenders@pmcmanagers.com with review context. Fixes reply→bids catch-all.
 - PmcLinkPatcher: added vendor-reviews-e, vendor-bid-workspace-e, vendor-mybids-e to REACT_OWNED and short-circuited the full label-map on React-owned pages (previously matchVendorCta("Reply") routed to /vendor/mybids even after REACT_OWNED skip).
 - Verified end-to-end on preview: workspace title/status/EMD/radios live; reply dialog opens; KYC tab shows pending; signatures heading context-aware.
+
+## 2026-10-03 — v50v (rebuilt): EMD "nothing to pay" root cause + fix
+- RCA: User's workspace URL bid (PMC-BID-2026-00026) already had status=emd_paid (4000/4000 paid). The static prod workspace hardcoded "Awaiting your EMD" so vendors could click Pay on a settled bid; backend correctly rejected with 400 "EMD not payable at status emd_paid", surfacing as a dead-end error.
+- Fix 1 (v50v live workspace): paid bids now show "Settled" pill and disabled "EMD settled" button — verified on preview (PMC-BID-2026-00017: pill=Settled, button disabled).
+- Fix 2 (BidPayRedirect): 400s like "not payable / already paid / no emd due" now render "This EMD is already settled… you're all set" with Back-to-My-bids + EMD & payments links. Verified on preview.
+- Bundle contents re-verified: friendly-error fix, workspace routing fix, KYC categories tab all present in pmc-frontend-v50v-prod-build.zip.
