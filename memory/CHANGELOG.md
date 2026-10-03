@@ -464,3 +464,8 @@ Complete GoDaddy → Route 53 DNS migration. Same-origin frontend (bypasses Safa
 - Frontend SectionD: Business categories replaced by a searchable multi-select fed by /masters/categories/public with chips + UNSPSC codes.
 - Admin MastersPanel: new "Legal entity types" tab (LegalEntityTypesTab) with CRUD, country scope, EN/RU/KZ names, deactivate/reactivate.
 - Verified end-to-end on preview: 6 defaults seeded, token-auth 200/404 pathway, admin-file 200, categories/public returns 105, admin create works.
+
+## 2026-10-03 — v50z Vendor login links + DocuSign envelope scoping
+- Vendor invite / activation / registration-approved emails linked "Sign in" to legacy /vendor/login (old split-screen page). All three (vendor_full_invite.py, vendor_invites.py, registrations_helpers.py) now link to the unified /login.
+- /api/v1/docusign/mine scoped envelopes by email only → re-registered vendor reusing an email inherited stale envelopes (prod: PMC-SUP-000150 saw 3 pending from previous data). Now: bid ownership matched by vendor_id; signer_email matches only count for envelopes created after this registration. current_vendor dependency now returns created_at to support the guard.
+- Verified on preview: seeded stale envelope (2026-01-01) + fresh vendor (today) → /mine returns 0; regression manualvendor unaffected. Test data cleaned up.

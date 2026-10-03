@@ -46,7 +46,7 @@ async def approve_and_create_vendor(doc: dict) -> dict:
         "is_active": True,
         "created_at": now_iso(),
     })
-    login_url = f"{config.FRONTEND_URL}/vendor/login"
+    login_url = f"{config.FRONTEND_URL}/login"
     await send_email(
         doc["email"],
         "PMC Managers — Registration approved · Login details",

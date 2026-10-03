@@ -207,7 +207,7 @@ async def admin_activate_vendor(vendor_ref: str, payload: "AdminActivateIn",
                  f"<p>Your PMC vendor account has been activated by our team. "
                  f"Please sign in and change your password on first login.</p>"
                  f"<p><strong>Login email:</strong> {v['email']}</p>",
-                 "Sign in", f"{config.FRONTEND_URL}/vendor/login")))
+                 "Sign in", f"{config.FRONTEND_URL}/login")))
         await audit_log("vendor.admin_activate", admin, "vendor", vendor_ref,
                         {"mode": "set_password", "email": v["email"]})
         return {"ok": True, "vendor_ref": vendor_ref, "mode": "set_password",

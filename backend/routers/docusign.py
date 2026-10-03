@@ -681,12 +681,23 @@ async def list_my_envelopes(vendor=Depends(current_vendor)):
         return {"items": []}
     # v49y — sync so the vendor sees their completed signature reflected.
     await _sync_recent_statuses()
-    # Find bids owned by this vendor.
+    # Find bids owned by this vendor (v50z — by vendor_id, not just email:
+    # a re-registered vendor reusing an email must NOT inherit envelopes
+    # that belonged to the previous registration).
     bid_ids = []
-    async for b in db.bids.find({"vendor_email": ve}, {"id": 1}):
-        if b.get("id"):
+    async for b in db.bids.find({"$or": [{"vendor_id": vendor.get("id")},
+                                          {"vendor_email": ve}]}, {"id": 1, "vendor_id": 1}):
+        if b.get("id") and b.get("vendor_id") == vendor.get("id"):
             bid_ids.append(b["id"])
-    query = {"$or": [{"signer_email": ve}, {"bid_id": {"$in": bid_ids}}]}
+    # signer_email matches only count for envelopes created AFTER this
+    # vendor record was created (fresh registration = clean slate).
+    vendor_created = vendor.get("created_at") or ""
+    query_or = [{"bid_id": {"$in": bid_ids}}]
+    if vendor_created:
+        query_or.append({"signer_email": ve, "created_at": {"$gte": vendor_created}})
+    else:
+        query_or.append({"signer_email": ve})
+    query = {"$or": query_or}
     cursor = db.docusign_envelopes.find(query).sort("created_at", -1).limit(50)
     items = []
     # v50n — surface `has_document` so the UI can hide the Download button

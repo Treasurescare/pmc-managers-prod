@@ -38,6 +38,13 @@ mostly static; live data + click routing is patched at runtime via:
 
 ## What is implemented
 
+### v50z (2026-10-03) — Vendor login links + DocuSign envelope scoping
+- Vendor invite / activation / approval emails now link to unified /login
+  (were pointing to legacy /vendor/login page).
+- /api/v1/docusign/mine scoped to current vendor record (bid ownership by
+  vendor_id; signer_email only for envelopes created after this
+  registration). Fixes re-registered vendor inheriting stale envelopes.
+
 ### v50y (2026-10-03) — Legal entity types master + Registration doc view/download
 - New Masters tab "Legal entity types" (CRUD + /public) seeded with
   LLC/JSC/Sole Proprietorship/Partnership/Branch/Other. Section A

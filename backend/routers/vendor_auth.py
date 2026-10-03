@@ -69,6 +69,9 @@ async def current_vendor(request: Request) -> Dict[str, Any]:
             "business_categories": list(v.get("business_categories") or []),
             "country": v.get("country") or (v.get("profile") or {}).get("country"),
             "kyc_status": v.get("kyc_status") or "verified",
+            # v50z — DocuSign /mine uses this to scope out envelopes that
+            # predate a re-registration under the same email address.
+            "created_at": v.get("created_at"),
         }
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Session expired")

@@ -1,2 +1,2 @@
-Snapshot generated at 2026-10-03T12:46:10.843626+00:00
+Snapshot generated at 2026-10-03T12:55:42.780600+00:00
 Source: /api/v1/reports/snapshot (POST) — see backend/routers/reports.py

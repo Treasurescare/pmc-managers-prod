@@ -155,7 +155,7 @@ async def admin_create_vendor(payload: AdminVendorFullIn,
                  f"<p>Your PMC vendor account has been activated. Please sign in and "
                  f"change your password on first login.</p>"
                  f"<p><strong>Login email:</strong> {email}</p>",
-                 "Sign in", f"{config.FRONTEND_URL}/vendor/login")))
+                 "Sign in", f"{config.FRONTEND_URL}/login")))
 
     await audit_log("vendor.admin_full_create", admin, "vendor", vendor_ref,
                     {"mode": payload.mode, "email": email,
