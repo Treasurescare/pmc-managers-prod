@@ -16,6 +16,7 @@ so a successful reset invalidates the link. Prevents replay after use.
 """
 from __future__ import annotations
 
+import logging
 import time
 from collections import deque
 from datetime import datetime, timedelta, timezone
@@ -34,6 +35,8 @@ from emails_option_e import send_e_email
 from security import hash_password
 
 router = APIRouter(prefix="/api/v1/auth/password-reset", tags=["auth-password-reset"])
+
+log = logging.getLogger(__name__)
 
 RESET_TTL_MIN = 30
 
@@ -165,10 +168,18 @@ async def request_reset(payload: RequestIn, request: Request):
         "expires_at": f"{RESET_TTL_MIN} minutes",
     }
     try:
-        await send_e_email("account.password_reset", email, ctx)
-    except Exception:
+        result = await send_e_email("account.password_reset", email, ctx)
+        if not result.get("ok"):
+            log.error("password-reset email NOT delivered to %s (portal=%s): %s",
+                      email, portal, result.get("error"))
+            await audit_log("auth.reset_email_failed", None, "auth", email,
+                            {"portal": portal, "error": result.get("error")})
+    except Exception as exc:
         # Do not break the response if email service hiccups; user will retry.
-        pass
+        log.exception("password-reset email dispatch raised for %s (portal=%s): %s",
+                      email, portal, exc)
+        await audit_log("auth.reset_email_failed", None, "auth", email,
+                        {"portal": portal, "error": str(exc)})
 
     await audit_log("auth.reset_requested", None, "auth", email,
                     {"portal": portal, "jti": jti})
@@ -206,7 +217,7 @@ async def confirm_reset(payload: ConfirmIn):
 
     # Confirmation email — reuse the v50 password-changed template.
     try:
-        await send_e_email(
+        result = await send_e_email(
             "account.password_changed",
             data.get("email"),
             {
@@ -215,6 +226,10 @@ async def confirm_reset(payload: ConfirmIn):
                 "help_url": f"{config.FRONTEND_URL.rstrip('/')}/help",
             },
         )
-    except Exception:
-        pass
+        if not result.get("ok"):
+            log.error("password-changed confirmation NOT delivered to %s: %s",
+                      data.get("email"), result.get("error"))
+    except Exception as exc:
+        log.exception("password-changed confirmation raised for %s: %s",
+                      data.get("email"), exc)
     return {"ok": True}
