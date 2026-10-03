@@ -17,11 +17,12 @@ import VendorPortalChrome from "./VendorPortalChrome";
  */
 
 const TABS = [
-  ["licenses",  "Licences & certificates"],
-  ["documents", "Company documents"],
-  ["team",      "Team & roles"],
-  ["bank",      "Bank accounts"],
-  ["reviews",   "Reviews"],
+  ["licenses",   "Licences & certificates"],
+  ["categories", "Bidding categories"],
+  ["documents",  "Company documents"],
+  ["team",       "Team & roles"],
+  ["bank",       "Bank accounts"],
+  ["reviews",    "Reviews"],
 ];
 
 function fmtDate(iso) {
@@ -149,6 +150,7 @@ export default function VendorCompanyKycE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
   const [me, setMe] = useState(null);
   const [licData, setLicData] = useState({ licenses: [], catalogue: [], missing: [], expiring_soon: 0, expired: 0 });
+  const [catData, setCatData] = useState({ approved: [], pending: [], recent: [] });
   const [activeTab, setActiveTab] = useState("licenses");
   const [dialog, setDialog] = useState(null); // null | { mode:"add"|"edit", license? }
   const [saving, setSaving] = useState(false);
@@ -156,12 +158,14 @@ export default function VendorCompanyKycE({ legacy: Legacy }) {
 
   const load = useCallback(async () => {
     try {
-      const [meRes, licRes] = await Promise.all([
+      const [meRes, licRes, catRes] = await Promise.all([
         vendorApi.me(),
         vendorApi.listLicenses(),
+        vendorApi.myCategories().catch(() => ({ approved: [], pending: [], recent: [] })),
       ]);
       setMe(meRes);
       setLicData(licRes);
+      setCatData(catRes);
     } catch (e) { showApiError(e); }
     finally { setLoading(false); }
   }, []);
@@ -247,11 +251,11 @@ export default function VendorCompanyKycE({ legacy: Legacy }) {
           </div>
           <div>
             <span className="l">Categories</span>
-            <b style={{ fontSize: 14 }}>
-              {(me?.business_categories || []).length || "—"}
+            <b style={{ fontSize: 14 }} data-testid="vkyc-cat-count">
+              {(catData.approved || []).length || (me?.business_categories || []).length || "—"}
             </b>
             <span className="s">
-              {(me?.business_categories || []).slice(0, 2).join(" · ")}
+              {((catData.approved && catData.approved.length ? catData.approved : me?.business_categories) || []).slice(0, 2).join(" · ")}
             </span>
           </div>
           <div>
@@ -291,9 +295,94 @@ export default function VendorCompanyKycE({ legacy: Legacy }) {
                     data-testid={`vkyc-tab-${k}`}>
               {label}
               {k === "licenses" && licenses.length > 0 && <span className="n">{licenses.length}</span>}
+              {k === "categories" && (catData.approved.length + catData.pending.length) > 0 && (
+                <span className="n">{catData.approved.length + catData.pending.length}</span>
+              )}
             </button>
           ))}
         </div>
+
+        {activeTab === "categories" && (
+          <section className="pmc-panel" data-testid="vkyc-categories-panel"
+                   style={{ padding: 20 }}>
+            <div style={{ display: "flex", justifyContent: "space-between",
+                          alignItems: "flex-end", marginBottom: 16 }}>
+              <div>
+                <div className="pmc-eyebrow">Bidding categories</div>
+                <h2 className="pmc-panel__title" style={{ fontSize: 18, margin: 0 }}>
+                  What you can bid on
+                </h2>
+              </div>
+              <Link to="/vendor/categories"
+                    className="pmc-btn pmc-btn--secondary pmc-btn--sm"
+                    data-testid="vkyc-cat-manage">
+                Manage categories
+              </Link>
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <div className="pmc-eyebrow" style={{ marginBottom: 8 }}>
+                Approved ({catData.approved.length})
+              </div>
+              {catData.approved.length === 0 ? (
+                <div className="pmc-muted" style={{ fontSize: 13 }}
+                     data-testid="vkyc-cat-approved-empty">
+                  No approved categories yet. Request one from{" "}
+                  <Link to="/vendor/categories">Categories</Link>.
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}
+                     data-testid="vkyc-cat-approved">
+                  {catData.approved.map((name) => (
+                    <span key={name} className="pmc-pill pmc-pill--success">{name}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {catData.pending.length > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <div className="pmc-eyebrow" style={{ marginBottom: 8 }}>
+                  Pending admin review ({catData.pending.length})
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}
+                     data-testid="vkyc-cat-pending">
+                  {catData.pending.map((r) => (
+                    <span key={r.id} className="pmc-pill pmc-pill--warning">
+                      {r.category_name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {catData.recent.length > 0 && (
+              <div>
+                <div className="pmc-eyebrow" style={{ marginBottom: 8 }}>Recent decisions</div>
+                <table className="pmc-table" data-testid="vkyc-cat-recent">
+                  <thead>
+                    <tr><th>Category</th><th>Decision</th><th>Decided</th></tr>
+                  </thead>
+                  <tbody>
+                    {catData.recent.map((r) => (
+                      <tr key={r.id}>
+                        <td>{r.category_name}</td>
+                        <td>
+                          <span className={`pmc-pill ${r.status === "approved" ? "pmc-pill--success" : "pmc-pill--danger"}`}>
+                            {r.status}
+                          </span>
+                        </td>
+                        <td className="pmc-muted" style={{ fontSize: 13 }}>
+                          {fmtDate(r.decided_at)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        )}
 
         {activeTab === "licenses" && (
           <section className="pmc-panel" data-testid="vkyc-licenses-panel">

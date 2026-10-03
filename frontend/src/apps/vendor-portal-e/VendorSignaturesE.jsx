@@ -64,9 +64,28 @@ export default function VendorSignaturesE({ legacy: Legacy }) {
       const a = document.createElement("a");
       a.href = url;
       a.download = `${envelopeId}-signed.pdf`;
+      document.body.appendChild(a);
       a.click();
+      a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch (e) { showApiError(e, { fallbackTitle: "Download failed" }); }
+    } catch (e) {
+      // v50v — fallback: when combined-pdf is unavailable (archived or
+      // DocuSign returned 502), fall through to the document.pdf endpoint
+      // which also serves archived copies.
+      try {
+        const blob = await docusignApi.downloadDocPdf(envelopeId, "attachment");
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${envelopeId}-signed.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch (e2) {
+        showApiError(e2, { fallbackTitle: "Download failed" });
+      }
+    }
   };
 
   const pending = envelopes.filter((e) => ["sent", "delivered", "created"].includes(e.status));
@@ -82,8 +101,20 @@ export default function VendorSignaturesE({ legacy: Legacy }) {
           <div>
             <div className="pmc-eyebrow">Signatures</div>
             <h1 data-testid="vsig-heading">
-              {loading ? "Loading…" : `${pending.length} document${pending.length === 1 ? "" : "s"} to sign`}
+              {loading
+                ? "Loading…"
+                : pending.length === 0 && completed.length === 0
+                  ? "Nothing to sign yet"
+                  : pending.length === 0
+                    ? `${completed.length} signed document${completed.length === 1 ? "" : "s"}`
+                    : `${pending.length} document${pending.length === 1 ? "" : "s"} to sign`}
             </h1>
+            {!loading && completed.length > 0 && pending.length > 0 && (
+              <div className="pmc-muted" style={{ fontSize: 13, marginTop: 4 }}
+                   data-testid="vsig-subheading">
+                Plus {completed.length} signed document{completed.length === 1 ? "" : "s"} below.
+              </div>
+            )}
           </div>
         </div>
 

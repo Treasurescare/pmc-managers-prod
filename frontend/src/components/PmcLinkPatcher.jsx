@@ -956,7 +956,10 @@ export default function PmcLinkPatcher() {
         || pageId === "vendor-find-tenders-e"
         || pageId === "vendor-signatures-e"
         || pageId === "vendor-account-e"
-        || pageId === "vendor-company-kyc-e";
+        || pageId === "vendor-company-kyc-e"
+        || pageId === "vendor-reviews-e"
+        || pageId === "vendor-bid-workspace-e"
+        || pageId === "vendor-mybids-e";
       if (!REACT_OWNED && resolveClickAction(el, label, ctx, navigate)) { e.preventDefault(); return; }
 
       // Real href — backend file/API URLs and static downloads must NOT go
@@ -966,6 +969,14 @@ export default function PmcLinkPatcher() {
       if (href && href !== "#" && !href.startsWith("#") && !href.startsWith("mailto:")) {
         if (href.startsWith("/api/") || href.startsWith("/downloads/")) return;
         if (href.startsWith("/") && !href.startsWith("//")) { e.preventDefault(); navigate(href); }
+        return;
+      }
+
+      // v50v — React-owned pages fully own their click handlers; skip the
+      // legacy label-map (which routed "Reply" to /vendor/mybids, "View" to
+      // the bids list, etc.) so component onClick runs intact.
+      if (REACT_OWNED) {
+        if (href === "#") e.preventDefault();
         return;
       }
 

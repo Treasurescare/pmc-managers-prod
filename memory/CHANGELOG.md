@@ -431,3 +431,11 @@ Complete GoDaddy → Route 53 DNS migration. Same-origin frontend (bypasses Safa
 - Root cause of prod login/reset-link failures: frontend bundle had preview REACT_APP_BACKEND_URL baked in; browsers on pmcmanagers.com called the preview backend (different DB/JWT secret) → reset tokens "invalid", logins failed.
 - Fix: runtime domain guard in api.js (non-preview hostnames force same-origin "") + build with REACT_APP_BACKEND_URL="".
 - password_reset.py: email dispatch failures now logged (log.error + audit_log auth.reset_email_failed) instead of silently swallowed.
+
+## 2026-10-03 — v50v Bid Workspace live + Reviews/KYC/Signatures polish
+- VendorBidWorkspaceE: full rewrite from static mockup → live bid data via /api/v1/bids/{id}, functional radios (Transfer-to-escrow / Bank guarantee), working proof upload (uploadsApi.presign), Save-and-finish → My bids, Pay EMD now → Stripe checkout. Fixes vendor-reported a/b/c.
+- VendorSignaturesE: heading now context-aware ("N signed documents" / "Nothing to sign yet"); download has document.pdf fallback when combined-pdf 502s.
+- VendorCompanyKycE: new "Bidding categories" tab fed by vendorApi.myCategories() showing approved + pending + recent decisions; header counter prefers live data so admin-approved categories appear without re-login.
+- VendorReviewsE: rewritten as React component; Reply opens a dialog that drafts a mailto to tenders@pmcmanagers.com with review context. Fixes reply→bids catch-all.
+- PmcLinkPatcher: added vendor-reviews-e, vendor-bid-workspace-e, vendor-mybids-e to REACT_OWNED and short-circuited the full label-map on React-owned pages (previously matchVendorCta("Reply") routed to /vendor/mybids even after REACT_OWNED skip).
+- Verified end-to-end on preview: workspace title/status/EMD/radios live; reply dialog opens; KYC tab shows pending; signatures heading context-aware.
