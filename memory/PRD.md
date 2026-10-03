@@ -38,6 +38,11 @@ mostly static; live data + click routing is patched at runtime via:
 
 ## What is implemented
 
+### v50x (2026-10-03) — EMD workspace UX
+- Zero-EMD tenders hide the EMD submit action ("No EMD required for this bid").
+- Uploaded-proof View opens an in-page preview modal (iframe/img) instead
+  of a new tab; file keys no longer %2F-encoded (CloudFront/nginx 404 fix).
+
 ### v50w (2026-10-03) — EMD proof upload document list
 - Bid Workspace uploads previously showed only a toast and vanished. Now
   every uploaded EMD proof / bank guarantee lands in an "Uploaded (N)"

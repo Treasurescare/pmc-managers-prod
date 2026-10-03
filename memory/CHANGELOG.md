@@ -449,3 +449,9 @@ Complete GoDaddy → Route 53 DNS migration. Same-origin frontend (bypasses Safa
 ## 2026-10-03 — v50w EMD proof upload document list
 - VendorBidWorkspaceE: uploads previously showed only a toast and vanished. Now every uploaded EMD proof / BG lands in an "Uploaded (N)" panel with filename, size, View (inline new tab via /api/v1/uploads/files/{key}, auth-gated) and Delete. Multi-file supported.
 - Verified on preview: 2 PDFs uploaded → both rows listed, View HTTP 200, Delete 2→1.
+
+## 2026-10-03 — v50x EMD workspace UX
+- Zero-EMD tenders (emd_due_amount=0): Pay EMD / Submit-for-review button hidden entirely; workspace shows "No EMD required for this bid".
+- View on uploaded proofs now opens an in-page preview modal (iframe for PDF, img for images) with Close + Open-in-new-tab fallback, instead of navigating away.
+- File URL fix: key appended raw instead of encodeURIComponent — %2F slashes were 404ing through CloudFront/nginx ("new page shows nothing").
+- Verified: zero-EMD bid hides button; modal opens on same page; iframe src clean.

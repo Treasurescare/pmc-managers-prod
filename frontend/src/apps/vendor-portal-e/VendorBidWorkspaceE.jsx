@@ -76,6 +76,7 @@ export default function VendorBidWorkspaceE({ legacy: Legacy }) {
   const [uploadBusy, setUploadBusy] = useState(false);
   const [submitBusy, setSubmitBusy] = useState(false);
   const [proofs, setProofs] = useState([]); // v50w — every uploaded doc, viewable + deletable
+  const [preview, setPreview] = useState(null); // v50x — in-page document preview
 
   useEffect(() => {
     if (!isE || !bidId) return;
@@ -417,12 +418,11 @@ export default function VendorBidWorkspaceE({ legacy: Legacy }) {
                                   ? `${(doc.size / 1048576).toFixed(1)} MB`
                                   : `${Math.max(1, Math.round(doc.size / 1024))} KB`}
                               </span>
-                              <a href={`${BACKEND_URL}/api/v1/uploads/files/${encodeURIComponent(doc.key)}`}
-                                 target="_blank" rel="noopener noreferrer"
-                                 className="pmc-btn pmc-btn--ghost pmc-btn--sm"
-                                 data-testid={`bw-proof-view-${idx}`}>
+                              <button type="button" onClick={() => setPreview(doc)}
+                                      className="pmc-btn pmc-btn--ghost pmc-btn--sm"
+                                      data-testid={`bw-proof-view-${idx}`}>
                                 View
-                              </a>
+                              </button>
                               <button type="button" onClick={() => removeProof(idx)}
                                       className="pmc-btn pmc-btn--ghost pmc-btn--sm"
                                       data-testid={`bw-proof-del-${idx}`}>
@@ -440,16 +440,25 @@ export default function VendorBidWorkspaceE({ legacy: Legacy }) {
                               data-testid="bw-save-later">
                         Save and finish later
                       </button>
-                      <button type="button" onClick={onSubmitForEscrow}
-                              className="pmc-btn pmc-btn--primary"
-                              disabled={submitBusy || emdSettled}
-                              data-testid="bw-submit">
-                        {emdSettled
-                          ? "EMD settled"
-                          : emdMode === "escrow"
-                            ? (submitBusy ? "Opening Stripe…" : "Pay EMD now")
-                            : "Submit for review"}
-                      </button>
+                      {/* v50x — hide the EMD submit action entirely when the
+                          tender requires no EMD (emd_due_amount = 0). */}
+                      {emdDue <= 0 ? (
+                        <span className="pmc-muted" style={{ fontSize: 13, alignSelf: "center" }}
+                              data-testid="bw-no-emd">
+                          No EMD required for this bid
+                        </span>
+                      ) : (
+                        <button type="button" onClick={onSubmitForEscrow}
+                                className="pmc-btn pmc-btn--primary"
+                                disabled={submitBusy || emdSettled}
+                                data-testid="bw-submit">
+                          {emdSettled
+                            ? "EMD settled"
+                            : emdMode === "escrow"
+                              ? (submitBusy ? "Opening Stripe…" : "Pay EMD now")
+                              : "Submit for review"}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </section>
@@ -535,6 +544,62 @@ export default function VendorBidWorkspaceE({ legacy: Legacy }) {
                 </div>
               </aside>
             </div>
+
+            {/* v50x — in-page document preview (no more new-tab navigation).
+                The key is appended raw: encodeURIComponent turned "/" into
+                %2F, which CloudFront/nginx reject with a 404 — the "new page
+                shows nothing" bug the vendor hit. */}
+            {preview && (
+              <>
+                <div className="pmc-drawer-scrim" style={{ display: "block" }}
+                     onClick={() => setPreview(null)} />
+                <div role="dialog" aria-modal="true" data-testid="bw-proof-preview"
+                     style={{ position: "fixed", inset: "5vh 6vw", zIndex: 70,
+                              background: "var(--surface,#fff)",
+                              border: "1px solid var(--line,#0001)",
+                              borderRadius: "var(--radius-md,8px)",
+                              boxShadow: "0 24px 60px rgba(0,0,0,.35)",
+                              display: "flex", flexDirection: "column",
+                              overflow: "hidden" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between",
+                                alignItems: "center", gap: 12,
+                                padding: "10px 14px",
+                                borderBottom: "1px solid var(--line,#0001)" }}>
+                    <b style={{ fontSize: 14, minWidth: 0, overflow: "hidden",
+                                textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                       data-testid="bw-proof-preview-name">
+                      {preview.filename}
+                    </b>
+                    <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                      <a href={`${BACKEND_URL}/api/v1/uploads/files/${preview.key}`}
+                         target="_blank" rel="noopener noreferrer"
+                         className="pmc-btn pmc-btn--secondary pmc-btn--sm"
+                         data-testid="bw-proof-preview-open-tab">
+                        Open in new tab
+                      </a>
+                      <button type="button" onClick={() => setPreview(null)}
+                              className="pmc-btn pmc-btn--ghost pmc-btn--sm"
+                              data-testid="bw-proof-preview-close">
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                  {/\.(png|jpe?g|gif|webp)$/i.test(preview.filename) ? (
+                    <img src={`${BACKEND_URL}/api/v1/uploads/files/${preview.key}`}
+                         alt={preview.filename}
+                         style={{ flex: 1, objectFit: "contain",
+                                  background: "var(--surface-sunken,#f6f3ea)" }}
+                         data-testid="bw-proof-preview-img" />
+                  ) : (
+                    <iframe src={`${BACKEND_URL}/api/v1/uploads/files/${preview.key}`}
+                            title={preview.filename}
+                            style={{ flex: 1, border: 0,
+                                     background: "var(--surface-sunken,#f6f3ea)" }}
+                            data-testid="bw-proof-preview-frame" />
+                  )}
+                </div>
+              </>
+            )}
           </>
         )}
       </VendorPortalChrome>
