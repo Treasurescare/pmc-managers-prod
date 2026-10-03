@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { useUiTheme } from "@/context/UiThemeContext";
-import { bidApi, uploadsApi, publicApi, showApiError } from "@/lib/api";
+import { bidApi, uploadsApi, publicApi, showApiError, BACKEND_URL } from "@/lib/api";
 import VendorPortalChrome from "./VendorPortalChrome";
 
 /**
@@ -75,6 +75,7 @@ export default function VendorBidWorkspaceE({ legacy: Legacy }) {
   const [emdMode, setEmdMode] = useState("escrow"); // "escrow" | "bg"
   const [uploadBusy, setUploadBusy] = useState(false);
   const [submitBusy, setSubmitBusy] = useState(false);
+  const [proofs, setProofs] = useState([]); // v50w — every uploaded doc, viewable + deletable
 
   useEffect(() => {
     if (!isE || !bidId) return;
@@ -110,10 +111,19 @@ export default function VendorBidWorkspaceE({ legacy: Legacy }) {
       const pre = await uploadsApi.presign(file.name, file.type || "application/pdf",
                                             "emd-proof", file.size);
       await uploadsApi.direct(pre.key, file);
-      toast.success("Proof uploaded — escrow will match it with your reference");
+      // v50w — every uploaded doc lands in the visible list so the vendor can
+      // view / re-open / delete it before submitting for escrow check.
+      setProofs((p) => [...p, {
+        key: pre.key, filename: file.name,
+        size: file.size, kind: emdMode,
+        uploaded_at: new Date().toISOString(),
+      }]);
+      toast.success(`${file.name} uploaded`);
     } catch (e) { showApiError(e, { fallbackTitle: "Upload failed" }); }
     finally { setUploadBusy(false); }
   };
+
+  const removeProof = (idx) => setProofs((p) => p.filter((_, i) => i !== idx));
 
   const onSaveAndFinishLater = () => {
     toast.success("Progress saved — pick this bid up any time from My bids");
@@ -377,6 +387,51 @@ export default function VendorBidWorkspaceE({ legacy: Legacy }) {
                           ? "Escrow matches your payment reference; the proof speeds it up."
                           : "Our escrow team verifies the guarantee within one working day."}
                       </span>
+
+                      {/* v50w — uploaded documents list: viewable, deletable, multi-file */}
+                      {proofs.length > 0 && (
+                        <div data-testid="bw-proof-list"
+                             style={{ marginTop: 10, border: "1px solid var(--line,#dcd5c3)",
+                                      borderRadius: "var(--radius-sm,6px)",
+                                      background: "var(--surface,#fff)" }}>
+                          <div className="pmc-eyebrow"
+                               style={{ padding: "10px 14px 6px" }}>
+                            Uploaded ({proofs.length})
+                          </div>
+                          {proofs.map((doc, idx) => (
+                            <div key={doc.key}
+                                 data-testid={`bw-proof-row-${idx}`}
+                                 style={{ display: "flex", alignItems: "center",
+                                          gap: 10, padding: "8px 14px",
+                                          borderTop: "1px solid var(--line,#0001)",
+                                          fontSize: 13 }}>
+                              <svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg>
+                              <span style={{ flex: 1, minWidth: 0,
+                                             overflow: "hidden", textOverflow: "ellipsis",
+                                             whiteSpace: "nowrap", fontWeight: 600 }}
+                                    title={doc.filename}>
+                                {doc.filename}
+                              </span>
+                              <span className="pmc-muted" style={{ fontSize: 11 }}>
+                                {doc.size >= 1048576
+                                  ? `${(doc.size / 1048576).toFixed(1)} MB`
+                                  : `${Math.max(1, Math.round(doc.size / 1024))} KB`}
+                              </span>
+                              <a href={`${BACKEND_URL}/api/v1/uploads/files/${encodeURIComponent(doc.key)}`}
+                                 target="_blank" rel="noopener noreferrer"
+                                 className="pmc-btn pmc-btn--ghost pmc-btn--sm"
+                                 data-testid={`bw-proof-view-${idx}`}>
+                                View
+                              </a>
+                              <button type="button" onClick={() => removeProof(idx)}
+                                      className="pmc-btn pmc-btn--ghost pmc-btn--sm"
+                                      data-testid={`bw-proof-del-${idx}`}>
+                                Delete
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>

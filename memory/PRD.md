@@ -38,6 +38,12 @@ mostly static; live data + click routing is patched at runtime via:
 
 ## What is implemented
 
+### v50w (2026-10-03) — EMD proof upload document list
+- Bid Workspace uploads previously showed only a toast and vanished. Now
+  every uploaded EMD proof / bank guarantee lands in an "Uploaded (N)"
+  panel with filename, size, View (inline new tab, auth-gated) and
+  Delete. Multi-file supported.
+
 ### v50v (2026-10-03) — Bid Workspace live + Reviews/KYC/Signatures + EMD UX
 - VendorBidWorkspaceE fully rewritten from static mockup: live bid data,
   working Transfer-to-escrow vs Bank-guarantee radios, functional proof

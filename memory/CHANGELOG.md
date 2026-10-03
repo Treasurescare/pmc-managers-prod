@@ -445,3 +445,7 @@ Complete GoDaddy → Route 53 DNS migration. Same-origin frontend (bypasses Safa
 - Fix 1 (v50v live workspace): paid bids now show "Settled" pill and disabled "EMD settled" button — verified on preview (PMC-BID-2026-00017: pill=Settled, button disabled).
 - Fix 2 (BidPayRedirect): 400s like "not payable / already paid / no emd due" now render "This EMD is already settled… you're all set" with Back-to-My-bids + EMD & payments links. Verified on preview.
 - Bundle contents re-verified: friendly-error fix, workspace routing fix, KYC categories tab all present in pmc-frontend-v50v-prod-build.zip.
+
+## 2026-10-03 — v50w EMD proof upload document list
+- VendorBidWorkspaceE: uploads previously showed only a toast and vanished. Now every uploaded EMD proof / BG lands in an "Uploaded (N)" panel with filename, size, View (inline new tab via /api/v1/uploads/files/{key}, auth-gated) and Delete. Multi-file supported.
+- Verified on preview: 2 PDFs uploaded → both rows listed, View HTTP 200, Delete 2→1.
