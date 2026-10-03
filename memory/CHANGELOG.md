@@ -420,3 +420,14 @@ Complete GoDaddy → Route 53 DNS migration. Same-origin frontend (bypasses Safa
 - VendorPortalChrome now fetches live sidebar counts (Find tenders / My bids / Signatures) so badges match reality on every page (previously "29" was hard-coded).
 - /vendor/auth/me now returns business_categories, country, kyc_status — approved categories now show up in Company & KYC header.
 - /vendor/categories page gets a "← Back" button to return to Company & KYC.
+
+## 2026-10-03 — v50u Vendor portal navigation consistency
+- My Bids View/Continue buttons routed to non-existent `/vendor/bids/:id` (fell through to notices catch-all) → now open live Bid Workspace `/vendor/workspace/:bidId`.
+- Removed hardcoded mockup sidebar badges (29/1/1) from static vendor pages: VendorEmdE, VendorReviewsE, VendorAlertsE, VendorBidWorkspaceE — fixes the 29↔33 count flip when navigating between static and live pages.
+- VendorBidWorkspaceE sidebar `href="#"` links replaced with real `/vendor/*` routes.
+- Verified on preview: action hrefs correct, zero stale badges, workspace nav routes live. Built with REACT_APP_BACKEND_URL="" (v50t guard retained).
+
+## 2026-10-03 — v50t Critical prod API routing fix
+- Root cause of prod login/reset-link failures: frontend bundle had preview REACT_APP_BACKEND_URL baked in; browsers on pmcmanagers.com called the preview backend (different DB/JWT secret) → reset tokens "invalid", logins failed.
+- Fix: runtime domain guard in api.js (non-preview hostnames force same-origin "") + build with REACT_APP_BACKEND_URL="".
+- password_reset.py: email dispatch failures now logged (log.error + audit_log auth.reset_email_failed) instead of silently swallowed.

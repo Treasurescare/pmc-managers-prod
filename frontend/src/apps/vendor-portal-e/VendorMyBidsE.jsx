@@ -56,9 +56,11 @@ function BidRow({ b }) {
   const [cls, label] = STATUS_PILL[b.status] || ["", b.status || "—"];
   const action = (() => {
     if (b.status === "emd_pending") return { to: `/vendor/bids/${b.id}/pay`, text: "Pay EMD", primary: true };
-    if (b.status === "draft")       return { to: `/vendor/bids/${b.id}`, text: "Continue", primary: false };
+    if (b.status === "draft")       return { to: `/vendor/workspace/${b.id}`, text: "Continue", primary: false };
     if (b.status === "awarded")     return { to: `/vendor/signatures`, text: "Sign LOA", primary: true };
-    return { to: `/vendor/bids/${b.id}`, text: "View", primary: false };
+    // v50u fix — /vendor/bids/:id is not a route (fell through to the notices
+    // catch-all); the live bid detail page is the bid workspace.
+    return { to: `/vendor/workspace/${b.id}`, text: "View", primary: false };
   })();
   return (
     <tr data-testid={`vmb-row-${b.bid_ref || b.id}`}>

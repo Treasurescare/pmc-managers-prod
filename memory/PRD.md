@@ -38,6 +38,23 @@ mostly static; live data + click routing is patched at runtime via:
 
 ## What is implemented
 
+### v50u (2026-10-03) — Vendor portal navigation consistency
+- My Bids View/Continue buttons routed to non-existent `/vendor/bids/:id`
+  (fell through to notices catch-all) → now open Bid Workspace
+  `/vendor/workspace/:bidId`.
+- Stripped hardcoded mockup sidebar badges (29/1/1) from static vendor
+  pages (EMD, Reviews, Alerts, Bid Workspace) — fixes 29↔33 count flip.
+- Bid Workspace sidebar `href="#"` links replaced with real `/vendor/*` routes.
+
+### v50t (2026-10-03) — Critical Production API Routing + Vendor UX Hotfixes
+- **Root cause for prod reset-password / login failure resolved:** Frontend builds previously baked in `REACT_APP_BACKEND_URL=https://pmc-forest-green...` preview domain. Added a runtime domain guard in `api.js` (forces `""` on any production domain so CloudFront proxies `/api` directly to EB) + built clean with `REACT_APP_BACKEND_URL=""`.
+- **Upload buttons visibility:** `BidSubmit.jsx` slots now use amber dashed borders and "+ Click to upload" badges.
+- **Re-upload after delete:** File input resets so re-selecting the exact same file works seamlessly.
+- **My Bids live:** `/vendor/mybids` rewritten to consume `bidApi.mine()` with live notice title & deadline.
+- **Sidebar live counts:** Dynamic badge counts for Find tenders, My bids, Signatures in `VendorPortalChrome`.
+- **Approved categories on Company & KYC:** `/vendor/auth/me` returns `business_categories`, `country`, `kyc_status`.
+- **Back button on Categories page:** Added `← Back` link returning to `/vendor/company`.
+
 ### v50q (2026-10-02) — Activation verified · blank form · DocuSign archive · EMD editor
 - #6 vendor activation re-tested end-to-end (no code change needed).
 - #60 blank registration form regenerated (branded 2-page PDF) and uploaded
