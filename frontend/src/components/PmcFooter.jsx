@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import LangSwitcher from "@/apps/shared/LangSwitcher";
 
 /** Editorial footer with Snapchat, Instagram, WhatsApp social integrations.
  *  URLs are read from window.__PMC_SOCIAL__ so the same build can point at
@@ -74,8 +75,13 @@ export default function PmcFooter() {
           </ul>
         </div>
       </div>
-      <div className="border-t border-white/10 py-5 text-center text-[10px] uppercase tracking-[0.35em] text-white/40">
-        © {new Date().getFullYear()} PMC Managers Limited · All rights reserved · v46k
+      <div className="border-t border-white/10 py-5 flex flex-col sm:flex-row items-center justify-between gap-3 px-6 lg:px-10">
+        <div className="text-[10px] uppercase tracking-[0.35em] text-white/40">
+          © {new Date().getFullYear()} PMC Managers Limited · All rights reserved · v51b
+        </div>
+        <div data-testid="footer-lang-switcher">
+          <LangSwitcher dark />
+        </div>
       </div>
     </footer>
   );

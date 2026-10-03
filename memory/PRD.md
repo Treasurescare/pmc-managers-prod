@@ -38,6 +38,15 @@ mostly static; live data + click routing is patched at runtime via:
 
 ## What is implemented
 
+### v51b (2026-10-03) — Language footer + Tender country mode + DocuSign reassign/archive
+- EN/RU/KZ language switcher now also sits in the footer bottom bar on
+  every public page (header already had it).
+- Tender Builder: country filter adds a "This country only" vs "All
+  templates" radio toggle when a country is selected (default = only).
+- DocuSign admin: Reassign (new signer email/name + audit reason) and
+  Archive/Unarchive (soft-hide) on every envelope row. /mine excludes
+  archived envelopes so vendors never see orphans.
+
 ### v51a (2026-10-03) — Masters tab bar + instant deactivate/reactivate
 - MastersPanel tab bar realigned: labels no longer wrap to two lines
   (whitespace-nowrap + shrink-0), single horizontally-scrollable row.

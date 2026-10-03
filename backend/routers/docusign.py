@@ -632,6 +632,80 @@ async def resend_envelope(envelope_id: str, admin=Depends(current_admin)):
         raise HTTPException(status_code=502, detail=f"DocuSign resend failed: {e}")
 
 
+@router.post("/envelopes/{envelope_id}/reassign")
+async def reassign_envelope(envelope_id: str,
+                             payload: dict,
+                             admin=Depends(current_admin)) -> dict:
+    """v51b — admin reassigns an orphaned envelope to a new signer.
+
+    Updates signer_email + signer_name on the envelope so the new vendor
+    (or any new signer address) can see it in Signatures and resume signing.
+    DocuSign-side signer re-correction is best-effort: we only persist the
+    mapping; if the envelope was already sent, the admin should also use
+    Resend to issue a fresh signing URL.
+    """
+    new_email = (payload.get("signer_email") or "").strip().lower()
+    new_name  = (payload.get("signer_name") or "").strip()
+    reason    = (payload.get("reason") or "").strip()
+    if not new_email or "@" not in new_email:
+        raise HTTPException(status_code=400, detail="signer_email required")
+    env = await db.docusign_envelopes.find_one({"envelope_id": envelope_id})
+    if not env:
+        raise HTTPException(status_code=404, detail="Envelope not found")
+    await db.docusign_envelopes.update_one(
+        {"envelope_id": envelope_id},
+        {"$set": {
+            "signer_email": new_email,
+            "signer_name": new_name or env.get("signer_name") or new_email,
+            "reassigned_at": now_iso(),
+            "reassigned_by": admin.get("email"),
+            "reassign_reason": reason,
+            "archived": False,
+        }},
+    )
+    await audit_log("docusign.envelope.reassign", admin, "docusign_envelope",
+                    envelope_id,
+                    {"from": env.get("signer_email"), "to": new_email, "reason": reason})
+    return {"ok": True, "signer_email": new_email}
+
+
+@router.post("/envelopes/{envelope_id}/archive")
+async def archive_envelope(envelope_id: str,
+                            payload: Optional[dict] = None,
+                            admin=Depends(current_admin)) -> dict:
+    """v51b — soft-archive an orphaned envelope so vendors never see it in
+    /mine (list_my_envelopes already excludes archived)."""
+    env = await db.docusign_envelopes.find_one({"envelope_id": envelope_id})
+    if not env:
+        raise HTTPException(status_code=404, detail="Envelope not found")
+    reason = ((payload or {}).get("reason") or "").strip()
+    await db.docusign_envelopes.update_one(
+        {"envelope_id": envelope_id},
+        {"$set": {"archived": True, "archived_at": now_iso(),
+                  "archived_by": admin.get("email"),
+                  "archive_reason": reason}},
+    )
+    await audit_log("docusign.envelope.archive", admin, "docusign_envelope",
+                    envelope_id, {"signer": env.get("signer_email"), "reason": reason})
+    return {"ok": True}
+
+
+@router.post("/envelopes/{envelope_id}/unarchive")
+async def unarchive_envelope(envelope_id: str,
+                              admin=Depends(current_admin)) -> dict:
+    env = await db.docusign_envelopes.find_one({"envelope_id": envelope_id})
+    if not env:
+        raise HTTPException(status_code=404, detail="Envelope not found")
+    await db.docusign_envelopes.update_one(
+        {"envelope_id": envelope_id},
+        {"$set": {"archived": False, "unarchived_at": now_iso(),
+                  "unarchived_by": admin.get("email")}},
+    )
+    await audit_log("docusign.envelope.unarchive", admin, "docusign_envelope",
+                    envelope_id, {"signer": env.get("signer_email")})
+    return {"ok": True}
+
+
 @router.get("/envelopes/{envelope_id}")
 async def get_envelope(envelope_id: str, admin=Depends(current_admin)):
     row = await db.docusign_envelopes.find_one({"envelope_id": envelope_id})
@@ -697,7 +771,7 @@ async def list_my_envelopes(vendor=Depends(current_vendor)):
         query_or.append({"signer_email": ve, "created_at": {"$gte": vendor_created}})
     else:
         query_or.append({"signer_email": ve})
-    query = {"$or": query_or}
+    query = {"$or": query_or, "archived": {"$ne": True}}
     cursor = db.docusign_envelopes.find(query).sort("created_at", -1).limit(50)
     items = []
     # v50n — surface `has_document` so the UI can hide the Download button

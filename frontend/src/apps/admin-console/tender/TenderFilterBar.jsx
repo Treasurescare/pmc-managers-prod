@@ -33,6 +33,25 @@ export default function TenderFilterBar({
           {industries.map((i) => <option key={i} value={i}>{i}</option>)}
         </select>
       </div>
+      {filters.country && (
+        <div className="flex items-center gap-2 pt-1" data-testid="tb-filter-country-mode">
+          <span className="text-brand-navy/60 text-[11px]">Show for {filters.country}:</span>
+          <label className="flex items-center gap-1 text-[11px] cursor-pointer">
+            <input type="radio" name="country-mode"
+                   checked={(filters.country_mode || "only") === "only"}
+                   onChange={() => patch({ country_mode: "only" })}
+                   data-testid="tb-filter-country-mode-only" />
+            This country only
+          </label>
+          <label className="flex items-center gap-1 text-[11px] cursor-pointer">
+            <input type="radio" name="country-mode"
+                   checked={filters.country_mode === "all"}
+                   onChange={() => patch({ country_mode: "all" })}
+                   data-testid="tb-filter-country-mode-all" />
+            All templates
+          </label>
+        </div>
+      )}
       <select value={filters.sort || "date-desc"} onChange={(e) => patch({ sort: e.target.value })}
               data-testid="tb-filter-sort"
               className="w-full px-2 py-1.5 border border-brand-navy/20 bg-white">
@@ -57,7 +76,15 @@ export function applyTenderFilters(drafts, filters) {
       (d.header?.tender_reference_number || "").toLowerCase().includes(q) ||
       (d.header?.tender_id || "").toLowerCase().includes(q));
   }
-  if (filters?.country) out = out.filter((d) => (d.country || d.header?.country || "").toUpperCase() === filters.country.toUpperCase());
+  if (filters?.country) {
+    const cu = filters.country.toUpperCase();
+    out = out.filter((d) => {
+      const rowCountry = (d.country || d.header?.country || "").toUpperCase();
+      if (filters?.country_mode === "all") return true;
+      // "only" (default) — strict match on the selected country
+      return rowCountry === cu;
+    });
+  }
   if (filters?.industry) out = out.filter((d) => (d.industry || "") === filters.industry);
   const sort = filters?.sort || "date-desc";
   out.sort((a, b) => {

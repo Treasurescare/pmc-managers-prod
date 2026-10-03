@@ -71,6 +71,44 @@ export default function DocuSignPanel() {
   // v50q — admin repair tool: fetch the combined signed PDF from DocuSign
   // and archive it in our own storage so vendor/admin downloads work even
   // if DocuSign later fails to serve the documents.
+  // v51b — admin reassign + archive orphaned envelopes
+  const [reassignFor, setReassignFor] = useState(null);
+  const [reassignEmail, setReassignEmail] = useState("");
+  const [reassignName, setReassignName] = useState("");
+  const [reassignReason, setReassignReason] = useState("");
+
+  const doReassign = async () => {
+    if (!reassignFor) return;
+    if (!reassignEmail.includes("@")) { toast.error("Enter a valid email"); return; }
+    try {
+      await docusignApi.reassignEnvelope(reassignFor.envelope_id, {
+        signer_email: reassignEmail.trim().toLowerCase(),
+        signer_name: reassignName.trim() || reassignEmail.split("@")[0],
+        reason: reassignReason.trim(),
+      });
+      toast.success(`Reassigned to ${reassignEmail}`);
+      setReassignFor(null); setReassignEmail(""); setReassignName(""); setReassignReason("");
+      load();
+    } catch (e) { showApiError(e); }
+  };
+
+  const archiveEnvelope = async (envelope_id) => {
+    const reason = prompt("Reason for archiving? (optional)") || "";
+    try {
+      await docusignApi.archiveEnvelope(envelope_id, reason);
+      toast.success("Envelope archived — vendor will no longer see it");
+      load();
+    } catch (e) { showApiError(e); }
+  };
+
+  const unarchiveEnvelope = async (envelope_id) => {
+    try {
+      await docusignApi.unarchiveEnvelope(envelope_id);
+      toast.success("Envelope restored");
+      load();
+    } catch (e) { showApiError(e); }
+  };
+
   const archivePdf = async (envelopeId) => {
     toast.info("Archiving signed PDF…");
     try {
@@ -370,6 +408,21 @@ export default function DocuSignPanel() {
                       data-testid={`ds-archive-${e.envelope_id}`}
                       className="text-[10px] bg-amber-600 text-white px-2 py-1 rounded hover:bg-amber-700">⇩ Archive</button>
                   )}
+                  {/* v51b — reassign / archive orphaned envelopes */}
+                  <button onClick={() => { setReassignFor(e); setReassignEmail(""); setReassignName(""); setReassignReason(""); }}
+                    title="Reassign this envelope to a different signer (useful when the original vendor was deleted or re-registered)"
+                    data-testid={`ds-reassign-${e.envelope_id}`}
+                    className="text-[10px] bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">↪ Reassign</button>
+                  {!e.archived ? (
+                    <button onClick={() => archiveEnvelope(e.envelope_id)}
+                      title="Hide this envelope from all vendor Signatures pages"
+                      data-testid={`ds-hide-${e.envelope_id}`}
+                      className="text-[10px] bg-slate-500 text-white px-2 py-1 rounded hover:bg-slate-700">⌧ Archive</button>
+                  ) : (
+                    <button onClick={() => unarchiveEnvelope(e.envelope_id)}
+                      data-testid={`ds-unhide-${e.envelope_id}`}
+                      className="text-[10px] bg-emerald-500 text-white px-2 py-1 rounded hover:bg-emerald-700">⟲ Restore</button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -377,6 +430,50 @@ export default function DocuSignPanel() {
         </table>
         {envelopeControls}
       </section>
+
+      {reassignFor && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+             data-testid="ds-reassign-modal" onClick={() => setReassignFor(null)}>
+          <div className="bg-white max-w-lg w-full p-6 space-y-3" onClick={(ev) => ev.stopPropagation()}>
+            <div className="pmc-label">Reassign envelope</div>
+            <div className="text-xs text-brand-navy/60 font-mono">{reassignFor.envelope_id}</div>
+            <div className="text-xs text-brand-navy/70">
+              Current signer: <b>{reassignFor.signer_email}</b>
+            </div>
+            <label className="block text-xs uppercase tracking-widest text-brand-navy/60">
+              New signer email
+              <input value={reassignEmail}
+                onChange={(ev) => setReassignEmail(ev.target.value)}
+                data-testid="ds-reassign-email"
+                className="mt-1 w-full px-3 py-2 border normal-case tracking-normal" />
+            </label>
+            <label className="block text-xs uppercase tracking-widest text-brand-navy/60">
+              New signer name (optional)
+              <input value={reassignName}
+                onChange={(ev) => setReassignName(ev.target.value)}
+                data-testid="ds-reassign-name"
+                className="mt-1 w-full px-3 py-2 border normal-case tracking-normal" />
+            </label>
+            <label className="block text-xs uppercase tracking-widest text-brand-navy/60">
+              Reason (goes to the audit ledger)
+              <input value={reassignReason}
+                onChange={(ev) => setReassignReason(ev.target.value)}
+                data-testid="ds-reassign-reason"
+                className="mt-1 w-full px-3 py-2 border normal-case tracking-normal" />
+            </label>
+            <div className="flex gap-2 justify-end pt-2">
+              <button onClick={() => setReassignFor(null)}
+                className="px-4 py-2 text-xs border">Cancel</button>
+              <button onClick={doReassign}
+                data-testid="ds-reassign-confirm"
+                className="px-4 py-2 text-xs bg-brand-navy text-white">Reassign & save</button>
+            </div>
+            <div className="text-[11px] text-brand-navy/50 pt-2">
+              Tip: after reassigning a sent envelope, use "↻ Resend" to issue a fresh signing link for the new signer.
+            </div>
+          </div>
+        </div>
+      )}
 
       {viewEnv && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"

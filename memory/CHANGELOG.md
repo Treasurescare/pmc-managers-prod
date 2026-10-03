@@ -474,3 +474,10 @@ Complete GoDaddy → Route 53 DNS migration. Same-origin frontend (bypasses Safa
 - MastersPanel tab bar: labels no longer wrap (whitespace-nowrap + shrink-0), single scrollable row; shortened verbose "(moved → Market)" labels.
 - Legal entity types: optimistic toggle with rollback — row flips instantly; root cause of "needed hard refresh" was twofold: (1) audit_log called with admin.get("email") string instead of dict → HTTP 500 on deactivate/reactivate (fixed, also return_document=True → ReturnDocument.AFTER); (2) CloudFront could serve cached GET lists post-mutation (fixed with Cache-Control: no-store middleware on all /api/ responses in server.py).
 - Verified: browser deactivate hides row immediately, show-inactive reveals Inactive, reactivate flips back; no-store header present on preview API.
+
+## 2026-10-03 — v51b Language footer + Tender country mode + DocuSign reassign/archive
+- PmcFooter: added LangSwitcher (dark variant) in the bottom bar on every page.
+- TenderFilterBar + applyTenderFilters: country_mode radio toggle ("only" default | "all"); when "all" selected, country filter is bypassed.
+- docusign.py: POST /envelopes/{id}/reassign (updates signer_email/name, audit log) + /archive + /unarchive. list_my_envelopes query now carries archived:{$ne:true} so vendors never see hidden envelopes.
+- DocuSignPanel: ↪ Reassign modal (email/name/reason), ⌧ Archive / ⟲ Restore buttons on every row.
+- Verified: /archive → 200, /unarchive → 200, /reassign bad-email → 400, py_compile OK.
