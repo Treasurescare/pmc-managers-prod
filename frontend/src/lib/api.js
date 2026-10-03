@@ -3,7 +3,21 @@
 // CSRF: double-submit-cookie pattern (X-CSRF-Token header on non-GET).
 import axios from "axios";
 
-export const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "";
+function resolveBackendUrl() {
+  if (typeof window !== "undefined") {
+    const h = window.location.hostname;
+    // On production/custom domains (pmcmanagers.com, www.pmcmanagers.com, etc.),
+    // always use same-origin relative URLs ("") so CloudFront routes /api
+    // directly to Elastic Beanstalk. Never allow a baked-in preview URL to
+    // hijack production API calls.
+    if (h && !h.includes("localhost") && !h.includes("127.0.0.1") && !h.includes(".preview.emergentagent.com")) {
+      return "";
+    }
+  }
+  return process.env.REACT_APP_BACKEND_URL || "";
+}
+
+export const BACKEND_URL = resolveBackendUrl();
 
 export const api = axios.create({
   baseURL: BACKEND_URL,
