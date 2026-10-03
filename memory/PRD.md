@@ -38,6 +38,16 @@ mostly static; live data + click routing is patched at runtime via:
 
 ## What is implemented
 
+### v50y (2026-10-03) — Legal entity types master + Registration doc view/download
+- New Masters tab "Legal entity types" (CRUD + /public) seeded with
+  LLC/JSC/Sole Proprietorship/Partnership/Branch/Other. Section A
+  dropdown now reads from the master with EN/RU/KZ labels.
+- New /api/v1/registrations/{id}/documents/{slot}/file (magic-token) and
+  /admin-file (admin cookie/bearer) endpoints. Vendor DocSlot and admin
+  RegDocCard both switched over — view/download now work pre-approval.
+- Section D Business categories → searchable multi-select from the
+  UNSPSC-backed Categories master (chips + codes).
+
 ### v50x (2026-10-03) — EMD workspace UX
 - Zero-EMD tenders hide the EMD submit action ("No EMD required for this bid").
 - Uploaded-proof View opens an in-page preview modal (iframe/img) instead

@@ -163,7 +163,7 @@ export default function RegistrationsPanel() {
                 <div className="pmc-label mb-2">{t("panels.registrations.uploaded_docs_prefix")} ({Object.keys(selected.document_slots).length})</div>
                 <ul className="grid gap-2 md:grid-cols-2">
                   {Object.entries(selected.document_slots).map(([slot, meta]) => (
-                    <RegDocCard key={slot} slot={slot} meta={meta} t={t} />
+                    <RegDocCard key={slot} slot={slot} meta={meta} t={t} regId={selected?.id} />
                   ))}
                 </ul>
               </div>
@@ -226,7 +226,7 @@ export default function RegistrationsPanel() {
 // Plain <a href> anchors drop Content-Disposition on Android/in-app WebViews
 // and can 401 when the preview domain differs from the API domain, so all
 // file access goes through axios (withCredentials) → Blob → object URL.
-function RegDocCard({ slot, meta, t }) {
+function RegDocCard({ slot, meta, t, regId }) {
   const [busy, setBusy] = useState(null); // "view" | "download" | null
   const [previewUrl, setPreviewUrl] = useState(null);
   const blobRef = useRef([]);
@@ -242,7 +242,14 @@ function RegDocCard({ slot, meta, t }) {
   const sizeKb = meta.size_bytes ? Math.max(1, Math.round(meta.size_bytes / 1024)) : null;
 
   const fetchBlobUrl = async () => {
-    const r = await api.get(meta.url, { responseType: "blob" });
+    // v50y — reviewers hit the dedicated admin file endpoint. The caller
+    // threads regId down so we can build the URL regardless of what the
+    // legacy `meta.url` field points at (older uploads used a key path with
+    // slashes that some CDNs were rejecting).
+    const url = regId
+      ? `/api/v1/registrations/${regId}/documents/${slot}/admin-file`
+      : meta.url;
+    const r = await api.get(url, { responseType: "blob" });
     const blob = new Blob([r.data], { type: ct });
     const u = URL.createObjectURL(blob);
     blobRef.current.push(u);

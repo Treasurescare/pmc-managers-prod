@@ -455,3 +455,12 @@ Complete GoDaddy → Route 53 DNS migration. Same-origin frontend (bypasses Safa
 - View on uploaded proofs now opens an in-page preview modal (iframe for PDF, img for images) with Close + Open-in-new-tab fallback, instead of navigating away.
 - File URL fix: key appended raw instead of encodeURIComponent — %2F slashes were 404ing through CloudFront/nginx ("new page shows nothing").
 - Verified: zero-EMD bid hides button; modal opens on same page; iframe src clean.
+
+## 2026-10-03 — v50y Legal entity types master + registration doc view/download
+- Backend: new router /api/v1/masters/legal-entity-types (CRUD + /public), seeded on startup with LLC/JSC/Sole Proprietorship/Partnership/Branch/Other.
+- Backend: new /api/v1/registrations/{id}/documents/{slot}/file (magic-token auth) + /admin-file (admin cookie/bearer). Replaces /uploads/files which required a signed-in session and 401'd for vendors mid-registration.
+- Frontend DocSlot: View/Download now hit the new token-authed endpoint. Admin RegDocCard uses /admin-file by regId+slot (no more key-path CDN quirks).
+- Frontend SectionA: Legal entity type dropdown reads /legal-entity-types/public with EN/RU/KZ labels; falls back to the hard-coded list only if the API is unreachable.
+- Frontend SectionD: Business categories replaced by a searchable multi-select fed by /masters/categories/public with chips + UNSPSC codes.
+- Admin MastersPanel: new "Legal entity types" tab (LegalEntityTypesTab) with CRUD, country scope, EN/RU/KZ names, deactivate/reactivate.
+- Verified end-to-end on preview: 6 defaults seeded, token-auth 200/404 pathway, admin-file 200, categories/public returns 105, admin create works.

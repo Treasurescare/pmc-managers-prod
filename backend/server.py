@@ -22,6 +22,7 @@ from routers import (
     stakeholder_reports, dashboard_drill, branding_theme,
     envelope_authoritative, contracts_export,
     admin_demo, push, vendor_categories, vendor_profile_changes, vendor_licenses,
+    legal_entity_types,
 )
 from routers import password_reset as _password_reset
 
@@ -87,6 +88,7 @@ app.include_router(tasks.router)
 app.include_router(chat.router)
 app.include_router(inspections.router)
 app.include_router(masters.router)
+app.include_router(legal_entity_types.router)
 # Wave 2-6 — Evaluation, BOQ+Contracts, Vendor Intel, Analytics+AI, Governance, Notifications
 app.include_router(evaluations.router)
 app.include_router(boqs.router)
@@ -401,6 +403,12 @@ async def on_start() -> None:
     await _seed_product_catalog()
     await _seed_taxonomy()
     await _seed_categories()
+    # v50y — legal entity types master used by vendor registration Section A
+    try:
+        from routers.legal_entity_types import seed_defaults as _seed_legal_entity_types
+        await _seed_legal_entity_types()
+    except Exception as exc:
+        logging.warning("legal_entity_types seed skipped: %s", exc)
     from routers.tender_templates import seed_master_templates
     seeded = await seed_master_templates()
     if seeded:

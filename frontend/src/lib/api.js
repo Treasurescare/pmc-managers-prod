@@ -380,6 +380,20 @@ export const mastersApi = {
   createCategory: (p) => api.post("/api/v1/masters/categories", p).then((r) => r.data),
   updateCategory: (id, p) => api.patch(`/api/v1/masters/categories/${id}`, p).then((r) => r.data),
   deactivateCategory: (id) => api.delete(`/api/v1/masters/categories/${id}`).then((r) => r.data),
+  // v50y — legal entity types master (vendor registration Section A dropdown)
+  listLegalEntityTypes: ({ includeInactive = false, country } = {}) =>
+    api.get("/api/v1/masters/legal-entity-types", {
+      params: { include_inactive: includeInactive, country: country || undefined },
+    }).then((r) => r.data),
+  listLegalEntityTypesPublic: (country) =>
+    api.get("/api/v1/masters/legal-entity-types/public",
+            { params: { country: country || undefined } }).then((r) => r.data),
+  createLegalEntityType: (p) =>
+    api.post("/api/v1/masters/legal-entity-types", p).then((r) => r.data),
+  updateLegalEntityType: (id, p) =>
+    api.patch(`/api/v1/masters/legal-entity-types/${id}`, p).then((r) => r.data),
+  deactivateLegalEntityType: (id) =>
+    api.delete(`/api/v1/masters/legal-entity-types/${id}`).then((r) => r.data),
   // v50l — vendor category requests (admin side)
   listCategoryRequests: (status = "pending") =>
     api.get("/api/v1/vendors/category-requests", { params: { status } }).then((r) => r.data),

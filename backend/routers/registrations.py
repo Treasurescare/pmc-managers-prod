@@ -93,6 +93,78 @@ async def upload_registration_doc(registration_id: str, slot: str,
     return meta
 
 
+@router.get("/{registration_id}/documents/{slot}/file")
+async def download_registration_doc(registration_id: str, slot: str,
+                                     token: str = Query(..., min_length=1),
+                                     download: bool = False):
+    """View or download a registration document using the magic token.
+
+    PUBLIC — used by the vendor while filling the form (not yet signed in).
+    Admin reviewers use `/admin-file` which validates the admin cookie.
+    """
+    from fastapi.responses import Response
+    import base64
+    try:
+        reg_obj_id = ObjectId(registration_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Malformed registration id")
+    reg = await db.registrations.find_one({"_id": reg_obj_id, "magic_token": token})
+    if not reg:
+        raise HTTPException(status_code=404, detail="Registration not found or token invalid")
+    slots = reg.get("document_slots") or {}
+    meta = slots.get(slot)
+    if not meta or not meta.get("key"):
+        raise HTTPException(status_code=404, detail="Document not uploaded")
+    doc = await db.uploads.find_one({"key": meta["key"]})
+    if not doc:
+        raise HTTPException(status_code=404, detail="File missing")
+    body = base64.b64decode(doc["data_b64"])
+    disp = "attachment" if download else "inline"
+    display_name = meta.get("file_name") or slot
+    return Response(
+        content=body,
+        media_type=doc.get("content_type") or "application/octet-stream",
+        headers={
+            "Content-Disposition": f'{disp}; filename="{display_name}"',
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
+@router.get("/{registration_id}/documents/{slot}/admin-file")
+async def admin_download_registration_doc(registration_id: str, slot: str,
+                                           download: bool = False,
+                                           admin=Depends(require_role("admin", "reviewer", "support"))):
+    """Admin-authenticated variant used by the reviewer UI."""
+    from fastapi.responses import Response
+    import base64
+    try:
+        reg_obj_id = ObjectId(registration_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Malformed registration id")
+    reg = await db.registrations.find_one({"_id": reg_obj_id})
+    if not reg:
+        raise HTTPException(status_code=404, detail="Registration not found")
+    slots = reg.get("document_slots") or {}
+    meta = slots.get(slot)
+    if not meta or not meta.get("key"):
+        raise HTTPException(status_code=404, detail="Document not uploaded")
+    doc = await db.uploads.find_one({"key": meta["key"]})
+    if not doc:
+        raise HTTPException(status_code=404, detail="File missing")
+    body = base64.b64decode(doc["data_b64"])
+    disp = "attachment" if download else "inline"
+    display_name = meta.get("file_name") or slot
+    return Response(
+        content=body,
+        media_type=doc.get("content_type") or "application/octet-stream",
+        headers={
+            "Content-Disposition": f'{disp}; filename="{display_name}"',
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
 @router.delete("/{registration_id}/documents/{slot}")
 async def delete_registration_doc(registration_id: str, slot: str,
                                     token: str = Query(...)):

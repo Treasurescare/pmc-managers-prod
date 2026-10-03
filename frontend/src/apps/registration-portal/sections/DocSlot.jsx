@@ -50,7 +50,14 @@ export default function DocSlot({ regId, token, slot, label, required, existing,
   };
 
   const kb = existing?.size_bytes ? Math.round(existing.size_bytes / 1024) : null;
-  const viewUrl = existing?.url ? `${process.env.REACT_APP_BACKEND_URL}${existing.url}` : null;
+  // v50y — use the dedicated registration file endpoint which validates the
+  // magic token server-side. The old /api/v1/uploads/files/{key} path
+  // required a signed-in session (admin bearer OR vendor cookie), so vendors
+  // mid-registration always hit 401 and View/Download appeared broken.
+  const viewUrl = existing && regId && token
+    ? `${process.env.REACT_APP_BACKEND_URL || ""}/api/v1/registrations/${regId}/documents/${slot}/file?token=${encodeURIComponent(token)}`
+    : null;
+  const downloadUrl = viewUrl ? `${viewUrl}&download=1` : null;
 
   return (
     <div className="border border-brand-navy/15 bg-brand-pale/40 p-4"
@@ -78,7 +85,7 @@ export default function DocSlot({ regId, token, slot, label, required, existing,
               <a href={viewUrl} target="_blank" rel="noreferrer"
                  data-testid={`docslot-view-${slot}`}
                  className="text-[10px] uppercase tracking-widest px-2 py-1 border border-brand-navy/20 text-brand-navy hover:bg-white">{t("docs.view")}</a>
-              <a href={viewUrl} download={existing.file_name}
+              <a href={downloadUrl}
                  data-testid={`docslot-download-${slot}`}
                  className="text-[10px] uppercase tracking-widest px-2 py-1 border border-brand-navy/20 text-brand-navy hover:bg-white">{t("docs.download")}</a>
               <button type="button" onClick={remove} disabled={busy}

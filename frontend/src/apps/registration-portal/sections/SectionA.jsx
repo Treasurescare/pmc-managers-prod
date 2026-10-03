@@ -1,13 +1,36 @@
+import { useEffect, useState } from "react";
 import { Field, Input } from "./FormPrimitives";
 import { DocSlotsBlock } from "./DocSlot";
 import { useI18n } from "@/context/I18nContext";
+import { mastersApi } from "@/lib/api";
 
-const LEGAL_TYPES = ["", "LLC", "JSC", "Sole Proprietorship", "Partnership", "Branch", "Other"];
+// v50y — fallback used when the Legal Entity Types master is unreachable
+// (first boot, offline cache). Keeps the dropdown usable either way.
+const FALLBACK_TYPES = ["LLC", "JSC", "Sole Proprietorship", "Partnership", "Branch", "Other"];
 
 const countryName = (c, lang) => c[`name_${lang}`] || c.name_en || c.name;
 
 export default function SectionA({ reg, update, countries, regId, token, onDocChange, ensureDraft }) {
   const { t, lang } = useI18n();
+  const [legalTypes, setLegalTypes] = useState([]);
+
+  useEffect(() => {
+    // Load the admin-managed master; silently fall back to the hard-coded
+    // list below if the API is unreachable (first install / offline cache).
+    mastersApi.listLegalEntityTypesPublic(reg.country || undefined)
+      .then((rows) => setLegalTypes(Array.isArray(rows) ? rows : []))
+      .catch(() => setLegalTypes([]));
+  }, [reg.country]);
+
+  const options = legalTypes.length
+    ? legalTypes.map((r) => ({
+        value: r.name,
+        label: lang === "ru" && r.name_ru ? r.name_ru
+             : lang === "kz" && r.name_kz ? r.name_kz
+             : r.name,
+      }))
+    : FALLBACK_TYPES.map((v) => ({ value: v, label: v }));
+
   const slots = [
     ["incorporation_certificate", { label: t("section_a.doc_incorporation_certificate"), required: true }],
     ["address_proof", { label: t("section_a.doc_address_proof"), required: true }],
@@ -47,10 +70,9 @@ export default function SectionA({ reg, update, countries, regId, token, onDocCh
         <Field label={t("section_a.legal_entity_type")}>
           <select data-testid="f-legal-type" value={reg.legal_entity_type || ""} onChange={(e) => update({ legal_entity_type: e.target.value })}
             className="mt-1 w-full px-4 py-3 border border-brand-navy/20 focus:outline-none focus:border-brand-navy-soft text-brand-navy bg-white">
-            {LEGAL_TYPES.map((opt) => (
-              <option key={opt || "empty"} value={opt}>
-                {t(`section_a.legal_type_options.${opt}`, opt || "—")}
-              </option>
+            <option value="">—</option>
+            {options.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
         </Field>
