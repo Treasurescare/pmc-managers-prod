@@ -469,3 +469,8 @@ Complete GoDaddy → Route 53 DNS migration. Same-origin frontend (bypasses Safa
 - Vendor invite / activation / registration-approved emails linked "Sign in" to legacy /vendor/login (old split-screen page). All three (vendor_full_invite.py, vendor_invites.py, registrations_helpers.py) now link to the unified /login.
 - /api/v1/docusign/mine scoped envelopes by email only → re-registered vendor reusing an email inherited stale envelopes (prod: PMC-SUP-000150 saw 3 pending from previous data). Now: bid ownership matched by vendor_id; signer_email matches only count for envelopes created after this registration. current_vendor dependency now returns created_at to support the guard.
 - Verified on preview: seeded stale envelope (2026-01-01) + fresh vendor (today) → /mine returns 0; regression manualvendor unaffected. Test data cleaned up.
+
+## 2026-10-03 — v51a Masters tabs + instant deactivate/reactivate
+- MastersPanel tab bar: labels no longer wrap (whitespace-nowrap + shrink-0), single scrollable row; shortened verbose "(moved → Market)" labels.
+- Legal entity types: optimistic toggle with rollback — row flips instantly; root cause of "needed hard refresh" was twofold: (1) audit_log called with admin.get("email") string instead of dict → HTTP 500 on deactivate/reactivate (fixed, also return_document=True → ReturnDocument.AFTER); (2) CloudFront could serve cached GET lists post-mutation (fixed with Cache-Control: no-store middleware on all /api/ responses in server.py).
+- Verified: browser deactivate hides row immediately, show-inactive reveals Inactive, reactivate flips back; no-store header present on preview API.

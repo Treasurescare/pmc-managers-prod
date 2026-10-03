@@ -126,10 +126,10 @@ export default function MastersPanel() {
 
   return (
     <div data-testid="admin-masters-panel">
-      <div className="flex gap-2 mb-4 border-b overflow-x-auto">
-        {[["staff", t("panels.masters.tab_staff")], ["companies", t("panels.masters.tab_companies")], ["tenants", t("panels.masters.tab_tenants")], ["matrix", t("panels.masters.tab_matrix")], ["hierarchy", t("panels.masters.tab_hierarchy")], ["rating", "Rating & Fees"], ["fees", "Charge Fee"], ["categories", "Categories"], ["legal_entities", "Legal entity types"], ["cat_requests", "Vendor requests (moved → Market)"], ["profile_requests", "Profile changes (moved → Market)"], ["emd_rules", "EMD rules"], ["demo", "Investor Demo"]].map(([k, l]) => (
+      <div className="flex gap-1 mb-4 border-b overflow-x-auto">
+        {[["staff", t("panels.masters.tab_staff")], ["companies", t("panels.masters.tab_companies")], ["tenants", t("panels.masters.tab_tenants")], ["matrix", t("panels.masters.tab_matrix")], ["hierarchy", t("panels.masters.tab_hierarchy")], ["rating", "Rating & Fees"], ["fees", "Charge Fee"], ["categories", "Categories"], ["legal_entities", "Legal entity types"], ["cat_requests", "Vendor requests"], ["profile_requests", "Profile changes"], ["emd_rules", "EMD rules"], ["demo", "Investor Demo"]].map(([k, l]) => (
           <button key={k} onClick={() => { setTab(k); setSearch(""); }}
-            className={`px-4 py-2 text-xs uppercase tracking-widest ${tab === k ? "border-b-2 border-brand-navy font-semibold" : "text-slate-500"}`}
+            className={`px-4 py-2 text-xs uppercase tracking-widest whitespace-nowrap shrink-0 ${tab === k ? "border-b-2 border-brand-navy font-semibold" : "text-slate-500"}`}
             data-testid={`masters-tab-${k}`}>{l}</button>
         ))}
       </div>

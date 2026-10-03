@@ -45,8 +45,13 @@ export default function LegalEntityTypesTab() {
   };
 
   const toggleActive = async (row) => {
+    // v51a — optimistic UI: flip the row immediately, then persist. The old
+    // code only refreshed after the server round-trip and, behind CloudFront,
+    // the refetch could return a cached pre-mutation list (needed hard refresh).
+    const targetActive = row.is_active === false;
+    setRows((rs) => rs.map((r) => (r.id === row.id ? { ...r, is_active: targetActive } : r)));
     try {
-      if (row.is_active === false) {
+      if (targetActive) {
         await mastersApi.updateLegalEntityType(row.id, {
           code: row.code, name: row.name, name_ru: row.name_ru,
           name_kz: row.name_kz, country_scope: row.country_scope,
@@ -58,7 +63,11 @@ export default function LegalEntityTypesTab() {
         toast.success(`Deactivated · ${row.name}`);
       }
       load();
-    } catch (e) { showApiError(e); }
+    } catch (e) {
+      // rollback the optimistic flip on failure
+      setRows((rs) => rs.map((r) => (r.id === row.id ? { ...r, is_active: !targetActive } : r)));
+      showApiError(e);
+    }
   };
 
   const filtered = rows.filter((r) => showInactive || r.is_active !== false);

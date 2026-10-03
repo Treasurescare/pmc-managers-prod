@@ -9,6 +9,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from bson import ObjectId
+from pymongo import ReturnDocument
 
 from db import db
 from models.base import BaseDocument, now_iso
@@ -102,7 +103,7 @@ async def create_type(payload: LegalEntityTypeIn,
     doc = payload.model_dump()
     doc.update({"created_at": now, "updated_at": now, "source": "manual"})
     r = await db.legal_entity_types.insert_one(doc)
-    await audit_log("masters.legal_entity_type.create", admin.get("email"),
+    await audit_log("masters.legal_entity_type.create", admin,
                     "legal_entity_type", str(r.inserted_id), {"code": payload.code})
     return _out({**doc, "_id": r.inserted_id})
 
@@ -117,11 +118,12 @@ async def update_type(type_id: str, payload: LegalEntityTypeIn,
     patch = payload.model_dump()
     patch["updated_at"] = now_iso()
     r = await db.legal_entity_types.find_one_and_update(
-        {"_id": _oid}, {"$set": patch}, return_document=True,
+        {"_id": _oid}, {"$set": patch},
+        return_document=ReturnDocument.AFTER,
     )
     if not r:
         raise HTTPException(status_code=404, detail="Not found")
-    await audit_log("masters.legal_entity_type.update", admin.get("email"),
+    await audit_log("masters.legal_entity_type.update", admin,
                     "legal_entity_type", type_id, {"code": payload.code})
     return _out(r)
 
@@ -138,6 +140,6 @@ async def deactivate_type(type_id: str,
     )
     if not r.matched_count:
         raise HTTPException(status_code=404, detail="Not found")
-    await audit_log("masters.legal_entity_type.deactivate", admin.get("email"),
+    await audit_log("masters.legal_entity_type.deactivate", admin,
                     "legal_entity_type", type_id, {})
     return {"ok": True}

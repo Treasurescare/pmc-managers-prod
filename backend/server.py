@@ -159,6 +159,19 @@ else:
 app.add_middleware(CORSMiddleware, allow_methods=["*"], allow_headers=["*"], **_cors)
 
 
+# ---------- Cache safety (v51a) ----------
+# CloudFront in production was serving CACHED GET /api responses (e.g. the
+# Masters list) after mutations, so deactivating a master row looked like a
+# no-op until a hard refresh. Mark every API response non-cacheable.
+@app.middleware("http")
+async def _no_store_api(request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+    return response
+
+
 # ---------- Startup: indexes + seed ----------
 async def _seed_admin() -> None:
     # v46w — the master admin + owner must hold EVERY executive-tier role so

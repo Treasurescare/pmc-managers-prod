@@ -38,6 +38,14 @@ mostly static; live data + click routing is patched at runtime via:
 
 ## What is implemented
 
+### v51a (2026-10-03) — Masters tab bar + instant deactivate/reactivate
+- MastersPanel tab bar realigned: labels no longer wrap to two lines
+  (whitespace-nowrap + shrink-0), single horizontally-scrollable row.
+- Legal entity types toggle is optimistic with rollback. Root causes fixed:
+  audit_log called with email string instead of admin dict (HTTP 500), and
+  CloudFront-cached GET lists post-mutation (Cache-Control: no-store
+  middleware on all /api/ responses).
+
 ### v50z (2026-10-03) — Vendor login links + DocuSign envelope scoping
 - Vendor invite / activation / approval emails now link to unified /login
   (were pointing to legacy /vendor/login page).
