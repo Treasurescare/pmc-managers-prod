@@ -412,3 +412,11 @@ Complete GoDaddy → Route 53 DNS migration. Same-origin frontend (bypasses Safa
 
 ## Earlier session (2026-01) — Batches #1–#5 (v20/21, ≤v30)
 57 bugs closed covering Auth, Bidding Ops, BOQ, Committee, Escrow, L1, Reverse Auctions, Registrations, Audit, Vendors invite pipeline, and Analytics anomaly scoring.
+
+## v50s — 2026-10-03 (vendor UX hotfixes)
+- Supporting-document upload tiles on Bid Submit now use amber dashed boxes with "+ Click to upload" labels (previously ghosted text was invisible on the cream background).
+- Fixed re-upload after delete: both the onChange handler and removeDoc() now reset the file input value so the SAME filename can be picked again.
+- Rewrote /vendor/mybids from the static mockup into a fully live React page (bidApi.mine with notice_title/submission_deadline join). Every bid the vendor submits now appears here immediately.
+- VendorPortalChrome now fetches live sidebar counts (Find tenders / My bids / Signatures) so badges match reality on every page (previously "29" was hard-coded).
+- /vendor/auth/me now returns business_categories, country, kyc_status — approved categories now show up in Company & KYC header.
+- /vendor/categories page gets a "← Back" button to return to Company & KYC.

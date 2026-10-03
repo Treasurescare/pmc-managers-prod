@@ -34,7 +34,7 @@ export default function BidSubmit() {
     })();
   }, [noticeRef, nav]);
 
-  const uploadFile = async (kind, file) => {
+  const uploadFile = async (kind, file, inputEl) => {
     try {
       const p = await uploadsApi.presign(file.name, file.type || "application/pdf", "bid-docs", file.size);
       const r = await uploadsApi.direct(p.key, file);
@@ -51,9 +51,20 @@ export default function BidSubmit() {
       }]);
       toast.success(`Uploaded ${file.name}`);
     } catch (err) { showApiError(err); }
+    finally {
+      // v50s — always clear the <input type="file"> value so the SAME file
+      // can be re-selected after a Remove. Browsers suppress onChange when
+      // the picked path hasn't changed, which previously left the slot dead
+      // after one upload-then-remove cycle.
+      if (inputEl) inputEl.value = "";
+    }
   };
 
-  const removeDoc = (idx) => setDocs((d) => d.filter((_, i) => i !== idx));
+  const removeDoc = (idx) => {
+    setDocs((d) => d.filter((_, i) => i !== idx));
+    // Also clear every file input so re-selecting the same filename works.
+    document.querySelectorAll('[data-testid^="bid-upload-"] input[type="file"]').forEach((el) => { el.value = ""; });
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -170,15 +181,16 @@ export default function BidSubmit() {
           </label>
 
           <div className="space-y-2">
-            <div className="text-sm font-semibold">Supporting documents</div>
+            <div className="text-sm font-semibold text-slate-900">Supporting documents</div>
             <div className="grid grid-cols-3 gap-2 text-xs">
               {[["technical", "Technical PDF"], ["commercial", "Commercial PDF"], ["supporting", "Other doc"]].map(([k, label]) => (
-                <label key={k} className="border rounded-md p-3 text-center cursor-pointer hover:bg-slate-50"
+                <label key={k}
+                  className="group border-2 border-dashed border-amber-400 bg-amber-50 hover:bg-amber-100 hover:border-amber-500 rounded-md p-3 text-center cursor-pointer transition-colors"
                   data-testid={`bid-upload-${k}`}>
                   <input type="file" accept="application/pdf,image/*" hidden
-                    onChange={(e) => e.target.files?.[0] && uploadFile(k, e.target.files[0])} />
-                  <span className="block text-slate-700 font-medium">{label}</span>
-                  <span className="block text-slate-400 mt-1">Click to upload</span>
+                    onChange={(e) => e.target.files?.[0] && uploadFile(k, e.target.files[0], e.target)} />
+                  <span className="block text-amber-900 font-semibold">{label}</span>
+                  <span className="block text-amber-700 mt-1 font-medium">+ Click to upload</span>
                 </label>
               ))}
             </div>

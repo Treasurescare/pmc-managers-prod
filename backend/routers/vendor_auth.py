@@ -66,6 +66,9 @@ async def current_vendor(request: Request) -> Dict[str, Any]:
             "company_name": v.get("company_name"),
             "must_change_password": v.get("must_change_password", False),
             "avatar_data_url": v.get("avatar_data_url"),
+            "business_categories": list(v.get("business_categories") or []),
+            "country": v.get("country") or (v.get("profile") or {}).get("country"),
+            "kyc_status": v.get("kyc_status") or "verified",
         }
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Session expired")

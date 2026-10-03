@@ -209,9 +209,25 @@ async def create_bid(payload: BidCreateIn, vendor=Depends(current_vendor)) -> di
 
 @router.get("/mine")
 async def list_my_bids(vendor=Depends(current_vendor)) -> List[dict]:
-    """List a vendor's own bids."""
+    """List a vendor's own bids, enriched with the parent notice's title and
+    submission deadline so the vendor's "My bids" page can render a usable
+    table without a second round-trip per row."""
     cursor = db.bids.find({"vendor_id": vendor["id"]}).sort("created_at", -1).limit(200)
-    return [_out(b) async for b in cursor]
+    rows = [_out(b) async for b in cursor]
+    # v50s — join each bid with its notice (title + submission_deadline).
+    refs = sorted({r.get("notice_ref") for r in rows if r.get("notice_ref")})
+    if refs:
+        notices = {}
+        async for n in db.notices.find({"notice_ref": {"$in": list(refs)}},
+                                       {"notice_ref": 1, "title": 1, "submission_deadline": 1}):
+            notices[n["notice_ref"]] = n
+        for r in rows:
+            n = notices.get(r.get("notice_ref")) or {}
+            if n.get("title"):
+                r["notice_title"] = n["title"]
+            if n.get("submission_deadline"):
+                r["submission_deadline"] = n["submission_deadline"]
+    return rows
 
 
 @router.get("/{bid_id}")

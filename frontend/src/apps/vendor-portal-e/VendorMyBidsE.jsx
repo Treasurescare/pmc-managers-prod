@@ -1,64 +1,241 @@
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { useUiTheme } from "@/context/UiThemeContext";
-import { useVendorMyBidsLive } from "@/lib/pmcELiveData";
+import { bidApi, showApiError } from "@/lib/api";
+import VendorPortalChrome from "./VendorPortalChrome";
+
+/**
+ * v50s — Vendor "My bids" rewritten from the static Option-E mockup to a
+ * fully live React page. Reads bidApi.mine() so every bid the vendor just
+ * submitted appears here immediately (previous build patched 4 hard-coded
+ * rows via DOM, so bid #5+ was invisible).
+ */
+
+const STATUS_PILL = {
+  draft:         ["", "Draft"],
+  submitted:     ["pmc-pill--info", "Submitted"],
+  emd_pending:   ["pmc-pill--warning", "Awaiting your EMD"],
+  emd_paid:      ["pmc-pill--info", "EMD paid"],
+  under_review:  ["pmc-pill--info", "Under review"],
+  technical_cleared: ["pmc-pill--info", "Tech cleared"],
+  escrow_pending: ["pmc-pill--info", "Escrow confirming"],
+  awarded:       ["pmc-pill--success", "Awarded"],
+  rejected:      ["", "Not awarded"],
+  withdrawn:     ["", "Withdrawn"],
+  closed:        ["", "Closed"],
+};
+
+function fmtMoney(amount, currency) {
+  if (amount == null) return "—";
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency", currency: currency || "USD", maximumFractionDigits: 0,
+    }).format(amount);
+  } catch { return `${currency || ""} ${Number(amount).toLocaleString()}`; }
+}
+
+function fmtCountdown(iso) {
+  if (!iso) return "—";
+  const secs = Math.max(0, Math.floor((new Date(iso) - new Date()) / 1000));
+  if (secs === 0) return "Closed";
+  const d = Math.floor(secs / 86400);
+  const h = Math.floor((secs % 86400) / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
+const ACTIVE_STATUSES = new Set(["submitted","emd_pending","emd_paid","under_review",
+                                  "technical_cleared","escrow_pending"]);
+const DRAFT_STATUSES  = new Set(["draft"]);
+const CLOSED_STATUSES = new Set(["awarded","rejected","closed"]);
+const WITHDRAWN_STATUSES = new Set(["withdrawn"]);
+
+function BidRow({ b }) {
+  const [cls, label] = STATUS_PILL[b.status] || ["", b.status || "—"];
+  const action = (() => {
+    if (b.status === "emd_pending") return { to: `/vendor/bids/${b.id}/pay`, text: "Pay EMD", primary: true };
+    if (b.status === "draft")       return { to: `/vendor/bids/${b.id}`, text: "Continue", primary: false };
+    if (b.status === "awarded")     return { to: `/vendor/signatures`, text: "Sign LOA", primary: true };
+    return { to: `/vendor/bids/${b.id}`, text: "View", primary: false };
+  })();
+  return (
+    <tr data-testid={`vmb-row-${b.bid_ref || b.id}`}>
+      <td>
+        <div style={{ fontWeight: 600 }} data-testid={`vmb-title-${b.bid_ref || b.id}`}>
+          {b.notice_title || b.notice_ref}
+        </div>
+        <span className="pmc-ref">{b.bid_ref}</span>
+      </td>
+      <td className="num" style={{ fontWeight: 600 }}>
+        {fmtMoney(b.price_amount, b.price_currency)}
+      </td>
+      <td>
+        <span className={`pmc-pill ${cls}`}>{label}</span>
+      </td>
+      <td>
+        {b.submission_deadline
+          ? <span className="pmc-countdown">{fmtCountdown(b.submission_deadline)}</span>
+          : <span className="pmc-muted">—</span>}
+      </td>
+      <td style={{ textAlign: "right" }}>
+        <Link to={action.to}
+              className={`pmc-btn pmc-btn--sm ${action.primary ? "pmc-btn--primary" : "pmc-btn--secondary"}`}
+              data-testid={`vmb-act-${b.bid_ref || b.id}`}>
+          {action.text}
+        </Link>
+      </td>
+    </tr>
+  );
+}
 
 export default function VendorMyBidsE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
-  useVendorMyBidsLive({ enabled: isE });
+  const [bids, setBids] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState("active");
+
   useEffect(() => {
     if (!isE) return;
-    const tick = () => {
-      document.querySelectorAll("[data-in]").forEach((el) => {
-        const secs = parseInt(el.getAttribute("data-in") || "0", 10);
-        if (!secs) return;
-        const d = Math.floor(secs/86400), h = Math.floor((secs%86400)/3600), m = Math.floor((secs%3600)/60);
-        el.textContent = d>0 ? `${d}d ${h}h` : h>0 ? `${h}h ${m}m` : `${m}m`;
-      });
-    };
-    tick();
+    setLoading(true);
+    bidApi.mine()
+      .then((rows) => setBids(Array.isArray(rows) ? rows : []))
+      .catch(showApiError)
+      .finally(() => setLoading(false));
   }, [isE]);
+
+  const buckets = useMemo(() => {
+    const b = { active: [], drafts: [], closed: [], withdrawn: [] };
+    bids.forEach((x) => {
+      if (DRAFT_STATUSES.has(x.status)) b.drafts.push(x);
+      else if (WITHDRAWN_STATUSES.has(x.status)) b.withdrawn.push(x);
+      else if (CLOSED_STATUSES.has(x.status)) b.closed.push(x);
+      else b.active.push(x);
+    });
+    return b;
+  }, [bids]);
+
+  const kpis = useMemo(() => {
+    const decided = bids.filter((b) => b.status === "awarded" || b.status === "rejected");
+    const won = decided.filter((b) => b.status === "awarded");
+    const win = decided.length ? Math.round((won.length / decided.length) * 100) : 0;
+    const inPlay = buckets.active.reduce((s, b) => {
+      if ((b.price_currency || "USD").toUpperCase() === "USD") return s + (b.price_amount || 0);
+      return s;
+    }, 0);
+    const emdHeld = bids.reduce((s, b) => s + (b.emd_paid_amount || 0), 0);
+    return {
+      active: buckets.active.length,
+      needsYou: buckets.active.filter((b) => b.status === "emd_pending").length,
+      winRate: `${win}%`,
+      decidedCount: decided.length,
+      inPlay,
+      emdHeld,
+    };
+  }, [bids, buckets]);
+
+  const rows = buckets[tab] || [];
+
   if (!isE && Legacy) return <Legacy />;
   if (!isE) return null;
+
   return (
     <div data-testid="vendor-mybids-e" data-pmc-e-page="vendor-mybids-e">
-<header className="pmc-chrome pmc-vtop">
-  <a href="#" className="pmc-brand"><span className="pmc-brand__n">PMC Managers</span><span className="pmc-brand__s">Supplier portal</span></a>
-  <label className="pmc-search pmc-cmd"><svg className="pmc-ico" aria-hidden="true"><use href="#i-search" /></svg><input placeholder="Search tenders, bids, documents…" /><span className="pmc-kbd">Ctrl K</span></label>
-  <div className="pmc-vtop__r">
-    <button className="pmc-btn pmc-btn--onchrome" data-help-open=""><svg className="pmc-ico" aria-hidden="true"><use href="#i-help" /></svg> Help</button>
-    <button className="pmc-iconbtn pmc-bell" aria-label="9 alerts"><svg className="pmc-ico" aria-hidden="true"><use href="#i-bell" /></svg><span className="pmc-bell__n">9</span></button>
-    <button className="pmc-who" aria-haspopup="menu"><span className="pmc-avatar">EC</span><span className="pmc-who__t"><b>Emerald Corporates</b><span>PMC-SUP-000017 · KYC verified</span></span></button>
-  </div>
-</header><div className="pmc-app"><nav className="pmc-lnav" aria-label="Supplier"><a href="/vendor"><svg className="pmc-ico" aria-hidden="true"><use href="#i-home" /></svg>Home</a><a href="/vendor/tenders"><svg className="pmc-ico" aria-hidden="true"><use href="#i-search" /></svg>Find tenders<span className="c">29</span></a><a href="/vendor/mybids" aria-current="page"><svg className="pmc-ico" aria-hidden="true"><use href="#i-gavel" /></svg>My bids<span className="c hot">1</span></a><a href="/vendor/emd"><svg className="pmc-ico" aria-hidden="true"><use href="#i-coin" /></svg>EMD &amp; payments</a><a href="/vendor/signatures"><svg className="pmc-ico" aria-hidden="true"><use href="#i-sign" /></svg>Signatures<span className="c">1</span></a><hr /><a href="/vendor/company"><svg className="pmc-ico" aria-hidden="true"><use href="#i-shield" /></svg>Company &amp; KYC</a><a href="/vendor/reviews"><svg className="pmc-ico" aria-hidden="true"><use href="#i-users" /></svg>Reviews</a><a href="/vendor/account"><svg className="pmc-ico" aria-hidden="true"><use href="#i-settings" /></svg>Account &amp; security</a><a href="#" data-help-open=""><svg className="pmc-ico" aria-hidden="true"><use href="#i-help" /></svg>Help &amp; FAQs</a><div className="pmc-desk"><b>Your PMC desk</b><div className="pmc-muted">Questions on a tender or bid?</div><a href="mailto:tenders@pmcmanagers.com">tenders@pmcmanagers.com</a><a href="#" className="pmc-btn pmc-btn--secondary pmc-btn--sm" style={{ width: "100%", marginTop: "10px" }}><svg className="pmc-ico" aria-hidden="true"><use href="#i-chat" /></svg> Raise a ticket</a></div></nav><main className="pmc-main"><div className="sp-head"><div><div className="pmc-eyebrow">My bids</div><h1>Every bid, and what it needs</h1></div><a href="#" className="pmc-btn pmc-btn--primary"><svg className="pmc-ico" aria-hidden="true"><use href="#i-search" /></svg> Find tenders</a></div>
-<div className="sp-kpis"><div><div className="l">Active</div><div className="pmc-figure">4</div><div className="s">1 needs you</div></div><div><div className="l">Win rate</div><div className="pmc-figure">50%</div><div className="s">2 of 4 decided bids</div></div><div><div className="l">Value in play</div><div className="pmc-figure">USD 2.8M</div><div className="s">+ INR 58.9M, KZT 894M</div></div><div><div className="l">EMD held</div><div className="pmc-figure">USD 76,380</div><div className="s">across 3 bids</div></div></div>
-<div className="pmc-tabs" style={{ marginBottom: "16px" }}><button className="pmc-tab" aria-selected="true">Active<span className="n">4</span></button><button className="pmc-tab">Drafts<span className="n">3</span></button><button className="pmc-tab">Closed<span className="n">7</span></button><button className="pmc-tab">Withdrawn<span className="n">0</span></button></div>
-<section className="pmc-panel"><table className="pmc-table"><thead><tr><th>Bid</th><th className="num">Your price</th><th>Progress</th><th>Status</th><th>Closes</th><th></th></tr></thead><tbody><tr><td><div style={{ fontWeight: "600" }}>Turnkey IVF Laboratory Setup</div><span className="pmc-ref">PMC-BID-2026-00017</span></td><td className="num" style={{ fontWeight: "600" }}>USD 2,046,000</td><td><span className="mini-track"><i className="d"></i><i className="d"></i><i className="d"></i><i className="n"></i><i className=""></i></span></td><td><span className="pmc-pill pmc-pill--warning">Awaiting your EMD</span></td><td><span className="pmc-countdown" data-in="52">—</span></td><td style={{ textAlign: "right" }}><a href="#" className="pmc-btn pmc-btn--primary pmc-btn--sm">Pay EMD</a></td></tr><tr><td><div style={{ fontWeight: "600" }}>OPD Queue Management & Digital Signage</div><span className="pmc-ref">PMC-BID-2026-00020</span></td><td className="num" style={{ fontWeight: "600" }}>INR 58,900,000</td><td><span className="mini-track"><i className="d"></i><i className="d"></i><i className="d"></i><i className="n"></i><i className=""></i></span></td><td><span className="pmc-pill pmc-pill--info">Escrow confirming</span></td><td><span className="pmc-countdown" data-in="83">—</span></td><td style={{ textAlign: "right" }}><a href="#" className="pmc-btn pmc-btn--secondary pmc-btn--sm">View</a></td></tr><tr><td><div style={{ fontWeight: "600" }}>Birth Suites — Consumables & Kits</div><span className="pmc-ref">PMC-BID-2026-00016</span></td><td className="num" style={{ fontWeight: "600" }}>KZT 82,400,000</td><td><span className="mini-track"><i className="d"></i><i className="n"></i><i className=""></i><i className=""></i><i className=""></i></span></td><td><span className="pmc-pill ">Draft</span></td><td><span className="pmc-countdown" data-in="57">—</span></td><td style={{ textAlign: "right" }}><a href="#" className="pmc-btn pmc-btn--secondary pmc-btn--sm">Continue</a></td></tr><tr><td><div style={{ fontWeight: "600" }}>OPD Building Renovation — Block C</div><span className="pmc-ref">PMC-BID-2026-00022</span></td><td className="num" style={{ fontWeight: "600" }}>KZT 812,000,000</td><td><span className="mini-track"><i className="d"></i><i className="d"></i><i className="d"></i><i className="d"></i><i className="d"></i></span></td><td><span className="pmc-pill pmc-pill--success">Awarded</span></td><td><span className="pmc-muted">Awarded 21 Sep</span></td><td style={{ textAlign: "right" }}><a href="#" className="pmc-btn pmc-btn--primary pmc-btn--sm">Sign LOA</a></td></tr></tbody></table></section>
-<h2 style={{ fontSize: "18px", margin: "32px 0 12px" }}>Recently decided</h2>
-<section className="pmc-panel"><table className="pmc-table"><thead><tr><th>Bid</th><th className="num">Your price</th><th>Your rank</th><th>Outcome</th><th>Debrief</th><th></th></tr></thead><tbody><tr><td><div style={{ fontWeight: "600" }}>Modular Operation Theatres — Wave 1</div><span className="pmc-ref">PMC-BID-2026-00009</span></td><td className="num">USD 1,020,000</td><td>2 of 4</td><td><span className="pmc-pill ">Not awarded</span></td><td className="pmc-muted" style={{ fontSize: "13px" }}>Technical 78 · L2, 7% above L1</td><td style={{ textAlign: "right" }}><a href="#" className="pmc-btn pmc-btn--ghost pmc-btn--sm">Debrief</a></td></tr><tr><td><div style={{ fontWeight: "600" }}>Medical gas pipeline systems</div><span className="pmc-ref">PMC-BID-2026-00005</span></td><td className="num">USD 410,000</td><td>1 of 5</td><td><span className="pmc-pill pmc-pill--success">Awarded</span></td><td className="pmc-muted" style={{ fontSize: "13px" }}>Contract 026-0009 active</td><td style={{ textAlign: "right" }}><a href="#" className="pmc-btn pmc-btn--ghost pmc-btn--sm">Debrief</a></td></tr></tbody></table></section>
-<div className="pmc-callout pmc-callout--info" style={{ marginTop: "16px" }}><svg className="pmc-ico" aria-hidden="true"><use href="#i-help" /></svg><div>After every decision you get a <b>debrief</b>: your technical score by criterion and your price position against L1. Use it to sharpen the next bid.</div></div></main></div>
-<div className="pmc-drawer-scrim" data-help-close=""></div>
-<aside className="pmc-drawer" role="dialog" aria-modal="true" aria-label="Help and FAQs">
-  <div className="pmc-drawer__head">
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-      <div><div className="pmc-eyebrow">Help &amp; FAQs</div><div style={{ fontSize: "20px", lineHeight: "28px", fontWeight: "600" }}>How can we help?</div></div>
-      <button className="pmc-btn pmc-btn--ghost pmc-btn--sm" data-help-close="" aria-label="Close help">Close <span className="pmc-kbd">Esc</span></button>
-    </div>
-    <label className="pmc-search"><svg className="pmc-ico" aria-hidden="true"><use href="#i-search" /></svg><input data-help-q="" placeholder="Search help, e.g. “bank guarantee”" /></label>
-  </div>
-  <div className="pmc-drawer__body">
-    <div className="pmc-eyebrow" style={{ margin: "4px 0 10px", color: "var(--ink-muted)" }}>On this page · My bids</div>
-    <div style={{ display: "grid", gap: "8px", marginBottom: "20px" }}><div className="pmc-tip"><svg className="pmc-ico" aria-hidden="true"><use href="#i-spark" /></svg><div><b>One action per row</b>The button always does the step that's waiting on you.</div></div><div className="pmc-tip"><svg className="pmc-ico" aria-hidden="true"><use href="#i-spark" /></svg><div><b>Debriefs</b>Open a decided bid to see your scores and price position.</div></div></div>
-    <div className="pmc-eyebrow" style={{ marginBottom: "2px", color: "var(--ink-muted)" }}>Frequently asked</div>
-    <div data-help-list=""><details className="pmc-faq" data-cat="bidding"><summary>How are sealed bids kept confidential?</summary><p>Bids are submitted in separate technical and commercial envelopes. Envelopes open only after the submission deadline, and only for the evaluation committee. Every open, view and decision is written to a SHA-256 hash-chained audit ledger.</p></details><details className="pmc-faq" data-cat="bidding"><summary>Can I change or withdraw my bid?</summary><p>If the tender allows withdrawal, you can withdraw or resubmit before the submission deadline from <b>My bids</b>. The tender page states whether withdrawal is allowed.</p></details><details className="pmc-faq" data-cat="bidding"><summary>How will I hear about a corrigendum?</summary><p>When a tender you follow or have bid on is amended, you get an alert in the portal and by email, and the change is shown on the tender page with its effective date.</p></details><details className="pmc-faq" data-cat="awards"><summary>How are contracts signed?</summary><p>Awards, purchase orders and contracts are signed with DocuSign, either inside the portal or through a DocuSign email link. Signed copies appear under <b>Signatures</b>.</p></details></div>
-    <p data-help-empty="" hidden style={{ color: "var(--ink-muted)", fontSize: "14px" }}>No answer matches yet. Raise a ticket below and the PMC desk will reply.</p>
-    <a href="/help" className="pmc-btn pmc-btn--secondary" style={{ width: "100%", marginTop: "16px" }}><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg> Open the full Help Centre</a>
-  </div>
-  <div className="pmc-drawer__foot">
-    <a href="#" className="pmc-btn pmc-btn--primary"><svg className="pmc-ico" aria-hidden="true"><use href="#i-chat" /></svg> Raise a ticket</a>
-    <a href="mailto:tenders@pmcmanagers.com" className="pmc-btn pmc-btn--secondary"><svg className="pmc-ico" aria-hidden="true"><use href="#i-mail" /></svg> Email the desk</a>
-  </div>
-</aside>
-<button className="pmc-helpfab" data-help-open="" aria-label="Open help"><span className="pmc-helpfab__q">?</span>Help</button>
+      <VendorPortalChrome active="/vendor/mybids"
+        counts={{ "/vendor/mybids": buckets.active.length }}>
+        <div className="sp-head">
+          <div>
+            <div className="pmc-eyebrow">My bids</div>
+            <h1 data-testid="vmb-heading">Every bid, and what it needs</h1>
+          </div>
+          <Link to="/vendor/tenders" className="pmc-btn pmc-btn--primary"
+                data-testid="vmb-find-tenders">
+            <svg className="pmc-ico" aria-hidden="true"><use href="#i-search" /></svg> Find tenders
+          </Link>
+        </div>
+
+        <div className="sp-kpis" data-testid="vmb-kpis">
+          <div>
+            <div className="l">Active</div>
+            <div className="pmc-figure" data-testid="vmb-kpi-active">{kpis.active}</div>
+            <div className="s">{kpis.needsYou ? `${kpis.needsYou} needs you` : "all up to date"}</div>
+          </div>
+          <div>
+            <div className="l">Win rate</div>
+            <div className="pmc-figure" data-testid="vmb-kpi-win">{kpis.winRate}</div>
+            <div className="s">{kpis.decidedCount} decided bid{kpis.decidedCount === 1 ? "" : "s"}</div>
+          </div>
+          <div>
+            <div className="l">Value in play (USD)</div>
+            <div className="pmc-figure" data-testid="vmb-kpi-value">
+              {fmtMoney(kpis.inPlay, "USD")}
+            </div>
+            <div className="s">across your active bids</div>
+          </div>
+          <div>
+            <div className="l">EMD paid</div>
+            <div className="pmc-figure" data-testid="vmb-kpi-emd">
+              {fmtMoney(kpis.emdHeld, "USD")}
+            </div>
+            <div className="s">lifetime</div>
+          </div>
+        </div>
+
+        <div className="pmc-tabs" style={{ marginBottom: 16 }} role="tablist"
+             data-testid="vmb-tabs">
+          {[
+            ["active",    "Active",    buckets.active.length],
+            ["drafts",    "Drafts",    buckets.drafts.length],
+            ["closed",    "Closed",    buckets.closed.length],
+            ["withdrawn", "Withdrawn", buckets.withdrawn.length],
+          ].map(([k, label, n]) => (
+            <button key={k} role="tab" aria-selected={tab === k}
+                    className={"pmc-tab" + (tab === k ? " active" : "")}
+                    onClick={() => setTab(k)}
+                    data-testid={`vmb-tab-${k}`}>
+              {label}<span className="n">{n}</span>
+            </button>
+          ))}
+        </div>
+
+        <section className="pmc-panel" data-testid="vmb-panel">
+          {loading ? (
+            <div className="p-6 text-sm pmc-muted" data-testid="vmb-loading">
+              Loading your bids…
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="p-6 text-sm pmc-muted" data-testid="vmb-empty">
+              {tab === "active"
+                ? <>You have no active bids yet. <Link to="/vendor/tenders">Find a tender</Link> to start.</>
+                : `No ${tab} bids.`}
+            </div>
+          ) : (
+            <table className="pmc-table">
+              <thead>
+                <tr>
+                  <th>Bid</th>
+                  <th className="num">Your price</th>
+                  <th>Status</th>
+                  <th>Closes</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((b) => <BidRow key={b.id || b.bid_ref} b={b} />)}
+              </tbody>
+            </table>
+          )}
+        </section>
+
+        <div className="pmc-callout pmc-callout--info" style={{ marginTop: 16 }}>
+          <svg className="pmc-ico" aria-hidden="true"><use href="#i-help" /></svg>
+          <div>
+            After every decision you get a <b>debrief</b>: your technical score and
+            your price position against L1. Open any decided bid to see it.
+          </div>
+        </div>
+      </VendorPortalChrome>
     </div>
   );
 }

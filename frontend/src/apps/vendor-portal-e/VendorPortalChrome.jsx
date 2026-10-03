@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { vendorApi, showApiError } from "@/lib/api";
+import { vendorApi, bidApi, publicApi, docusignApi, showApiError } from "@/lib/api";
 
 /**
  * Shared Supplier-portal chrome (top bar + left nav) for Option E pages.
@@ -28,11 +28,43 @@ export default function VendorPortalChrome({ active, counts = {}, children }) {
   const navigate = useNavigate();
   const [me, setMe] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [liveCounts, setLiveCounts] = useState({});
   const menuRef = useRef(null);
   const fileRef = useRef(null);
   useEffect(() => {
     vendorApi.me().then(setMe).catch(() => {});
   }, []);
+  // v50s — live counts in the sidebar so Find tenders / My bids / Signatures
+  // badges match reality (previously the mockup template hard-coded "29/1/1"
+  // and the My Bids list would say 33 while the sidebar still showed 29).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [tenders, mine, env] = await Promise.allSettled([
+        publicApi.listNotices({ limit: 1 }),
+        bidApi.mine(),
+        docusignApi.listMine().catch(() => ({ items: [] })),
+      ]);
+      if (cancelled) return;
+      const next = {};
+      if (tenders.status === "fulfilled") {
+        const total = tenders.value?.total;
+        if (typeof total === "number") next["/vendor/tenders"] = total;
+      }
+      if (mine.status === "fulfilled") {
+        const rows = Array.isArray(mine.value) ? mine.value : [];
+        const active = rows.filter((b) => !["awarded","rejected","withdrawn","closed","draft"].includes(b.status));
+        next["/vendor/mybids"] = active.length;
+      }
+      if (env.status === "fulfilled") {
+        const items = Array.isArray(env.value?.items) ? env.value.items : [];
+        const pending = items.filter((e) => e.status === "sent" || e.status === "delivered").length;
+        next["/vendor/signatures"] = pending;
+      }
+      setLiveCounts(next);
+    })();
+    return () => { cancelled = true; };
+  }, [location.pathname]);
   // v50o — close the avatar dropdown on outside-click / Esc.
   useEffect(() => {
     if (!menuOpen) return;
@@ -71,7 +103,8 @@ export default function VendorPortalChrome({ active, counts = {}, children }) {
 
   const renderLink = (item) => {
     const isActive = active ? active === item.to : location.pathname === item.to;
-    const count = counts[item.to];
+    // Prefer explicit counts prop (per-page), else fall back to live counts.
+    const count = counts[item.to] != null ? counts[item.to] : liveCounts[item.to];
     return (
       <Link key={item.to} to={item.to}
         aria-current={isActive ? "page" : undefined}
