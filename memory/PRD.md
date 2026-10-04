@@ -38,6 +38,14 @@ mostly static; live data + click routing is patched at runtime via:
 
 ## What is implemented
 
+### v51l (2026-10-04) — Help Centre fully wired
+- The Help Centre was a static mockup (dead topic cards, dead search, dead
+  tours/tickets, /help/:slug ignored its slug). Both components rewritten:
+  real manual from /api/v1/meta/help rendered as searchable accordions,
+  topic cards filter with live counts, role tabs (supplier vs buyer/staff),
+  Raise-a-ticket modal posts to the real public help-request endpoint,
+  deep-linked guide pages render by slug. Verified end-to-end in preview.
+
 ### v51k (2026-10-04) — Platform-branding scrub
 - Help-centre user-facing copy neutralised ("Emergent LLM …" → "AI …").
 - Production frontend builds ship with GENERATE_SOURCEMAP=false (source

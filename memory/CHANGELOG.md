@@ -2,6 +2,38 @@
 # PMC Managers v2 — Changelog
 
 
+## 2026-10-04 — v51l Help Centre fully wired (was a static mockup)
+
+### User report
+"The help module does not work — none of the tabs which show chapters work"
++ "even the search bar does not work."
+
+### Root cause
+help-centre/HelpCentreE.jsx and HelpArticleE.jsx were static design mockups:
+topic cards, guided tours, Raise-a-ticket all `<a href="#">`; the search
+input carried a data-faq-q attribute no listener consumed; /help/:slug
+ignored the slug and rendered one fixed sample article.
+
+### Fix (full rewrite of both components)
+- HelpCentreE fetches /api/v1/meta/help (28 real manual modules) and
+  renders them as searchable accordions (title, purpose, prerequisites,
+  action steps, expected outcomes).
+- The 8 topic cards now filter the library via code mapping with live
+  counts; role tabs split supplier (vendor/public/registration surfaces)
+  vs buyer & staff (admin/staff/magic).
+- Search box matches across titles, purposes, action labels and steps
+  (all words must match).
+- Raise a ticket opens a modal posting to the real public endpoint
+  POST /api/v1/auth/help-request (kind="other") — lands in the admin
+  help-requests queue.
+- HelpArticleE renders the module matching the :slug (deep links like
+  /help/admin-docusign work) with a not-found state.
+- Dead Guided-tours column removed.
+- Verified live: cards filter (3 supplier guides), staff role shows 25,
+  search "docusign" → admin-docusign, ticket submits with success toast,
+  deep link renders the DocuSign guide.
+
+
 ## 2026-10-04 — v51k Platform-branding scrub ("how did the client know?")
 
 ### User question
