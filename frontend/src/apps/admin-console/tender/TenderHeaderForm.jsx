@@ -54,7 +54,11 @@ export default function TenderHeaderForm({ header, patchHeader }) {
   // v45 · Phase C — DPR warnings persisted on the header. Toggling a
   // checkbox marks the item resolved without deleting it so the audit
   // trail of what the AI missed stays visible.
-  const warnings = Array.isArray(h.dpr_warnings) ? h.dpr_warnings : [];
+  const warnings = (Array.isArray(h.dpr_warnings) ? h.dpr_warnings : [])
+    // v51j — hide the technical "Document is N chars — deep-dive analysed…"
+    // ingestion note; it is not an unextracted field. Older drafts have it
+    // persisted, so filter at render time (audit trail is unaffected).
+    .filter((w) => !/^Document is [\d,]+ chars/.test(w));
   const resolved = h.dpr_warnings_resolved || {};
   const toggleWarning = (w) => {
     const next = { ...resolved, [w]: !resolved[w] };
@@ -62,11 +66,14 @@ export default function TenderHeaderForm({ header, patchHeader }) {
   };
   const dismissAllWarnings = () => patchHeader({ dpr_warnings: [], dpr_warnings_resolved: {} });
 
-  const covers = h.covers || [
+  // v51j — default template had cover_no 1,1,2 (row 2/3 defaults were wrong)
+  // so 3 covers displayed 1,1,2 and 2 covers showed 1,1. Fixed defaults AND
+  // renumber whatever is loaded (repairs legacy drafts saved with dupes).
+  const covers = (h.covers || [
     { cover_no: 1, name: "Fee/PreQual/Technical", doc_type: ".pdf", description: "Bid declaration for EMD" },
-    { cover_no: 1, name: "",                       doc_type: ".pdf", description: "Technical bid documents" },
-    { cover_no: 2, name: "Finance",                doc_type: ".xls", description: "Financial bid" },
-  ];
+    { cover_no: 2, name: "",                       doc_type: ".pdf", description: "Technical bid documents" },
+    { cover_no: 3, name: "Finance",                doc_type: ".xls", description: "Financial bid" },
+  ]).map((c, i) => ({ ...c, cover_no: i + 1 }));
   const nitDocs = h.nit_documents || [];
   const workItemDocs = h.work_item_documents || [];
 

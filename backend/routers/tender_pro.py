@@ -207,8 +207,10 @@ async def _run_dpr_analyze(name: str, body_bytes: bytes, kind: str, admin: dict,
             if i + CHUNK >= total:
                 break
             i += CHUNK - OVERLAP
-        if i < total:
-            warnings.append(f"Document is {total:,} chars — deep-dive analysed first {len(chunks) * (CHUNK - OVERLAP):,} chars in {len(chunks)} chunks")
+        # v51j — the "Document is X chars — deep-dive analysed…" technical note
+        # was appended to `warnings` and displayed to admins as if it were an
+        # unextracted field on every large DPR. Removed from the UI list; the
+        # generation event itself remains on the audit ledger.
 
     # ---- Pass 1a: per-chunk local blueprints (in parallel, bounded) ----
     await _cb(15, f"mapping {len(chunks)} chunks")

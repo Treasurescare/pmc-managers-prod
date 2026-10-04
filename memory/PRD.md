@@ -38,6 +38,12 @@ mostly static; live data + click routing is patched at runtime via:
 
 ## What is implemented
 
+### v51j (2026-10-04) — Tender builder: DPR char-count note hidden + cover numbering
+- Removed the "Document is N chars — deep-dive analysed" technical note
+  from the AI warning list (backend no longer appends; frontend filters
+  it from persisted drafts). Cover numbering fixed: default template had
+  1,1,2 baked in; now 1,2,3 with sequential renumbering of loaded drafts.
+
 ### v51i (2026-10-04) — All sign-outs land on the unified /login page
 - Every sign-out path (mobile top bar, drawer, vendor avatar menu, admin,
   staff, legacy vendor dashboard) now navigates to /login (SignInE role-

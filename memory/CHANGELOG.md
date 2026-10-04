@@ -2,6 +2,29 @@
 # PMC Managers v2 — Changelog
 
 
+## 2026-10-04 — v51j Tender builder: DPR char-count note hidden + cover numbering fix
+
+### User reports (screenshots from production)
+1. "DPR fields the AI could not extract" box shows a technical line
+   "Document is 57,687 chars — deep-dive analysed first 74,000 chars in
+   2 chunks" on EVERY DPR — user: not necessary to display; keep it only
+   for the audit trail.
+2. Cover Details numbering broken: 3 covers show 1, 1, 2 (and 2 covers
+   show 1 & 1) — should be 1, 2, 3.
+
+### Root causes & fixes
+1. backend/routers/tender_pro.py:211 appended the ingestion note into the
+   `warnings` list that renders as unextracted fields (only when the doc
+   exceeded the chunk budget — i.e. most real DPRs; the maths even
+   overcounted: 74,000 > 57,687). Removed the append; frontend additionally
+   filters the persisted note from display for previously generated drafts
+   (TenderHeaderForm warnings filter). Audit ledger untouched.
+2. TenderHeaderForm.jsx default covers template had cover_no 1,1,2 baked
+   in. Defaults corrected to 1,2,3 and every loaded covers array is
+   renumbered sequentially (repairs legacy drafts). addCover already used
+   length+1 correctly. Verified live: default draft shows 1,2,3.
+
+
 ## 2026-10-04 — v51i All sign-outs land on the unified /login page
 
 ### User report (with screenshot)
