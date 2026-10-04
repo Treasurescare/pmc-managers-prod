@@ -447,7 +447,7 @@ html, body { overflow-x: clip; }
   [data-ui="e"] div.pmc-wrap[style*="grid-template-columns:272px 1fr"] {
     grid-template-columns: 1fr !important;
     gap: 8px !important;
-    padding: 16px 0 40px !important;
+    padding: 16px 12px 40px !important;
   }
 
   /* ==========================================================================
@@ -705,7 +705,7 @@ html, body { overflow-x: clip; }
   [data-ui="e"] [data-pmc-e-page="notice-detail-e"] > .pmc-wrap[style*="grid-template-columns:minmax(0,1fr) 360px"] {
     grid-template-columns: 1fr !important;
     gap: 20px !important;
-    padding: 16px 0 40px !important;
+    padding: 16px 12px 40px !important;
   }
   [data-ui="e"] [data-pmc-e-page="notice-detail-e"] aside[style*="position: sticky"] {
     position: static !important;
@@ -1170,3 +1170,38 @@ body.pmc-mob-menu-open { overflow: hidden; }
 }
 .pmc-mobile-tabbar a.is-active { color: #1f5a48; }
 .pmc-mobile-tabbar a:active { background: rgba(31,90,72,0.06); }
+
+
+/* ==========================================================================
+   v51c — global mobile guards (login inputs, frozen chrome, list padding)
+   ========================================================================== */
+@media (max-width: 767px) {
+  /* Inputs must never extend past the screen — vendor login, landing, hero */
+  input, select, textarea {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  /* Frozen header with hamburger — fixed, immune to ancestor overflow quirks */
+  .pmc-mobile-topbar {
+    position: fixed !important;
+    top: 0; left: 0; right: 0;
+    z-index: 950;
+  }
+  body:has(.pmc-mobile-topbar) { padding-top: 60px; }
+  /* Frozen footer menus — content must clear the fixed bottom tab bar on
+     every page that has one, not just vendor roots */
+  [data-pmc-e-page],
+  .pmc-app,
+  main {
+    padding-bottom: 104px !important;
+  }
+  .pmc-mobile-tabbar { z-index: 950; }
+  /* Tender listing + page content get side breathing room everywhere —
+     .pmc-wrap computed to `16px 0 40px` (zero horizontal padding).
+     [data-ui="e"] prefix needed to beat older same-file overrides. */
+  [data-ui="e"] .pmc-wrap {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+}
+

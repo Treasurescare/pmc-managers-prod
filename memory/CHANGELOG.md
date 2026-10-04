@@ -2,6 +2,40 @@
 # PMC Managers v2 — Changelog
 
 
+### v51c follow-up 2 (user preview verification, same day)
+User: "save pdf still not working; save/print/download still having issues"
+(preview) + mobile batch:
+1. **Gateway swallowed error details** — the preview ingress replaces any 5xx
+   response with its own HTML error page, so toasts only showed "Request
+   failed with status code 502". All DocuSign upstream failures in
+   docusign.py remapped 502 → **424 Failed Dependency** with explicit JSON
+   ("DocuSign authentication failed — integration key/consent invalid/expired
+   in this environment; check DOCUSIGN_*"). Verified: combined-pdf now returns
+   424 + full JSON through the gateway. Frontend download handlers additionally
+   unwrap blob error bodies so the real server reason renders in the toast
+   (DocuSignPanel.jsx, VendorSignaturesE.jsx).
+   Reminder: preview DocuSign sandbox key is expired (invalid_grant /
+   issuer_not_found) — live-DocuSign buttons can only fully succeed on
+   production or with fresh sandbox creds in preview env.
+2. **Mobile input overflow** — global ≤767px guard: all input/select/textarea
+   max-width:100% + border-box. Verified no visible overflow at 390px and
+   360px on /vendor/login, /, /tenders/live (earlier "overflowing" elements
+   were the off-canvas drawer — expected).
+3. **Frozen mobile chrome** — .pmc-mobile-topbar now position:fixed top:0
+   (was sticky, broke under some ancestors) + body:has() padding-top:60px;
+   .pmc-mobile-tabbar z-index 950; page-bottom clearance extended beyond
+   vendor roots ([data-pmc-e-page], .pmc-app, main get 104px) so the fixed
+   bottom menu never covers the last buttons. Verified: header frozen at
+   scroll 500-800px; vendor mybids bottom content clears the tab bar
+   (the "hidden button" in probes was the closed help drawer's footer —
+   off-canvas, not a bug).
+4. **Tender listing edge-to-edge** — root cause: two existing rules set
+   `padding: 16px 0 40px !important` on grid .pmc-wrap variants at higher
+   specificity. Changed both to `16px 12px 40px` and bumped the generic
+   mobile wrap rule to `[data-ui="e"] .pmc-wrap`. Verified: tl-row
+   left=13/right=357 at 390px viewport.
+
+
 ### v51c follow-up (user preview verification, same day)
 User confirmed Archive works but found 3 more issues via screenshots:
 1. **Save PDF 403 "CSRF token missing or invalid"** — `archive-pdf` was the ONLY

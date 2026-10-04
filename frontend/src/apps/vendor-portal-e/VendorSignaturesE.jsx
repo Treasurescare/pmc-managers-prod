@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
-import { docusignApi, showApiError } from "@/lib/api";
+import { docusignApi, showApiError, formatApiError } from "@/lib/api";
 import { toast } from "sonner";
 import VendorPortalChrome from "./VendorPortalChrome";
 
@@ -83,7 +83,15 @@ export default function VendorSignaturesE({ legacy: Legacy }) {
         a.remove();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
       } catch (e2) {
-        showApiError(e2, { fallbackTitle: "Download failed" });
+        // v51c — unwrap blob error bodies so the real server reason shows.
+        let msg = formatApiError(e2);
+        if (e2?.response?.data instanceof Blob) {
+          try {
+            const j = JSON.parse(await e2.response.data.text());
+            if (j?.detail) msg = typeof j.detail === "string" ? j.detail : (j.detail.message || JSON.stringify(j.detail));
+          } catch (_) { /* keep generic message */ }
+        }
+        toast.error("Download failed", { description: msg });
       }
     }
   };

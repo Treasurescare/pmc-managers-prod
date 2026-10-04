@@ -56,7 +56,15 @@ mostly static; live data + click routing is patched at runtime via:
   user confirms fixes in preview first, then asks for the v51c bundle.
 - Preview-only limitation: DocuSign sandbox creds in the preview pod are
   expired (invalid_grant), so live-DocuSign calls (Print/Save PDF/Resend)
-  return 502 there; production creds are valid.
+  fail there; production creds are valid. All upstream DocuSign failures now
+  return HTTP 424 with an explicit JSON reason (the gateway replaces 5xx
+  bodies with its own HTML page, hiding details); frontend download handlers
+  unwrap blob error bodies so toasts show the real server message.
+- Mobile guards (mobile-fix.css, ≤767px): global input/select/textarea
+  max-width:100% guard; mobile topbar fixed (frozen header) + body
+  padding-top; bottom tab-bar clearance on every page (104px); tender lists
+  and wraps get 12px side padding (fixed two older higher-specificity rules
+  that zeroed horizontal padding).
 
 ### v51b (2026-10-03) — Language footer + Tender country mode + DocuSign reassign/archive
 - EN/RU/KZ language switcher now also sits in the footer bottom bar on

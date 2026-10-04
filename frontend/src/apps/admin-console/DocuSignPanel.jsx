@@ -206,7 +206,16 @@ export default function DocuSignPanel() {
       document.body.appendChild(a); a.click();
       setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
     } catch (err) {
-      showApiError(err);
+      // v51c — blob responses hide the JSON error body; unwrap it so the
+      // toast shows the real server reason (e.g. DocuSign upstream failure).
+      let msg = formatApiError(err);
+      if (err?.response?.data instanceof Blob) {
+        try {
+          const j = JSON.parse(await err.response.data.text());
+          if (j?.detail) msg = typeof j.detail === "string" ? j.detail : (j.detail.message || JSON.stringify(j.detail));
+        } catch (_) { /* keep generic message */ }
+      }
+      toast.error("Download failed", { description: msg });
     }
   };
 

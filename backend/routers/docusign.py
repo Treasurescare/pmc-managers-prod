@@ -162,7 +162,11 @@ def _client() -> ds.ApiClient:
                 "message": "Grant DocuSign consent once before using JWT Grant.",
                 "consent_url": _consent_url(),
             })
-        raise HTTPException(502, f"DocuSign auth failed: {body}")
+        raise HTTPException(status_code=424, detail={
+                "code": "DOCUSIGN_AUTH_FAILED",
+                "message": "DocuSign authentication failed — the integration key or consent in this environment is invalid/expired. Check DOCUSIGN_* settings.",
+                "upstream": body[:200],
+            })
     except Exception as e:
         msg = str(e).lower()
         if "consent_required" in msg:
@@ -171,7 +175,11 @@ def _client() -> ds.ApiClient:
                 "message": "Grant DocuSign consent once before using JWT Grant.",
                 "consent_url": _consent_url(),
             })
-        raise HTTPException(502, f"DocuSign auth failed: {e}")
+        raise HTTPException(status_code=424, detail={
+            "code": "DOCUSIGN_AUTH_FAILED",
+            "message": "DocuSign authentication failed — the integration key or consent in this environment is invalid/expired. Check DOCUSIGN_* settings.",
+            "upstream": str(e)[:200],
+        })
     access = token.access_token
     c = ds.ApiClient()
     c.host = f"{DS_BASE_URI}/restapi"
@@ -651,7 +659,7 @@ async def resend_envelope(envelope_id: str, admin=Depends(current_admin)):
                       "last_resent_by": admin.get("email")}})
         return {"ok": True, "delivery": "email", "resent_to": signer_email}
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"DocuSign resend failed: {e}")
+        raise HTTPException(status_code=424, detail=f"DocuSign resend failed — upstream DocuSign error (expired sandbox key in preview; verify DOCUSIGN_* in this environment): {e}")
 
 
 @router.post("/envelopes/{envelope_id}/reassign")
@@ -945,7 +953,7 @@ async def vendor_resume_signing(envelope_id: str, vendor=Depends(current_vendor)
         signing_url = _recipient_view(client, envelope_id, signer_name, signer_email, cuid, return_url)
     except ApiException as e:
         _log.warning("recipient-view failed for %s: %s", envelope_id, e)
-        raise HTTPException(502, "DocuSign couldn't prepare the signing view. Try again or ask PMC to resend.")
+        raise HTTPException(424, "DocuSign couldn't prepare the signing view — upstream DocuSign error (expired sandbox key in preview). Try again or ask PMC to resend.")
     await audit_log("docusign.vendor_resume_sign", None, "docusign_envelope",
                     envelope_id, {"vendor": ve})
     return {"envelope_id": envelope_id, "signing_url": signing_url, "expires_in": 300}
@@ -976,7 +984,7 @@ async def download_combined_pdf(envelope_id: str, admin=Depends(current_admin)):
     try:
         pdf_path = envelopes.get_document(DS_ACCOUNT_ID, "combined", envelope_id)
     except Exception as e:
-        raise HTTPException(502, f"DocuSign document fetch failed: {e}")
+        raise HTTPException(424, f"DocuSign document fetch failed — upstream DocuSign error (expired sandbox key in preview; verify DOCUSIGN_* in this environment): {e}")
     try:
         pdf_bytes = Path(pdf_path).read_bytes()
     except Exception:
@@ -1016,7 +1024,7 @@ async def vendor_download_combined_pdf(envelope_id: str, vendor=Depends(current_
     try:
         pdf_path = envelopes.get_document(DS_ACCOUNT_ID, "combined", envelope_id)
     except Exception as e:
-        raise HTTPException(502, f"DocuSign document fetch failed: {e}")
+        raise HTTPException(424, f"DocuSign document fetch failed — upstream DocuSign error (expired sandbox key in preview; verify DOCUSIGN_* in this environment): {e}")
     pdf_bytes = Path(pdf_path).read_bytes()
     fname = f"{row.get('award_ref') or row.get('bid_ref') or envelope_id}-signed.pdf"
     from fastapi.responses import Response as _R
@@ -1053,7 +1061,7 @@ async def vendor_download_document(envelope_id: str, disposition: str = "inline"
     try:
         pdf_path = envelopes.get_document(DS_ACCOUNT_ID, doc_id, envelope_id)
     except Exception as e:
-        raise HTTPException(502, f"DocuSign document fetch failed: {e}")
+        raise HTTPException(424, f"DocuSign document fetch failed — upstream DocuSign error (expired sandbox key in preview; verify DOCUSIGN_* in this environment): {e}")
     pdf_bytes = Path(pdf_path).read_bytes()
     fname = f"{row.get('award_ref') or row.get('bid_ref') or envelope_id}.pdf"
     disp = "attachment" if disposition == "attachment" else "inline"
@@ -1086,7 +1094,7 @@ async def archive_envelope_pdf(envelope_id: str,
     try:
         pdf_path = envelopes.get_document(DS_ACCOUNT_ID, "combined", envelope_id)
     except Exception as e:
-        raise HTTPException(502, f"DocuSign document fetch failed: {e}")
+        raise HTTPException(424, f"DocuSign document fetch failed — upstream DocuSign error (expired sandbox key in preview; verify DOCUSIGN_* in this environment): {e}")
     pdf_bytes = Path(pdf_path).read_bytes()
     key = f"docusign-archived/{envelope_id}.pdf"
     now = datetime.now(timezone.utc).isoformat()
@@ -1114,7 +1122,7 @@ async def archive_envelope_pdf(envelope_id: str,
     try:
         pdf_path = envelopes.get_document(DS_ACCOUNT_ID, "combined", envelope_id)
     except Exception as e:
-        raise HTTPException(502, f"DocuSign document fetch failed: {e}")
+        raise HTTPException(424, f"DocuSign document fetch failed — upstream DocuSign error (expired sandbox key in preview; verify DOCUSIGN_* in this environment): {e}")
     pdf_bytes = Path(pdf_path).read_bytes()
     key = f"docusign-archived/{envelope_id}.pdf"
     now = datetime.now(timezone.utc).isoformat()
