@@ -38,6 +38,13 @@ mostly static; live data + click routing is patched at runtime via:
 
 ## What is implemented
 
+### v51m (2026-10-04) — Help Centre topic cards cross-role + dead drawer scrub
+- Topic cards no longer return "No guide matches" for suppliers: they now
+  search the entire manual across surfaces (role tabs only scope the
+  default library view). Floating help drawer's dead duplicate markup
+  (embedded in 12 static pages) is scrubbed at runtime so the single
+  working React drawer (with live FAQ search) is the only one present.
+
 ### v51l (2026-10-04) — Help Centre fully wired
 - The Help Centre was a static mockup (dead topic cards, dead search, dead
   tours/tickets, /help/:slug ignored its slug). Both components rewritten:

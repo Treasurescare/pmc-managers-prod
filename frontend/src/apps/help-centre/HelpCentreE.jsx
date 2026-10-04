@@ -124,13 +124,21 @@ export default function HelpCentreE({ legacy: Legacy }) {
       wantSupplier ? SUPPLIER_SURFACES.has(m.surface) : !SUPPLIER_SURFACES.has(m.surface));
   }, [modules, role]);
 
+  // v51m — topic cards search the ENTIRE manual regardless of the selected
+  // role (each guide carries a "Suppliers / Buyers & staff" chip). Role tabs
+  // only scope the unfiltered library view. Previously a supplier clicking
+  // "Signatures & contracts" or "EMD & payments" got "No guide matches"
+  // because those topics map to admin-surface modules.
+  const allModules = useMemo(() => Object.entries(modules), [modules]);
+
   const visibleModules = useMemo(() => {
     const t = TOPICS.find((x) => x.key === topic);
-    return roleModules.filter(([code, m]) =>
+    const base = t ? allModules : roleModules;
+    return base.filter(([code, m]) =>
       (!t || t.codes.includes(code)) && moduleMatchesQuery(m, query.trim()));
-  }, [roleModules, topic, query]);
+  }, [allModules, roleModules, topic, query]);
 
-  const topicCount = (t) => roleModules.filter(([code]) => t.codes.includes(code)).length;
+  const topicCount = (t) => allModules.filter(([code]) => t.codes.includes(code)).length;
 
   const pickTopic = (key) => {
     setTopic((cur) => (cur === key ? null : key));

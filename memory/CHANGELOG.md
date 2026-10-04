@@ -2,6 +2,32 @@
 # PMC Managers v2 — Changelog
 
 
+## 2026-10-04 — v51m Help Centre topic cards cross-role + dead drawer scrub
+
+### User report (video on production v51l)
+Clicking "Signatures & contracts" / "EMD & payments" as a supplier showed
+"No guide matches"; the floating "?" drawer's search box did not filter.
+
+### Root causes
+1. v51l topic→module mapping pointed at admin-surface modules
+   (admin-docusign, admin-escrow, …) while the default "supplier" role tab
+   excluded admin surfaces — so most topic cards filtered to zero guides
+   for suppliers.
+2. Twelve static pages still embed the original mockup help drawer
+   (search box with no handler). It shares .pmc-drawer/.pmc-helpfab
+   classes with the real React PmcHelpDrawer and rendered on top of it.
+
+### Fixes
+- HelpCentreE: topic cards now search the ENTIRE manual regardless of
+  selected role (guides carry Suppliers / Buyers & staff chips); role
+  tabs only scope the unfiltered library view. Verified: Signatures=2,
+  EMD=2 guides for suppliers.
+- PmcHelpDrawer: on mount and on every route change, removes any
+  non-React duplicate drawers/fabs/scrims from the DOM, leaving the
+  single working drawer (live FAQ search). Verified: exactly 1 drawer on
+  the homepage, "emd" search filters correctly.
+
+
 ## 2026-10-04 — v51l Help Centre fully wired (was a static mockup)
 
 ### User report

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { useUiTheme } from "@/context/UiThemeContext";
 
 /**
@@ -17,8 +18,33 @@ const FAQS = [
 
 export default function PmcHelpDrawer() {
   const { isE } = useUiTheme();
+  const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
+
+  // v51m — several static pages still ship their own dead mockup drawer
+  // markup (search box with no handler, "Feedback" button, "New supplier?"
+  // promo). Both drawers share the .pmc-drawer / .pmc-helpfab classes, so
+  // the dead static one rendered on top and its search did nothing.
+  // Remove the non-React duplicates on mount and on every route change.
+  useEffect(() => {
+    if (!isE) return;
+    const scrub = () => {
+      document.querySelectorAll("aside.pmc-drawer").forEach((el) => {
+        if (el.getAttribute("data-testid") !== "pmc-help-drawer") el.remove();
+      });
+      document.querySelectorAll(".pmc-helpfab").forEach((el) => {
+        if (el.getAttribute("data-testid") !== "pmc-help-fab") el.remove();
+      });
+      document.querySelectorAll(".pmc-drawer-scrim").forEach((el) => {
+        if (el.getAttribute("data-testid") !== "pmc-drawer-scrim") el.remove();
+      });
+    };
+    scrub();
+    const t = setInterval(scrub, 1500); // page content can mount after us
+    const stop = setTimeout(() => clearInterval(t), 8000);
+    return () => { clearInterval(t); clearTimeout(stop); };
+  }, [isE, pathname]);
 
   useEffect(() => {
     if (!isE) return;
