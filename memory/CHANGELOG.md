@@ -2,6 +2,20 @@
 # PMC Managers v2 — Changelog
 
 
+## 2026-10-04 — v51n Floating help drawer searches the full manual
+
+### User report
+Drawer search for "tender" returned 1 result while the Help Centre page
+returned 2 (supplier) / 13 (staff). Reason: the drawer searched only its 7
+hardcoded quick FAQs; the Help Centre searches the full 28-module manual.
+
+### Fix (PmcHelpDrawer.jsx)
+- Drawer now fetches /api/v1/meta/help on first open and searches the full
+  manual in addition to the quick FAQs: quick answers render first, then a
+  "From the full manual" section with up to 6 matching guides linking to
+  /help/<slug>. Empty state only when neither matches.
+
+
 ## 2026-10-04 — v51m Help Centre topic cards cross-role + dead drawer scrub
 
 ### User report (video on production v51l)

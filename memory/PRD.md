@@ -38,6 +38,12 @@ mostly static; live data + click routing is patched at runtime via:
 
 ## What is implemented
 
+### v51n (2026-10-04) — Floating help drawer searches the full manual
+- Drawer search previously covered only 7 hardcoded FAQs while the Help
+  Centre covered the 28-guide manual (query "tender" → 1 vs 2/13 results).
+  Drawer now loads the manual on first open and shows quick answers plus
+  "From the full manual" guide links. Consistent answers on both surfaces.
+
 ### v51m (2026-10-04) — Help Centre topic cards cross-role + dead drawer scrub
 - Topic cards no longer return "No guide matches" for suppliers: they now
   search the entire manual across surfaces (role tabs only scope the

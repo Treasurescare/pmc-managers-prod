@@ -21,6 +21,7 @@ export default function PmcHelpDrawer() {
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
+  const [guides, setGuides] = useState(null);
 
   // v51m — several static pages still ship their own dead mockup drawer
   // markup (search box with no handler, "Feedback" button, "New supplier?"
@@ -45,6 +46,20 @@ export default function PmcHelpDrawer() {
     const stop = setTimeout(() => clearInterval(t), 8000);
     return () => { clearInterval(t); clearTimeout(stop); };
   }, [isE, pathname]);
+
+  // v51n — the drawer searched only the 7 built-in FAQs while the Help
+  // Centre searched the full 28-guide manual, so the same query ("tender")
+  // returned 1 result here but 2/13 there. Load the manual on first open
+  // and search both: quick answers first, matching guides below.
+  useEffect(() => {
+    if (!isE || !open || guides !== null) return;
+    let live = true;
+    fetch("/api/v1/meta/help")
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((d) => { if (live) setGuides(Object.entries(d.modules || {})); })
+      .catch(() => { if (live) setGuides([]); });
+    return () => { live = false; };
+  }, [isE, open, guides]);
 
   useEffect(() => {
     if (!isE) return;
@@ -77,6 +92,21 @@ export default function PmcHelpDrawer() {
   const filtered = FAQS.filter(
     (f) => !q || f.q.toLowerCase().includes(q.toLowerCase()) || f.a.toLowerCase().includes(q.toLowerCase())
   );
+
+  // Supplier-facing guides rank first — the floating drawer is mostly used
+  // by public/vendor visitors, while admin manuals still appear below.
+  const SURFACE_RANK = { vendor: 0, public: 0, registration: 0, staff: 1, admin: 2, magic: 3 };
+  const guideHits = (guides || [])
+    .filter(([, m]) => {
+      const query = q.trim().toLowerCase();
+      if (!query) return false;
+      const hay = [m.title, m.purpose, m.url_path,
+        ...(m.actions || []).flatMap((a) => [a.label, a.when, a.expected, ...(a.steps || [])])]
+        .join(" ").toLowerCase();
+      return query.split(/\s+/).every((w) => hay.includes(w));
+    })
+    .sort((a, b) => (SURFACE_RANK[a[1].surface] ?? 2) - (SURFACE_RANK[b[1].surface] ?? 2))
+    .slice(0, 6);
 
   return (
     <>
@@ -129,15 +159,31 @@ export default function PmcHelpDrawer() {
             />
           </label>
           <div>
-            {filtered.length === 0 ? (
+            {filtered.length === 0 && guideHits.length === 0 && (
               <p className="pmc-muted">No answer matches yet. Contact the PMC desk below.</p>
-            ) : (
-              filtered.map((f, i) => (
-                <details key={i} className="pmc-faq">
-                  <summary>{f.q}</summary>
-                  <p>{f.a}</p>
-                </details>
-              ))
+            )}
+            {filtered.map((f, i) => (
+              <details key={i} className="pmc-faq">
+                <summary>{f.q}</summary>
+                <p>{f.a}</p>
+              </details>
+            ))}
+            {q.trim() && guideHits.length > 0 && (
+              <div style={{ marginTop: 14 }} data-testid="help-drawer-guides">
+                <div className="pmc-eyebrow" style={{ margin: "6px 0 8px" }}>From the full manual</div>
+                {guideHits.map(([code, m]) => (
+                  <a key={code} href={`/help/${code}`}
+                     data-testid={`help-drawer-guide-${code}`}
+                     style={{ display: "block", padding: "10px 12px", marginBottom: 8,
+                              border: "1px solid var(--line, #ddd)", borderRadius: 8,
+                              textDecoration: "none", color: "inherit" }}>
+                    <b style={{ fontSize: 14 }}>{m.title}</b>
+                    <div className="pmc-muted" style={{ fontSize: 12, marginTop: 2 }}>
+                      {(m.purpose || "").slice(0, 90)}{(m.purpose || "").length > 90 ? "…" : ""}
+                    </div>
+                  </a>
+                ))}
+              </div>
             )}
           </div>
         </div>
