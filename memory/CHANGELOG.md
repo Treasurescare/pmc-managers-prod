@@ -2,6 +2,30 @@
 # PMC Managers v2 — Changelog
 
 
+## 2026-10-04 — v51h Vendor sign-in page: ghost labels + navy band
+
+### User report
+After sign-out, /vendor/login (legacy VendorLogin.jsx) shows washed-out,
+near-invisible "Email"/"Password" labels on both iPhone and desktop Safari,
+plus a dark navy band at the bottom of the mobile page.
+
+### Root cause
+The legacy page relies on Tailwind slate utilities (text-slate-700/500)
+which render inconsistently across bundles in this project (production
+bundle variations purge or remap them — same class family that rendered
+bg-slate-50 as a dark block in the DocuSign console). The outer wrapper's
+inline #0b1e3f background showed through as a navy band on mobile where
+100vh < visual viewport under Safari's chrome.
+
+### Fix (VendorLogin.jsx — deterministic inline styles)
+- Labels: color #334155 + fontWeight 600 (inline, immune to palette purge).
+- Subtitle/footer links: #64748b inline.
+- Inputs: explicit color #0f172a on #ffffff.
+- Outer wrapper background white; left promo panel carries its own
+  #0b1e3f — desktop unchanged, mobile navy band eliminated.
+- Verified live: label rgb(51,65,85), root bg white.
+
+
 ## 2026-10-04 — v51g Vendor mobile top bar restructure
 
 ### User report after v51f

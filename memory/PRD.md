@@ -38,6 +38,13 @@ mostly static; live data + click routing is patched at runtime via:
 
 ## What is implemented
 
+### v51h (2026-10-04) — Vendor sign-in page: ghost labels + navy band
+- Legacy /vendor/login labels/subtitle/links moved from Tailwind slate
+  utilities to deterministic inline colors (slate classes render
+  inconsistently across this project's bundles); inputs get explicit
+  ink-on-white; outer wrapper bg white with dark promo panel scoped to
+  desktop, removing the mobile navy band.
+
 ### v51g (2026-10-04) — Vendor mobile top bar restructure
 - Hamburger moved to top-left; top-right cluster = bell icon + avatar
   circle (company initials, links to Account) + always-visible Sign out
