@@ -961,6 +961,16 @@ async def download_combined_pdf(envelope_id: str, admin=Depends(current_admin)):
         raise HTTPException(404, "Envelope not found")
     if row.get("status") not in ("completed",):
         raise HTTPException(412, f"Envelope status is '{row.get('status')}' — must be 'completed' before downloading the signed PDF")
+    # v51c — serve the PMC-storage copy first when one exists (same behaviour
+    # as the vendor endpoints): keeps Print/download working even when the
+    # live DocuSign API is unreachable.
+    if row.get("archived_file_key"):
+        arc = await db.uploads.find_one({"key": row["archived_file_key"]})
+        if arc:
+            from fastapi.responses import Response as _R
+            fname = f"{row.get('award_ref') or row.get('bid_ref') or envelope_id}-signed.pdf"
+            return _R(content=base64.b64decode(arc["data_b64"]), media_type="application/pdf",
+                      headers={"Content-Disposition": f'attachment; filename="{fname}"'})
     client = _client()
     envelopes = ds.EnvelopesApi(client)
     try:
@@ -1056,11 +1066,44 @@ async def vendor_download_document(envelope_id: str, disposition: str = "inline"
 
 @router.post("/envelopes/{envelope_id}/archive-pdf")
 async def archive_envelope_pdf(envelope_id: str,
-                               admin=Depends(require_role("admin"))):
+                               admin=Depends(current_admin)):
     """v50q — Admin repair tool. Fetches the combined signed PDF from DocuSign
     and archives it in our own storage (db.uploads). Vendor + admin downloads
     then serve from the archive, so envelopes whose documents DocuSign can no
-    longer return are repaired from the console without DocuSign support."""
+    longer return are repaired from the console without DocuSign support.
+
+    v51c — was require_role("admin") (bundles the cookie-based CSRF check);
+    every other endpoint in this router uses current_admin (Bearer token).
+    The cookie check 403'd whenever the csrf_token cookie couldn't flow —
+    e.g. the preview iframe or any SameSite=Lax-blocked context."""
+    row = await db.docusign_envelopes.find_one({"envelope_id": envelope_id})
+    if not row:
+        raise HTTPException(404, "Envelope not found")
+    if row.get("status") != "completed":
+        raise HTTPException(412, "Only completed envelopes can be archived")
+    client = _client()
+    envelopes = ds.EnvelopesApi(client)
+    try:
+        pdf_path = envelopes.get_document(DS_ACCOUNT_ID, "combined", envelope_id)
+    except Exception as e:
+        raise HTTPException(502, f"DocuSign document fetch failed: {e}")
+    pdf_bytes = Path(pdf_path).read_bytes()
+    key = f"docusign-archived/{envelope_id}.pdf"
+    now = datetime.now(timezone.utc).isoformat()
+    await db.uploads.update_one(
+        {"key": key},
+        {"$set": {"key": key, "content_type": "application/pdf",
+                  "size_bytes": len(pdf_bytes),
+                  "data_b64": base64.b64encode(pdf_bytes).decode("ascii"),
+                  "created_at": now}},
+        upsert=True)
+    await db.docusign_envelopes.update_one(
+        {"_id": row["_id"]},
+        {"$set": {"archived_file_key": key, "archived_at": now,
+                  "archived_by": admin["id"]}})
+    await audit_log("docusign.archive_pdf", admin, "docusign_envelope",
+                    envelope_id, {"key": key, "size_bytes": len(pdf_bytes)})
+    return {"ok": True, "key": key, "size_bytes": len(pdf_bytes)}
     row = await db.docusign_envelopes.find_one({"envelope_id": envelope_id})
     if not row:
         raise HTTPException(404, "Envelope not found")

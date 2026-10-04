@@ -45,10 +45,18 @@ mostly static; live data + click routing is patched at runtime via:
   ALL API error toasts app-wide never rendered; backend resend called
   _recipient_view with 4/6 args → guaranteed 502. All fixed.
 - Duplicate "Archive" confusion resolved: amber = "⇩ Save PDF" (mirror signed
-  PDF into PMC storage), slate ⌧ Archive = hide from vendors (now dims the row
-  + shows an ARCHIVED chip, swaps to ⟲ Restore).
-- Verified in preview end-to-end (iteration_45 + self-test). NOT yet bundled —
+  PDF into PMC storage), slate ⌧ Archive = hide from vendors (light-grey row
+  + dark ARCHIVED chip + ⟲ Restore; inline styles after Tailwind slate
+  utilities rendered the row as an unreadable dark block).
+- Follow-up after user preview test: archive-pdf 403'd on CSRF cookie check
+  (only endpoint in the router using require_role; SameSite=Lax cookies can't
+  flow in the preview iframe) → switched to current_admin Bearer auth; admin
+  Print/download now serves the PMC-storage copy first when one exists.
+- Verified in preview end-to-end (iteration_45 + self-tests). NOT yet bundled —
   user confirms fixes in preview first, then asks for the v51c bundle.
+- Preview-only limitation: DocuSign sandbox creds in the preview pod are
+  expired (invalid_grant), so live-DocuSign calls (Print/Save PDF/Resend)
+  return 502 there; production creds are valid.
 
 ### v51b (2026-10-03) — Language footer + Tender country mode + DocuSign reassign/archive
 - EN/RU/KZ language switcher now also sits in the footer bottom bar on

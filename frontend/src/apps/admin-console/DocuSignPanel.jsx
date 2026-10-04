@@ -376,7 +376,8 @@ export default function DocuSignPanel() {
               </td></tr>
             ) : pagedEnvelopes.map((e) => (
               <tr key={e.envelope_id}
-                  className={`border-t border-brand-navy/10 ${e.archived ? "opacity-50 bg-slate-50" : ""}`}
+                  className="border-t border-brand-navy/10"
+                  style={e.archived ? { background: "#e8e5df" } : undefined}
                   data-testid={`ds-envelope-${e.envelope_id}`}>
                 <td className="px-3 py-2">
                   {e.kind === "award" ? `${e.sub_kind?.toUpperCase() || "AWARD"}` : "BID ACK"}
@@ -387,7 +388,8 @@ export default function DocuSignPanel() {
                 <td className="px-3 py-2">
                   {statusChip(e.status)}
                   {e.archived && (
-                    <span className="ml-1 text-[10px] uppercase tracking-widest border px-2 py-1 bg-slate-200 text-slate-700 border-slate-300"
+                    <span className="ml-1 text-[10px] uppercase tracking-widest border px-2 py-1"
+                          style={{ background: "#5d6d7e", color: "#fff", borderColor: "#5d6d7e" }}
                           data-testid={`ds-archived-chip-${e.envelope_id}`}>archived</span>
                   )}
                 </td>

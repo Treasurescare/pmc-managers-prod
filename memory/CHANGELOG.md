@@ -1,6 +1,26 @@
 # PMC Managers v2 — Changelog
 # PMC Managers v2 — Changelog
 
+
+### v51c follow-up (user preview verification, same day)
+User confirmed Archive works but found 3 more issues via screenshots:
+1. **Save PDF 403 "CSRF token missing or invalid"** — `archive-pdf` was the ONLY
+   endpoint in the docusign router using `require_role("admin")` (bundles the
+   cookie-based `require_csrf` check). Session cookies are SameSite=Lax, so any
+   context where cookies can't flow (preview iframe at app.emergent.sh,
+   third-party blocking) 403'd while Bearer-auth siblings worked. Fixed:
+   archive-pdf now uses `current_admin` like every other endpoint in the router.
+2. **Admin Print/download fragility** — `download_combined_pdf` (admin) always
+   called live DocuSign; now serves `archived_file_key` from PMC storage first
+   (same behaviour the vendor endpoints already had).
+3. **Archived row unreadable** — `opacity-50 bg-slate-50` on the <tr> rendered
+   as a dark washed-out block (Tailwind slate classes misbehaving in this
+   build). Replaced with deterministic inline styles: light warm-grey row
+   (#e8e5df), readable text, dark "archived" chip, full-strength buttons.
+Verified in preview: archived row bg=rgb(232,229,223) text=rgb(20,38,31)
+chip+Restore present; Save PDF reaches DocuSign (502 in preview = expired
+sandbox creds, environmental only); restore leaves data clean.
+
 ## 2026-10-04 — v51c DocuSign console regression fix (reassign / archive / resend / download / duplicate Archive)
 
 ### User report (production, v51b)
