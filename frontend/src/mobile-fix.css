@@ -1196,12 +1196,38 @@ body.pmc-mob-menu-open { overflow: hidden; }
     padding-bottom: 104px !important;
   }
   .pmc-mobile-tabbar { z-index: 950; }
-  /* Tender listing + page content get side breathing room everywhere —
-     .pmc-wrap computed to `16px 0 40px` (zero horizontal padding).
-     [data-ui="e"] prefix needed to beat older same-file overrides. */
+  /* Tender listing side padding */
   [data-ui="e"] .pmc-wrap {
     padding-left: 12px !important;
     padding-right: 12px !important;
+  }
+  /* v51f sign in page mobile */
+  [data-pmc-e-page="sign-in-e"] > div[style*="grid-template-columns"] {
+    grid-template-columns: 1fr !important;
+    min-height: auto !important;
+  }
+  [data-pmc-e-page="sign-in-e"] section.pmc-chrome { display: none !important; }
+  [data-pmc-e-page="sign-in-e"] section:not(.pmc-chrome) {
+    padding: 20px 16px !important;
+    place-items: start !important;
+  }
+  [data-pmc-e-page="sign-in-e"] form {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  [data-pmc-e-page="sign-in-e"] form .pmc-input {
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  /* v51f drawer sign out visibility */
+  .pmc-mobile-menu-drawer .pmc-mob-menu-cta button[data-testid="pmc-mobile-menu-signout"] {
+    background: #d9bd72 !important;
+    color: #1b1606 !important;
+    border: 0 !important;
+    min-height: 48px !important;
+    border-radius: 6px !important;
+    font-weight: 700 !important;
+    width: 100% !important;
   }
 }
 

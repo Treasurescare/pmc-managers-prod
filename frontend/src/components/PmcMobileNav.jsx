@@ -42,7 +42,6 @@ const VENDOR_TABS = [
   { to: "/vendor", label: "Home", testid: "mnav-home", iconId: "i-home" },
   { to: "/vendor/tenders", label: "Tenders", testid: "mnav-tenders", iconId: "i-search" },
   { to: "/vendor/mybids", label: "Bids", testid: "mnav-bids", iconId: "i-gavel" },
-  { to: "/vendor/alerts", label: "Alerts", testid: "mnav-alerts", iconId: "i-bell" },
   { to: "/vendor/account", label: "Account", testid: "mnav-account", iconId: "i-users" },
 ];
 
@@ -149,6 +148,17 @@ export default function PmcMobileNav() {
           <Link to="/vendor" className="pmc-mob-brand" data-testid="pmc-mobile-brand">
             <b>PMC Managers</b><span>Supplier portal</span>
           </Link>
+          <Link to="/vendor/alerts" className="pmc-mob-bell"
+                aria-label="Notifications & alerts"
+                data-testid="pmc-mobile-bell"
+                style={{ marginLeft: "auto", display: "inline-grid", placeItems: "center",
+                         width: 40, height: 40, color: "#f3efe4", textDecoration: "none",
+                         borderRadius: 6, border: "1px solid rgba(243,239,228,0.25)" }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+              <path d="M10 21a2 2 0 0 0 4 0" />
+            </svg>
+          </Link>
           <button type="button" className="pmc-mob-hamburger"
                   onClick={() => setMenuOpen(true)} aria-label="Open menu"
                   data-testid="pmc-mobile-menu-open">
@@ -177,15 +187,22 @@ export default function PmcMobileNav() {
             <NavLink to="/vendor/account" data-testid="pmc-mobile-menu-link-account">Account &amp; security</NavLink>
             <NavLink to="/vendor/emd" data-testid="pmc-mobile-menu-link-emd">EMD &amp; payments</NavLink>
             <NavLink to="/vendor/signatures" data-testid="pmc-mobile-menu-link-signatures">Signatures</NavLink>
+            <NavLink to="/vendor/alerts" data-testid="pmc-mobile-menu-link-alerts">Alerts</NavLink>
             <NavLink to="/help" data-testid="pmc-mobile-menu-link-help">Help &amp; FAQs</NavLink>
           </nav>
           <div className="pmc-mob-menu-cta">
             <button type="button" onClick={doSignOut}
                     data-testid="pmc-mobile-menu-signout"
-                    className="ghost"
-                    style={{ background: "transparent", border: "1px solid #d9bd72",
-                             color: "#f3efe4", minHeight: 46, borderRadius: 6,
-                             fontWeight: 600, cursor: "pointer" }}>
+                    style={{ background: "#d9bd72", color: "#1b1606", border: 0,
+                             minHeight: 48, borderRadius: 6, fontWeight: 700,
+                             fontSize: 15, cursor: "pointer", padding: "0 16px",
+                             display: "inline-flex", justifyContent: "center",
+                             alignItems: "center", gap: 10, width: "100%" }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M14 4h5v16h-5" />
+                <path d="M10 8l-4 4 4 4" />
+                <path d="M6 12h10" />
+              </svg>
               Sign out
             </button>
           </div>

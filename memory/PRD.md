@@ -38,6 +38,16 @@ mostly static; live data + click routing is patched at runtime via:
 
 ## What is implemented
 
+### v51f (2026-10-04) — Mobile vendor chrome polish + /login layout fix
+- Alerts bell moved from the bottom tab bar to the vendor mobile top bar
+  (left of the hamburger). Bottom tabs: Home / Tenders / Bids / Account.
+- Drawer Sign out is now a prominent brass primary button (previously an
+  invisible ghost because the shared drawer-CTA CSS only styled `<a>`
+  elements, not raw `<button>`).
+- /login (SignInE) mobile layout fixed: hero collapses on ≤767px, grid
+  becomes 1fr, form 100% width, inputs max-width:100%. No horizontal
+  overflow; role picker cards and inputs fit viewport.
+
 ### v51e (2026-10-04) — Design + mobile sign-out/back + Print-in-tab
 - Vendor bid workspace step list fixed: `.pmc-steplist > div` CSS now
   mirrors the `<a>` rules so labels no longer glue together

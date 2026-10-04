@@ -2,6 +2,44 @@
 # PMC Managers v2 — Changelog
 
 
+## 2026-10-04 — v51f build-break postmortem
+A rogue `//` comment on line 1199 of mobile-fix.css (left behind by an
+earlier search_replace) caused the CSS minifier to fail every v51f build
+with "Unexpected '/'. Escaping special characters with \\ may help." —
+CSS has no `//` syntax; the minifier read it as two bare slashes. Replaced
+with a `/* ... */` block comment. Build succeeded; v51f bundle regenerated
+at 2.9MB (was shipping a stale 879KB stub before the fix).
+
+
+## 2026-10-04 — v51f Mobile vendor chrome polish + /login layout fix
+
+### User reports after v51e deploy (iPhone 5G screenshots)
+1. Sign out button is NOT visible in the mobile drawer (empty green area
+   under Help & FAQs).
+2. There is no avatar icon anywhere on mobile — only the hamburger.
+3. The notifications/bell lives in the Alerts bottom tab; user wants it in
+   the top bar next to the hamburger.
+4. The /login page is broken on mobile — role picker cards and inputs
+   overflow the right edge of the viewport ("Forg…", "…ute").
+
+### Fixes
+1. Alerts removed from bottom tab bar (now 4 tabs: Home / Tenders / Bids /
+   Account); a bell icon added to the vendor mobile top bar, left of the
+   hamburger, linking to /vendor/alerts.
+2. Drawer Sign out is now a full-width brass primary button (previously an
+   invisible ghost — the shared `.pmc-mob-menu-cta a.ghost` CSS only styled
+   `<a>` elements, so the raw `<button>` had no appearance). Both the
+   inline style AND a belt-and-braces CSS rule at
+   `.pmc-mob-menu-cta button[data-testid="pmc-mobile-menu-signout"]` force
+   bg #d9bd72 / 48px min-height / border-radius 6 / weight 700 / 100% width.
+   Verified live: bg rgb(217,189,114), 326×48, visible:true.
+3. /login (SignInE) rewrites itself on ≤767px: the left pmc-chrome hero
+   collapses (display:none), the inline 2-column grid becomes 1fr, the
+   right section pads 20/16, the form fills 100% width, and every
+   .pmc-input is max-width:100% + border-box. Screenshot: role cards and
+   inputs fit cleanly inside the viewport, no horizontal scroll.
+
+
 ## 2026-10-04 — v51e Design + mobile sign-out/back + Print-in-tab
 
 ### User reports after v51d deploy

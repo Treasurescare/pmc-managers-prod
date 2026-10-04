@@ -2929,16 +2929,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .ha-steps li::before{content:counter(s);width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:var(--chrome);color:var(--brass-on-chrome);font-family:var(--font-display);font-weight:600;font-size:18px}
 .ha-fb{display:flex;justify-content:space-between;align-items:center;margin-top:40px;padding:18px 20px;background:var(--surface-sunken);border:1px solid var(--line);border-radius:var(--radius-md)}
 
-
-/* ============================================================
-   v51e — step-list rendered as <div> instead of <a>
-   -----------------------------------------------------------
-   VendorBidWorkspaceE.jsx renders the five bid steps as plain
-   <div> elements, but every .pmc-steplist rule above only targets
-   <a> children. Result: the inner <small> is inline, so labels
-   look like "EligibilityKYC match", "2Technical envelopeNot sealed".
-   Mirror the anchor rules for direct <div> children.
-   ============================================================ */
+/* v51e step-list rendered as div instead of a */
 .pmc-steplist > div{display:flex;gap:12px;align-items:center;padding:10px 12px;border-radius:var(--radius-sm);color:var(--ink);font-size:14px;font-weight:600}
 .pmc-steplist > div .d{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:12px;border:2px solid var(--line-strong);color:var(--ink-muted);flex:none}
 .pmc-steplist > div.done .d{background:var(--primary);border-color:var(--primary);color:var(--on-primary)}
@@ -2947,26 +2938,14 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .pmc-steplist > div small{display:block;font-weight:500;font-size:12px;color:var(--ink-muted);margin-top:2px}
 .pmc-steplist > div > span:last-child{display:flex;flex-direction:column;min-width:0;flex:1}
 
-/* ============================================================
-   v51e — bid workspace: no pill overflow, tablet-friendly grid
-   ------------------------------------------------------------
-   On ≤1300px the inline 260/1fr/300 grid starved the middle
-   column and truncated the "DUE BEFORE DEADLINE" pill. Collapse
-   the aux column below the main one at that breakpoint.
-   ============================================================ */
+/* v51e bid workspace pill nowrap and tablet grid */
 .pmc-pill{white-space:nowrap}
 @media (max-width:1300px){
-  [data-pmc-e-page="vendor-bid-workspace-e"] div[style*="260px minmax(0,1fr) 300px"]{
-    grid-template-columns:220px minmax(0,1fr)!important;
-  }
-  [data-pmc-e-page="vendor-bid-workspace-e"] div[style*="260px minmax(0,1fr) 300px"] > *:nth-child(3){
-    grid-column:1 / -1;
-  }
+  [data-pmc-e-page="vendor-bid-workspace-e"] div[style*="260px"]{grid-template-columns:220px minmax(0,1fr)!important}
+  [data-pmc-e-page="vendor-bid-workspace-e"] div[style*="260px"] > *:nth-child(3){grid-column:1/-1}
 }
 @media (max-width:900px){
-  [data-pmc-e-page="vendor-bid-workspace-e"] div[style*="260px minmax(0,1fr) 300px"]{
-    grid-template-columns:1fr!important;
-  }
+  [data-pmc-e-page="vendor-bid-workspace-e"] div[style*="260px"]{grid-template-columns:1fr!important}
 }
 
 .ha .pmc-ico{vertical-align:-3px}
