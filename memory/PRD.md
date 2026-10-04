@@ -38,6 +38,22 @@ mostly static; live data + click routing is patched at runtime via:
 
 ## What is implemented
 
+### v51e (2026-10-04) — Design + mobile sign-out/back + Print-in-tab
+- Vendor bid workspace step list fixed: `.pmc-steplist > div` CSS now
+  mirrors the `<a>` rules so labels no longer glue together
+  ("EligibilityKYC match" → "Eligibility / KYC match"). Grid collapses
+  cleanly at tablet (≤1300px) and phone (≤900px) widths; pill is nowrap.
+- Mobile vendor + admin now have a working top bar with Back button,
+  brand, and Sign out (vendor via drawer, admin inline). Earlier releases
+  had no mobile sign-out path.
+- Admin Print button now opens the signed PDF in a new tab inline
+  (window.open on the blob URL) — browser PDF viewer handles printing.
+  The old behaviour forced a Save-As. ⬇ Download kept as a separate
+  button in the view modal.
+- "PMC stored" chip now visible on every envelope whose signed PDF
+  lives in PMC storage; Save PDF button auto-hides once stored; success
+  toast explains that Download + Print now serve the stored copy.
+
 ### v51d (2026-10-04) — DocuSign download bytes fix + Archived tab
 - Root cause of production 500 "Could not read the fetched PDF from disk":
   docusign-esign SDK returned a path to a temp file that was gone before

@@ -121,7 +121,10 @@ export default function DocuSignPanel() {
     const tid = toast.loading("Saving signed PDF to PMC storage…");
     try {
       const r = await docusignApi.archivePdf(envelopeId);
-      toast.success(`Saved ${(r.size_bytes / 1024).toFixed(0)} KB — vendor download now served from PMC storage`, { id: tid });
+      toast.success(`Saved ${(r.size_bytes / 1024).toFixed(0)} KB to PMC storage`, {
+        id: tid,
+        description: `Download and Print now serve this copy even if DocuSign is unreachable. A ✓ PMC stored chip is visible on this envelope.`,
+      });
       load();
     } catch (e) {
       toast.error("Save PDF failed", { id: tid, description: formatApiError(e) });
@@ -202,6 +205,20 @@ export default function DocuSignPanel() {
     return <span className={`text-[10px] uppercase tracking-widest border px-2 py-1 ${cls}`}>{label}</span>;
   };
 
+  // Blob-error unwrap so toasts show the real server reason instead of a
+  // generic "Request failed with status code 5xx".
+  const _blobError = async (err, fallbackTitle) => {
+    let msg = formatApiError(err);
+    if (err?.response?.data instanceof Blob) {
+      try {
+        const j = JSON.parse(await err.response.data.text());
+        if (j?.detail) msg = typeof j.detail === "string" ? j.detail : (j.detail.message || JSON.stringify(j.detail));
+      } catch (_) { /* keep generic message */ }
+    }
+    toast.error(fallbackTitle, { description: msg });
+  };
+
+  // ⬇ signed — force a file download (keeps a copy on the admin's disk).
   const downloadSigned = async (envelope_id) => {
     try {
       const blob = await docusignApi.downloadPdf(envelope_id);
@@ -210,17 +227,26 @@ export default function DocuSignPanel() {
       a.href = url; a.download = `${envelope_id}-signed.pdf`;
       document.body.appendChild(a); a.click();
       setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+    } catch (err) { await _blobError(err, "Download failed"); }
+  };
+
+  // 🖨 Print — v51e: open the signed PDF inline in a new tab so the browser's
+  // built-in PDF viewer loads it and the admin can click its own Print icon.
+  // (Previously called downloadSigned() which forced a Save-As dialog.)
+  const printSigned = async (envelope_id) => {
+    // Open the tab synchronously inside the click gesture so Safari / Firefox
+    // don't treat the subsequent navigation as a popup.
+    const w = window.open("about:blank", "_blank");
+    try {
+      const blob = await docusignApi.downloadPdf(envelope_id);
+      const url = URL.createObjectURL(blob);
+      if (w) { try { w.location.href = url; } catch (_) { window.location.href = url; } }
+      else window.location.href = url;
+      // Revoke late so the viewer in the new tab has time to load the bytes.
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch (err) {
-      // v51c — blob responses hide the JSON error body; unwrap it so the
-      // toast shows the real server reason (e.g. DocuSign upstream failure).
-      let msg = formatApiError(err);
-      if (err?.response?.data instanceof Blob) {
-        try {
-          const j = JSON.parse(await err.response.data.text());
-          if (j?.detail) msg = typeof j.detail === "string" ? j.detail : (j.detail.message || JSON.stringify(j.detail));
-        } catch (_) { /* keep generic message */ }
-      }
-      toast.error("Download failed", { description: msg });
+      try { w && w.close(); } catch (_) { /* ignore */ }
+      await _blobError(err, "Open failed");
     }
   };
 
@@ -433,15 +459,22 @@ export default function DocuSignPanel() {
                       className="text-[10px] bg-indigo-600 text-white px-2 py-1 rounded hover:bg-indigo-700">↻ Resend</button>
                   )}
                   {e.status === "completed" && (
-                    <button onClick={() => downloadSigned(e.envelope_id)}
+                    <button onClick={() => printSigned(e.envelope_id)}
+                      title="Open the signed PDF in a new tab (use your browser's Print icon from there)"
                       data-testid={`ds-print-${e.envelope_id}`}
                       className="text-[10px] bg-emerald-600 text-white px-2 py-1 rounded hover:bg-emerald-700">🖨 Print</button>
                   )}
-                  {e.status === "completed" && (
+                  {e.status === "completed" && !e.archived_file_key && (
                     <button onClick={() => archivePdf(e.envelope_id)}
-                      title="Fetch the signed PDF from DocuSign and store a copy in PMC storage (repair 'PDF not archived' envelopes). Does NOT hide the envelope."
+                      title="Fetch the signed PDF from DocuSign and store a copy in PMC storage. Download and Print will then serve this copy even if DocuSign is unreachable."
                       data-testid={`ds-savepdf-${e.envelope_id}`}
                       className="text-[10px] bg-amber-600 text-white px-2 py-1 rounded hover:bg-amber-700">⇩ Save PDF</button>
+                  )}
+                  {e.archived_file_key && (
+                    <span title={`Stored in PMC — Download & Print serve this copy.\nKey: ${e.archived_file_key}`}
+                      data-testid={`ds-stored-chip-${e.envelope_id}`}
+                      className="text-[10px] uppercase tracking-widest border px-2 py-1"
+                      style={{ background: "#2f5d50", color: "#fff", borderColor: "#2f5d50" }}>✓ PMC stored</span>
                   )}
                   {/* v51b — reassign / archive orphaned envelopes */}
                   <button onClick={() => { setReassignFor(e); setReassignEmail(""); setReassignName(""); setReassignReason(""); }}
@@ -545,15 +578,27 @@ export default function DocuSignPanel() {
                   className="px-3 py-1.5 text-xs bg-indigo-600 text-white">↻ Resend</button>
               )}
               {viewEnv.status === "completed" && (
-                <button onClick={() => downloadSigned(viewEnv.envelope_id)}
-                  data-testid="ds-view-download"
-                  className="px-3 py-1.5 text-xs bg-emerald-600 text-white">🖨 Print / download signed</button>
+                <button onClick={() => printSigned(viewEnv.envelope_id)}
+                  data-testid="ds-view-print"
+                  title="Open the signed PDF in a new tab — then click your browser's Print icon"
+                  className="px-3 py-1.5 text-xs bg-emerald-600 text-white">🖨 Open / print</button>
               )}
               {viewEnv.status === "completed" && (
+                <button onClick={() => downloadSigned(viewEnv.envelope_id)}
+                  data-testid="ds-view-download"
+                  className="px-3 py-1.5 text-xs border border-emerald-600 text-emerald-700">⬇ Download signed PDF</button>
+              )}
+              {viewEnv.status === "completed" && !viewEnv.archived_file_key && (
                 <button onClick={() => { archivePdf(viewEnv.envelope_id); }}
                   title="Fetch the signed PDF from DocuSign and store a copy in PMC storage. Does NOT hide the envelope."
                   data-testid="ds-view-savepdf"
                   className="px-3 py-1.5 text-xs bg-amber-600 text-white">⇩ Save signed PDF to PMC storage</button>
+              )}
+              {viewEnv.archived_file_key && (
+                <span className="px-3 py-1.5 text-xs"
+                      style={{ background: "#2f5d50", color: "#fff" }}
+                      title={`Key: ${viewEnv.archived_file_key}`}
+                      data-testid="ds-view-stored">✓ Already stored in PMC — Print &amp; Download serve this copy</span>
               )}
             </div>
           </div>

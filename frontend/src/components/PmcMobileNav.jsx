@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { useLocation, NavLink, Link } from "react-router-dom";
+import { useLocation, useNavigate, NavLink, Link } from "react-router-dom";
 import { pmcInstallSteps, detectPmcBrowser } from "@/lib/pmcInstallInstructions";
+import { adminApi, vendorApi } from "@/lib/api";
 
 /**
  * PmcMobileNav — mobile-only navigation chrome.
@@ -47,6 +48,7 @@ const VENDOR_TABS = [
 
 export default function PmcMobileNav() {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [installSteps, setInstallSteps] = useState(null);
 
@@ -113,32 +115,122 @@ export default function PmcMobileNav() {
   //  - /m/* mobile showcase routes
   if (isVendorLogin || isAdminLogin || isM) return null;
 
-  // For vendor pages (post-login): show ONLY the bottom tab bar.
+  // v51e — unified Sign-out for mobile vendor + admin top bar.
+  const doSignOut = async () => {
+    try {
+      await Promise.allSettled([
+        isAdmin || isStaff ? adminApi.logout?.() : vendorApi.logout?.(),
+      ].filter(Boolean));
+    } catch (_) { /* ignore */ }
+    try { sessionStorage.clear(); } catch (_) { /* noop */ }
+    navigate(isAdmin || isStaff ? "/admin/login" : "/vendor/login", { replace: true });
+  };
+
+  // v51e — back navigation shared by every mobile top bar.
+  const goBackUniversal = () => {
+    if (window.history.length > 1) window.history.back();
+    else window.location.href = (isAdmin || isStaff) ? "/admin" : (isVendor ? "/vendor" : "/");
+  };
+
+  // For vendor pages (post-login): mobile top bar (back + hamburger w/ Sign out)
+  // + bottom tab bar. Earlier releases rendered ONLY the bottom bar — users
+  // reported there was no way to sign out and no back button on mobile.
   if (isVendor) {
+    const showBack = pathname !== "/vendor";
     return (
-      <nav
-        className="pmc-mobile-tabbar"
-        data-testid="pmc-mobile-tabbar"
-        aria-label="Vendor navigation"
-      >
-        {VENDOR_TABS.map((t) => (
-          <NavLink
-            key={t.to}
-            to={t.to}
-            end={t.to === "/vendor"}
-            className={({ isActive }) => (isActive ? "is-active" : "")}
-            data-testid={t.testid}
-          >
-            <svg aria-hidden="true"><use href={`#${t.iconId}`} /></svg>
-            <span>{t.label}</span>
-          </NavLink>
-        ))}
-      </nav>
+      <>
+        <header className="pmc-mobile-topbar" data-testid="pmc-mobile-topbar-vendor" role="banner">
+          {showBack ? (
+            <button type="button" className="pmc-mob-back" onClick={goBackUniversal}
+                    aria-label="Go back" data-testid="pmc-mobile-back">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 6 9 12 15 18" /></svg>
+            </button>
+          ) : null}
+          <Link to="/vendor" className="pmc-mob-brand" data-testid="pmc-mobile-brand">
+            <b>PMC Managers</b><span>Supplier portal</span>
+          </Link>
+          <button type="button" className="pmc-mob-hamburger"
+                  onClick={() => setMenuOpen(true)} aria-label="Open menu"
+                  data-testid="pmc-mobile-menu-open">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <line x1="4" y1="7" x2="20" y2="7" />
+              <line x1="4" y1="12" x2="20" y2="12" />
+              <line x1="4" y1="17" x2="20" y2="17" />
+            </svg>
+          </button>
+        </header>
+
+        <div className="pmc-mobile-menu-scrim" onClick={() => setMenuOpen(false)}
+             aria-hidden={!menuOpen} />
+        <aside className="pmc-mobile-menu-drawer" role="dialog" aria-modal="true"
+               aria-label="Vendor menu" aria-hidden={!menuOpen}
+               data-testid="pmc-mobile-menu-drawer-vendor">
+          <div className="pmc-mob-menu-head">
+            <div className="pmc-mob-brand"><b>Supplier menu</b><span>&nbsp;</span></div>
+            <button type="button" className="pmc-mob-menu-close"
+                    onClick={() => setMenuOpen(false)} aria-label="Close menu">×</button>
+          </div>
+          <nav aria-label="Supplier">
+            <NavLink to="/vendor/company" data-testid="pmc-mobile-menu-link-company">Company &amp; KYC</NavLink>
+            <NavLink to="/vendor/categories" data-testid="pmc-mobile-menu-link-categories">Categories</NavLink>
+            <NavLink to="/vendor/reviews" data-testid="pmc-mobile-menu-link-reviews">Reviews</NavLink>
+            <NavLink to="/vendor/account" data-testid="pmc-mobile-menu-link-account">Account &amp; security</NavLink>
+            <NavLink to="/vendor/emd" data-testid="pmc-mobile-menu-link-emd">EMD &amp; payments</NavLink>
+            <NavLink to="/vendor/signatures" data-testid="pmc-mobile-menu-link-signatures">Signatures</NavLink>
+            <NavLink to="/help" data-testid="pmc-mobile-menu-link-help">Help &amp; FAQs</NavLink>
+          </nav>
+          <div className="pmc-mob-menu-cta">
+            <button type="button" onClick={doSignOut}
+                    data-testid="pmc-mobile-menu-signout"
+                    className="ghost"
+                    style={{ background: "transparent", border: "1px solid #d9bd72",
+                             color: "#f3efe4", minHeight: 46, borderRadius: 6,
+                             fontWeight: 600, cursor: "pointer" }}>
+              Sign out
+            </button>
+          </div>
+        </aside>
+
+        <nav className="pmc-mobile-tabbar" data-testid="pmc-mobile-tabbar"
+             aria-label="Vendor navigation">
+          {VENDOR_TABS.map((t) => (
+            <NavLink key={t.to} to={t.to} end={t.to === "/vendor"}
+                     className={({ isActive }) => (isActive ? "is-active" : "")}
+                     data-testid={t.testid}>
+              <svg aria-hidden="true"><use href={`#${t.iconId}`} /></svg>
+              <span>{t.label}</span>
+            </NavLink>
+          ))}
+        </nav>
+      </>
     );
   }
 
-  // For staff/admin routes: skip the mobile top bar (they have their own shells).
-  if (isAdmin || isStaff) return null;
+  // v51e — Admin / staff mobile: compact top bar with Back + Sign out so the
+  // admin console is usable from a phone (desktop sidebar is too wide to
+  // render here).
+  if (isAdmin || isStaff) {
+    return (
+      <header className="pmc-mobile-topbar" data-testid="pmc-mobile-topbar-admin" role="banner">
+        <button type="button" className="pmc-mob-back" onClick={goBackUniversal}
+                aria-label="Go back" data-testid="pmc-mobile-back">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 6 9 12 15 18" /></svg>
+        </button>
+        <Link to={isAdmin ? "/admin" : "/staff"} className="pmc-mob-brand"
+              data-testid="pmc-mobile-brand">
+          <b>PMC Managers</b><span>{isAdmin ? "Admin console" : "Staff"}</span>
+        </Link>
+        <button type="button" onClick={doSignOut}
+                data-testid="pmc-mobile-signout"
+                aria-label="Sign out"
+                style={{ background: "transparent", border: "1px solid rgba(243,239,228,0.4)",
+                         color: "#f3efe4", padding: "6px 10px", borderRadius: 4,
+                         fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+          Sign out
+        </button>
+      </header>
+    );
+  }
 
   // Public routes: compact top bar + slide-in menu.
   // Show a back button on any non-home public route so users always have a

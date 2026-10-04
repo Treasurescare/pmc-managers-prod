@@ -2,6 +2,47 @@
 # PMC Managers v2 — Changelog
 
 
+## 2026-10-04 — v51e Design + mobile sign-out/back + Print-in-tab
+
+### User reports after v51d deploy
+1. Vendor bid workspace design broken — "EligibilityKYC match",
+   "2Technical envelopeNot sealed" etc. all on one line.
+2. Mobile view had NO sign-out option and NO back buttons anywhere.
+3. v51d downloads worked, but Print opened a browser Save-As dialog
+   instead of printing.
+4. Save PDF stored into "PMC storage" but no visible way to see/access it.
+
+### Fixes
+1. `.pmc-steplist > a` CSS rules were duplicated three times but
+   VendorBidWorkspaceE.jsx renders the five steps as `<div>` elements.
+   Added mirror rules for `.pmc-steplist > div` (flex layout, 12px gap,
+   small→block). Also added `.pmc-pill { white-space:nowrap }` and
+   tablet-friendly collapse of the 260/1fr/300 workspace grid at
+   ≤1300px (aux card drops below main) and ≤900px (all stacked).
+2. **PmcMobileNav** rewritten:
+   - Vendor mobile now renders a top bar (back + brand + hamburger) +
+     a drawer with secondary nav links and a **Sign out** button +
+     the existing bottom tab bar.
+   - Admin/staff mobile now renders a compact top bar with back + brand
+     + inline Sign out (desktop sidebar collapses on <=767).
+   - Both use a unified `doSignOut()` that calls the right logout API
+     and routes to the right login page.
+   - Verified live: admin+vendor mobile both show working back + Sign out.
+3. **Print** button in admin DocuSign console now calls `printSigned()`
+   which opens the signed PDF inline in a new tab via `window.open(blobUrl)`
+   so the browser's built-in PDF viewer loads it — admin clicks the
+   viewer's own Print icon. Previous behaviour forced Save-As.
+   Added separate ⬇ Download button in view modal.
+4. Visibility of PMC-stored copies:
+   - Each stored envelope now shows a **✓ PMC stored** green chip in
+     the row and in the view modal.
+   - Save PDF button auto-hides once stored and the chip appears.
+   - Save PDF success toast now explains: "Download and Print now serve
+     this copy even if DocuSign is unreachable."
+   - Chip's title attribute carries the storage key for admins who need
+     the DB key directly (uploads collection, `docusign-archived/<id>.pdf`).
+
+
 ## 2026-10-04 — v51d DocuSign download bytes fix + Archived tab
 
 ### User report after v51c deploy
