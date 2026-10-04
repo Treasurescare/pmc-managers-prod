@@ -820,6 +820,13 @@ export const docusignApi = {
   // v50q — admin: re-archive a completed envelope's signed PDF into our storage
   archivePdf: (envelopeId) =>
     api.post(`/api/v1/docusign/envelopes/${envelopeId}/archive-pdf`).then((r) => r.data),
+  // v51b — admin: reassign an envelope to a new signer / hide it from vendors
+  reassignEnvelope: (envelopeId, payload) =>
+    api.post(`/api/v1/docusign/envelopes/${envelopeId}/reassign`, payload).then((r) => r.data),
+  archiveEnvelope: (envelopeId, reason = "") =>
+    api.post(`/api/v1/docusign/envelopes/${envelopeId}/archive`, { reason }).then((r) => r.data),
+  unarchiveEnvelope: (envelopeId) =>
+    api.post(`/api/v1/docusign/envelopes/${envelopeId}/unarchive`).then((r) => r.data),
   // v49p — envelope's current document as PDF in ANY status (unsigned while
   // pending, signed once completed). disposition=inline → open in tab,
   // attachment → browser download.

@@ -589,7 +589,29 @@ async def resend_envelope(envelope_id: str, admin=Depends(current_admin)):
         signer_name  = env.get("signer_name") or "Signer"
         signer_email = env.get("signer_email") or ""
         if env.get("delivery") == "embedded":
-            signing_url = _recipient_view(client, envelope_id, signer_name, signer_email)
+            # v51c fix — _recipient_view needs client_user_id + return_url;
+            # the previous 4-arg call raised TypeError → 502 on every resend.
+            cuid = env.get("client_user_id") or f"pmc:resend:{envelope_id}:{signer_email}"
+            return_url = f"{config.FRONTEND_URL}/admin?ds_signed=1"
+            # The recipient view only mints when the DocuSign recipient carries
+            # a client_user_id — stamp one on if the envelope predates it.
+            try:
+                envelopes_api = ds.EnvelopesApi(client)
+                recips = envelopes_api.list_recipients(DS_ACCOUNT_ID, envelope_id)
+                signers = recips.signers or []
+                target = next((s for s in signers
+                               if (s.email or "").lower() == signer_email.lower()),
+                              signers[0] if signers else None)
+                if target and not getattr(target, "client_user_id", None):
+                    target.client_user_id = cuid
+                    envelopes_api.update_recipients(DS_ACCOUNT_ID, envelope_id,
+                                                    recipients=ds.Recipients(signers=signers))
+                    await db.docusign_envelopes.update_one(
+                        {"envelope_id": envelope_id}, {"$set": {"client_user_id": cuid}})
+            except Exception as e2:
+                _log.warning("resend: recipient repair failed for %s: %s", envelope_id, e2)
+            signing_url = _recipient_view(client, envelope_id, signer_name,
+                                          signer_email, cuid, return_url)
             await db.docusign_envelopes.update_one(
                 {"envelope_id": envelope_id},
                 {"$set": {"last_resent_at": now_iso(),

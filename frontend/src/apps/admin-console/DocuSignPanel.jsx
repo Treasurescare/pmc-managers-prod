@@ -46,7 +46,7 @@ export default function DocuSignPanel() {
 
   const resendEnvelope = async (envelopeId) => {
     const env = envelopes.find((x) => x.envelope_id === envelopeId);
-    if (env && ["completed", "voided", "rejected"].includes((env.status || "").toLowerCase())) {
+    if (env && ["completed", "voided", "declined"].includes((env.status || "").toLowerCase())) {
       toast.error(`Cannot resend a ${env.status} envelope. Create a new one instead.`);
       return;
     }
@@ -370,7 +370,8 @@ export default function DocuSignPanel() {
                 {envelopes.length === 0 ? t("panels.docusign.empty") : "No matches"}
               </td></tr>
             ) : pagedEnvelopes.map((e) => (
-              <tr key={e.envelope_id} className="border-t border-brand-navy/10"
+              <tr key={e.envelope_id}
+                  className={`border-t border-brand-navy/10 ${e.archived ? "opacity-50 bg-slate-50" : ""}`}
                   data-testid={`ds-envelope-${e.envelope_id}`}>
                 <td className="px-3 py-2">
                   {e.kind === "award" ? `${e.sub_kind?.toUpperCase() || "AWARD"}` : "BID ACK"}
@@ -378,7 +379,13 @@ export default function DocuSignPanel() {
                 <td className="px-3 py-2 font-mono text-xs">{e.award_ref || e.bid_ref}</td>
                 <td className="px-3 py-2 text-xs">{e.signer_name}<br /><span className="text-brand-navy/50">{e.signer_email}</span></td>
                 <td className="px-3 py-2">{deliveryChip(e.delivery || "embedded")}</td>
-                <td className="px-3 py-2">{statusChip(e.status)}</td>
+                <td className="px-3 py-2">
+                  {statusChip(e.status)}
+                  {e.archived && (
+                    <span className="ml-1 text-[10px] uppercase tracking-widest border px-2 py-1 bg-slate-200 text-slate-700 border-slate-300"
+                          data-testid={`ds-archived-chip-${e.envelope_id}`}>archived</span>
+                  )}
+                </td>
                 <td className="px-3 py-2 text-xs">{e.created_at?.slice(0, 16).replace("T", " ")}</td>
                 <td className="px-3 py-2">
                   {e.status === "completed" ? (
@@ -404,9 +411,9 @@ export default function DocuSignPanel() {
                   )}
                   {e.status === "completed" && (
                     <button onClick={() => archivePdf(e.envelope_id)}
-                      title="Fetch the signed PDF from DocuSign and archive it in PMC storage (repair 'PDF not archived' envelopes)"
-                      data-testid={`ds-archive-${e.envelope_id}`}
-                      className="text-[10px] bg-amber-600 text-white px-2 py-1 rounded hover:bg-amber-700">⇩ Archive</button>
+                      title="Fetch the signed PDF from DocuSign and store a copy in PMC storage (repair 'PDF not archived' envelopes). Does NOT hide the envelope."
+                      data-testid={`ds-savepdf-${e.envelope_id}`}
+                      className="text-[10px] bg-amber-600 text-white px-2 py-1 rounded hover:bg-amber-700">⇩ Save PDF</button>
                   )}
                   {/* v51b — reassign / archive orphaned envelopes */}
                   <button onClick={() => { setReassignFor(e); setReassignEmail(""); setReassignName(""); setReassignReason(""); }}
@@ -415,11 +422,12 @@ export default function DocuSignPanel() {
                     className="text-[10px] bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">↪ Reassign</button>
                   {!e.archived ? (
                     <button onClick={() => archiveEnvelope(e.envelope_id)}
-                      title="Hide this envelope from all vendor Signatures pages"
+                      title="Hide this envelope from all vendor Signatures pages (row stays here, dimmed)"
                       data-testid={`ds-hide-${e.envelope_id}`}
                       className="text-[10px] bg-slate-500 text-white px-2 py-1 rounded hover:bg-slate-700">⌧ Archive</button>
                   ) : (
                     <button onClick={() => unarchiveEnvelope(e.envelope_id)}
+                      title="Make this envelope visible to the vendor again"
                       data-testid={`ds-unhide-${e.envelope_id}`}
                       className="text-[10px] bg-emerald-500 text-white px-2 py-1 rounded hover:bg-emerald-700">⟲ Restore</button>
                   )}
@@ -463,6 +471,7 @@ export default function DocuSignPanel() {
             </label>
             <div className="flex gap-2 justify-end pt-2">
               <button onClick={() => setReassignFor(null)}
+                data-testid="ds-reassign-cancel"
                 className="px-4 py-2 text-xs border">Cancel</button>
               <button onClick={doReassign}
                 data-testid="ds-reassign-confirm"
@@ -514,8 +523,9 @@ export default function DocuSignPanel() {
               )}
               {viewEnv.status === "completed" && (
                 <button onClick={() => { archivePdf(viewEnv.envelope_id); }}
-                  data-testid="ds-view-archive"
-                  className="px-3 py-1.5 text-xs bg-amber-600 text-white">⇩ Archive PDF to PMC storage</button>
+                  title="Fetch the signed PDF from DocuSign and store a copy in PMC storage. Does NOT hide the envelope."
+                  data-testid="ds-view-savepdf"
+                  className="px-3 py-1.5 text-xs bg-amber-600 text-white">⇩ Save signed PDF to PMC storage</button>
               )}
             </div>
           </div>
