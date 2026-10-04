@@ -2,6 +2,40 @@
 # PMC Managers v2 — Changelog
 
 
+## 2026-10-04 — v51d DocuSign download bytes fix + Archived tab
+
+### User report after v51c deploy
+Screen recording on pmcmanagers.com: "View / Print / Save PDF / signed
+download all still broken". Toasts clearly showed TWO messages — "Download
+failed · Could not read the fetched PDF from disk" and "Save PDF failed ·
+Request failed with status code 500". Reassign + Archive working.
+
+### Root cause (production, not preview)
+Every PDF endpoint relied on `envelopes_api.get_document()` returning a
+string path to a NamedTemporaryFile that we then `Path(p).read_bytes()`'d.
+On AWS Elastic Beanstalk the SDK's temp file was auto-removed before our
+next line ran (GC race / SDK version), so DocuSign auth was fine but
+`read_bytes` 500'd. Preview sandbox never surfaced this because the
+upstream 424 fired first.
+
+### Fix — `_fetch_document_bytes()` helper
+Reads raw urllib3 response bytes via `_preload_content=False`, bypassing
+the tempfile hop entirely. Falls back to the old path style for very old
+SDK versions. Also validates length > 0 (502 if empty). Replaced all 5
+`get_document()` call sites:
+- admin `combined-pdf`
+- vendor `mine/.../combined-pdf`
+- vendor `mine/.../document.pdf`
+- admin `archive-pdf`
+- (dead-duplicate archive-pdf body removed — leftover from v51c refactor)
+
+### Archived tab
+`DocuSignPanel.jsx` filter row now has 7 chips with live counts:
+All / Sent / Waiting / Signed / Rejected / Voided / **Archived**. Archived
+rows live in exactly one tab — "All" and status tabs hide them. Verified
+live: All (3), Archived (1), zero chip leakage.
+
+
 ### v51c follow-up 2 (user preview verification, same day)
 User: "save pdf still not working; save/print/download still having issues"
 (preview) + mobile batch:

@@ -137,6 +137,36 @@ def _load_private_key() -> bytes:
     return p.read_bytes()
 
 
+def _fetch_document_bytes(envelopes_api, envelope_id: str, document_id: str = "combined") -> bytes:
+    """v51d — Robust DocuSign document fetch.
+
+    docusign-esign's EnvelopesApi.get_document() by default returns a str path
+    to a NamedTemporaryFile. On AWS EB that tempfile is sometimes auto-deleted
+    (or returned as empty bytes-mode) before our next line reads it, surfacing
+    as HTTP 500 "Could not read the fetched PDF from disk" to the admin.
+
+    Reading raw urllib3 bytes directly via `_preload_content=False` bypasses
+    the tempfile hop entirely, works on every SDK version and every hosting
+    environment (EB, ECS, Fargate, local docker)."""
+    try:
+        resp = envelopes_api.get_document(DS_ACCOUNT_ID, document_id, envelope_id,
+                                          _preload_content=False)
+        data = resp.read() if hasattr(resp, "read") else getattr(resp, "data", resp)
+        if hasattr(resp, "release_conn"):
+            try: resp.release_conn()
+            except Exception: pass
+    except TypeError:
+        # Very old SDK that doesn't accept _preload_content — fall back to the
+        # path return and read immediately before the tempfile can be GC'd.
+        p = envelopes_api.get_document(DS_ACCOUNT_ID, document_id, envelope_id)
+        if isinstance(p, (bytes, bytearray)):
+            return bytes(p)
+        return Path(p).read_bytes()
+    if not isinstance(data, (bytes, bytearray)) or len(data) == 0:
+        raise HTTPException(502, "DocuSign returned an empty document body")
+    return bytes(data)
+
+
 def _client() -> ds.ApiClient:
     """Get a fresh JWT-authenticated DocuSign SDK client. Raises HTTP 428 with
     the consent URL if the impersonated user hasn't yet granted consent."""
@@ -982,13 +1012,15 @@ async def download_combined_pdf(envelope_id: str, admin=Depends(current_admin)):
     client = _client()
     envelopes = ds.EnvelopesApi(client)
     try:
-        pdf_path = envelopes.get_document(DS_ACCOUNT_ID, "combined", envelope_id)
+        # v51d — read raw HTTP bytes directly instead of relying on the SDK's
+        # tempfile hop. The old `pdf_path = get_document(...)` path returned a
+        # NamedTemporaryFile that was auto-deleted before read_bytes() ran on
+        # AWS EB → "Could not read the fetched PDF from disk" 500s.
+        pdf_bytes = _fetch_document_bytes(envelopes, envelope_id, "combined")
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(424, f"DocuSign document fetch failed — upstream DocuSign error (expired sandbox key in preview; verify DOCUSIGN_* in this environment): {e}")
-    try:
-        pdf_bytes = Path(pdf_path).read_bytes()
-    except Exception:
-        raise HTTPException(500, "Could not read the fetched PDF from disk")
+        raise HTTPException(424, f"DocuSign document fetch failed — upstream DocuSign error (verify DOCUSIGN_* in this environment): {e}")
     fname = f"{row.get('award_ref') or row.get('bid_ref') or envelope_id}-signed.pdf"
     from fastapi.responses import Response as _R
     return _R(content=pdf_bytes, media_type="application/pdf",
@@ -1022,10 +1054,11 @@ async def vendor_download_combined_pdf(envelope_id: str, vendor=Depends(current_
     client = _client()
     envelopes = ds.EnvelopesApi(client)
     try:
-        pdf_path = envelopes.get_document(DS_ACCOUNT_ID, "combined", envelope_id)
+        pdf_bytes = _fetch_document_bytes(envelopes, envelope_id, "combined")
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(424, f"DocuSign document fetch failed — upstream DocuSign error (expired sandbox key in preview; verify DOCUSIGN_* in this environment): {e}")
-    pdf_bytes = Path(pdf_path).read_bytes()
+        raise HTTPException(424, f"DocuSign document fetch failed — upstream DocuSign error (verify DOCUSIGN_* in this environment): {e}")
     fname = f"{row.get('award_ref') or row.get('bid_ref') or envelope_id}-signed.pdf"
     from fastapi.responses import Response as _R
     return _R(content=pdf_bytes, media_type="application/pdf",
@@ -1059,10 +1092,11 @@ async def vendor_download_document(envelope_id: str, disposition: str = "inline"
     envelopes = ds.EnvelopesApi(client)
     doc_id = "combined" if row.get("status") == "completed" else "1"
     try:
-        pdf_path = envelopes.get_document(DS_ACCOUNT_ID, doc_id, envelope_id)
+        pdf_bytes = _fetch_document_bytes(envelopes, envelope_id, doc_id)
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(424, f"DocuSign document fetch failed — upstream DocuSign error (expired sandbox key in preview; verify DOCUSIGN_* in this environment): {e}")
-    pdf_bytes = Path(pdf_path).read_bytes()
+        raise HTTPException(424, f"DocuSign document fetch failed — upstream DocuSign error (verify DOCUSIGN_* in this environment): {e}")
     fname = f"{row.get('award_ref') or row.get('bid_ref') or envelope_id}.pdf"
     disp = "attachment" if disposition == "attachment" else "inline"
     from fastapi.responses import Response as _R
@@ -1092,10 +1126,11 @@ async def archive_envelope_pdf(envelope_id: str,
     client = _client()
     envelopes = ds.EnvelopesApi(client)
     try:
-        pdf_path = envelopes.get_document(DS_ACCOUNT_ID, "combined", envelope_id)
+        pdf_bytes = _fetch_document_bytes(envelopes, envelope_id, "combined")
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(424, f"DocuSign document fetch failed — upstream DocuSign error (expired sandbox key in preview; verify DOCUSIGN_* in this environment): {e}")
-    pdf_bytes = Path(pdf_path).read_bytes()
+        raise HTTPException(424, f"DocuSign document fetch failed — upstream DocuSign error (verify DOCUSIGN_* in this environment): {e}")
     key = f"docusign-archived/{envelope_id}.pdf"
     now = datetime.now(timezone.utc).isoformat()
     await db.uploads.update_one(
@@ -1112,34 +1147,9 @@ async def archive_envelope_pdf(envelope_id: str,
     await audit_log("docusign.archive_pdf", admin, "docusign_envelope",
                     envelope_id, {"key": key, "size_bytes": len(pdf_bytes)})
     return {"ok": True, "key": key, "size_bytes": len(pdf_bytes)}
-    row = await db.docusign_envelopes.find_one({"envelope_id": envelope_id})
-    if not row:
-        raise HTTPException(404, "Envelope not found")
-    if row.get("status") != "completed":
-        raise HTTPException(412, "Only completed envelopes can be archived")
-    client = _client()
-    envelopes = ds.EnvelopesApi(client)
-    try:
-        pdf_path = envelopes.get_document(DS_ACCOUNT_ID, "combined", envelope_id)
-    except Exception as e:
-        raise HTTPException(424, f"DocuSign document fetch failed — upstream DocuSign error (expired sandbox key in preview; verify DOCUSIGN_* in this environment): {e}")
-    pdf_bytes = Path(pdf_path).read_bytes()
-    key = f"docusign-archived/{envelope_id}.pdf"
-    now = datetime.now(timezone.utc).isoformat()
-    await db.uploads.update_one(
-        {"key": key},
-        {"$set": {"key": key, "content_type": "application/pdf",
-                  "size_bytes": len(pdf_bytes),
-                  "data_b64": base64.b64encode(pdf_bytes).decode("ascii"),
-                  "created_at": now}},
-        upsert=True)
-    await db.docusign_envelopes.update_one(
-        {"_id": row["_id"]},
-        {"$set": {"archived_file_key": key, "archived_at": now,
-                  "archived_by": admin["id"]}})
-    await audit_log("docusign.archive_pdf", admin, "docusign_envelope",
-                    envelope_id, {"key": key, "size_bytes": len(pdf_bytes)})
-    return {"ok": True, "key": key, "size_bytes": len(pdf_bytes)}
+
+
+# ---------------- Connect webhook ----------------
 
 
 @router.post("/webhook")

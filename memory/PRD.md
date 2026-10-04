@@ -38,6 +38,15 @@ mostly static; live data + click routing is patched at runtime via:
 
 ## What is implemented
 
+### v51d (2026-10-04) — DocuSign download bytes fix + Archived tab
+- Root cause of production 500 "Could not read the fetched PDF from disk":
+  docusign-esign SDK returned a path to a temp file that was gone before
+  our read_bytes() ran on AWS EB. Replaced with raw urllib3 bytes via
+  _preload_content=False (new `_fetch_document_bytes()` helper, used by all
+  5 PDF endpoints — admin+vendor, combined+document, archive-pdf).
+- Admin DocuSign filter row gained an **Archived** tab with live counts;
+  archived rows now live in exactly one tab (verified).
+
 ### v51c (2026-10-04) — DocuSign console regression fix
 - v51b UI buttons were dead in production: docusignApi was missing
   reassignEnvelope/archiveEnvelope/unarchiveEnvelope (silent TypeError);

@@ -33,7 +33,12 @@ export default function DocuSignPanel() {
 
   const filteredEnvelopes = envelopes.filter((e) => {
     const q = search.trim().toLowerCase();
-    const matchStatus = statusFilter === "all" || e.status === statusFilter;
+    // v51d — Archived is its own tab. All other tabs hide archived rows so
+    // archived envelopes live in exactly one place.
+    const matchStatus =
+      statusFilter === "all"      ? !e.archived
+      : statusFilter === "archived" ? !!e.archived
+      :                               (e.status === statusFilter && !e.archived);
     const matchSearch = !q
       || (e.award_ref || "").toLowerCase().includes(q)
       || (e.bid_ref || "").toLowerCase().includes(q)
@@ -351,15 +356,22 @@ export default function DocuSignPanel() {
           <div className="pmc-label">
             {t("panels.docusign.envelopes")} · {envelopes.length}
           </div>
-          {[["all","All"],["sent","Sent"],["delivered","Waiting"],["completed","Signed"],["declined","Rejected"],["voided","Voided"]].map(([k,l]) => (
-            <button key={k} type="button" onClick={() => setStatusFilter(k)}
-              data-testid={`ds-filter-${k}`}
-              className={`px-3 py-1 text-[10px] uppercase tracking-widest border ${
-                statusFilter === k ? "bg-brand-navy text-white border-brand-navy"
-                  : "border-brand-navy/20 text-brand-navy/70 hover:border-brand-navy"}`}>
-              {l}
-            </button>
-          ))}
+          {[["all","All"],["sent","Sent"],["delivered","Waiting"],["completed","Signed"],["declined","Rejected"],["voided","Voided"],["archived","Archived"]].map(([k,l]) => {
+            const count = k === "all"
+              ? envelopes.filter(e => !e.archived).length
+              : k === "archived"
+                ? envelopes.filter(e => e.archived).length
+                : envelopes.filter(e => e.status === k && !e.archived).length;
+            return (
+              <button key={k} type="button" onClick={() => setStatusFilter(k)}
+                data-testid={`ds-filter-${k}`}
+                className={`px-3 py-1 text-[10px] uppercase tracking-widest border ${
+                  statusFilter === k ? "bg-brand-navy text-white border-brand-navy"
+                    : "border-brand-navy/20 text-brand-navy/70 hover:border-brand-navy"}`}>
+                {l} <span className="opacity-70">({count})</span>
+              </button>
+            );
+          })}
           <input value={search} onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by ref, signer, email…"
             data-testid="ds-search"
