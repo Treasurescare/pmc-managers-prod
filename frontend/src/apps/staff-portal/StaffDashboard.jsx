@@ -53,7 +53,7 @@ export default function StaffDashboard() {
     catch (err) {
       if (process.env.NODE_ENV !== "production") console.debug("staff logout skipped:", err?.response?.status);
     }
-    nav("/staff/login");
+    nav("/login");
   };
 
   const decide = async (bid, action) => {

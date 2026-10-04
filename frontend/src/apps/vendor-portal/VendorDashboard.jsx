@@ -56,7 +56,7 @@ export default function VendorDashboard() {
     catch (err) {
       if (process.env.NODE_ENV !== "production") console.debug("vendor logout skipped:", err?.response?.status);
     }
-    nav("/vendor/login");
+    nav("/login");
   };
 
   if (!vendor) return <div className="p-10 text-slate-500">Loading…</div>;

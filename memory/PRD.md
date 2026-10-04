@@ -38,6 +38,12 @@ mostly static; live data + click routing is patched at runtime via:
 
 ## What is implemented
 
+### v51i (2026-10-04) — All sign-outs land on the unified /login page
+- Every sign-out path (mobile top bar, drawer, vendor avatar menu, admin,
+  staff, legacy vendor dashboard) now navigates to /login (SignInE role-
+  picker page) instead of the legacy navy /vendor/login, "/" or
+  /staff/login. Auth guards with return-to state intentionally unchanged.
+
 ### v51h (2026-10-04) — Vendor sign-in page: ghost labels + navy band
 - Legacy /vendor/login labels/subtitle/links moved from Tailwind slate
   utilities to deterministic inline colors (slate classes render

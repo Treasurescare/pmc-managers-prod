@@ -98,7 +98,7 @@ export default function VendorPortalChrome({ active, counts = {}, children }) {
 
   const onSignOut = async () => {
     try { await vendorApi.logout(); } catch {}
-    navigate("/vendor/login", { replace: true });
+    navigate("/login", { replace: true });
   };
 
   const renderLink = (item) => {

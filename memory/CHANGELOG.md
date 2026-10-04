@@ -2,6 +2,24 @@
 # PMC Managers v2 — Changelog
 
 
+## 2026-10-04 — v51i All sign-outs land on the unified /login page
+
+### User report (with screenshot)
+"THIS is the page the signout should trigger" — the unified SignInE role-
+picker page — "not the navy blue page" (legacy VendorLogin). Sign-out
+paths were inconsistent: mobile nav and desktop vendor avatar went to
+/vendor/login, admin went to /, staff to /staff/login.
+
+### Fix — every sign-out now navigates to /login
+- PmcMobileNav doSignOut (vendor top bar + drawer + admin top bar)
+- VendorPortalChrome avatar-menu sign out
+- AdminDashboard logout (was "/")
+- StaffDashboard logout (was /staff/login)
+- VendorDashboard legacy logout (was /vendor/login)
+PmcLinkPatcher's handleSignOut already went to /login. Auth guards that
+redirect unauthenticated users are unchanged (they carry return-to state).
+
+
 ## 2026-10-04 — v51h Vendor sign-in page: ghost labels + navy band
 
 ### User report

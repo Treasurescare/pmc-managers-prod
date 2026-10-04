@@ -132,7 +132,7 @@ export default function PmcMobileNav() {
       ].filter(Boolean));
     } catch (_) { /* ignore */ }
     try { sessionStorage.clear(); } catch (_) { /* noop */ }
-    navigate(isAdmin || isStaff ? "/admin/login" : "/vendor/login", { replace: true });
+    navigate("/login", { replace: true });
   };
 
   // v51e — back navigation shared by every mobile top bar.

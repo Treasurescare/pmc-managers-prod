@@ -70,7 +70,7 @@ export default function AdminDashboard() {
     } catch { /* noop */ }
   }, [location.search]);
 
-  const logout = async () => { await adminApi.logout(); navigate("/"); };
+  const logout = async () => { await adminApi.logout(); navigate("/login"); };
 
   if (!me) return <div className="min-h-screen bg-brand-pale flex items-center justify-center text-brand-navy/60">{t("common.loading")}</div>;
   // Legacy tab console → redirect every tab that has an Option-E page.
