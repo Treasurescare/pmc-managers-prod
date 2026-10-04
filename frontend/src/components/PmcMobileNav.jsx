@@ -101,6 +101,16 @@ export default function PmcMobileNav() {
     return () => window.removeEventListener("keydown", onKey);
   }, [menuOpen]);
 
+  // v51g — fetch the vendor profile for the top-bar avatar initials.
+  const [vendorMe, setVendorMe] = useState(null);
+  useEffect(() => {
+    const onVendor = pathname === "/vendor" || pathname.startsWith("/vendor/");
+    if (!onVendor || pathname === "/vendor/login") return;
+    let live = true;
+    vendorApi.me?.().then((m) => { if (live) setVendorMe(m); }).catch(() => {});
+    return () => { live = false; };
+  }, [pathname]);
+
   // Route classification
   const isAdminLogin = pathname === "/admin/login";
   const isVendorLogin = pathname === "/vendor/login" || pathname === "/login" || pathname === "/forgot-password" || pathname === "/reset-password" || pathname === "/register";
@@ -138,27 +148,9 @@ export default function PmcMobileNav() {
     const showBack = pathname !== "/vendor";
     return (
       <>
+        {/* v51g — user-requested layout: hamburger top-LEFT, avatar + Sign out
+            always visible top-RIGHT (no drawer needed to sign out). */}
         <header className="pmc-mobile-topbar" data-testid="pmc-mobile-topbar-vendor" role="banner">
-          {showBack ? (
-            <button type="button" className="pmc-mob-back" onClick={goBackUniversal}
-                    aria-label="Go back" data-testid="pmc-mobile-back">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 6 9 12 15 18" /></svg>
-            </button>
-          ) : null}
-          <Link to="/vendor" className="pmc-mob-brand" data-testid="pmc-mobile-brand">
-            <b>PMC Managers</b><span>Supplier portal</span>
-          </Link>
-          <Link to="/vendor/alerts" className="pmc-mob-bell"
-                aria-label="Notifications & alerts"
-                data-testid="pmc-mobile-bell"
-                style={{ marginLeft: "auto", display: "inline-grid", placeItems: "center",
-                         width: 40, height: 40, color: "#f3efe4", textDecoration: "none",
-                         borderRadius: 6, border: "1px solid rgba(243,239,228,0.25)" }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-              <path d="M10 21a2 2 0 0 0 4 0" />
-            </svg>
-          </Link>
           <button type="button" className="pmc-mob-hamburger"
                   onClick={() => setMenuOpen(true)} aria-label="Open menu"
                   data-testid="pmc-mobile-menu-open">
@@ -168,6 +160,47 @@ export default function PmcMobileNav() {
               <line x1="4" y1="17" x2="20" y2="17" />
             </svg>
           </button>
+          {showBack ? (
+            <button type="button" className="pmc-mob-back" onClick={goBackUniversal}
+                    aria-label="Go back" data-testid="pmc-mobile-back">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 6 9 12 15 18" /></svg>
+            </button>
+          ) : null}
+          <Link to="/vendor" className="pmc-mob-brand" data-testid="pmc-mobile-brand">
+            <b>PMC Managers</b><span>Supplier portal</span>
+          </Link>
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
+            <Link to="/vendor/alerts" className="pmc-mob-bell"
+                  aria-label="Notifications & alerts"
+                  data-testid="pmc-mobile-bell"
+                  style={{ display: "inline-grid", placeItems: "center",
+                           width: 36, height: 36, color: "#f3efe4", textDecoration: "none",
+                           borderRadius: 6, border: "1px solid rgba(243,239,228,0.25)" }}>
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                <path d="M10 21a2 2 0 0 0 4 0" />
+              </svg>
+            </Link>
+            <Link to="/vendor/account" className="pmc-mob-avatar"
+                  aria-label="My account"
+                  data-testid="pmc-mobile-avatar"
+                  style={{ width: 32, height: 32, borderRadius: "50%",
+                           display: "inline-grid", placeItems: "center",
+                           background: "rgba(217,189,114,0.2)", color: "#d9bd72",
+                           border: "1px solid rgba(217,189,114,0.5)",
+                           fontSize: 12, fontWeight: 700, textDecoration: "none" }}>
+              {(vendorMe?.company_name || vendorMe?.email || "V").trim().slice(0, 2).toUpperCase()}
+            </Link>
+            <button type="button" onClick={doSignOut}
+                    data-testid="pmc-mobile-signout"
+                    aria-label="Sign out"
+                    style={{ background: "transparent", whiteSpace: "nowrap",
+                             border: "1px solid rgba(217,189,114,0.6)", color: "#f3efe4",
+                             padding: "7px 10px", borderRadius: 6, fontSize: 12,
+                             fontWeight: 700, cursor: "pointer" }}>
+              Sign out
+            </button>
+          </div>
         </header>
 
         <div className="pmc-mobile-menu-scrim" onClick={() => setMenuOpen(false)}

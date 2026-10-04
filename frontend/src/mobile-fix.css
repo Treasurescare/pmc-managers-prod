@@ -1231,3 +1231,10 @@ body.pmc-mob-menu-open { overflow: hidden; }
   }
 }
 
+/* v51g vendor topbar layout — hamburger left, avatar + sign out right */
+@media (max-width: 767px) {
+  .pmc-mobile-topbar { gap: 8px; }
+  .pmc-mobile-topbar .pmc-mob-brand span { display: none; }
+  .pmc-mobile-topbar .pmc-mob-brand b { font-size: 14px; }
+}
+

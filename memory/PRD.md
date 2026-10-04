@@ -38,6 +38,12 @@ mostly static; live data + click routing is patched at runtime via:
 
 ## What is implemented
 
+### v51g (2026-10-04) — Vendor mobile top bar restructure
+- Hamburger moved to top-left; top-right cluster = bell icon + avatar
+  circle (company initials, links to Account) + always-visible Sign out
+  button. Drawer Sign out retained as second path. Brand subtitle hidden
+  on mobile for space. Verified live at 390px, no overflow.
+
 ### v51f (2026-10-04) — Mobile vendor chrome polish + /login layout fix
 - Alerts bell moved from the bottom tab bar to the vendor mobile top bar
   (left of the hamburger). Bottom tabs: Home / Tenders / Bids / Account.

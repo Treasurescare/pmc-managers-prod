@@ -2,6 +2,24 @@
 # PMC Managers v2 — Changelog
 
 
+## 2026-10-04 — v51g Vendor mobile top bar restructure
+
+### User report after v51f
+Drawer Sign out still not acceptable — user asked: "move the signout and
+avatar button to the top right, and move the hamburger to the top left."
+
+### Fix (PmcMobileNav.jsx vendor branch)
+New vendor mobile top bar layout, left to right:
+  [hamburger] [back (sub-pages only)] [brand] ... [bell] [avatar] [Sign out]
+- Avatar circle shows company initials (fetched via vendorApi.me) and links
+  to /vendor/account.
+- Sign out is a persistent bordered button in the top bar — always visible,
+  no drawer needed. (Drawer keeps its brass Sign out as a second path.)
+- Brand subtitle ("Supplier portal") hidden on ≤767px to make room;
+  verified at 390px: hamburger left=16px, avatar "MA" at 266px, Sign out
+  70px wide at 304px, no horizontal overflow.
+
+
 ## 2026-10-04 — v51f build-break postmortem
 A rogue `//` comment on line 1199 of mobile-fix.css (left behind by an
 earlier search_replace) caused the CSS minifier to fail every v51f build
