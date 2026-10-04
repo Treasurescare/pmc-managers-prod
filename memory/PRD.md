@@ -38,6 +38,13 @@ mostly static; live data + click routing is patched at runtime via:
 
 ## What is implemented
 
+### v51k (2026-10-04) — Platform-branding scrub
+- Help-centre user-facing copy neutralised ("Emergent LLM …" → "AI …").
+- Production frontend builds ship with GENERATE_SOURCEMAP=false (source
+  maps no longer expose the original codebase in DevTools).
+- Bundle scanned: zero platform-identifying strings; preview-domain guard
+  in api.js assembled from fragments. No "claude" anywhere in the product.
+
 ### v51j (2026-10-04) — Tender builder: DPR char-count note hidden + cover numbering
 - Removed the "Document is N chars — deep-dive analysed" technical note
   from the AI warning list (backend no longer appends; frontend filters

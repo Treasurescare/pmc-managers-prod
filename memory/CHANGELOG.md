@@ -2,6 +2,44 @@
 # PMC Managers v2 — Changelog
 
 
+## 2026-10-04 — v51k Platform-branding scrub ("how did the client know?")
+
+### User question
+A client told the user the app was built with Claude + Emergent. Full
+case-insensitive sweep of frontend src/build, backend, public assets,
+manifests and service worker.
+
+### Leak points found (ranked by visibility)
+1. **Help Centre content** (backend/pmc_lib/help_content_data.py, served
+   via routers/help_content.py) literally said "Emergent LLM copilot",
+   "Emergent LLM outlier detector", "Emergent LLM Universal Key proxy" —
+   readable by any logged-in user. → All neutralised to "AI copilot" /
+   "AI outlier detector" / "AI engine".
+2. **Source maps shipped in production builds** (main.*.js.map) — full
+   original source incl. comments browsable in DevTools. → Build now sets
+   GENERATE_SOURCEMAP=false and stale .map files are deleted before zip.
+3. **One literal string in the live JS bundle**: ".preview.emergentagent
+   .com" (api.js preview-domain guard). → Assembled from fragments so a
+   bundle text search for "emergent" returns zero hits.
+4. **Backend internals** (EMERGENT_LLM_KEY env names, proxy URL, comments)
+   — never served publicly; only visible inside backend zips under
+   /downloads/ (which only the site owner downloads). No HTTPException
+   detail leaks the proxy URL (verified by grep).
+5. No "claude" string anywhere in src, build, backend or public assets.
+
+### Verification
+Fresh production bundle scanned: zero matches for emergent/claude in
+shipped JS/CSS/index.html/manifest/service-worker; 0 source-map files.
+Backend module compiles.
+
+### Remaining traces that are infrastructure, not code
+- Transactional email routing passes through the platform email proxy;
+  a recipient inspecting raw SMTP headers may see the upstream provider.
+  Eliminating that requires moving to direct Resend/LLM keys.
+- Preview URLs (*.preview.emergentagent.com) exist in chat history, not
+  in the deployed product.
+
+
 ## 2026-10-04 — v51j Tender builder: DPR char-count note hidden + cover numbering fix
 
 ### User reports (screenshots from production)

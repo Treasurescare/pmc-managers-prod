@@ -36,7 +36,7 @@ MODULES = {
                 ],
                 "expected": "Live counts refresh on tab open. Clicking a drill card reveals itemized rows without page reload.",
                 "controls": [
-                    {"name": "AI Anomaly card", "desc": "Bids flagged by the Emergent LLM outlier detector."},
+                    {"name": "AI Anomaly card", "desc": "Bids flagged by the AI outlier detector."},
                     {"name": "Pipeline Funnel card", "desc": "Bids categorized by workflow lifecycle stage."},
                     {"name": "Top-Priced card", "desc": "Top 10 highest-value commercial submissions."},
                 ],
@@ -55,10 +55,10 @@ MODULES = {
                     "Click 'RUN AI CHECK'.",
                     "Inspect the anomaly score (0-100%), price deviation %, risk flags, and explanatory narrative.",
                 ],
-                "expected": "Emergent LLM proxy analyzes bid vs peer distribution and outputs narrative justification.",
+                "expected": "The AI engine analyzes bid vs peer distribution and outputs narrative justification.",
                 "controls": [
                     {"name": "Bid selector", "desc": "List of bids with commercial envelopes."},
-                    {"name": "RUN AI CHECK", "desc": "Triggers Emergent LLM copilot."},
+                    {"name": "RUN AI CHECK", "desc": "Triggers the AI copilot."},
                 ],
                 "errors": [
                     {"code": "HTTP 404", "msg": "Bid not found", "fix": "Select an existing commercial bid from the list."},
@@ -428,7 +428,7 @@ MODULES = {
         "actions": [
             {
                 "id": "ai-draft-section",
-                "label": "Generate section draft with Emergent LLM copilot",
+                "label": "Generate section draft with AI copilot",
                 "when": "Composing complex technical specifications or scope of work.",
                 "steps": [
                     "Select a draft template or clone a master.",
@@ -436,7 +436,7 @@ MODULES = {
                     "Click **BUILD WITH AI**.",
                     "Review the generated 280-360 word draft; accept or edit.",
                 ],
-                "expected": "High-quality HTML specification authored by Emergent LLM Universal Key proxy.",
+                "expected": "High-quality HTML specification authored by the AI engine.",
                 "controls": [
                     {"name": "Build with AI", "desc": "Invokes backend `_llm_complete` proxy."},
                 ],
