@@ -50,7 +50,7 @@ export default function DocuSignPanel() {
       toast.error(`Cannot resend a ${env.status} envelope. Create a new one instead.`);
       return;
     }
-    toast.info("Resending envelope…");
+    const tid = toast.loading("Resending envelope…");
     // v49v — Safari blocks window.open after an await; open inside the
     // click gesture and steer once the API responds.
     const w = window.open("", "_blank");
@@ -59,13 +59,16 @@ export default function DocuSignPanel() {
       if (r.signing_url) {
         if (w) { try { w.location.href = r.signing_url; } catch (_) { window.location.href = r.signing_url; } }
         else window.location.href = r.signing_url;
-        toast.success("New signing link opened");
+        toast.success("New signing link opened", { id: tid });
       } else {
         try { w && w.close(); } catch (_) { /* ignore */ }
-        toast.success(`Envelope resent to ${r.emailed_to || "signer"} via email`);
+        toast.success(`Envelope resent to ${r.emailed_to || r.resent_to || "signer"} via email`, { id: tid });
       }
       load();
-    } catch (e) { try { w && w.close(); } catch (_) { /* ignore */ } showApiError(e); }
+    } catch (e) {
+      try { w && w.close(); } catch (_) { /* ignore */ }
+      toast.error("Resend failed", { id: tid, description: formatApiError(e) });
+    }
   };
 
   // v50q — admin repair tool: fetch the combined signed PDF from DocuSign
@@ -110,12 +113,14 @@ export default function DocuSignPanel() {
   };
 
   const archivePdf = async (envelopeId) => {
-    toast.info("Archiving signed PDF…");
+    const tid = toast.loading("Saving signed PDF to PMC storage…");
     try {
       const r = await docusignApi.archivePdf(envelopeId);
-      toast.success(`Archived ${(r.size_bytes / 1024).toFixed(0)} KB — vendor download now served from PMC storage`);
+      toast.success(`Saved ${(r.size_bytes / 1024).toFixed(0)} KB — vendor download now served from PMC storage`, { id: tid });
       load();
-    } catch (e) { showApiError(e); }
+    } catch (e) {
+      toast.error("Save PDF failed", { id: tid, description: formatApiError(e) });
+    }
   };
 
   const load = useCallback(async () => {

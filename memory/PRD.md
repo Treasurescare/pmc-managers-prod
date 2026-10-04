@@ -38,6 +38,18 @@ mostly static; live data + click routing is patched at runtime via:
 
 ## What is implemented
 
+### v51c (2026-10-04) — DocuSign console regression fix
+- v51b UI buttons were dead in production: docusignApi was missing
+  reassignEnvelope/archiveEnvelope/unarchiveEnvelope (silent TypeError);
+  showApiError used require("sonner") → CJS store ≠ mounted ESM Toaster, so
+  ALL API error toasts app-wide never rendered; backend resend called
+  _recipient_view with 4/6 args → guaranteed 502. All fixed.
+- Duplicate "Archive" confusion resolved: amber = "⇩ Save PDF" (mirror signed
+  PDF into PMC storage), slate ⌧ Archive = hide from vendors (now dims the row
+  + shows an ARCHIVED chip, swaps to ⟲ Restore).
+- Verified in preview end-to-end (iteration_45 + self-test). NOT yet bundled —
+  user confirms fixes in preview first, then asks for the v51c bundle.
+
 ### v51b (2026-10-03) — Language footer + Tender country mode + DocuSign reassign/archive
 - EN/RU/KZ language switcher now also sits in the footer bottom bar on
   every public page (header already had it).

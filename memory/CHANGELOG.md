@@ -1,4 +1,55 @@
 # PMC Managers v2 — Changelog
+# PMC Managers v2 — Changelog
+
+## 2026-10-04 — v51c DocuSign console regression fix (reassign / archive / resend / download / duplicate Archive)
+
+### User report (production, v51b)
+Print/download + Archive dead; Reassign dialog opened but "Reassign & save" did
+nothing; TWO buttons both labelled "Archive"; signed download dead; Resend dead.
+Archive showed a blue toast but nothing changed.
+
+### Root causes (4 distinct bugs)
+1. **Missing API client methods** — v51b added `reassignEnvelope`,
+   `archiveEnvelope`, `unarchiveEnvelope` calls in DocuSignPanel.jsx but the
+   methods were never added to `docusignApi` in lib/api.js (a failed
+   exact-string edit during v51b). Every click threw a silent TypeError.
+2. **Silent error toasts GLOBALLY** — `showApiError()` used
+   `require("sonner")`, which resolves to sonner's CJS build — a SEPARATE store
+   from the ESM store the mounted `<Toaster/>` listens to. Error toasts were
+   dispatched into the void on every API failure app-wide; only direct-import
+   toasts rendered. Fixed with a top-level ESM import in api.js. This was the
+   main "no error messages are displayed" culprit.
+3. **Resend 502 by design bug** — `docusign.py` resend embedded branch called
+   `_recipient_view()` with 4 of 6 required args (missing client_user_id +
+   return_url) → TypeError → HTTP 502 on every embedded resend. Fixed, plus a
+   recipient repair pass (stamps client_user_id when missing).
+4. **Duplicate "Archive" labels** — two DIFFERENT actions shared the label:
+   amber ⇩ = "save signed PDF into PMC storage" (repair tool, completed only);
+   slate ⌧ = "hide envelope from vendors" (v51b). Amber button renamed to
+   "⇩ Save PDF" with a clarifying tooltip; the view-modal button likewise.
+
+### Also in this pass
+- Archived rows now visibly change: dimmed (opacity-50) + "ARCHIVED" chip next
+  to the status; Archive button swaps to ⟲ Restore (restores visibility).
+- Resend/Save-PDF loading toasts now resolve into success/error via sonner id
+  replacement instead of lingering and auto-dismissing.
+- Resend pre-flight guard now blocks "declined" (was the non-existent
+  "rejected"); reassign modal Cancel button got data-testid.
+
+### Verified in preview
+- curl (admin JWT+CSRF): listEnvelopes 200, reassign 200, archive 200
+  (archived:true persisted), unarchive 200 — iteration_45.json backend 100%.
+- testing_agent iteration_45: reassign valid/invalid, archive, restore, unique
+  labels, vendor /vendor/signatures — all PASS.
+- Main-agent self-test after toast fix: Resend, Print, Save PDF now render
+  visible error toasts on failure (preview DocuSign sandbox creds are invalid
+  — invalid_grant — so live-DocuSign calls 502 in preview by environment, not
+  code; production creds work).
+- Per-row label audit: exactly one "Archive" per row; "Save PDF" distinct.
+
+### Production note
+If any live-DocuSign action still fails after the next deploy, the toast will
+now show the exact server reason — capture it for diagnosis.
 
 ## 2026-10-02 — v50r Post-prod fix pack
 

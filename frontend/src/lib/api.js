@@ -2,6 +2,7 @@
 // Auth: httpOnly cookies set by /api/v1/{admin|staff|vendor}/auth/login.
 // CSRF: double-submit-cookie pattern (X-CSRF-Token header on non-GET).
 import axios from "axios";
+import { toast } from "sonner";
 
 function resolveBackendUrl() {
   if (typeof window !== "undefined") {
@@ -93,8 +94,9 @@ export function formatApiError(err) {
  *   try { ... } catch (e) { showApiError(e, { fallbackTitle: "Sign failed" }); }
  */
 export function showApiError(err, { fallbackTitle = "Something went wrong" } = {}) {
-  // Lazy import so this stays cheap for non-error paths.
-  const { toast } = require("sonner");
+  // v51c — top-level ESM import (require("sonner") resolved to the CJS build,
+  // a SEPARATE store from the mounted <Toaster/>, so error toasts never
+  // rendered — the "silent dead button" root cause on 4xx/5xx failures).
   const status = err?.response?.status;
   const detail = formatApiError(err);
   // Split on the first period+space (or newline) into headline + details.

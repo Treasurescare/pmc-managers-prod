@@ -1,0 +1,54 @@
+{
+  "summary": "E2E tested the DocuSign admin console regression fixes (v51b -> current). Reassign flow, validation, Archive, and Restore all WORK end-to-end against MongoDB (verified via network: 200 POST reassign/archive/unarchive and visible success toasts). Only ONE 'Archive' label per row (amber button correctly reads 'Save PDF'). Vendor /vendor/signatures loads cleanly (empty state). HOWEVER, the primary regression goal — that live-DocuSign actions produce a VISIBLE error toast on 502 instead of silent nothing — is NOT met for 4 of the 4 live-DocuSign buttons. All 4 buttons are effectively silent on 502: Resend and Save PDF show only the loading/info toast ('Resending envelope…' / 'Archiving signed PDF…') which auto-dismisses after ~5s with no error toast ever rendered; Print and Download signed PDF show NO toast at all (zero sonner nodes) even though the 502 response arrives in <1s and is logged to console as `[api-error] Something went wrong · HTTP 502`.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/v1/docusign/envelopes/{id}/resend", "issue": "Returns 502 in preview due to invalid DocuSign sandbox creds (invalid_grant). Environmental, not code — but backend should ideally map upstream auth failure to a 4xx/5xx with structured JSON body so the frontend can surface a specific toast."},
+      {"endpoint": "/api/v1/docusign/envelopes/{id}/combined-pdf", "issue": "Also 502 (same root cause)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "DocuSignPanel.jsx — resendEnvelope (~line 47)", "issue": "On HTTP 502 response the initial `toast.loading/info('Resending envelope…')` is never replaced by an error toast. Loading toast simply auto-dismisses after ~5s. User sees silent failure — exactly the regression this fix was supposed to prevent.", "selector": "[data-testid^='ds-resend-']", "priority": "HIGH"},
+      {"component": "DocuSignPanel.jsx — archivePdf / Save PDF (~line 112)", "issue": "On 502, loading toast 'Archiving signed PDF…' is never replaced by error toast. Same silent-failure pattern.", "selector": "[data-testid^='ds-savepdf-']", "priority": "HIGH"},
+      {"component": "DocuSignPanel.jsx — Print action (~line 392-426)", "issue": "On 502 from GET /combined-pdf, NO toast of any kind is rendered (zero sonner nodes polled at 2s/4s/6s). Pure silent failure. No pre-opened blank tab was left (good).", "selector": "[data-testid^='ds-print-']", "priority": "HIGH"},
+      {"component": "DocuSignPanel.jsx — Download signed (PDF column)", "issue": "On 502 from GET /combined-pdf, NO toast rendered. Silent failure.", "selector": "[data-testid^='ds-download-']", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "Any live-DocuSign action error path", "issue": "Axios 502 is caught globally and logged (`[api-error] Something went wrong · HTTP 502`) but the per-button error handler does not call toast.error. Likely `.catch()` branch missing or `toast.dismiss`-without-`toast.error` pattern in these 4 handlers.", "affected_selectors": ["[data-testid^='ds-resend-']", "[data-testid^='ds-print-']", "[data-testid^='ds-savepdf-']", "[data-testid^='ds-download-']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "In DocuSignPanel.jsx add explicit .catch error branches that call toast.error('Resend failed — HTTP {status}') (and similar for Print / Save PDF / Download signed). Do NOT rely on auto-dismiss of the loading toast — switch to toast.loading(id) + toast.success(id)/toast.error(id) pattern or wrap in try/finally with toast.dismiss followed by toast.error.",
+    "Verify the Print and Download handlers surface failures too — currently they produce zero toasts on 502 (no loading, no error).",
+    "Optional: have backend /resend and /combined-pdf return 502 with JSON body {detail:'DocuSign upstream auth failed'} so the toast can show a specific reason."
+  ],
+  "critical_code_review_comments": [
+    "docusignApi.reassignEnvelope / archiveEnvelope / unarchiveEnvelope wiring is correct and functional end-to-end (verified).",
+    "Row action labels now unique: 'Save PDF' + 'Archive' present, no duplicate 'Archive' per row (verified via text occurrence count).",
+    "Error-toast pattern is inconsistent across row actions — Reassign/Archive/Unarchive correctly show success+error, but Resend/Print/SavePDF/Download do not. Centralise via a toast-wrapped api helper to avoid future drift."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (MongoDB endpoints: reassign 200, archive 200, unarchive 200; DocuSign-upstream 502 is environmental)", "frontend": "5/9 PASS, 4/9 FAIL (silent-failure regression on live-DocuSign buttons)"},
+  "test_credentials": "Admin adminsupport@pmcmanagers.com / Admin@12345; Vendor manualvendor@pmcmanagers.com / Vendor@12345 — both verified working.",
+  "seed_data_creation": "None. Used existing 4 envelopes. Row 03422578-… (SENT) was reassigned to kannan@emeraldcorporates.com and archived+restored during tests; row remains in SENT state post-test.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Tested on 4-envelope seed: 2 completed+signed (3f85221f…, 88812ccb…), 1 sent (03422578…), 1 ed652b00…. Preview DocuSign creds are invalid → any live DS call returns 502 (expected). The 502 arrives correctly; the bug is PURELY in frontend error-toast rendering for 4 handlers. Mongo-only actions (reassign/archive/unarchive) are fully working and visible via toasts. Test cases 1,2,3,4,5,6,9 PASS; test cases 7,8 (and derivative Save PDF / Download signed) FAIL on 'visible error toast' criterion.",
+  "test_case_results": {
+    "1_admin_login_and_table_renders": "PASS (4 rows, GET /envelopes 200)",
+    "2_actions_cell_unique_labels": "PASS (single 'Archive' per row; 'Save PDF' present; all 6 testids ds-view/ds-resend/ds-print/ds-savepdf/ds-reassign/ds-hide verified)",
+    "3_reassign_valid_email": "PASS (POST /reassign 200, modal closed, toast 'Reassigned to kannan@emeraldcorporates.com')",
+    "4_reassign_invalid_email_validation": "PASS (modal stayed open, toast 'Enter a valid email', no network call)",
+    "5_archive": "PASS (POST /archive 200, Restore button appeared, 'archived' chip visible, row opacity 0.5, success toast)",
+    "6_restore": "PASS (POST /unarchive 200, Archive button back, Restore gone)",
+    "7_resend_502_visible_toast": "FAIL — only loading toast 'Resending envelope…' shown, never replaced by error toast on 502. Auto-dismisses silently after ~5s. No blank tab was opened (good).",
+    "8a_print_502_visible_toast": "FAIL — zero toast nodes rendered at any poll (2s/4s/6s). Pure silent failure. No blank tab opened.",
+    "8b_download_signed_502_visible_toast": "FAIL — zero toast nodes rendered. Silent.",
+    "8c_save_pdf_502_visible_toast": "FAIL — only info toast 'Archiving signed PDF…' shown, no error toast on 502.",
+    "9_vendor_signatures_page": "PASS (data-testid=vendor-signatures-e present, 'Nothing to sign yet' empty state rendered, no crash)"
+  },
+  "rca_of_the_issue": "Frontend handlers for resend/print/savepdf/download in DocuSignPanel.jsx do not render an error toast when the axios call rejects with 502. The global api-error logger logs to console but does not surface a user-visible toast. For Resend and Save PDF, a toast.loading/toast.info is shown at the start but the catch branch either (a) does not call toast.error or (b) only calls toast.dismiss, so the loading toast simply auto-dismisses leaving the user in the dark. For Print and Download signed, no loading toast is shown and no error toast on failure either — completely silent. This matches the exact 'silent dead buttons' concern flagged in the review-request context note; the Mongo-only branch of the fix is complete, but the error-feedback half for live-DocuSign actions still needs patching."
+}
