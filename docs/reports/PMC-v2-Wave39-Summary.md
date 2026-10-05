@@ -107,7 +107,7 @@ You asked to "see how we can integrate a tool that reads a digital key". Options
 | **Signicat** (Norway-based) | UK + EU eIDAS-first | Yes — BankID, itsme, national eIDs, smartcards | eIDAS QES certified | Best if EU public-sector tenders are in scope |
 | **Adobe Acrobat Sign — Cloud Signatures** | Global | Yes — cloud-based HSM + local USB tokens | eIDAS AES, PAdES | Native PDF signing, no server work required |
 | **eMudhra emSigner** | India + global expansion | Yes — smartcard/USB token reader for India DSC | India IT Act 2000, eIDAS | Best if India tenders are in scope |
-| **Emergent-managed OTP + audit + PKCS7** (in-house) | Any | Kind of — needs a client-side plug-in | Not eIDAS QES-graded | Cheapest but weakest legal weight |
+| **PMC-managed OTP + audit + PKCS7** (in-house) | Any | Kind of — needs a client-side plug-in | Not eIDAS QES-graded | Cheapest but weakest legal weight |
 
 ### My recommendation
 Ship **DocuSign eSignature Advanced** as the default (single vendor, global reach, best legal defensibility). Wire a fallback path to **eMudhra emSigner** for India-specific DSC users because that's where hardware tokens are still the norm.
@@ -129,7 +129,7 @@ Implementation path (once we have the paid account):
 | AWS deployment support — MongoDB Atlas + EC2 + Nginx walkthrough | **In progress** — user parked mid-way to attend to top-management feedback. Atlas cluster provisioned in Mumbai; user has since requested rebuild in **London (eu-west-2)** for UK data residency. Next: EC2 launch in London. |
 | Live KYC (kyc.py) | Blocked — waiting for `KYC_BASE_URL` + `KYC_API_KEY` |
 | Firebase + APNs push notifications | Blocked — waiting for `google-services.json` + APNs `.p8` |
-| Real transactional emails (Resend) | Blocked — waiting for `EMERGENT_EMAIL_KEY` |
+| Real transactional emails (Resend) | Blocked — waiting for mail API key |
 | Refactor `AdminVendorCreate.jsx` + `TenderBuilderPanel.jsx` | Backlog · P2 |
 
 ---

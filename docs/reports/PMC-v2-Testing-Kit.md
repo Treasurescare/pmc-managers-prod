@@ -153,7 +153,7 @@ If all 5 return 200, production is healthy. Move on to browser-based scenario te
 
 ## Known ⚠️ current constraints
 
-- `STRIPE_API_KEY` = `sk_test_emergent` (placeholder — real Stripe checkout will 401; UI still renders)
+- `STRIPE_API_KEY` = `sk_test_placeholder` (placeholder — real Stripe checkout will 401; UI still renders)
 - `LLM_API_KEY` is valid — Audit Copilot works
 - PayPal / Kaspi Pay are mocked sandbox — no real merchant creds
 - Firebase / APNs push not configured

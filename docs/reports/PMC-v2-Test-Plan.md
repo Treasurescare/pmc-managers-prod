@@ -1,8 +1,8 @@
 # PMC Managers v2 · End-to-End Test Plan
 
 **Version:** Wave 43 (2026-08-07) · DocuSign live, trilingual sweep, mobile responsive complete
-**Preview:** https://pmc-forest-green.preview.emergentagent.com
-**Production:** https://tender-hub-57.emergent.host
+**Preview:** https://pmc-forest-green.preview.pmcmanagers.com
+**Production:** https://tender-hub-57.pmcmanagers.com
 
 Hand this file to a human tester or feed it directly to an AI testing agent (Playwright, Cypress, Testim, QA.tech, MagicTest, BrowserStack Test-O). Every test case names a **data-testid** wherever one exists so selectors are stable.
 
@@ -258,7 +258,7 @@ Hand this file to a human tester or feed it directly to an AI testing agent (Pla
 
 | # | Test | Steps | Expected |
 |---|---|---|---|
-| 13.1 | Default tenant | Visit `/` on `tender-hub-57.preview.emergentagent.com` | Skin = PMC-KZ-01 (navy) |
+| 13.1 | Default tenant | Visit `/` on `tender-hub-57.preview.pmcmanagers.com` | Skin = PMC-KZ-01 (navy) |
 | 13.2 | Tenant override | Add `?tenant=DEMO-CORP` | Skin flips to purple |
 | 13.3 | Tenant chip | Login → check admin header | Shows current tenant name |
 | 13.4 | Tenant isolation | Corporate tenant admin cannot see PMC vendors | HTTP 403 or empty list |
@@ -358,7 +358,7 @@ Run these against **preview only**, never against production without permission.
 |---|---|
 | **Burp Suite (Community/Pro)** | Manual pentest of every §15 hack |
 | **OWASP ZAP** | Automated DAST — point it at preview and run baseline scan |
-| **Nuclei** | Templated vuln scanning (`nuclei -u https://pmc-forest-green.preview.emergentagent.com -t cves/`) |
+| **Nuclei** | Templated vuln scanning (`nuclei -u https://pmc-forest-green.preview.pmcmanagers.com -t cves/`) |
 | **Semgrep** | Static analysis on the codebase itself |
 
 ### For AI testing agents specifically

@@ -293,7 +293,7 @@ CORE = [
         ],
         "pitfalls": [
             "Snapshots are per-draft. Cloning a master into a new draft resets the version counter to 1.",
-            "AI Draft respects the tenant's Emergent LLM key budget. If the key runs out mid-generation, the response is truncated and the frontend shows an 'AI budget low' banner — top up under Profile → Universal Key.",
+            "AI Draft respects the tenant's PMC AI key budget. If the key runs out mid-generation, the response is truncated and the frontend shows an 'AI budget low' banner — top up under Profile → AI Key.",
             "Bulk annexure upload dedupes by (annexure_slot, filename). Uploading annex-I.pdf twice replaces the previous file silently — check the History drawer to recover.",
             "Kind tab switching resets the right pane (Bug 31c). If you had unsaved changes, they are LOST — the sidebar's 'unsaved' dot serves as the reminder.",
             "Section locking is per-section (not per-user). A locked section can be unlocked by any admin — this is a soft warning, not a hard permission gate.",

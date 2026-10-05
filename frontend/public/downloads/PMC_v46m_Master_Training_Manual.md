@@ -35,7 +35,7 @@ The PMC platform is a multi-role tender lifecycle engine covering the full path 
 
 **Data** — MongoDB via Motor (async driver). Collections include tenants, notices, tender_templates, registrations, vendors, bids, rubrics, scores, evaluations, awards, escrow_transactions, auctions, corrigenda, audits, ratings, engagements, packages, categories, countries, dpr_jobs.
 
-**AI** — Emergent LLM Universal Key routed through the integration proxy. Used for DPR ingestion (map-reduce), AI Fill All, anomaly detection and the admin copilot. v46l lifts the 800 KB cap and adds an async worker.
+**AI** — PMC AI service routed through the integration proxy. Used for DPR ingestion (map-reduce), AI Fill All, anomaly detection and the admin copilot. v46l lifts the 800 KB cap and adds an async worker.
 
 **Storage** — S3 for licences, tender attachments, signed PDFs, archived auction rooms. CloudFront in front for global CDN.
 
@@ -366,7 +366,7 @@ The credential form uses the portal's colour and badge. Email + password submit 
 
 - **Portal briefing (right rail)** — Short brief so the user knows they're in the right door.
 
-- **Session security note** — TLS 1.3 + Emergent audit log — cite this in security reviews.
+- **Session security note** — TLS 1.3 + PMC audit log — cite this in security reviews.
 
 #### Known gotchas
 
@@ -396,7 +396,7 @@ The credential form uses the portal's colour and badge. Email + password submit 
 
 - **Portal briefing (right rail)** — Short brief so the user knows they're in the right door.
 
-- **Session security note** — TLS 1.3 + Emergent audit log — cite this in security reviews.
+- **Session security note** — TLS 1.3 + PMC audit log — cite this in security reviews.
 
 #### Known gotchas
 
@@ -426,7 +426,7 @@ The credential form uses the portal's colour and badge. Email + password submit 
 
 - **Portal briefing (right rail)** — Short brief so the user knows they're in the right door.
 
-- **Session security note** — TLS 1.3 + Emergent audit log — cite this in security reviews.
+- **Session security note** — TLS 1.3 + PMC audit log — cite this in security reviews.
 
 #### Known gotchas
 
@@ -456,7 +456,7 @@ The credential form uses the portal's colour and badge. Email + password submit 
 
 - **Portal briefing (right rail)** — Short brief so the user knows they're in the right door.
 
-- **Session security note** — TLS 1.3 + Emergent audit log — cite this in security reviews.
+- **Session security note** — TLS 1.3 + PMC audit log — cite this in security reviews.
 
 #### Known gotchas
 
@@ -486,7 +486,7 @@ The credential form uses the portal's colour and badge. Email + password submit 
 
 - **Portal briefing (right rail)** — Short brief so the user knows they're in the right door.
 
-- **Session security note** — TLS 1.3 + Emergent audit log — cite this in security reviews.
+- **Session security note** — TLS 1.3 + PMC audit log — cite this in security reviews.
 
 #### Known gotchas
 
