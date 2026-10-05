@@ -28,17 +28,29 @@ export default function PmcHelpDrawer() {
   // promo). Both drawers share the .pmc-drawer / .pmc-helpfab classes, so
   // the dead static one rendered on top and its search did nothing.
   // Remove the non-React duplicates on mount and on every route change.
+  //
+  // v51u — CRITICAL guard: real React dialogs (licence dialog on Company &
+  // KYC, change-request dialog on Account) also use the .pmc-drawer-scrim
+  // class. The old blanket removal yanked those scrims out from under React,
+  // so closing the dialog threw NotFoundError removeChild and the panel
+  // crashed ("This panel hit an error"). Now a scrim is only removed when
+  // it shares a parent with a non-React static drawer, and never when it
+  // carries inline display:block (React dialogs set that explicitly).
   useEffect(() => {
     if (!isE) return;
     const scrub = () => {
       document.querySelectorAll("aside.pmc-drawer").forEach((el) => {
-        if (el.getAttribute("data-testid") !== "pmc-help-drawer") el.remove();
+        if (el.getAttribute("data-testid") === "pmc-help-drawer") return;
+        const parent = el.parentElement;
+        el.remove();
+        parent?.querySelectorAll(":scope > .pmc-drawer-scrim").forEach((s) => {
+          if (s.getAttribute("data-testid") === "pmc-drawer-scrim") return;
+          if (s.style.display === "block") return; // React-owned dialog scrim
+          s.remove();
+        });
       });
       document.querySelectorAll(".pmc-helpfab").forEach((el) => {
         if (el.getAttribute("data-testid") !== "pmc-help-fab") el.remove();
-      });
-      document.querySelectorAll(".pmc-drawer-scrim").forEach((el) => {
-        if (el.getAttribute("data-testid") !== "pmc-drawer-scrim") el.remove();
       });
     };
     scrub();

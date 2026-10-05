@@ -38,6 +38,43 @@ mostly static; live data + click routing is patched at runtime via:
 
 ## What is implemented
 
+### v51u (2026-10-05) — Hotfix: Company & KYC Cancel crash
+Root cause: PmcHelpDrawer's v51m static-drawer scrub (runs on route change
++ 1.5s interval for 8s) removed ANY `.pmc-drawer-scrim` without the React
+testid — including the licence dialog's scrim on Company & KYC. React's
+unmount on Cancel then threw `NotFoundError: removeChild` → ErrorBoundary
+("This panel hit an error"). Fix (`PmcHelpDrawer.jsx`): scrims are removed
+only when they share a parent with a non-React static `aside.pmc-drawer`,
+and never when they carry inline `display:block` (React dialogs set that).
+Verified: open+Cancel twice inside the scrub window → no crash, dialog
+closes; Help drawer still opens/closes.
+Lesson: global DOM scrubbers must never remove nodes by class alone when
+React components reuse that class — scope by structure + inline-style guard.
+Bundle: v51u supersedes v51o–v51t (backend unchanged since v51t).
+
+### v51t (2026-10-05) — Registrations inline detail, change-pw mobile, avatar portal, evidence upload, phone-confirm gate
+- **Admin Registrations** uses the same matchMedia `max-width:1023px` pattern
+  as VendorsPanel; tap → inline detail below the row on mobile, right column
+  on desktop. Verified: inlinePresent=true after row tap.
+- **VendorChangePassword** mobile overflow: `.vcp-grid` collapses to 1-col
+  @≤1023px, padding 48→20px, h1 56→32px. Verified @390px: scrollW==vw==390.
+- **AdminAvatarMenu** uses `createPortal(document.body)` + rect-based
+  anchoring; mobile pins top/right; resize/scroll listeners reposition. CSS
+  also hides .pmc-atop .pmc-btn text (not primary/icon buttons) at ≤767 so
+  Create/Help become icon-only. Verified: menu.parentElement is BODY, rect
+  fully inside viewport.
+- **Company_name change requires evidence_key**: backend 400 if missing;
+  help text in dialog ("certificate of incorporation / change-of-name
+  certificate"); Submit disabled until uploaded. Admin profile-change panel
+  shows 📎 Evidence link to `/api/v1/uploads/files/<key>`.
+- **Phone change confirmation gate**: new `phone_confirm_token` on request;
+  click-link sent to vendor's CURRENT email; new endpoint
+  `GET /api/v1/vendor/profile/phone-verify/{token}`; admin approve returns
+  412 until `phone_confirmed==true`; admin panel shows yellow/green badge.
+  New route `/vendor/verify-phone-change/:token` → VendorVerifyPhoneChange.
+  Full SMS OTP still requires Twilio (noted in release doc).
+Bundle: v51t (BACKEND CHANGED since v51n).
+
 ### v51s (2026-10-05) — Avatar dropdown + account button overlap + 5-icon tabbar
 - **Admin avatar dropdown clipped on right (mobile)**: topbar actions push
   the avatar near the right edge; its `position:absolute; right:0;` menu
