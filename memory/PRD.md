@@ -38,6 +38,18 @@ mostly static; live data + click routing is patched at runtime via:
 
 ## What is implemented
 
+### v51p (2026-10-05) — Hotfix: admin Vendors giant buttons on iPhone
+Root cause of the "still not proper" v51o follow-up: mobile-fix.css had
+`[data-testid^="vendor-"] { padding-bottom: 88px !important; }` (bottom-tab
+clearance for vendor-portal page roots). The prefix selector also matched
+every control inside the ADMIN Vendors panel (vendor-search,
+vendor-invite-toggle, vendor-bulk-invite-open, vendor-status-filter-*),
+inflating each by 88px (buttons measured 120–145px tall on iPhone).
+Fix: rule scoped to `[data-pmc-e-page^="vendor-"]` page roots only (+
+vendor-verify-email-change-page). Verified in preview @402px: admin
+Vendors controls 26–62px, search 38px, no h-overflow; vendor portal page
+roots keep the 88px clearance. Bundle: v51p supersedes v51o.
+
 ### v51o (2026-10-05) — Admin mobile UI defects fixed
 Fixes four defects spotted on real-phone screenshots (390px):
 - **Vendors page toolbar wraps on mobile** (`VendorsPanel.jsx` +

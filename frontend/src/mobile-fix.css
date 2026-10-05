@@ -84,9 +84,13 @@ html, body { overflow-x: clip; }
     max-width: 100% !important;
   }
 
-  /* Vendor pages get bottom padding so the tab bar never covers content */
+  /* Vendor pages get bottom padding so the tab bar never covers content.
+     Scope to PAGE ROOTS only (data-pmc-e-page) — a bare
+     [data-testid^="vendor-"] selector also matched every button/label
+     inside the admin Vendors panel (vendor-search, vendor-invite-toggle…)
+     and inflated them by 88px on phones. */
   [data-ui="e"] [data-pmc-e-page^="vendor-"],
-  [data-testid^="vendor-"] { padding-bottom: 88px !important; }
+  [data-testid="vendor-verify-email-change-page"] { padding-bottom: 88px !important; }
 
   /* ==========================================================================
    * NUCLEAR — force every multi-column grid in the theme to 1 column
