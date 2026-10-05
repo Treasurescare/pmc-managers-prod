@@ -38,6 +38,22 @@ mostly static; live data + click routing is patched at runtime via:
 
 ## What is implemented
 
+### v51r (2026-10-05) — Vendor Start-bid mobile fixes
+- **Submit & pay EMD hidden under bottom tab bar**: legacy BidSubmit page
+  had no bottom clearance → root now `pt-6 pb-40 md:py-10` so the button
+  scrolls fully above the fixed tab bar. Verified: btnBottom 663 < tabTop
+  774 at 390px.
+- **Uploaded-file rows invisible**: global Option-E remap in index.css
+  forces `.text-slate-900/800 → cream` + `.bg-white → surface` (meant for
+  dark pages) — on the light BidSubmit page filenames were cream-on-cream
+  (measured rgb(243,239,228) on rgb(251,249,243)). Fixed with page-scoped
+  slate-ink restore under `[data-testid="bid-submit-page"]`. Each uploaded
+  doc is now a white bordered chip: kind · filename · size + **View** link
+  (`/api/v1/uploads/files/<key>` new tab) + Remove, all with testids.
+- Upload slots + gateway selector stack 1-col on phones; submit button
+  py-4. Verified with a real file upload at 390px.
+Bundle: v51r supersedes v51o–v51q.
+
 ### v51q (2026-10-05) — Mobile design polish: inline vendor detail + Masters chips
 - **Admin → Vendors (mobile)**: tapping a vendor row expands the KPI/KYC
   detail inline directly below the tapped row (matchMedia ≤1023px gate;

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { publicApi, vendorApi, bidApi, paymentApi, uploadsApi, sandboxPayApi, formatApiError, showApiError} from "@/lib/api";
+import { publicApi, vendorApi, bidApi, paymentApi, uploadsApi, sandboxPayApi, formatApiError, showApiError, BACKEND_URL } from "@/lib/api";
 
 const GATEWAYS = [
   { id: "stripe", label: "Stripe", note: "Card · Live sandbox" },
@@ -123,8 +123,8 @@ export default function BidSubmit() {
   const deadlinePassed = !!notice.submission_deadline && new Date(notice.submission_deadline) < new Date();
 
   return (
-    <div className="min-h-screen bg-slate-50 py-10" data-testid="bid-submit-page">
-      <div className="max-w-3xl mx-auto px-6">
+    <div className="min-h-screen bg-slate-50 pt-6 pb-40 md:py-10" data-testid="bid-submit-page">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6">
         <button onClick={() => nav("/vendor")} className="text-xs text-slate-500 hover:underline">← Back</button>
         <h1 className="text-3xl font-serif mt-2 text-slate-900">Submit a bid</h1>
         <div className="text-sm text-slate-600">{notice.notice_ref}</div>
@@ -182,7 +182,7 @@ export default function BidSubmit() {
 
           <div className="space-y-2">
             <div className="text-sm font-semibold text-slate-900">Supporting documents</div>
-            <div className="grid grid-cols-3 gap-2 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
               {[["technical", "Technical PDF"], ["commercial", "Commercial PDF"], ["supporting", "Other doc"]].map(([k, label]) => (
                 <label key={k}
                   className="group border-2 border-dashed border-amber-400 bg-amber-50 hover:bg-amber-100 hover:border-amber-500 rounded-md p-3 text-center cursor-pointer transition-colors"
@@ -195,12 +195,24 @@ export default function BidSubmit() {
               ))}
             </div>
             {docs.length > 0 && (
-              <div className="mt-2 text-xs space-y-1">
+              <div className="mt-2 space-y-2" data-testid="bid-docs-list">
                 {docs.map((d, i) => (
-                  <div key={`bid-att-${d.filename || d.kind || i}`} className="flex justify-between bg-slate-50 px-2 py-1 rounded">
-                    <span>{d.kind}: {d.filename} ({Math.round((d.size_bytes || 0) / 1024)} KB)</span>
-                    <button type="button" onClick={() => removeDoc(i)}
-                      className="text-red-600 hover:underline">Remove</button>
+                  <div key={`bid-att-${d.filename || d.kind || i}`}
+                    className="flex items-center justify-between gap-2 bg-white border border-slate-300 px-3 py-2 rounded-md"
+                    data-testid={`bid-doc-${d.kind}-${i}`}>
+                    <span className="text-xs text-slate-900 font-medium break-all min-w-0">
+                      <span className="uppercase text-slate-500 font-semibold">{d.kind}</span>
+                      {" · "}{d.filename}
+                      <span className="text-slate-500"> ({Math.round((d.size_bytes || 0) / 1024)} KB)</span>
+                    </span>
+                    <span className="flex gap-3 shrink-0 text-xs font-semibold">
+                      <a href={`${BACKEND_URL}/api/v1/uploads/files/${d.key}`} target="_blank" rel="noreferrer"
+                        className="text-slate-900 underline hover:text-slate-600"
+                        data-testid={`bid-doc-view-${d.kind}-${i}`}>View</a>
+                      <button type="button" onClick={() => removeDoc(i)}
+                        className="text-red-600 hover:underline"
+                        data-testid={`bid-doc-remove-${d.kind}-${i}`}>Remove</button>
+                    </span>
                   </div>
                 ))}
               </div>
@@ -210,7 +222,7 @@ export default function BidSubmit() {
           {emdDue > 0 && (
             <div>
               <div className="text-sm font-semibold mb-2">EMD payment gateway</div>
-              <div className="grid grid-cols-3 gap-2" data-testid="gateway-selector">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2" data-testid="gateway-selector">
                 {GATEWAYS.map((g) => (
                   <label key={g.id}
                     className={`border rounded-md p-3 cursor-pointer text-center text-xs ${gateway === g.id ? "border-slate-900 bg-slate-50 ring-1 ring-slate-900" : "hover:border-slate-400"}`}
@@ -226,7 +238,7 @@ export default function BidSubmit() {
           )}
 
           <button type="submit" disabled={busy || deadlinePassed}
-            className="w-full bg-slate-900 text-white rounded-md py-3 text-sm hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full bg-slate-900 text-white rounded-md py-4 text-sm font-semibold hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed"
             data-testid="bid-submit-btn">
             {busy ? "Submitting…" : deadlinePassed ? "Deadline passed" : (emdDue > 0 ? `Submit & pay EMD (${emdConfig.currency} ${emdDue.toLocaleString()})` : "Submit bid")}
           </button>

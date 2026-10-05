@@ -706,6 +706,16 @@
 [data-ui="e"] .text-slate-700 { color: #EAF0EA !important; }
 [data-ui="e"] .text-slate-800, [data-ui="e"] .text-slate-900 { color: #F3EFE4 !important; }
 [data-ui="e"] .bg-white { background: var(--e-bg-surface) !important; }
+
+/* The slate→cream remap above is meant for DARK themed pages. The bid-submit
+   page is a LIGHT page, so the remap made its headings and the uploaded-file
+   rows cream-on-cream (user report: "unable to see what file I uploaded").
+   Restore real slate ink inside this page only. */
+[data-ui="e"] [data-testid="bid-submit-page"] .text-slate-900,
+[data-ui="e"] [data-testid="bid-submit-page"] .text-slate-800 { color: #0F172A !important; }
+[data-ui="e"] [data-testid="bid-submit-page"] .text-slate-700 { color: #334155 !important; }
+[data-ui="e"] [data-testid="bid-submit-page"] .text-slate-600 { color: #475569 !important; }
+[data-ui="e"] [data-testid="bid-submit-page"] .text-slate-500 { color: #64748B !important; }
 [data-ui="e"] .border-slate-200 { border-color: var(--e-border-light) !important; }
 
 /* Admin analytics panel — when isE, dark cards */
