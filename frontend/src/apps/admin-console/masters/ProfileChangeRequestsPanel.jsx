@@ -69,6 +69,8 @@ export default function ProfileChangeRequestsPanel() {
       <div className="space-y-3">
         {rows.map((r) => {
           const emailBlocked = r.field === "email" && !r.email_verified;
+          const phoneBlocked = (r.field === "mobile" || r.field === "office_phone") && !r.phone_confirmed;
+          const approveBlocked = emailBlocked || phoneBlocked;
           return (
             <div key={r.id} className="bg-white border border-brand-navy/10 p-4"
                  data-testid={`pcr-row-${r.id}`}>
@@ -103,6 +105,27 @@ export default function ProfileChangeRequestsPanel() {
                       {r.email_verified ? "✓ New email verified" : "⚠ New email NOT yet verified by vendor"}
                     </div>
                   )}
+                  {(r.field === "mobile" || r.field === "office_phone") && (
+                    <div className={"text-[11px] mt-1 inline-block px-2 py-0.5 border " +
+                      (r.phone_confirmed
+                        ? "border-emerald-300 text-emerald-800 bg-emerald-50"
+                        : "border-amber-300 text-amber-900 bg-amber-50")}
+                      data-testid={`pcr-phonestate-${r.id}`}>
+                      {r.phone_confirmed ? "✓ Confirmed by vendor (click-link on current email)" : "⚠ Awaiting vendor confirmation on current email"}
+                    </div>
+                  )}
+                  {r.evidence_key && (
+                    <div className="mt-2 inline-flex items-center gap-2 px-2 py-1 border border-brand-navy/20 bg-brand-pale/30"
+                         data-testid={`pcr-evidence-${r.id}`}>
+                      <span className="text-[11px] text-brand-navy/60">📎 Evidence:</span>
+                      <a href={`/api/v1/uploads/files/${r.evidence_key}`}
+                         target="_blank" rel="noreferrer"
+                         className="text-[11px] font-mono text-brand-navy underline"
+                         data-testid={`pcr-evidence-view-${r.id}`}>
+                        {r.evidence_filename || "View document"}
+                      </a>
+                    </div>
+                  )}
                 </div>
                 <span className={"text-[10px] uppercase tracking-widest px-2 py-0.5 shrink-0 " +
                   (r.status === "approved" ? "text-emerald-800 bg-emerald-50 border border-emerald-200"
@@ -119,8 +142,10 @@ export default function ProfileChangeRequestsPanel() {
                     className="flex-1 min-w-[200px] px-3 py-1.5 border border-brand-navy/20 text-sm"
                     data-testid={`pcr-notes-${r.id}`} />
                   <button type="button" onClick={() => decide(r.id, "approve")}
-                          disabled={busyId === r.id || emailBlocked}
-                          title={emailBlocked ? "Vendor must verify the new email first" : ""}
+                          disabled={busyId === r.id || approveBlocked}
+                          title={emailBlocked ? "Vendor must verify the new email first"
+                                 : phoneBlocked ? "Vendor must click the confirmation link in their current email first"
+                                 : ""}
                           data-testid={`pcr-approve-${r.id}`}
                           className="px-3 py-1.5 text-[10px] uppercase tracking-widest bg-emerald-700 text-white hover:bg-emerald-800 disabled:opacity-50">
                     Approve

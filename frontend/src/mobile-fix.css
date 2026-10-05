@@ -1175,6 +1175,19 @@ body.pmc-mob-menu-open { overflow: hidden; }
 .pmc-mobile-tabbar a.is-active { color: #1f5a48; }
 .pmc-mobile-tabbar a:active { background: rgba(31,90,72,0.06); }
 
+@media (max-width: 767px) {
+  /* v51t — Admin topbar on narrow screens: hide the Create/Help button
+     TEXT labels (keep icons) so the row doesn't push the avatar off the
+     right edge and the dropdown trigger stays reachable. */
+  .pmc-atop .pmc-btn:not(.pmc-btn--primary):not(.pmc-ib) {
+    font-size: 0 !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+  .pmc-atop .pmc-btn > svg,
+  .pmc-atop .pmc-btn .pmc-ico { font-size: 14px !important; }
+}
+
 /* Avatar dropdown (admin + vendor) — on narrow screens the topbar's
    .pmc-atop__r flex row pushes the avatar close to or past the right
    edge. The absolutely-positioned dropdown then gets clipped by the
@@ -1189,7 +1202,7 @@ body.pmc-mob-menu-open { overflow: hidden; }
     width: min(280px, calc(100vw - 16px)) !important;
     max-height: calc(100vh - 80px) !important;
     overflow-y: auto !important;
-    z-index: 1200 !important;
+    z-index: 2000 !important;
   }
 }
 

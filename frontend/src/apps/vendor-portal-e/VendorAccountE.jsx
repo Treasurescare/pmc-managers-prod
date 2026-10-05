@@ -32,6 +32,9 @@ export default function VendorAccountE({ legacy: Legacy }) {
   const [countries, setCountries] = useState([]);
   const [saving, setSaving] = useState(false);
   const [revoking, setRevoking] = useState(false);
+  // v51t — evidence upload (incorporation cert for company_name, etc.)
+  const [evidence, setEvidence] = useState(null); // { key, filename, size_bytes }
+  const [uploadingEvidence, setUploadingEvidence] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -62,6 +65,7 @@ export default function VendorAccountE({ legacy: Legacy }) {
     // nothing has changed).
     setDraft("");
     setReason("");
+    setEvidence(null);
     // v50n — phone fields get a country-code dropdown auto-prefilled with
     // the vendor's registered country and a digit-count rule per country.
     if (field === "mobile" || field === "office_phone") {
@@ -77,7 +81,36 @@ export default function VendorAccountE({ legacy: Legacy }) {
       setAddrError("");
     }
   };
-  const closeEdit = () => { setEditing(null); setDraft(""); setReason(""); setPhoneError(""); setAddrError(""); };
+  const closeEdit = () => { setEditing(null); setDraft(""); setReason(""); setPhoneError(""); setAddrError(""); setEvidence(null); };
+
+  const uploadEvidence = async (file) => {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Supporting document must be under 5 MB.");
+      return;
+    }
+    setUploadingEvidence(true);
+    try {
+      const pres = await (await import("@/lib/api")).api.post("/api/v1/uploads/presign", {
+        file_name: file.name,
+        content_type: file.type || "application/octet-stream",
+        scope: "vendor-docs",
+        size_bytes: file.size,
+      });
+      const fd = new FormData();
+      fd.append("key", pres.data.key);
+      fd.append("file", file);
+      const r = await (await import("@/lib/api")).api.post(pres.data.direct_url, fd, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setEvidence({ key: r.data.key, filename: file.name, size_bytes: r.data.size_bytes });
+      toast.success(`Uploaded: ${file.name}`);
+    } catch (e) {
+      showApiError(e, { fallbackTitle: "Upload failed" });
+    } finally {
+      setUploadingEvidence(false);
+    }
+  };
 
   const submit = async () => {
     let valueToSend = draft.trim();
@@ -126,13 +159,21 @@ export default function VendorAccountE({ legacy: Legacy }) {
       toast.error("Please enter a new value.");
       return;
     }
+    // v51t — company_name requires a supporting incorporation document.
+    if (editing === "company_name" && !evidence) {
+      toast.error("Please upload a certificate of incorporation or change-of-name certificate.");
+      return;
+    }
     setSaving(true);
     try {
-      await vendorApi.requestProfileChange(editing, valueToSend, reason.trim() || null, parts);
+      await vendorApi.requestProfileChange(editing, valueToSend, reason.trim() || null, parts,
+        evidence ? { evidence_key: evidence.key, evidence_filename: evidence.filename } : null);
       toast.success(
         editing === "email"
           ? "Request sent. Confirm the new address from the verification email we just sent, then wait for admin approval."
-          : "Request submitted. A PMC administrator will review and approve shortly.",
+          : (editing === "mobile" || editing === "office_phone")
+            ? "Request sent. Check your current inbox for the confirmation link, click it, then wait for admin approval."
+            : "Request submitted. A PMC administrator will review and approve shortly.",
         { duration: 8000 },
       );
       closeEdit();
@@ -234,6 +275,28 @@ export default function VendorAccountE({ legacy: Legacy }) {
                 <b>Email changes need extra verification.</b>{" "}
                 We'll send a confirmation link to the new address. After you click it, an
                 administrator still has to approve before your login email is updated.
+              </div>
+            )}
+            {editing === "company_name" && (
+              <div style={{ marginTop: 8, padding: 10,
+                            background: "var(--warning-soft, #fef9e7)",
+                            fontSize: 12, lineHeight: "18px" }}
+                   data-testid="vacc-company-notice">
+                <b>Company name changes need supporting evidence.</b>{" "}
+                Please attach a scanned copy of your <b>certificate of incorporation</b> or
+                a <b>change-of-name certificate</b> issued by the registrar. PMC Managers
+                will verify this document before approving the change.
+              </div>
+            )}
+            {(editing === "mobile" || editing === "office_phone") && (
+              <div style={{ marginTop: 8, padding: 10,
+                            background: "var(--warning-soft, #fef9e7)",
+                            fontSize: 12, lineHeight: "18px" }}
+                   data-testid="vacc-phone-notice">
+                <b>Phone-number changes need confirmation.</b>{" "}
+                We'll send a confirmation link to your <b>current email</b> ({profile?.email || "your inbox"}).
+                Click it to prove this request is from you. An administrator will then review
+                and approve. (Attach a recent phone bill below if you have one — it speeds up approval.)
               </div>
             )}
             <label style={{ display: "block", marginTop: 14 }}>
@@ -361,6 +424,50 @@ export default function VendorAccountE({ legacy: Legacy }) {
                      style={{ width: "100%", marginTop: 4 }}
                      data-testid="vacc-reason-input" />
             </label>
+            {(editing === "company_name" || editing === "mobile" || editing === "office_phone" || editing === "address") && (
+              <div style={{ marginTop: 12 }} data-testid="vacc-evidence-block">
+                <span className="pmc-eyebrow">
+                  Supporting document {editing === "company_name" ? "(required)" : "(optional)"}
+                </span>
+                {evidence ? (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
+                                gap: 8, marginTop: 6, padding: "10px 12px",
+                                background: "var(--surface-sunken,#f6f2e9)",
+                                border: "1px solid var(--line,#e2dccd)",
+                                borderRadius: 6, fontSize: 13 }}
+                       data-testid="vacc-evidence-current">
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis",
+                                   whiteSpace: "nowrap", minWidth: 0 }}>
+                      📎 {evidence.filename}
+                      {evidence.size_bytes != null && (
+                        <span className="pmc-muted" style={{ marginLeft: 6, fontSize: 12 }}>
+                          ({Math.round(evidence.size_bytes / 1024)} KB)
+                        </span>
+                      )}
+                    </span>
+                    <button type="button"
+                            onClick={() => setEvidence(null)}
+                            className="pmc-btn pmc-btn--ghost pmc-btn--sm"
+                            data-testid="vacc-evidence-remove"
+                            style={{ color: "var(--danger,#b91c1c)" }}>Remove</button>
+                  </div>
+                ) : (
+                  <label htmlFor="vacc-evidence-file" style={{
+                    display: "block", marginTop: 6,
+                    padding: "14px", border: "2px dashed var(--brass-text,#B08E4A)",
+                    background: "var(--warning-soft,#fef9e7)",
+                    borderRadius: 6, textAlign: "center", cursor: "pointer",
+                    fontSize: 13,
+                  }} data-testid="vacc-evidence-label">
+                    {uploadingEvidence ? "Uploading…" : "Click to upload (PDF, PNG, JPG — up to 5 MB)"}
+                    <input id="vacc-evidence-file" type="file" hidden
+                           accept="application/pdf,image/*"
+                           onChange={(e) => e.target.files?.[0] && uploadEvidence(e.target.files[0])}
+                           data-testid="vacc-evidence-file" />
+                  </label>
+                )}
+              </div>
+            )}
             <div style={{ marginTop: 20, display: "flex", gap: 8, justifyContent: "flex-end" }}>
               <button type="button" onClick={closeEdit}
                       className="pmc-btn pmc-btn--secondary"
@@ -370,6 +477,7 @@ export default function VendorAccountE({ legacy: Legacy }) {
                         saving ||
                         phoneError !== "" ||
                         addrError !== "" ||
+                        (editing === "company_name" && !evidence) ||
                         (editing === "address"
                           ? !(addrParts.street.trim() && addrParts.city.trim() && addrParts.country && addrParts.zip.trim())
                           : (editing === "mobile" || editing === "office_phone")

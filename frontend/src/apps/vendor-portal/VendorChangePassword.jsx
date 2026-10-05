@@ -48,9 +48,9 @@ export default function VendorChangePassword() {
   const s = strength();
 
   return (
-    <div data-testid="vendor-change-password" data-pmc-e-page="vendor-change-password">
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", minHeight: "100vh" }}>
-        <section className="pmc-chrome" style={{ position: "relative", overflow: "hidden", padding: "48px 64px", display: "flex", flexDirection: "column" }}>
+    <div data-testid="vendor-change-password" data-pmc-e-page="vendor-change-password" className="vcp-root">
+      <div className="vcp-grid">
+        <section className="pmc-chrome vcp-hero">
           <Link to="/" className="pmc-brand">
             <span className="pmc-brand__n">PMC Managers</span>
             <span className="pmc-brand__s">Vendor portal</span>
@@ -85,7 +85,7 @@ export default function VendorChangePassword() {
           </div>
         </section>
 
-        <section style={{ display: "grid", placeItems: "center", padding: "48px" }}>
+        <section className="vcp-form-pane">
           <form onSubmit={submit} style={{ width: "440px", maxWidth: "100%" }} data-testid="vcp-form">
             <h2 style={{ fontSize: "28px", lineHeight: "34px", margin: "0 0 6px" }}>Set your new password</h2>
             <p className="pmc-muted" style={{ margin: "0 0 24px" }}>

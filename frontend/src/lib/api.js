@@ -232,12 +232,16 @@ export const vendorApi = {
   // v50m — profile edit with admin-approval gate
   getProfile: () => api.get("/api/v1/vendor/profile").then((r) => r.data),
   listProfileRequests: () => api.get("/api/v1/vendor/profile/requests").then((r) => r.data),
-  requestProfileChange: (field, new_value, reason, parts) =>
+  requestProfileChange: (field, new_value, reason, parts, evidence) =>
     api.post("/api/v1/vendor/profile/request-change",
              { field, new_value, reason: reason || null,
-               ...(parts ? { parts } : {}) }).then((r) => r.data),
+               ...(parts ? { parts } : {}),
+               ...(evidence?.evidence_key ? { evidence_key: evidence.evidence_key,
+                                              evidence_filename: evidence.evidence_filename } : {}) }).then((r) => r.data),
   confirmEmailChange: (token) =>
     api.get(`/api/v1/vendor/profile/email-verify/${token}`).then((r) => r.data),
+  confirmPhoneChange: (token) =>
+    api.get(`/api/v1/vendor/profile/phone-verify/${token}`).then((r) => r.data),
   // v50l — vendor category interest (vendor side)
   myCategories: () => api.get("/api/v1/vendor/categories/mine").then((r) => r.data),
   requestCategory: (p) =>

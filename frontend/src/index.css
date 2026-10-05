@@ -716,6 +716,31 @@
 [data-ui="e"] [data-testid="bid-submit-page"] .text-slate-700 { color: #334155 !important; }
 [data-ui="e"] [data-testid="bid-submit-page"] .text-slate-600 { color: #475569 !important; }
 [data-ui="e"] [data-testid="bid-submit-page"] .text-slate-500 { color: #64748B !important; }
+
+/* v51t — Vendor Change Password: the 2-column hero/form layout was
+   fixed to `minmax(0,1fr) minmax(0,1fr)` with 48px padding, so inputs
+   overflowed on phones. Collapse to a single column on narrow screens
+   and shrink padding; keep the hero on top for context. */
+.vcp-grid {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+  min-height: 100vh;
+}
+.vcp-hero {
+  position: relative; overflow: hidden;
+  padding: 48px 64px; display: flex; flex-direction: column;
+}
+.vcp-form-pane { display: grid; place-items: center; padding: 48px; }
+@media (max-width: 1023px) {
+  .vcp-grid { grid-template-columns: 1fr; }
+  .vcp-hero { padding: 32px 20px; min-height: auto; }
+  .vcp-hero h1 { font-size: 32px !important; line-height: 36px !important; }
+  .vcp-form-pane { padding: 24px 16px; }
+}
+@media (max-width: 400px) {
+  .vcp-hero { padding: 24px 16px; }
+  .vcp-form-pane { padding: 20px 12px; }
+}
 [data-ui="e"] .border-slate-200 { border-color: var(--e-border-light) !important; }
 
 /* Admin analytics panel — when isE, dark cards */

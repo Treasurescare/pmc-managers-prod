@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { adminApi, showApiError } from "@/lib/api";
@@ -14,20 +15,51 @@ export default function AdminAvatarMenu() {
   const [cur, setCur] = useState("");
   const [next, setNext] = useState("");
   const [busy, setBusy] = useState(false);
-  const wrapRef = useRef(null);
+  // v51t — anchor the dropdown via a portal to document.body so no
+  // ancestor overflow/clip can hide it. We measure the button's rect on
+  // open + on resize/scroll so the menu stays glued to the avatar.
+  const btnRef = useRef(null);
+  const menuRef = useRef(null);
   const fileRef = useRef(null);
+  const [anchor, setAnchor] = useState(null);
 
   useEffect(() => {
     adminApi.me().then(setMe).catch(() => {});
   }, []);
 
+  const place = () => {
+    const b = btnRef.current;
+    if (!b) return;
+    const r = b.getBoundingClientRect();
+    const narrow = window.innerWidth <= 767;
+    // On narrow screens pin to the right edge (fully inside viewport);
+    // on desktop align the menu's right edge to the button's right edge.
+    const width = narrow ? Math.min(300, window.innerWidth - 16) : 280;
+    const top = narrow ? Math.max(8, r.bottom + 6) : r.bottom + 8;
+    const right = narrow ? 8 : Math.max(8, window.innerWidth - r.right);
+    setAnchor({ top, right, width });
+  };
+
   useEffect(() => {
     if (!open) return;
-    const onDoc = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
+    place();
+    const onDoc = (e) => {
+      if (menuRef.current && menuRef.current.contains(e.target)) return;
+      if (btnRef.current && btnRef.current.contains(e.target)) return;
+      setOpen(false);
+    };
     const onEsc = (e) => { if (e.key === "Escape") { setOpen(false); setShowPw(false); } };
+    const onViewportChange = () => place();
     document.addEventListener("mousedown", onDoc);
     document.addEventListener("keydown", onEsc);
-    return () => { document.removeEventListener("mousedown", onDoc); document.removeEventListener("keydown", onEsc); };
+    window.addEventListener("resize", onViewportChange);
+    window.addEventListener("scroll", onViewportChange, true);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onEsc);
+      window.removeEventListener("resize", onViewportChange);
+      window.removeEventListener("scroll", onViewportChange, true);
+    };
   }, [open]);
 
   const email = me?.email || "Admin";
@@ -76,8 +108,9 @@ export default function AdminAvatarMenu() {
   };
 
   return (
-    <div ref={wrapRef} style={{ position: "relative" }}>
+    <div style={{ position: "relative" }}>
       <button
+        ref={btnRef}
         type="button"
         className="pmc-avatar"
         title={email}
@@ -89,11 +122,13 @@ export default function AdminAvatarMenu() {
       >
         {avatar ? <img src={avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : initial}
       </button>
-      {open && (
-        <div role="menu" data-testid="admin-avatar-menu" className="pmc-avatar-menu" style={{
-          position: "absolute", right: 0, top: "calc(100% + 8px)", width: 260, zIndex: 1200,
-          background: "var(--surface)", border: "1px solid var(--line)", borderRadius: "var(--radius-md)",
-          boxShadow: "var(--shadow-2)", padding: "8px", display: "grid", gap: 2,
+      {open && anchor && createPortal(
+        <div ref={menuRef} role="menu" data-testid="admin-avatar-menu" className="pmc-avatar-menu" style={{
+          position: "fixed", top: anchor.top, right: anchor.right, width: anchor.width,
+          maxHeight: `calc(100vh - ${anchor.top + 16}px)`, overflowY: "auto", zIndex: 2000,
+          background: "var(--surface, #fff)", border: "1px solid var(--line, #0001)",
+          borderRadius: "var(--radius-md, 6px)", boxShadow: "0 20px 50px rgba(0,0,0,.25)",
+          padding: 8, display: "grid", gap: 2,
         }}>
           <div style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 10px 12px", borderBottom: "1px solid var(--line)", marginBottom: 6 }}>
             <span className="pmc-avatar" style={{ overflow: "hidden", flex: "none" }}>
@@ -120,7 +155,8 @@ export default function AdminAvatarMenu() {
           <div style={{ borderTop: "1px solid var(--line)", marginTop: 6, paddingTop: 6 }}>
             <button type="button" className="pmc-btn pmc-btn--ghost pmc-btn--sm" style={{ justifyContent: "flex-start", color: "var(--danger)" }} data-testid="avatar-sign-out" onClick={onSignOut}>Sign out</button>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

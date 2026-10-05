@@ -14,6 +14,17 @@ export default function RegistrationsPanel() {
   const [sendingReminders, setSendingReminders] = useState(false);
   const [deciding, setDeciding] = useState(false);
   const [search, setSearch] = useState("");
+  // v51t — same pattern as VendorsPanel: on narrow screens the two
+  // columns stack and the review panel sits at the very bottom of the
+  // page. Render the detail INLINE directly below the tapped row on
+  // mobile; desktop keeps the right column.
+  const [isNarrow, setIsNarrow] = useState(() => window.matchMedia("(max-width: 1023px)").matches);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1023px)");
+    const fn = (e) => setIsNarrow(e.matches);
+    mq.addEventListener("change", fn);
+    return () => mq.removeEventListener("change", fn);
+  }, []);
 
   const load = useCallback(() => {
     // Bug #15 fix — when the reviewer switches status tab, clear the
@@ -100,6 +111,78 @@ export default function RegistrationsPanel() {
     : items;
   const { paged, controls } = useListPager(filtered, { testid: "reg-pager" });
 
+  const detailPanel = selected ? (
+    <div className="border border-brand-navy/10 bg-white p-6" data-testid="reg-detail">
+      <div className="pmc-label">{t("panels.registrations.company")}</div>
+      <h3 className="font-display text-2xl text-brand-navy mt-1">{selected.company_name || t("panels.registrations.no_company")}</h3>
+      <div className="text-sm text-brand-navy/70 mt-2">{selected.email} · {selected.country}</div>
+      <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+        <div><dt className="pmc-label">{t("panels.registrations.reg_number")}</dt><dd className="text-brand-navy">{selected.registration_number || "—"}</dd></div>
+        <div><dt className="pmc-label">{t("panels.registrations.entity_type")}</dt><dd className="text-brand-navy">{selected.legal_entity_type || "—"}</dd></div>
+        <div><dt className="pmc-label">{t("panels.registrations.primary_sector")}</dt><dd className="text-brand-navy">{selected.primary_sector || "—"}</dd></div>
+        <div><dt className="pmc-label">{t("panels.registrations.kz_licenses")}</dt><dd className="text-brand-navy">{(selected.kz_licenses || []).join(", ") || "—"}</dd></div>
+        <div className="col-span-2"><dt className="pmc-label">{t("panels.registrations.business_desc")}</dt><dd className="text-brand-navy whitespace-pre-wrap">{selected.business_description || "—"}</dd></div>
+      </dl>
+      {selected.document_slots && Object.keys(selected.document_slots).length > 0 && (
+        <div className="mt-6 border-t border-brand-navy/10 pt-4" data-testid="reg-documents">
+          <div className="pmc-label mb-2">{t("panels.registrations.uploaded_docs_prefix")} ({Object.keys(selected.document_slots).length})</div>
+          <ul className="grid gap-2 md:grid-cols-2">
+            {Object.entries(selected.document_slots).map(([slot, meta]) => (
+              <RegDocCard key={slot} slot={slot} meta={meta} t={t} regId={selected?.id} />
+            ))}
+          </ul>
+        </div>
+      )}
+      <div className="mt-6">
+        <label className="pmc-label">{t("panels.registrations.reviewer_notes")}<InfoDot tip="Notes are recorded in the audit log and emailed to the vendor when action = Clarify or Reject. Required for those two actions." /></label>
+        <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} data-testid="reg-notes"
+          className="mt-1 w-full px-4 py-3 border border-brand-navy/20 focus:outline-none focus:border-brand-navy-soft text-brand-navy" />
+      </div>
+      <div className="mt-4 flex gap-2 flex-wrap">
+        {(selected.status === "approved" || selected.status === "rejected") ? (
+          <div className={"w-full flex items-center justify-between gap-3 px-4 py-3 border " +
+                          (selected.status === "approved"
+                            ? "border-emerald-500/40 bg-emerald-50 text-emerald-800"
+                            : "border-red-500/40 bg-red-50 text-red-700")}
+               data-testid={`reg-status-banner-${selected.status}`}>
+            <div>
+              <div className="text-[10px] font-mono uppercase tracking-widest">
+                Registration {selected.status}
+              </div>
+              <div className="text-sm mt-0.5">
+                {selected.status === "approved"
+                  ? `Approved on ${selected.reviewed_at ? new Date(selected.reviewed_at).toLocaleDateString() : "—"}${selected.vendor_ref ? ` · vendor ${selected.vendor_ref}` : ""}. No further action required.`
+                  : `Rejected on ${selected.reviewed_at ? new Date(selected.reviewed_at).toLocaleDateString() : "—"}. Vendor cannot re-apply with the same email for 90 days.`}
+              </div>
+              {selected.reviewer_notes && (
+                <div className="mt-2 text-xs whitespace-pre-wrap">Notes: {selected.reviewer_notes}</div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
+        <button type="button" onClick={() => decide("approve")} disabled={deciding} data-testid="reg-approve" className="px-6 py-3 text-[12px] font-semibold uppercase tracking-widest bg-brand-navy-soft text-white hover:bg-brand-navy-soft/90 disabled:opacity-50 disabled:cursor-not-allowed">
+          {deciding ? t("panels.registrations.approve_working") : t("panels.registrations.approve")}
+          <InfoDot tip="Grants vendor account access. Notes optional. Vendor receives welcome email with password-set link." />
+        </button>
+        <button type="button" onClick={() => decide("clarify")} disabled={deciding} data-testid="reg-clarify" className="px-6 py-3 text-[12px] font-semibold uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5 disabled:opacity-50 disabled:cursor-not-allowed">
+          {t("panels.registrations.clarify")}
+          <InfoDot tip="Send back for corrections. Notes are mandatory and are emailed verbatim to the vendor's registration email." />
+        </button>
+        <button type="button" onClick={() => decide("reject")} disabled={deciding} data-testid="reg-reject" className="px-6 py-3 text-[12px] font-semibold uppercase tracking-widest border border-red-500/50 text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed">
+          {t("panels.registrations.reject")}
+          <InfoDot tip="Terminal decision. Notes required and recorded in the audit log. Vendor cannot re-apply with the same email for 90 days." />
+        </button>
+          </>
+        )}
+      </div>
+    </div>
+  ) : (
+    <div className="border border-dashed border-brand-navy/20 bg-white p-14 text-center text-brand-navy/50">
+      {t("panels.registrations.select_prompt")}
+    </div>
+  );
+
   return (
     <div className="grid gap-6 lg:grid-cols-[5fr_7fr]" data-testid="admin-registrations-panel">
       <div>
@@ -127,97 +210,33 @@ export default function RegistrationsPanel() {
           {filtered.length === 0 ? (
             <div className="p-6 text-brand-navy/50 text-sm">{q ? "No matches" : t("panels.registrations.empty")}</div>
           ) : paged.map((r) => (
-            <button key={r.id} type="button" onClick={() => { setSelected(r); setNotes(""); }}
-              data-testid={`reg-row-${r.id}`}
-              className={"w-full text-left p-4 border-b border-brand-navy/10 hover:bg-brand-navy/5 " + (selected?.id === r.id ? "bg-brand-navy/5" : "")}>
-              <div className="text-sm font-semibold text-brand-navy">{r.company_name || t("panels.registrations.no_company")}</div>
-              <div className="text-xs text-brand-navy/60 mt-1 font-mono">{r.email}</div>
-              <div className="text-[10px] uppercase tracking-widest text-brand-navy-soft mt-1 flex items-center gap-2">
-                <span>{STATUS_LABELS[r.status] || r.status}</span>
-                {(r.submitted_at || r.created_at) && (
-                  <span className="text-brand-navy/50 normal-case tracking-normal">
-                    · {new Date(r.submitted_at || r.created_at).toLocaleDateString()}
-                  </span>
-                )}
-              </div>
-            </button>
+            <div key={r.id}>
+              <button type="button" onClick={() => { setSelected(r); setNotes(""); }}
+                data-testid={`reg-row-${r.id}`}
+                className={"w-full text-left p-4 border-b border-brand-navy/10 hover:bg-brand-navy/5 " + (selected?.id === r.id ? "bg-brand-navy/5" : "")}>
+                <div className="text-sm font-semibold text-brand-navy">{r.company_name || t("panels.registrations.no_company")}</div>
+                <div className="text-xs text-brand-navy/60 mt-1 font-mono">{r.email}</div>
+                <div className="text-[10px] uppercase tracking-widest text-brand-navy-soft mt-1 flex items-center gap-2">
+                  <span>{STATUS_LABELS[r.status] || r.status}</span>
+                  {(r.submitted_at || r.created_at) && (
+                    <span className="text-brand-navy/50 normal-case tracking-normal">
+                      · {new Date(r.submitted_at || r.created_at).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+              </button>
+              {isNarrow && selected?.id === r.id && (
+                <div className="border-b border-brand-navy/10 bg-brand-pale/30 p-3"
+                     data-testid={`reg-inline-detail-${r.id}`}>
+                  {detailPanel}
+                </div>
+              )}
+            </div>
           ))}
           {controls}
         </div>
       </div>
-      <div>
-        {selected ? (
-          <div className="border border-brand-navy/10 bg-white p-6" data-testid="reg-detail">
-            <div className="pmc-label">{t("panels.registrations.company")}</div>
-            <h3 className="font-display text-2xl text-brand-navy mt-1">{selected.company_name || t("panels.registrations.no_company")}</h3>
-            <div className="text-sm text-brand-navy/70 mt-2">{selected.email} · {selected.country}</div>
-            <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-              <div><dt className="pmc-label">{t("panels.registrations.reg_number")}</dt><dd className="text-brand-navy">{selected.registration_number || "—"}</dd></div>
-              <div><dt className="pmc-label">{t("panels.registrations.entity_type")}</dt><dd className="text-brand-navy">{selected.legal_entity_type || "—"}</dd></div>
-              <div><dt className="pmc-label">{t("panels.registrations.primary_sector")}</dt><dd className="text-brand-navy">{selected.primary_sector || "—"}</dd></div>
-              <div><dt className="pmc-label">{t("panels.registrations.kz_licenses")}</dt><dd className="text-brand-navy">{(selected.kz_licenses || []).join(", ") || "—"}</dd></div>
-              <div className="col-span-2"><dt className="pmc-label">{t("panels.registrations.business_desc")}</dt><dd className="text-brand-navy whitespace-pre-wrap">{selected.business_description || "—"}</dd></div>
-            </dl>
-            {selected.document_slots && Object.keys(selected.document_slots).length > 0 && (
-              <div className="mt-6 border-t border-brand-navy/10 pt-4" data-testid="reg-documents">
-                <div className="pmc-label mb-2">{t("panels.registrations.uploaded_docs_prefix")} ({Object.keys(selected.document_slots).length})</div>
-                <ul className="grid gap-2 md:grid-cols-2">
-                  {Object.entries(selected.document_slots).map(([slot, meta]) => (
-                    <RegDocCard key={slot} slot={slot} meta={meta} t={t} regId={selected?.id} />
-                  ))}
-                </ul>
-              </div>
-            )}
-            <div className="mt-6">
-              <label className="pmc-label">{t("panels.registrations.reviewer_notes")}<InfoDot tip="Notes are recorded in the audit log and emailed to the vendor when action = Clarify or Reject. Required for those two actions." /></label>
-              <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} data-testid="reg-notes"
-                className="mt-1 w-full px-4 py-3 border border-brand-navy/20 focus:outline-none focus:border-brand-navy-soft text-brand-navy" />
-            </div>
-            <div className="mt-4 flex gap-2 flex-wrap">
-              {(selected.status === "approved" || selected.status === "rejected") ? (
-                <div className={"w-full flex items-center justify-between gap-3 px-4 py-3 border " +
-                                (selected.status === "approved"
-                                  ? "border-emerald-500/40 bg-emerald-50 text-emerald-800"
-                                  : "border-red-500/40 bg-red-50 text-red-700")}
-                     data-testid={`reg-status-banner-${selected.status}`}>
-                  <div>
-                    <div className="text-[10px] font-mono uppercase tracking-widest">
-                      Registration {selected.status}
-                    </div>
-                    <div className="text-sm mt-0.5">
-                      {selected.status === "approved"
-                        ? `Approved on ${selected.reviewed_at ? new Date(selected.reviewed_at).toLocaleDateString() : "—"}${selected.vendor_ref ? ` · vendor ${selected.vendor_ref}` : ""}. No further action required.`
-                        : `Rejected on ${selected.reviewed_at ? new Date(selected.reviewed_at).toLocaleDateString() : "—"}. Vendor cannot re-apply with the same email for 90 days.`}
-                    </div>
-                    {selected.reviewer_notes && (
-                      <div className="mt-2 text-xs whitespace-pre-wrap">Notes: {selected.reviewer_notes}</div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <>
-              <button type="button" onClick={() => decide("approve")} disabled={deciding} data-testid="reg-approve" className="px-6 py-3 text-[12px] font-semibold uppercase tracking-widest bg-brand-navy-soft text-white hover:bg-brand-navy-soft/90 disabled:opacity-50 disabled:cursor-not-allowed">
-                {deciding ? t("panels.registrations.approve_working") : t("panels.registrations.approve")}
-                <InfoDot tip="Grants vendor account access. Notes optional. Vendor receives welcome email with password-set link." />
-              </button>
-              <button type="button" onClick={() => decide("clarify")} disabled={deciding} data-testid="reg-clarify" className="px-6 py-3 text-[12px] font-semibold uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5 disabled:opacity-50 disabled:cursor-not-allowed">
-                {t("panels.registrations.clarify")}
-                <InfoDot tip="Send back for corrections. Notes are mandatory and are emailed verbatim to the vendor's registration email." />
-              </button>
-              <button type="button" onClick={() => decide("reject")} disabled={deciding} data-testid="reg-reject" className="px-6 py-3 text-[12px] font-semibold uppercase tracking-widest border border-red-500/50 text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed">
-                {t("panels.registrations.reject")}
-                <InfoDot tip="Terminal decision. Notes required and recorded in the audit log. Vendor cannot re-apply with the same email for 90 days." />
-              </button>
-                </>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="border border-dashed border-brand-navy/20 bg-white p-14 text-center text-brand-navy/50">
-            {t("panels.registrations.select_prompt")}
-          </div>
-        )}
-      </div>
+      {!isNarrow && <div>{detailPanel}</div>}
     </div>
   );
 }
