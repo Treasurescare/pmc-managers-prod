@@ -195,7 +195,7 @@ export default function VendorsPanel() {
         <div className="text-sm text-brand-navy/70">
           {vendors.length} {t("panels.vendors.count_hint_suffix")}
         </div>
-        <div className="flex gap-2 items-center">
+        <div className="flex flex-wrap gap-2 items-center vendors-toolbar">
           <label className="text-xs cursor-pointer border border-brand-navy/20 px-3 py-1.5 uppercase tracking-widest text-brand-navy hover:bg-brand-navy/5"
                  data-testid="vendor-template-upload-label">
             {templateMeta.available ? t("panels.vendors.replace_template") : t("panels.vendors.upload_template")}
@@ -278,7 +278,7 @@ export default function VendorsPanel() {
             className="w-full px-4 py-2 border border-brand-navy/20 focus:outline-none focus:border-brand-navy-soft text-brand-navy bg-white text-sm mb-3"
           />
           {/* V-02 fix — filter dropdown: all / pending-verify / active / inactive */}
-          <div className="flex gap-2 items-center mb-3 text-xs text-brand-navy/70" data-testid="vendor-status-filter-bar">
+          <div className="flex flex-wrap gap-2 items-center mb-3 text-xs text-brand-navy/70" data-testid="vendor-status-filter-bar">
             <span className="pmc-label">{t("panels.vendors.filter_status")}</span>
             {[
               ["all", t("panels.vendors.filter_all")],

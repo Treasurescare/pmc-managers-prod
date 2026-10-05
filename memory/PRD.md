@@ -38,6 +38,33 @@ mostly static; live data + click routing is patched at runtime via:
 
 ## What is implemented
 
+### v51o (2026-10-05) — Admin mobile UI defects fixed
+Fixes four defects spotted on real-phone screenshots (390px):
+- **Vendors page toolbar wraps on mobile** (`VendorsPanel.jsx` +
+  `mobile-fix.css`): Replace template / Download / Bulk invite / Add &
+  fill / Invite vendor no longer stack as 4 tall squeezed strips —
+  toolbar wraps 2-up with centered content.
+- **Bidding Ops row cards readable** (`bidding-ops.css` ≤760px): checkbox
+  now spans full card height on the left (`grid-row: 1/-1`), action
+  buttons wrap into their own strip, flow pipeline becomes a 2-column
+  grid instead of horizontal scroll.
+- **Bidding Ops tabs fit the viewport**: `.bo-bar .pmc-seg{flex-wrap:
+  wrap}` wins over the global `.pmc-seg{flex-wrap:nowrap}` → tabs wrap
+  to two rows on mobile. **Count mismatch fixed in `AdminBiddingOpsE
+  .jsx`**: paint() now recomputes per-tab counts from the DOM
+  respecting hide-test + search, so "Awarded 3" always equals the rows
+  actually shown. `[data-bo-total]` and sidebar badge also follow the
+  visible rows.
+- **Hamburger drawer reaches Masters + lower items** (`mobile-fix.css`
+  ≤1100px): `height: 100dvh !important` + touch scrolling + 96px
+  bottom padding on `.pmc-side, .pmc-lnav` so iOS Safari no longer
+  traps the last 7 drawer entries behind the browser toolbar.
+Verified in preview @ 390×844: scrollWidth === 390 on both pages, awarded
+badge = exactly 3 rendered rows, drawer scrollHeight 1021 > 844, Masters
+visible after scroll. Desktop 1440 regression clean (tabs 1 row, counts
+match). Bundle: `pmc-frontend-v51o-prod-build.zip` (same-origin,
+GENERATE_SOURCEMAP=false). Backend unchanged.
+
 ### v51n (2026-10-04) — Floating help drawer searches the full manual
 - Drawer search previously covered only 7 hardcoded FAQs while the Help
   Centre covered the 28-guide manual (query "tender" → 1 vs 2/13 results).

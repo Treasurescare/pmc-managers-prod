@@ -26,9 +26,30 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
       const activeTab = root.querySelector('[data-tab][aria-selected="true"]');
       const tab = activeTab ? activeTab.dataset.tab : "pmc";
       const hide = root.querySelector('#bo-hidetest')?.checked;
-      let visible = 0;
       const q = (root._boq || "").toLowerCase();
-      root.querySelectorAll('.bo-r').forEach((r) => {
+      const allRows = root.querySelectorAll('.bo-r');
+      // Recompute per-tab counts from the rows that WOULD appear under each tab
+      // (respecting hide-test + search). Keeps the tab badges honest instead of
+      // showing a static total that drifts from the rows actually rendered.
+      const tabCounts = { pmc: 0, supplier: 0, awarded: 0, all: 0 };
+      allRows.forEach((r) => {
+        const isTest = r.dataset.test === "1";
+        const g = r.dataset.g;
+        const matches = (!q || r.textContent.toLowerCase().includes(q)) && !(hide && isTest);
+        if (!matches) return;
+        tabCounts.all++;
+        if (g && tabCounts[g] !== undefined) tabCounts[g]++;
+      });
+      Object.entries(tabCounts).forEach(([k, v]) => {
+        root.querySelectorAll(`[data-tab-count="${k}"]`).forEach((el) => { el.textContent = v; });
+      });
+      const totalEl = root.querySelector('[data-bo-total]');
+      if (totalEl) totalEl.textContent = tabCounts.all;
+      const sideCount = root.querySelector('[data-testid="side-bidding-count"]');
+      if (sideCount) sideCount.textContent = tabCounts.pmc;
+      // Now show/hide rows according to the active tab.
+      let visible = 0;
+      allRows.forEach((r) => {
         const ok = (tab === "all" || r.dataset.g === tab) && !(hide && r.dataset.test === "1")
           && (!q || r.textContent.toLowerCase().includes(q));
         r.hidden = !ok;
@@ -37,7 +58,7 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
       const empty = root.querySelector('#bo-empty');
       if (empty) empty.hidden = visible > 0;
       const shown = root.querySelector('#bo-shown');
-      const total = root.querySelectorAll('.bo-r').length;
+      const total = allRows.length;
       if (shown) shown.textContent = total ? `Showing ${visible} of ${total}` : '';
     };
     const onTab = (e) => {

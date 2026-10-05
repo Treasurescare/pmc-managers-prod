@@ -1238,3 +1238,29 @@ body.pmc-mob-menu-open { overflow: hidden; }
   .pmc-mobile-topbar .pmc-mob-brand b { font-size: 14px; }
 }
 
+/* v51o — admin drawer scroll fix. The ≤1100px drawer used height:100vh,
+   which on iOS Safari extends below the visible area and traps the last
+   items (Masters, Events…). 100dvh + touch scrolling + bottom padding
+   makes the full menu reachable. */
+@media (max-width: 1100px) {
+  .pmc-side, .pmc-lnav {
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding-bottom: 96px !important;
+  }
+}
+
+/* v51o — vendors toolbar: stop the tall squeezed button strips on mobile */
+@media (max-width: 767px) {
+  [data-testid="admin-vendors-panel"] .vendors-toolbar > * {
+    flex: 1 1 46%;
+    min-width: 150px;
+    text-align: center;
+    justify-content: center;
+  }
+  [data-testid="vendor-status-filter-bar"] > button { flex: 1 1 40%; }
+}
+
