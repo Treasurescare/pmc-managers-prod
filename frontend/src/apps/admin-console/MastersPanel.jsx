@@ -126,10 +126,12 @@ export default function MastersPanel() {
 
   return (
     <div data-testid="admin-masters-panel">
-      <div className="flex gap-1 mb-4 border-b overflow-x-auto">
+      {/* Tab bar as wrapping chips: every master is visible at once; the
+          active chip is solid navy, the rest outlined. No horizontal scroll. */}
+      <div className="flex flex-wrap gap-2 mb-4" data-testid="masters-tab-bar">
         {[["staff", t("panels.masters.tab_staff")], ["companies", t("panels.masters.tab_companies")], ["tenants", t("panels.masters.tab_tenants")], ["matrix", t("panels.masters.tab_matrix")], ["hierarchy", t("panels.masters.tab_hierarchy")], ["rating", "Rating & Fees"], ["fees", "Charge Fee"], ["categories", "Categories"], ["legal_entities", "Legal entity types"], ["cat_requests", "Vendor requests"], ["profile_requests", "Profile changes"], ["emd_rules", "EMD rules"], ["demo", "Investor Demo"]].map(([k, l]) => (
           <button key={k} onClick={() => { setTab(k); setSearch(""); }}
-            className={`px-4 py-2 text-xs uppercase tracking-widest whitespace-nowrap shrink-0 ${tab === k ? "border-b-2 border-brand-navy font-semibold" : "text-slate-500"}`}
+            className={`px-3 py-1.5 text-[11px] uppercase tracking-widest whitespace-nowrap border transition-colors ${tab === k ? "bg-brand-navy text-white border-brand-navy font-semibold" : "bg-white text-brand-navy/70 border-brand-navy/25 hover:border-brand-navy hover:text-brand-navy"}`}
             data-testid={`masters-tab-${k}`}>{l}</button>
         ))}
       </div>

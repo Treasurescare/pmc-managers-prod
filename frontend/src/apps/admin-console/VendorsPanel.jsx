@@ -34,6 +34,15 @@ export default function VendorsPanel() {
   const [activatingRef, setActivatingRef] = useState(null);
   const [kycBusy, setKycBusy] = useState(false);
   const rowRefs = useRef({});
+  // Below lg the two-column layout stacks; the KPI detail then renders
+  // inline right under the tapped vendor row instead of far down the page.
+  const [isNarrow, setIsNarrow] = useState(() => window.matchMedia("(max-width: 1023px)").matches);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1023px)");
+    const fn = (e) => setIsNarrow(e.matches);
+    mq.addEventListener("change", fn);
+    return () => mq.removeEventListener("change", fn);
+  }, []);
 
   const runKycAuto = async (v) => {
     if (kycBusy) return;
@@ -188,6 +197,92 @@ export default function VendorsPanel() {
   });
   const { paged: pagedVendors, controls: vendorControls } =
     useListPager(filteredVendors, { testid: "vendor-pager" });
+
+  const detailPanel = !selected ? (
+    <div className="border border-dashed border-brand-navy/20 bg-white p-14 text-center text-brand-navy/50">
+      {t("panels.vendors.kpi_placeholder")}
+    </div>
+  ) : loadingKpi || !kpi ? (
+    <div className="border border-brand-navy/10 bg-white p-14 text-center text-brand-navy/50">{t("panels.vendors.kpi_loading")}</div>
+  ) : (
+    <div className="border border-brand-navy/10 bg-white p-6" data-testid="vendor-kpi">
+      <div className="pmc-label">{t("panels.vendors.kpi_kicker")}</div>
+      <h3 className="font-display text-2xl text-brand-navy mt-1">{kpi.company_name || "(no name)"}</h3>
+      <div className="text-sm font-mono text-brand-navy-soft mt-1">{kpi.vendor_ref}</div>
+      <div className="text-xs text-brand-navy/50 mt-0.5">{kpi.email} · {kpi.country} · {kpi.primary_sector || "sector n/a"}</div>
+      <div className="mt-6 grid gap-3 md:grid-cols-4">
+        <KpiTile label={t("panels.vendors.kpi_days_approved")} value={kpi.approved_days_ago} />
+        <KpiTile label={t("panels.vendors.kpi_review_hours")} value={kpi.time_to_decision_hours} />
+        <KpiTile label={t("panels.vendors.kpi_kz_licenses")} value={kpi.kz_licenses_count} />
+        <KpiTile label={t("panels.vendors.kpi_categories")} value={kpi.categories_count} />
+      </div>
+      {/* KYC controls — admin can trigger provider run OR override manually.
+          Vendor bids are blocked until kyc_status ∈ {verified, cleared, passed}. */}
+      <div className="mt-6 border border-brand-navy/10 bg-brand-pale/40 p-4" data-testid="vendor-kyc-controls">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="pmc-label">KYC verification</div>
+            <div className="text-sm text-brand-navy mt-1">
+              Current status:{" "}
+              <strong data-testid="vendor-kyc-status" className={
+                (kpi.kyc_status === "verified" || kpi.kyc_status === "cleared" || kpi.kyc_status === "passed")
+                  ? "text-emerald-700"
+                  : kpi.kyc_status === "rejected" ? "text-red-600"
+                  : "text-amber-700"
+              }>
+                {kpi.kyc_status || selected.kyc_status || "not run"}
+              </strong>
+              {kpi.kyc_score != null && <span className="ml-2 text-xs text-brand-navy/60">risk {kpi.kyc_score}/100</span>}
+            </div>
+          </div>
+          <InfoDot tip="Admin can trigger the automated KYC provider run OR override the decision manually. Vendors cannot submit bids until this reads verified / cleared / passed." />
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button type="button" onClick={() => runKycAuto(selected)} disabled={kycBusy}
+            data-testid="vendor-kyc-run"
+            className="px-3 py-1.5 text-[11px] uppercase tracking-widest border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white disabled:opacity-50">
+            {kycBusy ? "Working…" : "Run KYC provider"}
+          </button>
+          <button type="button" onClick={() => setKycManual(selected, "verified")} disabled={kycBusy}
+            data-testid="vendor-kyc-verify"
+            className="px-3 py-1.5 text-[11px] uppercase tracking-widest bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50">
+            Mark verified
+          </button>
+          <button type="button" onClick={() => setKycManual(selected, "pending")} disabled={kycBusy}
+            data-testid="vendor-kyc-pending"
+            className="px-3 py-1.5 text-[11px] uppercase tracking-widest border border-amber-500/60 text-amber-700 hover:bg-amber-50 disabled:opacity-50">
+            Mark pending
+          </button>
+          <button type="button" onClick={() => setKycManual(selected, "rejected")} disabled={kycBusy}
+            data-testid="vendor-kyc-reject"
+            className="px-3 py-1.5 text-[11px] uppercase tracking-widest border border-red-500/60 text-red-600 hover:bg-red-50 disabled:opacity-50">
+            Mark rejected
+          </button>
+        </div>
+      </div>
+      <div className="mt-6 grid gap-4 md:grid-cols-2 text-sm">
+        <div>
+          <div className="pmc-label">{t("panels.vendors.kpi_kz_held")}</div>
+          {(kpi.kz_licenses_held || []).length === 0
+            ? <div className="text-brand-navy/50 mt-1">{t("panels.vendors.kpi_none")}</div>
+            : (<ul className="mt-1 text-brand-navy">
+                {kpi.kz_licenses_held.map((l) => <li key={l}>· {l}</li>)}</ul>)}
+        </div>
+        <div>
+          <div className="pmc-label">{t("panels.vendors.kpi_regions")}</div>
+          {(kpi.operating_regions || []).length === 0
+            ? <div className="text-brand-navy/50 mt-1">{t("panels.vendors.kpi_regions_none")}</div>
+            : <div className="mt-1 text-brand-navy">{kpi.operating_regions.join(", ")}</div>}
+        </div>
+        <div className="md:col-span-2">
+          <div className="pmc-label">{t("panels.vendors.kpi_business_cats")}</div>
+          {(kpi.categories_declared || []).length === 0
+            ? <div className="text-brand-navy/50 mt-1">{t("panels.vendors.kpi_none")}</div>
+            : <div className="mt-1 text-brand-navy">{kpi.categories_declared.join(" · ")}</div>}
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-4" data-testid="admin-vendors-panel">
@@ -345,6 +440,11 @@ export default function VendorsPanel() {
                         </button>
                       </div>
                     )}
+                    {isNarrow && selected?.id === v.id && (
+                      <div className="mt-4 -mx-4 -mb-4 border-t border-brand-navy/10 bg-brand-pale/30 p-4" data-testid={`vendor-inline-detail-${v.vendor_ref}`}>
+                        {detailPanel}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -352,93 +452,9 @@ export default function VendorsPanel() {
           </div>
         </div>
 
-        <div>
-          {!selected ? (
-            <div className="border border-dashed border-brand-navy/20 bg-white p-14 text-center text-brand-navy/50">
-              {t("panels.vendors.kpi_placeholder")}
-            </div>
-          ) : loadingKpi || !kpi ? (
-            <div className="border border-brand-navy/10 bg-white p-14 text-center text-brand-navy/50">{t("panels.vendors.kpi_loading")}</div>
-          ) : (
-            <div className="border border-brand-navy/10 bg-white p-6" data-testid="vendor-kpi">
-              <div className="pmc-label">{t("panels.vendors.kpi_kicker")}</div>
-              <h3 className="font-display text-2xl text-brand-navy mt-1">{kpi.company_name || "(no name)"}</h3>
-              <div className="text-sm font-mono text-brand-navy-soft mt-1">{kpi.vendor_ref}</div>
-              <div className="text-xs text-brand-navy/50 mt-0.5">{kpi.email} · {kpi.country} · {kpi.primary_sector || "sector n/a"}</div>
-              <div className="mt-6 grid gap-3 md:grid-cols-4">
-                <KpiTile label={t("panels.vendors.kpi_days_approved")} value={kpi.approved_days_ago} />
-                <KpiTile label={t("panels.vendors.kpi_review_hours")} value={kpi.time_to_decision_hours} />
-                <KpiTile label={t("panels.vendors.kpi_kz_licenses")} value={kpi.kz_licenses_count} />
-                <KpiTile label={t("panels.vendors.kpi_categories")} value={kpi.categories_count} />
-              </div>
-              {/* KYC controls — admin can trigger provider run OR override manually.
-                  Vendor bids are blocked until kyc_status ∈ {verified, cleared, passed}. */}
-              <div className="mt-6 border border-brand-navy/10 bg-brand-pale/40 p-4" data-testid="vendor-kyc-controls">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="pmc-label">KYC verification</div>
-                    <div className="text-sm text-brand-navy mt-1">
-                      Current status:{" "}
-                      <strong data-testid="vendor-kyc-status" className={
-                        (kpi.kyc_status === "verified" || kpi.kyc_status === "cleared" || kpi.kyc_status === "passed")
-                          ? "text-emerald-700"
-                          : kpi.kyc_status === "rejected" ? "text-red-600"
-                          : "text-amber-700"
-                      }>
-                        {kpi.kyc_status || selected.kyc_status || "not run"}
-                      </strong>
-                      {kpi.kyc_score != null && <span className="ml-2 text-xs text-brand-navy/60">risk {kpi.kyc_score}/100</span>}
-                    </div>
-                  </div>
-                  <InfoDot tip="Admin can trigger the automated KYC provider run OR override the decision manually. Vendors cannot submit bids until this reads verified / cleared / passed." />
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button type="button" onClick={() => runKycAuto(selected)} disabled={kycBusy}
-                    data-testid="vendor-kyc-run"
-                    className="px-3 py-1.5 text-[11px] uppercase tracking-widest border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white disabled:opacity-50">
-                    {kycBusy ? "Working…" : "Run KYC provider"}
-                  </button>
-                  <button type="button" onClick={() => setKycManual(selected, "verified")} disabled={kycBusy}
-                    data-testid="vendor-kyc-verify"
-                    className="px-3 py-1.5 text-[11px] uppercase tracking-widest bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50">
-                    Mark verified
-                  </button>
-                  <button type="button" onClick={() => setKycManual(selected, "pending")} disabled={kycBusy}
-                    data-testid="vendor-kyc-pending"
-                    className="px-3 py-1.5 text-[11px] uppercase tracking-widest border border-amber-500/60 text-amber-700 hover:bg-amber-50 disabled:opacity-50">
-                    Mark pending
-                  </button>
-                  <button type="button" onClick={() => setKycManual(selected, "rejected")} disabled={kycBusy}
-                    data-testid="vendor-kyc-reject"
-                    className="px-3 py-1.5 text-[11px] uppercase tracking-widest border border-red-500/60 text-red-600 hover:bg-red-50 disabled:opacity-50">
-                    Mark rejected
-                  </button>
-                </div>
-              </div>
-              <div className="mt-6 grid gap-4 md:grid-cols-2 text-sm">
-                <div>
-                  <div className="pmc-label">{t("panels.vendors.kpi_kz_held")}</div>
-                  {(kpi.kz_licenses_held || []).length === 0
-                    ? <div className="text-brand-navy/50 mt-1">{t("panels.vendors.kpi_none")}</div>
-                    : (<ul className="mt-1 text-brand-navy">
-                        {kpi.kz_licenses_held.map((l) => <li key={l}>· {l}</li>)}</ul>)}
-                </div>
-                <div>
-                  <div className="pmc-label">{t("panels.vendors.kpi_regions")}</div>
-                  {(kpi.operating_regions || []).length === 0
-                    ? <div className="text-brand-navy/50 mt-1">{t("panels.vendors.kpi_regions_none")}</div>
-                    : <div className="mt-1 text-brand-navy">{kpi.operating_regions.join(", ")}</div>}
-                </div>
-                <div className="md:col-span-2">
-                  <div className="pmc-label">{t("panels.vendors.kpi_business_cats")}</div>
-                  {(kpi.categories_declared || []).length === 0
-                    ? <div className="text-brand-navy/50 mt-1">{t("panels.vendors.kpi_none")}</div>
-                    : <div className="mt-1 text-brand-navy">{kpi.categories_declared.join(" · ")}</div>}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Desktop keeps the detail in the right column; on narrow screens
+            it renders inline under the tapped row (see above). */}
+        {!isNarrow && <div>{detailPanel}</div>}
       </div>
     </div>
   );

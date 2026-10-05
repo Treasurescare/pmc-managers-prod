@@ -38,6 +38,18 @@ mostly static; live data + click routing is patched at runtime via:
 
 ## What is implemented
 
+### v51q (2026-10-05) — Mobile design polish: inline vendor detail + Masters chips
+- **Admin → Vendors (mobile)**: tapping a vendor row expands the KPI/KYC
+  detail inline directly below the tapped row (matchMedia ≤1023px gate;
+  shared detailPanel JSX, no duplication). Desktop keeps the right column.
+  Verified: inline detail present under row, KPI inside it, desktop right
+  column intact, no inline copy on desktop.
+- **Admin → Masters**: horizontal-scroll tab strip → wrapping chip grid.
+  All 13 masters visible at once; active chip solid navy + white text,
+  inactive outlined. Verified @402px: barScrollW == clientW, active chip
+  bg rgb(15,59,46).
+Bundle: v51q supersedes v51o/v51p.
+
 ### v51p (2026-10-05) — Hotfix: admin Vendors giant buttons on iPhone
 Root cause of the "still not proper" v51o follow-up: mobile-fix.css had
 `[data-testid^="vendor-"] { padding-bottom: 88px !important; }` (bottom-tab
