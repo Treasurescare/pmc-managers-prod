@@ -694,6 +694,18 @@
 [data-ui="e"] header.admin-shell-topbar { background: var(--e-bg-panel) !important; color: #EAF0EA !important; border-color: var(--e-border-dark) !important; }
 [data-ui="e"] .bg-slate-50 { background: var(--e-bg-deep) !important; }
 [data-ui="e"] .bg-slate-100 { background: var(--e-bg-panel) !important; }
+/* v51v — the two global slate→dark remaps above are meant for DARK pages.
+   The vendor bid-submit page (and payment result / sandbox checkout shells)
+   are LIGHT pages: their root uses bg-slate-50, which was repainted deep
+   green, leaving the restored dark headings invisible (dark-on-dark).
+   Pin those light pages back to slate-50. */
+[data-ui="e"] [data-testid="bid-submit-page"],
+[data-ui="e"] [data-testid="payment-result"],
+[data-ui="e"] [data-testid="sandbox-checkout"],
+[data-ui="e"] [data-testid="vendor-verify-page"] {
+  background: #F8FAFC !important;
+  color: #0F172A !important;
+}
 /* v49g — registration review doc cards must stay light/readable; the global
    slate remap above paints them deep green with invisible dark text. */
 [data-ui="e"] [data-testid^="reg-doc-"] {

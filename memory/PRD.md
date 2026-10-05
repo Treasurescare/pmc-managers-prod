@@ -38,6 +38,20 @@ mostly static; live data + click routing is patched at runtime via:
 
 ## What is implemented
 
+### v51v (2026-10-05) — Light-shell vendor pages pinned light + docs bundle v3
+- **Bid-submit dark-on-dark heading**: global `[data-ui="e"] .bg-slate-50 →
+  --e-bg-deep` remap repainted the light bid-submit shell dark; after the
+  v51r text restore the h1 was invisible. Pinned `[data-testid=bid-submit-page]`,
+  `payment-result`, `sandbox-checkout`, `vendor-verify-page` back to #F8FAFC.
+- **Master Training Manual v7 (comprehensive, current theme)**: rebuilt via
+  `capture_manual_v7.py` (64 screens, E routes, fresh context per role) +
+  `build_manual_v7b.py` (v3 spec engine). 110 pages, 8.7 MB, byte-scan clean.
+  Key lessons captured: capture scripts must use fresh browser context per
+  role (admin cookie hijacks /login), and default BASE must be the preview
+  URL, not production.
+- **Docs bundle v3**: `PMC-Docs-v51u-Bundle-v3.zip` — v7 manual PDF + DOCX +
+  4 flowchart/handbook PDFs + regenerated testcases PDF.
+
 ### v51u (2026-10-05) — Hotfix: Company & KYC Cancel crash
 Root cause: PmcHelpDrawer's v51m static-drawer scrub (runs on route change
 + 1.5s interval for 8s) removed ANY `.pmc-drawer-scrim` without the React

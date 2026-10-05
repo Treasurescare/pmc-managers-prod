@@ -1,0 +1,3406 @@
+[
+  {
+    "slug": "01-public-landing",
+    "title": "Public landing page",
+    "url": "/",
+    "role": "public",
+    "audience": [
+      "All"
+    ],
+    "purpose": "First view a visitor lands on. Presents brand, service lanes, sign-in / register CTAs.",
+    "fields": [
+      [
+        "Top-bar brand",
+        "Portal logo + name. Clickable \u2014 always returns to '/'."
+      ],
+      [
+        "Notices nav",
+        "Public list of open tenders. No login required."
+      ],
+      [
+        "Register nav",
+        "Vendor self-registration entry (Section A of the wizard)."
+      ],
+      [
+        "Sign in nav",
+        "Unified login card \u2014 pick admin / vendor / staff."
+      ],
+      [
+        "Language switcher",
+        "EN \u00b7 RU \u00b7 KK. Persists in localStorage."
+      ],
+      [
+        "Hero band",
+        "Tenant-configured value proposition + primary CTA."
+      ]
+    ],
+    "tutorial": [
+      [
+        "Open the portal",
+        "Navigate to https://www.pmcmanagers.com/ in any modern browser."
+      ],
+      [
+        "Switch language",
+        "Click the EN pill top-right \u2192 RU or KK. Text re-flows instantly."
+      ],
+      [
+        "Read a tender",
+        "Click 'Notices' \u2192 any card opens the detail view."
+      ],
+      [
+        "Register as vendor",
+        "Click 'Register' \u2192 land on Section A of the wizard."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/notices?public=1",
+        "Returns published notices only."
+      ]
+    ],
+    "pitfalls": [
+      "Draft notices never appear here \u2014 only status=published are visible."
+    ],
+    "errors": [
+      "If the language pill only shows English, the i18n bundle failed \u2014 hard-refresh (Ctrl+F5)."
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "actions": [],
+    "kpis": [],
+    "image": "01-public-landing.png"
+  },
+  {
+    "slug": "02-public-notice-board",
+    "title": "Public notice board",
+    "url": "/notices",
+    "role": "public",
+    "audience": [
+      "All"
+    ],
+    "purpose": "Browsable directory of every published tender / RFP / RFQ across all tenants.",
+    "fields": [
+      [
+        "Search bar",
+        "Full-text search over title + description."
+      ],
+      [
+        "Country filter",
+        "ISO-2 country code."
+      ],
+      [
+        "Category filter",
+        "Free-text tag \u2014 Construction, IT, Consulting\u2026"
+      ],
+      [
+        "Notice card",
+        "Title \u00b7 closing date \u00b7 budget \u00b7 country \u00b7 CTA 'View'."
+      ],
+      [
+        "Empty state",
+        "'No open tenders match your filters' \u2014 friendly copy with a Reset button."
+      ]
+    ],
+    "tutorial": [
+      [
+        "Filter to India",
+        "Country \u2192 IN \u2192 list refreshes without page reload."
+      ],
+      [
+        "Open a notice",
+        "Click any card \u2192 detail page opens with description + downloads + QA thread."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/notices?public=1&country=IN",
+        "Filters by country."
+      ]
+    ],
+    "pitfalls": [
+      "Closed tenders still show but with a 'CLOSED' pill \u2014 participation buttons are disabled."
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "actions": [],
+    "errors": [],
+    "kpis": [],
+    "image": "02-public-notice-board.png"
+  },
+  {
+    "slug": "03-public-notice-detail",
+    "title": "Public notice detail",
+    "url": "/notices",
+    "role": "public",
+    "audience": [
+      "All"
+    ],
+    "purpose": "Every field of a single tender, downloads, QA thread and 'Bid now' CTA.",
+    "actions": [
+      [
+        "click_first",
+        "[data-testid=public-notice-card]",
+        null
+      ]
+    ],
+    "fields": [
+      [
+        "Title bar",
+        "Notice ref (PMC-NOT-YYYY-####) + title."
+      ],
+      [
+        "Deadline banner",
+        "Countdown timer to submission_deadline (UTC)."
+      ],
+      [
+        "Description",
+        "Full HTML body composed via Tender Builder."
+      ],
+      [
+        "Downloads",
+        "Primary document + attachments (PDF / DOCX / XLSX)."
+      ],
+      [
+        "QA thread",
+        "Public question/answer log \u2014 answers appear only after admin publishes them."
+      ],
+      [
+        "Bid now CTA",
+        "Redirects to /vendor/bid/new/:ref (requires vendor login)."
+      ]
+    ],
+    "tutorial": [
+      [
+        "Download the tender document",
+        "Click 'Primary document' \u2192 PDF downloads immediately."
+      ],
+      [
+        "Ask a public question",
+        "QA thread \u2192 'Ask a question' \u2192 type \u2265 10 chars \u2192 Submit. Admin will publish the answer."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/notices/{notice_ref}",
+        "Public if is_published=true."
+      ],
+      [
+        "POST",
+        "/api/v1/notice-qa/{notice_ref}",
+        "Post a QA thread question."
+      ]
+    ],
+    "pitfalls": [
+      "Corrigenda (amendments) are shown under a 'History' expander \u2014 always read them before bidding."
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "errors": [],
+    "kpis": [],
+    "image": "03-public-notice-detail.png"
+  },
+  {
+    "slug": "04-registration-a-identity",
+    "title": "Vendor registration \u00b7 Section A \u2014 Identity",
+    "url": "/register",
+    "role": "public",
+    "audience": [
+      "Vendor",
+      "Ops"
+    ],
+    "purpose": "Entry point of the 5-section KYC wizard. Section A captures identity + primary contact.",
+    "fields": [
+      [
+        "Company name",
+        "Legal name as per registration certificate. Required."
+      ],
+      [
+        "Contact person",
+        "First + last name of primary contact."
+      ],
+      [
+        "Email",
+        "Primary email \u2014 must be unique per tenant."
+      ],
+      [
+        "Phone",
+        "E.164 with country code (e.g. +91-98765-43210)."
+      ],
+      [
+        "Country",
+        "ISO-2. Determines the KYC doc catalog in Section D."
+      ],
+      [
+        "Save & continue",
+        "Creates a silent draft and emails a resume-token."
+      ]
+    ],
+    "tutorial": [
+      [
+        "Fill Section A",
+        "Enter all fields \u2192 Save & continue. Draft is created."
+      ],
+      [
+        "Save the resume email",
+        "Backend mails a resume-token URL to the primary email."
+      ]
+    ],
+    "api": [
+      [
+        "POST",
+        "/api/v1/registrations/draft",
+        "Creates draft + returns resume_token."
+      ],
+      [
+        "GET",
+        "/api/v1/registrations/resume/{token}",
+        "Loads a draft by token."
+      ]
+    ],
+    "pitfalls": [
+      "Losing the resume email = start over. Admin can re-issue via Registrations panel.",
+      "Country change mid-flow re-loads the Section D doc catalog and clears prior D uploads."
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "actions": [],
+    "errors": [],
+    "kpis": [],
+    "image": "04-registration-a-identity.png"
+  },
+  {
+    "slug": "05-registration-status",
+    "title": "Vendor registration \u00b7 Status check",
+    "url": "/register/status",
+    "role": "public",
+    "audience": [
+      "Vendor",
+      "Ops"
+    ],
+    "purpose": "Any vendor with the emailed resume-token can check status without logging in.",
+    "fields": [
+      [
+        "Token input",
+        "Paste the 24-char URL-safe token from the email."
+      ],
+      [
+        "Check button",
+        "Fetches current stage + reviewer notes."
+      ],
+      [
+        "Status card",
+        "Stage \u00b7 updated_at \u00b7 reviewer comments (if any)."
+      ]
+    ],
+    "tutorial": [
+      [
+        "Paste an invalid token",
+        "Toast surfaces 'Token invalid or expired' (Bug 7 fix)."
+      ],
+      [
+        "Paste a valid token",
+        "Result card renders stage banner + latest reviewer note."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/registrations/status?token=\u2026",
+        "Public read."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "actions": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "05-registration-status.png"
+  },
+  {
+    "slug": "06-public-roadmap",
+    "title": "Public product roadmap",
+    "url": "/roadmap",
+    "role": "public",
+    "audience": [
+      "Client",
+      "Investor"
+    ],
+    "purpose": "Client-visible feature roadmap. Fed from the admin roadmap module.",
+    "fields": [
+      [
+        "Column \u00b7 Shipped",
+        "Delivered features by quarter."
+      ],
+      [
+        "Column \u00b7 In progress",
+        "Active WIP."
+      ],
+      [
+        "Column \u00b7 Planned",
+        "Committed backlog."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/roadmap",
+        "Public feed."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "actions": [],
+    "tutorial": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "06-public-roadmap.png"
+  },
+  {
+    "slug": "07-unified-login",
+    "title": "Unified login card",
+    "url": "/login",
+    "role": "public",
+    "audience": [
+      "All"
+    ],
+    "purpose": "Single entry point offering Admin / Vendor / Staff login lanes.",
+    "fields": [
+      [
+        "Admin card",
+        "Redirects to /admin/login."
+      ],
+      [
+        "Vendor card",
+        "Redirects to /vendor/login."
+      ],
+      [
+        "Staff card",
+        "Redirects to /staff/login (auditor, escrow, certifier\u2026)."
+      ]
+    ],
+    "tutorial": [
+      [
+        "Pick your role",
+        "Click the card matching the account you were issued."
+      ],
+      [
+        "Bookmark it",
+        "Once picked, the choice is remembered in localStorage for next visit."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "actions": [],
+    "api": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "07-unified-login.png"
+  },
+  {
+    "slug": "08-admin-login",
+    "title": "Admin login page",
+    "url": "/admin/login",
+    "role": "public",
+    "audience": [
+      "Ops",
+      "Mgmt"
+    ],
+    "purpose": "Master admin + reviewer credential login. HTTPOnly cookie + CSRF double-submit.",
+    "fields": [
+      [
+        "Email",
+        "Admin or reviewer email."
+      ],
+      [
+        "Password",
+        "Min 12 chars, 1 upper, 1 digit, 1 symbol."
+      ],
+      [
+        "Sign in",
+        "POST /api/v1/admin/auth/login."
+      ],
+      [
+        "Forgot password",
+        "Sends recover-token email; token TTL 30 min."
+      ]
+    ],
+    "tutorial": [
+      [
+        "Log in",
+        "Email + password \u2192 Sign in \u2192 redirect to /admin within ~1s."
+      ],
+      [
+        "Wrong password",
+        "Toast shows backend error. 5 fails \u2192 15-min lockout."
+      ]
+    ],
+    "api": [
+      [
+        "POST",
+        "/api/v1/admin/auth/login",
+        "Returns {token,role}. Sets HTTPOnly cookie."
+      ],
+      [
+        "POST",
+        "/api/v1/admin/auth/logout",
+        "Clears cookie."
+      ],
+      [
+        "POST",
+        "/api/v1/admin/auth/change-password",
+        "Requires CSRF header."
+      ]
+    ],
+    "pitfalls": [
+      "Stale cookies from another tenant \u2014 log out first (avatar \u2192 Sign out)."
+    ],
+    "errors": [
+      "401 Invalid credentials \u00b7 429 Too many attempts (retry in 15 min) \u00b7 403 CSRF missing."
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "actions": [],
+    "kpis": [],
+    "image": "08-admin-login.png"
+  },
+  {
+    "slug": "09-vendor-login",
+    "title": "Vendor login page",
+    "url": "/vendor/login",
+    "role": "public",
+    "audience": [
+      "Vendor"
+    ],
+    "purpose": "Approved vendors sign in with email + password to reach the vendor portal.",
+    "fields": [
+      [
+        "Email",
+        "Vendor primary email (must match approved registration)."
+      ],
+      [
+        "Password",
+        "Set via activation email after Registration is approved."
+      ],
+      [
+        "Register link",
+        "Bounces to /register for new vendors."
+      ],
+      [
+        "Back to notices",
+        "Public notice board link."
+      ]
+    ],
+    "tutorial": [
+      [
+        "Sign in",
+        "Email + password \u2192 Sign in \u2192 land on /vendor within 1s."
+      ],
+      [
+        "First-time login",
+        "If must_change_password=true, you are forced to /vendor/change-password before anything else."
+      ]
+    ],
+    "api": [
+      [
+        "POST",
+        "/api/v1/vendor/auth/login",
+        "Sets vendor session cookie + returns csrf_token."
+      ]
+    ],
+    "errors": [
+      "401 Invalid email or password \u00b7 403 Vendor account disabled (contact admin)."
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "actions": [],
+    "pitfalls": [],
+    "kpis": [],
+    "image": "09-vendor-login.png"
+  },
+  {
+    "slug": "10-staff-login",
+    "title": "Staff login page",
+    "url": "/staff/login",
+    "role": "public",
+    "audience": [
+      "Staff"
+    ],
+    "purpose": "Escrow \u00b7 Certifier \u00b7 Legal \u00b7 Accounting \u00b7 Committee \u00b7 Support \u00b7 Auditor login lane.",
+    "fields": [
+      [
+        "Email",
+        "Staff email seeded in Masters \u2192 Staff."
+      ],
+      [
+        "Password",
+        "Provided by admin at seeding."
+      ],
+      [
+        "Role picker",
+        "Select the role you are signing in as (multi-role staff)."
+      ],
+      [
+        "OTP (MFA)",
+        "6-digit TOTP if MFA is enabled for that account."
+      ]
+    ],
+    "api": [
+      [
+        "POST",
+        "/api/v1/staff/auth/login",
+        "Body {email, password, active_role, mfa_code?}."
+      ]
+    ],
+    "errors": [
+      "422 active_role invalid \u2014 must be one of: admin, reviewer, escrow_agent, certifier, legal_counsel, accounting, committee_member, auditor, support."
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "actions": [],
+    "tutorial": [],
+    "pitfalls": [],
+    "kpis": [],
+    "image": "10-staff-login.png"
+  },
+  {
+    "slug": "11-mobile-login",
+    "title": "Mobile login",
+    "url": "/m/login",
+    "role": "public",
+    "audience": [
+      "Mobile"
+    ],
+    "purpose": "Compact login card sized for narrow (<420 px) viewports. Same auth endpoints as desktop.",
+    "wait_ms": 1600,
+    "full_page": true,
+    "actions": [],
+    "fields": [],
+    "tutorial": [],
+    "api": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "11-mobile-login.png"
+  },
+  {
+    "slug": "12-registration-resume",
+    "title": "Vendor registration \u00b7 Resume with token",
+    "url": "/register/resume?token=pYafyue0vvTaBAZMq9-2PqBm_Hq0aN-4",
+    "role": "public",
+    "audience": [
+      "Vendor",
+      "Ops"
+    ],
+    "purpose": "Any vendor can resume a draft by pasting the resume-token from the email. This capture uses a seeded draft that has sections A/B/C/D/E prefilled.",
+    "fields": [
+      [
+        "Section stepper",
+        "A \u00b7 Identity \u2192 B \u00b7 Structure \u2192 C \u00b7 Financials \u2192 D \u00b7 Documents \u2192 E \u00b7 References."
+      ],
+      [
+        "Section panels",
+        "Each panel shows the fields you filled last time \u2014 you can edit any."
+      ],
+      [
+        "Submit for review",
+        "Once all sections pass validation, submit for admin review."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/registrations/resume/{token}",
+        "Loads the draft."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "actions": [],
+    "tutorial": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "12-registration-resume.png"
+  },
+  {
+    "slug": "13-escrow-officer-magic",
+    "title": "Escrow officer \u00b7 Magic-link signature",
+    "url": "/escrow/officer/s38VBcn6V6G7dcH0TnnfSgdC8S0dQadp",
+    "role": "public",
+    "audience": [
+      "Escrow"
+    ],
+    "purpose": "Escrow institution officer signs a release/refund without logging into the portal \u2014 a magic-link token authorises exactly one signature.",
+    "fields": [
+      [
+        "Amount",
+        "The amount being signed for."
+      ],
+      [
+        "Sign as officer",
+        "Records the officer's signature. Token becomes single-use."
+      ],
+      [
+        "Reason",
+        "Free text for the ledger."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/escrow/magic/{token}",
+        "Load."
+      ],
+      [
+        "POST",
+        "/api/v1/escrow/magic/{token}/sign",
+        "Sign."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "actions": [],
+    "tutorial": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "13-escrow-officer-magic.png"
+  },
+  {
+    "slug": "14-meeting-room",
+    "title": "Meeting room \u00b7 Join by token",
+    "url": "/meet/c_pol_VUsWMi0Rqhuux9_-iTlc2en7W6",
+    "role": "public",
+    "audience": [
+      "Attendee"
+    ],
+    "purpose": "Public join page for a scheduled meeting. Displays attendee list, Zoom link, and the Accept/Decline CTA.",
+    "fields": [
+      [
+        "Meeting title",
+        "As set by the organiser."
+      ],
+      [
+        "Zoom URL",
+        "One-click join."
+      ],
+      [
+        "Attendees",
+        "Current RSVP status per invitee."
+      ],
+      [
+        "Accept / Decline",
+        "Updates your RSVP."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/meetings/join/{token}",
+        "Loads meeting."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "actions": [],
+    "tutorial": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "14-meeting-room.png"
+  },
+  {
+    "slug": "21-admin-analytics",
+    "title": "Admin console \u00b7 Analytics dashboard",
+    "tab": "analytics",
+    "role": "admin",
+    "url": "/admin/e/dashboard",
+    "purpose": "The operations overview \u2014 KPI tiles, pipeline funnel, top-priced bids, AI anomaly copilot, drill-through cards.",
+    "actions": [],
+    "audience": [
+      "Ops",
+      "Mgmt"
+    ],
+    "fields": [
+      [
+        "KPI band",
+        "Published notices \u00b7 Vendors \u00b7 Bids \u00b7 Awarded \u00b7 Pending EMD \u00b7 EMD collected \u00b7 Active contracts."
+      ],
+      [
+        "AI Anomaly card",
+        "Count of bids flagged by GPT anomaly scoring. Click to drill."
+      ],
+      [
+        "Pipeline Funnel card",
+        "Bids across every stage. Click to drill."
+      ],
+      [
+        "Top-Priced Bids card",
+        "Top-10 by price. Click to drill."
+      ],
+      [
+        "Pipeline funnel table",
+        "Per-stage counts: emd_pending \u2192 emd_paid \u2192 escrow_accepted \u2192 admin_flagged \u2192 certifier_cleared \u2192 legal_cleared \u2192 accounting_cleared \u2192 awarded."
+      ],
+      [
+        "Top-priced bids table",
+        "Bid ref \u00b7 vendor \u00b7 price \u00b7 status."
+      ],
+      [
+        "AI bid anomaly check",
+        "Pick a bid \u2192 'Run AI check' \u2192 GPT flags outliers."
+      ]
+    ],
+    "tutorial": [
+      [
+        "Read the KPI band",
+        "Every tile is clickable \u2192 drills into the underlying list."
+      ],
+      [
+        "Run an AI anomaly check",
+        "Scroll to the AI bid anomaly check widget \u2192 pick a bid \u2192 'Run AI check'. Result appears inline in ~4s."
+      ],
+      [
+        "Drill through a KPI",
+        "Click any card in the top row (Anomaly / Pipeline / Top-Priced) \u2192 drill card table appears with each source record."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/analytics/summary",
+        "Powers the KPI band."
+      ],
+      [
+        "GET",
+        "/api/v1/dashboard-drill/anomalies",
+        "AI-flagged bids."
+      ],
+      [
+        "GET",
+        "/api/v1/dashboard-drill/pipeline",
+        "Bids grouped by stage."
+      ],
+      [
+        "GET",
+        "/api/v1/dashboard-drill/top-priced",
+        "Top-10 by price."
+      ],
+      [
+        "POST",
+        "/api/v1/bids/{id}/ai-anomaly-check",
+        "Runs GPT anomaly check on a single bid."
+      ]
+    ],
+    "pitfalls": [
+      "The KPI numbers are tenant-scoped \u2014 if you switch tenant, refresh.",
+      "AI check requires an admin-configured LLM API key server-side; if missing the endpoint returns 503."
+    ],
+    "kpis": [
+      "notices_published_per_month",
+      "median_time_notice_creation_to_publish",
+      "bids_per_notice_avg",
+      "emd_collected_per_month"
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "errors": [],
+    "image": "21-admin-analytics.png"
+  },
+  {
+    "slug": "21a-admin-drill-anomalies",
+    "title": "Analytics \u00b7 Drill \u00b7 AI anomalies",
+    "tab": "analytics",
+    "role": "admin",
+    "url": "/admin/e/dashboard",
+    "purpose": "Drill card of AI-flagged anomalous bids with reason strings.",
+    "actions": [
+      [
+        "click",
+        "[data-testid=drill-tab-anom]",
+        null
+      ]
+    ],
+    "fields": [
+      [
+        "Bid ref",
+        "PMC-BID-YYYY-#### \u2014 click to open the bid drawer."
+      ],
+      [
+        "Vendor",
+        "Vendor name + ref."
+      ],
+      [
+        "Reason",
+        "GPT-generated one-liner e.g. 'price 60% below cluster median'."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "audience": [],
+    "tutorial": [],
+    "api": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "21a-admin-drill-anomalies.png"
+  },
+  {
+    "slug": "21b-admin-drill-pipeline",
+    "title": "Analytics \u00b7 Drill \u00b7 Pipeline aging",
+    "tab": "analytics",
+    "role": "admin",
+    "url": "/admin/e/dashboard",
+    "purpose": "Drill card of every bid grouped by pipeline stage, sorted by dwell time.",
+    "actions": [
+      [
+        "click",
+        "[data-testid=drill-tab-pipe]",
+        null
+      ]
+    ],
+    "fields": [
+      [
+        "Stage",
+        "One of the 8 pipeline stages."
+      ],
+      [
+        "Bid ref",
+        "Click to open drawer."
+      ],
+      [
+        "Dwell time",
+        "Days since last state change."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "audience": [],
+    "tutorial": [],
+    "api": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "21b-admin-drill-pipeline.png"
+  },
+  {
+    "slug": "21c-admin-drill-top",
+    "title": "Analytics \u00b7 Drill \u00b7 Top vendors",
+    "tab": "analytics",
+    "role": "admin",
+    "url": "/admin/e/dashboard",
+    "purpose": "Top-performing vendors by award count in the current period.",
+    "actions": [
+      [
+        "click",
+        "[data-testid=drill-tab-top]",
+        null
+      ]
+    ],
+    "fields": [
+      [
+        "Vendor",
+        "Vendor name + ref."
+      ],
+      [
+        "Awards",
+        "Count in the last 90d."
+      ],
+      [
+        "Value",
+        "Sum awarded value (tenant currency)."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "audience": [],
+    "tutorial": [],
+    "api": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "21c-admin-drill-top.png"
+  },
+  {
+    "slug": "22-admin-registrations",
+    "title": "Admin console \u00b7 Registrations pipeline",
+    "tab": "registrations",
+    "role": "admin",
+    "url": "/admin/e/registrations",
+    "purpose": "Every vendor registration in every stage \u2014 Draft / Submitted / Approved / Rejected / Clarification.",
+    "actions": [],
+    "audience": [
+      "Ops"
+    ],
+    "fields": [
+      [
+        "Stage tabs",
+        "Draft \u00b7 Submitted \u00b7 Approved \u00b7 Rejected \u00b7 Clarification-requested."
+      ],
+      [
+        "Registration row",
+        "Company \u00b7 country \u00b7 draft-age \u00b7 reviewer note."
+      ],
+      [
+        "Approve",
+        "Marks status=approved. Vendor gets activation email + must_change_password=true."
+      ],
+      [
+        "Reject",
+        "Requires a reason \u2265 5 chars. Vendor gets a rejection email."
+      ],
+      [
+        "Request clarification",
+        "Emails the vendor a note \u2265 5 chars. Vendor uses the resume token to re-enter."
+      ]
+    ],
+    "tutorial": [
+      [
+        "Approve a registration",
+        "Click Submitted tab \u2192 pick a row \u2192 'Approve' \u2192 confirm."
+      ],
+      [
+        "Reject a registration",
+        "Click Submitted tab \u2192 pick a row \u2192 'Reject' \u2192 type reason \u2265 5 chars \u2192 Confirm."
+      ],
+      [
+        "Request clarification",
+        "'Request clarification' \u2192 type note \u2265 5 chars \u2192 Send."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/registrations?status=submitted",
+        "List by status."
+      ],
+      [
+        "POST",
+        "/api/v1/registrations/{id}/approve",
+        "Approve."
+      ],
+      [
+        "POST",
+        "/api/v1/registrations/{id}/reject",
+        "Body {reason}. reason \u2265 5 chars."
+      ],
+      [
+        "POST",
+        "/api/v1/registrations/{id}/request-clarification",
+        "Body {note}."
+      ]
+    ],
+    "pitfalls": [
+      "Approve sends the activation email via Resend; missing EMAIL_KEY = no email + no error.",
+      "Rejected drafts are purged after 90 days by a nightly job."
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "errors": [],
+    "kpis": [],
+    "image": "22-admin-registrations.png"
+  },
+  {
+    "slug": "23-admin-vendors",
+    "title": "Admin console \u00b7 Vendors master",
+    "tab": "vendors",
+    "role": "admin",
+    "url": "/admin/e/vendors",
+    "purpose": "Approved vendors master table with Bulk Invite CSV + Add & Fill Full Form + Invite Vendor + Replace Registration Template.",
+    "actions": [],
+    "audience": [
+      "Ops"
+    ],
+    "fields": [
+      [
+        "Replace registration template",
+        "Upload a new PDF template used for all future registrations."
+      ],
+      [
+        "Download current template",
+        "Fetches the current PDF."
+      ],
+      [
+        "Bulk invite (CSV)",
+        "Upload a CSV of primary emails; duplicate rows return per-row 409 without aborting."
+      ],
+      [
+        "Add & fill full form",
+        "Admin-side create \u2014 for onboarding an existing partner in one shot."
+      ],
+      [
+        "Invite vendor",
+        "Send a magic-link invitation email to a single vendor."
+      ],
+      [
+        "Search box",
+        "Substring match on name + ref + email."
+      ],
+      [
+        "Vendor row",
+        "Company \u00b7 vendor_ref \u00b7 email \u00b7 country \u00b7 verify status pill."
+      ],
+      [
+        "KPI drawer",
+        "Right pane \u2014 pick a vendor to see award counts + on-time delivery %."
+      ]
+    ],
+    "tutorial": [
+      [
+        "Bulk-invite 20 suppliers",
+        "Prepare a CSV: primary_email,company_name,country. Click 'Bulk invite (CSV)' \u2192 drop file \u2192 confirm. Backend returns per-row 200/409."
+      ],
+      [
+        "View KPI for a vendor",
+        "Click any row \u2192 right pane populates with awards + fulfilment + blacklist status."
+      ],
+      [
+        "Redact a vendor (GDPR)",
+        "Row \u2192 drawer \u2192 GDPR Forget. Data is anonymised in-place, PII masked."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/vendors?limit=50",
+        "Paginated list."
+      ],
+      [
+        "GET",
+        "/api/v1/vendors/{vendor_ref}/kpi",
+        "KPI dashboard."
+      ],
+      [
+        "POST",
+        "/api/v1/vendors/bulk-invite",
+        "CSV bulk invite."
+      ],
+      [
+        "POST",
+        "/api/v1/vendor/gdpr-forget",
+        "GDPR redaction (vendor-initiated) or admin route."
+      ]
+    ],
+    "pitfalls": [
+      "GDPR forget is IRREVERSIBLE \u2014 no undo. Always confirm the vendor_ref twice.",
+      "Bulk invite dedupes by primary email per tenant \u2014 a vendor already registered under a different tenant is NOT a duplicate."
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "errors": [],
+    "kpis": [],
+    "image": "23-admin-vendors.png"
+  },
+  {
+    "slug": "23a-admin-vendors-bulk-invite",
+    "title": "Vendors \u00b7 Bulk invite modal",
+    "tab": "vendors",
+    "role": "admin",
+    "url": "/admin/e/vendors",
+    "purpose": "Modal that accepts a CSV of vendor invites and returns a per-row 200/409 report.",
+    "actions": [
+      [
+        "click",
+        "[data-testid=vendors-bulk-invite-open]",
+        null
+      ]
+    ],
+    "fields": [
+      [
+        "CSV picker",
+        "Accepts .csv up to 5 MB."
+      ],
+      [
+        "Preview table",
+        "First 20 rows shown; every row gets a green tick / red cross after Submit."
+      ],
+      [
+        "Submit button",
+        "Fires the invites in the background \u2014 you can leave the modal open."
+      ]
+    ],
+    "api": [
+      [
+        "POST",
+        "/api/v1/vendors/bulk-invite",
+        "Multipart form. Returns [{row, status, error?}]."
+      ]
+    ],
+    "pitfalls": [
+      "A single malformed row does NOT abort the batch \u2014 but the row is skipped and returned with status=422."
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "audience": [],
+    "tutorial": [],
+    "errors": [],
+    "kpis": [],
+    "image": "23a-admin-vendors-bulk-invite.png"
+  },
+  {
+    "slug": "24-admin-notices",
+    "title": "Admin console \u00b7 Notices",
+    "tab": "notices",
+    "role": "admin",
+    "url": "/admin/e/notices",
+    "purpose": "Notices master + filter bar. Every tender / RFP / RFQ starts and ends here.",
+    "actions": [],
+    "audience": [
+      "Ops",
+      "Mgmt"
+    ],
+    "fields": [
+      [
+        "+ New notice",
+        "Slides down the create-form. Only visible if you have 'notices.create'."
+      ],
+      [
+        "Filter bar",
+        "Search text \u00b7 status pill \u00b7 document-type pill \u00b7 budget currency filter \u00b7 template-linked toggle."
+      ],
+      [
+        "Notice row",
+        "notice_ref \u00b7 title \u00b7 status pill \u00b7 deadline \u00b7 budget \u00b7 country."
+      ],
+      [
+        "Bulk publish",
+        "Multi-select rows \u2192 'Publish selected' (Master Admin only)."
+      ]
+    ],
+    "tutorial": [
+      [
+        "Search a notice",
+        "Type 3+ chars in the search box \u2192 list filters live."
+      ],
+      [
+        "Filter to drafts older than 5 days",
+        "Status \u2192 draft. Look at 'Days since created' \u2014 anything > 5d is review-worthy."
+      ],
+      [
+        "Open a notice for editing",
+        "Click the row \u2192 drawer opens with Corrigenda tab + attachments + committee refs."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/notices?status=draft",
+        "Filter by status."
+      ],
+      [
+        "POST",
+        "/api/v1/notices",
+        "Create draft."
+      ],
+      [
+        "PUT",
+        "/api/v1/notices/{id}",
+        "Update draft."
+      ],
+      [
+        "POST",
+        "/api/v1/notices/{id}/publish",
+        "Master Admin only."
+      ]
+    ],
+    "pitfalls": [
+      "You cannot edit a published notice \u2014 issue a Corrigendum instead.",
+      "budget_amount validates ge=0. Negative returns 400 (Bug 4 fix).",
+      "notice_ref is auto-generated per tenant per year \u2014 never edit it."
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "errors": [],
+    "kpis": [],
+    "image": "24-admin-notices.png"
+  },
+  {
+    "slug": "24a-admin-notices-new",
+    "title": "Notices \u00b7 Create notice form",
+    "tab": "notices",
+    "role": "admin",
+    "url": "/admin/e/notices",
+    "purpose": "The + New notice form. Every field on it, with validation rules.",
+    "actions": [
+      [
+        "click",
+        "[data-testid=notice-new-toggle]",
+        null
+      ]
+    ],
+    "fields": [
+      [
+        "Title",
+        "String \u2265 5 chars."
+      ],
+      [
+        "Description",
+        "\u2265 10 chars. Supports Markdown."
+      ],
+      [
+        "Category",
+        "Free text \u2014 used for search filters."
+      ],
+      [
+        "Document type",
+        "tender / rfp / rfq."
+      ],
+      [
+        "Country",
+        "ISO-2."
+      ],
+      [
+        "Submission deadline",
+        "datetime-local \u2014 stored as UTC."
+      ],
+      [
+        "Budget currency",
+        "ISO-4217, e.g. USD, INR, KZT."
+      ],
+      [
+        "Budget amount",
+        "Number \u2265 0 (Bug 4 fix)."
+      ],
+      [
+        "EMD fixed / percentage",
+        "Two mutually exclusive inputs. If percentage, base is budget_amount."
+      ],
+      [
+        "Approval matrix",
+        "Pick from Masters \u2192 Matrix. Required to publish."
+      ],
+      [
+        "Tender template",
+        "Pick from Tender Builder. Required for tender / rfp."
+      ],
+      [
+        "Publish immediately",
+        "Master Admin only. If checked, status becomes 'published' on save."
+      ],
+      [
+        "Primary document",
+        "PDF \u2264 10 MB. Required for tender / rfp."
+      ],
+      [
+        "Attachments",
+        "Up to 10 files \u2264 10 MB each."
+      ],
+      [
+        "Create button",
+        "POST /api/v1/notices \u2192 returns the created ref."
+      ]
+    ],
+    "tutorial": [
+      [
+        "Create a draft tender",
+        "Fill every required field \u2192 leave Publish unchecked \u2192 'Create'."
+      ],
+      [
+        "Publish immediately",
+        "Same form \u2192 tick 'Publish immediately' (visible only to Master Admin) \u2192 Create."
+      ]
+    ],
+    "errors": [
+      "400 budget_amount < 0 \u00b7 400 description too short \u00b7 403 role can't publish \u00b7 409 duplicate template link."
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "audience": [],
+    "api": [],
+    "pitfalls": [],
+    "kpis": [],
+    "image": "24a-admin-notices-new.png"
+  },
+  {
+    "slug": "25-admin-corrigenda",
+    "title": "Admin console \u00b7 Corrigenda",
+    "tab": "corrigenda",
+    "role": "admin",
+    "url": "/admin/e/corrigenda",
+    "purpose": "Formal amendments to published notices. Every change is auditable, capped at 3 withdrawals per notice.",
+    "actions": [],
+    "audience": [
+      "Ops",
+      "Mgmt"
+    ],
+    "fields": [
+      [
+        "+ New corrigendum",
+        "Requires an already-published parent notice."
+      ],
+      [
+        "Description",
+        "\u2265 20 chars. Written as if a lawyer will read it."
+      ],
+      [
+        "New deadline (optional)",
+        "Extends submission_deadline."
+      ],
+      [
+        "Publish",
+        "Sends notification to all subscribed bidders + updates public notice history."
+      ],
+      [
+        "Withdraw",
+        "Reversal action; withdrawal reason \u2265 5 chars is mandatory."
+      ]
+    ],
+    "api": [
+      [
+        "POST",
+        "/api/v1/corrigenda",
+        "Body {notice_ref, description, new_deadline?}."
+      ],
+      [
+        "POST",
+        "/api/v1/corrigenda/{id}/publish",
+        "Publishes + notifies."
+      ],
+      [
+        "POST",
+        "/api/v1/corrigenda/{id}/withdraw",
+        "Body {reason}. reason \u2265 5 chars."
+      ]
+    ],
+    "pitfalls": [
+      "4th corrigendum on the same notice returns 400 'withdrawal capped at 3' \u2014 pattern encourages issuing one comprehensive amendment."
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "tutorial": [],
+    "errors": [],
+    "kpis": [],
+    "image": "25-admin-corrigenda.png"
+  },
+  {
+    "slug": "26-admin-tender-builder",
+    "title": "Admin console \u00b7 Tender Builder",
+    "tab": "tender-builder",
+    "role": "admin",
+    "url": "/admin/e/tender-builder",
+    "purpose": "Template builder. Compose reusable tender / RFP / RFQ templates: sections + annexures + header form + AI drafter + version history.",
+    "actions": [],
+    "audience": [
+      "Ops",
+      "Mgmt"
+    ],
+    "fields": [
+      [
+        "Kind toggle",
+        "Tender / RFP / RFQ. Determines the section catalog."
+      ],
+      [
+        "Master Library",
+        "Read-only reference templates (e.g. 'Standard PSU e-Tender (GFR 2017, QCBS 70/30)'). 'Clone as draft' to seed."
+      ],
+      [
+        "Your drafts",
+        "Editable drafts owned by the tenant."
+      ],
+      [
+        "Name",
+        "Human-readable template name."
+      ],
+      [
+        "Save",
+        "Persists the draft."
+      ],
+      [
+        "History",
+        "Every save is versioned; you can restore any prior version."
+      ],
+      [
+        "Export PDF",
+        "Renders the composed template to PDF for offline review."
+      ],
+      [
+        "Language toggle",
+        "EN / RU / KK for PDF export."
+      ],
+      [
+        "Delete",
+        "Only allowed on drafts you own."
+      ],
+      [
+        "Bulk upload",
+        "Import a .zip of section .docx files."
+      ]
+    ],
+    "tutorial": [
+      [
+        "Clone a master template",
+        "Pick 'Standard PSU e-Tender' \u2192 'Clone as draft' \u2192 new draft appears in 'Your drafts'."
+      ],
+      [
+        "Add a section",
+        "Right pane \u2192 '+ Add' \u2192 pick section type (Instructions / Eligibility / Scope / Evaluation / GCC / SCC / Annexure)."
+      ],
+      [
+        "AI draft a clause",
+        "Focus a section \u2192 'AI draft' menu \u2192 pick a preset. GPT drafts the clause; you review and Save."
+      ],
+      [
+        "Restore an old version",
+        "History \u2192 pick a timestamp \u2192 'Restore'."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/tender-templates?kind=tender",
+        "List templates."
+      ],
+      [
+        "POST",
+        "/api/v1/tender-templates",
+        "Create."
+      ],
+      [
+        "PUT",
+        "/api/v1/tender-templates/{id}",
+        "Update (creates a new version)."
+      ],
+      [
+        "POST",
+        "/api/v1/tender-templates/{id}/export?lang=en",
+        "Export PDF."
+      ],
+      [
+        "POST",
+        "/api/v1/tender-templates/{id}/ai-draft",
+        "GPT-5 drafting."
+      ]
+    ],
+    "pitfalls": [
+      "Deleting a draft that is linked to a notice returns 409 \u2014 unlink first.",
+      "Bulk upload accepts .docx only; unsupported files are skipped with per-file 415."
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "errors": [],
+    "kpis": [],
+    "image": "26-admin-tender-builder.png"
+  },
+  {
+    "slug": "27-admin-bidding",
+    "title": "Admin console \u00b7 Bidding operations",
+    "tab": "bidding",
+    "role": "admin",
+    "url": "/admin/e/bidding",
+    "purpose": "Bid pipeline + Committee UX (checkbox grid, dissolve, resend invite, assign certifier).",
+    "actions": [],
+    "audience": [
+      "Ops",
+      "Committee"
+    ],
+    "fields": [
+      [
+        "Bid filter",
+        "By status pill or by notice_ref."
+      ],
+      [
+        "Bid table",
+        "Bid ref \u00b7 vendor \u00b7 notice \u00b7 price \u00b7 pipeline stage \u00b7 action buttons."
+      ],
+      [
+        "+ New committee",
+        "Opens the CommitteeForm \u2014 see 27a."
+      ],
+      [
+        "Committee list",
+        "Every existing committee for the current notice \u2014 expand to see members + status."
+      ],
+      [
+        "Assign certifier",
+        "Modal \u2014 pick a certifier user + notes."
+      ],
+      [
+        "AI bid compare",
+        "Runs GPT compare of top bids."
+      ]
+    ],
+    "tutorial": [
+      [
+        "Filter bids to escrow_accepted",
+        "Change filter \u2192 only escrow_accepted bids remain visible."
+      ],
+      [
+        "Trigger AI compare",
+        "Pick two bids \u2192 'AI compare' \u2192 drawer with side-by-side matrix."
+      ],
+      [
+        "Assign certifier for a bid",
+        "Row \u2192 'Assign certifier' \u2192 pick user \u2192 notes \u2192 Confirm. Certifier gets an email."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/bids?status=escrow_accepted",
+        "Filter by stage."
+      ],
+      [
+        "POST",
+        "/api/v1/bids/{id}/assign-certifier",
+        "Body {certifier_id, note}."
+      ],
+      [
+        "POST",
+        "/api/v1/bids/ai-compare",
+        "Body {bid_ids:[...]}. GPT-5 compare."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "27-admin-bidding.png"
+  },
+  {
+    "slug": "27a-admin-bidding-new-committee",
+    "title": "Bidding \u00b7 New committee form",
+    "tab": "bidding",
+    "role": "admin",
+    "url": "/admin/e/bidding",
+    "purpose": "Committee create form \u2014 the checkbox grid across all roles, quorum picker, chair.",
+    "actions": [
+      [
+        "click",
+        "[data-testid=committee-new-toggle]",
+        null
+      ]
+    ],
+    "fields": [
+      [
+        "Notice_ref",
+        "Which notice this committee is for."
+      ],
+      [
+        "Name",
+        "Human-readable committee name."
+      ],
+      [
+        "Members checkbox grid",
+        "Every staff user \u00d7 every role. Tick each cell that applies."
+      ],
+      [
+        "Chair",
+        "One member marked as chair. Chair casts the tie-breaker vote."
+      ],
+      [
+        "Quorum",
+        "Number of members required for a valid decision. Default = 3."
+      ],
+      [
+        "Save",
+        "Persists + sends invite emails to every member."
+      ]
+    ],
+    "tutorial": [
+      [
+        "Create a 5-member committee",
+        "Fill name \u2192 tick 5 members \u2192 pick a chair \u2192 quorum=3 \u2192 Save."
+      ],
+      [
+        "Resend an invite",
+        "Members list \u2192 pick a member \u2192 'Resend invite'. Idempotent."
+      ],
+      [
+        "Dissolve a committee",
+        "Committee \u2192 'Dissolve' \u2192 mandatory reason \u2192 Confirm."
+      ]
+    ],
+    "api": [
+      [
+        "POST",
+        "/api/v1/committee",
+        "Create."
+      ],
+      [
+        "POST",
+        "/api/v1/committee/{id}/dissolve",
+        "Body {reason}."
+      ],
+      [
+        "POST",
+        "/api/v1/committee/{id}/resend-invite/{member_id}",
+        "Idempotent."
+      ]
+    ],
+    "pitfalls": [
+      "You cannot dissolve a committee that has already voted \u2014 archive it instead.",
+      "Committee invite emails expire after 7 days; 'Resend' generates a new token."
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "audience": [],
+    "errors": [],
+    "kpis": [],
+    "image": "27a-admin-bidding-new-committee.png"
+  },
+  {
+    "slug": "28-admin-escrow",
+    "title": "Admin console \u00b7 Escrow (EMD)",
+    "tab": "escrow",
+    "role": "admin",
+    "url": "/admin/e/escrow",
+    "purpose": "Joint-signature Earnest Money Deposit escrow \u2014 accounts + transactions with dual-officer approval.",
+    "actions": [],
+    "audience": [
+      "Ops",
+      "Escrow",
+      "Accounting"
+    ],
+    "fields": [
+      [
+        "Accounts section",
+        "One row per notice \u2014 balance, currency, joint officers, status."
+      ],
+      [
+        "Create account",
+        "Assigns two officers (must be different people) + currency."
+      ],
+      [
+        "Transactions section",
+        "Every deposit / release / refund with dual-signature status."
+      ],
+      [
+        "Officer A / Officer B sign",
+        "Each officer clicks 'Sign' via their own login. Money only moves when both signed."
+      ],
+      [
+        "Refund",
+        "Auto-triggered on bid rejection / notice cancellation."
+      ]
+    ],
+    "tutorial": [
+      [
+        "Create an escrow account",
+        "Escrow \u2192 Accounts \u2192 '+ New' \u2192 pick notice + Officer A + Officer B + currency \u2192 Save."
+      ],
+      [
+        "Approve a release",
+        "Transactions \u2192 pick pending row \u2192 Officer A signs \u2192 Officer B signs \u2192 funds move."
+      ]
+    ],
+    "api": [
+      [
+        "POST",
+        "/api/v1/escrow/accounts",
+        "Create joint account."
+      ],
+      [
+        "POST",
+        "/api/v1/escrow/transactions",
+        "Deposit / release / refund."
+      ],
+      [
+        "POST",
+        "/api/v1/escrow/transactions/{id}/sign",
+        "Each officer signs via own session."
+      ]
+    ],
+    "pitfalls": [
+      "Officer A and Officer B cannot be the same person \u2014 400 enforced."
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "errors": [],
+    "kpis": [],
+    "image": "28-admin-escrow.png"
+  },
+  {
+    "slug": "29-admin-evaluation",
+    "title": "Admin console \u00b7 Evaluation & scoring",
+    "tab": "evaluation",
+    "role": "admin",
+    "url": "/admin/e/evaluation",
+    "purpose": "Rubric editor + technical/commercial lock + COI declaration + award report.",
+    "actions": [],
+    "audience": [
+      "Evaluators",
+      "Committee"
+    ],
+    "fields": [
+      [
+        "Notice ref input",
+        "Which notice to evaluate."
+      ],
+      [
+        "Lock technical",
+        "Freezes technical scores \u2014 no further edits."
+      ],
+      [
+        "Lock commercial",
+        "Freezes commercial scores."
+      ],
+      [
+        "Award report",
+        "Generates the QCBS award report PDF."
+      ],
+      [
+        "COI declaration",
+        "Evaluator ticks 'has conflict?' + optional note \u2192 captured to audit."
+      ],
+      [
+        "Rubric editor",
+        "Criteria + weights per section (technical rubric)."
+      ],
+      [
+        "Bid score list",
+        "Every bid \u00d7 every criterion score."
+      ]
+    ],
+    "tutorial": [
+      [
+        "Set up a rubric",
+        "Evaluation \u2192 Rubric editor \u2192 add criteria + weights (must sum to 100)."
+      ],
+      [
+        "Score every bid",
+        "Bid score list \u2192 pick bid \u2192 enter score per criterion \u2192 Save."
+      ],
+      [
+        "Lock scores",
+        "'Lock technical' \u2192 confirm. Once locked no evaluator can edit."
+      ],
+      [
+        "Generate the award report",
+        "'Award report' \u2192 generates PDF at /api/v1/evaluations/{ref}/award."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/evaluations/{notice_ref}",
+        "Rubric + scores."
+      ],
+      [
+        "POST",
+        "/api/v1/evaluations/{notice_ref}/lock/technical",
+        "Freeze."
+      ],
+      [
+        "POST",
+        "/api/v1/evaluations/{notice_ref}/lock/commercial",
+        "Freeze."
+      ],
+      [
+        "POST",
+        "/api/v1/evaluations/coi",
+        "Body {notice_ref, has_conflict, note?}."
+      ],
+      [
+        "GET",
+        "/api/v1/evaluations/{notice_ref}/award",
+        "PDF."
+      ]
+    ],
+    "pitfalls": [
+      "Locking is one-way \u2014 only Master Admin can unlock via an audit-logged override."
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "errors": [],
+    "kpis": [],
+    "image": "29-admin-evaluation.png"
+  },
+  {
+    "slug": "30-admin-awards",
+    "title": "Admin console \u00b7 Awards & POs",
+    "tab": "awards",
+    "role": "admin",
+    "url": "/admin/e/awards",
+    "purpose": "Awarded bids + Purchase Order generation. Regenerate is guarded by a confirmation modal + versions all previous POs.",
+    "actions": [],
+    "audience": [
+      "Ops",
+      "Accounting"
+    ],
+    "fields": [
+      [
+        "Awards list",
+        "Bid ref \u00b7 vendor \u00b7 award amount \u00b7 PO ref \u00b7 pdf link."
+      ],
+      [
+        "Regenerate PO",
+        "Reruns the PDF generator with a new version. Old PDFs are preserved."
+      ],
+      [
+        "Version log",
+        "Every generated PO version with timestamp + actor."
+      ],
+      [
+        "Download PO",
+        "Serves the latest PO PDF."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/awards",
+        "List."
+      ],
+      [
+        "POST",
+        "/api/v1/awards/{bid_ref}/generate-po",
+        "Generates new PO version."
+      ],
+      [
+        "GET",
+        "/api/v1/awards/{bid_ref}/po?version=N",
+        "Fetches specific PO version."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "tutorial": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "30-admin-awards.png"
+  },
+  {
+    "slug": "31-admin-docusign",
+    "title": "Admin console \u00b7 DocuSign \u00b7 Envelope log",
+    "tab": "docusign",
+    "role": "admin",
+    "url": "/admin/e/docusign",
+    "purpose": "Every DocuSign envelope, its status, and the authoritative flag marking the legally-binding version.",
+    "actions": [],
+    "audience": [
+      "Ops",
+      "Legal"
+    ],
+    "fields": [
+      [
+        "Envelope list",
+        "envelope_id \u00b7 recipient \u00b7 subject \u00b7 status \u00b7 is_authoritative."
+      ],
+      [
+        "Authoritative flag",
+        "Only ONE envelope per contract can be authoritative \u2014 enforced with a 409 on second set."
+      ],
+      [
+        "Download signed PDF",
+        "Fetches DocuSign combined-signed PDF."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/docusign/envelopes",
+        "List."
+      ],
+      [
+        "POST",
+        "/api/v1/envelopes/{id}/mark-authoritative",
+        "409 if already set on another envelope."
+      ]
+    ],
+    "pitfalls": [
+      "Marking authoritative twice is intentional 409 \u2014 the second call must first unmark the first."
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "tutorial": [],
+    "errors": [],
+    "kpis": [],
+    "image": "31-admin-docusign.png"
+  },
+  {
+    "slug": "32-admin-auctions",
+    "title": "Admin console \u00b7 Reverse auctions",
+    "tab": "auctions",
+    "role": "admin",
+    "url": "/admin/e/auctions",
+    "purpose": "Live reverse auctions \u2014 draft link hidden from public, participant validation, real-time price ticker.",
+    "actions": [],
+    "audience": [
+      "Ops",
+      "Committee"
+    ],
+    "fields": [
+      [
+        "Auction list",
+        "notice_ref \u00b7 start \u00b7 duration \u00b7 status \u00b7 participants."
+      ],
+      [
+        "+ New auction",
+        "notice_ref + start_at + duration_min + participants list."
+      ],
+      [
+        "Participants",
+        "Only bidders whose bid is escrow_accepted can be added \u2014 validated."
+      ],
+      [
+        "Draft link",
+        "Not publicly visible until status=live."
+      ]
+    ],
+    "api": [
+      [
+        "POST",
+        "/api/v1/auctions",
+        "Create draft."
+      ],
+      [
+        "POST",
+        "/api/v1/auctions/{id}/start",
+        "Flip to live."
+      ],
+      [
+        "POST",
+        "/api/v1/auctions/{id}/bid",
+        "Vendor-side lower-bid submission."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "tutorial": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "32-admin-auctions.png"
+  },
+  {
+    "slug": "33-admin-meetings",
+    "title": "Admin console \u00b7 Meetings",
+    "tab": "meetings",
+    "role": "admin",
+    "url": "/admin/e/engagements",
+    "purpose": "Zoom / internal meeting scheduling. notice_ref required unless 'Internal meeting' toggle is on.",
+    "actions": [],
+    "audience": [
+      "Ops",
+      "Committee"
+    ],
+    "fields": [
+      [
+        "+ New meeting",
+        "Title \u00b7 date \u00b7 attendees \u00b7 Zoom URL (optional) \u00b7 notice_ref."
+      ],
+      [
+        "Internal meeting toggle",
+        "If ticked, notice_ref becomes optional. Used for internal ops."
+      ],
+      [
+        "Attendees",
+        "Multi-select from staff master."
+      ],
+      [
+        "Zoom link",
+        "Optional. If present, appears on the invite email."
+      ]
+    ],
+    "api": [
+      [
+        "POST",
+        "/api/v1/meetings",
+        "Create."
+      ],
+      [
+        "GET",
+        "/api/v1/meetings",
+        "List."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "tutorial": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "33-admin-meetings.png"
+  },
+  {
+    "slug": "34-admin-l1",
+    "title": "Admin console \u00b7 L1 comparison",
+    "tab": "l1",
+    "role": "admin",
+    "url": "/admin/e/l1-award",
+    "purpose": "Lowest-compliant winner across bids. Empty-state includes 'why L1 could not be picked' reasons.",
+    "actions": [],
+    "audience": [
+      "Evaluators",
+      "Mgmt"
+    ],
+    "fields": [
+      [
+        "Notice ref input",
+        "Pick a notice."
+      ],
+      [
+        "Comparison table",
+        "Every bid \u00b7 compliance \u00b7 price \u00b7 rank."
+      ],
+      [
+        "Winner banner",
+        "PMC-BID-\u2026-#### is L1."
+      ],
+      [
+        "Empty-state reasons",
+        "e.g. 'No commercial envelope locked' or 'All bidders non-compliant on eligibility'."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/comparison/l1/{notice_ref}",
+        "Returns comparison + winner or empty-state reason."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "tutorial": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "34-admin-l1.png"
+  },
+  {
+    "slug": "35-admin-boq",
+    "title": "Admin console \u00b7 BOQ & contracts",
+    "tab": "boq",
+    "role": "admin",
+    "url": "/admin/e/boq",
+    "purpose": "BOQ templates + Contract templates with exports + versions.",
+    "actions": [],
+    "audience": [
+      "Ops",
+      "Accounting"
+    ],
+    "fields": [
+      [
+        "Sub-tabs",
+        "BOQ templates \u00b7 Contracts."
+      ],
+      [
+        "Template list",
+        "name \u00b7 version \u00b7 updated_at."
+      ],
+      [
+        "Import CSV",
+        "Import a BOQ from a spreadsheet."
+      ],
+      [
+        "Export",
+        "PDF + XLSX export of a template."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/boqs/templates",
+        "List."
+      ],
+      [
+        "POST",
+        "/api/v1/boqs/templates",
+        "Create."
+      ],
+      [
+        "GET",
+        "/api/v1/boqs/templates/{id}/export?fmt=xlsx",
+        "Export."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "tutorial": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "35-admin-boq.png"
+  },
+  {
+    "slug": "35a-admin-boq-contracts",
+    "title": "BOQ \u00b7 Contracts sub-tab",
+    "tab": "boq",
+    "role": "admin",
+    "url": "/admin/e/boq",
+    "purpose": "Contract templates \u2014 the boilerplate clauses linked to award PO generation.",
+    "actions": [
+      [
+        "click",
+        "[data-testid=boq-tab-contracts]",
+        null
+      ]
+    ],
+    "fields": [
+      [
+        "Contracts table",
+        "Template name \u00b7 version \u00b7 category."
+      ],
+      [
+        "+ New contract",
+        "Free-text draft; export as .docx."
+      ],
+      [
+        "Export DOCX",
+        "Downloads the Word doc."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/contracts/templates",
+        "List."
+      ],
+      [
+        "POST",
+        "/api/v1/contracts/templates",
+        "Create."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "audience": [],
+    "tutorial": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "35a-admin-boq-contracts.png"
+  },
+  {
+    "slug": "36-admin-vintel",
+    "title": "Admin console \u00b7 Vendor Intelligence",
+    "tab": "vintel",
+    "role": "admin",
+    "url": "/admin/e/vendor-intel",
+    "purpose": "Blacklist / whitelist / grey-list registry with a KPI decorator per vendor.",
+    "actions": [],
+    "audience": [
+      "Ops",
+      "Mgmt"
+    ],
+    "fields": [
+      [
+        "List tab",
+        "BL \u00b7 WL \u00b7 Grey."
+      ],
+      [
+        "+ Add entry",
+        "Vendor + reason + evidence link."
+      ],
+      [
+        "Legend",
+        "BL red \u00b7 WL green \u00b7 Grey amber."
+      ],
+      [
+        "Vendor KPI decorator",
+        "On the vendors master, a coloured pill from Vendor Intel."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/vendor-intel",
+        "List."
+      ],
+      [
+        "POST",
+        "/api/v1/vendor-intel",
+        "Create entry."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "tutorial": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "36-admin-vintel.png"
+  },
+  {
+    "slug": "23b-admin-vendors-status-filter",
+    "title": "Vendors \u00b7 Status filter (V-02 fix)",
+    "tab": "vendors",
+    "role": "admin",
+    "url": "/admin/e/vendors",
+    "purpose": "Status filter dropdown lets ops jump straight to Pending-verify / Active / Inactive vendor cohorts.",
+    "actions": [
+      [
+        "click",
+        "[data-testid=vendor-status-filter-pending]",
+        null
+      ]
+    ],
+    "fields": [
+      [
+        "All",
+        "Every vendor."
+      ],
+      [
+        "Pending verify",
+        "email_verified=false \u2014 the onboarding gap."
+      ],
+      [
+        "Active",
+        "email_verified=true AND is_active=true."
+      ],
+      [
+        "Inactive",
+        "is_active=false \u2014 GDPR-redacted or deactivated."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "audience": [],
+    "tutorial": [],
+    "api": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "23b-admin-vendors-status-filter.png"
+  },
+  {
+    "slug": "26a-admin-tender-builder-all",
+    "title": "Tender Builder \u00b7 ALL KINDS view (T-01 fix)",
+    "tab": "tender-builder",
+    "role": "admin",
+    "url": "/admin/e/tender-builder",
+    "purpose": "Combined view showing tenders + RFPs + RFQs together. Useful for the master library operator.",
+    "actions": [
+      [
+        "click",
+        "[data-testid=tb-kind-all]",
+        null
+      ]
+    ],
+    "fields": [
+      [
+        "ALL KINDS pill",
+        "Toggles the sidebar to show every template regardless of kind."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "audience": [],
+    "tutorial": [],
+    "api": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "26a-admin-tender-builder-all.png"
+  },
+  {
+    "slug": "28a-admin-escrow-reconciliation",
+    "title": "Escrow \u00b7 Reconciliation ledger vs bank (E-03 fix)",
+    "tab": "escrow",
+    "role": "admin",
+    "url": "/admin/e/escrow",
+    "purpose": "Compares internal ledger balances against last-reported bank statements per joint account. Highlights deltas so operators can chase the escrow institution.",
+    "actions": [
+      [
+        "sleep",
+        "600",
+        null
+      ]
+    ],
+    "fields": [
+      [
+        "Row",
+        "Account \u00b7 currency \u00b7 ledger balance \u00b7 bank balance \u00b7 delta \u00b7 status pill."
+      ],
+      [
+        "Reconciled pill",
+        "Green \u2014 ledger and bank match to the cent."
+      ],
+      [
+        "Delta pill",
+        "Amber \u2014 a leg was not confirmed by the escrow institution yet."
+      ],
+      [
+        "Pending bank feed",
+        "Grey \u2014 no bank_balance received; reconcile manually."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "audience": [],
+    "tutorial": [],
+    "api": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "28a-admin-escrow-reconciliation.png"
+  },
+  {
+    "slug": "32a-admin-auction-summary",
+    "title": "Reverse auctions \u00b7 Post-auction summary (RA-01 fix)",
+    "tab": "auctions",
+    "role": "admin",
+    "url": "/admin/e/auctions",
+    "purpose": "'View summary' button on any closed auction expands a summary panel: starting/floor/winning prices + savings percentage + winner + timing.",
+    "actions": [
+      [
+        "click_first",
+        "[data-testid^=ra-summary-]",
+        null
+      ]
+    ],
+    "fields": [
+      [
+        "Starting / Floor",
+        "Configured at draft time."
+      ],
+      [
+        "Winning bid",
+        "The final downward-bid price the auction closed at."
+      ],
+      [
+        "Savings vs start",
+        "(starting \u2212 winning) / starting \u00d7 100."
+      ],
+      [
+        "Timing",
+        "Duration, anti-snipe, closed timestamp."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "audience": [],
+    "tutorial": [],
+    "api": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "32a-admin-auction-summary.png"
+  },
+  {
+    "slug": "40a-admin-audit-filter",
+    "title": "Audit \u00b7 Filter by actor / type / date (AU-01 fix)",
+    "tab": "audit",
+    "role": "admin",
+    "url": "/admin/e/audit",
+    "purpose": "Filter bar over the audit ledger \u2014 narrow to a single actor, event type, or date range.",
+    "actions": [
+      [
+        "fill",
+        "[data-testid=audit-filter-actor]",
+        "adminsupport"
+      ],
+      [
+        "sleep",
+        "600",
+        null
+      ]
+    ],
+    "fields": [
+      [
+        "Actor email",
+        "Substring match on actor_email."
+      ],
+      [
+        "Event type",
+        "Substring match on event_type (e.g. 'notice.publish')."
+      ],
+      [
+        "From / To (UTC)",
+        "Date range filter."
+      ],
+      [
+        "Clear",
+        "Resets all four filters."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "audience": [],
+    "tutorial": [],
+    "api": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "40a-admin-audit-filter.png"
+  },
+  {
+    "slug": "42a-admin-engagement-buyer-jump",
+    "title": "Engagements \u00b7 Buyer jump-link (EN-03 fix)",
+    "tab": "engagements",
+    "role": "admin",
+    "url": "/admin/e/engagements",
+    "purpose": "Every buyer email in the engagement table is a jump-link that opens the Vendors tab pre-filtered by that email.",
+    "actions": [],
+    "fields": [
+      [
+        "Buyer email",
+        "Dotted-underline link \u2192 /admin?tab=vendors&search=<email>."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "audience": [],
+    "tutorial": [],
+    "api": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "42a-admin-engagement-buyer-jump.png"
+  },
+  {
+    "slug": "37-admin-masters-staff",
+    "title": "Admin console \u00b7 Masters \u00b7 Staff",
+    "tab": "masters",
+    "role": "admin",
+    "url": "/admin/e/masters",
+    "purpose": "Staff master \u2014 seed reviewers, escrow agents, certifiers, legal, accounting, committee, auditor.",
+    "actions": [],
+    "audience": [
+      "Mgmt"
+    ],
+    "fields": [
+      [
+        "Sub-tabs",
+        "Staff master \u00b7 Companies \u00b7 Tenants \u00b7 Approval matrix \u00b7 Hierarchy."
+      ],
+      [
+        "Staff row",
+        "Name \u00b7 email \u00b7 role(s) \u00b7 designation \u00b7 active toggle."
+      ],
+      [
+        "+ New staff",
+        "email + role + designation + temp password."
+      ],
+      [
+        "Reset password",
+        "Sends a recover-token email to the staff member."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/masters/staff",
+        "List."
+      ],
+      [
+        "POST",
+        "/api/v1/masters/staff",
+        "Create."
+      ],
+      [
+        "POST",
+        "/api/v1/masters/staff/{id}/reset-password",
+        "Email a reset link."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "tutorial": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "37-admin-masters-staff.png"
+  },
+  {
+    "slug": "37a-admin-masters-companies",
+    "title": "Masters \u00b7 Companies",
+    "tab": "masters",
+    "role": "admin",
+    "url": "/admin/e/masters",
+    "purpose": "Tenant-scoped company catalog \u2014 internal companies (departments, subsidiaries) that own contracts.",
+    "actions": [
+      [
+        "click",
+        "[data-testid=masters-tab-companies]",
+        null
+      ]
+    ],
+    "fields": [
+      [
+        "Company name",
+        "Legal name."
+      ],
+      [
+        "Company code",
+        "Short code, e.g. PMC-INF."
+      ],
+      [
+        "+ Create",
+        "Adds a row."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "audience": [],
+    "tutorial": [],
+    "api": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "37a-admin-masters-companies.png"
+  },
+  {
+    "slug": "37b-admin-masters-matrix",
+    "title": "Masters \u00b7 Approval matrix",
+    "tab": "masters",
+    "role": "admin",
+    "url": "/admin/e/masters",
+    "purpose": "The dynamic approval matrix editor. Each row is a step (role + action + SLA hours).",
+    "actions": [
+      [
+        "click",
+        "[data-testid=masters-tab-matrix]",
+        null
+      ]
+    ],
+    "fields": [
+      [
+        "Matrix name",
+        "Pipeline name (e.g. Standard, Fast-track)."
+      ],
+      [
+        "Row",
+        "# \u00b7 Role picker \u00b7 Action text \u00b7 SLA hours \u00b7 move up/down \u00b7 delete."
+      ],
+      [
+        "+ Add step",
+        "Appends a new row."
+      ],
+      [
+        "Save matrix",
+        "Persists ordering + steps."
+      ],
+      [
+        "Saved matrices",
+        "List of all matrices with steps \u00d7 applies-to."
+      ]
+    ],
+    "tutorial": [
+      [
+        "Build a 6-step pipeline",
+        "Escrow accept EMD \u2192 Admin flag \u2192 Certifier site inspection \u2192 Legal KYC \u2192 Accounting sign-off \u2192 Committee award. SLAs typically 24 / 24 / 72 / 48 / 24 / 168 h."
+      ],
+      [
+        "Reorder steps",
+        "Use the up/down arrows in the Move column."
+      ],
+      [
+        "Apply to a notice",
+        "In Notice \u2192 'Approval matrix' \u2192 pick the matrix from this list."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/masters/matrices",
+        "List."
+      ],
+      [
+        "PUT",
+        "/api/v1/masters/matrices/{id}",
+        "Save."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "audience": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "37b-admin-masters-matrix.png"
+  },
+  {
+    "slug": "37c-admin-masters-hierarchy",
+    "title": "Masters \u00b7 Hierarchy",
+    "tab": "masters",
+    "role": "admin",
+    "url": "/admin/e/masters",
+    "purpose": "Level 0..3 hierarchy \u2014 the enforcement backbone of G2 access control.",
+    "actions": [
+      [
+        "click",
+        "[data-testid=masters-tab-hierarchy]",
+        null
+      ]
+    ],
+    "fields": [
+      [
+        "Level 0 \u00b7 Admin",
+        "Full access \u2014 publish, approve, override."
+      ],
+      [
+        "Level 1 \u00b7 Reviewer",
+        "Draft + approve up to threshold; cannot publish."
+      ],
+      [
+        "Level 2 \u00b7 Committee / Staff",
+        "Scoped action (certify, escrow-sign, evaluate)."
+      ],
+      [
+        "Level 3 \u00b7 Support / Auditor",
+        "Read-only \u2014 no writes ever."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "audience": [],
+    "tutorial": [],
+    "api": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "37c-admin-masters-hierarchy.png"
+  },
+  {
+    "slug": "37d-admin-masters-tenants",
+    "title": "Masters \u00b7 Tenants",
+    "tab": "masters",
+    "role": "admin",
+    "url": "/admin/e/masters",
+    "purpose": "Multi-tenant registry. Every tenant has a code + name + kind + theme.",
+    "actions": [
+      [
+        "click",
+        "[data-testid=masters-tab-tenants]",
+        null
+      ]
+    ],
+    "fields": [
+      [
+        "Code",
+        "Short code (e.g. PMC, GOV-KZ, BUYR-01)."
+      ],
+      [
+        "Name",
+        "Portal display name."
+      ],
+      [
+        "Kind",
+        "buyer \u00b7 agency \u00b7 government \u00b7 council."
+      ],
+      [
+        "+ Create",
+        "Provisions a new tenant. Also seeds a default admin."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "audience": [],
+    "tutorial": [],
+    "api": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "37d-admin-masters-tenants.png"
+  },
+  {
+    "slug": "37e-admin-masters-staff-clone",
+    "title": "Masters \u00b7 Staff \u00b7 Clone role (MP-01 fix)",
+    "tab": "masters",
+    "role": "admin",
+    "url": "/admin/e/masters",
+    "purpose": "Every staff row has a 'Clone role' button that copies the roles + hierarchy level into the New-staff form.",
+    "actions": [
+      [
+        "click",
+        "[data-testid=masters-tab-staff]",
+        null
+      ],
+      [
+        "sleep",
+        "600",
+        null
+      ]
+    ],
+    "fields": [
+      [
+        "Clone role button",
+        "Copies roles + hierarchy_level of the source row into the new-staff form (email + name + password blank for the operator to fill)."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "audience": [],
+    "tutorial": [],
+    "api": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "37e-admin-masters-staff-clone.png"
+  },
+  {
+    "slug": "38-admin-permissions",
+    "title": "Admin console \u00b7 Permissions matrix (G2)",
+    "tab": "permissions",
+    "role": "admin",
+    "url": "/admin/e/permissions",
+    "purpose": "Effective role permissions \u2014 the merged view of Permissions Matrix + Hierarchy Level.",
+    "actions": [],
+    "audience": [
+      "Mgmt",
+      "Ops"
+    ],
+    "fields": [
+      [
+        "Role picker",
+        "Pick a role to inspect its effective permissions."
+      ],
+      [
+        "Tab \u00d7 Action grid",
+        "Every tab \u00d7 every action (view / create / edit / publish / approve / delete)."
+      ],
+      [
+        "Green tick",
+        "Allowed."
+      ],
+      [
+        "Grey cross",
+        "Not allowed."
+      ],
+      [
+        "Hierarchy chip",
+        "Displays the current Level for the picked role."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/permissions/tabs/{role}",
+        "Tabs allowed."
+      ],
+      [
+        "GET",
+        "/api/v1/permissions/effective/{role}",
+        "G2 merged view."
+      ],
+      [
+        "PUT",
+        "/api/v1/permissions/tabs/{role}",
+        "Save grid."
+      ]
+    ],
+    "pitfalls": [
+      "Editing this grid affects live sessions \u2014 users see the new permissions on next request (no re-login needed)."
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "tutorial": [],
+    "errors": [],
+    "kpis": [],
+    "image": "38-admin-permissions.png"
+  },
+  {
+    "slug": "39-admin-packages",
+    "title": "Admin console \u00b7 Package tracker",
+    "tab": "packages",
+    "role": "admin",
+    "url": "/admin/e/work-packages",
+    "purpose": "Kanban of packages by stage. Drag a card between columns to move it forward.",
+    "actions": [],
+    "audience": [
+      "Ops"
+    ],
+    "fields": [
+      [
+        "Columns",
+        "Backlog \u00b7 In progress \u00b7 Review \u00b7 Blocked \u00b7 Done."
+      ],
+      [
+        "Card",
+        "Package title \u00b7 owner \u00b7 SLA countdown \u00b7 linked notice_ref."
+      ],
+      [
+        "+ New package",
+        "Modal \u2014 title, owner, notice_ref, target date."
+      ],
+      [
+        "Card drawer",
+        "Click any card \u2192 drawer with sub-tasks + timeline + audit log."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/packages",
+        "List."
+      ],
+      [
+        "POST",
+        "/api/v1/packages/{id}/move",
+        "Drag-drop persistence."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "tutorial": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "39-admin-packages.png"
+  },
+  {
+    "slug": "40-admin-audit",
+    "title": "Admin console \u00b7 Audit log",
+    "tab": "audit",
+    "role": "admin",
+    "url": "/admin/e/audit",
+    "purpose": "Every substantive action across the portal \u2014 actor \u00b7 tenant \u00b7 IP \u00b7 user-agent \u00b7 timestamp.",
+    "actions": [],
+    "audience": [
+      "Auditor",
+      "Mgmt"
+    ],
+    "fields": [
+      [
+        "Filter bar",
+        "By actor \u00b7 action type \u00b7 entity \u00b7 date range."
+      ],
+      [
+        "Row",
+        "Timestamp \u00b7 actor \u00b7 action \u00b7 entity_ref \u00b7 detail JSON."
+      ],
+      [
+        "Export CSV",
+        "Full range export."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/audit?limit=100",
+        "Paginated audit trail."
+      ],
+      [
+        "GET",
+        "/api/v1/audit/export?fmt=csv",
+        "CSV."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "tutorial": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "40-admin-audit.png"
+  },
+  {
+    "slug": "41-admin-catalog",
+    "title": "Admin console \u00b7 Product catalog",
+    "tab": "catalog",
+    "role": "admin",
+    "url": "/admin/e/catalog",
+    "purpose": "Product / service SKU master used by the Engagements pipeline.",
+    "actions": [],
+    "audience": [
+      "Ops",
+      "Sales"
+    ],
+    "fields": [
+      [
+        "SKU row",
+        "code \u00b7 name \u00b7 price \u00b7 currency \u00b7 active toggle."
+      ],
+      [
+        "+ New SKU",
+        "code + name + price + currency."
+      ],
+      [
+        "Price-change history",
+        "Every price update audit-logged with actor."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/products",
+        "List."
+      ],
+      [
+        "POST",
+        "/api/v1/products",
+        "Create."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "tutorial": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "41-admin-catalog.png"
+  },
+  {
+    "slug": "42-admin-engagements",
+    "title": "Admin console \u00b7 Engagements (quotes pipeline)",
+    "tab": "engagements",
+    "role": "admin",
+    "url": "/admin/e/engagements",
+    "purpose": "Quote requests \u2192 engagements. Aging buckets + cancel-with-reason.",
+    "actions": [],
+    "audience": [
+      "Sales",
+      "Ops"
+    ],
+    "fields": [
+      [
+        "Stage tabs",
+        "Quote requested \u00b7 Sent \u00b7 Accepted \u00b7 Cancelled."
+      ],
+      [
+        "Aging bucket",
+        "0-7d \u00b7 8-14d \u00b7 15-30d \u00b7 30+d."
+      ],
+      [
+        "Cancel",
+        "Requires reason \u2265 5 chars."
+      ],
+      [
+        "Buyer row",
+        "Buyer name \u2014 click to jump to Vendors (Bug EN-03)."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/engagements",
+        "List."
+      ],
+      [
+        "POST",
+        "/api/v1/engagements/{id}/cancel",
+        "Body {reason}."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "tutorial": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "42-admin-engagements.png"
+  },
+  {
+    "slug": "43-admin-reports",
+    "title": "Admin console \u00b7 Reports \u00b7 Asked-vs-delivered",
+    "tab": "reports",
+    "role": "admin",
+    "url": "/admin/e/stakeholder-reports",
+    "purpose": "Asked-vs-delivered dashboard + printable flowcharts.",
+    "actions": [],
+    "audience": [
+      "Mgmt"
+    ],
+    "fields": [
+      [
+        "Report picker",
+        "Asked-vs-delivered \u00b7 Flowcharts \u00b7 Timesheet."
+      ],
+      [
+        "Chart",
+        "Bar/line with a legend + tooltip."
+      ],
+      [
+        "Print",
+        "Renders a print-optimised layout."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/reports/asked-vs-delivered",
+        "JSON."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "tutorial": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "43-admin-reports.png"
+  },
+  {
+    "slug": "60-vendor-dashboard",
+    "title": "Vendor portal \u00b7 Dashboard",
+    "url": "/vendor",
+    "role": "vendor",
+    "audience": [
+      "Vendor"
+    ],
+    "purpose": "Vendor home \u2014 Open tenders (browse + bid) \u00b7 My bids \u00b7 Signatures.",
+    "fields": [
+      [
+        "Top-bar chip",
+        "Your vendor_ref + avatar."
+      ],
+      [
+        "Open tenders tab",
+        "Every published notice with a 'Submit bid' CTA."
+      ],
+      [
+        "My bids tab",
+        "Every bid you've submitted with its stage + AI compare status."
+      ],
+      [
+        "Signatures tab",
+        "Every DocuSign envelope you need to counter-sign."
+      ],
+      [
+        "Delete my data",
+        "GDPR forget \u2014 anonymises your account in-place."
+      ],
+      [
+        "Sign out",
+        "Clears the vendor cookie."
+      ]
+    ],
+    "tutorial": [
+      [
+        "Browse open tenders",
+        "Open tenders tab \u2192 click 'Submit bid' on any card \u2192 land on /vendor/bid/new/:ref."
+      ],
+      [
+        "See a bid's stage",
+        "My bids tab \u2192 each row shows the pipeline stage (emd_pending, escrow_accepted, admin_flagged, awarded\u2026)."
+      ],
+      [
+        "Counter-sign an envelope",
+        "Signatures tab \u2192 click a pending row \u2192 land on the DocuSign hosted page."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/vendor/auth/me",
+        "Current vendor identity."
+      ],
+      [
+        "GET",
+        "/api/v1/notices?public=1",
+        "Open tenders list."
+      ],
+      [
+        "GET",
+        "/api/v1/bids/mine",
+        "Vendor's own bids."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "actions": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "60-vendor-dashboard.png"
+  },
+  {
+    "slug": "61-vendor-change-password",
+    "title": "Vendor \u00b7 Change password",
+    "url": "/vendor/change-password",
+    "role": "vendor",
+    "audience": [
+      "Vendor"
+    ],
+    "purpose": "Rotate the vendor password. Same rules as admin (12 / 1U / 1D / 1S).",
+    "fields": [
+      [
+        "Current password",
+        "Required."
+      ],
+      [
+        "New password",
+        "\u2265 12 chars, 1 upper, 1 digit, 1 symbol."
+      ],
+      [
+        "Save",
+        "POST /api/v1/vendor/auth/change-password."
+      ]
+    ],
+    "api": [
+      [
+        "POST",
+        "/api/v1/vendor/auth/change-password",
+        "Body {current_password, new_password}."
+      ]
+    ],
+    "pitfalls": [
+      "If must_change_password is true, no other route works until this succeeds."
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "actions": [],
+    "tutorial": [],
+    "errors": [],
+    "kpis": [],
+    "image": "61-vendor-change-password.png"
+  },
+  {
+    "slug": "62-vendor-services",
+    "title": "Vendor \u00b7 Purchase services",
+    "url": "/vendor/services",
+    "role": "vendor",
+    "audience": [
+      "Vendor"
+    ],
+    "purpose": "Buy add-on services (KYC upgrade, priority support). Stripe checkout.",
+    "fields": [
+      [
+        "Service cards",
+        "Each add-on \u2014 name \u00b7 price \u00b7 benefits."
+      ],
+      [
+        "Buy button",
+        "Fires Stripe checkout session."
+      ],
+      [
+        "Currency selector",
+        "USD \u00b7 INR \u00b7 KZT."
+      ]
+    ],
+    "api": [
+      [
+        "POST",
+        "/api/v1/billing/checkout",
+        "Creates Stripe session, returns URL."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "actions": [],
+    "tutorial": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "62-vendor-services.png"
+  },
+  {
+    "slug": "63-vendor-sandbox-checkout",
+    "title": "Vendor \u00b7 Sandbox checkout",
+    "url": "/vendor/payment/sandbox",
+    "role": "vendor",
+    "audience": [
+      "Vendor",
+      "QA"
+    ],
+    "purpose": "Test payment page (sandbox mode) \u2014 used when Stripe is not configured.",
+    "fields": [
+      [
+        "Simulate success",
+        "Redirects to /vendor/payment/success."
+      ],
+      [
+        "Simulate cancel",
+        "Redirects to /vendor/payment/cancel."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "actions": [],
+    "tutorial": [],
+    "api": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "63-vendor-sandbox-checkout.png"
+  },
+  {
+    "slug": "64-vendor-payment-success",
+    "title": "Vendor \u00b7 Payment success",
+    "url": "/vendor/payment/success",
+    "role": "vendor",
+    "audience": [
+      "Vendor"
+    ],
+    "purpose": "Post-payment confirmation and receipt link.",
+    "fields": [
+      [
+        "Receipt link",
+        "Fetches the Stripe/sandbox receipt PDF."
+      ],
+      [
+        "Back to dashboard",
+        "Return to /vendor."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "actions": [],
+    "tutorial": [],
+    "api": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "64-vendor-payment-success.png"
+  },
+  {
+    "slug": "65-vendor-payment-cancel",
+    "title": "Vendor \u00b7 Payment cancelled",
+    "url": "/vendor/payment/cancel",
+    "role": "vendor",
+    "audience": [
+      "Vendor"
+    ],
+    "purpose": "Cancellation notice with a retry CTA.",
+    "fields": [
+      [
+        "Retry payment",
+        "Bounces to /vendor/services."
+      ],
+      [
+        "Contact support",
+        "Opens the help form."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "actions": [],
+    "tutorial": [],
+    "api": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "65-vendor-payment-cancel.png"
+  },
+  {
+    "slug": "66-vendor-bid-submit",
+    "title": "Vendor \u00b7 Submit a bid",
+    "url": "/vendor/bid/new/PMC-NOT-2026-0020",
+    "role": "vendor",
+    "audience": [
+      "Vendor"
+    ],
+    "purpose": "Bid submission form scoped to a single published notice. Captures technical + commercial envelopes and triggers Stripe checkout for the EMD.",
+    "fields": [
+      [
+        "Notice header",
+        "notice_ref \u00b7 title \u00b7 deadline countdown."
+      ],
+      [
+        "Technical envelope",
+        "Upload each required document (from the linked Tender Builder template)."
+      ],
+      [
+        "Commercial envelope",
+        "BOQ line-items or a lump-sum price + currency."
+      ],
+      [
+        "EMD payment",
+        "Fires Stripe checkout with the EMD amount configured on the notice."
+      ],
+      [
+        "Submit bid",
+        "Persists the bid + starts the pipeline at emd_pending."
+      ]
+    ],
+    "api": [
+      [
+        "POST",
+        "/api/v1/bids",
+        "Body {notice_ref, price, currency, docs:[\u2026]}."
+      ],
+      [
+        "POST",
+        "/api/v1/payments/emd-checkout",
+        "Creates Stripe session for the EMD."
+      ]
+    ],
+    "pitfalls": [
+      "Bid cannot be submitted after the notice submission_deadline \u2014 deadline is enforced server-side."
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "actions": [],
+    "tutorial": [],
+    "errors": [],
+    "kpis": [],
+    "image": "66-vendor-bid-submit.png"
+  },
+  {
+    "slug": "67-vendor-auction-room",
+    "title": "Vendor \u00b7 Reverse auction room",
+    "url": "/vendor/auction/RA-MANUAL-0875",
+    "role": "vendor",
+    "audience": [
+      "Vendor"
+    ],
+    "purpose": "Live bidding room for a reverse auction. Real-time price ticker + downward-bid + anti-snipe extensions.",
+    "fields": [
+      [
+        "Current lowest",
+        "Live lowest bid from any participant, updated via WebSocket."
+      ],
+      [
+        "Time remaining",
+        "Countdown to close. Anti-snipe extends by N seconds on last-second bid."
+      ],
+      [
+        "Bid input",
+        "Enter next price \u2264 current \u2212 min_decrement."
+      ],
+      [
+        "Autobid",
+        "Set a floor + step to auto-bid until floor is reached."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/reverse-auctions/{aid}/state",
+        "Current state (public)."
+      ],
+      [
+        "POST",
+        "/api/v1/reverse-auctions/{aid}/bid",
+        "Submit a manual bid."
+      ],
+      [
+        "POST",
+        "/api/v1/reverse-auctions/{aid}/autobid",
+        "Configure autobid."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "actions": [],
+    "tutorial": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "67-vendor-auction-room.png"
+  },
+  {
+    "slug": "70-staff-dashboard",
+    "title": "Staff portal \u00b7 Dashboard",
+    "url": "/staff",
+    "role": "staff",
+    "audience": [
+      "Staff"
+    ],
+    "purpose": "Role-scoped task inbox. Escrow agents see pending signatures; certifiers see site-inspection tasks; legal sees KYC reviews; accounting sees sign-offs.",
+    "fields": [
+      [
+        "Task list",
+        "Task type \u00b7 notice_ref \u00b7 SLA countdown \u00b7 CTA."
+      ],
+      [
+        "Filters",
+        "By role (if multi-role) + by status."
+      ]
+    ],
+    "api": [
+      [
+        "GET",
+        "/api/v1/tasks?assignee=me",
+        "Assigned tasks for the current staff user."
+      ]
+    ],
+    "wait_ms": 1600,
+    "full_page": true,
+    "actions": [],
+    "tutorial": [],
+    "pitfalls": [],
+    "errors": [],
+    "kpis": [],
+    "image": "70-staff-dashboard.png"
+  }
+]
