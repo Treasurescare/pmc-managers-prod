@@ -90,8 +90,8 @@ export default function AdminAvatarMenu() {
         {avatar ? <img src={avatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : initial}
       </button>
       {open && (
-        <div role="menu" data-testid="admin-avatar-menu" style={{
-          position: "absolute", right: 0, top: "calc(100% + 8px)", width: 260, zIndex: 60,
+        <div role="menu" data-testid="admin-avatar-menu" className="pmc-avatar-menu" style={{
+          position: "absolute", right: 0, top: "calc(100% + 8px)", width: 260, zIndex: 1200,
           background: "var(--surface)", border: "1px solid var(--line)", borderRadius: "var(--radius-md)",
           boxShadow: "var(--shadow-2)", padding: "8px", display: "grid", gap: 2,
         }}>

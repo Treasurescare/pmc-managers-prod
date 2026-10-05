@@ -424,8 +424,8 @@ export default function VendorAccountE({ legacy: Legacy }) {
             <h2 className="pmc-panel__title">Sign-in &amp; security</h2>
           </div>
           <div className="pmc-panel__body" style={{ display: "grid", gap: 14, fontSize: 14 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+              <div style={{ flex: "1 1 180px", minWidth: 0 }}>
                 <b>Password</b>
                 <div className="pmc-muted" style={{ fontSize: 13 }}>
                   Change your login password.
@@ -433,10 +433,11 @@ export default function VendorAccountE({ legacy: Legacy }) {
               </div>
               <Link to="/vendor/change-password"
                     className="pmc-btn pmc-btn--secondary pmc-btn--sm"
+                    style={{ flex: "0 0 auto" }}
                     data-testid="vacc-change-password-link">Change</Link>
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+              <div style={{ flex: "1 1 180px", minWidth: 0 }}>
                 <b>Other devices</b>
                 <div className="pmc-muted" style={{ fontSize: 13 }}>
                   Sign out of every other browser and mobile session.
@@ -444,6 +445,7 @@ export default function VendorAccountE({ legacy: Legacy }) {
               </div>
               <button type="button" onClick={revokeAll} disabled={revoking}
                       className="pmc-btn pmc-btn--secondary pmc-btn--sm"
+                      style={{ flex: "0 0 auto" }}
                       data-testid="vacc-revoke-sessions-btn">
                 {revoking ? "Signing out…" : "Sign out everywhere else"}
               </button>

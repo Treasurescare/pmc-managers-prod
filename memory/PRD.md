@@ -38,6 +38,24 @@ mostly static; live data + click routing is patched at runtime via:
 
 ## What is implemented
 
+### v51s (2026-10-05) — Avatar dropdown + account button overlap + 5-icon tabbar
+- **Admin avatar dropdown clipped on right (mobile)**: topbar actions push
+  the avatar near the right edge; its `position:absolute; right:0;` menu
+  was clipped by the sticky header's ancestor overflow. New
+  `.pmc-avatar-menu` CSS escalates to `position:fixed; top:60; right:8;
+  width:min(280px,100vw-16); z-index:1200` at ≤767px (applied to both the
+  admin and vendor dropdowns). Verified: menu rect fully inside viewport,
+  position: fixed, no clipping.
+- **Vendor Account → Password + Other devices button overlap**: `flex`
+  rows had no wrap, so the "Sign out everywhere else" button overlapped
+  the two-line description text on phones. Both rows now use
+  `flex-wrap:wrap; gap:12`; description `flex:1 1 180px`; button
+  `flex:0 0 auto`. Verified: overlap=false @390px.
+- **Mobile tab bar: 5 icons**: Home · Tenders · **My Bids** (renamed from
+  "Bids" for clarity) · **Sign** (new, Signatures) · Account. Verified:
+  5 links, grid-template-columns repeat(5,1fr).
+Bundle: v51s supersedes v51o–v51r.
+
 ### v51r (2026-10-05) — Vendor Start-bid mobile fixes
 - **Submit & pay EMD hidden under bottom tab bar**: legacy BidSubmit page
   had no bottom clearance → root now `pt-6 pb-40 md:py-10` so the button

@@ -41,7 +41,8 @@ const PUBLIC_MENU = [
 const VENDOR_TABS = [
   { to: "/vendor", label: "Home", testid: "mnav-home", iconId: "i-home" },
   { to: "/vendor/tenders", label: "Tenders", testid: "mnav-tenders", iconId: "i-search" },
-  { to: "/vendor/mybids", label: "Bids", testid: "mnav-bids", iconId: "i-gavel" },
+  { to: "/vendor/mybids", label: "My Bids", testid: "mnav-bids", iconId: "i-gavel" },
+  { to: "/vendor/signatures", label: "Sign", testid: "mnav-signatures", iconId: "i-sign" },
   { to: "/vendor/account", label: "Account", testid: "mnav-account", iconId: "i-users" },
 ];
 

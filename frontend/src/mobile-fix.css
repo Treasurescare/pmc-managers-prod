@@ -1175,6 +1175,24 @@ body.pmc-mob-menu-open { overflow: hidden; }
 .pmc-mobile-tabbar a.is-active { color: #1f5a48; }
 .pmc-mobile-tabbar a:active { background: rgba(31,90,72,0.06); }
 
+/* Avatar dropdown (admin + vendor) — on narrow screens the topbar's
+   .pmc-atop__r flex row pushes the avatar close to or past the right
+   edge. The absolutely-positioned dropdown then gets clipped by the
+   topbar's parent (sticky header + its ancestors). Promote the menu to
+   a viewport-fixed anchor on mobile so it is always reachable. */
+@media (max-width: 767px) {
+  .pmc-avatar-menu {
+    position: fixed !important;
+    top: 60px !important;
+    right: 8px !important;
+    left: auto !important;
+    width: min(280px, calc(100vw - 16px)) !important;
+    max-height: calc(100vh - 80px) !important;
+    overflow-y: auto !important;
+    z-index: 1200 !important;
+  }
+}
+
 
 /* ==========================================================================
    v51c — global mobile guards (login inputs, frozen chrome, list padding)

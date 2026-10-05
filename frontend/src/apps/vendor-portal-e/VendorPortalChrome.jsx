@@ -153,8 +153,8 @@ export default function VendorPortalChrome({ active, counts = {}, children }) {
               </span>
             </button>
             {menuOpen && (
-              <div role="menu" data-testid="vendor-avatar-menu" style={{
-                position: "absolute", right: 0, top: "calc(100% + 8px)", width: 260, zIndex: 60,
+              <div role="menu" data-testid="vendor-avatar-menu" className="pmc-avatar-menu" style={{
+                position: "absolute", right: 0, top: "calc(100% + 8px)", width: 260, zIndex: 1200,
                 background: "var(--surface)", border: "1px solid var(--line)",
                 borderRadius: "var(--radius-md)", boxShadow: "var(--shadow-2)",
                 padding: 8, display: "grid", gap: 2,
