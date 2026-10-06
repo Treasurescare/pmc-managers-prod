@@ -1,0 +1,43 @@
+{
+  "summary": "v51x verification — ran 3 backend tests (reverse-auction preflight 400, invite batch 200, notices admin list w/ created_by_email) and full E2E of all 9 Money & compliance subtabs, Reverse-auctions invite panel, and Admin Notices filter bar. ALL 3 BACKEND TESTS PASS. ALL 9 MONEY PAGES RENDER WITHOUT ErrorBoundary (previous crash is fixed by InfoDot <span> change). Reverse-auctions invite flow works end-to-end: toggle opens inline panel, textarea+note+send buttons present, submitting 'vendor1@example.com, vendor2@example.com' returns 2 pending links with Copy-link buttons and shows success toast '2 invites prepared · share the links below.' Admin Notices filter bar renders all 7 required data-testids (query, creator, created-from, created-to, status, template-only, clear). Status dropdown exposes 'Draft / Awaiting approval' (value='draft'); selecting it narrows 20 rows → 7 all showing '✎ Draft' badge. Creator filter with adminsupport@pmcmanagers.com narrows to 10 rows; Clear restores to 20.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_v51x_money_pages.py", "/app/test_reports/pytest/v51x.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "InfoDot fix (span with role='img' instead of nested <button>) is correct and resolves the hydration crash on all Money & compliance pages. Clean implementation.",
+    "AdminAuctionsE invite panel is clean, inline, and uses stable data-testids with aid suffix — good for tests.",
+    "Notices filter bar reuses state-only client-side filtering; works instantly without round-trip. Reasonable for current notice volume (~20)."
+  ],
+  "updated_files": ["/app/backend/tests/test_v51x_money_pages.py (new)"],
+  "success_rate": {"backend": "100% (3/3)", "frontend": "100% — all 9 Money pages + auctions invite + notices filter verified"},
+  "test_credentials": "Admin adminsupport@pmcmanagers.com / Admin@12345 — working",
+  "seed_data_creation": "Reused existing draft auction (PMC-NOT-2026-0020 TEST_v48c auction guard) for invite test; created 2 invite tokens for vendor1@example.com and vendor2@example.com (idempotent — re-invokes update instead of duplicating).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "InfoDot nested <button> hydration bug fully resolved — Money & compliance tabs navigable end-to-end. If future tests fail with 'This panel hit an error', the first suspect is InfoDot or any other interactive descendant of a <button>. Reverse-auctions invite flow verified: toggle → panel → send → pending links. Backend /start preflight returns clear 400 message naming the specific gate ('need at least 2 registered participants'). Notices admin list GET /api/v1/notices/admin/all now includes created_by_email + created_at on every item. All test IDs used by this iteration are present in production code: notices-filter-{query,creator,created-from,created-to,status,template-only,clear}, auction-invite-{toggle,panel,emails,note,send}-{aid}.",
+  "test_case_results": {
+    "backend_start_400_zero_participants": "PASS",
+    "backend_invite_200_two_vendors": "PASS",
+    "backend_notices_admin_all_has_created_by_email": "PASS",
+    "money_escrow_no_errorboundary": "PASS",
+    "money_billing_no_errorboundary": "PASS",
+    "money_evaluation_no_errorboundary_infodots=4": "PASS",
+    "money_l1_no_errorboundary_infodots=2": "PASS",
+    "money_awards_no_errorboundary_infodots=1": "PASS",
+    "money_permissions_no_errorboundary_infodots=2": "PASS",
+    "money_docusign_no_errorboundary_infodots=4": "PASS",
+    "money_bidding_ops_no_errorboundary": "PASS",
+    "money_auctions_no_errorboundary": "PASS",
+    "auctions_invite_toggle_opens_panel": "PASS (5 toggles found)",
+    "auctions_invite_send_creates_links": "PASS (2 pending links + success toast)",
+    "notices_filter_bar_all_7_testids_present": "PASS",
+    "notices_filter_status_draft_narrows_rows": "PASS (20→7, all show ✎ Draft)",
+    "notices_filter_creator_narrows_rows": "PASS (20→10 for adminsupport@)",
+    "notices_filter_clear_resets": "PASS (back to 20)"
+  }
+}

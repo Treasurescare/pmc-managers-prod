@@ -892,3 +892,10 @@ Complete GoDaddy → Route 53 DNS migration. Same-origin frontend (bypasses Safa
 - docusign.py: POST /envelopes/{id}/reassign (updates signer_email/name, audit log) + /archive + /unarchive. list_my_envelopes query now carries archived:{$ne:true} so vendors never see hidden envelopes.
 - DocuSignPanel: ↪ Reassign modal (email/name/reason), ⌧ Archive / ⟲ Restore buttons on every row.
 - Verified: /archive → 200, /unarchive → 200, /reassign bad-email → 400, py_compile OK.
+
+## v51y — 06 Oct 2026
+- **P0 fix**: Admin → Money & compliance panels "This panel hit an error" crash. Root cause was `InfoDot` rendering a `<button>` nested inside parent `<button>` elements (Evaluation lock-technical/commercial/report, L1 run, Permissions reset/save, Awards picker). Changed InfoDot trigger to `<span role="img">` which is valid HTML inside a button. One-component fix clears the crash on all 9 Money pages.
+- **P0 fix**: Reverse auctions — Start returned HTTP 400 "need ≥2 participants" but admin had no UI to invite. `AdminAuctionsE` now shows an **Invite vendors** button per row that opens an inline panel with emails textarea, optional note, list of registered participants with aliases, and pending invite links with Copy-link buttons.
+- Notices filters (date created / creator email / tender ref / status incl. Draft) retained from v51x; verified end-to-end.
+- Testing: iteration_46 passed 18/18 (3 backend + 15 frontend).
+- Bundle: `pmc-frontend-v51y-prod-build.zip` + `pmc-backend-v51y.zip` in `/frontend/public/downloads/`.
