@@ -36,6 +36,12 @@ export default function NoticesPanel() {
     return ["published", "draft", "expired", "closing"].includes(p) ? p : "";
   });
   const [filterQuery, setFilterQuery] = useState("");
+  // v51x — additional filters requested by Ops: filter by creator email
+  // (from/to) and by created_at date range. Status filter already covers
+  // Published / Draft / Closing / Expired.
+  const [filterCreator, setFilterCreator] = useState("");
+  const [filterCreatedFrom, setFilterCreatedFrom] = useState("");
+  const [filterCreatedTo, setFilterCreatedTo] = useState("");
   const [showTemplateOnly, setShowTemplateOnly] = useState(false);
 
   const load = useCallback(() => {
@@ -98,6 +104,16 @@ export default function NoticesPanel() {
       const q = filterQuery.toLowerCase();
       if (!(n.title || "").toLowerCase().includes(q) &&
           !(n.notice_ref || "").toLowerCase().includes(q)) return false;
+    }
+    if (filterCreator) {
+      const q = filterCreator.toLowerCase();
+      if (!(n.created_by_email || "").toLowerCase().includes(q)) return false;
+    }
+    if (filterCreatedFrom || filterCreatedTo) {
+      const c = (n.created_at || "").slice(0, 10);
+      if (!c) return false;
+      if (filterCreatedFrom && c < filterCreatedFrom) return false;
+      if (filterCreatedTo && c > filterCreatedTo) return false;
     }
     return true;
   });
@@ -313,15 +329,33 @@ export default function NoticesPanel() {
       <div className="border border-brand-navy/10 bg-white mb-3 p-3 flex flex-wrap gap-2 items-center"
            data-testid="notices-filter-bar">
         <input value={filterQuery} onChange={(e) => setFilterQuery(e.target.value)}
-               placeholder="Search title / ref…"
+               placeholder="Search title / tender ref…"
                data-testid="notices-filter-query"
                className="px-3 py-1.5 border border-brand-navy/20 text-sm flex-1 min-w-[180px]"/>
+        <input value={filterCreator} onChange={(e) => setFilterCreator(e.target.value)}
+               placeholder="Created by (email)…"
+               data-testid="notices-filter-creator"
+               className="px-3 py-1.5 border border-brand-navy/20 text-sm w-[200px]"/>
+        <label className="flex items-center gap-1 text-xs text-brand-navy/70">
+          Created from
+          <input type="date" value={filterCreatedFrom}
+                 onChange={(e) => setFilterCreatedFrom(e.target.value)}
+                 data-testid="notices-filter-created-from"
+                 className="px-2 py-1 border border-brand-navy/20 text-sm" />
+        </label>
+        <label className="flex items-center gap-1 text-xs text-brand-navy/70">
+          to
+          <input type="date" value={filterCreatedTo}
+                 onChange={(e) => setFilterCreatedTo(e.target.value)}
+                 data-testid="notices-filter-created-to"
+                 className="px-2 py-1 border border-brand-navy/20 text-sm" />
+        </label>
         <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
                 data-testid="notices-filter-status"
                 className="px-3 py-1.5 border border-brand-navy/20 text-sm bg-white">
           <option value="">Any status</option>
           <option value="published">Published</option>
-          <option value="draft">Draft</option>
+          <option value="draft">Draft / Awaiting approval</option>
           <option value="closing">Closing this week</option>
           <option value="expired">Deadline past</option>
         </select>
@@ -331,7 +365,9 @@ export default function NoticesPanel() {
                  data-testid="notices-filter-template-only" />
           Template-linked only
         </label>
-        <button type="button" onClick={() => { setFilterQuery(""); setFilterStatus(""); setShowTemplateOnly(false); }}
+        <button type="button"
+                onClick={() => { setFilterQuery(""); setFilterStatus(""); setShowTemplateOnly(false);
+                                  setFilterCreator(""); setFilterCreatedFrom(""); setFilterCreatedTo(""); }}
                 data-testid="notices-filter-clear"
                 className="px-3 py-1.5 text-xs uppercase tracking-widest border border-brand-navy/20 text-brand-navy/70 hover:bg-brand-navy/5">
           Clear

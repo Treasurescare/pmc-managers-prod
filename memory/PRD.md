@@ -38,6 +38,18 @@ mostly static; live data + click routing is patched at runtime via:
 
 ## What is implemented
 
+### v51x (2026-10-06) — Notice filter upgrades + money-pages confirmation
+- Added 3 filter inputs to admin NoticesPanel (preserving existing status
+  select + template-only toggle + clear): `notices-filter-creator`
+  (substring match on created_by_email), `notices-filter-created-from`,
+  `notices-filter-created-to`. Status option "Draft" relabelled to
+  "Draft / Awaiting approval". All six filters cleared via one button.
+- Verified: all money-section E pages (l1-award, awards, escrow, billing,
+  evaluation) render cleanly in preview. The user-reported crash was on
+  `www.pmcmanagers.com` (production, older bundle); v51u+ fixes it.
+- Reverse-auction HTTP 400 "need 2 participants" is a correct guardrail,
+  not a bug — documented in the release notes.
+
 ### v51w (2026-10-05) — Notice creator attribution
 - `notices.py` create_notice stores `created_by_email` from the admin/staff
   JWT; `_out` still strips the internal `created_by` id. `admin_demo.py`

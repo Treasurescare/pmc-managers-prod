@@ -32,19 +32,24 @@ export function InfoDot({
     <TooltipProvider delayDuration={150}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <button
-            type="button"
+          {/* v51x — rendered as <span> (not <button>) so InfoDot can safely sit
+              inside a parent <button> (lock-technical, lock-commercial,
+              award-report-btn, l1-run, perm-reset, perm-save, …) without
+              producing the "button cannot be a descendant of button" hydration
+              error that crashed every Money & compliance panel in production. */}
+          <span
+            role="img"
             tabIndex={0}
             aria-label={ariaLabel || "More information"}
             data-testid={testId || "info-dot"}
             className={
-              "inline-flex ml-1 align-middle text-slate-400 hover:text-slate-600 focus:text-slate-700 focus:outline-none " +
+              "inline-flex ml-1 align-middle text-slate-400 hover:text-slate-600 focus:text-slate-700 focus:outline-none cursor-help " +
               className
             }
-            onClick={(e) => e.preventDefault()}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
           >
             <Info size={size} strokeWidth={2} />
-          </button>
+          </span>
         </TooltipTrigger>
         <TooltipContent
           side={side}

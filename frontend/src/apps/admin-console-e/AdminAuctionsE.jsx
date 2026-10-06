@@ -19,6 +19,12 @@ export default function AdminAuctionsE() {
     duration_minutes: 60, bid_decrement: 1000, currency: "USD",
   });
   const [busyId, setBusyId] = useState(null);
+  // v51x — inline invite + participant panels per auction row.
+  const [inviteFor, setInviteFor] = useState(null);   // auction id
+  const [inviteEmails, setInviteEmails] = useState("");
+  const [inviteNote, setInviteNote] = useState("");
+  const [inviteBusy, setInviteBusy] = useState(false);
+  const [partsFor, setPartsFor] = useState({});       // aid -> { count, items }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -73,6 +79,49 @@ export default function AdminAuctionsE() {
       load();
     } catch (e) { showApiError(e, { fallbackTitle: "Cannot close auction" }); }
     finally { setBusyId(null); }
+  };
+
+  // v51x — fetch current participants/invitations when the admin expands a
+  // row. The Start button needs ≥2 participants; this surfaces the gap so
+  // the admin can either invite more vendors or wait for pending accepts.
+  const loadParticipants = async (aid) => {
+    try {
+      const [a, inv] = await Promise.all([
+        reverseAuctionApi.get(aid),
+        reverseAuctionApi.listInvitations(aid).catch(() => ({ items: [] })),
+      ]);
+      setPartsFor((prev) => ({
+        ...prev,
+        [aid]: {
+          count: (a.participants || []).length,
+          participants: a.participants || [],
+          invitations: inv.items || inv || [],
+        },
+      }));
+    } catch (e) { showApiError(e); }
+  };
+
+  const toggleInvite = (aid) => {
+    if (inviteFor === aid) { setInviteFor(null); return; }
+    setInviteFor(aid);
+    setInviteEmails("");
+    setInviteNote("");
+    loadParticipants(aid);
+  };
+
+  const sendInvites = async (aid) => {
+    const emails = inviteEmails.split(/[\s,;\n]+/).map((e) => e.trim()).filter((e) => e && e.includes("@"));
+    if (emails.length === 0) { toast.error("Enter at least one vendor email."); return; }
+    setInviteBusy(true);
+    try {
+      const r = await reverseAuctionApi.invite(aid, emails, inviteNote || null, {
+        origin_url: window.location.origin,
+      });
+      toast.success(`${r.count} invite${r.count === 1 ? "" : "s"} prepared · share the links below.`);
+      setInviteEmails("");
+      await loadParticipants(aid);
+    } catch (e) { showApiError(e, { fallbackTitle: "Cannot send invites" }); }
+    finally { setInviteBusy(false); }
   };
 
   const pill = (s) => {
@@ -166,49 +215,128 @@ export default function AdminAuctionsE() {
         {!loading && rows.length > 0 && (
           <div className="bg-white border border-brand-navy/10 divide-y divide-brand-navy/10"
                data-testid="admin-auction-list">
-            {rows.map((a) => (
-              <div key={a.id} className="p-4 grid gap-3 md:grid-cols-[2fr_1fr_1fr_auto] items-center"
-                   data-testid={`auction-row-${a.id}`}>
-                <div className="min-w-0">
-                  <div className="font-semibold text-brand-navy">{a.title}</div>
-                  <div className="text-xs text-brand-navy/60 font-mono">
-                    {a.notice_ref} · created {a.created_at?.slice(0, 10)}
+            {rows.map((a) => {
+              const part = partsFor[a.id];
+              const expanded = inviteFor === a.id;
+              return (
+              <div key={a.id} className="p-4" data-testid={`auction-row-${a.id}`}>
+                <div className="grid gap-3 md:grid-cols-[2fr_1fr_1fr_auto] items-center">
+                  <div className="min-w-0">
+                    <div className="font-semibold text-brand-navy">{a.title}</div>
+                    <div className="text-xs text-brand-navy/60 font-mono">
+                      {a.notice_ref} · created {a.created_at?.slice(0, 10)}
+                    </div>
+                  </div>
+                  <div className="text-xs">
+                    <div className="pmc-label">Start → Floor</div>
+                    <div className="font-mono">
+                      {a.currency} {Number(a.starting_price).toLocaleString()} →{" "}
+                      {Number(a.floor_price).toLocaleString()}
+                    </div>
+                  </div>
+                  <div>{pill(a.status)}</div>
+                  <div className="flex gap-2 justify-end flex-wrap">
+                    {a.status !== "closed" && (
+                      <button type="button" onClick={() => toggleInvite(a.id)}
+                              data-testid={`auction-invite-toggle-${a.id}`}
+                              className="px-3 py-1.5 text-[11px] uppercase tracking-widest border border-brand-navy/40 text-brand-navy hover:bg-brand-navy/5">
+                        {expanded ? "Hide invites" : "Invite vendors"}
+                      </button>
+                    )}
+                    {a.status === "draft" && (
+                      <button type="button" onClick={() => start(a.id)}
+                              disabled={busyId === a.id}
+                              data-testid={`auction-start-${a.id}`}
+                              className="px-3 py-1.5 text-[11px] uppercase tracking-widest bg-emerald-700 text-white hover:bg-emerald-800 disabled:opacity-50">
+                        {busyId === a.id ? "…" : "Start"}
+                      </button>
+                    )}
+                    {a.status === "live" && (
+                      <button type="button" onClick={() => close(a.id)}
+                              disabled={busyId === a.id}
+                              data-testid={`auction-close-${a.id}`}
+                              className="px-3 py-1.5 text-[11px] uppercase tracking-widest bg-red-700 text-white hover:bg-red-800 disabled:opacity-50">
+                        {busyId === a.id ? "…" : "Close"}
+                      </button>
+                    )}
+                    <a href={`/auctions/${a.id}/live`}
+                       target="_blank" rel="noopener noreferrer"
+                       data-testid={`auction-open-${a.id}`}
+                       className="px-3 py-1.5 text-[11px] uppercase tracking-widest border border-brand-navy text-brand-navy hover:bg-brand-navy hover:text-white">
+                      Open room
+                    </a>
                   </div>
                 </div>
-                <div className="text-xs">
-                  <div className="pmc-label">Start → Floor</div>
-                  <div className="font-mono">
-                    {a.currency} {Number(a.starting_price).toLocaleString()} →{" "}
-                    {Number(a.floor_price).toLocaleString()}
+                {expanded && (
+                  <div className="mt-3 border-t border-brand-navy/10 pt-3 grid gap-3 md:grid-cols-2"
+                       data-testid={`auction-invite-panel-${a.id}`}>
+                    <div>
+                      <div className="pmc-label">Invite vendors by email</div>
+                      <p className="text-xs text-brand-navy/60 mt-1 mb-2">
+                        Paste one or more vendor emails (comma, space or newline separated).
+                        Each gets a unique join link; auctions need ≥2 registered participants before Start.
+                      </p>
+                      <textarea rows={3} value={inviteEmails}
+                                onChange={(e) => setInviteEmails(e.target.value)}
+                                placeholder="vendor1@example.com, vendor2@example.com"
+                                data-testid={`auction-invite-emails-${a.id}`}
+                                className="w-full px-3 py-2 border border-brand-navy/20 text-sm font-mono"/>
+                      <input value={inviteNote}
+                             onChange={(e) => setInviteNote(e.target.value)}
+                             placeholder="Optional note shown to vendor"
+                             data-testid={`auction-invite-note-${a.id}`}
+                             className="mt-2 w-full px-3 py-2 border border-brand-navy/20 text-sm"/>
+                      <button type="button" onClick={() => sendInvites(a.id)}
+                              disabled={inviteBusy}
+                              data-testid={`auction-invite-send-${a.id}`}
+                              className="mt-2 px-4 py-2 text-[11px] uppercase tracking-widest bg-brand-navy text-white disabled:opacity-50">
+                        {inviteBusy ? "Preparing…" : "Create invite links"}
+                      </button>
+                    </div>
+                    <div>
+                      <div className="pmc-label">
+                        Registered participants {part ? `(${part.count})` : ""}
+                      </div>
+                      {!part && <div className="text-xs text-brand-navy/50 mt-2">Loading…</div>}
+                      {part && part.participants.length === 0 && (
+                        <div className="text-xs text-brand-navy/60 mt-2 italic">
+                          No vendors have joined yet. Send them the invite links below.
+                        </div>
+                      )}
+                      {part && part.participants.length > 0 && (
+                        <ul className="mt-2 text-xs space-y-1" data-testid={`auction-participants-${a.id}`}>
+                          {part.participants.map((p) => (
+                            <li key={p.id || p.vendor_id} className="flex justify-between gap-2">
+                              <span>{p.company_name || p.vendor_email}</span>
+                              <span className="font-mono text-brand-navy/50">{p.alias}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {part && part.invitations.length > 0 && (
+                        <div className="mt-3">
+                          <div className="pmc-label">Pending invite links</div>
+                          <ul className="mt-1 text-[11px] font-mono space-y-1 max-h-40 overflow-y-auto">
+                            {part.invitations.map((inv) => {
+                              const url = `${window.location.origin}/vendor/auction/invite/${inv.token}`;
+                              return (
+                                <li key={inv.token} className="flex justify-between gap-2 items-center">
+                                  <span className="truncate">{inv.email}</span>
+                                  <button type="button"
+                                          onClick={() => { navigator.clipboard?.writeText(url); toast.success("Link copied"); }}
+                                          className="text-brand-navy underline whitespace-nowrap">Copy link</button>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <div>{pill(a.status)}</div>
-                <div className="flex gap-2 justify-end">
-                  {a.status === "draft" && (
-                    <button type="button" onClick={() => start(a.id)}
-                            disabled={busyId === a.id}
-                            data-testid={`auction-start-${a.id}`}
-                            className="px-3 py-1.5 text-[11px] uppercase tracking-widest bg-emerald-700 text-white hover:bg-emerald-800 disabled:opacity-50">
-                      {busyId === a.id ? "…" : "Start"}
-                    </button>
-                  )}
-                  {a.status === "live" && (
-                    <button type="button" onClick={() => close(a.id)}
-                            disabled={busyId === a.id}
-                            data-testid={`auction-close-${a.id}`}
-                            className="px-3 py-1.5 text-[11px] uppercase tracking-widest bg-red-700 text-white hover:bg-red-800 disabled:opacity-50">
-                      {busyId === a.id ? "…" : "Close"}
-                    </button>
-                  )}
-                  <a href={`/auctions/${a.id}/live`}
-                     target="_blank" rel="noopener noreferrer"
-                     data-testid={`auction-open-${a.id}`}
-                     className="px-3 py-1.5 text-[11px] uppercase tracking-widest border border-brand-navy text-brand-navy hover:bg-brand-navy hover:text-white">
-                    Open room
-                  </a>
-                </div>
+                )}
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
