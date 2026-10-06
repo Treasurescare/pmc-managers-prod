@@ -910,3 +910,11 @@ Complete GoDaddy → Route 53 DNS migration. Same-origin frontend (bypasses Safa
 
 ## v51z hotfix — 06 Oct 2026 (bundled into v51z zip)
 - **Bug fix**: Submitting a tender notice for approval with the Contact Email field left blank threw HTTP 422 "value is not a valid email address: An email address must have an @-sign." Root cause: Pydantic `EmailStr` rejects `""`. Backend `NoticeIn.contact_email` now coerces empty / whitespace strings to None via a `@field_validator(mode='before')`; frontend `NoticeEditModal.save()` additionally strips blank `contact_email` / `contact_name` before PATCH. Verified across 5 unit cases: empty string, whitespace, missing field, valid email, invalid email.
+
+## v51aa — 06 Oct 2026
+- **Feature**: Admin bulk-invite CSV template now covers every Sections A–E field (identity, contact, banking, business profile, declarations). New GET /api/v1/vendors/invite-bulk/template emits the full header set with one sample row. Parser coerces lists (|/;-separated), decl_* booleans, employees_count int, turnover_year* floats and stores them under vendor.profile for pre-fill on first login.
+- **Feature**: Clearer 409 handling on single-vendor invite. Backend now returns structured detail {code:'vendor_already_active', vendor_ref, company_name, email}; admin UI shows a Sonner toast with an inline 'Edit full profile' action that jumps to /admin/vendors/{ref}/edit.
+- **Feature**: New admin route /admin/vendors/:vendor_ref/edit (AdminVendorEdit.jsx) that lets an admin edit the ENTIRE Sections A–E profile of any created-but-unpublished vendor (and active ones). Each tab has its own Save button; backend PATCH /admin/{ref}/full merge-patches the profile sub-doc and audit-logs with profile_updated_at + profile_updated_by.
+- Every vendor row in the admin panel now exposes an Edit full profile link (data-testid=vendor-edit-{vendor_ref}).
+- Testing: iteration_48 passed 100% (4/4 backend pytest + full frontend walk-through); no regressions on prior v51y / v51z fixes.
+- Bundle: pmc-frontend-v51aa-prod-build.zip + pmc-backend-v51aa.zip in /frontend/public/downloads/.

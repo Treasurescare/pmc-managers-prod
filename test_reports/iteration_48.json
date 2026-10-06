@@ -1,0 +1,22 @@
+{
+  "summary": "v51aa — Vendor bulk CSV template + structured 409 + admin full-profile edit. ALL PASS. Backend 4/4 pytest (bulk template CSV has email + all 45 Section A–E fields, Content-Disposition filename=pmc_vendor_bulk_template.csv; bulk invite with full columns persists coerced profile fields: employees_count int=25, turnover_year1 float=500000.0, operating_regions=['KZ','UZ'], decl_integrity=True; invite on already-active email returns 409 with detail OBJECT {code:'vendor_already_active', vendor_ref, email, message}; GET /admin/{ref}/full returns 200 w/ profile dict and 404 on missing; PATCH /admin/{ref}/full merges profile — new keys applied, untouched signatory_name='Keep Me' preserved, profile_updated_at + profile_updated_by set). Frontend verified end-to-end: Admin → Vendors loads 44 vendors, Bulk invite modal shows both 'Download full Sections A–E template' (data-testid=bulk-invite-rich-template, href=/api/v1/vendors/invite-bulk/template) AND legacy 'Minimal 4-column sample' button. Every vendor row has data-testid=vendor-edit-<ref> Edit full profile link; clicking navigates to /admin/vendors/{ref}/edit which renders admin-vendor-edit with disabled email field (admin-vendor-edit-email), save-section-a..e buttons and Save & close. Single invite submit with manualvendor@pmcmanagers.com shows toast 'Manual Preview Vendor Ltd already exists · PMC-VEN-MANUAL-01 — This email is already an active vendor. Open their profile to edit it instead.' with 'Edit full profile' action button — no bare 'HTTP 409' alert anywhere. Regression unaffected.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/test_v51aa_vendor_bulk_and_edit.py", "/app/test_reports/pytest/v51aa.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "PATCH /admin/{ref}/full correctly merges profile sub-doc (dict.update) rather than replacing — partial section saves safe.",
+    "Pydantic VendorProfilePatchIn uses ConfigDict(extra='allow') and filters denylisted keys (_id, password_hash, magic_token, tenant_id, vendor_ref, email) before $set. Safe.",
+    "Bulk template response correctly sets text/csv and attachment Content-Disposition; sorted(_SECTION_FIELDS) ordering is deterministic — good for CSV diffing.",
+    "409 detail is a dict now; any older client code that did `JSON.parse(err.detail)` or string-matched would break. Spot-checked: admin UI handles via error.response.data.detail object as expected.",
+    "Minor — invite-bulk coercion silently drops malformed int/float values (returns None). Consider surfacing per-cell parse warnings in the per-row result for admin feedback. Non-blocking."
+  ],
+  "updated_files": ["/app/backend/tests/test_v51aa_vendor_bulk_and_edit.py (new)"],
+  "success_rate": {"backend": "100% (4/4)", "frontend": "100% — bulk-invite-rich-template link, legacy sample button, 20+ vendor-edit-<ref> links, AdminVendorEdit route loads, disabled email, save-section A–E buttons, save-close, structured 409 toast with Edit full profile action"},
+  "test_credentials": "adminsupport@pmcmanagers.com / Admin@12345 via /admin/login (direct admin form).",
+  "seed_data_creation": "Created pending-verify vendors TEST_BulkCo (PMC-SUP-000039) and TEST_EditCo (PMC-SUP-000040) via test suite; also test_v51aa_act_* if no active vendor existed (not needed — manualvendor already active).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Admin → Vendors lives at /admin/e/vendors (sidebar 'Vendors'). Single invite form is INSIDE the modal that opens from the 'Invite vendor' button (top-right) — not a persistent form on the page. The invite form uses data-testid=vendor-invite-submit (Send invitation). Toast on 409 renders with Sonner and includes an 'Edit full profile' action button that navigates to /admin/vendors/{ref}/edit. Bulk invite modal has two template helpers: bulk-invite-rich-template (anchor to /api/v1/vendors/invite-bulk/template) and bulk-invite-sample-download (client-side 4-col CSV). AdminVendorEdit testids: admin-vendor-edit (root), admin-vendor-edit-email (disabled), admin-vendor-edit-save-section-{a|b|c|d|e}, admin-vendor-edit-save-close, admin-vendor-edit-back, admin-vendor-edit-save-bar-{step}, admin-vendor-edit-tab-{a..e} (if present).",
+  "rca of the issue": "N/A — all features implemented correctly per spec."
+}

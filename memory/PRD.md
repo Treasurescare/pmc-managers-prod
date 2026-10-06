@@ -1,4 +1,4 @@
-# PMC Managers v2 — PRD (as of 06 Oct 2026 / v51z)
+# PMC Managers v2 — PRD (as of 06 Oct 2026 / v51aa)
 
 ## Original problem statement
 End-to-end procurement & tender management platform (public notice board,
@@ -7,57 +7,54 @@ FastAPI + MongoDB. Option E forest-green / navy / brass visual system.
 User manages their own S3 + CloudFront frontend and Elastic Beanstalk
 backend deployments.
 
-## Latest release — v51z (06 Oct 2026, this session)
+## Latest release — v51aa (06 Oct 2026, this session)
 
-Builds on v51y (Money-pages crash fix + reverse auction invite UI + notice
-filter bar) with three operator enhancements:
+Builds on v51z with three admin-vendor-flow improvements:
 
-1. **Invite vendors by email via Resend** — the Invite panel on each
-   auction row now has an "Email vendors now via Resend" checkbox
-   (default on). Backend `/invite` auto-sends from the verified
-   pmcmanagers.com domain using the default auction-invite template, or
-   a built-in fallback body if none is seeded. Un-check for links-only.
+1. **Bulk-invite CSV template covering all 5 vendor registration sections.**
+   New GET /api/v1/vendors/invite-bulk/template emits a ~45-column CSV
+   spanning identity, contact, banking, business profile, declarations
+   and signature. The invite-bulk parser coerces lists, booleans, ints,
+   and floats, and stores everything under the vendor's `profile`
+   sub-dict so the vendor sees their draft pre-filled at first login.
 
-2. **Readiness badge on Draft auctions** — amber `0/2 participants` /
-   `1/2 participants` or emerald `✓ 2/2 ready` next to each Draft row's
-   status pill. Backed by a new `participant_count` field on the list
-   endpoint.
+2. **Clearer 409 invite handling.** Admin invites with an email that is
+   already an active vendor now receive a structured 409 detail with
+   `vendor_ref` and `company_name`; the admin UI shows a Sonner toast
+   with an inline "Edit full profile" action.
 
-3. **Notice filter memory in URL** — status, q, creator, from, to,
-   templates all mirror into the URL via `history.replaceState`.
-   Operators can bookmark / share the exact search. Clear wipes all
-   params. Rehydrates on first paint for deep links.
+3. **Edit the whole vendor portal profile.** New route
+   `/admin/vendors/:vendor_ref/edit` reuses the Sections A–E stepper
+   pre-filled from the existing vendor record. Each tab has its own
+   Save button; backend `PATCH /admin/{ref}/full` merge-patches the
+   profile sub-doc and audit-logs with `profile_updated_at`,
+   `profile_updated_by`. Every vendor row in the admin panel exposes
+   an "Edit full profile" link.
 
-## v51y highlights (previous)
-- Root-caused and fixed "This panel hit an error" on every Admin → Money
-  & compliance page: `InfoDot` was rendering `<button>` inside parent
-  `<button>` elements, which React 18 production builds throw on. One
-  component change (`<span role="img">`) clears every affected panel.
-- Added inline **Invite vendors** panel to the Reverse auctions admin
-  page with emails textarea, note, registered-participants list, and
-  pending invite links with Copy-link.
-- Notice filter bar (query, creator email, created from/to, status
-  incl. Draft/Awaiting approval, template-only, clear).
+## Earlier v51 fixes still live in this build
+- Money / compliance panel crash (InfoDot button-in-button fix)
+- Reverse-auction Invite panel + Resend auto-email + readiness badges
+- Notice filter bar with URL memory + Draft/Awaiting approval status
+- Notice submit-for-approval 422 (blank Contact Email coerced to None)
 
 ## Deployment artifacts
-- `frontend/public/downloads/pmc-frontend-v51z-prod-build.zip`
-- `frontend/public/downloads/pmc-backend-v51z.zip`
-- `frontend/public/downloads/DOWNLOAD_v51z.md`
+- `frontend/public/downloads/pmc-frontend-v51aa-prod-build.zip`
+- `frontend/public/downloads/pmc-backend-v51aa.zip`
+- `frontend/public/downloads/DOWNLOAD_v51aa.md`
 
-Verified in preview; production rollout is user-managed (S3 upload +
-CloudFront `/*` invalidation, Elastic Beanstalk upload).
-
-## Architecture (unchanged)
-- React CRA + CRACO + Tailwind + Radix + shadcn-ui (`/app/frontend/src/components/ui/*`).
-- FastAPI + Motor (async MongoDB).
-- Mongo config via `MONGO_URL` + `DB_NAME`; frontend API base via `REACT_APP_BACKEND_URL`.
-- Admin/Vendor/Staff auth via JWT + CSRF (dual-header for admin POSTs).
+## Architecture
+React CRA + CRACO + Tailwind + Radix + shadcn-ui on the frontend;
+FastAPI + Motor (async MongoDB) on the backend; Mongo config via
+`MONGO_URL` + `DB_NAME`; frontend API base via `REACT_APP_BACKEND_URL`;
+Admin/Vendor/Staff auth via JWT + CSRF.
 
 ## 3rd-party integrations
 MongoDB, S3 + CloudFront, Elastic Beanstalk, Resend, DocuSign, Stripe,
 Emergent LLM Key (AI drafting fallback).
 
 ## Known backlog
-- Mobile-fix.css has grown large and brittle; defer refactor.
-- Legacy and E routes coexist; occasional confusion about which is live.
-- v51z production rollout verification pending user action.
+- Mobile-fix.css has grown large; defer refactor.
+- Legacy and E routes coexist; verify which is live before changes.
+- v51aa production rollout verification pending user action.
+- Minor: invite-bulk silently drops malformed numeric cells; could
+  surface per-cell parse warnings in the result table.
