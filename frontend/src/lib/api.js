@@ -460,6 +460,14 @@ export const vendorInviteApi = {
   activate: (vendor_ref, { mode = "resend_link", password } = {}) =>
     api.post(`/api/v1/vendors/${vendor_ref}/activate`,
              { mode, password }).then((r) => r.data),
+  // v51aa — rich bulk-invite CSV template that covers every Section A–E field.
+  bulkTemplateUrl: () =>
+    `${process.env.REACT_APP_BACKEND_URL}/api/v1/vendors/invite-bulk/template`,
+  // v51aa — full vendor doc (includes `profile` sub-dict) for the Edit screen.
+  getFull: (vendor_ref) =>
+    api.get(`/api/v1/vendors/admin/${vendor_ref}/full`).then((r) => r.data),
+  updateFull: (vendor_ref, payload) =>
+    api.patch(`/api/v1/vendors/admin/${vendor_ref}/full`, payload).then((r) => r.data),
 };
 
 export const permissionsApi = {

@@ -123,7 +123,28 @@ export default function VendorsPanel() {
       setInviteDraft({ email: "", company_name: "", country: "KZ", contact_name: "" });
       setStatusFilter("all");  // ensure the just-invited pending vendor is visible
       load(r.vendor_ref);
-    } catch (e) { showApiError(e); }
+    } catch (e) {
+      // v51aa — when the backend returns 409 with structured detail
+      // {code:'vendor_already_active', vendor_ref, …} we offer the admin a
+      // one-click "Edit full profile" action instead of a dead-end error.
+      const status = e?.response?.status;
+      const detail = e?.response?.data?.detail;
+      if (status === 409 && detail && typeof detail === "object" && detail.vendor_ref) {
+        toast.error(
+          `${detail.company_name || detail.email} already exists · ${detail.vendor_ref}`,
+          {
+            description: "This email is already an active vendor. Open their profile to edit it instead.",
+            duration: 10000,
+            action: {
+              label: "Edit full profile",
+              onClick: () => window.open(`/admin/vendors/${detail.vendor_ref}/edit`, "_self"),
+            },
+          }
+        );
+      } else {
+        showApiError(e);
+      }
+    }
     finally { setSendingInvite(false); }
   };
 
@@ -426,7 +447,7 @@ export default function VendorsPanel() {
                       </div>
                     </button>
                     {isInactive && (
-                      <div className="mt-3">
+                      <div className="mt-3 flex gap-2 flex-wrap">
                         <button
                           type="button"
                           onClick={() => activateVendor(v)}
@@ -438,6 +459,20 @@ export default function VendorsPanel() {
                             ? t("panels.vendors.activating")
                             : t("panels.vendors.activate_row")}
                         </button>
+                        <a href={`/admin/vendors/${v.vendor_ref}/edit`}
+                           data-testid={`vendor-edit-${v.vendor_ref}`}
+                           className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest border border-brand-navy text-brand-navy hover:bg-brand-navy hover:text-white">
+                          Edit full profile
+                        </a>
+                      </div>
+                    )}
+                    {!isInactive && (
+                      <div className="mt-3">
+                        <a href={`/admin/vendors/${v.vendor_ref}/edit`}
+                           data-testid={`vendor-edit-${v.vendor_ref}`}
+                           className="px-3 py-1.5 text-[11px] uppercase tracking-widest border border-brand-navy/30 text-brand-navy/80 hover:bg-brand-navy/5">
+                          Edit full profile
+                        </a>
                       </div>
                     )}
                     {isNarrow && selected?.id === v.id && (

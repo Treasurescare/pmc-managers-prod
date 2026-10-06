@@ -88,6 +88,11 @@ export default function BulkInviteModal({ open, onClose, onDone }) {
 
         <div className="text-xs bg-brand-pale border border-brand-navy/10 p-3 rounded">
           <span className="pmc-label">Need a template?</span>
+          <a href={vendorInviteApi.bulkTemplateUrl()} target="_blank" rel="noreferrer"
+             data-testid="bulk-invite-rich-template"
+             className="ml-3 underline text-brand-navy hover:text-brand-navy-deep">
+            Download full Sections A–E template
+          </a>
           <button type="button"
                   data-testid="bulk-invite-sample-download"
                   onClick={() => {
@@ -101,11 +106,13 @@ export default function BulkInviteModal({ open, onClose, onDone }) {
                     a.href = url; a.download = "pmc_vendor_invite_sample.csv"; a.click();
                     URL.revokeObjectURL(url);
                   }}
-                  className="ml-3 underline text-brand-navy hover:text-brand-navy-deep">
-            Download sample CSV
+                  className="ml-3 underline text-brand-navy/70 hover:text-brand-navy">
+            Minimal 4-column sample
           </button>
           <div className="mt-1 text-brand-navy/60">
-            ⚠️ Replacing the Registration Template while vendors are mid-registration will invalidate their in-progress drafts. Coordinate with QA before switching mid-cycle.
+            The full template includes every Section A–E field (identity, contact,
+            banking, business profile, declarations). Leave columns blank where
+            you don't yet have data — vendors can fill the rest after invite.
           </div>
         </div>
         <textarea

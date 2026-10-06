@@ -13,7 +13,7 @@ import base64
 import asyncio
 from typing import Optional, List, Literal
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from bson import ObjectId
 
 import config
@@ -46,7 +46,15 @@ async def invite_vendor(payload: VendorInviteIn, admin=Depends(require_role("adm
     """Admin creates a vendor stub and emails them a verify+set-password link."""
     existing = await db.vendors.find_one({"email": payload.email.lower()})
     if existing and existing.get("is_active"):
-        raise HTTPException(status_code=409, detail="Vendor with this email already active")
+        # v51aa — surface the matching vendor_ref so the admin UI can offer
+        # "Open vendor" / "Edit full profile" instead of a dead-end 409.
+        raise HTTPException(status_code=409, detail={
+            "code": "vendor_already_active",
+            "message": "Vendor with this email already active",
+            "vendor_ref": existing.get("vendor_ref"),
+            "company_name": existing.get("company_name"),
+            "email": existing.get("email"),
+        })
 
     token = new_magic_token()
     seq = await next_sequence("vendor_seq")
@@ -86,12 +94,66 @@ async def invite_vendor(payload: VendorInviteIn, admin=Depends(require_role("adm
 
 
 class BulkInviteIn(BaseModel):
-    csv_text: str  # newline-separated "email,company_name,country,contact_name"
+    csv_text: str  # CSV header row + one vendor per row (Sections A–E supported)
+
+
+# v51aa — every column the Sections A–E registration form writes. Admin-pasted
+# bulk CSV can prefill ALL of them so the invited vendor sees their profile
+# already drafted on first login. Columns not listed below are silently
+# accepted and stored under `profile.extras`.
+_SECTION_FIELDS = {
+    # A — Identity (lives on the vendor doc itself; mapped below)
+    "company_name", "trade_name", "registered_address", "mailing_address",
+    "country", "registration_number", "incorporation_date", "tax_id",
+    "legal_entity_type", "website", "employees_count",
+    # B — Contact & Signatory
+    "contact_name", "contact_title", "contact_office_phone", "contact_mobile",
+    "contact_email", "signatory_name", "signatory_title", "signatory_contact",
+    # C — Banking & Financial
+    "bank_name", "bank_branch", "bank_account_number", "bank_swift", "bank_address",
+    "turnover_year1", "turnover_year2", "turnover_year3", "turnover_currency",
+    # D — Business Profile
+    "primary_sector", "business_description", "operating_regions",
+    "business_categories", "iso_certifications", "licenses_permits",
+    "insurance_details", "litigation_history", "kz_licenses",
+    # E — Declarations & Signature
+    "decl_conflict_of_interest", "decl_integrity", "decl_accuracy",
+    "decl_data_consent", "decl_fee", "decl_notification",
+    "signature_name", "signature_title", "signature_date",
+}
+_TOP_LEVEL_FIELDS = {"company_name", "country", "contact_name"}  # kept on the vendor doc for list/search
+_LIST_FIELDS = {"operating_regions", "business_categories", "kz_licenses"}
+_INT_FIELDS = {"employees_count"}
+_FLOAT_FIELDS = {"turnover_year1", "turnover_year2", "turnover_year3"}
+_BOOL_FIELDS = {k for k in _SECTION_FIELDS if k.startswith("decl_")}
+
+
+def _coerce_cell(key: str, raw: str):
+    s = (raw or "").strip()
+    if s == "":
+        return None
+    if key in _BOOL_FIELDS:
+        return s.lower() in ("1", "true", "yes", "y", "x", "✓")
+    if key in _INT_FIELDS:
+        try: return int(float(s))
+        except Exception: return None
+    if key in _FLOAT_FIELDS:
+        try: return float(s)
+        except Exception: return None
+    if key in _LIST_FIELDS:
+        # pipe / semicolon separated so a comma stays inside the cell
+        return [p.strip() for p in s.replace(";", "|").split("|") if p.strip()]
+    return s
 
 
 @router.post("/invite-bulk")
 async def invite_vendors_bulk(payload: BulkInviteIn, admin=Depends(require_role("admin"))):
-    """Parse a CSV of vendor rows and invite each one. Returns per-row status."""
+    """Parse a CSV of vendor rows and invite each one. Returns per-row status.
+
+    v51aa — supports the full Sections A–E column set (see _SECTION_FIELDS).
+    Any extra column is still accepted and stored under `profile.extras`.
+    Required column: `email`.
+    """
     import csv, io
     results = []
     reader = csv.DictReader(io.StringIO(payload.csv_text))
@@ -101,24 +163,45 @@ async def invite_vendors_bulk(payload: BulkInviteIn, admin=Depends(require_role(
     header_map = {name.lower().strip(): name for name in reader.fieldnames}
     def col(row, k):
         real = header_map.get(k)
-        return (row.get(real) or "").strip() if real else ""
+        return (row.get(real) or "") if real else ""
     for i, row in enumerate(reader, start=2):
-        email = col(row, "email").lower()
+        email = col(row, "email").strip().lower()
         if not email or "@" not in email:
             results.append({"row": i, "email": email, "status": "skipped", "reason": "invalid email"})
             continue
         existing = await db.vendors.find_one({"email": email})
         if existing and existing.get("is_active"):
-            results.append({"row": i, "email": email, "status": "skipped", "reason": "already active"})
+            results.append({"row": i, "email": email, "status": "skipped",
+                             "reason": "already active", "vendor_ref": existing.get("vendor_ref")})
             continue
+
+        # Build the Sections-A–E profile dict from the row.
+        profile = {}
+        extras = {}
+        for header in (reader.fieldnames or []):
+            key = header.lower().strip()
+            if key == "email":
+                continue
+            val = _coerce_cell(key, row.get(header))
+            if val is None:
+                continue
+            if key in _SECTION_FIELDS:
+                profile[key] = val
+            else:
+                extras[key] = val
+        if extras:
+            profile["extras"] = extras
+
         token = new_magic_token()
         seq = await next_sequence("vendor_seq")
         vendor_ref = f"PMC-SUP-{seq:06d}"
         doc = {
             "vendor_ref": vendor_ref, "email": email,
-            "company_name": col(row, "company_name") or col(row, "company") or None,
-            "country": col(row, "country") or "KZ",
-            "contact_name": col(row, "contact_name") or None,
+            # Keep a few hot fields on the vendor doc itself so list/search works
+            "company_name": profile.get("company_name"),
+            "country": profile.get("country") or "KZ",
+            "contact_name": profile.get("contact_name"),
+            "profile": profile,
             "tenant_id": admin["tenant_id"],
             "invited_by": admin["id"], "invited_at": now_iso(),
             "email_verified": False, "magic_token": token,
@@ -132,9 +215,13 @@ async def invite_vendors_bulk(payload: BulkInviteIn, admin=Depends(require_role(
         asyncio.create_task(send_email(
             email, "PMC Managers — You've been invited as a vendor",
             wrap(f"Welcome to PMC · {vendor_ref}",
-                 f"<p>You've been pre-registered as a vendor. Please verify your email and set a password.</p>",
+                 f"<p>You've been pre-registered as a vendor. Please verify your "
+                 f"email and set a password. Your draft profile has been pre-filled "
+                 f"with the details our team already captured for you.</p>",
                  "Verify email & set password", verify_url)))
-        results.append({"row": i, "email": email, "status": "invited", "vendor_ref": vendor_ref})
+        results.append({"row": i, "email": email, "status": "invited",
+                         "vendor_ref": vendor_ref,
+                         "profile_fields": len([k for k in profile if k != "extras"])})
     await audit_log("vendor.invite_bulk", admin, "vendor", "csv",
                     {"total": len(results),
                      "invited": sum(1 for r in results if r["status"] == "invited")})
@@ -142,6 +229,102 @@ async def invite_vendors_bulk(payload: BulkInviteIn, admin=Depends(require_role(
             "invited": sum(1 for r in results if r["status"] == "invited"),
             "skipped": sum(1 for r in results if r["status"] == "skipped"),
             "results": results}
+
+
+# v51aa — downloadable CSV template that mirrors every Section A–E field.
+# Served by the admin UI's "Download rich template" link so admins never have
+# to hand-build the header row.
+@router.get("/invite-bulk/template")
+async def bulk_invite_template(admin=Depends(require_role("admin"))):
+    from fastapi.responses import Response
+    headers = ["email"] + sorted(_SECTION_FIELDS)
+    sample = [
+        "vendor1@example.com", "Alpha Traders LLC", "Alpha", "123 Market St, Almaty",
+        "123 Market St, Almaty", "KZ", "KZ-2024-10234", "2015-04-18", "TIN-900123",
+        "LLC", "https://alpha.example", "42",
+        "Askar Ismailov", "Procurement Director", "+7-7272-000-000", "+7-700-123-4567",
+        "procurement@alpha.example", "Askar Ismailov", "Director", "+7-700-123-4567",
+        "Halyk Bank", "Almaty Central", "KZ123456789", "HLKZKZKX", "Almaty, KZ",
+        "1200000", "1500000", "1800000", "USD",
+        "Industrial supply", "Supplier of valves and pumps",
+        "KZ|UZ|KG", "Industrial equipment|Spare parts",
+        "ISO 9001:2015", "Trade licence L-998", "Public liability $2M", "None",
+        "SMK-2024|OTK-2023",
+        "true", "true", "true", "true", "true", "true",
+        "Askar Ismailov", "Director", "2026-10-06",
+    ]
+    # Pad sample to match sorted header length (fields may re-order on edit)
+    body = ",".join(headers) + "\n"
+    row = {h: "" for h in headers}
+    row["email"] = sample[0]
+    for h, v in zip(headers[1:], sample[1:]):
+        row[h] = v
+    body += ",".join(f'"{row[h]}"' for h in headers) + "\n"
+    return Response(content=body, media_type="text/csv",
+                    headers={"Content-Disposition": 'attachment; filename="pmc_vendor_bulk_template.csv"',
+                             "Cache-Control": "no-store"})
+
+
+# v51aa — fetch the full raw vendor doc for the admin edit screen (includes
+# `profile` sub-dict with Sections A–E answers).
+@router.get("/admin/{vendor_ref}/full")
+async def admin_get_vendor_full(vendor_ref: str, admin=Depends(require_role("admin", "reviewer"))):
+    v = await db.vendors.find_one({"vendor_ref": vendor_ref,
+                                     "tenant_id": admin["tenant_id"]})
+    if not v:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    return _out(v)
+
+
+class VendorProfilePatchIn(BaseModel):
+    """Admin edits any subset of the Sections A–E vendor profile."""
+    model_config = ConfigDict(extra="allow")
+
+    company_name: Optional[str] = None
+    country: Optional[str] = None
+    contact_name: Optional[str] = None
+    profile: Optional[dict] = None  # entire sections A–E payload
+
+
+@router.patch("/admin/{vendor_ref}/full")
+async def admin_update_vendor_full(vendor_ref: str, payload: "VendorProfilePatchIn",
+                                     admin=Depends(require_role("admin"))):
+    """Admin updates the full vendor profile (Sections A–E).
+
+    v51aa — "all vendors created and unpublished — edit field for the entire
+    vendor portal". Open to vendors in any status; the admin is authoritative.
+    """
+    v = await db.vendors.find_one({"vendor_ref": vendor_ref,
+                                     "tenant_id": admin["tenant_id"]})
+    if not v:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+
+    updates = {}
+    for k in ("company_name", "country", "contact_name"):
+        val = getattr(payload, k, None)
+        if val is not None:
+            updates[k] = val or None
+    # Merge-patch the profile sub-doc rather than replacing it, so partial
+    # section saves don't wipe fields the admin didn't touch.
+    if payload.profile is not None:
+        current = dict(v.get("profile") or {})
+        current.update({k: val for k, val in payload.profile.items() if val is not None})
+        updates["profile"] = current
+    # Extras pass-through for forward-compat fields the Admin UI may send.
+    for k, val in (payload.model_extra or {}).items():
+        if k in ("id", "_id", "password_hash", "magic_token", "tenant_id",
+                 "created_at", "vendor_ref", "email"):
+            continue
+        updates[k] = val
+    if not updates:
+        return {"ok": True, "vendor_ref": vendor_ref, "updated": 0}
+    updates["profile_updated_at"] = now_iso()
+    updates["profile_updated_by"] = admin["id"]
+    await db.vendors.update_one({"_id": v["_id"]}, {"$set": updates})
+    await audit_log("vendor.admin_update_full", admin, "vendor", vendor_ref,
+                    {"keys": sorted(updates.keys())})
+    doc = await db.vendors.find_one({"_id": v["_id"]})
+    return _out(doc)
 
 
 class VerifySetPasswordIn(BaseModel):
