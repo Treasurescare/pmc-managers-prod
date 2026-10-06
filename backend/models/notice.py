@@ -1,5 +1,5 @@
 from typing import Optional, List, Literal
-from pydantic import BaseModel, Field, EmailStr, ConfigDict, model_validator
+from pydantic import BaseModel, Field, EmailStr, ConfigDict, model_validator, field_validator
 
 
 DocumentType = Literal["tender", "rfp", "rfq"]
@@ -25,6 +25,20 @@ class NoticeIn(BaseModel):
     attachments: List[dict] = []  # supplementary: BOQ, drawings, addenda, etc.
     contact_email: Optional[EmailStr] = None
     contact_name: Optional[str] = None
+
+    # v51aa — coerce empty-string contact_email ("" from the admin form when the
+    # tester cleared the field) to None, so an optional email behaves like an
+    # optional email. Previously the pydantic EmailStr validator rejected ""
+    # with HTTP 422 "value is not a valid email address: An email address must
+    # have an @-sign." — which users saw when submitting a notice for approval.
+    @field_validator("contact_email", mode="before")
+    @classmethod
+    def _blank_email_is_none(cls, v):
+        if v is None:
+            return None
+        if isinstance(v, str) and v.strip() == "":
+            return None
+        return v
     is_published: bool = False
     # EMD (Earnest Money Deposit) config — vendors pay this on bid submission
     emd_config: Optional[dict] = None

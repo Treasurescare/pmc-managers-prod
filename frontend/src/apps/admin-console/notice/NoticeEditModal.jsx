@@ -72,7 +72,14 @@ export default function NoticeEditModal({ noticeRef, onClose, onSaved, isMasterA
     if (!draft.submission_deadline) { toast.error("Submission deadline is required"); return; }
     setBusy(true);
     try {
-      await adminApi.updateNotice(noticeRef, draft);
+      // v51aa — never send blank contact_email / contact_name strings to the
+      // backend. The Pydantic EmailStr validator rejects "" with HTTP 422
+      // ("must have an @-sign"), which blocked submit-for-approval when the
+      // field was left empty.
+      const payload = { ...draft };
+      if (!payload.contact_email || !payload.contact_email.trim()) delete payload.contact_email;
+      if (!payload.contact_name  || !payload.contact_name.trim())  delete payload.contact_name;
+      await adminApi.updateNotice(noticeRef, payload);
       if (primaryFile) {
         try { await noticeDocsApi.uploadPrimary(noticeRef, primaryFile); }
         catch (e) { toast.error(`Primary doc upload failed: ${formatApiError(e)}`); }

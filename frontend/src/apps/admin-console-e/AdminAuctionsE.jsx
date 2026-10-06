@@ -349,11 +349,14 @@ export default function AdminAuctionsE() {
                       {part && part.invitations.length > 0 && (
                         <div className="mt-3">
                           <div className="pmc-label">Pending invite links</div>
-                          <ul className="mt-1 text-[11px] font-mono space-y-1 max-h-40 overflow-y-auto">
+                          <ul className="mt-1 text-[11px] font-mono space-y-1 max-h-40 overflow-y-auto"
+                              data-testid={`auction-invite-pending-list-${a.id}`}>
                             {part.invitations.map((inv) => {
                               const url = `${window.location.origin}/vendor/auction/invite/${inv.token}`;
                               return (
-                                <li key={inv.token} className="flex justify-between gap-2 items-center">
+                                <li key={inv.token}
+                                    data-testid={`auction-invite-pending-${inv.token}`}
+                                    className="flex justify-between gap-2 items-center">
                                   <span className="truncate">{inv.email}</span>
                                   <button type="button"
                                           onClick={() => { navigator.clipboard?.writeText(url); toast.success("Link copied"); }}

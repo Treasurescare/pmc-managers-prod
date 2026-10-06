@@ -899,3 +899,14 @@ Complete GoDaddy → Route 53 DNS migration. Same-origin frontend (bypasses Safa
 - Notices filters (date created / creator email / tender ref / status incl. Draft) retained from v51x; verified end-to-end.
 - Testing: iteration_46 passed 18/18 (3 backend + 15 frontend).
 - Bundle: `pmc-frontend-v51y-prod-build.zip` + `pmc-backend-v51y.zip` in `/frontend/public/downloads/`.
+
+## v51z — 06 Oct 2026
+- **Enhancement**: Reverse-auction Invite panel auto-emails vendors via Resend (default-on checkbox); backend `/invite` falls back to a built-in template when `auto_send=true` and no `template_id` is supplied, so admins never need to pre-seed.
+- **Enhancement**: Every Draft auction row now shows an amber `0/2 participants` / `1/2 participants` or emerald `✓ 2/2 ready` badge next to the status pill. Backend list endpoint adds `participant_count` to each row (one round-trip for the whole table).
+- **Enhancement**: Admin Notices filter state (`status`, `q`, `creator`, `from`, `to`, `templates`) is mirrored to the URL via `history.replaceState`, so operators can bookmark / share the exact view. Clear strips all params. Deep links rehydrate on first paint.
+- Added `data-testid="auction-invite-pending-{token}"` to each pending-invite row for test stability.
+- Testing: iteration_47 passed 19/19 (3 backend + 16 frontend; no regressions).
+- Bundle: `pmc-frontend-v51z-prod-build.zip` + `pmc-backend-v51z.zip` in `/frontend/public/downloads/`.
+
+## v51z hotfix — 06 Oct 2026 (bundled into v51z zip)
+- **Bug fix**: Submitting a tender notice for approval with the Contact Email field left blank threw HTTP 422 "value is not a valid email address: An email address must have an @-sign." Root cause: Pydantic `EmailStr` rejects `""`. Backend `NoticeIn.contact_email` now coerces empty / whitespace strings to None via a `@field_validator(mode='before')`; frontend `NoticeEditModal.save()` additionally strips blank `contact_email` / `contact_name` before PATCH. Verified across 5 unit cases: empty string, whitespace, missing field, valid email, invalid email.

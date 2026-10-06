@@ -1,0 +1,48 @@
+{
+  "summary": "v51z verification — ALL FEATURES PASS. Backend: 3/3 pytest tests (participant_count on list, invite auto_send with no template_id falls back to default (200), bogus template_id still 404). Frontend: readiness badges render with correct '0/2 participants'/'1/2 participants' text + amber styling on 4 draft rows; autosend checkbox defaults to checked; send button flips between 'Email invites now' and 'Create invite links'; submitting 2 emails hits POST /api/v1/reverse-auctions/{aid}/invite 200 and shows toast '2 invites prepared · share the links below.' with the two emails appearing in the Pending-invite-links list. Notices filter rehydrates from URL (?status=draft&creator=foo -> status=draft creator=foo) and typing in creator/query/status/template-only/from/to all update window.location.search via replaceState (HISTORY_DELTA=0). Clear removes all params. No ErrorBoundary on Money pages.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Reverse auctions · Pending invite links rows", "issues": ["Pending-invite-link list rows do not expose a data-testid (e.g. auction-invite-pending-{token}). Visually populated and Copy-link works, but adding testids would make tests more deterministic. Minor."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v51z_auctions_invite.py", "/app/test_reports/pytest/v51z.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Backend fallback template logic is clean: tpl is resolved from Mongo default (is_default:true) first, then baked-in constants — admins never have to pre-seed. Explicit bogus template_id still 404s. Correct.",
+    "participant_count added via a per-row count_documents(reverse_auction_participants). Fine for current volume (6 auctions) but if list grows large consider a single $group aggregation to avoid N round-trips.",
+    "NoticesPanel URL sync uses history.replaceState (confirmed via history.length delta=0) — no polluting back-button. Good UX.",
+    "AdminAuctionsE readiness badge amber/emerald styling driven by participant_count vs needed=2 — matches spec.",
+    "Pending-invite-link row rendering lacks data-testid attributes; recommend adding `data-testid=\"auction-invite-pending-{token}\"` for stability of future regression tests."
+  ],
+  "updated_files": ["/app/backend/tests/test_v51z_auctions_invite.py (new)"],
+  "success_rate": {"backend": "100% (3/3)", "frontend": "100% — readiness badges, autosend checkbox default, button-label flip, invite submit (200+toast+populated pending list), notices URL rehydrate + updates + clear + replaceState all verified"},
+  "test_credentials": "Admin adminsupport@pmcmanagers.com / Admin@12345 — working. Login flow goes through /admin/login (direct admin-only form with 'Sign in' button) — do NOT use /login (unified role-picker) which redirects back to login after submit.",
+  "seed_data_creation": "Created invite tokens v51ztest1@example.com and v51ztest2@example.com against auction 6ab88d39690a004e9e13c6dd (TEST_v48c auction guard). Also one testv51z@ token from backend test. All idempotent (reuses existing tokens on repeat).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Login MUST go via /admin/login (direct admin form) — the unified /login role-picker currently fails to transition into admin console in automated runs. Reverse auctions page lives at /admin/e/auctions (NOT nested under /admin/e/money); click 'Reverse auctions' in sidebar OR goto directly. Verified data-testids on this page: admin-auctions-e, auction-readiness-{aid}, auction-invite-toggle-{aid}, auction-invite-autosend-{aid}, auction-invite-send-{aid}, auction-invite-emails-{aid}, auction-invite-note-{aid}. Pending-invite-link rows do NOT have data-testid yet. Notices filter testids: notices-filter-{query,creator,created-from,created-to,status,template-only,clear}. URL params used: status, creator, q, templates, from, to.",
+  "test_case_results": {
+    "backend_list_has_participant_count": "PASS",
+    "backend_invite_auto_send_no_template_id_200": "PASS",
+    "backend_invite_bogus_template_id_404": "PASS",
+    "ui_admin_auctions_e_renders": "PASS",
+    "ui_readiness_badges_present_amber_text": "PASS (4 badges: 3x '0/2 participants' + 1x '1/2 participants')",
+    "ui_autosend_checkbox_default_checked": "PASS",
+    "ui_send_label_email_invites_now_when_checked": "PASS",
+    "ui_send_label_create_invite_links_when_unchecked": "PASS",
+    "ui_invite_submit_200_and_toast": "PASS ('2 invites prepared · share the links below.')",
+    "ui_pending_invite_links_populated": "PASS (visually confirmed; data-testid missing)",
+    "ui_notices_rehydrate_from_url": "PASS (status=draft creator=foo)",
+    "ui_notices_creator_updates_url": "PASS",
+    "ui_notices_query_updates_url": "PASS (q=test)",
+    "ui_notices_templates_updates_url": "PASS (templates=1)",
+    "ui_notices_from_updates_url": "PASS (from=2026-01-01)",
+    "ui_notices_to_updates_url": "PASS (to=2026-01-31)",
+    "ui_notices_replaceState_no_history_pollution": "PASS (HISTORY_DELTA=0)",
+    "ui_notices_clear_removes_all_params": "PASS",
+    "regression_money_no_errorboundary": "PASS"
+  }
+}
