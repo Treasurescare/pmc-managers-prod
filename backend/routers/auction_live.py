@@ -233,9 +233,15 @@ async def create_reverse_auction(payload: ReverseAuctionIn,
 
 @router.get("")
 async def list_reverse_auctions(admin=Depends(current_admin)):
+    # v51z — include participant_count on every row so the admin UI can show
+    # a "0/2" / "1/2" / "✓ ready" readiness badge next to each Draft auction
+    # without needing a second round-trip per row.
     rows = []
     async for a in db.reverse_auctions.find({}).sort("created_at", -1).limit(200):
-        rows.append(_out_auction(a))
+        out = _out_auction(a)
+        out["participant_count"] = await db.reverse_auction_participants.count_documents(
+            {"auction_id": out["id"]})
+        rows.append(out)
     return {"items": rows, "total": len(rows)}
 
 
@@ -409,6 +415,18 @@ class InviteBatchIn(BaseModel):
     origin_url: Optional[str] = None    # for building invite URL in email
 
 
+_DEFAULT_INVITE_SUBJECT = "You're invited to bid in a live reverse auction — {{auction_title}}"
+_DEFAULT_INVITE_BODY = (
+    "<p>You have been invited by <b>PMC Managers</b> to participate in the live "
+    "reverse auction <b>{{auction_title}}</b> (tender <code>{{notice_ref}}</code>).</p>"
+    "<p>Starting price: <b>{{currency}} {{starting_price}}</b>. The auction is "
+    "descending-price — the lowest compliant bid at close wins.</p>"
+    "<p>{{admin_note}}</p>"
+    "<p>Click the button below to register. Each invite link is unique to your "
+    "email address and auction.</p>"
+)
+
+
 @router.post("/{aid}/invite")
 async def invite_bidders(aid: str, payload: InviteBatchIn,
                           admin=Depends(require_role("admin"))):
@@ -417,7 +435,10 @@ async def invite_bidders(aid: str, payload: InviteBatchIn,
         raise HTTPException(status_code=404, detail="Auction not found")
     if a.get("status") == "closed":
         raise HTTPException(status_code=400, detail="Auction is closed")
-    # Resolve template (optional)
+    # Resolve template (optional). v51z: if auto_send is on and no template_id
+    # was supplied, fall back to the default template picked from Mongo, or to
+    # the built-in default body. Admins should never have to pre-seed a
+    # template just to email vendors.
     tpl = None
     if payload.template_id:
         try:
@@ -426,6 +447,11 @@ async def invite_bidders(aid: str, payload: InviteBatchIn,
             raise HTTPException(status_code=422, detail="Invalid template_id")
         if not tpl:
             raise HTTPException(status_code=404, detail="Invitation template not found")
+    elif payload.auto_send:
+        tpl = await db.auction_invite_templates.find_one({"is_default": True}) or {
+            "subject": _DEFAULT_INVITE_SUBJECT,
+            "body_html": _DEFAULT_INVITE_BODY,
+        }
     out = []
     sent_count = 0
     for raw in payload.emails:

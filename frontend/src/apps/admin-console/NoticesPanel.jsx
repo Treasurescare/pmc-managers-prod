@@ -30,19 +30,37 @@ export default function NoticesPanel() {
     tender_template_id: "",
   });
 
+  // v51z — all filter state is now mirrored to the URL (?status, ?q,
+  // ?creator, ?from, ?to, ?templates) so operators can bookmark / share
+  // the exact search they built. Initial values are rehydrated from the
+  // query string on mount.
+  const _initParams = new URLSearchParams(window.location.search);
   const [filterStatus, setFilterStatus] = useState(() => {
-    // Dashboard pipeline / attention links land here with ?status=…
-    const p = new URLSearchParams(window.location.search).get("status") || "";
+    const p = _initParams.get("status") || "";
     return ["published", "draft", "expired", "closing"].includes(p) ? p : "";
   });
-  const [filterQuery, setFilterQuery] = useState("");
-  // v51x — additional filters requested by Ops: filter by creator email
-  // (from/to) and by created_at date range. Status filter already covers
-  // Published / Draft / Closing / Expired.
-  const [filterCreator, setFilterCreator] = useState("");
-  const [filterCreatedFrom, setFilterCreatedFrom] = useState("");
-  const [filterCreatedTo, setFilterCreatedTo] = useState("");
-  const [showTemplateOnly, setShowTemplateOnly] = useState(false);
+  const [filterQuery, setFilterQuery] = useState(() => _initParams.get("q") || "");
+  const [filterCreator, setFilterCreator] = useState(() => _initParams.get("creator") || "");
+  const [filterCreatedFrom, setFilterCreatedFrom] = useState(() => _initParams.get("from") || "");
+  const [filterCreatedTo, setFilterCreatedTo] = useState(() => _initParams.get("to") || "");
+  const [showTemplateOnly, setShowTemplateOnly] = useState(() => _initParams.get("templates") === "1");
+
+  // Push filter state back into the URL whenever any of them changes.
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const sync = (k, v) => { if (v) p.set(k, v); else p.delete(k); };
+    sync("status", filterStatus);
+    sync("q", filterQuery);
+    sync("creator", filterCreator);
+    sync("from", filterCreatedFrom);
+    sync("to", filterCreatedTo);
+    sync("templates", showTemplateOnly ? "1" : "");
+    const next = p.toString();
+    const target = `${window.location.pathname}${next ? "?" + next : ""}`;
+    if (target !== window.location.pathname + window.location.search) {
+      window.history.replaceState(null, "", target);
+    }
+  }, [filterStatus, filterQuery, filterCreator, filterCreatedFrom, filterCreatedTo, showTemplateOnly]);
 
   const load = useCallback(() => {
     // Bucket A fix — use the admin-only endpoint that returns BOTH drafts

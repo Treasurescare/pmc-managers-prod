@@ -24,6 +24,7 @@ export default function AdminAuctionsE() {
   const [inviteEmails, setInviteEmails] = useState("");
   const [inviteNote, setInviteNote] = useState("");
   const [inviteBusy, setInviteBusy] = useState(false);
+  const [autoSend, setAutoSend] = useState(true);     // v51z — email now via Resend
   const [partsFor, setPartsFor] = useState({});       // aid -> { count, items }
 
   const load = useCallback(async () => {
@@ -114,10 +115,18 @@ export default function AdminAuctionsE() {
     if (emails.length === 0) { toast.error("Enter at least one vendor email."); return; }
     setInviteBusy(true);
     try {
+      // v51z — pass auto_send so the backend emails each vendor via Resend
+      // using the default (or built-in) invitation template.
       const r = await reverseAuctionApi.invite(aid, emails, inviteNote || null, {
         origin_url: window.location.origin,
+        auto_send: autoSend,
       });
-      toast.success(`${r.count} invite${r.count === 1 ? "" : "s"} prepared · share the links below.`);
+      const emailed = r.auto_sent || 0;
+      toast.success(
+        autoSend && emailed > 0
+          ? `${r.count} invite${r.count === 1 ? "" : "s"} prepared · ${emailed} emailed via Resend.`
+          : `${r.count} invite${r.count === 1 ? "" : "s"} prepared · share the links below.`
+      );
       setInviteEmails("");
       await loadParticipants(aid);
     } catch (e) { showApiError(e, { fallbackTitle: "Cannot send invites" }); }
@@ -234,7 +243,25 @@ export default function AdminAuctionsE() {
                       {Number(a.floor_price).toLocaleString()}
                     </div>
                   </div>
-                  <div>{pill(a.status)}</div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {pill(a.status)}
+                    {a.status === "draft" && typeof a.participant_count === "number" && (
+                      <span
+                        data-testid={`auction-readiness-${a.id}`}
+                        title={a.participant_count >= 2
+                          ? "Enough participants — ready to Start"
+                          : `Needs at least 2 registered participants (currently ${a.participant_count})`}
+                        className={`text-[10px] uppercase tracking-widest px-2 py-0.5 border ${
+                          a.participant_count >= 2
+                            ? "bg-emerald-50 border-emerald-300 text-emerald-800"
+                            : "bg-amber-50 border-amber-300 text-amber-900"
+                        }`}>
+                        {a.participant_count >= 2
+                          ? `✓ ${a.participant_count}/2 ready`
+                          : `${a.participant_count}/2 participants`}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex gap-2 justify-end flex-wrap">
                     {a.status !== "closed" && (
                       <button type="button" onClick={() => toggleInvite(a.id)}
@@ -286,11 +313,17 @@ export default function AdminAuctionsE() {
                              placeholder="Optional note shown to vendor"
                              data-testid={`auction-invite-note-${a.id}`}
                              className="mt-2 w-full px-3 py-2 border border-brand-navy/20 text-sm"/>
+                      <label className="mt-2 flex items-center gap-2 text-xs text-brand-navy/70 cursor-pointer">
+                        <input type="checkbox" checked={autoSend}
+                               onChange={(e) => setAutoSend(e.target.checked)}
+                               data-testid={`auction-invite-autosend-${a.id}`} />
+                        Email vendors now via Resend (unchecked = links only, no email)
+                      </label>
                       <button type="button" onClick={() => sendInvites(a.id)}
                               disabled={inviteBusy}
                               data-testid={`auction-invite-send-${a.id}`}
                               className="mt-2 px-4 py-2 text-[11px] uppercase tracking-widest bg-brand-navy text-white disabled:opacity-50">
-                        {inviteBusy ? "Preparing…" : "Create invite links"}
+                        {inviteBusy ? "Preparing…" : (autoSend ? "Email invites now" : "Create invite links")}
                       </button>
                     </div>
                     <div>
