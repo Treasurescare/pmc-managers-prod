@@ -99,6 +99,7 @@ export default function NoticeDetail() {
             <div className="mt-4 text-[#D9D3BF] text-base md:text-lg">
               {notice.delivery_country ? `Issued for ${notice.delivery_country}` : "Public tender"}
               {publishedAt && ` · Published ${publishedAt.toISOString().slice(0,10)}`}
+              {notice.created_by_email && ` · Posted by ${notice.created_by_email}`}
             </div>
           </div>
           <dl className="e-hero-kpi-strip">
@@ -161,6 +162,13 @@ export default function NoticeDetail() {
                 <span className="pmc-label text-brand-navy-soft">{notice.notice_ref}</span>
               </div>
               <h1 className="font-display text-3xl lg:text-4xl mt-4 leading-tight text-brand-navy">{notice.title}</h1>
+              {(publishedAt || notice.created_by_email) && (
+                <div className="mt-2 text-sm text-brand-navy/60" data-testid={`notice-posted-by-${notice.notice_ref}`}>
+                  {publishedAt && `Published ${publishedAt.toISOString().slice(0, 10)}`}
+                  {publishedAt && notice.created_by_email && " · "}
+                  {notice.created_by_email && `Posted by ${notice.created_by_email}`}
+                </div>
+              )}
 
               <div className="mt-8 prose max-w-none">
                 {isE && <span className="font-serif text-[40px] leading-none text-[#7A5F1E] float-left mr-3">I</span>}

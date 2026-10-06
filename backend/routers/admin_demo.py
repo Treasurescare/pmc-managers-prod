@@ -163,6 +163,7 @@ async def seed_demo(admin=Depends(require_role("admin"))):
             "tenant_id": tenant_id,
             "is_demo": True,
             "created_by": admin["id"],
+            "created_by_email": admin.get("email"),
             "created_at": now_iso(),
             "published_at": now_iso() if n["publish"] else None,
         }

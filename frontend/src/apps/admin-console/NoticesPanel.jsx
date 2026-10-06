@@ -426,6 +426,12 @@ export default function NoticesPanel() {
                 )}
               </div>
             </div>
+            {n.created_by_email && (
+              <div className="mt-1 text-[11px] text-brand-navy/50"
+                   data-testid={`notice-creator-${n.notice_ref}`}>
+                Created by {n.created_by_email}
+              </div>
+            )}
           </div>
         ))}
         {noticeControls}

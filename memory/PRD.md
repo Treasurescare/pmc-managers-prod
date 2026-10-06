@@ -38,6 +38,21 @@ mostly static; live data + click routing is patched at runtime via:
 
 ## What is implemented
 
+### v51w (2026-10-05) — Notice creator attribution
+- `notices.py` create_notice stores `created_by_email` from the admin/staff
+  JWT; `_out` still strips the internal `created_by` id. `admin_demo.py`
+  seeds it too. Admin Notices list shows "Created by <email>" under each
+  title (`notice-creator-<ref>`); public NoticeDetail hero shows
+  "Posted by <email>". One-off backfill `scripts/backfill_notice_creator.py`
+  (self-loads backend/.env; idempotent): preview backfilled 10, skipped 14
+  (seed rows with unknown creator ids).
+- Verified: POST /api/v1/notices returns created_by_email; public detail of
+  a legacy notice carries the backfilled email.
+- Note: `/notices/:ref` currently serves the LEGACY notice layout (isE=false
+  on that route) — the E hero band does not render there. The "Posted by"
+  line was added to BOTH the E hero block and the legacy article header
+  (`notice-posted-by-<ref>`), so it shows regardless of which layout is live.
+
 ### v51v (2026-10-05) — Light-shell vendor pages pinned light + docs bundle v3
 - **Bid-submit dark-on-dark heading**: global `[data-ui="e"] .bg-slate-50 →
   --e-bg-deep` remap repainted the light bid-submit shell dark; after the

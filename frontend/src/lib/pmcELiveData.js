@@ -445,7 +445,23 @@ export function useNoticeDetailLive({ enabled = true, noticeRef } = {}) {
         if (refEl) refEl.textContent = n.notice_ref;
         // Title
         const h1 = root.querySelector("h1.pmc-display, h1");
-        if (h1) h1.textContent = n.title || "";
+        if (h1) {
+          h1.textContent = n.title || "";
+          // v51w — creator attribution: small "Published … · Posted by …"
+          // line directly under the title. Inserted once, then kept current.
+          let metaLine = root.querySelector('[data-testid="notice-e-posted-by"]');
+          if (!metaLine) {
+            metaLine = document.createElement("div");
+            metaLine.setAttribute("data-testid", "notice-e-posted-by");
+            metaLine.style.cssText = "margin-top:10px;font-size:13px;letter-spacing:0.02em;color:#C9C2AC";
+            if (h1.parentElement) h1.parentElement.insertBefore(metaLine, h1.nextSibling);
+          }
+          const bits = [];
+          if (n.published_at) bits.push(`Published ${String(n.published_at).slice(0, 10)}`);
+          if (n.created_by_email) bits.push(`Posted by ${n.created_by_email}`);
+          metaLine.textContent = bits.join(" · ");
+          metaLine.hidden = bits.length === 0;
+        }
         // Facts grid
         const dds = root.querySelectorAll(".pmc-facts dd");
         if (dds.length >= 6) {

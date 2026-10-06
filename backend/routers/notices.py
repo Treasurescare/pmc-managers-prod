@@ -154,6 +154,10 @@ async def create_notice(payload: NoticeIn, admin=Depends(require_role(
         "notice_ref": notice_ref,
         "tenant_id": admin["tenant_id"],
         "created_by": admin["id"],
+        # v51w — surface the creator's email so admins/vendors can see who
+        # posted the notice without a join. created_by (the id) stays
+        # internal-only (_out strips it).
+        "created_by_email": admin.get("email"),
         "created_at": now_iso(),
         "published_at": now_iso() if doc.get("is_published") else None,
     })
