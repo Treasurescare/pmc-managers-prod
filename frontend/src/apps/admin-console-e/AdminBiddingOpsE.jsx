@@ -126,6 +126,25 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
         if (row) row.click();
         return;
       }
+      // v51ab — confirmation dialog before sending the EMD payment link so
+      // the admin can see WHICH vendor email the link is going to. Pulls
+      // the recipient from root._bids (populated by useAdminBiddingOpsLive).
+      if (act === 'send') {
+        const bid = (root._bids || []).find((x) => (x.id || "") === bidId);
+        const to = bid?.vendor_email || bid?.company_name;
+        if (!to) {
+          toast.error("Cannot find the vendor email for this bid.");
+          return;
+        }
+        const ok = window.confirm(
+          `Send the EMD payment link to:\n\n` +
+          `  ${to}\n` +
+          (bid?.company_name && bid?.vendor_email ? `  (${bid.company_name})\n` : "") +
+          `\nBid ${bid?.bid_ref || ""} · ${bid?.price_currency || "USD"} ${Number(bid?.emd_due_amount || 0).toLocaleString()} due.\n\n` +
+          `OK to send · Cancel to keep editing.`
+        );
+        if (!ok) return;
+      }
       btn.disabled = true;
       try {
         if (act === 'send') {
@@ -150,6 +169,20 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
       e.preventDefault();
       const ids = [...root.querySelectorAll('.chk:checked')].map((c) => c.closest('.bo-r')?.dataset.bidId).filter(Boolean);
       if (!ids.length) return;
+      // v51ab — show the full list of recipient emails before firing a bulk
+      // reminder so the admin never emails the wrong vendor cohort.
+      const bids = root._bids || [];
+      const recipients = ids
+        .map((id) => bids.find((b) => (b.id || "") === id))
+        .filter(Boolean);
+      const preview = recipients
+        .slice(0, 10)
+        .map((b) => `  • ${b.vendor_email || b.company_name || b.bid_ref}`)
+        .join("\n");
+      const extra = recipients.length > 10 ? `\n  …and ${recipients.length - 10} more` : "";
+      if (!window.confirm(
+        `Send EMD reminder to ${ids.length} bidder${ids.length > 1 ? "s" : ""}:\n\n${preview}${extra}\n\nOK to send · Cancel to review.`
+      )) return;
       let ok = 0, fail = 0;
       for (const id of ids) {
         try { await bidApi.sendEmdLink(id); ok++; } catch { fail++; }
