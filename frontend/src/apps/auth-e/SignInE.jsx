@@ -169,14 +169,18 @@ export default function SignInE({ legacy: Legacy }) {
           <form onSubmit={submit} style={{ width: "440px", maxWidth: "100%" }} data-testid="signin-e-form">
             <h2 style={{ fontSize: "28px", lineHeight: "34px", margin: "0 0 6px" }}>Sign in</h2>
             <p className="pmc-muted" style={{ margin: "0 0 24px" }}>
-              New supplier? <Link to="/register" data-testid="signin-register-link">Register in about 15 minutes</Link>
+              {role === "escrow" ? (
+                <>New escrow institution? <Link to="/escrow/register" data-testid="signin-register-link">Register your bank or trustee firm</Link></>
+              ) : (
+                <>New supplier? <Link to="/register" data-testid="signin-register-link">Register in about 15 minutes</Link></>
+              )}
             </p>
 
             <div style={{ display: "grid", gap: "8px", marginBottom: "20px" }}>
               <RoleRadio value="supplier" label="Supplier" sub="Bid, pay EMD, sign contracts" icon="i-users" />
               <RoleRadio value="staff" label="PMC staff" sub="Tender desk, evaluation, escrow" icon="i-file" />
               <RoleRadio value="admin" label="Administrator" sub="Configuration and audit" icon="i-shield" />
-              <RoleRadio value="escrow" label="Escrow Institution" sub="Banks & trustees · magic-link access" icon="i-link" />
+              <RoleRadio value="escrow" label="Escrow Institution" sub="Banks & trustees · dual-signature sign-off" icon="i-link" />
             </div>
 
             <div style={{ display: "grid", gap: "14px" }}>
@@ -226,16 +230,18 @@ export default function SignInE({ legacy: Legacy }) {
 
               <div style={{ display: "flex", alignItems: "center", gap: "12px", color: "var(--ink-muted, #5B6B63)", fontSize: "12px", textTransform: "uppercase", letterSpacing: "1.5px" }}>
                 <span style={{ flex: 1, height: "1px", background: "rgba(15,59,46,.15)" }} />
-                New supplier?
+                {role === "escrow" ? "New escrow institution?" : "New supplier?"}
                 <span style={{ flex: 1, height: "1px", background: "rgba(15,59,46,.15)" }} />
               </div>
               <Link
-                to="/register"
+                to={role === "escrow" ? "/escrow/register" : "/register"}
                 className="pmc-btn pmc-btn--lg"
                 style={{ width: "100%", textAlign: "center", display: "block", border: "1px solid var(--primary, #0F3B2E)", color: "var(--primary, #0F3B2E)", fontWeight: 600, textDecoration: "none", lineHeight: "44px" }}
                 data-testid="signin-register-btn"
               >
-                Register as a supplier — free, ~15 minutes
+                {role === "escrow"
+                  ? "Register as an escrow institution — bank / trustee onboarding"
+                  : "Register as a supplier — free, ~15 minutes"}
               </Link>
             </div>
 

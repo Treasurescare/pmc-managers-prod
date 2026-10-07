@@ -49,6 +49,14 @@ Public / Vendor / Buyer / Admin roles.
 - `/downloads/DOWNLOAD_mobile_v1.0.0.md`
 
 ## Latest web releases
+- **v51ar** — Login-page escrow registration entrypoint. SignInE's
+  subtitle + bottom register button are now role-aware: selecting
+  "Escrow Institution" swaps "Register as a supplier" for
+  "Register as an escrow institution — bank / trustee onboarding"
+  pointing at `/escrow/register`. Card subtitle updated to
+  "dual-signature sign-off". Frontend-only; backend stays on v51aq.
+  Bundle: `pmc-frontend-v51ar-prod-build.zip` (downloads/ excluded).
+  Verified: register button href `/escrow/register` on preview.
 - **v51aq** — Dup cleanup + Officer-email guard on PATCH + Release CSV
   export + Transaction search bar.
   **Dup cleanup**: new `GET /api/v1/escrow/transactions/duplicates`
