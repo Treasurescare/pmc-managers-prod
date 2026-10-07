@@ -161,18 +161,24 @@ export default function PackagesPanel() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3" data-testid="pkg-board">
-        {COLUMNS.map((col) => (
-          <KanbanColumn
-            key={col.code}
-            column={col}
-            items={grouped[col.code] || []}
-            onDragOver={onDragOver}
-            onDrop={onDrop}
-            onDragStart={onDragStart}
-            fmt={fmt}
-          />
-        ))}
+      {/* Work-package Kanban: horizontal scroll instead of 6 cramped columns
+         on wide screens so each card has breathing room and titles don't
+         wrap into unreadable shards. v51ag. */}
+      <div className="overflow-x-auto -mx-6 px-6 pb-2" data-testid="pkg-board-scroll">
+        <div className="flex gap-3" data-testid="pkg-board" style={{ minWidth: "100%" }}>
+          {COLUMNS.map((col) => (
+            <div key={col.code} className="w-[280px] shrink-0">
+              <KanbanColumn
+                column={col}
+                items={grouped[col.code] || []}
+                onDragOver={onDragOver}
+                onDrop={onDrop}
+                onDragStart={onDragStart}
+                fmt={fmt}
+              />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

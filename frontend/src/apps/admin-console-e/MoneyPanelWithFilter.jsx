@@ -22,7 +22,11 @@ export default function MoneyPanelWithFilter({
     const paint = () => {
       const root = document.querySelector(scope);
       if (!root) return;
-      root.querySelectorAll("tr, [data-row], .pmc-row, .bo-r").forEach((r) => {
+      // v51ag — widened selector so plain-div rows (Escrow transactions,
+      // Escrow accounts, DocuSign envelopes) are also tagged for filtering.
+      root.querySelectorAll(
+        'tr, [data-row], .pmc-row, .bo-r, [data-testid^="escrow-tx-row-"], [data-testid^="escrow-acc-row-"], [data-testid^="docu-env-row-"]'
+      ).forEach((r) => {
         if (r.dataset.rowTagged) return;
         r.dataset.rowTagged = "1";
         // Mark as a row we care about

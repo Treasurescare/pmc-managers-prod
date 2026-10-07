@@ -49,6 +49,16 @@ Public / Vendor / Buyer / Admin roles.
 - `/downloads/DOWNLOAD_mobile_v1.0.0.md`
 
 ## Latest web releases
+- **v51ag** — Vendor requests + Profile changes gain search/date-range filters;
+  BOQ, Bidding ops, Escrow filters now actually hide non-matching rows (DOM
+  row tags: `data-row`, `data-status`, `data-created-at`); Work packages
+  Kanban switched to horizontal-scroll with 280 px cards; package View modal
+  lists attached documents with View/Download links; MoneyFilterBar enforces
+  Created-to ≥ Created-from and Expires-to ≥ Expires-from on every panel; each
+  pending Escrow transaction shows an "Officer identity hint" explaining which
+  side the signed-in admin will sign as (or that they're neither officer, so
+  the sign call will be rejected and both officers must log in separately).
+  Frontend-only ZIP: `pmc-frontend-v51ag-prod-build.zip`.
 - **v51af** — Fix: Registrations "Edit sections" button (verified in preview:
   editable form opens + saves on a submitted registration). Bundles built:
   `pmc-frontend-v51af-prod-build.zip` + `pmc-backend-v51af.zip` +

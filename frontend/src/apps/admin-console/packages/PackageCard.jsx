@@ -207,6 +207,50 @@ export default function PackageCard({ pkg, onDragStart, fmt }) {
                 </section>
               )}
 
+              {Array.isArray(pkg.attached_documents) && pkg.attached_documents.length > 0 && (
+                <section>
+                  <div className="pmc-label">Attached documents ({pkg.attached_documents.length})</div>
+                  <ul className="mt-2 space-y-2 text-sm" data-testid={`pkg-detail-docs-${pkg.package_ref}`}>
+                    {pkg.attached_documents.map((d, i) => {
+                      const label = d.file_name || d.filename || d.name || d.title || `Document ${i + 1}`;
+                      const key = d.key || d.file_key || d.path;
+                      const href = d.url || (key ? `/api/v1/uploads/files/${key}` : null);
+                      const size = typeof d.size_bytes === "number"
+                        ? `${(d.size_bytes / 1024).toFixed(1)} KB` : null;
+                      return (
+                        <li key={i} className="flex items-center justify-between gap-3 border-b border-brand-navy/10 py-2"
+                            data-testid={`pkg-detail-doc-${pkg.package_ref}-${i}`}>
+                          <div className="min-w-0">
+                            <div className="font-medium text-brand-navy truncate">📎 {label}</div>
+                            <div className="text-[11px] text-brand-navy/60">
+                              {d.content_type || d.mime || "file"}
+                              {size ? ` · ${size}` : ""}
+                              {d.uploaded_at ? ` · uploaded ${d.uploaded_at.slice(0, 10)}` : ""}
+                            </div>
+                          </div>
+                          <div className="shrink-0 flex gap-2">
+                            {href && (
+                              <a href={href} target="_blank" rel="noreferrer"
+                                 data-testid={`pkg-detail-doc-view-${pkg.package_ref}-${i}`}
+                                 className="px-3 py-1 text-[10px] uppercase tracking-widest border border-brand-navy/40 text-brand-navy hover:bg-brand-navy hover:text-white">
+                                View
+                              </a>
+                            )}
+                            {href && (
+                              <a href={href} download={label}
+                                 data-testid={`pkg-detail-doc-download-${pkg.package_ref}-${i}`}
+                                 className="px-3 py-1 text-[10px] uppercase tracking-widest border border-brand-navy/40 text-brand-navy hover:bg-brand-navy hover:text-white">
+                                Download
+                              </a>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              )}
+
               {Array.isArray(pkg.tags) && pkg.tags.length > 0 && (
                 <section>
                   <div className="pmc-label">Tags</div>

@@ -1303,7 +1303,7 @@ export function useAdminBiddingOpsLive({ enabled = true, tick = 0 } = {}) {
           const notice = b.notice_ref || "—";
 
           rows.push(
-            `<tr class="bo-r${isTest ? " is-test" : ""}" data-g="${group}" data-test="${isTest ? 1 : 0}" data-ref="${ref}" data-bid-id="${b.id || ""}">` +
+            `<tr class="bo-r${isTest ? " is-test" : ""}" data-g="${group}" data-test="${isTest ? 1 : 0}" data-ref="${ref}" data-bid-id="${b.id || ""}" data-row="1" data-status="${(b.status || "").toLowerCase()}" data-created-at="${(b.received_at || b.submitted_at || b.created_at || "").slice(0, 10)}" data-creator="${(b.vendor_email || b.company_name || "").toLowerCase()}">` +
             `<td style="width:34px"><input type="checkbox" class="chk" ${disabledAttr} aria-label="Select ${ref}"/></td>` +
             `<td><div class="bo-ref">${ref}${isTest ? '<span class="bo-test">Test</span>' : ""}</div><div class="bo-t">${title}</div><div class="bo-sub">${notice} · ${vendor}</div></td>` +
             `<td class="num"><b>${priceStr}</b>${anomHtml}<div class="bo-emd">${emdLine}</div></td>` +

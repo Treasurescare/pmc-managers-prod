@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { mastersApi, showApiError } from "@/lib/api";
 
@@ -11,17 +11,18 @@ const FIELD_LABELS = {
 };
 
 /**
- * ProfileChangeRequestsPanel — v50m.
- * Admin tab under Masters → "Profile changes" showing vendor profile edit
- * requests (address / phone / email) with approve/reject actions.
- * Email changes additionally require the vendor to have already clicked
- * the confirmation link emailed to the NEW address.
+ * ProfileChangeRequestsPanel — v50m; v51ag adds search + field + date filter.
  */
 export default function ProfileChangeRequestsPanel() {
   const [rows, setRows] = useState([]);
   const [status, setStatus] = useState("pending");
   const [notes, setNotes] = useState({});
   const [busyId, setBusyId] = useState(null);
+  // v51ag — client-side filters
+  const [q, setQ] = useState("");
+  const [field, setField] = useState("");
+  const [reqFrom, setReqFrom] = useState("");
+  const [reqTo, setReqTo] = useState("");
 
   const load = useCallback(() => {
     mastersApi.listProfileChangeRequests(status)
@@ -29,6 +30,25 @@ export default function ProfileChangeRequestsPanel() {
       .catch(showApiError);
   }, [status]);
   useEffect(() => { load(); }, [load]);
+
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return rows.filter((r) => {
+      if (field && r.field !== field) return false;
+      if (needle) {
+        const hay = [
+          r.vendor_company, r.vendor_ref, r.vendor_email,
+          r.old_value, r.new_value, r.reason, r.field,
+          FIELD_LABELS[r.field],
+        ].filter(Boolean).join(" ").toLowerCase();
+        if (!hay.includes(needle)) return false;
+      }
+      const d = (r.requested_at || "").slice(0, 10);
+      if (reqFrom && d && d < reqFrom) return false;
+      if (reqTo   && d && d > reqTo)   return false;
+      return true;
+    });
+  }, [rows, q, field, reqFrom, reqTo]);
 
   const decide = async (id, action) => {
     const note = notes[id] || "";
@@ -47,6 +67,8 @@ export default function ProfileChangeRequestsPanel() {
     finally { setBusyId(null); }
   };
 
+  const clearFilters = () => { setQ(""); setField(""); setReqFrom(""); setReqTo(""); };
+
   return (
     <div data-testid="profile-change-requests-panel">
       <div className="flex items-center gap-2 mb-3 flex-wrap">
@@ -60,14 +82,74 @@ export default function ProfileChangeRequestsPanel() {
           </button>
         ))}
       </div>
-      {rows.length === 0 && (
+
+      {/* v51ag — filter bar */}
+      <div className="bg-white border border-brand-navy/15 rounded px-3 py-3 mb-4 flex flex-wrap items-end gap-3"
+           data-testid="pcr-filter-bar">
+        <label className="flex flex-col flex-1 min-w-[200px]">
+          <span className="pmc-label text-[10px]">Search</span>
+          <input value={q} onChange={(e) => setQ(e.target.value)}
+                 placeholder="Vendor, old/new value, reason…"
+                 data-testid="pcr-search"
+                 className="mt-1 px-2 py-1.5 border border-brand-navy/15 text-sm"/>
+        </label>
+        <label className="flex flex-col min-w-[160px]">
+          <span className="pmc-label text-[10px]">Field</span>
+          <select value={field} onChange={(e) => setField(e.target.value)}
+                  data-testid="pcr-field-filter"
+                  className="mt-1 px-2 py-1.5 border border-brand-navy/15 text-sm bg-white">
+            <option value="">All fields</option>
+            {Object.entries(FIELD_LABELS).map(([k, v]) =>
+              <option key={k} value={k}>{v}</option>)}
+          </select>
+        </label>
+        <label className="flex flex-col">
+          <span className="pmc-label text-[10px]">Requested from</span>
+          <input type="date" value={reqFrom}
+                 max={reqTo || undefined}
+                 onChange={(e) => {
+                   const v = e.target.value;
+                   if (v && reqTo && v > reqTo) {
+                     toast.error('"Requested from" cannot be later than "Requested to"');
+                     return;
+                   }
+                   setReqFrom(v);
+                 }}
+                 data-testid="pcr-from"
+                 className="mt-1 px-2 py-1.5 border border-brand-navy/15 text-sm"/>
+        </label>
+        <label className="flex flex-col">
+          <span className="pmc-label text-[10px]">Requested to</span>
+          <input type="date" value={reqTo}
+                 min={reqFrom || undefined}
+                 onChange={(e) => {
+                   const v = e.target.value;
+                   if (v && reqFrom && v < reqFrom) {
+                     toast.error('"Requested to" cannot be earlier than "Requested from"');
+                     return;
+                   }
+                   setReqTo(v);
+                 }}
+                 data-testid="pcr-to"
+                 className="mt-1 px-2 py-1.5 border border-brand-navy/15 text-sm"/>
+        </label>
+        <button type="button" onClick={clearFilters}
+                data-testid="pcr-clear"
+                className="px-3 py-2 text-[10px] uppercase tracking-widest border border-brand-navy/20 text-brand-navy/70 hover:bg-brand-navy/5">
+          Clear
+        </button>
+      </div>
+
+      {filtered.length === 0 && (
         <div className="p-6 text-sm text-brand-navy/50 bg-white border border-brand-navy/10"
              data-testid="pcr-empty">
-          No {status} profile change requests.
+          {rows.length === 0
+            ? `No ${status} profile change requests.`
+            : "No profile change requests match your filters."}
         </div>
       )}
       <div className="space-y-3">
-        {rows.map((r) => {
+        {filtered.map((r) => {
           const emailBlocked = r.field === "email" && !r.email_verified;
           const phoneBlocked = (r.field === "mobile" || r.field === "office_phone") && !r.phone_confirmed;
           const approveBlocked = emailBlocked || phoneBlocked;

@@ -3,9 +3,9 @@
  * Owns the inbound-EMD form + the ledger with per-officer sign buttons and
  * the final release button. Kept pure UI + calls into escrowApi.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { escrowApi, formatApiError, showApiError } from "@/lib/api";
+import { adminApi, escrowApi, showApiError } from "@/lib/api";
 import { InfoDot } from "@/components/InfoDot";
 import { useListPager } from "@/components/ListPager";
 
@@ -42,8 +42,17 @@ function TransactionRow({ t, onSign, onRelease }) {
   const snapPmcEmail = (snap.pmc_officer?.email || "").toLowerCase();
   const snapEscEmail = (snap.escrow_officer?.email || "").toLowerCase();
   const sameEmail = t.governance_ok === false || (snapPmcEmail && snapPmcEmail === snapEscEmail);
+  // v51ag — expose row metadata so the parent MoneyFilterBar can filter by
+  // tender/vendor text, status pill and created date.
+  const createdAt = (t.received_at || t.created_at || "").slice(0, 10);
   return (
-    <div className="p-4" data-testid={`escrow-tx-row-${t.id}`}>
+    <div className="p-4"
+         data-testid={`escrow-tx-row-${t.id}`}
+         data-row="1"
+         data-status={(t.status || "").toLowerCase()}
+         data-created-at={createdAt}
+         data-creator={(t.recorded_by || "").toLowerCase()}
+         data-tender-ref={t.notice_ref || t.bid_ref || ""}>
       <div className="flex items-baseline justify-between gap-3 flex-wrap">
         <div>
           <span className="font-mono text-xs text-brand-navy-soft">{t.bid_ref}</span>
@@ -79,7 +88,10 @@ function TransactionRow({ t, onSign, onRelease }) {
         <SignatureBox label="Escrow officer" officer={snap.escrow_officer} sig={esc}/>
       </div>
       {!closed && (
-        <div className="mt-3 flex flex-wrap gap-2 border-t border-brand-navy/10 pt-3">
+        <div className="mt-3 border-t border-brand-navy/10 pt-3 space-y-2">
+          {/* v51ag — tell the admin which officer side their email will map to */}
+          <OfficerIdentityHint snap={snap} />
+          <div className="flex flex-wrap gap-2">
           {ACTIONS.map((a) => (
             <button key={a} onClick={() => onSign(t, a)}
                     disabled={sameEmail}
@@ -95,7 +107,42 @@ function TransactionRow({ t, onSign, onRelease }) {
                   className="ml-auto px-3 py-1 text-[11px] uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep disabled:opacity-40 disabled:cursor-not-allowed">
             Release ({sameEmail ? "blocked — fix officers" : bothMatch ? "unlocked" : "needs both signatures"})
           </button>
+          </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+/** v51ag — small identity banner inside each pending transaction so the
+ *  admin can see which officer side the signature will be recorded against.
+ *  The sign endpoint only accepts the officer emails listed on the account.
+ */
+function OfficerIdentityHint({ snap }) {
+  const pmcEmail = (snap.pmc_officer?.email || "");
+  const escEmail = (snap.escrow_officer?.email || "");
+  const [me, setMe] = useState("");
+  useEffect(() => {
+    adminApi.me().then((d) => setMe(d?.email || "")).catch(() => {});
+  }, []);
+  const meLc = me.toLowerCase();
+  const asPmc = meLc && meLc === pmcEmail.toLowerCase();
+  const asEsc = meLc && meLc === escEmail.toLowerCase();
+  const neither = me && !asPmc && !asEsc && pmcEmail && escEmail;
+  return (
+    <div className={"text-[11px] px-2 py-1.5 border " + (
+      neither ? "bg-amber-50 border-amber-300 text-amber-900"
+              : "bg-brand-pale border-brand-navy/15 text-brand-navy/80"
+    )} data-testid="escrow-identity-hint">
+      <b>You are logged in as:</b> {me || "— (sign-in required)"}
+      {asPmc && <> · will sign as <b>PMC officer</b> ({pmcEmail})</>}
+      {asEsc && <> · will sign as <b>Escrow officer</b> ({escEmail})</>}
+      {neither && (
+        <> · ⚠ You are NOT one of the two officers on this account. The sign button will
+          be rejected by the backend. Officers on record are
+          PMC <code className="font-mono">{pmcEmail}</code> and
+          Escrow <code className="font-mono">{escEmail}</code>. Those two people must
+          each log in separately and sign the same action for Release to fire.</>
       )}
     </div>
   );
@@ -121,12 +168,29 @@ export default function EscrowTransactionsSection({ accounts, txs, onReload }) {
   };
 
   const signAction = async (t, action) => {
+    // v51ag — identity check: fetch the signed-in admin's email and verify
+    // the account's officer snapshot includes it before firing the request.
+    const snap = t.escrow_account_snapshot || {};
+    const pmcEmail = (snap.pmc_officer?.email || "").toLowerCase();
+    const escEmail = (snap.escrow_officer?.email || "").toLowerCase();
+    let me = "";
+    try { me = ((await adminApi.me())?.email || "").toLowerCase(); } catch {}
+    const asPmc = me && me === pmcEmail;
+    const asEsc = me && me === escEmail;
+    if (me && pmcEmail && escEmail && !asPmc && !asEsc) {
+      toast.error(
+        "You are not an officer on this joint account — signing will be rejected.",
+        {
+          description: `Signed in as ${me}. Officers on record: PMC = ${pmcEmail}, ` +
+            `Escrow = ${escEmail}. Log in as one of those two accounts, or amend the ` +
+            "joint account in the editor above to include your email.",
+          duration: 14000,
+        },
+      );
+      return;
+    }
     try {
       const result = await escrowApi.sign(t.id, { intended_action: action });
-      // 2026-09-19 — verify the signature actually landed on OUR side. If the
-      // account has same-email governance issue the backend now rejects with
-      // 409; but if any future backend regression records only one side we'll
-      // catch it here too and surface a warning instead of a green success.
       const sigs = result?.signatures || {};
       const pmc = sigs.pmc || {};
       const esc = sigs.escrow_institution || {};
@@ -141,9 +205,15 @@ export default function EscrowTransactionsSection({ accounts, txs, onReload }) {
                      : esc.signed_at && !pmc.signed_at ? "Escrow officer"
                      : "one side";
         const missing = pmc.signed_at ? "the Escrow officer" : "the PMC officer";
+        const missingEmail = pmc.signed_at ? snap.escrow_officer?.email : snap.pmc_officer?.email;
         toast.info(`Signed as ${mySide} — awaiting ${missing}`, {
-          description: `The release will NOT trigger until ${missing} also signs "${action.replace(/_/g, " ")}" on this transaction. Nothing has been transferred yet.`,
-          duration: 9000,
+          description:
+            `The release will NOT trigger until ${missing}` +
+            (missingEmail ? ` (${missingEmail})` : "") +
+            ` logs in and also signs "${action.replace(/_/g, " ")}" on this transaction. ` +
+            "Nothing has been transferred yet. Share the admin console link with them, " +
+            "or amend the joint account above if the officer email is wrong.",
+          duration: 14000,
         });
       }
       onReload();

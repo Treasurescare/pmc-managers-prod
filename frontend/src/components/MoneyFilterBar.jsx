@@ -142,14 +142,30 @@ export default function MoneyFilterBar({
       <label className="flex flex-col">
         <span className="pmc-label text-[10px]">Created from</span>
         <input type="date" value={createdFrom}
-               onChange={(e) => setCreatedFrom(e.target.value)}
+               max={createdTo || undefined}
+               onChange={(e) => {
+                 const v = e.target.value;
+                 if (v && createdTo && v > createdTo) {
+                   toast.error('"Created from" cannot be later than "Created to"');
+                   return;
+                 }
+                 setCreatedFrom(v);
+               }}
                data-testid={`${testid}-cfrom`}
                className="mt-1 px-2 py-1.5 border border-brand-navy/15 text-sm"/>
       </label>
       <label className="flex flex-col">
         <span className="pmc-label text-[10px]">Created to</span>
         <input type="date" value={createdTo}
-               onChange={(e) => setCreatedTo(e.target.value)}
+               min={createdFrom || undefined}
+               onChange={(e) => {
+                 const v = e.target.value;
+                 if (v && createdFrom && v < createdFrom) {
+                   toast.error('"Created to" cannot be earlier than "Created from"');
+                   return;
+                 }
+                 setCreatedTo(v);
+               }}
                data-testid={`${testid}-cto`}
                className="mt-1 px-2 py-1.5 border border-brand-navy/15 text-sm"/>
       </label>
@@ -157,14 +173,30 @@ export default function MoneyFilterBar({
         <label className="flex flex-col">
           <span className="pmc-label text-[10px]">Expires from</span>
           <input type="date" value={expiringFrom}
-                 onChange={(e) => setExpiringFrom(e.target.value)}
+                 max={expiringTo || undefined}
+                 onChange={(e) => {
+                   const v = e.target.value;
+                   if (v && expiringTo && v > expiringTo) {
+                     toast.error('"Expires from" cannot be later than "Expires to"');
+                     return;
+                   }
+                   setExpiringFrom(v);
+                 }}
                  data-testid={`${testid}-efrom`}
                  className="mt-1 px-2 py-1.5 border border-brand-navy/15 text-sm"/>
         </label>
         <label className="flex flex-col">
           <span className="pmc-label text-[10px]">Expires to</span>
           <input type="date" value={expiringTo}
-                 onChange={(e) => setExpiringTo(e.target.value)}
+                 min={expiringFrom || undefined}
+                 onChange={(e) => {
+                   const v = e.target.value;
+                   if (v && expiringFrom && v < expiringFrom) {
+                     toast.error('"Expires to" cannot be earlier than "Expires from"');
+                     return;
+                   }
+                   setExpiringTo(v);
+                 }}
                  data-testid={`${testid}-eto`}
                  className="mt-1 px-2 py-1.5 border border-brand-navy/15 text-sm"/>
         </label>

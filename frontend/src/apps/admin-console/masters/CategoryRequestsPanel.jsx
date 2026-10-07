@@ -1,27 +1,43 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { mastersApi, showApiError } from "@/lib/api";
 
 /**
- * CategoryRequestsPanel — v50l.
- * Admin tab listing pending vendor category requests with approve/reject
- * actions. Mounted inside Admin → Masters → Vendor requests.
+ * CategoryRequestsPanel — v50l; v51ag adds search + status date filter.
  */
 export default function CategoryRequestsPanel() {
   const [rows, setRows] = useState([]);
   const [status, setStatus] = useState("pending");
   const [notes, setNotes] = useState({});
   const [busyId, setBusyId] = useState(null);
+  // v51ag — client-side filters
+  const [q, setQ] = useState("");
+  const [reqFrom, setReqFrom] = useState("");
+  const [reqTo, setReqTo] = useState("");
 
   const load = useCallback(() => {
     mastersApi.listCategoryRequests(status)
-      // v50r — defensive: wrong-router-order used to return the
-      // {"detail": "Vendor not found"} dict instead of an array and the
-      // panel would crash on rows.map. Keep guard even after fix.
       .then((d) => setRows(Array.isArray(d) ? d : (d?.items || [])))
       .catch(showApiError);
   }, [status]);
   useEffect(() => { load(); }, [load]);
+
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return rows.filter((r) => {
+      if (needle) {
+        const hay = [
+          r.category_name, r.category_code, r.vendor_company, r.vendor_ref,
+          r.vendor_email, r.rationale,
+        ].filter(Boolean).join(" ").toLowerCase();
+        if (!hay.includes(needle)) return false;
+      }
+      const d = (r.requested_at || "").slice(0, 10);
+      if (reqFrom && d && d < reqFrom) return false;
+      if (reqTo   && d && d > reqTo)   return false;
+      return true;
+    });
+  }, [rows, q, reqFrom, reqTo]);
 
   const decide = async (id, action) => {
     const note = notes[id] || "";
@@ -40,6 +56,8 @@ export default function CategoryRequestsPanel() {
     finally { setBusyId(null); }
   };
 
+  const clearFilters = () => { setQ(""); setReqFrom(""); setReqTo(""); };
+
   return (
     <div data-testid="category-requests-panel">
       <div className="flex items-center gap-2 mb-3 flex-wrap">
@@ -49,17 +67,65 @@ export default function CategoryRequestsPanel() {
             className={"px-3 py-1.5 text-[10px] uppercase tracking-widest border " +
               (status === s ? "bg-brand-navy text-white border-brand-navy"
                             : "bg-white text-brand-navy/70 border-brand-navy/20")}>
-            {s} ({status === s ? rows.length : "…"})
+            {s} ({status === s ? filtered.length : "…"})
           </button>
         ))}
       </div>
-      {rows.length === 0 && (
+
+      {/* v51ag — search / date-range filter bar */}
+      <div className="bg-white border border-brand-navy/15 rounded px-3 py-3 mb-4 flex flex-wrap items-end gap-3"
+           data-testid="cat-req-filter-bar">
+        <label className="flex flex-col flex-1 min-w-[200px]">
+          <span className="pmc-label text-[10px]">Search</span>
+          <input value={q} onChange={(e) => setQ(e.target.value)}
+                 placeholder="Category, vendor name or email…"
+                 data-testid="cat-req-search"
+                 className="mt-1 px-2 py-1.5 border border-brand-navy/15 text-sm"/>
+        </label>
+        <label className="flex flex-col">
+          <span className="pmc-label text-[10px]">Requested from</span>
+          <input type="date" value={reqFrom}
+                 max={reqTo || undefined}
+                 onChange={(e) => {
+                   const v = e.target.value;
+                   if (v && reqTo && v > reqTo) {
+                     toast.error('"Requested from" cannot be later than "Requested to"');
+                     return;
+                   }
+                   setReqFrom(v);
+                 }}
+                 data-testid="cat-req-from"
+                 className="mt-1 px-2 py-1.5 border border-brand-navy/15 text-sm"/>
+        </label>
+        <label className="flex flex-col">
+          <span className="pmc-label text-[10px]">Requested to</span>
+          <input type="date" value={reqTo}
+                 min={reqFrom || undefined}
+                 onChange={(e) => {
+                   const v = e.target.value;
+                   if (v && reqFrom && v < reqFrom) {
+                     toast.error('"Requested to" cannot be earlier than "Requested from"');
+                     return;
+                   }
+                   setReqTo(v);
+                 }}
+                 data-testid="cat-req-to"
+                 className="mt-1 px-2 py-1.5 border border-brand-navy/15 text-sm"/>
+        </label>
+        <button type="button" onClick={clearFilters}
+                data-testid="cat-req-clear"
+                className="px-3 py-2 text-[10px] uppercase tracking-widest border border-brand-navy/20 text-brand-navy/70 hover:bg-brand-navy/5">
+          Clear
+        </button>
+      </div>
+
+      {filtered.length === 0 && (
         <div className="p-6 text-sm text-brand-navy/50 bg-white border border-brand-navy/10">
-          No {status} requests.
+          {rows.length === 0 ? `No ${status} requests.` : "No requests match your filters."}
         </div>
       )}
       <div className="space-y-3">
-        {rows.map((r) => (
+        {filtered.map((r) => (
           <div key={r.id} className="bg-white border border-brand-navy/10 p-4"
                data-testid={`cat-req-${r.id}`}>
             <div className="flex items-start justify-between gap-3 flex-wrap">
