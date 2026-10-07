@@ -19,7 +19,7 @@ Public / Vendor / Buyer / Admin roles.
 | Google Play feature graphic 1024×500 | ✅ `mobile_assets/android_feature_1024x500.png` |
 | iOS 6.7" screenshots (Public / Vendor / Admin / Auction) | ✅ 4 shots |
 | Android phone screenshots (Public / Vendor / Admin / Auction) | ✅ 4 shots |
-| Website ownership verified (Search Console) | ✅ `pmcmanagers.com` live with meta verification tag |
+| Website ownership verified (Search Console) | ✅ "Ownership verified" via HTML tag (07 Oct 2026) — the `google-site-verification` meta tag in `public/index.html` must NEVER be removed, or verification is revoked |
 | Store asset bundle | ✅ `pmc-mobile-store-assets-v1.0.0.zip` (13 files: 3 brand assets + 10 store screenshots + README) |
 
 ## Account email

@@ -51,7 +51,11 @@ Pick the easiest option below:
 
 ---
 
-### STEP 3: RETURN TO PLAY CONSOLE & CLICK "VERIFY WEBSITE"
+### ⚠️ PERMANENT RULE
+
+The meta tag `<meta name="google-site-verification" content="t7scPgT9ZxpjYxkyRAyB8cCvfrCh04IAO6XcvAvS4r0" />` in `frontend/public/index.html` must remain in **every** future frontend release. Removing it revokes Search Console ownership and breaks the Play Console website link.
+
+## STEP 3: RETURN TO PLAY CONSOLE & CLICK "VERIFY WEBSITE"
 
 1. Go back to your Google Play Console tab (the screenshot you just shared).
 2. Click the blue **"Verify website"** button.
