@@ -95,6 +95,7 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
       if (act) {
         if (awarded) act.innerHTML = `<button class="pmc-btn pmc-btn--secondary" data-bo-action="view" data-bid-id="${b.id}">Open award</button>`;
         else if (supplier) act.innerHTML = (emdAmt > 0 ? `<button class="pmc-btn pmc-btn--primary" data-bo-action="send" data-bid-id="${b.id}">${b.emd_link_sent_at ? "Resend EMD link" : "Send EMD link"}</button>` : "") + `<button class="pmc-btn pmc-btn--secondary" data-bo-action="review" data-bid-id="${b.id}">Open bid</button>`;
+        else if (st === "on_hold") act.innerHTML = `<div class="pmc-callout pmc-callout--warn" style="margin:0" data-testid="bo-detail-hold-note"><b>On hold.</b> ${b.hold_reason ? `Reason: ${b.hold_reason}. ` : ""}${b.held_by ? `Held by ${b.held_by}. ` : ""}The vendor cannot change anything until you resume.</div><button class="pmc-btn pmc-btn--primary" data-bo-action="resume" data-bid-id="${b.id}" data-testid="bo-resume-btn">Resume bid</button><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><button class="pmc-btn pmc-btn--secondary" data-bo-action="review" data-bid-id="${b.id}">Open bid</button><button class="pmc-btn pmc-btn--danger" data-bo-action="reject" data-bid-id="${b.id}">Reject…</button></div>`;
         else act.innerHTML = (st === "escrow_accepted" ? `<button class="pmc-btn pmc-btn--primary" data-bo-action="flag" data-bid-id="${b.id}">Flag to certifier</button>` : `<button class="pmc-btn pmc-btn--primary" data-bo-action="review" data-bid-id="${b.id}">Open bid</button>`) + `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><button class="pmc-btn pmc-btn--secondary" data-bo-action="hold" data-bid-id="${b.id}">Hold…</button><button class="pmc-btn pmc-btn--danger" data-bo-action="reject" data-bid-id="${b.id}">Reject…</button></div>`;
       }
     };
@@ -158,12 +159,29 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
           const reason = window.prompt("Hold bid? Optional reason:", "") ?? "";
           await bidApi.decide(bidId, { action: "hold", role: "admin", notes: reason });
           toast.success("Bid put on hold");
+        } else if (act === 'resume') {
+          if (!window.confirm("Resume this bid? It returns to the exact step it was paused from.")) { btn.disabled = false; return; }
+          await bidApi.decide(bidId, { action: "resume", role: "admin", notes: "" });
+          toast.success("Bid resumed — back in the pipeline");
         } else if (act === 'reject') {
           if (!window.confirm("Reject this bid? This is recorded on the audit ledger.")) { btn.disabled = false; return; }
           await bidApi.decide(bidId, { action: "reject", role: "admin", notes: "" });
           toast.success("Bid rejected");
         }
         setTick((t) => t + 1);
+        // v51aj — the detail panel (#d-act) only rebuilds on row click, so
+        // after hold/resume/reject it kept showing the stale buttons (and the
+        // disabled-in-flight "greyed Hold"). Re-open the panel for the same
+        // bid once the live rows have been rebuilt so the on_hold note and
+        // Resume button appear immediately.
+        setTimeout(() => {
+          const row = root.querySelector(`[data-bid-id="${bidId}"]`);
+          if (row) row.click();
+        }, 900);
+        setTimeout(() => {
+          const row = root.querySelector(`[data-bid-id="${bidId}"]`);
+          if (row) row.click();
+        }, 1800);
       } catch (err) { showApiError(err); btn.disabled = false; }
     };
     const onBulkRemind = async (e) => {

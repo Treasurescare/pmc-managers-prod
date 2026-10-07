@@ -49,6 +49,15 @@ Public / Vendor / Buyer / Admin roles.
 - `/downloads/DOWNLOAD_mobile_v1.0.0.md`
 
 ## Latest web releases
+- **v51aj** — Bidding ops hold/resume clarity: detail panel on an on_hold bid
+  now shows an "On hold — reason — held by" note plus a **Resume bid** button
+  (Hold… hidden), and the panel auto-refreshes after hold/resume/reject so the
+  disabled-in-flight "greyed Hold" state can't get stuck (the user's
+  "greyed hold → normal hold" mystery). Envelope-edit gate widened:
+  `PATCH /api/v1/bids/{id}` + workspace "+ Add file" now allow edits in
+  emd_paid and escrow_accepted too (everything before admin evaluation,
+  deadline still enforced; on_hold stays locked until resumed).
+  Bundles: `pmc-frontend-v51aj-prod-build.zip` + `pmc-backend-v51aj.zip`.
 - **v51ai** — Vendor workspace "unable to proceed" fix. New backend
   `PATCH /api/v1/bids/{id}` (vendor-owner scoped; editable while
   draft/submitted/emd_pending and before deadline; audit-logged

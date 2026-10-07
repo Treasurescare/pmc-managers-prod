@@ -275,10 +275,11 @@ export default function VendorBidWorkspaceE({ legacy: Legacy }) {
   const firstPending = !techDone ? 2 : !commDone ? 3 : !emdDone ? 4 : 5;
   const paymentRef = bid?.bid_ref || "—";
   const deadline = notice?.submission_deadline || bid?.submission_deadline;
-  // v51ai — envelope files can be changed while the bid is draft / submitted /
-  // emd_pending and the deadline hasn't passed. on_hold and later stages lock.
+  // v51ai — envelope files can be changed while the bid is anywhere before
+  // admin evaluation starts (draft / submitted / emd_pending / emd_paid /
+  // escrow_accepted) and the deadline hasn't passed. on_hold and later lock.
   const envEditable = Boolean(bid) &&
-    ["draft", "submitted", "emd_pending"].includes(bid.status) &&
+    ["draft", "submitted", "emd_pending", "emd_paid", "escrow_accepted"].includes(bid.status) &&
     (!deadline || new Date(deadline) > new Date());
 
   return (

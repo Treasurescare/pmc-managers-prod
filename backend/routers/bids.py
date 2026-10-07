@@ -252,7 +252,12 @@ async def update_bid(bid_id: str, payload: BidUpdateIn,
     b = await db.bids.find_one({"_id": bid_oid})
     if not b or b.get("vendor_id") != vendor["id"]:
         raise HTTPException(status_code=404, detail="Bid not found")
-    if b.get("status") not in ("draft", "submitted", "emd_pending"):
+    # v51aj — envelope edits stay open while the bid is anywhere BEFORE admin
+    # evaluation starts (incl. emd_paid / escrow_accepted). A vendor who paid
+    # EMD but forgot the commercial PDF can still fix it until the deadline;
+    # on_hold stays locked until the admin resumes.
+    if b.get("status") not in ("draft", "submitted", "emd_pending",
+                               "emd_paid", "escrow_accepted"):
         raise HTTPException(status_code=400,
             detail=f"Bid is {b.get('status')} — documents can no longer be changed")
     notice = await db.notices.find_one({"notice_ref": b.get("notice_ref")}) or {}
