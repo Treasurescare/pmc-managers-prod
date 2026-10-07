@@ -287,8 +287,6 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
       <a href="/admin/e/evaluation" className="pmc-btn pmc-btn--primary" data-testid="bo-form-committee-btn"><svg className="pmc-ico" aria-hidden="true"><use href="#i-users" /></svg> Form committee</a>
     </div>
   </div>
-  <div style={{padding: "0 0 12px 0"}}>{boFilterEl}</div>
-
   <section className="bo-flow" aria-label="Clearance pipeline" data-testid="bo-flow">
     <a href="#" className="bo-step sup" data-flow="emd"><span className="n" data-flow-count="emd">0</span><span className="l">EMD</span><span className="o">Supplier pays</span></a>
     <span className="bo-arrow">→</span>
@@ -304,6 +302,9 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
     <span className="bo-arrow">→</span>
     <a href="#" className="bo-step done" data-flow="awarded"><span className="n" data-flow-count="awarded">0</span><span className="l">Awarded</span><span className="o">Committee</span></a>
   </section>
+
+  {/* v51ah — filters sit BELOW the step-number tiles (user-requested order) */}
+  <div style={{padding: "12px 0 12px 0"}}>{boFilterEl}</div>
 
   <div className="bo-grid">
     <div style={{minWidth:0}}>

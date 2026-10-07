@@ -49,6 +49,15 @@ Public / Vendor / Buyer / Admin roles.
 - `/downloads/DOWNLOAD_mobile_v1.0.0.md`
 
 ## Latest web releases
+- **v51ah** — Bidding ops: pipeline step tiles now render above the filter
+  bar (user-requested order). Vendor bid workspace: EMD=0 bids no longer
+  dead-end on "Pay the EMD" (step auto-completes as "Not required", compact
+  info card replaces the payment form, checklist shows EMD ✓); envelope panel
+  now reads real `bid.documents` (kind technical/commercial) instead of the
+  never-populated `bid.envelopes.*.files`, listing each file with in-page
+  View + Download — vendors can always inspect their own submissions.
+  Verified in preview with PMC-BID-2026-00019 (submitted, EMD 0, docs
+  present). Frontend-only ZIP: `pmc-frontend-v51ah-prod-build.zip`.
 - **v51ag** — Vendor requests + Profile changes gain search/date-range filters;
   BOQ, Bidding ops, Escrow filters now actually hide non-matching rows (DOM
   row tags: `data-row`, `data-status`, `data-created-at`); Work packages

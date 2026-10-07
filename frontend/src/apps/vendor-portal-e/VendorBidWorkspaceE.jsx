@@ -65,6 +65,58 @@ function fmtCountdown(iso) {
   return `${m}m`;
 }
 
+/** v51ah — vendor can always see (and re-download) the files THEY submitted
+ *  inside each envelope. PMC staff cannot open them before the deadline, but
+ *  the owning vendor can. */
+function EnvelopeFiles({ files, onView, testid }) {
+  if (!files?.length) return null;
+  return (
+    <ul data-testid={testid}
+        style={{ listStyle: "none", margin: 0, padding: "0 20px 10px" }}>
+      {files.map((f, i) => {
+        const name = f.filename || f.name || f.file_name || `File ${i + 1}`;
+        const size = f.size_bytes ?? f.size;
+        const key = f.key;
+        return (
+          <li key={i}
+              data-testid={`${testid}-row-${i}`}
+              style={{ display: "flex", alignItems: "center", gap: 8,
+                       padding: "6px 0", borderTop: "1px solid var(--line,#0001)",
+                       fontSize: 13 }}>
+            <svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg>
+            <span style={{ flex: 1, minWidth: 0, overflow: "hidden",
+                           textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                  title={name}>{name}</span>
+            {size ? (
+              <span className="pmc-muted" style={{ fontSize: 11 }}>
+                {size >= 1048576
+                  ? `${(size / 1048576).toFixed(1)} MB`
+                  : `${Math.max(1, Math.round(size / 1024))} KB`}
+              </span>
+            ) : null}
+            {key && (
+              <button type="button"
+                      onClick={() => onView({ key, filename: name })}
+                      className="pmc-btn pmc-btn--ghost pmc-btn--sm"
+                      data-testid={`${testid}-view-${i}`}>
+                View
+              </button>
+            )}
+            {key && (
+              <a href={`${BACKEND_URL}/api/v1/uploads/files/${key}`}
+                 download={name}
+                 className="pmc-btn pmc-btn--ghost pmc-btn--sm"
+                 data-testid={`${testid}-dl-${i}`}>
+                Download
+              </a>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 export default function VendorBidWorkspaceE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
   const { bidId } = useParams();
@@ -157,9 +209,24 @@ export default function VendorBidWorkspaceE({ legacy: Legacy }) {
 
   const [statusCls, statusLabel] = STATUS_PILL[bid?.status] || ["", bid?.status || "—"];
   const envelopes = bid?.envelopes || {};
-  const techFiles = envelopes?.technical?.files || [];
-  const commFiles = envelopes?.commercial?.files || [];
-  const bothSealed = (envelopes?.technical?.sealed_at) && (envelopes?.commercial?.sealed_at);
+  // v51ah — envelope CONTENT comes from the bid's documents (kind: technical /
+  // commercial), uploaded when the bid was composed. The legacy
+  // envelopes.*.files field is never populated by the backend, which made
+  // every workspace show "No files sealed yet" even for fully submitted bids.
+  const docs = Array.isArray(bid?.documents) ? bid.documents : [];
+  const techFiles = envelopes?.technical?.files?.length
+    ? envelopes.technical.files
+    : docs.filter((d) => d.kind === "technical");
+  const commFiles = envelopes?.commercial?.files?.length
+    ? envelopes.commercial.files
+    : docs.filter((d) => d.kind === "commercial");
+  const techDone = Boolean(envelopes?.technical?.sealed_at) || techFiles.length > 0;
+  const commDone = Boolean(envelopes?.commercial?.sealed_at) || commFiles.length > 0;
+  const emdNotRequired = emdDue <= 0;
+  const emdDone = emdNotRequired || emdSettled;
+  const bothSealed = techDone && commDone;
+  // First step still needing the vendor's action — drives the "Your action" marker.
+  const firstPending = !techDone ? 2 : !commDone ? 3 : !emdDone ? 4 : 5;
   const paymentRef = bid?.bid_ref || "—";
   const deadline = notice?.submission_deadline || bid?.submission_deadline;
 
@@ -230,26 +297,30 @@ export default function VendorBidWorkspaceE({ legacy: Legacy }) {
                 <div className="done"><span className="d">✓</span>
                   <span>Eligibility<small>KYC match</small></span>
                 </div>
-                <div className={envelopes?.technical?.sealed_at ? "done" : ""}>
-                  <span className="d">{envelopes?.technical?.sealed_at ? "✓" : "2"}</span>
+                <div className={techDone ? "done" : firstPending === 2 ? "now" : ""}>
+                  <span className="d">{techDone ? "✓" : "2"}</span>
                   <span>Technical envelope
                     <small>{envelopes?.technical?.sealed_at
                       ? `Sealed ${fmtDeadline(envelopes.technical.sealed_at)}`
-                      : "Not sealed"}</small>
+                      : techDone
+                        ? "Submitted with bid"
+                        : firstPending === 2 ? "Your action" : "Not submitted"}</small>
                   </span>
                 </div>
-                <div className={envelopes?.commercial?.sealed_at ? "done" : ""}>
-                  <span className="d">{envelopes?.commercial?.sealed_at ? "✓" : "3"}</span>
+                <div className={commDone ? "done" : firstPending === 3 ? "now" : ""}>
+                  <span className="d">{commDone ? "✓" : "3"}</span>
                   <span>Commercial envelope
                     <small>{envelopes?.commercial?.sealed_at
                       ? `Sealed ${fmtDeadline(envelopes.commercial.sealed_at)}`
-                      : "Not sealed"}</small>
+                      : commDone
+                        ? "Submitted with bid"
+                        : firstPending === 3 ? "Your action" : "Not submitted"}</small>
                   </span>
                 </div>
-                <div className={emdSettled ? "done" : "now"}>
-                  <span className="d">{emdSettled ? "✓" : "4"}</span>
+                <div className={emdDone ? "done" : firstPending === 4 ? "now" : ""}>
+                  <span className="d">{emdDone ? "✓" : "4"}</span>
                   <span>EMD / bank guarantee
-                    <small>{emdSettled ? "Settled" : "Your action"}</small>
+                    <small>{emdNotRequired ? "Not required" : emdSettled ? "Settled" : "Your action"}</small>
                   </span>
                 </div>
                 <div className={bid.status === "under_review" || bid.status === "awarded" ? "done" : ""}>
@@ -268,11 +339,32 @@ export default function VendorBidWorkspaceE({ legacy: Legacy }) {
                       <div className="pmc-eyebrow">Step 4 of 5</div>
                       <h2 className="pmc-panel__title" style={{ fontSize: 20 }}
                           data-testid="bw-emd-title">
-                        Pay the Earnest Money Deposit
+                        {emdNotRequired
+                          ? "Earnest Money Deposit — not required"
+                          : "Pay the Earnest Money Deposit"}
                       </h2>
                     </div>
                   </div>
                   <div className="pmc-panel__body" style={{ display: "grid", gap: 16 }}>
+                    {emdNotRequired ? (
+                      <div className="pmc-callout" data-testid="bw-emd-not-required"
+                           style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                        <svg className="pmc-ico" aria-hidden="true"><use href="#i-check" /></svg>
+                        <div>
+                          <b>No EMD required for this tender.</b>
+                          <div className="pmc-muted" style={{ fontSize: 13, marginTop: 4 }}>
+                            The buyer set the Earnest Money Deposit to zero — nothing to pay
+                            or upload here. This step is already complete; your bid moves
+                            straight to review, sign &amp; seal.
+                          </div>
+                          <button type="button" onClick={onSaveAndFinishLater}
+                                  className="pmc-btn pmc-btn--secondary" style={{ marginTop: 10 }}
+                                  data-testid="bw-save-later-noemd">
+                            Save and finish later
+                          </button>
+                        </div>
+                      </div>
+                    ) : (<>
                     <div style={{ display: "flex", justifyContent: "space-between",
                                   alignItems: "center", padding: "16px 18px",
                                   background: "var(--surface-sunken)",
@@ -460,6 +552,7 @@ export default function VendorBidWorkspaceE({ legacy: Legacy }) {
                         </button>
                       )}
                     </div>
+                    </>)}
                   </div>
                 </section>
 
@@ -468,7 +561,7 @@ export default function VendorBidWorkspaceE({ legacy: Legacy }) {
                   <div className="pmc-panel__head">
                     <h2 className="pmc-panel__title">Sealed envelopes</h2>
                     <span className={`pmc-pill ${bothSealed ? "pmc-pill--success" : "pmc-pill--warning"}`}>
-                      {bothSealed ? "2 of 2 sealed" : "Pending seal"}
+                      {bothSealed ? "2 of 2 submitted" : "Pending submission"}
                     </span>
                   </div>
                   <div className="bw-env">
@@ -478,15 +571,16 @@ export default function VendorBidWorkspaceE({ legacy: Legacy }) {
                       <span className="s">
                         {techFiles.length
                           ? `${techFiles.length} file${techFiles.length === 1 ? "" : "s"}`
-                          : "No files sealed yet"}
+                          : "No files submitted yet"}
                       </span>
                     </div>
                     <span className="pmc-muted" style={{ fontSize: 12 }}>
                       {envelopes?.technical?.sealed_at
                         ? `Sealed ${fmtDeadline(envelopes.technical.sealed_at)}`
-                        : "Not sealed"}
+                        : techFiles.length ? "Submitted with bid" : "Not submitted"}
                     </span>
                   </div>
+                  <EnvelopeFiles files={techFiles} onView={setPreview} testid="bw-tech-files" />
                   <div className="bw-env">
                     <span className="i"><svg className="pmc-ico" aria-hidden="true"><use href="#i-lock" /></svg></span>
                     <div>
@@ -494,20 +588,22 @@ export default function VendorBidWorkspaceE({ legacy: Legacy }) {
                       <span className="s">
                         {commFiles.length
                           ? `${commFiles.length} file${commFiles.length === 1 ? "" : "s"}`
-                          : "No files sealed yet"}
+                          : "No files submitted yet"}
                       </span>
                     </div>
                     <span className="pmc-muted" style={{ fontSize: 12 }}>
                       {envelopes?.commercial?.sealed_at
                         ? `Sealed ${fmtDeadline(envelopes.commercial.sealed_at)}`
-                        : "Not sealed"}
+                        : commFiles.length ? "Submitted with bid" : "Not submitted"}
                     </span>
                   </div>
+                  <EnvelopeFiles files={commFiles} onView={setPreview} testid="bw-comm-files" />
                   <div style={{ padding: "14px 20px", borderTop: "1px solid var(--line)" }}
                        className="pmc-muted">
                     <span style={{ fontSize: 13 }}>
-                      Nobody at PMC can open these before the deadline. Unsealing is logged,
-                      and you must re-seal before the deadline.
+                      You can view and download your own files any time. Nobody at PMC can
+                      open them before the deadline; any unseal or replacement is logged on
+                      the audit ledger.
                     </span>
                   </div>
                 </section>
@@ -522,23 +618,29 @@ export default function VendorBidWorkspaceE({ legacy: Legacy }) {
                       <svg className="pmc-ico" aria-hidden="true"><use href="#i-check" /></svg>
                       KYC valid for this tender
                     </div>
-                    <div className={envelopes?.technical?.sealed_at ? "bw-ck ok" : "bw-ck"}>
+                    <div className={techDone ? "bw-ck ok" : "bw-ck"}>
                       <svg className="pmc-ico" aria-hidden="true">
-                        <use href={envelopes?.technical?.sealed_at ? "#i-check" : "#i-clock"} />
+                        <use href={techDone ? "#i-check" : "#i-clock"} />
                       </svg>
-                      Technical envelope sealed
+                      {envelopes?.technical?.sealed_at
+                        ? "Technical envelope sealed"
+                        : "Technical envelope submitted"}
                     </div>
-                    <div className={envelopes?.commercial?.sealed_at ? "bw-ck ok" : "bw-ck"}>
+                    <div className={commDone ? "bw-ck ok" : "bw-ck"}>
                       <svg className="pmc-ico" aria-hidden="true">
-                        <use href={envelopes?.commercial?.sealed_at ? "#i-check" : "#i-clock"} />
+                        <use href={commDone ? "#i-check" : "#i-clock"} />
                       </svg>
-                      Commercial envelope sealed
+                      {envelopes?.commercial?.sealed_at
+                        ? "Commercial envelope sealed"
+                        : "Commercial envelope submitted"}
                     </div>
-                    <div className={emdSettled ? "bw-ck ok" : "bw-ck"}>
+                    <div className={emdDone ? "bw-ck ok" : "bw-ck"}>
                       <svg className="pmc-ico" aria-hidden="true">
-                        <use href={emdSettled ? "#i-check" : "#i-clock"} />
+                        <use href={emdDone ? "#i-check" : "#i-clock"} />
                       </svg>
-                      EMD confirmed by escrow
+                      {emdNotRequired
+                        ? "EMD not required for this tender"
+                        : "EMD confirmed by escrow"}
                     </div>
                   </div>
                 </div>
