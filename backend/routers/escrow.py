@@ -201,12 +201,103 @@ async def patch_account(aid: str, payload: EscrowAccountPatch,
     changes = {k: v for k, v in payload.model_dump(exclude_unset=True).items() if v is not None}
     if not changes:
         raise HTTPException(status_code=400, detail="No fields to update")
+    # v51aq — carry Bug G1 (governance) through to PATCH too. If either officer
+    # block is being updated, resolve the resulting pmc/escrow emails and
+    # refuse when they'd collide. Dual-signature is theatre otherwise.
+    if "pmc_officer" in changes or "escrow_officer" in changes:
+        current = await db.escrow_accounts.find_one({"_id": ObjectId(aid)})
+        if not current:
+            raise HTTPException(status_code=404, detail="Escrow account not found")
+        pmc_new = changes.get("pmc_officer") or current.get("pmc_officer") or {}
+        esc_new = changes.get("escrow_officer") or current.get("escrow_officer") or {}
+        pmc_email = (pmc_new.get("email") or "").lower()
+        esc_email = (esc_new.get("email") or "").lower()
+        if pmc_email and esc_email and pmc_email == esc_email:
+            raise HTTPException(status_code=400,
+                detail="PMC officer and Escrow officer must be different people (different email addresses). Joint control requires two independent signatories.")
     changes["updated_at"] = now_iso()
     r = await db.escrow_accounts.update_one({"_id": ObjectId(aid)}, {"$set": changes})
     if r.matched_count == 0:
         raise HTTPException(status_code=404, detail="Escrow account not found")
     await audit_log("escrow.account_update", admin, "escrow_account", aid, changes)
     return _out_account(await db.escrow_accounts.find_one({"_id": ObjectId(aid)}))
+
+
+# v51aq — Admin cleanup helper. Finds every bid holding more than one open
+# escrow transaction (status ∈ pending/received/awaiting_signatures) so the
+# UI can nag the admin until the ledger is clean. Returns bid_ref +
+# transaction ids. Read-only.
+@router.get("/transactions/duplicates")
+async def duplicate_scan(admin=Depends(require_role("admin", "accounting"))):
+    pipeline = [
+        {"$match": {"status": {"$in": ["pending", "received", "awaiting_signatures"]}}},
+        {"$group": {"_id": "$bid_ref",
+                     "count": {"$sum": 1},
+                     "tx_ids": {"$push": "$_id"},
+                     "statuses": {"$push": "$status"},
+                     "amounts": {"$push": "$amount"},
+                     "currencies": {"$push": "$currency"}}},
+        {"$match": {"count": {"$gt": 1}}},
+        {"$sort": {"count": -1}},
+    ]
+    out = []
+    async for row in db.escrow_transactions.aggregate(pipeline):
+        out.append({"bid_ref": row["_id"], "open_count": row["count"],
+                    "tx_ids": [str(x) for x in row["tx_ids"]],
+                    "statuses": row["statuses"],
+                    "amounts": row["amounts"],
+                    "currencies": row["currencies"]})
+    return {"items": out, "total": len(out)}
+
+
+# v51aq — CSV export of every CLOSED escrow release for annual compliance
+# submissions. Streamed as text/csv.
+@router.get("/exports/releases.csv")
+async def export_releases_csv(
+    year: Optional[int] = None,
+    admin=Depends(require_role("admin", "accounting", "reviewer")),
+):
+    import csv, io
+    from fastapi.responses import StreamingResponse
+    q: dict = {"status": {"$in": ["released_to_contractor", "released_to_vendor", "forfeited"]}}
+    if year:
+        q["released_at"] = {"$gte": f"{year}-01-01", "$lte": f"{year}-12-31T23:59:59"}
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["bid_ref", "notice_ref", "vendor_ref", "amount", "currency",
+                 "escrow_account", "institution", "status", "released_at",
+                 "released_to", "pmc_officer_email", "pmc_signed_at", "pmc_action",
+                 "escrow_officer_email", "escrow_signed_at", "escrow_action",
+                 "reviewer_notes", "created_at"])
+    async for t in db.escrow_transactions.find(q).sort("released_at", -1):
+        snap = t.get("escrow_account_snapshot") or {}
+        sigs = t.get("signatures") or {}
+        pmc = sigs.get("pmc") or {}
+        esc = sigs.get("escrow_institution") or {}
+        notes_parts = []
+        for e in (t.get("audit_trail") or []):
+            if e.get("comment"):
+                notes_parts.append(f"[{(e.get('at') or '')[:16]}] {e.get('comment')}")
+        w.writerow([
+            t.get("bid_ref"), t.get("notice_ref"), t.get("vendor_ref"),
+            t.get("amount"), t.get("currency"),
+            snap.get("name"), snap.get("institution"),
+            t.get("status"), t.get("released_at"), t.get("released_to"),
+            (snap.get("pmc_officer") or {}).get("email"),
+            pmc.get("signed_at"), pmc.get("action"),
+            (snap.get("escrow_officer") or {}).get("email"),
+            esc.get("signed_at"), esc.get("action"),
+            " | ".join(notes_parts),
+            t.get("created_at"),
+        ])
+    await audit_log("escrow.export_releases_csv", admin, "escrow", "releases",
+                     {"year": year, "status_filter": "closed"})
+    buf.seek(0)
+    yr = f"-{year}" if year else ""
+    return StreamingResponse(iter([buf.getvalue()]),
+                              media_type="text/csv",
+                              headers={"Content-Disposition":
+                                       f'attachment; filename="escrow-releases{yr}.csv"'})
 
 
 # ---------------- Transactions ----------------

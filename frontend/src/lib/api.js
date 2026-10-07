@@ -702,6 +702,8 @@ export const escrowApi = {
   sign: (tid, p) => api.post(`/api/v1/escrow/transactions/${tid}/sign`, p).then((r) => r.data),
   release: (tid, p) => api.post(`/api/v1/escrow/transactions/${tid}/release`, p).then((r) => r.data),
   cancel: (tid) => api.post(`/api/v1/escrow/transactions/${tid}/cancel`).then((r) => r.data),
+  duplicates: () => api.get("/api/v1/escrow/transactions/duplicates").then((r) => r.data),
+  exportReleasesCsvUrl: (year) => `/api/v1/escrow/exports/releases.csv${year ? `?year=${year}` : ""}`,
 };
 
 export const gdprApi = {

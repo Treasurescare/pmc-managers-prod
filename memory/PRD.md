@@ -49,6 +49,27 @@ Public / Vendor / Buyer / Admin roles.
 - `/downloads/DOWNLOAD_mobile_v1.0.0.md`
 
 ## Latest web releases
+- **v51aq** — Dup cleanup + Officer-email guard on PATCH + Release CSV
+  export + Transaction search bar.
+  **Dup cleanup**: new `GET /api/v1/escrow/transactions/duplicates`
+  returns every bid holding more than one open row. Admin EscrowPanel
+  shows a prominent red "Unresolved duplicates" banner listing offenders
+  with click-to-filter. Also auto-cleaned the stale PMC-BID-2026-00048
+  test rows (status cancelled, audit trail retained).
+  **Officer-email guard on PATCH**: carries Bug G1's governance rule into
+  `PATCH /api/v1/escrow/accounts/{aid}` — refuses the update with 400 if
+  the resulting pmc/escrow officer emails would collide.
+  **Release CSV export**: new `GET /api/v1/escrow/exports/releases.csv?year=`
+  streams a compliance-grade CSV of every closed release
+  (released_to_contractor / released_to_vendor / forfeited) with signatures,
+  timestamps, account snapshot, officer emails, audit-trail comments.
+  Admin EscrowPanel has an "Export releases · CSV" button inline with the
+  new toolbar.
+  **Transaction search bar**: single input filters the ledger by bid-ref /
+  notice / vendor / amount / currency / status (fuzzy, case-insensitive);
+  pager now walks the filtered list. "{n} of {total} shown" counter.
+  Verified E2E: dup init → 409; dup scan → json; CSV export → 200 streamed
+  text/csv; PATCH same-email → 400; yarn build clean.
 - **v51ap** — Duplicate-ledger fix + admin cancel. One bid can now hold
   only ONE open escrow transaction at a time (status pending / received /
   awaiting_signatures). `POST /api/v1/escrow/transactions/init` returns 409

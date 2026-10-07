@@ -212,7 +212,27 @@ export default function EscrowTransactionsSection({ accounts, txs, onReload }) {
     }).catch(() => {});
   }, [showNew]);
   const activeAccounts = useMemo(() => accounts.filter((a) => a.active), [accounts]);
-  const { paged, controls } = useListPager(txs, { testid: "escrow-tx-pager" });
+  // v51aq — search + duplicate scan (declared BEFORE useListPager so paged uses filtered)
+  const [search, setSearch] = useState("");
+  const [dupes, setDupes] = useState({ items: [], total: 0 });
+  useEffect(() => {
+    escrowApi.duplicates()
+      .then((d) => setDupes(d))
+      .catch(() => setDupes({ items: [], total: 0 }));
+  }, [txs]);
+  const filtered = useMemo(() => {
+    const q = (search || "").trim().toLowerCase();
+    if (!q) return txs;
+    return (txs || []).filter((t) => (
+      (t.bid_ref || "").toLowerCase().includes(q)
+      || (t.notice_ref || "").toLowerCase().includes(q)
+      || (t.vendor_ref || "").toLowerCase().includes(q)
+      || String(t.amount || "").includes(q)
+      || (t.currency || "").toLowerCase().includes(q)
+      || (t.status || "").toLowerCase().includes(q)
+    ));
+  }, [txs, search]);
+  const { paged, controls } = useListPager(filtered, { testid: "escrow-tx-pager" });
 
   const createTx = async () => {
     if (!tx.escrow_account_id) return toast.error("Pick an escrow account");
@@ -326,6 +346,43 @@ export default function EscrowTransactionsSection({ accounts, txs, onReload }) {
           {showNew ? "Cancel" : "Record inbound EMD"}
         </button>
       </div>
+
+      {/* v51aq — search + duplicate counter + CSV export */}
+      <div className="mb-3 flex items-center gap-3 flex-wrap" data-testid="escrow-tx-toolbar">
+        <input value={search} onChange={(e) => setSearch(e.target.value)}
+               data-testid="escrow-tx-search"
+               placeholder="Search bid ref / notice / amount / status…"
+               className="flex-1 min-w-[280px] px-3 py-2 border border-brand-navy/20 text-sm"/>
+        <span className="text-xs text-brand-navy/50 whitespace-nowrap">
+          {filtered.length} of {txs.length} shown
+        </span>
+        <a href={escrowApi.exportReleasesCsvUrl()}
+           data-testid="escrow-export-releases-csv"
+           className="px-3 py-2 text-[11px] uppercase tracking-widest border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white">
+          Export releases · CSV
+        </a>
+      </div>
+      {dupes.total > 0 && (
+        <div className="mb-3 p-3 bg-red-50 border border-red-300 text-xs text-red-900"
+             data-testid="escrow-tx-dupes-banner">
+          <strong>Unresolved duplicates ·</strong> {dupes.total} bid{dupes.total === 1 ? "" : "s"} currently
+          hold more than one open escrow transaction. Each bid should hold only ONE —
+          cancel the extras below.
+          <ul className="mt-1 ml-3 list-disc">
+            {dupes.items.slice(0, 6).map((d) => (
+              <li key={d.bid_ref} data-testid={`escrow-tx-dupe-row-${d.bid_ref}`}>
+                <button type="button"
+                        onClick={() => setSearch(d.bid_ref)}
+                        className="underline hover:text-red-800">
+                  {d.bid_ref}
+                </button>{" "}
+                — {d.open_count} open rows ({d.statuses.join(", ")})
+              </li>
+            ))}
+            {dupes.items.length > 6 && (<li>…and {dupes.items.length - 6} more</li>)}
+          </ul>
+        </div>
+      )}
 
       {showNew && (
         <div className="border border-brand-navy/20 bg-white p-6 grid gap-3 md:grid-cols-3 mb-4" data-testid="escrow-new-tx-form">
