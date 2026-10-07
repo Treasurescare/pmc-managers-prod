@@ -19,7 +19,7 @@ Public / Vendor / Buyer / Admin roles.
 | Google Play feature graphic 1024×500 | ✅ `mobile_assets/android_feature_1024x500.png` |
 | iOS 6.7" screenshots (Public / Vendor / Admin / Auction) | ✅ 4 shots |
 | Android phone screenshots (Public / Vendor / Admin / Auction) | ✅ 4 shots |
-| Store asset bundle | ✅ `pmc-mobile-store-assets-v1.0.0.zip` |
+| Store asset bundle | ✅ `pmc-mobile-store-assets-v1.0.0.zip` (13 files: 3 brand assets + 10 store screenshots + README) |
 
 ## Account email
 `managerspmc@gmail.com` (both Apple ID and Google Account owner).
