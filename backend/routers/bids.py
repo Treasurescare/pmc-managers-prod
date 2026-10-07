@@ -238,6 +238,57 @@ async def get_bid(bid_id: str, vendor=Depends(current_vendor)) -> dict:
     return _out(await _enrich_docs(b))
 
 
+@router.patch("/{bid_id}")
+async def update_bid(bid_id: str, payload: BidUpdateIn,
+                     vendor=Depends(current_vendor)) -> dict:
+    """v51ai — vendor updates their own bid's envelope documents (and notes)
+    after submission, while the bid is still editable and before the tender
+    deadline. Fixes the dead-end where a bid created without technical /
+    commercial PDFs could never be completed from the workspace."""
+    try:
+        bid_oid = ObjectId(bid_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Malformed bid id")
+    b = await db.bids.find_one({"_id": bid_oid})
+    if not b or b.get("vendor_id") != vendor["id"]:
+        raise HTTPException(status_code=404, detail="Bid not found")
+    if b.get("status") not in ("draft", "submitted", "emd_pending"):
+        raise HTTPException(status_code=400,
+            detail=f"Bid is {b.get('status')} — documents can no longer be changed")
+    notice = await db.notices.find_one({"notice_ref": b.get("notice_ref")}) or {}
+    deadline = notice.get("submission_deadline") or b.get("submission_deadline")
+    if deadline:
+        try:
+            dl = datetime.fromisoformat(str(deadline).replace("Z", "+00:00"))
+            if dl.tzinfo is None:
+                dl = dl.replace(tzinfo=timezone.utc)
+            if dl < datetime.now(timezone.utc):
+                raise HTTPException(status_code=400,
+                    detail="Submission deadline has passed — envelopes are sealed")
+        except ValueError:
+            pass
+    updates = {}
+    if payload.documents is not None:
+        docs = [d.model_dump() for d in payload.documents]
+        for d in docs:
+            if d.get("kind") not in ("technical", "commercial", "supporting") or not d.get("key"):
+                raise HTTPException(status_code=422,
+                    detail="Each document needs kind (technical/commercial/supporting) and an upload key")
+        updates["documents"] = docs
+    if payload.technical_notes is not None:
+        updates["technical_notes"] = payload.technical_notes
+    if payload.commercial_notes is not None:
+        updates["commercial_notes"] = payload.commercial_notes
+    if not updates:
+        raise HTTPException(status_code=400, detail="Nothing to update")
+    updates["updated_at"] = now_iso()
+    await db.bids.update_one({"_id": bid_oid}, {"$set": updates})
+    await audit_log("bid.documents_update", None, "bid", b.get("bid_ref"),
+                    {"vendor": vendor["email"],
+                     "doc_count": len(updates.get("documents", []))})
+    return _out(await _enrich_docs(await db.bids.find_one({"_id": bid_oid})))
+
+
 @router.get("/admin/{bid_id}")
 async def admin_get_bid(bid_id: str,
                           admin=Depends(require_role("admin", "reviewer",

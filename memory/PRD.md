@@ -49,6 +49,14 @@ Public / Vendor / Buyer / Admin roles.
 - `/downloads/DOWNLOAD_mobile_v1.0.0.md`
 
 ## Latest web releases
+- **v51ai** — Vendor workspace "unable to proceed" fix. New backend
+  `PATCH /api/v1/bids/{id}` (vendor-owner scoped; editable while
+  draft/submitted/emd_pending and before deadline; audit-logged
+  `bid.documents_update`; held bids get 400). Workspace: "+ Add technical /
+  commercial file" upload buttons, per-file View/Download/Remove, clickable
+  stepper steps 2/3, amber "on hold by PMC" callout. Verified E2E: real PDF
+  upload through UI, remove, on-hold gate (hold → 400 → resume).
+  Bundles: `pmc-frontend-v51ai-prod-build.zip` + `pmc-backend-v51ai.zip`.
 - **v51ah** — Bidding ops: pipeline step tiles now render above the filter
   bar (user-requested order). Vendor bid workspace: EMD=0 bids no longer
   dead-end on "Pay the EMD" (step auto-completes as "Not required", compact

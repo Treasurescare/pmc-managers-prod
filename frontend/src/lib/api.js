@@ -265,6 +265,7 @@ export const bidApi = {
   get: (id) => api.get(`/api/v1/bids/${id}`).then((r) => r.data),
   withdraw: (id) => api.post(`/api/v1/bids/${id}/withdraw`).then((r) => r.data),
   sendEmdLink: (id) => api.post(`/api/v1/bids/${id}/emd/send-link`).then((r) => r.data),
+  update: (id, payload) => api.patch(`/api/v1/bids/${id}`, payload).then((r) => r.data),
   list: (params = {}) => api.get("/api/v1/bids", { params }).then((r) => r.data),
   listAll: (params = {}) => api.get("/api/v1/bids", { params }).then((r) => r.data),
   decide: (id, payload) => api.post(`/api/v1/bids/${id}/decision`, payload).then((r) => r.data),

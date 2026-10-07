@@ -68,7 +68,7 @@ function fmtCountdown(iso) {
 /** v51ah — vendor can always see (and re-download) the files THEY submitted
  *  inside each envelope. PMC staff cannot open them before the deadline, but
  *  the owning vendor can. */
-function EnvelopeFiles({ files, onView, testid }) {
+function EnvelopeFiles({ files, onView, onRemove, testid }) {
   if (!files?.length) return null;
   return (
     <ul data-testid={testid}
@@ -109,6 +109,14 @@ function EnvelopeFiles({ files, onView, testid }) {
                  data-testid={`${testid}-dl-${i}`}>
                 Download
               </a>
+            )}
+            {onRemove && key && (
+              <button type="button"
+                      onClick={() => onRemove(key)}
+                      className="pmc-btn pmc-btn--ghost pmc-btn--sm"
+                      data-testid={`${testid}-del-${i}`}>
+                Remove
+              </button>
             )}
           </li>
         );
@@ -178,6 +186,44 @@ export default function VendorBidWorkspaceE({ legacy: Legacy }) {
 
   const removeProof = (idx) => setProofs((p) => p.filter((_, i) => i !== idx));
 
+  // v51ai — post-submission envelope file management. Vendors can attach or
+  // remove technical / commercial files while the bid is still editable;
+  // every change persists via PATCH /bids/{id} and lands on the audit ledger.
+  const persistDocuments = async (nextDocs) => {
+    try {
+      const fresh = await bidApi.update(bid.id, { documents: nextDocs });
+      setBid(fresh);
+      toast.success("Envelope files updated");
+    } catch (e) { showApiError(e, { fallbackTitle: "Could not update envelope" }); }
+  };
+
+  const uploadEnvelopeFile = async (kind, file) => {
+    if (!file || !bid) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Keep envelope files under 10 MB");
+      return;
+    }
+    try {
+      const pre = await uploadsApi.presign(file.name, file.type || "application/pdf",
+                                           "bid-docs", file.size);
+      await uploadsApi.direct(pre.key, file);
+      const docs = Array.isArray(bid.documents) ? [...bid.documents] : [];
+      await persistDocuments([...docs, {
+        kind, key: pre.key, filename: file.name,
+        size_bytes: file.size, uploaded_at: new Date().toISOString(),
+      }]);
+    } catch (e) { showApiError(e, { fallbackTitle: "Upload failed" }); }
+  };
+
+  const removeEnvelopeFile = (key) => {
+    if (!bid) return;
+    persistDocuments((bid.documents || []).filter((d) => d.key !== key));
+  };
+
+  const scrollToEnvelopes = () =>
+    document.querySelector('[data-testid="bw-envelopes"]')
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+
   const onSaveAndFinishLater = () => {
     toast.success("Progress saved — pick this bid up any time from My bids");
     navigate("/vendor/mybids");
@@ -229,6 +275,11 @@ export default function VendorBidWorkspaceE({ legacy: Legacy }) {
   const firstPending = !techDone ? 2 : !commDone ? 3 : !emdDone ? 4 : 5;
   const paymentRef = bid?.bid_ref || "—";
   const deadline = notice?.submission_deadline || bid?.submission_deadline;
+  // v51ai — envelope files can be changed while the bid is draft / submitted /
+  // emd_pending and the deadline hasn't passed. on_hold and later stages lock.
+  const envEditable = Boolean(bid) &&
+    ["draft", "submitted", "emd_pending"].includes(bid.status) &&
+    (!deadline || new Date(deadline) > new Date());
 
   return (
     <div data-testid="vendor-bid-workspace-e" data-pmc-e-page="vendor-bid-workspace-e">
@@ -297,7 +348,11 @@ export default function VendorBidWorkspaceE({ legacy: Legacy }) {
                 <div className="done"><span className="d">✓</span>
                   <span>Eligibility<small>KYC match</small></span>
                 </div>
-                <div className={techDone ? "done" : firstPending === 2 ? "now" : ""}>
+                <div className={techDone ? "done" : firstPending === 2 ? "now" : ""}
+                     onClick={scrollToEnvelopes}
+                     style={{ cursor: "pointer" }}
+                     title="View technical envelope files"
+                     data-testid="bw-step-2">
                   <span className="d">{techDone ? "✓" : "2"}</span>
                   <span>Technical envelope
                     <small>{envelopes?.technical?.sealed_at
@@ -307,7 +362,11 @@ export default function VendorBidWorkspaceE({ legacy: Legacy }) {
                         : firstPending === 2 ? "Your action" : "Not submitted"}</small>
                   </span>
                 </div>
-                <div className={commDone ? "done" : firstPending === 3 ? "now" : ""}>
+                <div className={commDone ? "done" : firstPending === 3 ? "now" : ""}
+                     onClick={scrollToEnvelopes}
+                     style={{ cursor: "pointer" }}
+                     title="View commercial envelope files"
+                     data-testid="bw-step-3">
                   <span className="d">{commDone ? "✓" : "3"}</span>
                   <span>Commercial envelope
                     <small>{envelopes?.commercial?.sealed_at
@@ -564,6 +623,14 @@ export default function VendorBidWorkspaceE({ legacy: Legacy }) {
                       {bothSealed ? "2 of 2 submitted" : "Pending submission"}
                     </span>
                   </div>
+                  {bid.status === "on_hold" && (
+                    <div className="pmc-callout pmc-callout--warn" data-testid="bw-on-hold"
+                         style={{ margin: "0 20px 12px" }}>
+                      <b>This bid is on hold by PMC.</b>{" "}
+                      You can't change envelope files until the tender desk resumes it
+                      (Bidding ops → Resume). Questions: tenders@pmcmanagers.com.
+                    </div>
+                  )}
                   <div className="bw-env">
                     <span className="i"><svg className="pmc-ico" aria-hidden="true"><use href="#i-lock" /></svg></span>
                     <div>
@@ -580,7 +647,24 @@ export default function VendorBidWorkspaceE({ legacy: Legacy }) {
                         : techFiles.length ? "Submitted with bid" : "Not submitted"}
                     </span>
                   </div>
-                  <EnvelopeFiles files={techFiles} onView={setPreview} testid="bw-tech-files" />
+                  <EnvelopeFiles files={techFiles} onView={setPreview}
+                                 onRemove={envEditable ? removeEnvelopeFile : undefined}
+                                 testid="bw-tech-files" />
+                  {envEditable && (
+                    <div style={{ padding: "0 20px 12px" }}>
+                      <label className="pmc-btn pmc-btn--secondary pmc-btn--sm"
+                             style={{ cursor: "pointer", display: "inline-block" }}
+                             data-testid="bw-tech-add">
+                        <input type="file" hidden accept="application/pdf,image/*"
+                               onChange={(e) => {
+                                 const f = e.target.files?.[0];
+                                 if (f) uploadEnvelopeFile("technical", f);
+                                 e.target.value = "";
+                               }} />
+                        + Add technical file
+                      </label>
+                    </div>
+                  )}
                   <div className="bw-env">
                     <span className="i"><svg className="pmc-ico" aria-hidden="true"><use href="#i-lock" /></svg></span>
                     <div>
@@ -597,7 +681,24 @@ export default function VendorBidWorkspaceE({ legacy: Legacy }) {
                         : commFiles.length ? "Submitted with bid" : "Not submitted"}
                     </span>
                   </div>
-                  <EnvelopeFiles files={commFiles} onView={setPreview} testid="bw-comm-files" />
+                  <EnvelopeFiles files={commFiles} onView={setPreview}
+                                 onRemove={envEditable ? removeEnvelopeFile : undefined}
+                                 testid="bw-comm-files" />
+                  {envEditable && (
+                    <div style={{ padding: "0 20px 12px" }}>
+                      <label className="pmc-btn pmc-btn--secondary pmc-btn--sm"
+                             style={{ cursor: "pointer", display: "inline-block" }}
+                             data-testid="bw-comm-add">
+                        <input type="file" hidden accept="application/pdf,image/*"
+                               onChange={(e) => {
+                                 const f = e.target.files?.[0];
+                                 if (f) uploadEnvelopeFile("commercial", f);
+                                 e.target.value = "";
+                               }} />
+                        + Add commercial file
+                      </label>
+                    </div>
+                  )}
                   <div style={{ padding: "14px 20px", borderTop: "1px solid var(--line)" }}
                        className="pmc-muted">
                     <span style={{ fontSize: 13 }}>
