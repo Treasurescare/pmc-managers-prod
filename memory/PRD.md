@@ -47,7 +47,11 @@ Public / Vendor / Buyer / Admin roles.
 - `/downloads/MOBILE_STORE_ASSETS_README.md`
 - `/downloads/DOWNLOAD_mobile_v1.0.0.md`
 
-## Latest web releases (unchanged)
+## Latest web releases
+- **v51ae** — Google Search Console verification meta tag added to
+  `index.html` (`t7scPgT9ZxpjYxkyRAyB8cCvfrCh04IAO6XcvAvS4r0`) so Play
+  Console "Verify your organization's website" resolves on pmcmanagers.com.
+  Frontend-only ZIP: `pmc-frontend-v51ae-prod-build.zip`.
 - **v51ad** — Corrigenda full workflow & saved filter presets
 - **v51ac** — Vendor registration per-row edit links; expires-filter cleanup
 - **v51aa-ab** — Full 5-section bulk CSV, full vendor editor, MoneyFilterBar,
