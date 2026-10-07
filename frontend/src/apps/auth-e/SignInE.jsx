@@ -29,13 +29,24 @@ export default function SignInE({ legacy: Legacy }) {
     setBusy(true);
     try {
       if (role === "escrow") {
-        // v51al — Escrow Institutions are external entities (banks / trustees).
-        // Password login is not yet enabled; approved institutions access the
-        // dashboard via the magic link emailed on approval. New institutions
-        // get routed to the self-registration flow.
-        toast.info("Escrow Institutions access the portal via the magic link emailed on approval. Starting new registration…");
-        setBusy(false);
-        return nav("/escrow/register");
+        // v51an — Escrow Institutions get a real password login now.
+        if (!email || !password) {
+          toast.error("Enter your email and password.");
+          setBusy(false);
+          return;
+        }
+        try {
+          await (await import("@/lib/api")).api.post(
+            "/api/v1/escrow-signatories/auth/login", { email, password });
+          toast.success("Signed in · escrow signatory");
+          setBusy(false);
+          return nav("/escrow/me");
+        } catch (err) {
+          toast.error("Those credentials don't match an escrow signatory. New institutions can register below.",
+                       { duration: 8000 });
+          setBusy(false);
+          return;
+        }
       }
       if (role === "supplier") {
         try {

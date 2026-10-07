@@ -22,7 +22,7 @@ from routers import (
     stakeholder_reports, dashboard_drill, branding_theme,
     envelope_authoritative, contracts_export,
     admin_demo, push, vendor_categories, vendor_profile_changes, vendor_licenses,
-    legal_entity_types, escrow_institutions,
+    legal_entity_types, escrow_institutions, escrow_signatories, cron_escrow,
 )
 from routers import password_reset as _password_reset
 
@@ -120,6 +120,8 @@ app.include_router(notice_qa.router)
 app.include_router(bids_ai_compare.router)
 app.include_router(escrow.router)
 app.include_router(escrow_institutions.router)
+app.include_router(escrow_signatories.router)
+app.include_router(cron_escrow.router)
 app.include_router(reports.router)
 app.include_router(stakeholder_reports.router)
 app.include_router(dashboard_drill.router)

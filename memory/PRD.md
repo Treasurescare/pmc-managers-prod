@@ -49,6 +49,35 @@ Public / Vendor / Buyer / Admin roles.
 - `/downloads/DOWNLOAD_mobile_v1.0.0.md`
 
 ## Latest web releases
+- **v51an** — Escrow Institution portal round 2: real signatory auth,
+  dashboard transactions grid, notice-level account routing, and a cron
+  expiry watchdog. Backend: new `routers/escrow_signatories.py` with
+  `POST /claim?token=` (sets a password for a registered signatory,
+  protected by the institution magic token), `POST /auth/login` → HttpOnly
+  `escrow_sig_token` cookie + CSRF, `/auth/me`, `/auth/logout`, and
+  `GET /dashboard` returning joint accounts + every tied transaction with
+  `awaiting_my_signature` flags. Approval email now deep-links to
+  `/escrow/login?claim=1&iid=&token=` so signatories land on the
+  password-claim screen. `models/notice.py` gets an official
+  `escrow_account_id: Optional[str]` field so
+  `escrow.auto_init_from_emd_payment()` honours per-notice overrides. New
+  cron webhook `POST /api/v1/cron/escrow-expiry-watchdog` + schedule in
+  `.emergent/crons.yml` (daily 09:00 Europe/London) emails 30/7/1-day
+  reminders and "already expired" alerts to institutions whose
+  `licence_expiry` is within the window; idempotent on `X-Webhook-Id`,
+  bearer-auth against `WEBHOOK_CRON_SECRET` (added to backend/.env).
+  Frontend: `/escrow/login` (password login + claim mode), `/escrow/me`
+  (post-login dashboard), rewritten `EscrowInstitutionDashboard` with KPI
+  row, pending-signature table (per-row action dropdown + Sign off button
+  calling `/escrow/transactions/{tid}/sign`), and a full transactions
+  table. SignInE's "Escrow Institution" role now does a real password
+  login (no longer bounces users to the registration form).
+  AdminEscrowInstitutionsE grew a bottom section "Notice ↔ Escrow account
+  routing" — table of every published notice with a dropdown picker that
+  PATCHes `escrow_account_id` on the notice.
+  Verified E2E: register → approve → claim → login → /me → /dashboard
+  all 200 (/me returns institutions attached); notice PATCH 200; cron 401
+  without secret / 200 queued with secret; yarn build clean.
 - **v51am** — Escrow Institution portal: full close-out of the integration
   gaps. Backend `POST /api/v1/escrow-institutions/{iid}/decision` now
   auto-dispatches a magic-link approval email (recipients = primary contact

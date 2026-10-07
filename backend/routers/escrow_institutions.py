@@ -216,18 +216,23 @@ async def decide(iid: str, action: Literal["approve", "reject", "needs_clarifica
                 recipients.add(s["email"].strip().lower())
         recipients.discard("")
         if action == "approve":
-            cta_url = f"{config.FRONTEND_URL}/escrow/dashboard/{iid}?token={token}"
+            # v51an — new signatories need to set a password. Deep-link to
+            # the claim screen (?claim=1&iid=&token=) so they land straight on
+            # the "pick a password" flow. Keep the dashboard link too for
+            # anyone who's already claimed.
+            claim_url = f"{config.FRONTEND_URL}/escrow/login?claim=1&iid={iid}&token={token}"
+            cta_url = claim_url
             subject = f"PMC Managers — Escrow institution approved: {doc.get('legal_name')}"
             body = wrap(subject,
                 f"<p>Dear {doc.get('legal_name') or 'Signatory'} team,</p>"
                 f"<p>We're pleased to confirm that <strong>{doc.get('legal_name')}</strong> "
                 f"has been approved as a PMC Managers escrow institution.</p>"
-                f"<p>Signatories can access the dedicated dashboard — which lists every "
-                f"joint account you operate and transactions awaiting your signature — "
-                f"via the magic link below. The link is personal to your institution; "
-                f"keep it secure.</p>"
+                f"<p>Each named signatory should click the button below and set "
+                f"a password. From then on you can sign in from the main login "
+                f"page under the <em>Escrow Institution</em> role to approve "
+                f"EMD releases.</p>"
                 f"<p>Reviewer notes: {notes or '—'}</p>",
-                "Open your dashboard", cta_url)
+                "Set your signatory password", cta_url)
         elif action == "needs_clarification":
             resume_url = f"{config.FRONTEND_URL}/escrow/resume/{token}?iid={iid}"
             subject = f"PMC Managers — more information needed on {doc.get('legal_name')}"

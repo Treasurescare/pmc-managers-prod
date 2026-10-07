@@ -60,6 +60,8 @@ import AdminBidDetailPage from "@/apps/admin-console/bidding/AdminBidDetailPage"
 import EscrowInstitutionRegister from "@/apps/escrow-portal/EscrowInstitutionRegister";
 import EscrowInstitutionResume from "@/apps/escrow-portal/EscrowInstitutionResume";
 import EscrowInstitutionDashboardPage from "@/apps/escrow-portal/EscrowInstitutionDashboardPage";
+import EscrowSignatoryLogin from "@/apps/escrow-portal/EscrowSignatoryLogin";
+import EscrowMePage from "@/apps/escrow-portal/EscrowMePage";
 import AdminEscrowInstitutionsE from "@/apps/admin-console-e/AdminEscrowInstitutionsE";
 
 // Wave 35/36/37 — Revenue surfaces + billing result + public roadmap + escrow magic-link
@@ -320,6 +322,9 @@ export default function App() {
             <Route path="/escrow/register" element={<EscrowInstitutionRegister />} />
             <Route path="/escrow/resume/:token" element={<EscrowInstitutionResume />} />
             <Route path="/escrow/dashboard/:iid" element={<EscrowInstitutionDashboardPage />} />
+            {/* v51an — signatory password login + authed dashboard */}
+            <Route path="/escrow/login" element={<EscrowSignatoryLogin />} />
+            <Route path="/escrow/me" element={<EscrowMePage />} />
 
             {/* Live public roadmap */}
             <Route path="/roadmap" element={<PublicRoadmap />} />

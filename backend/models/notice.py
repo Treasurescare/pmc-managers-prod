@@ -40,6 +40,10 @@ class NoticeIn(BaseModel):
             return None
         return v
     is_published: bool = False
+    # v51an — admin can pin a specific joint escrow account to this notice so
+    # the auto-ledger routes vendor EMD receipts there. If None, the newest
+    # active account is used by escrow.auto_init_from_emd_payment().
+    escrow_account_id: Optional[str] = None
     # EMD (Earnest Money Deposit) config — vendors pay this on bid submission
     emd_config: Optional[dict] = None
     # Wave 7 — optional approval matrix for this tender (falls back to default pipeline)
