@@ -736,6 +736,7 @@ export const awardsApi = {
 // ---------- Wave 40: Reverse-auction live room ----------
 export const reverseAuctionApi = {
   create: (p) => api.post("/api/v1/reverse-auctions", p).then((r) => r.data),
+  update: (aid, p) => api.patch(`/api/v1/reverse-auctions/${aid}`, p).then((r) => r.data),
   list: () => api.get("/api/v1/reverse-auctions").then((r) => r.data),
   get: (aid) => api.get(`/api/v1/reverse-auctions/${aid}`).then((r) => r.data),
   start: (aid) => api.post(`/api/v1/reverse-auctions/${aid}/start`).then((r) => r.data),

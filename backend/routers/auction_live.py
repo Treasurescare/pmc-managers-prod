@@ -231,6 +231,45 @@ async def create_reverse_auction(payload: ReverseAuctionIn,
     return _out_auction(doc)
 
 
+class AuctionPatchIn(BaseModel):
+    """v51ab — admin edits a draft reverse auction (title, prices, timing)."""
+    title: Optional[str] = None
+    starting_price: Optional[float] = Field(default=None, gt=0)
+    floor_price: Optional[float] = Field(default=None, ge=0)
+    min_decrement: Optional[float] = Field(default=None, gt=0)
+    duration_minutes: Optional[int] = Field(default=None, gt=0)
+    currency: Optional[str] = None
+    anti_snipe_seconds: Optional[int] = Field(default=None, ge=0)
+    notice_ref: Optional[str] = None
+
+
+@router.patch("/{aid}")
+async def patch_reverse_auction(aid: str, payload: AuctionPatchIn,
+                                 admin=Depends(require_role("admin"))):
+    a = await db.reverse_auctions.find_one({"_id": ObjectId(aid)})
+    if not a:
+        raise HTTPException(status_code=404, detail="Auction not found")
+    if a.get("status") != "draft":
+        raise HTTPException(status_code=400,
+                             detail="Only draft auctions can be edited. "
+                                    "Close & recreate if the auction is live.")
+    changes = {k: v for k, v in payload.model_dump(exclude_unset=True).items()
+               if v is not None}
+    if not changes:
+        raise HTTPException(status_code=400, detail="Nothing to update")
+    if "floor_price" in changes or "starting_price" in changes:
+        sp = float(changes.get("starting_price", a.get("starting_price")))
+        fp = float(changes.get("floor_price",    a.get("floor_price")))
+        if fp >= sp:
+            raise HTTPException(status_code=400,
+                                 detail="Floor price must be lower than starting price")
+    changes["updated_at"] = _now().isoformat()
+    changes["updated_by"] = admin.get("email")
+    await db.reverse_auctions.update_one({"_id": a["_id"]}, {"$set": changes})
+    doc = await db.reverse_auctions.find_one({"_id": a["_id"]})
+    return _out_auction(doc)
+
+
 @router.get("")
 async def list_reverse_auctions(admin=Depends(current_admin)):
     # v51z — include participant_count on every row so the admin UI can show

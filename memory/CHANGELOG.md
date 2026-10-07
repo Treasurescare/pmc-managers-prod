@@ -918,3 +918,9 @@ Complete GoDaddy → Route 53 DNS migration. Same-origin frontend (bypasses Safa
 - Every vendor row in the admin panel now exposes an Edit full profile link (data-testid=vendor-edit-{vendor_ref}).
 - Testing: iteration_48 passed 100% (4/4 backend pytest + full frontend walk-through); no regressions on prior v51y / v51z fixes.
 - Bundle: pmc-frontend-v51aa-prod-build.zip + pmc-backend-v51aa.zip in /frontend/public/downloads/.
+
+## v51ab — 07 Oct 2026
+- **Feature**: Working Money & compliance search across every panel. New `MoneyFilterBar` (search tender/title, created-by, created from→to, expires from→to, status dropdown, clear) mounted on Reverse auctions, Bidding ops, Awards, Billing, Escrow/EMD, Evaluation, L1 comparison, DocuSign. Reverse auctions filters its React state directly; legacy panels filter via a MutationObserver that tags rows with status/created-at data-attrs on first paint.
+- **Feature**: Reverse auction row **Edit** button on every draft. Inline edit form for title, currency, starting/floor price, min decrement, duration, anti-snipe seconds. Backend: PATCH /api/v1/reverse-auctions/{aid} with draft-only guard and floor<start validation.
+- Preview smoke test: all 8 Money pages show the filter bar with no ErrorBoundary; typing a non-matching query shows the empty-filtered state; the Edit button opens the inline form pre-filled.
+- Bundle: pmc-frontend-v51ab-prod-build.zip + pmc-backend-v51ab.zip in /frontend/public/downloads/.

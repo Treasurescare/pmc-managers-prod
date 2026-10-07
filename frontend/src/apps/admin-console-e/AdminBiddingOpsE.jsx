@@ -5,6 +5,7 @@ import { bidApi, showApiError } from "@/lib/api";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { useAdminBiddingOpsLive } from "@/lib/pmcELiveData";
 import AdminAvatarMenu from "./AdminAvatarMenu";
+import MoneyFilterBar from "@/components/MoneyFilterBar";
 import "./bidding-ops.css";
 
 // Sidebar preserved from the existing admin console shell so nav stays
@@ -240,6 +241,32 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
     return () => { if (mo) mo.disconnect(); root.removeEventListener('click', onAction); };
   }, [isE, navigate]);
 
+  // v51ab — client-side filter bar for the Bidding Ops row list. Hooks into
+  // the DOM rows the live-data layer renders (data-testid="bo-table") and
+  // filters by tender ref/title/vendor, creator, created-from/to and status.
+  const [, setBoFilter] = useState({});
+  const boFilterEl = (
+    <MoneyFilterBar
+      testid="bidding-ops-filter"
+      scopeSelector='[data-pmc-e-page="admin-bidding-ops-e"] [data-testid="bo-table"] tbody#bo-rows'
+      rowSelector=".bo-r"
+      onChange={setBoFilter}
+      showExpiring={false}
+      showCreator={false}
+      statusOptions={[
+        { value: "emd_pending",         label: "EMD pending" },
+        { value: "submitted",           label: "Submitted" },
+        { value: "escrow_accepted",     label: "Escrow accepted" },
+        { value: "admin_flagged",       label: "Admin flagged" },
+        { value: "certifier_cleared",   label: "Certifier cleared" },
+        { value: "legal_cleared",       label: "Legal cleared" },
+        { value: "accounting_cleared",  label: "Accounting cleared" },
+        { value: "awarded",             label: "Awarded" },
+        { value: "closed",              label: "Closed" },
+      ]}
+    />
+  );
+
   if (!isE && Legacy) return <Legacy />;
   if (!isE) return null;
 
@@ -260,6 +287,7 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
       <a href="/admin/e/evaluation" className="pmc-btn pmc-btn--primary" data-testid="bo-form-committee-btn"><svg className="pmc-ico" aria-hidden="true"><use href="#i-users" /></svg> Form committee</a>
     </div>
   </div>
+  <div style={{padding: "0 0 12px 0"}}>{boFilterEl}</div>
 
   <section className="bo-flow" aria-label="Clearance pipeline" data-testid="bo-flow">
     <a href="#" className="bo-step sup" data-flow="emd"><span className="n" data-flow-count="emd">0</span><span className="l">EMD</span><span className="o">Supplier pays</span></a>
