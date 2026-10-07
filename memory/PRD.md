@@ -11,7 +11,7 @@ Public / Vendor / Buyer / Admin roles.
 |---|---|
 | D-U-N-S Number acquired | ✅ 234578668 |
 | Apple Developer Program enrollment | 🟡 user filling form now |
-| Google Play Console enrollment | 🟡 user filling form now |
+| Google Play Console enrollment | 🟡 Identity docs submitted, under Google review (few days). Phone verification (+447724545222) gated behind identity approval. App creation locked until all verifications complete. ⚠️ Public developer name currently "Harneet" (was "Shweta Vaswani") — recommend changing to "PMC Managers" |
 | Capacitor 8 native projects scaffolded | ✅ `/app/frontend/android` + `/app/frontend/ios` |
 | Native project archives for the dev machine | ✅ `pmc-mobile-android-v1.0.0.tar.gz`, `pmc-mobile-ios-v1.0.0.tar.gz` |
 | App icon 1024×1024 | ✅ `mobile_assets/icon_1024.png` |
