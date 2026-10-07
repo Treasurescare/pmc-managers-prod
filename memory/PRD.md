@@ -1,44 +1,24 @@
-# PMC Managers v2 — PRD (as of 07 Oct 2026 / v51ad)
+# PMC Managers v2 — PRD (as of June 2026 / Mobile App Store Stream)
 
-## Latest release — v51ad
-1. **Corrigenda — full workflow.** Numbered amendments with attachments,
-   "extend deadline by N days" shortcut, field-level before/after
-   amendments (versioned diff), mandatory vendor acknowledgement before
-   next bid action. Backend auto-extends the parent notice's deadline
-   when `extend_deadline_days` is set; vendor ack endpoint plus admin
-   ack-list endpoint; audit-logged throughout.
-2. **Saved views (filter presets).** Per-user, per-panel named filter
-   presets on every Money & compliance panel (auctions, awards, billing,
-   escrow, evaluation, L1, DocuSign). New `/api/v1/filter-presets` CRUD;
-   MoneyFilterBar shows Load / Save / Delete controls.
+## Current Objective & Strategic Direction
+1. **Mobile App Store & Play Store Launch**:
+   - Publishing under UK Organization: **THE PMC MANAGERS LTD** (Company No. 17031540).
+   - Unified multi-role mobile app (Public, Vendor, Buyer/Staff, Admin) powered by Capacitor.
+   - Complete developer accounts setup guide for Apple Developer ($99/year) & Google Play Console ($25 one-time) using corporate D-U-N-S number.
+   - Store compliance, privacy declarations, data safety, and native packaging pipeline.
 
-## v51ac highlights (previous)
-- Per-row Edit sections on every non-approved registration (opens the
-  vendor's own 5-section flow in a new tab via admin-only resume-link).
-- Expires-from/to fields hidden on panels without an expiry concept.
+## Latest releases & Web Architecture
+- **v51ad**: Corrigenda full workflow & Saved filter presets.
+- **v51ac**: Vendor registration per-row edit links & filter cleanup.
+- **v51aa-ab**: Full 5-section bulk CSV template, full vendor editor, MoneyFilterBar, reverse auction edits.
+- **Capacitor Configuration**: Set up for `com.pmcmanagers.tenders` wrapping the React SPA with live backend API connectivity.
 
-## v51aa–v51ab highlights
-- Full Sections A–E bulk-invite CSV template + structured 409 detail.
-- /admin/vendors/:ref/edit full-profile editor.
-- MoneyFilterBar shared across all Money & compliance panels.
-- Reverse auction row Edit button + inline edit.
-
-## Deployment artifacts
-- `frontend/public/downloads/pmc-frontend-v51ad-prod-build.zip`
-- `frontend/public/downloads/pmc-backend-v51ad.zip`
-- `frontend/public/downloads/DOWNLOAD_v51ad.md`
-
-## Architecture
-React CRA + CRACO + Tailwind + Radix + shadcn-ui frontend; FastAPI +
-Motor backend; MongoDB; `REACT_APP_BACKEND_URL` + `MONGO_URL`/`DB_NAME`.
-
-## 3rd-party integrations
-MongoDB, S3 + CloudFront, Elastic Beanstalk, Resend, DocuSign, Stripe,
-Emergent LLM Key (AI drafting fallback).
+## Active Deliverables
+- `/app/docs/store_submission/PMC_APP_STORE_PLAY_STORE_MASTER_GUIDE.md`
+- `/app/frontend/public/downloads/PMC_App_Store_and_Play_Store_Guide.md`
+- Investment memorandum and pitch deck PDF/DOCX deliverables in `frontend/public/downloads/`.
 
 ## Up next
-- Vendor-side banner "N corrigenda await your acknowledgement" wired to
-  the vendor dashboard (API in place; UI pending).
-- Bid-submit route to call `ensure_corrigenda_acknowledged()` as a 412
-  pre-check (helper function in place; wiring pending).
-- Financial model placeholders in Investment Memorandum to be filled in.
+- Complete developer account registrations (Apple & Google Play) using D-U-N-S number.
+- Compile native mobile bundles (`.aab` for Android and `.ipa` for iOS).
+- Complete vendor corrigenda banner & 412 pre-submission check in web/mobile flows.
