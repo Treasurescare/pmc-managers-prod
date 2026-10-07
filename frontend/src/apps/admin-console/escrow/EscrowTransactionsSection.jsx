@@ -30,12 +30,14 @@ function SignatureBox({ label, officer, sig }) {
   );
 }
 
-function TransactionRow({ t, onSign, onRelease }) {
+function TransactionRow({ t, onSign, onRelease, onCancel }) {
   const sigs = t.signatures || {};
   const pmc = sigs.pmc || {};
   const esc = sigs.escrow_institution || {};
   const bothMatch = pmc.action && pmc.action === esc.action;
+  const sideMismatch = pmc.action && esc.action && pmc.action !== esc.action;
   const closed = CLOSED.has(t.status);
+  const [showTrail, setShowTrail] = useState(false);
   // 2026-09-19 — governance flag from backend (same email on both officers).
   // Fallback to snapshot check for older cached responses that predate the flag.
   const snap = t.escrow_account_snapshot || {};
@@ -101,6 +103,12 @@ function TransactionRow({ t, onSign, onRelease }) {
               Sign · {a.replace(/_/g, " ")}
             </button>
           ))}
+          <button onClick={() => onCancel(t)}
+                  data-testid={`escrow-cancel-${t.id}`}
+                  title="Cancel this ledger row (e.g. a duplicate). Only works before a release fires."
+                  className="px-3 py-1 text-[11px] uppercase tracking-widest border border-red-400 text-red-700 hover:bg-red-50">
+            Cancel row
+          </button>
           <button onClick={() => onRelease(t)} disabled={!bothMatch || sameEmail}
                   data-testid={`escrow-release-${t.id}`}
                   title="Enabled only when BOTH officers have signed the identical action. Triggers the ledger release and the audit record."
@@ -108,7 +116,46 @@ function TransactionRow({ t, onSign, onRelease }) {
             Release ({sameEmail ? "blocked — fix officers" : bothMatch ? "unlocked" : "needs both signatures"})
           </button>
           </div>
+          {sideMismatch && (
+            <div className="mt-3 p-3 bg-amber-50 border border-amber-300 text-xs text-amber-900"
+                 data-testid={`escrow-tx-mismatch-${t.id}`}>
+              <strong>Action mismatch — release blocked.</strong> PMC signed
+              <code className="mx-1">{pmc.action}</code>, Escrow signed
+              <code className="mx-1">{esc.action}</code>. Both officers must sign the
+              <em> same </em>action for the release to fire. Whichever side wants
+              to change needs to click the matching Sign button to overwrite their
+              current signature.
+            </div>
+          )}
         </div>
+      )}
+      <div className="mt-3 flex items-center justify-between gap-2 flex-wrap text-xs">
+        <button type="button" onClick={() => setShowTrail((v) => !v)}
+                data-testid={`escrow-tx-trail-toggle-${t.id}`}
+                className="text-brand-navy/70 underline hover:text-brand-navy">
+          {showTrail ? "Hide" : "Show"} signature audit trail
+          ({(t.audit_trail || []).length} event{(t.audit_trail || []).length === 1 ? "" : "s"})
+        </button>
+      </div>
+      {showTrail && (
+        <ol className="mt-2 space-y-1 text-xs border-l-2 border-brand-navy/15 pl-3"
+            data-testid={`escrow-tx-trail-${t.id}`}>
+          {(t.audit_trail || []).map((e, i) => (
+            <li key={i} className="text-brand-navy/80">
+              <span className="font-mono text-[11px] text-brand-navy/50 mr-2">
+                {(e.at || "").slice(0, 19).replace("T", " ")}
+              </span>
+              <strong>{e.event}</strong>
+              {e.by && <> · by <code className="text-brand-navy/70">{e.by}</code></>}
+              {e.intended_action && <> · action <code>{e.intended_action}</code></>}
+              {e.amount != null && <> · {e.currency} {e.amount}</>}
+              {e.comment && <> · <em>{e.comment}</em></>}
+            </li>
+          ))}
+          {(t.audit_trail || []).length === 0 && (
+            <li className="italic text-brand-navy/40">No events yet.</li>
+          )}
+        </ol>
       )}
     </div>
   );
@@ -255,6 +302,15 @@ export default function EscrowTransactionsSection({ accounts, txs, onReload }) {
     } catch (e) { showApiError(e, { fallbackTitle: "Release failed" }); }
   };
 
+  const cancelTx = async (t) => {
+    if (!window.confirm(`Cancel this escrow transaction for ${t.bid_ref}? Use this to clear duplicates or mis-entries. The row stays in the audit trail.`)) return;
+    try {
+      await escrowApi.cancel(t.id);
+      toast.success("Transaction cancelled — ledger row cleared");
+      onReload();
+    } catch (e) { showApiError(e, { fallbackTitle: "Cancel failed" }); }
+  };
+
   return (
     <section>
       <div className="flex items-center justify-between mb-3">
@@ -347,7 +403,7 @@ export default function EscrowTransactionsSection({ accounts, txs, onReload }) {
       <div className="border border-brand-navy/10 bg-white divide-y divide-brand-navy/10">
         {txs.length === 0 && <div className="p-6 text-sm text-brand-navy/50">No transactions yet.</div>}
         {paged.map((t) => (
-          <TransactionRow key={t.id} t={t} onSign={signAction} onRelease={release}/>
+          <TransactionRow key={t.id} t={t} onSign={signAction} onRelease={release} onCancel={cancelTx}/>
         ))}
         {controls}
       </div>

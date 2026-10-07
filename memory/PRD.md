@@ -49,6 +49,43 @@ Public / Vendor / Buyer / Admin roles.
 - `/downloads/DOWNLOAD_mobile_v1.0.0.md`
 
 ## Latest web releases
+- **v51ap** — Duplicate-ledger fix + admin cancel. One bid can now hold
+  only ONE open escrow transaction at a time (status pending / received /
+  awaiting_signatures). `POST /api/v1/escrow/transactions/init` returns 409
+  with a human-readable detail when a dup is attempted; the auto-ledger
+  (`escrow.auto_init_from_emd_payment`) also short-circuits and backfills
+  the `payment_session_id` on the existing row instead of creating a
+  parallel one. New `POST /api/v1/escrow/transactions/{tid}/cancel` lets
+  admins clear mis-entries or legacy duplicates (allowed only while open;
+  audit-logged with `escrow.tx_cancel`). Admin EscrowPanel row grew a
+  "Cancel row" button for every open ledger entry alongside the Sign
+  buttons. Verified E2E: duplicate init → 409 "Bid already has an open
+  escrow transaction"; cancel on duplicate → status=cancelled.
+- **v51ao** — Round 3 polish: Dashboard KPI, password reset, audit trail,
+  bulk notice routing + action-mismatch UX fix.
+  **Dashboard KPI**: new `EscrowInstitutionsKPI` tile appears in the
+  AdminDashboardE "Needs attention" rail whenever an institution
+  registration is sitting in `submitted` state — count + click-through to
+  the review queue.
+  **Password reset**: new `POST /api/v1/escrow-signatories/auth/forgot-password`
+  (always 200 to avoid user enumeration; emails a 1hr Resend link) +
+  `POST /auth/reset-password` (token + new_password; marks used atomically).
+  Frontend `EscrowSignatoryLogin` now exposes a "Forgot password?" link and
+  renders the reset form when hit with `?reset=1&token=…`.
+  **Signature audit trail**: every escrow transaction row in the admin
+  EscrowPanel grew a "Show signature audit trail" toggle rendering the full
+  `audit_trail` chronology (received / signed_by_pmc / signed_by_escrow_institution
+  with timestamps, actor emails, intended actions and comments). Plus a
+  prominent amber mismatch banner when PMC and Escrow have signed DIFFERENT
+  actions — explaining why the Release button is still disabled and what
+  needs to change (this is the user's "signed twice and nothing fired"
+  pattern).
+  **Bulk notice routing**: `NoticeAccountPicker` on
+  `/admin/e/escrow-institutions` now has a checkbox column, select-all,
+  bulk-apply dropdown and single-click Apply — assign one escrow account
+  across any subset of published notices in one shot.
+  Verified E2E: forgot-password 200, reset-password 400 for bad token / 200
+  for real token, login with new password 200; yarn build clean.
 - **v51an** — Escrow Institution portal round 2: real signatory auth,
   dashboard transactions grid, notice-level account routing, and a cron
   expiry watchdog. Backend: new `routers/escrow_signatories.py` with

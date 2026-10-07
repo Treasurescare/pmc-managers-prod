@@ -252,6 +252,9 @@ function NoticeAccountPicker() {
   const [notices, setNotices] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [saving, setSaving] = useState({});
+  const [selected, setSelected] = useState({}); // notice_ref -> true for bulk
+  const [bulkAccountId, setBulkAccountId] = useState("");
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -281,6 +284,32 @@ function NoticeAccountPicker() {
   };
 
   const live = notices.filter((n) => n.is_published).slice(0, 50);
+  const selectedCount = Object.values(selected).filter(Boolean).length;
+  const allSelected = selectedCount > 0 && selectedCount === live.length;
+
+  const toggleAll = () => {
+    if (allSelected) setSelected({});
+    else setSelected(Object.fromEntries(live.map((n) => [n.notice_ref, true])));
+  };
+
+  const bulkAssign = async () => {
+    const refs = live.filter((n) => selected[n.notice_ref]).map((n) => n.notice_ref);
+    if (refs.length === 0) return toast.error("Pick at least one notice to bulk-assign.");
+    if (!window.confirm(`Assign ${bulkAccountId ? "this escrow account" : "the default (newest active)"} to ${refs.length} notice${refs.length === 1 ? "" : "s"}?`)) return;
+    setBulkBusy(true);
+    let okN = 0, failN = 0;
+    for (const ref of refs) {
+      try {
+        await api.patch(`/api/v1/notices/${ref}`, { escrow_account_id: bulkAccountId || null });
+        setNotices((prev) => prev.map((n) =>
+          n.notice_ref === ref ? { ...n, escrow_account_id: bulkAccountId || null } : n));
+        okN += 1;
+      } catch (e) { failN += 1; }
+    }
+    setBulkBusy(false);
+    setSelected({});
+    toast.success(`Bulk assigned ${okN} notice${okN === 1 ? "" : "s"}${failN ? `, ${failN} failed` : ""}`);
+  };
 
   return (
     <section className="mt-8 bg-white border border-brand-navy/15"
@@ -288,48 +317,79 @@ function NoticeAccountPicker() {
       <div className="pmc-label p-4 border-b border-brand-navy/10 flex items-center justify-between gap-2 flex-wrap">
         <span>Notice ↔ Escrow account routing</span>
         <span className="text-[10px] text-brand-navy/50 normal-case tracking-normal">
-          Pin a joint account to each published notice so EMD receipts auto-post to the right ledger.
-          Unassigned notices fall back to the newest active account.
+          Pin a joint account to each published notice. Unassigned notices fall back to the newest active account.
         </span>
       </div>
       {live.length === 0 ? (
         <div className="p-6 text-sm text-brand-navy/50">No published notices yet.</div>
       ) : (
-        <table className="w-full text-sm">
-          <thead className="text-left text-[10px] uppercase tracking-widest text-brand-navy/50">
-            <tr>
-              <th className="p-3">Notice ref</th>
-              <th className="p-3">Title</th>
-              <th className="p-3">Escrow account</th>
-            </tr>
-          </thead>
-          <tbody>
-            {live.map((n) => (
-              <tr key={n.notice_ref} className="border-t border-brand-navy/5"
-                  data-testid={`notice-account-row-${n.notice_ref}`}>
-                <td className="p-3 font-mono text-xs">{n.notice_ref}</td>
-                <td className="p-3 max-w-xs truncate" title={n.title}>{n.title}</td>
-                <td className="p-3">
-                  <select value={n.escrow_account_id || ""}
-                          onChange={(e) => save(n.notice_ref, e.target.value || null)}
-                          disabled={saving[n.notice_ref]}
-                          data-testid={`notice-account-select-${n.notice_ref}`}
-                          className="px-2 py-1 border border-brand-navy/20 text-xs bg-white min-w-[260px]">
-                    <option value="">— Use newest active account (default) —</option>
-                    {accounts.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name} · {a.institution} · {a.currency}
-                      </option>
-                    ))}
-                  </select>
-                  {saving[n.notice_ref] && (
-                    <span className="ml-2 text-[10px] text-brand-navy/50">saving…</span>
-                  )}
-                </td>
+        <>
+          <div className="p-3 bg-brand-navy/5 border-b border-brand-navy/10 flex items-center gap-3 flex-wrap text-xs"
+               data-testid="notice-account-bulk-bar">
+            <span className="text-brand-navy/70">
+              {selectedCount} selected
+            </span>
+            <select value={bulkAccountId} onChange={(e) => setBulkAccountId(e.target.value)}
+                    data-testid="notice-account-bulk-select"
+                    className="px-2 py-1 border border-brand-navy/20 bg-white min-w-[240px]">
+              <option value="">— Use newest active account (default) —</option>
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name} · {a.institution} · {a.currency}
+                </option>
+              ))}
+            </select>
+            <button onClick={bulkAssign} disabled={bulkBusy || selectedCount === 0}
+                    data-testid="notice-account-bulk-apply"
+                    className="px-3 py-1 text-[10px] uppercase tracking-widest bg-brand-navy text-white disabled:opacity-40">
+              {bulkBusy ? "Applying…" : `Apply to ${selectedCount || "selected"}`}
+            </button>
+          </div>
+          <table className="w-full text-sm">
+            <thead className="text-left text-[10px] uppercase tracking-widest text-brand-navy/50">
+              <tr>
+                <th className="p-3 w-10">
+                  <input type="checkbox" checked={allSelected} onChange={toggleAll}
+                         data-testid="notice-account-select-all" />
+                </th>
+                <th className="p-3">Notice ref</th>
+                <th className="p-3">Title</th>
+                <th className="p-3">Escrow account</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {live.map((n) => (
+                <tr key={n.notice_ref} className="border-t border-brand-navy/5"
+                    data-testid={`notice-account-row-${n.notice_ref}`}>
+                  <td className="p-3">
+                    <input type="checkbox" checked={!!selected[n.notice_ref]}
+                           onChange={(e) => setSelected((s) => ({ ...s, [n.notice_ref]: e.target.checked }))}
+                           data-testid={`notice-account-check-${n.notice_ref}`} />
+                  </td>
+                  <td className="p-3 font-mono text-xs">{n.notice_ref}</td>
+                  <td className="p-3 max-w-xs truncate" title={n.title}>{n.title}</td>
+                  <td className="p-3">
+                    <select value={n.escrow_account_id || ""}
+                            onChange={(e) => save(n.notice_ref, e.target.value || null)}
+                            disabled={saving[n.notice_ref]}
+                            data-testid={`notice-account-select-${n.notice_ref}`}
+                            className="px-2 py-1 border border-brand-navy/20 text-xs bg-white min-w-[260px]">
+                      <option value="">— Use newest active account (default) —</option>
+                      {accounts.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name} · {a.institution} · {a.currency}
+                        </option>
+                      ))}
+                    </select>
+                    {saving[n.notice_ref] && (
+                      <span className="ml-2 text-[10px] text-brand-navy/50">saving…</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
       )}
     </section>
   );

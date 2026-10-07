@@ -228,6 +228,23 @@ async def auto_init_from_emd_payment(bid_id: str, payment_tx: dict) -> Optional[
     bid = await db.bids.find_one({"_id": ObjectId(bid_id)})
     if not bid:
         return None
+    # v51ap — don't double-create if the admin already manually recorded a
+    # ledger row for this bid before the webhook fired.
+    existing_open = await db.escrow_transactions.find_one({
+        "bid_ref": bid.get("bid_ref"),
+        "status": {"$nin": ["released_to_contractor", "released_to_vendor",
+                             "forfeited", "cancelled"]},
+    })
+    if existing_open:
+        # Backfill the payment_session_id so future retries hit the idempotency
+        # guard instead of this slower branch.
+        await db.escrow_transactions.update_one(
+            {"_id": existing_open["_id"],
+             "payment_session_id": {"$exists": False}},
+            {"$set": {"payment_session_id": session_id,
+                      "auto_source": "stripe_emd_payment",
+                      "updated_at": now_iso()}})
+        return _out_tx(existing_open)
     # Resolve escrow account: notice-level override first, else newest active.
     acc = None
     notice = await db.notices.find_one({"notice_ref": bid.get("notice_ref")}) or {}
@@ -293,6 +310,19 @@ async def init_transaction(payload: TransactionInitIn,
                                               "active": True})
     if not acc:
         raise HTTPException(status_code=404, detail="Active escrow account not found")
+    # v51ap — reject duplicate inbound EMD per bid. Each bid can hold ONE
+    # open ledger row at a time; once the current row is released or
+    # cancelled the admin can record a new one against a different account.
+    existing_open = await db.escrow_transactions.find_one({
+        "bid_ref": payload.bid_ref,
+        "status": {"$nin": ["released_to_contractor", "released_to_vendor",
+                             "forfeited", "cancelled"]},
+    })
+    if existing_open:
+        raise HTTPException(status_code=409,
+            detail=(f"Bid {payload.bid_ref} already has an open escrow transaction "
+                    f"(status: {existing_open.get('status')}). Release or cancel "
+                    f"that one before recording another."))
     trail_entry = {"at": now_iso(), "by": admin.get("email"),
                     "event": "received",
                     "amount": payload.amount, "currency": payload.currency,
@@ -352,6 +382,33 @@ async def list_transactions(bid_ref: Optional[str] = None,
         row["same_email_email"] = pmc_e if pmc_e == esc_e else None
         items.append(row)
     return {"items": items, "total": len(items)}
+
+
+@router.post("/transactions/{tid}/cancel")
+async def cancel_transaction(tid: str,
+                              admin=Depends(require_role("admin"))):
+    """v51ap — admin cancels an open escrow transaction (duplicates or
+    mis-entries). Allowed only while status is pending / received /
+    awaiting_signatures. Audit-logged."""
+    try:
+        tx = await db.escrow_transactions.find_one({"_id": ObjectId(tid)})
+    except Exception:
+        raise HTTPException(status_code=400, detail="Malformed transaction id")
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    if tx.get("status") not in ("pending", "received", "awaiting_signatures"):
+        raise HTTPException(status_code=409,
+            detail=f"Cannot cancel a transaction in status '{tx.get('status')}'")
+    trail_entry = {"at": now_iso(), "by": admin.get("email"),
+                    "event": "cancelled",
+                    "comment": "Admin-cancelled (e.g. duplicate)"}
+    await db.escrow_transactions.update_one(
+        {"_id": ObjectId(tid)},
+        {"$set": {"status": "cancelled", "updated_at": now_iso()},
+         "$push": {"audit_trail": trail_entry}})
+    await audit_log("escrow.tx_cancel", admin, "escrow_tx", tid,
+                     {"bid_ref": tx.get("bid_ref")})
+    return _out_tx(await db.escrow_transactions.find_one({"_id": ObjectId(tid)}))
 
 
 @router.post("/transactions/{tid}/sign")

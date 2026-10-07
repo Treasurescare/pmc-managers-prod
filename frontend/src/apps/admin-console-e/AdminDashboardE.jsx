@@ -1,6 +1,7 @@
 import { useUiTheme } from "@/context/UiThemeContext";
 import { useAdminDashboardLive } from "@/lib/pmcELiveData";
 import AdminAvatarMenu from "./AdminAvatarMenu";
+import EscrowInstitutionsKPI from "./EscrowInstitutionsKPI";
 import "./admin-dashboard.css";
 
 const STAGES = [
@@ -52,6 +53,7 @@ export default function AdminDashboardE({ legacy: Legacy }) {
     <a href="/admin/e/notices?status=closing" data-testid="dash-attn-closing"><span><span className="n" data-attn="closing">0</span> tenders close this week</span><span className="arr" aria-hidden="true">→</span></a>
     <a href="/admin/e/notices?status=draft" data-testid="dash-attn-approvals"><span><span className="n" data-attn="approvals">0</span> drafts awaiting approval</span><span className="arr" aria-hidden="true">→</span></a>
     <a href="/admin/e/bidding" data-testid="dash-attn-emd"><span><span className="n" data-attn="emd">0</span> bids awaiting EMD</span><span className="arr" aria-hidden="true">→</span></a>
+    <EscrowInstitutionsKPI />
   </section>
 
   <section className="pmc-panel" style={{ overflow: "hidden" }} data-testid="dash-pipeline-panel">

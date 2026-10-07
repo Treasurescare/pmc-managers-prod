@@ -701,6 +701,7 @@ export const escrowApi = {
   initTransaction: (p) => api.post("/api/v1/escrow/transactions/init", p).then((r) => r.data),
   sign: (tid, p) => api.post(`/api/v1/escrow/transactions/${tid}/sign`, p).then((r) => r.data),
   release: (tid, p) => api.post(`/api/v1/escrow/transactions/${tid}/release`, p).then((r) => r.data),
+  cancel: (tid) => api.post(`/api/v1/escrow/transactions/${tid}/cancel`).then((r) => r.data),
 };
 
 export const gdprApi = {

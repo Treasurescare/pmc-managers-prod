@@ -39,6 +39,15 @@ class SignatoryLoginIn(BaseModel):
     password: str
 
 
+class ForgotPasswordIn(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordIn(BaseModel):
+    token: str
+    new_password: str = Field(min_length=8)
+
+
 # ---------- Helpers ------------------------------------------------------
 
 def _create_token(sig_id: str, email: str) -> str:
@@ -191,6 +200,68 @@ async def me(sig=Depends(current_signatory)) -> dict:
         except Exception:
             continue
     return {**sig, "institutions": insts}
+
+
+# ---------- Forgot / reset password --------------------------------------
+
+@router.post("/auth/forgot-password")
+async def forgot_password(payload: ForgotPasswordIn) -> dict:
+    """Emails the signatory a one-time reset link (1-hour TTL). Always
+    returns ok=True to avoid user enumeration — if the email isn't on file
+    the function is a no-op."""
+    import secrets as _secrets
+    sig = await db.escrow_signatories.find_one({"email": payload.email.lower()})
+    if sig:
+        token = _secrets.token_urlsafe(32)
+        expires = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+        await db.escrow_sig_password_resets.insert_one({
+            "token": token, "email": sig["email"],
+            "expires_at": expires, "used_at": None,
+            "created_at": now_iso(),
+        })
+        try:
+            from emails import send_email, wrap
+            reset_url = f"{config.FRONTEND_URL}/escrow/login?reset=1&token={token}"
+            body = wrap("Reset your PMC escrow signatory password",
+                f"<p>Hi {sig.get('name') or sig['email']},</p>"
+                f"<p>Click the button below to pick a new password. This link "
+                f"expires in 1 hour. If you didn't request a reset, ignore "
+                f"this email — nothing will change.</p>",
+                "Reset password", reset_url)
+            await send_email(sig["email"],
+                "[PMC] Reset your escrow signatory password", body)
+        except Exception as e:
+            import logging
+            logging.getLogger("escrow_sig").warning("reset email failed: %s", e)
+    return {"ok": True}
+
+
+@router.post("/auth/reset-password")
+async def reset_password(payload: ResetPasswordIn) -> dict:
+    rec = await db.escrow_sig_password_resets.find_one(
+        {"token": payload.token, "used_at": None})
+    if not rec:
+        raise HTTPException(status_code=400, detail="Invalid or already-used reset link")
+    try:
+        exp = datetime.fromisoformat(rec["expires_at"].replace("Z", "+00:00"))
+        if exp.tzinfo is None:
+            exp = exp.replace(tzinfo=timezone.utc)
+    except Exception:
+        exp = datetime.now(timezone.utc) - timedelta(seconds=1)
+    if exp < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Reset link has expired")
+    sig = await db.escrow_signatories.find_one({"email": rec["email"]})
+    if not sig:
+        raise HTTPException(status_code=400, detail="Signatory not found")
+    await db.escrow_signatories.update_one(
+        {"_id": sig["_id"]},
+        {"$set": {"password_hash": hash_password(payload.new_password),
+                  "updated_at": now_iso()}})
+    await db.escrow_sig_password_resets.update_one(
+        {"_id": rec["_id"]}, {"$set": {"used_at": now_iso()}})
+    await audit_log("escrow_sig.password_reset", None, "escrow_signatory",
+                    str(sig["_id"]), {"email": sig["email"]})
+    return {"ok": True}
 
 
 # ---------- Dashboard transactions grid ----------------------------------
