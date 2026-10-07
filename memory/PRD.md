@@ -49,6 +49,17 @@ Public / Vendor / Buyer / Admin roles.
 - `/downloads/DOWNLOAD_mobile_v1.0.0.md`
 
 ## Latest web releases
+- **v51af** — Fix: Registrations "Edit sections" button (verified in preview:
+  editable form opens + saves on a submitted registration). Bundles built:
+  `pmc-frontend-v51af-prod-build.zip` + `pmc-backend-v51af.zip` +
+  `DOWNLOAD_v51af.md`. Google verification meta tag carried forward.
+  Root cause: 11/74 registrations (legacy rows) have no `magic_token`, so the
+  resume link was built with `token=` empty and RegistrationResume bounced to
+  `/register`. Backend `admin_resume_link` now mints+persists a token when
+  missing; new admin-only `PATCH /api/v1/registrations/admin/{rid}` lets admins
+  save edits on submitted/under_review registrations (public token PATCH only
+  allows draft/needs_clarification); RegistrationResume uses the admin path
+  when opened with `?from=admin&rid=...`.
 - **v51ae** — Google Search Console verification meta tag added to
   `index.html` (`t7scPgT9ZxpjYxkyRAyB8cCvfrCh04IAO6XcvAvS4r0`) so Play
   Console "Verify your organization's website" resolves on pmcmanagers.com.

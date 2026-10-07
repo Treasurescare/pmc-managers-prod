@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { publicApi, registrationApi, formatApiError, showApiError} from "@/lib/api";
+import { adminApi, publicApi, registrationApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import TopBar from "@/apps/shared/TopBar";
 import Footer from "@/apps/shared/Footer";
@@ -34,6 +34,8 @@ export default function RegistrationResume() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const token = params.get("token");
+  const fromAdmin = params.get("from") === "admin";
+  const ridParam = params.get("rid");
   const [reg, setReg] = useState(null);
   const [loading, setLoading] = useState(true);
   const [stepIdx, setStepIdx] = useState(0);
@@ -64,7 +66,9 @@ export default function RegistrationResume() {
       delete payload.id; delete payload.status; delete payload.tenant_id;
       delete payload.created_at; delete payload.updated_at; delete payload.submitted_at;
       delete payload.vendor_ref; delete payload.reviewed_at; delete payload.reviewer_notes; delete payload.magic_token;
-      const fresh = await registrationApi.update(reg.id, token, payload);
+      const fresh = fromAdmin && ridParam
+        ? await adminApi.registrationAdminUpdate(ridParam, payload)
+        : await registrationApi.update(reg.id, token, payload);
       setReg(fresh);
       toast.success(t("register.saved"));
     } catch (err) {
@@ -117,7 +121,11 @@ export default function RegistrationResume() {
     );
   }
 
-  if (reg.status && !["draft", "needs_clarification"].includes(reg.status)) {
+  // Admins opening via RegistrationsPanel's "Edit sections" (?from=admin) get
+  // the editable stepper for any non-approved/non-rejected status; vendors
+  // keep the read-only status screen once submitted.
+  const adminEditable = fromAdmin && !["approved", "rejected"].includes(reg.status);
+  if (reg.status && !["draft", "needs_clarification"].includes(reg.status) && !adminEditable) {
     return (
       <div className="min-h-screen bg-brand-pale flex flex-col">
         <TopBar />

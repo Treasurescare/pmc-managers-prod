@@ -172,6 +172,8 @@ export const adminApi = {
   // v51ac — admin opens the vendor's own resume URL to edit a non-approved
   // registration using the same 5-section stepper the vendor fills.
   registrationResumeLink: (rid) => api.get(`/api/v1/registrations/admin/${rid}/resume-link`).then((r) => r.data),
+  registrationAdminUpdate: (rid, payload) =>
+    api.patch(`/api/v1/registrations/admin/${rid}`, payload).then((r) => r.data),
   getRegistration: (id) => api.get(`/api/v1/registrations/${id}`).then((r) => r.data),
   decideRegistration: (id, action, notes) =>
     api.post(`/api/v1/registrations/${id}/decision`, { action, notes }).then((r) => r.data),

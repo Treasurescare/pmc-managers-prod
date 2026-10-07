@@ -68,10 +68,18 @@ async def admin_resume_link(rid: str, admin=Depends(require_role("admin", "revie
         raise HTTPException(status_code=400,
                             detail="Approved registrations use the vendor profile editor "
                                    "(/admin/vendors/{vendor_ref}/edit).")
+    token = reg.get("magic_token") or ""
+    if not token:
+        # Legacy registrations pre-date magic links — mint one so the admin
+        # resume editor always opens instead of bouncing back to /register.
+        token = new_magic_token()
+        await db.registrations.update_one(
+            {"_id": reg_obj_id},
+            {"$set": {"magic_token": token, "updated_at": now_iso()}})
     await audit_log("registration.admin_resume_link", admin, "registration", rid,
                     {"status": reg.get("status")})
     frontend = (getattr(config, "FRONTEND_URL", "") or "").rstrip("/")
-    path = f"/register/resume?rid={rid}&token={reg.get('magic_token', '')}&from=admin"
+    path = f"/register/resume?rid={rid}&token={token}&from=admin"
     return {"url": (frontend + path) if frontend else path,
             "path": path,
             "status": reg.get("status")}
@@ -116,6 +124,35 @@ async def upload_registration_doc(registration_id: str, slot: str,
     await audit_log("registration.document_upload", None, "registration", registration_id,
                     {"slot": slot, "file_name": file.filename})
     return meta
+
+
+# v51af — admin edits a non-approved registration's section data directly
+# (RegistrationResume opened with ?from=admin&rid=...). The public token PATCH
+# only permits draft/needs_clarification; admins may also edit submitted /
+# under_review records on behalf of the vendor.
+@router.patch("/admin/{rid}")
+async def admin_update_registration(rid: str, payload: RegistrationUpdateIn,
+                                    admin=Depends(require_role("admin", "reviewer"))):
+    try:
+        reg_obj_id = ObjectId(rid)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Malformed registration id")
+    reg = await db.registrations.find_one({"_id": reg_obj_id})
+    if not reg:
+        raise HTTPException(status_code=404, detail="Registration not found")
+    if reg.get("status") in ("approved", "rejected"):
+        raise HTTPException(status_code=400,
+                            detail="Approved/rejected registrations use the vendor profile editor.")
+    updates = payload.model_dump(exclude_unset=True)
+    for protected in ("id", "_id", "status", "vendor_ref", "magic_token", "tenant_id",
+                      "created_at", "submitted_at", "reviewed_at", "reviewer_notes"):
+        updates.pop(protected, None)
+    updates["updated_at"] = now_iso()
+    await db.registrations.update_one({"_id": reg_obj_id}, {"$set": updates})
+    await audit_log("registration.admin_update", admin, "registration", rid,
+                    {"fields": sorted(updates.keys())})
+    fresh = await db.registrations.find_one({"_id": reg_obj_id})
+    return _out(fresh)
 
 
 @router.get("/{registration_id}/documents/{slot}/file")
