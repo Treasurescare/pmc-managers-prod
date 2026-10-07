@@ -49,6 +49,11 @@ Public / Vendor / Buyer / Admin roles.
 - `/downloads/DOWNLOAD_mobile_v1.0.0.md`
 
 ## Latest web releases
+- **v51ak** — Escrow "Record inbound EMD" bid picker: Bid ref free-text
+  replaced with a dropdown of live bids (withdrawn/rejected excluded,
+  EMD-paid floated to top with amount annotation); picking a bid auto-fills
+  notice ref, vendor ref, amount, currency; manual-entry fallback retained.
+  Frontend-only ZIP: `pmc-frontend-v51ak-prod-build.zip`.
 - **v51aj** — Bidding ops hold/resume clarity: detail panel on an on_hold bid
   now shows an "On hold — reason — held by" note plus a **Resume bid** button
   (Hold… hidden), and the panel auto-refreshes after hold/resume/reject so the

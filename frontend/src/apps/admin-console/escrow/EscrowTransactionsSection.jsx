@@ -5,7 +5,7 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { adminApi, escrowApi, showApiError } from "@/lib/api";
+import { adminApi, bidApi, escrowApi, showApiError } from "@/lib/api";
 import { InfoDot } from "@/components/InfoDot";
 import { useListPager } from "@/components/ListPager";
 
@@ -151,6 +151,19 @@ function OfficerIdentityHint({ snap }) {
 export default function EscrowTransactionsSection({ accounts, txs, onReload }) {
   const [showNew, setShowNew] = useState(false);
   const [tx, setTx] = useState(EMPTY_TX);
+  // v51ak — bid picker for the inbound-EMD form: admins shouldn't have to
+  // memorise bid refs. Bids with a paid EMD float to the top; picking one
+  // auto-fills notice ref, vendor ref, amount and currency (all editable).
+  const [bids, setBids] = useState([]);
+  useEffect(() => {
+    if (!showNew) return;
+    bidApi.list({}).then((d) => {
+      const items = Array.isArray(d) ? d : (d?.items || []);
+      const live = items.filter((b) => !["withdrawn", "rejected"].includes(b.status));
+      const paid = (b) => Number(b.emd_paid_amount || 0) > 0;
+      setBids([...live].sort((a, b) => Number(paid(b)) - Number(paid(a))));
+    }).catch(() => {});
+  }, [showNew]);
   const activeAccounts = useMemo(() => accounts.filter((a) => a.active), [accounts]);
   const { paged, controls } = useListPager(txs, { testid: "escrow-tx-pager" });
 
@@ -268,9 +281,43 @@ export default function EscrowTransactionsSection({ accounts, txs, onReload }) {
               <option value="">Select…</option>
               {activeAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
             </select></label>
-          <label><span className="pmc-label">Bid ref</span>
-            <input value={tx.bid_ref} onChange={(e) => setTx({ ...tx, bid_ref: e.target.value })}
-                   data-testid="escrow-tx-bid" className="mt-1 w-full px-3 py-2 border border-brand-navy/20"/></label>
+          <label><span className="pmc-label">Bid<InfoDot tip="Pick the bid this EMD payment belongs to. Bids with a paid EMD float to the top. Picking a bid auto-fills notice ref, vendor ref, amount and currency — all still editable. Choose 'Manual entry' to type a ref by hand." /></span>
+            <select value={tx.bid_ref && bids.some((b) => b.bid_ref === tx.bid_ref) ? tx.bid_ref : (tx.bid_ref ? "__manual" : "")}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (v === "__manual") { setTx({ ...tx, bid_ref: tx.bid_ref, }); return; }
+                      const b = bids.find((x) => x.bid_ref === v);
+                      if (!b) { setTx({ ...tx, bid_ref: "" }); return; }
+                      setTx({
+                        ...tx,
+                        bid_ref: b.bid_ref || "",
+                        notice_ref: b.notice_ref || "",
+                        vendor_ref: b.vendor_ref || "",
+                        amount: Number(b.emd_paid_amount || b.emd_due_amount || 0) || tx.amount,
+                        currency: (b.emd_currency || b.price_currency || tx.currency || "USD").toUpperCase(),
+                      });
+                    }}
+                    data-testid="escrow-tx-bid"
+                    className="mt-1 w-full px-3 py-2 border border-brand-navy/20 bg-white">
+              <option value="">Select bid…</option>
+              {bids.map((b) => (
+                <option key={b.id} value={b.bid_ref}>
+                  {b.bid_ref} — {b.notice_ref || "—"} · {b.vendor_ref || b.company_name || "—"}
+                  {Number(b.emd_paid_amount || 0) > 0
+                    ? ` · EMD paid ${Number(b.emd_paid_amount).toLocaleString()} ${(b.emd_currency || b.price_currency || "USD").toUpperCase()}`
+                    : ""}
+                </option>
+              ))}
+              <option value="__manual">— Manual entry (type a ref) —</option>
+            </select>
+            {tx.bid_ref !== "" && !bids.some((b) => b.bid_ref === tx.bid_ref) && (
+              <input value={tx.bid_ref}
+                     onChange={(e) => setTx({ ...tx, bid_ref: e.target.value })}
+                     placeholder="Type bid ref, e.g. PMC-BID-2026-00048"
+                     data-testid="escrow-tx-bid-manual"
+                     className="mt-2 w-full px-3 py-2 border border-brand-navy/20"/>
+            )}
+          </label>
           <label><span className="pmc-label">Notice ref</span>
             <input value={tx.notice_ref} onChange={(e) => setTx({ ...tx, notice_ref: e.target.value })}
                    className="mt-1 w-full px-3 py-2 border border-brand-navy/20"/></label>
