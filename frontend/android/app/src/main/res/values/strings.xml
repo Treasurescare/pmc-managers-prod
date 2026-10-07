@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">PMC Tenders</string>
+    <string name="title_activity_main">PMC Tenders</string>
+    <string name="package_name">com.pmcmanagers.tenders</string>
+    <string name="custom_url_scheme">com.pmcmanagers.tenders</string>
+</resources>

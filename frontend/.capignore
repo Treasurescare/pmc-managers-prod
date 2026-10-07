@@ -1,0 +1,9 @@
+# Files/folders that must NOT be bundled inside the native iOS/Android apps.
+# Capacitor copies /frontend/build into android/app/src/main/assets/public and
+# ios/App/App/public on every `cap sync`. Anything that is a web-only payload
+# (version zips, backend bundles, PDFs/DOCX distributed via https://pmcmanagers.com)
+# would otherwise bloat the mobile .aab/.ipa to 1.5 GB+. Keep this short-list up to date.
+downloads/
+*.zip
+*.tar.gz
+*.tgz

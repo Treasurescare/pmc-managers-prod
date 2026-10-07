@@ -17,23 +17,18 @@ Publishing as an **Organization** gives PMC Managers:
 
 ---
 
-## PHASE 1: ACQUIRING THE D-U-N-S NUMBER (PREREQUISITE FOR BOTH APPLE & GOOGLE)
+## PHASE 1: D-U-N-S NUMBER (✅ COMPLETED)
 
-Both Apple and Google require a **D-U-N-S (Data Universal Numbering System) Number** from Dun & Bradstreet (D&B) to verify UK corporate entities.
+**D-U-N-S Number: `234578668`** — issued by Dun & Bradstreet for:
+- **Legal Entity:** THE PMC MANAGERS LTD
+- **Street:** Chiswick Park
+- **City:** LONDON
+- **State:** England
+- **Postal Code:** W4 5YG
 
-### Step 1.1: Check if PMC Managers Already Has a D-U-N-S Number
-1. Visit Apple's D-U-N-S Lookup portal: **https://developer.apple.com/enroll/duns-lookup/** (or D&B UK: **https://www.dnb.co.uk/**).
-2. Enter your company information:
-   - **Legal Entity Name:** `THE PMC MANAGERS LTD`
-   - **Company Registration Number:** `17031540`
-   - **Registered Address:** `Office Gold, Building 7, Floor 5 Chiswick Park, 566 Chiswick High Road, London, W4 5YG, United Kingdom`
-3. If a D-U-N-S Number is returned, save the 9-digit number.
+This is the mandatory corporate identity key for both Apple Developer (Organization) and Google Play Console (Organization) enrollment. Paste it into both enrollment forms below.
 
-### Step 1.2: If No D-U-N-S Number Exists, Request One (Free)
-1. Complete the request form on the Apple D-U-N-S lookup page or directly via D&B UK.
-2. D&B will email you within 24–48 hours requesting proof of company formation (your UK Companies House Certificate of Incorporation for `17031540`).
-3. D&B will issue your 9-digit D-U-N-S Number within 1–5 business days (at no cost).
-4. *Note:* Allow 24–48 hours after issuance before enrolling with Apple/Google so their automated databases sync with D&B.
+> ⚠️ **Sync caveat:** If your D-U-N-S number was issued very recently and Apple or Google reports "organization not found", wait 24–48 hours for the D&B database to sync with Apple/Google, then retry.
 
 ---
 
@@ -51,7 +46,7 @@ Both Apple and Google require a **D-U-N-S (Data Universal Numbering System) Numb
 3. Select **"Organization"** as the Entity Type.
 4. Fill in Corporate Information:
    - **Legal Entity Name:** `THE PMC MANAGERS LTD` (must match Companies House & D&B exactly).
-   - **D-U-N-S Number:** Enter your 9-digit D-U-N-S number.
+   - **D-U-N-S Number:** `234578668`
    - **Website:** `https://pmcmanagers.com`
    - **Headquarters Phone & Address:** UK Chiswick Park address.
 5. Provide Signing Authority verification details.
@@ -71,7 +66,7 @@ Both Apple and Google require a **D-U-N-S (Data Universal Numbering System) Numb
 1. Navigate to: **https://play.google.com/console/signup**
 2. Choose **"An Organization or Business"** account.
 3. Provide Developer Name: `THE PMC MANAGERS LTD` (or `PMC Managers Ltd`).
-4. Enter your 9-digit D-U-N-S number and business registration number (`17031540`).
+4. Enter your D-U-N-S number `234578668` and business registration number (`17031540`).
 5. Enter contact details:
    - Public Developer Email (e.g., `support@pmcmanagers.com`)
    - Official Phone Number (with SMS/call verification)
@@ -183,7 +178,7 @@ npx cap sync
 
 ## DIRECT ACTION CHECKLIST FOR PMC MANAGERS TEAM
 
-- [ ] **Step 1:** Look up or request D-U-N-S number for THE PMC MANAGERS LTD (Free via Apple D-U-N-S portal).
+- [x] **Step 1:** D-U-N-S number acquired: **234578668** (Dun & Bradstreet — THE PMC MANAGERS LTD).
 - [ ] **Step 2:** Enroll in Apple Developer Program ($99/yr) under Organization with D-U-N-S.
 - [ ] **Step 3:** Enroll in Google Play Console ($25 one-time) under Organization with D-U-N-S.
 - [ ] **Step 4:** Confirm store contact email (`support@pmcmanagers.com`) and legal URLs (`/privacy`, `/terms`).
