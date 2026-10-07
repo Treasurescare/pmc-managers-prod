@@ -8,6 +8,8 @@ export default function AdminAwardsE() {
       <AdminEShell crumb={<>Money &amp; compliance / <b>Awards</b></>}>
         <MoneyPanelWithFilter scope="[data-testid=awards-panel]"
                               testid="awards-filter"
+                              presetScope="awards"
+                              showExpiring={false}
                               statusOptions={[
                                 { value: "pending", label: "Pending" },
                                 { value: "signed",  label: "Signed" },

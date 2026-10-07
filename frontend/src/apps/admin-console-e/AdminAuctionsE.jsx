@@ -266,6 +266,7 @@ export default function AdminAuctionsE() {
         <MoneyFilterBar
           testid="auction-filter"
           onChange={setFilter}
+          presetScope="auctions"
           statusOptions={[
             { value: "draft", label: "Draft" },
             { value: "live",  label: "Live" },

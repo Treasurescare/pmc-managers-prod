@@ -8,6 +8,8 @@ export default function AdminL1AwardE() {
       <AdminEShell crumb={<>Money &amp; compliance / <b>L1 comparison</b></>}>
         <MoneyPanelWithFilter scope="[data-testid=l1-panel]"
                               testid="l1-filter"
+                              presetScope="l1"
+                              showExpiring={false}
                               statusOptions={[
                                 { value: "awarded",   label: "Awarded" },
                                 { value: "pending",   label: "Pending" },

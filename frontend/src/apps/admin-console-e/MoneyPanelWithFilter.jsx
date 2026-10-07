@@ -13,7 +13,7 @@ import MoneyFilterBar from "@/components/MoneyFilterBar";
  */
 export default function MoneyPanelWithFilter({
   scope, children, statusOptions = [], showExpiring = true,
-  testid = "money-filter",
+  testid = "money-filter", presetScope,
 }) {
   // v51ab — after the panel mounts, decorate every row that has recognisable
   // tender/created/status text with data-attrs so MoneyFilterBar can filter
@@ -53,6 +53,7 @@ export default function MoneyPanelWithFilter({
         scopeSelector={scope}
         statusOptions={statusOptions}
         showExpiring={showExpiring}
+        presetScope={presetScope}
       />
       {children}
     </>

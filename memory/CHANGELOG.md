@@ -924,3 +924,16 @@ Complete GoDaddy → Route 53 DNS migration. Same-origin frontend (bypasses Safa
 - **Feature**: Reverse auction row **Edit** button on every draft. Inline edit form for title, currency, starting/floor price, min decrement, duration, anti-snipe seconds. Backend: PATCH /api/v1/reverse-auctions/{aid} with draft-only guard and floor<start validation.
 - Preview smoke test: all 8 Money pages show the filter bar with no ErrorBoundary; typing a non-matching query shows the empty-filtered state; the Edit button opens the inline form pre-filled.
 - Bundle: pmc-frontend-v51ab-prod-build.zip + pmc-backend-v51ab.zip in /frontend/public/downloads/.
+
+## v51ac — 07 Oct 2026
+- **Feature**: Per-row Edit sections on every non-approved registration (Draft / Submitted / Needs clarification). Opens the vendor-facing 5-section flow in a new tab (via admin-only /api/v1/registrations/admin/{rid}/resume-link); audit-logged. Approved registrations surface Edit full vendor profile linking to /admin/vendors/{ref}/edit.
+- **Bug fix**: Expires from / Expires to filters were showing on panels that have no expiry concept (Awards, Billing, Escrow/EMD, Evaluation, L1 comparison, DocuSign). Hidden on those panels; still shown on Reverse auctions where each row carries end_at.
+- Preview smoke test: Expires-fields hidden on 6 legacy panels, visible on Reverse auctions, Edit sections link renders on each non-approved registration row.
+- Bundle: pmc-frontend-v51ac-prod-build.zip + pmc-backend-v51ac.zip in /frontend/public/downloads/.
+
+## v51ad — 07 Oct 2026
+- **Feature**: Corrigenda full workflow. Admin publishes numbered addenda; backend now accepts `extend_deadline_days` (auto-adds N days to the notice's current deadline) and `field_amendments[]` (versioned before/after diffs). New `GET /api/v1/corrigenda/outstanding` lists corrigenda a vendor must ACK; `POST /api/v1/corrigenda/{id}/acknowledge` records consent on the audit log; admin side gets `/corrigenda/{cid}/acknowledgements`.
+- **Feature**: Saved views on every Money & compliance panel. New `/api/v1/filter-presets` CRUD (per admin user × scope). MoneyFilterBar shows a Saved views dropdown + Save view + Delete view when `presetScope` is set. Enabled on auctions, awards, billing, escrow, evaluation, l1, docusign.
+- **Backend**: new routers `corrigenda._vendor_router` (vendor-side ack) and `filter_presets.router` mounted in server.py.
+- Preview smoke test: preset-save button present on 7/7 panels; corrigenda extend-days + field-amendments UI live.
+- Bundle: pmc-frontend-v51ad-prod-build.zip + pmc-backend-v51ad.zip in /frontend/public/downloads/.

@@ -52,6 +52,31 @@ async def get_slot_schema():
     return {"slots": DOC_SLOTS}
 
 
+# v51ac — admin fetches the vendor's magic resume URL so admins can edit a
+# non-approved registration on behalf of the vendor using the same 5-section
+# UI the vendor fills. Reused by RegistrationsPanel's new per-row Edit button.
+@router.get("/admin/{rid}/resume-link")
+async def admin_resume_link(rid: str, admin=Depends(require_role("admin", "reviewer"))):
+    try:
+        reg_obj_id = ObjectId(rid)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Malformed registration id")
+    reg = await db.registrations.find_one({"_id": reg_obj_id})
+    if not reg:
+        raise HTTPException(status_code=404, detail="Registration not found")
+    if reg.get("status") == "approved":
+        raise HTTPException(status_code=400,
+                            detail="Approved registrations use the vendor profile editor "
+                                   "(/admin/vendors/{vendor_ref}/edit).")
+    await audit_log("registration.admin_resume_link", admin, "registration", rid,
+                    {"status": reg.get("status")})
+    frontend = (getattr(config, "FRONTEND_URL", "") or "").rstrip("/")
+    path = f"/register/resume?rid={rid}&token={reg.get('magic_token', '')}&from=admin"
+    return {"url": (frontend + path) if frontend else path,
+            "path": path,
+            "status": reg.get("status")}
+
+
 @router.post("/{registration_id}/documents/{slot}")
 async def upload_registration_doc(registration_id: str, slot: str,
                                     file: UploadFile = File(...),

@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import { filterPresetsApi, showApiError } from "@/lib/api";
 
 /**
  * MoneyFilterBar — reusable client-side filter for every Money & compliance
@@ -24,6 +26,9 @@ export default function MoneyFilterBar({
   showExpiring = true,
   showCreator = true,
   testid = "money-filter-bar",
+  // v51ad — pass a stable string to turn on Save/Load named presets for this
+  // panel. e.g. presetScope="auctions". Omit to hide the preset controls.
+  presetScope,
 }) {
   const [q, setQ] = useState("");
   const [creator, setCreator] = useState("");
@@ -79,6 +84,40 @@ export default function MoneyFilterBar({
     setQ(""); setCreator("");
     setCreatedFrom(""); setCreatedTo("");
     setExpiringFrom(""); setExpiringTo(""); setStatus("");
+  };
+
+  // v51ad — presets
+  const [presets, setPresets] = useState([]);
+  useEffect(() => {
+    if (!presetScope) return;
+    filterPresetsApi.list(presetScope)
+      .then((r) => setPresets(r.items || []))
+      .catch(() => {});
+  }, [presetScope]);
+  const applyPreset = (p) => {
+    const c = p.criteria || {};
+    setQ(c.q || ""); setCreator(c.creator || "");
+    setCreatedFrom(c.createdFrom || ""); setCreatedTo(c.createdTo || "");
+    setExpiringFrom(c.expiringFrom || ""); setExpiringTo(c.expiringTo || "");
+    setStatus(c.status || "");
+  };
+  const savePreset = async () => {
+    const name = window.prompt("Save this filter as — give it a short name:",
+      "My view");
+    if (!name) return;
+    try {
+      await filterPresetsApi.save(presetScope, name.trim(), filter);
+      const r = await filterPresetsApi.list(presetScope);
+      setPresets(r.items || []);
+      toast.success(`Saved preset “${name.trim()}”`);
+    } catch (e) { showApiError(e); }
+  };
+  const deletePreset = async (p) => {
+    if (!window.confirm(`Delete preset “${p.name}”?`)) return;
+    try {
+      await filterPresetsApi.remove(p.id);
+      setPresets((xs) => xs.filter((x) => x.id !== p.id));
+    } catch (e) { showApiError(e); }
   };
 
   return (
@@ -148,6 +187,46 @@ export default function MoneyFilterBar({
               className="px-3 py-2 text-[10px] uppercase tracking-widest border border-brand-navy/20 text-brand-navy/70 hover:bg-brand-navy/5">
         Clear
       </button>
+      {presetScope && (
+        <div className="flex items-end gap-2" data-testid={`${testid}-presets`}>
+          <label className="flex flex-col min-w-[160px]">
+            <span className="pmc-label text-[10px]">Saved views</span>
+            <select
+              onChange={(e) => {
+                const p = presets.find((x) => x.id === e.target.value);
+                if (p) applyPreset(p);
+                e.target.value = "";
+              }}
+              data-testid={`${testid}-preset-pick`}
+              className="mt-1 px-2 py-1.5 border border-brand-navy/15 text-sm bg-white"
+              value="">
+              <option value="">Load preset…</option>
+              {presets.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </label>
+          <button type="button" onClick={savePreset}
+                  data-testid={`${testid}-preset-save`}
+                  className="px-3 py-2 text-[10px] uppercase tracking-widest border border-brand-navy text-brand-navy hover:bg-brand-navy hover:text-white">
+            Save view
+          </button>
+          {presets.length > 0 && (
+            <button type="button"
+                    onClick={() => {
+                      const name = window.prompt("Delete which preset? Type its exact name:");
+                      if (!name) return;
+                      const match = presets.find((p) => p.name === name.trim());
+                      if (!match) return toast.error("No preset with that name.");
+                      deletePreset(match);
+                    }}
+                    data-testid={`${testid}-preset-delete`}
+                    className="px-3 py-2 text-[10px] uppercase tracking-widest border border-red-300 text-red-600 hover:bg-red-50">
+              Delete view
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

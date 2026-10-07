@@ -16,7 +16,16 @@ export default function CorrigendaPanel() {
   const [corrSearch, setCorrSearch] = useState("");
   const [draft, setDraft] = useState({
     title: "", summary: "", effective_from: "", new_submission_deadline: "",
+    extend_deadline_days: "", field_amendments: [],
   });
+  // v51ad — admin can add row-level field amendments (before/after diff shown
+  // to vendors on the public corrigendum page).
+  const addAmendment = () => setDraft((d) => ({ ...d,
+    field_amendments: [...(d.field_amendments || []), { field: "", before: "", after: "" }] }));
+  const updateAmendment = (i, patch) => setDraft((d) => ({ ...d,
+    field_amendments: d.field_amendments.map((a, j) => j === i ? { ...a, ...patch } : a) }));
+  const removeAmendment = (i) => setDraft((d) => ({ ...d,
+    field_amendments: d.field_amendments.filter((_, j) => j !== i) }));
 
   const loadNotices = useCallback(() => {
     // Bucket A fix — pull drafts + published so admin can attach corrigenda
@@ -49,10 +58,19 @@ export default function CorrigendaPanel() {
       const payload = { ...draft };
       if (!payload.effective_from) delete payload.effective_from;
       if (!payload.new_submission_deadline) delete payload.new_submission_deadline;
+      if (payload.extend_deadline_days === "" || payload.extend_deadline_days == null) {
+        delete payload.extend_deadline_days;
+      } else {
+        payload.extend_deadline_days = Number(payload.extend_deadline_days);
+      }
+      payload.field_amendments = (payload.field_amendments || [])
+        .filter((a) => (a.field || "").trim() && ((a.before || a.after || "").toString().trim()));
+      if (payload.field_amendments.length === 0) delete payload.field_amendments;
       const res = await corrigendaApi.publish(pickedNoticeRef, payload);
       toast.success(`Corrigendum No. ${res.corrigendum.corrigendum_no} published`);
       setShowNew(false);
-      setDraft({ title: "", summary: "", effective_from: "", new_submission_deadline: "" });
+      setDraft({ title: "", summary: "", effective_from: "", new_submission_deadline: "",
+                 extend_deadline_days: "", field_amendments: [] });
       loadCorrigenda(pickedNoticeRef);
     } catch (err) { showApiError(err); }
   };
@@ -138,6 +156,41 @@ export default function CorrigendaPanel() {
                    onChange={(e) => setDraft({ ...draft, new_submission_deadline: e.target.value })}
                    data-testid="corr-new-deadline"
                    className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
+          <label><span className="pmc-label">Extend deadline by (days)<InfoDot tip="Optional shortcut. If set and the field above is blank, the backend adds N days to the notice's current submission deadline." /></span>
+            <input type="number" min="0" max="365" value={draft.extend_deadline_days}
+                   onChange={(e) => setDraft({ ...draft, extend_deadline_days: e.target.value })}
+                   data-testid="corr-extend-days"
+                   placeholder="e.g. 7"
+                   className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
+          <div className="col-span-2 border-t border-brand-navy/10 pt-4">
+            <div className="pmc-label mb-2">Field amendments (optional, versioned diff)
+              <InfoDot tip="Show vendors exactly which tender fields changed. Each row: pick the field (BOQ item, eligibility clause, budget, etc.), paste the before and after values. Vendors see a versioned diff on the public corrigendum page." /></div>
+            {(draft.field_amendments || []).map((a, i) => (
+              <div key={i} className="grid gap-2 md:grid-cols-[1fr_2fr_2fr_auto] mb-2"
+                   data-testid={`corr-amend-row-${i}`}>
+                <input value={a.field} onChange={(e) => updateAmendment(i, { field: e.target.value })}
+                       placeholder="Field (BOQ item 3 / eligibility / budget)"
+                       data-testid={`corr-amend-field-${i}`}
+                       className="px-3 py-2 border border-brand-navy/15 text-sm" />
+                <input value={a.before} onChange={(e) => updateAmendment(i, { before: e.target.value })}
+                       placeholder="Before"
+                       data-testid={`corr-amend-before-${i}`}
+                       className="px-3 py-2 border border-brand-navy/15 text-sm bg-red-50/50" />
+                <input value={a.after}  onChange={(e) => updateAmendment(i, { after: e.target.value })}
+                       placeholder="After"
+                       data-testid={`corr-amend-after-${i}`}
+                       className="px-3 py-2 border border-brand-navy/15 text-sm bg-emerald-50/50" />
+                <button type="button" onClick={() => removeAmendment(i)}
+                        data-testid={`corr-amend-remove-${i}`}
+                        className="px-2 py-1 text-[10px] uppercase tracking-widest border border-red-300 text-red-700 hover:bg-red-50">✕</button>
+              </div>
+            ))}
+            <button type="button" onClick={addAmendment}
+                    data-testid="corr-amend-add"
+                    className="mt-1 px-3 py-1.5 text-[10px] uppercase tracking-widest border border-brand-navy/30 text-brand-navy hover:bg-brand-navy/5">
+              + Add field amendment
+            </button>
+          </div>
           <div className="col-span-2 flex justify-end">
             <button type="button" onClick={publish} data-testid="corr-publish"
               className="px-8 py-3 text-[12px] font-semibold uppercase tracking-widest bg-brand-navy-soft text-white hover:bg-brand-navy-soft/90">

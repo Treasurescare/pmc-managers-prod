@@ -8,6 +8,8 @@ export default function AdminBillingE() {
       <AdminEShell crumb={<>Money &amp; compliance / <b>Billing</b></>}>
         <MoneyPanelWithFilter scope="[data-testid=billing-panel]"
                               testid="billing-filter"
+                              presetScope="billing"
+                              showExpiring={false}
                               statusOptions={[
                                 { value: "pending",   label: "Pending" },
                                 { value: "paid",      label: "Paid" },

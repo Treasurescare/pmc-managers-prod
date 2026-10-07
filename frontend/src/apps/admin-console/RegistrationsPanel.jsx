@@ -225,6 +225,32 @@ export default function RegistrationsPanel() {
                   )}
                 </div>
               </button>
+              {r.status !== "approved" && r.status !== "rejected" && (
+                <div className="px-4 pb-2 pt-0">
+                  <button type="button"
+                          data-testid={`reg-edit-${r.id}`}
+                          onClick={async (ev) => {
+                            ev.stopPropagation();
+                            try {
+                              const link = await adminApi.registrationResumeLink(r.id);
+                              const url = link.url || link.path;
+                              window.open(url, "_blank", "noopener,noreferrer");
+                            } catch (err) { showApiError(err); }
+                          }}
+                          className="text-[10px] uppercase tracking-widest text-brand-navy underline hover:text-brand-navy-deep">
+                    Edit sections (opens vendor view in new tab)
+                  </button>
+                </div>
+              )}
+              {r.status === "approved" && r.vendor_ref && (
+                <div className="px-4 pb-2 pt-0">
+                  <a href={`/admin/vendors/${r.vendor_ref}/edit`}
+                     data-testid={`reg-edit-vendor-${r.id}`}
+                     className="text-[10px] uppercase tracking-widest text-brand-navy underline hover:text-brand-navy-deep">
+                    Edit full vendor profile ({r.vendor_ref})
+                  </a>
+                </div>
+              )}
               {isNarrow && selected?.id === r.id && (
                 <div className="border-b border-brand-navy/10 bg-brand-pale/30 p-3"
                      data-testid={`reg-inline-detail-${r.id}`}>

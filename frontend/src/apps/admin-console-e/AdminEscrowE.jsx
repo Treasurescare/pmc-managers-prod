@@ -8,6 +8,8 @@ export default function AdminEscrowE() {
       <AdminEShell crumb={<>Money &amp; compliance / <b>Escrow / EMD</b></>}>
         <MoneyPanelWithFilter scope="[data-testid=escrow-panel]"
                               testid="escrow-filter"
+                              presetScope="escrow"
+                              showExpiring={false}
                               statusOptions={[
                                 { value: "pending",             label: "Pending" },
                                 { value: "received",            label: "Received" },

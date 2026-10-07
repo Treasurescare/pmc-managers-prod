@@ -137,6 +137,9 @@ app.include_router(billing.router)
 app.include_router(engagements.router)
 # Wave 39 — Corrigenda + Post-Award auto-doc generator + Two-Cover enforcement
 app.include_router(corrigenda.router)
+app.include_router(corrigenda._vendor_router)
+from routers import filter_presets as _filter_presets  # noqa: E402
+app.include_router(_filter_presets.router)
 app.include_router(awards.router)
 # Wave 40 — Reverse Auction Live Room + UNSPSC-lite taxonomy
 app.include_router(auction_live.router)

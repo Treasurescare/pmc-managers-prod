@@ -8,6 +8,8 @@ export default function AdminDocuSignE() {
       <AdminEShell active="DocuSign" crumb={<>Money &amp; compliance / <b>DocuSign</b></>}>
         <MoneyPanelWithFilter scope="[data-testid=docusign-panel]"
                               testid="docusign-filter"
+                              presetScope="docusign"
+                              showExpiring={false}
                               statusOptions={[
                                 { value: "sent",      label: "Sent" },
                                 { value: "delivered", label: "Delivered" },

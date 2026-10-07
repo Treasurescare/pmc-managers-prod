@@ -169,6 +169,9 @@ export const adminApi = {
     api.post(`/api/v1/admin/help-requests/${id}/resolve`,
              { resolution_notes }).then((r) => r.data),
   listRegistrations: (params = {}) => api.get("/api/v1/registrations", { params }).then((r) => r.data),
+  // v51ac — admin opens the vendor's own resume URL to edit a non-approved
+  // registration using the same 5-section stepper the vendor fills.
+  registrationResumeLink: (rid) => api.get(`/api/v1/registrations/admin/${rid}/resume-link`).then((r) => r.data),
   getRegistration: (id) => api.get(`/api/v1/registrations/${id}`).then((r) => r.data),
   decideRegistration: (id, action, notes) =>
     api.post(`/api/v1/registrations/${id}/decision`, { action, notes }).then((r) => r.data),
@@ -724,6 +727,17 @@ export const corrigendaApi = {
   listAdmin: (ref) => api.get(`/api/v1/notices/${ref}/corrigenda/admin`).then((r) => r.data),
   publish: (ref, body) => api.post(`/api/v1/notices/${ref}/corrigenda`, body).then((r) => r.data),
   withdraw: (ref, cid, reason) => api.delete(`/api/v1/notices/${ref}/corrigenda/${cid}`, { params: { reason } }).then((r) => r.data),
+  // v51ad — vendor-side acknowledge flow + admin ack-list.
+  outstanding: () => api.get(`/api/v1/corrigenda/outstanding`).then((r) => r.data),
+  acknowledge: (cid) => api.post(`/api/v1/corrigenda/${cid}/acknowledge`).then((r) => r.data),
+  listAcks: (ref, cid) => api.get(`/api/v1/notices/${ref}/corrigenda/${cid}/acknowledgements`).then((r) => r.data),
+};
+
+// v51ad — Admin's personal MoneyFilterBar presets, scoped per panel.
+export const filterPresetsApi = {
+  list: (scope) => api.get(`/api/v1/filter-presets`, { params: scope ? { scope } : {} }).then((r) => r.data),
+  save: (scope, name, criteria) => api.post(`/api/v1/filter-presets`, { scope, name, criteria }).then((r) => r.data),
+  remove: (id) => api.delete(`/api/v1/filter-presets/${id}`).then((r) => r.data),
 };
 
 // ---------- Wave 39: Awards / Post-Award docs ----------

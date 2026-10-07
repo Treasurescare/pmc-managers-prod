@@ -8,6 +8,8 @@ export default function AdminEvaluationE() {
       <AdminEShell crumb={<>Money &amp; compliance / <b>Evaluation</b></>}>
         <MoneyPanelWithFilter scope="[data-testid=evaluation-panel]"
                               testid="evaluation-filter"
+                              presetScope="evaluation"
+                              showExpiring={false}
                               statusOptions={[
                                 { value: "pending",             label: "Pending" },
                                 { value: "technical_cleared",   label: "Technical cleared" },
