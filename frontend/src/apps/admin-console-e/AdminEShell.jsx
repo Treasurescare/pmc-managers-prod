@@ -24,6 +24,7 @@ export default function AdminEShell({ active, crumb, children }) {
     ["Money & compliance", null, null],
     ["Bidding ops", "/admin/e/bidding", "i-gavel"],
     ["Escrow / EMD", "/admin/e/escrow", "i-coin"],
+    ["Escrow institutions", "/admin/e/escrow-institutions", "i-shield"],
     ["Billing", "/admin/e/billing", "i-file"],
     ["Evaluation", "/admin/e/evaluation", "i-check"],
     ["L1 comparison", "/admin/e/l1-award", "i-chart"],

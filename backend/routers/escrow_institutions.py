@@ -195,14 +195,62 @@ async def decide(iid: str, action: Literal["approve", "reject", "needs_clarifica
         raise HTTPException(status_code=404, detail="Not found")
     next_status = {"approve": "approved", "reject": "rejected",
                    "needs_clarification": "needs_clarification"}[action]
+    # Ensure a magic_token exists (older rows may not have one) so the
+    # approval email contains a working deep-link.
+    token = doc.get("magic_token") or _new_token()
     await db.escrow_institutions.update_one(
         {"_id": ObjectId(iid)},
         {"$set": {"status": next_status, "reviewed_at": now_iso(),
                   "reviewer_notes": notes, "reviewed_by": admin.get("email"),
-                  "updated_at": now_iso()}})
+                  "magic_token": token, "updated_at": now_iso()}})
     await audit_log(f"escrow_inst.{action}", admin, "escrow_institution", iid,
                     {"notes": notes})
-    return {"ok": True, "status": next_status}
+    # v51am — fire an email to the primary contact + every named signatory
+    # so banks/trustees can self-serve from the moment PMC approves them.
+    try:
+        import config
+        from emails import send_email, wrap
+        recipients = {(doc.get("primary_contact_email") or "").strip().lower()}
+        for s in doc.get("signatories") or []:
+            if s.get("email"):
+                recipients.add(s["email"].strip().lower())
+        recipients.discard("")
+        if action == "approve":
+            cta_url = f"{config.FRONTEND_URL}/escrow/dashboard/{iid}?token={token}"
+            subject = f"PMC Managers — Escrow institution approved: {doc.get('legal_name')}"
+            body = wrap(subject,
+                f"<p>Dear {doc.get('legal_name') or 'Signatory'} team,</p>"
+                f"<p>We're pleased to confirm that <strong>{doc.get('legal_name')}</strong> "
+                f"has been approved as a PMC Managers escrow institution.</p>"
+                f"<p>Signatories can access the dedicated dashboard — which lists every "
+                f"joint account you operate and transactions awaiting your signature — "
+                f"via the magic link below. The link is personal to your institution; "
+                f"keep it secure.</p>"
+                f"<p>Reviewer notes: {notes or '—'}</p>",
+                "Open your dashboard", cta_url)
+        elif action == "needs_clarification":
+            resume_url = f"{config.FRONTEND_URL}/escrow/resume/{token}?iid={iid}"
+            subject = f"PMC Managers — more information needed on {doc.get('legal_name')}"
+            body = wrap(subject,
+                f"<p>Our review team needs a little more information before approving "
+                f"<strong>{doc.get('legal_name')}</strong>.</p>"
+                f"<p>Reviewer notes: {notes or 'See the registration page for details.'}</p>",
+                "Open your registration", resume_url)
+        else:  # reject
+            subject = f"PMC Managers — Escrow institution registration update"
+            body = wrap(subject,
+                f"<p>Thank you for applying as a PMC Managers escrow institution.</p>"
+                f"<p>After review we are unable to proceed with "
+                f"<strong>{doc.get('legal_name')}</strong> at this time.</p>"
+                f"<p>Reviewer notes: {notes or '—'}</p>",
+                None, None)
+        for to in recipients:
+            await send_email(to, f"[PMC] {subject}", body)
+    except Exception as e:
+        import logging
+        logging.getLogger("escrow_institutions").warning(
+            "approval email failed for %s: %s", iid, e)
+    return {"ok": True, "status": next_status, "magic_token": token}
 
 
 # -------- Dashboard for the Escrow Institution portal ----------------------

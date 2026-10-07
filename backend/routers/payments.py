@@ -229,6 +229,15 @@ async def _mark_paid(session_id: str, payment_status: str = "paid") -> None:
         )
         await audit_log("bid.emd_paid", None, "bid", bid_id,
                         {"session_id": session_id, "amount": tx.get("amount")})
+        # v51am — auto-mint an escrow ledger transaction so admins never
+        # have to manually double-enter the EMD receipt against the joint
+        # account. Idempotent (keyed on session_id). Failure is logged but
+        # non-fatal — admins can still record manually from Escrow panel.
+        try:
+            from routers.escrow import auto_init_from_emd_payment
+            await auto_init_from_emd_payment(bid_id, tx)
+        except Exception as e:
+            log.warning(f"escrow auto-init failed for bid {bid_id}: {e}")
         # Notify Escrow that a new EMD-paid bid is ready
         try:
             from notify import notify_bid_transition, vendor_confirm

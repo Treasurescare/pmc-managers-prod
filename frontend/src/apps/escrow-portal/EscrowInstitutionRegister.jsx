@@ -1,6 +1,17 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { api, showApiError } from "@/lib/api";
+import { api, showApiError, uploadsApi } from "@/lib/api";
+
+const DOC_SLOTS = [
+  ["incorporation_certificate", "Certificate of incorporation / trust deed"],
+  ["regulatory_licence", "Regulatory licence"],
+  ["tax_registration", "Tax / GST / VAT registration"],
+  ["audited_financials_y1", "Audited financials — year 1"],
+  ["audited_financials_y2", "Audited financials — year 2"],
+  ["insurance_indemnity", "Insurance & indemnity cover"],
+  ["letterhead_sample", "Letterhead sample"],
+  ["signatory_authority_resolution", "Signatory authority resolution"],
+];
 
 /**
  * EscrowInstitutionRegister — public self-service registration for banks /
@@ -188,22 +199,43 @@ export default function EscrowInstitutionRegister() {
       {step === 4 && (
         <div className="bg-white p-6 border border-brand-navy/15 space-y-3">
           <div className="text-xs text-brand-navy/70">
-            Upload KYC documents. All files are stored encrypted; only PMC reviewers
-            and your own signatories can read them.
+            Upload KYC documents. Files are kept confidential — only PMC
+            reviewers and your own signatories can retrieve them.
           </div>
-          <p className="text-xs text-brand-navy/50 italic">
-            Upload wiring reuses the existing /api/v1/uploads/presign + direct endpoints —
-            UI hook-up is a 20-line change once the module is activated.
-          </p>
-          <ul className="text-sm text-brand-navy/80 list-disc list-inside">
-            <li>Certificate of incorporation / trust deed</li>
-            <li>Regulatory licence</li>
-            <li>Tax / GST / VAT registration</li>
-            <li>Audited financials (last 2 years)</li>
-            <li>Insurance & indemnity cover</li>
-            <li>KYC & specimen signature of each signatory</li>
-            <li>Letterhead sample, authority resolution</li>
-          </ul>
+          <div className="grid gap-2">
+            {DOC_SLOTS.map(([slot, label]) => (
+              <DocSlot key={slot} slot={slot} label={label}
+                       current={form.documents?.[slot]}
+                       institutionId={registration?.id}
+                       token={registration?.magic_token}
+                       onUploaded={async (meta) => {
+                         const next = { ...(form.documents || {}), [slot]: meta };
+                         const nf = { ...form, documents: next };
+                         setForm(nf);
+                         // Persist straight to the backend so a browser refresh
+                         // doesn't lose the uploaded doc reference.
+                         if (registration) {
+                           try {
+                             await api.patch(`/api/v1/escrow-institutions/${registration.id}`,
+                                             nf, { params: { token: registration.magic_token } });
+                           } catch (e) { /* best-effort — toast on upload is enough */ }
+                         }
+                       }}
+                       onRemoved={async () => {
+                         const next = { ...(form.documents || {}) };
+                         delete next[slot];
+                         const nf = { ...form, documents: next };
+                         setForm(nf);
+                         if (registration) {
+                           try {
+                             await api.patch(`/api/v1/escrow-institutions/${registration.id}`,
+                                             nf, { params: { token: registration.magic_token } });
+                           } catch (e) { /* ignore */ }
+                         }
+                       }}
+              />
+            ))}
+          </div>
           <div className="flex justify-end">
             <button onClick={submit}
                     data-testid="escrow-reg-submit"
@@ -233,5 +265,65 @@ function Input({ label, v, on, wide }) {
       <input value={v || ""} onChange={(e) => on(e.target.value)}
              className="mt-1 w-full px-3 py-2 border border-brand-navy/20"/>
     </label>
+  );
+}
+
+function DocSlot({ slot, label, current, onUploaded, onRemoved }) {
+  const [busy, setBusy] = useState(false);
+  const upload = async (file) => {
+    if (!file) return;
+    setBusy(true);
+    try {
+      const p = await uploadsApi.presign(file.name, file.type || "application/pdf",
+                                          "escrow-inst", file.size);
+      const r = await uploadsApi.direct(p.key, file);
+      const key = r?.key || p?.key;
+      if (!key) { toast.error(`Upload failed for ${file.name}`); return; }
+      await onUploaded({
+        key, filename: file.name,
+        size_bytes: r?.size_bytes ?? file.size,
+        uploaded_at: new Date().toISOString(),
+      });
+      toast.success(`Uploaded ${file.name}`);
+    } catch (e) { showApiError(e); }
+    finally { setBusy(false); }
+  };
+  return (
+    <div className="border border-brand-navy/10 p-3 flex items-center justify-between gap-3 flex-wrap"
+         data-testid={`escrow-doc-slot-${slot}`}>
+      <div className="min-w-0">
+        <div className="text-sm font-medium text-brand-navy">{label}</div>
+        {current ? (
+          <div className="text-xs text-brand-navy/60 truncate">
+            {current.filename} · {(current.size_bytes / 1024).toFixed(1)} KB
+          </div>
+        ) : (
+          <div className="text-xs text-brand-navy/40 italic">Not uploaded yet</div>
+        )}
+      </div>
+      <div className="flex gap-2">
+        {current?.key && (
+          <a href={`/api/v1/uploads/files/${current.key}`} target="_blank" rel="noopener noreferrer"
+             data-testid={`escrow-doc-view-${slot}`}
+             className="text-[10px] uppercase tracking-widest px-3 py-1.5 border border-brand-navy/20 hover:bg-brand-navy/5">
+            View
+          </a>
+        )}
+        {current ? (
+          <button onClick={onRemoved} disabled={busy}
+                  data-testid={`escrow-doc-remove-${slot}`}
+                  className="text-[10px] uppercase tracking-widest px-3 py-1.5 border border-red-300 text-red-700 hover:bg-red-50 disabled:opacity-50">
+            Remove
+          </button>
+        ) : (
+          <label className="text-[10px] uppercase tracking-widest px-3 py-1.5 bg-brand-navy text-white cursor-pointer disabled:opacity-50">
+            {busy ? "Uploading…" : "Upload"}
+            <input type="file" className="hidden" disabled={busy}
+                   data-testid={`escrow-doc-upload-${slot}`}
+                   onChange={(e) => upload(e.target.files?.[0])} />
+          </label>
+        )}
+      </div>
+    </div>
   );
 }

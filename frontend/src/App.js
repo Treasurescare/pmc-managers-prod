@@ -60,6 +60,7 @@ import AdminBidDetailPage from "@/apps/admin-console/bidding/AdminBidDetailPage"
 import EscrowInstitutionRegister from "@/apps/escrow-portal/EscrowInstitutionRegister";
 import EscrowInstitutionResume from "@/apps/escrow-portal/EscrowInstitutionResume";
 import EscrowInstitutionDashboardPage from "@/apps/escrow-portal/EscrowInstitutionDashboardPage";
+import AdminEscrowInstitutionsE from "@/apps/admin-console-e/AdminEscrowInstitutionsE";
 
 // Wave 35/36/37 — Revenue surfaces + billing result + public roadmap + escrow magic-link
 import ClientPurchase from "@/apps/client-portal/ClientPurchase";
@@ -245,6 +246,7 @@ export default function App() {
             <Route path="/admin/e/vendor-kyc" element={<AdminVendorKycE />} />
             <Route path="/admin/e/bidding" element={<AdminBiddingOpsE />} />
             <Route path="/admin/e/escrow" element={<AdminEscrowE />} />
+            <Route path="/admin/e/escrow-institutions" element={<AdminEscrowInstitutionsE />} />
             <Route path="/admin/e/billing" element={<AdminBillingE />} />
             <Route path="/admin/e/evaluations" element={<AdminEvaluationListE />} />
             <Route path="/admin/e/evaluation" element={<AdminEvaluationE />} />

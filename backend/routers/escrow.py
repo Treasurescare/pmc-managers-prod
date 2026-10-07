@@ -211,6 +211,80 @@ async def patch_account(aid: str, payload: EscrowAccountPatch,
 
 # ---------------- Transactions ----------------
 
+# v51am — invoked by payments._mark_paid to create a ledger row automatically
+# the moment a vendor's EMD payment clears Stripe. Idempotent on
+# `payment_session_id` so webhook retries don't duplicate rows.
+async def auto_init_from_emd_payment(bid_id: str, payment_tx: dict) -> Optional[dict]:
+    """Create the receive-side ledger row for an EMD payment that just
+    cleared. Picks the notice's `escrow_account_id` if set, otherwise the
+    first active escrow account. Admin can still override/sign manually."""
+    session_id = payment_tx.get("session_id")
+    if not session_id:
+        return None
+    # Idempotency guard
+    existing = await db.escrow_transactions.find_one({"payment_session_id": session_id})
+    if existing:
+        return _out_tx(existing)
+    bid = await db.bids.find_one({"_id": ObjectId(bid_id)})
+    if not bid:
+        return None
+    # Resolve escrow account: notice-level override first, else newest active.
+    acc = None
+    notice = await db.notices.find_one({"notice_ref": bid.get("notice_ref")}) or {}
+    acc_id = notice.get("escrow_account_id")
+    if acc_id:
+        try:
+            acc = await db.escrow_accounts.find_one({"_id": ObjectId(acc_id), "active": True})
+        except Exception:
+            acc = None
+    if not acc:
+        acc = await db.escrow_accounts.find_one({"active": True},
+                                                  sort=[("created_at", -1)])
+    if not acc:
+        import logging
+        logging.getLogger("escrow").warning(
+            "auto_init_from_emd_payment: no active escrow account; skipping bid %s",
+            bid.get("bid_ref"))
+        return None
+    trail_entry = {"at": now_iso(), "by": "system.auto",
+                   "event": "received",
+                   "amount": payment_tx.get("amount"),
+                   "currency": payment_tx.get("currency") or "USD",
+                   "reference": session_id}
+    doc = {
+        "bid_ref": bid.get("bid_ref"),
+        "notice_ref": bid.get("notice_ref"),
+        "vendor_ref": bid.get("vendor_ref"),
+        "escrow_account_id": str(acc["_id"]),
+        "escrow_account_snapshot": {
+            "name": acc.get("name"), "institution": acc.get("institution"),
+            "account_no": acc.get("account_no"),
+            "pmc_officer": acc.get("pmc_officer"),
+            "escrow_officer": acc.get("escrow_officer"),
+        },
+        "amount": payment_tx.get("amount"),
+        "currency": payment_tx.get("currency") or "USD",
+        "reference": session_id,
+        "payment_session_id": session_id,
+        "received_at": now_iso(),
+        "notes": f"Auto-recorded on Stripe payment success (bid {bid.get('bid_ref')})",
+        "status": "received",
+        "signatures": {},
+        "audit_trail": [trail_entry],
+        "released_to": None,
+        "released_at": None,
+        "created_at": now_iso(),
+        "created_by": "system.auto",
+        "auto_source": "stripe_emd_payment",
+    }
+    r = await db.escrow_transactions.insert_one(doc)
+    doc["_id"] = r.inserted_id
+    await audit_log("escrow.tx_auto_init", None, "escrow_tx", str(r.inserted_id),
+                    {"bid_ref": bid.get("bid_ref"), "amount": payment_tx.get("amount"),
+                     "session_id": session_id})
+    return _out_tx(doc)
+
+
 @router.post("/transactions/init")
 async def init_transaction(payload: TransactionInitIn,
                             admin=Depends(require_role("admin", "accounting"))):

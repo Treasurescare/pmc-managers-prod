@@ -49,6 +49,28 @@ Public / Vendor / Buyer / Admin roles.
 - `/downloads/DOWNLOAD_mobile_v1.0.0.md`
 
 ## Latest web releases
+- **v51am** — Escrow Institution portal: full close-out of the integration
+  gaps. Backend `POST /api/v1/escrow-institutions/{iid}/decision` now
+  auto-dispatches a magic-link approval email (recipients = primary contact
+  + every registered signatory) with the direct `/escrow/dashboard/{iid}?token=…`
+  deep-link; reject + needs_clarification send tailored emails too. Admin
+  review queue page live at `/admin/e/escrow-institutions` (sidebar entry
+  under Money &amp; compliance): status filter, drill-in panel with core
+  details / signatories / banking / uploaded documents, three decision
+  buttons (approve / request clarification / reject) with a required
+  reviewer-note textarea for the non-approve paths. Registration step-4
+  "Documents" step now ships a fully functional presign+direct uploader for
+  all 8 KYC document slots (incorporation / regulatory licence / tax / 2x
+  audited financials / insurance / letterhead / authority resolution) with
+  per-slot upload, view, remove and auto-persistence back to the draft.
+  Payments side: `payments._mark_paid()` now calls
+  `escrow.auto_init_from_emd_payment()` the moment a vendor's EMD payment
+  clears Stripe — creates the receive-side ledger row keyed on
+  `payment_session_id` (idempotent on webhook retries) against the notice's
+  `escrow_account_id` or the newest active account; failure is logged but
+  non-fatal so admins can still record manually.
+  Verified E2E: QA institution registered → submitted → listed → approved
+  (returns magic_token for the dashboard link); yarn build clean.
 - **v51al** — P0/P1 hardening + Escrow Institution portal integration.
   Backend: `POST /api/v1/bids` now rejects orphan submissions up-front
   (price_amount must be > 0, at least one technical envelope document
@@ -144,11 +166,3 @@ Capacitor 8 native bridge (iOS + Android).
   Internal Testing track.
 - Once Apple Account Holder is live, archive in Xcode and upload to
   TestFlight.
-- Build Escrow Institution step-4 document upload wiring (currently a
-  listed-items placeholder — needs the standard `/api/v1/uploads/presign`
-  + stored key hookup, estimated ~1h).
-- Admin Escrow Institutions review queue (list approved/pending, decision
-  actions). Backend endpoints exist (`GET /api/v1/escrow-institutions`,
-  `POST /{iid}/decision`); needs a page under `/admin/e/escrow-institutions`.
-- Auto-create Escrow Ledger transaction on successful vendor EMD payment
-  (remove manual double-entry) — long-standing backlog.
