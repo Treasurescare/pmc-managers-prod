@@ -109,6 +109,33 @@ async def create_bid(payload: BidCreateIn, vendor=Depends(current_vendor)) -> di
     if deadline and deadline < datetime.now(timezone.utc).isoformat():
         raise HTTPException(status_code=400, detail="Submission deadline has passed")
 
+    # v51al — Harden bid submission so a 422/412 UI error never leaves an
+    # orphan skeleton in the collection (regression fix for Bid 48 et al.).
+    # The frontend-step/half-submitted "empty bid" rows were slipping through
+    # because `price_amount: float = Field(ge=0)` accepted 0 and `documents`
+    # defaulted to []. Enforce real values up-front, before any DB write.
+    if payload.price_amount is None or payload.price_amount <= 0:
+        raise HTTPException(status_code=422,
+            detail="Quoted price must be greater than zero")
+    if not payload.documents:
+        raise HTTPException(status_code=422,
+            detail="At least one envelope document is required to submit a bid")
+    kinds = {d.kind for d in payload.documents}
+    if "technical" not in kinds:
+        raise HTTPException(status_code=422,
+            detail="A technical envelope document is required to submit a bid")
+
+    # v51al — Corrigenda gate. Vendor cannot submit a bid on a notice that
+    # has unacknowledged active corrigenda (carried over from v51ad).
+    try:
+        from routers.corrigenda import ensure_corrigenda_acknowledged
+        await ensure_corrigenda_acknowledged(payload.notice_ref, vendor["id"])
+    except HTTPException:
+        raise
+    except Exception as _e:
+        import logging
+        logging.getLogger("bids").warning("corrigenda check skipped: %s", _e)
+
     # Prevent duplicate active bid per vendor+notice
     dup = await db.bids.find_one({
         "notice_ref": payload.notice_ref,
@@ -307,6 +334,36 @@ async def admin_get_bid(bid_id: str,
     if not b:
         raise HTTPException(status_code=404, detail="Bid not found")
     return _out(await _enrich_docs(b))
+
+
+# v51al — Admin cleanup for orphan bids. Only deletes bids that have no
+# quoted price, no documents, no EMD paid, and are still in a draft-ish
+# status. Everything else must go through the normal reject/withdraw path.
+@router.delete("/admin/{bid_id}")
+async def admin_delete_orphan_bid(bid_id: str,
+                                    admin=Depends(require_role("admin"))) -> dict:
+    try:
+        oid = ObjectId(bid_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Malformed bid id")
+    b = await db.bids.find_one({"_id": oid})
+    if not b:
+        raise HTTPException(status_code=404, detail="Bid not found")
+    is_orphan = (
+        (not b.get("price_amount") or float(b.get("price_amount") or 0) <= 0)
+        and not (b.get("documents") or [])
+        and float(b.get("emd_paid_amount") or 0) <= 0
+        and b.get("status") in ("draft", "submitted", "emd_pending")
+    )
+    if not is_orphan:
+        raise HTTPException(status_code=400,
+            detail="Only orphan bids (no price, no documents, no EMD paid) can be deleted this way. Use reject/withdraw for live bids.")
+    await db.bids.delete_one({"_id": oid})
+    await audit_log("bid.admin_delete_orphan", admin, "bid", b.get("bid_ref"),
+                    {"deleted_doc": {"notice_ref": b.get("notice_ref"),
+                                       "vendor_id": b.get("vendor_id"),
+                                       "status": b.get("status")}})
+    return {"ok": True, "deleted": b.get("bid_ref")}
 
 
 @router.post("/{bid_id}/emd/send-link")

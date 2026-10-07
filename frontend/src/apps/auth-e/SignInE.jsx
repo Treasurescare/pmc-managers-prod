@@ -28,6 +28,15 @@ export default function SignInE({ legacy: Legacy }) {
     }
     setBusy(true);
     try {
+      if (role === "escrow") {
+        // v51al — Escrow Institutions are external entities (banks / trustees).
+        // Password login is not yet enabled; approved institutions access the
+        // dashboard via the magic link emailed on approval. New institutions
+        // get routed to the self-registration flow.
+        toast.info("Escrow Institutions access the portal via the magic link emailed on approval. Starting new registration…");
+        setBusy(false);
+        return nav("/escrow/register");
+      }
       if (role === "supplier") {
         try {
           const vr = await vendorApi.login(email, password);
@@ -156,6 +165,7 @@ export default function SignInE({ legacy: Legacy }) {
               <RoleRadio value="supplier" label="Supplier" sub="Bid, pay EMD, sign contracts" icon="i-users" />
               <RoleRadio value="staff" label="PMC staff" sub="Tender desk, evaluation, escrow" icon="i-file" />
               <RoleRadio value="admin" label="Administrator" sub="Configuration and audit" icon="i-shield" />
+              <RoleRadio value="escrow" label="Escrow Institution" sub="Banks & trustees · magic-link access" icon="i-link" />
             </div>
 
             <div style={{ display: "grid", gap: "14px" }}>

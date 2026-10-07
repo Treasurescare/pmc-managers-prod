@@ -56,6 +56,11 @@ import AdminVendorCreate from "@/apps/admin-console/AdminVendorCreate";
 import AdminVendorEdit from "@/apps/admin-console/AdminVendorEdit";
 import AdminBidDetailPage from "@/apps/admin-console/bidding/AdminBidDetailPage";
 
+// v51al — Escrow Institution portal (external bank/trustee registration + dashboard)
+import EscrowInstitutionRegister from "@/apps/escrow-portal/EscrowInstitutionRegister";
+import EscrowInstitutionResume from "@/apps/escrow-portal/EscrowInstitutionResume";
+import EscrowInstitutionDashboardPage from "@/apps/escrow-portal/EscrowInstitutionDashboardPage";
+
 // Wave 35/36/37 — Revenue surfaces + billing result + public roadmap + escrow magic-link
 import ClientPurchase from "@/apps/client-portal/ClientPurchase";
 import VendorPurchase from "@/apps/vendor-portal/VendorPurchase";
@@ -308,6 +313,11 @@ export default function App() {
 
             {/* Escrow magic-link portal — non-PMC officer signs via emailed link */}
             <Route path="/escrow/officer/:token" element={<EscrowOfficerSign />} />
+
+            {/* v51al — Escrow Institution portal (external bank / trustee entity) */}
+            <Route path="/escrow/register" element={<EscrowInstitutionRegister />} />
+            <Route path="/escrow/resume/:token" element={<EscrowInstitutionResume />} />
+            <Route path="/escrow/dashboard/:iid" element={<EscrowInstitutionDashboardPage />} />
 
             {/* Live public roadmap */}
             <Route path="/roadmap" element={<PublicRoadmap />} />

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
-  ShieldCheck, Building2, Handshake, Briefcase, Store,
+  ShieldCheck, Building2, Handshake, Briefcase, Store, Landmark,
   ArrowLeft, ArrowRight, KeyRound, Mail,
 } from "lucide-react";
 import { adminApi, staffApi, vendorApi, showApiError } from "@/lib/api";
@@ -94,6 +94,25 @@ const PORTALS = [
     testid: "portal-card-vendors",
     description: "Purchase tender packs, submit digital bids, join live reverse auctions, sign contracts.",
     goto: "/vendor",
+  },
+  // v51al — Escrow Institutions (banks / trustees) are an external entity
+  // like vendors. Access is magic-link based: new institutions self-register,
+  // approved ones get an emailed dashboard link. The card routes to those
+  // pages instead of a credential form.
+  {
+    id: "escrow",
+    role: "escrow_institution",
+    kind: "escrow_institution",
+    title: "Escrow Institutions",
+    badge: "BANK · TRUSTEE",
+    icon: Landmark,
+    accent: "bg-purple-500",
+    ring: "ring-purple-500/60",
+    border: "border-purple-500/40",
+    grad: "from-slate-950 via-purple-950 to-slate-950",
+    testid: "portal-card-escrow",
+    description: "Licensed banks and trustee companies holding EMD and milestone funds under dual-signature control.",
+    goto: "/escrow/register",
   },
 ];
 
@@ -210,6 +229,13 @@ function PortalCredentialForm({ portal, nav, t }) {
     if (!email || !password) return toast.error("Enter your email and password to continue.");
     setBusy(true);
     try {
+      if (portal.kind === "escrow_institution") {
+        // No password login yet — magic-link only. Send email to the
+        // resume endpoint if an institution exists for this email.
+        toast.info("Escrow institutions access the portal via the magic link emailed on approval. Starting new registration…");
+        setBusy(false);
+        return nav("/escrow/register");
+      }
       if (portal.kind === "vendor") {
         const vr = await vendorApi.login(email, password);
         toast.success("Signed in · vendor");

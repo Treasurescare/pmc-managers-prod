@@ -13,6 +13,29 @@ export default function AdminBidDetailPage() {
   const [bid, setBid] = useState(null);
   const [notice, setNotice] = useState(null);
   const [err, setErr] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  // v51al — an orphan bid is one that slipped past the old create endpoint
+  // with no price, no documents and no EMD paid. Admin may clean it up.
+  const isOrphan = bid && (
+    (!bid.price_amount || Number(bid.price_amount) <= 0)
+    && (!bid.documents || bid.documents.length === 0)
+    && Number(bid.emd_paid_amount || 0) <= 0
+    && ["draft", "submitted", "emd_pending"].includes(bid.status)
+  );
+
+  const deleteOrphan = async () => {
+    if (!window.confirm(`Delete orphan bid ${bid.bid_ref}? This is permanent and only works because the bid has no price, no documents and no payment.`)) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/api/v1/bids/admin/${bidId}`);
+      nav("/admin?tab=bidding");
+    } catch (e) {
+      showApiError(e);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -67,8 +90,28 @@ export default function AdminBidDetailPage() {
         )}
         {!bid && !err && <div className="text-slate-500 py-16 text-center">Loading bid details…</div>}
 
-        {bid && (
-          <div className="space-y-6">
+      {bid && (
+        <div className="space-y-6" data-testid="admin-bid-detail-wrap">
+            {isOrphan && (
+              <section className="border border-red-300 bg-red-50 p-5" data-testid="admin-bid-orphan-banner">
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+                  <div>
+                    <div className="pmc-label text-red-900">Orphan bid detected</div>
+                    <div className="text-sm text-red-900 mt-1">
+                      This bid has no quoted price, no documents and no EMD paid.
+                      It was most likely left behind by an older client-side error
+                      before v51al's validation gate was in place. Delete to clear
+                      the queue — the vendor can re-submit cleanly.
+                    </div>
+                  </div>
+                  <button onClick={deleteOrphan} disabled={deleting}
+                          data-testid="admin-bid-delete-orphan"
+                          className="px-4 py-2 text-xs uppercase tracking-widest bg-red-700 text-white hover:bg-red-800 disabled:opacity-50">
+                    {deleting ? "Deleting…" : "Delete orphan bid"}
+                  </button>
+                </div>
+              </section>
+            )}
             <section className="bg-white border p-6">
               <div className="pmc-label mb-3">Submission</div>
               <div className="grid gap-4 md:grid-cols-3 text-sm">

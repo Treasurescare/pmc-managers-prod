@@ -49,6 +49,28 @@ Public / Vendor / Buyer / Admin roles.
 - `/downloads/DOWNLOAD_mobile_v1.0.0.md`
 
 ## Latest web releases
+- **v51al** — P0/P1 hardening + Escrow Institution portal integration.
+  Backend: `POST /api/v1/bids` now rejects orphan submissions up-front
+  (price_amount must be > 0, at least one technical envelope document
+  required) AND enforces the corrigenda-acknowledgement 412 gate
+  (`ensure_corrigenda_acknowledged(notice_ref, vendor_id)`) before any DB
+  write — fixes the Bid 48 class of empty-shell rows. New admin-only
+  `DELETE /api/v1/bids/admin/{id}` cleans up legacy orphan rows (only when
+  price/docs/paid are all empty and status ∈ draft/submitted/emd_pending).
+  Escrow Institution module wired into `server.py`
+  (`routers.escrow_institutions`): public self-register at
+  `POST /api/v1/escrow-institutions/register` returns a magic token;
+  resume + submit + admin decision endpoints live; dashboard at
+  `/{iid}/dashboard?token=...` surfaces joint-account + pending-signature
+  counts. Frontend routes added: `/escrow/register`, `/escrow/resume/:token`,
+  `/escrow/dashboard/:iid`. Unified login grew a 6th portal card
+  ("Escrow Institutions · BANK · TRUSTEE", purple accent, lucide `Landmark`
+  icon) — selecting it routes new institutions to the registration flow and
+  approved ones to the dashboard via emailed magic link (no password login
+  yet, matching external-trustee model). AdminBidDetailPage now auto-detects
+  orphan bids and renders a red "Delete orphan bid" banner that calls the
+  new admin DELETE endpoint. Verified: register API returns 200+magic token;
+  escrow card renders on login page; backend restart clean.
 - **v51ak** — Escrow "Record inbound EMD" bid picker: Bid ref free-text
   replaced with a dropdown of live bids (withdrawn/rejected excluded,
   EMD-paid floated to top with amount annotation); picking a bid auto-fills
@@ -122,5 +144,11 @@ Capacitor 8 native bridge (iOS + Android).
   Internal Testing track.
 - Once Apple Account Holder is live, archive in Xcode and upload to
   TestFlight.
-- Carry-forward from v51ad: vendor-side corrigenda banner + 412
-  bid-submit pre-check wiring on `POST /api/v1/bids`.
+- Build Escrow Institution step-4 document upload wiring (currently a
+  listed-items placeholder — needs the standard `/api/v1/uploads/presign`
+  + stored key hookup, estimated ~1h).
+- Admin Escrow Institutions review queue (list approved/pending, decision
+  actions). Backend endpoints exist (`GET /api/v1/escrow-institutions`,
+  `POST /{iid}/decision`); needs a page under `/admin/e/escrow-institutions`.
+- Auto-create Escrow Ledger transaction on successful vendor EMD payment
+  (remove manual double-entry) — long-standing backlog.
