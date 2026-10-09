@@ -54,9 +54,35 @@ Public / Vendor / Buyer / Admin roles.
   unchanged (still v51au).
 - **v51av** — Blacklist modal stale-state fix (button flips immediately),
   `Field.required` prop + red `*` marks, "Save & next →" button in
-  AdminVendorCreate, DocuSign key-rotation walk-through (operational, not
-  code).
+  AdminVendorCreate, DocuSign key-rotation walk-through.
 - **v51au** — P0/P1 closing batch: Evaluation page crash guard, NIT public
+  download fix (`/api/v1/uploads/public-files/{key}` anon endpoint +
+  NoticeDetail attachment links), Stakeholder Reports link restored to
+  Bidding Ops sidebar.
+- **v51at** — L1 Award page crash guard, vendor-list cache-bust after approve,
+  PDF-only enforcement on bid envelope dropzones.
+- **v51as** — Bidding Ops "Review" button opens inline detail panel instead
+  of navigating away; "Invited undefined" toast hardened.
+- **v51ar** — Login-page escrow registration entrypoint.
+- **v51aq** — Duplicate escrow transaction guard (409), admin cancel row,
+  release CSV export, EMD ledger search bar.
+- **v51ap** — Escrow auto-ledger deduplication.
+- **v51an** — Signatory password auth/login/reset, dashboard transactions grid,
+  notice account routing picker, expiry watchdog cron.
+- **v51am** — Admin Escrow review queue, approval magic-link email, step-4 KYC
+  document upload wiring.
+- **v51al** — P0/P1 hardening + Escrow Institution module scaffolding.
+
+## Mobile Store Status
+- Google Play Developer Console: Account "The PMC Managers Limited" verified.
+- App created: `com.pmcmanagers.tenders` (PMC Managers — Tender & EMD Escrow).
+- Policy setup completed: Privacy Policy, Sign-in details (App Access), Ads,
+  Content Ratings (IARC PEGI 3 / Everyone), Target Audience (18+), Data Safety
+  (5 data types declared, encrypted in transit).
+- Store Assets: Rebuilt `pmc-mobile-store-assets-v1.0.0.zip` with true PNGs
+  (icon 1024x1024 RGBA, feature graphic 1024x500 RGBA, 5 phone screenshots).
+- Ready for tomorrow: Upload graphics to Main store listing, build signed `.aab`,
+  and submit to Production release track.
   download fix (new `/api/v1/uploads/public-files/{key}` anon endpoint +
   NoticeDetail routes attachments through it), Stakeholder Reports link
   restored to Bidding Ops sidebar. Backend bundle: `pmc-backend-v51au.zip`.
