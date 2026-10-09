@@ -42,12 +42,20 @@ export default function VendorIntelPanel() {
     try {
       await vendorIntelApi.blacklist({ vendor_ref: v.vendor_ref, reason: blacklistReason });
       toast.success(t("panels.vendor_intel.blacklisted_toast"));
+      // v51av — reflect the new state in the open modal immediately so the
+      // Remove button flips side without closing + reopening (docx #17).
+      setSelected({ ...v, blacklisted: true });
       load();
     } catch (e) { showApiError(e); }
   };
   const unblacklist = async (v) => {
-    try { await vendorIntelApi.unblacklist(v.vendor_ref); toast.success(t("panels.vendor_intel.removed_toast")); load(); }
-    catch (e) { showApiError(e); }
+    try {
+      await vendorIntelApi.unblacklist(v.vendor_ref);
+      toast.success(t("panels.vendor_intel.removed_toast"));
+      setSelected({ ...v, blacklisted: false });
+      setBlacklistReason("");
+      load();
+    } catch (e) { showApiError(e); }
   };
 
   return (

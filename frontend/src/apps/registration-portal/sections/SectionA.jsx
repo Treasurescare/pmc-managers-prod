@@ -40,34 +40,34 @@ export default function SectionA({ reg, update, countries, regId, token, onDocCh
   return (
     <>
       <div className="grid gap-5 md:grid-cols-2">
-        <Field label={t("section_a.company_name")}>
+        <Field label={t("section_a.company_name")} required>
           <Input testId="f-company-name" value={reg.company_name || ""} onChange={(e) => update({ company_name: e.target.value })} />
         </Field>
         <Field label={t("section_a.trade_name")}>
           <Input testId="f-trade-name" value={reg.trade_name || ""} onChange={(e) => update({ trade_name: e.target.value })} />
         </Field>
-        <Field label={t("section_a.registered_address")}>
+        <Field label={t("section_a.registered_address")} required>
           <Input testId="f-registered-address" value={reg.registered_address || ""} onChange={(e) => update({ registered_address: e.target.value })} />
         </Field>
         <Field label={t("section_a.mailing_address")}>
           <Input testId="f-mailing-address" value={reg.mailing_address || ""} onChange={(e) => update({ mailing_address: e.target.value })} />
         </Field>
-        <Field label={t("section_a.country")}>
+        <Field label={t("section_a.country")} required>
           <select data-testid="f-country" value={reg.country || "KZ"} onChange={(e) => update({ country: e.target.value })}
             className="mt-1 w-full px-4 py-3 border border-brand-navy/20 focus:outline-none focus:border-brand-navy-soft text-brand-navy bg-white">
             {countries.map((c) => (<option key={c.code} value={c.code}>{countryName(c, lang)}</option>))}
           </select>
         </Field>
-        <Field label={t("section_a.registration_number")}>
+        <Field label={t("section_a.registration_number")} required>
           <Input testId="f-reg-number" value={reg.registration_number || ""} onChange={(e) => update({ registration_number: e.target.value })} />
         </Field>
-        <Field label={t("section_a.incorporation_date")}>
+        <Field label={t("section_a.incorporation_date")} required>
           <Input testId="f-incorp-date" type="date" value={reg.incorporation_date || ""} onChange={(e) => update({ incorporation_date: e.target.value })} />
         </Field>
-        <Field label={t("section_a.tax_id")}>
+        <Field label={t("section_a.tax_id")} required>
           <Input testId="f-tax-id" value={reg.tax_id || ""} onChange={(e) => update({ tax_id: e.target.value })} />
         </Field>
-        <Field label={t("section_a.legal_entity_type")}>
+        <Field label={t("section_a.legal_entity_type")} required>
           <select data-testid="f-legal-type" value={reg.legal_entity_type || ""} onChange={(e) => update({ legal_entity_type: e.target.value })}
             className="mt-1 w-full px-4 py-3 border border-brand-navy/20 focus:outline-none focus:border-brand-navy-soft text-brand-navy bg-white">
             <option value="">—</option>

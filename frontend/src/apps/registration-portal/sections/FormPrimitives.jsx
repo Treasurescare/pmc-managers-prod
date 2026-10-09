@@ -1,9 +1,12 @@
 import { useState } from "react";
 
-export function Field({ label, children, hint, error }) {
+export function Field({ label, children, hint, error, required }) {
   return (
     <label className="block">
-      <span className="pmc-label">{label}</span>
+      <span className="pmc-label">
+        {label}
+        {required && <span className="text-red-600 ml-1" aria-label="required">*</span>}
+      </span>
       {children}
       {error && <span className="block text-[11px] text-red-600 mt-1">{error}</span>}
       {!error && hint && <span className="block text-[11px] text-brand-navy/50 mt-1">{hint}</span>}

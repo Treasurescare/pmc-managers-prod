@@ -233,11 +233,29 @@ export default function AdminVendorCreate() {
                   ? <span className="text-emerald-700">✓ Section {step.toUpperCase()} saved just now</span>
                   : "Save what you have entered so far. You can leave the tab and come back."}
               </div>
-              <button type="button" onClick={() => saveSection(step)} disabled={savingSection || !reg.email}
-                      data-testid={`admin-vendor-save-section-${step}`}
-                      className="px-6 py-2.5 text-[11px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep disabled:opacity-40 disabled:cursor-not-allowed">
-                {savingSection ? "Saving…" : `Save section ${step.toUpperCase()}`}
-              </button>
+              <div className="flex gap-2 flex-wrap">
+                <button type="button" onClick={() => saveSection(step)} disabled={savingSection || !reg.email}
+                        data-testid={`admin-vendor-save-section-${step}`}
+                        className="px-6 py-2.5 text-[11px] font-semibold uppercase tracking-widest border border-brand-navy text-brand-navy hover:bg-brand-navy hover:text-white disabled:opacity-40 disabled:cursor-not-allowed">
+                  {savingSection ? "Saving…" : `Save section ${step.toUpperCase()}`}
+                </button>
+                {/* v51av — explicit Next button (xlsx #6). Users were missing
+                    the stepper tabs and getting stuck on Section A. Clicking
+                    Next saves the current section then advances. */}
+                <button type="button"
+                        onClick={async () => {
+                          if (reg.email) await saveSection(step);
+                          const idx = STEPS.findIndex(([k]) => k === step);
+                          if (idx !== -1 && idx + 1 < STEPS.length) {
+                            setStep(STEPS[idx + 1][0]);
+                          }
+                        }}
+                        disabled={savingSection}
+                        data-testid={`admin-vendor-next-${step}`}
+                        className="px-6 py-2.5 text-[11px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep disabled:opacity-40 disabled:cursor-not-allowed">
+                  Save &amp; next →
+                </button>
+              </div>
             </div>
           )}
           {step === "final" && (
