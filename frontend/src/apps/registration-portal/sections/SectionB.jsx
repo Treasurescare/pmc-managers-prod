@@ -12,15 +12,15 @@ export default function SectionB({ reg, update, regId, token, onDocChange, ensur
   return (
     <>
       <div className="grid gap-5 md:grid-cols-2">
-        <Field label={t("section_b.contact_name")}><Input testId="f-contact-name" value={reg.contact_name || ""} onChange={(e) => update({ contact_name: e.target.value })} /></Field>
+        <Field label={t("section_b.contact_name")} required><Input testId="f-contact-name" value={reg.contact_name || ""} onChange={(e) => update({ contact_name: e.target.value })} /></Field>
         <Field label={t("section_b.contact_title")}><Input testId="f-contact-title" value={reg.contact_title || ""} onChange={(e) => update({ contact_title: e.target.value })} /></Field>
         <Field label={t("section_b.office_phone")}><PhoneInput testId="f-contact-phone" value={reg.contact_office_phone || ""} onChange={(e) => update({ contact_office_phone: e.target.value })} /></Field>
-        <Field label={t("section_b.mobile")}><PhoneInput testId="f-contact-mobile" value={reg.contact_mobile || ""} onChange={(e) => update({ contact_mobile: e.target.value })} /></Field>
-        <Field label={t("section_b.contact_email")}><EmailInput testId="f-contact-email" value={reg.contact_email || ""} onChange={(e) => update({ contact_email: e.target.value })} /></Field>
+        <Field label={t("section_b.mobile")} required><PhoneInput testId="f-contact-mobile" value={reg.contact_mobile || ""} onChange={(e) => update({ contact_mobile: e.target.value })} /></Field>
+        <Field label={t("section_b.contact_email")} required><EmailInput testId="f-contact-email" value={reg.contact_email || ""} onChange={(e) => update({ contact_email: e.target.value })} /></Field>
         <div />
-        <Field label={t("section_b.signatory_name")}><Input testId="f-sig-name" value={reg.signatory_name || ""} onChange={(e) => update({ signatory_name: e.target.value })} /></Field>
+        <Field label={t("section_b.signatory_name")} required><Input testId="f-sig-name" value={reg.signatory_name || ""} onChange={(e) => update({ signatory_name: e.target.value })} /></Field>
         <Field label={t("section_b.signatory_title")}><Input testId="f-sig-title" value={reg.signatory_title || ""} onChange={(e) => update({ signatory_title: e.target.value })} /></Field>
-        <Field label={t("section_b.signatory_contact")}><PhoneInput testId="f-sig-contact" value={reg.signatory_contact || ""} onChange={(e) => update({ signatory_contact: e.target.value })} /></Field>
+        <Field label={t("section_b.signatory_contact")} required><PhoneInput testId="f-sig-contact" value={reg.signatory_contact || ""} onChange={(e) => update({ signatory_contact: e.target.value })} /></Field>
       </div>
       <DocSlotsBlock
         title={t("section_b.docs_title")}

@@ -49,6 +49,13 @@ Public / Vendor / Buyer / Admin roles.
 - `/downloads/DOWNLOAD_mobile_v1.0.0.md`
 
 ## Latest web releases
+- **v51aw** — Register-on-behalf `*` marks sweep completed across Sections
+  B (contact/signatory), C (banking) and E (signature block). Backend
+  unchanged (still v51au).
+- **v51av** — Blacklist modal stale-state fix (button flips immediately),
+  `Field.required` prop + red `*` marks, "Save & next →" button in
+  AdminVendorCreate, DocuSign key-rotation walk-through (operational, not
+  code).
 - **v51au** — P0/P1 closing batch: Evaluation page crash guard, NIT public
   download fix (new `/api/v1/uploads/public-files/{key}` anon endpoint +
   NoticeDetail routes attachments through it), Stakeholder Reports link

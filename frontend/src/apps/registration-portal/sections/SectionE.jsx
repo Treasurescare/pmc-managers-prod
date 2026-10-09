@@ -45,9 +45,9 @@ export default function SectionE({ reg, update }) {
         </div>
       </div>
       <div className="grid gap-5 md:grid-cols-3">
-        <Field label={t("section_e.signature_name")}><Input testId="f-sign-name" value={reg.signature_name || ""} onChange={(e) => update({ signature_name: e.target.value })} /></Field>
-        <Field label={t("section_e.signature_title")}><Input testId="f-sign-title" value={reg.signature_title || ""} onChange={(e) => update({ signature_title: e.target.value })} /></Field>
-        <Field label={t("section_e.signature_date")}><Input testId="f-sign-date" type="date" value={reg.signature_date || ""} onChange={(e) => update({ signature_date: e.target.value })} /></Field>
+        <Field label={t("section_e.signature_name")} required><Input testId="f-sign-name" value={reg.signature_name || ""} onChange={(e) => update({ signature_name: e.target.value })} /></Field>
+        <Field label={t("section_e.signature_title")} required><Input testId="f-sign-title" value={reg.signature_title || ""} onChange={(e) => update({ signature_title: e.target.value })} /></Field>
+        <Field label={t("section_e.signature_date")} required><Input testId="f-sign-date" type="date" value={reg.signature_date || ""} onChange={(e) => update({ signature_date: e.target.value })} /></Field>
       </div>
     </div>
   );

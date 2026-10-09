@@ -14,10 +14,10 @@ export default function SectionC({ reg, update, regId, token, onDocChange, ensur
   return (
     <>
       <div className="grid gap-5 md:grid-cols-2">
-        <Field label={t("section_c.bank_name")}><Input testId="f-bank-name" value={reg.bank_name || ""} onChange={(e) => update({ bank_name: e.target.value })} /></Field>
+        <Field label={t("section_c.bank_name")} required><Input testId="f-bank-name" value={reg.bank_name || ""} onChange={(e) => update({ bank_name: e.target.value })} /></Field>
         <Field label={t("section_c.branch")}><Input testId="f-bank-branch" value={reg.bank_branch || ""} onChange={(e) => update({ bank_branch: e.target.value })} /></Field>
-        <Field label={t("section_c.account_number")}><Input testId="f-bank-acct" value={reg.bank_account_number || ""} onChange={(e) => update({ bank_account_number: e.target.value })} /></Field>
-        <Field label={t("section_c.swift")}><Input testId="f-bank-swift" value={reg.bank_swift || ""} onChange={(e) => update({ bank_swift: e.target.value })} /></Field>
+        <Field label={t("section_c.account_number")} required><Input testId="f-bank-acct" value={reg.bank_account_number || ""} onChange={(e) => update({ bank_account_number: e.target.value })} /></Field>
+        <Field label={t("section_c.swift")} required><Input testId="f-bank-swift" value={reg.bank_swift || ""} onChange={(e) => update({ bank_swift: e.target.value })} /></Field>
         <Field label={t("section_c.bank_address")}><Input testId="f-bank-address" value={reg.bank_address || ""} onChange={(e) => update({ bank_address: e.target.value })} /></Field>
         <Field label={t("section_c.turnover_currency")}>
           <select data-testid="f-turnover-currency" value={reg.turnover_currency || "USD"} onChange={(e) => update({ turnover_currency: e.target.value })}
