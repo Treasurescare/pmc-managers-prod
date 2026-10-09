@@ -96,6 +96,55 @@ async def upload_direct(key: str = Form(...), file: UploadFile = File(...)):
 @router.get("/files/{key:path}")
 async def get_file(key: str, download: bool = False,
                     _who: dict = Depends(_require_any_signed_in)):
+    return await _serve_file(key, download)
+
+
+# v51au — Public endpoint for notice attachments (xlsx #3, #8). The old
+# /files/{key} endpoint required a signed-in user, so downloading NIT PDFs
+# from the public tender page returned 401 and the frontend bounced the
+# anonymous visitor back to the sign-in screen. This endpoint allows
+# anonymous access ONLY for files uploaded against the "notice-attachments"
+# scope AND whose parent notice is published.
+@router.get("/public-files/{key:path}")
+async def get_public_file(key: str, download: bool = False):
+    doc = await db.uploads.find_one({"key": key})
+    if not doc:
+        raise HTTPException(status_code=404, detail="File not found")
+    # Allow only notice-attachment files whose parent notice is published.
+    if doc.get("scope") not in ("notice-attachments",):
+        raise HTTPException(status_code=403,
+            detail="This file is not publicly downloadable")
+    notice_ref = doc.get("notice_ref")
+    if notice_ref:
+        notice = await db.notices.find_one({"notice_ref": notice_ref})
+        if not notice or not notice.get("is_published"):
+            raise HTTPException(status_code=403,
+                detail="Parent notice is not published")
+    return await _serve_file(key, download)
+
+
+async def _serve_file(key: str, download: bool):
+    doc = await db.uploads.find_one({"key": key})
+    if not doc:
+        raise HTTPException(status_code=404, detail="File not found")
+    from fastapi.responses import Response
+    body = base64.b64decode(doc["data_b64"])
+    display_name = key.rsplit("/", 1)[-1]
+    if "_" in display_name:
+        display_name = display_name.split("_", 1)[1]
+    disposition = "attachment" if download else "inline"
+    return Response(
+        content=body,
+        media_type=doc.get("content_type", "application/octet-stream"),
+        headers={
+            "Content-Disposition": f'{disposition}; filename="{display_name}"',
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
+# Legacy inline body preserved below for reference; replaced by _serve_file.
+async def _legacy_get_file_body(key: str, download: bool = False):
     doc = await db.uploads.find_one({"key": key})
     if not doc:
         raise HTTPException(status_code=404, detail="File not found")

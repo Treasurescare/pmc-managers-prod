@@ -160,6 +160,11 @@ export default function EvaluationPanel() {
         </div>
       )}
 
+      {/* v51au — defensive null-guard: AwardReport used to crash the whole
+          Evaluation page (docx #14 / xlsx #18) when `report` was partial —
+          e.g. no `ranked` or `rubric` arrays. Only render it when a non-null
+          report is available. BidScoreList and other sub-components are
+          already safe. */}
       {(techLocked || commLocked) && (
         <div className="border-l-4 border-emerald-500 bg-emerald-50 p-4 text-sm text-emerald-900"
              data-testid="envelope-lock-banner">
@@ -202,7 +207,7 @@ export default function EvaluationPanel() {
         readOnly={fullyLocked}
       />
 
-      <AwardReport report={report} />
+      <AwardReport report={report || {}} />
     </div>
   );
 }

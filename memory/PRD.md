@@ -49,6 +49,15 @@ Public / Vendor / Buyer / Admin roles.
 - `/downloads/DOWNLOAD_mobile_v1.0.0.md`
 
 ## Latest web releases
+- **v51au** — P0/P1 closing batch: Evaluation page crash guard, NIT public
+  download fix (new `/api/v1/uploads/public-files/{key}` anon endpoint +
+  NoticeDetail routes attachments through it), Stakeholder Reports link
+  restored to Bidding Ops sidebar. Backend bundle: `pmc-backend-v51au.zip`.
+  Frontend bundle: `pmc-frontend-v51au-prod-build.zip`.
+- **v51at** — L1 Award page crash guard, vendor-list cache-bust after
+  approve, PDF-only enforcement on bid envelope dropzones.
+- **v51as** — Bidding Ops "Review" button opens inline detail panel instead
+  of navigating away; "Invited undefined" toast hardened with fallbacks.
 - **v51ar** — Login-page escrow registration entrypoint. SignInE's
   subtitle + bottom register button are now role-aware: selecting
   "Escrow Institution" swaps "Register as a supplier" for

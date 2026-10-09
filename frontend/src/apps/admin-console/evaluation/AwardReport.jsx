@@ -28,7 +28,7 @@ export default function AwardReport({ report }) {
           </tr>
         </thead>
         <tbody>
-          {report.ranking.map((r, i) => (
+          {(report.ranking || []).map((r, i) => (
             <tr key={r.bid_id} className="border-t">
               <td className="px-2 py-1">{i + 1}</td>
               <td className="px-2 py-1 font-mono text-xs">{r.bid_ref}</td>

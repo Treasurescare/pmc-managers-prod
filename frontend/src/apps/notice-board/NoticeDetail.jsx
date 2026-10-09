@@ -262,7 +262,16 @@ export default function NoticeDetail() {
                   <div className="pmc-label">{t("notice.attachments")} ({notice.attachments.length})</div>
                   <ul className="mt-2 text-sm text-brand-navy-soft space-y-1">
                     {notice.attachments.map((a, i) => {
-                      const href = a.url ? `${process.env.REACT_APP_BACKEND_URL}${a.url}` : "#";
+                      // v51au — public tender attachments must route through the
+                      // new /uploads/public-files/ endpoint (xlsx #3, #8). The
+                      // old URL required a signed-in user and bounced anonymous
+                      // visitors to the sign-in screen. Attachment metadata
+                      // carries { key, url, file_name } — we rebuild the URL
+                      // ourselves to hit the public endpoint.
+                      const publicUrl = a.key
+                        ? `${process.env.REACT_APP_BACKEND_URL}/api/v1/uploads/public-files/${a.key}?download=1`
+                        : (a.url ? `${process.env.REACT_APP_BACKEND_URL}${a.url}` : "#");
+                      const href = publicUrl;
                       const label = a.file_name || a.name || a.key || "attachment";
                       const sizeKb = a.size_bytes ? Math.round(a.size_bytes / 1024) : null;
                       return (
