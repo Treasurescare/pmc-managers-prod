@@ -121,7 +121,27 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
       const bidId = btn.dataset.bidId;
       const act = btn.dataset.boAction;
       if (!bidId) return;
-      if (act === 'review' || act === 'view') { navigate(`/admin/bids/${bidId}`); return; }
+      if (act === 'review' || act === 'view') {
+        // v51as — the user's complaint: clicking "Review" sent them to a
+        // detail page that often showed no content. Instead, open the
+        // right-hand inline panel (same as clicking the row) so the
+        // clearance path, EMD, timeline, and quick actions all appear
+        // beside the list without leaving the page. The dedicated
+        // AdminBidDetailPage is still reachable with Shift+click or by
+        // right-clicking "Open in new tab" via /admin/bids/{id}.
+        if (e.shiftKey || e.metaKey || e.ctrlKey) {
+          navigate(`/admin/bids/${bidId}`);
+          return;
+        }
+        const row = root.querySelector(`.bo-r[data-bid-id="${bidId}"]`);
+        if (row) {
+          row.scrollIntoView({ block: "nearest", behavior: "smooth" });
+          row.click();
+        } else {
+          navigate(`/admin/bids/${bidId}`);
+        }
+        return;
+      }
       if (act === 'detail') {
         // ⋯ opens the right-side detail panel (Hold / Reject / History live there)
         const row = root.querySelector(`.bo-r[data-bid-id="${bidId}"]`);

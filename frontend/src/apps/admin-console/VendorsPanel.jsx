@@ -116,7 +116,7 @@ export default function VendorsPanel() {
     setSendingInvite(true);
     try {
       const r = await vendorInviteApi.invite({ ...inviteDraft, email: inviteDraft.email.trim() });
-      toast.success(`Invited ${r.email} · ${r.vendor_ref}`, {
+      toast.success(`Invited ${r?.email || inviteDraft.email || "vendor"} · ${r?.vendor_ref || "pending"}`, {
         description: "Verification email sent. Row is highlighted below.",
       });
       setShowInvite(false);
