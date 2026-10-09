@@ -70,7 +70,9 @@ export default function VendorsPanel() {
   };
 
   const load = useCallback((focusRef) => {
-    api.get("/api/v1/vendors", { params: search ? { search } : {} })
+    // v51at — cache-bust the vendor list so a freshly approved vendor appears
+    // immediately instead of a stale cached response (xlsx bug row 15).
+    api.get("/api/v1/vendors", { params: { ...(search ? { search } : {}), _r: Date.now() } })
       .then((r) => {
         setVendors(r.data || []);
         if (focusRef) {

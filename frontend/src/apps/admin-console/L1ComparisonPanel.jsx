@@ -109,7 +109,7 @@ export default function L1ComparisonPanel() {
               <span className="w-40 text-right">Price</span>
               <span className="w-24 text-center">Compliant?</span>
             </div>
-            {result.ranked.length === 0 && (
+            {(result.ranked || []).length === 0 && (
               <div className="p-8 text-brand-navy/60 text-sm text-center border border-dashed border-brand-navy/20"
                    data-testid="l1-empty-state">
                 <div className="pmc-label mb-2">No eligible bids to rank</div>
@@ -127,7 +127,7 @@ export default function L1ComparisonPanel() {
                 </div>
               </div>
             )}
-            {result.ranked.map((r) => (
+            {(result.ranked || []).map((r) => (
               <div key={r.bid_id} className={`p-3 border-b border-brand-navy/5 ${!r.compliant ? "bg-amber-50/50" : ""}`}
                    data-testid={`l1-row-${r.rank}`}>
                 <div className="flex items-center gap-4">
@@ -143,9 +143,9 @@ export default function L1ComparisonPanel() {
                       : <span className="text-amber-700 text-xs uppercase tracking-widest">Flagged</span>}
                   </span>
                 </div>
-                {r.compliance_flags.length > 0 && (
+                {(r.compliance_flags || []).length > 0 && (
                   <div className="mt-2 ml-12 flex flex-wrap gap-2">
-                    {r.compliance_flags.map((f) => (
+                    {(r.compliance_flags || []).map((f) => (
                       <span key={f} className="text-[10px] uppercase tracking-widest px-2 py-0.5 border border-amber-400 bg-amber-100 text-amber-900">
                         {flagLabel(f)}
                       </span>
@@ -161,7 +161,7 @@ export default function L1ComparisonPanel() {
               <div className="p-3 border-b border-brand-navy/10 text-xs uppercase tracking-widest text-brand-navy/60">
                 Ineligible ({result.ineligible_count})
               </div>
-              {result.ineligible.map((i) => (
+              {(result.ineligible || []).map((i) => (
                 <div key={i.bid_id} className="p-2 text-sm text-brand-navy/70 flex gap-4 border-b border-brand-navy/5">
                   <span className="flex-1">{i.company_name}</span>
                   <span className="font-mono text-xs text-brand-navy/50">{i.bid_ref}</span>

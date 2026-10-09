@@ -518,10 +518,16 @@ export default function VendorBidWorkspaceE({ legacy: Legacy }) {
                                       background: "var(--surface,#fff)",
                                       textAlign: "center" }}
                              data-testid="bw-dropzone">
-                        <input type="file" hidden accept="application/pdf,image/*"
+                        <input type="file" hidden accept="application/pdf"
                                disabled={uploadBusy}
                                onChange={(e) => {
                                  const f = e.target.files?.[0];
+                                 if (f && f.type && f.type !== "application/pdf") {
+                                   // v51at — enforce PDF-only for technical/commercial envelope proofs
+                                   // (xlsx bug row 2). Accept header was permissive before.
+                                   e.target.value = "";
+                                   return alert("Only PDF files are accepted for bid envelope uploads.");
+                                 }
                                  if (f) uploadProof(f);
                                  e.target.value = "";
                                }}
