@@ -3,6 +3,10 @@ apply plugin: 'com.android.application'
 android {
     namespace = "com.pmcmanagers.tenders"
     compileSdk = rootProject.ext.compileSdkVersion
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
     defaultConfig {
         applicationId "com.pmcmanagers.tenders"
         minSdkVersion rootProject.ext.minSdkVersion
@@ -16,8 +20,17 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            storeFile file('pmc-upload-key.keystore')
+            storePassword 'PmcUpload2026!'
+            keyAlias 'pmc-upload'
+            keyPassword 'PmcUpload2026!'
+        }
+    }
     buildTypes {
         release {
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
