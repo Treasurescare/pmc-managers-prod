@@ -3,7 +3,11 @@
  * banner + full ranking table for a generated report.
  */
 export default function AwardReport({ report }) {
-  if (!report) return null;
+  // v52bl — guard: previously `if (!report) return null;` admitted `{}`
+  // (parent passed `report || {}`), and the else-branch below crashed on
+  // `report.rubric.minimum_technical` -> "Something crashed on this screen".
+  if (!report || !report.notice_ref) return null;
+  const minTech = report.rubric?.minimum_technical ?? 60;
   return (
     <div className="bg-white border p-4" data-testid="award-report">
       <div className="text-lg font-serif mb-2">Award Recommendation Report — {report.notice_ref}</div>
@@ -15,7 +19,7 @@ export default function AwardReport({ report }) {
         </div>
       ) : (
         <div className="bg-amber-50 border border-amber-200 p-3 mb-3">
-          No bid qualifies (all below the {report.rubric.minimum_technical}% technical cutoff).
+          No bid qualifies (all below the {minTech}% technical cutoff).
         </div>
       )}
       <table className="w-full text-sm">

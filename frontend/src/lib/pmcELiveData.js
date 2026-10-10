@@ -466,13 +466,88 @@ export function useNoticeDetailLive({ enabled = true, noticeRef } = {}) {
         const dds = root.querySelectorAll(".pmc-facts dd");
         if (dds.length >= 6) {
           dds[0].textContent = money(n.budget_amount, n.budget_currency);
-          dds[1].textContent = n.emd_config?.rate ? `${n.emd_config.rate}% of bid value` : (n.emd_config?.amount ? money(n.emd_config.amount, n.emd_config.currency || n.budget_currency) : "—");
+          // v52bl — EMD now reads `emd_amount` + `emd_percentage` (surfaced
+          // by backend) OR falls back to legacy `emd_config` shape. The
+          // previous code only looked at `emd_config.rate` / `.amount` which
+          // never matched our model and always rendered "—".
+          const emdPct = n.emd_percentage ?? n.emd_config?.percentage;
+          const emdAmt = n.emd_amount ?? n.emd_config?.fixed_amount;
+          const emdCur = n.emd_currency || n.emd_config?.currency || n.budget_currency;
+          if (emdAmt && Number(emdAmt) > 0) {
+            dds[1].textContent = emdPct && Number(emdPct) > 0
+              ? `${money(emdAmt, emdCur)} (${emdPct}% of bid)`
+              : money(emdAmt, emdCur);
+          } else if (emdPct && Number(emdPct) > 0) {
+            dds[1].textContent = `${emdPct}% of bid value`;
+          } else {
+            dds[1].textContent = "—";
+          }
           dds[2].textContent = n.tender_fee ? money(n.tender_fee, n.budget_currency) : "None";
           dds[3].textContent = n.delivery_country || "—";
           dds[4].textContent = n.form_of_contract || "Standard";
           const cd = dds[5].querySelector(".pmc-countdown");
           if (cd) cd.textContent = relTime(n.submission_deadline);
           else dds[5].textContent = relTime(n.submission_deadline);
+        }
+        // v52bl — patch the Key dates timeline on the right rail with the
+        // notice's actual published/corrigenda/clarification/deadline dates
+        // (used to be hard-coded 21/26/27/30 Sep 2026).
+        const tl = root.querySelector(".pmc-timeline");
+        if (tl) {
+          const rows = tl.querySelectorAll(":scope > div");
+          const nowTs = Date.now();
+          const items = [
+            { label: "Published",
+              date: n.published_at,
+              detail: n.created_by_email ? `by ${n.created_by_email}` : "" },
+            ...(n.corrigenda || []).map((c, i) => ({
+              label: `Corrigendum ${c.corrigendum_no || i + 1}`,
+              date: c.published_at,
+              detail: c.title || c.summary || "" })),
+            { label: "Clarifications close",
+              date: n.clarification_deadline || null,
+              detail: "" },
+            { label: "Pre-bid meeting",
+              date: n.pre_bid_meeting_date || null,
+              detail: "" },
+            { label: "Bid submission closes",
+              date: n.submission_deadline,
+              detail: n.submission_deadline ? "Final cut-off" : "" },
+          ].filter((x) => x.date);
+          // Add forward-looking placeholders only if we have room
+          const forward = [
+            { label: "Technical envelopes open", date: null, detail: "After deadline · committee only" },
+            { label: "Commercial opening & L1", date: null, detail: "After technical scores are locked" },
+          ];
+          const all = items.concat(forward).slice(0, Math.max(items.length, rows.length));
+          rows.forEach((r, i) => {
+            const it = all[i];
+            if (!it) { r.style.display = "none"; return; }
+            r.style.display = "";
+            // Set state class
+            r.classList.remove("done", "now");
+            if (it.date) {
+              const ts = new Date(it.date).getTime();
+              if (ts < nowTs) r.classList.add("done");
+              else r.classList.add("now");
+            }
+            const b = r.querySelector("b");
+            const sp = r.querySelectorAll("span");
+            if (b) b.textContent = it.label;
+            const detailSpan = Array.from(sp).find((s) => !s.classList.contains("dot"));
+            if (detailSpan) {
+              const d = it.date ? shortDate(it.date) : "Scheduled";
+              detailSpan.textContent = it.detail ? `${d} · ${it.detail}` : d;
+            }
+          });
+        }
+        // v52bl — refresh the "Submission closes" aside time + display date
+        const closes = root.querySelector(".pmc-card .pmc-countdown");
+        if (closes) closes.textContent = relTime(n.submission_deadline);
+        const closesSub = root.querySelector(".pmc-card .pmc-muted");
+        if (closesSub && n.submission_deadline) {
+          const d = new Date(n.submission_deadline);
+          closesSub.textContent = `${shortDate(n.submission_deadline)}, ${d.toISOString().slice(11,16)} UTC`;
         }
         // Description / scope paragraph — first <p> under the .dt-sec or main col
         const scopeP = root.querySelector(".dt-sec p, main p");

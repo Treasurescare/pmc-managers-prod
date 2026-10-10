@@ -162,6 +162,20 @@ export default function NoticesPanel() {
       toast.error("Budget currency is required · pick from the master list");
       return;
     }
+    // v52bl — block zero/empty budget (common user complaint "notices with
+    // 0 are being created"). Backend also enforces this.
+    if (!draft.budget_amount || Number(draft.budget_amount) <= 0) {
+      toast.error("Budget amount must be greater than zero");
+      return;
+    }
+    // v52bl — require positive EMD (fixed amount or % of budget) so the
+    // public page never shows an empty EMD.
+    const emdFixed = Number(draft.emd_config?.fixed_amount || 0);
+    const emdPct = Number(draft.emd_config?.percentage || 0);
+    if (emdFixed <= 0 && emdPct <= 0) {
+      toast.error("EMD is required · enter a fixed amount or a % of budget");
+      return;
+    }
     if (!draft.submission_deadline) {
       toast.error("Submission deadline is required");
       return;

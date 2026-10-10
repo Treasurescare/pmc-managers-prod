@@ -122,6 +122,12 @@ export default function PackagesPanel() {
             {importing ? "Importing…" : "Import CSV"}
             <input type="file" accept=".csv" onChange={onImport} disabled={importing} className="hidden" data-testid="pkg-import-input" />
           </label>
+          <a href={`${process.env.REACT_APP_BACKEND_URL || ""}/api/v1/packages/import/sample.csv`}
+             data-testid="pkg-import-sample"
+             title="Download a sample CSV with the exact column headers the importer expects"
+             className="px-4 py-2 text-[11px] font-semibold uppercase tracking-widest border border-brand-navy/20 text-brand-navy bg-white hover:border-brand-navy-soft/60">
+            Sample CSV
+          </a>
           <button type="button" onClick={() => setShowNew(!showNew)} data-testid="pkg-new-toggle"
             className="px-4 py-2 text-[11px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep">
             {showNew ? "Cancel" : "New package"}

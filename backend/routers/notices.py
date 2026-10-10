@@ -55,6 +55,23 @@ def _out(doc: dict) -> dict:
     d = BaseDocument.out(doc)
     d.pop("tenant_id", None)
     d.pop("created_by", None)
+    # v52bl — compute a flat emd_amount + emd_currency on the public response
+    # so the Notice detail page shows the real EMD instead of "—". Backward
+    # compatible: we keep emd_config as the source of truth.
+    cfg = d.get("emd_config") or {}
+    budget = d.get("budget_amount") or 0
+    fixed = float(cfg.get("fixed_amount") or 0)
+    pct = float(cfg.get("percentage") or 0)
+    cur = cfg.get("currency") or d.get("budget_currency") or "USD"
+    emd_amt = None
+    if fixed > 0:
+        emd_amt = fixed
+    elif pct > 0 and budget:
+        emd_amt = round(float(budget) * (pct / 100.0), 2)
+    if emd_amt is not None:
+        d["emd_amount"] = emd_amt
+    d["emd_currency"] = cur
+    d["emd_percentage"] = pct if pct > 0 else None
     return d
 
 
@@ -138,6 +155,19 @@ async def create_notice(payload: NoticeIn, admin=Depends(require_role(
     await require_notice_permission(admin, "create", payload.document_type)
     if payload.is_published:
         await require_notice_permission(admin, "publish", payload.document_type)
+    # v52bl — refuse notices with no indicative value or no EMD. These were
+    # being accepted silently and surfaced on the public page as "— —" which
+    # confuses bidders and makes EMD math impossible downstream.
+    if not payload.budget_amount or float(payload.budget_amount) <= 0:
+        raise HTTPException(status_code=422,
+            detail="Budget amount must be greater than zero. A tender with no indicative value cannot be published.")
+    emd_cfg = (payload.emd_config.model_dump() if hasattr(payload.emd_config, "model_dump")
+               else (payload.emd_config or {}))
+    emd_fixed = float(emd_cfg.get("fixed_amount") or 0)
+    emd_pct = float(emd_cfg.get("percentage") or 0)
+    if emd_fixed <= 0 and emd_pct <= 0:
+        raise HTTPException(status_code=422,
+            detail="EMD must be positive. Set either a fixed amount or a % of budget — a tender with zero EMD cannot be opened for bids.")
     seq = await next_sequence("notice_seq")
     from datetime import datetime, timezone
     year = datetime.now(timezone.utc).year

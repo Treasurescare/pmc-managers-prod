@@ -207,7 +207,7 @@ export default function EvaluationPanel() {
         readOnly={fullyLocked}
       />
 
-      <AwardReport report={report || {}} />
+      <AwardReport report={report} />
     </div>
   );
 }

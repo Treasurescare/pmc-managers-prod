@@ -98,6 +98,23 @@ async def move_package_status(package_id: str, payload: StatusUpdate,
     return _out(fresh)
 
 
+@router.get("/import/sample.csv")
+async def packages_import_sample_csv(admin=Depends(require_role("admin"))):
+    """v52bl — downloadable sample CSV that mirrors the import schema."""
+    from fastapi.responses import Response
+    sample = (
+        "title,category,phase,value,currency,float_target_date,status\n"
+        "Substation SS-401 civil works,Electrical,Design,1250000,USD,2026-12-15,backlog\n"
+        "Hostel Block B plumbing fit-out,Plumbing,Procurement,680000,USD,2027-01-20,scoping\n"
+        "Modular OT ceiling + HVAC,Healthcare,Design,2100000,USD,2027-02-28,sbd_draft\n"
+    )
+    return Response(
+        content=sample,
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="pmc-work-packages-sample.csv"'},
+    )
+
+
 @router.post("/import")
 async def import_packages_csv(file: UploadFile = File(...),
                               admin=Depends(require_role("admin"))):

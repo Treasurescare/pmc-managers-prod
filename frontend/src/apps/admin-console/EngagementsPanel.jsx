@@ -94,6 +94,183 @@ function QuoteModal({ engagement, onClose, onSaved }) {
   );
 }
 
+function CancelModal({ engagement, onClose, onDone }) {
+  const [reason, setReason] = useState("");
+  const [saving, setSaving] = useState(false);
+  const submit = async () => {
+    if (reason.trim().length < 5) {
+      toast.error("Please enter a cancellation reason (min 5 characters)");
+      return;
+    }
+    setSaving(true);
+    try {
+      await engagementsApi.cancel(engagement.id, reason.trim());
+      toast.success("Engagement cancelled");
+      onDone();
+    } catch (e) { showApiError(e, { fallbackTitle: "Cancel failed" }); }
+    finally { setSaving(false); }
+  };
+  return (
+    <div className="fixed inset-0 bg-brand-navy/40 backdrop-blur-sm z-50 flex items-start justify-center p-6 overflow-y-auto"
+         data-testid="engagement-cancel-modal">
+      <div className="bg-white border-2 border-red-500 w-full max-w-lg p-8 my-8">
+        <div className="flex items-center justify-between">
+          <h3 className="font-display text-xl text-red-700">Cancel engagement</h3>
+          <button onClick={onClose} className="text-brand-navy/60 hover:text-brand-navy"
+                  data-testid="engagement-cancel-close">✕</button>
+        </div>
+        <div className="mt-2 text-xs text-brand-navy/60">
+          <b>{engagement.product_name}</b> · buyer <span className="font-mono">{engagement.buyer_email}</span>
+        </div>
+        <label className="mt-5 block">
+          <div className="pmc-label">Cancellation reason <span className="text-red-600">*</span></div>
+          <textarea rows={4} value={reason} onChange={(e) => setReason(e.target.value)}
+                    data-testid="engagement-cancel-reason"
+                    placeholder="Why is this engagement being cancelled? (visible to buyer + audit log)"
+                    className="mt-1 w-full border border-brand-navy/20 px-3 py-2 text-sm" />
+          <div className="mt-1 text-[11px] text-brand-navy/50">
+            Minimum 5 characters. Logged to the ledger and emailed to the buyer.
+          </div>
+        </label>
+        <div className="mt-8 flex items-center justify-end gap-3">
+          <button onClick={onClose} className="px-5 py-2 border border-brand-navy/20 text-sm">Keep open</button>
+          <button onClick={submit} disabled={saving || reason.trim().length < 5}
+                  data-testid="engagement-cancel-confirm"
+                  className="px-5 py-2 bg-red-600 text-white text-xs uppercase tracking-widest disabled:opacity-50">
+            {saving ? "Cancelling…" : "Confirm cancel"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MeetingModal({ engagement, onClose, onDone }) {
+  const [when, setWhen] = useState("");
+  const [duration, setDuration] = useState(60);
+  const [agenda, setAgenda] = useState("");
+  const [attendee, setAttendee] = useState("buyer");
+  const [link, setLink] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [meetings, setMeetings] = useState([]);
+  useEffect(() => {
+    engagementsApi.listMeetings(engagement.id)
+      .then((r) => setMeetings(r.items || []))
+      .catch(() => {});
+  }, [engagement.id]);
+  const submit = async () => {
+    if (!when) { toast.error("Pick a date & time"); return; }
+    if (agenda.trim().length < 3) { toast.error("Agenda is required"); return; }
+    setSaving(true);
+    try {
+      await engagementsApi.scheduleMeeting(engagement.id, {
+        scheduled_at: new Date(when).toISOString(),
+        duration_minutes: Number(duration) || 60,
+        agenda: agenda.trim(),
+        attendee_role: attendee,
+        location_or_link: link.trim() || null,
+      });
+      toast.success("Meeting scheduled — invitation sent");
+      onDone();
+    } catch (e) { showApiError(e, { fallbackTitle: "Schedule failed" }); }
+    finally { setSaving(false); }
+  };
+  const print = () => {
+    const win = window.open("", "_blank");
+    if (!win) return;
+    win.document.write(`<!doctype html><html><head><title>Agenda — ${engagement.product_name}</title>
+      <style>body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:720px;margin:40px auto;color:#1a2b35}
+        h1{font-size:22px;margin-bottom:4px} .meta{color:#64748b;font-size:13px} .agenda{white-space:pre-wrap;margin-top:24px;padding:16px;border:1px solid #ddd}</style>
+      </head><body>
+      <h1>Meeting agenda</h1>
+      <div class="meta">${engagement.product_name} · ${engagement.buyer_email} · ${when || "TBD"}</div>
+      <div class="agenda">${agenda || "(no agenda)"}</div>
+      <p><b>Attendees:</b> ${attendee} · <b>Duration:</b> ${duration} min · <b>Location/Link:</b> ${link || "TBD"}</p>
+      </body></html>`);
+    win.document.close(); win.focus(); setTimeout(() => win.print(), 200);
+  };
+  return (
+    <div className="fixed inset-0 bg-brand-navy/40 backdrop-blur-sm z-50 flex items-start justify-center p-6 overflow-y-auto"
+         data-testid="engagement-meeting-modal">
+      <div className="bg-white border-2 border-brand-navy w-full max-w-xl p-8 my-8">
+        <div className="flex items-center justify-between">
+          <h3 className="font-display text-xl text-brand-navy">Schedule meeting</h3>
+          <button onClick={onClose} className="text-brand-navy/60 hover:text-brand-navy"
+                  data-testid="engagement-meeting-close">✕</button>
+        </div>
+        <div className="mt-2 text-xs text-brand-navy/60">
+          <b>{engagement.product_name}</b> · buyer <span className="font-mono">{engagement.buyer_email}</span>
+        </div>
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          <label className="md:col-span-1">
+            <div className="pmc-label">Date &amp; time <span className="text-red-600">*</span></div>
+            <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)}
+                   data-testid="engagement-meeting-when"
+                   className="mt-1 w-full border border-brand-navy/20 px-3 py-2" />
+          </label>
+          <label className="md:col-span-1">
+            <div className="pmc-label">Duration (min)</div>
+            <input type="number" min="5" max="480" step="5" value={duration}
+                   onChange={(e) => setDuration(e.target.value)}
+                   data-testid="engagement-meeting-duration"
+                   className="mt-1 w-full border border-brand-navy/20 px-3 py-2" />
+          </label>
+          <label className="md:col-span-1">
+            <div className="pmc-label">Attendees</div>
+            <select value={attendee} onChange={(e) => setAttendee(e.target.value)}
+                    data-testid="engagement-meeting-attendee"
+                    className="mt-1 w-full border border-brand-navy/20 px-3 py-2 bg-white">
+              <option value="buyer">Buyer</option>
+              <option value="supplier">Supplier</option>
+              <option value="both">Buyer + Supplier</option>
+            </select>
+          </label>
+          <label className="md:col-span-1">
+            <div className="pmc-label">Location / Link</div>
+            <input value={link} onChange={(e) => setLink(e.target.value)}
+                   placeholder="https://meet.pmc / Office 4B"
+                   data-testid="engagement-meeting-link"
+                   className="mt-1 w-full border border-brand-navy/20 px-3 py-2" />
+          </label>
+          <label className="md:col-span-2">
+            <div className="pmc-label">Agenda <span className="text-red-600">*</span></div>
+            <textarea rows={5} value={agenda} onChange={(e) => setAgenda(e.target.value)}
+                      data-testid="engagement-meeting-agenda"
+                      placeholder="1. Review scope …&#10;2. Confirm pricing …&#10;3. Next steps"
+                      className="mt-1 w-full border border-brand-navy/20 px-3 py-2 text-sm" />
+          </label>
+        </div>
+        {meetings.length > 0 && (
+          <div className="mt-6 border-t pt-4" data-testid="engagement-meeting-list">
+            <div className="pmc-label mb-2">Scheduled ({meetings.length})</div>
+            <ul className="text-xs space-y-1 text-brand-navy/80">
+              {meetings.map((m) => (
+                <li key={m.id} className="flex gap-2">
+                  <span className="font-mono">{(m.scheduled_at || "").replace("T", " ").slice(0, 16)}</span>
+                  <span>·</span>
+                  <span>{m.attendee_role}</span>
+                  <span>·</span>
+                  <span className="truncate">{m.agenda}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <div className="mt-8 flex items-center justify-end gap-3">
+          <button onClick={print} data-testid="engagement-meeting-print"
+                  className="px-4 py-2 border border-brand-navy/20 text-xs uppercase tracking-widest">Print agenda</button>
+          <button onClick={onClose} className="px-5 py-2 border border-brand-navy/20 text-sm">Close</button>
+          <button onClick={submit} disabled={saving || !when || agenda.trim().length < 3}
+                  data-testid="engagement-meeting-save"
+                  className="px-5 py-2 bg-brand-navy text-white text-xs uppercase tracking-widest disabled:opacity-50">
+            {saving ? "Scheduling…" : "Schedule"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function StatusPill({ s }) {
   const cls = STATUS_STYLE[s] || "bg-brand-navy/5 border-brand-navy/20";
   return (
@@ -103,7 +280,7 @@ function StatusPill({ s }) {
   );
 }
 
-function EngagementRow({ e, onQuote, onInvoice, onCancel }) {
+function EngagementRow({ e, onQuote, onInvoice, onCancel, onMeeting }) {
   const { t } = useI18n();
   return (
     <tr className="border-b border-brand-navy/10" data-testid={`engagement-row-${e.id}`}>
@@ -144,8 +321,12 @@ function EngagementRow({ e, onQuote, onInvoice, onCancel }) {
              className="text-xs uppercase tracking-widest text-indigo-800 hover:underline">{t("panels.engagements.pay_link")}</a>
         )}
         {!["paid", "cancelled"].includes(e.status) && (
-          <button onClick={() => onCancel(e)} data-testid={`engagement-cancel-${e.id}`}
-                  className="text-xs uppercase tracking-widest text-red-700 hover:underline">{t("panels.engagements.cancel")}</button>
+          <>
+            <button onClick={() => onMeeting(e)} data-testid={`engagement-meeting-${e.id}`}
+                    className="text-xs uppercase tracking-widest text-emerald-800 hover:underline">Schedule meeting</button>
+            <button onClick={() => onCancel(e)} data-testid={`engagement-cancel-${e.id}`}
+                    className="text-xs uppercase tracking-widest text-red-700 hover:underline">{t("panels.engagements.cancel")}</button>
+          </>
         )}
       </td>
     </tr>
@@ -159,6 +340,8 @@ export default function EngagementsPanel() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [quoting, setQuoting] = useState(null);
+  const [cancelling, setCancelling] = useState(null);
+  const [meeting, setMeeting] = useState(null);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -180,14 +363,7 @@ export default function EngagementsPanel() {
     } catch (err) { showApiError(err, { fallbackTitle: "Invoice failed" }); }
   };
 
-  const cancel = async (e) => {
-    if (!window.confirm(`Cancel engagement for ${e.product_name}?`)) return;
-    try {
-      await engagementsApi.cancel(e.id);
-      toast.success("Cancelled");
-      reload();
-    } catch (err) { showApiError(err, { fallbackTitle: "Cancel failed" }); }
-  };
+  const cancel = (e) => setCancelling(e);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -251,7 +427,8 @@ export default function EngagementsPanel() {
             </thead>
             <tbody>
               {paged.map((e) => (
-                <EngagementRow key={e.id} e={e} onQuote={setQuoting} onInvoice={invoice} onCancel={cancel}/>
+                <EngagementRow key={e.id} e={e} onQuote={setQuoting} onInvoice={invoice}
+                               onCancel={cancel} onMeeting={setMeeting}/>
               ))}
               {filtered.length === 0 && (
                 <tr><td colSpan={6} className="text-center py-10 text-brand-navy/60">
@@ -268,6 +445,16 @@ export default function EngagementsPanel() {
         <QuoteModal engagement={quoting}
                      onClose={() => setQuoting(null)}
                      onSaved={() => { setQuoting(null); reload(); }}/>
+      )}
+      {cancelling && (
+        <CancelModal engagement={cancelling}
+                     onClose={() => setCancelling(null)}
+                     onDone={() => { setCancelling(null); reload(); }}/>
+      )}
+      {meeting && (
+        <MeetingModal engagement={meeting}
+                      onClose={() => setMeeting(null)}
+                      onDone={() => { setMeeting(null); reload(); }}/>
       )}
     </div>
   );

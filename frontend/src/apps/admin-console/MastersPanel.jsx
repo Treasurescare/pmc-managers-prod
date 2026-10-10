@@ -8,6 +8,7 @@ import DemoModeTab from "./masters/DemoModeTab";
 import RatingCriteriaTab from "./masters/RatingCriteriaTab";
 import FeeCharger from "./masters/FeeCharger";
 import CategoriesTab from "./masters/CategoriesTab";
+import CurrenciesTab from "./masters/CurrenciesTab";
 import LegalEntityTypesTab from "./masters/LegalEntityTypesTab";
 import CategoryRequestsPanel from "./masters/CategoryRequestsPanel";
 import ProfileChangeRequestsPanel from "./masters/ProfileChangeRequestsPanel";
@@ -129,7 +130,7 @@ export default function MastersPanel() {
       {/* Tab bar as wrapping chips: every master is visible at once; the
           active chip is solid navy, the rest outlined. No horizontal scroll. */}
       <div className="flex flex-wrap gap-2 mb-4" data-testid="masters-tab-bar">
-        {[["staff", t("panels.masters.tab_staff")], ["companies", t("panels.masters.tab_companies")], ["tenants", t("panels.masters.tab_tenants")], ["matrix", t("panels.masters.tab_matrix")], ["hierarchy", t("panels.masters.tab_hierarchy")], ["rating", "Rating & Fees"], ["fees", "Charge Fee"], ["categories", "Categories"], ["legal_entities", "Legal entity types"], ["cat_requests", "Vendor requests"], ["profile_requests", "Profile changes"], ["emd_rules", "EMD rules"], ["demo", "Investor Demo"]].map(([k, l]) => (
+        {[["staff", t("panels.masters.tab_staff")], ["companies", t("panels.masters.tab_companies")], ["tenants", t("panels.masters.tab_tenants")], ["matrix", t("panels.masters.tab_matrix")], ["hierarchy", t("panels.masters.tab_hierarchy")], ["rating", "Rating & Fees"], ["fees", "Charge Fee"], ["categories", "Categories"], ["currencies", "Currencies"], ["legal_entities", "Legal entity types"], ["cat_requests", "Vendor requests"], ["profile_requests", "Profile changes"], ["emd_rules", "EMD rules"], ["demo", "Investor Demo"]].map(([k, l]) => (
           <button key={k} onClick={() => { setTab(k); setSearch(""); }}
             className={`px-3 py-1.5 text-[11px] uppercase tracking-widest whitespace-nowrap border transition-colors ${tab === k ? "bg-brand-navy text-white border-brand-navy font-semibold" : "bg-white text-brand-navy/70 border-brand-navy/25 hover:border-brand-navy hover:text-brand-navy"}`}
             data-testid={`masters-tab-${k}`}>{l}</button>
@@ -240,6 +241,7 @@ export default function MastersPanel() {
       {tab === "fees" && <FeeCharger />}
 
       {tab === "categories" && <CategoriesTab />}
+      {tab === "currencies" && <CurrenciesTab />}
       {tab === "legal_entities" && <LegalEntityTypesTab />}
 
       {tab === "cat_requests" && <CategoryRequestsPanel />}

@@ -1000,9 +1000,15 @@ export const productCatalogApi = {
 export const engagementsApi = {
   quoteRequest: (payload) => api.post("/api/v1/engagements/quote-request", payload).then((r) => r.data),
   checkout: (id, origin_url) => api.post(`/api/v1/engagements/${id}/checkout`, { origin_url }).then((r) => r.data),
-  cancel: (id) => api.post(`/api/v1/engagements/${id}/cancel`).then((r) => r.data),
+  // v52bl — cancel now requires a non-empty reason (backend enforces min_length 5).
+  cancel: (id, reason) => api.post(`/api/v1/engagements/${id}/cancel`, { reason }).then((r) => r.data),
   saveQuote: (id, payload) => api.patch(`/api/v1/engagements/${id}/quote`, payload).then((r) => r.data),
   listAdmin: () => api.get("/api/v1/engagements").then((r) => r.data),
+  // v52bl — lightweight PMC-internal meetings (buyer/supplier).
+  scheduleMeeting: (id, payload) =>
+    api.post(`/api/v1/engagements/${id}/meetings`, payload).then((r) => r.data),
+  listMeetings: (id) =>
+    api.get(`/api/v1/engagements/${id}/meetings`).then((r) => r.data),
 };
 
 // ---------- Escrow Magic-Sign ----------

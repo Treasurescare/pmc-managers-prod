@@ -1,5 +1,77 @@
 # PMC Managers v2 — PRD (last touched 10 Oct 2026)
 
+## v52bl — Evaluation crash fix + EMD on public page + Notice validation + Engagements meetings + Masters Currencies tab (10 Oct 2026)
+
+Backend
+- `routers/notices.py`
+  - `_out()` now computes a flat `emd_amount` / `emd_currency` / `emd_percentage`
+    from `emd_config` + `budget_amount` so the public notice page can display
+    real EMD figures instead of "—".
+  - `POST /notices` rejects `budget_amount <= 0` (422) and rejects notices with
+    no positive EMD (either `fixed_amount > 0` or `percentage > 0`) — fixes
+    "notices with 0 are being created".
+- `routers/packages.py` — new `GET /api/v1/packages/import/sample.csv` returns
+  a 3-row sample matching the importer schema (title, category, phase, value,
+  currency, float_target_date, status).
+- `routers/engagements.py` — new `POST /{eid}/meetings` and `GET /{eid}/meetings`.
+  Lightweight PMC-internal meetings; stored on the engagement doc, audit-logged,
+  best-effort buyer email via `notify.vendor_confirm`.
+- `routers/engagements.py` — `POST /{eid}/cancel` already required a reason;
+  frontend now matches with a modal instead of `window.confirm`.
+
+Frontend
+- `apps/admin-console/evaluation/AwardReport.jsx` — guard against partial
+  reports: `return null` when `report.notice_ref` missing, and read
+  `report.rubric?.minimum_technical ?? 60` so the else-branch never crashes.
+- `apps/admin-console/EvaluationPanel.jsx` — passes `report` directly (not
+  `report || {}`) so AwardReport's new guard fires correctly.
+- `lib/pmcELiveData.js` `useNoticeDetailLive`:
+  - EMD facts cell now reads the flat `emd_amount`/`emd_percentage`/`emd_currency`
+    fields with legacy `emd_config` fallback.
+  - **Key dates timeline** patched from real notice data (`published_at`,
+    `corrigenda[*]`, `clarification_deadline`, `pre_bid_meeting_date`,
+    `submission_deadline`) — replaces hard-coded Sep 2026 demo dates.
+  - Submission countdown + "closes" datetime in the aside now reflect
+    `notice.submission_deadline`.
+- `apps/admin-console/NoticesPanel.jsx` — client-side block when
+  `budget_amount <= 0` or EMD missing (fixed/pct both zero).
+- `apps/admin-console/EngagementsPanel.jsx` — new `CancelModal` (reason
+  textarea, min 5 chars) + new `MeetingModal` (date/time, duration, agenda,
+  attendee role, link, prints agenda).
+- `apps/admin-console/PackagesPanel.jsx` — "Sample CSV" link (`pkg-import-sample`)
+  next to "Import CSV".
+- `apps/admin-console/masters/CurrenciesTab.jsx` (NEW) — full CRUD UI backed by
+  `/api/v1/masters/currencies`: add, edit (name/symbol/decimals), deactivate.
+- `apps/admin-console/MastersPanel.jsx` — new tab chip "Currencies" between
+  Categories and Legal entity types.
+
+### L1 comparison logic (plain-English explainer, no code change)
+1. **Scope**: run only on **published** notices with at least one bid; drafts
+   admins can dry-run too via `adminApi.listAllNotices`.
+2. **Eligibility filter**: drop withdrawn / non-cleared bids. A bid is kept
+   only if its **Technical envelope is cleared** (`technical_clear=True`).
+3. **Compliance flags per bid** (don't disqualify alone):
+   `missing_price`, `no_documents`, `no_technical_docs`, `no_commercial_docs`,
+   `above_budget_150pct`, `suspiciously_low` (<40 % of budget).
+4. **Normalisation**: all `price_amount` values converted to the notice's own
+   currency (`FX_TO_USD` map in `pmcELiveData`) so cross-currency bids compare
+   like-for-like.
+5. **Sort**: ascending by normalised price → the lowest compliant bid is L1.
+6. **Tie-breaker**: by submission timestamp (earliest wins). If still tied, by
+   vendor rating.
+7. **Output**: the Engine returns `{ eligible_count, l1_winner, flags_per_bid }`;
+   the UI shows the winner banner + flagged-bids pills.
+8. **Audit**: every L1 run is written to the ledger (`l1.run` event) with input
+   bid refs so an auditor can reproduce the shortlist.
+
+Verified visually (iteration smoke): Evaluation panel no longer crashes;
+Masters → Currencies lists 20+ seeded ISO codes; Engagements cancel modal
+opens with required reason input.
+
+---
+
+
+
 ## v52bk — Currency master + auth-aware public chrome + hardened Create Notice (10 Oct 2026)
 
 Backend

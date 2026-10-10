@@ -257,6 +257,75 @@ async def cancel_engagement(eid: str, payload: CancelIn,
     return _out(await db.engagements.find_one({"_id": ObjectId(eid)}))
 
 
+class MeetingIn(BaseModel):
+    scheduled_at: str = Field(min_length=10)  # ISO datetime
+    duration_minutes: int = Field(60, ge=5, le=480)
+    agenda: str = Field(min_length=3, max_length=2000)
+    attendee_role: Literal["buyer", "supplier", "both"] = "buyer"
+    location_or_link: Optional[str] = None
+
+
+@router.post("/{eid}/meetings")
+async def schedule_meeting(eid: str, payload: MeetingIn,
+                           admin=Depends(current_admin)):
+    """v52bl — schedule a lightweight PMC-internal meeting with the buyer
+    and/or supplier on this engagement. Stored on the engagement doc, posted
+    to the audit ledger, and surfaced on both parties' dashboards."""
+    if not ObjectId.is_valid(eid):
+        raise HTTPException(status_code=400, detail="Invalid engagement id")
+    doc = await db.engagements.find_one({"_id": ObjectId(eid)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Engagement not found")
+    meeting = {
+        "id":              str(ObjectId()),
+        "scheduled_at":    payload.scheduled_at,
+        "duration_minutes": payload.duration_minutes,
+        "agenda":          payload.agenda.strip(),
+        "attendee_role":   payload.attendee_role,
+        "location_or_link": (payload.location_or_link or "").strip() or None,
+        "created_by":      admin["email"],
+        "created_at":      now_iso(),
+        "status":          "scheduled",
+    }
+    entry = {"at": now_iso(), "by": admin["email"], "event": "meeting_scheduled",
+             "meeting_id": meeting["id"], "scheduled_at": payload.scheduled_at,
+             "attendee_role": payload.attendee_role}
+    await db.engagements.update_one(
+        {"_id": ObjectId(eid)},
+        {"$push": {"meetings": meeting, "history": entry},
+         "$set": {"updated_at": now_iso()}},
+    )
+    await audit_log("engagement.meeting_scheduled", admin, "engagement", eid,
+                    {"meeting_id": meeting["id"],
+                     "scheduled_at": payload.scheduled_at,
+                     "attendee_role": payload.attendee_role})
+    # Best-effort email/alert — never fails the request if notifier is down.
+    try:
+        from notify import vendor_confirm
+        if payload.attendee_role in ("buyer", "both") and doc.get("buyer_email"):
+            await vendor_confirm(
+                doc["buyer_email"],
+                subject=f"Meeting scheduled — {doc.get('product_name') or 'engagement'}",
+                body_html=(f"<p>A meeting has been scheduled on <b>{payload.scheduled_at}</b> "
+                           f"({payload.duration_minutes} minutes).</p>"
+                           f"<p><b>Agenda:</b><br/>{payload.agenda}</p>"
+                           f"<p><b>Location / link:</b> {meeting['location_or_link'] or 'TBD'}</p>"),
+            )
+    except Exception:
+        pass
+    return meeting
+
+
+@router.get("/{eid}/meetings")
+async def list_meetings(eid: str, admin=Depends(current_admin)):
+    if not ObjectId.is_valid(eid):
+        raise HTTPException(status_code=400, detail="Invalid engagement id")
+    doc = await db.engagements.find_one({"_id": ObjectId(eid)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Engagement not found")
+    return {"items": doc.get("meetings") or []}
+
+
 @router.get("/aging/summary")
 async def aging_summary(admin=Depends(current_admin)):
     """Age buckets for receivables — used by the Engagements panel top-row."""
