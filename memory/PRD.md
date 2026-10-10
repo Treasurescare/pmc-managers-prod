@@ -68,15 +68,14 @@ Public / Vendor / Buyer / Admin roles.
   release CSV export, EMD ledger search bar.
 
 ## Mobile Store Status
-- Google Play Developer Console: Account "The PMC Managers Limited" verified.
-- App created: `com.pmcmanagers.tenders` (PMC Managers — Tender & EMD Escrow).
-- Policy setup completed: Privacy Policy, Sign-in details (App Access), Ads,
-  Content Ratings (IARC PEGI 3 / Everyone), Target Audience (18+), Data Safety
-  (5 data types declared, encrypted in transit).
-- Main Store Listing: Text assets, descriptions, icon (1024x1024 PNG), feature
-  graphic (1024x500 PNG) and screenshots submitted.
-- Android project v1.0.1: Created self-contained Android package with embedded
-  Capacitor plugins and pre-configured release keystore (`pmc-upload-key.keystore`).
+- **Google Play Developer Console**: **SUBMITTED FOR REVIEW** 🚀
+  - App ID: `com.pmcmanagers.tenders` (PMC Managers — Tender Management)
+  - Release: `1 (1.0.0)` signed production `.aab` (Target SDK 36, 7.73 MB)
+  - Distribution: 177 countries & regions + rest of world
+  - Policy & Store Listing: Complete with IARC PEGI 3 rating, 18+ audience, data safety, full copy & graphics.
+  - Review Status: In Review with Google Play team (~2-5 business days).
+
+- **Apple App Store**: Ready for next phase (Xcode project archive + TestFlight upload).
   download fix (`/api/v1/uploads/public-files/{key}` anon endpoint +
   NoticeDetail attachment links), Stakeholder Reports link restored to
   Bidding Ops sidebar.
