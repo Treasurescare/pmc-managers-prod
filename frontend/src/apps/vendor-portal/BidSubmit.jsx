@@ -22,17 +22,32 @@ export default function BidSubmit() {
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState(null);
 
+  // v51bc — local draft so vendors can save work and come back later.
+  const draftKey = `pmc-bid-draft:${noticeRef}`;
+
   useEffect(() => {
     (async () => {
       try {
         const [v, n] = await Promise.all([vendorApi.me(), publicApi.getNotice(noticeRef)]);
         if (v.must_change_password) return nav("/vendor/change-password");
         setVendor(v); setNotice(n);
+        // Restore any locally saved draft (text + metadata only; files are
+        // kept via their already-presigned keys from the previous session).
+        try {
+          const raw = localStorage.getItem(draftKey);
+          if (raw) {
+            const d = JSON.parse(raw);
+            if (d.price != null) setPrice(d.price);
+            if (d.technical) setTechnical(d.technical);
+            if (d.commercial) setCommercial(d.commercial);
+            if (Array.isArray(d.docs)) setDocs(d.docs);
+          }
+        } catch { /* ignore corrupt draft */ }
       } catch {
         nav("/vendor/login");
       }
     })();
-  }, [noticeRef, nav]);
+  }, [noticeRef, nav, draftKey]);
 
   const uploadFile = async (kind, file, inputEl) => {
     try {
@@ -76,6 +91,12 @@ export default function BidSubmit() {
     const cleanDocs = docs.filter(
       (d) => d && d.kind && d.key && d.filename && typeof d.size_bytes === "number" && d.uploaded_at
     );
+    // v51bc — both envelope PDFs are mandatory on submit.
+    const kinds = new Set(cleanDocs.map((d) => d.kind));
+    if (!kinds.has("technical") || !kinds.has("commercial")) {
+      setFormError("Both the Technical and Commercial envelope PDFs are required before you can submit. You can keep working on this bid with Save draft.");
+      return toast.error("Upload Technical and Commercial PDFs before submitting");
+    }
     setBusy(true);
     try {
       const bid = await bidApi.create({
@@ -86,6 +107,8 @@ export default function BidSubmit() {
         documents: cleanDocs,
       });
       toast.success(`Bid ${bid.bid_ref} submitted`);
+      // Clear local draft now that the server has it.
+      try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
       // If EMD due, immediately go to selected gateway
       if ((bid.emd_due_amount || 0) > 0) {
         let checkout_url;
@@ -121,6 +144,20 @@ export default function BidSubmit() {
   const emdConfig = notice.emd_config || { fixed_amount: 0, percentage: 0, currency: notice.budget_currency };
   const emdDue = (emdConfig.fixed_amount || 0) + ((emdConfig.percentage || 0) / 100) * (notice.budget_amount || 0);
   const deadlinePassed = !!notice.submission_deadline && new Date(notice.submission_deadline) < new Date();
+  // v51bc — gate submit on both envelope kinds being uploaded.
+  const uploadedKinds = new Set(docs.map((d) => d.kind));
+  const hasTech = uploadedKinds.has("technical");
+  const hasComm = uploadedKinds.has("commercial");
+  const docsOk = hasTech && hasComm;
+
+  const saveDraft = () => {
+    try {
+      localStorage.setItem(draftKey, JSON.stringify({
+        price, technical, commercial, docs, saved_at: new Date().toISOString(),
+      }));
+      toast.success("Draft saved on this device. Come back any time to finish.");
+    } catch { toast.error("Could not save draft (storage full)"); }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 pt-6 pb-40 md:py-10" data-testid="bid-submit-page">
@@ -181,7 +218,16 @@ export default function BidSubmit() {
           </label>
 
           <div className="space-y-2">
-            <div className="text-sm font-semibold text-slate-900">Supporting documents</div>
+            <div className="text-sm font-semibold text-slate-900">Supporting documents <span className="text-red-600">*</span></div>
+            <div className="text-xs text-slate-600">
+              Both <strong>Technical</strong> and <strong>Commercial</strong> PDFs are required to submit.
+              {!docsOk && (
+                <span className="ml-2 text-amber-700" data-testid="bid-docs-status">
+                  Missing: {!hasTech && "Technical"}{!hasTech && !hasComm && " + "}{!hasComm && "Commercial"}
+                </span>
+              )}
+              {docsOk && <span className="ml-2 text-emerald-700" data-testid="bid-docs-status">Both envelopes ready ✓</span>}
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
               {[["technical", "Technical PDF"], ["commercial", "Commercial PDF"], ["supporting", "Other doc"]].map(([k, label]) => (
                 <label key={k}
@@ -237,11 +283,19 @@ export default function BidSubmit() {
             </div>
           )}
 
-          <button type="submit" disabled={busy || deadlinePassed}
-            className="w-full bg-slate-900 text-white rounded-md py-4 text-sm font-semibold hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed"
-            data-testid="bid-submit-btn">
-            {busy ? "Submitting…" : deadlinePassed ? "Deadline passed" : (emdDue > 0 ? `Submit & pay EMD (${emdConfig.currency} ${emdDue.toLocaleString()})` : "Submit bid")}
-          </button>
+          <div className="flex gap-3 flex-wrap">
+            <button type="button" onClick={saveDraft} disabled={busy}
+              className="flex-1 min-w-[160px] border border-slate-300 bg-white text-slate-800 rounded-md py-4 text-sm font-semibold hover:bg-slate-50 disabled:opacity-60"
+              data-testid="bid-save-draft-btn">
+              Save draft
+            </button>
+            <button type="submit" disabled={busy || deadlinePassed || !docsOk}
+              className="flex-[2] bg-slate-900 text-white rounded-md py-4 text-sm font-semibold hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed"
+              data-testid="bid-submit-btn"
+              title={!docsOk ? "Upload Technical AND Commercial PDFs first" : ""}>
+              {busy ? "Submitting…" : deadlinePassed ? "Deadline passed" : !docsOk ? "Upload both envelopes to submit" : (emdDue > 0 ? `Submit & pay EMD (${emdConfig.currency} ${emdDue.toLocaleString()})` : "Submit bid")}
+            </button>
+          </div>
         </form>
       </div>
     </div>

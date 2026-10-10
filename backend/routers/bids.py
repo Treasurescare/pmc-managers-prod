@@ -124,6 +124,12 @@ async def create_bid(payload: BidCreateIn, vendor=Depends(current_vendor)) -> di
     if "technical" not in kinds:
         raise HTTPException(status_code=422,
             detail="A technical envelope document is required to submit a bid")
+    # v51bc — every bid also needs a commercial envelope PDF. The notice
+    # evaluation workflow expects both envelopes populated; without the
+    # commercial doc the committee cannot open the financial evaluation.
+    if "commercial" not in kinds:
+        raise HTTPException(status_code=422,
+            detail="A commercial envelope document is required to submit a bid")
 
     # v51al — Corrigenda gate. Vendor cannot submit a bid on a notice that
     # has unacknowledged active corrigenda (carried over from v51ad).

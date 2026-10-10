@@ -136,9 +136,17 @@ export default function VendorFindTendersE({ legacy: Legacy }) {
                 <Link to={`/notices/${n.notice_ref}`}
                       className="pmc-btn pmc-btn--secondary pmc-btn--sm"
                       data-testid={`vft-view-${n.notice_ref}`}>View</Link>
-                <Link to={`/notices/${n.notice_ref}`}
-                      className="pmc-btn pmc-btn--primary pmc-btn--sm"
-                      data-testid={`vft-bid-${n.notice_ref}`}>Start bid</Link>
+                {(() => {
+                  const closed = n.submission_deadline && new Date(n.submission_deadline) < new Date();
+                  return closed ? (
+                    <span className="pmc-pill pmc-pill--warning"
+                          data-testid={`vft-closed-${n.notice_ref}`}>Closed</span>
+                  ) : (
+                    <Link to={`/vendor/bid/new/${n.notice_ref}`}
+                          className="pmc-btn pmc-btn--primary pmc-btn--sm"
+                          data-testid={`vft-bid-${n.notice_ref}`}>Start bid</Link>
+                  );
+                })()}
               </div>
             </article>
           ))}

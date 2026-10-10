@@ -19,6 +19,7 @@ const NAV = [
 const NAV_SECONDARY = [
   { to: "/vendor/company",    label: "Company & KYC",    icon: "i-shield" },
   { to: "/vendor/categories", label: "Categories",       icon: "i-tag" },
+  { to: "/vendor/services",   label: "Services",         icon: "i-briefcase" },
   { to: "/vendor/reviews",    label: "Reviews",          icon: "i-users" },
   { to: "/vendor/account",    label: "Account & security", icon: "i-settings" },
 ];

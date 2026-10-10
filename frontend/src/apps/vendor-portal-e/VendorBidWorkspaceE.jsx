@@ -386,12 +386,33 @@ export default function VendorBidWorkspaceE({ legacy: Legacy }) {
                     <small>{emdNotRequired ? "Not required" : emdSettled ? "Settled" : "Your action"}</small>
                   </span>
                 </div>
-                <div className={bid.status === "under_review" || bid.status === "awarded" ? "done" : ""}>
-                  <span className="d">{bid.status === "under_review" || bid.status === "awarded" ? "✓" : "5"}</span>
-                  <span>Review, sign &amp; seal
-                    <small>After EMD is confirmed</small>
-                  </span>
-                </div>
+                {(() => {
+                  // v51bc — $0 EMD bids reach "submitted" immediately; the
+                  // vendor has no further action and admin review auto-starts.
+                  // Mark step 5 done so the workspace doesn't look like it's
+                  // waiting on them.
+                  const inReview = ["under_review","technical_cleared","emd_paid",
+                                     "escrow_accepted","awarded"].includes(bid.status);
+                  const zeroEmdSubmitted = emdNotRequired && bothSealed &&
+                    ["submitted","under_review","technical_cleared","awarded"].includes(bid.status);
+                  const step5Done = inReview || zeroEmdSubmitted;
+                  return (
+                    <div className={step5Done ? "done" : ""} data-testid="bw-step-5">
+                      <span className="d">{step5Done ? "✓" : "5"}</span>
+                      <span>Review, sign &amp; seal
+                        <small>
+                          {step5Done
+                            ? (zeroEmdSubmitted
+                                ? "In PMC review queue — nothing more for you"
+                                : "Admin review in progress")
+                            : emdNotRequired
+                              ? "Starts the moment both envelopes are sealed"
+                              : "Starts after EMD is confirmed"}
+                        </small>
+                      </span>
+                    </div>
+                  );
+                })()}
               </nav>
 
               {/* Main column */}
