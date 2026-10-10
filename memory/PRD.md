@@ -1,5 +1,22 @@
 # PMC Managers v2 — PRD (last touched 10 Oct 2026)
 
+## v52bi — HOTFIX: /api/v1/bids/mine 500 (10 Oct 2026)
+- The v51bd draft-sync edit accidentally consumed the
+  `@router.get("/mine")` decorator in `routers/bids.py`, orphaning
+  `list_my_bids`; `/bids/mine` fell through to `/{bid_id}` with
+  `bid_id="mine"` → `InvalidId` → 500 for every vendor's My Bids page.
+- Restored the decorator; added a malformed-id 400 guard to `get_bid`.
+- Verified: `/bids/mine` → 200 with 8 bids; `/bids/zzz` → 400.
+- Backend-only hotfix: `pmc-backend-v52bi.zip` (+ `DOWNLOAD_v52bi.md`).
+  Frontend stays on v52bh. Deploy backend v52bi first.
+- LESSON: when search_replace anchors include a decorator/route boundary,
+  always re-verify the full route table afterwards (`grep -n "@router"`).
+
+---
+
+
+# PMC Managers v2 — PRD (last touched 10 Oct 2026)
+
 ## v52bh — Corrigenda acknowledgement deadlock + "[object Object]" toast (10 Oct 2026)
 - Backend `routers/corrigenda.py`: `POST /corrigenda/{cid}/acknowledge` no
   longer requires an active bid — breaks the chicken-and-egg deadlock that

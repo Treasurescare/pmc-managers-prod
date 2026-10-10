@@ -244,6 +244,9 @@ async def create_bid(payload: BidCreateIn, vendor=Depends(current_vendor)) -> di
     except Exception:
         pass
     return _out(doc)
+
+
+@router.get("/mine")
 async def list_my_bids(vendor=Depends(current_vendor)) -> List[dict]:
     """List a vendor's own bids, enriched with the parent notice's title and
     submission deadline so the vendor's "My bids" page can render a usable
@@ -268,7 +271,13 @@ async def list_my_bids(vendor=Depends(current_vendor)) -> List[dict]:
 
 @router.get("/{bid_id}")
 async def get_bid(bid_id: str, vendor=Depends(current_vendor)) -> dict:
-    b = await db.bids.find_one({"_id": ObjectId(bid_id)})
+    # v52bi — malformed ids (e.g. a shadowed "/mine" slipping through) must
+    # be a clean 400, never an unhandled InvalidId → 500.
+    try:
+        oid = ObjectId(bid_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Malformed bid id")
+    b = await db.bids.find_one({"_id": oid})
     if not b or b.get("vendor_id") != vendor["id"]:
         raise HTTPException(status_code=404, detail="Bid not found")
     return _out(await _enrich_docs(b))
