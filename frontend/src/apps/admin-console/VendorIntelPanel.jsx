@@ -63,7 +63,9 @@ export default function VendorIntelPanel() {
     try {
       await vendorIntelApi.unblacklist(v.vendor_ref);
       toast.success(t("panels.vendor_intel.removed_toast"));
-      setSelected({ ...v, blacklisted: false });
+      // v52bg — close the modal on successful whitelist so the admin lands
+      // back on the triage list instead of a stale blacklist window.
+      setSelected(null);
       setBlacklistReason("");
       setBlDetail(null);
       load();
@@ -158,8 +160,16 @@ export default function VendorIntelPanel() {
       {selected && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
           <div className="bg-white rounded-lg p-6 max-w-2xl w-full space-y-3 my-10" data-testid="vintel-modal">
-            <div className="text-lg font-serif">{selected.company_name}</div>
-            <div className="text-xs text-slate-500">{selected.vendor_ref}</div>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-lg font-serif">{selected.company_name}</div>
+                <div className="text-xs text-slate-500">{selected.vendor_ref}</div>
+              </div>
+              <button type="button" onClick={() => setSelected(null)}
+                aria-label="Close"
+                className="shrink-0 w-9 h-9 flex items-center justify-center border border-slate-400 text-slate-700 hover:bg-slate-800 hover:text-white text-base font-bold leading-none"
+                data-testid="vintel-close-x">✕</button>
+            </div>
             <label className="block text-sm">
               <span>{t("panels.vendor_intel.score_label")}<InfoDot tip="Numeric score 0-100. Reflects the vendor's overall reliability across past contracts. Used to compute the Band." /></span>
               <input type="number" min="0" max="100" value={rating.score}
@@ -226,7 +236,9 @@ export default function VendorIntelPanel() {
                                    vendorRef={selected.vendor_ref}
                                    onDecision={(bl) => setBlDetail(bl)}
                                    onWhitelisted={() => {
-                                     setSelected({ ...selected, blacklisted: false });
+                                     // v52bg — close the modal too, the
+                                     // blacklist window shouldn't linger.
+                                     setSelected(null);
                                      setBlDetail(null); setBlacklistReason("");
                                      load();
                                    }} />
@@ -237,7 +249,9 @@ export default function VendorIntelPanel() {
               </div>
             )}
 
-            <button onClick={() => setSelected(null)} className="text-xs text-slate-500 hover:underline">
+            <button onClick={() => setSelected(null)}
+              className="w-full mt-2 px-4 py-2.5 text-[11px] uppercase tracking-widest border border-slate-800 text-slate-800 font-semibold hover:bg-slate-800 hover:text-white"
+              data-testid="vintel-close">
               {t("panels.vendor_intel.close")}
             </button>
           </div>

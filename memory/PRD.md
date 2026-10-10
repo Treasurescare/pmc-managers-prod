@@ -1,5 +1,19 @@
 # PMC Managers v2 — PRD (last touched 10 Oct 2026)
 
+## v52bg — Vendor Intel modal UX fix (10 Oct 2026)
+- Whitelist (and approve-with-whitelist) now auto-close the manage modal
+  and return the admin to the triage list — the blacklist window no
+  longer lingers.
+- Added a visible ✕ header close button and restyled the bottom Close
+  link into a full-width bordered button.
+- Frontend-only: `/downloads/pmc-frontend-v52bg-prod-build.zip`
+  (+ `DOWNLOAD_v52bg.md`). Backend unchanged from v52bf.
+
+---
+
+
+# PMC Managers v2 — PRD (last touched 10 Oct 2026)
+
 ## v51bf — Vendor Intel readability fix (10 Oct 2026)
 - Scoped CSS carve-out for `[data-testid="admin-vendor-intel-panel"]` +
   `[data-testid="blacklist-dashboard-panel"]` in `frontend/src/index.css`
