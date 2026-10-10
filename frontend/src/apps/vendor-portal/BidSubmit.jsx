@@ -25,6 +25,9 @@ export default function BidSubmit() {
   // until every active corrigendum is acknowledged by this vendor.
   const [corrigenda, setCorrigenda] = useState([]);
   const [ackingId, setAckingId] = useState(null);
+  // v52bj — captured from a 409 so we can offer a direct "open / withdraw"
+  // path without the vendor having to hunt through My Bids.
+  const [existingDup, setExistingDup] = useState(null);
 
   // v51bd — local draft so vendors can save work and come back later.
   // (persisted BOTH to localStorage AND to the backend via bidApi.saveDraft
@@ -157,6 +160,19 @@ export default function BidSubmit() {
     } catch (err) {
       const msg = formatApiError(err);
       const status = err?.response?.status;
+      // v52bj — surface the existing bid id on a 409 so the vendor can
+      // open or withdraw it in one click instead of being stuck.
+      const dup = err?.response?.data?.detail;
+      if (status === 409 && typeof dup === "object" && dup?.existing_bid_id) {
+        setFormError(
+          `${dup.message} (${dup.existing_bid_ref} · ${dup.existing_status}). ` +
+          `Open the existing bid to continue or withdraw it below.`
+        );
+        setExistingDup(dup);
+        showApiError(err, { fallbackTitle: "You already bid on this notice" });
+        setBusy(false);
+        return;
+      }
       const title =
         status === 412 ? "Submission blocked — pre-condition failed" :
         status === 409 ? "Submission blocked — duplicate bid" :
@@ -266,6 +282,30 @@ export default function BidSubmit() {
             <div className="border border-red-300 bg-red-50 text-red-800 text-sm rounded-md px-4 py-3 whitespace-pre-line"
               data-testid="bid-submit-error">
               {formError}
+              {existingDup?.existing_bid_id && (
+                <div className="mt-2 flex gap-2 flex-wrap">
+                  <Link to={`/vendor/mybids`}
+                        data-testid="bid-dup-open-mybids"
+                        className="px-3 py-1.5 text-[11px] uppercase tracking-widest bg-slate-900 text-white hover:bg-black">
+                    Open my bids
+                  </Link>
+                  <button type="button"
+                    data-testid="bid-dup-withdraw"
+                    onClick={async () => {
+                      if (!window.confirm(`Withdraw bid ${existingDup.existing_bid_ref}? You can create a new bid on this notice afterwards.`)) return;
+                      try {
+                        await bidApi.withdraw(existingDup.existing_bid_id);
+                        toast.success("Previous bid withdrawn — you can submit again now.");
+                        setExistingDup(null); setFormError(null);
+                      } catch (e) {
+                        showApiError(e, { fallbackTitle: "Could not withdraw the stuck bid" });
+                      }
+                    }}
+                    className="px-3 py-1.5 text-[11px] uppercase tracking-widest border border-red-700 text-red-700 hover:bg-red-700 hover:text-white">
+                    Withdraw stuck bid
+                  </button>
+                </div>
+              )}
             </div>
           )}
 

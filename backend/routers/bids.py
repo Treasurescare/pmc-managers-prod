@@ -5,10 +5,11 @@ approval pipeline: emd_paid → escrow_accepted → admin_flagged → certifier_
 → legal_cleared → accounting_cleared → committee_review → awarded/rejected.
 """
 from typing import Optional, List
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import os
 from fastapi import APIRouter, HTTPException, Depends
 from bson import ObjectId
+from pydantic import BaseModel
 
 import config
 from db import db, next_sequence
@@ -142,14 +143,22 @@ async def create_bid(payload: BidCreateIn, vendor=Depends(current_vendor)) -> di
         import logging
         logging.getLogger("bids").warning("corrigenda check skipped: %s", _e)
 
-    # Prevent duplicate active bid per vendor+notice
+    # Prevent duplicate active bid per vendor+notice. v52bj — return the
+    # existing bid id + status so the frontend can offer a direct link to
+    # resume / withdraw it, instead of leaving the vendor stuck.
     dup = await db.bids.find_one({
         "notice_ref": payload.notice_ref,
         "vendor_id": vendor["id"],
         "status": {"$nin": ["withdrawn", "rejected"]},
     })
     if dup:
-        raise HTTPException(status_code=409, detail="You already have an active bid on this notice")
+        raise HTTPException(status_code=409, detail={
+            "code": "DUPLICATE_BID",
+            "message": "You already have an active bid on this notice",
+            "existing_bid_id": str(dup.get("_id")),
+            "existing_bid_ref": dup.get("bid_ref"),
+            "existing_status":  dup.get("status"),
+        })
 
     # KYC pre-bid gate — vendor must have a passing KYC decision on file.
     # Skips when the vendor already has a `verified` flag OR when the notice
@@ -450,6 +459,83 @@ async def withdraw_bid(bid_id: str, vendor=Depends(current_vendor)) -> dict:
     return {"ok": True}
 
 
+@router.get("/emd/refunds")
+async def list_emd_refunds(status: Optional[str] = None,
+                             admin=Depends(require_role("admin", "accounting", "auditor"))) -> List[dict]:
+    """v52bj — all bids currently flagged for EMD refund (losing bidders).
+    Filter by `status`: pending_release | released | all (default pending).
+
+    Lives at `/bids/emd/refunds` (two-segment path) because single-segment
+    paths such as `/emd-refunds` collide with `/{bid_id}` and `/admin/{bid_id}`.
+    """
+    q: dict = {"emd_refund_state": {"$exists": True}}
+    if status and status != "all":
+        q["emd_refund_state"] = status
+    else:
+        q["emd_refund_state"] = "pending_release"
+    rows = []
+    async for b in db.bids.find(q).sort("emd_refund_due_at", 1).limit(500):
+        rows.append({
+            "bid_id":           str(b.get("_id")),
+            "bid_ref":          b.get("bid_ref"),
+            "notice_ref":       b.get("notice_ref"),
+            "vendor_ref":       b.get("vendor_ref"),
+            "vendor_email":     b.get("vendor_email"),
+            "company_name":     b.get("company_name"),
+            "emd_paid_amount":  b.get("emd_paid_amount"),
+            "emd_currency":     b.get("emd_currency"),
+            "emd_refund_state": b.get("emd_refund_state"),
+            "emd_refund_due_at": b.get("emd_refund_due_at"),
+            "emd_refunded_at":  b.get("emd_refunded_at"),
+        })
+    return rows
+
+
+class EmdLoserReleaseIn(BaseModel):
+    reason: Optional[str] = None
+    external_ref: Optional[str] = None  # bank wire / Stripe refund id
+
+
+@router.post("/{bid_id}/emd/release-to-vendor")
+async def release_loser_emd(bid_id: str, payload: EmdLoserReleaseIn,
+                              admin=Depends(require_role("admin", "accounting"))) -> dict:
+    """v52bj — accounts marks a losing bidder's EMD as released. Audit-logged
+    and emails the vendor confirmation."""
+    try:
+        oid = ObjectId(bid_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Malformed bid id")
+    b = await db.bids.find_one({"_id": oid})
+    if not b:
+        raise HTTPException(status_code=404, detail="Bid not found")
+    if b.get("emd_refund_state") not in ("pending_release",):
+        raise HTTPException(status_code=400,
+            detail="This bid's EMD is not in a releasable state")
+    await db.bids.update_one({"_id": oid}, {"$set": {
+        "emd_refund_state": "released",
+        "emd_refunded_at":  now_iso(),
+        "emd_refund_by":    admin.get("email"),
+        "emd_refund_note":  payload.reason,
+        "emd_refund_ext_ref": payload.external_ref,
+    }})
+    await audit_log("bid.emd_release", admin, "bid", b.get("bid_ref"),
+                    {"reason": payload.reason, "external_ref": payload.external_ref})
+    try:
+        from notify import vendor_confirm
+        await vendor_confirm(
+            b.get("vendor_email"),
+            f"EMD released — {b.get('bid_ref')}",
+            f"<p>Your Earnest Money Deposit of <b>{b.get('emd_currency','')} "
+            f"{(b.get('emd_paid_amount') or 0):,}</b> for tender "
+            f"<code>{b.get('notice_ref')}</code> has been released back to you."
+            + (f" External reference: <b>{payload.external_ref}</b>." if payload.external_ref else "")
+            + "</p>",
+            "View my bids", f"{config.FRONTEND_URL}/vendor/mybids")
+    except Exception:
+        pass
+    return {"ok": True}
+
+
 # ---------- Staff endpoints (multi-role) ----------
 
 @router.get("")
@@ -617,7 +703,86 @@ async def decide_bid(bid_id: str, payload: BidDecisionIn,
         except Exception as e:
             import logging
             logging.info("push: award notify skipped (%s)", e)
+        # v52bj — on award, flag EVERY other active bid on the same notice
+        # as "non_winner", mark its EMD for refund, and email the losing
+        # bidders a notification with the expected release date. Admins can
+        # then release each EMD in one click (manual) or run the daily cron.
+        try:
+            await _flag_losing_emds_for_refund(b.get("notice_ref"), bid_id,
+                                                 admin.get("email"))
+        except Exception as e:
+            import logging
+            logging.getLogger("bids").warning("loser EMD flag failed: %s", e)
     return {"ok": True, "status": next_status}
+
+
+async def _flag_losing_emds_for_refund(notice_ref: str, winner_bid_id: str,
+                                         decided_by: str) -> int:
+    """v52bj — mark every active bid on `notice_ref` except the winner as
+    `non_winner`, compute the EMD release target date (today + 14 days by
+    default) and notify each losing bidder."""
+    try:
+        winner_oid = ObjectId(winner_bid_id)
+    except Exception:
+        winner_oid = None
+    release_days = int(os.environ.get("EMD_LOSER_RELEASE_DAYS", "14"))
+    release_by = (datetime.now(timezone.utc) + timedelta(days=release_days)).isoformat()
+    count = 0
+    async for b in db.bids.find({
+        "notice_ref": notice_ref,
+        "_id": {"$ne": winner_oid},
+        "status": {"$nin": ["withdrawn", "rejected", "non_winner", "closed"]},
+    }):
+        prior_status = b.get("status")
+        has_emd = (b.get("emd_paid_amount") or 0) > 0
+        updates = {
+            "status": "non_winner",
+            "non_winner_at": now_iso(),
+            "prior_status":  prior_status,
+            "decided_by":    decided_by,
+        }
+        if has_emd:
+            updates["emd_refund_due_at"] = release_by
+            updates["emd_refund_state"]  = "pending_release"
+        await db.bids.update_one({"_id": b["_id"]}, {"$set": updates})
+        await audit_log("bid.non_winner", None, "bid", b.get("bid_ref"),
+                        {"notice_ref": notice_ref, "has_emd": has_emd,
+                         "emd_refund_due_at": release_by if has_emd else None})
+        count += 1
+        try:
+            from notify import vendor_confirm
+            msg = (f"<p>Thank you for bidding on <code>{notice_ref}</code>. "
+                     f"The tender has been awarded to another supplier.</p>")
+            if has_emd:
+                msg += (f"<p>Your Earnest Money Deposit of "
+                          f"<b>{b.get('emd_currency') or ''} "
+                          f"{(b.get('emd_paid_amount') or 0):,}</b> will be "
+                          f"returned to the account from which it was paid by "
+                          f"<b>{release_by[:10]}</b>. The PMC accounts team "
+                          f"has been notified.</p>")
+            else:
+                msg += ("<p>No EMD was held on this bid, so nothing further is "
+                         "needed from you.</p>")
+            await vendor_confirm(b.get("vendor_email"),
+                                   f"Tender decision — {notice_ref}", msg,
+                                   "View my bids",
+                                   f"{config.FRONTEND_URL}/vendor/mybids")
+        except Exception:
+            pass
+    # Admin heads-up to the accounting role to release the funds.
+    if count:
+        try:
+            from notify import notify_role
+            await notify_role("accounting",
+                                f"EMD refunds due — {notice_ref}",
+                                f"<p>{count} losing bidder(s) on tender "
+                                f"<b>{notice_ref}</b> have been notified that "
+                                f"their EMD will be released by <b>{release_by[:10]}</b>. "
+                                f"Open the EMD Refunds panel to action them.</p>",
+                                related_type="notice", related_id=notice_ref)
+        except Exception:
+            pass
+    return count
 
 
 @router.post("/{bid_id}/assign-certifier")

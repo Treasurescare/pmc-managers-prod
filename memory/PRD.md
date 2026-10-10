@@ -1,5 +1,37 @@
 # PMC Managers v2 — PRD (last touched 10 Oct 2026)
 
+## v52bj — Stuck-bid recovery + losing-bidder EMD workflow (10 Oct 2026)
+
+Backend
+- `POST /api/v1/bids` 409 now returns `{code, message, existing_bid_id,
+  existing_bid_ref, existing_status}` so the frontend can offer direct
+  recovery actions.
+- `POST /api/v1/bids/{bid_id}/decision` with `status=awarded` now:
+  flags every other active bid on the notice as `non_winner`, sets
+  `emd_refund_state="pending_release"` + `emd_refund_due_at` (today +
+  `EMD_LOSER_RELEASE_DAYS`, default 14) when the bid holds a paid EMD,
+  emails each losing bidder, and notifies the accounting role.
+- `GET /api/v1/bids/admin/emd-refunds?status=` — list pending/released
+  refunds (admin / accounting / auditor).
+- `POST /api/v1/bids/{bid_id}/emd/release-to-vendor` — mark a loser's
+  EMD released with external reference + audit log + vendor email.
+
+Frontend
+- `BidSubmit.jsx` renders two recovery buttons on a 409: **Open my bids**
+  and **Withdraw stuck bid** (confirmation + `bidApi.withdraw`).
+
+Release artifacts:
+- `/downloads/pmc-frontend-v52bj-prod-build.zip`
+- `/downloads/pmc-backend-v52bj.zip`
+- `/downloads/DOWNLOAD_v52bj.md`
+
+Deploy order: backend v52bj first, then frontend v52bj.
+
+---
+
+
+# PMC Managers v2 — PRD (last touched 10 Oct 2026)
+
 ## v52bi — HOTFIX: /api/v1/bids/mine 500 (10 Oct 2026)
 - The v51bd draft-sync edit accidentally consumed the
   `@router.get("/mine")` decorator in `routers/bids.py`, orphaning
