@@ -222,28 +222,14 @@ export default function VendorIntelPanel() {
                     </div>
                     <ul className="space-y-3">
                       {(blDetail?.appeals || []).map((ap, ai) => (
-                        <li key={ai} className="border-t border-amber-200 pt-2"
-                            data-testid={`vintel-appeal-${ai}`}>
-                          <div className="text-xs text-slate-700">
-                            <strong>{ap.by || "vendor"}</strong>
-                            <span className="text-slate-500"> · {(ap.at || "").slice(0, 19).replace("T", " ")}</span>
-                          </div>
-                          {ap.message && (
-                            <div className="text-sm text-slate-800 whitespace-pre-wrap mt-1">
-                              {ap.message}
-                            </div>
-                          )}
-                          {(ap.evidence || []).length > 0 && (
-                            <div className="mt-2">
-                              <EvidenceManager
-                                title="Appeal evidence"
-                                items={ap.evidence}
-                                readOnly
-                                testIdPrefix={`vintel-ap-ev-${ai}`}
-                              />
-                            </div>
-                          )}
-                        </li>
+                        <AppealRow key={ai} appeal={ap} idx={ai}
+                                   vendorRef={selected.vendor_ref}
+                                   onDecision={(bl) => setBlDetail(bl)}
+                                   onWhitelisted={() => {
+                                     setSelected({ ...selected, blacklisted: false });
+                                     setBlDetail(null); setBlacklistReason("");
+                                     load();
+                                   }} />
                       ))}
                     </ul>
                   </div>
@@ -259,5 +245,95 @@ export default function VendorIntelPanel() {
       )}
       <ReviewModerationSection />
     </div>
+  );
+}
+
+
+// v51be — appeal row with inline approve/reject form.
+function AppealRow({ appeal, idx, vendorRef, onDecision, onWhitelisted }) {
+  const [note, setNote] = useState("");
+  const [whitelist, setWhitelist] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const pending = (appeal.status || "pending") === "pending";
+
+  const decide = async (verdict) => {
+    if (!window.confirm(`Mark this appeal ${verdict.toUpperCase()}?${
+      verdict === "approved" && whitelist ? "\nThis will also WHITELIST the vendor." : ""}`)) return;
+    setBusy(true);
+    try {
+      const res = await vendorIntelApi.decideAppeal(vendorRef, idx,
+        { decision: verdict, note: note.trim() || null,
+          whitelist: verdict === "approved" ? whitelist : false });
+      toast.success(`Appeal ${verdict}${res?.whitelisted ? " · vendor whitelisted" : ""}`);
+      if (res?.whitelisted) onWhitelisted?.();
+      else onDecision?.(res);
+    } catch (e) {
+      showApiError(e, { fallbackTitle: `Could not ${verdict === "approved" ? "approve" : "reject"} appeal` });
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <li className="border-t border-amber-200 pt-2" data-testid={`vintel-appeal-${idx}`}>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="text-xs text-slate-700">
+          <strong>{appeal.by || "vendor"}</strong>
+          <span className="text-slate-500"> · {(appeal.at || "").slice(0, 19).replace("T", " ")}</span>
+        </div>
+        <span className={`text-[10px] uppercase tracking-widest px-2 py-0.5 border ${
+          pending ? "border-amber-500 text-amber-700 bg-amber-100" :
+          appeal.status === "approved" ? "border-emerald-500 text-emerald-700 bg-emerald-50" :
+          "border-red-500 text-red-700 bg-red-50"
+        }`} data-testid={`vintel-appeal-${idx}-status`}>
+          {appeal.status || "pending"}
+        </span>
+      </div>
+      {appeal.message && (
+        <div className="text-sm text-slate-800 whitespace-pre-wrap mt-1">{appeal.message}</div>
+      )}
+      {(appeal.evidence || []).length > 0 && (
+        <div className="mt-2">
+          <EvidenceManager title="Appeal evidence" items={appeal.evidence} readOnly
+                            testIdPrefix={`vintel-ap-ev-${idx}`} />
+        </div>
+      )}
+      {!pending && (
+        <div className="mt-2 bg-white border border-slate-200 p-2 text-xs"
+             data-testid={`vintel-appeal-${idx}-decision`}>
+          <div><strong>Decided by:</strong> {appeal.decided_by || "—"}
+            <span className="text-slate-500"> · {(appeal.decided_at || "").slice(0, 19).replace("T", " ")}</span>
+          </div>
+          {appeal.decision_note && (
+            <div className="mt-1 whitespace-pre-wrap italic">“{appeal.decision_note}”</div>
+          )}
+        </div>
+      )}
+      {pending && (
+        <div className="mt-3 bg-white border border-slate-200 p-3 space-y-2">
+          <label className="pmc-label block">Decision note (emailed to vendor)</label>
+          <textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)}
+            placeholder="Add context — this is included in the vendor's email and the audit log"
+            className="w-full px-2 py-1.5 border border-slate-300 text-sm"
+            data-testid={`vintel-appeal-${idx}-note`} />
+          <label className="inline-flex items-center gap-2 text-xs text-slate-700">
+            <input type="checkbox" checked={whitelist}
+              onChange={(e) => setWhitelist(e.target.checked)}
+              data-testid={`vintel-appeal-${idx}-whitelist-toggle`} />
+            Also whitelist vendor on approval
+          </label>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => decide("approved")} disabled={busy}
+              className="flex-1 bg-emerald-600 text-white py-2 text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50"
+              data-testid={`vintel-appeal-${idx}-approve`}>
+              {busy ? "Working…" : "Approve"}
+            </button>
+            <button type="button" onClick={() => decide("rejected")} disabled={busy}
+              className="flex-1 bg-red-600 text-white py-2 text-sm font-semibold hover:bg-red-700 disabled:opacity-50"
+              data-testid={`vintel-appeal-${idx}-reject`}>
+              {busy ? "Working…" : "Reject"}
+            </button>
+          </div>
+        </div>
+      )}
+    </li>
   );
 }

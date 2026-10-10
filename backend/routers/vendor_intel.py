@@ -7,7 +7,7 @@ import config
 from db import db
 from models.vendor_intel import (
     VendorRatingIn, BlacklistIn, WatchlistIn, ESGDeclarationIn,
-    BlacklistEvidenceIn, BlacklistAppealIn,
+    BlacklistEvidenceIn, BlacklistAppealIn, AppealDecisionIn,
 )
 from models.base import BaseDocument, now_iso
 from security import require_role
@@ -221,6 +221,61 @@ async def delete_evidence(vendor_ref: str, idx: int,
 
 
 # ---- Vendor-side appeal: a blacklisted vendor can see & evidence an appeal ----
+
+@router.post("/blacklist/{vendor_ref}/appeals/{idx}/decision")
+async def decide_appeal(vendor_ref: str, idx: int,
+                         payload: AppealDecisionIn,
+                         admin=Depends(require_role("admin"))) -> dict:
+    """v51be — admin approves or rejects a specific vendor appeal, with a
+    decision note. Emails the vendor the verdict, writes an audit log
+    entry, and (when `whitelist=true` + decision=approved) removes the
+    vendor from the blacklist entirely."""
+    decision = (payload.decision or "").strip().lower()
+    if decision not in ("approved", "rejected"):
+        raise HTTPException(status_code=422,
+            detail="decision must be 'approved' or 'rejected'")
+    bl = await db.vendor_blacklist.find_one({"vendor_ref": vendor_ref})
+    if not bl:
+        raise HTTPException(status_code=404, detail="Vendor is not on the blacklist")
+    appeals = list(bl.get("appeals") or [])
+    if idx < 0 or idx >= len(appeals):
+        raise HTTPException(status_code=404, detail="Appeal not found")
+    appeals[idx] = {
+        **appeals[idx],
+        "status":          decision,
+        "decision_note":   payload.note,
+        "decided_by":      admin.get("email"),
+        "decided_at":      now_iso(),
+    }
+    await db.vendor_blacklist.update_one(
+        {"vendor_ref": vendor_ref},
+        {"$set": {"appeals": appeals}})
+
+    v = await db.vendors.find_one({"vendor_ref": vendor_ref},
+                                    {"email": 1}) or {}
+    vendor_email = v.get("email") or ""
+
+    # Optional auto-whitelist when the appeal is approved.
+    whitelisted = False
+    if decision == "approved" and payload.whitelist:
+        await db.vendor_blacklist.delete_one({"vendor_ref": vendor_ref})
+        whitelisted = True
+
+    await audit_log("vendor_intel.appeal_decision", admin, "vendor",
+                    vendor_ref, {"idx": idx, "decision": decision,
+                                   "whitelist": whitelisted,
+                                   "note": payload.note})
+    # Fire the vendor-facing email + staff notification
+    await _notify_appeal_decided(
+        vendor_ref,
+        "whitelisted" if whitelisted else decision,
+        vendor_email,
+        note=payload.note or "")
+
+    if whitelisted:
+        return {"ok": True, "whitelisted": True}
+    return _out(await db.vendor_blacklist.find_one({"vendor_ref": vendor_ref}))
+
 
 @router.get("/my-blacklist")
 async def my_blacklist(vendor=Depends(current_vendor)) -> dict:

@@ -45,10 +45,25 @@ function readCookie(name) {
   }
 }
 
+// v51be — CSRF resilience. On some browser/profile combos the JS-readable
+// `csrf_token` cookie set at login is silently dropped (strict ITP, 3rd-party
+// cookie partitioning, or private-browsing). Without the cookie our request
+// interceptor had no CSRF value and every POST/PUT/DELETE 403'd with
+// "CSRF token missing or invalid". We now also cache the token returned in
+// the login JSON body and use it as a fallback.
+function cacheCsrf(token) {
+  try { if (token) sessionStorage.setItem("pmc.csrf", token); } catch { /* ignore */ }
+}
+function readCsrf() {
+  return readCookie("csrf_token") || (() => {
+    try { return sessionStorage.getItem("pmc.csrf"); } catch { return null; }
+  })();
+}
+
 api.interceptors.request.use((cfg) => {
   const method = (cfg.method || "get").toLowerCase();
   if (method !== "get" && method !== "head" && method !== "options") {
-    const csrf = readCookie("csrf_token");
+    const csrf = readCsrf();
     if (csrf) cfg.headers["X-CSRF-Token"] = csrf;
   }
   return cfg;
@@ -148,8 +163,14 @@ export const registrationApi = {
 
 export const adminApi = {
   login: (email, password) =>
-    api.post("/api/v1/admin/auth/login", { email, password }).then((r) => r.data),
-  logout: () => api.post("/api/v1/admin/auth/logout"),
+    api.post("/api/v1/admin/auth/login", { email, password }).then((r) => {
+      cacheCsrf(r.data?.csrf_token);
+      return r.data;
+    }),
+  logout: () => api.post("/api/v1/admin/auth/logout").then((r) => {
+    try { sessionStorage.removeItem("pmc.csrf"); } catch { /* ignore */ }
+    return r;
+  }),
   me: () => api.get("/api/v1/admin/auth/me").then((r) => r.data),
   changePassword: (current_password, new_password) =>
     api.post("/api/v1/admin/auth/change-password",
@@ -212,8 +233,14 @@ export const authApi = {
 // ---------- Wave 1: Staff (multi-role) ----------
 export const staffApi = {
   login: (email, password, active_role, otp_code) =>
-    api.post("/api/v1/staff/auth/login", { email, password, active_role, otp_code }).then((r) => r.data),
-  logout: () => api.post("/api/v1/staff/auth/logout"),
+    api.post("/api/v1/staff/auth/login", { email, password, active_role, otp_code }).then((r) => {
+      cacheCsrf(r.data?.csrf_token);
+      return r.data;
+    }),
+  logout: () => api.post("/api/v1/staff/auth/logout").then((r) => {
+    try { sessionStorage.removeItem("pmc.csrf"); } catch { /* ignore */ }
+    return r;
+  }),
   me: () => api.get("/api/v1/staff/auth/me").then((r) => r.data),
   roleChoices: () => api.get("/api/v1/staff/roles").then((r) => r.data),
   listStaff: () => api.get("/api/v1/staff").then((r) => r.data),
@@ -224,8 +251,14 @@ export const staffApi = {
 // ---------- Wave 1: Vendor ----------
 export const vendorApi = {
   login: (email, password) =>
-    api.post("/api/v1/vendor/auth/login", { email, password }).then((r) => r.data),
-  logout: () => api.post("/api/v1/vendor/auth/logout"),
+    api.post("/api/v1/vendor/auth/login", { email, password }).then((r) => {
+      cacheCsrf(r.data?.csrf_token);
+      return r.data;
+    }),
+  logout: () => api.post("/api/v1/vendor/auth/logout").then((r) => {
+    try { sessionStorage.removeItem("pmc.csrf"); } catch { /* ignore */ }
+    return r;
+  }),
   me: () => api.get("/api/v1/vendor/auth/me").then((r) => r.data),
   changePassword: (current_password, new_password) =>
     api.post("/api/v1/vendor/auth/change-password", { current_password, new_password }).then((r) => r.data),
@@ -403,6 +436,8 @@ export const vendorIntelApi = {
   esg: (p) => api.post("/api/v1/vendor-intel/esg", p).then((r) => r.data),
   summary: () => api.get("/api/v1/vendor-intel/summary").then((r) => r.data),
   blacklistDashboard: () => api.get("/api/v1/vendor-intel/blacklist-dashboard").then((r) => r.data),
+  decideAppeal: (ref, idx, payload) =>
+    api.post(`/api/v1/vendor-intel/blacklist/${ref}/appeals/${idx}/decision`, payload).then((r) => r.data),
   // v51bd — blacklist evidence (admin) + vendor appeal
   getBlacklist: (ref) => api.get(`/api/v1/vendor-intel/blacklist/${ref}`).then((r) => r.data),
   addEvidence: (ref, p) =>

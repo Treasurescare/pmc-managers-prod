@@ -38,6 +38,13 @@ class BlacklistAppealIn(BaseModel):
     message: str  # vendor's narrative for the appeal
 
 
+class AppealDecisionIn(BaseModel):
+    """v51be — admin's approve / reject verdict on a specific appeal."""
+    decision: str              # "approved" | "rejected"
+    note: Optional[str] = None # free-text decision rationale
+    whitelist: bool = False    # auto-remove from blacklist if approved
+
+
 class WatchlistIn(BaseModel):
     vendor_ref: str
     reason: str

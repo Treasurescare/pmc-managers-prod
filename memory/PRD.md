@@ -1,5 +1,37 @@
 # PMC Managers v2 — PRD (last touched 10 Oct 2026)
 
+## v51be — Appeal decision workflow + CSRF resilience (10 Oct 2026)
+
+Bug fix
+- `frontend/src/lib/api.js` — cache the `csrf_token` returned in
+  admin/staff/vendor login JSON into sessionStorage and use it as a
+  fallback when the JS-readable `csrf_token` cookie is dropped by
+  strict-tracking / partitioned-cookie browsers. Fixes the "HTTP 403
+  CSRF token missing or invalid" seen when clicking Blacklist in the
+  preview environment.
+
+Feature
+- `routers/vendor_intel.py` — `POST /blacklist/{ref}/appeals/{idx}/decision`
+  (admin-only, CSRF). `AppealDecisionIn{decision, note, whitelist}`.
+  Updates the appeal with `status/decision_note/decided_by/decided_at`,
+  optionally removes the blacklist, writes an audit log, and fires
+  `vendor_confirm` + `notify_role("admin", …)`.
+- Admin `VendorIntelPanel.jsx` — inline AppealRow with Approve / Reject
+  buttons, note textarea, "Also whitelist on approval" toggle. Decided
+  appeals display status badge, decider, timestamp, and note.
+
+Release artifacts:
+- `/downloads/pmc-frontend-v51be-prod-build.zip`
+- `/downloads/pmc-backend-v51be.zip`
+- `/downloads/DOWNLOAD_v51be.md`
+
+Deploy order: backend v51be first, then frontend v51be.
+
+---
+
+
+# PMC Managers v2 — PRD (last touched 10 Oct 2026)
+
 ## v51bd — Compliance triage, appeal notifications, draft server sync (10 Oct 2026)
 
 Backend
