@@ -23,7 +23,7 @@ def _out(doc: dict) -> dict:
 class CurrencyIn(BaseModel):
     code: str = Field(..., min_length=3, max_length=3, description="ISO-4217 (e.g. USD)")
     name: str = Field(..., min_length=1, max_length=120)
-    symbol: Optional[str] = None
+    symbol: Optional[str] = Field(None, max_length=8)
     decimals: int = 2
     is_active: bool = True
 

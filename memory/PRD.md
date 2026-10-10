@@ -1,5 +1,47 @@
 # PMC Managers v2 — PRD (last touched 10 Oct 2026)
 
+## v52bk — Currency master + auth-aware public chrome + hardened Create Notice (10 Oct 2026)
+
+Backend
+- New `routers/currencies.py` with ISO-4217 CRUD under `/api/v1/masters/currencies`:
+  - `GET /currencies/public` (anon) + `GET /currencies` (admin/reviewer/support/committee)
+  - `POST` / `PATCH` / `DELETE` (admin only; DELETE = soft deactivate)
+  - `seed_defaults()` idempotent — 25 common currencies on cold start (USD, EUR, GBP, INR, KZT, AED, SAR, RUB, CNY, JPY, SGD, AUD, CAD, CHF, HKD, ZAR, TRY, BRL, QAR, OMR, KWD, BHD, UZS, KGS, AZN).
+  - `CurrencyIn.symbol` capped at 8 chars.
+- Wired into `server.py` startup after `_seed_categories()`.
+
+Frontend
+- `lib/useAuthSession.js` — probe hook that calls admin/staff/vendor `/me` with
+  `_skipAuthRedirect: true` so public pages can detect auth without hijacking
+  the UI on 401.
+- `lib/api.js` — axios response interceptor honours `config._skipAuthRedirect`.
+  `mastersApi.listCurrencies` / `listCurrenciesPublic` / CRUD helpers added.
+- `apps/shared/TopBar.jsx` — on public routes, when signed-in: hides
+  Sign in / Register, shows `Dashboard` chip (avatar + label) + `Sign out`
+  (testid `topbar-dashboard`, `topbar-signout-public`; mobile drawer equivalents).
+- `apps/notice-board-e/NoticeDetailE.jsx` — hero `pmc-chrome` now auth-aware:
+  anon → `notice-topbar-signin` + `notice-topbar-register`; signed-in →
+  `notice-topbar-dashboard` + `notice-topbar-signout`. Start-bid / Download
+  pack links also route to `/vendor/workspace/new?notice=<ref>` or the
+  signed-in dashboard instead of `/register`.
+- `apps/admin-console/NoticesPanel.jsx` Create Notice form:
+  - `Category *` — hard-blocked, required <select> (toast if empty).
+  - `Budget currency *` — static `<input>` replaced with 25-option master-driven
+    `<select>` (`notice-currency`).
+  - `Tender / RFP / RFQ documents *` — primary document is MANDATORY to submit.
+    Row renders Upload / View / Modify / Print / Delete controls with testids
+    `notice-primary-view`, `-modify`, `-print`, `-delete` once a file is picked.
+
+Verified by testing_agent (iteration_49):
+- Backend: 4/4 pytest (`test_v52bk_currencies.py`).
+- Frontend: 12/12 scenarios — anon + admin + vendor header, 25-option currency
+  dropdown, both block-paths (missing category, missing primary), happy-path
+  POST `/notices` returning `PMC-NOT-2026-0035` as draft.
+
+---
+
+
+
 ## v52bj — Stuck-bid recovery + losing-bidder EMD workflow (10 Oct 2026)
 
 Backend
