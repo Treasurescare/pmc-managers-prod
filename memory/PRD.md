@@ -1,5 +1,31 @@
 # PMC Managers v2 — PRD (last touched 10 Oct 2026)
 
+## v52br — Stakeholder CSV 401 + Work Packages sample CSV 401 + Tender Builder promoted matches (10 Oct 2026)
+
+Same root-cause class as the tender PDF bug: admin-gated download links were
+raw `<a href target="_blank">` navigations that drop the Bearer token → new
+tab showed `{"detail":"Not authenticated"}`.
+
+Frontend (backend unchanged from v52bp):
+- `lib/api.js` — new shared helper `downloadAuthedFile(path, filename)`:
+  axios `responseType: "blob"` → Blob → `a.download` click.
+- `admin-console-e/AdminStakeholderReportsE.jsx` — Download CSV now uses the
+  helper (downloads `stakeholder-<tab>.csv`). Verified: `stakeholder-tenders.csv`,
+  2,933 bytes.
+- `admin-console/PackagesPanel.jsx` — Sample CSV now uses the helper
+  (verified: `pmc-work-packages-sample.csv`, 300 bytes, header
+  `title,category,phase,value,currency,float_target_date,status`).
+- `admin-console/TenderBuilderPanel.jsx` — when search/country/industry is
+  active, a **Matches** panel renders directly under the filter bar (above
+  Kind picker + Master Library) with clickable results that open the draft.
+  Verified: hidden at rest, 4 rows on "Standard", click opens draft.
+
+Bundle: `pmc-frontend-v52br-prod-build.zip` (3.0 MB). Backend: keep v52bp.
+
+---
+
+
+
 ## v52bq — Tender Builder DOWNLOAD PDF 401 fix (10 Oct 2026)
 
 Bug: Tender Builder → DOWNLOAD PDF opened a raw browser tab to

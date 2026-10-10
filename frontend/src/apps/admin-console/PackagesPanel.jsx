@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { adminApi, api, formatApiError, showApiError} from "@/lib/api";
+import { adminApi, api, formatApiError, showApiError, downloadAuthedFile } from "@/lib/api";
 import KanbanColumn from "./packages/KanbanColumn";
 import { InfoDot } from "@/components/InfoDot";
 
@@ -122,12 +122,18 @@ export default function PackagesPanel() {
             {importing ? "Importing…" : "Import CSV"}
             <input type="file" accept=".csv" onChange={onImport} disabled={importing} className="hidden" data-testid="pkg-import-input" />
           </label>
-          <a href={`${process.env.REACT_APP_BACKEND_URL || ""}/api/v1/packages/import/sample.csv`}
+          {/* v52br — authenticated blob download; raw <a href> 401'd on the
+              admin-gated sample endpoint (same class as the tender PDF bug). */}
+          <button type="button"
+             onClick={async () => {
+               try { await downloadAuthedFile("/api/v1/packages/import/sample.csv", "pmc-work-packages-sample.csv"); }
+               catch (e) { showApiError(e, { fallbackTitle: "Sample download failed" }); }
+             }}
              data-testid="pkg-import-sample"
              title="Download a sample CSV with the exact column headers the importer expects"
              className="px-4 py-2 text-[11px] font-semibold uppercase tracking-widest border border-brand-navy/20 text-brand-navy bg-white hover:border-brand-navy-soft/60">
             Sample CSV
-          </a>
+          </button>
           <button type="button" onClick={() => setShowNew(!showNew)} data-testid="pkg-new-toggle"
             className="px-4 py-2 text-[11px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep">
             {showNew ? "Cancel" : "New package"}

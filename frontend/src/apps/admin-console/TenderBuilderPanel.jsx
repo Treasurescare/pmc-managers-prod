@@ -341,6 +341,33 @@ export default function TenderBuilderPanel() {
       <div className="space-y-4">
         <TenderFilterBar filters={filters} setFilters={setFilters}
                           industries={industries} countries={countries} />
+        {/* v52br — when a search/filter is active, surface the matching
+            drafts directly under the filter bar so admins don't scroll past
+            Kind + Master Library to see results. */}
+        {(filters.q?.trim() || filters.country || filters.industry) && (
+          <div className="border border-brand-navy/20 bg-white" data-testid="tb-search-results">
+            <div className="pmc-label p-3 border-b border-brand-navy/10 flex justify-between items-center">
+              <span>Matches</span>
+              <span className="text-brand-navy/40 normal-case tracking-normal">{filteredDrafts.length}</span>
+            </div>
+            <div className="max-h-56 overflow-y-auto">
+              {filteredDrafts.length === 0 && (
+                <div className="p-4 text-xs text-brand-navy/50">No drafts match — try clearing a filter.</div>
+              )}
+              {filteredDrafts.map((d) => (
+                <button key={d.id} type="button" onClick={() => openTemplate(d.id)}
+                        data-testid={`tb-result-${d.id}`}
+                        className={"w-full text-left border-b border-brand-navy/10 p-2.5 hover:bg-brand-navy/5 " +
+                          (selectedId === d.id ? "bg-brand-navy/10" : "")}>
+                  <div className="text-sm font-semibold text-brand-navy leading-tight truncate">{d.name}</div>
+                  <div className="text-[11px] text-brand-navy/50 mt-0.5">
+                    {(d.sections || []).length} sections · {(d.kind || "").toUpperCase()}{d.industry ? ` · ${d.industry}` : ""}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <button type="button" onClick={() => setShowDpr(true)}
                 data-testid="tb-open-dpr"
                 className="w-full px-4 py-2.5 text-[11px] font-semibold uppercase tracking-widest bg-emerald-600 text-white hover:bg-emerald-700">

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { stakeholderReportsApi, showApiError } from "@/lib/api";
+import { stakeholderReportsApi, showApiError, downloadAuthedFile } from "@/lib/api";
 import AdminEShell from "./AdminEShell";
 
 /**
@@ -129,12 +129,17 @@ export default function AdminStakeholderReportsE() {
 
         <div className="flex justify-between items-start mb-4 flex-wrap gap-2">
           <div className="text-sm text-brand-navy/70">{meta?.[2]}</div>
-          <a href={stakeholderReportsApi.csvUrl(tab)}
-             target="_blank" rel="noopener noreferrer"
+          {/* v52br — authenticated blob download; a raw <a href> drops the
+              Bearer token and the new tab shows {"detail":"Not authenticated"} */}
+          <button type="button"
+             onClick={async () => {
+               try { await downloadAuthedFile(stakeholderReportsApi.csvUrl(tab), `stakeholder-${tab}.csv`); }
+               catch (e) { showApiError(e, { fallbackTitle: "CSV download failed" }); }
+             }}
              data-testid={`sr-csv-${tab}`}
              className="px-4 py-2 text-[11px] uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep">
             Download CSV
-          </a>
+          </button>
         </div>
 
         {loading && <div className="p-6 text-sm text-brand-navy/50" data-testid="sr-loading">Loading…</div>}

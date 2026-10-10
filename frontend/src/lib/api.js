@@ -408,6 +408,21 @@ export const uploadsApi = {
   },
 };
 
+// v52br — authenticated file download for admin-gated endpoints reached by
+// a click (CSV exports, sample files). A raw <a href target="_blank"> drops
+// the Bearer token and the new tab shows {"detail":"Not authenticated"};
+// this fetches via axios (token attached) and downloads a Blob instead.
+export const downloadAuthedFile = async (path, filename) => {
+  const res = await api.get(path, { responseType: "blob" });
+  const blob = new Blob([res.data], { type: res.headers?.["content-type"] || "application/octet-stream" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+};
+
 // ---------- Wave 2: Evaluations ----------
 export const evalApi = {
   lockEnvelope: (notice_ref, kind) =>
