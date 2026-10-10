@@ -79,7 +79,11 @@ api.interceptors.response.use(
   (err) => {
     const status = err?.response?.status;
     const detail = err?.response?.data?.detail;
-    if (status === 401 && (detail === "Not authenticated" || detail === "Token expired")) {
+    // v52bk — opt-out flag: probe calls (useAuthSession) deliberately hit
+    // the three /me endpoints as unauthed and must NOT trigger a session
+    // expiry redirect when they 401.
+    const skipRedirect = err?.config?._skipAuthRedirect === true;
+    if (status === 401 && !skipRedirect && (detail === "Not authenticated" || detail === "Token expired")) {
       const path = window.location.pathname;
       const onAuthPage = path === "/login" || path.startsWith("/register") || path === "/";
       if (!onAuthPage && !window.__pmcAuthRedirecting) {
@@ -487,6 +491,16 @@ export const mastersApi = {
   createCategory: (p) => api.post("/api/v1/masters/categories", p).then((r) => r.data),
   updateCategory: (id, p) => api.patch(`/api/v1/masters/categories/${id}`, p).then((r) => r.data),
   deactivateCategory: (id) => api.delete(`/api/v1/masters/categories/${id}`).then((r) => r.data),
+  // v52bk — ISO-4217 currency master (Notice/Bid/EMD money fields)
+  listCurrencies: ({ includeInactive = false } = {}) =>
+    api.get("/api/v1/masters/currencies", {
+      params: { include_inactive: includeInactive },
+    }).then((r) => r.data),
+  listCurrenciesPublic: () =>
+    api.get("/api/v1/masters/currencies/public").then((r) => r.data),
+  createCurrency: (p) => api.post("/api/v1/masters/currencies", p).then((r) => r.data),
+  updateCurrency: (id, p) => api.patch(`/api/v1/masters/currencies/${id}`, p).then((r) => r.data),
+  deactivateCurrency: (id) => api.delete(`/api/v1/masters/currencies/${id}`).then((r) => r.data),
   // v50y — legal entity types master (vendor registration Section A dropdown)
   listLegalEntityTypes: ({ includeInactive = false, country } = {}) =>
     api.get("/api/v1/masters/legal-entity-types", {

@@ -18,6 +18,7 @@ export default function NoticesPanel() {
   const [templates, setTemplates] = useState([]);
   const [categories, setCategories] = useState([]);
   const [countries, setCountries] = useState([]);
+  const [currencies, setCurrencies] = useState([]);
   const [primaryFile, setPrimaryFile] = useState(null);
   const [attachmentFiles, setAttachmentFiles] = useState([]);
   const [me, setMe] = useState(null);
@@ -81,6 +82,10 @@ export default function NoticesPanel() {
     publicApi.countries()
       .then((rows) => setCountries(Array.isArray(rows) ? rows : []))
       .catch(() => setCountries([]));
+    // v52bk — budget currency dropdown fed from the ISO-4217 currency master.
+    mastersApi.listCurrencies()
+      .then((rows) => setCurrencies(Array.isArray(rows) ? rows : []))
+      .catch(() => setCurrencies([]));
   }, [load]);
 
   // v50g — refresh categories when delivery_country changes so the dropdown
@@ -150,11 +155,20 @@ export default function NoticesPanel() {
       return;
     }
     if (!draft.category) {
-      toast.error("Category is required");
+      toast.error("Category is required · pick from the master list");
+      return;
+    }
+    if (!draft.budget_currency) {
+      toast.error("Budget currency is required · pick from the master list");
       return;
     }
     if (!draft.submission_deadline) {
       toast.error("Submission deadline is required");
+      return;
+    }
+    // v52bk — primary tender/RFP/RFQ document is mandatory at create time.
+    if (!primaryFile) {
+      toast.error("Primary document (Tender Notice / RFQ / RFP) is required · upload a PDF or DOCX");
       return;
     }
     try {
@@ -218,8 +232,9 @@ export default function NoticesPanel() {
           <label className="col-span-2"><span className="pmc-label">Description<InfoDot tip="Full scope, objectives and bidder eligibility. Rendered as body copy on the public notice page. Minimum 10 characters." /></span>
             <textarea rows={4} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} data-testid="notice-description"
               className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <label><span className="pmc-label">Category<InfoDot tip="Industry / commodity code. Pulled from the procurement Category master (Masters → Categories). Includes UNSPSC codes plus any custom categories your team adds." /></span>
+          <label><span className="pmc-label">Category <span className="text-red-600" aria-hidden="true">*</span><InfoDot tip="Industry / commodity code. Pulled from the procurement Category master (Masters → Categories). Required." /></span>
             <select value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })} data-testid="notice-category"
+              required
               className="mt-1 w-full px-4 py-3 border border-brand-navy/20 bg-white">
               <option value="">— Select a category —</option>
               {categories.map((c) => (
@@ -245,9 +260,23 @@ export default function NoticesPanel() {
           <label><span className="pmc-label">Submission deadline<InfoDot tip="Cut-off timestamp in your local timezone. After this moment bids can no longer be submitted and the notice moves to 'expired'." /></span>
             <input type="datetime-local" value={draft.submission_deadline} onChange={(e) => setDraft({ ...draft, submission_deadline: e.target.value })} data-testid="notice-deadline"
               className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <label><span className="pmc-label">Budget currency<InfoDot tip="ISO-4217 code (USD, EUR, KZT, INR, AED…). Applied to Budget and EMD amounts." /></span>
-            <input value={draft.budget_currency} onChange={(e) => setDraft({ ...draft, budget_currency: e.target.value })} data-testid="notice-currency"
-              className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
+          <label><span className="pmc-label">Budget currency <span className="text-red-600" aria-hidden="true">*</span><InfoDot tip="ISO-4217 code (USD, EUR, KZT, INR, AED…). Pulled from the Currency master (Masters → Currencies). Applied to Budget and EMD amounts." /></span>
+            <select value={draft.budget_currency}
+              onChange={(e) => {
+                const v = e.target.value;
+                setDraft({ ...draft, budget_currency: v,
+                  emd_config: { ...draft.emd_config, currency: v } });
+              }}
+              data-testid="notice-currency"
+              required
+              className="mt-1 w-full px-4 py-3 border border-brand-navy/20 bg-white">
+              {currencies.length === 0 && <option value="USD">USD · US Dollar</option>}
+              {currencies.map((c) => (
+                <option key={c.id || c.code} value={c.code}>
+                  {c.code} · {c.name}{c.symbol ? ` (${c.symbol})` : ""}
+                </option>
+              ))}
+            </select></label>
           <label><span className="pmc-label">Budget amount<InfoDot tip="Estimated contract value. Optional but recommended — informs vendor go/no-go decisions and Approval-Matrix routing." /></span>
             <input type="number" min="0" step="0.01" value={draft.budget_amount || ""}
               onChange={(e) => {
@@ -312,16 +341,69 @@ export default function NoticesPanel() {
           </label>
 
           <div className="col-span-2 border-t border-brand-navy/10 pt-4 mt-2">
-            <div className="pmc-label mb-2">Tender / RFP / RFQ documents</div>
+            <div className="pmc-label mb-2">Tender / RFP / RFQ documents <span className="text-red-600" aria-hidden="true">*</span></div>
             <div className="grid gap-3 md:grid-cols-2">
-              <label className="text-sm">
-                <span className="text-brand-navy/70">Primary document (PDF/DOCX, single)</span>
-                <input type="file" accept=".pdf,.doc,.docx"
-                       onChange={(e) => setPrimaryFile(e.target.files?.[0] || null)}
-                       data-testid="notice-primary-file"
-                       className="mt-1 w-full text-sm" />
-                {primaryFile && <div className="mt-1 text-xs text-brand-navy/60">Selected: {primaryFile.name}</div>}
-              </label>
+              <div className="text-sm border border-brand-navy/20 bg-brand-pale/40 p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-brand-navy font-semibold">
+                    Primary document <span className="text-red-600">*</span>
+                  </span>
+                  <span className="text-[10px] uppercase tracking-widest text-brand-navy/60">
+                    PDF / DOCX · single · required
+                  </span>
+                </div>
+                {!primaryFile ? (
+                  <label className="mt-2 inline-flex items-center gap-2 px-3 py-2 border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white cursor-pointer text-[11px] uppercase tracking-widest">
+                    <input type="file" accept=".pdf,.doc,.docx"
+                           onChange={(e) => setPrimaryFile(e.target.files?.[0] || null)}
+                           data-testid="notice-primary-file"
+                           className="hidden" />
+                    ⬆ Upload primary document
+                  </label>
+                ) : (
+                  <div className="mt-2 flex flex-wrap items-center gap-2" data-testid="notice-primary-selected">
+                    <span className="text-xs text-brand-navy/80 truncate max-w-[260px]"
+                          title={primaryFile.name}>📄 {primaryFile.name}</span>
+                    <span className="text-[10px] text-brand-navy/50 font-mono">
+                      {Math.round((primaryFile.size || 0) / 1024)} KB
+                    </span>
+                    <button type="button"
+                            onClick={() => {
+                              const url = URL.createObjectURL(primaryFile);
+                              window.open(url, "_blank", "noopener");
+                            }}
+                            data-testid="notice-primary-view"
+                            className="px-2 py-1 text-[10px] uppercase tracking-widest border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white">
+                      View
+                    </button>
+                    <label className="px-2 py-1 text-[10px] uppercase tracking-widest border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white cursor-pointer">
+                      <input type="file" accept=".pdf,.doc,.docx"
+                             onChange={(e) => setPrimaryFile(e.target.files?.[0] || null)}
+                             data-testid="notice-primary-modify"
+                             className="hidden" />
+                      Modify
+                    </label>
+                    <button type="button"
+                            onClick={() => {
+                              const url = URL.createObjectURL(primaryFile);
+                              const w = window.open(url, "_blank", "noopener");
+                              if (w) w.addEventListener("load", () => { try { w.print(); } catch { /* ignore */ } });
+                            }}
+                            data-testid="notice-primary-print"
+                            className="px-2 py-1 text-[10px] uppercase tracking-widest border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white">
+                      Print
+                    </button>
+                    <button type="button" onClick={() => setPrimaryFile(null)}
+                            data-testid="notice-primary-delete"
+                            className="px-2 py-1 text-[10px] uppercase tracking-widest border border-red-500 text-red-600 hover:bg-red-50">
+                      Delete
+                    </button>
+                  </div>
+                )}
+                <div className="mt-2 text-[11px] text-brand-navy/60">
+                  This must be the official <strong>Tender Notice</strong>, <strong>RFQ</strong> or <strong>RFP</strong> document.
+                </div>
+              </div>
               <label className="text-sm">
                 <span className="text-brand-navy/70">Additional attachments (BOQ, drawings, addenda…)</span>
                 <input type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.dwg,.jpg,.png"

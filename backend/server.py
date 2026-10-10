@@ -23,6 +23,7 @@ from routers import (
     envelope_authoritative, contracts_export,
     admin_demo, push, vendor_categories, vendor_profile_changes, vendor_licenses,
     legal_entity_types, escrow_institutions, escrow_signatories, cron_escrow,
+    currencies,
 )
 from routers import password_reset as _password_reset
 
@@ -89,6 +90,7 @@ app.include_router(tasks.router)
 app.include_router(chat.router)
 app.include_router(inspections.router)
 app.include_router(masters.router)
+app.include_router(currencies.router)
 app.include_router(legal_entity_types.router)
 # Wave 2-6 — Evaluation, BOQ+Contracts, Vendor Intel, Analytics+AI, Governance, Notifications
 app.include_router(evaluations.router)
@@ -423,6 +425,12 @@ async def on_start() -> None:
     await _seed_product_catalog()
     await _seed_taxonomy()
     await _seed_categories()
+    # v52bk — ISO-4217 currency master used by Notice/Bid/EMD money fields
+    try:
+        from routers.currencies import seed_defaults as _seed_currencies
+        await _seed_currencies()
+    except Exception as exc:
+        logging.warning("currencies seed skipped: %s", exc)
     # v50y — legal entity types master used by vendor registration Section A
     try:
         from routers.legal_entity_types import seed_defaults as _seed_legal_entity_types

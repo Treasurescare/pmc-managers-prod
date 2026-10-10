@@ -5,6 +5,7 @@ import PmcLogo from "./PmcLogo";
 import LangSwitcher from "./LangSwitcher";
 import { useI18n } from "@/context/I18nContext";
 import { adminApi, staffApi, vendorApi } from "@/lib/api";
+import useAuthSession from "@/lib/useAuthSession";
 import useTenantSkin from "./useTenantSkin";
 import EnablePushButton from "@/components/EnablePushButton";
 
@@ -35,6 +36,12 @@ export default function TopBar({ dark = false, rightExtras = null }) {
     path.startsWith("/admin") ||
     path.startsWith("/staff") ||
     path.startsWith("/vendor");
+  // v52bk — public pages (/notices/:ref, /, /tenders/live …) swap the
+  // "Sign in / Register" buttons for an authed chip + "Open dashboard" link
+  // when a signed-in session (admin / staff / vendor) is detected. This
+  // avoids users seeing a "Sign in" prompt when they are already logged in.
+  const { role, me, dashboardPath } = useAuthSession();
+  const authed = Boolean(role);
   const showSignOut = false; // dashboards render their own sign-out
 
   const signOut = async () => {
@@ -73,8 +80,11 @@ export default function TopBar({ dark = false, rightExtras = null }) {
     ["/tenders/completed", "Completed", "nav-completed"],
     ["/about", "About us", "nav-about"],
     ["/vision", "Vision", "nav-vision"],
-    ["/register", t("nav.register"), "nav-register"],
-    ["/login", t("nav.login"), "nav-signin"],
+    // v52bk — only show Register/Sign-in on PUBLIC strip when no session.
+    ...(authed ? [] : [
+      ["/register", t("nav.register"), "nav-register"],
+      ["/login", t("nav.login"), "nav-signin"],
+    ]),
   ];
   // Hide the whole public-nav strip once the user is inside a dashboard.
   const NAV = onDashboard ? [] : PUBLIC_NAV;
@@ -109,6 +119,27 @@ export default function TopBar({ dark = false, rightExtras = null }) {
             {rightExtras}
             <div className="hidden sm:block"><LangSwitcher dark={dark} /></div>
             <div className="hidden lg:block"><EnablePushButton role="vendor" compact /></div>
+
+            {/* v52bk — signed-in chip replaces Sign in / Register everywhere */}
+            {authed && !onDashboard && (
+              <>
+                <Link to={dashboardPath} data-testid="topbar-dashboard"
+                  className={"hidden md:inline-flex items-center gap-2 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest border " +
+                    (dark ? "border-white/30 text-white hover:bg-white hover:text-brand-navy"
+                          : "border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white")}>
+                  <span className="w-6 h-6 rounded-full bg-brand-navy text-white inline-flex items-center justify-center text-[10px] font-bold" aria-hidden="true">
+                    {(me?.name || me?.email || role || "?").slice(0,1).toUpperCase()}
+                  </span>
+                  {t("nav.dashboard") || "Dashboard"}
+                </Link>
+                <button onClick={signOut} data-testid="topbar-signout-public"
+                  className={"hidden md:inline-block px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest border " +
+                    (dark ? "border-white/30 text-white hover:bg-white hover:text-brand-navy"
+                          : "border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white")}>
+                  {t("nav.logout")}
+                </button>
+              </>
+            )}
 
             {/* Always-visible sign out for authed routes (desktop) */}
             {showSignOut && (
@@ -174,9 +205,23 @@ export default function TopBar({ dark = false, rightExtras = null }) {
                 </button>
               )}
               <Link to="/login" data-testid="drawer-signin"
-                className="block mt-2 px-4 py-3 bg-brand-navy text-white text-center uppercase tracking-widest text-[12px] font-semibold hover:bg-brand-navy-deep">
+                className={authed
+                  ? "hidden"
+                  : "block mt-2 px-4 py-3 bg-brand-navy text-white text-center uppercase tracking-widest text-[12px] font-semibold hover:bg-brand-navy-deep"}>
                 {t("nav.login")}
               </Link>
+              {authed && (
+                <>
+                  <Link to={dashboardPath} data-testid="drawer-dashboard"
+                    className="block mt-2 px-4 py-3 bg-brand-navy text-white text-center uppercase tracking-widest text-[12px] font-semibold hover:bg-brand-navy-deep">
+                    {t("nav.dashboard") || "Open dashboard"}
+                  </Link>
+                  <button onClick={signOut} data-testid="drawer-signout-public"
+                    className="w-full mt-2 px-4 py-3 border border-red-500 text-red-600 hover:bg-red-50 uppercase tracking-widest text-[12px] font-semibold text-left">
+                    {t("nav.logout")}
+                  </button>
+                </>
+              )}
             </nav>
 
             <div className="p-4 border-t border-brand-navy/10 pmc-safe-bottom">
