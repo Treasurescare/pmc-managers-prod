@@ -1,5 +1,44 @@
 # PMC Managers v2 — PRD (last touched 10 Oct 2026)
 
+## v51bd — Compliance triage, appeal notifications, draft server sync (10 Oct 2026)
+
+Backend
+- `routers/bid_drafts.py` (new) — per-vendor server-side bid drafts
+  (`GET/PUT/DELETE /api/v1/bids/drafts/{notice_ref}` + `GET
+  /api/v1/bids/drafts`). `POST /api/v1/bids` auto-deletes the matching
+  draft on success.
+- `routers/vendor_intel.py`
+    - `GET /api/v1/vendor-intel/blacklist-dashboard` — one row per
+      blacklist with evidence/appeal counts for compliance triage.
+    - Appeal filed → `notify_role("admin", …)` + confirmation email to the
+      vendor; whitelist decision → vendor "account whitelisted" email +
+      admin notification.
+- `server.py` — registers the new `bid_drafts` router.
+
+Frontend
+- `lib/api.js` — `bidApi.getDraft/saveDraft/deleteDraft/listDrafts`,
+  `vendorIntelApi.blacklistDashboard`.
+- `apps/vendor-portal/BidSubmit.jsx` — draft load prefers the server with
+  localStorage fallback; "Save draft" pushes to the backend;
+  successful submit clears both the local and the server draft.
+- `apps/admin-console/BlacklistDashboardPanel.jsx` (new) — triage table
+  with KPI tiles, search, filter chips, and a Manage button that opens
+  the existing VendorIntel modal.
+- `apps/admin-console/VendorIntelPanel.jsx` — renders the triage panel
+  above the legacy summary table.
+
+Release artifacts:
+- `/downloads/pmc-frontend-v51bd-prod-build.zip`
+- `/downloads/pmc-backend-v51bd.zip`
+- `/downloads/DOWNLOAD_v51bd.md`
+
+Deploy order: backend v51bd first (new endpoints), then frontend v51bd.
+
+---
+
+
+# PMC Managers v2 — PRD (last touched 10 Oct 2026)
+
 ## v51bc — Bid submission UX + blacklist/appeal (10 Oct 2026)
 
 Fixes:

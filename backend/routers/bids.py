@@ -237,10 +237,13 @@ async def create_bid(payload: BidCreateIn, vendor=Depends(current_vendor)) -> di
     except Exception as e:
         import logging
         logging.getLogger("bids").warning("bid-confirmation email failed for %s: %s", bid_ref, e)
+    # v51bd — delete any server-side draft once a real bid is created.
+    try:
+        await db.bid_drafts.delete_one({"vendor_id": vendor["id"],
+                                          "notice_ref": payload.notice_ref})
+    except Exception:
+        pass
     return _out(doc)
-
-
-@router.get("/mine")
 async def list_my_bids(vendor=Depends(current_vendor)) -> List[dict]:
     """List a vendor's own bids, enriched with the parent notice's title and
     submission deadline so the vendor's "My bids" page can render a usable

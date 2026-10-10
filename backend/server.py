@@ -13,7 +13,7 @@ from db import db, create_indexes, ping as db_ping
 from security import hash_password
 from routers import (
     notices, registrations, packages, admin_auth, uploads, audit_routes, meta, vendors,
-    staff_auth, vendor_auth, bids, payments, committee, tasks, chat, inspections, masters,
+    staff_auth, vendor_auth, bids, bid_drafts, payments, committee, tasks, chat, inspections, masters,
     evaluations, boqs, vendor_intel, analytics, governance, notifications, payments_sandbox,
     mfa, tenants, kyc, vendor_invites, permissions, admin_heal, vendor_full_invite,
     tender_templates, notice_qa, bids_ai_compare, escrow, reports, products, billing,
@@ -82,6 +82,7 @@ app.include_router(vendor_auth.router)
 app.include_router(vendor_licenses.router)
 app.include_router(_password_reset.router)
 app.include_router(bids.router)
+app.include_router(bid_drafts.router)
 app.include_router(payments.router)
 app.include_router(committee.router)
 app.include_router(tasks.router)

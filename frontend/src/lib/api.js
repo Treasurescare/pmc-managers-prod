@@ -273,6 +273,11 @@ export const bidApi = {
     api.post(`/api/v1/bids/${id}/assign-certifier`, null, { params: { certifier_id: certifierId } }).then((r) => r.data),
   technicalClear: (id) => api.post(`/api/v1/bids/${id}/technical-clear`).then((r) => r.data),
   financialOpen: (id) => api.post(`/api/v1/bids/${id}/financial-open`).then((r) => r.data),
+  // v51bd — server-side bid drafts so vendors can switch devices mid-bid
+  getDraft: (noticeRef) => api.get(`/api/v1/bids/drafts/${encodeURIComponent(noticeRef)}`).then((r) => r.data),
+  saveDraft: (noticeRef, payload) => api.put(`/api/v1/bids/drafts/${encodeURIComponent(noticeRef)}`, payload).then((r) => r.data),
+  deleteDraft: (noticeRef) => api.delete(`/api/v1/bids/drafts/${encodeURIComponent(noticeRef)}`).then((r) => r.data),
+  listDrafts: () => api.get("/api/v1/bids/drafts").then((r) => r.data),
 };
 
 // ---------- Wave 1: Payments (Stripe EMD) ----------
@@ -397,6 +402,7 @@ export const vendorIntelApi = {
   watchlist: (p) => api.post("/api/v1/vendor-intel/watchlist", p).then((r) => r.data),
   esg: (p) => api.post("/api/v1/vendor-intel/esg", p).then((r) => r.data),
   summary: () => api.get("/api/v1/vendor-intel/summary").then((r) => r.data),
+  blacklistDashboard: () => api.get("/api/v1/vendor-intel/blacklist-dashboard").then((r) => r.data),
   // v51bd — blacklist evidence (admin) + vendor appeal
   getBlacklist: (ref) => api.get(`/api/v1/vendor-intel/blacklist/${ref}`).then((r) => r.data),
   addEvidence: (ref, p) =>

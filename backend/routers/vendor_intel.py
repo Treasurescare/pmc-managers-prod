@@ -3,6 +3,7 @@ from typing import List
 from fastapi import APIRouter, HTTPException, Depends
 from bson import ObjectId
 
+import config
 from db import db
 from models.vendor_intel import (
     VendorRatingIn, BlacklistIn, WatchlistIn, ESGDeclarationIn,
@@ -51,14 +52,107 @@ async def blacklist(payload: BlacklistIn, admin=Depends(require_role("admin"))):
 
 @router.delete("/blacklist/{vendor_ref}")
 async def unblacklist(vendor_ref: str, admin=Depends(require_role("admin"))):
+    v = await db.vendors.find_one({"vendor_ref": vendor_ref},
+                                    {"email": 1}) or {}
     await db.vendor_blacklist.delete_one({"vendor_ref": vendor_ref})
     await audit_log("vendor_intel.unblacklist", admin, "vendor", vendor_ref, {})
+    # v51bd — fire the decision email to the vendor + staff notification
+    await _notify_appeal_decided(vendor_ref, "whitelisted",
+                                   v.get("email") or "")
     return {"ok": True}
 
 
 @router.get("/blacklist")
 async def list_blacklist(admin=Depends(require_role("admin", "reviewer", "auditor"))):
     return [_out(b) async for b in db.vendor_blacklist.find({})]
+
+
+# v51bd — Admin triage dashboard: one row per blacklisted vendor with
+# evidence + appeal counts so compliance can prioritise without opening
+# each record.
+@router.get("/blacklist-dashboard")
+async def blacklist_dashboard(admin=Depends(require_role("admin", "reviewer", "auditor"))) -> List[dict]:
+    out: List[dict] = []
+    vendors_by_ref: dict = {}
+    async for v in db.vendors.find({}, {"company_name": 1, "vendor_ref": 1,
+                                          "email": 1, "country": 1,
+                                          "kyc_status": 1, "is_active": 1}):
+        vendors_by_ref[v.get("vendor_ref")] = v
+    async for bl in db.vendor_blacklist.find({}).sort("at", -1):
+        ref = bl.get("vendor_ref")
+        v = vendors_by_ref.get(ref) or {}
+        appeals = bl.get("appeals") or []
+        pending = [a for a in appeals if (a.get("status") or "pending") == "pending"]
+        last = appeals[-1] if appeals else None
+        out.append({
+            "vendor_ref": ref,
+            "company_name": v.get("company_name") or bl.get("company_name"),
+            "email": v.get("email"),
+            "country": v.get("country"),
+            "kyc_status": v.get("kyc_status"),
+            "reason": bl.get("reason"),
+            "blacklisted_at": bl.get("at"),
+            "until": bl.get("until"),
+            "evidence_count": len(bl.get("evidence") or []),
+            "appeal_count": len(appeals),
+            "pending_appeal_count": len(pending),
+            "latest_appeal_at": (last or {}).get("at"),
+            "latest_appeal_status": (last or {}).get("status"),
+            "latest_appeal_evidence_count": len((last or {}).get("evidence") or []),
+        })
+    return out
+
+
+async def _notify_appeal_filed(vendor_ref: str, appeal_msg: str, vendor_email: str) -> None:
+    """v51bd — email the vendor an acknowledgement + every admin/reviewer."""
+    try:
+        from notify import notify_role, vendor_confirm
+        detail_url = f"{config.FRONTEND_URL}/admin?tab=vintel&ref={vendor_ref}"
+        html = (f"<p>Vendor <b>{vendor_ref}</b> has filed a blacklist appeal.</p>"
+                 f"<blockquote>{(appeal_msg or '')[:600]}</blockquote>")
+        await notify_role("admin", f"Blacklist appeal filed — {vendor_ref}",
+                           html + f"<p><a href='{detail_url}'>Review in Vendor Intel</a></p>",
+                           related_type="vendor_blacklist", related_id=vendor_ref)
+        if vendor_email:
+            await vendor_confirm(
+                vendor_email,
+                "Your blacklist appeal has been received",
+                "<p>We've received your appeal and our compliance team will "
+                "review it along with any evidence you attached. You'll get "
+                "another email once a decision is made.</p>",
+                "Open supplier portal", f"{config.FRONTEND_URL}/vendor")
+    except Exception as e:
+        import logging
+        logging.getLogger("vendor_intel").warning("appeal notify failed: %s", e)
+
+
+async def _notify_appeal_decided(vendor_ref: str, decision: str, vendor_email: str,
+                                   note: str = "") -> None:
+    """v51bd — email the vendor on whitelist / appeal decision."""
+    try:
+        from notify import vendor_confirm, notify_role
+        if decision == "whitelisted":
+            subject = "Your account has been whitelisted"
+            body = ("<p>Good news — your account has been removed from the "
+                     "PMC blacklist. You can resume submitting bids immediately.</p>")
+            if note:
+                body += f"<p><b>Decision note:</b> {note}</p>"
+        else:
+            subject = f"Update on your blacklist appeal · {decision}"
+            body = (f"<p>Your blacklist appeal has been <b>{decision}</b>.</p>"
+                     + (f"<p>{note}</p>" if note else ""))
+        if vendor_email:
+            await vendor_confirm(vendor_email, subject, body,
+                                   "Open supplier portal",
+                                   f"{config.FRONTEND_URL}/vendor")
+        await notify_role("admin",
+                           f"Blacklist decision — {vendor_ref} · {decision}",
+                           f"<p>Admin decision: <b>{decision}</b> for vendor "
+                           f"<b>{vendor_ref}</b>.</p>" + (f"<p>{note}</p>" if note else ""),
+                           related_type="vendor_blacklist", related_id=vendor_ref)
+    except Exception as e:
+        import logging
+        logging.getLogger("vendor_intel").warning("decision notify failed: %s", e)
 
 
 # -------- v51bd — Blacklist evidence + vendor-side appeal ---------
@@ -161,6 +255,9 @@ async def submit_appeal(payload: BlacklistAppealIn,
         {"$push": {"appeals": appeal}})
     await audit_log("vendor_intel.appeal_submit", vendor, "vendor",
                     vendor.get("vendor_ref"), {"len": len(payload.message)})
+    # v51bd — notify vendor + every admin so compliance sees it immediately
+    await _notify_appeal_filed(vendor.get("vendor_ref"), payload.message,
+                                 vendor.get("email") or "")
     return {"ok": True}
 
 

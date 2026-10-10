@@ -22,7 +22,9 @@ export default function BidSubmit() {
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState(null);
 
-  // v51bc — local draft so vendors can save work and come back later.
+  // v51bd — local draft so vendors can save work and come back later.
+  // (persisted BOTH to localStorage AND to the backend via bidApi.saveDraft
+  // so the vendor can resume on another device.)
   const draftKey = `pmc-bid-draft:${noticeRef}`;
 
   useEffect(() => {
@@ -31,18 +33,28 @@ export default function BidSubmit() {
         const [v, n] = await Promise.all([vendorApi.me(), publicApi.getNotice(noticeRef)]);
         if (v.must_change_password) return nav("/vendor/change-password");
         setVendor(v); setNotice(n);
-        // Restore any locally saved draft (text + metadata only; files are
-        // kept via their already-presigned keys from the previous session).
+        // Prefer the server-side draft (cross-device) and fall back to local.
+        let restored = null;
         try {
-          const raw = localStorage.getItem(draftKey);
-          if (raw) {
-            const d = JSON.parse(raw);
-            if (d.price != null) setPrice(d.price);
-            if (d.technical) setTechnical(d.technical);
-            if (d.commercial) setCommercial(d.commercial);
-            if (Array.isArray(d.docs)) setDocs(d.docs);
-          }
-        } catch { /* ignore corrupt draft */ }
+          const srv = await bidApi.getDraft(noticeRef);
+          if (srv?.found) restored = srv;
+        } catch { /* draft is optional */ }
+        if (!restored) {
+          try {
+            const raw = localStorage.getItem(draftKey);
+            if (raw) restored = JSON.parse(raw);
+          } catch { /* ignore corrupt draft */ }
+        }
+        if (restored) {
+          if (restored.price_amount != null) setPrice(String(restored.price_amount));
+          else if (restored.price != null) setPrice(String(restored.price));
+          if (restored.technical_notes != null) setTechnical(restored.technical_notes);
+          else if (restored.technical) setTechnical(restored.technical);
+          if (restored.commercial_notes != null) setCommercial(restored.commercial_notes);
+          else if (restored.commercial) setCommercial(restored.commercial);
+          if (Array.isArray(restored.documents)) setDocs(restored.documents);
+          else if (Array.isArray(restored.docs)) setDocs(restored.docs);
+        }
       } catch {
         nav("/vendor/login");
       }
@@ -107,8 +119,9 @@ export default function BidSubmit() {
         documents: cleanDocs,
       });
       toast.success(`Bid ${bid.bid_ref} submitted`);
-      // Clear local draft now that the server has it.
+      // Clear local + server draft now that the server has the real bid.
       try { localStorage.removeItem(draftKey); } catch { /* ignore */ }
+      try { await bidApi.deleteDraft(noticeRef); } catch { /* ignore */ }
       // If EMD due, immediately go to selected gateway
       if ((bid.emd_due_amount || 0) > 0) {
         let checkout_url;
@@ -157,13 +170,28 @@ export default function BidSubmit() {
   const hasComm = uploadedKinds.has("commercial");
   const docsOk = hasTech && hasComm;
 
-  const saveDraft = () => {
+  const saveDraft = async () => {
     try {
-      localStorage.setItem(draftKey, JSON.stringify({
-        price, technical, commercial, docs, saved_at: new Date().toISOString(),
-      }));
-      toast.success("Draft saved on this device. Come back any time to finish.");
-    } catch { toast.error("Could not save draft (storage full)"); }
+      const payload = {
+        price_amount: price ? Number(price) : null,
+        price_currency: notice?.budget_currency || "USD",
+        technical_notes: technical, commercial_notes: commercial,
+        documents: docs,
+      };
+      // Always persist locally for offline resilience.
+      try {
+        localStorage.setItem(draftKey, JSON.stringify({
+          ...payload, saved_at: new Date().toISOString(),
+        }));
+      } catch { /* storage may be full */ }
+      // And push to the server so other devices can resume.
+      try {
+        await bidApi.saveDraft(noticeRef, payload);
+        toast.success("Draft saved — you can resume this bid on any device.");
+      } catch (e) {
+        showApiError(e, { fallbackTitle: "Draft saved locally only — server sync failed" });
+      }
+    } catch { toast.error("Could not save draft"); }
   };
 
   return (

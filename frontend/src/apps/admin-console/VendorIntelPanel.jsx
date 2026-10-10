@@ -6,6 +6,7 @@ import { InfoDot } from "@/components/InfoDot";
 import ReviewModerationSection, { AdminBadgePreview } from "@/apps/admin-console/vendor/ReviewModerationSection";
 import { useListPager } from "@/components/ListPager";
 import EvidenceManager from "@/components/EvidenceManager";
+import BlacklistDashboardPanel from "@/apps/admin-console/BlacklistDashboardPanel";
 
 const BANDS = ["excellent", "good", "fair", "poor", "blacklisted"];
 
@@ -92,6 +93,12 @@ export default function VendorIntelPanel() {
 
   return (
     <div data-testid="admin-vendor-intel-panel" className="bg-white border">
+      {/* v51bd — triage dashboard first, so compliance opens the most urgent
+          vendor without scrolling the giant summary table. */}
+      <BlacklistDashboardPanel onOpenVendor={(row) => {
+        const match = rows.find((v) => v.vendor_ref === row.vendor_ref);
+        setSelected(match || { ...row, blacklisted: true });
+      }} />
       <div className="px-3 py-2 border-b bg-brand-pale text-[11px] text-brand-navy/70 flex flex-wrap gap-x-4 gap-y-1">
         <span className="pmc-label">Flag legend</span>
         <span><span className="text-red-600 font-bold">BL</span> = Blacklisted</span>
