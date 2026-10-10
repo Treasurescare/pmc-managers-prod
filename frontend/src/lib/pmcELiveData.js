@@ -1285,9 +1285,14 @@ export function useAdminBiddingOpsLive({ enabled = true, tick = 0 } = {}) {
           if (group === "awarded") {
             actionHtml = `<button type="button" class="pmc-btn pmc-btn--ghost pmc-btn--sm" data-bo-action="view" data-bid-id="${b.id || ""}">View</button>`;
           } else if (group === "supplier") {
-            actionHtml = emdAmt > 0
+            // v51ay — supplier-side rows previously offered ONLY "Send link"
+            // with no way to inspect the bid (the user's "Waiting on Supplier
+            // doesn't open" complaint). Always include an Open/Review button
+            // alongside the EMD link action.
+            actionHtml = (emdAmt > 0
               ? `<button type="button" class="pmc-btn pmc-btn--secondary pmc-btn--sm" data-bo-action="send" data-bid-id="${b.id || ""}">${b.emd_link_sent_at ? "Resend link" : "Send link"}</button>`
-              : `<button type="button" class="pmc-btn pmc-btn--secondary pmc-btn--sm" data-bo-action="review" data-bid-id="${b.id || ""}">Review</button>`;
+              : "") +
+              `<button type="button" class="pmc-btn pmc-btn--primary pmc-btn--sm" data-bo-action="review" data-bid-id="${b.id || ""}">Review</button>`;
           } else if (st === "escrow_accepted") {
             actionHtml = `<button type="button" class="pmc-btn pmc-btn--primary pmc-btn--sm" data-bo-action="flag" data-bid-id="${b.id || ""}">Flag to certifier</button>`;
           } else {

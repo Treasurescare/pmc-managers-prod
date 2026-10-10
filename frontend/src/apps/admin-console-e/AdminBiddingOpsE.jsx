@@ -88,7 +88,22 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
       const emdPaid = b.emd_paid_at || b.emd_status === "paid" || idx >= 2 || awarded;
       const emdTxt = !emdAmt ? "Not due" : emdPaid ? `${emdCur} ${emdAmt.toLocaleString()} · paid` : b.emd_link_sent_at ? `${emdCur} ${emdAmt.toLocaleString()} · link sent` : `${emdCur} ${emdAmt.toLocaleString()} · not paid`;
       const kv = root.querySelector('#d-kv');
-      if (kv) kv.innerHTML = `<dt>Notice</dt><dd class="pmc-ref" style="color:var(--ink)">${b.notice_ref || "—"}</dd><dt>Vendor</dt><dd>${b.vendor_ref || b.company_name || "—"}</dd><dt>Price</dt><dd>${price}</dd><dt>EMD</dt><dd>${emdTxt}</dd>`;
+      if (kv) kv.innerHTML = `<dt>Notice</dt><dd class="pmc-ref" style="color:var(--ink)">${b.notice_ref ? `<a href="/notices/${encodeURIComponent(b.notice_ref)}" target="_blank" rel="noopener" data-testid="bo-detail-notice-link" style="color:var(--primary,#0F3B2E);text-decoration:underline">${b.notice_ref}</a>` : "—"}</dd><dt>Vendor</dt><dd>${b.vendor_ref || b.company_name || "—"}</dd><dt>Price</dt><dd>${price}</dd><dt>EMD</dt><dd>${emdTxt}</dd>`;
+      // v51ay — documents block: previously the panel never listed the bid's
+      // envelope files, so admins had no way to open them from Bidding Ops
+      // ("unable to load the documents"). Links hit the authed upload
+      // endpoint directly (admin cookie is attached by the browser).
+      const docsWrap = root.querySelector('#d-docs');
+      const docs = Array.isArray(b.documents) ? b.documents.filter((d) => d && d.key) : [];
+      if (docsWrap) {
+        docsWrap.innerHTML = docs.length
+          ? `<div class="pmc-muted" style="font-size:11px;text-transform:uppercase;letter-spacing:1px">Envelope documents · ${docs.length}</div>` +
+            docs.map((d) => `<a href="/api/v1/uploads/files/${encodeURIComponent(d.key)}" target="_blank" rel="noopener" data-testid="bo-doc-${encodeURIComponent(d.key).slice(-12)}"
+                style="display:flex;justify-content:space-between;gap:8px;padding:6px 8px;border:1px solid rgba(15,59,46,.15);font-size:13px;color:var(--ink);text-decoration:none">
+                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.filename || d.file_name || d.key}</span>
+                <span class="pmc-muted" style="white-space:nowrap">${d.kind || "doc"}${d.size_bytes ? ` · ${Math.round(d.size_bytes/1024)} KB` : ""}</span></a>`).join("")
+          : `<div class="pmc-muted" style="font-size:12px">No envelope documents attached.</div>`;
+      }
       const tl = root.querySelector('#d-tl');
       if (tl) tl.innerHTML = stageNames.map((s, i) => { const c = awarded || i < idx ? "done" : i === idx ? "now" : ""; return `<div class="${c}"><span class="dot"></span><div><b>${s}</b><span>${stageOwners[i]}${c === "now" ? " · waiting" : c === "done" ? " · cleared" : ""}</span></div></div>`; }).join("");
       const act = root.querySelector('#d-act');
@@ -193,15 +208,12 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
         // after hold/resume/reject it kept showing the stale buttons (and the
         // disabled-in-flight "greyed Hold"). Re-open the panel for the same
         // bid once the live rows have been rebuilt so the on_hold note and
-        // Resume button appear immediately.
+        // Resume button appear immediately. (v51ay — single refresh; the old
+        // double-fire at 900ms + 1800ms made the panel reopen twice.)
         setTimeout(() => {
-          const row = root.querySelector(`[data-bid-id="${bidId}"]`);
+          const row = root.querySelector(`.bo-r[data-bid-id="${bidId}"]`);
           if (row) row.click();
-        }, 900);
-        setTimeout(() => {
-          const row = root.querySelector(`[data-bid-id="${bidId}"]`);
-          if (row) row.click();
-        }, 1800);
+        }, 1200);
       } catch (err) { showApiError(err); btn.disabled = false; }
     };
     const onBulkRemind = async (e) => {
@@ -385,6 +397,7 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
         <div className="pmc-panel__body" style={{display:"grid",gap:"14px"}}>
           <dl className="pmc-kv" id="d-kv"></dl>
           <div className="bo-tl" id="d-tl"></div>
+          <div id="d-docs" style={{display:"grid",gap:"6px"}}></div>
           <div id="d-act" style={{display:"grid",gap:"8px"}}></div>
         </div>
       </section>

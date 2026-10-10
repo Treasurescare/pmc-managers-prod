@@ -49,6 +49,10 @@ Public / Vendor / Buyer / Admin roles.
 - `/downloads/DOWNLOAD_mobile_v1.0.0.md`
 
 ## Latest web releases
+- **v51ay** — Bidding Ops usability: supplier rows now always show Review
+  alongside Send link; detail panel notice ref is a link to the public
+  notice page; new Envelope documents block with direct download links;
+  removed double panel re-open after hold/resume/reject. Frontend-only.
 - **v51ax** — Bug-sheet clearing batch: DocuSign envelope completion now
   stamps bids by `_id` ObjectId (was `{"id": ...}` which silently matched
   nothing — vendor status never flipped, xlsx #17); $0-EMD bids no longer
