@@ -718,6 +718,58 @@
 [data-ui="e"] [data-testid="admin-bid-page"] .pmc-label,
 [data-ui="e"] [data-testid="admin-bid-page"] .pmc-kicker { color: #334155 !important; }
 
+/* v51bf — Vendor Intel (triage table + manage modal + evidence manager)
+   readabilility. Same cream-on-cream failure mode as the admin bid page:
+   the Option E slate-text + bg-white remaps wash the modal, the KPI
+   tiles and the evidence rows out. Pin this panel to the light palette. */
+[data-ui="e"] [data-testid="admin-vendor-intel-panel"] {
+  background: #FFFFFF !important;
+  color: #0F172A !important;
+}
+[data-ui="e"] [data-testid="admin-vendor-intel-panel"] .bg-white,
+[data-ui="e"] [data-testid="admin-vendor-intel-panel"] .bg-slate-50,
+[data-ui="e"] [data-testid="admin-vendor-intel-panel"] .bg-amber-50,
+[data-ui="e"] [data-testid="admin-vendor-intel-panel"] .bg-slate-100 {
+  background: #FFFFFF !important;
+}
+[data-ui="e"] [data-testid="admin-vendor-intel-panel"] .bg-slate-50 {
+  background: #F8FAFC !important;
+}
+[data-ui="e"] [data-testid="admin-vendor-intel-panel"] .bg-amber-50 {
+  background: #FFFBEB !important;
+}
+[data-ui="e"] [data-testid="admin-vendor-intel-panel"] .text-slate-900,
+[data-ui="e"] [data-testid="admin-vendor-intel-panel"] .text-slate-800 { color: #0F172A !important; }
+[data-ui="e"] [data-testid="admin-vendor-intel-panel"] .text-slate-700 { color: #334155 !important; }
+[data-ui="e"] [data-testid="admin-vendor-intel-panel"] .text-slate-600 { color: #475569 !important; }
+[data-ui="e"] [data-testid="admin-vendor-intel-panel"] .text-slate-500 { color: #64748B !important; }
+[data-ui="e"] [data-testid="admin-vendor-intel-panel"] .text-slate-400 { color: #94A3B8 !important; }
+[data-ui="e"] [data-testid="admin-vendor-intel-panel"] .pmc-label,
+[data-ui="e"] [data-testid="admin-vendor-intel-panel"] .pmc-kicker { color: #334155 !important; }
+[data-ui="e"] [data-testid="admin-vendor-intel-panel"] input,
+[data-ui="e"] [data-testid="admin-vendor-intel-panel"] select,
+[data-ui="e"] [data-testid="admin-vendor-intel-panel"] textarea {
+  background: #FFFFFF !important;
+  border: 1px solid #CBD5E1 !important;
+  color: #0F172A !important;
+}
+[data-ui="e"] [data-testid="admin-vendor-intel-panel"] input::placeholder,
+[data-ui="e"] [data-testid="admin-vendor-intel-panel"] textarea::placeholder { color: #94A3B8 !important; }
+/* Borderless action buttons inside the evidence manager + the Manage
+   column — ensure they're always legible on the white modal. */
+[data-ui="e"] [data-testid="admin-vendor-intel-panel"] button.text-slate-800,
+[data-ui="e"] [data-testid="admin-vendor-intel-panel"] button.border-slate-800,
+[data-ui="e"] [data-testid="admin-vendor-intel-panel"] button.border-slate-400,
+[data-ui="e"] [data-testid="admin-vendor-intel-panel"] button.border-emerald-700,
+[data-ui="e"] [data-testid="admin-vendor-intel-panel"] button.border-red-500,
+[data-ui="e"] [data-testid="admin-vendor-intel-panel"] button.border-slate-300 {
+  color: #0F172A !important;
+  border-color: #94A3B8 !important;
+}
+/* KPI tiles inside the triage dashboard — force white cards + dark ink */
+[data-ui="e"] [data-testid="blacklist-dashboard-panel"] .bg-white { background: #FFFFFF !important; }
+[data-ui="e"] [data-testid="blacklist-dashboard-panel"] .bg-slate-50 { background: #F8FAFC !important; }
+
 /* v51bb — Admin vendor create/edit forms: brighten for readability.
    Under Option E these pages sat on a cream wash with muddy gold labels
    (#7A5F1E) and nearly invisible 18%-alpha input borders. Pin the form

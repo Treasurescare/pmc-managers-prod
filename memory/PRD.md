@@ -1,5 +1,19 @@
 # PMC Managers v2 — PRD (last touched 10 Oct 2026)
 
+## v51bf — Vendor Intel readability fix (10 Oct 2026)
+- Scoped CSS carve-out for `[data-testid="admin-vendor-intel-panel"]` +
+  `[data-testid="blacklist-dashboard-panel"]` in `frontend/src/index.css`
+  so the Option E theme no longer remaps slate text / white surfaces into
+  cream-on-cream. Fixes unreadable triage KPIs, blacklist modal buttons
+  (Upload document / View / Download / Print), and evidence rows.
+- Frontend-only release: `/downloads/pmc-frontend-v51bf-prod-build.zip`
+  (+ `DOWNLOAD_v51bf.md`). Backend stays on v51be.
+
+---
+
+
+# PMC Managers v2 — PRD (last touched 10 Oct 2026)
+
 ## v51be — Appeal decision workflow + CSRF resilience (10 Oct 2026)
 
 Bug fix
