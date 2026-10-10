@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { publicApi, vendorApi, bidApi, paymentApi, uploadsApi, sandboxPayApi, formatApiError, showApiError, BACKEND_URL } from "@/lib/api";
+import { publicApi, vendorApi, bidApi, paymentApi, uploadsApi, corrigendaApi, sandboxPayApi, formatApiError, showApiError, BACKEND_URL } from "@/lib/api";
 
 const GATEWAYS = [
   { id: "stripe", label: "Stripe", note: "Card · Live sandbox" },
@@ -21,6 +21,10 @@ export default function BidSubmit() {
   const [gateway, setGateway] = useState("stripe");
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState(null);
+  // v52bh — corrigenda acknowledgement: backend blocks submission (412)
+  // until every active corrigendum is acknowledged by this vendor.
+  const [corrigenda, setCorrigenda] = useState([]);
+  const [ackingId, setAckingId] = useState(null);
 
   // v51bd — local draft so vendors can save work and come back later.
   // (persisted BOTH to localStorage AND to the backend via bidApi.saveDraft
@@ -33,6 +37,12 @@ export default function BidSubmit() {
         const [v, n] = await Promise.all([vendorApi.me(), publicApi.getNotice(noticeRef)]);
         if (v.must_change_password) return nav("/vendor/change-password");
         setVendor(v); setNotice(n);
+        // Load any published corrigenda so the vendor can acknowledge them
+        // inline before submitting (412 gate on the backend).
+        try {
+          const cs = await corrigendaApi.listPublic(noticeRef);
+          setCorrigenda(Array.isArray(cs) ? cs : (cs?.items || []));
+        } catch { /* corrigenda are optional */ }
         // Prefer the server-side draft (cross-device) and fall back to local.
         let restored = null;
         try {
@@ -164,11 +174,40 @@ export default function BidSubmit() {
   const emdConfig = notice.emd_config || { fixed_amount: 0, percentage: 0, currency: notice.budget_currency };
   const emdDue = (emdConfig.fixed_amount || 0) + ((emdConfig.percentage || 0) / 100) * (notice.budget_amount || 0);
   const deadlinePassed = !!notice.submission_deadline && new Date(notice.submission_deadline) < new Date();
-  // v51bc — gate submit on both envelope kinds being uploaded.
+  // v52bc — gate submit on both envelope kinds being uploaded.
   const uploadedKinds = new Set(docs.map((d) => d.kind));
   const hasTech = uploadedKinds.has("technical");
   const hasComm = uploadedKinds.has("commercial");
   const docsOk = hasTech && hasComm;
+
+  // Corrigenda acknowledgement state (v52bh)
+  const myVendorId = vendor?.id;
+  const activeCorr = (corrigenda || []).filter((c) => c.is_active !== false);
+  const ackedByMe = (c) => (c.acknowledgements || []).some((a) => a.vendor_id === myVendorId);
+  const pendingCorr = activeCorr.filter((c) => !ackedByMe(c));
+  const allAcked = pendingCorr.length === 0;
+
+  const acknowledge = async (c) => {
+    setAckingId(c.id);
+    try {
+      await corrigendaApi.acknowledge(c.id);
+      setCorrigenda((prev) => prev.map((x) => x.id === c.id
+        ? { ...x, acknowledgements: [...(x.acknowledgements || []),
+            { vendor_id: myVendorId, vendor_email: vendor?.email,
+              vendor_ref: vendor?.vendor_ref, acknowledged_at: new Date().toISOString() }] }
+        : x));
+      toast.success(`Corrigendum ${c.corrigendum_no || ""} acknowledged`.trim());
+    } catch (e) {
+      // Already acknowledged is fine — treat as done.
+      if (e?.response?.status === 400 || e?.response?.status === 409) {
+        setCorrigenda((prev) => prev.map((x) => x.id === c.id
+          ? { ...x, acknowledgements: [...(x.acknowledgements || []), { vendor_id: myVendorId }] }
+          : x));
+      } else {
+        showApiError(e, { fallbackTitle: "Could not acknowledge corrigendum" });
+      }
+    } finally { setAckingId(null); }
+  };
 
   const saveDraft = async () => {
     try {
@@ -224,9 +263,46 @@ export default function BidSubmit() {
             </div>
           )}
           {formError && (
-            <div className="border border-red-300 bg-red-50 text-red-800 text-sm rounded-md px-4 py-3"
+            <div className="border border-red-300 bg-red-50 text-red-800 text-sm rounded-md px-4 py-3 whitespace-pre-line"
               data-testid="bid-submit-error">
               {formError}
+            </div>
+          )}
+
+          {activeCorr.length > 0 && (
+            <div className={`border rounded-md p-4 space-y-3 ${
+              allAcked ? "border-emerald-300 bg-emerald-50" : "border-amber-400 bg-amber-50"}`}
+              data-testid="bid-corrigenda-panel">
+              <div className="text-sm font-semibold text-slate-900">
+                Tender corrigenda ({activeCorr.length})
+                {!allAcked && <span className="text-amber-800 font-normal"> — acknowledge all before submitting</span>}
+              </div>
+              {activeCorr.map((c) => (
+                <div key={c.id} className="bg-white border border-slate-200 rounded p-3 text-sm"
+                     data-testid={`bid-corrigendum-${c.id}`}>
+                  <div className="font-medium text-slate-800">
+                    {c.corrigendum_no ? `Corrigendum ${c.corrigendum_no} · ` : ""}{c.title}
+                  </div>
+                  {c.summary && <div className="text-slate-600 text-xs mt-1 whitespace-pre-wrap">{c.summary}</div>}
+                  {c.new_submission_deadline && (
+                    <div className="text-xs text-slate-600 mt-1">
+                      New deadline: <strong>{String(c.new_submission_deadline).slice(0, 10)}</strong>
+                    </div>
+                  )}
+                  <div className="mt-2">
+                    {ackedByMe(c) ? (
+                      <span className="text-[11px] uppercase tracking-widest text-emerald-700 font-semibold"
+                            data-testid={`bid-corr-acked-${c.id}`}>Acknowledged ✓</span>
+                    ) : (
+                      <button type="button" onClick={() => acknowledge(c)} disabled={ackingId === c.id}
+                        className="px-3 py-1.5 text-[11px] uppercase tracking-widest border border-amber-700 text-amber-800 hover:bg-amber-700 hover:text-white disabled:opacity-50"
+                        data-testid={`bid-corr-ack-${c.id}`}>
+                        {ackingId === c.id ? "Acknowledging…" : "I acknowledge this corrigendum"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
           <label className="block text-sm">
@@ -326,11 +402,11 @@ export default function BidSubmit() {
               data-testid="bid-save-draft-btn">
               Save draft
             </button>
-            <button type="submit" disabled={busy || deadlinePassed || !docsOk}
+            <button type="submit" disabled={busy || deadlinePassed || !docsOk || !allAcked}
               className="flex-[2] bg-slate-900 text-white rounded-md py-4 text-sm font-semibold hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed"
               data-testid="bid-submit-btn"
-              title={!docsOk ? "Upload Technical AND Commercial PDFs first" : ""}>
-              {busy ? "Submitting…" : deadlinePassed ? "Deadline passed" : !docsOk ? "Upload both envelopes to submit" : (emdDue > 0 ? `Submit & pay EMD (${emdConfig.currency} ${emdDue.toLocaleString()})` : "Submit bid")}
+              title={!allAcked ? "Acknowledge every corrigendum above first" : !docsOk ? "Upload Technical AND Commercial PDFs first" : ""}>
+              {busy ? "Submitting…" : deadlinePassed ? "Deadline passed" : !allAcked ? `Acknowledge ${pendingCorr.length} corrigend${pendingCorr.length === 1 ? "um" : "a"} to submit` : !docsOk ? "Upload both envelopes to submit" : (emdDue > 0 ? `Submit & pay EMD (${emdConfig.currency} ${emdDue.toLocaleString()})` : "Submit bid")}
             </button>
           </div>
         </form>

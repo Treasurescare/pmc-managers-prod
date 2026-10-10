@@ -1,5 +1,25 @@
 # PMC Managers v2 — PRD (last touched 10 Oct 2026)
 
+## v52bh — Corrigenda acknowledgement deadlock + "[object Object]" toast (10 Oct 2026)
+- Backend `routers/corrigenda.py`: `POST /corrigenda/{cid}/acknowledge` no
+  longer requires an active bid — breaks the chicken-and-egg deadlock that
+  produced HTTP 412 on bid submission for tenders with active corrigenda.
+- Frontend `lib/api.js`: `formatApiError` renders structured 412 details
+  (`{code, message, corrigenda:[…]}`) as readable text instead of
+  "[object Object]".
+- `BidSubmit.jsx`: inline corrigenda acknowledgement panel — lists every
+  active corrigendum (title/summary/new deadline) with an acknowledge
+  button; Submit disabled until all acknowledged.
+- Verified: ack without a bid now returns `{ok:true}`; test corrigendum
+  withdrawn after verification.
+- Releases: `pmc-frontend-v52bh-prod-build.zip` + `pmc-backend-v52bh.zip`
+  (+ `DOWNLOAD_v52bh.md`). Backend deploy REQUIRED this time.
+
+---
+
+
+# PMC Managers v2 — PRD (last touched 10 Oct 2026)
+
 ## v52bg — Vendor Intel modal UX fix (10 Oct 2026)
 - Whitelist (and approve-with-whitelist) now auto-close the manage modal
   and return the admin to the triage list — the blacklist window no

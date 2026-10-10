@@ -277,13 +277,13 @@ async def acknowledge_corrigendum(cid: str, vendor=Depends(current_vendor)):
     c = await db.corrigenda.find_one({"_id": oid, "is_active": True})
     if not c:
         raise HTTPException(status_code=404, detail="Corrigendum not found or withdrawn")
-    # Must have a bid on the same notice before acknowledging.
+    # v52bh — allow acknowledgement BEFORE a bid exists. The submission gate
+    # (ensure_corrigenda_acknowledged) blocks bid creation until every active
+    # corrigendum is acknowledged, so requiring an active bid here deadlocked
+    # new vendors: no bid → can't acknowledge → can't create the bid.
     bid = await db.bids.find_one({"notice_ref": c["notice_ref"],
                                     "vendor_id": vendor["id"],
                                     "status": {"$nin": ["withdrawn", "rejected"]}})
-    if not bid:
-        raise HTTPException(status_code=400,
-                             detail="You need an active bid on this notice before you can acknowledge the corrigendum.")
     acks = c.get("acknowledgements") or []
     if not any(a.get("vendor_id") == vendor["id"] for a in acks):
         acks.append({"vendor_id": vendor["id"],

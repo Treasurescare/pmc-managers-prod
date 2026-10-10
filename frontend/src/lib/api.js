@@ -98,6 +98,19 @@ export function formatApiError(err) {
   if (Array.isArray(d))
     return d.map((e) => (e && typeof e.msg === "string" ? e.msg : JSON.stringify(e))).filter(Boolean).join(" ");
   if (d && typeof d.msg === "string") return d.msg;
+  // v52bh — structured details (e.g. 412 {code, message, corrigenda:[…]})
+  // must render as readable text, never "[object Object]".
+  if (d && typeof d.message === "string") {
+    const extra = Array.isArray(d.corrigenda) && d.corrigenda.length
+      ? " (" + d.corrigenda.map((c) => c.title || c.corrigendum_no || c.id).join("; ") + ")"
+      : "";
+    return d.message + extra;
+  }
+  if (d && typeof d.error === "string") return d.error;
+  if (d && typeof d.detail === "string") return d.detail;
+  if (d && typeof d === "object") {
+    try { return JSON.stringify(d); } catch { /* fall through */ }
+  }
   return String(d);
 }
 
