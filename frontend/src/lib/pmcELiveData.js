@@ -438,6 +438,30 @@ export function useNoticeDetailLive({ enabled = true, noticeRef } = {}) {
         }
         // Chips (tag, ref, corrigendum, status)
         const chips = root.querySelectorAll(".pmc-tag, .pmc-ref, .pmc-pill");
+        // v52bo — the hero shows a "Corrigendum X · DD Mon" pill when at
+        // least one active corrigendum exists. Pulled from the live notice
+        // record (updates on every patch tick) instead of the hard-coded
+        // demo pill the HTML shipped with.
+        const corrPill = Array.from(root.querySelectorAll(".pmc-pill--info"))
+          .find((p) => /corrigendum/i.test(p.textContent || ""));
+        if (corrPill) {
+          const latest = (n.corrigenda || [])
+            .filter((c) => c && c.is_active !== false)
+            .sort((a, b) => (a.corrigendum_no || 0) - (b.corrigendum_no || 0))
+            .pop();
+          if (latest) {
+            const d = latest.effective_from || latest.published_at;
+            const dayMonth = d
+              ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })
+              : "";
+            corrPill.textContent = `Corrigendum ${latest.corrigendum_no || ""} · ${dayMonth}`.trim();
+            corrPill.hidden = false;
+          } else {
+            // No active corrigenda → hide the hero pill (prevents the stale
+            // "Corrigendum 1 · 26 Sep" demo chip from leaking into prod).
+            corrPill.hidden = true;
+          }
+        }
         // pmc-tag & .pmc-ref are in the header
         const tagEl = root.querySelector(".pmc-tag");
         const refEl = root.querySelector(".pmc-ref");

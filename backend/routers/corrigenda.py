@@ -21,6 +21,7 @@ from db import db, next_sequence
 from models.base import BaseDocument, now_iso
 from security import require_role
 from audit import audit_log
+import config
 
 router = APIRouter(prefix="/api/v1/notices", tags=["corrigenda"])
 
@@ -113,6 +114,61 @@ async def publish_corrigendum(
 
     await audit_log("corrigendum.publish", admin, "notice", notice_ref,
                     {"corrigendum_no": corr_no, "title": payload.title})
+    # v52bo — build the one-page corrigendum PDF ONCE and reuse for every
+    # bidder email + expose it via GET …/pdf. Any failure is logged but never
+    # blocks publish — the diff still renders in-app.
+    pdf_bytes: Optional[bytes] = None
+    try:
+        from routers.corrigenda_pdf import build_corrigendum_pdf
+        pdf_bytes = build_corrigendum_pdf(n, doc)
+        await db.corrigenda.update_one(
+            {"_id": res.inserted_id},
+            {"$set": {"pdf_generated_at": now_iso(),
+                      "pdf_bytes_len": len(pdf_bytes)}},
+        )
+    except Exception as e:
+        import logging
+        logging.exception("corrigendum pdf build failed: %s", e)
+
+    # v52bo — email every active bidder on this notice with the diff PDF
+    # attached. Only vendors who have an un-withdrawn bid are notified.
+    try:
+        import asyncio, base64 as _b64
+        from emails import send_email, wrap as _wrap
+        attachments = None
+        if pdf_bytes:
+            attachments = [{
+                "filename": f"Corrigendum-{corr_no}-{notice_ref}.pdf",
+                "content_b64": _b64.b64encode(pdf_bytes).decode(),
+                "content_type": "application/pdf",
+            }]
+        emails_seen = set()
+        cursor = db.bids.find(
+            {"notice_ref": notice_ref, "status": {"$ne": "withdrawn"}},
+            {"vendor_email": 1},
+        )
+        async for b in cursor:
+            em = b.get("vendor_email")
+            if not em or em in emails_seen:
+                continue
+            emails_seen.add(em)
+            subject = f"Corrigendum {corr_no} · {notice_ref}"
+            body_html = _wrap(
+                f"Corrigendum {corr_no} — {payload.title}",
+                (f"<p>A formal amendment has been issued on tender "
+                 f"<code>{notice_ref}</code>.</p>"
+                 f"<p>{(payload.summary or '')}</p>"
+                 f"<p>The attached one-page diff sheet shows every field "
+                 f"that changed, with before / after values and the reason.</p>"),
+                cta_label="Open notice",
+                cta_url=f"{config.FRONTEND_URL}/notices/{notice_ref}" if hasattr(config, "FRONTEND_URL") else f"/notices/{notice_ref}",
+            )
+            asyncio.create_task(send_email(em, subject, body_html, attachments=attachments))
+        import logging as _lg
+        _lg.info("corrigendum %s/%s: emailed %d bidders", notice_ref, corr_no, len(emails_seen))
+    except Exception as e:
+        import logging
+        logging.exception("corrigendum email fan-out failed: %s", e)
     # v46t — fan out a Web Push to every subscription so bidders learn instantly.
     try:
         from routers.push import fanout as _push_fanout
@@ -190,6 +246,30 @@ async def withdraw_corrigendum(
     # the authoritative is_active=false without a second round-trip.
     fresh = await db.corrigenda.find_one({"_id": oid})
     return {"ok": True, "corrigendum": _out(fresh) if fresh else None}
+
+
+@router.get("/{notice_ref}/corrigenda/{cid}/pdf")
+async def download_corrigendum_pdf(notice_ref: str, cid: str):
+    """v52bo — one-page diff PDF for a single corrigendum. Public — this
+    is the same artefact bidders receive by email on publish."""
+    from fastapi.responses import Response
+    if not ObjectId.is_valid(cid):
+        raise HTTPException(status_code=400, detail="Invalid corrigendum id")
+    doc = await db.corrigenda.find_one({"_id": ObjectId(cid),
+                                         "notice_ref": notice_ref})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Corrigendum not found")
+    n = await db.notices.find_one({"notice_ref": notice_ref})
+    if not n:
+        raise HTTPException(status_code=404, detail="Notice not found")
+    from routers.corrigenda_pdf import build_corrigendum_pdf
+    pdf_bytes = build_corrigendum_pdf(n, doc)
+    fname = f"Corrigendum-{doc.get('corrigendum_no', '')}-{notice_ref}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{fname}"'},
+    )
 
 
 @router.post("/{notice_ref}/corrigenda/{cid}/attachment")

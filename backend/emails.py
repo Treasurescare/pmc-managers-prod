@@ -39,9 +39,12 @@ def _wrap(title: str, body_html: str, cta_label: Optional[str] = None, cta_url: 
 """
 
 
-async def send_email(to_email: str, subject: str, html: str) -> bool:
+async def send_email(to_email: str, subject: str, html: str,
+                     attachments: Optional[list] = None) -> bool:
     # Direct Resend path — sends from the verified pmcmanagers.com domain so
     # recipients see PMC's own address, never a third-party relay domain.
+    # v52bo — optional `attachments` list ({filename, content_b64, content_type})
+    # is forwarded to Resend so corrigendum PDFs reach bidders inline.
     if config.RESEND_API_KEY:
         payload = {
             "from": f"{config.EMAIL_FROM_NAME} <{config.EMAIL_FROM_ADDRESS}>",
@@ -51,6 +54,11 @@ async def send_email(to_email: str, subject: str, html: str) -> bool:
         }
         if config.EMAIL_REPLY_TO:
             payload["reply_to"] = config.EMAIL_REPLY_TO
+        if attachments:
+            payload["attachments"] = [
+                {"filename": a["filename"], "content": a["content_b64"]}
+                for a in attachments if a.get("filename") and a.get("content_b64")
+            ]
         try:
             async with httpx.AsyncClient(timeout=15) as c:
                 r = await c.post("https://api.resend.com/emails",

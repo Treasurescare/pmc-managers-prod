@@ -1,5 +1,44 @@
 # PMC Managers v2 — PRD (last touched 10 Oct 2026)
 
+## v52bo — EMD zero allowed · Stakeholder reports sidebar · Live corrigendum pill · Corrigendum PDF email (10 Oct 2026)
+
+Backend
+- `routers/notices.py` — removed the "EMD must be positive" validation.
+  Budget-amount>0 remains the only money validation on create. EMD = 0 is
+  valid for walk-in tenders / free RFQs / pre-qualifications.
+- `routers/corrigenda.py`:
+  - `publish_corrigendum` now (a) builds a one-page diff PDF using
+    `reportlab` via new helper `routers/corrigenda_pdf.py`, (b) fans the PDF
+    out to every active bidder (`db.bids` non-withdrawn) via Resend as an
+    email attachment, (c) stamps `pdf_generated_at` on the corrigendum doc,
+    (d) logs the fan-out size.
+  - New public endpoint `GET /{notice_ref}/corrigenda/{cid}/pdf` returns the
+    same one-page diff PDF for in-browser download / inline view.
+  - Added `import config` (fixes undefined name after email block).
+- `routers/corrigenda_pdf.py` (NEW) — A4, PMC chrome, title, effective date,
+  overall change description, Field/Before/After/Reason table (red/green
+  colour-coded cells), deadline change, attachment names, audit footer.
+- `emails.py` — `send_email()` now accepts an optional `attachments` list
+  (`{filename, content_b64, content_type}`) forwarded to Resend.
+
+Frontend
+- `apps/admin-console/NoticesPanel.jsx` — removed client-side EMD>0 guard.
+- `lib/pmcELiveData.js` — `useNoticeDetailLive` now patches the hero
+  `pmc-pill--info` corrigendum chip from the latest active corrigendum in
+  the live record (`effective_from || published_at`); hides the chip when
+  no active corrigenda exist. Removes the stale demo "Corrigendum 1 · 26 Sep".
+- `apps/admin-console-e/Admin{BiddingOps,VendorKyc,TenderBuilder,Programme,
+  EvaluationList,Dashboard}E.jsx` — added the "Stakeholder reports" sidebar
+  entry (was missing on Bidding Ops and 5 other E-pages).
+
+Bundle
+- Frontend: `pmc-frontend-v52bo-prod-build.zip` (3.0 MB)
+- Backend: `pmc-backend-v52bo.zip` (EB-ready root layout)
+
+---
+
+
+
 ## v52bn — Public corrigendum diff + live-notice Edit → Corrigendum flow (10 Oct 2026)
 
 User-approved regulated-procurement flow: everything on a LIVE notice (fields

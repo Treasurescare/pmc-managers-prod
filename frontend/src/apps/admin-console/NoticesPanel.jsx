@@ -170,14 +170,8 @@ export default function NoticesPanel() {
       toast.error("Budget amount must be greater than zero");
       return;
     }
-    // v52bl — require positive EMD (fixed amount or % of budget) so the
-    // public page never shows an empty EMD.
-    const emdFixed = Number(draft.emd_config?.fixed_amount || 0);
-    const emdPct = Number(draft.emd_config?.percentage || 0);
-    if (emdFixed <= 0 && emdPct <= 0) {
-      toast.error("EMD is required · enter a fixed amount or a % of budget");
-      return;
-    }
+    // v52bo — EMD can be zero (walk-in tenders, free RFQs, pre-qualifications).
+    // Only budget stays mandatory; the public page shows "No EMD required".
     if (!draft.submission_deadline) {
       toast.error("Submission deadline is required");
       return;

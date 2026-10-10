@@ -155,19 +155,12 @@ async def create_notice(payload: NoticeIn, admin=Depends(require_role(
     await require_notice_permission(admin, "create", payload.document_type)
     if payload.is_published:
         await require_notice_permission(admin, "publish", payload.document_type)
-    # v52bl — refuse notices with no indicative value or no EMD. These were
-    # being accepted silently and surfaced on the public page as "— —" which
-    # confuses bidders and makes EMD math impossible downstream.
+    # v52bl — refuse notices with no indicative value. Budget must be > 0.
     if not payload.budget_amount or float(payload.budget_amount) <= 0:
         raise HTTPException(status_code=422,
             detail="Budget amount must be greater than zero. A tender with no indicative value cannot be published.")
-    emd_cfg = (payload.emd_config.model_dump() if hasattr(payload.emd_config, "model_dump")
-               else (payload.emd_config or {}))
-    emd_fixed = float(emd_cfg.get("fixed_amount") or 0)
-    emd_pct = float(emd_cfg.get("percentage") or 0)
-    if emd_fixed <= 0 and emd_pct <= 0:
-        raise HTTPException(status_code=422,
-            detail="EMD must be positive. Set either a fixed amount or a % of budget — a tender with zero EMD cannot be opened for bids.")
+    # v52bo — EMD is allowed to be zero (walk-in tenders, free RFQs, pre-qualifications).
+    # Only budget stays mandatory.
     seq = await next_sequence("notice_seq")
     from datetime import datetime, timezone
     year = datetime.now(timezone.utc).year
