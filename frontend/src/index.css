@@ -702,10 +702,21 @@
 [data-ui="e"] [data-testid="bid-submit-page"],
 [data-ui="e"] [data-testid="payment-result"],
 [data-ui="e"] [data-testid="sandbox-checkout"],
-[data-ui="e"] [data-testid="vendor-verify-page"] {
+[data-ui="e"] [data-testid="vendor-verify-page"],
+[data-ui="e"] [data-testid="admin-bid-page"] {
   background: #F8FAFC !important;
   color: #0F172A !important;
 }
+/* v51ba — admin bid detail page is a LIGHT page: force readable slate
+   ink inside cards (was cream-on-cream from the global remap). */
+[data-ui="e"] [data-testid="admin-bid-page"] .text-slate-900,
+[data-ui="e"] [data-testid="admin-bid-page"] .text-slate-800 { color: #0F172A !important; }
+[data-ui="e"] [data-testid="admin-bid-page"] .text-slate-700 { color: #334155 !important; }
+[data-ui="e"] [data-testid="admin-bid-page"] .text-slate-600 { color: #475569 !important; }
+[data-ui="e"] [data-testid="admin-bid-page"] .text-slate-500 { color: #64748B !important; }
+[data-ui="e"] [data-testid="admin-bid-page"] .bg-white { background: #FFFFFF !important; }
+[data-ui="e"] [data-testid="admin-bid-page"] .pmc-label,
+[data-ui="e"] [data-testid="admin-bid-page"] .pmc-kicker { color: #334155 !important; }
 /* v49g — registration review doc cards must stay light/readable; the global
    slate remap above paints them deep green with invisible dark text. */
 [data-ui="e"] [data-testid^="reg-doc-"] {

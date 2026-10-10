@@ -1,3 +1,38 @@
+# PMC Managers v2 — PRD (last touched 10 Oct 2026)
+
+## v51ba — Admin bid detail & Award record (10 Oct 2026)
+- Fixed cream-on-cream unreadable text in the admin bid detail page by
+  adding a scoped CSS carve-out for `[data-testid="admin-bid-page"]`
+  (`frontend/src/index.css`).
+- Added a dedicated **Award Record** panel on `/admin/bids/:bidId` that
+  shows, for awarded bids only:
+    * award ref, PO no., awarded by/at
+    * tender ref, title, delivery country, published date, submission deadline
+    * bid submission, technical cleared, financial opened timestamps
+    * winning vendor + awarded price
+    * lifecycle sign-offs (escrow, PMC admin, certifier, legal, accounts, committee)
+    * escrow dual-signature ledger entries (PMC + institution officer stamps)
+    * DocuSign envelopes with completion timestamps
+    * Print Award Letter / Download PDF, Print Contract / Download PDF
+- New admin-only backend endpoints under `routers/awards.py`:
+    * `GET /api/v1/awards/bid/{bid_id}/summary`
+    * `GET /api/v1/awards/bid/{bid_id}/award-letter.html`
+    * `GET /api/v1/awards/bid/{bid_id}/award-letter.pdf`
+    * `GET /api/v1/awards/bid/{bid_id}/contract.html`
+    * `GET /api/v1/awards/bid/{bid_id}/contract.pdf`
+- Verified end-to-end against awarded bid `PMC-BID-2026-00005`
+  (award ref `PMC-AWD-2026-00003`): page readable, summary API returns
+  full timeline, HTML print view renders, PDF export streams
+  WeasyPrint-rendered A4 (admin-only — 401 without auth, 404 for
+  non-awarded bids).
+- Release artifacts:
+    * `/downloads/pmc-frontend-v51ba-prod-build.zip` (≈ 3.0 MB)
+    * `/downloads/pmc-backend-v51ba.zip` (≈ 523 KB)
+    * `/downloads/DOWNLOAD_v51ba.md`
+
+---
+
+
 # PMC Managers v2 — PRD (as of Feb 2026 — Mobile App Store Stream)
 
 ## Current Objective

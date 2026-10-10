@@ -1,22 +1,21 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { api, publicApi, showApiError } from "@/lib/api";
+import { api, publicApi, showApiError, BACKEND_URL } from "@/lib/api";
 
 /**
- * v47h — full-page admin bid detail. Shows the ENTIRE vendor submission:
- * identity, commercial + EMD breakdown, notes, every uploaded document
- * (inline preview for images/PDF, open/download for all) and workflow history.
+ * v51ba — full-page admin bid detail. Shows the ENTIRE vendor submission
+ * plus a dedicated Award Record panel with lifecycle sign-offs and
+ * printable Award Letter / Procurement Contract.
  */
 export default function AdminBidDetailPage() {
   const { bidId } = useParams();
   const nav = useNavigate();
   const [bid, setBid] = useState(null);
   const [notice, setNotice] = useState(null);
+  const [award, setAward] = useState(null);
   const [err, setErr] = useState("");
   const [deleting, setDeleting] = useState(false);
 
-  // v51al — an orphan bid is one that slipped past the old create endpoint
-  // with no price, no documents and no EMD paid. Admin may clean it up.
   const isOrphan = bid && (
     (!bid.price_amount || Number(bid.price_amount) <= 0)
     && (!bid.documents || bid.documents.length === 0)
@@ -44,10 +43,18 @@ export default function AdminBidDetailPage() {
         const b = (await api.get(`/api/v1/bids/admin/${bidId}`)).data;
         if (cancelled) return;
         setBid(b);
+        // Notice context is best-effort.
         try {
           const n = await publicApi.getNotice(b.notice_ref);
           if (!cancelled) setNotice(n);
-        } catch { /* notice context is best-effort */ }
+        } catch { /* ignore */ }
+        // Award summary only when the bid is awarded.
+        if (b.status === "awarded" || b.awarded_at) {
+          try {
+            const a = (await api.get(`/api/v1/awards/bid/${bidId}/summary`)).data;
+            if (!cancelled) setAward(a);
+          } catch { /* non-fatal */ }
+        }
       } catch (e) {
         if (e?.response?.status === 401 || e?.response?.status === 403) {
           return nav("/admin/login");
@@ -61,6 +68,36 @@ export default function AdminBidDetailPage() {
 
   const docUrl = (d) =>
     d.url || (d.key ? `/api/v1/uploads/files/${d.key}` : null);
+
+  const openPrintView = (kind) => {
+    // Open auth-protected HTML in a new tab. Backend reads the httpOnly
+    // auth cookie, so a plain window.open works for admin users.
+    const base = BACKEND_URL || "";
+    const url = `${base}/api/v1/awards/bid/${bidId}/${kind}.html`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const downloadPdf = async (kind) => {
+    try {
+      const path = kind === "award-letter"
+        ? `/api/v1/awards/bid/${bidId}/award-letter.pdf`
+        : `/api/v1/awards/bid/${bidId}/contract.pdf`;
+      const res = await api.get(path, { responseType: "blob" });
+      const blob = new Blob([res.data], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${award?.award_ref || "award"}-${kind}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch (e) {
+      showApiError(e);
+    }
+  };
+
+  const fmtTs = (v) => (v || "").slice(0, 19).replace("T", " ");
 
   return (
     <div className="min-h-screen bg-slate-50" data-testid="admin-bid-page">
@@ -99,9 +136,7 @@ export default function AdminBidDetailPage() {
                     <div className="pmc-label text-red-900">Orphan bid detected</div>
                     <div className="text-sm text-red-900 mt-1">
                       This bid has no quoted price, no documents and no EMD paid.
-                      It was most likely left behind by an older client-side error
-                      before v51al's validation gate was in place. Delete to clear
-                      the queue — the vendor can re-submit cleanly.
+                      Delete to clear the queue — the vendor can re-submit cleanly.
                     </div>
                   </div>
                   <button onClick={deleteOrphan} disabled={deleting}
@@ -112,13 +147,151 @@ export default function AdminBidDetailPage() {
                 </div>
               </section>
             )}
+
+            {/* v51ba — Award Record panel (awarded bids only) */}
+            {award && award.is_awarded && (
+              <section className="bg-white border border-emerald-300 p-6" data-testid="admin-bid-award-record">
+                <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+                  <div>
+                    <div className="pmc-label text-emerald-700">Award record</div>
+                    <div className="font-display text-xl text-brand-navy mt-1" data-testid="admin-bid-award-ref">
+                      {award.award_ref || "—"}
+                      {award.po_no && <span className="text-xs text-slate-500 ml-3 font-mono">PO · {award.po_no}</span>}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pmc-no-print">
+                    <button onClick={() => openPrintView("award-letter")}
+                            data-testid="admin-bid-print-award-letter"
+                            className="px-3 py-1.5 text-[11px] uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep">
+                      Print Award Letter
+                    </button>
+                    <button onClick={() => downloadPdf("award-letter")}
+                            data-testid="admin-bid-pdf-award-letter"
+                            className="px-3 py-1.5 text-[11px] uppercase tracking-widest border border-brand-navy/40 text-brand-navy hover:bg-brand-navy/5">
+                      Download PDF
+                    </button>
+                    <button onClick={() => openPrintView("contract")}
+                            data-testid="admin-bid-print-contract"
+                            className="px-3 py-1.5 text-[11px] uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep">
+                      Print Contract
+                    </button>
+                    <button onClick={() => downloadPdf("contract")}
+                            data-testid="admin-bid-pdf-contract"
+                            className="px-3 py-1.5 text-[11px] uppercase tracking-widest border border-brand-navy/40 text-brand-navy hover:bg-brand-navy/5">
+                      Download PDF
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-3 text-sm" data-testid="admin-bid-award-tender">
+                  <F label="Tender ref" value={award.tender?.notice_ref} mono />
+                  <F label="Tender title" value={award.tender?.title} />
+                  <F label="Delivery country" value={award.tender?.delivery_country} />
+                  <F label="Tender opened" value={fmtTs(award.tender?.published_at)} />
+                  <F label="Submission deadline" value={fmtTs(award.tender?.submission_deadline)} />
+                  <F label="Bid submitted" value={fmtTs(award.winner?.submitted_at)} />
+                  <F label="Technical cleared" value={fmtTs(award.winner?.technical_cleared_at)} />
+                  <F label="Financial opened" value={fmtTs(award.winner?.financial_opened_at)} />
+                  <F label="Awarded at" value={fmtTs(award.awarded_at)} />
+                </div>
+
+                <div className="mt-5 border-t pt-4 grid gap-4 md:grid-cols-3 text-sm" data-testid="admin-bid-award-winner">
+                  <F label="Winning vendor" value={award.winner?.company_name} />
+                  <F label="Vendor ref" value={award.winner?.vendor_ref} mono />
+                  <F label="Vendor email" value={award.winner?.vendor_email} mono />
+                  <F label="Awarded price"
+                     value={`${award.winner?.price_currency || ""} ${(award.winner?.price_amount ?? 0).toLocaleString()}`} />
+                  <F label="Awarded by" value={award.awarded_by} />
+                </div>
+
+                <div className="mt-5 border-t pt-4" data-testid="admin-bid-award-signoffs">
+                  <div className="pmc-label mb-2">Lifecycle sign-offs</div>
+                  <ul className="divide-y divide-slate-100">
+                    {(award.signoffs || []).map((s) => (
+                      <li key={s.key} className="py-2 flex items-center justify-between gap-3 text-sm"
+                          data-testid={`admin-bid-signoff-${s.key}`}>
+                        <div>
+                          <span className="font-medium text-slate-800">{s.label}</span>
+                          {s.by && <span className="text-slate-500"> · {s.by}</span>}
+                          {s.notes && <span className="text-slate-500 italic"> — {s.notes}</span>}
+                        </div>
+                        <div className="text-xs">
+                          {s.signed ? (
+                            <span className="text-slate-500">{fmtTs(s.at)}</span>
+                          ) : (
+                            <span className="text-amber-700 uppercase tracking-widest text-[10px]">pending</span>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+
+                  {(award.escrow || []).length > 0 && (
+                    <div className="mt-4 bg-slate-50 border border-slate-200 p-3">
+                      <div className="pmc-label mb-2">Escrow ledger &amp; dual sign-off</div>
+                      <ul className="space-y-2 text-sm">
+                        {award.escrow.map((tx, i) => (
+                          <li key={i} className="border-b border-slate-100 pb-2"
+                              data-testid={`admin-bid-escrow-tx-${i}`}>
+                            <div className="flex justify-between flex-wrap gap-2">
+                              <span className="font-medium text-slate-800">
+                                {tx.currency} {Number(tx.amount || 0).toLocaleString()}
+                                <span className="text-xs text-slate-500 ml-2">· {tx.status}</span>
+                              </span>
+                              {tx.released_at && (
+                                <span className="text-xs text-slate-500">
+                                  Released {fmtTs(tx.released_at)} → {tx.released_to}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-slate-600 mt-1 grid md:grid-cols-2 gap-1">
+                              <div>PMC: {tx.pmc_officer || "—"}
+                                {tx.pmc_signed_at && <span className="text-slate-500"> · {fmtTs(tx.pmc_signed_at)}</span>}
+                              </div>
+                              <div>Escrow: {tx.escrow_officer || "—"}
+                                {tx.escrow_signed_at && <span className="text-slate-500"> · {fmtTs(tx.escrow_signed_at)}</span>}
+                              </div>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {(award.envelopes || []).length > 0 && (
+                    <div className="mt-4" data-testid="admin-bid-award-envelopes">
+                      <div className="pmc-label mb-2">DocuSign envelopes</div>
+                      <ul className="space-y-1 text-sm">
+                        {award.envelopes.map((e) => (
+                          <li key={e.envelope_id}
+                              className="flex justify-between gap-2 border-b border-slate-100 py-1.5">
+                            <span>
+                              <span className="font-mono text-xs text-slate-500">{(e.kind || "")}·{(e.sub_kind || "")}</span>
+                              <span className="ml-2">{e.signer_name || e.signer_email || "—"}</span>
+                              {e.archived && <span className="ml-2 text-[10px] uppercase tracking-widest text-slate-500">archived</span>}
+                            </span>
+                            <span className="text-xs">
+                              <span className={e.status === "completed" ? "text-emerald-700" : "text-amber-700"}>
+                                {e.status || "—"}
+                              </span>
+                              {e.completed_at && <span className="text-slate-500 ml-2">{fmtTs(e.completed_at)}</span>}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
+
             <section className="bg-white border p-6">
               <div className="pmc-label mb-3">Submission</div>
               <div className="grid gap-4 md:grid-cols-3 text-sm">
                 <F label="Notice" value={bid.notice_ref} mono />
                 <F label="Notice title" value={notice?.title || "—"} />
                 <F label="Status" value={bid.status} />
-                <F label="Submitted at" value={(bid.submitted_at || bid.created_at || "").slice(0, 19).replace("T", " ")} />
+                <F label="Submitted at" value={fmtTs(bid.submitted_at || bid.created_at)} />
                 <F label="Vendor" value={bid.company_name || "—"} />
                 <F label="Vendor ref" value={bid.vendor_ref || "—"} mono />
                 <F label="Vendor email" value={bid.vendor_email || "—"} mono />
@@ -192,22 +365,14 @@ export default function AdminBidDetailPage() {
                               </a>
                             </div>
                           )}
-                          {false && (
-                            <div className="flex gap-2 pmc-no-print"><a href={url} download={d.filename || d.name || true}
-                                data-testid={`admin-bid-doc-download-${i}`}
-                                className="text-[11px] uppercase tracking-widest px-3 py-1.5 border border-brand-navy/30 text-brand-navy hover:bg-brand-navy/5">
-                                Download
-                              </a>
-                            </div>
-                          )}
                         </div>
                         {url && isImg && (
                           <img src={url} alt={d.filename || "attachment"}
-                            className="mt-3 max-h-96 border" data-testid={`admin-bid-doc-preview-${i}`} />
+                            className="mt-3 max-h-96 border" data-testid={`admin-bid-doc-img-${i}`} />
                         )}
                         {url && isPdf && (
                           <iframe src={url} title={d.filename || `pdf-${i}`}
-                            className="mt-3 w-full h-[480px] border pmc-no-print" data-testid={`admin-bid-doc-preview-${i}`} />
+                            className="mt-3 w-full h-[480px] border pmc-no-print" data-testid={`admin-bid-doc-pdf-${i}`} />
                         )}
                       </div>
                     );
@@ -224,10 +389,11 @@ export default function AdminBidDetailPage() {
                     <li key={i} className="flex justify-between border-b border-slate-100 py-1.5">
                       <span>
                         <strong>{w.action || w.step}</strong>
+                        <span className="text-slate-500"> · {w.role}</span>
                         {w.by && <span className="text-slate-500"> · by {w.by}</span>}
                         {w.notes && <span className="text-slate-500"> · {w.notes}</span>}
                       </span>
-                      <span className="text-slate-500 text-xs">{(w.at || "").slice(0, 16).replace("T", " ")}</span>
+                      <span className="text-slate-500 text-xs">{fmtTs(w.at)}</span>
                     </li>
                   ))}
                 </ul>
