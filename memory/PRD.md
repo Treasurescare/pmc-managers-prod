@@ -66,6 +66,27 @@ Public / Vendor / Buyer / Admin roles.
 - **v51ar** — Login-page escrow registration entrypoint.
 - **v51aq** — Duplicate escrow transaction guard (409), admin cancel row,
   release CSV export, EMD ledger search bar.
+
+## Mobile Store Status
+- Google Play Developer Console: Account "The PMC Managers Limited" verified.
+- App created: `com.pmcmanagers.tenders` (PMC Managers — Tender & EMD Escrow).
+- Policy setup completed: Privacy Policy, Sign-in details (App Access), Ads,
+  Content Ratings (IARC PEGI 3 / Everyone), Target Audience (18+), Data Safety
+  (5 data types declared, encrypted in transit).
+- Main Store Listing: Text assets, descriptions, icon (1024x1024 PNG), feature
+  graphic (1024x500 PNG) and screenshots submitted.
+- Android project v1.0.1: Created self-contained Android package with embedded
+  Capacitor plugins and pre-configured release keystore (`pmc-upload-key.keystore`).
+  download fix (`/api/v1/uploads/public-files/{key}` anon endpoint +
+  NoticeDetail attachment links), Stakeholder Reports link restored to
+  Bidding Ops sidebar.
+- **v51at** — L1 Award page crash guard, vendor-list cache-bust after approve,
+  PDF-only enforcement on bid envelope dropzones.
+- **v51as** — Bidding Ops "Review" button opens inline detail panel instead
+  of navigating away; "Invited undefined" toast hardened.
+- **v51ar** — Login-page escrow registration entrypoint.
+- **v51aq** — Duplicate escrow transaction guard (409), admin cancel row,
+  release CSV export, EMD ledger search bar.
 - **v51ap** — Escrow auto-ledger deduplication.
 - **v51an** — Signatory password auth/login/reset, dashboard transactions grid,
   notice account routing picker, expiry watchdog cron.
