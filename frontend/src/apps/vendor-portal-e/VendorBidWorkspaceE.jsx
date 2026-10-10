@@ -159,7 +159,10 @@ export default function VendorBidWorkspaceE({ legacy: Legacy }) {
   const emdPaid = useMemo(() => Number(bid?.emd_paid_amount || 0), [bid]);
   const emdCurrency = bid?.price_currency || "USD";
   const emdOutstanding = Math.max(0, emdDue - emdPaid);
-  const emdSettled = emdDue > 0 && emdOutstanding === 0;
+  // v51ax — a bid with emd_due_amount = 0 is already settled (backend sets
+  // status "submitted" at creation). The old `emdDue > 0 &&` guard left
+  // $0-EMD bids stuck at Step 4 forever (xlsx #14).
+  const emdSettled = emdDue <= 0 || emdOutstanding === 0;
 
   const uploadProof = async (file) => {
     if (!file) return;

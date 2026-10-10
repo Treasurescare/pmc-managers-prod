@@ -49,6 +49,15 @@ Public / Vendor / Buyer / Admin roles.
 - `/downloads/DOWNLOAD_mobile_v1.0.0.md`
 
 ## Latest web releases
+- **v51ax** — Bug-sheet clearing batch: DocuSign envelope completion now
+  stamps bids by `_id` ObjectId (was `{"id": ...}` which silently matched
+  nothing — vendor status never flipped, xlsx #17); $0-EMD bids no longer
+  stuck at Step 4 (`emdSettled = emdDue <= 0 || emdOutstanding === 0`,
+  xlsx #14); registration number fields accept commas (employees +
+  turnover inputs switched from `type=number` to text + comma-stripping
+  parse, xlsx #11). Corrigendum-public verified as correct pipeline
+  (is_active=true → public endpoint attaches). Bundles:
+  `pmc-frontend-v51ax-prod-build.zip` + `pmc-backend-v51ax.zip`.
 - **v51aw** — Register-on-behalf `*` marks sweep completed across Sections
   B (contact/signatory), C (banking) and E (signature block). Backend
   unchanged (still v51au).

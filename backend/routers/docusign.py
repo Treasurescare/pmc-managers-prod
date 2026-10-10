@@ -417,9 +417,15 @@ async def _on_envelope_completed(row: dict) -> None:
         _log.warning("completion vendor email failed for %s: %s", env_id, e)
     try:
         if row.get("bid_id"):
+            # v51ax — bids are keyed on _id (ObjectId), not `id`. The old
+            # `{"id": bid_id}` filter silently matched nothing, so an
+            # admin-completed envelope never stamped the bid and the vendor
+            # portal kept showing the document as unsigned (xlsx #17).
             field = f"{row.get('sub_kind') or 'document'}_signed_at"
-            await db.bids.update_one({"id": row["bid_id"]},
-                                     {"$set": {field: now_iso()}})
+            from bson import ObjectId as _Oid
+            await db.bids.update_one({"_id": _Oid(row["bid_id"])},
+                                     {"$set": {field: now_iso(),
+                                               "docusign_completed_at": now_iso()}})
     except Exception:
         pass
 

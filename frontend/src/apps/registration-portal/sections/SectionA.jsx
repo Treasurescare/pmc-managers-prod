@@ -80,7 +80,7 @@ export default function SectionA({ reg, update, countries, regId, token, onDocCh
           <Input testId="f-website" value={reg.website || ""} onChange={(e) => update({ website: e.target.value })} />
         </Field>
         <Field label={t("section_a.employees_count")}>
-          <Input testId="f-employees" type="number" value={reg.employees_count || ""} onChange={(e) => update({ employees_count: parseInt(e.target.value || "0", 10) || null })} />
+          <Input testId="f-employees" type="text" inputMode="numeric" value={reg.employees_count || ""} onChange={(e) => update({ employees_count: parseInt(String(e.target.value).replace(/,/g, "") || "0", 10) || null })} />
         </Field>
       </div>
       <DocSlotsBlock
