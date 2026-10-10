@@ -47,3 +47,8 @@
 - Hot reload picks up backend changes automatically in the preview env.
 - To ship: upload the prod frontend zip to the S3/CloudFront origin and the
   backend zip to Elastic Beanstalk (same procedure as prior v51a* releases).
+- v51ba backend zip was repackaged (10 Oct, second build) with the required
+  EB root structure — `Dockerfile`, `Dockerrun.aws.json`, `.platform/` at the
+  archive root and code under `backend/` — matching the working v51ax layout.
+  The first v51ba zip (backend folder contents at root) fails on EB with
+  "Engine execution has encountered an error"; discard it.
