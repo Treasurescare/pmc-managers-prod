@@ -1,5 +1,44 @@
 # PMC Managers v2 — PRD (last touched 10 Oct 2026)
 
+## v52bs — Stakeholder CSV network error + Tender Builder industry master + BOQ inline editor (10 Oct 2026)
+
+Backend
+- `routers/boqs.py` — new `PATCH /api/v1/boq/templates/{id}` (admin). Updates
+  `items / name / currency / unspsc_code / unspsc_title`. Server validates
+  rows (description required, qty/rate numeric ≥ 0), auto-renumbers `sl_no`,
+  trims strings, keeps `unspsc_code` + `unspsc_title` + `remarks`, audit
+  log `boq_template.update`.
+
+Frontend
+- `lib/api.js`:
+  - `stakeholderReportsApi.csvUrl` now returns a PATH ONLY. Full URLs caused
+    axios to call the preview backend origin from a production page →
+    "Network Error" (CORS). Path-only lets axios reuse the baseURL +
+    attached Bearer token, so it's same-origin on both envs.
+  - `boqApi.updateTemplate(id, patch)` wired.
+- `apps/admin-console/boq/BOQTemplatesTab.jsx` — full rewrite of the viewer:
+  Add / Edit / Delete line items inline; Description * / Unit / Qty / Rate /
+  live Line Total; **UNSPSC picker** (master-backed) per row; empty state
+  ("No line items yet…") instead of fake "1-5 of 5" pager; all actions
+  persist via the new PATCH endpoint and refresh the viewer + the list card.
+- `apps/admin-console/TenderBuilderPanel.jsx` — Industry dropdown now sourced
+  from the **Categories master** (`mastersApi.listCategoriesPublic`) unioned
+  with template-derived strings. Selecting "Public Works / Construction /
+  PMC" now actually filters masters + drafts.
+
+Verified via Playwright:
+- Stakeholder CSV: 200 `text/csv`, 2.9 KB downloaded (`stakeholder-tenders.csv`).
+- Tender Builder industry options include master categories (full taxonomy).
+- BOQ viewer: empty state visible before add; after adding
+  "Concrete M30 — 150 m³ × 12,000", rows render and persist (sl_no 1).
+
+Bundles: `pmc-frontend-v52bs-prod-build.zip` + `pmc-backend-v52bs.zip`
+(backend changed — redeploy EB).
+
+---
+
+
+
 ## v52br — Stakeholder CSV 401 + Work Packages sample CSV 401 + Tender Builder promoted matches (10 Oct 2026)
 
 Same root-cause class as the tender PDF bug: admin-gated download links were

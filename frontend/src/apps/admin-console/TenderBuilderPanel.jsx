@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { tenderTemplateApi, tenderProApi, publicApi, formatApiError, showApiError} from "@/lib/api";
+import { tenderTemplateApi, tenderProApi, publicApi, mastersApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import TenderHeaderForm from "./tender/TenderHeaderForm";
 import AiDiffModal from "./tender/AiDiffModal";
@@ -247,6 +247,23 @@ export default function TenderBuilderPanel() {
   const filteredDrafts  = useMemo(() => applyTenderFilters(drafts, filters),  [drafts, filters]);
   const filteredMasters = useMemo(() => applyTenderFilters(masters, filters), [masters, filters]);
   const industries = useMemo(() => [...new Set(list.map((d) => d.industry).filter(Boolean))].sort(), [list]);
+  // v52bs — the industry dropdown is now sourced from the Categories master
+  // so admins see the full taxonomy (Public Works / Construction / PMC,
+  // Healthcare, etc.) and filtering actually matches category names used on
+  // notices. We union master categories with template-derived industries so
+  // older templates with ad-hoc industry strings still filter correctly.
+  const [masterCategories, setMasterCategories] = useState([]);
+  useEffect(() => {
+    mastersApi.listCategoriesPublic()
+      .then((rows) => setMasterCategories(
+        (Array.isArray(rows) ? rows : [])
+          .map((c) => String(c.name || c.title || c.code || "")).filter(Boolean)))
+      .catch(() => setMasterCategories([]));
+  }, []);
+  const industryOptions = useMemo(
+    () => [...new Set([...industries, ...masterCategories])].sort(),
+    [industries, masterCategories],
+  );
   const [masterCountries, setMasterCountries] = useState([]);
   useEffect(() => {
     publicApi.countries()
@@ -340,7 +357,7 @@ export default function TenderBuilderPanel() {
     <div data-testid="tender-builder-panel" className="grid gap-6 lg:grid-cols-[300px_1fr]">
       <div className="space-y-4">
         <TenderFilterBar filters={filters} setFilters={setFilters}
-                          industries={industries} countries={countries} />
+                          industries={industryOptions} countries={countries} />
         {/* v52br — when a search/filter is active, surface the matching
             drafts directly under the filter bar so admins don't scroll past
             Kind + Master Library to see results. */}

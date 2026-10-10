@@ -53,6 +53,57 @@ async def get_boq_template(template_id: str, admin=Depends(require_role("admin",
     return _out(doc)
 
 
+@router.patch("/boq/templates/{template_id}")
+async def update_boq_template(template_id: str, payload: dict,
+                              admin=Depends(require_role("admin"))):
+    """v52bs — allow editing BOQ items (add / edit / remove line items)
+    without needing an Excel import. Only `items`, `name`, `currency`,
+    `unspsc_code`, `unspsc_title` are updatable; everything else is ignored."""
+    allowed = {"items", "name", "currency", "unspsc_code", "unspsc_title"}
+    patch = {k: v for k, v in (payload or {}).items() if k in allowed}
+    if not patch:
+        raise HTTPException(status_code=400, detail="No updatable fields in payload")
+    if "items" in patch:
+        if not isinstance(patch["items"], list):
+            raise HTTPException(status_code=422, detail="items must be a list")
+        clean: list = []
+        for idx, raw in enumerate(patch["items"]):
+            if not isinstance(raw, dict):
+                continue
+            desc = str(raw.get("description") or "").strip()
+            if not desc:
+                continue
+            try:
+                qty = float(raw.get("quantity") or 0)
+                rate = float(raw.get("unit_rate") or 0)
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=422,
+                    detail=f"Row {idx + 1}: quantity and unit_rate must be numbers")
+            clean.append({
+                "sl_no":       idx + 1,
+                "description": desc,
+                "unit":        (str(raw.get("unit") or "")).strip(),
+                "quantity":    qty,
+                "unit_rate":   rate,
+                "unspsc_code": (str(raw.get("unspsc_code") or "")).strip(),
+                "unspsc_title":(str(raw.get("unspsc_title") or "")).strip(),
+                "remarks":     (str(raw.get("remarks") or "")).strip(),
+            })
+        patch["items"] = clean
+    patch["updated_at"] = now_iso()
+    r = await db.boq_templates.update_one(
+        {"_id": ObjectId(template_id)}, {"$set": patch},
+    )
+    if r.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Template not found")
+    await audit_log("boq_template.update", admin, "boq_template", template_id,
+                    {"keys": list(patch.keys()),
+                     "items": len(patch.get("items", []))
+                              if "items" in patch else None})
+    return {"ok": True, "items": len(patch.get("items", []))
+            if "items" in patch else None}
+
+
 @router.post("/boq/templates/{template_id}/import-excel")
 async def import_boq_excel(template_id: str, file: UploadFile = File(...),
                            admin=Depends(require_role("admin"))):

@@ -1,12 +1,18 @@
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { boqApi, formatApiError, showApiError} from "@/lib/api";
+import { boqApi, mastersApi, formatApiError, showApiError} from "@/lib/api";
 import UnspscPicker from "@/components/UnspscPicker";
 import { InfoDot } from "@/components/InfoDot";
 
+const EMPTY_LINE = {
+  description: "", unit: "", quantity: 0, unit_rate: 0,
+  unspsc_code: "", unspsc_title: "", remarks: "",
+};
+
 /**
- * BOQTemplatesTab — BOQ template list, create-new form, Excel import per
- * template, and inline viewer. Templates now carry an optional UNSPSC
- * commodity tag so the whole BOQ can be reported against a standard code.
+ * BOQTemplatesTab — list, create, Excel import AND v52bs add/edit/delete of
+ * line items inline (per the user manual: description, unit, quantity, rate,
+ * UNSPSC pulled from the categories master).
  */
 export default function BOQTemplatesTab({
   templates, showNewTmpl, setShowNewTmpl, tmplDraft, setTmplDraft,
@@ -34,6 +40,48 @@ export default function BOQTemplatesTab({
   };
 
   const viewTemplate = async (tmpl) => setSelectedTmpl(await boqApi.getTemplate(tmpl.id));
+
+  // v52bs — inline line-item editor state
+  const [draftLine, setDraftLine] = useState(EMPTY_LINE);
+  const [editingIdx, setEditingIdx] = useState(null);
+  const items = useMemo(() => selectedTmpl?.items || [], [selectedTmpl]);
+
+  const persistItems = async (nextItems) => {
+    try {
+      await boqApi.updateTemplate(selectedTmpl.id, { items: nextItems });
+      const fresh = await boqApi.getTemplate(selectedTmpl.id);
+      setSelectedTmpl(fresh);
+      onReload();
+    } catch (e) { showApiError(e); }
+  };
+
+  const addLine = async () => {
+    if (!draftLine.description.trim()) return toast.error("Description is required");
+    if (Number(draftLine.quantity) < 0 || Number(draftLine.unit_rate) < 0)
+      return toast.error("Quantity and unit rate must be ≥ 0");
+    const next = [...items, {
+      ...draftLine,
+      quantity: Number(draftLine.quantity) || 0,
+      unit_rate: Number(draftLine.unit_rate) || 0,
+    }];
+    await persistItems(next);
+    setDraftLine(EMPTY_LINE);
+    toast.success("Line item added");
+  };
+  const saveEdit = async (i) => {
+    const next = items.map((it, idx) => idx === i ? {
+      ...draftLine,
+      quantity: Number(draftLine.quantity) || 0,
+      unit_rate: Number(draftLine.unit_rate) || 0,
+    } : it);
+    await persistItems(next);
+    setEditingIdx(null); setDraftLine(EMPTY_LINE);
+    toast.success("Line updated");
+  };
+  const removeLine = async (i) => {
+    if (!window.confirm(`Delete line ${i + 1}: ${items[i].description}?`)) return;
+    await persistItems(items.filter((_, idx) => idx !== i));
+  };
 
   return (
     <>
@@ -119,18 +167,94 @@ export default function BOQTemplatesTab({
               </div>
             )}
           </div>
-          <table className="w-full text-xs mt-2">
+
+          {/* v52bs — add / edit line item form */}
+          <div className="bg-brand-pale/40 border border-brand-navy/15 p-3 mt-3"
+               data-testid="boq-line-form">
+            <div className="text-[11px] uppercase tracking-widest text-brand-navy/70 mb-2">
+              {editingIdx !== null ? `Edit line ${editingIdx + 1}` : "Add line item"}
+            </div>
+            <div className="grid gap-2 md:grid-cols-6">
+              <input placeholder="Description *" value={draftLine.description}
+                     data-testid="boq-line-desc"
+                     onChange={(e) => setDraftLine({ ...draftLine, description: e.target.value })}
+                     className="md:col-span-2 px-2 py-1.5 border text-xs" />
+              <input placeholder="Unit (nos, kg, m²)" value={draftLine.unit}
+                     data-testid="boq-line-unit"
+                     onChange={(e) => setDraftLine({ ...draftLine, unit: e.target.value })}
+                     className="px-2 py-1.5 border text-xs" />
+              <input type="number" min="0" step="any" placeholder="Qty" value={draftLine.quantity}
+                     data-testid="boq-line-qty"
+                     onChange={(e) => setDraftLine({ ...draftLine, quantity: e.target.value })}
+                     className="px-2 py-1.5 border text-xs" />
+              <input type="number" min="0" step="any" placeholder="Rate" value={draftLine.unit_rate}
+                     data-testid="boq-line-rate"
+                     onChange={(e) => setDraftLine({ ...draftLine, unit_rate: e.target.value })}
+                     className="px-2 py-1.5 border text-xs" />
+              <div className="text-xs text-brand-navy/70 flex items-center">
+                = {((Number(draftLine.quantity)||0) * (Number(draftLine.unit_rate)||0)).toLocaleString()}
+              </div>
+            </div>
+            <div className="mt-2 grid gap-2 md:grid-cols-2">
+              <div>
+                <div className="text-[10px] uppercase tracking-widest text-brand-navy/60 mb-1">UNSPSC commodity</div>
+                <UnspscPicker value={draftLine.unspsc_code} title={draftLine.unspsc_title}
+                              onChange={({ code, title }) => setDraftLine({
+                                ...draftLine, unspsc_code: code, unspsc_title: title })}
+                              testidPrefix="boq-line-unspsc" />
+              </div>
+              <div className="flex items-end justify-end gap-2">
+                {editingIdx !== null && (
+                  <button onClick={() => { setEditingIdx(null); setDraftLine(EMPTY_LINE); }}
+                          data-testid="boq-line-cancel"
+                          className="text-[11px] uppercase tracking-widest px-3 py-1.5 border border-brand-navy/20">
+                    Cancel
+                  </button>
+                )}
+                <button onClick={editingIdx !== null ? () => saveEdit(editingIdx) : addLine}
+                        data-testid="boq-line-save"
+                        className="text-[11px] uppercase tracking-widest px-4 py-1.5 bg-brand-navy text-white hover:bg-brand-navy-deep">
+                  {editingIdx !== null ? "Save line" : "+ Add line item"}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <table className="w-full text-xs mt-4" data-testid="boq-items-table">
             <thead className="text-slate-500">
               <tr><th className="text-left">Sl.</th><th className="text-left">Description</th>
-                <th>Unit</th><th>Qty</th><th className="text-right">Unit Rate</th></tr>
+                <th>Unit</th><th>Qty</th><th className="text-right">Unit Rate</th>
+                <th className="text-right">Line Total</th><th>UNSPSC</th><th></th></tr>
             </thead>
             <tbody>
-              {(selectedTmpl.items || []).map((it, i) => (
-                <tr key={`boq-item-${it.sl_no ?? i}`} className="border-t">
-                  <td className="py-1">{it.sl_no}</td><td>{it.description}</td>
-                  <td className="text-center">{it.unit}</td>
+              {items.length === 0 && (
+                <tr><td colSpan={8} className="py-6 text-center text-brand-navy/50"
+                        data-testid="boq-items-empty">
+                  No line items yet. Add rows above or import an Excel BOQ.
+                </td></tr>
+              )}
+              {items.map((it, i) => (
+                <tr key={`boq-item-${it.sl_no ?? i}`} className="border-t"
+                    data-testid={`boq-item-${i}`}>
+                  <td className="py-1">{i + 1}</td>
+                  <td>{it.description}</td>
+                  <td className="text-center">{it.unit || "—"}</td>
                   <td className="text-center">{it.quantity}</td>
-                  <td className="text-right">{it.unit_rate?.toLocaleString()}</td>
+                  <td className="text-right">{Number(it.unit_rate || 0).toLocaleString()}</td>
+                  <td className="text-right">{(Number(it.quantity||0) * Number(it.unit_rate||0)).toLocaleString()}</td>
+                  <td className="font-mono text-[10px]">{it.unspsc_code || "—"}</td>
+                  <td className="text-right whitespace-nowrap">
+                    <button onClick={() => { setEditingIdx(i); setDraftLine({ ...EMPTY_LINE, ...it }); }}
+                            data-testid={`boq-item-edit-${i}`}
+                            className="text-[10px] uppercase tracking-widest text-brand-navy hover:underline mr-2">
+                      Edit
+                    </button>
+                    <button onClick={() => removeLine(i)}
+                            data-testid={`boq-item-del-${i}`}
+                            className="text-[10px] uppercase tracking-widest text-red-700 hover:underline">
+                      Delete
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

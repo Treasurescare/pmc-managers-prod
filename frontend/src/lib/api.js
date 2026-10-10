@@ -442,6 +442,7 @@ export const boqApi = {
   createTemplate: (p) => api.post("/api/v1/boq/templates", p).then((r) => r.data),
   listTemplates: () => api.get("/api/v1/boq/templates").then((r) => r.data),
   getTemplate: (id) => api.get(`/api/v1/boq/templates/${id}`).then((r) => r.data),
+  updateTemplate: (id, p) => api.patch(`/api/v1/boq/templates/${id}`, p).then((r) => r.data),
   importExcel: (id, file) => {
     const fd = new FormData(); fd.append("file", file);
     return api.post(`/api/v1/boq/templates/${id}/import-excel`, fd,
@@ -939,7 +940,10 @@ export const stakeholderReportsApi = {
   awards:  () => api.get("/api/v1/stakeholder-reports/awards").then((r) => r.data),
   escrow:  () => api.get("/api/v1/stakeholder-reports/escrow").then((r) => r.data),
   sla:     () => api.get("/api/v1/stakeholder-reports/sla").then((r) => r.data),
-  csvUrl:  (kind) => `${process.env.REACT_APP_BACKEND_URL}/api/v1/stakeholder-reports/${kind}?format=csv`,
+  // v52bs — PATH ONLY (axios instance already carries baseURL). Returning
+  // a full URL made production calls go cross-origin from pmcmanagers.com
+  // and the Download CSV button failed with "Network Error".
+  csvUrl:  (kind) => `/api/v1/stakeholder-reports/${kind}?format=csv`,
 };
 
 // ---------- Wave 41: Meetings + Jitsi ----------
