@@ -1,5 +1,24 @@
 # PMC Managers v2 — PRD (last touched 10 Oct 2026)
 
+## v51bb — Admin add-vendor UX fixes (10 Oct 2026)
+- Back button on `/admin/vendors/new` now reads "Back to vendors" and lands on
+  the Vendors tab (`/admin?tab=vendors`) — same as Edit full profile.
+  EN/RU/KZ labels updated.
+- Verified Section D "Business categories" is database-driven (Categories
+  master, `GET /api/v1/masters/categories/public` — 105 categories). Not
+  hardcoded; no change required.
+- Brighter, higher-contrast styling for the admin vendor create + edit forms
+  (scoped CSS carve-out): light-grey page, white raised card, dark-slate
+  labels, 1.5px visible input borders, dark-green focus ring, emerald info
+  banner on the create page.
+- Frontend-only release: `/downloads/pmc-frontend-v51bb-prod-build.zip`
+  (+ `DOWNLOAD_v51bb.md`). Backend stays on v51ba.
+
+---
+
+
+# PMC Managers v2 — PRD (last touched 10 Oct 2026)
+
 ## v51ba — Admin bid detail & Award record (10 Oct 2026)
 - Fixed cream-on-cream unreadable text in the admin bid detail page by
   adding a scoped CSS carve-out for `[data-testid="admin-bid-page"]`

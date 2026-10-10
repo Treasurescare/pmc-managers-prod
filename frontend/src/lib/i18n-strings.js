@@ -241,7 +241,7 @@ const EN = {
     },
   },
   admin_vendor: {
-    back: "Back to admin",
+    back: "Back to vendors",
     kicker: "Vendors · Add",
     title: "Register a vendor on their behalf",
     step_a: "Section A · Identity",
@@ -913,7 +913,7 @@ const RU = {
     },
   },
   admin_vendor: {
-    back: "Вернуться в админ",
+    back: "Вернуться к поставщикам",
     kicker: "Поставщики · Добавить",
     title: "Зарегистрировать поставщика от его имени",
     step_a: "Раздел A · Идентификация",
@@ -1571,7 +1571,7 @@ const KK = {
     },
   },
   admin_vendor: {
-    back: "Әкімшіге оралу",
+    back: "Жеткізушілерге оралу",
     kicker: "Жеткізушілер · Қосу",
     title: "Жеткізушіні оның атынан тіркеу",
     step_a: "A бөлімі · Идентификация",

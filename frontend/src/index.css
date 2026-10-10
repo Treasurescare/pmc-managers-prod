@@ -717,6 +717,62 @@
 [data-ui="e"] [data-testid="admin-bid-page"] .bg-white { background: #FFFFFF !important; }
 [data-ui="e"] [data-testid="admin-bid-page"] .pmc-label,
 [data-ui="e"] [data-testid="admin-bid-page"] .pmc-kicker { color: #334155 !important; }
+
+/* v51bb — Admin vendor create/edit forms: brighten for readability.
+   Under Option E these pages sat on a cream wash with muddy gold labels
+   (#7A5F1E) and nearly invisible 18%-alpha input borders. Pin the form
+   surfaces white, labels to dark slate, and give every field a clearly
+   visible border — matching (and slightly exceeding) the edit-profile
+   look the user referenced. */
+[data-ui="e"] [data-testid="admin-vendor-create"],
+[data-ui="e"] [data-testid="admin-vendor-edit"] {
+  background: #F4F6F9 !important;
+  color: #0F172A !important;
+}
+[data-ui="e"] [data-testid="admin-vendor-create"] .pmc-label,
+[data-ui="e"] [data-testid="admin-vendor-create"] .pmc-kicker,
+[data-ui="e"] [data-testid="admin-vendor-edit"] .pmc-label,
+[data-ui="e"] [data-testid="admin-vendor-edit"] .pmc-kicker {
+  color: #334155 !important;
+}
+[data-ui="e"] [data-testid="admin-vendor-create"] input:not([type="checkbox"]):not([type="radio"]),
+[data-ui="e"] [data-testid="admin-vendor-create"] select,
+[data-ui="e"] [data-testid="admin-vendor-create"] textarea,
+[data-ui="e"] [data-testid="admin-vendor-edit"] input:not([type="checkbox"]):not([type="radio"]),
+[data-ui="e"] [data-testid="admin-vendor-edit"] select,
+[data-ui="e"] [data-testid="admin-vendor-edit"] textarea {
+  background: #FFFFFF !important;
+  border: 1.5px solid #7C8FA6 !important;
+  color: #0F172A !important;
+  border-radius: 4px;
+}
+[data-ui="e"] [data-testid="admin-vendor-create"] input:focus,
+[data-ui="e"] [data-testid="admin-vendor-create"] select:focus,
+[data-ui="e"] [data-testid="admin-vendor-create"] textarea:focus,
+[data-ui="e"] [data-testid="admin-vendor-edit"] input:focus,
+[data-ui="e"] [data-testid="admin-vendor-edit"] select:focus,
+[data-ui="e"] [data-testid="admin-vendor-edit"] textarea:focus {
+  border-color: #0F3B2E !important;
+  outline: 2px solid rgba(15,59,46,0.25) !important;
+  outline-offset: 0;
+}
+[data-ui="e"] [data-testid="admin-vendor-create"] input::placeholder,
+[data-ui="e"] [data-testid="admin-vendor-create"] textarea::placeholder,
+[data-ui="e"] [data-testid="admin-vendor-edit"] input::placeholder,
+[data-ui="e"] [data-testid="admin-vendor-edit"] textarea::placeholder { color: #64748B !important; }
+/* Category picker + checkbox rows in Section D — visible borders */
+[data-ui="e"] [data-testid="admin-vendor-create"] [data-testid="f-categories-picker"],
+[data-ui="e"] [data-testid="admin-vendor-edit"] [data-testid="f-categories-picker"] {
+  border: 1.5px solid #7C8FA6 !important;
+  background: #FFFFFF !important;
+}
+/* Form card pops off the page background */
+[data-ui="e"] [data-testid="admin-vendor-create"] main > div.bg-white,
+[data-ui="e"] [data-testid="admin-vendor-edit"] main > div.bg-white {
+  background: #FFFFFF !important;
+  border: 1px solid #CBD5E1 !important;
+  box-shadow: 0 6px 24px rgba(15,27,61,0.06);
+}
 /* v49g — registration review doc cards must stay light/readable; the global
    slate remap above paints them deep green with invisible dark text. */
 [data-ui="e"] [data-testid^="reg-doc-"] {

@@ -181,7 +181,7 @@ export default function AdminVendorCreate() {
             <div className="pmc-label">{t("admin_vendor.kicker")}</div>
             <h1 className="font-display text-3xl text-brand-navy mt-1">{t("admin_vendor.title")}</h1>
           </div>
-          <button onClick={() => nav("/admin")} className="px-4 py-2 text-[11px] uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5"
+          <button onClick={() => nav("/admin?tab=vendors")} className="px-4 py-2 text-[11px] uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5"
                   data-testid="admin-vendor-back">{t("admin_vendor.back")}</button>
         </div>
 
@@ -196,12 +196,12 @@ export default function AdminVendorCreate() {
               <span className="text-emerald-700/70">{Object.keys(reg.document_slots || {}).length} file(s) so far</span>
             </div>
           ) : (
-            <div className="bg-brand-navy/5 border border-brand-navy/20 text-brand-navy px-4 py-2 text-sm flex items-center justify-between gap-3"
+            <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 px-4 py-2 text-sm flex items-center justify-between gap-3"
                  data-testid="admin-vendor-nodraft-banner">
               <span>Enter the vendor email first — the draft is auto-saved the moment you pick a document to upload.</span>
               <button onClick={createDraft} disabled={creatingDraft || !reg.email}
                       data-testid="admin-vendor-create-draft"
-                      className="px-4 py-1.5 text-[11px] uppercase tracking-widest border border-brand-navy text-brand-navy hover:bg-brand-navy hover:text-white disabled:opacity-40">
+                      className="px-4 py-1.5 text-[11px] uppercase tracking-widest border border-emerald-700 text-emerald-800 hover:bg-emerald-700 hover:text-white disabled:opacity-40">
                 {creatingDraft ? "Saving…" : "Save now (optional)"}
               </button>
             </div>
