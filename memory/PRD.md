@@ -1,5 +1,64 @@
 # PMC Managers v2 — PRD (last touched 10 Oct 2026)
 
+## v52bp addendum — Tender Builder filters fixed end-to-end (10 Oct 2026)
+
+User confirmed the filters "exist but don't filter anything". Root causes found
+via Playwright E2E:
+- `applyTenderFilters` was applied ONLY to drafts; the Master Library received
+  the raw list, so country/industry/search/sort looked dead on masters.
+- The Country dropdown was derived only from the loaded templates' own country
+  values — most preview templates have none, so the dropdown rendered just
+  "All countries" and felt broken.
+
+Fix (`admin-console/TenderBuilderPanel.jsx`):
+- `filteredMasters = applyTenderFilters(masters, filters)` — same filters drive
+  both lists; `TenderSidebar` now receives `filteredMasters`.
+- Country options = union of template-derived values + the country master
+  (`publicApi.countries()`), so the dropdown always carries the full ISO list
+  (31 options in preview).
+
+Verified via Playwright: country=UZ → masters 1→0, drafts 5→0; search
+"Standard PSU" → masters 1, drafts 4; name-asc sort verified ordered.
+Public notice page also gained the visible "📄 Download diff PDF" button per
+corrigendum (v52bp edit that initially failed string-match, now applied).
+
+Bundle: `pmc-frontend-v52bp-prod-build.zip` rebuilt with all fixes.
+
+---
+
+
+
+## v52bp — Public corrigendum PDF + vendor-bell deep link (10 Oct 2026)
+
+Backend
+- `routers/corrigenda.py`:
+  - `attach_corrigendum_file` → uploads row now carries `scope=corrigendum-attachments`,
+    `notice_ref`, `corrigendum_id`, both `bytes_b64` and `data_b64` (matches
+    `_serve_file` reader). Attachment URL served through the PUBLIC path
+    `/api/v1/uploads/public-files/<key>` so bidders no longer 401.
+  - `publish_corrigendum` → in addition to email + push, now inserts a
+    vendor-bell `notifications` record for every active bidder with
+    `related_type=corrigendum`, `related_id=<cid>`,
+    `related_url=/api/v1/notices/<ref>/corrigenda/<cid>/pdf`,
+    `related_notice_ref=<ref>` so the vendor bell can deep-link to the PDF.
+- `routers/uploads.py`:
+  - `get_public_file` allow-list extended with `corrigendum-attachments`.
+
+Frontend
+- `apps/vendor-portal/VendorNotificationBell.jsx` — corrigendum alerts now
+  render **📄 Open PDF** (new tab, auto-marks read) and **View notice**
+  buttons using `related_url` + `related_notice_ref`.
+- `apps/admin-console/CorrigendaPanel.jsx` — every active row shows a
+  **📄 Download diff PDF** button hitting the public PDF endpoint.
+- `apps/notice-board-e/NoticeDetailE.jsx` — same button in the public
+  Corrigenda & amendments section (brass pill).
+
+Bundle: `pmc-frontend-v52bp-prod-build.zip` + `pmc-backend-v52bp.zip`.
+
+---
+
+
+
 ## v52bo — EMD zero allowed · Stakeholder reports sidebar · Live corrigendum pill · Corrigendum PDF email (10 Oct 2026)
 
 Backend

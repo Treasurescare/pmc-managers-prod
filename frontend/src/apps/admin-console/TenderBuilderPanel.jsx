@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { tenderTemplateApi, tenderProApi, formatApiError, showApiError} from "@/lib/api";
+import { tenderTemplateApi, tenderProApi, publicApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import TenderHeaderForm from "./tender/TenderHeaderForm";
 import AiDiffModal from "./tender/AiDiffModal";
@@ -239,10 +239,28 @@ export default function TenderBuilderPanel() {
   const masters = list.filter((x) => x.is_master);
   const drafts = list.filter((x) => !x.is_master);
   // v45 · Phase A — client-side filter + sort of drafts
+  // v52bq — the SAME filters now apply to the Master Library too (previously
+  // only drafts were filtered, which made country/industry/sort appear dead),
+  // and the country dropdown is seeded from the country master so it always
+  // has real options even when existing templates carry no country value.
   const [filters, setFilters] = useState({ q: "", country: "", industry: "", sort: "date-desc" });
-  const filteredDrafts = useMemo(() => applyTenderFilters(drafts, filters), [drafts, filters]);
+  const filteredDrafts  = useMemo(() => applyTenderFilters(drafts, filters),  [drafts, filters]);
+  const filteredMasters = useMemo(() => applyTenderFilters(masters, filters), [masters, filters]);
   const industries = useMemo(() => [...new Set(list.map((d) => d.industry).filter(Boolean))].sort(), [list]);
-  const countries  = useMemo(() => [...new Set(list.map((d) => (d.country || d.header?.country || "")).filter(Boolean))].sort(), [list]);
+  const [masterCountries, setMasterCountries] = useState([]);
+  useEffect(() => {
+    publicApi.countries()
+      .then((rows) => setMasterCountries(
+        (Array.isArray(rows) ? rows : [])
+          .map((c) => String(c.code || c.iso2 || c.value || c))
+          .filter(Boolean)
+      ))
+      .catch(() => setMasterCountries([]));
+  }, []);
+  const countries = useMemo(() => {
+    const fromTemplates = list.map((d) => (d.country || d.header?.country || "")).filter(Boolean);
+    return [...new Set([...fromTemplates, ...masterCountries])].sort();
+  }, [list, masterCountries]);
   const [showDpr, setShowDpr]           = useState(false);
   const [aiFillBusy, setAiFillBusy]     = useState(false);
   const [sectionSaving, setSectionSaving] = useState(null);
@@ -331,7 +349,7 @@ export default function TenderBuilderPanel() {
         <TenderSidebar
           t={t}
           kind={kind} setKind={switchKind}
-          masters={masters} drafts={filteredDrafts} busy={busy}
+          masters={filteredMasters} drafts={filteredDrafts} busy={busy}
           selectedId={selectedId}
           cloneMaster={cloneMaster} openTemplate={openTemplate}
         />

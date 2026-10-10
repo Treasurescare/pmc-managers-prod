@@ -132,6 +132,8 @@ async def publish_corrigendum(
 
     # v52bo — email every active bidder on this notice with the diff PDF
     # attached. Only vendors who have an un-withdrawn bid are notified.
+    # v52bp — also drop a vendor-bell notification per bidder with a
+    # deep-link to the diff PDF so bidders can open it from the alerts bell.
     try:
         import asyncio, base64 as _b64
         from emails import send_email, wrap as _wrap
@@ -142,10 +144,11 @@ async def publish_corrigendum(
                 "content_b64": _b64.b64encode(pdf_bytes).decode(),
                 "content_type": "application/pdf",
             }]
+        pdf_url = f"/api/v1/notices/{notice_ref}/corrigenda/{res.inserted_id}/pdf"
         emails_seen = set()
         cursor = db.bids.find(
             {"notice_ref": notice_ref, "status": {"$ne": "withdrawn"}},
-            {"vendor_email": 1},
+            {"vendor_email": 1, "vendor_ref": 1, "bid_ref": 1},
         )
         async for b in cursor:
             em = b.get("vendor_email")
@@ -153,6 +156,27 @@ async def publish_corrigendum(
                 continue
             emails_seen.add(em)
             subject = f"Corrigendum {corr_no} · {notice_ref}"
+            # v52bp — bell notification with a deep link; vendor UI renders
+            # "Open PDF" as a button next to the alert.
+            try:
+                await db.notifications.insert_one({
+                    "user_email": em,
+                    "user_ref": b.get("vendor_ref"),
+                    "role": "vendor",
+                    "subject": subject,
+                    "body": (f"<p>Corrigendum {corr_no} issued on "
+                             f"<code>{notice_ref}</code>. "
+                             f"The one-page diff PDF is attached.</p>"),
+                    "related_type": "corrigendum",
+                    "related_id": str(res.inserted_id),
+                    "related_url": pdf_url,
+                    "related_notice_ref": notice_ref,
+                    "read": False,
+                    "created_at": now_iso(),
+                })
+            except Exception as _e:
+                import logging as _lg
+                _lg.warning("bell notify failed for %s: %s", em, _e)
             body_html = _wrap(
                 f"Corrigendum {corr_no} — {payload.title}",
                 (f"<p>A formal amendment has been issued on tender "
@@ -296,9 +320,17 @@ async def attach_corrigendum_file(
     await db.uploads.insert_one({
         "key": key,
         "file_name": file.filename,
+        # v52bp — mark the scope + parent notice so the public uploads
+        # endpoint can serve it to anonymous bidders (previously the frontend
+        # was pointing at /api/v1/uploads/files which required a signed-in
+        # user → bidders got 401 on the public corrigendum page).
+        "scope": "corrigendum-attachments",
+        "notice_ref": notice_ref,
+        "corrigendum_id": str(oid),
         "content_type": file.content_type or "application/octet-stream",
         "size_bytes": len(body),
         "bytes_b64": base64.b64encode(body).decode("ascii"),
+        "data_b64":  base64.b64encode(body).decode("ascii"),
         "uploaded_at": now_iso(),
         "uploaded_by": admin.get("email"),
     })
@@ -307,7 +339,9 @@ async def attach_corrigendum_file(
         "file_name": file.filename,
         "content_type": file.content_type,
         "size_bytes": len(body),
-        "url": f"/api/v1/uploads/files/{key}",
+        # v52bp — serve the attachment through the PUBLIC uploads endpoint
+        # so the diff-table attachment chip works for every visitor.
+        "url": f"/api/v1/uploads/public-files/{key}",
     }
     await db.corrigenda.update_one({"_id": oid}, {"$push": {"attachments": attachment}})
     await audit_log("corrigendum.attach", admin, "notice", notice_ref,

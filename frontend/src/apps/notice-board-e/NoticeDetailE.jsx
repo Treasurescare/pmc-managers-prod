@@ -190,13 +190,24 @@ export default function NoticeDetailE({ legacy: Legacy }) {
               <div style={{ marginTop: "12px", display: "flex", flexWrap: "wrap", gap: "8px" }}
                    data-testid={`corr-e-attachments-${c.corrigendum_no}`}>
                 {c.attachments.map((a) => (
-                  <a key={a.key || a.file_name} href={a.url}
+                  <a key={a.key || a.file_name} href={a.url} target="_blank" rel="noreferrer"
                      className="pmc-btn pmc-btn--secondary pmc-btn--sm">
                     {a.file_name}
                   </a>
                 ))}
               </div>
             )}
+            {/* v52bp — one-click public download of the auto-generated
+                one-page diff PDF (same artefact bidders receive by email). */}
+            <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}
+                 data-testid={`corr-e-pdf-row-${c.corrigendum_no}`}>
+              <a href={`${process.env.REACT_APP_BACKEND_URL || ""}/api/v1/notices/${noticeRef}/corrigenda/${c.id}/pdf`}
+                 target="_blank" rel="noreferrer"
+                 data-testid={`corr-e-pdf-${c.corrigendum_no}`}
+                 className="pmc-btn pmc-btn--brass pmc-btn--sm">
+                📄 Download diff PDF
+              </a>
+            </div>
           </article>
         ))}
       </div>

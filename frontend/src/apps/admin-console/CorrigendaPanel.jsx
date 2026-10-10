@@ -402,6 +402,19 @@ export default function CorrigendaPanel() {
                 </table>
               </div>
             )}
+            {/* v52bp — one-click download of the auto-generated one-page
+                diff PDF (same artefact bidders received by email on publish). */}
+            {c.is_active && (
+              <div className="mt-3 flex items-center gap-2 flex-wrap">
+                <a href={`${process.env.REACT_APP_BACKEND_URL || ""}/api/v1/notices/${pickedNoticeRef}/corrigenda/${c.id}/pdf`}
+                   target="_blank" rel="noreferrer"
+                   data-testid={`corr-pdf-admin-${c.corrigendum_no}`}
+                   className="text-[10px] uppercase tracking-widest px-2 py-1 border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white">
+                  📄 Download diff PDF
+                </a>
+                <span className="text-[10px] text-brand-navy/50">Same PDF that was emailed to active bidders</span>
+              </div>
+            )}
             {!c.is_active && c.withdrawn_reason && (
               <div className="text-xs text-slate-500 mt-2 italic"
                    data-testid={`corr-withdraw-reason-${c.corrigendum_no}`}>

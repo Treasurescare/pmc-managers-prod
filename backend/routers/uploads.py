@@ -111,7 +111,8 @@ async def get_public_file(key: str, download: bool = False):
     if not doc:
         raise HTTPException(status_code=404, detail="File not found")
     # Allow only notice-attachment files whose parent notice is published.
-    if doc.get("scope") not in ("notice-attachments",):
+    # v52bp — corrigendum attachments are also public on a published notice.
+    if doc.get("scope") not in ("notice-attachments", "corrigendum-attachments"):
         raise HTTPException(status_code=403,
             detail="This file is not publicly downloadable")
     notice_ref = doc.get("notice_ref")
