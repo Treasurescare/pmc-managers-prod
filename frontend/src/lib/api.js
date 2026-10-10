@@ -328,6 +328,29 @@ export const uploadsApi = {
       headers: { "Content-Type": "multipart/form-data" },
     }).then((r) => r.data);
   },
+  // v51bd — authenticated-fetch of an uploaded file, returning a blob URL.
+  // Browser `target=_blank` to the gated file endpoint does not reliably
+  // forward the vendor's httpOnly cookie across the preview domain
+  // (SameSite=None + Partitioned CHIPS), so a raw <a> tab 401s. Fetch via
+  // axios (withCredentials) → blob → URL.createObjectURL so the user sees
+  // the file inline on both admin + vendor sides.
+  openInNewTab: async (key, { download = false, filename } = {}) => {
+    const res = await api.get(`/api/v1/uploads/files/${encodeURI(key)}`,
+                               { params: download ? { download: 1 } : {},
+                                 responseType: "blob" });
+    const blob = new Blob([res.data], { type: res.headers?.["content-type"] || "application/octet-stream" });
+    const url = URL.createObjectURL(blob);
+    if (download) {
+      const a = document.createElement("a");
+      a.href = url; a.download = filename || key.split("/").pop() || "file";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } else {
+      window.open(url, "_blank", "noopener,noreferrer");
+      // Keep the blob around a bit so the new tab can render it.
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    }
+  },
 };
 
 // ---------- Wave 2: Evaluations ----------
@@ -374,6 +397,21 @@ export const vendorIntelApi = {
   watchlist: (p) => api.post("/api/v1/vendor-intel/watchlist", p).then((r) => r.data),
   esg: (p) => api.post("/api/v1/vendor-intel/esg", p).then((r) => r.data),
   summary: () => api.get("/api/v1/vendor-intel/summary").then((r) => r.data),
+  // v51bd — blacklist evidence (admin) + vendor appeal
+  getBlacklist: (ref) => api.get(`/api/v1/vendor-intel/blacklist/${ref}`).then((r) => r.data),
+  addEvidence: (ref, p) =>
+    api.post(`/api/v1/vendor-intel/blacklist/${ref}/evidence`, p).then((r) => r.data),
+  updateEvidence: (ref, idx, p) =>
+    api.patch(`/api/v1/vendor-intel/blacklist/${ref}/evidence/${idx}`, p).then((r) => r.data),
+  deleteEvidence: (ref, idx) =>
+    api.delete(`/api/v1/vendor-intel/blacklist/${ref}/evidence/${idx}`).then((r) => r.data),
+  myBlacklist: () => api.get("/api/v1/vendor-intel/my-blacklist").then((r) => r.data),
+  submitAppeal: (p) =>
+    api.post("/api/v1/vendor-intel/my-blacklist/appeal", p).then((r) => r.data),
+  addAppealEvidence: (p) =>
+    api.post("/api/v1/vendor-intel/my-blacklist/appeal/evidence", p).then((r) => r.data),
+  deleteAppealEvidence: (idx) =>
+    api.delete(`/api/v1/vendor-intel/my-blacklist/appeal/evidence/${idx}`).then((r) => r.data),
 };
 
 export const mastersApi = {

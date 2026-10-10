@@ -1,5 +1,55 @@
 # PMC Managers v2 — PRD (last touched 10 Oct 2026)
 
+## v51bc — Bid submission UX + blacklist/appeal (10 Oct 2026)
+
+Fixes:
+- Vendor "View" button on uploaded Technical/Commercial PDFs no longer
+  returns `401 Sign in to download tender documents`. The file is now
+  fetched through the authenticated axios client (`uploadsApi.openInNewTab`)
+  and streamed as a blob URL.
+- `412` and other submit errors now surface the real backend detail in the
+  toast title (`Submission blocked — pre-condition failed · KYC verification
+  required…`) instead of the generic "Something went wrong".
+- Backend requires BOTH Technical and Commercial envelope PDFs on
+  `/api/v1/bids` POST (adds a commercial-doc check next to the existing
+  technical check).
+
+Vendor Intelligence — blacklist, whitelist, evidence, vendor appeal
+(models + routes in `routers/vendor_intel.py`):
+- `GET /vendor-intel/blacklist/{ref}` — admin fetches full record
+- `POST /vendor-intel/blacklist/{ref}/evidence` — admin attaches doc/photo
+- `PATCH /vendor-intel/blacklist/{ref}/evidence/{idx}` — admin edits note
+- `DELETE /vendor-intel/blacklist/{ref}/evidence/{idx}` — admin removes
+- `DELETE /vendor-intel/blacklist/{ref}` — whitelist / full removal
+- `GET /vendor-intel/my-blacklist` — vendor sees their own record
+- `POST /vendor-intel/my-blacklist/appeal` — vendor submits an appeal
+- `POST /vendor-intel/my-blacklist/appeal/evidence` — vendor attaches
+- `DELETE /vendor-intel/my-blacklist/appeal/evidence/{idx}` — vendor removes
+
+Frontend:
+- `components/EvidenceManager.jsx` — reusable widget with upload-document,
+  capture-photo (`<input accept="image/*" capture="environment">`), view,
+  download, print, delete, optional per-item note. Used on both admin and
+  vendor sides.
+- Admin `VendorIntelPanel.jsx` modal: emerald "Whitelist / remove from
+  blacklist" with confirmation, admin evidence manager, vendor appeals
+  (read-only evidence viewer).
+- `VendorBlacklistAppeal.jsx` rendered at the top of `VendorHomeE` for
+  blacklisted vendors: shows reason + timestamp, lets them submit an
+  appeal and attach documents or camera-captured photos.
+
+Release artifacts:
+- `/downloads/pmc-frontend-v51bc-prod-build.zip` (~3.0 MB)
+- `/downloads/pmc-backend-v51bc.zip` (~529 KB) — EB root-level Docker layout
+- `/downloads/DOWNLOAD_v51bc.md`
+
+Deploy order: backend v51bc FIRST (new endpoints) → frontend v51bc.
+
+---
+
+
+# PMC Managers v2 — PRD (last touched 10 Oct 2026)
+
 ## v51bb — Admin add-vendor UX fixes (10 Oct 2026)
 - Back button on `/admin/vendors/new` now reads "Back to vendors" and lands on
   the Vendors tab (`/admin?tab=vendors`) — same as Edit full profile.

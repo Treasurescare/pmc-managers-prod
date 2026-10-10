@@ -5,6 +5,7 @@ import { useI18n } from "@/context/I18nContext";
 import { InfoDot } from "@/components/InfoDot";
 import ReviewModerationSection, { AdminBadgePreview } from "@/apps/admin-console/vendor/ReviewModerationSection";
 import { useListPager } from "@/components/ListPager";
+import EvidenceManager from "@/components/EvidenceManager";
 
 const BANDS = ["excellent", "good", "fair", "poor", "blacklisted"];
 
@@ -37,6 +38,13 @@ export default function VendorIntelPanel() {
       load();
     } catch (e) { showApiError(e); }
   };
+  const [blDetail, setBlDetail] = useState(null); // full record with evidence + appeals
+
+  const refreshBlDetail = async (ref) => {
+    try { setBlDetail(await vendorIntelApi.getBlacklist(ref)); }
+    catch { setBlDetail(null); }
+  };
+
   const blacklist = async (v) => {
     if (!blacklistReason) return toast.error(t("panels.vendor_intel.reason_required"));
     try {
@@ -45,18 +53,42 @@ export default function VendorIntelPanel() {
       // v51av — reflect the new state in the open modal immediately so the
       // Remove button flips side without closing + reopening (docx #17).
       setSelected({ ...v, blacklisted: true });
+      refreshBlDetail(v.vendor_ref);
       load();
     } catch (e) { showApiError(e); }
   };
   const unblacklist = async (v) => {
+    if (!window.confirm(`Whitelist ${v.company_name || v.vendor_ref}? They will be able to bid again. The blacklist record and all evidence will be removed.`)) return;
     try {
       await vendorIntelApi.unblacklist(v.vendor_ref);
       toast.success(t("panels.vendor_intel.removed_toast"));
       setSelected({ ...v, blacklisted: false });
       setBlacklistReason("");
+      setBlDetail(null);
       load();
     } catch (e) { showApiError(e); }
   };
+
+  const addEvidence = async (entry) => {
+    try {
+      const bl = await vendorIntelApi.addEvidence(selected.vendor_ref, entry);
+      setBlDetail(bl);
+    } catch (e) { showApiError(e); }
+  };
+  const deleteEvidence = async (idx) => {
+    if (!window.confirm("Delete this piece of evidence? This cannot be undone.")) return;
+    try {
+      const bl = await vendorIntelApi.deleteEvidence(selected.vendor_ref, idx);
+      setBlDetail(bl);
+    } catch (e) { showApiError(e); }
+  };
+
+  // When a vendor row is opened AND they are blacklisted, pull the detail
+  // record so the evidence/appeals manager is populated.
+  useEffect(() => {
+    if (selected?.vendor_ref && selected?.blacklisted) refreshBlDetail(selected.vendor_ref);
+    else setBlDetail(null);
+  }, [selected?.vendor_ref, selected?.blacklisted]);
 
   return (
     <div data-testid="admin-vendor-intel-panel" className="bg-white border">
@@ -117,8 +149,8 @@ export default function VendorIntelPanel() {
       </div>
 
       {selected && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full space-y-3" data-testid="vintel-modal">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full space-y-3 my-10" data-testid="vintel-modal">
             <div className="text-lg font-serif">{selected.company_name}</div>
             <div className="text-xs text-slate-500">{selected.vendor_ref}</div>
             <label className="block text-sm">
@@ -151,10 +183,67 @@ export default function VendorIntelPanel() {
                     className="flex-1 bg-red-600 text-white py-2 text-sm">{t("panels.vendor_intel.blacklist")}</button>
                 ) : (
                   <button onClick={() => unblacklist(selected)} data-testid="vintel-unblacklist"
-                    className="flex-1 bg-slate-200 text-slate-900 py-2 text-sm">{t("panels.vendor_intel.unblacklist")}</button>
+                    className="flex-1 bg-emerald-600 text-white py-2 text-sm font-semibold">
+                    Whitelist / remove from blacklist
+                  </button>
                 )}
               </div>
             </div>
+
+            {/* v51bd — admin evidence manager (visible only once vendor is
+                blacklisted). Supports file + camera capture + view/download/
+                print/delete. */}
+            {selected.blacklisted && (
+              <div className="border-t pt-3 space-y-3" data-testid="vintel-bl-detail">
+                <div className="text-xs text-slate-600">
+                  <strong>Blacklist reason:</strong> {blDetail?.reason || "—"}
+                  {blDetail?.at && <span> · {(blDetail.at || "").slice(0, 19).replace("T", " ")}</span>}
+                </div>
+                <EvidenceManager
+                  title="Admin evidence"
+                  items={blDetail?.evidence || []}
+                  onAdd={addEvidence}
+                  onDelete={deleteEvidence}
+                  scope="blacklist-evidence"
+                  testIdPrefix="vintel-ev"
+                />
+                {(blDetail?.appeals || []).length > 0 && (
+                  <div className="border border-slate-200 bg-amber-50 p-3"
+                       data-testid="vintel-appeals">
+                    <div className="text-[11px] uppercase tracking-widest text-amber-800 font-semibold mb-2">
+                      Vendor appeals ({(blDetail?.appeals || []).length})
+                    </div>
+                    <ul className="space-y-3">
+                      {(blDetail?.appeals || []).map((ap, ai) => (
+                        <li key={ai} className="border-t border-amber-200 pt-2"
+                            data-testid={`vintel-appeal-${ai}`}>
+                          <div className="text-xs text-slate-700">
+                            <strong>{ap.by || "vendor"}</strong>
+                            <span className="text-slate-500"> · {(ap.at || "").slice(0, 19).replace("T", " ")}</span>
+                          </div>
+                          {ap.message && (
+                            <div className="text-sm text-slate-800 whitespace-pre-wrap mt-1">
+                              {ap.message}
+                            </div>
+                          )}
+                          {(ap.evidence || []).length > 0 && (
+                            <div className="mt-2">
+                              <EvidenceManager
+                                title="Appeal evidence"
+                                items={ap.evidence}
+                                readOnly
+                                testIdPrefix={`vintel-ap-ev-${ai}`}
+                              />
+                            </div>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
             <button onClick={() => setSelected(null)} className="text-xs text-slate-500 hover:underline">
               {t("panels.vendor_intel.close")}
             </button>

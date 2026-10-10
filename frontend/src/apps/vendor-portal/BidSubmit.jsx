@@ -133,7 +133,14 @@ export default function BidSubmit() {
       }
     } catch (err) {
       const msg = formatApiError(err);
-      showApiError(err);
+      const status = err?.response?.status;
+      const title =
+        status === 412 ? "Submission blocked — pre-condition failed" :
+        status === 409 ? "Submission blocked — duplicate bid" :
+        status === 422 ? "Submission blocked — missing information" :
+        status === 400 ? "Submission blocked — deadline or rule violation" :
+        "Could not submit bid";
+      showApiError(err, { fallbackTitle: title });
       setFormError(msg);
       setBusy(false);
     }
@@ -252,9 +259,11 @@ export default function BidSubmit() {
                       <span className="text-slate-500"> ({Math.round((d.size_bytes || 0) / 1024)} KB)</span>
                     </span>
                     <span className="flex gap-3 shrink-0 text-xs font-semibold">
-                      <a href={`${BACKEND_URL}/api/v1/uploads/files/${d.key}`} target="_blank" rel="noreferrer"
+                      <button type="button"
+                        onClick={() => uploadsApi.openInNewTab(d.key, { filename: d.filename })
+                                                 .catch((err) => showApiError(err, { fallbackTitle: "Could not open file" }))}
                         className="text-slate-900 underline hover:text-slate-600"
-                        data-testid={`bid-doc-view-${d.kind}-${i}`}>View</a>
+                        data-testid={`bid-doc-view-${d.kind}-${i}`}>View</button>
                       <button type="button" onClick={() => removeDoc(i)}
                         className="text-red-600 hover:underline"
                         data-testid={`bid-doc-remove-${d.kind}-${i}`}>Remove</button>

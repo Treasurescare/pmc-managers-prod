@@ -23,6 +23,21 @@ class BlacklistIn(BaseModel):
     until: Optional[str] = None  # ISO — permanent if null
 
 
+class BlacklistEvidenceIn(BaseModel):
+    """A single admin- or vendor-supplied evidence file attached to a
+    blacklist record (v51bd). The frontend presigns + uploads first,
+    then posts the resulting key here."""
+    key: str
+    filename: str
+    size_bytes: int = 0
+    content_type: Optional[str] = None
+    note: Optional[str] = None
+
+
+class BlacklistAppealIn(BaseModel):
+    message: str  # vendor's narrative for the appeal
+
+
 class WatchlistIn(BaseModel):
     vendor_ref: str
     reason: str

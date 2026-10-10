@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { vendorApi, bidApi, publicApi, docusignApi } from "@/lib/api";
 import VendorPortalChrome from "./VendorPortalChrome";
+import VendorBlacklistAppeal from "./VendorBlacklistAppeal";
 
 /**
  * v50o — Vendor home rewritten on the shared VendorPortalChrome.
@@ -95,6 +96,7 @@ export default function VendorHomeE({ legacy: Legacy }) {
         "/vendor/mybids": activeBids.length || undefined,
         "/vendor/signatures": toSign.length || undefined,
       }}>
+        <VendorBlacklistAppeal />
         <div className="pmc-hi">
           <div>
             <div className="pmc-eyebrow" data-testid="vhome-date">{todayLabel()}</div>
