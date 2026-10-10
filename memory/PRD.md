@@ -1,5 +1,36 @@
 # PMC Managers v2 — PRD (last touched 10 Oct 2026)
 
+## v52bm — Rich Corrigendum form + bundle regeneration (10 Oct 2026, follow-up)
+
+Frontend-only update (backend unchanged from v52bl).
+
+- `apps/admin-console/CorrigendaPanel.jsx` — complete rewrite of the create
+  form. When a notice is picked the admin now sees a 14-row table of every
+  amendable field with four columns:
+  `Field · Current value · New value (optional) · Reason for this change`.
+  - Fields: Title, Description, Category, Document type, Delivery country,
+    Submission deadline, Budget currency, Budget amount, Tender fee,
+    Form of contract, EMD fixed amount, EMD % of budget, Pre-bid meeting,
+    Clarifications close.
+  - Per-row Reason input becomes required only when a New value is typed.
+  - Added mandatory `Corrigendum date` (defaults to now) → serialised as
+    `effective_from` on the payload; recorded in the audit ledger.
+  - Overall change description now hard-blocks on min 8 chars.
+  - Published rows render the full before/after/reason table + corrigendum
+    date in the admin list.
+  - Uses `adminApi.getNoticeAdmin` first so DRAFT notices populate too (public
+    endpoint returned 404 for unpublished notices).
+- Fresh frontend bundle shipped as **pmc-frontend-v52bm-prod-build.zip**
+  (3.0 MB). Backend untouched — keep `pmc-backend-v52bl.zip`.
+
+Verified via Playwright: 14 field-rows render for picked notice, Title/
+Description/Category current values populate, mandatory Corrigendum date
+visible. All existing testids preserved for regression.
+
+---
+
+
+
 ## v52bm — Create-notice submit no longer hijacked to Tender builder (10 Oct 2026)
 
 Bug: on Admin → Notices → New notice, pressing **Create notice** with missing

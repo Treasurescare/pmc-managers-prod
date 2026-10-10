@@ -1,31 +1,73 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { corrigendaApi, formatApiError, showApiError} from "@/lib/api";
+import { corrigendaApi, adminApi, publicApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import { InfoDot } from "@/components/InfoDot";
 import { useListPager } from "@/components/ListPager";
 
-/** Wave 39 — Corrigendum publisher. Attached under Notices admin flow. */
+// v52bm — Fields on a notice that a corrigendum can amend. Order drives the
+// display order of the "Current → New" rows. `kind` hints the input widget.
+const NOTICE_FIELDS = [
+  { key: "title",                 label: "Title",                 kind: "text" },
+  { key: "description",           label: "Description",           kind: "textarea" },
+  { key: "category",              label: "Category",              kind: "text" },
+  { key: "document_type",         label: "Document type",         kind: "text" },
+  { key: "delivery_country",      label: "Delivery country",      kind: "text" },
+  { key: "submission_deadline",   label: "Submission deadline",   kind: "datetime" },
+  { key: "budget_currency",       label: "Budget currency",       kind: "text" },
+  { key: "budget_amount",         label: "Budget amount",         kind: "number" },
+  { key: "tender_fee",            label: "Tender fee",            kind: "number" },
+  { key: "form_of_contract",      label: "Form of contract",      kind: "text" },
+  { key: "emd_fixed_amount",      label: "EMD fixed amount",      kind: "number",
+    read: (n) => n?.emd_config?.fixed_amount },
+  { key: "emd_percentage",        label: "EMD % of budget",       kind: "number",
+    read: (n) => n?.emd_config?.percentage },
+  { key: "pre_bid_meeting_date",  label: "Pre-bid meeting",       kind: "datetime" },
+  { key: "clarification_deadline",label: "Clarifications close",  kind: "datetime" },
+];
+
+const readField = (notice, f) => {
+  if (f.read) return f.read(notice);
+  return notice ? notice[f.key] : undefined;
+};
+
+const fmtValue = (v, kind) => {
+  if (v === undefined || v === null || v === "") return "—";
+  if (kind === "datetime") return String(v).slice(0, 16).replace("T", " ");
+  if (kind === "number") return typeof v === "number" ? v.toLocaleString() : String(v);
+  return String(v);
+};
+
+/** Wave 39 + v52bm — Corrigendum publisher. Shows every field of the parent
+ *  notice as a Current → New row with a per-change description so the
+ *  resulting diff is self-describing on the public corrigendum page. */
 export default function CorrigendaPanel() {
   const { t } = useI18n();
   const [notices, setNotices] = useState([]);
   const [pickedNoticeRef, setPickedNoticeRef] = useState("");
+  const [pickedNotice, setPickedNotice] = useState(null);
   const [items, setItems] = useState([]);
   const [showNew, setShowNew] = useState(false);
   const [noticeSearch, setNoticeSearch] = useState("");
   const [corrSearch, setCorrSearch] = useState("");
+  // v52bm — corrigendum_date defaults to today (admin-visible, published to
+  // vendors as the "effective from" date and surfaced in the audit record).
+  const todayLocal = () => {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
   const [draft, setDraft] = useState({
-    title: "", summary: "", effective_from: "", new_submission_deadline: "",
-    extend_deadline_days: "", field_amendments: [],
+    title: "", summary: "", corrigendum_date: todayLocal(),
+    new_submission_deadline: "",
   });
-  // v51ad — admin can add row-level field amendments (before/after diff shown
-  // to vendors on the public corrigendum page).
-  const addAmendment = () => setDraft((d) => ({ ...d,
-    field_amendments: [...(d.field_amendments || []), { field: "", before: "", after: "" }] }));
-  const updateAmendment = (i, patch) => setDraft((d) => ({ ...d,
-    field_amendments: d.field_amendments.map((a, j) => j === i ? { ...a, ...patch } : a) }));
-  const removeAmendment = (i) => setDraft((d) => ({ ...d,
-    field_amendments: d.field_amendments.filter((_, j) => j !== i) }));
+  // v52bm — per-field edits keyed by field name:
+  //   { title: { new: "...", note: "..." }, ... }
+  // Each entry becomes one field_amendments row when the admin publishes.
+  const [edits, setEdits] = useState({});
+
+  const setEdit = (key, patch) =>
+    setEdits((prev) => ({ ...prev, [key]: { ...(prev[key] || {}), ...patch } }));
 
   const loadNotices = useCallback(() => {
     // Bucket A fix — pull drafts + published so admin can attach corrigenda
@@ -46,37 +88,76 @@ export default function CorrigendaPanel() {
       .catch((e) => showApiError(e));
   }, []);
 
+  // v52bm — load full notice detail so Current column has every field.
+  // Admin endpoint used so DRAFT notices (not yet published) also populate.
+  const loadNoticeDetail = useCallback((ref) => {
+    if (!ref) { setPickedNotice(null); return; }
+    adminApi.getNoticeAdmin(ref)
+      .then((n) => setPickedNotice(n))
+      .catch(() => publicApi.getNotice(ref).then(setPickedNotice).catch(() => setPickedNotice(null)));
+  }, []);
+
   useEffect(() => { loadNotices(); }, [loadNotices]);
-  useEffect(() => { loadCorrigenda(pickedNoticeRef); }, [pickedNoticeRef, loadCorrigenda]);
+  useEffect(() => {
+    loadCorrigenda(pickedNoticeRef);
+    loadNoticeDetail(pickedNoticeRef);
+    setEdits({});
+  }, [pickedNoticeRef, loadCorrigenda, loadNoticeDetail]);
 
   const publish = async () => {
-    if (!draft.title || !draft.summary) {
-      toast.error(t("panels.corrigenda.title_summary_required"));
+    if (!draft.title || draft.title.trim().length < 3) {
+      toast.error("Corrigendum title is required (min 3 characters)");
       return;
     }
-    try {
-      const payload = { ...draft };
-      if (!payload.effective_from) delete payload.effective_from;
-      if (!payload.new_submission_deadline) delete payload.new_submission_deadline;
-      if (payload.extend_deadline_days === "" || payload.extend_deadline_days == null) {
-        delete payload.extend_deadline_days;
-      } else {
-        payload.extend_deadline_days = Number(payload.extend_deadline_days);
+    if (!draft.summary || draft.summary.trim().length < 8) {
+      toast.error("Overall change description is required (min 8 characters)");
+      return;
+    }
+    // v52bm — build field_amendments from per-row edits where the admin
+    // entered a NEW value AND a per-field reason.
+    const amendments = [];
+    for (const f of NOTICE_FIELDS) {
+      const e = edits[f.key];
+      if (!e) continue;
+      const newVal = (e.new ?? "").toString().trim();
+      if (newVal === "") continue;
+      const before = readField(pickedNotice, f);
+      const beforeStr = before === undefined || before === null ? "" : String(before);
+      if (newVal === beforeStr) continue;
+      if (!e.note || e.note.trim().length < 3) {
+        toast.error(`"${f.label}" was changed — add a reason (min 3 chars) next to it.`);
+        return;
       }
-      payload.field_amendments = (payload.field_amendments || [])
-        .filter((a) => (a.field || "").trim() && ((a.before || a.after || "").toString().trim()));
-      if (payload.field_amendments.length === 0) delete payload.field_amendments;
+      amendments.push({
+        field: f.label,
+        field_key: f.key,
+        before: beforeStr,
+        after: newVal,
+        note: e.note.trim(),
+      });
+    }
+    try {
+      const payload = {
+        title: draft.title.trim(),
+        summary: draft.summary.trim(),
+        effective_from: draft.corrigendum_date || undefined,
+      };
+      if (draft.new_submission_deadline) {
+        payload.new_submission_deadline = draft.new_submission_deadline;
+      }
+      if (amendments.length) payload.field_amendments = amendments;
       const res = await corrigendaApi.publish(pickedNoticeRef, payload);
       toast.success(`Corrigendum No. ${res.corrigendum.corrigendum_no} published`);
       setShowNew(false);
-      setDraft({ title: "", summary: "", effective_from: "", new_submission_deadline: "",
-                 extend_deadline_days: "", field_amendments: [] });
+      setDraft({ title: "", summary: "", corrigendum_date: todayLocal(),
+                 new_submission_deadline: "" });
+      setEdits({});
       loadCorrigenda(pickedNoticeRef);
+      loadNoticeDetail(pickedNoticeRef);
     } catch (err) { showApiError(err); }
   };
 
   const withdraw = async (cid) => {
-    // Bug (from PDF v3 observation) — require reason on withdraw, log to audit.
     const reason = window.prompt(
       "Reason for withdrawing this corrigendum? (required, min 8 chars — will be logged to audit)"
     );
@@ -137,60 +218,92 @@ export default function CorrigendaPanel() {
       {showNew && (
         <div className="border border-brand-navy-soft/40 bg-white p-6 mb-6 grid gap-4 md:grid-cols-2"
              data-testid="corr-new-form">
-          <label className="col-span-2"><span className="pmc-label">{t("panels.corrigenda.title_label")}<InfoDot tip="Short headline shown on the public notice page (e.g. 'Deadline extended by 7 days')." /></span>
+          <label className="col-span-2"><span className="pmc-label">{t("panels.corrigenda.title_label")} <span className="text-red-600">*</span><InfoDot tip="Short headline shown on the public notice page (e.g. 'Deadline extended by 7 days')." /></span>
             <input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })}
                    data-testid="corr-title"
                    className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <label className="col-span-2"><span className="pmc-label">{t("panels.corrigenda.summary_label")}<InfoDot tip="Full text of the amendment. Rendered verbatim in the corrigendum PDF and notification email to registered bidders." /></span>
-            <textarea rows={5} value={draft.summary}
+          <label className="col-span-2"><span className="pmc-label">Overall change description <span className="text-red-600">*</span><InfoDot tip="Full text of the amendment. Rendered verbatim in the corrigendum PDF and notification email to registered bidders. Minimum 8 characters." /></span>
+            <textarea rows={4} value={draft.summary}
                       onChange={(e) => setDraft({ ...draft, summary: e.target.value })}
                       data-testid="corr-summary"
+                      placeholder="Why is this corrigendum being issued? What is changing and why?"
                       className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <label><span className="pmc-label">{t("panels.corrigenda.effective_from")}<InfoDot tip="Optional. When this amendment takes effect. Leave blank for 'immediately on publish'." /></span>
-            <input type="datetime-local" value={draft.effective_from}
-                   onChange={(e) => setDraft({ ...draft, effective_from: e.target.value })}
-                   data-testid="corr-effective"
+          <label><span className="pmc-label">Corrigendum date <span className="text-red-600">*</span><InfoDot tip="When this corrigendum takes effect. Defaults to now. Shown to vendors and recorded in the audit ledger." /></span>
+            <input type="datetime-local" value={draft.corrigendum_date}
+                   onChange={(e) => setDraft({ ...draft, corrigendum_date: e.target.value })}
+                   data-testid="corr-date"
                    className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <label><span className="pmc-label">{t("panels.corrigenda.new_deadline")}<InfoDot tip="Optional. If this corrigendum extends or shortens the bid deadline, set the new cut-off here. Overwrites the notice's deadline." /></span>
+          <label><span className="pmc-label">New submission deadline (optional)<InfoDot tip="Only set if this corrigendum shifts the bid deadline. Overwrites the notice's current deadline on publish." /></span>
             <input type="datetime-local" value={draft.new_submission_deadline}
                    onChange={(e) => setDraft({ ...draft, new_submission_deadline: e.target.value })}
                    data-testid="corr-new-deadline"
                    className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <label><span className="pmc-label">Extend deadline by (days)<InfoDot tip="Optional shortcut. If set and the field above is blank, the backend adds N days to the notice's current submission deadline." /></span>
-            <input type="number" min="0" max="365" value={draft.extend_deadline_days}
-                   onChange={(e) => setDraft({ ...draft, extend_deadline_days: e.target.value })}
-                   data-testid="corr-extend-days"
-                   placeholder="e.g. 7"
-                   className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <div className="col-span-2 border-t border-brand-navy/10 pt-4">
-            <div className="pmc-label mb-2">Field amendments (optional, versioned diff)
-              <InfoDot tip="Show vendors exactly which tender fields changed. Each row: pick the field (BOQ item, eligibility clause, budget, etc.), paste the before and after values. Vendors see a versioned diff on the public corrigendum page." /></div>
-            {(draft.field_amendments || []).map((a, i) => (
-              <div key={i} className="grid gap-2 md:grid-cols-[1fr_2fr_2fr_auto] mb-2"
-                   data-testid={`corr-amend-row-${i}`}>
-                <input value={a.field} onChange={(e) => updateAmendment(i, { field: e.target.value })}
-                       placeholder="Field (BOQ item 3 / eligibility / budget)"
-                       data-testid={`corr-amend-field-${i}`}
-                       className="px-3 py-2 border border-brand-navy/15 text-sm" />
-                <input value={a.before} onChange={(e) => updateAmendment(i, { before: e.target.value })}
-                       placeholder="Before"
-                       data-testid={`corr-amend-before-${i}`}
-                       className="px-3 py-2 border border-brand-navy/15 text-sm bg-red-50/50" />
-                <input value={a.after}  onChange={(e) => updateAmendment(i, { after: e.target.value })}
-                       placeholder="After"
-                       data-testid={`corr-amend-after-${i}`}
-                       className="px-3 py-2 border border-brand-navy/15 text-sm bg-emerald-50/50" />
-                <button type="button" onClick={() => removeAmendment(i)}
-                        data-testid={`corr-amend-remove-${i}`}
-                        className="px-2 py-1 text-[10px] uppercase tracking-widest border border-red-300 text-red-700 hover:bg-red-50">✕</button>
+
+          {/* v52bm — per-field current vs new table */}
+          <div className="col-span-2 border-t border-brand-navy/10 pt-5">
+            <div className="pmc-label mb-1">Change any field on the notice</div>
+            <div className="text-xs text-brand-navy/60 mb-3">
+              Leave the <b>New value</b> empty to keep the current value.
+              If you type a new value, a <b>reason</b> is required for that row (recorded with the diff).
+            </div>
+            {!pickedNotice ? (
+              <div className="text-sm text-brand-navy/50 italic">Loading notice fields…</div>
+            ) : (
+              <div className="border border-brand-navy/15 overflow-x-auto" data-testid="corr-fields-table">
+                <table className="w-full text-sm">
+                  <thead className="bg-brand-navy text-white text-xs uppercase tracking-widest">
+                    <tr>
+                      <th className="text-left px-3 py-2 w-[18%]">Field</th>
+                      <th className="text-left px-3 py-2 w-[27%]">Current</th>
+                      <th className="text-left px-3 py-2 w-[27%]">New value (optional)</th>
+                      <th className="text-left px-3 py-2 w-[28%]">Reason for this change</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {NOTICE_FIELDS.map((f) => {
+                      const current = readField(pickedNotice, f);
+                      const row = edits[f.key] || {};
+                      const InputEl = f.kind === "textarea" ? "textarea" : "input";
+                      const inputType = f.kind === "datetime" ? "datetime-local"
+                                       : f.kind === "number" ? "number" : "text";
+                      return (
+                        <tr key={f.key} className="border-t border-brand-navy/10 align-top"
+                            data-testid={`corr-field-row-${f.key}`}>
+                          <td className="px-3 py-2 font-semibold text-brand-navy">{f.label}</td>
+                          <td className="px-3 py-2 bg-brand-pale/40 text-brand-navy/80 whitespace-pre-wrap break-words"
+                              data-testid={`corr-field-current-${f.key}`}>
+                            {fmtValue(current, f.kind)}
+                          </td>
+                          <td className="px-3 py-2">
+                            {f.kind === "textarea" ? (
+                              <textarea rows={3} value={row.new || ""}
+                                        onChange={(e) => setEdit(f.key, { new: e.target.value })}
+                                        data-testid={`corr-field-new-${f.key}`}
+                                        className="w-full px-2 py-1 border border-brand-navy/20 text-sm" />
+                            ) : (
+                              <InputEl type={inputType} value={row.new || ""}
+                                       onChange={(e) => setEdit(f.key, { new: e.target.value })}
+                                       data-testid={`corr-field-new-${f.key}`}
+                                       className="w-full px-2 py-1 border border-brand-navy/20 text-sm" />
+                            )}
+                          </td>
+                          <td className="px-3 py-2">
+                            <input value={row.note || ""}
+                                   onChange={(e) => setEdit(f.key, { note: e.target.value })}
+                                   data-testid={`corr-field-note-${f.key}`}
+                                   placeholder={row.new ? "Required when changed" : "—"}
+                                   disabled={!row.new}
+                                   className="w-full px-2 py-1 border border-brand-navy/20 text-sm disabled:bg-slate-50" />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-            ))}
-            <button type="button" onClick={addAmendment}
-                    data-testid="corr-amend-add"
-                    className="mt-1 px-3 py-1.5 text-[10px] uppercase tracking-widest border border-brand-navy/30 text-brand-navy hover:bg-brand-navy/5">
-              + Add field amendment
-            </button>
+            )}
           </div>
+
           <div className="col-span-2 flex justify-end">
             <button type="button" onClick={publish} data-testid="corr-publish"
               className="px-8 py-3 text-[12px] font-semibold uppercase tracking-widest bg-brand-navy-soft text-white hover:bg-brand-navy-soft/90">
@@ -213,7 +326,10 @@ export default function CorrigendaPanel() {
               <span className={`text-sm font-semibold flex-1 ${c.is_active ? "text-brand-navy" : "text-brand-navy/50 line-through"}`}>
                 {c.title}
               </span>
-              <span className="text-xs text-brand-navy/50 font-mono">{c.published_at?.slice(0, 10)}</span>
+              <span className="text-xs text-brand-navy/50 font-mono"
+                    data-testid={`corr-row-date-${c.corrigendum_no}`}>
+                {(c.effective_from || c.published_at || "").slice(0, 16).replace("T", " ")}
+              </span>
               {c.is_active ? (
                 <button type="button" onClick={() => withdraw(c.id)}
                         data-testid={`corr-withdraw-${c.corrigendum_no}`}
@@ -230,6 +346,31 @@ export default function CorrigendaPanel() {
             <div className={`text-sm mt-2 whitespace-pre-line ${c.is_active ? "text-brand-navy/80" : "text-brand-navy/50"}`}>
               {c.summary}
             </div>
+            {(c.field_amendments || []).length > 0 && (
+              <div className="mt-3 border border-brand-navy/15 bg-white text-xs overflow-x-auto"
+                   data-testid={`corr-row-amendments-${c.corrigendum_no}`}>
+                <table className="w-full">
+                  <thead className="bg-brand-pale/50 text-brand-navy">
+                    <tr>
+                      <th className="text-left px-2 py-1">Field</th>
+                      <th className="text-left px-2 py-1">Before</th>
+                      <th className="text-left px-2 py-1">After</th>
+                      <th className="text-left px-2 py-1">Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {c.field_amendments.map((a, idx) => (
+                      <tr key={idx} className="border-t border-brand-navy/10">
+                        <td className="px-2 py-1 font-semibold">{a.field}</td>
+                        <td className="px-2 py-1 bg-red-50/60 text-red-900 whitespace-pre-wrap break-words">{a.before || "—"}</td>
+                        <td className="px-2 py-1 bg-emerald-50/60 text-emerald-900 whitespace-pre-wrap break-words">{a.after || "—"}</td>
+                        <td className="px-2 py-1 text-brand-navy/70 whitespace-pre-wrap break-words">{a.note || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
             {!c.is_active && c.withdrawn_reason && (
               <div className="text-xs text-slate-500 mt-2 italic"
                    data-testid={`corr-withdraw-reason-${c.corrigendum_no}`}>
