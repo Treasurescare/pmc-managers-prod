@@ -1,3 +1,5 @@
+import { toast } from "sonner";
+import { api } from "@/lib/api";
 /**
  * tenderPdf — opens a print-ready HTML view of a composed tender template
  * in a new window, then triggers window.print() so the browser's Save-as-PDF
@@ -133,12 +135,27 @@ export function exportTenderPdf(doc, { download = false, lang = "en" } = {}) {
   // ---- Real PDF download via the server (WeasyPrint) ----
   if (download) {
     if (!doc?.id) return;
-    const backend = process.env.REACT_APP_BACKEND_URL;
-    const a = document.createElement("a");
+    // v52bq — fetch through the authenticated axios client and hand the
+    // browser a blob URL. A raw <a href> navigation to the admin-only
+    // export endpoint drops the Bearer token and the new tab shows
+    // {"detail":"Not authenticated"}.
     const langQs = lang ? `?lang=${encodeURIComponent(lang)}` : "";
-    a.href = `${backend}/api/v1/tender-templates/${doc.id}/export/pdf${langQs}`;
-    a.download = `${(doc.name || "tender").replace(/[^a-z0-9-_]+/gi, "_").slice(0, 60)}_${lang}.pdf`;
-    document.body.appendChild(a); a.click(); a.remove();
+    const fname = `${(doc.name || "tender").replace(/[^a-z0-9-_]+/gi, "_").slice(0, 60)}_${lang}.pdf`;
+    (async () => {
+      const res = await api.get(
+        `/api/v1/tender-templates/${doc.id}/export/pdf${langQs}`,
+        { responseType: "blob" },
+      );
+      const blob = new Blob([res.data], { type: res.headers?.["content-type"] || "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = fname;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    })().catch((e) => {
+      console.error("tender pdf download failed:", e?.response?.status, e?.message);
+      toast.error("PDF download failed — please sign in again and retry.");
+    });
     return;
   }
 

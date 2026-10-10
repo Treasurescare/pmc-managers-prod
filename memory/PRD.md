@@ -1,5 +1,28 @@
 # PMC Managers v2 — PRD (last touched 10 Oct 2026)
 
+## v52bq — Tender Builder DOWNLOAD PDF 401 fix (10 Oct 2026)
+
+Bug: Tender Builder → DOWNLOAD PDF opened a raw browser tab to
+`GET /api/v1/tender-templates/<id>/export/pdf` (admin-only). Browser
+navigations don't carry the Bearer token → new tab showed
+`{"detail":"Not authenticated"}`.
+
+Fix (`apps/admin-console/tender/tenderPdf.js`): `exportTenderPdf(..., {download:true})`
+now fetches via the authenticated axios `api` client (`responseType: "blob"`),
+wraps the result in a Blob and triggers a real download
+(`<tender-name>_<lang>.pdf`); failures toast instead of dead-ending in a
+JSON tab. Added `import { api } from "@/lib/api"` + `import { toast } from
+"sonner"`. PRINT / PDF stays client-side (iframe + window.print).
+
+Verified via Playwright: export endpoint returns 200 `application/pdf`,
+browser download fired (`Standard_PSU_e-Tender_…_en.pdf`, 30,864 bytes).
+
+Bundle: `pmc-frontend-v52bq-prod-build.zip` (frontend-only; backend stays v52bp).
+
+---
+
+
+
 ## v52bp addendum — Tender Builder filters fixed end-to-end (10 Oct 2026)
 
 User confirmed the filters "exist but don't filter anything". Root causes found
