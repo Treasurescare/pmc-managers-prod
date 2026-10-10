@@ -1,5 +1,37 @@
 # PMC Managers v2 — PRD (last touched 10 Oct 2026)
 
+## v52bm — Create-notice submit no longer hijacked to Tender builder (10 Oct 2026)
+
+Bug: on Admin → Notices → New notice, pressing **Create notice** with missing
+required fields (category / budget / EMD / primary doc) showed the validation
+toast but ALSO navigated to `/admin/e/tender-builder`, closing the form and
+losing context.
+
+Root cause: `components/PmcLinkPatcher.jsx` global delegated click handler —
+its catch-all regex `/^(create|new\s+(tender|notice|package))/` (and the
+`ADMIN_LINKS` label map) routed ANY admin button whose label starts with
+"Create"/"New" to the Tender builder, including the wired React
+`data-testid="notice-create"` button. React's onClick fired (toast) while the
+patcher navigated anyway.
+
+Fix: `PmcLinkPatcher.jsx` — wired admin controls (`data-testid` present, per
+project mandate) now bypass both `resolveClickAction` and the label-map /
+regex fallbacks (`isWiredAdminControl` guard). Static template buttons
+without testids keep the legacy routing behaviour.
+
+Verified via Playwright repro (before/after):
+- Submit with missing category+budget → URL stays `/admin/e/notices`,
+  `notice-new-form` remains open, typed Title/Description preserved,
+  toast "Category is required" visible on the SAME page.
+- New notice toggle (Cancel → re-open) also stays on the same page.
+
+Note: frontend-only change — v52bl frontend zip predates this fix; next
+bundle (v52bm) should be regenerated before deploy.
+
+---
+
+
+
 ## v52bl — Evaluation crash fix + EMD on public page + Notice validation + Engagements meetings + Masters Currencies tab (10 Oct 2026)
 
 Backend

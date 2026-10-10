@@ -960,7 +960,14 @@ export default function PmcLinkPatcher() {
         || pageId === "vendor-reviews-e"
         || pageId === "vendor-bid-workspace-e"
         || pageId === "vendor-mybids-e";
-      if (!REACT_OWNED && resolveClickAction(el, label, ctx, navigate)) { e.preventDefault(); return; }
+      // v52bm — a wired admin control (carries data-testid by project
+      // mandate) owns its own onClick; the static-template action/label
+      // maps below must never hijack it. The "Create notice" submit was
+      // being routed to /admin/e/tender-builder even when client-side
+      // validation failed — destroying the in-progress form and dumping
+      // the user on the Tender builder page with just a floating toast.
+      const isWiredAdminControl = isAdmin && el.hasAttribute("data-testid");
+      if (!REACT_OWNED && !isWiredAdminControl && resolveClickAction(el, label, ctx, navigate)) { e.preventDefault(); return; }
 
       // Real href — backend file/API URLs and static downloads must NOT go
       // through the SPA router (no route matches them → dead page). Let the
@@ -975,7 +982,8 @@ export default function PmcLinkPatcher() {
       // v50v — React-owned pages fully own their click handlers; skip the
       // legacy label-map (which routed "Reply" to /vendor/mybids, "View" to
       // the bids list, etc.) so component onClick runs intact.
-      if (REACT_OWNED) {
+      // v52bm — same treatment for wired admin controls (see above).
+      if (REACT_OWNED || isWiredAdminControl) {
         if (href === "#") e.preventDefault();
         return;
       }
