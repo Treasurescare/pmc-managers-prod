@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { corrigendaApi, adminApi, publicApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
@@ -43,6 +44,8 @@ const fmtValue = (v, kind) => {
  *  resulting diff is self-describing on the public corrigendum page. */
 export default function CorrigendaPanel() {
   const { t } = useI18n();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [notices, setNotices] = useState([]);
   const [pickedNoticeRef, setPickedNoticeRef] = useState("");
   const [pickedNotice, setPickedNotice] = useState(null);
@@ -50,6 +53,7 @@ export default function CorrigendaPanel() {
   const [showNew, setShowNew] = useState(false);
   const [noticeSearch, setNoticeSearch] = useState("");
   const [corrSearch, setCorrSearch] = useState("");
+  const [attachingTo, setAttachingTo] = useState(null); // corrigendum id currently uploading
   // v52bm — corrigendum_date defaults to today (admin-visible, published to
   // vendors as the "effective from" date and surfaced in the audit record).
   const todayLocal = () => {
@@ -76,7 +80,9 @@ export default function CorrigendaPanel() {
       adminApi.listAllNotices({ limit: 200, _: Date.now() })
         .then((d) => {
           setNotices(d.items || []);
-          if (!pickedNoticeRef && d.items?.length) setPickedNoticeRef(d.items[0].notice_ref);
+          // v52bn — functional update so a ?notice= deep-link preselect is
+          // never clobbered by the default pick resolving afterwards.
+          if (d.items?.length) setPickedNoticeRef((prev) => prev || d.items[0].notice_ref);
         })
         .catch(() => {})
     );
@@ -98,6 +104,16 @@ export default function CorrigendaPanel() {
   }, []);
 
   useEffect(() => { loadNotices(); }, [loadNotices]);
+  // v52bn — deep link from a live notice's Edit button:
+  // /admin/e/corrigenda?notice=PMC-NOT-… preselects the notice and opens
+  // the create form so the admin lands exactly where the change is made.
+  useEffect(() => {
+    const q = searchParams.get("notice");
+    if (q) {
+      setPickedNoticeRef(q);
+      setShowNew(true);
+    }
+  }, [searchParams]);
   useEffect(() => {
     loadCorrigenda(pickedNoticeRef);
     loadNoticeDetail(pickedNoticeRef);
@@ -152,8 +168,10 @@ export default function CorrigendaPanel() {
       setDraft({ title: "", summary: "", corrigendum_date: todayLocal(),
                  new_submission_deadline: "" });
       setEdits({});
-      loadCorrigenda(pickedNoticeRef);
-      loadNoticeDetail(pickedNoticeRef);
+      // v52bn — round-trip: after publishing from the live-notice Edit flow,
+      // land on the public notice page so the admin immediately sees the
+      // corrigendum exactly as bidders will (fields + before/after table).
+      navigate(`/notices/${pickedNoticeRef}`);
     } catch (err) { showApiError(err); }
   };
 
@@ -170,6 +188,19 @@ export default function CorrigendaPanel() {
       toast.success("Withdrawn — audit trail updated.");
       loadCorrigenda(pickedNoticeRef);
     } catch (err) { showApiError(err); }
+  };
+
+  // v52bn — attach a supporting document (revised BOQ, drawing, etc.) to a
+  // corrigendum. Live notices route ALL document changes through here.
+  const attachFile = async (cid, file) => {
+    if (!file) return;
+    setAttachingTo(cid);
+    try {
+      await corrigendaApi.attach(pickedNoticeRef, cid, file);
+      toast.success(`Attached · ${file.name}`);
+      loadCorrigenda(pickedNoticeRef);
+    } catch (err) { showApiError(err); }
+    finally { setAttachingTo(null); }
   };
 
   const corrQ = corrSearch.trim().toLowerCase();
@@ -380,6 +411,29 @@ export default function CorrigendaPanel() {
             {c.is_active && c.new_submission_deadline && (
               <div className="text-xs text-amber-800 mt-2 bg-amber-50 border border-amber-200 px-3 py-1 inline-block">
                 {t("panels.corrigenda.deadline_updated")} {c.new_submission_deadline?.slice(0, 16).replace("T", " ")}
+              </div>
+            )}
+            {/* v52bn — corrigendum attachments: revised BOQs, drawings, etc.
+                On live notices every document change arrives via these. */}
+            {c.is_active && (
+              <div className="mt-3 flex flex-wrap items-center gap-2"
+                   data-testid={`corr-attach-area-${c.corrigendum_no}`}>
+                {(c.attachments || []).map((a) => (
+                  <a key={a.key || a.file_name} href={a.url} target="_blank" rel="noreferrer"
+                     className="text-[11px] px-2 py-1 border border-brand-navy/25 text-brand-navy hover:bg-brand-navy hover:text-white"
+                     data-testid={`corr-attach-file-${c.corrigendum_no}-${a.file_name}`}>
+                    📎 {a.file_name}
+                  </a>
+                ))}
+                <label className="text-[10px] uppercase tracking-widest px-2 py-1 border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white cursor-pointer"
+                       data-testid={`corr-attach-btn-${c.corrigendum_no}`}>
+                  {attachingTo === c.id ? "Uploading…" : "+ Attach document"}
+                  <input type="file" className="hidden"
+                         accept=".pdf,.doc,.docx,.xls,.xlsx,.dwg,.jpg,.png,.zip"
+                         disabled={attachingTo === c.id}
+                         onChange={(e) => { attachFile(c.id, e.target.files?.[0]); e.target.value = ""; }}
+                         data-testid={`corr-attach-input-${c.corrigendum_no}`} />
+                </label>
               </div>
             )}
           </div>

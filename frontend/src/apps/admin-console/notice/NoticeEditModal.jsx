@@ -65,6 +65,49 @@ export default function NoticeEditModal({ noticeRef, onClose, onSaved, isMasterA
 
   if (!noticeRef) return null;
 
+  // v52bn — safety net: a LIVE notice must never be edited inline (fields or
+  // documents). Every change goes out as a versioned corrigendum so the audit
+  // trail stays defensible. The list already routes live notices away, but
+  // this modal could be opened from other entry points.
+  if (!loading && draft?.is_published) {
+    return (
+      <div className="fixed inset-0 z-40 bg-black/40 flex items-start justify-center p-4 overflow-y-auto"
+           onClick={onClose} data-testid="notice-edit-modal">
+        <div className="bg-white border-2 border-brand-navy max-w-lg w-full my-8 shadow-2xl"
+             onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between p-4 border-b border-brand-navy/10 bg-brand-cream">
+            <div>
+              <div className="text-[10px] uppercase tracking-widest text-brand-navy/60">Edit notice</div>
+              <h2 className="text-lg font-semibold text-brand-navy font-mono">{noticeRef}</h2>
+            </div>
+            <button type="button" onClick={onClose} data-testid="notice-edit-close"
+                    className="text-sm px-3 py-1.5 border border-brand-navy/20 hover:bg-brand-navy hover:text-white">
+              Close
+            </button>
+          </div>
+          <div className="p-6" data-testid="notice-edit-live-locked">
+            <div className="border-2 border-amber-500 bg-amber-50 p-4 text-sm text-amber-900">
+              <strong>This notice is live.</strong> Field and document changes on a
+              published notice must be issued as a <strong>corrigendum</strong> so every
+              amendment is versioned with a date and reason.
+            </div>
+            <div className="mt-6 flex justify-end gap-2">
+              <button type="button" onClick={onClose}
+                      className="px-5 py-2.5 text-[11px] uppercase tracking-widest border border-brand-navy/20">
+                Cancel
+              </button>
+              <a href={`/admin/e/corrigenda?notice=${noticeRef}`}
+                 data-testid="notice-edit-goto-corrigenda"
+                 className="px-6 py-2.5 text-[11px] font-semibold uppercase tracking-widest bg-brand-navy-soft text-white hover:bg-brand-navy-soft/90">
+                Open Corrigendum workspace ▸
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const save = async () => {
     if (!draft.title || draft.title.trim().length < 3) { toast.error("Title · min 3 characters"); return; }
     if (!draft.description || draft.description.trim().length < 10) { toast.error("Description · min 10 characters"); return; }

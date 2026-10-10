@@ -843,6 +843,14 @@ export const corrigendaApi = {
   outstanding: () => api.get(`/api/v1/corrigenda/outstanding`).then((r) => r.data),
   acknowledge: (cid) => api.post(`/api/v1/corrigenda/${cid}/acknowledge`).then((r) => r.data),
   listAcks: (ref, cid) => api.get(`/api/v1/notices/${ref}/corrigenda/${cid}/acknowledgements`).then((r) => r.data),
+  // v52bn — attach a supporting document (revised BOQ, drawing…) to a
+  // corrigendum. On live notices ALL document changes must flow through a
+  // corrigendum for a clean audit trail (no direct notice-doc edits).
+  attach: (ref, cid, file) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return api.post(`/api/v1/notices/${ref}/corrigenda/${cid}/attachment`, fd).then((r) => r.data);
+  },
 };
 
 // v51ad — Admin's personal MoneyFilterBar presets, scoped per panel.

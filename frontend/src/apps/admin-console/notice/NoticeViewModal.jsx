@@ -55,10 +55,18 @@ export default function NoticeViewModal({ noticeRef, onClose, onChanged }) {
       <a href={`${meta.url}?download=1`} download={meta.file_name}
          className="text-xs underline text-brand-navy hover:text-brand-navy-deep"
          data-testid={`view-doc-dl-${kind}-${meta.file_name}`}>Download</a>
-      <button type="button"
-        onClick={() => setConfirmDel({ kind, file_name: meta.file_name })}
-        className="text-xs text-red-700 hover:underline"
-        data-testid={`view-doc-del-${kind}-${meta.file_name}`}>Delete</button>
+      {/* v52bn — on a LIVE notice, document changes must go through a
+          corrigendum (clean audit trail); delete stays available for drafts. */}
+      {!doc?.is_published ? (
+        <button type="button"
+          onClick={() => setConfirmDel({ kind, file_name: meta.file_name })}
+          className="text-xs text-red-700 hover:underline"
+          data-testid={`view-doc-del-${kind}-${meta.file_name}`}>Delete</button>
+      ) : (
+        <span className="text-[10px] uppercase tracking-widest text-brand-navy/40"
+              title="Live notice — document changes are issued as a corrigendum attachment"
+              data-testid={`view-doc-locked-${kind}-${meta.file_name}`}>Locked</span>
+      )}
     </div>
   );
 
@@ -138,6 +146,12 @@ export default function NoticeViewModal({ noticeRef, onClose, onChanged }) {
 
             <div className="mt-5 border-t-2 border-brand-navy/10 pt-4">
               <div className="pmc-label mb-2">Uploaded documents</div>
+              {doc.is_published && (
+                <div className="mb-2 text-[11px] text-amber-900 bg-amber-50 border border-amber-300 px-3 py-2"
+                     data-testid="view-doc-live-hint">
+                  Live notice — to add, replace or remove a document, issue a corrigendum with the file attached.
+                </div>
+              )}
               {doc.primary_document ? (
                 <DocRow meta={doc.primary_document} kind="primary" />
               ) : (

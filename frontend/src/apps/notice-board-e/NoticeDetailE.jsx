@@ -1,10 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { useNoticeDetailLive } from "@/lib/pmcELiveData";
 import useAuthSession from "@/lib/useAuthSession";
-import { adminApi, staffApi, vendorApi } from "@/lib/api";
+import { adminApi, staffApi, vendorApi, corrigendaApi } from "@/lib/api";
 
 export default function NoticeDetailE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
@@ -15,6 +15,16 @@ export default function NoticeDetailE({ legacy: Legacy }) {
   const { role, me, dashboardPath, loading } = useAuthSession();
   const authed = Boolean(role);
   const initial = (me?.name || me?.email || role || "?").slice(0, 1).toUpperCase();
+  // v52bn — live corrigenda for this notice, rendered as a React section with
+  // the full Field / Before / After / Reason diff table (bidders see exactly
+  // what changed and why; issuing admin emails stay internal).
+  const [corrigenda, setCorrigenda] = useState([]);
+  useEffect(() => {
+    if (!isE || !noticeRef) return;
+    corrigendaApi.listPublic(noticeRef)
+      .then((r) => setCorrigenda(r.items || []))
+      .catch(() => setCorrigenda([]));
+  }, [isE, noticeRef]);
   const signOut = async () => {
     try { await adminApi.logout(); } catch { /* ignore */ }
     try { await staffApi.logout(); } catch { /* ignore */ }
@@ -89,7 +99,8 @@ export default function NoticeDetailE({ legacy: Legacy }) {
 </div></section>
 <div className="pmc-wrap" style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 360px", gap: "32px", padding: "28px 0 72px", alignItems: "start" }}>
   <div>
-    <div className="pmc-tabs" role="tablist" style={{ marginBottom: "24px" }}><button className="pmc-tab" aria-selected="true">Overview</button><button className="pmc-tab">Eligibility</button><button className="pmc-tab">Documents<span className="n">5</span></button><button className="pmc-tab">Clarifications<span className="n">2</span></button><button className="pmc-tab">Corrigenda<span className="n">1</span></button></div>
+    <div className="pmc-tabs" role="tablist" style={{ marginBottom: "24px" }}><button className="pmc-tab" aria-selected="true">Overview</button><button className="pmc-tab">Eligibility</button><button className="pmc-tab">Documents<span className="n">5</span></button><button className="pmc-tab">Clarifications<span className="n">2</span></button><button className="pmc-tab" data-testid="notice-e-tab-corrigenda"
+      onClick={() => document.getElementById("notice-e-corrigenda")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Corrigenda{corrigenda.length > 0 && <span className="n">{corrigenda.length}</span>}</button></div>
     <section className="dt-sec"><h2>Scope</h2><p>Turnkey design and build of an ISO Class 5/7 embryology laboratory for the Kazakhstan Medical Township, including cleanroom HVAC, cryopreservation storage and full embryology workstation fit-out. The contractor delivers design, supply, installation, validation and a 24-month defects liability period.</p>
       <div className="dt-scope"><div><svg className="pmc-ico" aria-hidden="true"><use href="#i-box" /></svg><b>Embryology lab</b><span>IVF workstations, ISO Class 5 chambers, lab furniture</span></div><div><svg className="pmc-ico" aria-hidden="true"><use href="#i-layers" /></svg><b>Cleanroom HVAC</b><span>ISO 14644 validation, HEPA filtration, pressure cascades</span></div><div><svg className="pmc-ico" aria-hidden="true"><use href="#i-shield" /></svg><b>Cryopreservation</b><span>LN2 storage, monitoring and alarms</span></div><div><svg className="pmc-ico" aria-hidden="true"><use href="#i-check" /></svg><b>Commissioning</b><span>IQ/OQ/PQ validation, training, handover</span></div></div></section>
     <section className="dt-sec"><h2>Who can bid</h2><ul className="dt-list"><li><svg className="pmc-ico" aria-hidden="true"><use href="#i-check" /></svg><span>Registered supplier with approved KYC on the PMC Tender Board</span></li><li><svg className="pmc-ico" aria-hidden="true"><use href="#i-check" /></svg><span>At least two completed cleanroom or laboratory projects of USD 1M+ in the last five years</span></li><li><svg className="pmc-ico" aria-hidden="true"><use href="#i-check" /></svg><span>Licences for the Kazakhstan work segments: <b>Electrical installation</b>, <b>Mechanical works</b>, <b>Plumbing &amp; firefighting</b> (or a licensed local partner)</span></li><li><svg className="pmc-ico" aria-hidden="true"><use href="#i-check" /></svg><span>ISO 9001 certification</span></li></ul>
@@ -121,6 +132,77 @@ export default function NoticeDetailE({ legacy: Legacy }) {
     <div className="pmc-panel" style={{ padding: "16px 20px" }}><div className="pmc-hashline"><svg className="pmc-ico" aria-hidden="true"><use href="#i-link" /></svg><span>Notice sealed on the ledger · <code>notice.publish #1872</code></span></div><div className="pmc-hashline" style={{ marginTop: "6px" }}><svg className="pmc-ico" aria-hidden="true"><use href="#i-link" /></svg><span>Corrigendum 1 · <code>corrigendum.issue #1880</code></span></div></div>
   </aside>
 </div>
+{corrigenda.length > 0 && (
+  <div className="pmc-wrap" id="notice-e-corrigenda" data-testid="notice-e-corrigenda"
+       style={{ padding: "0 0 48px" }}>
+    <section className="pmc-panel" style={{ padding: "24px" }}>
+      <div className="pmc-eyebrow">Amendments in force</div>
+      <h2 style={{ fontSize: "22px", fontWeight: 600, margin: "6px 0 6px" }}>Corrigenda &amp; amendments</h2>
+      <p className="pmc-muted" style={{ fontSize: "13px", margin: "0 0 20px" }}>
+        Every change to this tender is issued as a versioned corrigendum. The tables below
+        show exactly which field changed, the before / after values and the reason.
+      </p>
+      <div style={{ display: "grid", gap: "20px" }}>
+        {corrigenda.map((c) => (
+          <article key={c.id} data-testid={`corr-e-${c.corrigendum_no}`}
+                   style={{ border: "1px solid var(--line)", borderLeft: "3px solid var(--brass-on-chrome, #D2B46A)", padding: "18px" }}>
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: "10px" }}>
+              <span className="pmc-ref">Corrigendum {c.corrigendum_no}</span>
+              <b style={{ fontSize: "15px", flex: 1 }}>{c.title}</b>
+              <span className="pmc-muted" style={{ fontSize: "12px", fontFamily: "monospace" }}
+                    data-testid={`corr-e-date-${c.corrigendum_no}`}>
+                {(c.effective_from || c.published_at || "").slice(0, 10)}
+              </span>
+            </div>
+            <p style={{ fontSize: "14px", margin: "10px 0 0", whiteSpace: "pre-line" }}>{c.summary}</p>
+            {c.new_submission_deadline && (
+              <div style={{ marginTop: "10px", display: "inline-block", fontSize: "12px",
+                            background: "#FFF7E6", border: "1px solid #E7D3A1", padding: "6px 10px" }}>
+                New bid deadline: <b>{c.new_submission_deadline.slice(0, 16).replace("T", " ")}</b>
+              </div>
+            )}
+            {(c.field_amendments || []).length > 0 && (
+              <div style={{ marginTop: "14px", overflowX: "auto", border: "1px solid var(--line)" }}
+                   data-testid={`corr-e-table-${c.corrigendum_no}`}>
+                <table style={{ width: "100%", fontSize: "13px", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ background: "var(--brand-pale, #F3EFE4)", textAlign: "left" }}>
+                      <th style={{ padding: "8px 10px", fontSize: "11px", letterSpacing: ".08em", textTransform: "uppercase" }}>Field</th>
+                      <th style={{ padding: "8px 10px", fontSize: "11px", letterSpacing: ".08em", textTransform: "uppercase" }}>Before</th>
+                      <th style={{ padding: "8px 10px", fontSize: "11px", letterSpacing: ".08em", textTransform: "uppercase" }}>After</th>
+                      <th style={{ padding: "8px 10px", fontSize: "11px", letterSpacing: ".08em", textTransform: "uppercase" }}>Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {c.field_amendments.map((a, idx) => (
+                      <tr key={idx} style={{ borderTop: "1px solid var(--line)", verticalAlign: "top" }}>
+                        <td style={{ padding: "8px 10px", fontWeight: 600 }}>{a.field}</td>
+                        <td style={{ padding: "8px 10px", color: "#8C2B2B", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{a.before || "—"}</td>
+                        <td style={{ padding: "8px 10px", color: "#1E6B44", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{a.after || "—"}</td>
+                        <td style={{ padding: "8px 10px", color: "var(--ink-muted)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{a.note || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {(c.attachments || []).length > 0 && (
+              <div style={{ marginTop: "12px", display: "flex", flexWrap: "wrap", gap: "8px" }}
+                   data-testid={`corr-e-attachments-${c.corrigendum_no}`}>
+                {c.attachments.map((a) => (
+                  <a key={a.key || a.file_name} href={a.url}
+                     className="pmc-btn pmc-btn--secondary pmc-btn--sm">
+                    {a.file_name}
+                  </a>
+                ))}
+              </div>
+            )}
+          </article>
+        ))}
+      </div>
+    </section>
+  </div>
+)}
 <footer className="pmc-chrome" style={{ padding: "40px 0 28px", marginTop: "0" }}><div className="pmc-wrap" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px" }}>
   <div className="pmc-brand"><span className="pmc-brand__n" style={{ fontSize: "20px" }}>PMC Managers</span><span className="pmc-brand__s">Global Tender Board</span></div>
   <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "20px" }} className="pmc-fcol"><Link to="/tenders/live">Open notices</Link><Link to="/help">Help Centre</Link><Link to="/trust">Trust &amp; security</Link><Link to="/privacy">Privacy</Link><span className="pmc-muted">© 2026 PMC Managers Limited</span></div>

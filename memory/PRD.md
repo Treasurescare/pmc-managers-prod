@@ -1,5 +1,47 @@
 # PMC Managers v2 — PRD (last touched 10 Oct 2026)
 
+## v52bn — Public corrigendum diff + live-notice Edit → Corrigendum flow (10 Oct 2026)
+
+User-approved regulated-procurement flow: everything on a LIVE notice (fields
+AND attachments) changes only via a versioned corrigendum; public page shows
+date only (author emails stay internal).
+
+Frontend (backend unchanged from v52bl):
+- `notice-board-e/NoticeDetailE.jsx` — new React section **Corrigenda &
+  amendments** on the public page: per corrigendum → No., date
+  (`effective_from || published_at`), title, overall description, deadline
+  callout, full **Field/Before/After/Reason** table, attachments. Fetched via
+  `corrigendaApi.listPublic(ref)`. The static "Corrigenda" tab now shows the
+  live count and smooth-scrolls to the section.
+- `notice-board/NoticeDetail.jsx` — legacy banner upgraded with the same diff
+  table + date (no author).
+- `admin-console/NoticesPanel.jsx` — per-row **Edit** is context-aware:
+  Draft → inline edit modal (unchanged); Live → `navigate(/admin/e/corrigenda?notice=<ref>)`
+  with label "Edit ▸ Corrigendum".
+- `admin-console/CorrigendaPanel.jsx` — honours `?notice=` deep-link
+  (preselect + auto-open form); after publish redirects to `/notices/<ref>`;
+  per-row **Attach document** upload (`corrigendaApi.attach` → existing
+  backend endpoint) + attachment chips. Fixed stale-closure race where the
+  default notice pick clobbered the `?notice=` preselect (functional setState).
+- `admin-console/notice/NoticeEditModal.jsx` — safety net: live notices render
+  a locked banner + "Open Corrigendum workspace" instead of the editable form.
+- `admin-console/notice/NoticeViewModal.jsx` — on live notices, document
+  Delete is replaced by a "Locked" chip + hint; draft behaviour unchanged.
+- `lib/api.js` — `corrigendaApi.attach(ref, cid, file)` (multipart).
+
+Verified via Playwright + curl:
+- Public `/notices/PMC-NOT-2026-0020` shows corrigenda section; Corrigendum 4
+  diff table renders both rows; date shown; no author email.
+- Admin Notices → Edit (live) → lands on `/admin/e/corrigenda?notice=…0020`,
+  form open, picker preselected to PMC-NOT-2026-0020, 14 field rows with
+  current values.
+
+Bundle: `pmc-frontend-v52bn-prod-build.zip` (3.0 MB). Backend: keep v52bl.
+
+---
+
+
+
 ## v52bm — Rich Corrigendum form + bundle regeneration (10 Oct 2026, follow-up)
 
 Frontend-only update (backend unchanged from v52bl).

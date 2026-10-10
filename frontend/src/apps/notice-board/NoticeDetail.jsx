@@ -184,12 +184,20 @@ export default function NoticeDetail() {
                       ⚠ {notice.corrigenda.length} corrigend{notice.corrigenda.length === 1 ? "um" : "a"} · read before bidding
                     </div>
                   </div>
-                  <ol className="mt-3 space-y-3">
+                  <ol className="mt-3 space-y-4">
                     {notice.corrigenda.map((c) => (
                       <li key={c.id} className="text-sm text-amber-950"
                           data-testid={`corr-pub-${c.corrigendum_no}`}>
-                        <div className="font-semibold">
-                          Corrigendum No. {c.corrigendum_no} · {c.title}
+                        <div className="flex items-baseline gap-3 flex-wrap">
+                          <span className="font-semibold">
+                            Corrigendum No. {c.corrigendum_no} · {c.title}
+                          </span>
+                          {/* v52bn — bidders see the date only; the issuing
+                              admin's email stays internal (audit ledger). */}
+                          <span className="text-[11px] font-mono text-amber-800/80"
+                                data-testid={`corr-pub-date-${c.corrigendum_no}`}>
+                            {(c.effective_from || c.published_at || "").slice(0, 10)}
+                          </span>
                         </div>
                         <div className="text-amber-900/90 whitespace-pre-line mt-1">{c.summary}</div>
                         {c.new_submission_deadline && (
@@ -197,9 +205,33 @@ export default function NoticeDetail() {
                             New deadline: {c.new_submission_deadline?.slice(0, 16).replace("T", " ")}
                           </div>
                         )}
-                        <div className="text-[10px] text-amber-800/70 font-mono mt-1">
-                          Published {c.published_at?.slice(0, 10)}
-                        </div>
+                        {/* v52bn — versioned field diff so bidders see exactly
+                            what changed and why. */}
+                        {(c.field_amendments || []).length > 0 && (
+                          <div className="mt-2 overflow-x-auto border border-amber-400/60 bg-white/70"
+                               data-testid={`corr-pub-table-${c.corrigendum_no}`}>
+                            <table className="w-full text-xs">
+                              <thead className="bg-amber-100/70 text-amber-950 uppercase tracking-widest text-[10px]">
+                                <tr>
+                                  <th className="text-left px-2 py-1.5">Field</th>
+                                  <th className="text-left px-2 py-1.5">Before</th>
+                                  <th className="text-left px-2 py-1.5">After</th>
+                                  <th className="text-left px-2 py-1.5">Reason</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {c.field_amendments.map((a, idx) => (
+                                  <tr key={idx} className="border-t border-amber-300/50 align-top">
+                                    <td className="px-2 py-1.5 font-semibold text-amber-950">{a.field}</td>
+                                    <td className="px-2 py-1.5 text-red-900 whitespace-pre-wrap break-words">{a.before || "—"}</td>
+                                    <td className="px-2 py-1.5 text-emerald-900 whitespace-pre-wrap break-words">{a.after || "—"}</td>
+                                    <td className="px-2 py-1.5 text-amber-900 whitespace-pre-wrap break-words">{a.note || "—"}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
                       </li>
                     ))}
                   </ol>

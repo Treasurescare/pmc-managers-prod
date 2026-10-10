@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { adminApi, mastersApi, publicApi, noticeDocsApi, tenderTemplateApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
@@ -10,6 +11,7 @@ import { useListPager } from "@/components/ListPager";
 
 export default function NoticesPanel() {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [showNew, setShowNew] = useState(false);
   const [viewRef, setViewRef] = useState(null);
@@ -538,11 +540,20 @@ export default function NoticesPanel() {
                   className="text-[10px] uppercase tracking-widest px-2 py-1 border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white">
                   View
                 </button>
-                <button type="button" onClick={() => setEditRef(n.notice_ref)}
+                {/* v52bn — Edit is context-aware: DRAFT → inline edit modal;
+                    LIVE → every change must go out as a versioned corrigendum,
+                    so the button routes to the Corrigenda workspace with this
+                    notice preselected. */}
+                <button type="button"
+                  onClick={() => n.is_published
+                    ? navigate(`/admin/e/corrigenda?notice=${n.notice_ref}`)
+                    : setEditRef(n.notice_ref)}
                   data-testid={`notice-edit-${n.notice_ref}`}
-                  title="Edit this notice — change fields, re-upload documents"
+                  title={n.is_published
+                    ? "Live notice — changes go out as a corrigendum (opens the Corrigenda workspace with this notice preselected)"
+                    : "Edit this draft — change fields, re-upload documents"}
                   className="text-[10px] uppercase tracking-widest px-2 py-1 border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white">
-                  Edit
+                  {n.is_published ? "Edit ▸ Corrigendum" : "Edit"}
                 </button>
                 <a href={`/notices/${n.notice_ref}`} target="_blank" rel="noreferrer"
                    data-testid={`notice-preview-${n.notice_ref}`}
