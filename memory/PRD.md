@@ -49,6 +49,10 @@ Public / Vendor / Buyer / Admin roles.
 - `/downloads/DOWNLOAD_mobile_v1.0.0.md`
 
 ## Latest web releases
+- **v51az** — Bidding Ops video-verified fixes: pipeline step tiles now
+  clickable with stage filtering + active highlight (they had counters but
+  no click handler); Review / Open bid restored to full-page navigation
+  (`/admin/bids/{id}`). Frontend-only.
 - **v51ay** — Bidding Ops usability: supplier rows now always show Review
   alongside Send link; detail panel notice ref is a link to the public
   notice page; new Envelope documents block with direct download links;

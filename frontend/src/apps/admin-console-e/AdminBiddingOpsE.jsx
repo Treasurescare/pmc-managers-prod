@@ -48,11 +48,24 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
       if (totalEl) totalEl.textContent = tabCounts.all;
       const sideCount = root.querySelector('[data-testid="side-bidding-count"]');
       if (sideCount) sideCount.textContent = tabCounts.pmc;
+      // v51az — flow-step filter: which statuses belong to each pipeline step.
+      const FLOW_STATUS = {
+        emd: ["emd_pending", "submitted"],
+        escrow: ["emd_paid"],
+        admin: ["escrow_accepted"],
+        certifier: ["admin_flagged"],
+        legal: ["certifier_cleared"],
+        accounts: ["legal_cleared", "accounting_cleared"],
+        awarded: ["awarded", "closed"],
+      };
+      const flowFilter = root._flowFilter || "";
+      const flowStatuses = flowFilter ? (FLOW_STATUS[flowFilter] || []) : null;
       // Now show/hide rows according to the active tab.
       let visible = 0;
       allRows.forEach((r) => {
         const ok = (tab === "all" || r.dataset.g === tab) && !(hide && r.dataset.test === "1")
-          && (!q || r.textContent.toLowerCase().includes(q));
+          && (!q || r.textContent.toLowerCase().includes(q))
+          && (!flowStatuses || flowStatuses.includes((r.dataset.status || "").toLowerCase()));
         r.hidden = !ok;
         if (ok) visible++;
       });
@@ -68,6 +81,26 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
       paint();
     };
     const onHide = () => paint();
+    // v51az — the pipeline step numbers (EMD → Escrow → Admin → Certifier →
+    // Legal → Accounts → Awarded) were never wired to a click handler, so
+    // clicking them did nothing ("none of them work"). Now: click a step to
+    // filter the list to that stage (highlighted); click it again to clear.
+    const onFlowClick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const stepEl = e.currentTarget;
+      const key = stepEl.dataset.flow;
+      const wasActive = root._flowFilter === key;
+      root._flowFilter = wasActive ? "" : key;
+      root.querySelectorAll('.bo-step').forEach((s) => {
+        const active = !wasActive && s.dataset.flow === key;
+        s.style.boxShadow = active ? "0 0 0 2px var(--primary, #0F3B2E) inset" : "";
+        s.style.background = active ? "var(--brand-pale, #F3EFE4)" : "";
+        s.setAttribute("aria-pressed", active ? "true" : "false");
+      });
+      paint();
+    };
+    root.querySelectorAll('.bo-step').forEach((s) => s.addEventListener('click', onFlowClick));
     const stageNames = ["EMD", "Escrow", "Admin", "Certifier", "Legal", "Accounts"];
     const stageOwners = ["Supplier", "Escrow agent", "Tender desk", "Certifier", "Legal counsel", "Accounts"];
     const stageIndexMap = { emd_paid: 1, escrow_accepted: 2, admin_flagged: 3, certifier_cleared: 4, legal_cleared: 5, accounting_cleared: 6 };
@@ -137,24 +170,11 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
       const act = btn.dataset.boAction;
       if (!bidId) return;
       if (act === 'review' || act === 'view') {
-        // v51as — the user's complaint: clicking "Review" sent them to a
-        // detail page that often showed no content. Instead, open the
-        // right-hand inline panel (same as clicking the row) so the
-        // clearance path, EMD, timeline, and quick actions all appear
-        // beside the list without leaving the page. The dedicated
-        // AdminBidDetailPage is still reachable with Shift+click or by
-        // right-clicking "Open in new tab" via /admin/bids/{id}.
-        if (e.shiftKey || e.metaKey || e.ctrlKey) {
-          navigate(`/admin/bids/${bidId}`);
-          return;
-        }
-        const row = root.querySelector(`.bo-r[data-bid-id="${bidId}"]`);
-        if (row) {
-          row.scrollIntoView({ block: "nearest", behavior: "smooth" });
-          row.click();
-        } else {
-          navigate(`/admin/bids/${bidId}`);
-        }
+        // v51az — revert the v51as inline-panel behavior. Admins expect
+        // Review / Open bid to OPEN the full bid detail page (documents,
+        // history, audit) at /admin/bids/{id}, not toggle the right-side
+        // tracker. The tracker still opens on plain row click.
+        navigate(`/admin/bids/${bidId}`);
         return;
       }
       if (act === 'detail') {
@@ -288,7 +308,7 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
       mo = new MutationObserver(wireRows);
       mo.observe(tbody, { childList: true });
     }
-    return () => { if (mo) mo.disconnect(); root.removeEventListener('click', onAction); };
+    return () => { if (mo) mo.disconnect(); root.removeEventListener('click', onAction); root.querySelectorAll('.bo-step').forEach((s) => s.removeEventListener('click', onFlowClick)); };
   }, [isE, navigate]);
 
   // v51ab — client-side filter bar for the Bidding Ops row list. Hooks into
