@@ -72,6 +72,8 @@ async def staff_login(payload: StaffLoginIn, response: Response, request: Reques
 
     token = create_admin_token(str(user["_id"]), user["email"], payload.active_role)
     csrf = _set_session_cookies(response, token)
+    # v52bx — bug #34: nuke stale vendor cookie on staff login too.
+    response.delete_cookie("vendor_token", path="/", domain=config.COOKIE_DOMAIN)
     await audit_log("staff.login", {"id": str(user["_id"]), "email": user["email"]},
                     "admin_user", str(user["_id"]), {"active_role": payload.active_role})
     # v47d — security sign-in alert email on every successful login (post-MFA)

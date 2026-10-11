@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { vendorApi, mastersApi, showApiError } from "@/lib/api";
 
@@ -9,6 +10,7 @@ import { vendorApi, mastersApi, showApiError } from "@/lib/api";
  * Mounted at /vendor/categories.
  */
 export default function VendorCategories() {
+  const navigate = useNavigate();
   const [state, setState] = useState({ approved: [], pending: [], recent: [] });
   const [master, setMaster] = useState([]);
   const [draft, setDraft] = useState({ code: "", name: "", rationale: "" });

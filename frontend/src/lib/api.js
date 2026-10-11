@@ -892,6 +892,8 @@ export const reverseAuctionApi = {
   create: (p) => api.post("/api/v1/reverse-auctions", p).then((r) => r.data),
   update: (aid, p) => api.patch(`/api/v1/reverse-auctions/${aid}`, p).then((r) => r.data),
   list: () => api.get("/api/v1/reverse-auctions").then((r) => r.data),
+  // v52bx — vendor-scoped list for the vendor home KPI tile.
+  mine: () => api.get("/api/v1/reverse-auctions/mine").then((r) => r.data),
   get: (aid) => api.get(`/api/v1/reverse-auctions/${aid}`).then((r) => r.data),
   start: (aid) => api.post(`/api/v1/reverse-auctions/${aid}/start`).then((r) => r.data),
   close: (aid) => api.post(`/api/v1/reverse-auctions/${aid}/close`).then((r) => r.data),

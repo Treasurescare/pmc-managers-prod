@@ -67,6 +67,7 @@ import AdminEscrowInstitutionsE from "@/apps/admin-console-e/AdminEscrowInstitut
 // Wave 35/36/37 — Revenue surfaces + billing result + public roadmap + escrow magic-link
 import ClientPurchase from "@/apps/client-portal/ClientPurchase";
 import VendorPurchase from "@/apps/vendor-portal/VendorPurchase";
+import VendorAuctionsE from "@/apps/vendor-portal-e/VendorAuctionsE";
 import BillingResult from "@/apps/shared/BillingResult";
 import EscrowOfficerSign from "@/apps/shared/EscrowOfficerSign";
 import PublicRoadmap from "@/apps/shared/PublicRoadmap";
@@ -310,6 +311,7 @@ export default function App() {
             {/* Wave 36/37 — Purchase surfaces */}
             <Route path="/services" element={<ClientPurchase />} />
             <Route path="/vendor/services" element={<VendorPurchase />} />
+            <Route path="/vendor/auctions" element={<RequireVendor><VendorAuctionsE /></RequireVendor>} />
 
             {/* Wave 35 — Stripe checkout result pages */}
             <Route path="/billing/success" element={<BillingResult outcome="success" />} />

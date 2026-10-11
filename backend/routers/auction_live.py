@@ -293,6 +293,40 @@ async def get_reverse_auction_admin(aid: str, admin=Depends(current_admin)):
     return {"auction": _out_auction(a), "participants": parts}
 
 
+@router.get("/reverse-auctions/mine")
+async def list_my_reverse_auctions(vendor=Depends(current_vendor)):
+    """v52bx — vendor can see every reverse auction tied to a notice they
+    bid on OR where they have been invited by email. Fixes "no option to
+    see I've been invited to a reverse auction" (user feedback)."""
+    bid_notice_refs = set()
+    async for b in db.bids.find({"vendor_id": vendor["id"]}, {"notice_ref": 1}):
+        if b.get("notice_ref"):
+            bid_notice_refs.add(b["notice_ref"])
+    rows = []
+    seen = set()
+    # Match by notice_ref (vendor bid on the parent notice).
+    if bid_notice_refs:
+        async for a in db.reverse_auctions.find(
+            {"notice_ref": {"$in": list(bid_notice_refs)}}
+        ).sort("created_at", -1).limit(100):
+            out = _out_auction(a)
+            out["why"] = "You bid on this tender"
+            rows.append(out); seen.add(out["id"])
+    # Also match any explicit invite row for this vendor's email.
+    async for inv in db.reverse_auction_invitations.find(
+        {"email": vendor.get("email", "").lower(), "accepted": {"$ne": False}}
+    ).limit(100):
+        aid = inv.get("auction_id")
+        if not aid or aid in seen:
+            continue
+        a = await db.reverse_auctions.find_one({"_id": ObjectId(aid)})
+        if not a: continue
+        out = _out_auction(a)
+        out["why"] = "You were invited by PMC"
+        rows.append(out); seen.add(out["id"])
+    return {"items": rows, "count": len(rows)}
+
+
 @router.post("/{aid}/start")
 async def start_reverse_auction(aid: str, admin=Depends(require_role("admin"))):
     # Bug #43 — user reported "Start button doesn't work". Root cause: silent

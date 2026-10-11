@@ -88,6 +88,9 @@ async def vendor_login(payload: VendorLoginIn, response: Response, request: Requ
         raise HTTPException(status_code=403, detail="Vendor account disabled")
     token = _create_vendor_token(str(v["_id"]), v["email"], int(v.get("token_generation") or 0))
     csrf = _set_cookies(response, token)
+    # v52bx — bug #34: kill any lingering admin/staff session cookie on the
+    # same browser so the two account contexts can never mix permissions.
+    response.delete_cookie("access_token", path="/", domain=config.COOKIE_DOMAIN)
     await audit_log("vendor.login", None, "vendor", str(v["_id"]), {"email": v["email"]})
     # v47d — security sign-in alert email on every successful login
     try:

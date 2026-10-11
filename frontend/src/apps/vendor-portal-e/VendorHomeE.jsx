@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useUiTheme } from "@/context/UiThemeContext";
-import { vendorApi, bidApi, publicApi, docusignApi, engagementsApi } from "@/lib/api";
+import { vendorApi, bidApi, publicApi, docusignApi, engagementsApi, reverseAuctionApi } from "@/lib/api";
 import VendorPortalChrome from "./VendorPortalChrome";
 import VendorBlacklistAppeal from "./VendorBlacklistAppeal";
 
@@ -38,17 +38,20 @@ export default function VendorHomeE({ legacy: Legacy }) {
   const [envelopes, setEnvelopes] = useState([]);
   const [tendersTotal, setTendersTotal] = useState(0);
   const [quoteRequests, setQuoteRequests] = useState(0);
+  const [auctionCount, setAuctionCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     try {
-      const [meRes, bidsRes, envRes, noticeRes, engRes] = await Promise.all([
+      const [meRes, bidsRes, envRes, noticeRes, engRes, auctRes] = await Promise.all([
         vendorApi.me(),
         bidApi.mine().catch(() => []),
         docusignApi.listMine().catch(() => ({ items: [] })),
         publicApi.listNotices({ limit: 1 }).catch(() => ({ total: 0 })),
-        // v52bv — vendor's own service quote requests feed a dedicated KPI.
         engagementsApi.mine().catch(() => ({ items: [] })),
+        // v52bx — vendor can see every reverse auction tied to a notice
+        // they bid on OR where they were explicitly invited.
+        reverseAuctionApi.mine().catch(() => ({ items: [] })),
       ]);
       setMe(meRes);
       setBids(Array.isArray(bidsRes) ? bidsRes : (bidsRes?.items || []));
@@ -57,6 +60,7 @@ export default function VendorHomeE({ legacy: Legacy }) {
       const engItems = Array.isArray(engRes?.items) ? engRes.items : [];
       setQuoteRequests(engItems.filter((e) =>
         ["quote_requested", "quoted", "invoiced"].includes(e.status)).length);
+      setAuctionCount((auctRes?.items || []).length);
     } catch { /* non-fatal — page still renders with empty states */ }
     finally { setLoading(false); }
   }, []);
@@ -170,6 +174,15 @@ export default function VendorHomeE({ legacy: Legacy }) {
             </div>
             <div className="pmc-figure">{loading ? "…" : quoteRequests}</div>
             <div className="s">{quoteRequests ? "requested · awaiting PMC pricing" : "no requests yet"}</div>
+          </Link>
+          <Link to="/vendor/auctions" className="pmc-kpi" data-testid="vhome-kpi-auctions"
+                style={{ textDecoration: "none", color: "inherit" }}>
+            <div className="l" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <svg className="pmc-ico" aria-hidden="true"><use href="#i-gavel" /></svg>
+              Reverse auctions
+            </div>
+            <div className="pmc-figure">{loading ? "…" : auctionCount}</div>
+            <div className="s">{auctionCount ? "invited / eligible — click to view" : "none open yet"}</div>
           </Link>
           <Link to="/vendor/company" className="pmc-kpi" data-testid="vhome-kpi-kyc"
                 style={{ textDecoration: "none", color: "inherit" }}>

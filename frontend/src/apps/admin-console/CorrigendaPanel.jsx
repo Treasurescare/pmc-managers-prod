@@ -227,7 +227,9 @@ export default function CorrigendaPanel() {
       <label className="block mb-4">
         <span className="pmc-label">{t("panels.corrigenda.notice_label")}<InfoDot tip="Pick the parent notice to which the corrigendum applies. All published corrigenda are attached to this notice's public page." /></span>
         <input value={noticeSearch} onChange={(e) => setNoticeSearch(e.target.value)}
-          placeholder="Search notices by ref or title…"
+          placeholder="Find a notice by reference or title to view/add its corrigenda…"
+          aria-label="Pick a notice to see its corrigenda"
+          data-testid="corr-search-notice"
           data-testid="corr-notice-search"
           className="mt-1 mb-2 w-full px-4 py-2 border border-brand-navy/20 text-sm" />
         <select value={pickedNoticeRef} onChange={(e) => setPickedNoticeRef(e.target.value)}
@@ -454,7 +456,9 @@ export default function CorrigendaPanel() {
         return (
           <>
             <input value={corrSearch} onChange={(e) => setCorrSearch(e.target.value)}
-              placeholder="Search corrigenda by number, title or summary…"
+              aria-label="Search within this notice's corrigenda"
+              placeholder="Filter THIS notice's corrigenda by number, title or summary…"
+              data-testid="corr-search-within"
               data-testid="corr-search"
               className="w-full mb-3 px-4 py-2 border border-brand-navy/20 text-sm bg-white" />
             <div className="pmc-label mb-2" data-testid="corr-section-active">

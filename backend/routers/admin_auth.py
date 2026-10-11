@@ -35,6 +35,11 @@ async def admin_login(payload: AdminLoginIn, response: Response, request: Reques
         raise HTTPException(status_code=401, detail="Invalid email or password")
     token = create_admin_token(str(user["_id"]), user["email"], user.get("role", "admin"))
     csrf = _set_session_cookies(response, token)
+    # v52bx — bug #34: a stale vendor_token on the same browser was leaking
+    # vendor permissions into the admin session (and vice versa). On every
+    # admin login we now kill the OTHER role cookies so switching accounts
+    # on the same browser can never mix contexts.
+    response.delete_cookie("vendor_token", path="/", domain=config.COOKIE_DOMAIN)
     await audit_log("admin.login", {"id": str(user["_id"]), "email": user["email"]},
                     "admin_user", str(user["_id"]), {})
     # v47d — security sign-in alert email on every successful login
