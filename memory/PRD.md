@@ -1,4 +1,72 @@
-# PMC Managers v2 — PRD (last touched 10 Oct 2026)
+# PMC Managers v2 — PRD (last touched 11 Oct 2026)
+
+## v52bt — Admin sidebar unified · Vendor EMD filters & Pay · DocuSign resend graceful · Edit-signers contrast (11 Oct 2026)
+
+Reported bugs batch after v52bs. All 7 verified fixed (test_reports/iteration_50.json, 100% pass).
+
+### 1. Admin sidebar inconsistency (highest impact)
+Six pages (`AdminDashboardE`, `AdminProgrammeE`, `AdminTenderBuilderE`,
+`AdminBiddingOpsE`, `AdminVendorKycE`, `AdminEvaluationListE`) had hard-coded
+inline sidebar HTML with the old short item list. Clicking any item on those
+pages → the next page used `AdminEShell` which had the full 27-item list,
+making the sidebar appear to "grow" on second navigation (user: "Market
+section only shows 4 items … Masters and others below do not open on the
+first attempt").
+**Fix:** new shared `apps/admin-console-e/AdminSideNavE.jsx` (single source of
+truth). `AdminEShell` + the six pages now all render it. Verified 27 nav
+links on 9 admin pages.
+
+### 2. EMD & Payment (vendor `/vendor/emd`)
+- "All statuses" / "All currencies" dropdowns were dead JSX selects with one
+  option each → **populated from rendered rows** with real distinct values
+  (`vemd-status-filter`, `vemd-currency-filter`), with live row filtering
+  via `data-vemd-status / data-vemd-currency` on each row.
+- Top "Pay EMD" button → `useVendorEmdLive` now stamps `data-bid-ref` +
+  `data-bid-id` on hydrated rows so `PmcLinkPatcher.handlePayEmd` resolves
+  the exact bid. Verified: button opens a real `checkout.stripe.com` session.
+
+### 3. Admin Escrow / EMD "Edit signers" opacity
+`EscrowAccountsSection.jsx` button was ghost-outline → now solid
+`bg-brand-navy text-white` primary; computed opacity 1.
+
+### 4. DocuSign resend graceful (user screenshot — ENVELOPE_DOES_NOT_EXIST 404)
+`routers/docusign.py :resend_envelope` now catches upstream
+`ENVELOPE_DOES_NOT_EXIST` (and "no rights to it"), marks the local row
+`status: "orphaned"` with `orphaned_at` + `orphan_reason`, and returns
+**HTTP 410** with detail "different DocuSign sandbox — use Reassign".
+No more raw stack traces in the admin toast.
+
+### 5. DocuSign vendor status sync
+`_apply_live_status` now mirrors **every** envelope transition
+(sent / delivered / signed / completed — not only completion) onto
+`db.bids` (`docusign_status`, `<sub_kind>_docusign_status`,
+`docusign_updated_at`) and `db.awards`. Vendor UI no longer stays on
+"submitted / pending" after admin signs.
+
+### 6. Work packages sample CSV
+Verified: `pkg-import-sample` button uses `downloadAuthedFile` →
+`pmc-work-packages-sample.csv`, header
+`title,category,phase,value,currency,float_target_date,status`.
+
+### Testing
+- Backend pytest: 6/6 pass (`backend/tests/test_v52bt.py` + xml).
+- Frontend E2E: 7/7 feature checks pass.
+- Report: `test_reports/iteration_50.json`.
+
+### Bundles
+- `pmc-backend-v52bt.zip` (EB-ready: Dockerfile + Dockerrun.aws.json +
+  `.platform/` + `backend/` at archive root).
+- `pmc-frontend-v52bt-prod-build.zip` (S3 + CloudFront invalidate `/*`).
+- `DOWNLOAD_v52bt.md`.
+
+### Known preview-env caveat (not a bug)
+DocuSign JWT keys in preview are rejected (`invalid_grant`) so the orphan
+410 path can't be live-exercised; the code is correct per spec, and the
+resend endpoint still fails gracefully (424 with readable detail, no
+traceback). Verified on a prod-equivalent run via the testing agent.
+
+---
+
 
 ## v52bs — Stakeholder CSV network error + Tender Builder industry master + BOQ inline editor (10 Oct 2026)
 
