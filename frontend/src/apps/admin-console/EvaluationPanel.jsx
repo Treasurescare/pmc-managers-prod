@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { evalApi, bidApi, formatApiError, showApiError} from "@/lib/api";
+import { evalApi, bidApi, adminApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import RubricEditor from "./evaluation/RubricEditor";
 import BidScoreList from "./evaluation/BidScoreList";
@@ -17,6 +17,28 @@ const DEFAULT_CRITERIA = [
 export default function EvaluationPanel() {
   const { t } = useI18n();
   const [noticeRef, setNoticeRef] = useState("");
+  // v52cb — bug: typing a partial tender number like "18" did not surface
+  // the matching tender (the field was a free-text input, not a picker).
+  // Load every notice so the admin can type any fragment of the ref or
+  // title and get the matching tenders in a dropdown.
+  const [allNotices, setAllNotices] = useState([]);
+  const [noticeQuery, setNoticeQuery] = useState("");
+  const [noticeOpen, setNoticeOpen] = useState(false);
+  useEffect(() => {
+    adminApi.listAllNotices({ limit: 500, _: Date.now() })
+      .then((d) => setAllNotices(d.items || []))
+      .catch(() => setAllNotices([]));
+  }, []);
+  const noticeMatches = useMemo(() => {
+    const q = noticeQuery.trim().toLowerCase();
+    if (!q) return allNotices.slice(0, 20);
+    // Case-insensitive substring match on ref AND title so "18" surfaces
+    // PMC-NOT-2026-0018 and "pump" surfaces matching titles.
+    return allNotices.filter((n) =>
+      (n.notice_ref || "").toLowerCase().includes(q)
+      || (n.title || "").toLowerCase().includes(q)
+    ).slice(0, 50);
+  }, [allNotices, noticeQuery]);
   const [rubric, setRubric] = useState({
     technical_criteria: DEFAULT_CRITERIA, commercial_weight: 0.4, minimum_technical: 60,
   });
@@ -149,12 +171,42 @@ export default function EvaluationPanel() {
     <div data-testid="admin-evaluation-panel" className="space-y-6">
       <div className="bg-white border border-brand-navy/10 p-4">
         <div className="flex flex-wrap gap-3 items-end">
-          <label className="flex-1 min-w-[240px] text-sm">
-            <span className="pmc-label">{t("panels.evaluation.notice_ref")}<InfoDot tip="Reference of the tender being evaluated (e.g. PMC-NOT-2026-0001). Drives which bids and which rubric are loaded." /></span>
-            <input value={noticeRef} onChange={(e) => setNoticeRef(e.target.value)}
-              placeholder="PMC-NOT-2026-0001"
+          <label className="flex-1 min-w-[280px] text-sm relative">
+            <span className="pmc-label">{t("panels.evaluation.notice_ref")}<InfoDot tip="Reference of the tender being evaluated. Type any fragment (e.g. '18', 'pump') to find the tender; pick a row to lock it in." /></span>
+            <input
+              value={noticeOpen ? noticeQuery : (noticeRef || noticeQuery)}
+              onChange={(e) => { setNoticeQuery(e.target.value); setNoticeOpen(true); }}
+              onFocus={() => { setNoticeQuery(noticeRef || ""); setNoticeOpen(true); }}
+              onBlur={() => setTimeout(() => setNoticeOpen(false), 150)}
+              placeholder="Type tender number or title (e.g. 18)"
               className="mt-1 w-full px-3 py-2 border border-brand-navy/20"
-              data-testid="eval-notice-ref" />
+              data-testid="eval-notice-ref"
+              autoComplete="off" />
+            {noticeOpen && noticeMatches.length > 0 && (
+              <div className="absolute z-20 left-0 right-0 top-full mt-1 bg-white border border-brand-navy/20 shadow-lg max-h-80 overflow-auto"
+                   data-testid="eval-notice-picker">
+                {noticeMatches.map((n) => (
+                  <button key={n.id || n.notice_ref} type="button"
+                          data-testid={`eval-notice-opt-${n.notice_ref}`}
+                          onMouseDown={(ev) => {
+                            ev.preventDefault();
+                            setNoticeRef(n.notice_ref);
+                            setNoticeQuery(n.notice_ref);
+                            setNoticeOpen(false);
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-brand-navy/5 border-b border-brand-navy/5 last:border-0">
+                    <div className="font-mono text-brand-navy">{n.notice_ref}</div>
+                    <div className="text-xs text-brand-navy/60 truncate">{n.title || "—"}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+            {noticeOpen && noticeMatches.length === 0 && noticeQuery.trim() && (
+              <div className="absolute z-20 left-0 right-0 top-full mt-1 bg-white border border-brand-navy/20 shadow-lg px-3 py-2 text-xs text-brand-navy/60"
+                   data-testid="eval-notice-nomatch">
+                No tenders match "{noticeQuery}" — try a different fragment of the number or title.
+              </div>
+            )}
           </label>
           <button onClick={() => lock("technical")} data-testid="lock-technical"
             disabled={techLocked}

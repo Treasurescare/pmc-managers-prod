@@ -148,10 +148,32 @@ export default function RegistrationResume() {
     );
   }
 
+  // v52cb — when an admin opened this via "Edit sections" the resume page
+  // launches in a NEW TAB. The TopBar's public "Back" chip used to walk the
+  // browser history, which in a fresh tab lands on the public home page.
+  // Give admins an explicit "Back to Registrations" control that closes
+  // the just-opened tab (and falls back to navigating in-tab).
+  const closeBackToAdmin = () => {
+    try { window.close(); } catch { /* no-op */ }
+    // If window.close() was blocked (tab was not opened by script in a way
+    // the browser trusts), navigate to the admin registrations page as a
+    // safety net so the admin never ends up on the public homepage.
+    setTimeout(() => {
+      if (!window.closed) window.location.href = "/admin/e/registrations";
+    }, 120);
+  };
+
   return (
     <div className="min-h-screen bg-brand-pale flex flex-col">
       <TopBar />
       <main className="flex-1 max-w-5xl mx-auto w-full px-6 lg:px-10 py-12">
+        {fromAdmin && (
+          <button type="button" onClick={closeBackToAdmin}
+                  data-testid="reg-resume-back-admin"
+                  className="mb-6 inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-brand-navy border border-brand-navy/30 px-4 py-2 hover:bg-brand-navy hover:text-white">
+            ← Back to Registrations
+          </button>
+        )}
         <div className="pmc-label">{t("register.title")}</div>
         <h1 className="font-display text-3xl lg:text-4xl mt-2 text-brand-navy">{stepLabel}</h1>
 

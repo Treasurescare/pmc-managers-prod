@@ -1,5 +1,34 @@
 # PMC Managers v2 — PRD (last touched 11 Oct 2026)
 
+## v52cb — Registrations card layout · Admin "Back to Registrations" · Evaluation tender picker (11 Oct 2026)
+
+Three user-reported bugs closed in one frontend-only pass:
+
+- **Registrations card misalignment** — "Edit sections (opens vendor view in new tab)"
+  link visually attached to the *next* vendor because the row divider was on the inner
+  button. `RegistrationsPanel.jsx` moves `border-b` to the row wrapper so each vendor
+  card is one contiguous block. New testid `reg-card-<id>`.
+- **Lost context after Edit sections** — the admin-opened new tab had no way back to
+  Registrations (TopBar "Back" chip walked history and landed on the public homepage).
+  `RegistrationResume.jsx` now renders "← BACK TO REGISTRATIONS" when `from=admin`;
+  click triggers `window.close()` then falls back to `/admin/e/registrations`.
+  New testid `reg-resume-back-admin`.
+- **Evaluation tender lookup broken** — the Tender notice ref field was free-text,
+  so typing "18" didn't surface `PMC-NOT-2026-0018`. `EvaluationPanel.jsx` now
+  loads every notice via `adminApi.listAllNotices` and renders a real picker that
+  filters live on ref AND title substring. Verified: typing "18" surfaces both
+  `PMC-NOT-2026-0018` and `PMC-NOT-2026-0004` (title contains 18); picking locks
+  the full ref. New testids `eval-notice-picker`, `eval-notice-opt-<ref>`,
+  `eval-notice-nomatch`.
+
+### Bundles
+`pmc-frontend-v52cb-prod-build.zip`, `DOWNLOAD_v52cb.md`. Backend unchanged (stay on v52bz).
+
+---
+
+
+# PMC Managers v2 — PRD (last touched 11 Oct 2026)
+
 ## v52ca — Corrigenda second-search UX fix + withdraw dialog regression pass (11 Oct 2026)
 
 User report: "two search bars … the second one is not working" (Admin → Corrigenda, lower

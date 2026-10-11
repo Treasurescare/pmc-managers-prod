@@ -210,10 +210,16 @@ export default function RegistrationsPanel() {
           {filtered.length === 0 ? (
             <div className="p-6 text-brand-navy/50 text-sm">{q ? "No matches" : t("panels.registrations.empty")}</div>
           ) : paged.map((r) => (
-            <div key={r.id}>
+            // v52cb — border-b moved from the inner button onto the row
+            // wrapper so the "Edit sections" link stays visually attached
+            // to its own vendor card (previously it rendered below the
+            // divider line, making it look like it belonged to the next
+            // vendor above).
+            <div key={r.id} className="border-b border-brand-navy/10"
+                 data-testid={`reg-card-${r.id}`}>
               <button type="button" onClick={() => { setSelected(r); setNotes(""); }}
                 data-testid={`reg-row-${r.id}`}
-                className={"w-full text-left p-4 border-b border-brand-navy/10 hover:bg-brand-navy/5 " + (selected?.id === r.id ? "bg-brand-navy/5" : "")}>
+                className={"w-full text-left p-4 hover:bg-brand-navy/5 " + (selected?.id === r.id ? "bg-brand-navy/5" : "")}>
                 <div className="text-sm font-semibold text-brand-navy">{r.company_name || t("panels.registrations.no_company")}</div>
                 <div className="text-xs text-brand-navy/60 mt-1 font-mono">{r.email}</div>
                 <div className="text-[10px] uppercase tracking-widest text-brand-navy-soft mt-1 flex items-center gap-2">
@@ -226,7 +232,7 @@ export default function RegistrationsPanel() {
                 </div>
               </button>
               {r.status !== "approved" && r.status !== "rejected" && (
-                <div className="px-4 pb-2 pt-0">
+                <div className="px-4 pb-3 pt-0 -mt-1">
                   <button type="button"
                           data-testid={`reg-edit-${r.id}`}
                           onClick={async (ev) => {
@@ -243,7 +249,7 @@ export default function RegistrationsPanel() {
                 </div>
               )}
               {r.status === "approved" && r.vendor_ref && (
-                <div className="px-4 pb-2 pt-0">
+                <div className="px-4 pb-3 pt-0 -mt-1">
                   <a href={`/admin/vendors/${r.vendor_ref}/edit`}
                      data-testid={`reg-edit-vendor-${r.id}`}
                      className="text-[10px] uppercase tracking-widest text-brand-navy underline hover:text-brand-navy-deep">
@@ -252,7 +258,7 @@ export default function RegistrationsPanel() {
                 </div>
               )}
               {isNarrow && selected?.id === r.id && (
-                <div className="border-b border-brand-navy/10 bg-brand-pale/30 p-3"
+                <div className="bg-brand-pale/30 p-3"
                      data-testid={`reg-inline-detail-${r.id}`}>
                   {detailPanel}
                 </div>
