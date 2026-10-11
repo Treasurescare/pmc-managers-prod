@@ -441,6 +441,27 @@ async def _apply_live_status(envelope_id: str, live_status: str) -> None:
         {"$set": {"status": live_status,
                   "updated_at": datetime.now(timezone.utc).isoformat()}},
     )
+    # v52bt — mirror the envelope status onto the linked bid/award so the
+    # vendor's dashboard reflects "Admin signed" / "Dispatched to vendor"
+    # the moment the admin acts, not only on final completion. Previously
+    # the bid row only moved when _on_envelope_completed fired on
+    # `completed`, so the vendor UI stayed on "submitted / pending".
+    try:
+        if row.get("bid_id"):
+            from bson import ObjectId as _Oid
+            sub = (row.get("sub_kind") or row.get("kind") or "document").lower()
+            await db.bids.update_one(
+                {"_id": _Oid(row["bid_id"])},
+                {"$set": {f"{sub}_docusign_status": live_status,
+                          "docusign_status": live_status,
+                          "docusign_updated_at": now_iso()}})
+        if row.get("award_ref"):
+            await db.awards.update_one(
+                {"award_ref": row["award_ref"]},
+                {"$set": {f"{(row.get('sub_kind') or 'document').lower()}_docusign_status": live_status,
+                          "docusign_updated_at": now_iso()}})
+    except Exception as e:
+        _log.warning("mirror live status failed for %s: %s", envelope_id, e)
     if live_status == "completed" and prev != "completed":
         await _on_envelope_completed(row)
 
@@ -694,7 +715,29 @@ async def resend_envelope(envelope_id: str, admin=Depends(current_admin)):
             {"$set": {"last_resent_at": now_iso(),
                       "last_resent_by": admin.get("email")}})
         return {"ok": True, "delivery": "email", "resent_to": signer_email}
+    except HTTPException:
+        raise
     except Exception as e:
+        # v52bt — DocuSign returns ENVELOPE_DOES_NOT_EXIST (404) when the
+        # envelope was created against a different sandbox account/key than
+        # the one currently configured (common after a key rotation or when
+        # moving from preview to prod). Surface that as a friendly 410 so
+        # the admin UI can show a "Use Reassign" nudge instead of a scary
+        # stack-trace toast, and flag the local row as orphaned.
+        err_text = ""
+        try:
+            body = getattr(e, "body", None)
+            err_text = body.decode("utf-8") if isinstance(body, (bytes, bytearray)) else str(body or e)
+        except Exception:
+            err_text = str(e)
+        if "ENVELOPE_DOES_NOT_EXIST" in err_text or "no rights to it" in err_text:
+            await db.docusign_envelopes.update_one(
+                {"envelope_id": envelope_id},
+                {"$set": {"status": "orphaned",
+                          "orphaned_at": now_iso(),
+                          "orphan_reason": "upstream envelope missing (sandbox key change)"}})
+            raise HTTPException(status_code=410,
+                detail="This envelope lives in a different DocuSign sandbox than the one currently configured. Use Reassign to issue a new envelope to the signer.")
         raise HTTPException(status_code=424, detail=f"DocuSign resend failed — upstream DocuSign error (expired sandbox key in preview; verify DOCUSIGN_* in this environment): {e}")
 
 

@@ -17,6 +17,70 @@ export default function VendorEmdE({ legacy: Legacy }) {
     };
     tick();
   }, [isE]);
+  // v52bt — the "All statuses" / "All currencies" selects were dead JSX
+  // dropdowns with one option each. Populate them from the rendered rows
+  // and wire real filtering so the user can slice the deposits list.
+  useEffect(() => {
+    if (!isE) return;
+    const root = document.querySelector('[data-pmc-e-page="vendor-emd-e"]');
+    if (!root) return;
+    const selects = root.querySelectorAll('.pmc-panel__head .pmc-input');
+    const statusSel = selects[0]; const currencySel = selects[1];
+    const tbody = root.querySelector('.pmc-panel table tbody');
+    if (!statusSel || !currencySel || !tbody) return;
+
+    const paint = () => {
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      const statuses = new Set();
+      const currencies = new Set();
+      rows.forEach((r) => {
+        if (r.style.display === "none") return;
+        const pill = r.querySelector('.pmc-pill');
+        if (pill) {
+          const label = pill.textContent.trim();
+          if (label) { statuses.add(label); r.dataset.vemdStatus = label; }
+        }
+        const amtCell = r.querySelector('td.num');
+        if (amtCell) {
+          const m = amtCell.textContent.trim().match(/^([A-Z]{3})\b/);
+          if (m) { currencies.add(m[1]); r.dataset.vemdCurrency = m[1]; }
+        }
+      });
+      const prevStatus = statusSel.value || "all";
+      const prevCurrency = currencySel.value || "all";
+      statusSel.innerHTML = '<option value="all">All statuses</option>' +
+        Array.from(statuses).sort().map((s) => `<option value="${s}">${s}</option>`).join('');
+      currencySel.innerHTML = '<option value="all">All currencies</option>' +
+        Array.from(currencies).sort().map((c) => `<option value="${c}">${c}</option>`).join('');
+      statusSel.value = Array.from(statusSel.options).some(o => o.value === prevStatus) ? prevStatus : "all";
+      currencySel.value = Array.from(currencySel.options).some(o => o.value === prevCurrency) ? prevCurrency : "all";
+      statusSel.setAttribute('data-testid', 'vemd-status-filter');
+      currencySel.setAttribute('data-testid', 'vemd-currency-filter');
+    };
+
+    const applyFilter = () => {
+      const wantS = statusSel.value || "all";
+      const wantC = currencySel.value || "all";
+      tbody.querySelectorAll('tr').forEach((r) => {
+        if (r.dataset.vemdHidden === "live") return; // hidden by useVendorEmdLive
+        const okS = wantS === "all" || r.dataset.vemdStatus === wantS;
+        const okC = wantC === "all" || r.dataset.vemdCurrency === wantC;
+        r.style.display = (okS && okC) ? "" : "none";
+      });
+    };
+
+    paint();
+    statusSel.addEventListener('change', applyFilter);
+    currencySel.addEventListener('change', applyFilter);
+    // Rows get hydrated async by useVendorEmdLive — re-scan when DOM changes
+    const mo = new MutationObserver(() => { paint(); applyFilter(); });
+    mo.observe(tbody, { childList: true, subtree: true, characterData: true });
+    return () => {
+      statusSel.removeEventListener('change', applyFilter);
+      currencySel.removeEventListener('change', applyFilter);
+      mo.disconnect();
+    };
+  }, [isE]);
   if (!isE && Legacy) return <Legacy />;
   if (!isE) return null;
   return (

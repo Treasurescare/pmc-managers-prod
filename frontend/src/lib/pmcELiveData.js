@@ -905,10 +905,17 @@ export function useVendorEmdLive({ enabled = true } = {}) {
         const rows = root.querySelectorAll("tbody tr, .pmc-txn");
         paid.slice(0, rows.length).forEach((b, i) => {
           const r = rows[i];
+          // v52bt — stamp bid_ref + bid_id so PmcLinkPatcher's handlePayEmd
+          // can resolve the exact bid from a row-level Pay EMD click.
+          if (b.bid_ref) r.setAttribute("data-bid-ref", b.bid_ref);
+          if (b.id) r.setAttribute("data-bid-id", b.id);
           const ref = r.querySelector(".pmc-ref"); if (ref) ref.textContent = b.bid_ref;
           const amt = r.querySelector(".pmc-amt, td:last-child"); if (amt) amt.textContent = money(b.emd_paid_amount, b.emd_currency);
         });
-        rows.forEach((r, i) => { if (i >= paid.length) r.style.display = "none"; });
+        rows.forEach((r, i) => {
+          if (i >= paid.length) { r.style.display = "none"; r.dataset.vemdHidden = "live"; }
+          else { delete r.dataset.vemdHidden; }
+        });
       } catch (e) { console.debug("VendorEmd skip:", e); }
     })();
   }, [enabled]);

@@ -206,7 +206,7 @@ function AccountRow({ acc, onReload }) {
         <div className="flex md:justify-end">
           <button type="button" onClick={open}
                   data-testid={`escrow-acc-edit-${acc.id}`}
-                  className="px-3 py-1.5 text-[11px] uppercase tracking-widest border border-brand-navy text-brand-navy hover:bg-brand-navy hover:text-white">
+                  className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest bg-brand-navy text-white border border-brand-navy hover:bg-brand-navy-deep">
             Edit signers
           </button>
         </div>
