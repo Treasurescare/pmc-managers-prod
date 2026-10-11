@@ -1000,7 +1000,9 @@ export default function PmcLinkPatcher() {
       const target = map[label] || (isVendor ? matchVendorCta(label) : null);
       if (target) { e.preventDefault(); navigate(target); return; }
 
-      if (isAdmin && /^(create|new\s+(tender|notice|package))/.test(label)) {
+      if (isAdmin && /^(create|new\s+(tender|notice))/.test(label)) {
+        // v52bz — bug #32: do NOT swallow "new/create package" clicks here;
+        // they belong to the Work Packages panel's own form.
         e.preventDefault(); navigate("/admin/e/tender-builder"); return;
       }
       if (isVendor && el.classList.contains("pmc-who")) {

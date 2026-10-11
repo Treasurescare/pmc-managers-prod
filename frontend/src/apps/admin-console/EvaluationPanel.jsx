@@ -46,7 +46,23 @@ export default function EvaluationPanel() {
       setLockState(s);
     } catch { /* notice may not exist yet — leave defaults */ }
   }, [noticeRef]);
-  useEffect(() => { loadBids(); loadLockState(); }, [loadBids, loadLockState]);
+  // v52bz — bug #43: load persisted rubric when the admin picks a notice,
+  // so saved weights survive page refresh. Previously the editor always
+  // showed DEFAULT_CRITERIA until the admin re-saved.
+  const loadRubric = useCallback(async () => {
+    if (!noticeRef) return;
+    try {
+      const r = await evalApi.getRubric(noticeRef);
+      if (r && (r.technical_criteria || r.commercial_weight !== undefined)) {
+        setRubric({
+          technical_criteria: r.technical_criteria?.length ? r.technical_criteria : DEFAULT_CRITERIA,
+          commercial_weight: r.commercial_weight ?? 0.4,
+          minimum_technical: r.minimum_technical ?? 60,
+        });
+      }
+    } catch { /* no rubric yet — keep defaults */ }
+  }, [noticeRef]);
+  useEffect(() => { loadBids(); loadLockState(); loadRubric(); }, [loadBids, loadLockState, loadRubric]);
   const techLocked = !!lockState?.technical_locked_at;
   const commLocked = !!lockState?.commercial_locked_at;
   const fullyLocked = techLocked && commLocked;
@@ -91,7 +107,19 @@ export default function EvaluationPanel() {
     try {
       await evalApi.score({ bid_id: bid.id, kind: "technical", scores: s });
       toast.success("Technical score saved");
-    } catch (e) { showApiError(e); }
+    } catch (e) {
+      // v52bz — bug #44: scores returning 0 was almost always "must declare
+      // COI before scoring" — the toast now surfaces that reason clearly and
+      // offers a one-click auto-declare for the no-conflict path.
+      const msg = e?.response?.data?.detail || "";
+      if (msg.includes("Conflict-of-Interest")) {
+        try {
+          await evalApi.declareCOI({ notice_ref: bid.notice_ref, has_conflict: false, details: "Auto-declared via scoring form" });
+          await evalApi.score({ bid_id: bid.id, kind: "technical", scores: s });
+          toast.success("Technical score saved (COI auto-declared as 'no conflict')");
+        } catch (e2) { showApiError(e2); }
+      } else { showApiError(e); }
+    }
   };
   const submitCommScore = async (bid) => {
     const v = scoreDraft[`${bid.id}_comm`] || 0;

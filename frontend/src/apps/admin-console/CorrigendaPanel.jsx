@@ -5,6 +5,9 @@ import { corrigendaApi, adminApi, publicApi, formatApiError, showApiError} from 
 import { useI18n } from "@/context/I18nContext";
 import { InfoDot } from "@/components/InfoDot";
 import { useListPager } from "@/components/ListPager";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
 
 // v52bm — Fields on a notice that a corrigendum can amend. Order drives the
 // display order of the "Current → New" rows. `kind` hints the input widget.
@@ -175,24 +178,27 @@ export default function CorrigendaPanel() {
     } catch (err) { showApiError(err); }
   };
 
-  const withdraw = async (cid) => {
-    const reason = window.prompt(
-      "Reason for withdrawing this corrigendum? (required, min 8 chars — will be logged to audit)"
-    );
-    if (!reason) return;
-    if (reason.trim().length < 8) {
+  // v52bz — shadcn Dialog state for the Withdraw-reason input (replaces
+  // the native window.prompt() so QA can automate it + nicer UX).
+  const [withdrawDialog, setWithdrawDialog] = useState({ open: false, cid: null, reason: "" });
+
+  const withdraw = (cid) => setWithdrawDialog({ open: true, cid, reason: "" });
+
+  const confirmWithdraw = async () => {
+    const reason = (withdrawDialog.reason || "").trim();
+    if (reason.length < 8) {
       return toast.error("Reason must be at least 8 characters — this is recorded in the audit log.");
     }
     try {
-      await corrigendaApi.withdraw(pickedNoticeRef, cid, reason.trim());
-      // v52by — bug #49: optimistic local flip so the row leaves the active
-      // list immediately. Previous behaviour relied purely on the refetch,
-      // which could return a cached list and leave the withdrawn item in
-      // the active table until the next page reload.
+      await corrigendaApi.withdraw(pickedNoticeRef, withdrawDialog.cid, reason);
+      // v52by — optimistic local flip so the row leaves the active list
+      // immediately, without waiting for the refetch.
       setItems((cur) => cur.map((c) =>
-        c.id === cid ? { ...c, is_active: false, withdrawn_at: new Date().toISOString(),
-                         withdrawn_reason: reason.trim() } : c));
+        c.id === withdrawDialog.cid
+          ? { ...c, is_active: false, withdrawn_at: new Date().toISOString(), withdrawn_reason: reason }
+          : c));
       toast.success("Withdrawn — audit trail updated.");
+      setWithdrawDialog({ open: false, cid: null, reason: "" });
       loadCorrigenda(pickedNoticeRef);
     } catch (err) { showApiError(err); }
   };

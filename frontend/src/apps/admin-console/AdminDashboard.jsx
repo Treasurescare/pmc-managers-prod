@@ -24,7 +24,7 @@ import ProductCatalogPanel from "./ProductCatalogPanel";
 import EngagementsPanel from "./EngagementsPanel";
 import CorrigendaPanel from "./CorrigendaPanel";
 import AwardsPanel from "./AwardsPanel";
-import LiveAuctionsPanel from "./LiveAuctionsPanel";
+import LiveAuctionsPanel from "./LiveAuctionsPanel";  // v52bz: dead code, kept only for legacy /admin tab route (AdminAuctionsE is the live surface).
 import MeetingsPanel from "./MeetingsPanel";
 import L1ComparisonPanel from "./L1ComparisonPanel";
 import DocuSignPanel from "./DocuSignPanel";
