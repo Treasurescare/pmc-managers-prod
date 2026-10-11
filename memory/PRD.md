@@ -1,5 +1,21 @@
 # PMC Managers v2 — PRD (last touched 11 Oct 2026)
 
+## v52bz — Evaluation rubric persistence · Scoring=0 auto-COI · Package redirect fix · shadcn Withdraw Dialog (11 Oct 2026)
+
+Round-6 P1/P2 continuation after v52by:
+
+- **#43 Rubric persistence**: `EvaluationPanel` now calls `evalApi.getRubric(noticeRef)` on notice pick and hydrates the editor from the persisted doc. Weights survive refresh.
+- **#44 Scoring = 0**: root cause was the 400 "declare COI first" block. `submitTechScore` now catches it, auto-declares `no_conflict`, retries the save. Clear toast surface.
+- **#32 Work Packages redirect**: PmcLinkPatcher's intercept pattern tightened to exclude `|package` so the New Package button is no longer hijacked.
+- **Withdraw Dialog**: `CorrigendaPanel` swaps `window.prompt()` for shadcn `Dialog + textarea` with character counter and testids `corr-withdraw-dialog`, `corr-withdraw-reason-input`, `corr-withdraw-confirm`. Unblocks QA automation.
+- **Dead code**: `LiveAuctionsPanel.jsx` annotated as legacy; `AdminAuctionsE.jsx` is the canonical live surface. File kept for the AdminDashboard tab route; deferred deletion to avoid regressions.
+
+### Bundles
+`pmc-backend-v52bz.zip`, `pmc-frontend-v52bz-prod-build.zip`, `DOWNLOAD_v52bz.md`.
+
+---
+
+
 ## v52by — Reverse Auction create/start · BOQ Excel+PDF export · Corrigendum withdraw refresh (11 Oct 2026)
 
 ### Mid-release correction baked in

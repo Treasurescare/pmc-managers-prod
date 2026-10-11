@@ -1,0 +1,40 @@
+{
+  "summary": "v52bz Round-6 P1/P2 closers tested — 3 of 4 fixes verified green; #49 Corrigendum withdraw Dialog is a CRITICAL regression (Dialog JSX missing from CorrigendaPanel.jsx). Backend: 4/4 pytest pass (rubric POST+GET round-trip, rubric upsert, 404 on missing rubric, score-before-COI contract + auto-declare retry). Frontend: #43 rubric persistence END-TO-END VERIFIED — edited experience=0.5 methodology=0.1 via UI, hit Save rubric (toast 'Rubric saved'), hard-reloaded page, re-entered TEST-RUBRIC-v52bz into eval-notice-ref, editor now shows 0.5/0.1/0.2/0.2 (not DEFAULT_CRITERIA 0.3/0.3/0.2/0.2). #32 Work Packages 'New package' button stays on /admin/e/work-packages and opens the pkg-new-form inline — no bleed to /admin/e/tender-builder. #44 scoring auto-COI: backend contract validated — POST /evaluations/score without prior COI returns 400 with 'Conflict-of-Interest' in detail; auto-COI declare + retry succeeds and db.coi_declarations contains a row with evaluator_id=admin + has_conflict=false + details containing 'Auto-declared via scoring form'. Frontend submitTechScore matches ('Auto-declared via scoring form' literal) so the toast 'Technical score saved (COI auto-declared as no conflict)' will fire; could not reproduce the full UI click-path because the first notice with bids (PMC-NOT-2026-0020) has a locked technical envelope, which triggers a different error ahead of the COI gate. #49: CorrigendaPanel.jsx line 183-204 declares withdrawDialog state + withdraw() + confirmWithdraw() + Dialog imports, BUT THE <Dialog>…</Dialog> JSX IS NEVER RENDERED anywhere in the component tree. grep for 'Dialog' finds only the import line and state refs — zero JSX occurrences. Clicking any corr-withdraw-{n} button therefore does NOTHING visible to the user (state flips but UI shows nothing); this is a HARD BLOCKER — users can no longer withdraw corrigenda at all. v52by shipped window.prompt(); v52bz removed it without landing the Dialog. Required testids per task spec (corr-withdraw-dialog / corr-withdraw-reason-input / corr-withdraw-confirm) are all absent from the page DOM after clicking withdraw.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "admin-console/CorrigendaPanel.jsx", "issue": "Withdraw Dialog JSX is MISSING. State hook `withdrawDialog`, handler `withdraw`, and confirm handler `confirmWithdraw` all exist (L181-204), and the shadcn Dialog components are imported (L8-10), but the <Dialog open={withdrawDialog.open} …> block is NOT rendered in the JSX tree. Clicking the Withdraw button sets open=true silently — no modal appears. There is no replacement window.prompt either, so withdrawing a corrigendum is now impossible from the UI.", "selector": "[data-testid='corr-withdraw-dialog']", "priority": "CRITICAL"}
+    ],
+    "integration_issues": [
+      {"flow": "Scoring auto-COI retry (#44) UI click-path", "issue": "The only notice with bids on this environment (PMC-NOT-2026-0020) already has a locked technical envelope, so the UI path blocks at envelope-lock before hitting the COI retry. Code review of EvaluationPanel.submitTechScore (L105-123) is correct and matches the backend contract validated in pytest; please pick/create a bid on an unlocked notice to run a true end-to-end UI click.", "affected_selectors": ["[data-testid^='bid-score-']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_v52bz_round6.py",
+    "/app/test_reports/pytest/v52bz.xml"
+  ],
+  "action_items": [
+    "CRITICAL: In /app/frontend/src/apps/admin-console/CorrigendaPanel.jsx add the shadcn Dialog JSX block before the closing </div> on L503. Minimum shape:  <Dialog open={withdrawDialog.open} onOpenChange={(o)=>!o&&setWithdrawDialog({open:false,cid:null,reason:''})}><DialogContent data-testid='corr-withdraw-dialog'><DialogHeader><DialogTitle>Withdraw corrigendum</DialogTitle></DialogHeader><textarea data-testid='corr-withdraw-reason-input' rows={4} className='w-full border px-3 py-2 mt-2' placeholder='Reason (min 8 chars) — recorded in audit log' value={withdrawDialog.reason} onChange={(e)=>setWithdrawDialog(p=>({...p,reason:e.target.value}))} /><DialogFooter><button data-testid='corr-withdraw-confirm' disabled={(withdrawDialog.reason||'').trim().length<8} onClick={confirmWithdraw} className='px-4 py-2 bg-red-600 text-white disabled:opacity-40'>Confirm withdraw</button></DialogFooter></DialogContent></Dialog>. Without this the P1 regression #49 is NOT closed.",
+    "Nice-to-have: in EvaluationPanel.submitTechScore (#44) the auto-COI retry only looks for the exact substring 'Conflict-of-Interest' in detail. Backend currently returns 'Conflict-of-Interest declaration required ...' (verified) so this works, but a slightly broader match (e.g. /conflict.of.interest/i) would survive copy-tweaks on the backend.",
+    "Seed/test-data: no vendor bid exists on an unlocked notice in this environment — add one for proper end-to-end #44 UI runs on future iterations."
+  ],
+  "critical_code_review_comments": [
+    "CorrigendaPanel.jsx — importing Dialog/DialogContent/DialogHeader/DialogTitle/DialogFooter but never using them is a classic 'half-committed refactor'. ESLint react/jsx-no-undef or no-unused-vars should have flagged this. Please re-enable the stricter lint set.",
+    "EvaluationPanel.loadRubric only overwrites state when r.technical_criteria?.length is truthy OR commercial_weight is defined. A rubric saved with zero criteria + undefined commercial_weight would silently keep DEFAULT_CRITERIA — tiny edge case, probably fine, but worth adding a defensive always-set-from-response branch.",
+    "backend evaluations.py.create_rubric upserts without recording updated_by/updated_at — an audit gap for rubric edits."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_v52bz_round6.py"
+  ],
+  "success_rate": {"backend": "100% (4/4 pytest)", "frontend": "75% (3 of 4 fixes verified; Corrigendum withdraw Dialog missing)"},
+  "test_credentials": "Admin: adminsupport@pmcmanagers.com / Admin@12345 at /api/v1/admin/auth/login — login response has id/token/csrf_token at top level (not nested under user/admin).",
+  "seed_data_creation": "Created & cleaned up db.rubrics row for notice_ref='TEST-RUBRIC-v52bz' (both via pytest fixture and post-UI-test direct Mongo delete_many). No other test rows introduced.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Admin login response puts id/token/csrf_token at root — do data.get('id'), not data['user']['id']. Rubric endpoints are /api/v1/evaluations/rubric (POST upsert) and /api/v1/evaluations/rubric/{notice_ref} (GET, 404 if missing). Evaluation page rubric weight inputs are addressable via data-testid='rubric-weight-{code}' (not name='…'). For #44 UI click-path, pick a notice with bids where notices.technical_locked_at is null; PMC-NOT-2026-0020 is locked.",
+  "rca of the issue": "#49 Corrigendum withdraw Dialog regression RCA: v52bz commit added useState withdrawDialog + withdraw() + confirmWithdraw() + Dialog imports to CorrigendaPanel.jsx, but did NOT paste the <Dialog>…</Dialog> JSX block into the render tree. Previously (v52by) withdraw() invoked window.prompt() so the lack of modal JSX wasn't noticed — now that window.prompt is gone the withdraw click is a complete no-op. Reproduction: /admin/e/corrigenda → pick a notice with an active corrigendum → click Withdraw → nothing happens, DOM has no element matching [data-testid='corr-withdraw-dialog']. Fix: append the Dialog JSX block before the final </div> of the panel (shape in action_items). Zero backend change needed."
+}

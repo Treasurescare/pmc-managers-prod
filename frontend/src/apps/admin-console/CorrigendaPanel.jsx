@@ -499,6 +499,41 @@ export default function CorrigendaPanel() {
           </>
         );
       })()}
+      <Dialog open={withdrawDialog.open}
+              onOpenChange={(o) => !o && setWithdrawDialog({ open: false, cid: null, reason: "" })}>
+        <DialogContent data-testid="corr-withdraw-dialog">
+          <DialogHeader>
+            <DialogTitle>Withdraw corrigendum</DialogTitle>
+          </DialogHeader>
+          <div className="text-sm text-brand-navy/70 mb-3">
+            Enter the reason for withdrawal (minimum 8 characters). It is stamped into the audit trail
+            and displayed to bidders alongside the withdrawn amendment.
+          </div>
+          <textarea value={withdrawDialog.reason}
+                    onChange={(e) => setWithdrawDialog((p) => ({ ...p, reason: e.target.value }))}
+                    data-testid="corr-withdraw-reason-input"
+                    rows={4}
+                    className="w-full border border-brand-navy/20 px-3 py-2 text-sm"
+                    placeholder="e.g. New compliance clause supersedes the original amendment…" />
+          <div className="text-[11px] text-brand-navy/50 mt-1">
+            {withdrawDialog.reason.trim().length}/8 characters
+          </div>
+          <DialogFooter>
+            <button type="button"
+                    onClick={() => setWithdrawDialog({ open: false, cid: null, reason: "" })}
+                    className="px-4 py-2 text-[11px] uppercase tracking-widest border border-brand-navy/30">
+              Cancel
+            </button>
+            <button type="button" onClick={confirmWithdraw}
+                    disabled={withdrawDialog.reason.trim().length < 8}
+                    data-testid="corr-withdraw-confirm"
+                    className="px-4 py-2 text-[11px] uppercase tracking-widest bg-red-600 text-white disabled:opacity-40">
+              Confirm withdraw
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }
