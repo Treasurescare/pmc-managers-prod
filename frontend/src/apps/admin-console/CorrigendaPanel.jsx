@@ -121,6 +121,9 @@ export default function CorrigendaPanel() {
     loadCorrigenda(pickedNoticeRef);
     loadNoticeDetail(pickedNoticeRef);
     setEdits({});
+    // v52ca — switching notices clears the corrigenda filter so a stale
+    // query from the previous notice can't hide rows on the new one.
+    setCorrSearch("");
   }, [pickedNoticeRef, loadCorrigenda, loadNoticeDetail]);
 
   const publish = async () => {
@@ -471,7 +474,24 @@ export default function CorrigendaPanel() {
               aria-label="Search within this notice's corrigenda"
               placeholder="Filter THIS notice's corrigenda by number, title or summary…"
               data-testid="corr-search-within"
-              className="w-full mb-3 px-4 py-2 border border-brand-navy/20 text-sm bg-white" />
+              className="w-full mb-1 px-4 py-2 border border-brand-navy/20 text-sm bg-white" />
+            {/* v52ca — every keystroke must produce visible feedback. Without
+                this line, filtering a notice with 0 corrigenda (or a query
+                with no hits) looked exactly like a dead search box. */}
+            {items.length === 0 ? (
+              <div className="text-xs text-brand-navy/50 italic mb-3"
+                   data-testid="corr-search-empty-hint">
+                This notice has no corrigenda yet — publish the first one via “New corrigendum” above.
+              </div>
+            ) : corrQ ? (
+              <div className="text-xs mb-3" data-testid="corr-search-feedback">
+                {visibleCorr.length === 0 ? (
+                  <span className="text-amber-700">No corrigenda match “{corrSearch}” — try the corrigendum number, a title word, or text from the change description.</span>
+                ) : (
+                  <span className="text-brand-navy/60">{visibleCorr.length} of {items.length} corrigenda match “{corrSearch}”.</span>
+                )}
+              </div>
+            ) : <div className="mb-2" />}
             <div className="pmc-label mb-2" data-testid="corr-section-active">
               Active corrigenda ({active.length})
             </div>

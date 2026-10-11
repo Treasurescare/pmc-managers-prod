@@ -1,5 +1,32 @@
 # PMC Managers v2 — PRD (last touched 11 Oct 2026)
 
+## v52ca — Corrigenda second-search UX fix + withdraw dialog regression pass (11 Oct 2026)
+
+User report: "two search bars … the second one is not working" (Admin → Corrigenda, lower
+`corr-search-within` filter; symptom: nothing changes when typing).
+
+**Investigation verdict:** the filter logic was functionally correct on current preview
+(reproduced: no-match → 0 rows, number/title queries filtered correctly). It *looked* dead
+because (a) the default-picked notice (a test draft) has zero corrigenda, so any query
+changes nothing visible, and (b) the input gave zero feedback — no counter, no no-match
+message, no explanation.
+
+**Fixes (`CorrigendaPanel.jsx`):**
+- Live feedback line under the second search: `N of M corrigenda match "q"` or amber
+  no-match guidance (`corr-search-feedback`); zero-corrigenda hint when the picked notice
+  has none (`corr-search-empty-hint`).
+- `corrSearch` now resets when the notice picker changes (stale query can't hide rows).
+- Withdraw dialog regression-tested end-to-end (v52bz's late patch had never been retested):
+  opens, min-8-char validation, confirm withdraws, ACTIVE 3→2 / WITHDRAWN 1→2, reason shown.
+
+### Bundles
+`pmc-frontend-v52ca-prod-build.zip`, `DOWNLOAD_v52ca.md`. Backend unchanged (stay on v52bz).
+
+---
+
+
+# PMC Managers v2 — PRD (last touched 11 Oct 2026)
+
 ## v52bz — Evaluation rubric persistence · Scoring=0 auto-COI · Package redirect fix · shadcn Withdraw Dialog (11 Oct 2026)
 
 Round-6 P1/P2 continuation after v52by:
