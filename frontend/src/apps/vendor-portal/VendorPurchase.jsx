@@ -5,7 +5,7 @@
  */
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { vendorApi } from "@/lib/api";
+import { api, vendorApi } from "@/lib/api";
 import TopBar from "@/apps/shared/TopBar";
 import Footer from "@/apps/shared/Footer";
 import PurchaseGrid from "@/apps/shared/PurchaseGrid";
@@ -14,9 +14,13 @@ export default function VendorPurchase() {
   const navigate = useNavigate();
   // v52bv — signed-in vendors land here from the portal sidebar; give them
   // an explicit way back. Public visitors fall back to the home page.
+  // _skipAuthRedirect: anonymous visitors hit 401 on the probe and must NOT
+  // be bounced to /login by the global interceptor — this page is public.
   const [isVendor, setIsVendor] = useState(false);
   useEffect(() => {
-    vendorApi.me().then(() => setIsVendor(true)).catch(() => setIsVendor(false));
+    api.get("/api/v1/vendor/auth/me", { _skipAuthRedirect: true })
+      .then(() => setIsVendor(true))
+      .catch(() => setIsVendor(false));
   }, []);
 
   return (

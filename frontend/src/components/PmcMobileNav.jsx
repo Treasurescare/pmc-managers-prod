@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, NavLink, Link } from "react-router-dom";
 import { pmcInstallSteps, detectPmcBrowser } from "@/lib/pmcInstallInstructions";
-import { adminApi, vendorApi } from "@/lib/api";
+import { adminApi, vendorApi, api } from "@/lib/api";
 
 /**
  * PmcMobileNav — mobile-only navigation chrome.
@@ -108,7 +108,10 @@ export default function PmcMobileNav() {
     const onVendor = pathname === "/vendor" || pathname.startsWith("/vendor/");
     if (!onVendor || pathname === "/vendor/login") return;
     let live = true;
-    vendorApi.me?.().then((m) => { if (live) setVendorMe(m); }).catch(() => {});
+    // v52bv — skip the global 401→/login redirect: this probe fires on
+    // public pages like /vendor/services and must fail silently.
+    api.get("/api/v1/vendor/auth/me", { _skipAuthRedirect: true })
+      .then((r) => { if (live) setVendorMe(r.data); }).catch(() => {});
     return () => { live = false; };
   }, [pathname]);
 
