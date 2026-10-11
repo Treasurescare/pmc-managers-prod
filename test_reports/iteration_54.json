@@ -1,0 +1,29 @@
+{
+  "summary": "v52bw retest. Backend: 5/5 pytest cases pass — refresh endpoint auth-gated (401 unauth), returns {ok:false,error:...} for non-existent envelopes (NO 500), endpoint registered (not 404), resend except block code-reviewed and confirmed to catch UNKNOWN_ENVELOPE_RECIPIENT + 'not a valid recipient of the specified envelope' → 410 + orphaned marker, _apply_live_status(env, 'sent') resolved bid_id via award_ref→awards fallback and mirrored docusign_status='sent' onto the bid row (verified end-to-end against Mongo). Frontend: Escrow /admin/e/escrow row grid cells carry min-w-0 + break-all (verified via DOM query — 3 cells each). BOQ Templates View click → [data-testid='boq-viewer'] renders and is scrolled into viewport, [data-testid='boq-viewer-close'] renders and clears the viewer on click. BOQ Contracts tab reachable and 'New Contract' button present (code review confirmed contract_ref in toast + scrollIntoView on contract-row-{ref}). HOWEVER Tender Builder main-pane search-results banner is MISSING: typing 'test' in the sidebar search input populates [data-testid='tb-search-results'] correctly but [data-testid='tb-search-results-main'] is NOT present anywhere inside the main <section> (grep of TenderBuilderPanel.jsx confirms the string is absent).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "TenderBuilderPanel.jsx (/admin/e/tender-builder)", "issue": "[data-testid='tb-search-results-main'] was NOT added — review request required a duplicate matching-drafts panel as the FIRST element inside the main <section> on the right pane, but no such element exists. Only the sidebar [data-testid='tb-search-results'] (v52br) is present. Admins still see empty 'Pick a draft from the left…' placeholder in the main pane while results sit in the narrow sidebar.", "selector": "[data-testid='tb-search-results-main']", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_v52bw_docusign.py", "/app/test_reports/pytest/v52bw.xml"],
+  "action_items": [
+    "Add the duplicate matching-drafts panel to TenderBuilderPanel.jsx inside the right <section> as the first child. Must carry data-testid='tb-search-results-main' and render only when filters.q/country/industry is active and !doc (or regardless of doc, per UX taste). Should be visually above the 'Pick a draft from the left…' placeholder.",
+    "No other action items — all other v52bw fixes verified working."
+  ],
+  "critical_code_review_comments": [
+    "docusign.py refresh_envelope_status returns 200 {ok:false,error:...} even when DocuSign errors — fine per spec, but downstream callers must not treat 200 as success. Consider using 424 for upstream failures.",
+    "_apply_live_status fallback via award_ref→awards.bid_id works, but if awards doc has bid_id already as string vs ObjectId, downstream ObjectId(bid_id) cast could throw. Current test used string bid_id and succeeded.",
+    "TenderBuilderPanel.jsx missing the main-pane duplicate — the sidebar Matches panel is nicely positioned above Kind + Master Library already (line 361-387), so arguably the UX bug is partially fixed; still, the review spec explicitly asked for the main-pane variant."
+  ],
+  "updated_files": ["/app/backend/tests/test_v52bw_docusign.py"],
+  "success_rate": {"backend": "100% (5/5)", "frontend": "80% (4/5 fixes verified; TB main-pane banner missing)"},
+  "test_credentials": "Admin: adminsupport@pmcmanagers.com / Admin@12345 (login succeeded, logged into /admin/e/dashboard).",
+  "seed_data_creation": "Backend test inserts & cleans up TEST_v52bw-marked bids/awards/docusign_envelopes rows. No persistent seed left behind.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend v52bw fixes are solid. The only remaining gap is TenderBuilderPanel.jsx needs a <div data-testid='tb-search-results-main'> block as the FIRST child inside the right-pane <section> (near line 402), conditionally rendered when filters.q/country/industry is active. Verify with: fill input[placeholder*='Search drafts'] with 'test', then expect page.query_selector('[data-testid=\"tb-search-results-main\"]') truthy and its closest('section').firstElementChild === itself.",
+  "rca of the issue": "Main agent's changelog claimed to add duplicate matching-drafts panel to TenderBuilderPanel.jsx with testid 'tb-search-results-main', but file still only has 'tb-search-results' (sidebar version). The fix was never actually applied to the right-pane <section>."
+}

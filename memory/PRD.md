@@ -1,5 +1,44 @@
 # PMC Managers v2 — PRD (last touched 11 Oct 2026)
 
+## v52bw — DocuSign vendor sync (both gates removed) · Resend graceful v2 · Escrow CSS · BOQ View/Contract reveal · Tender search promoted (11 Oct 2026)
+
+### 1. DocuSign vendor sync — the "two conditions"
+Previously the vendor's bid stayed on "submitted / pending" after admin
+signed because `_apply_live_status` required BOTH (a) a webhook/poll to
+detect the change AND (b) `bid_id` to already be present on the envelope
+row. Fixes:
+- Fallback resolution: `award_ref → awards.bid_id` then `bid_ref → bids._id`.
+- New `POST /api/v1/docusign/envelopes/{id}/refresh` so admin console can
+  force a status pull right after signing/dispatching (frontend
+  `docusignApi.refresh`).
+
+### 2. DocuSign resend — UNKNOWN_ENVELOPE_RECIPIENT
+Previous catch only handled ENVELOPE_DOES_NOT_EXIST. User screenshot
+showed UNKNOWN_ENVELOPE_RECIPIENT 400 surfacing a raw trace. Now caught
+too → HTTP 410 + orphan flag.
+
+### 3. Escrow / EMD signer-row CSS
+Added `min-w-0 break-all` to the grid cells so long emails wrap inside
+their column instead of overlapping the next one.
+
+### 4. BOQ View scroll-into-view + Close
+`BOQTemplatesTab` adds `viewerRef` + `useEffect(scrollIntoView)` and a
+Close button (`boq-viewer-close`).
+
+### 5. BOQ Contract reveal after create
+`createContract` now awaits create → toast with contract_ref → awaits
+reload → scrolls the new row into view.
+
+### 6. Tender Builder search promoted
+Second matching-drafts banner (`tb-search-results-main`) at the top of
+the main pane when any filter is active.
+
+### Bundles
+- `pmc-backend-v52bw.zip`, `pmc-frontend-v52bw-prod-build.zip`, `DOWNLOAD_v52bw.md`.
+
+---
+
+
 ## v52bv — Services back button · "Service quotes" KPI tile · PmcMobileNav 401-redirect fix (11 Oct 2026)
 
 User requests: Services page missing a back button; service quote requests

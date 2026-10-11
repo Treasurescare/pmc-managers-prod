@@ -400,6 +400,30 @@ export default function TenderBuilderPanel() {
       </div>
 
       <section>
+        {(filters.q?.trim() || filters.country || filters.industry) && (
+          <div className="border border-brand-navy/30 bg-brand-pale/40 mb-4" data-testid="tb-search-results-main">
+            <div className="pmc-label p-3 border-b border-brand-navy/10 flex justify-between items-center">
+              <span>Matching drafts</span>
+              <span className="text-brand-navy/40 normal-case tracking-normal">{filteredDrafts.length}</span>
+            </div>
+            <div className="max-h-72 overflow-y-auto bg-white">
+              {filteredDrafts.length === 0 && (
+                <div className="p-4 text-xs text-brand-navy/50">No drafts match — try clearing a filter.</div>
+              )}
+              {filteredDrafts.map((d) => (
+                <button key={d.id} type="button" onClick={() => openTemplate(d.id)}
+                        data-testid={`tb-result-main-${d.id}`}
+                        className={"w-full text-left border-b border-brand-navy/10 p-3 hover:bg-brand-navy/5 " +
+                          (selectedId === d.id ? "bg-brand-navy/10" : "")}>
+                  <div className="text-sm font-semibold text-brand-navy leading-tight">{d.name}</div>
+                  <div className="text-[11px] text-brand-navy/50 mt-0.5">
+                    {(d.sections || []).length} sections · {(d.kind || "").toUpperCase()}{d.industry ? ` · ${d.industry}` : ""}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {!doc ? (
           <div className="border border-dashed border-brand-navy/20 bg-white p-16 text-center text-brand-navy/50">
             {t("panels.tender_builder.pick_a_draft")}
