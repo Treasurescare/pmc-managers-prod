@@ -34,10 +34,12 @@ subprojects {
                 }
             }
         }
-        tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
-            kotlinOptions {
-                jvmTarget = "21"
-            }
+        // v1.0.1 fix — match Kotlin compile tasks by NAME so pure-Java plugin
+        // modules (e.g. aparajita-capacitor-biometric-auth) don't crash with
+        // "Could not get unknown property 'org'" when the Kotlin classes are
+        // absent from that module's classpath.
+        tasks.matching { it.class.name.contains("KotlinCompile") }.configureEach {
+            kotlinOptions.jvmTarget = "21"
         }
     }
 }

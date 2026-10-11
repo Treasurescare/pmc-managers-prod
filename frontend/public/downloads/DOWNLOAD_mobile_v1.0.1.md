@@ -10,6 +10,12 @@ Updated Google Play bundle project with the latest web app (v52cb), including:
   exports, rubric persistence, withdraw dialog)
 
 ## What changed in the native project
+- `android/build.gradle`: fixed the `subprojects` block — Kotlin compile tasks
+  are now matched by class NAME instead of a direct
+  `org.jetbrains.kotlin.gradle.tasks.KotlinCompile` class reference, which
+  crashed pure-Java plugin modules (`:aparajita-capacitor-biometric-auth`)
+  with "Could not get unknown property 'org'". If you downloaded the tarball
+  before 10:45 UTC, re-download it.
 - `android/app/src/main/assets/public/` refreshed with the v52cb production
   web build (verified: bundle contains the latest `main.*.js`).
 - `android/app/build.gradle`: `versionCode 1 → 2`, `versionName "1.0.0" → "1.0.1"`
