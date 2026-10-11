@@ -452,6 +452,13 @@ export const boqApi = {
     return api.post(`/api/v1/boq/templates/${id}/import-excel`, fd,
       { headers: { "Content-Type": "multipart/form-data" } }).then((r) => r.data);
   },
+  // v52by — authenticated Excel + PDF export of a BOQ template.
+  exportXlsx: (id, name) =>
+    downloadAuthedFile(`/api/v1/boq/templates/${id}/export.xlsx`,
+      `BOQ-${(name || id).replace(/\s+/g, "-")}.xlsx`),
+  exportPdf: (id, name) =>
+    downloadAuthedFile(`/api/v1/boq/templates/${id}/export.pdf`,
+      `BOQ-${(name || id).replace(/\s+/g, "-")}.pdf`),
   compare: (id) => api.get(`/api/v1/boq/compare/${id}`).then((r) => r.data),
 };
 

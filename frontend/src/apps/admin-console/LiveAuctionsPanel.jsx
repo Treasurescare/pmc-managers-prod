@@ -35,11 +35,27 @@ export default function LiveAuctionsPanel() {
 
   const create = async () => {
     if (!draft.notice_ref) { toast.error("Pick a notice"); return; }
-    if (!draft.title) { toast.error("Title required"); return; }
+    if (!draft.title || draft.title.length < 3) { toast.error("Title must be at least 3 characters"); return; }
+    // v52by — coerce every numeric field to a valid number so the backend's
+    // Pydantic validator never sees NaN (was returning 'field required' when
+    // the admin cleared a field). Zero/empty floor_price is accepted now.
+    const payload = {
+      ...draft,
+      starting_price: Number(draft.starting_price) || 0,
+      floor_price:    Number(draft.floor_price) || 0,
+      min_decrement:  Number(draft.min_decrement) || 1,
+      duration_minutes: Number(draft.duration_minutes) || 30,
+      anti_snipe_seconds: Number(draft.anti_snipe_seconds) || 0,
+    };
+    if (payload.starting_price <= 0) { toast.error("Starting price must be > 0"); return; }
+    if (payload.floor_price >= payload.starting_price) { toast.error("Floor price must be lower than starting price"); return; }
     try {
-      const r = await reverseAuctionApi.create(draft);
+      const r = await reverseAuctionApi.create(payload);
       toast.success(`Auction drafted · ${r.id}`);
       setShowNew(false);
+      // v52by — pre-pend the new draft so admins see it instantly without
+      // waiting for the refetch (addresses "draft not listed").
+      setItems((cur) => [{ ...r, participant_count: 0 }, ...cur.filter((x) => x.id !== r.id)]);
       load();
     } catch (e) { showApiError(e); }
   };
@@ -202,10 +218,9 @@ export default function LiveAuctionsPanel() {
                 {a.status === "draft" && (
                   <button type="button"
                           onClick={() => start(a.id)}
-                          disabled={(a.participant_count ?? a.participants?.length ?? 0) < 2}
-                          title={((a.participant_count ?? a.participants?.length ?? 0) < 2) ? "Need at least 2 registered participants — share the vendor invite link first" : "Start the auction now"}
+                          title={((a.participant_count ?? a.participants?.length ?? 0) < 2) ? "Only 0-1 vendor has registered. You can still Start — the backend will refuse with a clear message naming the gate." : "Start the auction now"}
                           data-testid={`ra-start-${a.id}`}
-                          className={"text-[10px] uppercase tracking-widest px-3 py-1 text-white " + (((a.participant_count ?? a.participants?.length ?? 0) < 2) ? "bg-gray-400 cursor-not-allowed" : "bg-emerald-600 hover:bg-emerald-700")}>
+                          className="text-[10px] uppercase tracking-widest px-3 py-1 text-white bg-emerald-600 hover:bg-emerald-700">
                     {t("panels.live_auctions.start")} · {(a.participant_count ?? a.participants?.length ?? 0)}/2
                   </button>
                 )}

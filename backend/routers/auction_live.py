@@ -39,8 +39,12 @@ class ReverseAuctionIn(BaseModel):
     title: str = Field(min_length=3, max_length=200)
     currency: str = "USD"
     starting_price: float = Field(gt=0)
-    floor_price: float = Field(ge=0)          # cannot bid below this
-    min_decrement: float = Field(gt=0)         # each new bid must beat by ≥ this
+    # v52by — bugs #64/#59/#60. Previously floor_price + min_decrement were
+    # required which caused silent "field required" 422s when the frontend
+    # left them blank. Give them sensible defaults so draft creation is
+    # robust; downstream validation still rejects floor >= starting below.
+    floor_price: float = Field(default=0.0, ge=0)
+    min_decrement: float = Field(default=1.0, gt=0)
     duration_minutes: int = Field(ge=1, le=1440, default=30)
     anti_snipe_seconds: int = Field(ge=0, le=600, default=120)
 

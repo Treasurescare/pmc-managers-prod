@@ -104,6 +104,84 @@ async def update_boq_template(template_id: str, payload: dict,
             if "items" in patch else None}
 
 
+@router.get("/boq/templates/{template_id}/export.xlsx")
+async def export_boq_template_xlsx(template_id: str,
+                                    admin=Depends(require_role("admin", "reviewer", "auditor"))):
+    """v52by — authenticated Excel export of a BOQ template."""
+    from fastapi.responses import Response
+    from openpyxl import Workbook
+    doc = await db.boq_templates.find_one({"_id": ObjectId(template_id)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Template not found")
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "BOQ"
+    ws.append(["Sl.No", "Description", "Unit", "Quantity", "Unit Rate",
+               "Line Total", "UNSPSC", "UNSPSC Title", "Remarks"])
+    for it in doc.get("items", []):
+        qty = float(it.get("quantity") or 0)
+        rate = float(it.get("unit_rate") or 0)
+        ws.append([it.get("sl_no"), it.get("description"), it.get("unit"),
+                   qty, rate, round(qty * rate, 2),
+                   it.get("unspsc_code"), it.get("unspsc_title"),
+                   it.get("remarks")])
+    buf = io.BytesIO()
+    wb.save(buf); buf.seek(0)
+    fname = f"BOQ-{doc.get('name', template_id).replace(' ', '-')}.xlsx"
+    await audit_log("boq_template.export_xlsx", admin, "boq_template", template_id, {})
+    return Response(content=buf.getvalue(),
+                    media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": f'attachment; filename="{fname}"'})
+
+
+@router.get("/boq/templates/{template_id}/export.pdf")
+async def export_boq_template_pdf(template_id: str,
+                                   admin=Depends(require_role("admin", "reviewer", "auditor"))):
+    """v52by — authenticated PDF export of a BOQ template."""
+    from fastapi.responses import Response
+    from weasyprint import HTML
+    doc = await db.boq_templates.find_one({"_id": ObjectId(template_id)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Template not found")
+    rows = ""
+    total = 0.0
+    for it in doc.get("items", []):
+        qty = float(it.get("quantity") or 0)
+        rate = float(it.get("unit_rate") or 0)
+        lt = qty * rate
+        total += lt
+        rows += (f"<tr><td>{it.get('sl_no','')}</td><td>{it.get('description','')}</td>"
+                 f"<td>{it.get('unit','')}</td><td class='r'>{qty:,.2f}</td>"
+                 f"<td class='r'>{rate:,.2f}</td><td class='r'>{lt:,.2f}</td></tr>")
+    html = f"""<!doctype html><html><head><meta charset='utf-8'><style>
+      @page {{ size: A4; margin: 18mm 14mm; }}
+      body {{ font-family:'Helvetica Neue',Arial,sans-serif;color:#14261F;font-size:11px; }}
+      h1 {{ font-family:'Times New Roman',serif;font-size:22px;margin:0 0 2px;color:#0F3B2E; }}
+      .brand {{ font-size:9px;letter-spacing:2px;text-transform:uppercase;color:#C9A24B; }}
+      table {{ width:100%;border-collapse:collapse;margin-top:12px; }}
+      th {{ background:#0F3B2E;color:#fff;padding:6px 8px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1px; }}
+      td {{ padding:6px 8px;border-bottom:1px solid rgba(15,59,46,.08); }}
+      td.r {{ text-align:right;font-family:'Courier New',monospace; }}
+      tfoot td {{ font-weight:600;background:#F3EFE2; }}
+    </style></head><body>
+      <div class='brand'>PMC Managers · BOQ Template</div>
+      <h1>{doc.get('name','')}</h1>
+      <div style='font-size:10px;color:#5B6B63'>Currency: {doc.get('currency','USD')}
+         · Items: {len(doc.get('items', []))}
+         {('· UNSPSC ' + doc['unspsc_code']) if doc.get('unspsc_code') else ''}</div>
+      <table>
+        <thead><tr><th>#</th><th>Description</th><th>Unit</th><th>Qty</th><th>Rate</th><th>Line total</th></tr></thead>
+        <tbody>{rows or "<tr><td colspan='6' style='text-align:center;padding:24px;color:#999'>No line items yet.</td></tr>"}</tbody>
+        <tfoot><tr><td colspan='5' class='r'>TOTAL</td><td class='r'>{total:,.2f} {doc.get('currency','USD')}</td></tr></tfoot>
+      </table>
+    </body></html>"""
+    pdf = HTML(string=html).write_pdf()
+    fname = f"BOQ-{doc.get('name', template_id).replace(' ', '-')}.pdf"
+    await audit_log("boq_template.export_pdf", admin, "boq_template", template_id, {})
+    return Response(content=pdf, media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="{fname}"'})
+
+
 @router.post("/boq/templates/{template_id}/import-excel")
 async def import_boq_excel(template_id: str, file: UploadFile = File(...),
                            admin=Depends(require_role("admin"))):

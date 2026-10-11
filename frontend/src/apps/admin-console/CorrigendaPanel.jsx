@@ -185,6 +185,13 @@ export default function CorrigendaPanel() {
     }
     try {
       await corrigendaApi.withdraw(pickedNoticeRef, cid, reason.trim());
+      // v52by — bug #49: optimistic local flip so the row leaves the active
+      // list immediately. Previous behaviour relied purely on the refetch,
+      // which could return a cached list and leave the withdrawn item in
+      // the active table until the next page reload.
+      setItems((cur) => cur.map((c) =>
+        c.id === cid ? { ...c, is_active: false, withdrawn_at: new Date().toISOString(),
+                         withdrawn_reason: reason.trim() } : c));
       toast.success("Withdrawn — audit trail updated.");
       loadCorrigenda(pickedNoticeRef);
     } catch (err) { showApiError(err); }

@@ -3,7 +3,6 @@ import { toast } from "sonner";
 import { boqApi, mastersApi, formatApiError, showApiError} from "@/lib/api";
 import UnspscPicker from "@/components/UnspscPicker";
 import { InfoDot } from "@/components/InfoDot";
-
 const EMPTY_LINE = {
   description: "", unit: "", quantity: 0, unit_rate: 0,
   unspsc_code: "", unspsc_title: "", remarks: "",
@@ -160,6 +159,12 @@ export default function BOQTemplatesTab({
                   onChange={(e) => e.target.files?.[0] && importExcel(t, e.target.files[0])}
                   data-testid={`boq-import-${t.id}`} />
               </label>
+              <button onClick={() => boqApi.exportXlsx(t.id, t.name).catch(showApiError)}
+                      data-testid={`boq-export-xlsx-${t.id}`}
+                      className="text-xs border px-3 py-1.5">Export Excel</button>
+              <button onClick={() => boqApi.exportPdf(t.id, t.name).catch(showApiError)}
+                      data-testid={`boq-export-pdf-${t.id}`}
+                      className="text-xs border px-3 py-1.5">Export PDF</button>
               <button onClick={() => viewTemplate(t)} data-testid={`boq-view-${t.id}`}
                 className="text-xs border px-3 py-1.5">View</button>
             </div>
