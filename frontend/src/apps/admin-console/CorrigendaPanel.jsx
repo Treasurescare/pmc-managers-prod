@@ -230,7 +230,6 @@ export default function CorrigendaPanel() {
           placeholder="Find a notice by reference or title to view/add its corrigenda…"
           aria-label="Pick a notice to see its corrigenda"
           data-testid="corr-search-notice"
-          data-testid="corr-notice-search"
           className="mt-1 mb-2 w-full px-4 py-2 border border-brand-navy/20 text-sm" />
         <select value={pickedNoticeRef} onChange={(e) => setPickedNoticeRef(e.target.value)}
                 data-testid="corr-notice-picker"
@@ -459,7 +458,6 @@ export default function CorrigendaPanel() {
               aria-label="Search within this notice's corrigenda"
               placeholder="Filter THIS notice's corrigenda by number, title or summary…"
               data-testid="corr-search-within"
-              data-testid="corr-search"
               className="w-full mb-3 px-4 py-2 border border-brand-navy/20 text-sm bg-white" />
             <div className="pmc-label mb-2" data-testid="corr-section-active">
               Active corrigenda ({active.length})

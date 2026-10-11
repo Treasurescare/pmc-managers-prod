@@ -58,10 +58,10 @@ export default function VendorCategories() {
   return (
     <div className="max-w-5xl mx-auto p-6 lg:p-10" data-testid="vendor-categories">
       <button type="button"
-        onClick={() => { if (window.history.length > 1) window.history.back(); else window.location.href = "/vendor/company"; }}
-        className="text-xs text-brand-navy hover:underline mb-4 inline-flex items-center gap-1"
+        onClick={() => navigate("/vendor")}
+        className="px-4 py-2 text-[11px] font-semibold uppercase tracking-widest border border-brand-navy text-brand-navy bg-white hover:bg-brand-navy hover:text-white mb-6"
         data-testid="vendor-cat-back">
-        ← Back
+        ← Back to supplier portal
       </button>
       <div className="pmc-label">Categories of interest</div>
       <h1 className="font-serif text-3xl text-brand-navy mt-1 mb-6">My bidding categories</h1>

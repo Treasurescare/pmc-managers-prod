@@ -1,5 +1,37 @@
 # PMC Managers v2 — PRD (last touched 11 Oct 2026)
 
+## v52bx — Round-6 session security + vendor reverse-auction visibility (11 Oct 2026)
+
+Round-6 Report scope fixes landed in v52bx:
+- **#34 Session cross-contamination** — admin/staff/vendor login endpoints
+  now delete the OTHER role's cookie on successful login
+  (`backend/routers/{admin_auth,staff_auth,vendor_auth}.py`). Two accounts
+  on the same browser can no longer mix permissions.
+- **#46 Corrigenda search bars** — distinct aria-label + testids
+  (`corr-search-notice` for the global notice picker,
+  `corr-search-within` for the active-notice filter).
+- **User follow-up (reverse auction invites)** — new endpoint
+  `GET /api/v1/reverse-auctions/mine` (vendor-auth, bid-notice OR
+  explicit invite rows), new vendor page `/vendor/auctions`
+  (`VendorAuctionsE.jsx`), new KPI tile `vhome-kpi-auctions` on
+  `VendorHomeE.jsx`.
+- **VendorCategories back button** — navigates to `/vendor` via
+  `useNavigate` (replaces fragile `window.history.back()`).
+
+### Explicitly out-of-scope for v52bx (queued next)
+#43 rubric save · #44 scoring=0 · #48/#57 BOQ export · #49 corrigendum
+withdraw refresh · #58 product disable · #59/#60/#64 reverse auction
+create/start · #41 escrow error · vendor chrome wrap on
+`/vendor/categories` and `/vendor/services`.
+
+### Bundles
+`pmc-backend-v52bx.zip`, `pmc-frontend-v52bx-prod-build.zip`,
+`DOWNLOAD_v52bx.md`, plus `BUG_TRACKER_R6.md` (consolidated Round-6
+tracker).
+
+---
+
+
 ## v52bw — DocuSign vendor sync (both gates removed) · Resend graceful v2 · Escrow CSS · BOQ View/Contract reveal · Tender search promoted (11 Oct 2026)
 
 ### 1. DocuSign vendor sync — the "two conditions"

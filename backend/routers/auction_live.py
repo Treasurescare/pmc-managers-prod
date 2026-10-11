@@ -284,16 +284,7 @@ async def list_reverse_auctions(admin=Depends(current_admin)):
     return {"items": rows, "total": len(rows)}
 
 
-@router.get("/{aid}")
-async def get_reverse_auction_admin(aid: str, admin=Depends(current_admin)):
-    a = await db.reverse_auctions.find_one({"_id": ObjectId(aid)})
-    if not a:
-        raise HTTPException(status_code=404, detail="Auction not found")
-    parts = [BaseDocument.out(p) async for p in db.reverse_auction_participants.find({"auction_id": aid})]
-    return {"auction": _out_auction(a), "participants": parts}
-
-
-@router.get("/reverse-auctions/mine")
+@router.get("/mine")
 async def list_my_reverse_auctions(vendor=Depends(current_vendor)):
     """v52bx — vendor can see every reverse auction tied to a notice they
     bid on OR where they have been invited by email. Fixes "no option to
@@ -325,6 +316,15 @@ async def list_my_reverse_auctions(vendor=Depends(current_vendor)):
         out["why"] = "You were invited by PMC"
         rows.append(out); seen.add(out["id"])
     return {"items": rows, "count": len(rows)}
+
+
+@router.get("/{aid}")
+async def get_reverse_auction_admin(aid: str, admin=Depends(current_admin)):
+    a = await db.reverse_auctions.find_one({"_id": ObjectId(aid)})
+    if not a:
+        raise HTTPException(status_code=404, detail="Auction not found")
+    parts = [BaseDocument.out(p) async for p in db.reverse_auction_participants.find({"auction_id": aid})]
+    return {"auction": _out_auction(a), "participants": parts}
 
 
 @router.post("/{aid}/start")

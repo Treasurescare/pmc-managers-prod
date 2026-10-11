@@ -1,0 +1,41 @@
+{
+  "summary": "Tested v52bx Round-6 fixes: (1) session cross-contamination #34, (2) corrigenda search labels, (3) vendor reverse-auction visibility, (4) vendor categories back button. Found 2 BE/FE wiring bugs that completely blocked features, fixed them so tests could pass. 1 FE back-button regression still open — missed by main agent and needs code change.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/v1/reverse-auctions/mine", "issue": "Route decorated as @router.get('/reverse-auctions/mine') under router prefix='/api/v1/reverse-auctions' => actual path was /api/v1/reverse-auctions/reverse-auctions/mine (duplicate prefix). Additionally the admin GET /{aid} was defined ABOVE the vendor /mine route, so even if the path was fixed, '/mine' would be swallowed by /{aid} (ObjectId cast fail / 401). FIXED by changing path to '/mine' AND moving the admin /{aid} handler to sit below /mine. Vendor can now reach /api/v1/reverse-auctions/mine (401 unauth, 200 as vendor).", "priority": "CRITICAL"}
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "VendorCategories.jsx", "issue": "Back button text is '← Back' and click uses window.history.back() with /vendor/company fallback. Task required text 'Back to supplier portal' and navigate('/vendor'). Main agent's listed file edit was NOT applied — the JSX at line 60-65 still has old text + history logic. NOT FIXED by me (business/copy change).", "selector": "[data-testid='vendor-cat-back']", "priority": "HIGH"},
+      {"component": "CorrigendaPanel.jsx line 232-233", "issue": "Duplicate data-testid attribute on same input ('corr-search-notice' AND 'corr-notice-search'). In JSX only the last wins, so 'corr-search-notice' was effectively absent → testid lookup failed. FIXED by removing the stale 'corr-notice-search' duplicate.", "selector": "[data-testid='corr-search-notice']", "priority": "FIXED"},
+      {"component": "CorrigendaPanel.jsx line 461-462", "issue": "Duplicate data-testid ('corr-search-within' AND 'corr-search') on within-notice filter input. FIXED by removing 'corr-search' duplicate.", "selector": "[data-testid='corr-search-within']", "priority": "FIXED"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_v52bx_session_and_auctions.py", "/app/test_reports/pytest/v52bx.xml"],
+  "action_items": [
+    "VendorCategories.jsx: change button label from '← Back' to 'Back to supplier portal' and replace onClick with navigate('/vendor') (import useNavigate from react-router-dom).",
+    "Backend fix for /reverse-auctions/mine already applied by testing agent — please review the moved route block in /app/backend/routers/auction_live.py (lines ~287-327). Main agent's original decorator used '/reverse-auctions/mine' which double-prefixed and was shadowed by /{aid}; the correct FastAPI path is '/mine' and it MUST sit above /{aid}.",
+    "Review CorrigendaPanel.jsx for other duplicate data-testid attributes — pattern suggests find/replace rename was done without removing originals."
+  ],
+  "critical_code_review_comments": [
+    "Route ordering bug + duplicate prefix in auction_live.py — a basic smoke test would have caught this; add a backend startup assertion listing router paths or an integration test that curls /api/v1/reverse-auctions/mine on every PR.",
+    "Two React elements had duplicate data-testid props. ESLint rule 'react/jsx-no-duplicate-props' would catch this — recommend enabling in /app/frontend/.eslintrc.",
+    "notify.login_alert is called on every successful login inside a bare try/except with no logger — silent failures hide outbound email errors."
+  ],
+  "updated_files": [
+    "/app/backend/routers/auction_live.py",
+    "/app/frontend/src/apps/admin-console/CorrigendaPanel.jsx",
+    "/app/backend/tests/test_v52bx_session_and_auctions.py"
+  ],
+  "success_rate": {"backend": "100% (5/5 pytest)", "frontend": "75% (3/4 features — vendor-cat-back still failing)"},
+  "test_credentials": "Admin: adminsupport@pmcmanagers.com / Admin@12345; Vendor: manualvendor@pmcmanagers.com / Vendor@12345 (both verified working)",
+  "seed_data_creation": "Test inserts temporary reverse_auctions + reverse_auction_invitations rows (prefix _test_v52bx) and cleans them up in teardown. Also conditionally inserts a stub bids row if the vendor has no bids yet. All test data removed post-run.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend route path for /reverse-auctions/mine was broken (duplicate prefix + shadow by /{aid}); fixed in-place. If main agent re-edits auction_live.py, double-check that @router.get('/mine') stays ABOVE @router.get('/{aid}') or FastAPI will route 'mine' as an aid again. VendorCategories back button still needs code fix per action_items.",
+  "rca of the issue": "Three bugs with same root cause pattern — main agent applied partial edits without re-running tests: (a) auction_live.py — path string was prefixed with 'reverse-auctions/' as if there were no router prefix; also inserted below /{aid} so even corrected path would 401; (b) CorrigendaPanel.jsx — new data-testid values were added but old ones not removed, leaving duplicate props so last one wins and the required testid vanished; (c) VendorCategories.jsx — the planned edit (navigate('/vendor') + 'Back to supplier portal' label) was not applied at all. Mitigation: enable react/jsx-no-duplicate-props ESLint rule, add a backend smoke test enumerating registered routes, and require a UI smoke before closing Round-6."
+}
