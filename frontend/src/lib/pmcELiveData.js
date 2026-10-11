@@ -911,6 +911,17 @@ export function useVendorEmdLive({ enabled = true } = {}) {
           if (b.id) r.setAttribute("data-bid-id", b.id);
           const ref = r.querySelector(".pmc-ref"); if (ref) ref.textContent = b.bid_ref;
           const amt = r.querySelector(".pmc-amt, td:last-child"); if (amt) amt.textContent = money(b.emd_paid_amount, b.emd_currency);
+          // v52bu — swap the right-most "Details" link on paid rows with a
+          // Receipt (PDF) link that triggers an authenticated blob download.
+          const lastTd = r.querySelector("td:last-child");
+          if (b.id && (b.emd_paid_amount || 0) > 0 && lastTd && !lastTd.dataset.vemdReceipt) {
+            lastTd.dataset.vemdReceipt = "1";
+            lastTd.innerHTML =
+              `<a href="#" class="pmc-btn pmc-btn--secondary pmc-btn--sm" ` +
+              `data-vemd-receipt-bid="${b.id}" ` +
+              `data-vemd-receipt-ref="${b.bid_ref || ""}" ` +
+              `data-testid="vemd-receipt-${b.bid_ref || b.id}">Receipt (PDF)</a>`;
+          }
         });
         rows.forEach((r, i) => {
           if (i >= paid.length) { r.style.display = "none"; r.dataset.vemdHidden = "live"; }

@@ -15,6 +15,10 @@ function fmtDate(iso) {
 function statusPill(status) {
   const map = {
     completed: ["pmc-pill--success", "Completed"],
+    // v52bu — DocuSign reports `signed` while the vendor side is still
+    // pending (admin signed first, vendor's turn next). Previously fell
+    // through to the raw literal → surface a clear call-to-action.
+    signed:    ["pmc-pill--warning", "Admin signed · your turn"],
     sent:      ["pmc-pill--warning", "Awaiting your signature"],
     delivered: ["pmc-pill--warning", "Awaiting your signature"],
     created:   ["pmc-pill--info", "Preparing"],
@@ -33,15 +37,28 @@ export default function VendorSignaturesE({ legacy: Legacy }) {
 
   useEffect(() => {
     if (!isE) return;
-    setLoading(true);
-    docusignApi.listMine()
-      .then((res) => setEnvelopes(res.items || []))
-      .catch((e) => {
-        // Non-fatal: show empty state instead of a toast when DocuSign is
-        // not configured in this environment.
-        if (e?.response?.status !== 404 && e?.response?.status !== 503) showApiError(e);
-      })
-      .finally(() => setLoading(false));
+    let cancelled = false;
+    const fetchEnvelopes = (showSpinner) => {
+      if (showSpinner) setLoading(true);
+      return docusignApi.listMine()
+        .then((res) => { if (!cancelled) setEnvelopes(res.items || []); })
+        .catch((e) => {
+          if (cancelled) return;
+          if (e?.response?.status !== 404 && e?.response?.status !== 503) showApiError(e);
+        })
+        .finally(() => { if (showSpinner && !cancelled) setLoading(false); });
+    };
+    fetchEnvelopes(true);
+    // v52bu — poll every 20s and on tab-focus so "Admin signed · your turn"
+    // appears live after admin dispatches, with no manual refresh.
+    const iv = setInterval(() => fetchEnvelopes(false), 20000);
+    const onFocus = () => fetchEnvelopes(false);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      cancelled = true;
+      clearInterval(iv);
+      window.removeEventListener("focus", onFocus);
+    };
   }, [isE]);
 
   const openSigning = async (envelopeId) => {
@@ -96,7 +113,7 @@ export default function VendorSignaturesE({ legacy: Legacy }) {
     }
   };
 
-  const pending = envelopes.filter((e) => ["sent", "delivered", "created"].includes(e.status));
+  const pending = envelopes.filter((e) => ["sent", "delivered", "created", "signed"].includes(e.status));
   const completed = envelopes.filter((e) => e.status === "completed");
 
   if (!isE && Legacy) return <Legacy />;
@@ -169,7 +186,7 @@ export default function VendorSignaturesE({ legacy: Legacy }) {
                         : `Sent ${fmtDate(e.created_at)}`}
                     </td>
                     <td style={{ textAlign: "right" }}>
-                      {["sent", "delivered", "created"].includes(e.status) && (
+                      {["sent", "delivered", "created", "signed"].includes(e.status) && (
                         <button type="button"
                                 onClick={() => openSigning(e.envelope_id)}
                                 disabled={launching === e.envelope_id}

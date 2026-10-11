@@ -132,6 +132,71 @@ def _stripe():
     return StripeCheckout, CheckoutSessionRequest, api_key
 
 
+# v52bu — Per-bid EMD receipt PDF. Vendors can download a single-page
+# receipt for any paid EMD transaction straight from the deposits row.
+# Secured by vendor ownership (bid.vendor_id must match current vendor).
+@router.get("/payments/emd/bid/{bid_id}/receipt.pdf")
+async def emd_receipt_pdf(bid_id: str, vendor=Depends(current_vendor)):
+    from fastapi.responses import Response
+    from weasyprint import HTML
+    bid = await db.bids.find_one({"_id": ObjectId(bid_id), "vendor_id": vendor["id"]})
+    if not bid:
+        raise HTTPException(status_code=404, detail="Bid not found")
+    tx = await db.payment_transactions.find_one(
+        {"bid_id": bid_id, "vendor_id": vendor["id"], "purpose": "emd",
+         "payment_status": "paid"},
+        sort=[("paid_at", -1), ("updated_at", -1)],
+    )
+    if not tx:
+        raise HTTPException(status_code=404,
+            detail="No paid EMD transaction found for this bid")
+    paid_at = (tx.get("paid_at") or tx.get("updated_at") or "")[:19].replace("T", " ")
+    amount = float(tx.get("amount") or 0.0)
+    currency = (tx.get("currency") or "USD").upper()
+    ref = tx.get("provider_ref") or tx.get("session_id") or "—"
+    vendor_ref = vendor.get("vendor_ref") or "—"
+    company = vendor.get("company_name") or vendor.get("email") or vendor_ref
+    bid_ref = bid.get("bid_ref") or "—"
+    notice_ref = bid.get("notice_ref") or "—"
+    generated = datetime.now(timezone.utc).strftime("%d %b %Y, %H:%M UTC")
+    html = f"""<!doctype html><html><head><meta charset='utf-8'><style>
+      @page {{ size: A4; margin: 24mm 20mm; }}
+      body {{ font-family:'Helvetica Neue',Arial,sans-serif;color:#14261F;font-size:12px; }}
+      h1 {{ font-family:'Times New Roman',serif;font-size:26px;margin:0 0 2px;color:#0F3B2E; }}
+      .brand {{ font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#C9A24B; }}
+      .amt {{ font-size:32px;font-weight:600;color:#0F3B2E;margin:14px 0 20px; }}
+      .pill {{ display:inline-block;padding:3px 10px;border-radius:12px;font-size:10px;
+             letter-spacing:1px;font-weight:600;background:#DEEEE1;color:#0F3B2E;margin-left:10px;vertical-align:middle; }}
+      table {{ width:100%;border-collapse:collapse;margin-top:12px; }}
+      td {{ padding:10px 0;border-bottom:1px solid rgba(15,59,46,.1); }}
+      td.l {{ color:#5B6B63;font-size:10px;text-transform:uppercase;letter-spacing:1px;width:38%; }}
+      td.r {{ color:#14261F;font-weight:500; }}
+      td.mono {{ font-family:'Courier New',monospace;font-size:11px; }}
+      .foot {{ margin-top:28px;font-size:10px;color:#7B8B83;line-height:1.5; }}
+    </style></head><body>
+      <div class='brand'>PMC Managers · Global Tender Board</div>
+      <h1>EMD Payment Receipt</h1>
+      <div style='font-size:11px;color:#5B6B63'>Receipt generated {generated}</div>
+      <div class='amt'>{currency} {amount:,.2f}<span class='pill'>PAID</span></div>
+      <table>
+        <tr><td class='l'>Vendor</td><td class='r'>{company}<br><span style='color:#5B6B63;font-size:11px'>{vendor_ref}</span></td></tr>
+        <tr><td class='l'>Bid reference</td><td class='r mono'>{bid_ref}</td></tr>
+        <tr><td class='l'>Notice reference</td><td class='r mono'>{notice_ref}</td></tr>
+        <tr><td class='l'>Payment date</td><td class='r'>{paid_at}</td></tr>
+        <tr><td class='l'>Payment reference</td><td class='r mono'>{ref}</td></tr>
+        <tr><td class='l'>Method</td><td class='r'>Stripe Checkout (card/bank)</td></tr>
+      </table>
+      <div class='foot'>This receipt confirms the Earnest Money Deposit held in escrow against the bid above.
+      The deposit is refunded to your verified account if the bid is not awarded, or converted to a
+      security deposit upon contract signature. Every entry is chained to the PMC audit ledger.</div>
+    </body></html>"""
+    pdf = HTML(string=html).write_pdf()
+    fname = f"PMC-EMD-Receipt-{bid_ref}.pdf"
+    await audit_log("vendor.emd_receipt_pdf", None, "bid", bid_ref, {"amount": amount, "currency": currency})
+    return Response(content=pdf, media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="{fname}"'})
+
+
 @router.post("/payments/emd/checkout")
 async def create_emd_checkout(payload: EMDCheckoutIn, request: Request,
                               vendor=Depends(current_vendor)) -> dict:

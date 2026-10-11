@@ -337,6 +337,10 @@ export const paymentApi = {
   status: (session_id) => api.get(`/api/v1/payments/status/${session_id}`).then((r) => r.data),
   refund: (bid_id, reason) =>
     api.post("/api/v1/payments/emd/refund", { bid_id, reason }).then((r) => r.data),
+  // v52bu — per-bid EMD receipt (authenticated blob download).
+  receiptPdf: (bid_id, bid_ref) =>
+    downloadAuthedFile(`/api/v1/payments/emd/bid/${bid_id}/receipt.pdf`,
+      `PMC-EMD-Receipt-${bid_ref || bid_id}.pdf`),
 };
 
 // ---------- Wave 1: Committee ----------

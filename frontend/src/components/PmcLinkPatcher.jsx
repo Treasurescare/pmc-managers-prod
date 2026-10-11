@@ -762,6 +762,13 @@ function resolveClickAction(el, label, { isVendor, isAdmin, isPublic, pageId }, 
   if (isVendor && /^preview$/i.test(label)) { handleReviewSign(el, navigate); return true; }
   if (isVendor && /send\s+me\s+the\s+docusign/i.test(label)) { handleReviewSign(el, navigate); return true; }
   if (isVendor && /^pay(\s+emd)?$/i.test(label)) { handlePayEmd(el, navigate); return true; }
+  if (isVendor && el.hasAttribute("data-vemd-receipt-bid")) {
+    const bidId = el.getAttribute("data-vemd-receipt-bid");
+    const bidRef = el.getAttribute("data-vemd-receipt-ref") || "";
+    paymentApi.receiptPdf(bidId, bidRef)
+      .catch((err) => toast.error(err?.response?.data?.detail || "Receipt download failed."));
+    return true;
+  }
   if (/^start\s+bid$/i.test(label)) { handleStartBid(el, isPublic, navigate); return true; }
   if (isVendor && /statement\s*\(?pdf\)?/i.test(label)) { handleStatementPdf(navigate); return true; }
   if (/^download(\s+pack)?$/i.test(label)) { return handleDownload(el, isPublic, navigate); }
