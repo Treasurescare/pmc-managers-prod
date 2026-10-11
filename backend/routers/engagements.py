@@ -113,6 +113,17 @@ async def quote_request(payload: QuoteRequestIn, request: Request):
     return _out(doc)
 
 
+@router.get("/mine")
+async def list_my_engagements(vendor=Depends(current_vendor)):
+    """v52bv — vendor-scoped read. Powers the 'Service quotes' KPI tile on
+    the vendor landing page. MUST stay above /{eid} or FastAPI shadows it
+    (same bug class as /bids/mine)."""
+    email = vendor.get("email")
+    docs = await db.engagements.find(
+        {"buyer_email": email}).sort("created_at", -1).to_list(200)
+    return {"items": [_out(d) for d in docs], "count": len(docs)}
+
+
 @router.get("")
 async def list_engagements(status: Optional[str] = None,
                             admin=Depends(current_admin)):

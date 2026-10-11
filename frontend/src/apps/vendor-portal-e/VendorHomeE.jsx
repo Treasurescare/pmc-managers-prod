@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useUiTheme } from "@/context/UiThemeContext";
-import { vendorApi, bidApi, publicApi, docusignApi } from "@/lib/api";
+import { vendorApi, bidApi, publicApi, docusignApi, engagementsApi } from "@/lib/api";
 import VendorPortalChrome from "./VendorPortalChrome";
 import VendorBlacklistAppeal from "./VendorBlacklistAppeal";
 
@@ -37,20 +37,26 @@ export default function VendorHomeE({ legacy: Legacy }) {
   const [bids, setBids] = useState([]);
   const [envelopes, setEnvelopes] = useState([]);
   const [tendersTotal, setTendersTotal] = useState(0);
+  const [quoteRequests, setQuoteRequests] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     try {
-      const [meRes, bidsRes, envRes, noticeRes] = await Promise.all([
+      const [meRes, bidsRes, envRes, noticeRes, engRes] = await Promise.all([
         vendorApi.me(),
         bidApi.mine().catch(() => []),
         docusignApi.listMine().catch(() => ({ items: [] })),
         publicApi.listNotices({ limit: 1 }).catch(() => ({ total: 0 })),
+        // v52bv — vendor's own service quote requests feed a dedicated KPI.
+        engagementsApi.mine().catch(() => ({ items: [] })),
       ]);
       setMe(meRes);
       setBids(Array.isArray(bidsRes) ? bidsRes : (bidsRes?.items || []));
       setEnvelopes(envRes?.items || []);
       setTendersTotal(noticeRes?.total || 0);
+      const engItems = Array.isArray(engRes?.items) ? engRes.items : [];
+      setQuoteRequests(engItems.filter((e) =>
+        ["quote_requested", "quoted", "invoiced"].includes(e.status)).length);
     } catch { /* non-fatal — page still renders with empty states */ }
     finally { setLoading(false); }
   }, []);
@@ -155,6 +161,15 @@ export default function VendorHomeE({ legacy: Legacy }) {
             <div className="l">Open tenders</div>
             <div className="pmc-figure">{loading ? "…" : tendersTotal}</div>
             <div className="s">on the public board</div>
+          </Link>
+          <Link to="/vendor/services" className="pmc-kpi" data-testid="vhome-kpi-services"
+                style={{ textDecoration: "none", color: "inherit" }}>
+            <div className="l" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <svg className="pmc-ico" aria-hidden="true"><use href="#i-briefcase" /></svg>
+              Service quotes
+            </div>
+            <div className="pmc-figure">{loading ? "…" : quoteRequests}</div>
+            <div className="s">{quoteRequests ? "requested · awaiting PMC pricing" : "no requests yet"}</div>
           </Link>
           <Link to="/vendor/company" className="pmc-kpi" data-testid="vhome-kpi-kyc"
                 style={{ textDecoration: "none", color: "inherit" }}>
