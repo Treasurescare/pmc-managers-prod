@@ -1,0 +1,20 @@
+{
+  "summary": "Retest of iteration_52 HIGH bug fix for /vendor/services unauth leg. Fix in PmcMobileNav.jsx (using api.get with _skipAuthRedirect) verified working. Unauth: /vendor/services renders without redirecting to /login, back button 'Back to home' visible, 21 purchase cards render (data-testid='purchase-card-*', confirmed via ALL (21) filter), back navigates to /. Authed: login as manualvendor works, /vendor/services renders with 'Back to supplier portal', back navigates to /vendor, avatar initials 'MP' render in top-bar via data-testid='pmc-mobile-avatar'. All assertions pass.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (not retested per request)", "frontend": "100%"},
+  "test_credentials": "Vendor: manualvendor@pmcmanagers.com / Vendor@12345 (login succeeded)",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Purchase cards use data-testid pattern 'purchase-card-{code}' (e.g., purchase-card-sup-tender-training) — not 'supplier-product-card-'. Vendor top-bar avatar initials use data-testid='pmc-mobile-avatar'. Back button is 'services-back-btn'. Confirmed 21 cards render for unauth supplier view. PmcMobileNav vendor probe now uses api.get with _skipAuthRedirect flag — no stray 401 redirects observed. Expected 401s on /vendor/auth/me when unauth (console errors) are benign and intentionally non-redirecting.",
+  "rca of the issue": "N/A — iteration_52 fix verified. Previous RCA: global PmcMobileNav vendor probe used vendorApi.me() which triggered axios 401 interceptor → /login?expired=1 redirect. Fix: switch to api.get('/api/v1/vendor/auth/me', { _skipAuthRedirect: true })."
+}

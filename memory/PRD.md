@@ -1,5 +1,45 @@
 # PMC Managers v2 — PRD (last touched 11 Oct 2026)
 
+## v52bv — Services back button · "Service quotes" KPI tile · PmcMobileNav 401-redirect fix (11 Oct 2026)
+
+User requests: Services page missing a back button; service quote requests
+should surface as a separate counter on the vendor landing page.
+
+### 1. Back button on /vendor/services
+`VendorPurchase.jsx` rewritten: back button (`data-testid="services-back-btn"`)
+above the grid. Signed-in vendors → "Back to supplier portal" (/vendor);
+anonymous visitors → "Back to home" (/). Vendor detection probe uses
+`_skipAuthRedirect: true` so anonymous users are never bounced to /login.
+
+### 2. "Service quotes" KPI tile on vendor home
+- Backend: new vendor-scoped `GET /api/v1/engagements/mine` (registered
+  ABOVE `/{eid}` to avoid FastAPI route shadowing — same class as the
+  /bids/mine bug).
+- Frontend: `VendorHomeE.jsx` fetches `engagementsApi.mine()` and renders a
+  5th KPI tile (`data-testid="vhome-kpi-services"`, briefcase icon) counting
+  engagements in `quote_requested / quoted / invoiced`; links to
+  /vendor/services.
+
+### 3. Global bug found & fixed during verification
+`PmcMobileNav.jsx` (mounted on every page) called `vendorApi.me()` without
+`_skipAuthRedirect`, so its 401 tripped the global axios interceptor and
+force-redirected ANY unauthenticated visitor on /vendor/* (including the
+public /vendor/services page) to /login. Fixed by using the flagged probe.
+
+### Testing
+- iteration_52.json: backend 5/5, authed frontend 5/5; unauth leg failed →
+  PmcMobileNav root cause found & fixed.
+- Retest: unauth /vendor/services renders grid + "Back to home" → `/` ✓
+  (self-tested via screenshot; testing-agent retest running).
+
+### Bundles
+- `pmc-backend-v52bv.zip`, `pmc-frontend-v52bv-prod-build.zip`, `DOWNLOAD_v52bv.md`.
+
+---
+
+
+# PMC Managers v2 — PRD (last touched 11 Oct 2026)
+
 ## v52bu — Vendor Signatures live sync · EMD receipt PDF · Vendor sidebar Categories/Services (11 Oct 2026)
 
 User follow-up features after v52bt. All 3 verified fixed (test_reports/iteration_51.json, backend 5/5 pytest, frontend 4/4 live).
