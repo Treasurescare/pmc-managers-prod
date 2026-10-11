@@ -1,0 +1,44 @@
+{
+  "summary": "v52by Round-6 testing. Backend: all 7 pytest tests pass — Reverse Auction create defaults (#64), floor>=starting guard, BOQ xlsx+pdf exports with 401/404 handling (#48/#57), corrigenda withdraw endpoint reachable. Frontend: BOQ export buttons present with correct data-testid and both xlsx & pdf downloads trigger natively. CRITICAL finding: the admin Reverse Auctions screen that users actually see is rendered by /app/frontend/src/apps/admin-console-e/AdminAuctionsE.jsx — NOT LiveAuctionsPanel.jsx that the main agent edited. AdminAuctionsE uses data-testid='auction-start-<id>' (not 'ra-start-<id>' per task spec); Start button is correctly not client-disabled on <2 participants, and start() surfaces the backend's clear 'need at least 2 participants' message via showApiError toast. Corrigendum withdraw uses window.prompt() which blocks playwright scripting; optimistic local-state flip is implemented in code (CorrigendaPanel.jsx line 192-195) but could not be validated end-to-end from automation. Backend list visibility #59 works (new draft is first row after creation). #60 Start-does-nothing was already fixed via `disabled={busyId===a.id}` only.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "admin-console-e/AdminAuctionsE.jsx (actual live Reverse Auctions panel)", "issue": "data-testid is `auction-start-<id>` not the spec-mandated `ra-start-<id>`. Main agent updated LiveAuctionsPanel.jsx but that panel is NOT mounted on /admin/e/auctions — AdminAuctionsE.jsx is. Any downstream automation / QA scripts keyed to `ra-start-<id>` will fail against the live app.", "selector": "[data-testid^='auction-start-']", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "Corrigenda withdraw (#49)", "issue": "Uses window.prompt() (native blocking dialog) for the 10+ character reason. Cannot be reliably automated with playwright without a page.on('dialog') handler, and more importantly it is a jarring UX versus a shadcn modal with a textarea & character-counter. The optimistic local state flip itself IS in the code (CorrigendaPanel.jsx L192-195: setItems((prev) => prev.map(c => c.id === cid ? {...c, is_active:false, ...} : c))) so from code review the fix is correct — but still bound behind window.prompt().", "affected_selectors": ["[data-testid^='corr-withdraw-']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_v52by_round6.py",
+    "/app/backend/tests/conftest.py",
+    "/app/test_reports/pytest/v52by.xml"
+  ],
+  "action_items": [
+    "AdminAuctionsE.jsx line 350: either (a) rename data-testid to `ra-start-${a.id}` to match the Round-6 spec OR (b) update the Round-6 bug tracker to pin the official testid as `auction-start-<id>`. Please decide one and apply consistently to any sibling testids (`auction-close-<id>`, `auction-invite-toggle-<id>`, `auction-open-<id>` etc).",
+    "LiveAuctionsPanel.jsx is dead code — not routed anywhere in AdminDashboard tabs that the AdminShell sidebar surfaces. Either remove the file or confirm it's used by a non-admin surface. Right now main agent is editing LiveAuctionsPanel.jsx for Round-6 fixes but the user is seeing AdminAuctionsE.jsx — all three Round-6 UI fixes targeting Reverse Auctions were applied to the wrong file.",
+    "CorrigendaPanel.jsx: replace window.prompt() for withdraw reason with a shadcn Dialog containing a <textarea data-testid='corr-withdraw-reason-input'> and a confirm button `data-testid='corr-withdraw-confirm-${id}'`. This unblocks the Round-6 automated verification of optimistic refresh (#49).",
+    "Consider adding a thin re-export shim so Round-6 `ra-start-<id>` is honoured until the testid rename lands."
+  ],
+  "critical_code_review_comments": [
+    "There are TWO panels that both appear to list reverse auctions (LiveAuctionsPanel.jsx + admin-console-e/AdminAuctionsE.jsx). Only one is routed. Dead code like this is exactly what caused the main agent to spend fix budget on the wrong file. Delete LiveAuctionsPanel.jsx or move it under a /legacy/ folder.",
+    "Backend ReverseAuctionIn now gives default values (floor_price=0.0, min_decrement=1.0), but there is NO sanity check that min_decrement <= starting_price — a draft created with starting=5, min_decrement=1000 will pass validation and later be unusable. Low priority but easy win.",
+    "boqs.py export.pdf uses weasyprint which can be slow/blocking in async handler — consider offloading to a threadpool executor for templates with >100 items.",
+    "boqs.py export filename uses `doc.get('name','').replace(' ', '-')` directly — doesn't sanitise quotes or newlines; a BOQ template named `My\\\"BOQ` would produce a malformed Content-Disposition. Use a stricter slug function."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_v52by_round6.py",
+    "/app/backend/tests/conftest.py"
+  ],
+  "success_rate": {"backend": "100% (7/7 pytest)", "frontend": "partial — BOQ xlsx/pdf download fully verified; Reverse Auction Start testid mismatch; Corrigendum optimistic flow blocked by window.prompt() during automation"},
+  "test_credentials": "Admin: adminsupport@pmcmanagers.com / Admin@12345 (admin login endpoint is POST /api/v1/admin/auth/login — NOT /api/v1/auth/login)",
+  "seed_data_creation": "Test fixtures create & teardown: TEST_v52by RA defaults, TEST_v52by BOQ Export template (2 line items). Cleanup via Mongo direct using MONGO_URL/DB_NAME. Also deleted lingering TEST_v52by rows post-test.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "The admin Reverse Auctions UI panel is at /app/frontend/src/apps/admin-console-e/AdminAuctionsE.jsx — NOT LiveAuctionsPanel.jsx. All Reverse Auction testids there use the `auction-*` prefix. Admin login endpoint is /api/v1/admin/auth/login (not /api/v1/auth/login). pytest.ini mandates `-n 2 --dist loadscope`; use `-n 0` to run serial. Backend .env uses MONGO_URL='mongodb://localhost:27017' DB_NAME='pmc_tender_db'. Corrigendum withdraw path uses window.prompt() — automate via `page.on('dialog', lambda d: d.accept('reason-text'))` or wait for main agent to swap in a shadcn Dialog.",
+  "rca of the issue": "Main agent edited /app/frontend/src/apps/admin-console/LiveAuctionsPanel.jsx for all three Round-6 Reverse Auction bugs (#64/#59/#60) but the admin sidebar actually routes `tab==='auctions'` → LiveAuctionsPanel in AdminDashboard.jsx, while the AdminShell preview uses /admin/e/auctions which is served by admin-console-e/AdminAuctionsE.jsx. That panel already fulfils the behavioural requirements (Start button not client-disabled, backend error shown via toast) but uses `auction-start-<id>` not the Round-6 spec `ra-start-<id>`. Mitigation: delete the dead LiveAuctionsPanel.jsx or restructure so only one panel is importable; and standardise testid prefixes in Round-6 tracker."
+}

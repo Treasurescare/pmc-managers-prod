@@ -1,5 +1,53 @@
 # PMC Managers v2 — PRD (last touched 11 Oct 2026)
 
+## v52by — Reverse Auction create/start · BOQ Excel+PDF export · Corrigendum withdraw refresh (11 Oct 2026)
+
+### Mid-release correction baked in
+After the first cut, the testing agent surfaced that the **actually-mounted** admin
+Reverse Auctions panel is `admin-console-e/AdminAuctionsE.jsx`, not the sibling
+`LiveAuctionsPanel.jsx` that was edited first. The real root cause of #64 was in
+`AdminAuctionsE.create()`: it POSTed a `bid_decrement` field, but the backend's
+`ReverseAuctionIn` model expects `min_decrement` — producing the silent "field
+required" 422 the user saw. Fixed in the right file + optimistic prepend applied
+there too + Start button shows live `participant_count/2` + no longer hard-disables.
+
+Round-6 P0/P1/P2 continuation after v52bx:
+
+### Round-6 #64/#59/#60 — Reverse Auction
+- `backend/routers/auction_live.py`: `ReverseAuctionIn.floor_price` defaults
+  to 0.0, `min_decrement` to 1.0 (removes silent "field required" 422).
+- `frontend/.../LiveAuctionsPanel.jsx`: `create()` coerces every numeric to
+  Number(), inline toasts validate ranges, new draft is optimistically
+  prepended to `items`. Start button is no longer client-disabled — the
+  backend already returns a clear 400 naming the gate.
+
+### Round-6 #48/#57 — BOQ export
+- `backend/routers/boqs.py`: new `GET /boq/templates/{id}/export.xlsx`
+  (openpyxl) and `.pdf` (WeasyPrint). Audit-logged.
+- `frontend/src/lib/api.js`: `boqApi.exportXlsx/exportPdf` use
+  `downloadAuthedFile` blob pattern.
+- `BOQTemplatesTab.jsx`: two new buttons per row (`boq-export-xlsx-<id>`,
+  `boq-export-pdf-<id>`).
+
+### Round-6 #49 — Corrigendum withdraw refresh
+`CorrigendaPanel.withdraw()` now does an optimistic local state flip
+(`is_active: false`) before the refetch, so the withdrawn row leaves the
+active table instantly — fixes "withdrawn corrigenda still show as
+active" without touching the backend.
+
+### Bundles
+`pmc-backend-v52by.zip`, `pmc-frontend-v52by-prod-build.zip`,
+`DOWNLOAD_v52by.md`.
+
+### Still queued (Round-6 remainders)
+#32 Work Packages redirect · #41 Escrow error (need repro) · #43 Rubric
+save · #44 Scoring=0 · #46 UX corrigenda search (closed in v52bx) · #58
+Product disable (need repro) · Vendor chrome wrap on
+`/vendor/categories` and `/vendor/services`.
+
+---
+
+
 ## v52bx — Round-6 session security + vendor reverse-auction visibility (11 Oct 2026)
 
 Round-6 Report scope fixes landed in v52bx:

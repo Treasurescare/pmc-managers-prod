@@ -54,17 +54,23 @@ export default function AdminAuctionsE() {
       toast.error("Floor price must be lower than starting price."); return;
     }
     try {
-      await reverseAuctionApi.create({
+      // v52by — bug #64: backend's Pydantic ReverseAuctionIn expects
+      // `min_decrement`, not `bid_decrement`. Previous payload silently
+      // failed with "field required" and the admin saw a cryptic 422.
+      const r = await reverseAuctionApi.create({
         ...draft,
         starting_price: Number(draft.starting_price),
         floor_price: Number(draft.floor_price),
         duration_minutes: Number(draft.duration_minutes),
-        bid_decrement: Number(draft.bid_decrement),
+        min_decrement: Number(draft.bid_decrement) || 1,
       });
-      toast.success("Auction created as draft. Register ≥2 participants, then Start.");
+      toast.success(`Auction drafted · ${r.id} · Register ≥2 participants, then Start.`);
       setShowNew(false);
       setDraft({ notice_ref: "", title: "", starting_price: 0, floor_price: 0,
                  duration_minutes: 60, bid_decrement: 1000, currency: "USD" });
+      // v52by — bug #59: optimistic prepend so admins see their new draft
+      // without waiting for the refetch.
+      setRows((cur) => [{ ...r, participant_count: 0 }, ...cur.filter((x) => x.id !== r.id)]);
       load();
     } catch (e) { showApiError(e); }
   };
@@ -348,8 +354,10 @@ export default function AdminAuctionsE() {
                       <button type="button" onClick={() => start(a.id)}
                               disabled={busyId === a.id}
                               data-testid={`auction-start-${a.id}`}
+                              data-ra-start-id={a.id}
+                              title={(a.participant_count ?? 0) < 2 ? "Only 0-1 vendor is registered. Clicking Start will show the server's exact gate message." : "Start the auction"}
                               className="px-3 py-1.5 text-[11px] uppercase tracking-widest bg-emerald-700 text-white hover:bg-emerald-800 disabled:opacity-50">
-                        {busyId === a.id ? "…" : "Start"}
+                        {busyId === a.id ? "…" : `Start · ${a.participant_count ?? 0}/2`}
                       </button>
                     )}
                     {a.status === "live" && (
