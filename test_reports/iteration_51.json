@@ -1,0 +1,28 @@
+{
+  "summary": "v52bu end-to-end verification of 3 features (Vendor Signatures 'Admin signed · your turn' sync, EMD per-bid receipt PDF, Vendor sidebar Categories+Services on VendorEmdE/VendorAlertsE). Backend pytest 5/5 PASS: unauth 401, bogus bid 404, paid tx returns 200 application/pdf with Content-Disposition filename 'PMC-EMD-Receipt-...', unpaid bid 404, and inserted docusign_envelopes {status='signed', signer_email=manualvendor} surfaces in GET /api/v1/docusign/mine with status preserved (seed data cleaned up). Frontend verified live as manualvendor: (1) Sidebar on /vendor/emd, /vendor/alerts, /vendor and /vendor/signatures each contain both <a href='/vendor/categories'> (Categories, i-tag) and <a href='/vendor/services'> (Services, i-briefcase) inside nav.pmc-lnav — regression-free. (2) /vendor/categories and /vendor/services routes render non-blank pages (VendorPurchase shows 21 subscription cards). (3) /vendor/emd renders 2 receipt links with data-testid='vemd-receipt-PMC-BID-2026-00017' and data-vemd-receipt-bid='6ab5c687aea85dfaba78a25e'; clicking the first receipt link triggered a request to /api/v1/payments/emd/bid/<id>/receipt.pdf returning 200 application/pdf — authenticated blob download confirmed live. (4) VendorSignaturesE page loads cleanly (data-testid='vendor-signatures-e' root, data-testid='vsig-heading' 'Nothing to sign yet' for this vendor's current envelopes) — statusPill 'signed' mapping and 20s polling + window-focus listener confirmed by code review. No pageerrors; one unrelated 401 on a background prefetch, one 404 on a background resource — not blocking.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/vendor/categories and /vendor/services", "issues": ["These two routes render without the VendorPortalChrome left-nav (nav.pmc-lnav absent) — so Categories/Services pages do not themselves show the Categories/Services sidebar links. Not in the stated scope (request asked for VendorEmdE and VendorAlertsE), but may be a minor nav-consistency improvement for a later pass."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v52bu.py", "/app/test_reports/pytest/v52bu.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "payments.py:138-197 — receipt endpoint correctly scopes bid to vendor_id, requires payment_status='paid', streams PDF with 'PMC-EMD-Receipt-<bid_ref>.pdf' filename, audit_log emitted. OK.",
+    "docusign.py /mine — scoping (vendor_created cut-off, vendor_id over email, archived filter) is correct; inserted signed envelope surfaces in list with status='signed' preserved. OK.",
+    "VendorSignaturesE.jsx:21 statusPill 'signed' → 'Admin signed · your turn' (pmc-pill--warning), pending list includes 'signed' (line 116), useEffect sets 20s setInterval + 'focus' event listener with proper cleanup (lines 52-61). OK.",
+    "VendorEmdE.jsx and VendorAlertsE.jsx hardcoded aside now include /vendor/categories (i-tag) and /vendor/services (i-briefcase) in the secondary section after <hr/>. Verified live. OK.",
+    "useVendorEmdLive rewrites paid-row last cell to data-vemd-receipt-bid='<id>' + data-testid='vemd-receipt-<bid_ref>' link; PmcLinkPatcher handles click → paymentApi.receiptPdf. Blob download works. OK."
+  ],
+  "updated_files": ["/app/backend/tests/test_v52bu.py (new)"],
+  "success_rate": {"backend": "100% (5/5 pytest)", "frontend": "100% (all 4 requested checks pass)"},
+  "test_credentials": "manualvendor@pmcmanagers.com / Vendor@12345 (vendor).",
+  "seed_data_creation": "test_v52bu.py inserts and then cleans up: (a) one db.docusign_envelopes row {envelope_id='TEST-v52bu-<ts>', signer_email=manualvendor, status='signed'} to drive the /mine assertion, and (b) if no paid EMD tx exists for the vendor's bid, a minimal db.payment_transactions {purpose='emd', payment_status='paid', amount=1000 USD, provider_ref='ch_test_fake_v52bu'} doc to drive the receipt-pdf 200 assertion. Both are removed in the test teardown.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend tests must run with REACT_APP_BACKEND_URL set in env (preview URL). Vendor auth is cookie-based (vendor_token httpOnly + csrf_token); requests.Session() handles cookies automatically. DocuSign vendor list endpoint is /api/v1/docusign/mine (NOT /api/v1/docusign/bids/mine as stated in the ask — minor typo in the request). EMD receipt endpoint is /api/v1/payments/emd/bid/<bid_id>/receipt.pdf. Vendor sidebar on /vendor/categories and /vendor/services is a different chrome layout (no pmc-lnav); not in scope of this fix.",
+  "rca of the issue": "N/A — all 3 features fixed per request."
+}

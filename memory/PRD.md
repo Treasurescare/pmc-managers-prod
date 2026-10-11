@@ -1,5 +1,41 @@
 # PMC Managers v2 — PRD (last touched 11 Oct 2026)
 
+## v52bu — Vendor Signatures live sync · EMD receipt PDF · Vendor sidebar Categories/Services (11 Oct 2026)
+
+User follow-up features after v52bt. All 3 verified fixed (test_reports/iteration_51.json, backend 5/5 pytest, frontend 4/4 live).
+
+### 1. Vendor Signatures Sync
+`VendorSignaturesE.jsx` statusPill now maps DocuSign `signed` (partial — admin
+signed, vendor pending) to a yellow "Admin signed · your turn" pill with a
+working **Review & sign** CTA. Page now polls envelopes every 20 s and on
+window-focus, so the badge appears live after admin dispatch.
+
+### 2. EMD Payment History (per-bid receipt PDF)
+- Backend: new `GET /api/v1/payments/emd/bid/{bid_id}/receipt.pdf`
+  (vendor-auth, Weasyprint). Returns a 1-page A4 receipt with vendor, bid,
+  notice, amount, payment reference and date. 401 unauth / 404 if no paid tx.
+- Frontend: `useVendorEmdLive` rewrites the right-most cell of every paid
+  deposit row into **"Receipt (PDF)"** (`data-testid=vemd-receipt-<bid_ref>`),
+  authenticated blob download via `paymentApi.receiptPdf`. Click handler in
+  `PmcLinkPatcher.jsx` reads `data-vemd-receipt-bid`.
+
+### 3. Vendor sidebar Categories & Services
+`VendorEmdE.jsx` and `VendorAlertsE.jsx` had hard-coded `<nav class="pmc-lnav">`
+menus missing **Categories** (`i-tag`) and **Services** (`i-briefcase`).
+Those links are now inserted after Company & KYC, matching the shared
+`VendorPortalChrome` layout — sidebar identical on every vendor page.
+
+### Bundles
+- `pmc-backend-v52bu.zip`, `pmc-frontend-v52bu-prod-build.zip`, `DOWNLOAD_v52bu.md`.
+
+### Known gap (out-of-scope improvement for next pass)
+`/vendor/categories` and `/vendor/services` pages don't themselves render
+`VendorPortalChrome`'s left nav — they use a different legacy chrome. Not in
+scope for v52bu (user asked only about VendorEmdE / Vendors page).
+
+---
+
+
 ## v52bt — Admin sidebar unified · Vendor EMD filters & Pay · DocuSign resend graceful · Edit-signers contrast (11 Oct 2026)
 
 Reported bugs batch after v52bs. All 7 verified fixed (test_reports/iteration_50.json, 100% pass).
