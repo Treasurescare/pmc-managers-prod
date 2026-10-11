@@ -979,6 +979,7 @@ export const docusignApi = {
   listEnvelopes: (limit = 100) =>
     api.get(`/api/v1/docusign/envelopes?limit=${limit}`).then((r) => r.data),
   // Vendor-facing (Wave 44)
+  refresh: (envelopeId) => api.post(`/api/v1/docusign/envelopes/${envelopeId}/refresh`).then((r) => r.data),
   listMine: () => api.get("/api/v1/docusign/mine").then((r) => r.data),
   // v49n — re-mint a recipient-view URL for an envelope the vendor needs to sign
   resumeSign: (envelopeId) =>

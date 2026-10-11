@@ -441,17 +441,34 @@ async def _apply_live_status(envelope_id: str, live_status: str) -> None:
         {"$set": {"status": live_status,
                   "updated_at": datetime.now(timezone.utc).isoformat()}},
     )
-    # v52bt — mirror the envelope status onto the linked bid/award so the
+    # v52bw — mirror the envelope status onto the linked bid/award so the
     # vendor's dashboard reflects "Admin signed" / "Dispatched to vendor"
-    # the moment the admin acts, not only on final completion. Previously
-    # the bid row only moved when _on_envelope_completed fired on
-    # `completed`, so the vendor UI stayed on "submitted / pending".
+    # the moment the admin acts. Previously there were TWO gates:
+    #   (1) a webhook/poll had to detect the change, AND
+    #   (2) the envelope row had to carry `bid_id` already.
+    # Gate (2) is now lifted: if `bid_id` is missing, we fall back to
+    # `award_ref` → awards.bid_id, and to `bid_ref` → bids._id lookups.
     try:
-        if row.get("bid_id"):
-            from bson import ObjectId as _Oid
+        from bson import ObjectId as _Oid
+        bid_id = row.get("bid_id")
+        if not bid_id and row.get("award_ref"):
+            aw = await db.awards.find_one({"award_ref": row["award_ref"]})
+            if aw and aw.get("bid_id"):
+                bid_id = aw["bid_id"]
+                await db.docusign_envelopes.update_one(
+                    {"envelope_id": envelope_id},
+                    {"$set": {"bid_id": bid_id}})
+        if not bid_id and row.get("bid_ref"):
+            b = await db.bids.find_one({"bid_ref": row["bid_ref"]})
+            if b:
+                bid_id = str(b["_id"])
+                await db.docusign_envelopes.update_one(
+                    {"envelope_id": envelope_id},
+                    {"$set": {"bid_id": bid_id}})
+        if bid_id:
             sub = (row.get("sub_kind") or row.get("kind") or "document").lower()
             await db.bids.update_one(
-                {"_id": _Oid(row["bid_id"])},
+                {"_id": _Oid(bid_id)},
                 {"$set": {f"{sub}_docusign_status": live_status,
                           "docusign_status": live_status,
                           "docusign_updated_at": now_iso()}})
@@ -464,6 +481,24 @@ async def _apply_live_status(envelope_id: str, live_status: str) -> None:
         _log.warning("mirror live status failed for %s: %s", envelope_id, e)
     if live_status == "completed" and prev != "completed":
         await _on_envelope_completed(row)
+
+
+@router.post("/envelopes/{envelope_id}/refresh")
+async def refresh_envelope_status(envelope_id: str, admin=Depends(current_admin)):
+    """v52bw — explicit status pull. Called by the admin UI after the admin
+    signs or dispatches so the vendor's row flips immediately, without
+    waiting for the next poll or a Connect webhook. Returns the live
+    status so the admin page can re-render in place."""
+    try:
+        client = _client()
+        envelopes = ds.EnvelopesApi(client)
+        live = envelopes.get_envelope(DS_ACCOUNT_ID, envelope_id)
+        live_status = (live.status or "").lower()
+        await _apply_live_status(envelope_id, live_status)
+        return {"ok": True, "status": live_status}
+    except Exception as e:
+        _log.warning("refresh_envelope_status(%s): %s", envelope_id, e)
+        return {"ok": False, "error": str(e)[:200]}
 
 
 async def _sync_recent_statuses(days: int = 30) -> int:
@@ -730,14 +765,16 @@ async def resend_envelope(envelope_id: str, admin=Depends(current_admin)):
             err_text = body.decode("utf-8") if isinstance(body, (bytes, bytearray)) else str(body or e)
         except Exception:
             err_text = str(e)
-        if "ENVELOPE_DOES_NOT_EXIST" in err_text or "no rights to it" in err_text:
+        if ("ENVELOPE_DOES_NOT_EXIST" in err_text or "no rights to it" in err_text
+                or "UNKNOWN_ENVELOPE_RECIPIENT" in err_text
+                or "not a valid recipient of the specified envelope" in err_text):
             await db.docusign_envelopes.update_one(
                 {"envelope_id": envelope_id},
                 {"$set": {"status": "orphaned",
                           "orphaned_at": now_iso(),
-                          "orphan_reason": "upstream envelope missing (sandbox key change)"}})
+                          "orphan_reason": "upstream recipient/envelope missing (sandbox key change)"}})
             raise HTTPException(status_code=410,
-                detail="This envelope lives in a different DocuSign sandbox than the one currently configured. Use Reassign to issue a new envelope to the signer.")
+                detail="This envelope's recipient is no longer valid in the configured DocuSign account (likely a sandbox key change or the recipient was removed upstream). Use Reassign to issue a new envelope to the signer.")
         raise HTTPException(status_code=424, detail=f"DocuSign resend failed — upstream DocuSign error (expired sandbox key in preview; verify DOCUSIGN_* in this environment): {e}")
 
 

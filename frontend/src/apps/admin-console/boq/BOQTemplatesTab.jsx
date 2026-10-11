@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { boqApi, mastersApi, formatApiError, showApiError} from "@/lib/api";
 import UnspscPicker from "@/components/UnspscPicker";
@@ -18,6 +18,15 @@ export default function BOQTemplatesTab({
   templates, showNewTmpl, setShowNewTmpl, tmplDraft, setTmplDraft,
   selectedTmpl, setSelectedTmpl, onReload,
 }) {
+  // v52bw — scroll the viewer into view the instant a template is opened,
+  // so admins don't scroll past a long template list wondering if View
+  // did anything.
+  const viewerRef = useRef(null);
+  useEffect(() => {
+    if (selectedTmpl && viewerRef.current) {
+      viewerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [selectedTmpl?.id]);
   const createTemplate = async () => {
     if (!tmplDraft.name) return toast.error("Name required");
     try {
@@ -158,14 +167,21 @@ export default function BOQTemplatesTab({
         ))}
       </div>
       {selectedTmpl && (
-        <div className="mt-4 bg-white border p-4" data-testid="boq-viewer">
+        <div ref={viewerRef} className="mt-4 bg-white border p-4" data-testid="boq-viewer">
           <div className="flex items-baseline justify-between">
             <div className="font-serif text-lg">{selectedTmpl.name}</div>
-            {selectedTmpl.unspsc_code && (
-              <div className="text-[11px] font-mono text-brand-navy/60">
-                UNSPSC {selectedTmpl.unspsc_code} · {selectedTmpl.unspsc_title}
-              </div>
-            )}
+            <div className="flex items-center gap-3">
+              {selectedTmpl.unspsc_code && (
+                <div className="text-[11px] font-mono text-brand-navy/60">
+                  UNSPSC {selectedTmpl.unspsc_code} · {selectedTmpl.unspsc_title}
+                </div>
+              )}
+              <button type="button" onClick={() => setSelectedTmpl(null)}
+                      data-testid="boq-viewer-close"
+                      className="text-[10px] uppercase tracking-widest px-2 py-1 border border-brand-navy/20 text-brand-navy/70 hover:bg-brand-navy/5">
+                Close
+              </button>
+            </div>
           </div>
 
           {/* v52bs — add / edit line item form */}

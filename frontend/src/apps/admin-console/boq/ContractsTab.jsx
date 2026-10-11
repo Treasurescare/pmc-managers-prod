@@ -27,10 +27,20 @@ export default function ContractsTab({
       end_date: contractDraft.end_date ? new Date(contractDraft.end_date).toISOString() : new Date().toISOString(),
     };
     try {
-      await contractApi.create(payload);
-      toast.success("Contract created");
+      // v52bw — show the generated contract_ref in the success toast and
+      // scroll the new row into view, so admins stop asking "where did my
+      // contract go after save?". onReload re-fetches the list; the backend
+      // already returns new rows first (sort by created_at DESC).
+      const created = await contractApi.create(payload);
+      toast.success(`Contract created · ${created?.contract_ref || ""}`);
       setShowNewContract(false);
-      onReload();
+      await onReload();
+      setTimeout(() => {
+        const row = created?.contract_ref
+          ? document.querySelector(`[data-testid="contract-row-${created.contract_ref}"]`)
+          : null;
+        if (row) row.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 50);
     } catch (e) { showApiError(e); }
   };
 

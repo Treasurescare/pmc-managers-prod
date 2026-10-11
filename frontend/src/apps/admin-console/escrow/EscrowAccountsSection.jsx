@@ -191,17 +191,17 @@ function AccountRow({ acc, onReload }) {
   if (!editing) {
     return (
       <div className="p-4 grid gap-3 md:grid-cols-5 items-start" data-testid={`escrow-acc-row-${acc.id}`}>
-        <div className="md:col-span-2">
+        <div className="md:col-span-2 min-w-0">
           <div className="font-semibold text-brand-navy">{acc.name}</div>
-          <div className="text-xs text-brand-navy/60">{acc.institution} · {acc.account_no} · {acc.currency}</div>
+          <div className="text-xs text-brand-navy/60 break-all">{acc.institution} · {acc.account_no} · {acc.currency}</div>
         </div>
-        <div className="text-xs">
+        <div className="text-xs min-w-0">
           <div className="pmc-label">PMC officer</div>
-          <div>{acc.pmc_officer?.name} · <span className="font-mono">{acc.pmc_officer?.email}</span></div>
+          <div className="break-all">{acc.pmc_officer?.name} · <span className="font-mono">{acc.pmc_officer?.email}</span></div>
         </div>
-        <div className="text-xs">
+        <div className="text-xs min-w-0">
           <div className="pmc-label">Escrow officer</div>
-          <div>{acc.escrow_officer?.name} · <span className="font-mono">{acc.escrow_officer?.email}</span></div>
+          <div className="break-all">{acc.escrow_officer?.name} · <span className="font-mono">{acc.escrow_officer?.email}</span></div>
         </div>
         <div className="flex md:justify-end">
           <button type="button" onClick={open}
