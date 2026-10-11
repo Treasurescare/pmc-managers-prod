@@ -1,5 +1,20 @@
 # PMC Managers v2 — PRD (last touched 11 Oct 2026)
 
+## Mobile v1.0.1 — Google Play bundle refreshed with v52cb web app (11 Oct 2026)
+
+- Synced the v52cb production web build into `android/app/src/main/assets/public/`
+  (manual asset sync — container Node is v20, Capacitor 8 CLI needs >=22; no plugin
+  changes so asset-only sync is equivalent).
+- `android/app/build.gradle`: versionCode 1→2, versionName 1.0.0→1.0.1 (Play
+  requires incremented versionCode for updates). Signing config unchanged.
+- Packaged `pmc-mobile-android-v1.0.1.tar.gz` (+ `DOWNLOAD_mobile_v1.0.1.md`) for
+  local `.aab` build on the user's dev machine — no Android SDK in this container.
+
+---
+
+
+# PMC Managers v2 — PRD (last touched 11 Oct 2026)
+
 ## v52cb — Registrations card layout · Admin "Back to Registrations" · Evaluation tender picker (11 Oct 2026)
 
 Three user-reported bugs closed in one frontend-only pass:
