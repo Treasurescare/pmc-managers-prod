@@ -17,8 +17,15 @@ class RegistrationDraftIn(BaseModel):
 
 
 class RegistrationUpdateIn(BaseModel):
-    """Progressive save while filling Sections A–E. All fields optional."""
-    model_config = ConfigDict(extra="allow")
+    """Progressive save while filling Sections A–E. All fields optional.
+
+    v52cj — SEC-003: `extra="allow"` dropped. Unknown fields in the public
+    PATCH body now trigger a 422 instead of being blindly written to the
+    database (previously an attacker could set `status`, `vendor_ref`,
+    `tenant_id`, etc.). The server also keeps an explicit protected-field
+    allowlist as defence in depth.
+    """
+    model_config = ConfigDict(extra="forbid")
 
     # A — Identity
     company_name: Optional[str] = None

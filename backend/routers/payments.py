@@ -328,11 +328,20 @@ async def _mark_paid(session_id: str, payment_status: str = "paid") -> None:
 
 @router.post("/webhook/stripe")
 async def stripe_webhook(request: Request) -> dict:
-    """Flow B webhook path — MUST be /api/webhook/stripe per playbook."""
+    """Flow B webhook path — MUST be /api/webhook/stripe per playbook.
+
+    v52cj — SEC-001: webhook signature is now REQUIRED. Without
+    STRIPE_WEBHOOK_SECRET configured we return 503 so attackers cannot
+    advance a bid to `emd_paid` with a forged event.
+    """
+    if not config.STRIPE_WEBHOOK_SECRET:
+        log.critical("[SEC-001] Stripe webhook called but STRIPE_WEBHOOK_SECRET is not set.")
+        raise HTTPException(status_code=503, detail="webhook not configured")
     body = await request.body()
     sig = request.headers.get("Stripe-Signature", "")
     StripeCheckout, _CS, api_key = _stripe()
-    checkout = StripeCheckout(api_key=api_key, webhook_url="")
+    checkout = StripeCheckout(api_key=api_key, webhook_url="",
+                              webhook_secret=config.STRIPE_WEBHOOK_SECRET)
     try:
         resp = await checkout.handle_webhook(body, sig)
     except Exception as e:

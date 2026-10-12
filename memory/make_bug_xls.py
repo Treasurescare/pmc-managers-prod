@@ -61,6 +61,10 @@ rows = [
     (78, "Vendor Registration",   "Doc viewer opens HTML/other file instead of uploaded file (ISO certs / license permits)", "CLARIFY", "Need registration ID + exact slot to reproduce; likely auth redirect returning login HTML", "P1", "Yes"),
     (79, "Tender Builder",        "Country list — show both code and name; a few 'codes' are full company names", "CLARIFY", "Need the exact page/section — current TenderHeaderForm has no country field", "P2", "Yes"),
     (80, "Escrow",                "Changing escrow account for a notice triggers error", "CLARIFY", "Need exact action + error text; code enforces role=escrow_institution, active status, 2-signer governance for amount changes", "P1", "Yes"),
+    (83, "Payments (Stripe)",    "Unsigned Stripe webhook accepted forged payment-succeeded events", "FIXED", "v52cj SEC-001 — both webhook paths now 503 without STRIPE_WEBHOOK_SECRET and call stripe.Webhook.construct_event via pmc_lib; verified live", "P0", "Yes"),
+    (84, "Registrations",         "create_draft disclosed existing applicant's magic_token when a known email was POSTed", "FIXED", "v52cj SEC-002 — existing-draft branch now returns generic {ok, message}; token is only emailed to the record's own address", "P1", "Yes"),
+    (85, "Registrations",         "Public PATCH accepted arbitrary fields (status, vendor_ref, tenant_id, etc.)", "FIXED", "v52cj SEC-003 — RegistrationUpdateIn uses extra='forbid'; endpoint strips protected fields as DID; verified 422 on evilfield", "P1", "Yes"),
+    (86, "Seed credentials",      "Default admin/staff passwords active on reachable envs (ENV!=production)", "FIXED", "v52cj SEC-004 — _seed_password only serves fallbacks when LOCAL_DEV=1; all other envs fail hard; CRITICAL log per account on dev fallback", "P1", "Yes"),
 ]
 
 for r in rows:
@@ -146,7 +150,8 @@ for v, note in [
     ("v52ce", "Tender picker EMD auto-fill"),
     ("v52cg", "Tender Builder country list — code + name display"),
     ("v52ch", "Sticky 3-col Registrations/Vendors + Master/Draft pill"),
-    ("v52ci", "Structured Operation Regions / Offices (THIS BUILD)"),
+    ("v52ci", "Structured Operation Regions / Offices"),
+    ("v52cj", "Security Hardening Pack — SEC-001/002/003/004 (THIS BUILD)"),
 ]:
     ws2.append([v, note])
 

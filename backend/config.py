@@ -40,6 +40,12 @@ JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_TTL_MIN = 60 * 24
 MAGIC_LINK_TTL_HOURS = 72
 
+# v52cj — SEC-001 Stripe webhook signing secret. REQUIRED to accept any
+# Stripe webhook event. Without it the webhook handler now returns 503 so
+# we never trust an unsigned "payment succeeded" event.
+STRIPE_API_KEY = os.environ.get("STRIPE_API_KEY", "")
+STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+
 # Tenant — Phase 1 single default tenant. Phase 2 (AWS) derives from Cognito token.
 DEFAULT_TENANT_ID = "PMC-KZ-01"
 
@@ -55,11 +61,17 @@ def _seed_password(name: str, fallback: str) -> str:
     val = os.environ.get(name, "")
     if val:
         return val
-    if _IS_PROD:
+    # v52cj — SEC-004 hardening. Previously the fallback was used in any env
+    # with ENV!=production, which included the internet-reachable preview.
+    # Fallbacks are now ONLY allowed when the operator has explicitly opted
+    # into dev mode via LOCAL_DEV=1. All other envs (preview, staging, prod)
+    # must supply real seed passwords or the app refuses to boot.
+    _LOCAL_DEV = os.environ.get("LOCAL_DEV", "").lower() in ("1", "true", "yes")
+    if _IS_PROD or not _LOCAL_DEV:
         return _require_env(name)
-    logging.warning(
-        "[PMC-SEC-001] %s not set — using built-in default (DEV ONLY). "
-        "Set %s in production to a strong value.", name, name,
+    logging.critical(
+        "[PMC-SEC-004] %s not set — using built-in default (LOCAL_DEV=1). "
+        "This is NEVER safe in a reachable environment.", name,
     )
     return fallback
 

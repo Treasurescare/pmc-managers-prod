@@ -196,7 +196,14 @@ async def get_status(session_id: str, request: Request):
 
 @router.post("/api/webhook/stripe")
 async def stripe_webhook(request: Request):
-    """Flow-B webhook — exact path required by pmc_lib."""
+    """Flow-B webhook — exact path required by pmc_lib.
+
+    v52cj — SEC-001: webhook signature verification is REQUIRED. Returns
+    503 if STRIPE_WEBHOOK_SECRET is not configured so no event is trusted.
+    """
+    from config import STRIPE_WEBHOOK_SECRET
+    if not STRIPE_WEBHOOK_SECRET:
+        raise HTTPException(status_code=503, detail="webhook not configured")
     body = await request.body()
     sig = request.headers.get("Stripe-Signature", "")
     try:
@@ -204,8 +211,11 @@ async def stripe_webhook(request: Request):
         host_url = str(request.base_url)
         webhook_url = f"{host_url}api/webhook/stripe"
         sc = StripeCheckout(api_key=os.environ.get("STRIPE_API_KEY", "sk_test_managed"),
-                             webhook_url=webhook_url)
+                             webhook_url=webhook_url,
+                             webhook_secret=STRIPE_WEBHOOK_SECRET)
         event = await sc.handle_webhook(body, sig)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"invalid webhook: {e}")
     if event.session_id:

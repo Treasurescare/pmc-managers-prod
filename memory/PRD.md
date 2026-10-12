@@ -1,5 +1,39 @@
 # PMC Managers v2 — PRD (last touched 12 Oct 2026)
 
+## v52cj — Security Hardening Pack (SEC-001 → SEC-004) (12 Oct 2026)
+
+Backend-only build that closes all four findings from the security audit.
+
+- **SEC-001** `config.py` + `routers/payments.py` + `routers/billing.py` — both
+  `/api/webhook/stripe` handlers now return 503 when `STRIPE_WEBHOOK_SECRET` is
+  missing and pass `webhook_secret=` into `StripeCheckout.handle_webhook` so
+  `stripe.Webhook.construct_event` verifies the signature. Verified live: forged
+  POST → 503.
+- **SEC-002** `routers/registrations.py::create_draft` — if an existing record
+  is found for the submitted email, the response is a generic ack with no
+  token/id/url; the resume link is emailed to the record's own address only.
+  Verified live: second-call response has only `{ok, message}` keys.
+- **SEC-003** `models/registration.py::RegistrationUpdateIn` → `extra="forbid"`;
+  PATCH endpoint strips an expanded protected-field allowlist.
+  Verified live: PATCH with unknown key → 422.
+- **SEC-004** `config.py::_seed_password` — fallback literals only served when
+  `LOCAL_DEV=1` is explicitly set. All other envs call `_require_env`, which
+  fails hard at boot. Preview `.env` has `LOCAL_DEV=1` added so dev work
+  continues; boot log emits CRITICAL per account on fallback.
+
+### Open operational task
+Android upload keystore `frontend/android/app/pmc-upload-key.keystore` is still
+in git history. Needs `git filter-repo` + Play Store upload-key rotation —
+destructive, awaiting user go-ahead.
+
+### Bundles
+`pmc-backend-v52cj.zip`, `DOWNLOAD_v52cj.md`. Frontend unchanged (stay on v52ci).
+
+---
+
+
+# PMC Managers v2 — PRD (last touched 12 Oct 2026)
+
 ## v52ci — Structured Operation Regions / Offices (12 Oct 2026)
 
 User Q (h): regions needed per-office structured entry — name, address, country,

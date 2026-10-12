@@ -253,35 +253,48 @@ async def delete_registration_doc(registration_id: str, slot: str,
 
 @router.post("")
 async def create_draft(payload: RegistrationDraftIn):
-    """PUBLIC — create a fresh registration draft. Returns magic_token in response
-    so the caller may store the resume link. In production, this is emailed."""
+    """PUBLIC — create a fresh registration draft.
+
+    v52cj — SEC-002: the magic token is NEVER returned when an existing
+    record is already associated with the email. In that case we just send
+    the resume-link email to the registered address and reply with a
+    generic acknowledgement. This stops anyone-who-knows-the-email from
+    picking up a victim's draft and PII.
+    """
     existing = await db.registrations.find_one({
         "email": payload.email.lower(),
         "status": {"$in": ["draft", "submitted", "under_review", "needs_clarification"]},
     })
     if existing:
-        # Resume existing draft rather than creating a duplicate
-        token = existing["magic_token"]
-        rid = str(existing["_id"])
-    else:
-        token = new_magic_token()
-        doc = {
-            "email": payload.email.lower(),
-            "company_name": payload.company_name,
-            "country": payload.country,
-            "status": "draft",
-            "tenant_id": config.DEFAULT_TENANT_ID,
-            "magic_token": token,
-            "data_processing_consent": payload.data_processing_consent,
-            "marketing_consent": payload.marketing_consent,
-            "consent_at": now_iso() if payload.data_processing_consent else None,
-            "created_at": now_iso(),
-        }
-        res = await db.registrations.insert_one(doc)
-        rid = str(res.inserted_id)
+        # SEC-002 — mail the resume link to the record's own address, do not
+        # expose the token in the API response under any circumstance.
+        resume_url = f"{config.FRONTEND_URL}/register/resume?token={existing['magic_token']}"
+        asyncio.create_task(send_email(
+            existing["email"], "PMC Managers — Continue your registration",
+            wrap("Continue your PMC registration",
+                 "<p>We received a request to resume your Pre-Tender Registration Form. "
+                 "Use the link below — it is unique to you, do not share.</p>"
+                 "<p>Link expires in 72 hours.</p>",
+                 "Resume registration", resume_url)))
+        return {"ok": True,
+                "message": "If a draft exists for this email, we've sent a resume link to it."}
 
+    token = new_magic_token()
+    doc = {
+        "email": payload.email.lower(),
+        "company_name": payload.company_name,
+        "country": payload.country,
+        "status": "draft",
+        "tenant_id": config.DEFAULT_TENANT_ID,
+        "magic_token": token,
+        "data_processing_consent": payload.data_processing_consent,
+        "marketing_consent": payload.marketing_consent,
+        "consent_at": now_iso() if payload.data_processing_consent else None,
+        "created_at": now_iso(),
+    }
+    res = await db.registrations.insert_one(doc)
+    rid = str(res.inserted_id)
     resume_url = f"{config.FRONTEND_URL}/register/resume?token={token}"
-    # Fire magic-link email in the background — never block the API response on SMTP.
     asyncio.create_task(send_email(
         payload.email, "PMC Managers — Continue your registration",
         wrap("Continue your PMC registration",
@@ -311,6 +324,13 @@ async def update_draft(registration_id: str, payload: RegistrationUpdateIn,
         raise HTTPException(status_code=400, detail=f"Cannot edit — status is {doc['status']}")
 
     updates = payload.model_dump(exclude_unset=True)
+    # v52cj — SEC-003 defence in depth. The Pydantic model now forbids
+    # extras, but we also strip any protected field that might sneak in
+    # via a future model change.
+    for protected in ("id", "_id", "status", "vendor_ref", "magic_token", "tenant_id",
+                      "created_at", "submitted_at", "reviewed_at", "reviewer_notes",
+                      "reviewed_by", "approved_at", "rejected_at"):
+        updates.pop(protected, None)
     updates["updated_at"] = now_iso()
     await db.registrations.update_one({"_id": ObjectId(registration_id)}, {"$set": updates})
     fresh = await db.registrations.find_one({"_id": ObjectId(registration_id)})
