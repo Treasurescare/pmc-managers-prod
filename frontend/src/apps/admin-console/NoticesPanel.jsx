@@ -75,10 +75,17 @@ export default function NoticesPanel() {
       title: th.work_title || d.title,
       description: th.work_description || d.description,
       budget_amount: Number(th.tender_value) > 0 ? Number(th.tender_value) : d.budget_amount,
+      // v52ce — carry the tender's EMD too (fixed amount and/or %). Fields
+      // stay ordinary form inputs, so the admin can still edit them.
+      emd_config: {
+        ...d.emd_config,
+        fixed_amount: Number(th.emd_amount) > 0 ? Number(th.emd_amount) : d.emd_config.fixed_amount,
+        percentage: Number(th.emd_percentage) > 0 ? Number(th.emd_percentage) : d.emd_config.percentage,
+      },
     }));
     setTplOpen(false);
     setTplQuery("");
-    toast.success(`Linked "${tpl.name}" — title, description and budget pre-filled`);
+    toast.success(`Linked "${tpl.name}" — title, description, budget and EMD pre-filled`);
   };
 
   // v51z — all filter state is now mirrored to the URL (?status, ?q,

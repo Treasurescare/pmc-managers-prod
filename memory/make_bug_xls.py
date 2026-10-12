@@ -47,6 +47,7 @@ rows = [
     (68, "Tender Builder",        "Tender Documents section — can't add anything / unclear it's not an uploader", "FIXED", "v52cc — relabelled as schedule (bidders' checklist) + hint pointing to bulk upload; add-row buttons verified working", "P2", "No"),
     (69, "Tender Builder",        "Critical Dates have no logic; cloned drafts carry stale/out-of-order dates", "FIXED", "v52cc — fresh today-anchored schedule on clone + Save blocked on out-of-order pairs", "P1", "No"),
     (70, "Tender Builder",        "No publish path; draft invisible in Notices > Drafts; mandatory fields unclear", "FIXED", "v52cc — starred mandatory fields + 'Create notice' bridge with gate toast and pre-filled Notices form", "P1", "Yes"),
+    (71, "Notices > Create",      "Tender template dropdown not searchable; no auto-fill from picked tender", "FIXED", "v52cd — search picker (name/ref/date/value) + title/desc/budget auto-fill; v52ce adds EMD amount+% auto-fill (editable)", "P1", "Yes"),
 ]
 
 for r in rows:
@@ -128,6 +129,8 @@ for v, note in [
     ("v52ca", "Corrigenda second-search feedback + withdraw regression"),
     ("v52cb", "Registrations card layout · Admin back button · Evaluation tender picker"),
     ("v52cc", "Tender Builder: fresh dates + validation · docs relabel · Draft→Notice bridge"),
+    ("v52cd", "Notices tender-template search picker + auto-fill"),
+    ("v52ce", "Tender picker EMD auto-fill (THIS BUILD)"),
 ]:
     ws2.append([v, note])
 

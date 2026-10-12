@@ -1,5 +1,21 @@
 # PMC Managers v2 — PRD (last touched 12 Oct 2026)
 
+## v52ce — Tender picker EMD auto-fill (12 Oct 2026)
+
+Follow-up to v52cd: `pickTemplate` in `NoticesPanel.jsx` now also pre-fills
+`emd_config.fixed_amount` (`header.emd_amount`) and `emd_config.percentage`
+(`header.emd_percentage`) when the picked tender carries them. All pre-filled
+values stay editable. Verified live: EMD 50,000 → manual 75,000 retained.
+
+### Bundles
+`pmc-frontend-v52ce-prod-build.zip`, `DOWNLOAD_v52ce.md` (supersedes v52cd).
+Backend unchanged (stay on v52bz).
+
+---
+
+
+# PMC Managers v2 — PRD (last touched 12 Oct 2026)
+
 ## v52cd — Notices: searchable Tender Template picker with auto-fill (12 Oct 2026)
 
 User request: the "Tender template (Tender Builder)" select in Notices → Create notice
