@@ -52,8 +52,12 @@ rows = [
     (73, "Audit Ledger",          "Pagination page numbers not visible", "FIXED", "v52cf — pager moved outside the table's overflow-x-auto wrapper", "P2", "No"),
     (74, "BOQ & Contracts",       "View button lacks visual feedback on click", "FIXED", "v52cf — amber ring flash + banner for 1.2s on every open (in addition to scrollIntoView)", "P2", "No"),
     (75, "Admin Sidebar",         "Active sidebar item not highlighted (Billing, Escrow/EMD, Evaluation, Audit…)", "FIXED", "v52cf — auto-detect from window.location.pathname + solid brass pill with bold on-brass text", "P1", "Yes"),
-    (76, "Admin Layout",          "3-column pages (sidebar + list + detail) scroll together; detail hard to see", "DEFERRED", "v52cf — standalone task (needs cross-page layout refactor); scope locked in PRD", "P2", "Yes"),
-    (77, "Vendor Registration",   "Operation Regions needs multi-row entries (office/addr/country/zip/city/state)", "DEFERRED", "v52cf — standalone task (backend model + 7-field UI + master-dropdowns); scope locked in PRD", "P1", "Yes"),
+    (76, "Admin Layout",          "3-column pages (sidebar + list + detail) scroll together; detail hard to see", "FIXED", "v52ch — Registrations and Vendors panels have sticky columns (lg:sticky lg:self-start lg:max-h); other panels on request", "P2", "Partial"),
+    (81, "Tender Builder",        "Country filter list shows only codes; some codes contained full company names", "FIXED", "v52cg — dropdown shows 'KZ — Kazakhstan' format, template-stored countries filtered to ISO-shape values", "P2", "No"),
+    (82, "Notices > Create",      "No at-a-glance way to tell Master templates from drafts in the picker", "FIXED", "v52ch — ★ Master / ✏ Draft chip next to the EMD chip on each row", "P3", "No"),
+
+    (77, "Vendor Registration",   "Operation Regions needs multi-row entries (office/addr/country/zip/city/state)", "FIXED", "v52ci — new RegionOfficeEditor with 6-field per-office cards, country dropdown from master, legacy strings preserved", "P1", "Yes"),
+    (76, "Admin Layout",          "3-column pages (sidebar + list + detail) scroll together; detail hard to see", "FIXED", "v52ch — Registrations and Vendors panels have sticky columns (lg:sticky lg:self-start lg:max-h); Corrigenda/DocuSign/Billing to follow if asked", "P2", "Partial"),
     (78, "Vendor Registration",   "Doc viewer opens HTML/other file instead of uploaded file (ISO certs / license permits)", "CLARIFY", "Need registration ID + exact slot to reproduce; likely auth redirect returning login HTML", "P1", "Yes"),
     (79, "Tender Builder",        "Country list — show both code and name; a few 'codes' are full company names", "CLARIFY", "Need the exact page/section — current TenderHeaderForm has no country field", "P2", "Yes"),
     (80, "Escrow",                "Changing escrow account for a notice triggers error", "CLARIFY", "Need exact action + error text; code enforces role=escrow_institution, active status, 2-signer governance for amount changes", "P1", "Yes"),
@@ -140,7 +144,9 @@ for v, note in [
     ("v52cc", "Tender Builder: fresh dates + validation · docs relabel · Draft→Notice bridge"),
     ("v52cd", "Notices tender-template search picker + auto-fill"),
     ("v52ce", "Tender picker EMD auto-fill"),
-    ("v52cf", "Drafts meta · Audit pager · BOQ flash · Sidebar active · EMD badge (THIS BUILD)"),
+    ("v52cg", "Tender Builder country list — code + name display"),
+    ("v52ch", "Sticky 3-col Registrations/Vendors + Master/Draft pill"),
+    ("v52ci", "Structured Operation Regions / Offices (THIS BUILD)"),
 ]:
     ws2.append([v, note])
 

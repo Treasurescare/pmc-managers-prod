@@ -184,8 +184,11 @@ export default function RegistrationsPanel() {
   );
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[5fr_7fr]" data-testid="admin-registrations-panel">
-      <div>
+    <div className="grid gap-6 lg:grid-cols-[5fr_7fr] lg:items-start" data-testid="admin-registrations-panel">
+      {/* v52ch — each column is its own sticky scroll area so the list and
+          detail stay side-by-side; clicking a vendor no longer forces the
+          page to scroll (the detail is right there next to the list). */}
+      <div className="lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-140px)] lg:overflow-y-auto lg:pr-2">
         <div className="flex items-center gap-2 mb-3 flex-wrap">
           {Object.keys(STATUS_LABELS).map((s) => (
             <button key={s} onClick={() => setStatus(s)} data-testid={`reg-filter-${s}`}
@@ -268,7 +271,11 @@ export default function RegistrationsPanel() {
           {controls}
         </div>
       </div>
-      {!isNarrow && <div>{detailPanel}</div>}
+      {!isNarrow && (
+        <div className="lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-140px)] lg:overflow-y-auto lg:pl-2">
+          {detailPanel}
+        </div>
+      )}
     </div>
   );
 }

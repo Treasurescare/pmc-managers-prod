@@ -24,7 +24,14 @@ export default function TenderFilterBar({
                 data-testid="tb-filter-country"
                 className="px-2 py-1.5 border border-brand-navy/20 bg-white">
           <option value="">All countries</option>
-          {countries.map((c) => <option key={c} value={c}>{c}</option>)}
+          {/* v52cg — accept both legacy string[] and {code, name}[] so the
+              dropdown shows "KZ — Kazakhstan" when the master supplies a
+              name, and falls back to just the code otherwise. */}
+          {countries.map((c) => {
+            const code = typeof c === "string" ? c : c.code;
+            const name = typeof c === "string" ? "" : (c.name || "");
+            return <option key={code} value={code}>{name ? `${code} — ${name}` : code}</option>;
+          })}
         </select>
         <select value={filters.industry || ""} onChange={(e) => patch({ industry: e.target.value })}
                 data-testid="tb-filter-industry"

@@ -421,17 +421,27 @@ export default function NoticesPanel() {
                         {Number(th.tender_value) > 0 && <span>₹ {Number(th.tender_value).toLocaleString()}</span>}
                         <span>{(tpl.sections || []).length} sections</span>
                       </div>
-                      {/* v52cf — EMD badge so admins can compare EMD cost
-                          between tenders before picking one. */}
-                      {(emdFixed !== null || emdPct !== null) && (
-                        <div className="mt-1" data-testid={`notice-tpl-emd-${tpl.id}`}>
-                          <span className="inline-block px-2 py-0.5 text-[10px] uppercase tracking-widest bg-amber-100 text-amber-900 border border-amber-300">
+                      {/* v52ch — status pill: Draft / ★ Master so admins
+                          can tell at a glance which rows are reusable. */}
+                      <div className="mt-1 flex gap-1 flex-wrap">
+                        <span className={"inline-block px-2 py-0.5 text-[10px] uppercase tracking-widest border "
+                          + (tpl.is_master
+                             ? "bg-amber-50 text-amber-900 border-amber-300"
+                             : "bg-brand-pale/50 text-brand-navy/80 border-brand-navy/15")}
+                              data-testid={`notice-tpl-status-${tpl.id}`}>
+                          {tpl.is_master ? "★ Master" : "✏ Draft"}
+                        </span>
+                        {/* v52cf — EMD badge so admins can compare EMD cost
+                            between tenders before picking one. */}
+                        {(emdFixed !== null || emdPct !== null) && (
+                          <span className="inline-block px-2 py-0.5 text-[10px] uppercase tracking-widest bg-amber-100 text-amber-900 border border-amber-300"
+                                data-testid={`notice-tpl-emd-${tpl.id}`}>
                             EMD{emdFixed !== null ? ` ₹ ${emdFixed.toLocaleString()}` : ""}
                             {(emdFixed !== null && emdPct !== null) ? " · " : ""}
                             {emdPct !== null ? `${emdPct}%` : ""}
                           </span>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </button>
                   );
                 })}

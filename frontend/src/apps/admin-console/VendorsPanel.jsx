@@ -295,7 +295,25 @@ export default function VendorsPanel() {
           <div className="pmc-label">{t("panels.vendors.kpi_regions")}</div>
           {(kpi.operating_regions || []).length === 0
             ? <div className="text-brand-navy/50 mt-1">{t("panels.vendors.kpi_regions_none")}</div>
-            : <div className="mt-1 text-brand-navy">{kpi.operating_regions.join(", ")}</div>}
+            : <div className="mt-1 text-brand-navy space-y-1">
+                {/* v52ci — accept either legacy strings or structured
+                    office dicts. Structured rows get a tidy multi-line
+                    display with city/state/country. */}
+                {kpi.operating_regions.map((r, i) => (
+                  typeof r === "string" ? (
+                    <div key={i} data-testid={`kpi-region-legacy-${i}`}>· {r}</div>
+                  ) : (
+                    <div key={i} className="border-l-2 border-brand-navy/20 pl-2"
+                         data-testid={`kpi-region-office-${i}`}>
+                      <div className="font-semibold">{r.office_name || "—"}</div>
+                      <div className="text-xs text-brand-navy/70">
+                        {[r.address, r.city, r.state, r.zip, r.country_code]
+                          .filter(Boolean).join(" · ")}
+                      </div>
+                    </div>
+                  )
+                ))}
+              </div>}
         </div>
         <div className="md:col-span-2">
           <div className="pmc-label">{t("panels.vendors.kpi_business_cats")}</div>
@@ -386,8 +404,9 @@ export default function VendorsPanel() {
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[5fr_7fr]">
-        <div>
+      <div className="grid gap-6 lg:grid-cols-[5fr_7fr] lg:items-start">
+        {/* v52ch — same sticky-column treatment as RegistrationsPanel. */}
+        <div className="lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-140px)] lg:overflow-y-auto lg:pr-2">
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -491,7 +510,11 @@ export default function VendorsPanel() {
 
         {/* Desktop keeps the detail in the right column; on narrow screens
             it renders inline under the tapped row (see above). */}
-        {!isNarrow && <div>{detailPanel}</div>}
+        {!isNarrow && (
+          <div className="lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-140px)] lg:overflow-y-auto lg:pl-2">
+            {detailPanel}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,5 +1,72 @@
 # PMC Managers v2 — PRD (last touched 12 Oct 2026)
 
+## v52ci — Structured Operation Regions / Offices (12 Oct 2026)
+
+User Q (h): regions needed per-office structured entry — name, address, country,
+ZIP, city, state. Shipped as its own build.
+
+- **Backend**: `models/registration.py` `operating_regions: List[str] → List[Any]`
+  so the PATCH endpoint accepts both legacy strings and new office objects.
+  `routers/vendors.py` KPI endpoint passes the field through unchanged.
+- **Frontend new component** `RegionOfficeEditor.jsx` — per-office card with the
+  six fields, country dropdown fed by `publicApi.countries()`, add/remove with
+  required-field validation. Backwards-compat: legacy string entries show as a
+  dismissible amber banner.
+- **SectionD.jsx**: replaces the free-text input with `<RegionOfficeEditor />`.
+- **VendorsPanel.jsx** (admin KPI): structured rows render as a card
+  (name bold + address · city · state · zip · country), legacy strings keep the
+  single-line form.
+
+### Bundles
+`pmc-frontend-v52ci-prod-build.zip`, `pmc-backend-v52ci.zip`, `DOWNLOAD_v52ci.md`.
+
+---
+
+
+# PMC Managers v2 — PRD (last touched 12 Oct 2026)
+
+## v52ch — Sticky 3-col Registrations/Vendors + status pill (12 Oct 2026)
+
+- **(g) Sticky 3-column layout** (first wave): `RegistrationsPanel.jsx` and
+  `VendorsPanel.jsx` wrap both grid columns with
+  `lg:sticky lg:top-6 lg:self-start lg:max-h-[calc(100vh-140px)] lg:overflow-y-auto`
+  so each pane scrolls independently; clicking a row shows the detail right
+  next to it instead of forcing the whole page to scroll.
+  Still pending: Corrigenda, DocuSign, Billing, Audit if you want them next.
+- **Enhancement — status pill**: `NoticesPanel.jsx` picker rows now show a
+  `★ Master` (amber) or `✏ Draft` (navy soft) chip beside the EMD chip
+  (`notice-tpl-status-<id>`).
+
+### Bundles
+`pmc-frontend-v52ch-prod-build.zip`, `DOWNLOAD_v52ch.md`. Backend unchanged.
+
+---
+
+
+# PMC Managers v2 — PRD (last touched 12 Oct 2026)
+
+## v52cg — Tender Builder country list cleanup (12 Oct 2026)
+
+User Q (a): "in the tender maker country list can u show the country code and the country
+name in the same list. also, there are a few companies where codes are full company names."
+
+- `TenderBuilderPanel.jsx` — `masterCountries` now stores `{code, name}` from
+  `publicApi.countries()` (filtered to `code <= 3` chars). `countries` memo merges
+  with template-stored codes ONLY when `/^[A-Z0-9]{2,3}$/` matches — strips corrupt
+  "full company name leaked into country" values.
+- `TenderFilterBar.jsx` — option label is `${code} — ${name}` when name exists,
+  else just `code`. Backwards compatible with string[] input.
+- Verified live: all 30 countries render as "AE — United Arab Emirates" through
+  "UZ — Uzbekistan", no 60+-char garbage entries.
+
+### Bundles
+`pmc-frontend-v52cg-prod-build.zip`, `DOWNLOAD_v52cg.md`. Backend unchanged (stay on v52cf).
+
+---
+
+
+# PMC Managers v2 — PRD (last touched 12 Oct 2026)
+
 ## v52cf — Tender Builder follow-up quick-wins + picker badges (12 Oct 2026)
 
 5 user-reported items closed in one batch; 3 more clarified for a later pass:

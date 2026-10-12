@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Field, Input } from "./FormPrimitives";
 import { DocSlotsBlock } from "./DocSlot";
 import { useI18n } from "@/context/I18nContext";
-import { mastersApi } from "@/lib/api";
+import { mastersApi, publicApi } from "@/lib/api";
+import RegionOfficeEditor from "./RegionOfficeEditor";
 
 /**
  * v50y — Section D with a real multi-select "Business verticals"
@@ -18,6 +19,20 @@ export default function SectionD({ reg, update, kzMeta, regId, token, onDocChang
 
   const [catalogue, setCatalogue] = useState([]);
   const [catQuery, setCatQuery] = useState("");
+  // v52ci — load the master country list for the per-office country dropdown.
+  const [countries, setCountries] = useState([]);
+  useEffect(() => {
+    publicApi.countries()
+      .then((rows) => setCountries(
+        (Array.isArray(rows) ? rows : [])
+          .map((c) => ({
+            code: String(c.code || c.iso2 || c.value || "").toUpperCase(),
+            name: String(c.name || c.name_en || c.label || "").trim(),
+          }))
+          .filter((c) => c.code && c.code.length <= 3)
+      ))
+      .catch(() => setCountries([]));
+  }, []);
 
   useEffect(() => {
     mastersApi.listCategoriesPublic(reg.country || undefined)
@@ -55,9 +70,12 @@ export default function SectionD({ reg, update, kzMeta, regId, token, onDocChang
         <textarea data-testid="f-business-desc" value={reg.business_description || ""} onChange={(e) => update({ business_description: e.target.value })} rows={4}
           className="mt-1 w-full px-4 py-3 border border-brand-navy/20 focus:outline-none focus:border-brand-navy-soft text-brand-navy bg-white" />
       </Field>
-      <Field label={t("section_d.operating_regions")}>
-        <Input testId="f-op-regions" value={(reg.operating_regions || []).join(", ")}
-          onChange={(e) => update({ operating_regions: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) })} />
+      <Field label={t("section_d.operating_regions")}
+             hint="Add one entry per office with name, address, country, city, state and ZIP. Previously comma-separated regions remain visible above and can be re-added as offices.">
+        <RegionOfficeEditor
+          value={reg.operating_regions || []}
+          onChange={(v) => update({ operating_regions: v })}
+          countries={countries} />
       </Field>
 
       {/* v50y — business verticals from the Categories master */}

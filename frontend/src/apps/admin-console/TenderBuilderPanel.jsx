@@ -318,19 +318,38 @@ export default function TenderBuilderPanel() {
     () => [...new Set([...industries, ...masterCategories])].sort(),
     [industries, masterCategories],
   );
+  // v52cg — load the full {code, name} objects so the filter can show
+  // "KZ — Kazakhstan" (user: "show the country code AND country name in the
+  // same list; a few of them are showing full company names"). Also used
+  // to flag freeform garbage saved on individual templates.
   const [masterCountries, setMasterCountries] = useState([]);
   useEffect(() => {
     publicApi.countries()
       .then((rows) => setMasterCountries(
         (Array.isArray(rows) ? rows : [])
-          .map((c) => String(c.code || c.iso2 || c.value || c))
-          .filter(Boolean)
+          .map((c) => ({
+            code: String(c.code || c.iso2 || c.value || c || "").toUpperCase(),
+            name: String(c.name || c.name_en || c.label || "").trim(),
+          }))
+          .filter((c) => c.code && c.code.length <= 3)
       ))
       .catch(() => setMasterCountries([]));
   }, []);
   const countries = useMemo(() => {
-    const fromTemplates = list.map((d) => (d.country || d.header?.country || "")).filter(Boolean);
-    return [...new Set([...fromTemplates, ...masterCountries])].sort();
+    const map = new Map();
+    for (const c of masterCountries) map.set(c.code, c.name);
+    // Pull template-stored country values ONLY when they look like an ISO
+    // code (<=3 chars, letters/digits). This strips the "full company name
+    // leaked into country" rows the user flagged.
+    for (const d of list) {
+      const raw = String(d.country || d.header?.country || "").trim().toUpperCase();
+      if (!raw) continue;
+      if (!/^[A-Z0-9]{2,3}$/.test(raw)) continue;      // skip "ACME CONSTRUCTION LLC"
+      if (!map.has(raw)) map.set(raw, "");             // orphan code → show as code only
+    }
+    return [...map.entries()]
+      .map(([code, name]) => ({ code, name }))
+      .sort((a, b) => a.code.localeCompare(b.code));
   }, [list, masterCountries]);
   const [showDpr, setShowDpr]           = useState(false);
   const [aiFillBusy, setAiFillBusy]     = useState(false);

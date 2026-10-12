@@ -1,4 +1,4 @@
-from typing import Optional, List, Literal
+from typing import Optional, List, Literal, Any
 from pydantic import BaseModel, Field, EmailStr, ConfigDict
 
 
@@ -58,7 +58,7 @@ class RegistrationUpdateIn(BaseModel):
     # D — Business Profile
     primary_sector: Optional[str] = None
     business_description: Optional[str] = None
-    operating_regions: List[str] = []
+    operating_regions: List[Any] = []  # v52ci — accepts legacy strings OR structured office dicts
     business_categories: List[str] = []
     previous_projects: List[dict] = []
     references: List[dict] = []
