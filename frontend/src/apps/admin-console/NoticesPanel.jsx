@@ -47,6 +47,40 @@ export default function NoticesPanel() {
     } catch { /* malformed payload — ignore */ }
   }, []);
 
+  // v52cd — searchable tender-template picker: matches on name, tender
+  // reference number, created date (dd/mm/yyyy or ISO) and tender value
+  // (commas ignored). Picking a tender pre-fills Title / Description /
+  // Budget amount from the tender's header.
+  const [tplQuery, setTplQuery] = useState("");
+  const [tplOpen, setTplOpen] = useState(false);
+  const tplQ = tplQuery.trim().toLowerCase();
+  const tplQNum = tplQ.replace(/[,\s]/g, "");
+  const filteredTpls = (tplQ ? templates.filter((tpl) => {
+    const th = tpl.header || {};
+    const created = (tpl.created_at || "").slice(0, 10);
+    const createdDMY = created.split("-").reverse().join("/");
+    return (tpl.name || "").toLowerCase().includes(tplQ)
+      || String(th.tender_reference_number || "").toLowerCase().includes(tplQ)
+      || String(th.work_title || "").toLowerCase().includes(tplQ)
+      || created.includes(tplQ)
+      || createdDMY.includes(tplQ)
+      || (tplQNum !== "" && String(th.tender_value ?? "").includes(tplQNum));
+  }) : templates).slice(0, 50);
+  const selTpl = templates.find((x) => x.id === draft.tender_template_id) || null;
+  const pickTemplate = (tpl) => {
+    const th = tpl.header || {};
+    setDraft((d) => ({
+      ...d,
+      tender_template_id: tpl.id,
+      title: th.work_title || d.title,
+      description: th.work_description || d.description,
+      budget_amount: Number(th.tender_value) > 0 ? Number(th.tender_value) : d.budget_amount,
+    }));
+    setTplOpen(false);
+    setTplQuery("");
+    toast.success(`Linked "${tpl.name}" — title, description and budget pre-filled`);
+  };
+
   // v51z — all filter state is now mirrored to the URL (?status, ?q,
   // ?creator, ?from, ?to, ?templates) so operators can bookmark / share
   // the exact search they built. Initial values are rehydrated from the
@@ -337,22 +371,56 @@ export default function NoticesPanel() {
               {matrices.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
           </label>
-          <label className="md:col-span-2"><span className="pmc-label">Tender template (Tender Builder)<InfoDot tip="Optional. Attach a pre-built tender template so bidders can download the full watermarked PDF from the public Notice page." /></span>
-            <select value={draft.tender_template_id || ""}
-              onChange={(e) => setDraft({ ...draft, tender_template_id: e.target.value })}
+          <div className="md:col-span-2 relative">
+            <span className="pmc-label">Tender template (Tender Builder)<InfoDot tip="Search your Tender Builder drafts/masters by name, tender no, created date or value. Picking one pre-fills Title, Description and Budget amount, and exposes the watermarked PDF + ZIP downloads on the public Notice page." /></span>
+            <input
+              value={tplOpen ? tplQuery : (selTpl ? `${selTpl.is_master ? "📚 " : "✏ "}${selTpl.name}` : "")}
+              onChange={(e) => { setTplQuery(e.target.value); setTplOpen(true); }}
+              onFocus={() => { setTplQuery(""); setTplOpen(true); }}
+              onBlur={() => setTimeout(() => setTplOpen(false), 150)}
+              placeholder="Search tenders by name, tender no, created date or value…"
               data-testid="notice-tender-template"
-              className="mt-1 w-full px-4 py-3 border border-brand-navy/20">
-              <option value="">No linked template — public page shows only the primary PDF</option>
-              {templates.map((tpl) => (
-                <option key={tpl.id} value={tpl.id}>
-                  {tpl.is_master ? "📚 " : "✏ "}{tpl.name} · {(tpl.sections || []).length} sections
-                </option>
-              ))}
-            </select>
+              autoComplete="off"
+              className="mt-1 w-full px-4 py-3 border border-brand-navy/20" />
+            {draft.tender_template_id && (
+              <button type="button"
+                      onClick={() => setDraft({ ...draft, tender_template_id: "" })}
+                      data-testid="notice-tender-template-clear"
+                      className="absolute right-2 top-[42px] text-xs text-brand-navy/50 hover:text-red-600">✕ clear</button>
+            )}
+            {tplOpen && (
+              <div className="absolute z-20 left-0 right-0 top-full mt-1 bg-white border border-brand-navy/20 shadow-lg max-h-72 overflow-auto"
+                   data-testid="notice-tpl-picker">
+                {filteredTpls.length === 0 ? (
+                  <div className="px-3 py-2 text-xs text-brand-navy/60" data-testid="notice-tpl-nomatch">
+                    No tenders match “{tplQuery}” — try the tender no, a name word, a created date (dd/mm/yyyy) or a value.
+                  </div>
+                ) : filteredTpls.map((tpl) => {
+                  const th = tpl.header || {};
+                  const created = (tpl.created_at || "").slice(0, 10);
+                  return (
+                    <button key={tpl.id} type="button"
+                            data-testid={`notice-tpl-opt-${tpl.id}`}
+                            onMouseDown={(ev) => { ev.preventDefault(); pickTemplate(tpl); }}
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-brand-navy/5 border-b border-brand-navy/5 last:border-0">
+                      <div className="font-semibold text-brand-navy">
+                        {tpl.is_master ? "📚 " : "✏ "}{tpl.name}
+                      </div>
+                      <div className="text-xs text-brand-navy/60 flex gap-3 flex-wrap">
+                        {th.tender_reference_number && <span className="font-mono">{th.tender_reference_number}</span>}
+                        {created && <span>Created {created.split("-").reverse().join("/")}</span>}
+                        {Number(th.tender_value) > 0 && <span>₹ {Number(th.tender_value).toLocaleString()}</span>}
+                        <span>{(tpl.sections || []).length} sections</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <span className="text-xs text-brand-navy/50 mt-1 block">
-              Linking a template exposes the "Download PDF (watermarked)" and "Download all documents (.zip)" buttons on the public Notice page.
+              Picking a tender pre-fills Title, Description and Budget amount. Linking also exposes the "Download PDF (watermarked)" and "Download all documents (.zip)" buttons on the public Notice page.
             </span>
-          </label>
+          </div>
           <label className="col-span-2 flex items-center gap-2 text-sm">
             <input type="checkbox"
                    checked={draft.is_published}

@@ -1,5 +1,27 @@
 # PMC Managers v2 — PRD (last touched 12 Oct 2026)
 
+## v52cd — Notices: searchable Tender Template picker with auto-fill (12 Oct 2026)
+
+User request: the "Tender template (Tender Builder)" select in Notices → Create notice
+needed full search (name / tender no / created date / tender value) and picking a tender
+should auto-populate title, description and budget.
+
+- `NoticesPanel.jsx`: plain `<select>` replaced with a search picker
+  (`notice-tender-template` input + dropdown). Filters on name,
+  `header.tender_reference_number`, created date (dd/mm/yyyy + ISO), and
+  `header.tender_value` (comma-insensitive). Rows show ref · created · ₹ value ·
+  section count. `pickTemplate` pre-fills title (`work_title`), description
+  (`work_description`), budget (`tender_value`) and sets `tender_template_id`;
+  `✕ clear` unlinks. No-match hint lists the searchable dimensions.
+
+### Bundles
+`pmc-frontend-v52cd-prod-build.zip`, `DOWNLOAD_v52cd.md`. Backend unchanged (stay on v52bz).
+
+---
+
+
+# PMC Managers v2 — PRD (last touched 12 Oct 2026)
+
 ## v52cc — Tender Builder clarity pack: fresh date schedule + order validation · docs-section relabel · Draft→Notice bridge (12 Oct 2026)
 
 User Q&A on Tender Builder (answers given: docs section is a schedule/index not an
