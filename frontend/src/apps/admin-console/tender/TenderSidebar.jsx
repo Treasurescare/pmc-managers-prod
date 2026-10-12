@@ -95,6 +95,16 @@ export default function TenderSidebar({
               <div className="text-xs text-brand-navy/50 mt-1">
                 {(d.sections || []).length} sections · {d.kind?.toUpperCase()}
               </div>
+              {/* v52cf — created date + author so you can tell drafts apart */}
+              <div className="text-[10px] text-brand-navy/40 mt-1 flex flex-wrap gap-2"
+                   data-testid={`tb-draft-meta-${d.id}`}>
+                {d.created_at && (
+                  <span>Created {new Date(d.created_at).toLocaleDateString()}</span>
+                )}
+                {d.created_by_email && (
+                  <span className="truncate">· by {d.created_by_email}</span>
+                )}
+              </div>
             </button>
           ))}
           {drafts.length === 0 && (

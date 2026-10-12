@@ -405,6 +405,8 @@ export default function NoticesPanel() {
                 ) : filteredTpls.map((tpl) => {
                   const th = tpl.header || {};
                   const created = (tpl.created_at || "").slice(0, 10);
+                  const emdFixed = Number(th.emd_amount) > 0 ? Number(th.emd_amount) : null;
+                  const emdPct = Number(th.emd_percentage) > 0 ? Number(th.emd_percentage) : null;
                   return (
                     <button key={tpl.id} type="button"
                             data-testid={`notice-tpl-opt-${tpl.id}`}
@@ -419,6 +421,17 @@ export default function NoticesPanel() {
                         {Number(th.tender_value) > 0 && <span>₹ {Number(th.tender_value).toLocaleString()}</span>}
                         <span>{(tpl.sections || []).length} sections</span>
                       </div>
+                      {/* v52cf — EMD badge so admins can compare EMD cost
+                          between tenders before picking one. */}
+                      {(emdFixed !== null || emdPct !== null) && (
+                        <div className="mt-1" data-testid={`notice-tpl-emd-${tpl.id}`}>
+                          <span className="inline-block px-2 py-0.5 text-[10px] uppercase tracking-widest bg-amber-100 text-amber-900 border border-amber-300">
+                            EMD{emdFixed !== null ? ` ₹ ${emdFixed.toLocaleString()}` : ""}
+                            {(emdFixed !== null && emdPct !== null) ? " · " : ""}
+                            {emdPct !== null ? `${emdPct}%` : ""}
+                          </span>
+                        </div>
+                      )}
                     </button>
                   );
                 })}

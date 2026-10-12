@@ -47,7 +47,16 @@ rows = [
     (68, "Tender Builder",        "Tender Documents section — can't add anything / unclear it's not an uploader", "FIXED", "v52cc — relabelled as schedule (bidders' checklist) + hint pointing to bulk upload; add-row buttons verified working", "P2", "No"),
     (69, "Tender Builder",        "Critical Dates have no logic; cloned drafts carry stale/out-of-order dates", "FIXED", "v52cc — fresh today-anchored schedule on clone + Save blocked on out-of-order pairs", "P1", "No"),
     (70, "Tender Builder",        "No publish path; draft invisible in Notices > Drafts; mandatory fields unclear", "FIXED", "v52cc — starred mandatory fields + 'Create notice' bridge with gate toast and pre-filled Notices form", "P1", "Yes"),
-    (71, "Notices > Create",      "Tender template dropdown not searchable; no auto-fill from picked tender", "FIXED", "v52cd — search picker (name/ref/date/value) + title/desc/budget auto-fill; v52ce adds EMD amount+% auto-fill (editable)", "P1", "Yes"),
+    (71, "Notices > Create",      "Tender template dropdown not searchable; no auto-fill from picked tender", "FIXED", "v52cd — search picker (name/ref/date/value) + title/desc/budget auto-fill; v52ce adds EMD amount+% auto-fill (editable); v52cf adds EMD comparison badge in picker rows", "P1", "Yes"),
+    (72, "Tender Builder",        "Your drafts list — can't tell drafts apart (no date/author)", "FIXED", "v52cf — created date + author email under each draft; backend resolves admin ids in one batched lookup", "P2", "No"),
+    (73, "Audit Ledger",          "Pagination page numbers not visible", "FIXED", "v52cf — pager moved outside the table's overflow-x-auto wrapper", "P2", "No"),
+    (74, "BOQ & Contracts",       "View button lacks visual feedback on click", "FIXED", "v52cf — amber ring flash + banner for 1.2s on every open (in addition to scrollIntoView)", "P2", "No"),
+    (75, "Admin Sidebar",         "Active sidebar item not highlighted (Billing, Escrow/EMD, Evaluation, Audit…)", "FIXED", "v52cf — auto-detect from window.location.pathname + solid brass pill with bold on-brass text", "P1", "Yes"),
+    (76, "Admin Layout",          "3-column pages (sidebar + list + detail) scroll together; detail hard to see", "DEFERRED", "v52cf — standalone task (needs cross-page layout refactor); scope locked in PRD", "P2", "Yes"),
+    (77, "Vendor Registration",   "Operation Regions needs multi-row entries (office/addr/country/zip/city/state)", "DEFERRED", "v52cf — standalone task (backend model + 7-field UI + master-dropdowns); scope locked in PRD", "P1", "Yes"),
+    (78, "Vendor Registration",   "Doc viewer opens HTML/other file instead of uploaded file (ISO certs / license permits)", "CLARIFY", "Need registration ID + exact slot to reproduce; likely auth redirect returning login HTML", "P1", "Yes"),
+    (79, "Tender Builder",        "Country list — show both code and name; a few 'codes' are full company names", "CLARIFY", "Need the exact page/section — current TenderHeaderForm has no country field", "P2", "Yes"),
+    (80, "Escrow",                "Changing escrow account for a notice triggers error", "CLARIFY", "Need exact action + error text; code enforces role=escrow_institution, active status, 2-signer governance for amount changes", "P1", "Yes"),
 ]
 
 for r in rows:
@@ -130,7 +139,8 @@ for v, note in [
     ("v52cb", "Registrations card layout · Admin back button · Evaluation tender picker"),
     ("v52cc", "Tender Builder: fresh dates + validation · docs relabel · Draft→Notice bridge"),
     ("v52cd", "Notices tender-template search picker + auto-fill"),
-    ("v52ce", "Tender picker EMD auto-fill (THIS BUILD)"),
+    ("v52ce", "Tender picker EMD auto-fill"),
+    ("v52cf", "Drafts meta · Audit pager · BOQ flash · Sidebar active · EMD badge (THIS BUILD)"),
 ]:
     ws2.append([v, note])
 

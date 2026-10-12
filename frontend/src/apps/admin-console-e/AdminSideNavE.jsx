@@ -2,14 +2,15 @@
  * Shared Option-E admin sidebar. Single source of truth for the admin left
  * nav so every page shows the same items in the same order.
  *
- * Previously six pages hard-coded their own aside HTML with a stale/short
- * item list (missing Masters, Escrow institutions, Vendor requests,
- * Profile changes, Reverse auctions). Navigating between those pages and
- * AdminEShell-wrapped pages made the sidebar flip between the short list
- * and the full list, which is what the user saw as "menus not showing on
- * the first attempt / inconsistent Market section".
+ * v52cf — the `active` prop was previously the ONLY way a page highlighted
+ * its menu item, but half the pages forgot to pass it (Billing, Escrow/EMD,
+ * Evaluation, Audit…). The active row was also a subtle brass-stripe that
+ * users said they couldn't see. Now the active item is auto-detected from
+ * `window.location.pathname` and rendered as a solid primary pill with bold
+ * white text, so you can always tell where you are.
  */
 export default function AdminSideNavE({ active }) {
+  const path = typeof window !== "undefined" ? window.location.pathname : "";
   const items = [
     ["Overview", null, null],
     ["Dashboard", "/admin/e/dashboard", "i-home"],
@@ -53,8 +54,12 @@ export default function AdminSideNavE({ active }) {
       {items.map(([label, href, icon]) =>
         href ? (
           <a key={label} href={href}
-             className="pmc-side__item"
-             aria-current={active === label ? "page" : undefined}
+             className={"pmc-side__item" + (
+               // v52cf — treat the prop as a hard override, but auto-match
+               // by pathname so pages that forgot the prop still highlight.
+               (active ? active === label : href === path) ? " pmc-side__item--active" : ""
+             )}
+             aria-current={(active ? active === label : href === path) ? "page" : undefined}
              data-testid={`side-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}>
             <svg className="pmc-ico" aria-hidden="true"><use href={`#${icon}`} /></svg>
             {label}

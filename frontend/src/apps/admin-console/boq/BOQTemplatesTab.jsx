@@ -20,10 +20,16 @@ export default function BOQTemplatesTab({
   // v52bw — scroll the viewer into view the instant a template is opened,
   // so admins don't scroll past a long template list wondering if View
   // did anything.
+  // v52cf — add a 1.2s amber ring flash so the jump is unmistakable even
+  // when the viewer was already in the viewport (list was short).
   const viewerRef = useRef(null);
+  const [flashOn, setFlashOn] = useState(false);
   useEffect(() => {
     if (selectedTmpl && viewerRef.current) {
       viewerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      setFlashOn(true);
+      const timer = setTimeout(() => setFlashOn(false), 1200);
+      return () => clearTimeout(timer);
     }
   }, [selectedTmpl?.id]);
   const createTemplate = async () => {
@@ -172,7 +178,16 @@ export default function BOQTemplatesTab({
         ))}
       </div>
       {selectedTmpl && (
-        <div ref={viewerRef} className="mt-4 bg-white border p-4" data-testid="boq-viewer">
+        <div ref={viewerRef}
+             className={"mt-4 bg-white border p-4 transition-shadow duration-500 " +
+               (flashOn ? "ring-4 ring-amber-400 shadow-lg" : "")}
+             data-testid="boq-viewer">
+          {flashOn && (
+            <div className="text-[11px] uppercase tracking-widest text-amber-700 font-semibold mb-2"
+                 data-testid="boq-viewer-flash">
+              ↓ Viewing “{selectedTmpl.name}” — details below
+            </div>
+          )}
           <div className="flex items-baseline justify-between">
             <div className="font-serif text-lg">{selectedTmpl.name}</div>
             <div className="flex items-center gap-3">

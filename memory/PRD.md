@@ -1,5 +1,37 @@
 # PMC Managers v2 — PRD (last touched 12 Oct 2026)
 
+## v52cf — Tender Builder follow-up quick-wins + picker badges (12 Oct 2026)
+
+5 user-reported items closed in one batch; 3 more clarified for a later pass:
+
+- **(b) Tender Builder "Your drafts"**: `tender_templates.py::list_templates`
+  resolves admin ids → emails in one batched lookup; sidebar row shows
+  "Created DD/MM/YYYY · by email" via new `tb-draft-meta-<id>` testid.
+- **(c) Audit Ledger pager hidden**: `AuditPanel.jsx` — table moved into its own
+  `overflow-x-auto` div so `{controls}` (page numbers) renders unclipped below.
+- **(d) BOQ "View" no visible feedback**: `BOQTemplatesTab.jsx` — on every open
+  the viewer flashes a 1.2 s amber `ring-4` + bold banner (`boq-viewer-flash`).
+- **(f) Sidebar active state invisible**: `AdminSideNavE.jsx` auto-detects active
+  from `window.location.pathname` (prop stays an override); `pmc-theme-e.css`
+  swaps the subtle brass stripe for a solid `--brass-on-chrome` pill with bold
+  on-brass text so every admin page highlights the right item.
+- **(enhancement) EMD badge in Notices tender picker**: `NoticesPanel.jsx` adds
+  an amber "EMD ₹ 50,000 · 2%" chip under each row (`notice-tpl-emd-<id>`).
+
+Deferred with reason: **(g) sticky 3-column layouts** and **(h) structured
+Operation Regions** are standalone tasks. Clarifications still owed by user:
+**(a) country list — which page?**, **(e) exact escrow error**, **(i) which
+registration + slot renders HTML on view**.
+
+### Bundles
+`pmc-frontend-v52cf-prod-build.zip`, `pmc-backend-v52cf.zip`, `DOWNLOAD_v52cf.md`.
+Backend ships because `/api/v1/tender-templates` list now resolves emails.
+
+---
+
+
+# PMC Managers v2 — PRD (last touched 12 Oct 2026)
+
 ## v52ce — Tender picker EMD auto-fill (12 Oct 2026)
 
 Follow-up to v52cd: `pickTemplate` in `NoticesPanel.jsx` now also pre-fills

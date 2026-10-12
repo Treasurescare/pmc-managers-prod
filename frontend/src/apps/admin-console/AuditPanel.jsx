@@ -80,26 +80,31 @@ export default function AuditPanel() {
         </div>
       </div>
 
-      <div className="border border-brand-navy/10 bg-white overflow-x-auto">
-        <table className="pmc-table w-full text-sm">
-          <thead>
-            <tr className="text-left text-brand-navy/60">
-              <th className="px-4 py-2">#</th><th className="px-4 py-2">{t("panels.audit.col_type")}</th><th className="px-4 py-2">{t("panels.audit.col_target")}</th><th className="px-4 py-2">{t("panels.audit.col_actor")}</th><th className="px-4 py-2">{t("panels.audit.col_hash")}</th><th className="px-4 py-2">{t("panels.audit.col_when")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {paged.map((e) => (
-              <tr key={e.id} className="border-t border-brand-navy/10" data-testid={`audit-row-${e.seq}`}>
-                <td className="px-4 py-2 font-mono">{e.seq}</td>
-                <td className="px-4 py-2">{e.event_type}</td>
-                <td className="px-4 py-2 font-mono text-xs">{e.target_type}:{e.target_id?.slice(-8)}</td>
-                <td className="px-4 py-2 text-xs">{e.actor_email || "—"}</td>
-                <td className="px-4 py-2 font-mono text-[10px] text-brand-navy/50">{e.current_hash?.slice(0, 12)}…</td>
-                <td className="px-4 py-2 text-xs">{e.at?.slice(0, 19).replace("T", " ")}</td>
+      <div className="border border-brand-navy/10 bg-white">
+        {/* v52cf — table scrolls horizontally; the pager used to sit inside
+            the overflow-x-auto wrapper and get clipped (user: "page numbers
+            not visible on Audit Ledger"). Table and pager are now separate. */}
+        <div className="overflow-x-auto">
+          <table className="pmc-table w-full text-sm">
+            <thead>
+              <tr className="text-left text-brand-navy/60">
+                <th className="px-4 py-2">#</th><th className="px-4 py-2">{t("panels.audit.col_type")}</th><th className="px-4 py-2">{t("panels.audit.col_target")}</th><th className="px-4 py-2">{t("panels.audit.col_actor")}</th><th className="px-4 py-2">{t("panels.audit.col_hash")}</th><th className="px-4 py-2">{t("panels.audit.col_when")}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {paged.map((e) => (
+                <tr key={e.id} className="border-t border-brand-navy/10" data-testid={`audit-row-${e.seq}`}>
+                  <td className="px-4 py-2 font-mono">{e.seq}</td>
+                  <td className="px-4 py-2">{e.event_type}</td>
+                  <td className="px-4 py-2 font-mono text-xs">{e.target_type}:{e.target_id?.slice(-8)}</td>
+                  <td className="px-4 py-2 text-xs">{e.actor_email || "—"}</td>
+                  <td className="px-4 py-2 font-mono text-[10px] text-brand-navy/50">{e.current_hash?.slice(0, 12)}…</td>
+                  <td className="px-4 py-2 text-xs">{e.at?.slice(0, 19).replace("T", " ")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         {controls}
       </div>
     </div>

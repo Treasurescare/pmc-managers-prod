@@ -159,7 +159,20 @@ async def list_templates(kind: Optional[str] = None,
     q = {}
     if kind:
         q["kind"] = kind
-    return [_out(d) async for d in db.tender_templates.find(q).sort("created_at", -1)]
+    docs = [d async for d in db.tender_templates.find(q).sort("created_at", -1)]
+    # v52cf — attach created_by_email for the Tender Builder "Your drafts" list.
+    # Resolve all admin ids in one round-trip to avoid an N+1 lookup.
+    admin_ids = {d.get("created_by") for d in docs if d.get("created_by")}
+    emails: dict = {}
+    if admin_ids:
+        async for a in db.admins.find({"_id": {"$in": [ObjectId(x) for x in admin_ids if ObjectId.is_valid(x)]}}):
+            emails[str(a["_id"])] = a.get("email")
+    out = []
+    for d in docs:
+        row = _out(d)
+        row["created_by_email"] = emails.get(d.get("created_by")) or None
+        out.append(row)
+    return out
 
 
 @router.get("/{tid}")
