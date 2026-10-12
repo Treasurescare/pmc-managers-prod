@@ -11,6 +11,7 @@ import TenderFilterBar, { applyTenderFilters } from "./tender/TenderFilterBar";
 import DprGenerateModal from "./tender/DprGenerateModal";
 import { exportTenderPdf } from "./tender/tenderPdf";
 import { InfoDot } from "@/components/InfoDot";
+import { useNavigate } from "react-router-dom";
 
 /**
  * TenderBuilderPanel — Section-by-section tender/RFP/RFQ composer.
@@ -22,8 +23,56 @@ import { InfoDot } from "@/components/InfoDot";
  */
 const KIND_LABEL = { section: "Section", annexure: "Annexure", form: "Form" };
 
+// v52cc — fresh Critical-Dates schedule applied when a master is cloned, so a
+// new draft never inherits stale/out-of-order dates from the template.
+const fmtLocalDT = (d) => {
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+const plusDays = (base, n) => new Date(base.getTime() + n * 86400000);
+const freshDateSchedule = () => {
+  const now = new Date();
+  return {
+    publish_date: fmtLocalDT(now),
+    doc_dl_start: fmtLocalDT(now),
+    doc_dl_end: fmtLocalDT(plusDays(now, 7)),
+    clarif_start: fmtLocalDT(now),
+    clarif_end: fmtLocalDT(plusDays(now, 10)),
+    sub_start: fmtLocalDT(plusDays(now, 1)),
+    sub_end: fmtLocalDT(plusDays(now, 21)),
+    bid_opening_date: fmtLocalDT(plusDays(now, 22)),
+  };
+};
+
+// v52cc — Critical Dates ordering rules enforced on Save. Each entry is
+// [earlierField, laterField, plain-English label for the toast].
+const DATE_ORDER_RULES = [
+  ["publish_date", "doc_dl_start", "Publish Date must be on/before Doc Sale Start"],
+  ["doc_dl_start", "doc_dl_end", "Doc Sale Start must be on/before Doc Sale End"],
+  ["clarif_start", "clarif_end", "Clarification Start must be on/before Clarification End"],
+  ["sub_start", "sub_end", "Bid Submission Start must be on/before Bid Submission End"],
+  ["sub_end", "bid_opening_date", "Bid Submission End must be on/before Bid Opening Date"],
+];
+const dateOrderError = (h) => {
+  for (const [a, b, label] of DATE_ORDER_RULES) {
+    if (h?.[a] && h?.[b] && new Date(h[a]) > new Date(h[b])) return label;
+  }
+  return null;
+};
+
+// v52cc — fields a Notice requires; starred * in TenderHeaderForm. The
+// "Create notice" bridge refuses to proceed until all are filled.
+const NOTICE_MANDATORY = [
+  ["work_title", "Title (Work/Item section)"],
+  ["work_description", "Work Description"],
+  ["tender_value", "Tender Value (> 0)"],
+  ["product_category", "Product Category"],
+  ["sub_end", "Bid Submission End Date (Critical Dates)"],
+];
+
 export default function TenderBuilderPanel() {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const [list, setList] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [doc, setDoc] = useState(null);
@@ -80,7 +129,9 @@ export default function TenderBuilderPanel() {
       const payload = {
         name: `${master.name} — draft ${new Date().toISOString().slice(0, 10)}`,
         kind, industry: master.industry,
-        header: { ...(master.header || {}) },
+        // v52cc — fresh schedule anchored to today; the master's stored dates
+        // are stale by definition and could even be out of order.
+        header: { ...(master.header || {}), ...freshDateSchedule() },
         sections: cleanSections,
       };
       const created = await tenderTemplateApi.create(payload);
@@ -209,6 +260,9 @@ export default function TenderBuilderPanel() {
 
   const save = async () => {
     if (!doc) return;
+    // v52cc — block out-of-order Critical Dates with a plain-English message.
+    const dateErr = dateOrderError(doc.header);
+    if (dateErr) { toast.error(`Critical Dates out of order: ${dateErr}`); return; }
     setBusy(true);
     try {
       const payload = {
@@ -335,6 +389,35 @@ export default function TenderBuilderPanel() {
       patchHeader({ tender_reference_number: r.reference, tender_id: r.reference });
       toast.success(`Reference generated · ${r.reference}`);
     } catch (e) { showApiError(e); }
+  };
+
+  // v52cc — Draft → Notice bridge. Only proceeds when every notice-mandatory
+  // (starred *) field is filled; prefills Admin → Notices → New notice via
+  // sessionStorage so the draft stops being "invisible" outside Tender Builder.
+  const createNoticeFromDraft = () => {
+    if (!doc || doc.is_master) return;
+    const h = doc.header || {};
+    const missing = NOTICE_MANDATORY.filter(([k]) => {
+      const v = h[k];
+      if (k === "tender_value") return !(Number(v) > 0);
+      return !v || !String(v).trim();
+    }).map(([, label]) => label);
+    if (missing.length) {
+      toast.error(`Fill the mandatory (*) fields first: ${missing.join(", ")}`);
+      return;
+    }
+    sessionStorage.setItem("pmc.noticePrefill", JSON.stringify({
+      title: String(h.work_title).trim(),
+      description: String(h.work_description).trim(),
+      category: String(h.product_category).trim(),
+      submission_deadline: h.sub_end,
+      budget_amount: Number(h.tender_value),
+      budget_currency: "INR",
+      emd_config: { fixed_amount: Number(h.emd_amount) || 0, percentage: 0, currency: "INR" },
+      tender_template_id: doc.id,
+    }));
+    toast.success("Opening Notices pre-filled — attach the primary tender document there, then Create & Publish.");
+    navigate("/admin/e/notices?from=tender-builder");
   };
 
   const saveSection = async (idx) => {
@@ -496,6 +579,13 @@ export default function TenderBuilderPanel() {
                             data-testid="tb-save-master"
                             className="px-4 py-2 text-[12px] uppercase tracking-widest border border-amber-600 text-amber-700 hover:bg-amber-50 disabled:opacity-40">
                       {saveMasterBusy ? "Saving…" : "★ Save as master"}
+                    </button>
+                  )}
+                  {!doc.is_master && (
+                    <button onClick={createNoticeFromDraft} data-testid="tb-create-notice"
+                            className="px-4 py-2 text-[12px] uppercase tracking-widest bg-brand-navy-soft text-white hover:bg-brand-navy-soft/90">
+                      ⇢ Create notice
+                      <InfoDot tip="Turns this draft into a real Notice (Admin → Notices → New notice, pre-filled). Requires all starred (*) fields: Title, Work Description, Tender Value, Product Category and Bid Submission End Date. Attach the primary tender PDF there, then publish." />
                     </button>
                   )}
                 </div>

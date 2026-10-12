@@ -1,3 +1,32 @@
+# PMC Managers v2 — PRD (last touched 12 Oct 2026)
+
+## v52cc — Tender Builder clarity pack: fresh date schedule + order validation · docs-section relabel · Draft→Notice bridge (12 Oct 2026)
+
+User Q&A on Tender Builder (answers given: docs section is a schedule/index not an
+uploader; nothing is mandatory in Tender Builder itself; no Publish exists there by
+design; Critical Dates were cloned verbatim from masters with no logic; Tender Builder
+drafts live in tender-templates, never in Notices → Drafts). Approved fixes shipped:
+
+- **Critical Dates**: `cloneMaster` stamps a fresh schedule anchored to today
+  (publish=now, doc sale +0/+7d, clarification +0/+10d, submission +1/+21d,
+  opening +22d). `save()` blocks out-of-order dates via `dateOrderError()` with a
+  plain-English toast. Verified live: block fired on sub_end < sub_start.
+- **Tender Documents**: group relabelled "…— schedule (bidders' checklist)" +
+  hint banner (`th-docs-hint`) pointing to the real upload paths and the Save rule.
+- **Mandatory markers**: Title / Work Description / Tender Value / Product Category /
+  Bid Submission End Date now starred in `TenderHeaderForm`.
+- **Draft → Notice bridge**: `tb-create-notice` button validates the starred fields
+  (gate toast names what's missing), then sessionStorage-prefills
+  NoticesPanel (`pmc.noticePrefill`) and navigates to `/admin/e/notices`. Verified:
+  notice form opens with title, budget, deadline, INR currency + EMD prefilled.
+  (Category stays a manual dropdown pick — master-backed select can't hold free text.)
+
+### Bundles
+`pmc-frontend-v52cc-prod-build.zip`, `DOWNLOAD_v52cc.md`. Backend unchanged (stay on v52bz).
+
+---
+
+
 # PMC Managers v2 — PRD (last touched 11 Oct 2026)
 
 ## Mobile v1.0.1 — Google Play bundle refreshed with v52cb web app (11 Oct 2026)

@@ -286,10 +286,10 @@ export default function TenderHeaderForm({ header, patchHeader }) {
       </div>
 
       <Group title="Work / Item(s)" testid="th-work">
-        <Row label="Title">
+        <Row label="Title *">
           <Text value={h.work_title} onChange={(v) => patchHeader({ work_title: v })} testid="th-work-title" />
         </Row>
-        <Row label="Work Description">
+        <Row label="Work Description *">
           <textarea value={h.work_description || ""} onChange={(e) => patchHeader({ work_description: e.target.value })}
             rows={3} data-testid="th-work-desc"
             className="w-full px-2 py-1.5 border border-brand-navy/20 focus:outline-none focus:border-brand-navy-soft bg-white text-sm" />
@@ -301,10 +301,10 @@ export default function TenderHeaderForm({ header, patchHeader }) {
           <Text value={h.independent_monitor} onChange={(v) => patchHeader({ independent_monitor: v })} testid="th-monitor" />
         </Row>
         <div className="grid md:grid-cols-2">
-          <Row label="Tender Value in ₹">
+          <Row label="Tender Value in ₹ *">
             <Text type="number" value={h.tender_value} onChange={(v) => patchHeader({ tender_value: v })} testid="th-value" />
           </Row>
-          <Row label="Product Category">
+          <Row label="Product Category *">
             <Text value={h.product_category} onChange={(v) => patchHeader({ product_category: v })} testid="th-prod-cat" />
           </Row>
           <Row label="Sub category">
@@ -369,13 +369,20 @@ export default function TenderHeaderForm({ header, patchHeader }) {
           <Row label="Bid Submission Start Date">
             <Text type="datetime-local" value={h.sub_start} onChange={(v) => patchHeader({ sub_start: v })} testid="th-sub-start" />
           </Row>
-          <Row label="Bid Submission End Date">
+          <Row label="Bid Submission End Date *">
             <Text type="datetime-local" value={h.sub_end} onChange={(v) => patchHeader({ sub_end: v })} testid="th-sub-end" />
           </Row>
         </div>
       </Group>
 
-      <Group title="Tender Documents" testid="th-docs">
+      <Group title="Tender Documents — schedule (bidders' checklist)" testid="th-docs">
+        <div className="mb-3 text-xs text-brand-navy/60 bg-brand-pale/50 border border-brand-navy/10 px-3 py-2"
+             data-testid="th-docs-hint">
+          This is a <b>document index</b> — the names, descriptions and sizes printed in the tender PDF
+          (it does not upload files). Upload the actual files via <b>Choose Files</b> in the
+          “Bulk template upload” block below, or the per-section attachment buttons.
+          Rows are kept only after you click <b>Save</b>.
+        </div>
         <div className="mb-4">
           <div className="text-xs uppercase tracking-wider text-brand-navy/70 mb-2">NIT Document</div>
           <table className="w-full text-sm">

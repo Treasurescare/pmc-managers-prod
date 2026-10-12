@@ -33,6 +33,20 @@ export default function NoticesPanel() {
     tender_template_id: "",
   });
 
+  // v52cc — Tender Builder "Create notice" bridge: a draft lands here with a
+  // sessionStorage payload; open the New-notice form pre-filled.
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("pmc.noticePrefill");
+      if (!raw) return;
+      sessionStorage.removeItem("pmc.noticePrefill");
+      const pre = JSON.parse(raw);
+      setDraft((d) => ({ ...d, ...pre, emd_config: { ...d.emd_config, ...(pre.emd_config || {}) } }));
+      setShowNew(true);
+      toast.info("Pre-filled from Tender Builder — review, attach the primary tender document, then Create.");
+    } catch { /* malformed payload — ignore */ }
+  }, []);
+
   // v51z — all filter state is now mirrored to the URL (?status, ?q,
   // ?creator, ?from, ?to, ?templates) so operators can bookmark / share
   // the exact search they built. Initial values are rehydrated from the
