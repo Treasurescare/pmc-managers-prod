@@ -1,5 +1,21 @@
 # PMC Managers v2 — PRD (last touched 12 Oct 2026)
 
+## v52cl — Golden active sidebar tab (12 Oct 2026)
+
+User: "left side bar when I chose a particular tab I need it to be the golden colour".
+`pmc-theme-e.css`: active item (`.pmc-side__item--active` + `[aria-current="page"]`)
+now uses a bright gold gradient (#e3b93b→#c9a227) with bold dark text, gold inner
+edge bar and a soft gold glow ring — replacing the muted tan (#d9bd72) pill.
+Verified live on Billing + Evaluation pages.
+
+### Bundles
+`pmc-frontend-v52cl-prod-build.zip`, `DOWNLOAD_v52cl.md`. Backend unchanged (v52ck).
+
+---
+
+
+# PMC Managers v2 — PRD (last touched 12 Oct 2026)
+
 ## v52ck — Stripe webhook health indicator on Billing (12 Oct 2026)
 
 SEC-001 follow-up (user approved): admin can now see webhook health at a glance.

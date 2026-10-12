@@ -151,14 +151,20 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .pmc-side__item:hover { background: var(--chrome-raised); }
 .pmc-side__item[aria-current="page"] { background: var(--chrome-raised); box-shadow: inset 2px 0 0 var(--brass-on-chrome); }
 /* v52cf — bold solid pill for the active admin nav item (users couldn't
-   see the subtle brass stripe; several pages also forgot aria-current). */
-.pmc-side__item--active, .pmc-side__item--active:hover {
-  background: var(--brass-on-chrome);
-  color: var(--on-brass);
+   see the subtle brass stripe; several pages also forgot aria-current).
+   v52cl — user asked for an unmistakable GOLD active tab: brighter gradient
+   with a gold glow ring so it reads "golden" at a glance on dark chrome. */
+.pmc-side__item--active, .pmc-side__item--active:hover,
+.pmc-side__item[aria-current="page"], .pmc-side__item[aria-current="page"]:hover {
+  background: linear-gradient(90deg, #e3b93b 0%, #c9a227 100%);
+  color: #1b1606;
   font-weight: 700;
-  box-shadow: inset 3px 0 0 var(--on-brass);
+  box-shadow: inset 3px 0 0 #8a6d1a,
+              0 0 0 1px rgba(227, 185, 59, 0.45),
+              0 2px 10px rgba(227, 185, 59, 0.25);
 }
-.pmc-side__item--active .pmc-ico { color: var(--on-brass); }
+.pmc-side__item--active .pmc-ico,
+.pmc-side__item[aria-current="page"] .pmc-ico { color: #1b1606; }
 .pmc-side__count { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--on-brass); background: var(--brass-on-chrome); border-radius: var(--radius-sm); padding: 0 6px; line-height: 18px; }
 .pmc-ico { width: 18px; height: 18px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .pmc-avatar { width: 32px; height: 32px; border-radius: var(--radius-full); display: grid; place-items: center; font-size: 13px; font-weight: 700; background: var(--brass-on-chrome); color: var(--on-brass); }
