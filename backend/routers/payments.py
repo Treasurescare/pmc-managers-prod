@@ -349,6 +349,14 @@ async def stripe_webhook(request: Request) -> dict:
         raise HTTPException(status_code=400, detail="Invalid signature")
     if resp and resp.payment_status == "paid":
         await _mark_paid(resp.session_id, resp.payment_status)
+    # v52ck — record every signature-verified event so the Billing page can
+    # show a live webhook-health indicator (last received timestamp).
+    await db.webhook_events.insert_one({
+        "provider": "stripe",
+        "session_id": getattr(resp, "session_id", None),
+        "payment_status": getattr(resp, "payment_status", None),
+        "received_at": now_iso(),
+    })
     return {"ok": True}
 
 

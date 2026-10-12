@@ -65,6 +65,7 @@ rows = [
     (84, "Registrations",         "create_draft disclosed existing applicant's magic_token when a known email was POSTed", "FIXED", "v52cj SEC-002 — existing-draft branch now returns generic {ok, message}; token is only emailed to the record's own address", "P1", "Yes"),
     (85, "Registrations",         "Public PATCH accepted arbitrary fields (status, vendor_ref, tenant_id, etc.)", "FIXED", "v52cj SEC-003 — RegistrationUpdateIn uses extra='forbid'; endpoint strips protected fields as DID; verified 422 on evilfield", "P1", "Yes"),
     (86, "Seed credentials",      "Default admin/staff passwords active on reachable envs (ENV!=production)", "FIXED", "v52cj SEC-004 — _seed_password only serves fallbacks when LOCAL_DEV=1; all other envs fail hard; CRITICAL log per account on dev fallback", "P1", "Yes"),
+    (87, "Payments (Stripe)",     "No visibility when webhook signing secret missing/rotated (silent 503s)", "FIXED", "v52ck — GET /billing/webhook-health + Billing-page health card (red/amber/green); webhook handlers log verified events", "P2", "Yes"),
 ]
 
 for r in rows:
@@ -151,7 +152,8 @@ for v, note in [
     ("v52cg", "Tender Builder country list — code + name display"),
     ("v52ch", "Sticky 3-col Registrations/Vendors + Master/Draft pill"),
     ("v52ci", "Structured Operation Regions / Offices"),
-    ("v52cj", "Security Hardening Pack — SEC-001/002/003/004 (THIS BUILD)"),
+    ("v52cj", "Security Hardening Pack — SEC-001/002/003/004"),
+    ("v52ck", "Stripe webhook health indicator on Billing (THIS BUILD)"),
 ]:
     ws2.append([v, note])
 

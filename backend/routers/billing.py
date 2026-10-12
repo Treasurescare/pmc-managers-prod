@@ -226,10 +226,43 @@ async def stripe_webhook(request: Request):
                       "payment_status": event.payment_status,
                       "updated_at": datetime.now(timezone.utc)}},
         )
+    # v52ck — record every signature-verified event for the webhook-health
+    # indicator on the admin Billing page.
+    await db.webhook_events.insert_one({
+        "provider": "stripe",
+        "session_id": event.session_id,
+        "payment_status": event.payment_status,
+        "received_at": now_iso(),
+    })
     return {"status": "ok"}
 
 
 # ---- Admin: transaction list --------------------------------------------
+
+# v52ck — SEC-001 follow-up: admin-visible webhook health so a missing or
+# rotated STRIPE_WEBHOOK_SECRET is obvious from the Billing page instead of
+# silently 503-ing Stripe retries for weeks.
+@router.get("/api/v1/billing/webhook-health")
+async def webhook_health(admin=Depends(current_admin)):
+    import config as _config
+    last = await db.webhook_events.find_one({"provider": "stripe"}, sort=[("received_at", -1)])
+    cutoff = datetime.now(timezone.utc).timestamp() - 24 * 3600
+    events_24h = 0
+    async for e in db.webhook_events.find({"provider": "stripe"}).sort("received_at", -1).limit(500):
+        try:
+            ts = datetime.fromisoformat(str(e.get("received_at", "")).replace("Z", "+00:00")).timestamp()
+            if ts >= cutoff:
+                events_24h += 1
+        except Exception:
+            continue
+    return {
+        "secret_configured": bool(_config.STRIPE_WEBHOOK_SECRET),
+        "last_event_at": (last or {}).get("received_at"),
+        "last_session_id": (last or {}).get("session_id"),
+        "last_payment_status": (last or {}).get("payment_status"),
+        "events_24h": events_24h,
+    }
+
 
 @router.get("/api/v1/billing/transactions")
 async def list_transactions(admin=Depends(current_admin), limit: int = 50):

@@ -13,12 +13,18 @@ export default function BillingTransactionsPanel() {
   const [busy, setBusy]     = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
+  // v52ck — Stripe webhook health: surfaces a missing/rotated
+  // STRIPE_WEBHOOK_SECRET as a red banner instead of silent 503s.
+  const [whHealth, setWhHealth] = useState(null);
 
   const load = useCallback(async () => {
     try {
       const r = await feeBillingApi.listTransactions(100);
       setRows(r.items || []);
     } catch (e) { showApiError(e); }
+    try {
+      setWhHealth(await feeBillingApi.webhookHealth());
+    } catch { setWhHealth(null); }
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -53,6 +59,36 @@ export default function BillingTransactionsPanel() {
 
   return (
     <div data-testid="billing-transactions-panel">
+      {/* v52ck — Stripe webhook health card. Red when the signing secret is
+          missing (webhooks return 503 and Stripe keeps retrying); amber when
+          configured but no event received yet; green once events flow. */}
+      {whHealth && (
+        <div data-testid="webhook-health-card"
+             className={"mb-4 border px-4 py-3 text-sm flex flex-wrap items-center gap-3 "
+               + (!whHealth.secret_configured
+                  ? "bg-red-50 border-red-300 text-red-900"
+                  : (whHealth.last_event_at
+                     ? "bg-emerald-50 border-emerald-300 text-emerald-900"
+                     : "bg-amber-50 border-amber-300 text-amber-900"))}>
+          <span className="font-semibold uppercase tracking-widest text-[11px]">
+            Stripe webhook
+          </span>
+          {!whHealth.secret_configured ? (
+            <span data-testid="webhook-health-missing">
+              Signing secret missing — webhook returns 503 and payments never advance to paid.
+              Set <code className="font-mono">STRIPE_WEBHOOK_SECRET</code> in the server environment.
+            </span>
+          ) : (
+            <span data-testid="webhook-health-ok">
+              Signing secret configured{whHealth.last_event_at
+                ? ` · last event ${String(whHealth.last_event_at).slice(0, 19).replace("T", " ")} UTC`
+                  + ` (${whHealth.last_payment_status || "event"})`
+                : " · awaiting first event"}
+              {whHealth.events_24h > 0 && ` · ${whHealth.events_24h} event(s) in 24h`}
+            </span>
+          )}
+        </div>
+      )}
       <div className="mb-3 flex justify-between items-baseline">
         <div>
           <div className="pmc-label">Payment transactions</div>

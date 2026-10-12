@@ -1,5 +1,28 @@
 # PMC Managers v2 — PRD (last touched 12 Oct 2026)
 
+## v52ck — Stripe webhook health indicator on Billing (12 Oct 2026)
+
+SEC-001 follow-up (user approved): admin can now see webhook health at a glance.
+
+- `billing.py`: `GET /api/v1/billing/webhook-health` (admin-only) returns
+  `{secret_configured, last_event_at, last_session_id, last_payment_status,
+  events_24h}`. Both webhook handlers (`payments.py`, `billing.py`) record every
+  signature-verified event into `db.webhook_events`.
+- `BillingTransactionsPanel.jsx`: health card above the table — red when secret
+  missing, amber when configured-but-no-events, green with last-event timestamp
+  + 24h count. `api.js` gains `feeBillingApi.webhookHealth()`.
+- Verified live: card renders red variant on preview (secret unset by design);
+  endpoint 401 for anonymous.
+
+### Bundles
+`pmc-backend-v52ck.zip` (includes v52cj), `pmc-frontend-v52ck-prod-build.zip`
+(includes v52ci), `DOWNLOAD_v52ck.md`.
+
+---
+
+
+# PMC Managers v2 — PRD (last touched 12 Oct 2026)
+
 ## v52cj — Security Hardening Pack (SEC-001 → SEC-004) (12 Oct 2026)
 
 Backend-only build that closes all four findings from the security audit.

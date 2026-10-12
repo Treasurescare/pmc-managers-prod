@@ -938,6 +938,8 @@ export const feeBillingApi = {
     api.get(`/api/v1/billing/transactions`, { params: { limit } }).then((r) => r.data),
   refund: (session_id, reason) =>
     api.post(`/api/v1/billing/refund/${session_id}`, { reason }).then((r) => r.data),
+  webhookHealth: () =>
+    api.get("/api/v1/billing/webhook-health").then((r) => r.data),
 };
 
 // ---------- Wave 40: UNSPSC taxonomy ----------
