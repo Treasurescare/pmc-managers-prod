@@ -1,5 +1,26 @@
 # PMC Managers v2 — PRD (last touched 12 Oct 2026)
 
+## v52cq rev 4 — EB root cause CONFIRMED via logs (13 Oct 2026)
+
+User pasted eb-engine.log: `[PMC-STARTUP-FATAL] Required environment
+variable 'ADMIN_PASSWORD' is missing or empty` → gunicorn workers exit 1
+in a loop → ALB 5xx. This is SEC-004 (v52cj) working as intended: the app
+refuses to boot with built-in default passwords in any non-LOCAL_DEV env.
+
+Resolution is EB-side config, NOT code: set ADMIN_PASSWORD, OWNER_PASSWORD
+and STAFF_PW_{ESCROW,CERTIFIER,LEGAL,ACCOUNTS,COMMITTEE} under EB →
+Configuration → Software → Environment properties, then Apply.
+
+Changes made:
+- server.py boot env dump now also reports ADMIN_PASSWORD / OWNER_PASSWORD /
+  STAFF_PW_* key names (never values).
+- DOWNLOAD_v52cq.md env checklist updated with the confirmed root cause
+  and full required-keys table.
+- DO NOT weaken config.py::_seed_password — the hardening was an explicit
+  user-requested security fix.
+
+
+
 ## v52cq rev 4 — diagnostic + crash-fast (13 Oct 2026)
 
 Rev 3 fixed the port 80 bind, but EB still showed "50.0 % 5xx" — exact-50 %

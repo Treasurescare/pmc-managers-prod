@@ -83,7 +83,10 @@ async def _bootstrap_masters():
     if os.environ.get("PMC_LOG_ENV_KEYS_ON_BOOT") == "1":
         want = ["MONGO_URL", "DB_NAME", "JWT_SECRET", "STRIPE_API_KEY",
                 "STRIPE_WEBHOOK_SECRET", "LLM_API_KEY", "RESEND_API_KEY",
-                "LOCAL_DEV", "FRONTEND_URL", "CORS_ORIGINS"]
+                "LOCAL_DEV", "FRONTEND_URL", "CORS_ORIGINS",
+                "ADMIN_PASSWORD", "OWNER_PASSWORD",
+                "STAFF_PW_ESCROW", "STAFF_PW_CERTIFIER", "STAFF_PW_LEGAL",
+                "STAFF_PW_ACCOUNTS", "STAFF_PW_COMMITTEE"]
         set_keys = [k for k in want if os.environ.get(k)]
         missing = [k for k in want if not os.environ.get(k)]
         print(f"[bootstrap-env] set: {set_keys}")

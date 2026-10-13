@@ -99,20 +99,39 @@ Save, then **Apply**. EB will update the ALB target group in ~1 min.
 
 ---
 
-## Env vars checklist (must be set under EB → Environment properties)
+## Env vars checklist (must be set under EB → Configuration → Environment properties)
+
+⚠️ **CONFIRMED ROOT CAUSE from your eb-engine.log (rev 4):**
+`[PMC-STARTUP-FATAL] Required environment variable 'ADMIN_PASSWORD' is
+missing or empty` — gunicorn workers exited with code 1 in a loop, which
+is the 50 % 5xx you saw. The app intentionally refuses to boot without
+real seed passwords (SEC-004 hardening from v52cj — it must NOT be
+weakened). Set ALL of the following, then **Apply**:
 
 | Variable | Required | Notes |
 |---|---|---|
-| `MONGO_URL` | **yes** | Full mongodb+srv:// string. If missing, every DB request 500s. |
+| `MONGO_URL` | **yes** | Full mongodb+srv:// string. |
 | `DB_NAME` | **yes** | e.g. `pmc_v2` |
 | `JWT_SECRET` | **yes** | long random string |
+| `ADMIN_PASSWORD` | **yes — was missing** | Master admin seed password. Choose a strong one. |
+| `OWNER_PASSWORD` | **yes** | Second owner seed password (kannan@emeraldcorporates.com). |
+| `STAFF_PW_ESCROW` | **yes** | escrow@pmcmanagers.com |
+| `STAFF_PW_CERTIFIER` | **yes** | certifier@pmcmanagers.com |
+| `STAFF_PW_LEGAL` | **yes** | legal@pmcmanagers.com |
+| `STAFF_PW_ACCOUNTS` | **yes** | accounts@pmcmanagers.com |
+| `STAFF_PW_COMMITTEE` | **yes** | committee@pmcmanagers.com |
 | `STRIPE_API_KEY` | prod-only | required for EMD + billing |
 | `STRIPE_WEBHOOK_SECRET` | prod-only | required for live Stripe events |
 | `LLM_API_KEY` | optional | Emergent universal key |
 | `RESEND_API_KEY` | optional | emails |
 | `LOCAL_DEV` | **set to `0`** | production flag |
-| `FRONTEND_URL` | yes | your prod frontend origin for CORS |
-| `CORS_ORIGINS` | yes | comma-separated origins |
+| `FRONTEND_URL` | yes | https://www.pmcmanagers.com |
+| `CORS_ORIGINS` | yes | e.g. `https://www.pmcmanagers.com,https://pmcmanagers.com` |
+
+Setting these on EB Console → Configuration → Software → Environment
+properties → **Apply** restarts the container with the vars injected; the
+boot log will then show `[bootstrap-env] MISSING (expected): []` and
+gunicorn workers stay up.
 
 ---
 
