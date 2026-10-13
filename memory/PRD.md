@@ -1,5 +1,25 @@
 # PMC Managers v2 — PRD (last touched 12 Oct 2026)
 
+## v52cq rev 3 — AL2023 Docker port 80 bind (13 Oct 2026)
+
+User's second deploy went through (image built + container ran) but ELB
+healthchecks failed, pushing env health → Severe. Root cause: AL2023
+Docker platform does NOT run a host-side nginx reverse proxy (that was
+an AL2 feature). The container must bind directly to the port the ELB
+forwards traffic to.
+
+Fix:
+- Dockerfile — gunicorn now binds `0.0.0.0:80`, `EXPOSE 80`, healthcheck
+  hits `http://localhost:80/health`.
+- `.ebextensions/01-healthcheck.config` — ALB target group /health on
+  port 80 with 15s interval, 2 healthy / 5 unhealthy thresholds.
+- docker-compose.yml — local dev maps host 8080 → container 80.
+
+Rev-3 bundle rebuilt and published at the same URL. Rev-3 release notes
+rewritten with ELB health troubleshooting walkthrough.
+
+
+
 ## v52cq rev 2 — Docker deploy issues fixed (13 Oct 2026)
 
 User's first deploy to AWS EB Docker-on-AL2023 failed with "Command failed

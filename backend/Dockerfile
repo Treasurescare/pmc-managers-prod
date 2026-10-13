@@ -1,15 +1,11 @@
-# PMC Managers v2 · Backend · Elastic Beanstalk Docker platform
-# For: AL2023 Docker platform (single-container). EB will build this image
-# from source on every "Upload and deploy". All env vars come from the EB
-# configuration — never from a baked-in .env.
+# PMC Managers v2 · Backend · Elastic Beanstalk Docker platform (AL2023)
 #
-# IMPORTANT:
-#   - We rely on EB's built-in nginx reverse proxy (port 80 → container's
-#     EXPOSEd port). Do NOT ship a Dockerrun.aws.json alongside this file.
-#   - The master-data seeding (UNSPSC + geography) is kicked off in the
-#     background by server.py at startup — the HTTP app is ready in <2s
-#     so EB healthchecks pass immediately. Seeding then finishes within
-#     ~2–3 min and only runs when its collections are empty (idempotent).
+# IMPORTANT (v52cq rev 3):
+#   AL2023 Docker single-container platform does NOT run a host-side nginx
+#   reverse proxy. The container must bind directly to the port that the
+#   Elastic Load Balancer forwards traffic to — which is port 80 by default.
+#   So gunicorn here binds to 0.0.0.0:80 and we EXPOSE 80. No
+#   Dockerrun.aws.json is needed with this setup.
 
 FROM python:3.11-slim-bookworm
 
@@ -39,13 +35,13 @@ RUN pip install --upgrade pip && \
 # App code + seed data (needed by background bootstrap).
 COPY . /app
 
-EXPOSE 8001
+EXPOSE 80
 
-# Lightweight self-check: hit the plain /health root-level probe that is
-# always registered first in server.py.
+# Hits the plain /health probe registered at the top of server.py.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-  CMD curl -fsS http://localhost:8001/health || exit 1
+  CMD curl -fsS http://localhost:80/health || exit 1
 
-# One worker is enough for a t3.small — scale via WEB_CONCURRENCY on the EB
-# console. The uvicorn worker class is mandatory for ASGI (FastAPI).
-CMD ["sh", "-c", "gunicorn server:app --workers ${WEB_CONCURRENCY:-2} --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8001 --timeout 120 --keep-alive 5 --access-logfile - --error-logfile -"]
+# Bind directly to port 80 — see note at top of file. Two workers fit on a
+# t3.small; override via WEB_CONCURRENCY env var on the EB console if
+# instance size changes.
+CMD ["sh", "-c", "gunicorn server:app --workers ${WEB_CONCURRENCY:-2} --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:80 --timeout 120 --keep-alive 5 --access-logfile - --error-logfile -"]
