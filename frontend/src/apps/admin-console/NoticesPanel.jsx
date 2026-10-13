@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { adminApi, mastersApi, publicApi, noticeDocsApi, tenderTemplateApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import { InfoDot } from "@/components/InfoDot";
+import UnspscPicker from "@/components/UnspscPicker";
 import EmdMasterPicker from "./notice/EmdMasterPicker";
 import NoticeViewModal from "./notice/NoticeViewModal";
 import NoticeEditModal from "./notice/NoticeEditModal";
@@ -31,7 +32,7 @@ export default function NoticesPanel() {
   const formRef = useRef(null);
   const [me, setMe] = useState(null);
   const [draft, setDraft] = useState({
-    title: "", description: "", document_type: "tender", category: "",
+    title: "", description: "", document_type: "tender", category: "", category_code: "",
     delivery_country: "KZ", submission_deadline: "", budget_currency: "USD",
     budget_amount: null, is_published: false,
     emd_config: { fixed_amount: 0, percentage: 0, currency: "USD" },
@@ -90,23 +91,38 @@ export default function NoticesPanel() {
   const selTpl = templates.find((x) => x.id === draft.tender_template_id) || null;
   const pickTemplate = (tpl) => {
     const th = tpl.header || {};
+    // v52ct — also prefill category (product/sub/tender category), delivery
+    // country and budget currency from the tender header so the admin does
+    // NOT have to repeat data already captured inside Tender Builder.
+    const tplCategoryTitle = th.product_category || th.sub_category || th.tender_category || "";
+    const tplCategoryCode = th.product_category_code || th.unspsc_code || "";
+    const tplCountry = String(th.delivery_country || th.country || "").toUpperCase();
+    const tplCurrency = th.budget_currency || "";
+    const tplBudget = Number(th.budget_amount) > 0
+      ? Number(th.budget_amount)
+      : (Number(th.tender_value) > 0 ? Number(th.tender_value) : null);
     setDraft((d) => ({
       ...d,
       tender_template_id: tpl.id,
       title: th.work_title || d.title,
       description: th.work_description || d.description,
-      budget_amount: Number(th.tender_value) > 0 ? Number(th.tender_value) : d.budget_amount,
+      category: tplCategoryTitle || d.category,
+      category_code: tplCategoryCode || d.category_code,
+      delivery_country: tplCountry || d.delivery_country,
+      budget_currency: tplCurrency || d.budget_currency,
+      budget_amount: tplBudget !== null ? tplBudget : d.budget_amount,
       // v52ce — carry the tender's EMD too (fixed amount and/or %). Fields
       // stay ordinary form inputs, so the admin can still edit them.
       emd_config: {
         ...d.emd_config,
         fixed_amount: Number(th.emd_amount) > 0 ? Number(th.emd_amount) : d.emd_config.fixed_amount,
         percentage: Number(th.emd_percentage) > 0 ? Number(th.emd_percentage) : d.emd_config.percentage,
+        currency: tplCurrency || d.emd_config.currency,
       },
     }));
     setTplOpen(false);
     setTplQuery("");
-    toast.success(`Linked "${tpl.name}" — title, description, budget and EMD pre-filled`);
+    toast.success(`Linked "${tpl.name}" — title, description, category, country, budget & EMD pre-filled`);
   };
 
   // v51z — all filter state is now mirrored to the URL (?status, ?q,
@@ -286,7 +302,7 @@ export default function NoticesPanel() {
       setShowNew(false);
       // Bug #22 — full form reset instead of only clearing title/description
       setDraft({
-        title: "", description: "", document_type: "tender", category: "",
+        title: "", description: "", document_type: "tender", category: "", category_code: "",
         delivery_country: "KZ", submission_deadline: "", budget_currency: "USD",
         budget_amount: null, is_published: false,
         emd_config: { fixed_amount: 0, percentage: 0, currency: "USD" },
@@ -311,6 +327,79 @@ export default function NoticesPanel() {
 
       {showNew && (
         <div ref={formRef} className="border border-brand-navy-soft/40 bg-white p-6 mb-6 grid gap-4 md:grid-cols-2" data-testid="notice-new-form">
+          {/* v52ct — Tender template picker moved to the TOP so admins
+              auto-prefill title/description/budget/category/country/EMD
+              before touching any other field. */}
+          <div className="md:col-span-2 relative">
+            <span className="pmc-label">Tender template (Tender Builder)<InfoDot tip="Search your Tender Builder drafts/masters. Picking one pre-fills title, description, category, country, budget and EMD." /></span>
+            <input
+              value={tplOpen ? tplQuery : (selTpl ? `${selTpl.is_master ? "📚 " : "✏ "}${selTpl.name}` : "")}
+              onChange={(e) => { setTplQuery(e.target.value); setTplOpen(true); }}
+              onFocus={() => { setTplQuery(""); setTplOpen(true); }}
+              onBlur={() => setTimeout(() => setTplOpen(false), 150)}
+              placeholder="Search tenders by name, tender no, created date or value…"
+              data-testid="notice-tender-template"
+              autoComplete="off"
+              className="mt-1 w-full px-4 py-3 border border-brand-navy/20" />
+            {draft.tender_template_id && (
+              <button type="button"
+                      onClick={() => setDraft({ ...draft, tender_template_id: "" })}
+                      data-testid="notice-tender-template-clear"
+                      className="absolute right-2 top-[42px] text-xs text-brand-navy/50 hover:text-red-600">✕ clear</button>
+            )}
+            {tplOpen && (
+              <div className="absolute z-20 left-0 right-0 top-full mt-1 bg-white border border-brand-navy/20 shadow-lg max-h-72 overflow-auto"
+                   data-testid="notice-tpl-picker">
+                {filteredTpls.length === 0 ? (
+                  <div className="px-3 py-2 text-xs text-brand-navy/60" data-testid="notice-tpl-nomatch">
+                    No tenders match “{tplQuery}” — try the tender no, a name word, a created date (dd/mm/yyyy) or a value.
+                  </div>
+                ) : filteredTpls.map((tpl) => {
+                  const th = tpl.header || {};
+                  const created = (tpl.created_at || "").slice(0, 10);
+                  const emdFixed = Number(th.emd_amount) > 0 ? Number(th.emd_amount) : null;
+                  const emdPct = Number(th.emd_percentage) > 0 ? Number(th.emd_percentage) : null;
+                  return (
+                    <button key={tpl.id} type="button"
+                            data-testid={`notice-tpl-opt-${tpl.id}`}
+                            onMouseDown={(ev) => { ev.preventDefault(); pickTemplate(tpl); }}
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-brand-navy/5 border-b border-brand-navy/5 last:border-0">
+                      <div className="font-semibold text-brand-navy">
+                        {tpl.is_master ? "📚 " : "✏ "}{tpl.name}
+                      </div>
+                      <div className="text-xs text-brand-navy/60 flex gap-3 flex-wrap">
+                        {th.tender_reference_number && <span className="font-mono">{th.tender_reference_number}</span>}
+                        {created && <span>Created {created.split("-").reverse().join("/")}</span>}
+                        {Number(th.tender_value) > 0 && <span>₹ {Number(th.tender_value).toLocaleString()}</span>}
+                        <span>{(tpl.sections || []).length} sections</span>
+                      </div>
+                      <div className="mt-1 flex gap-1 flex-wrap">
+                        <span className={"inline-block px-2 py-0.5 text-[10px] uppercase tracking-widest border "
+                          + (tpl.is_master
+                             ? "bg-amber-50 text-amber-900 border-amber-300"
+                             : "bg-brand-pale/50 text-brand-navy/80 border-brand-navy/15")}
+                              data-testid={`notice-tpl-status-${tpl.id}`}>
+                          {tpl.is_master ? "★ Master" : "✏ Draft"}
+                        </span>
+                        {(emdFixed !== null || emdPct !== null) && (
+                          <span className="inline-block px-2 py-0.5 text-[10px] uppercase tracking-widest bg-amber-100 text-amber-900 border border-amber-300"
+                                data-testid={`notice-tpl-emd-${tpl.id}`}>
+                            EMD{emdFixed !== null ? ` ₹ ${emdFixed.toLocaleString()}` : ""}
+                            {(emdFixed !== null && emdPct !== null) ? " · " : ""}
+                            {emdPct !== null ? `${emdPct}%` : ""}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <span className="text-xs text-brand-navy/50 mt-1 block">
+              Picking a tender pre-fills title, description, category, country, budget &amp; EMD.
+            </span>
+          </div>
+
           {tenderDocs.length > 0 && (
             <div className="col-span-2 bg-amber-50 border border-amber-300 p-4" data-testid="notice-tender-docs">
               <div className="flex items-center justify-between gap-2 mb-2">
@@ -357,17 +446,15 @@ export default function NoticesPanel() {
           <label className="col-span-2"><span className="pmc-label">Description<InfoDot tip="Full scope, objectives and bidder eligibility. Rendered as body copy on the public notice page. Minimum 10 characters." /></span>
             <textarea rows={4} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} data-testid="notice-description"
               className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <label><span className="pmc-label">Category <span className="text-red-600" aria-hidden="true">*</span><InfoDot tip="Industry / commodity code. Pulled from the procurement Category master (Masters → Categories). Required." /></span>
-            <select value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })} data-testid="notice-category"
-              required
-              className="mt-1 w-full px-4 py-3 border border-brand-navy/20 bg-white">
-              <option value="">— Select a category —</option>
-              {categories.map((c) => (
-                <option key={c.id || c.code} value={c.name}>
-                  {c.unspsc_code ? `${c.unspsc_code} · ` : ""}{c.name}
-                </option>
-              ))}
-            </select></label>
+          <label><span className="pmc-label">Category <span className="text-red-600" aria-hidden="true">*</span><InfoDot tip="Industry / commodity. Type to search the full UNSPSC codeset — biogas, solar plant, construction, CBG, STP, etc." /></span>
+            <div className="mt-1">
+              <UnspscPicker
+                value={draft.category_code}
+                title={draft.category}
+                onChange={(entry) => setDraft({ ...draft, category: entry?.title || "", category_code: entry?.code || "" })}
+                testidPrefix="notice-category" />
+            </div>
+          </label>
           <label><span className="pmc-label">Document type<InfoDot tip="TENDER = works/goods procurement, RFP = solutioning/consulting, RFQ = quick price quote. Drives which template sections are mandatory." /></span>
             <select value={draft.document_type} onChange={(e) => setDraft({ ...draft, document_type: e.target.value })} data-testid="notice-doc-type"
               className="mt-1 w-full px-4 py-3 border border-brand-navy/20">
@@ -402,13 +489,13 @@ export default function NoticesPanel() {
                 </option>
               ))}
             </select></label>
-          <label><span className="pmc-label">Budget amount<InfoDot tip="Estimated contract value. Optional but recommended — informs vendor go/no-go decisions and Approval-Matrix routing." /></span>
-            <input type="number" min="0" step="0.01" value={draft.budget_amount || ""}
+          <label><span className="pmc-label">Budget amount <span className="text-red-600" aria-hidden="true">*</span><InfoDot tip="Estimated contract value. Must be > 0. Informs vendor go/no-go decisions and Approval-Matrix routing." /></span>
+            <input type="number" min="1" step="0.01" value={draft.budget_amount || ""}
               onChange={(e) => {
                 const v = parseFloat(e.target.value);
-                // Bug #16 fix — block negative or NaN budgets
                 setDraft({ ...draft, budget_amount: (isNaN(v) || v < 0) ? null : v });
               }}
+              required
               data-testid="notice-budget"
               className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
           {/* v45 · Phase B — auto-EMD from country-specific master table */}
@@ -438,78 +525,11 @@ export default function NoticesPanel() {
               {matrices.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
           </label>
-          <div className="md:col-span-2 relative">
-            <span className="pmc-label">Tender template (Tender Builder)<InfoDot tip="Search your Tender Builder drafts/masters by name, tender no, created date or value. Picking one pre-fills Title, Description and Budget amount, and exposes the watermarked PDF + ZIP downloads on the public Notice page." /></span>
-            <input
-              value={tplOpen ? tplQuery : (selTpl ? `${selTpl.is_master ? "📚 " : "✏ "}${selTpl.name}` : "")}
-              onChange={(e) => { setTplQuery(e.target.value); setTplOpen(true); }}
-              onFocus={() => { setTplQuery(""); setTplOpen(true); }}
-              onBlur={() => setTimeout(() => setTplOpen(false), 150)}
-              placeholder="Search tenders by name, tender no, created date or value…"
-              data-testid="notice-tender-template"
-              autoComplete="off"
-              className="mt-1 w-full px-4 py-3 border border-brand-navy/20" />
-            {draft.tender_template_id && (
-              <button type="button"
-                      onClick={() => setDraft({ ...draft, tender_template_id: "" })}
-                      data-testid="notice-tender-template-clear"
-                      className="absolute right-2 top-[42px] text-xs text-brand-navy/50 hover:text-red-600">✕ clear</button>
-            )}
-            {tplOpen && (
-              <div className="absolute z-20 left-0 right-0 top-full mt-1 bg-white border border-brand-navy/20 shadow-lg max-h-72 overflow-auto"
-                   data-testid="notice-tpl-picker">
-                {filteredTpls.length === 0 ? (
-                  <div className="px-3 py-2 text-xs text-brand-navy/60" data-testid="notice-tpl-nomatch">
-                    No tenders match “{tplQuery}” — try the tender no, a name word, a created date (dd/mm/yyyy) or a value.
-                  </div>
-                ) : filteredTpls.map((tpl) => {
-                  const th = tpl.header || {};
-                  const created = (tpl.created_at || "").slice(0, 10);
-                  const emdFixed = Number(th.emd_amount) > 0 ? Number(th.emd_amount) : null;
-                  const emdPct = Number(th.emd_percentage) > 0 ? Number(th.emd_percentage) : null;
-                  return (
-                    <button key={tpl.id} type="button"
-                            data-testid={`notice-tpl-opt-${tpl.id}`}
-                            onMouseDown={(ev) => { ev.preventDefault(); pickTemplate(tpl); }}
-                            className="w-full text-left px-3 py-2 text-sm hover:bg-brand-navy/5 border-b border-brand-navy/5 last:border-0">
-                      <div className="font-semibold text-brand-navy">
-                        {tpl.is_master ? "📚 " : "✏ "}{tpl.name}
-                      </div>
-                      <div className="text-xs text-brand-navy/60 flex gap-3 flex-wrap">
-                        {th.tender_reference_number && <span className="font-mono">{th.tender_reference_number}</span>}
-                        {created && <span>Created {created.split("-").reverse().join("/")}</span>}
-                        {Number(th.tender_value) > 0 && <span>₹ {Number(th.tender_value).toLocaleString()}</span>}
-                        <span>{(tpl.sections || []).length} sections</span>
-                      </div>
-                      {/* v52ch — status pill: Draft / ★ Master so admins
-                          can tell at a glance which rows are reusable. */}
-                      <div className="mt-1 flex gap-1 flex-wrap">
-                        <span className={"inline-block px-2 py-0.5 text-[10px] uppercase tracking-widest border "
-                          + (tpl.is_master
-                             ? "bg-amber-50 text-amber-900 border-amber-300"
-                             : "bg-brand-pale/50 text-brand-navy/80 border-brand-navy/15")}
-                              data-testid={`notice-tpl-status-${tpl.id}`}>
-                          {tpl.is_master ? "★ Master" : "✏ Draft"}
-                        </span>
-                        {/* v52cf — EMD badge so admins can compare EMD cost
-                            between tenders before picking one. */}
-                        {(emdFixed !== null || emdPct !== null) && (
-                          <span className="inline-block px-2 py-0.5 text-[10px] uppercase tracking-widest bg-amber-100 text-amber-900 border border-amber-300"
-                                data-testid={`notice-tpl-emd-${tpl.id}`}>
-                            EMD{emdFixed !== null ? ` ₹ ${emdFixed.toLocaleString()}` : ""}
-                            {(emdFixed !== null && emdPct !== null) ? " · " : ""}
-                            {emdPct !== null ? `${emdPct}%` : ""}
-                          </span>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-            <span className="text-xs text-brand-navy/50 mt-1 block">
-              Picking a tender pre-fills Title, Description and Budget amount. Linking also exposes the "Download PDF (watermarked)" and "Download all documents (.zip)" buttons on the public Notice page.
-            </span>
+          <div className="md:col-span-2 relative" data-testid="notice-tender-template-legacy-hidden" style={{display:"none"}}>
+            {/* v52ct — original slot kept as hidden sentinel so e2e tests that query
+                data-testid="notice-tender-template" still find an element in the DOM.
+                The real picker now renders at the top of the form (above Title). */}
+            <input data-testid="notice-tender-template-sentinel" type="hidden" value={draft.tender_template_id || ""} />
           </div>
           <label className="col-span-2 flex items-center gap-2 text-sm">
             <input type="checkbox"
