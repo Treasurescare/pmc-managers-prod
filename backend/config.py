@@ -61,6 +61,18 @@ def _seed_password(name: str, fallback: str) -> str:
     val = os.environ.get(name, "")
     if val:
         return val
+    # v52cq rev 5 — AWS EB caps plaintext environment properties at 4,096
+    # bytes and the 7 individual seed-password keys didn't fit. Consolidated
+    # alternative: a single PMC_SEED_PASSWORDS var carrying every password as
+    # "KEY=value;KEY=value;…" (keep passwords alphanumeric — avoid ; , =).
+    blob = os.environ.get("PMC_SEED_PASSWORDS", "")
+    if blob:
+        for pair in blob.replace(",", ";").split(";"):
+            if "=" not in pair:
+                continue
+            k, _, v = pair.partition("=")
+            if k.strip() == name and v.strip():
+                return v.strip()
     # v52cj — SEC-004 hardening. Previously the fallback was used in any env
     # with ENV!=production, which included the internet-reachable preview.
     # Fallbacks are now ONLY allowed when the operator has explicitly opted

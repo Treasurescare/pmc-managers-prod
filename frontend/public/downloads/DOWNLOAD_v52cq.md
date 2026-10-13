@@ -1,4 +1,21 @@
 # PMC Managers · v52cq Release Notes (rev 4 — crash-fast + log diagnostics)
+## v52cq rev 5 — EB 4,096-byte env-properties cap workaround (13 Oct 2026)
+
+EB refused to save the 7 individual seed-password env keys (4,185 / 4,096
+bytes used). `config.py::_seed_password` now also reads a single
+consolidated `PMC_SEED_PASSWORDS` var (`KEY=value;KEY=value;…`, keep
+passwords alphanumeric — avoid `; , =`). Individual keys still take
+priority. Verified: all 5 staff + owner resolve from the blob; missing
+keys still trigger the intentional SEC-004 fatal.
+
+Also removed `.ebextensions/02-log-env-keys.config` (diagnostic var no
+longer needed — root cause was found via logs) so it stops consuming a
+property slot; user should delete `PMC_LOG_ENV_KEYS_ON_BOOT` from EB
+console to reclaim ~30 bytes.
+
+---
+
+
 
 **Build date:** 13 Oct 2026
 **Rev:** 4

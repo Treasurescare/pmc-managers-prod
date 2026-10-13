@@ -84,6 +84,7 @@ async def _bootstrap_masters():
         want = ["MONGO_URL", "DB_NAME", "JWT_SECRET", "STRIPE_API_KEY",
                 "STRIPE_WEBHOOK_SECRET", "LLM_API_KEY", "RESEND_API_KEY",
                 "LOCAL_DEV", "FRONTEND_URL", "CORS_ORIGINS",
+                "PMC_SEED_PASSWORDS",
                 "ADMIN_PASSWORD", "OWNER_PASSWORD",
                 "STAFF_PW_ESCROW", "STAFF_PW_CERTIFIER", "STAFF_PW_LEGAL",
                 "STAFF_PW_ACCOUNTS", "STAFF_PW_COMMITTEE"]

@@ -1,5 +1,19 @@
 # PMC Managers v2 — PRD (last touched 12 Oct 2026)
 
+## v52cq rev 5 — consolidated PMC_SEED_PASSWORDS for EB byte cap (13 Oct 2026)
+
+User hit EB's 4,096-byte plaintext environment-properties limit when
+adding the 7 seed-password keys. Fix: `config.py::_seed_password` now
+falls back to a single consolidated `PMC_SEED_PASSWORDS` env var
+(`KEY=value;KEY=value;…`) before the SEC-004 fatal. Individual keys still
+win if both are set. Existing passwords are never overwritten (seed is
+skip-if-exists — verified in server.py `_seed_admin`/`_seed_staff`), so
+all current tester logins keep working.
+
+Verified: full-blob test resolves owner + all 5 staff passwords; pytest
+15/15 green; /health 200. Bundle rebuilt (rev 5) at the same URL.
+
+
 ## v52cq rev 4 — EB root cause CONFIRMED via logs (13 Oct 2026)
 
 User pasted eb-engine.log: `[PMC-STARTUP-FATAL] Required environment
