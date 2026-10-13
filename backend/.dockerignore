@@ -1,0 +1,35 @@
+# Keep sensitive + bulky artifacts out of the Docker image / EB zip.
+# .env is intentionally excluded — env vars must be configured on the
+# Elastic Beanstalk console, not baked into the image.
+.env
+.env.*
+.git
+.gitignore
+.gitattributes
+.github
+node_modules
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+.pytest_cache
+.mypy_cache
+.ruff_cache
+coverage.xml
+htmlcov
+.tox
+tests
+docs
+downloads
+*.zip
+*.tar.gz
+*.log
+*.md.bak
+.DS_Store
+dist
+build
+.vscode
+.idea
+*.swp
+*.swo

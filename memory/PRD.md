@@ -1,5 +1,28 @@
 # PMC Managers v2 — PRD (last touched 12 Oct 2026)
 
+## v52cq — Docker packaging added (13 Oct 2026)
+
+User's AWS Elastic Beanstalk runs **Docker platform on Amazon Linux 2023**
+and failed to deploy the previous v52cq zip with "Command failed on all
+instances" + "Incorrect application version found". Root cause: zip was
+missing Dockerfile / Dockerrun.aws.json / .dockerignore.
+
+Added to `/app/backend/`:
+- `Dockerfile` — python:3.11-slim, installs all native deps (weasyprint,
+  pymongo, cryptography, etc.), runs `gunicorn -k uvicorn.workers.UvicornWorker
+  server:app --bind 0.0.0.0:8001 --workers ${WEB_CONCURRENCY:-2}`. All env
+  vars pulled from EB configuration (no baked-in .env).
+- `.dockerignore` — keeps .env, .git, node_modules, tests, downloads, zip
+  artifacts out of the image.
+- `Dockerrun.aws.json` (AWSEBDockerrunVersion 1) — tells EB the container
+  port is 8001 mapped to instance port 80.
+- `docker-compose.yml` — optional local-dev convenience; EB ignores it.
+
+Backend bundle rebuilt as `pmc-backend-v52cq.zip` (Docker files now
+included); pytest 15/15 still green.
+
+
+
 ## v52cq — "Preview as bidder" for drafts + release bundles (13 Oct 2026)
 
 - Admin → Notices: draft rows get a new amber **"Preview as bidder ↗"**
