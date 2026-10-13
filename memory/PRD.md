@@ -1,5 +1,16 @@
 # PMC Managers v2 — PRD (last touched 12 Oct 2026)
 
+## v52cq deployment confirmed green on AWS Elastic Beanstalk (13 Oct 2026)
+
+User confirmed: **"working now"** on AWS Elastic Beanstalk Docker AL2023 (`pmc-backend-prod`).
+- Container listening on port 80 natively.
+- Masters auto-seeding in background without blocking ELB health probes.
+- Parameter Store and EB environment properties authenticated and working.
+- Tender Builder → Notice creation bridge + bidder preview + master geography/UNSPSC live.
+
+---
+
+
 ## v52cq rev 8 — REAL root cause found in EB logs (13 Oct 2026)
 
 User's log paste revealed two definitive issues:
