@@ -69,7 +69,10 @@ export default function NoticeBoardHome() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    const params = {};
+    // v52cu — raise the landing-page page size to 100 so freshly-published
+    // notices don't drop off once the catalogue grows past 30. Still capped
+    // server-side by `max(1, min(limit, 100))`.
+    const params = { limit: 100 };
     if (filter !== "all") params.document_type = filter;
     if (country) params.country = country;
     Promise.all([
