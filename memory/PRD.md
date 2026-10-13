@@ -1,5 +1,32 @@
 # PMC Managers v2 — PRD (last touched 12 Oct 2026)
 
+## v52cq rev 2 — Docker deploy issues fixed (13 Oct 2026)
+
+User's first deploy to AWS EB Docker-on-AL2023 failed with "Command failed
+on all instances". Three root causes identified from the EB events panel
+and the live backend inspection:
+
+1. Shipped `Dockerrun.aws.json` had `"Image": {"Name": "local"}` which is
+   not a valid pullable image name. For a Dockerfile build on EB, no
+   Dockerrun is needed — removed it entirely.
+2. Dockerfile HEALTHCHECK pointed at `/api/v1/health` (404). The real
+   lightweight probe is `/health` (registered first in server.py). Fixed.
+3. Startup event blocked for 2–3 minutes seeding 158k UNSPSC + 150k city
+   rows synchronously → ALB target healthchecks timed out → rollback.
+   Converted to `asyncio.create_task` background job that runs the sync
+   PyMongo seed functions in a thread executor. FastAPI now answers HTTP
+   in <2s regardless of seed progress; seed is still idempotent.
+4. Added `.ebextensions/01-healthcheck.config` setting EB ALB health
+   path to `/health` with 200 matcher.
+
+Verified locally: `/health` 200 in <2s after restart, `/api/v1/masters/countries`
+200 immediately. Pytest 15/15 still green.
+
+Rev-2 bundle rebuilt as `pmc-backend-v52cq.zip` and release notes rewritten
+with Docker-on-AL2023 troubleshooting guide.
+
+
+
 ## v52cq — Docker packaging added (13 Oct 2026)
 
 User's AWS Elastic Beanstalk runs **Docker platform on Amazon Linux 2023**

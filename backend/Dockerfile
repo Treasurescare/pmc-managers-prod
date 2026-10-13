@@ -1,6 +1,15 @@
 # PMC Managers v2 · Backend · Elastic Beanstalk Docker platform
-# Built from the contents of pmc-backend-v52cq.zip. All env vars come from
-# EB configuration — never from a .env baked into the image.
+# For: AL2023 Docker platform (single-container). EB will build this image
+# from source on every "Upload and deploy". All env vars come from the EB
+# configuration — never from a baked-in .env.
+#
+# IMPORTANT:
+#   - We rely on EB's built-in nginx reverse proxy (port 80 → container's
+#     EXPOSEd port). Do NOT ship a Dockerrun.aws.json alongside this file.
+#   - The master-data seeding (UNSPSC + geography) is kicked off in the
+#     background by server.py at startup — the HTTP app is ready in <2s
+#     so EB healthchecks pass immediately. Seeding then finishes within
+#     ~2–3 min and only runs when its collections are empty (idempotent).
 
 FROM python:3.11-slim-bookworm
 
@@ -8,10 +17,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONFAULTHANDLER=1 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    # Backend binds 8001 by convention; EB Docker maps the container's
-    # exposed port to the instance's load balancer target automatically.
-    PORT=8001
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
 WORKDIR /app
 
@@ -24,21 +30,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       libjpeg-dev libopenjp2-7-dev libtiff-dev zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for Docker layer caching.
+# Python deps (cached layer).
 COPY requirements.txt /app/requirements.txt
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r /app/requirements.txt && \
     pip install --no-cache-dir gunicorn
 
-# Copy the rest of the backend (includes scripts/ + data/ so startup
-# bootstrap can seed the UNSPSC / geography / country-license masters).
+# App code + seed data (needed by background bootstrap).
 COPY . /app
 
 EXPOSE 8001
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
-  CMD curl -f http://localhost:8001/api/v1/health || exit 1
+# Lightweight self-check: hit the plain /health root-level probe that is
+# always registered first in server.py.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD curl -fsS http://localhost:8001/health || exit 1
 
-# Two workers behind gunicorn + uvicorn worker class. Scale workers via the
-# WEB_CONCURRENCY env var on EB if the instance is beefier.
+# One worker is enough for a t3.small — scale via WEB_CONCURRENCY on the EB
+# console. The uvicorn worker class is mandatory for ASGI (FastAPI).
 CMD ["sh", "-c", "gunicorn server:app --workers ${WEB_CONCURRENCY:-2} --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8001 --timeout 120 --keep-alive 5 --access-logfile - --error-logfile -"]
