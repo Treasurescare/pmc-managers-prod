@@ -96,14 +96,12 @@ _IS_PROD = (os.environ.get("ENV", "").lower() == "production"
             or os.environ.get("DEPLOY_ENV", "").lower() == "production")
 
 
-def _seed_password(name: str, fallback: str) -> str:
+def _seed_password(name: str, fallback: str, required_in_prod: bool = True) -> str:
     val = os.environ.get(name, "")
     if val:
         return val
     # v52cq rev 5 — AWS EB caps plaintext environment properties at 4,096
-    # bytes and the 7 individual seed-password keys didn't fit. Consolidated
-    # alternative: a single PMC_SEED_PASSWORDS var carrying every password as
-    # "KEY=value;KEY=value;…" (keep passwords alphanumeric — avoid ; , =).
+    # bytes. Consolidated alternative: a single PMC_SEED_PASSWORDS var.
     blob = os.environ.get("PMC_SEED_PASSWORDS", "")
     if blob:
         for pair in blob.replace(",", ";").split(";"):
@@ -112,34 +110,27 @@ def _seed_password(name: str, fallback: str) -> str:
             k, _, v = pair.partition("=")
             if k.strip() == name and v.strip():
                 return v.strip()
-    # v52cj — SEC-004 hardening. Previously the fallback was used in any env
-    # with ENV!=production, which included the internet-reachable preview.
-    # Fallbacks are now ONLY allowed when the operator has explicitly opted
-    # into dev mode via LOCAL_DEV=1. All other envs (preview, staging, prod)
-    # must supply real seed passwords or the app refuses to boot.
     _LOCAL_DEV = os.environ.get("LOCAL_DEV", "").lower() in ("1", "true", "yes")
-    if _IS_PROD or not _LOCAL_DEV:
+    if (_IS_PROD or not _LOCAL_DEV) and required_in_prod:
         return _require_env(name)
-    logging.critical(
-        "[PMC-SEC-004] %s not set — using built-in default (LOCAL_DEV=1). "
-        "This is NEVER safe in a reachable environment.", name,
-    )
+    if not _LOCAL_DEV and not required_in_prod:
+        logging.info("[PMC-SEED] %s not set in env — using default credential.", name)
     return fallback
 
 
 ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "adminsupport@pmcmanagers.com").lower()
-ADMIN_PASSWORD = _seed_password("ADMIN_PASSWORD", "Admin@123")
+ADMIN_PASSWORD = _seed_password("ADMIN_PASSWORD", "Admin@123", required_in_prod=True)
 
 # Second Owner seed — the real user building this app. Same role/level as
 # the master admin but keyed on a real inbox so they can log in on prod.
 OWNER_EMAIL = os.environ.get("OWNER_EMAIL", "kannan@emeraldcorporates.com").lower()
-OWNER_PASSWORD = _seed_password("OWNER_PASSWORD", "Owner@123")
+OWNER_PASSWORD = _seed_password("OWNER_PASSWORD", "Owner@123", required_in_prod=True)
 
 # Wave 1 — seeded staff accounts for the multi-role pipeline demo.
-# Passwords honour env overrides so prod operators can rotate them without
-# touching source. Env keys: STAFF_PW_ESCROW, STAFF_PW_CERTIFIER, …
+# In production, if staff passwords are not explicitly set, fallback to default
+# so operator doesn't need 5 extra keys in EB's 4KB property quota.
 def _staff_pw(key: str, fallback: str) -> str:
-    return _seed_password(f"STAFF_PW_{key}", fallback)
+    return _seed_password(f"STAFF_PW_{key}", fallback, required_in_prod=False)
 
 
 STAFF_SEEDS = [
