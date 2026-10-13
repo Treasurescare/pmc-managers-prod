@@ -1,5 +1,24 @@
 # PMC Managers v2 — PRD (last touched 12 Oct 2026)
 
+## v52cq rev 4 — diagnostic + crash-fast (13 Oct 2026)
+
+Rev 3 fixed the port 80 bind, but EB still showed "50.0 % 5xx" — exact-50 %
+is the fingerprint of a mixed fleet (one new instance + one stale).
+
+Rev 4 adds:
+- Dockerfile: `--preload` + exec form (no sh wrapper), explicit access/error
+  log flags + `--capture-output` so gunicorn stderr reaches EB container
+  logs. Healthcheck 20s interval / 45s start-period.
+- `.ebextensions/02-log-env-keys.config` sets `PMC_LOG_ENV_KEYS_ON_BOOT=1`.
+- `server.py` _bootstrap_masters now dumps SET + MISSING env var NAMES
+  (not values) at container boot so EB logs reveal config gaps.
+- Release notes DOWNLOAD_v52cq.md rewritten with a step-by-step Rebuild +
+  log-fetching plan.
+
+Local verification unchanged: /health 200 in <2s, pytest 15/15 green.
+
+
+
 ## v52cq rev 3 — AL2023 Docker port 80 bind (13 Oct 2026)
 
 User's second deploy went through (image built + container ran) but ELB

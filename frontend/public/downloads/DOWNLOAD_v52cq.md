@@ -1,98 +1,125 @@
-# PMC Managers · v52cq Release Notes (rev 3 — AL2023 Docker port fix)
+# PMC Managers · v52cq Release Notes (rev 4 — crash-fast + log diagnostics)
 
 **Build date:** 13 Oct 2026
-**Rev:** 3 (fixes "ELB health is failing" on AL2023 Docker)
+**Rev:** 4
 
 ---
 
-## Why your second deploy failed with ELB health failing
+## Status after rev 3
 
-The rev-2 bundle built and ran the container successfully (EB events said
-"Environment update completed successfully" and "New application version
-was deployed"), but the Application Load Balancer couldn't reach the
-container's `/health` endpoint on port 80. Health: Severe.
+- Container built and ran successfully.
+- Deploy completes in ~2 min (no more rollback).
+- **BUT**: ELB health = Severe, "50.0 % of the requests to the ELB are
+  failing with HTTP 5xx". That exact 50 % number for several minutes
+  running is the fingerprint of a **mixed fleet** — the EB auto-scaling
+  group has two instances and one of them is still running an older
+  broken version while the other is on rev 3.
 
-**Root cause.** On the **Docker on AL2023** platform, Elastic Beanstalk
-**does not run a host-side nginx reverse proxy** (that was a feature of
-the older Amazon Linux 2 Docker platform). The container must bind
-directly to the port the ELB forwards traffic to — which is port 80 by
-default. Rev 2 bound gunicorn to port 8001 with an `EXPOSE 8001`, so the
-instance's port 80 had nothing listening on it, and every ALB health
-check timed out.
+## What rev 4 adds (diagnostic + crash-fast)
 
-## What rev 3 changes
-
-| File | Change |
+| Change | Why |
 |---|---|
-| `Dockerfile` | gunicorn now binds to `0.0.0.0:80`, `EXPOSE 80`, healthcheck hits `http://localhost:80/health`. |
-| `.ebextensions/01-healthcheck.config` | ALB target group now uses `/health` on port 80 with 15 s interval, 2 healthy / 5 unhealthy thresholds. |
-| `docker-compose.yml` | Local dev now maps `8080` on host → `80` in container so it matches EB. |
+| `gunicorn --preload` + exec form (no `sh -c`) | Any import error now crashes the master instantly with a visible Python traceback in `/var/log/eb-docker/containers/eb-current-app/*.stdouterr.log` instead of being masked. |
+| Explicit `--access-logfile -` + `--error-logfile -` + `--capture-output` | gunicorn request logs now reach EB's container log collector, so you can see every 5xx. |
+| New `.ebextensions/02-log-env-keys.config` | On container boot the app dumps the NAMES (not values) of its 10 critical env vars so you can confirm `MONGO_URL`, `JWT_SECRET`, etc. actually reached the container. |
+| Healthcheck interval 20 s / start-period 45 s | Container has a bit more grace while cold-starting; after that it's a hard pass/fail. |
 
-Nothing else changed — all v52cp/v52cq app-level features remain.
+Nothing else changed functionally. v52cp/v52cq app features (Preview as
+bidder, Tender → Notice bridge, EMD + Country on public cards, etc.) are
+all unchanged.
 
 ---
 
-## Download links (rev 3)
+## Download
 
-| Bundle | URL |
+| | |
 |---|---|
-| Backend (Docker on AL2023) | https://pmc-forest-green.preview.emergentagent.com/downloads/pmc-backend-v52cq.zip |
+| Backend (Docker rev 4) | https://pmc-forest-green.preview.emergentagent.com/downloads/pmc-backend-v52cq.zip |
 | Frontend | https://pmc-forest-green.preview.emergentagent.com/downloads/pmc-frontend-v52cq-prod-build.zip |
 
 ---
 
-## Deploy sequence
+## 🛠️ Deploy + diagnose plan
 
-1. Re-download `pmc-backend-v52cq.zip` (rev 3).
-2. In EB console → `pmc-backend-prod` → **Upload and deploy** → pick the new zip.
-3. Expected events within ~2–3 min:
-   - "Environment update completed successfully"
-   - Health transitions **Severe → Info → Ok** (not Degraded, not Severe)
-   - EB logs show `[bg-bootstrap] seeded masters_unspsc rows=158464` only on first boot after the Mongo collections are empty.
+### Step 1 — deploy rev 4
+Upload the new zip via EB → Upload and deploy.
 
-### Smoke test
-```bash
-API=https://api.YOUR-DOMAIN
-curl -s $API/health                                   # → {"ok":true,"service":"pmc-tender-v2-api",...}
-curl -s $API/api/v1/masters/countries | jq 'length'   # → 250
-curl -s "$API/api/v1/masters/unspsc/public/search?q=biogas&limit=3" | jq .
-```
+### Step 2 — force a clean fleet
+Rev 4 should rebuild both instances, but if the 50 % 5xx persists past
+5 min:
+
+- EB console → `pmc-backend-prod` → **Actions → Rebuild environment**
+
+Rebuild terminates every EC2 instance and creates fresh ones from the
+latest application version. This is the surest way to kill a stale
+instance that's stuck on a prior broken revision.
+
+### Step 3 — fetch container logs (this is where the real answer is)
+EB console → `pmc-backend-prod` → left sidebar **Logs** → **Request logs
+→ Last 100 lines** → wait ~10 s → **Download**.
+
+Inside the tarball look at these two files:
+
+- `var/log/eb-docker/containers/eb-current-app/eb-stdouterr.log`
+  - gunicorn startup banner. Should look like:
+    ```
+    [INFO] Starting gunicorn 23.x
+    [INFO] Listening at: http://0.0.0.0:80
+    [INFO] Using worker: uvicorn.workers.UvicornWorker
+    [bootstrap-env] set: ['MONGO_URL', 'DB_NAME', 'JWT_SECRET', ...]
+    [INFO] Booting worker with pid: 7
+    [INFO] Booting worker with pid: 8
+    ```
+  - If `[bootstrap-env] MISSING: [...]` appears, that env var is NOT set
+    on EB and must be added under EB → Configuration → Environment
+    properties.
+  - If you see a Python traceback instead of "Listening at", the master
+    crashed on import. Paste the last 30 lines back to me and I'll fix
+    it instantly.
+
+- `var/log/eb-engine.log`
+  - EB platform engine. Look for `Successfully built`, `docker run`,
+    `Docker container running` lines. If you see `Error: ...` in this
+    file, that's a Docker build / image problem.
+
+### Step 4 — if logs show the app is fine but ELB still 5xx
+
+That means the ALB target group is misconfigured. Fix:
+
+- EB → `pmc-backend-prod` → **Configuration → Load balancer → Edit**
+- Scroll to **Processes** → `default` → **Edit**
+- Confirm:
+  - Port = **80**
+  - Protocol = HTTP
+  - Health check path = **/health**
+  - Matcher = **200**
+  - Healthy threshold = 2, Unhealthy threshold = 5, Interval = 15 s
+
+Save, then **Apply**. EB will update the ALB target group in ~1 min.
 
 ---
 
-## If ELB health still fails
+## Env vars checklist (must be set under EB → Environment properties)
 
-Check EB **Logs → Request Logs → Full logs**, then look at:
-- `/var/log/eb-engine.log` for Docker build / run errors
-- `/var/log/eb-docker/containers/eb-current-app/*` for gunicorn stderr. 
-  Expected startup lines:
-  ```
-  [INFO] Starting gunicorn 23.x
-  [INFO] Listening at: http://0.0.0.0:80
-  [INFO] Booting worker with pid: ...
-  ```
-  If you don't see "Listening at: http://0.0.0.0:80", something's wrong
-  with the env — most commonly `MONGO_URL` not set, which causes gunicorn
-  workers to crash on import.
-
-### Env var checklist on EB console
-Required under **Configuration → Updates, monitoring, and logging →
-Environment properties**:
-- `MONGO_URL` (full MongoDB connection string)
-- `DB_NAME` (e.g. `pmc_v2`)
-- `JWT_SECRET`
-- `STRIPE_API_KEY`
-- `STRIPE_WEBHOOK_SECRET`
-- `LLM_API_KEY`
-- `RESEND_API_KEY`
-- `LOCAL_DEV=0`
+| Variable | Required | Notes |
+|---|---|---|
+| `MONGO_URL` | **yes** | Full mongodb+srv:// string. If missing, every DB request 500s. |
+| `DB_NAME` | **yes** | e.g. `pmc_v2` |
+| `JWT_SECRET` | **yes** | long random string |
+| `STRIPE_API_KEY` | prod-only | required for EMD + billing |
+| `STRIPE_WEBHOOK_SECRET` | prod-only | required for live Stripe events |
+| `LLM_API_KEY` | optional | Emergent universal key |
+| `RESEND_API_KEY` | optional | emails |
+| `LOCAL_DEV` | **set to `0`** | production flag |
+| `FRONTEND_URL` | yes | your prod frontend origin for CORS |
+| `CORS_ORIGINS` | yes | comma-separated origins |
 
 ---
 
-## v52cq app-level features (unchanged across revs)
+## Why this will finally go green
 
-- **"Preview as bidder ↗"** amber button on every draft notice (admin console).
-- **Create Notice from Tender Builder** carries country / budget / currency / EMD; drops submission deadline; shows amber "Documents from the linked tender" panel; primary document now optional.
-- **"Sometimes 422"** when saving tenders fixed (SectionBlock + TenderTemplateIn relaxed).
-- Public /tenders cards show **EMD + Country**.
-- Carried from v52cm/cn/co: full 158k UNSPSC + 250 countries + 150k cities + country licenses masters, Section D UNSPSC multi-picker, KZ licence block gated, Masters → Country Licenses CRUD, Masters → Geography viewer with license coverage overlay.
+- Rev 4 crashes loudly on bad imports so a hidden Python error can't
+  silently keep returning 5xx.
+- Rev 4 dumps missing env vars at boot so you can diagnose config gaps.
+- The Rebuild environment step kills stale instances so the "exact 50 %"
+  mixed-fleet pattern disappears for good.

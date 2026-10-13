@@ -75,14 +75,26 @@ async def _bootstrap_masters():
     healthchecks to time out and roll the deploy back.
     """
     import asyncio
+    import os
+
+    # v52cq rev 4 — dump env var NAMES (not values) so EB container logs
+    # confirm which secrets reached the container at boot. Essential for
+    # diagnosing "50% 5xx" on EB.
+    if os.environ.get("PMC_LOG_ENV_KEYS_ON_BOOT") == "1":
+        want = ["MONGO_URL", "DB_NAME", "JWT_SECRET", "STRIPE_API_KEY",
+                "STRIPE_WEBHOOK_SECRET", "LLM_API_KEY", "RESEND_API_KEY",
+                "LOCAL_DEV", "FRONTEND_URL", "CORS_ORIGINS"]
+        set_keys = [k for k in want if os.environ.get(k)]
+        missing = [k for k in want if not os.environ.get(k)]
+        print(f"[bootstrap-env] set: {set_keys}")
+        if missing:
+            print(f"[bootstrap-env] MISSING (expected): {missing}")
 
     async def _run():
         try:
             from scripts.seed_masters import seed_unspsc, seed_geography, seed_country_licenses, DATA_DIR
             import os as _os
             from db import db as _db
-            # seed_* are synchronous (PyMongo) — hop them to a thread so we
-            # don't block the running event loop while they churn.
             loop = asyncio.get_running_loop()
             if await _db.masters_unspsc.estimated_document_count() == 0:
                 sqlite_src = _os.path.join(DATA_DIR, "unspsc_v26.sqlite")
@@ -101,8 +113,6 @@ async def _bootstrap_masters():
         except Exception as e:
             print(f"[bg-bootstrap] masters bootstrap WARN: {e}")
 
-    # Skip the long bootstrap entirely under pytest.
-    import os
     if os.environ.get("PMC_SKIP_BOOTSTRAP") == "1":
         return
     asyncio.create_task(_run())
