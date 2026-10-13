@@ -90,7 +90,11 @@ async def upload_registration_doc(registration_id: str, slot: str,
                                     file: UploadFile = File(...),
                                     token: str = Form(...)):
     """PUBLIC (token-authed) — upload a document into a specific slot on this registration."""
-    if slot not in DOC_SLOTS:
+    # v52cn — in addition to the fixed DOC_SLOTS catalogue the frontend also
+    # generates dynamic slots for country-specific licenses discovered from
+    # the Country Licenses master, keyed as `country_license_{CC}_{code}`
+    # (e.g. country_license_IN_gst). Allow those through.
+    if slot not in DOC_SLOTS and not slot.startswith("country_license_"):
         raise HTTPException(status_code=400, detail=f"Unknown slot '{slot}'")
     try:
         reg_obj_id = ObjectId(registration_id)

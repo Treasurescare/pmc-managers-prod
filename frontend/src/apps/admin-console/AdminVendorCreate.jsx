@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { publicApi, vendorInviteApi, registrationApi, formatApiError, showApiError} from "@/lib/api";
+import { publicApi, vendorInviteApi, registrationApi, mastersGeoApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import TopBar from "@/apps/shared/TopBar";
 import SectionA from "@/apps/registration-portal/sections/SectionA";
@@ -36,7 +36,16 @@ export default function AdminVendorCreate() {
 
   useEffect(() => {
     document.title = "New vendor · Admin";
-    publicApi.countries().then(setCountries).catch(() => {});
+    // v52cn — pull the full 250-country master so Section A's country
+    // dropdown and SectionD's cascading geo editor share one source of truth.
+    mastersGeoApi.countries()
+      .then((rows) => setCountries(Array.isArray(rows) && rows.length ? rows : null))
+      .catch(() => null)
+      .then((rows) => {
+        if (rows) return rows;
+        return publicApi.countries().catch(() => []);
+      })
+      .then((rows) => setCountries(Array.isArray(rows) ? rows : []));
   }, []);
 
   const update = (patch) => setReg((prev) => {

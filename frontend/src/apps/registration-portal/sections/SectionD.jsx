@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Field, Input } from "./FormPrimitives";
 import { DocSlotsBlock } from "./DocSlot";
 import { useI18n } from "@/context/I18nContext";
-import { mastersApi, publicApi, api } from "@/lib/api";
+import { mastersApi, publicApi, mastersGeoApi, api } from "@/lib/api";
 import RegionOfficeEditor from "./RegionOfficeEditor";
+import CountryLicenseSlots from "./CountryLicenseSlots";
 
 /**
  * v50y — Section D with a real multi-select "Business verticals"
@@ -151,6 +152,14 @@ export default function SectionD({ reg, update, kzMeta, regId, token, onDocChang
           })}
         </div>
       </Field>
+
+      {/* v52cn — Country-specific license requirements. Pulled from the
+          Country Licenses master based on the main country + every office
+          country added above. Admin can edit the master from
+          Masters → Country Licenses. */}
+      <CountryLicenseSlots
+        reg={reg} regId={regId} token={token}
+        ensureDraft={ensureDraft} onDocChange={onDocChange} />
       <Field label={t("section_d.iso_certifications")}>
         <Input testId="f-iso" value={reg.iso_certifications || ""} onChange={(e) => update({ iso_certifications: e.target.value })} />
       </Field>

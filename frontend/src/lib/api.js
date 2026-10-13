@@ -943,10 +943,47 @@ export const feeBillingApi = {
 };
 
 // ---------- Wave 40: UNSPSC taxonomy ----------
+// v52cn — `search` now hits the full 150k UNSPSC codeset exposed by
+// masters_v2 (`/api/v1/masters/unspsc/public/search`) instead of the old
+// curated 87-node taxonomy. Response is normalised to the shape the picker
+// expects: { items: [{ code, title, level }] }. A silent fallback to the
+// legacy taxonomy keeps the picker usable even if masters is empty.
 export const taxonomyApi = {
   tree: () => api.get("/api/v1/taxonomy/tree").then((r) => r.data),
-  search: (q) => api.get("/api/v1/taxonomy/search", { params: { q } }).then((r) => r.data),
+  search: async (q) => {
+    try {
+      const r = await api.get("/api/v1/masters/unspsc/public/search", {
+        params: { q, limit: 30 },
+      });
+      const rows = Array.isArray(r.data) ? r.data : [];
+      if (rows.length) {
+        return { items: rows.map((x) => ({ code: x.code, title: x.title_en, level: "commodity" })) };
+      }
+    } catch { /* fall through */ }
+    try {
+      const r = await api.get("/api/v1/taxonomy/search", { params: { q } });
+      return r.data || { items: [] };
+    } catch { return { items: [] }; }
+  },
   lookup: (code) => api.get(`/api/v1/taxonomy/lookup/${code}`).then((r) => r.data),
+};
+
+// ---------- v52cn — Masters v2: geography + country licenses ----------
+export const mastersGeoApi = {
+  countries: () => api.get("/api/v1/masters/countries").then((r) => r.data),
+  states: (cc) =>
+    api.get("/api/v1/masters/states", { params: { country_code: cc } }).then((r) => r.data),
+  cities: (cc, state_code, q, limit = 100) =>
+    api.get("/api/v1/masters/cities", {
+      params: { country_code: cc, state_code: state_code || undefined,
+                q: q || undefined, limit },
+    }).then((r) => r.data),
+  getCountryLicenses: (cc) =>
+    api.get(`/api/v1/masters/country-licenses/${cc}`).then((r) => r.data),
+  listCountryLicenses: () =>
+    api.get("/api/v1/masters/country-licenses").then((r) => r.data),
+  putCountryLicenses: (cc, licenses) =>
+    api.put(`/api/v1/masters/country-licenses/${cc}`, { licenses }).then((r) => r.data),
 };
 
 // ---------- G4 Rebuild: Stakeholder Reports (v50m — bug #45) ----------

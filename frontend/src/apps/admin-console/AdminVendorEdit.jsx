@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { publicApi, vendorInviteApi, showApiError } from "@/lib/api";
+import { publicApi, vendorInviteApi, mastersGeoApi, showApiError } from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import TopBar from "@/apps/shared/TopBar";
 import SectionA from "@/apps/registration-portal/sections/SectionA";
@@ -36,7 +36,14 @@ export default function AdminVendorEdit() {
 
   useEffect(() => {
     document.title = `Edit vendor · ${vendor_ref}`;
-    publicApi.countries().then(setCountries).catch(() => {});
+    // v52cn — prefer the full 250-country master; fall back to meta if empty.
+    mastersGeoApi.countries()
+      .then((rows) => {
+        if (Array.isArray(rows) && rows.length) { setCountries(rows); return null; }
+        return publicApi.countries().catch(() => []);
+      })
+      .then((rows) => rows && setCountries(Array.isArray(rows) ? rows : []))
+      .catch(() => {});
     vendorInviteApi.getFull(vendor_ref)
       .then((v) => {
         setVendor(v);
