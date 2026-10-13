@@ -1,5 +1,19 @@
 # PMC Managers v2 — PRD (last touched 12 Oct 2026)
 
+## v52cq — "Preview as bidder" for drafts + release bundles (13 Oct 2026)
+
+- Admin → Notices: draft rows get a new amber **"Preview as bidder ↗"**
+  button opening `/notices/{ref}?preview=1` which fetches via
+  `GET /api/v1/notices/{ref}/admin` and renders a "DRAFT PREVIEW" banner.
+  Published rows keep the original "Preview ↗" behaviour.
+- Backend: no new endpoints — reuses the existing `/notices/{ref}/admin`.
+- Downloadable release bundles produced:
+  - `/downloads/pmc-backend-v52cq.zip` (~20 MB)
+  - `/downloads/pmc-frontend-v52cq-prod-build.zip` (~3 MB)
+  - `/downloads/DOWNLOAD_v52cq.md` (release notes + AWS deploy steps)
+
+
+
 ## v52cp iteration-60 verdict (13 Oct 2026)
 - Testing agent iteration 60: **15/15 backend pytest** + **100% frontend acceptance**.
 - Verified end-to-end via live preview:

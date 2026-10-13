@@ -729,11 +729,16 @@ export default function NoticesPanel() {
                   className="text-[10px] uppercase tracking-widest px-2 py-1 border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white">
                   {n.is_published ? "Edit ▸ Corrigendum" : "Edit"}
                 </button>
-                <a href={`/notices/${n.notice_ref}`} target="_blank" rel="noreferrer"
+                <a href={`/notices/${n.notice_ref}${n.is_published ? "" : "?preview=1"}`} target="_blank" rel="noreferrer"
                    data-testid={`notice-preview-${n.notice_ref}`}
-                   title="Open the public notice page in a new tab — exactly what bidders see"
-                   className="text-[10px] uppercase tracking-widest px-2 py-1 border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white">
-                  Preview ↗
+                   title={n.is_published
+                     ? "Open the public notice page in a new tab — exactly what bidders see"
+                     : "Preview as bidder — opens the vendor-side notice page for this unpublished draft"}
+                   className={"text-[10px] uppercase tracking-widest px-2 py-1 border " +
+                     (n.is_published
+                       ? "border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white"
+                       : "border-amber-600 text-amber-900 bg-amber-50 hover:bg-amber-600 hover:text-white")}>
+                  {n.is_published ? "Preview ↗" : "Preview as bidder ↗"}
                 </a>
               </div>
             </div>

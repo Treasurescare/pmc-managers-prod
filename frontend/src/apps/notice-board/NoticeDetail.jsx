@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
-import { publicApi, formatApiError, showApiError} from "@/lib/api";
+import { Link, useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { publicApi, adminApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import { useUiTheme } from "@/context/UiThemeContext";
 import TopBar from "@/apps/shared/TopBar";
@@ -23,6 +23,11 @@ export default function NoticeDetail() {
   const { t } = useI18n();
   const { isE } = useUiTheme();
   const { noticeRef } = useParams();
+  const [searchParams] = useSearchParams();
+  // v52cq — "Preview as bidder" from the admin draft list drops users here
+  // with ?preview=1. We then fetch via adminApi (works for unpublished
+  // drafts too) and render a banner so the admin knows this is not yet live.
+  const previewMode = searchParams.get("preview") === "1";
   const navigate = useNavigate();
   const [notice, setNotice] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -30,16 +35,19 @@ export default function NoticeDetail() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    publicApi.getNotice(noticeRef)
+    const fetcher = previewMode
+      ? adminApi.getNoticeAdmin(noticeRef)
+      : publicApi.getNotice(noticeRef);
+    fetcher
       .then((n) => !cancelled && setNotice(n))
       .catch((e) => {
         if (cancelled) return;
         showApiError(e);
-        setTimeout(() => navigate("/notices"), 1200);
+        setTimeout(() => navigate(previewMode ? "/admin?tab=notices" : "/notices"), 1200);
       })
       .finally(() => !cancelled && setLoading(false));
     return () => { cancelled = true; };
-  }, [noticeRef, navigate]);
+  }, [noticeRef, navigate, previewMode]);
 
   useEffect(() => {
     if (notice) document.title = `${notice.title} — PMC Managers`;
@@ -74,6 +82,26 @@ export default function NoticeDetail() {
               <span className="e-sep" aria-hidden="true">·</span>
               <span className="e-crumb-current" aria-current="page">{notice.notice_ref}</span>
             </nav>
+            {/* v52cq — admin draft preview banner so there is no doubt this
+                is not visible to real vendors yet. */}
+            {previewMode && (
+              <div className="mt-6 border-2 border-amber-500 bg-amber-50 px-4 py-3 flex flex-wrap items-center gap-3"
+                   data-testid="draft-preview-banner">
+                <span className="font-mono text-[10px] uppercase tracking-widest bg-amber-500 text-white px-2 py-1">
+                  DRAFT PREVIEW
+                </span>
+                <span className="text-sm text-amber-900 flex-1">
+                  Showing the <strong>bidder view</strong> of this unpublished notice.
+                  Vendors cannot see or bid on this yet — publish it from{" "}
+                  <Link to="/admin?tab=notices" className="underline hover:text-amber-700">Admin → Notices</Link>.
+                </span>
+                {notice.is_published === false && (
+                  <span className="text-[10px] uppercase tracking-widest border border-amber-700 text-amber-900 px-2 py-1">
+                    is_published = false
+                  </span>
+                )}
+              </div>
+            )}
             <div className="mt-6 flex flex-wrap items-center gap-2.5">
               <span className="font-mono text-xs tracking-[0.12em] text-brand-gold uppercase mr-1">
                 Notice {notice.notice_ref}
