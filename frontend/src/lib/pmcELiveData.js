@@ -1336,12 +1336,23 @@ export function useAdminBiddingOpsLive({ enabled = true, tick = 0 } = {}) {
           const isTest = !!(b.is_demo || _v.includes("test") || _t.startsWith("test") || (b.bid_ref || "").toLowerCase().includes("test"));
 
           let group, next, ownerIdx, dots;
-          if (supplierS.has(st)) {
+          const emdDueN = Number(b.emd_due_amount || b.emd_amount || 0);
+          if (supplierS.has(st) && emdDueN > 0) {
             group = "supplier";
             next = "Pay EMD";
             ownerIdx = 0;
             dots = ["n","","","","",""];
             flow.emd++;
+          } else if (supplierS.has(st)) {
+            // v52cs — zero-EMD bid: vendor finished all 5 wizard steps and
+            // there is nothing to pay, so the EMD stage is auto-cleared and
+            // the bid waits on the escrow agent to confirm receipt instead
+            // of showing "Supplier · Pay EMD" forever.
+            group = "pmc";
+            next = "Confirm receipt";
+            ownerIdx = 1;
+            dots = ["d","n","","","",""];
+            flow.escrow++;
           } else if (awardedS.has(st)) {
             group = "awarded";
             next = "Awarded";
@@ -1383,7 +1394,7 @@ export function useAdminBiddingOpsLive({ enabled = true, tick = 0 } = {}) {
           }
 
           // EMD line
-          const emdAmt = Number(b.emd_due_amount || b.emd_amount || 0);
+          const emdAmt = emdDueN;
           const emdCur = b.emd_currency || b.price_currency || "USD";
           const emdPaid = b.emd_paid_at || b.emd_status === "paid" || st === "emd_paid" || (stageIndex[st] || 0) >= 2 || awardedS.has(st);
           let emdLine;
@@ -1425,7 +1436,7 @@ export function useAdminBiddingOpsLive({ enabled = true, tick = 0 } = {}) {
           const notice = b.notice_ref || "—";
 
           rows.push(
-            `<tr class="bo-r${isTest ? " is-test" : ""}" data-g="${group}" data-test="${isTest ? 1 : 0}" data-ref="${ref}" data-bid-id="${b.id || ""}" data-row="1" data-status="${(b.status || "").toLowerCase()}" data-created-at="${(b.received_at || b.submitted_at || b.created_at || "").slice(0, 10)}" data-creator="${(b.vendor_email || b.company_name || "").toLowerCase()}">` +
+            `<tr class="bo-r${isTest ? " is-test" : ""}" data-g="${group}" data-test="${isTest ? 1 : 0}" data-ref="${ref}" data-bid-id="${b.id || ""}" data-row="1" data-status="${(b.status || "").toLowerCase()}" data-emd="${emdDueN > 0 ? 1 : 0}" data-created-at="${(b.received_at || b.submitted_at || b.created_at || "").slice(0, 10)}" data-creator="${(b.vendor_email || b.company_name || "").toLowerCase()}">` +
             `<td style="width:34px"><input type="checkbox" class="chk" ${disabledAttr} aria-label="Select ${ref}"/></td>` +
             `<td><div class="bo-ref">${ref}${isTest ? '<span class="bo-test">Test</span>' : ""}</div><div class="bo-t">${title}</div><div class="bo-sub">${notice} · ${vendor}</div></td>` +
             `<td class="num"><b>${priceStr}</b>${anomHtml}<div class="bo-emd">${emdLine}</div></td>` +
@@ -1742,7 +1753,9 @@ export function useAdminDashboardLive({ enabled = true } = {}) {
         // v49t — "bids awaiting EMD" = every bid whose next action sits
         // with the supplier (payment pending). Prior filter missed
         // `on_hold` and blank statuses.
-        const emdWaiting = bidItems.filter((b) => !b.status || ["emd_pending", "submitted"].includes(b.status)).length;
+        // v52cs — zero-EMD bids are NOT waiting on the supplier for payment.
+        const emdWaiting = bidItems.filter((b) => (!b.status || ["emd_pending", "submitted"].includes(b.status))
+          && Number(b.emd_due_amount || b.emd_amount || 0) > 0).length;
         const attn = (k) => document.querySelector(`[data-pmc-e-page="admin-dashboard-e"] [data-attn="${k}"]`);
         if (attn("closing")) attn("closing").textContent = String(closingThisWeek).padStart(2, "0");
         if (attn("approvals")) attn("approvals").textContent = String(draft).padStart(2, "0");
@@ -1755,18 +1768,21 @@ export function useAdminDashboardLive({ enabled = true } = {}) {
             .filter((b) => !["awarded","closed","rejected","withdrawn"].includes(b.status))
             .sort((a, b2) => new Date(a.updated_at || a.created_at || 0) - new Date(b2.updated_at || b2.created_at || 0))
             .slice(0, 5);
-          const statusPill = (st) => {
-            const warn = st === "emd_pending" || st === "submitted";
-            const label = { emd_pending: "Awaiting EMD", submitted: "Awaiting EMD", emd_paid: "EMD paid",
+          const statusPill = (b) => {
+            const st = b.status;
+            const zeroEmd = Number(b.emd_due_amount || b.emd_amount || 0) <= 0;
+            const warn = (st === "emd_pending" || st === "submitted") && !zeroEmd;
+            const baseLabel = { emd_pending: "Awaiting EMD", submitted: "Awaiting EMD", emd_paid: "EMD paid",
               escrow_accepted: "Escrow accepted", admin_flagged: "Admin flagged", certifier_cleared: "Certifier cleared",
               legal_cleared: "Legal cleared", accounting_cleared: "Accounts cleared", on_hold: "On hold" }[st] || st;
+            const label = zeroEmd && (st === "emd_pending" || st === "submitted") ? "No EMD · awaiting escrow" : baseLabel;
             return `<span class="pmc-pill pmc-pill--${warn ? "warning" : "info"}">${label}</span>`;
           };
           bidsBody.innerHTML = inFlight.length
             ? inFlight.map((b) => {
                 const price = b.price_amount != null ? `${b.price_currency || "USD"} ${Number(b.price_amount).toLocaleString()}` : "—";
                 const next = (b.active_step && b.active_step.label) || "—";
-                return `<tr data-testid="dash-bid-row"><td><div style="font-weight:600">${b.notice_title || b.title || "(Untitled bid)"}</div><div style="font-size:12px;color:var(--ink-muted)"><span class="pmc-ref">${b.bid_ref || "—"}</span> · ${b.vendor_ref || b.company_name || "—"}</div></td><td class="num" style="font-weight:600">${price}</td><td>${statusPill(b.status)}</td><td class="pmc-next-owner">${next}</td><td style="text-align:right;width:40px"><a href="/admin/e/bidding" aria-label="Open in bidding ops"><svg class="pmc-ico" aria-hidden="true"><use href="#i-arrow" /></svg></a></td></tr>`;
+                return `<tr data-testid="dash-bid-row"><td><div style="font-weight:600">${b.notice_title || b.title || "(Untitled bid)"}</div><div style="font-size:12px;color:var(--ink-muted)"><span class="pmc-ref">${b.bid_ref || "—"}</span> · ${b.vendor_ref || b.company_name || "—"}</div></td><td class="num" style="font-weight:600">${price}</td><td>${statusPill(b)}</td><td class="pmc-next-owner">${next}</td><td style="text-align:right;width:40px"><a href="/admin/e/bidding" aria-label="Open in bidding ops"><svg class="pmc-ico" aria-hidden="true"><use href="#i-arrow" /></svg></a></td></tr>`;
               }).join("")
             : `<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--ink-muted)">No bids waiting on a step right now.</td></tr>`;
         }

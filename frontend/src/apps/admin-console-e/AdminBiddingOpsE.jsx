@@ -64,9 +64,21 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
       // Now show/hide rows according to the active tab.
       let visible = 0;
       allRows.forEach((r) => {
+        // v52cs — zero-EMD bids sit at the Escrow step (nothing for the
+        // supplier to pay), so they must not match the EMD flow filter and
+        // must match the Escrow filter instead.
+        const rowSt = (r.dataset.status || "").toLowerCase();
+        const zeroEmd = r.dataset.emd === "0";
+        let flowOk = true;
+        if (flowStatuses) {
+          flowOk = flowStatuses.includes(rowSt);
+          if (zeroEmd && ["emd_pending", "submitted"].includes(rowSt)) {
+            flowOk = flowFilter === "escrow";
+          }
+        }
         const ok = (tab === "all" || r.dataset.g === tab) && !(hide && r.dataset.test === "1")
           && (!q || r.textContent.toLowerCase().includes(q))
-          && (!flowStatuses || flowStatuses.includes((r.dataset.status || "").toLowerCase()));
+          && flowOk;
         r.hidden = !ok;
         if (ok) visible++;
       });
@@ -110,7 +122,10 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
       if (!b) return;
       const st = b.status || "submitted";
       const awarded = ["awarded", "closed"].includes(st);
-      const supplier = ["emd_pending", "submitted"].includes(st);
+      // v52cs — a zero-EMD bid is never "waiting on the supplier" for a
+      // payment; it is auto-cleared past the EMD step to Escrow.
+      const emdDueN = Number(b.emd_due_amount || b.emd_amount || 0);
+      const supplier = ["emd_pending", "submitted"].includes(st) && emdDueN > 0;
       const idx = awarded ? 7 : supplier ? 0 : (stageIndexMap[st] || 1);
       const refEl = root.querySelector('#d-ref'); if (refEl) refEl.textContent = b.bid_ref || "—";
       const tEl = root.querySelector('#d-t'); if (tEl) tEl.textContent = b.notice_title || b.title || "(Untitled bid)";

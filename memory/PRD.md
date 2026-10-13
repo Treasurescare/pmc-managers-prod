@@ -1,5 +1,33 @@
 # PMC Managers v2 — PRD (last touched 12 Oct 2026)
 
+## v52cs — zero-EMD bids no longer stuck at "Supplier · Pay EMD" (13 Oct 2026)
+
+Production incident: bid PMC-BID-2026-00047 — vendor finished all 5 wizard
+steps (notice had EMD = 0), backend stored status="submitted", but the
+admin Bidding-ops pipeline rendered it as "Step 1/6 · Supplier · Pay EMD ·
+Waiting" forever and the escrow-agent transition could never fire (it
+required prev_status="emd_paid", impossible when EMD is 0).
+
+Fixes:
+- `routers/bids.py::decide_bid` — escrow_agent accept now allowed from
+  "submitted"/"emd_pending" when `emd_due_amount <= 0`. Guard preserved
+  for EMD-due bids (tested: still 400).
+- `pmcELiveData.js` Bidding-ops bucketing — zero-EMD submitted bids bucket
+  to PMC side at Escrow stage ("Confirm receipt", Step 2/6) instead of
+  supplier/"Pay EMD"; rows carry `data-emd` for the flow filter.
+- `pmcELiveData.js` dashboard — zero-EMD bids no longer counted as
+  "awaiting EMD"; pill reads "No EMD · awaiting escrow".
+- `AdminBiddingOpsE.jsx` — detail panel `supplier` flag and the EMD/Escrow
+  flow-step filter now respect zero-EMD bids.
+- Regression: `tests/test_v52cs_zero_emd_pipeline.py` (2 cases, live API +
+  direct Mongo fixture insert/cleanup).
+
+Existing stuck bids (e.g. PMC-BID-2026-00047) self-heal on next page load
+— no data migration needed; the escrow agent simply accepts to advance.
+
+---
+
+
 ## v52cq deployment confirmed green on AWS Elastic Beanstalk (13 Oct 2026)
 
 User confirmed: **"working now"** on AWS Elastic Beanstalk Docker AL2023 (`pmc-backend-prod`).

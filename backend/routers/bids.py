@@ -655,6 +655,16 @@ async def decide_bid(bid_id: str, payload: BidDecisionIn,
     else:
         expected, next_status = _ROLE_TO_TARGET_STATUS.get(payload.role, (None, None))
 
+        # v52cs — zero-EMD bids never pass through "emd_paid" (there is
+        # nothing to pay), so the fixed pipeline could never advance them
+        # and the bid sat at "Supplier · Pay EMD" forever while the vendor
+        # had already finished all 5 steps. Allow the escrow agent to
+        # accept straight from "submitted"/"emd_pending" when no EMD is due.
+        if (payload.role == "escrow_agent" and payload.action == "accept"
+                and float(b.get("emd_due_amount") or 0) <= 0
+                and prev_status in ("submitted", "emd_pending")):
+            expected = prev_status
+
         # Matrix override on accept: matrix ordering supersedes the fixed pipeline.
         if payload.action == "accept":
             matrix_next, matrix_used = await resolve_matrix_next_status(b, payload.role)
