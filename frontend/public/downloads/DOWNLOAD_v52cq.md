@@ -1,4 +1,72 @@
 # PMC Managers · v52cq Release Notes (rev 4 — crash-fast + log diagnostics)
+## v52cq rev 6 — SSM Parameter Store loader (13 Oct 2026)
+
+EB's 4,096-byte plaintext env cap cannot hold this app's secret set
+(DOCUSIGN_PRIVATE_KEY_B64 alone is ~1.6 KB). `config.py` now loads secrets
+from AWS SSM Parameter Store at boot when `PMC_SSM_PREFIX` is set:
+
+- Fetches every parameter under the prefix (recursive, WithDecryption).
+- Injects them into the process env; **existing EB env vars always win**.
+- Requires only `boto3` (already in requirements) and the EB instance role.
+
+### Setup (one-time, ~10 min)
+
+1. **Systems Manager → Parameter Store → Create parameter**, one per big
+   secret, Type = **SecureString**, Tier = Standard (free ≤ 4 KB each):
+   ```
+   /pmc/prod/DOCUSIGN_PRIVATE_KEY_B64
+   /pmc/prod/DOCUSIGN_CONNECT_HMAC_SECRET
+   /pmc/prod/VAPID_PRIVATE_KEY
+   /pmc/prod/VAPID_PUBLIC_KEY
+   /pmc/prod/ZOOM_ACCOUNT_ID
+   /pmc/prod/ZOOM_CLIENT_ID
+   /pmc/prod/ZOOM_CLIENT_SECRET
+   /pmc/prod/STRIPE_API_KEY
+   /pmc/prod/STRIPE_WEBHOOK_SECRET
+   /pmc/prod/EMERGENT_EMAIL_KEY
+   /pmc/prod/EMERGENT_LLM_KEY
+   /pmc/prod/RESEND_API_KEY
+   /pmc/prod/MONGO_URL
+   /pmc/prod/JWT_SECRET
+   /pmc/prod/PMC_SEED_PASSWORDS      ← all 7 seed passwords in one string
+   ```
+2. **IAM → Roles → aws-elasticbeanstalk-ec2-role → Add permissions →
+   Create inline policy**:
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [{
+       "Effect": "Allow",
+       "Action": ["ssm:GetParameter", "ssm:GetParameters", "ssm:GetParametersByPath"],
+       "Resource": "arn:aws:ssm:eu-west-2:637423434072:parameter/pmc/prod/*"
+     }]
+   }
+   ```
+3. **EB env properties** — delete everything you moved to SSM and keep only
+   these small ones inline (well under 4 KB):
+   ```
+   PMC_SSM_PREFIX   = /pmc/prod
+   LOCAL_DEV        = 0
+   DB_NAME          = pmc_tender_db
+   FRONTEND_URL     = https://www.pmcmanagers.com
+   CORS_ORIGINS     = https://www.pmcmanagers.com,https://pmcmanagers.com
+   EMAIL_FROM_ADDRESS, EMAIL_FROM_NAME, STRIPE_TAX_MODE, DOCUSIGN_ENV,
+   DOCUSIGN_AUTH_HOST, DOCUSIGN_BASE_URI, DOCUSIGN_ACCOUNT_ID,
+   DOCUSIGN_USER_ID, DOCUSIGN_INTEGRATION_KEY, OWNER_EMAIL, VAPID_CLAIM_EMAIL
+   ```
+   Also delete the duplicate individual `ADMIN_PASSWORD` / `OWNER_PASSWORD`
+   keys — the `PMC_SEED_PASSWORDS` blob covers them.
+4. Save (fits now) → Apply → **Upload and deploy the rev-6 zip**.
+
+Boot log confirms success:
+`[PMC-SSM] loaded 15 params from /pmc/prod: [...]`
+
+If IAM permissions are missing you'll see `[PMC-SSM] ... fetch failed
+(UnauthorizedOperation)` and the app falls back to env properties only.
+
+---
+
+
 ## v52cq rev 5 — EB 4,096-byte env-properties cap workaround (13 Oct 2026)
 
 EB refused to save the 7 individual seed-password env keys (4,185 / 4,096

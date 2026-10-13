@@ -8,6 +8,45 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
 
+def _load_ssm_parameters() -> None:
+    """v52cq rev 6 — AWS EB caps plaintext environment properties at 4,096
+    bytes, which is not enough for this app's full secret set. Operators can
+    instead store parameters under an SSM Parameter Store path (or Secrets
+    Manager via SSM references) and set PMC_SSM_PREFIX=/pmc/prod. On boot we
+    pull every parameter under that prefix (WithDecryption) and inject them
+    into os.environ. Existing EB-side env vars always win — we never
+    override a value that is already set."""
+    prefix = os.environ.get("PMC_SSM_PREFIX", "").strip()
+    if not prefix:
+        return
+    try:
+        import boto3
+        region = (os.environ.get("AWS_REGION")
+                  or os.environ.get("AWS_DEFAULT_REGION") or "eu-west-2")
+        client = boto3.client("ssm", region_name=region)
+        injected, token = [], None
+        while True:
+            kwargs = dict(Path=prefix, Recursive=True, WithDecryption=True)
+            if token:
+                kwargs["NextToken"] = token
+            resp = client.get_parameters_by_path(**kwargs)
+            for p in resp.get("Parameters", []):
+                name = p["Name"].rsplit("/", 1)[-1]
+                if name and not os.environ.get(name):
+                    os.environ[name] = p.get("Value", "")
+                    injected.append(name)
+            token = resp.get("NextToken")
+            if not token:
+                break
+        logging.info(f"[PMC-SSM] loaded {len(injected)} params from {prefix}: {sorted(injected)}")
+    except Exception as e:
+        logging.warning(f"[PMC-SSM] prefix={prefix!r} fetch failed ({e}); "
+                        "falling back to EB environment properties only")
+
+
+_load_ssm_parameters()
+
+
 def _require_env(name: str) -> str:
     """Fetch a required env var. On failure, log a big obvious error to stdout
     (so it lands in `eb logs`/`docker logs`) and exit(1) instead of raising an

@@ -1,5 +1,20 @@
 # PMC Managers v2 — PRD (last touched 12 Oct 2026)
 
+## v52cq rev 6 — SSM Parameter Store support (13 Oct 2026)
+
+User's EB env-properties screenshot showed 4,286/4,096 bytes: big secrets
+(DOCUSIGN_PRIVATE_KEY_B64 ~1.6 KB, VAPID keys, ZOOM ×3, Stripe ×2,
+MONGO_URL, JWT_SECRET, PMC_SEED_PASSWORDS blob) cannot fit the plaintext
+cap. Added `_load_ssm_parameters()` at the top of config.py: when
+`PMC_SSM_PREFIX` is set (e.g. `/pmc/prod`), all parameters under that path
+are fetched (WithDecryption, recursive) and injected into os.environ —
+existing EB env vars take priority. boto3 already in requirements.
+Verified via stubbed-boto3 unit test (injection + no-override + blob
+parsing through SSM). Requires an inline IAM policy granting
+ssm:GetParameter(s)(ByPath) on the prefix to the EB EC2 role
+(aws-elasticbeanstalk-ec2-role). Full step-by-step in DOWNLOAD_v52cq.md.
+
+
 ## v52cq rev 5 — consolidated PMC_SEED_PASSWORDS for EB byte cap (13 Oct 2026)
 
 User hit EB's 4,096-byte plaintext environment-properties limit when
