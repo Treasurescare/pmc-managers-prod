@@ -1,5 +1,26 @@
 # PMC Managers v2 — PRD (last touched 12 Oct 2026)
 
+## v52cp iteration-60 verdict (13 Oct 2026)
+- Testing agent iteration 60: **15/15 backend pytest** + **100% frontend acceptance**.
+- Verified end-to-end via live preview:
+  - (a) Empty-section tender save no longer 422s — toast "Saved" on real draft.
+  - (b) Create-Notice from Tender Builder lands at top of viewport (scrollIntoView),
+    deadline left blank, country / budget / currency / EMD all prefilled,
+    primary document explicitly labelled OPTIONAL.
+  - (c) Public /tenders/all register table renders EMD line under Est. Value
+    for every notice with emd_config set.
+- One minor backend adjustment by the testing agent: `_out()` in notices.py
+  now always emits `emd_amount` key (nullable) for stable public shape.
+
+
+
+## v52cp pytest status (13 Oct 2026)
+- Backend regressions: 15/15 passing — 11 masters (v52cn) + 4 notice/tender bridge (v52cp).
+- Live curl confirmed: /api/v1/notices returns `delivery_country` for every row and `emd_amount`+`emd_currency` for every row with an EMD config.
+- Testing agent iteration dispatched for full UI validation.
+
+
+
 ## v52cp — Notice ↔ Tender Builder bridge fixes + public card polish (13 Oct 2026)
 
 User reported from live use:

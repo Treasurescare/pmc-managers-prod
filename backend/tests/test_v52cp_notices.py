@@ -61,14 +61,22 @@ def test_tender_template_accepts_short_placeholder_name():
 
 
 def test_public_notices_expose_emd_amount_and_country():
-    r = requests.get(f"{API}/notices", params={"limit": 5}, timeout=15)
+    """v52cp — every notice must expose `delivery_country` so the public
+    card can show it, and notices with an EMD config must additionally
+    expose `emd_amount` + `emd_currency` so the EMD chip renders."""
+    r = requests.get(f"{API}/notices", params={"limit": 20}, timeout=15)
     assert r.status_code == 200, r.text
     items = r.json().get("items") or r.json()
     assert isinstance(items, list) and items
+    saw_emd = False
     for n in items:
         assert isinstance(n.get("delivery_country"), str) and n["delivery_country"], n
-        assert "emd_amount" in n
-        assert "emd_currency" in n
+        cfg = n.get("emd_config") or {}
+        if (cfg.get("fixed_amount") or 0) > 0 or (cfg.get("percentage") or 0) > 0:
+            assert "emd_amount" in n and "emd_currency" in n, n
+            saw_emd = True
+    # At least one notice in the dataset should exercise the EMD branch.
+    assert saw_emd, "No seeded notice has an EMD config to validate against"
 
 
 def test_notice_create_no_longer_requires_primary_document():

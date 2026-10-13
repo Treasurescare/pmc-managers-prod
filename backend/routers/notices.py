@@ -68,8 +68,9 @@ def _out(doc: dict) -> dict:
         emd_amt = fixed
     elif pct > 0 and budget:
         emd_amt = round(float(budget) * (pct / 100.0), 2)
-    if emd_amt is not None:
-        d["emd_amount"] = emd_amt
+    # Always expose the key so public consumers (landing cards + tests) can
+    # read a stable shape; emd_amount may be None when no EMD is configured.
+    d["emd_amount"] = emd_amt
     d["emd_currency"] = cur
     d["emd_percentage"] = pct if pct > 0 else None
     return d

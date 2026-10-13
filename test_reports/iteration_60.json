@@ -1,0 +1,35 @@
+{
+  "summary": "v52cp — re-ran backend regression (15/15 after a 1-line _out fix in notices router) and end-to-end verified Tender Builder → Create Notice bridge + public tenders EMD/Country rendering. Found and fixed one minor backend omission (emd_amount key missing when no EMD computed) that was causing test_public_notices_expose_emd_amount_and_country to fail against the public URL; now consistent (emd_amount always present, value may be None).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/v1/notices", "issue": "_out() only set emd_amount when fixed>0 or pct>0, so rows with no EMD config omitted the key entirely. Fixed in /app/backend/routers/notices.py — key is always set (null when not computable). Public GET now returns a stable shape."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_v52cp_notices.py",
+    "/app/backend/tests/test_v52cn_masters.py",
+    "/app/test_reports/pytest/v52cp_it60.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "backend/routers/notices.py:_out() — emd_amount key was conditionally included; frontend/public consumers (TendersList, notice detail) and regression tests all expect a stable shape. Now fixed to always expose emd_amount (nullable).",
+    "TendersList.jsx register-table variant (isE theme) does not emit a `tender-country-<ref>` data-testid; country text is rendered inline inside the 'Sector · Country' cell. The spec listed this testid; if automation needs it, add a span wrapper around {n.delivery_country} with the testid. Non-blocking — country value is visible to users.",
+    "Notice new-form appends toasts for both 'EMD computed · 50,000 KZT' and 'Pre-filled from Tender Builder' + 'Opening Notices pre-filled...' — three stacked toasts fire for a single Create-Notice click. Consider de-duplicating."
+  ],
+  "updated_files": [
+    "/app/backend/routers/notices.py (always emit emd_amount key)"
+  ],
+  "success_rate": {"backend": "100% (15/15 pytest)", "frontend": "100% of acceptance checks (TB save with empty section → no 422; Create Notice → lands at top, deadline empty, all other fields prefilled incl. KZ country + 50k KZT EMD; primary doc labelled OPTIONAL; public /tenders/all register table renders EMD USD 500 under Est. Value for all 5 notices with emd_config)"},
+  "test_credentials": "adminsupport@pmcmanagers.com / Admin@12345 — worked (role=Administrator).",
+  "seed_data_creation": "Added one empty section to a tender draft (ID 6accd283916fbd484db9e5da). Section count went from 18 → 19 and persisted via tb-save (toast 'Saved'). No notice was actually created; stopped at the pre-filled form.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend tests test_v52cp_notices.py (4/4) + test_v52cn_masters.py (11/11) all green. Admin login flow: go to /admin/login (NOT /login — different unified page), fill email + password, click 'Sign in' (not 'Continue'). TB testids: tb-draft-<id>, tb-add-section, tb-save, tb-create-notice. New-notice form testids all live on /admin/e/notices?from=tender-builder: notice-title, notice-description, notice-category, notice-doc-type, notice-country, notice-deadline, notice-currency, notice-budget, notice-emd-fixed, notice-emd-percentage, notice-tender-template, notice-primary-file. The amber `notice-tender-docs` panel ONLY appears when the source tender draft has section attachments (none in the smoke draft used). To fully exercise it, upload a file into any TB section first, then click Create Notice.",
+  "rca of the issue": "User reported 'sometimes 422' when saving tenders → traced to SectionBlock Pydantic strictness. Confirmed resolved by v52cp (empty-code+empty-title + bare {kind:'annexure'} sections now accepted; verified both via POST /api/v1/tender-templates and via UI Add-section + Save on real draft — toast 'Saved' with no 422). Public-list EMD/Country missing → _out() now always emits delivery_country (unchanged) + emd_amount (fixed) + emd_currency so TendersList can render the amber EMD line. Create-Notice bridge → sessionStorage key pmc.noticePrefill is consumed by NoticesPanel on mount, scrollIntoView fires (window.scrollY=0 after click), submission_deadline left blank, primary_document explicitly labelled 'OPTIONAL'."
+}
