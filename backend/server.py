@@ -62,6 +62,32 @@ async def _plain_health():
 app.include_router(meta.router)
 app.include_router(notices.router)
 app.include_router(registrations.router)
+from routers import masters_v2  # v52cm — new masters: UNSPSC, geography, country licenses
+app.include_router(masters_v2.router)
+
+@app.on_event("startup")
+async def _bootstrap_masters():
+    """v52cm — auto-seed UNSPSC + geography + country licenses on first boot."""
+    try:
+        from scripts.seed_masters import seed_unspsc, seed_geography, seed_country_licenses, DATA_DIR
+        import os as _os
+        from db import db as _db
+        if await _db.masters_unspsc.estimated_document_count() == 0:
+            sqlite_src = _os.path.join(DATA_DIR, "unspsc_v26.sqlite")
+            if _os.path.exists(sqlite_src):
+                n = seed_unspsc(_db.delegate, sqlite_src)
+                print(f"[startup] seeded masters_unspsc rows={n}")
+        if await _db.masters_countries.estimated_document_count() == 0:
+            geo_src = _os.path.join(DATA_DIR, "csc.json")
+            if _os.path.exists(geo_src):
+                stats = seed_geography(_db.delegate, geo_src)
+                print(f"[startup] seeded geography {stats}")
+        if await _db.masters_country_licenses.estimated_document_count() == 0:
+            print(f"[startup] seeded country licenses added={seed_country_licenses(_db.delegate)}")
+    except Exception as e:
+        print(f"[startup] masters bootstrap WARN: {e}")
+
+
 app.include_router(packages.router)
 app.include_router(admin_auth.router)
 app.include_router(profile_ops.router)

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Field, Input } from "./FormPrimitives";
 import { DocSlotsBlock } from "./DocSlot";
 import { useI18n } from "@/context/I18nContext";
-import { mastersApi, publicApi } from "@/lib/api";
+import { mastersApi, publicApi, api } from "@/lib/api";
 import RegionOfficeEditor from "./RegionOfficeEditor";
 
 /**
@@ -19,18 +19,12 @@ export default function SectionD({ reg, update, kzMeta, regId, token, onDocChang
 
   const [catalogue, setCatalogue] = useState([]);
   const [catQuery, setCatQuery] = useState("");
-  // v52ci — load the master country list for the per-office country dropdown.
+  // v52cm — load countries from the new masters endpoint (full 250, with
+  // postal_code_regex/format) instead of the legacy publicApi.countries() shortlist.
   const [countries, setCountries] = useState([]);
   useEffect(() => {
-    publicApi.countries()
-      .then((rows) => setCountries(
-        (Array.isArray(rows) ? rows : [])
-          .map((c) => ({
-            code: String(c.code || c.iso2 || c.value || "").toUpperCase(),
-            name: String(c.name || c.name_en || c.label || "").trim(),
-          }))
-          .filter((c) => c.code && c.code.length <= 3)
-      ))
+    api.get("/api/v1/masters/countries")
+      .then((r) => setCountries(Array.isArray(r.data) ? r.data : []))
       .catch(() => setCountries([]));
   }, []);
 

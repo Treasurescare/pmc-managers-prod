@@ -65,7 +65,9 @@ rows = [
     (84, "Registrations",         "create_draft disclosed existing applicant's magic_token when a known email was POSTed", "FIXED", "v52cj SEC-002 — existing-draft branch now returns generic {ok, message}; token is only emailed to the record's own address", "P1", "Yes"),
     (85, "Registrations",         "Public PATCH accepted arbitrary fields (status, vendor_ref, tenant_id, etc.)", "FIXED", "v52cj SEC-003 — RegistrationUpdateIn uses extra='forbid'; endpoint strips protected fields as DID; verified 422 on evilfield", "P1", "Yes"),
     (86, "Seed credentials",      "Default admin/staff passwords active on reachable envs (ENV!=production)", "FIXED", "v52cj SEC-004 — _seed_password only serves fallbacks when LOCAL_DEV=1; all other envs fail hard; CRITICAL log per account on dev fallback", "P1", "Yes"),
-    (87, "Payments (Stripe)",     "No visibility when webhook signing secret missing/rotated (silent 503s)", "FIXED", "v52ck — GET /billing/webhook-health + Billing-page health card (red/amber/green); webhook handlers log verified events", "P2", "Yes"),
+    (88, "Masters: Categories",    "No codes for renewable energies, biogas, solar — curated list too small", "FIXED", "v52cm — full UNSPSC v26.0801 (158,464 rows) imported into masters_unspsc; search supports procurement-term synonyms (biogas→methane/digester/anaerobic); solar power plants, PV inverters etc. now surface", "P1", "Yes"),
+    (89, "Masters: Geography",     "Operating regions need country→state→city→zip cascading dropdowns", "FIXED", "v52cm — dr5hn imported: 250 countries + 5,328 states + 152,021 cities; ZIP validated against per-country postal_code_regex; cascading Section D rewired", "P1", "Yes"),
+    (90, "Masters: Country licenses", "System should ask licenses per operating country; need master data", "FIXED", "v52cm — new masters_country_licenses with hand-curated seed for IN/KZ/AE/US/GB/SG; admin-editable; public GET for registration portal", "P1", "Yes"),
 ]
 
 for r in rows:

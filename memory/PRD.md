@@ -1,5 +1,38 @@
 # PMC Managers v2 — PRD (last touched 12 Oct 2026)
 
+## v52cm — Masters data pull: UNSPSC + geography + country licenses (12 Oct 2026)
+
+User Qs (a) + (b): categories master was missing solar/biogas; operating regions
+needed cascading country → state → city → zip dropdowns with license masters.
+
+- **UNSPSC v26.0801 (158,464 rows)** imported from codebysaadbouh/unspsc-fr GitHub
+  release into `masters_unspsc`. 4 levels, EN+FR titles, indexes on code/segment/
+  level + text index on titles. `GET /api/v1/masters/unspsc/{search,public/search}`.
+  Verified live: solar → 20 hits incl. 26131507 Solar power plants.
+- **Geography** imported from dr5hn countries-states-cities-database:
+  `masters_countries` 250 · `masters_states` 5,328 · `masters_cities` 152,021.
+  Countries ship `postal_code_regex` so ZIP stays validated text (no 10M-row dropdown).
+  `GET /api/v1/masters/{countries,states,cities}`.
+- **masters_country_licenses** seeded for IN, KZ, AE, US, GB, SG (hand curated,
+  admin editable via `PUT /api/v1/masters/country-licenses/{cc}`). Public GET for
+  the registration portal.
+- **Section D RegionOfficeEditor** rewired to cascading dropdowns: country →
+  state → city search-as-you-type → zip regex-validated. Legacy string entries
+  compatibility preserved.
+- **Startup auto-seed** (`server.py::_bootstrap_masters`) runs the three seeds
+  only when the collection is empty; production first boot ~90 s, subsequent
+  boots unaffected. Data files baked into backend archive at `backend/data/`
+  (unspsc 112 MB + csc 53 MB).
+
+### Bundles
+`pmc-backend-v52cm.zip` (~170 MB — includes master data), `pmc-frontend-v52cm-prod-build.zip`,
+`DOWNLOAD_v52cm.md`.
+
+---
+
+
+# PMC Managers v2 — PRD (last touched 12 Oct 2026)
+
 ## v52cl — Golden active sidebar tab (12 Oct 2026)
 
 User: "left side bar when I chose a particular tab I need it to be the golden colour".
