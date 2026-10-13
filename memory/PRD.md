@@ -1,5 +1,30 @@
 # PMC Managers v2 — PRD (last touched 12 Oct 2026)
 
+## v52cq rev 8 — REAL root cause found in EB logs (13 Oct 2026)
+
+User's log paste revealed two definitive issues:
+
+1. `/var/log/docker-events.log` showed EB AL2023 Docker platform executing
+   healthchecks against a compose project:
+   `com.docker.compose.project.config_files=/var/app/current/docker-compose.yml`
+   → **EB was using MY docker-compose.yml**, which mapped host `8080:80`.
+   Host port 80 had no listener → every ALB health check failed regardless
+   of gunicorn state. My earlier note "EB ignores docker-compose.yml" was
+   wrong for AL2023 (it runs Docker Compose natively). **Deleted
+   docker-compose.yml** so EB generates its own single-container definition
+   from the Dockerfile's `EXPOSE 80`.
+2. Healthcheck `exec_die ... exitCode=127` → `curl` missing in the
+   previously-running image (predates the Dockerfile). New image installs
+   curl; HEALTHCHECK retained.
+3. The 10:08 `ADMIN_PASSWORD` FATAL timestamps predate the user's 10:57 env
+   apply — stale loop, not current state. Required prod keys are now just
+   ADMIN_PASSWORD + OWNER_PASSWORD (staff fall back with a log line).
+
+Bundle rebuilt (rev 8): no docker-compose.yml, Dockerfile unchanged from
+the documented spec. pytest 15/15 green, /health 200 locally.
+
+
+
 ## v52cq rev 6 — SSM Parameter Store support (13 Oct 2026)
 
 User's EB env-properties screenshot showed 4,286/4,096 bytes: big secrets

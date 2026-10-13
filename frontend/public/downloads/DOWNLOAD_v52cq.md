@@ -1,4 +1,24 @@
 # PMC Managers · v52cq Release Notes (rev 4 — crash-fast + log diagnostics)
+## v52cq rev 8 — docker-compose.yml removed (the actual ELB killer)
+
+Production `docker-events.log` proved EB AL2023 Docker runs
+`/var/app/current/docker-compose.yml` when present. The old compose file
+mapped host `8080 → container 80`, so nothing listened on host port 80 and
+every ALB health check failed — independent of whether the app was up.
+
+Rev 8 bundle contains **no docker-compose.yml**. EB now generates its own
+container definition straight from the Dockerfile (`EXPOSE 80`, gunicorn
+bound to `0.0.0.0:80`). Also verified curl is installed in the image (the
+old image's healthchecks died with exitCode=127 = curl not found).
+
+Deploy order: upload rev-8 zip → wait for "Environment update completed"
+→ confirm `ADMIN_PASSWORD` and `OWNER_PASSWORD` are present in
+Configuration → Software → Environment properties (Apply if you edit)
+→ open https://api.YOUR-DOMAIN/health → expect {"ok":true,...}.
+
+---
+
+
 ## v52cq rev 6 — SSM Parameter Store loader (13 Oct 2026)
 
 EB's 4,096-byte plaintext env cap cannot hold this app's secret set
