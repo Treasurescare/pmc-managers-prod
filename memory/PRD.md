@@ -1,5 +1,16 @@
 # PMC Managers v2 — PRD (last touched 13 Oct 2026)
 
+## v52cv — production E-theme fixes (13 Oct 2026)
+
+Frontend-only hotfix bundle `pmc-frontend-v52cv-prod-build.zip`: (1) Tender
+Builder page mounts the real AdminAvatarMenu (avatar/sign-out were dead
+static placeholders); (2) EMD cell added to home cards + tenders list rows
+(`emdText()` in pmcELiveData.js, "No EMD" for zero-EMD); (3) Notice detail
+"Download pack" resolves a real URL — composed tender ZIP via
+`/api/v1/tender-templates/{id}/public/zip?notice_ref=…` or primary document,
+with a toast fallback when nothing is published. ZIP endpoint curl-verified
+200. Backend stays at v52cu.
+
 ## v52cu — publish → landing page instantly (13 Oct 2026)
 
 Public `GET /api/v1/notices` and `GET /api/v1/meta/public/stats` now return

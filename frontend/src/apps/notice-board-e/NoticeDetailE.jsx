@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { useNoticeDetailLive } from "@/lib/pmcELiveData";
 import useAuthSession from "@/lib/useAuthSession";
-import { adminApi, staffApi, vendorApi, corrigendaApi } from "@/lib/api";
+import { adminApi, staffApi, vendorApi, corrigendaApi, publicApi } from "@/lib/api";
 
 export default function NoticeDetailE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
@@ -24,6 +24,24 @@ export default function NoticeDetailE({ legacy: Legacy }) {
     corrigendaApi.listPublic(noticeRef)
       .then((r) => setCorrigenda(r.items || []))
       .catch(() => setCorrigenda([]));
+  }, [isE, noticeRef]);
+  // v52cv — resolve the Download pack URL from the live notice. The old
+  // template hard-wired the button to "#" (authed) / /register (anon), so
+  // it did nothing. Priority: composed Tender Builder ZIP (all annexures),
+  // then the primary uploaded document; "" means "no documents published".
+  const [packUrl, setPackUrl] = useState(null);
+  useEffect(() => {
+    if (!isE || !noticeRef) return;
+    publicApi.getNotice(noticeRef).then((n) => {
+      const base = process.env.REACT_APP_BACKEND_URL || "";
+      if (n?.tender_template_id) {
+        setPackUrl(`${base}/api/v1/tender-templates/${n.tender_template_id}/public/zip?notice_ref=${encodeURIComponent(noticeRef)}`);
+      } else if (n?.primary_document?.url) {
+        setPackUrl(`${base}${n.primary_document.url}`);
+      } else {
+        setPackUrl("");
+      }
+    }).catch(() => setPackUrl(""));
   }, [isE, noticeRef]);
   const signOut = async () => {
     try { await adminApi.logout(); } catch { /* ignore */ }
@@ -91,7 +109,16 @@ export default function NoticeDetailE({ legacy: Legacy }) {
       <h1 className="pmc-display" style={{ fontSize: "48px", lineHeight: "52px", margin: "0", maxWidth: "900px" }}>Turnkey IVF Laboratory Setup — Embryology Lab, Cryopreservation &amp; Cleanroom HVAC</h1></div>
     <div style={{ display: "flex", gap: "8px" }}>
       <button className="pmc-btn pmc-btn--onchrome"><svg className="pmc-ico" aria-hidden="true"><use href="#i-bell" /></svg> Follow</button>
-      <Link to={authed ? "#" : "/register"} className="pmc-btn pmc-btn--onchrome" data-testid="notice-download-pack"><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg> Download pack</Link>
+      {!authed ? (
+        <Link to="/register" className="pmc-btn pmc-btn--onchrome" data-testid="notice-download-pack"><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg> Download pack</Link>
+      ) : packUrl ? (
+        <a href="#" className="pmc-btn pmc-btn--onchrome" data-testid="notice-download-pack" data-doc-url={packUrl}><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg> Download pack</a>
+      ) : (
+        <button type="button" className="pmc-btn pmc-btn--onchrome" data-testid="notice-download-pack"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); toast.info(packUrl === null ? "Preparing the document list…" : "No tender documents have been published for this notice yet."); }}>
+          <svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg> Download pack
+        </button>
+      )}
       <Link to={authed && role === "vendor" ? `/vendor/workspace/new?notice=${noticeRef}` : (authed ? dashboardPath : "/register")} className="pmc-btn pmc-btn--brass pmc-btn--lg" data-testid="notice-start-bid">Start bid</Link>
     </div>
   </div>

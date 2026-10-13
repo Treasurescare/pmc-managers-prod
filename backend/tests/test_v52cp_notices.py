@@ -174,6 +174,10 @@ def test_notice_create_with_tender_template_prefill_round_trip():
         assert hit["tender_template_id"] == tpl["id"]
     finally:
         s.delete(f"{API}/tender-templates/{tpl['id']}", timeout=15)
+        # v52cv — also delete the notice; leaving it published with a dangling
+        # tender_template_id breaks the public Download pack ZIP (404).
+        if r.ok and r.json().get("notice_ref"):
+            s.delete(f"{API}/notices/{r.json()['notice_ref']}/admin", timeout=15)
 
 
 def test_public_notice_card_zero_emd_shape_is_stable():

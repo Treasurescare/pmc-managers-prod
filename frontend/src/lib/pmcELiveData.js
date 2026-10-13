@@ -33,6 +33,21 @@ const money0 = (amt, cur = "USD") => {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: cur, maximumFractionDigits: 0 }).format(amt);
 };
 
+// v52cv — one-line EMD summary for list cards / rows. Reads the flat
+// emd_amount / emd_percentage the public API now emits, falling back to the
+// legacy emd_config shape. "No EMD" keeps zero-EMD tenders honest instead
+// of silently showing "—".
+const emdText = (n) => {
+  const amt = n.emd_amount ?? n.emd_config?.fixed_amount;
+  const pct = n.emd_percentage ?? n.emd_config?.percentage;
+  const cur = n.emd_currency || n.emd_config?.currency || n.budget_currency;
+  if (amt && Number(amt) > 0) {
+    return pct && Number(pct) > 0 ? `${money(amt, cur)} (${pct}%)` : money(amt, cur);
+  }
+  if (pct && Number(pct) > 0) return `${pct}% of bid`;
+  return "No EMD";
+};
+
 const shortDate = (iso) => {
   if (!iso) return "—";
   try {
@@ -169,6 +184,12 @@ function initTenderFilters(list, allItems) {
     if (nums[1]) {
       const l = nums[1].querySelector(".l");
       if (l) l.textContent = n.submission_deadline ? `Closes ${shortDate(n.submission_deadline)}` : "No deadline";
+    }
+    // v52cv — third numeric cell carries the EMD so the list shows budget,
+    // deadline AND EMD at a glance (user report: EMD missing from all lists).
+    if (nums[2]) {
+      const v = nums[2].querySelector(".v");
+      if (v) v.textContent = emdText(n);
     }
     if (cd) cd.textContent = isOpen(n) ? relTime(n.submission_deadline) : "Closed";
     if (viewBtn) viewBtn.setAttribute("href", `/notices/${n.notice_ref}`);
@@ -398,8 +419,12 @@ export function usePublicLiveData({ enabled = true } = {}) {
             if (tt) tt.textContent = n.title || "";
             if (dds.length >= 3) {
               dds[0].textContent = money(n.budget_amount, n.budget_currency);
-              dds[1].textContent = n.delivery_country || "—";
-              dds[2].textContent = n.category || "General";
+              // v52cv — template order is budget, EMD, delivery, category
+              // (the EMD cell sits 2nd in HomeE card markup).
+              if (dds[3]) dds[3].textContent = n.category || "General";
+              if (dds[2]) dds[2].textContent = n.delivery_country || "—";
+              if (dds[1]) dds[1].textContent = emdText(n);
+              if (!dds[3]) { dds[1].textContent = n.delivery_country || "—"; dds[2].textContent = n.category || "General"; }
             }
             const link = c.querySelector(".pmc-tender__foot a");
             if (link) link.setAttribute("href", `/notices/${n.notice_ref}`);

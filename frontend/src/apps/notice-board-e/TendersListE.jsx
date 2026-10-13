@@ -53,6 +53,7 @@ export default function TendersListE({ legacy: Legacy }) {
   <h3><a href="#">Turnkey IVF Laboratory Setup — Embryology Lab, Cryopreservation & Cleanroom HVAC</a></h3><div className="pmc-muted" style={{ fontSize: "13px" }}>Civil Works & MEP · Kazakhstan</div></div>
   <div className="tl-num"><div className="l">Indicative budget</div><div className="v">USD 2,100,000</div></div>
   <div className="tl-num"><div className="l">Closes 30 Sep 2026</div><div className="v"><span className="pmc-countdown" data-in="52">—</span></div></div>
+  <div className="tl-num"><div className="l">EMD</div><div className="v">—</div></div>
   <div className="tl-act"><button className="pmc-ib" aria-label="Follow"><svg className="pmc-ico" aria-hidden="true"><use href="#i-bell" /></svg></button><a href="#" className="pmc-btn pmc-btn--secondary pmc-btn--sm">View</a></div>
 </article><article className="tl-row">
   <div className="tl-main"><div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}><span className="pmc-tag">RFQ</span><span className="pmc-ref">PMC-NOT-2026-0054</span></div>

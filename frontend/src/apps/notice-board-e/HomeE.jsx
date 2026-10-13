@@ -69,22 +69,22 @@ export default function HomeE({ legacy: Legacy }) {
   <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "20px" }}><article className="pmc-tender">
   <div className="pmc-tender__top"><span className="pmc-tag">TENDER</span><span className="pmc-ref">PMC-NOT-2026-0055</span><span style={{ marginLeft: "auto" }} className="pmc-countdown" data-in="52">—</span></div>
   <h3 className="pmc-tender__title">Turnkey IVF Laboratory Setup — Embryology Lab, Cryopreservation & Cleanroom HVAC</h3>
-  <dl className="pmc-tender__meta" style={{ margin: "0" }}><div className="is-budget"><dt>Indicative budget</dt><dd>USD 2,100,000</dd></div><div><dt>Delivery</dt><dd>Kazakhstan</dd></div><div><dt>Category</dt><dd style={{ fontWeight: "500" }}>Civil Works & MEP</dd></div></dl>
+  <dl className="pmc-tender__meta" style={{ margin: "0" }}><div className="is-budget"><dt>Indicative budget</dt><dd>USD 2,100,000</dd></div><div><dt>EMD</dt><dd>—</dd></div><div><dt>Delivery</dt><dd>Kazakhstan</dd></div><div><dt>Category</dt><dd style={{ fontWeight: "500" }}>Civil Works & MEP</dd></div></dl>
   <div className="pmc-tender__foot"><a href="#" className="pmc-btn pmc-btn--ghost pmc-btn--sm" style={{ paddingLeft: "0" }}>View notice <svg className="pmc-ico" aria-hidden="true"><use href="#i-arrow" /></svg></a><span className="pmc-pill pmc-pill--info">Corrigendum 1</span></div>
 </article><article className="pmc-tender">
   <div className="pmc-tender__top"><span className="pmc-tag">RFQ</span><span className="pmc-ref">PMC-NOT-2026-0054</span><span style={{ marginLeft: "auto" }} className="pmc-countdown" data-in="57">—</span></div>
   <h3 className="pmc-tender__title">Birth Suites — Linen, Consumables & Newborn Care Kits (Annual Rate Contract)</h3>
-  <dl className="pmc-tender__meta" style={{ margin: "0" }}><div className="is-budget"><dt>Indicative budget</dt><dd>KZT 88,000,000</dd></div><div><dt>Delivery</dt><dd>Kazakhstan</dd></div><div><dt>Category</dt><dd style={{ fontWeight: "500" }}>Consumables & Implants</dd></div></dl>
+  <dl className="pmc-tender__meta" style={{ margin: "0" }}><div className="is-budget"><dt>Indicative budget</dt><dd>KZT 88,000,000</dd></div><div><dt>EMD</dt><dd>—</dd></div><div><dt>Delivery</dt><dd>Kazakhstan</dd></div><div><dt>Category</dt><dd style={{ fontWeight: "500" }}>Consumables & Implants</dd></div></dl>
   <div className="pmc-tender__foot"><a href="#" className="pmc-btn pmc-btn--ghost pmc-btn--sm" style={{ paddingLeft: "0" }}>View notice <svg className="pmc-ico" aria-hidden="true"><use href="#i-arrow" /></svg></a></div>
 </article><article className="pmc-tender">
   <div className="pmc-tender__top"><span className="pmc-tag">RFP</span><span className="pmc-ref">PMC-NOT-2026-0038</span><span style={{ marginLeft: "auto" }} className="pmc-countdown" data-in="83">—</span></div>
   <h3 className="pmc-tender__title">Supply & Installation of OPD Queue Management & Digital Signage System</h3>
-  <dl className="pmc-tender__meta" style={{ margin: "0" }}><div className="is-budget"><dt>Indicative budget</dt><dd>INR 62,000,000</dd></div><div><dt>Delivery</dt><dd>India</dd></div><div><dt>Category</dt><dd style={{ fontWeight: "500" }}>IT & Digital Health</dd></div></dl>
+  <dl className="pmc-tender__meta" style={{ margin: "0" }}><div className="is-budget"><dt>Indicative budget</dt><dd>INR 62,000,000</dd></div><div><dt>EMD</dt><dd>—</dd></div><div><dt>Delivery</dt><dd>India</dd></div><div><dt>Category</dt><dd style={{ fontWeight: "500" }}>IT & Digital Health</dd></div></dl>
   <div className="pmc-tender__foot"><a href="#" className="pmc-btn pmc-btn--ghost pmc-btn--sm" style={{ paddingLeft: "0" }}>View notice <svg className="pmc-ico" aria-hidden="true"><use href="#i-arrow" /></svg></a></div>
 </article><article className="pmc-tender">
   <div className="pmc-tender__top"><span className="pmc-tag">TENDER</span><span className="pmc-ref">PMC-NOT-2026-0037</span><span style={{ marginLeft: "auto" }} className="pmc-countdown" data-in="270">—</span></div>
   <h3 className="pmc-tender__title">Outpatient Department (OPD) Building Renovation & MEP Upgrade — Block C</h3>
-  <dl className="pmc-tender__meta" style={{ margin: "0" }}><div className="is-budget"><dt>Indicative budget</dt><dd>KZT 850,000,000</dd></div><div><dt>Delivery</dt><dd>Kazakhstan</dd></div><div><dt>Category</dt><dd style={{ fontWeight: "500" }}>Civil Works & MEP</dd></div></dl>
+  <dl className="pmc-tender__meta" style={{ margin: "0" }}><div className="is-budget"><dt>Indicative budget</dt><dd>KZT 850,000,000</dd></div><div><dt>EMD</dt><dd>—</dd></div><div><dt>Delivery</dt><dd>Kazakhstan</dd></div><div><dt>Category</dt><dd style={{ fontWeight: "500" }}>Civil Works & MEP</dd></div></dl>
   <div className="pmc-tender__foot"><a href="#" className="pmc-btn pmc-btn--ghost pmc-btn--sm" style={{ paddingLeft: "0" }}>View notice <svg className="pmc-ico" aria-hidden="true"><use href="#i-arrow" /></svg></a></div>
 </article></div>
 </section>

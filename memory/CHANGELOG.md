@@ -1,6 +1,35 @@
 # PMC Managers v2 — Changelog
 # PMC Managers v2 — Changelog
 
+## 2026-02-13 — v52cv Production E-theme fixes: avatar menu, EMD on lists, Download pack
+
+### User report (screen recording on pmcmanagers.com production)
+1. Tender Maker page: avatar + sign-out buttons dead.
+2. Home page notice list: EMD/budget not indicated anywhere.
+3. "Download pack" button on notice detail does nothing.
+
+### Root causes
+1. `AdminTenderBuilderE.jsx` rendered a static `<span className="pmc-avatar">A</span>` — no menu component mounted.
+2. `HomeE.jsx` card template + `TendersListE.jsx` row template had no EMD cell; `pmcELiveData.js` home-card patch only wrote budget/country/category.
+3. `NoticeDetailE.jsx` hard-wired Download pack to `to={authed ? "#" : "/register"}` — a dead href.
+
+### Fix
+- `AdminTenderBuilderE.jsx` — mount real `<AdminAvatarMenu />` (photo, change password, sign out).
+- `HomeE.jsx` — added `<dt>EMD</dt>` cell to all 4 card templates (order: budget, EMD, delivery, category).
+- `TendersListE.jsx` — added `EMD` tl-num cell to the row template (3rd numeric cell).
+- `pmcELiveData.js` — new `emdText(n)` helper (flat emd_amount/emd_percentage with legacy fallback, "No EMD" for zero-EMD); home-card patch writes budget/EMD/country/category in template order; `patchRow` fills the 3rd tl-num with EMD.
+- `NoticeDetailE.jsx` — Download pack now resolves a real URL from the live notice: composed Tender Builder ZIP (`/api/v1/tender-templates/{id}/public/zip?notice_ref=…`) or the primary uploaded document; `data-doc-url` lets PmcLinkPatcher's `handleDownload` do the actual download; "No tender documents published" toast when none.
+- `test_v52cp_notices.py` — regression test now also deletes its created notice (previously left a published notice linked to a deleted template → Download pack 404).
+
+### Verified
+- Live curl: public ZIP endpoint returns HTTP 200, valid zip (composed PDF + 3 attachments + README) for a real linked notice.
+- Deleted 3 orphan test notices (PMC-NOT-2026-0053/0056/0059) from preview DB.
+- Frontend build clean; home-page screenshot shows cards with EMD cells ("No EMD" / amounts) in correct positions.
+- Bundle: `pmc-frontend-v52cv-prod-build.zip` (3.1 MB). Backend unchanged from v52cu.
+
+
+
+
 ## 2026-02-13 — v52cu Landing page shows newly published notices instantly
 
 ### User report
