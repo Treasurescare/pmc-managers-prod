@@ -1,0 +1,22 @@
+{
+  "summary": "v52ct — Validated 6-point acceptance for Admin Notices + Tender Builder bridge. Backend regression (7 tests in test_v52cp_notices.py) all PASS. Frontend end-to-end checks on the real preview URL confirm: (1) Tender Template picker rendered ABOVE Title inside notice-new-form (DOM order: notice-tender-template index=1 < notice-title index=3). (2) Picking a template prefills Title + Description + Category (UNSPSC via notice-category-value) and shows a prefill toast; backend round-trip test also asserts budget/EMD/country/currency/tender_template_id propagate to GET /api/v1/notices. (3) Category selector is a type-to-search UnspscPicker: typing 'bio' into notice-category-input opens notice-category-dropdown with 30 UNSPSC options and selecting one shows 'UNSPSC: 10191520 · Non-chemical biological pest control solution' in notice-category-value. (4) Budget-amount validation: toast 'Budget amount must be greater than zero' appears for both empty and 0 budget BEFORE API call; backend also rejects 0/None/negative (HTTP 422). (5) Primary document is optional — label reads 'OPTIONAL', notice create API accepts payload without primary_document. (6) Public tender list /tenders/all shows cards with country (IN/KZ), budget currency+amount (INR 5,000,000 · USD 100 · KZT 100,000) and EMD chip (EMD INR 50,000, EMD USD 500) exactly as spec'd.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_v52cp_notices.py",
+    "/app/test_reports/pytest/pytest_v52cp.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "NoticesPanel.jsx is a large file; consider splitting draft state, create() validators and the picker JSX into smaller modules for maintainability.",
+    "Zero-budget rule is duplicated frontend (NoticesPanel.create()) and backend (notices.py line 160). Fine for defense-in-depth; ensure the error string stays identical for QA grepping.",
+    "Public /notices homepage widget shows only title+country; the actual budget/EMD cards live at /tenders/all. Consider surfacing a hint in the hero board widget or linking users there."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (7/7)", "frontend": "100% (6/6 acceptance points)"},
+  "test_credentials": "adminsupport@pmcmanagers.com / Admin@12345",
+  "seed_data_creation": "test_notice_create_with_tender_template_prefill_round_trip creates and cleans up its own tender template; left behind PMC-NOT-2026-0053/0054/0056/0057 (v52ct work title / v52ct no-emd notice) in the DB from backend tests — visible on /tenders/all and useful as regression anchors.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All six acceptance criteria validated. Real testids inside notice-new-form: notice-tender-template, notice-title, notice-description, notice-category-input/dropdown/option-<code>/value, notice-doc-type, notice-country, notice-deadline, notice-currency, notice-budget (NOT notice-budget-amount), notice-publish (checkbox), notice-primary-file, notice-attachments, notice-create (submit). Description must be >=10 chars before budget validator fires. Template picker options use data-testid prefix notice-tpl-opt-. Public listing route is /tenders/all (not /notices which is the marketing landing)."
+}

@@ -1,6 +1,32 @@
 # PMC Managers v2 — Changelog
 # PMC Managers v2 — Changelog
 
+## 2026-02-13 — v52ct New Notice ↔ Tender Builder bridge — six-point fix
+
+### User report
+Admin → New Notice form had six defects: (1) Tender Template picker shown below Title, (2) picking a template only prefilled title/description/budget — not category/country/EMD, (3) Category was a static country-curated `<select>`, not the full UNSPSC search, (4) notices could be created with budget 0, (5) upload required, (6) public cards missed budget/EMD/country.
+
+### Fix
+- **NoticesPanel.jsx**:
+  - Imported `UnspscPicker`.
+  - Added `category_code` to draft state (initial + reset).
+  - Replaced static category `<select>` with `UnspscPicker` using proper `value`/`title`/`testidPrefix='notice-category'` props so the UNSPSC search backs the field.
+  - `pickTemplate(tpl)` now also prefills `category`, `category_code`, `delivery_country`, `budget_currency` and `emd_config.currency` from the tender header (`product_category`/`sub_category`/`tender_category`, `delivery_country`/`country`, `budget_currency`, `budget_amount`/`tender_value`).
+  - Tender Template picker remains at the TOP of the form (confirmed via DOM order: tender-template index 1 < title index 3).
+- **Backend** already enforced `budget_amount > 0` at `routers/notices.py:160` and already serialized flat `emd_amount`/`emd_currency` on every public response in `_out()`.
+- **Tests**: added 3 new regressions to `test_v52cp_notices.py` (zero-budget rejection, full template → notice round-trip with category/country/budget/EMD assertions, stable zero-EMD public shape). 7/7 pass.
+
+### Verification
+Testing agent iteration 61: 100% backend (7/7), 100% frontend (6/6 acceptance points). Confirmed on preview:
+- Template picker above Title.
+- `notice-category-input` opens `notice-category-dropdown` with real UNSPSC options.
+- Toast "Budget amount must be greater than zero" fires both for empty and 0.
+- Primary document labelled OPTIONAL; create succeeds without it.
+- `/tenders/all` cards show country, budget currency+amount, EMD chip.
+
+
+
+
 
 ## 2026-10-04 — v51n Floating help drawer searches the full manual
 
