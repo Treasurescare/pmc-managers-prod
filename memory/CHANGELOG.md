@@ -1,6 +1,34 @@
 # PMC Managers v2 — Changelog
 # PMC Managers v2 — Changelog
 
+## 2026-02-13 — v52cu Landing page shows newly published notices instantly
+
+### User report
+"the moment the publish button is hit in the admin console it should appear
+immediately on the landing page" — user confirmed option (c) from the
+nine-reason analysis.
+
+### Fix
+- `backend/routers/notices.py` — public `GET /api/v1/notices` now returns a
+  `JSONResponse` with `Cache-Control: no-store, no-cache, must-revalidate`,
+  `Pragma: no-cache`, `Expires: 0` (mirrors the admin `/admin/all` route).
+  Previously it returned a plain dict with no cache headers, so CloudFront /
+  the browser could serve a briefly-stale list after Publish.
+- `backend/routers/meta.py` — `GET /api/v1/meta/public/stats` (landing
+  "tenders open for bids" counter) gets the same no-store headers.
+
+### Verification
+- curl on preview confirms both endpoints send the no-store headers.
+- `test_v52cp_notices.py` 7/7 still pass.
+
+### Note
+Remaining (not requested) reasons a tender may not appear on landing:
+limit=30 default cap (a), null published_at sinking in sort (b).
+Offered to user as follow-ups.
+
+
+
+
 ## 2026-02-13 — v52ct New Notice ↔ Tender Builder bridge — six-point fix
 
 ### User report

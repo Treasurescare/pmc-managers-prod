@@ -1,4 +1,12 @@
-# PMC Managers v2 — PRD (last touched 12 Oct 2026)
+# PMC Managers v2 — PRD (last touched 13 Oct 2026)
+
+## v52cu — publish → landing page instantly (13 Oct 2026)
+
+Public `GET /api/v1/notices` and `GET /api/v1/meta/public/stats` now return
+`Cache-Control: no-store` so a notice appears on the landing page the moment
+the admin hits Publish. curl-verified on preview; 7/7 notice tests pass.
+Open follow-ups (offered, not requested): raise home-page limit=30 cap (a),
+backfill null `published_at` so sort order is deterministic (b).
 
 ## v52cs — zero-EMD bids no longer stuck at "Supplier · Pay EMD" (13 Oct 2026)
 

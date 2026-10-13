@@ -126,7 +126,14 @@ async def list_notices(
     cursor = db.notices.find(q).sort("published_at", -1).skip(offset).limit(limit)
     total = await db.notices.count_documents(q)
     items = [_out(t) async for t in cursor]
-    return {"items": items, "total": total, "limit": limit, "offset": offset}
+    # v52cu — no-store so a notice appears on the landing page the moment the
+    # admin hits Publish. Previously this route sent no cache headers, so
+    # CloudFront / the browser could serve a briefly-stale list.
+    return JSONResponse(
+        content={"items": items, "total": total, "limit": limit, "offset": offset},
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate",
+                 "Pragma": "no-cache", "Expires": "0"},
+    )
 
 
 @router.get("/{notice_ref}")

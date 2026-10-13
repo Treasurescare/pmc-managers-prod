@@ -1,5 +1,6 @@
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 import config
 from db import db
 
@@ -41,12 +42,18 @@ async def public_stats() -> Dict[str, int]:
                 break
         except Exception:
             continue
-    return {
-        "notices_published": await db.notices.count_documents({"is_published": True}),
-        "suppliers_approved": await db.vendors.count_documents({}),
-        "packages_total": await db.packages.count_documents({}),
-        "ledger_events": ledger_events,
-    }
+    return JSONResponse(
+        content={
+            "notices_published": await db.notices.count_documents({"is_published": True}),
+            "suppliers_approved": await db.vendors.count_documents({}),
+            "packages_total": await db.packages.count_documents({}),
+            "ledger_events": ledger_events,
+        },
+        # v52cu — no-store so the landing "tenders open for bids" counter
+        # updates the instant a notice is published.
+        headers={"Cache-Control": "no-store, no-cache, must-revalidate",
+                 "Pragma": "no-cache", "Expires": "0"},
+    )
 
 
 @router.get("/public/escrow-summary")
