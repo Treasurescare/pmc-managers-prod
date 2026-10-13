@@ -1,0 +1,33 @@
+{
+  "summary": "v52cn testing — backend pytest 11/11 (local file) and 11/11 (new public URL regression file). Frontend MastersPanel 'Country licenses' + 'Geography' tabs render; all 6 seeded country-license chips (IN/KZ/AE/US/GB/SG) present; Geography cascades IN→36 states (Maharashtra)→Mumbai city filter returns 4 rows; UNSPSC picker in Section C returns rich results for 'solar'; Section D RegionOfficeEditor country dropdown has full 250 countries + CountryLicenseSlots block renders. ONE REGRESSION/BUG: Admin → New Vendor Section A country select ('data-testid=f-country') still only has 30 options (CIS-only list, defaults to Kazakhstan) — the v52cn upgrade to use mastersGeoApi was NOT wired into Section A, only into the Section D RegionOfficeEditor.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AdminVendorCreate / Section A", "issue": "Country dropdown [data-testid=f-country] only lists 30 CIS countries (Kazakhstan default) instead of the full ~250-country masters list. Per the v52cn plan this picker should hit mastersGeoApi.listCountries() like Section D's op-region-new-country (which correctly has 251 options). AdminVendorEdit likely has the same regression.", "selector": "[data-testid='f-country']", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_v52cn_masters.py",
+    "/app/backend/tests/test_v52cn_public.py",
+    "/app/test_reports/pytest/v52cn_public.xml"
+  ],
+  "action_items": [
+    "Wire mastersGeoApi.listCountries() into AdminVendorCreate.jsx (and AdminVendorEdit.jsx) Section A country <select data-testid='f-country'>; same upgrade already landed in SectionD's RegionOfficeEditor (op-region-new-country shows 251 options)."
+  ],
+  "critical_code_review_comments": [
+    "AdminVendorCreate/Edit Section A was skipped by the v52cn countries-fetch upgrade — review the referenced files in the request vs. what shipped.",
+    "country-licenses-block renders eagerly even when Section A country has no office saved yet (because KZ is the default) — consider gating it strictly on office presence to match the spec text 'after adding at least one office'."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_v52cn_public.py (new regression file, 11 tests)"
+  ],
+  "success_rate": {"backend": "100% (22/22 across both test files)", "frontend": "~85% (1 of ~8 checks failed — Section A country dropdown)"},
+  "test_credentials": "adminsupport@pmcmanagers.com / Admin@12345 (worked)",
+  "seed_data_creation": "None — did not persist a vendor; only exercised dropdowns, pickers, and masters UI.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Local pytest tests/test_v52cn_masters.py = 11/11. New /app/backend/tests/test_v52cn_public.py = 11/11 against public URL. GET /api/v1/masters/countries returns 250 with postal_code_regex. states+cities+UNSPSC synonym expansion+country-licenses CRUD+dynamic country_license_* slot all verified end-to-end. In the UI, verify after main agent's fix that f-country has ~250 options in both AdminVendorCreate and AdminVendorEdit; the save-chip reload flow on Country Licenses tab (country-lic-draft-save → country-lic-chip-IN-test_lic) was NOT exercised in this iteration and should be covered next round.",
+  "rca of the issue": "AdminVendorCreate.jsx was listed in files_of_reference as 'upgraded countries fetch', but the shipped <select data-testid='f-country'> is still bound to the hardcoded 30-item CIS list (Kazakhstan, Russia, Uzbekistan, Kyrgyzstan, Tajikistan, ...). The mastersGeoApi.listCountries() call was only wired into SectionD's RegionOfficeEditor, where op-region-new-country correctly resolves to 251 options from the masters endpoint. Mitigation: in AdminVendorCreate.jsx (and AdminVendorEdit.jsx), replace the static array with a useEffect that calls mastersGeoApi.listCountries() and populates options from `${flag} ${code} — ${name}` (same renderer SectionD uses)."
+}

@@ -1,5 +1,61 @@
 # PMC Managers v2 — PRD (last touched 12 Oct 2026)
 
+## v52cn — Masters wired into vendor creation + admin CRUD (13 Oct 2026)
+
+User Q: "if I add a company or a vendor, do I get the full list including UNSPSC
+codes as dropdown and all countries / city / state / zip wired?"
+
+Shipped on top of v52cm:
+- **AdminVendorCreate / AdminVendorEdit** now fetch the full 250-country master
+  (`mastersGeoApi.countries()`) so Section A's country `<select data-testid="f-country">`
+  carries every ISO country instead of the 30-country CIS shortlist. Verified
+  live: 250 options with India present. Legacy `/api/v1/meta/countries` kept
+  only as a defensive fallback.
+- **UnspscPicker** backing API switched to `/api/v1/masters/unspsc/public/search`
+  so every usage site (vendor registration Section C, admin Product Catalog,
+  admin BOQ Templates) now searches the full 158k UNSPSC codeset. Fallback to
+  the legacy `/api/v1/taxonomy/search` kept if masters is empty.
+- **Country-license upload prompts** — new `CountryLicenseSlots` block mounted
+  in Section D below the KZ licenses. Pulls `/api/v1/masters/country-licenses/{cc}`
+  for every country the vendor touches (`reg.country` + each office's
+  `country_code`), rendering one `DocSlotsBlock` per country with slot keys
+  shaped `country_license_{CC}_{code}` (e.g. `country_license_IN_gst`). Reuses
+  the existing `DocSlot` upload pipeline, so authenticated blob
+  view/download/delete all keep working.
+- **Backend** — `routers/registrations.py :: upload_registration_doc` extended
+  to accept any slot whose key starts with `country_license_`; genuinely unknown
+  slots still 400 with `Unknown slot`. Covered by pytest.
+- **Admin → Masters** got two new tabs:
+  - **Country licenses** (`CountryLicensesTab`) — list seeded jurisdictions,
+    inline add/edit/remove license rows (code / display name / mandatory flag),
+    plus "Add country" picker backed by the 250-country master.
+  - **Geography** (`GeographyTab`) — read-only paginated viewer with cascading
+    country → state → city filters so admins can confirm coverage before
+    rolling the portal out to a new jurisdiction.
+- **Pytest regressions** — `backend/tests/test_v52cn_masters.py`, 11/11 passing
+  against the live preview URL. Covers countries/states/cities masters, UNSPSC
+  full-codeset + biogas synonym expansion + numeric prefix, country-licenses
+  public GET + admin-only PUT, and the dynamic `country_license_*` slot
+  whitelist (plus a regression for bogus slot rejection).
+- **Testing agent** — iteration 58 confirmed every feature; the only HIGH
+  issue it raised was f-country still being 30 options (caused by my first-
+  pass `.then` chain swallowing the master response). Fixed and verified
+  programmatically (`page.evaluate` → `count=250, has_IN=true`).
+
+### Verified live
+- `GET /api/v1/masters/countries` → 250 countries with `postal_code_regex`.
+- `GET /api/v1/masters/unspsc/public/search?q=biogas` → methane / digester /
+  anaerobic entries via synonym expansion.
+- `GET /api/v1/masters/country-licenses/IN` → gst, pan, msme, esi, pf, shop_est.
+- Admin → New Vendor → Section A `f-country` dropdown has 250 options.
+- Section D RegionOfficeEditor cascades + CountryLicenseSlots renders per
+  attached country.
+- Admin Masters tabs `masters-tab-country_licenses` and `masters-tab-geography`
+  mount, list seeded data, and update after Save.
+
+---
+
+
 ## v52cm — Masters data pull: UNSPSC + geography + country licenses (12 Oct 2026)
 
 User Qs (a) + (b): categories master was missing solar/biogas; operating regions

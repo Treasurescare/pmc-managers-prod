@@ -37,13 +37,16 @@ export default function AdminVendorEdit() {
   useEffect(() => {
     document.title = `Edit vendor · ${vendor_ref}`;
     // v52cn — prefer the full 250-country master; fall back to meta if empty.
-    mastersGeoApi.countries()
-      .then((rows) => {
-        if (Array.isArray(rows) && rows.length) { setCountries(rows); return null; }
-        return publicApi.countries().catch(() => []);
-      })
-      .then((rows) => rows && setCountries(Array.isArray(rows) ? rows : []))
-      .catch(() => {});
+    (async () => {
+      try {
+        const rows = await mastersGeoApi.countries();
+        if (Array.isArray(rows) && rows.length) { setCountries(rows); return; }
+      } catch { /* fall through */ }
+      try {
+        const rows = await publicApi.countries();
+        setCountries(Array.isArray(rows) ? rows : []);
+      } catch { /* keep seed */ }
+    })();
     vendorInviteApi.getFull(vendor_ref)
       .then((v) => {
         setVendor(v);

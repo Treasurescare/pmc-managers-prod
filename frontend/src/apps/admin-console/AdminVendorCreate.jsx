@@ -38,14 +38,18 @@ export default function AdminVendorCreate() {
     document.title = "New vendor · Admin";
     // v52cn — pull the full 250-country master so Section A's country
     // dropdown and SectionD's cascading geo editor share one source of truth.
-    mastersGeoApi.countries()
-      .then((rows) => setCountries(Array.isArray(rows) && rows.length ? rows : null))
-      .catch(() => null)
-      .then((rows) => {
-        if (rows) return rows;
-        return publicApi.countries().catch(() => []);
-      })
-      .then((rows) => setCountries(Array.isArray(rows) ? rows : []));
+    // Falls back to the legacy 30-country meta shortlist only when the
+    // masters endpoint returns nothing.
+    (async () => {
+      try {
+        const rows = await mastersGeoApi.countries();
+        if (Array.isArray(rows) && rows.length) { setCountries(rows); return; }
+      } catch { /* fall through */ }
+      try {
+        const rows = await publicApi.countries();
+        setCountries(Array.isArray(rows) ? rows : []);
+      } catch { /* keep seed */ }
+    })();
   }, []);
 
   const update = (patch) => setReg((prev) => {
