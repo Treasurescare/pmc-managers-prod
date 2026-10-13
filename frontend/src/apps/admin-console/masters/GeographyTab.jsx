@@ -4,11 +4,9 @@ import { useListPager } from "@/components/ListPager";
 
 /**
  * v52cn — Read-only Geography master viewer.
- *
- * Lets admins browse the imported country / state / city dataset so they
- * can confirm coverage before rolling the vendor registration out to a
- * new jurisdiction. All lists are paginated and search-backed because
- * the full city set is ~152k rows.
+ * v52co — Added license-coverage overlay: countries configured in Masters
+ * → Country Licenses render with a green "licenses configured" chip so
+ * admins can see at a glance which jurisdictions are production-ready.
  */
 export default function GeographyTab() {
   const [countries, setCountries] = useState([]);
@@ -17,11 +15,22 @@ export default function GeographyTab() {
   const [stateCode, setStateCode] = useState("");
   const [cityQ, setCityQ] = useState("");
   const [cities, setCities] = useState([]);
+  const [licenseCoverage, setLicenseCoverage] = useState({});
 
   useEffect(() => {
     mastersGeoApi.countries()
       .then((r) => setCountries(Array.isArray(r) ? r : []))
       .catch(showApiError);
+    // v52co — license coverage overlay.
+    mastersGeoApi.listCountryLicenses()
+      .then((rows) => {
+        const map = {};
+        for (const r of Array.isArray(rows) ? rows : []) {
+          map[r.country_code] = (r.licenses || []).length;
+        }
+        setLicenseCoverage(map);
+      })
+      .catch(() => setLicenseCoverage({}));
   }, []);
 
   useEffect(() => {
@@ -41,15 +50,18 @@ export default function GeographyTab() {
     countries: countries.length,
     states: states.length,
     cities: cities.length,
-  }), [countries, states, cities]);
+    licensed: Object.keys(licenseCoverage).filter((cc) => licenseCoverage[cc] > 0).length,
+  }), [countries, states, cities, licenseCoverage]);
 
   const countriesPager = useListPager(countries, { testid: "geo-countries-pager", pageSize: 50 });
 
   return (
     <div className="space-y-4" data-testid="geography-tab">
-      <div className="bg-white border border-brand-navy/10 p-4 grid gap-3 md:grid-cols-3"
+      <div className="bg-white border border-brand-navy/10 p-4 grid gap-3 md:grid-cols-4"
            data-testid="geo-stats">
         <Stat label="Countries" value={summary.countries} />
+        <Stat label="With licenses configured" value={summary.licensed}
+              hint="production-ready jurisdictions" />
         <Stat label="States / provinces loaded" value={summary.states}
               hint={cc ? `for ${cc}` : "pick a country"} />
         <Stat label="Cities loaded" value={summary.cities}
@@ -132,19 +144,35 @@ export default function GeographyTab() {
       </div>
 
       <div className="bg-white border border-brand-navy/10">
-        <div className="p-3 text-[10px] uppercase tracking-widest text-brand-navy/60 border-b border-brand-navy/10">
+        <div className="p-3 text-[10px] uppercase tracking-widest text-brand-navy/60 border-b border-brand-navy/10 flex items-center gap-2">
           All countries ({countries.length})
+          <span className="ml-auto text-[10px] normal-case tracking-normal text-brand-navy/50">
+            <span className="inline-block w-2 h-2 bg-emerald-500 rounded-full align-middle mr-1" />
+            licenses configured
+          </span>
         </div>
-        {countriesPager.paged.map((c) => (
-          <div key={c.code} className="border-b border-brand-navy/5 p-2 text-sm flex justify-between items-center"
-               data-testid={`geo-country-row-${c.code}`}>
-            <span>{c.emoji ? `${c.emoji} ` : ""}{c.name}</span>
-            <span className="font-mono text-[10px] text-brand-navy/50">
-              {c.code} · {c.iso3 || "—"} · {c.currency || "—"}
-              {c.postal_code_format ? ` · ZIP ${c.postal_code_format}` : ""}
-            </span>
-          </div>
-        ))}
+        {countriesPager.paged.map((c) => {
+          const n = licenseCoverage[c.code] || 0;
+          return (
+            <div key={c.code}
+                 className={`border-b border-brand-navy/5 p-2 text-sm flex justify-between items-center ${n > 0 ? "bg-emerald-50/40" : ""}`}
+                 data-testid={`geo-country-row-${c.code}`}>
+              <span className="flex items-center gap-2">
+                {c.emoji ? `${c.emoji} ` : ""}{c.name}
+                {n > 0 && (
+                  <span className="text-[9px] uppercase tracking-widest bg-emerald-100 text-emerald-900 border border-emerald-200 px-1.5 py-0.5"
+                        data-testid={`geo-country-licensed-${c.code}`}>
+                    {n} lic
+                  </span>
+                )}
+              </span>
+              <span className="font-mono text-[10px] text-brand-navy/50">
+                {c.code} · {c.iso3 || "—"} · {c.currency || "—"}
+                {c.postal_code_format ? ` · ZIP ${c.postal_code_format}` : ""}
+              </span>
+            </div>
+          );
+        })}
         {countriesPager.controls}
       </div>
     </div>

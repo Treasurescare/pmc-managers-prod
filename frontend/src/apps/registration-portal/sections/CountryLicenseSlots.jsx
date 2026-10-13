@@ -50,9 +50,11 @@ export default function CountryLicenseSlots({ reg, regId, token, ensureDraft, on
     return (
       <div className="mt-6 border border-dashed border-brand-navy/20 bg-brand-pale/30 p-3 text-xs text-brand-navy/60"
            data-testid="country-licenses-empty">
-        No country-specific licenses configured for{" "}
-        <span className="font-mono">{codes.join(", ")}</span> yet. Ask the admin to
-        set them in Masters → Country Licenses.
+        No country-specific licenses are configured yet for{" "}
+        <span className="font-mono">{codes.join(", ")}</span>. If this country
+        needs mandatory licences (e.g. tax ID, trade licence, registration
+        certificate) ask the admin to add them in <strong>Masters → Country
+        Licenses</strong>.
       </div>
     );
   }

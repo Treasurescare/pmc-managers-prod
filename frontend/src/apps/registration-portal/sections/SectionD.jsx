@@ -2,26 +2,33 @@ import { useEffect, useMemo, useState } from "react";
 import { Field, Input } from "./FormPrimitives";
 import { DocSlotsBlock } from "./DocSlot";
 import { useI18n } from "@/context/I18nContext";
-import { mastersApi, publicApi, mastersGeoApi, api } from "@/lib/api";
+import { api } from "@/lib/api";
 import RegionOfficeEditor from "./RegionOfficeEditor";
 import CountryLicenseSlots from "./CountryLicenseSlots";
+import UnspscMultiPicker from "@/components/UnspscMultiPicker";
 
 /**
- * v50y — Section D with a real multi-select "Business verticals"
- * (business_categories) fed by the Categories master (UNSPSC-backed).
- * Replaces the earlier free-text comma-separated input that let vendors
- * type anything and bypassed the admin taxonomy.
+ * Section D — Compliance.
+ *
+ * v52co changes:
+ *  - Business categories picker is now a UNSPSC multi-select hitting the
+ *    full 158k codeset (matches Section C) instead of the curated ~90-row
+ *    `/categories/public` list. Vendors from any country can now actually
+ *    find biogas / solar / construction / etc.
+ *  - Legacy "Kazakhstan Licenses Held" checklist is now gated on KZ being
+ *    the main country OR appearing in operating regions. Bangladesh /
+ *    Bosnia / etc vendors no longer see it.
+ *  - Country-specific license uploads (CountryLicenseSlots) stay for the
+ *    actual country the vendor registered under + every office country.
  */
 export default function SectionD({ reg, update, kzMeta, regId, token, onDocChange, ensureDraft }) {
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const slots = [
     ["signed_declaration", { label: t("section_d.doc_signed_declaration"), required: false }],
   ];
 
-  const [catalogue, setCatalogue] = useState([]);
-  const [catQuery, setCatQuery] = useState("");
-  // v52cm — load countries from the new masters endpoint (full 250, with
-  // postal_code_regex/format) instead of the legacy publicApi.countries() shortlist.
+  // v52cm — load countries from the new masters endpoint (full 250) for
+  // the office editor; falls back to [] silently.
   const [countries, setCountries] = useState([]);
   useEffect(() => {
     api.get("/api/v1/masters/countries")
@@ -29,32 +36,22 @@ export default function SectionD({ reg, update, kzMeta, regId, token, onDocChang
       .catch(() => setCountries([]));
   }, []);
 
-  useEffect(() => {
-    mastersApi.listCategoriesPublic(reg.country || undefined)
-      .then((rows) => setCatalogue(Array.isArray(rows) ? rows : []))
-      .catch(() => setCatalogue([]));
-  }, [reg.country]);
+  // v52co — normalise business_categories. Existing drafts stored names as
+  // strings; new drafts store {code, title}. The picker understands both.
+  const businessCategories = useMemo(() => {
+    const raw = reg.business_categories || [];
+    return raw.map((v) => (typeof v === "string" ? { code: v, title: v } : v));
+  }, [reg.business_categories]);
 
-  const selected = reg.business_categories || [];
-  const toggle = (name) => {
-    const set = new Set(selected);
-    if (set.has(name)) set.delete(name); else set.add(name);
-    update({ business_categories: Array.from(set) });
-  };
-
-  const filtered = useMemo(() => {
-    const q = catQuery.trim().toLowerCase();
-    if (!q) return catalogue;
-    return catalogue.filter((c) =>
-      [c.name, c.name_ru, c.name_kz, c.code, c.unspsc_code]
-        .filter(Boolean)
-        .some((s) => String(s).toLowerCase().includes(q)));
-  }, [catalogue, catQuery]);
-
-  const label = (c) =>
-    (lang === "ru" && c.name_ru) ? c.name_ru
-    : (lang === "kz" && c.name_kz) ? c.name_kz
-    : c.name;
+  // v52co — the hardcoded Kazakhstan-licenses block is only relevant to KZ
+  // vendors. Gate it on KZ being either the main country or an office country.
+  const kzIsRelevant = useMemo(() => {
+    if ((reg.country || "").toUpperCase() === "KZ") return true;
+    for (const o of reg.operating_regions || []) {
+      if (o && typeof o === "object" && (o.country_code || "").toUpperCase() === "KZ") return true;
+    }
+    return false;
+  }, [reg.country, reg.operating_regions]);
 
   return (
     <div className="grid gap-5">
@@ -73,85 +70,42 @@ export default function SectionD({ reg, update, kzMeta, regId, token, onDocChang
           countries={countries} />
       </Field>
 
-      {/* v50y — business verticals from the Categories master */}
+      {/* v52co — business verticals via full UNSPSC multi-select. Same
+          search backend as Section C; works for every country including
+          Bangladesh / Bosnia / etc. */}
       <Field label={t("section_d.business_categories")}
-             hint="Choose from PMC's Categories master (UNSPSC-backed). Admin controls the list from Masters → Categories.">
-        <div data-testid="f-categories-picker"
-             className="mt-1 border border-brand-navy/20 bg-white">
-          <input value={catQuery}
-                 onChange={(e) => setCatQuery(e.target.value)}
-                 placeholder={catalogue.length
-                   ? `Search ${catalogue.length} verticals…`
-                   : "Loading verticals from Categories master…"}
-                 className="w-full px-3 py-2 border-b border-brand-navy/10 text-sm"
-                 data-testid="f-categories-search" />
-          {selected.length > 0 && (
-            <div className="flex flex-wrap gap-1 p-2 border-b border-brand-navy/10 bg-brand-pale/40"
-                 data-testid="f-categories-selected">
-              {selected.map((name) => (
-                <button type="button" key={name} onClick={() => toggle(name)}
-                        className="text-[11px] uppercase tracking-widest px-2 py-1 bg-emerald-100 text-emerald-900 hover:bg-red-100 hover:text-red-700"
-                        data-testid={`f-cat-chip-${name}`}>
-                  ✓ {name} ×
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="max-h-48 overflow-y-auto">
-            {filtered.length === 0 ? (
-              <div className="p-3 text-xs text-brand-navy/50">
-                {catalogue.length === 0
-                  ? "The Categories master is empty — ask the admin to seed it from Masters → Categories."
-                  : "No matches — try a different search."}
-              </div>
-            ) : filtered.slice(0, 100).map((c) => {
-              const isOn = selected.includes(c.name);
+             hint="Search the full UNSPSC codeset — biogas, solar plant, construction, CBG, STP, etc. Picks accumulate as chips you can remove.">
+        <UnspscMultiPicker
+          value={businessCategories}
+          onChange={(next) => update({ business_categories: next })}
+          testidPrefix="f-categories" />
+      </Field>
+
+      {/* v52co — legacy KZ licence checklist gated on KZ being relevant. */}
+      {kzIsRelevant && (
+        <Field label={t("section_d.kz_licenses")} hint={t("section_d.kz_licenses_hint")}>
+          <div className="grid md:grid-cols-2 gap-2 mt-2" data-testid="f-kz-licenses-block">
+            {(kzMeta?.licenses || []).map((lic) => {
+              const held = (reg.kz_licenses || []).includes(lic);
               return (
-                <label key={c.id || c.code}
-                       className={`flex items-center gap-2 px-3 py-2 text-sm cursor-pointer border-b border-brand-navy/5 ${isOn ? "bg-emerald-50" : "hover:bg-brand-pale/30"}`}
-                       data-testid={`f-cat-row-${c.code}`}>
-                  <input type="checkbox" checked={isOn}
-                         onChange={() => toggle(c.name)} />
-                  <span className="flex-1">{label(c)}</span>
-                  {c.unspsc_code && (
-                    <span className="text-[10px] font-mono text-brand-navy/40">
-                      {c.unspsc_code}
-                    </span>
-                  )}
+                <label key={lic} className="flex items-center gap-2 border border-brand-navy/10 px-3 py-2 bg-white cursor-pointer hover:border-brand-navy-soft/60">
+                  <input
+                    type="checkbox"
+                    data-testid={`f-kz-license-${lic.split(" ")[0].toLowerCase()}`}
+                    checked={held}
+                    onChange={() => {
+                      const cur = new Set(reg.kz_licenses || []);
+                      if (held) cur.delete(lic); else cur.add(lic);
+                      update({ kz_licenses: Array.from(cur) });
+                    }}
+                  />
+                  <span className="text-sm text-brand-navy">{lic}</span>
                 </label>
               );
             })}
-            {filtered.length > 100 && (
-              <div className="p-2 text-xs text-brand-navy/50">
-                Showing first 100 of {filtered.length} — refine your search for the rest.
-              </div>
-            )}
           </div>
-        </div>
-      </Field>
-
-      <Field label={t("section_d.kz_licenses")} hint={t("section_d.kz_licenses_hint")}>
-        <div className="grid md:grid-cols-2 gap-2 mt-2">
-          {(kzMeta?.licenses || []).map((lic) => {
-            const held = (reg.kz_licenses || []).includes(lic);
-            return (
-              <label key={lic} className="flex items-center gap-2 border border-brand-navy/10 px-3 py-2 bg-white cursor-pointer hover:border-brand-navy-soft/60">
-                <input
-                  type="checkbox"
-                  data-testid={`f-kz-license-${lic.split(" ")[0].toLowerCase()}`}
-                  checked={held}
-                  onChange={() => {
-                    const cur = new Set(reg.kz_licenses || []);
-                    if (held) cur.delete(lic); else cur.add(lic);
-                    update({ kz_licenses: Array.from(cur) });
-                  }}
-                />
-                <span className="text-sm text-brand-navy">{lic}</span>
-              </label>
-            );
-          })}
-        </div>
-      </Field>
+        </Field>
+      )}
 
       {/* v52cn — Country-specific license requirements. Pulled from the
           Country Licenses master based on the main country + every office

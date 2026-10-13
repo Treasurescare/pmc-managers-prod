@@ -66,7 +66,7 @@ class RegistrationUpdateIn(BaseModel):
     primary_sector: Optional[str] = None
     business_description: Optional[str] = None
     operating_regions: List[Any] = []  # v52ci — accepts legacy strings OR structured office dicts
-    business_categories: List[str] = []
+    business_categories: List[Any] = []  # v52co — accepts legacy strings OR {code,title} dicts
     previous_projects: List[dict] = []
     references: List[dict] = []
     iso_certifications: Optional[str] = None
