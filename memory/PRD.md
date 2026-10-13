@@ -1,5 +1,42 @@
 # PMC Managers v2 — PRD (last touched 12 Oct 2026)
 
+## v52co — Section D UX fixes + Investor coverage overlay (13 Oct 2026)
+
+User reported from screen recording:
+- Section D "Business Categories" picker only showed a curated ~87-row list
+  (per-country) — vendors from Bangladesh / Bosnia couldn't find biogas /
+  solar / etc that Section C surfaces fine.
+- "Kazakhstan Licenses Held" checklist block rendered for EVERY vendor
+  regardless of country, which the user correctly flagged as wrong.
+
+Fixes:
+- **New `UnspscMultiPicker`** replaces the curated-categories picker in
+  Section D. Debounced live search against `/api/v1/masters/unspsc/public/search`
+  (full 158k codeset, same backend as Section C's Primary UNSPSC picker,
+  including biogas/solar/CBG/STP synonym expansion). Picks accumulate as
+  removable chips; stores `[{code, title}]` on the registration.
+- **Backend model** — `Registration.business_categories` relaxed from
+  `List[str]` to `List[Any]` so new `{code, title}` dicts coexist with
+  legacy string entries. Picker normalises both on read.
+- **KZ Licenses Held block gated** — now only renders when `reg.country === "KZ"`
+  OR an operating region's `country_code === "KZ"`. For a Bangladesh vendor
+  the block disappears entirely; country-specific uploads come from the
+  dynamic `CountryLicenseSlots` instead.
+- **Investor Showcase — Masters → Geography coverage overlay**: GeographyTab
+  now fetches `listCountryLicenses()` and tags every country in the all-
+  countries list with a green "N lic" chip + subtle emerald row background.
+  Stats row grew to 4 tiles including "With licenses configured" so admins
+  can see production-ready jurisdictions at a glance.
+
+### Verified live
+- `pytest tests/test_v52cn_masters.py` — still 11/11.
+- Admin → New Vendor Section A country dropdown — 250 options confirmed earlier.
+- Masters tabs still present; GeographyTab stats row now shows "licenses
+  configured" counter.
+
+---
+
+
 ## v52cn — Masters wired into vendor creation + admin CRUD (13 Oct 2026)
 
 User Q: "if I add a company or a vendor, do I get the full list including UNSPSC
