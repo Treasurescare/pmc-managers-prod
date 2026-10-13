@@ -1,5 +1,11 @@
 # PMC Managers v2 — PRD (last touched 13 Oct 2026)
 
+## v52cx — approval matrix edit/delete + escrow institution invite (13 Oct 2026)
+
+- Backend: `DELETE /api/v1/masters/approval-matrices/{id}` (409 when a notice still uses it); admin-only `POST /api/v1/escrow-institutions/admin-invite` creates/reuses a draft record and emails the institution a magic-link resume URL — admin never enters third-party KYC.
+- Frontend: `+ Invite institution` CTA + drawer on `AdminEscrowInstitutionsE.jsx` (email required, optional name/contact/message, corporate|personal radio); Edit + Delete per saved approval-matrix row with "editing" chip and Update/Cancel-edit affordance.
+- Verified on preview: full matrix CRUD, invite dedupe (reused=true on 2nd call), email dispatch via existing Resend wrapper.
+
 ## v52cw — Download pack 401 fix (13 Oct 2026)
 
 v52cv's pack button used native navigation, which drops the httpOnly auth

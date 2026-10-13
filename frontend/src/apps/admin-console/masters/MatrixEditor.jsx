@@ -23,7 +23,8 @@ function filterStaffForRole(allStaff, roleCode) {
  * the step's role_code. Leave the picker on "— Any user with this role —"
  * to keep pool-routing. Pick a specific person to lock the step.
  */
-export default function MatrixEditor({ matrixDraft, setMatrixDraft, matrices, onSave }) {
+export default function MatrixEditor({ matrixDraft, setMatrixDraft, matrices, onSave,
+                                       editingId, onCancelEdit, onEdit, onDelete }) {
   const [allStaff, setAllStaff] = useState([]);
   useEffect(() => {
     staffApi.listStaff().then((rows) => setAllStaff(Array.isArray(rows) ? rows : []))
@@ -49,9 +50,15 @@ export default function MatrixEditor({ matrixDraft, setMatrixDraft, matrices, on
           <input value={matrixDraft.name}
             onChange={(e) => setMatrixDraft({ ...matrixDraft, name: e.target.value })}
             className="flex-1 px-3 py-2 border" placeholder="Matrix name" />
+          {editingId && (
+            <button onClick={() => { onCancelEdit && onCancelEdit(); }} data-testid="matrix-cancel-edit"
+              className="px-4 py-2 text-[11px] uppercase tracking-widest border border-brand-navy/30 bg-white">
+              Cancel edit
+            </button>
+          )}
           <button onClick={onSave} data-testid="matrix-save"
             className="px-4 py-2 text-[11px] uppercase tracking-widest bg-brand-navy text-white">
-            Save matrix
+            {editingId ? "Update matrix" : "Save matrix"}
           </button>
         </div>
         <table className="w-full text-sm">
@@ -157,13 +164,31 @@ export default function MatrixEditor({ matrixDraft, setMatrixDraft, matrices, on
       <div className="bg-white border">
         <div className="pmc-label p-3 border-b">Saved matrices</div>
         {matrices.map((m) => (
-          <div key={m.id} className="border-b p-3 text-sm" data-testid={`matrix-row-${m.name}`}>
-            <strong>{m.name}</strong> · {m.steps?.length} steps · applies to {m.applies_to}
-            {m.steps && m.steps.some((s) => s.assignee_email) && (
-              <span className="ml-2 text-[10px] text-emerald-800 bg-emerald-100 px-1.5 py-0.5">
-                has assignees
-              </span>
-            )}
+          <div key={m.id} className="border-b p-3 text-sm flex items-center gap-3 flex-wrap"
+               data-testid={`matrix-row-${m.name}`}>
+            <div className="flex-1 min-w-0">
+              <strong>{m.name}</strong> · {m.steps?.length} steps · applies to {m.applies_to}
+              {m.steps && m.steps.some((s) => s.assignee_email) && (
+                <span className="ml-2 text-[10px] text-emerald-800 bg-emerald-100 px-1.5 py-0.5">
+                  has assignees
+                </span>
+              )}
+              {editingId === m.id && (
+                <span className="ml-2 text-[10px] text-amber-900 bg-amber-100 px-1.5 py-0.5">
+                  editing
+                </span>
+              )}
+            </div>
+            <button type="button" onClick={() => onEdit && onEdit(m)}
+                    data-testid={`matrix-edit-${m.name}`}
+                    className="px-3 py-1 text-[10px] uppercase tracking-widest border border-brand-navy/30 hover:bg-slate-50">
+              Edit
+            </button>
+            <button type="button" onClick={() => onDelete && onDelete(m)}
+                    data-testid={`matrix-delete-${m.name}`}
+                    className="px-3 py-1 text-[10px] uppercase tracking-widest border border-red-500 text-red-700 hover:bg-red-50">
+              Delete
+            </button>
           </div>
         ))}
         {matrices.length === 0 && <div className="p-6 text-sm text-slate-500">No matrices saved yet.</div>}

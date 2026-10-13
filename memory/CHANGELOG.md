@@ -1,6 +1,42 @@
 # PMC Managers v2 — Changelog
 # PMC Managers v2 — Changelog
 
+## 2026-02-13 — v52cx Approval matrix edit/delete + escrow institution invite
+
+### User asks
+(a) Approval matrix needs edit/delete per saved row.
+(b) Admin should NOT fill third-party KYC — just enter the institution's
+email and send a magic link; the institution fills everything, then admin
+approves.
+(c) Explained the Escrow institutions page as read-only review queue
+(no code change for the explanation).
+
+### Backend
+- `routers/masters.py` — added `DELETE /api/v1/masters/approval-matrices/{id}`. Returns 409 when any notice still references the matrix (keeps running approval chains intact).
+- `routers/escrow_institutions.py` — added admin-only `POST /api/v1/escrow-institutions/admin-invite`:
+  - Payload: `primary_contact_email` (required), `legal_name` / `contact_name` / `message` / `institution_type: corporate|personal` (all optional).
+  - Creates a `status=draft` record with a fresh `magic_token`, OR reuses an existing draft/needs_clarification record for the same email (dedupe).
+  - Emails the contact a resume link via the existing `send_email` + `wrap` helpers.
+  - Writes `invited_by` / `invited_at` and an `escrow_inst.admin_invite` audit event.
+- Model: `EscrowInstitutionIn` now carries optional `primary_contact_name` + `institution_type` so the admin-invited row can be resumed from the public portal with the same contract.
+
+### Frontend
+- `lib/api.js` — `mastersApi.updateMatrix(id, p)`, `mastersApi.deleteMatrix(id)`; new `escrowInstitutionsApi.adminInvite(payload)`.
+- `MastersPanel.jsx` — tracks `editingMatrixId`; Save button becomes Update, with Cancel edit affordance; `editMatrix(m)` loads row back into the editor, `deleteMatrix(m)` confirms + toast.
+- `masters/MatrixEditor.jsx` — each saved-matrix row now has **Edit** and **Delete** buttons (`matrix-edit-{name}` / `matrix-delete-{name}`), with an "editing" chip while a row is loaded.
+- `admin-console-e/AdminEscrowInstitutionsE.jsx` — adds a `+ Invite institution` CTA; opens a right-side `InviteDrawer` form (email required; optional legal name / contact name / message / corporate|personal radio). Toast confirms "Invite email sent" or "re-sent to the existing draft" via `reused` flag.
+
+### Verified on preview
+- `POST /masters/approval-matrices` → `PATCH …/{id}` → `DELETE …/{id}` → 2nd `DELETE` returns 404. ✅
+- `POST /escrow-institutions/admin-invite` to a fresh email: `email_sent=true`, `reused=false`. Same email again: same `id`, `reused=true`, `email_sent=true` (dedupe + re-mail). ✅
+- UI: `admin-escrow-inst-invite-open` button renders, drawer opens with `admin-escrow-inst-invite-drawer`. ✅
+
+### Not shipped yet
+- Bundle rebuild held per user request ("hold until a few more issues are stacked").
+
+
+
+
 ## 2026-02-13 — v52cv Production E-theme fixes: avatar menu, EMD on lists, Download pack
 ## 2026-02-13 — v52cw Download pack auth fix
 

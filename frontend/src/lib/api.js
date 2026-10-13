@@ -499,6 +499,15 @@ export const vendorIntelApi = {
     api.delete(`/api/v1/vendor-intel/my-blacklist/appeal/evidence/${idx}`).then((r) => r.data),
 };
 
+// v52cx — admin-only "invite escrow institution by email" flow. The admin
+// never fills third-party KYC data; we send the institution a magic-link
+// and the institution self-fills the registration before our admin review.
+export const escrowInstitutionsApi = {
+  adminInvite: (payload) =>
+    api.post("/api/v1/escrow-institutions/admin-invite", payload).then((r) => r.data),
+};
+
+
 export const mastersApi = {
   listCompanies: () => api.get("/api/v1/masters/companies").then((r) => r.data),
   createCompany: (p) => api.post("/api/v1/masters/companies", p).then((r) => r.data),
@@ -506,6 +515,9 @@ export const mastersApi = {
   createRole: (p) => api.post("/api/v1/masters/roles", p).then((r) => r.data),
   listMatrices: () => api.get("/api/v1/masters/approval-matrices").then((r) => r.data),
   createMatrix: (p) => api.post("/api/v1/masters/approval-matrices", p).then((r) => r.data),
+  // v52cx — admin edit / delete for approval matrices.
+  updateMatrix: (id, p) => api.patch(`/api/v1/masters/approval-matrices/${id}`, p).then((r) => r.data),
+  deleteMatrix: (id) => api.delete(`/api/v1/masters/approval-matrices/${id}`).then((r) => r.data),
   // v50g — procurement Category master (replaces hardcoded free-text category).
   listCategories: (country, { includeInactive = false } = {}) =>
     api.get("/api/v1/masters/categories", {

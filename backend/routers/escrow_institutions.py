@@ -64,6 +64,8 @@ class EscrowInstitutionIn(BaseModel):
     website: Optional[str] = None
     primary_contact_email: EmailStr
     primary_contact_phone: Optional[str] = None
+    primary_contact_name: Optional[str] = None
+    institution_type: Literal["corporate", "personal"] = "corporate"
     # Document upload keys collected during registration
     documents: dict = Field(default_factory=dict)  # slot -> {key, filename, uploaded_at}
     banking: List[BankingCoord] = Field(default_factory=list)
@@ -168,6 +170,89 @@ async def submit(iid: str, token: str) -> dict:
 
 
 # -------- Admin endpoints ---------------------------------------------------
+
+# v52cx — admin invite flow. Instead of filling the full institution form
+# themselves, admins drop in just the primary contact email (optional legal
+# name) and we send that address a magic-link email. The institution then
+# fills everything on their side via the public resume flow and submits for
+# review as usual. The admin NEVER enters KYC data for a third party.
+class AdminInviteIn(BaseModel):
+    primary_contact_email: EmailStr
+    legal_name: Optional[str] = None
+    contact_name: Optional[str] = None
+    institution_type: Literal["corporate", "personal"] = "corporate"
+    message: Optional[str] = None   # optional note included in the invite email
+
+
+@router.post("/admin-invite")
+async def admin_invite(payload: AdminInviteIn,
+                        admin=Depends(require_role("admin"))) -> dict:
+    # Dedupe: if a draft/needs_clarification record already exists for this
+    # email, reuse it (reissue a magic_token) instead of creating a duplicate.
+    email = payload.primary_contact_email.strip().lower()
+    existing = await db.escrow_institutions.find_one({
+        "primary_contact_email": {"$regex": f"^{email}$", "$options": "i"},
+        "status": {"$in": ["draft", "needs_clarification"]},
+    })
+    token = _new_token()
+    if existing:
+        iid = str(existing["_id"])
+        await db.escrow_institutions.update_one(
+            {"_id": existing["_id"]},
+            {"$set": {"magic_token": token, "updated_at": now_iso(),
+                      "invited_by": admin.get("email"),
+                      "invited_at": now_iso()}})
+        reused = True
+    else:
+        doc = {
+            "legal_name": payload.legal_name or "",
+            "primary_contact_email": email,
+            "primary_contact_name": payload.contact_name or "",
+            "institution_type": payload.institution_type,
+            "country": "",
+            "registered_address": "",
+            "reg_number": "",
+            "documents": {},
+            "banking": [],
+            "signatories": [],
+            "status": "draft",
+            "magic_token": token,
+            "created_at": now_iso(),
+            "invited_by": admin.get("email"),
+            "invited_at": now_iso(),
+        }
+        r = await db.escrow_institutions.insert_one(doc)
+        iid = str(r.inserted_id)
+        reused = False
+
+    # Fire the invite email. Degrades gracefully if email transport is down.
+    sent = False
+    try:
+        import config
+        from emails import send_email, wrap
+        resume_url = f"{config.FRONTEND_URL}/escrow/resume/{token}?iid={iid}"
+        kind = "trustee" if payload.institution_type == "personal" else "escrow institution"
+        subject = f"PMC Managers — register as our {kind}"
+        body = wrap(subject,
+            f"<p>Dear {payload.contact_name or payload.legal_name or 'Partner'},</p>"
+            f"<p>{admin.get('email','PMC Managers admin')} has invited you to register "
+            f"as a <strong>{kind}</strong> for PMC Managers. Please click the button "
+            f"below to open your private registration page.</p>"
+            + (f"<p><em>{payload.message}</em></p>" if payload.message else "")
+            + "<p>The link is unique to you — treat it like a password. "
+              "After submitting, our team will review and come back to you.</p>",
+            "Start registration", resume_url)
+        await send_email(email, f"[PMC] {subject}", body)
+        sent = True
+    except Exception as e:
+        import logging
+        logging.getLogger("escrow_institutions").warning(
+            "admin-invite email failed for %s: %s", email, e)
+
+    await audit_log("escrow_inst.admin_invite", admin, "escrow_institution",
+                    iid, {"email": email, "reused": reused, "email_sent": sent})
+    return {"id": iid, "magic_token": token, "email_sent": sent, "reused": reused}
+
 
 @router.get("")
 async def list_institutions(status: Optional[Status] = None,

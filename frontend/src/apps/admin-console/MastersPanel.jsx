@@ -45,6 +45,9 @@ export default function MastersPanel() {
       { order: 6, role_code: "committee_member", action_label: "Committee award", sla_hours: 168, required: true },
     ],
   });
+  // v52cx — editingMatrixId toggles the Save button between create and
+  // update. Null = fresh matrix, otherwise we PATCH the existing row.
+  const [editingMatrixId, setEditingMatrixId] = useState(null);
 
   const load = useCallback(async () => {
     // Bug #13 fix — allSettled so any single 403 does not hang the panel.
@@ -111,8 +114,40 @@ export default function MastersPanel() {
 
   const createMatrix = async () => {
     try {
-      await mastersApi.createMatrix(matrixDraft);
-      toast.success(t("panels.masters.matrix_saved"));
+      if (editingMatrixId) {
+        // Pydantic model does not accept client-added id/_id/created_* fields.
+        const { id, _id, created_at, created_by, ...clean } = matrixDraft; // eslint-disable-line no-unused-vars
+        await mastersApi.updateMatrix(editingMatrixId, clean);
+        toast.success("Matrix updated");
+        setEditingMatrixId(null);
+      } else {
+        await mastersApi.createMatrix(matrixDraft);
+        toast.success(t("panels.masters.matrix_saved"));
+      }
+      load();
+    } catch (e) { showApiError(e); }
+  };
+
+  // v52cx — load a saved matrix back into the editor.
+  const editMatrix = (m) => {
+    setMatrixDraft({
+      name: m.name,
+      applies_to: m.applies_to || "bid",
+      tender_value_min: m.tender_value_min ?? 0,
+      tender_value_max: m.tender_value_max ?? 100000000,
+      steps: (m.steps || []).map((s, i) => ({ order: s.order ?? i + 1, ...s })),
+    });
+    setEditingMatrixId(m.id);
+    toast.info(`Editing "${m.name}" — change fields and click Save matrix to update.`);
+  };
+
+  // v52cx — delete with confirm. Backend 409s when a notice still uses it.
+  const deleteMatrix = async (m) => {
+    if (!window.confirm(`Delete approval matrix "${m.name}"? This cannot be undone.`)) return;
+    try {
+      await mastersApi.deleteMatrix(m.id);
+      toast.success(`Deleted "${m.name}"`);
+      if (editingMatrixId === m.id) setEditingMatrixId(null);
       load();
     } catch (e) { showApiError(e); }
   };
@@ -207,6 +242,9 @@ export default function MastersPanel() {
         <MatrixEditor
           matrixDraft={matrixDraft} setMatrixDraft={setMatrixDraft}
           matrices={matrices} onSave={createMatrix}
+          editingId={editingMatrixId}
+          onCancelEdit={() => setEditingMatrixId(null)}
+          onEdit={editMatrix} onDelete={deleteMatrix}
         />
       )}
 

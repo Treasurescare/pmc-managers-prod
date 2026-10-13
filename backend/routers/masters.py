@@ -197,3 +197,21 @@ async def update_matrix(matrix_id: str, payload: ApprovalMatrixIn,
     if r.matched_count == 0:
         raise HTTPException(status_code=404, detail="Not found")
     return _out(await db.approval_matrices.find_one({"_id": ObjectId(matrix_id)}))
+
+
+# v52cx — delete an approval matrix. Blocks deletion if any notice still
+# references it so a running approval chain can't suddenly lose its spine.
+@router.delete("/approval-matrices/{matrix_id}")
+async def delete_matrix(matrix_id: str,
+                        admin=Depends(require_role("admin"))) -> dict:
+    doc = await db.approval_matrices.find_one({"_id": ObjectId(matrix_id)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Not found")
+    in_use = await db.notices.count_documents({"approval_matrix_id": matrix_id})
+    if in_use:
+        raise HTTPException(status_code=409,
+            detail=f"{in_use} notice(s) still use this matrix. Reassign them before deleting.")
+    await db.approval_matrices.delete_one({"_id": ObjectId(matrix_id)})
+    await audit_log("approval_matrix.delete", admin, "approval_matrix",
+                    doc.get("name") or matrix_id, {})
+    return {"ok": True, "deleted": matrix_id}

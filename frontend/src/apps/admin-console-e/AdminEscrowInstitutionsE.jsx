@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import AdminEShell from "./AdminEShell";
-import { api, showApiError } from "@/lib/api";
+import { api, showApiError, escrowInstitutionsApi } from "@/lib/api";
 /**
  * v51am — Admin review queue for Escrow Institution registrations.
  * Lists all institutions with status filter, drill-in panel showing core
@@ -15,6 +15,8 @@ export default function AdminEscrowInstitutionsE() {
   const [sel, setSel] = useState(null);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
+  // v52cx — invite drawer.
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   const load = async () => {
     try {
@@ -71,18 +73,29 @@ export default function AdminEscrowInstitutionsE() {
                 Approve to issue the signatory magic link automatically.
               </p>
             </div>
-            <select value={status} onChange={(e) => setStatus(e.target.value)}
-                    data-testid="admin-escrow-insts-filter"
-                    className="px-3 py-2 text-sm border border-brand-navy/20 bg-white">
-              <option value="">All statuses</option>
-              <option value="submitted">Submitted (new)</option>
-              <option value="under_review">Under review</option>
-              <option value="needs_clarification">Needs clarification</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-              <option value="draft">Draft</option>
-            </select>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button type="button" onClick={() => setInviteOpen(true)}
+                      data-testid="admin-escrow-inst-invite-open"
+                      className="px-4 py-2 text-xs uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy/90">
+                + Invite institution
+              </button>
+              <select value={status} onChange={(e) => setStatus(e.target.value)}
+                      data-testid="admin-escrow-insts-filter"
+                      className="px-3 py-2 text-sm border border-brand-navy/20 bg-white">
+                <option value="">All statuses</option>
+                <option value="submitted">Submitted (new)</option>
+                <option value="under_review">Under review</option>
+                <option value="needs_clarification">Needs clarification</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+                <option value="draft">Draft</option>
+              </select>
+            </div>
           </div>
+
+          {inviteOpen && (
+            <InviteDrawer onClose={() => setInviteOpen(false)} onInvited={() => { setInviteOpen(false); load(); }} />
+          )}
 
           <div className="grid gap-4 lg:grid-cols-[5fr_7fr]">
             <section className="bg-white border border-brand-navy/15">
@@ -244,6 +257,128 @@ function F({ label, v, mono }) {
     <div>
       <div className="text-[10px] uppercase tracking-widest text-slate-500">{label}</div>
       <div className={`text-slate-800 text-sm ${mono ? "font-mono text-xs" : ""}`}>{v || "—"}</div>
+    </div>
+  );
+}
+
+/**
+ * v52cx — InviteDrawer. Admin enters only the primary contact email (and
+ * optionally institution name, contact name, type, note). We POST that to
+ * /api/v1/escrow-institutions/admin-invite which creates a draft record,
+ * generates a magic token and emails the institution a resume link. The
+ * institution fills the entire form itself before admin review.
+ */
+function InviteDrawer({ onClose, onInvited }) {
+  const [form, setForm] = useState({
+    primary_contact_email: "", legal_name: "", contact_name: "",
+    institution_type: "corporate", message: "",
+  });
+  const [busy, setBusy] = useState(false);
+  const upd = (k, v) => setForm((s) => ({ ...s, [k]: v }));
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!form.primary_contact_email.trim()) return toast.error("Primary contact email is required.");
+    setBusy(true);
+    try {
+      const res = await escrowInstitutionsApi.adminInvite(form);
+      if (res.email_sent) {
+        toast.success(res.reused
+          ? "Magic link re-sent to the existing draft."
+          : "Invite email sent — the institution will fill in the details.");
+      } else {
+        toast.warning("Invite record created, but the email could not be sent. Share the resume link manually from the queue.");
+      }
+      onInvited && onInvited();
+    } catch (err) { showApiError(err); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-start justify-end"
+         data-testid="admin-escrow-inst-invite-drawer" onClick={onClose}>
+      <form className="bg-white w-full max-w-md h-full overflow-y-auto p-6 shadow-xl space-y-4"
+            onClick={(e) => e.stopPropagation()} onSubmit={submit}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-brand-navy">Invite escrow institution</h2>
+          <button type="button" onClick={onClose} className="text-brand-navy/50 hover:text-brand-navy">✕</button>
+        </div>
+        <p className="text-xs text-brand-navy/60">
+          Enter the institution's primary contact email. We'll email them a secure link
+          to fill out the full registration (KYC, banking, signatories, documents).
+          Review and approve from the queue once they submit.
+        </p>
+
+        <div>
+          <label className="pmc-label text-[10px]">Institution type</label>
+          <div className="mt-1 flex gap-4 text-sm">
+            {[["corporate", "Corporate (bank / trust)"], ["personal", "Personal trustee"]].map(([k, l]) => (
+              <label key={k} className="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="inst-type" value={k}
+                       checked={form.institution_type === k}
+                       onChange={() => upd("institution_type", k)}
+                       data-testid={`admin-escrow-inst-invite-type-${k}`} />
+                {l}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="pmc-label text-[10px]">Primary contact email <span className="text-red-600">*</span></label>
+          <input type="email" required value={form.primary_contact_email}
+                 onChange={(e) => upd("primary_contact_email", e.target.value)}
+                 data-testid="admin-escrow-inst-invite-email"
+                 className="mt-1 w-full border border-brand-navy/20 p-2 text-sm font-mono"
+                 placeholder="treasury@partnerbank.com" />
+        </div>
+
+        <div>
+          <label className="pmc-label text-[10px]">
+            {form.institution_type === "personal" ? "Trustee full name" : "Institution legal name"}
+            <span className="text-brand-navy/40"> (optional)</span>
+          </label>
+          <input type="text" value={form.legal_name}
+                 onChange={(e) => upd("legal_name", e.target.value)}
+                 data-testid="admin-escrow-inst-invite-legal-name"
+                 className="mt-1 w-full border border-brand-navy/20 p-2 text-sm"
+                 placeholder={form.institution_type === "personal" ? "e.g. Jane Smith" : "e.g. Partner Bank PLC"} />
+        </div>
+
+        <div>
+          <label className="pmc-label text-[10px]">
+            Contact person name <span className="text-brand-navy/40">(optional)</span>
+          </label>
+          <input type="text" value={form.contact_name}
+                 onChange={(e) => upd("contact_name", e.target.value)}
+                 data-testid="admin-escrow-inst-invite-contact-name"
+                 className="mt-1 w-full border border-brand-navy/20 p-2 text-sm"
+                 placeholder="So we address the invite email to a person" />
+        </div>
+
+        <div>
+          <label className="pmc-label text-[10px]">
+            Note to include in the email <span className="text-brand-navy/40">(optional)</span>
+          </label>
+          <textarea rows={3} value={form.message}
+                    onChange={(e) => upd("message", e.target.value)}
+                    data-testid="admin-escrow-inst-invite-message"
+                    className="mt-1 w-full border border-brand-navy/20 p-2 text-sm"
+                    placeholder="Context about which tender / why you're onboarding them…" />
+        </div>
+
+        <div className="flex gap-2 pt-2">
+          <button type="submit" disabled={busy}
+                  data-testid="admin-escrow-inst-invite-send"
+                  className="px-5 py-2 text-xs uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy/90 disabled:opacity-50">
+            {busy ? "Sending…" : "Send invite"}
+          </button>
+          <button type="button" onClick={onClose} disabled={busy}
+                  className="px-5 py-2 text-xs uppercase tracking-widest border border-brand-navy/20 hover:bg-slate-50">
+            Cancel
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
