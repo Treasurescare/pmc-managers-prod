@@ -1,5 +1,15 @@
 # PMC Managers v2 — PRD (last touched 13 Oct 2026)
 
+## v52cw — Download pack 401 fix (13 Oct 2026)
+
+v52cv's pack button used native navigation, which drops the httpOnly auth
+cookie on protected `/api/v1/uploads/files/*` URLs →
+`{"detail":"Sign in to download tender documents"}`. Now fetches an
+authenticated blob via the axios `api` instance (same pattern as
+`downloadAuthedFile`) and saves with the server filename. Preview e2e
+verified (admin → notice detail → download fires). Bundle:
+`pmc-frontend-v52cw-prod-build.zip` — supersedes v52cv. Backend stays v52cu.
+
 ## v52cv — production E-theme fixes (13 Oct 2026)
 
 Frontend-only hotfix bundle `pmc-frontend-v52cv-prod-build.zip`: (1) Tender

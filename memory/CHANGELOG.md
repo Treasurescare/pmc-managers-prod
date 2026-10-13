@@ -2,6 +2,21 @@
 # PMC Managers v2 — Changelog
 
 ## 2026-02-13 — v52cv Production E-theme fixes: avatar menu, EMD on lists, Download pack
+## 2026-02-13 — v52cw Download pack auth fix
+
+### User report
+After v52cv, clicking Download pack returned `{"detail":"Sign in to download tender documents"}` (HTTP 401).
+
+### Root cause
+The pack URL can fall back to the protected `/api/v1/uploads/files/{key}` endpoint, which requires an admin session (httpOnly cookie) or vendor cookie. A plain `<a href>` navigation drops that session (SameSite=None + CHIPS partitioning — the same reason `uploadsApi.openInNewTab` exists at api.js:390). Note the pack flow was verified on preview BEFORE shipping this fix.
+
+### Fix
+`NoticeDetailE.jsx` — Download pack is now a button whose onClick fetches the URL via the axios `api` instance (`withCredentials: true`, responseType blob), then saves the blob with the filename from Content-Disposition. Same pattern as the proven `downloadAuthedFile` / `openInNewTab` helpers. Toasts for 401 (expired session), 404 (template unlinked), and empty pack.
+
+### Verified
+Preview e2e: admin login → `/notices/PMC-NOT-2026-0020` → Download pack → browser download fired with correct filename. Bundle: `pmc-frontend-v52cw-prod-build.zip` (supersedes v52cv; backend stays v52cu).
+
+
 
 ### User report (screen recording on pmcmanagers.com production)
 1. Tender Maker page: avatar + sign-out buttons dead.

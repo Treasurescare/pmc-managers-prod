@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { useNoticeDetailLive } from "@/lib/pmcELiveData";
 import useAuthSession from "@/lib/useAuthSession";
-import { adminApi, staffApi, vendorApi, corrigendaApi, publicApi } from "@/lib/api";
+import { adminApi, staffApi, vendorApi, corrigendaApi, publicApi, api } from "@/lib/api";
 
 export default function NoticeDetailE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
@@ -43,6 +43,41 @@ export default function NoticeDetailE({ legacy: Legacy }) {
       }
     }).catch(() => setPackUrl(""));
   }, [isE, noticeRef]);
+  // v52cw — authenticated blob download. The pack URL can point at the
+  // protected /api/v1/uploads/files/* endpoint, which needs the admin Bearer
+  // token (localStorage) or vendor cookie. A plain <a href> navigation sends
+  // neither and the backend answers 401 {"detail":"Sign in to download…"}.
+  // Fetching through the axios `api` instance attaches the token.
+  const [packBusy, setPackBusy] = useState(false);
+  const downloadPack = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!packUrl || packBusy) return;
+    setPackBusy(true);
+    toast.info("Preparing your download…");
+    try {
+      const res = await api.get(packUrl, { responseType: "blob" });
+      const cd = res.headers?.["content-disposition"] || "";
+      const m = cd.match(/filename="?([^";]+)"?/);
+      const fname = m ? m[1] : `${noticeRef || "tender"}-pack${(res.headers?.["content-type"] || "").includes("zip") ? ".zip" : ""}`;
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fname;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+      toast.success("Download started");
+    } catch (err) {
+      const s = err?.response?.status;
+      if (s === 401) toast.error("Your session has expired — sign in again, then retry.");
+      else if (s === 404) toast.error("The tender documents are no longer linked to this notice.");
+      else toast.error("Couldn't download the pack. Try again.");
+    } finally {
+      setPackBusy(false);
+    }
+  };
   const signOut = async () => {
     try { await adminApi.logout(); } catch { /* ignore */ }
     try { await staffApi.logout(); } catch { /* ignore */ }
@@ -112,7 +147,10 @@ export default function NoticeDetailE({ legacy: Legacy }) {
       {!authed ? (
         <Link to="/register" className="pmc-btn pmc-btn--onchrome" data-testid="notice-download-pack"><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg> Download pack</Link>
       ) : packUrl ? (
-        <a href="#" className="pmc-btn pmc-btn--onchrome" data-testid="notice-download-pack" data-doc-url={packUrl}><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg> Download pack</a>
+        <button type="button" className="pmc-btn pmc-btn--onchrome" data-testid="notice-download-pack"
+          disabled={packBusy} onClick={downloadPack}>
+          <svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg> {packBusy ? "Preparing…" : "Download pack"}
+        </button>
       ) : (
         <button type="button" className="pmc-btn pmc-btn--onchrome" data-testid="notice-download-pack"
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); toast.info(packUrl === null ? "Preparing the document list…" : "No tender documents have been published for this notice yet."); }}>
