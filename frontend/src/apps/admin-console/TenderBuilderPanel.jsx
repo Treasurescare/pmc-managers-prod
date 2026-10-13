@@ -425,17 +425,42 @@ export default function TenderBuilderPanel() {
       toast.error(`Fill the mandatory (*) fields first: ${missing.join(", ")}`);
       return;
     }
+    // v52cp — carry EVERY detail the user already entered, including the
+    // delivery country and any section-level documents. We intentionally do
+    // NOT prefill the submission deadline — the user picks that at publish
+    // time. Currency falls back to the template header's currency, not a
+    // hardcoded INR.
+    const tenderDocs = (doc.sections || [])
+      .filter((s) => s && s.attachment && s.attachment.url)
+      .map((s) => ({
+        section_code: s.code,
+        section_title: s.title,
+        file_name: s.attachment.file_name,
+        url: s.attachment.url,
+        content_type: s.attachment.content_type,
+        size_bytes: s.attachment.size_bytes,
+      }));
+    const budgetCurrency = h.budget_currency || doc.budget_currency || "USD";
     sessionStorage.setItem("pmc.noticePrefill", JSON.stringify({
       title: String(h.work_title).trim(),
       description: String(h.work_description).trim(),
       category: String(h.product_category).trim(),
-      submission_deadline: h.sub_end,
+      // v52cp — delivery country from tender header; falls back to doc.country.
+      delivery_country: String(h.country || doc.country || "KZ").toUpperCase(),
       budget_amount: Number(h.tender_value),
-      budget_currency: "INR",
-      emd_config: { fixed_amount: Number(h.emd_amount) || 0, percentage: 0, currency: "INR" },
+      budget_currency: budgetCurrency,
+      emd_config: {
+        fixed_amount: Number(h.emd_amount) || 0,
+        percentage: Number(h.emd_percentage) || 0,
+        currency: budgetCurrency,
+      },
       tender_template_id: doc.id,
+      // v52cp — surface the tender's existing documents so the user can
+      // review / add more / delete them from the notice form.
+      _tender_docs: tenderDocs,
+      _tender_name: doc.name,
     }));
-    toast.success("Opening Notices pre-filled — attach the primary tender document there, then Create & Publish.");
+    toast.success("Opening Notices pre-filled from the tender — review, pick the submission deadline, then Create.");
     navigate("/admin/e/notices?from=tender-builder");
   };
 

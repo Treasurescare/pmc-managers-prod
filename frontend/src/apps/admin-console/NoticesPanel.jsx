@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { adminApi, mastersApi, publicApi, noticeDocsApi, tenderTemplateApi, formatApiError, showApiError} from "@/lib/api";
@@ -23,6 +23,12 @@ export default function NoticesPanel() {
   const [currencies, setCurrencies] = useState([]);
   const [primaryFile, setPrimaryFile] = useState(null);
   const [attachmentFiles, setAttachmentFiles] = useState([]);
+  // v52cp — documents that the admin already uploaded inside Tender Builder.
+  // Surfaced read-only here with View so the user can confirm before Create;
+  // "Add more" / "Delete" are the ordinary attachment controls.
+  const [tenderDocs, setTenderDocs] = useState([]);
+  const [tenderDraftName, setTenderDraftName] = useState("");
+  const formRef = useRef(null);
   const [me, setMe] = useState(null);
   const [draft, setDraft] = useState({
     title: "", description: "", document_type: "tender", category: "",
@@ -41,9 +47,24 @@ export default function NoticesPanel() {
       if (!raw) return;
       sessionStorage.removeItem("pmc.noticePrefill");
       const pre = JSON.parse(raw);
+      // v52cp — strip the UI-only hints from the server payload.
+      const docs = Array.isArray(pre._tender_docs) ? pre._tender_docs : [];
+      const draftName = pre._tender_name || "";
+      delete pre._tender_docs;
+      delete pre._tender_name;
       setDraft((d) => ({ ...d, ...pre, emd_config: { ...d.emd_config, ...(pre.emd_config || {}) } }));
+      setTenderDocs(docs);
+      setTenderDraftName(draftName);
       setShowNew(true);
-      toast.info("Pre-filled from Tender Builder — review, attach the primary tender document, then Create.");
+      // v52cp — jump straight to the form so the user doesn't have to
+      // scroll past the notice list.
+      requestAnimationFrame(() => {
+        formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+      toast.info(
+        docs.length
+          ? `Pre-filled from Tender Builder · ${docs.length} tender document(s) attached. Review, pick a submission deadline, then Create.`
+          : "Pre-filled from Tender Builder — review, pick a submission deadline, then Create.");
     } catch { /* malformed payload — ignore */ }
   }, []);
 
@@ -231,11 +252,9 @@ export default function NoticesPanel() {
       toast.error("Submission deadline is required");
       return;
     }
-    // v52bk — primary tender/RFP/RFQ document is mandatory at create time.
-    if (!primaryFile) {
-      toast.error("Primary document (Tender Notice / RFQ / RFP) is required · upload a PDF or DOCX");
-      return;
-    }
+    // v52cp — primary document is NO LONGER mandatory. The user may have
+    // uploaded tender documents inside Tender Builder (shown read-only
+    // above) or chooses to publish a notice first and attach later.
     try {
       const created = await adminApi.createNotice(draft);
       // Bug #5 defensive fallback — if backend returned no notice_ref
@@ -275,6 +294,7 @@ export default function NoticesPanel() {
         tender_template_id: "",
       });
       setPrimaryFile(null); setAttachmentFiles([]);
+      setTenderDocs([]); setTenderDraftName("");
       load();
     } catch (err) { showApiError(err); }
   };
@@ -290,7 +310,47 @@ export default function NoticesPanel() {
       </div>
 
       {showNew && (
-        <div className="border border-brand-navy-soft/40 bg-white p-6 mb-6 grid gap-4 md:grid-cols-2" data-testid="notice-new-form">
+        <div ref={formRef} className="border border-brand-navy-soft/40 bg-white p-6 mb-6 grid gap-4 md:grid-cols-2" data-testid="notice-new-form">
+          {tenderDocs.length > 0 && (
+            <div className="col-span-2 bg-amber-50 border border-amber-300 p-4" data-testid="notice-tender-docs">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div>
+                  <div className="pmc-label text-amber-900">
+                    📐 Documents from the linked tender
+                    {tenderDraftName ? ` · ${tenderDraftName}` : ""}
+                  </div>
+                  <div className="text-[11px] text-amber-900/80 mt-1">
+                    {tenderDocs.length} file(s) already uploaded inside Tender Builder.
+                    They stay attached to this notice automatically — add, edit or
+                    delete them from{" "}
+                    <a href={`/admin?tab=tender-builder&template=${draft.tender_template_id || ""}`}
+                       className="underline hover:text-amber-700" target="_blank" rel="noreferrer">
+                      Tender Builder
+                    </a>.
+                  </div>
+                </div>
+              </div>
+              <div className="grid gap-2">
+                {tenderDocs.map((td, i) => (
+                  <div key={i} className="flex flex-wrap items-center gap-2 bg-white border border-amber-200 px-3 py-2 text-sm"
+                       data-testid={`notice-tender-doc-${i}`}>
+                    <span className="font-mono text-[10px] text-amber-900/70">{td.section_code}</span>
+                    <span className="text-brand-navy flex-1 truncate" title={td.file_name}>📎 {td.file_name}</span>
+                    {td.size_bytes != null && (
+                      <span className="text-[10px] text-brand-navy/50 font-mono">
+                        {Math.round((td.size_bytes || 0) / 1024)} KB
+                      </span>
+                    )}
+                    <a href={td.url} target="_blank" rel="noreferrer"
+                       data-testid={`notice-tender-doc-view-${i}`}
+                       className="px-2 py-1 text-[10px] uppercase tracking-widest border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white">
+                      View
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <label className="col-span-2"><span className="pmc-label">Title<InfoDot tip="Human-readable name of the tender / RFP / RFQ. Shown on the public Notice Board. Minimum 3 characters." /></span>
             <input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} data-testid="notice-title"
               className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
@@ -463,15 +523,23 @@ export default function NoticesPanel() {
           </label>
 
           <div className="col-span-2 border-t border-brand-navy/10 pt-4 mt-2">
-            <div className="pmc-label mb-2">Tender / RFP / RFQ documents <span className="text-red-600" aria-hidden="true">*</span></div>
+            <div className="pmc-label mb-2">
+              Tender / RFP / RFQ documents
+              {tenderDocs.length > 0 && (
+                <span className="ml-2 text-[10px] normal-case tracking-normal text-amber-800">
+                  ({tenderDocs.length} already attached from Tender Builder — see yellow box above)
+                </span>
+              )}
+            </div>
             <div className="grid gap-3 md:grid-cols-2">
               <div className="text-sm border border-brand-navy/20 bg-brand-pale/40 p-3">
                 <div className="flex items-center justify-between">
                   <span className="text-brand-navy font-semibold">
-                    Primary document <span className="text-red-600">*</span>
+                    Primary document
+                    <span className="ml-2 text-[10px] uppercase tracking-widest font-normal text-brand-navy/50">optional</span>
                   </span>
                   <span className="text-[10px] uppercase tracking-widest text-brand-navy/60">
-                    PDF / DOCX · single · required
+                    PDF / DOCX · single
                   </span>
                 </div>
                 {!primaryFile ? (
@@ -523,7 +591,7 @@ export default function NoticesPanel() {
                   </div>
                 )}
                 <div className="mt-2 text-[11px] text-brand-navy/60">
-                  This must be the official <strong>Tender Notice</strong>, <strong>RFQ</strong> or <strong>RFP</strong> document.
+                  Upload the official <strong>Tender Notice</strong>, <strong>RFQ</strong> or <strong>RFP</strong> document if you have one — otherwise leave this empty and attach it later via Edit.
                 </div>
               </div>
               <label className="text-sm">

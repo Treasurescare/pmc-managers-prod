@@ -1,5 +1,43 @@
 # PMC Managers v2 — PRD (last touched 12 Oct 2026)
 
+## v52cp — Notice ↔ Tender Builder bridge fixes + public card polish (13 Oct 2026)
+
+User reported from live use:
+- "Sometimes 422 when saving a tender" — root cause: `SectionBlock` required
+  non-empty `code` + `title`; adding a blank section before filling it in
+  tripped Pydantic validation on the whole-template PATCH.
+- Create-Notice from Tender Builder scrolled past the list, didn't carry
+  country, forced an INR currency, forced a primary document upload, and
+  hid the files already uploaded inside Tender Builder.
+- Public landing (`/tenders/live`) card didn't surface EMD or country.
+
+Fixes:
+- **Backend `tender_templates.py`** — `SectionBlock.code` and `.title` now
+  `Optional[str] = ""`; `TenderTemplateIn.name` defaults to "Untitled draft"
+  instead of enforcing `min_length=2`. Auto-save no longer 422s.
+- **TenderBuilderPanel `createNoticeFromDraft`**:
+  - adds `delivery_country` from `header.country` / `doc.country`
+  - drops `submission_deadline` from the prefill (user picks at publish)
+  - uses the tender's `budget_currency` instead of hardcoded INR
+  - packages every section attachment as `_tender_docs` so the Notice form
+    can show them
+- **NoticesPanel**:
+  - new amber "Documents from the linked tender" panel at the top with
+    per-section file list + View buttons + a shortcut back to Tender Builder
+    for add / modify / delete
+  - form `scrollIntoView` on prefill — no scrolling past the list anymore
+  - primary document now **optional** (user can attach later via Edit)
+- **Public `/tenders` list** — legacy card now shows EMD, EMD currency and
+  country alongside Budget / Deadline / Category; register-table variant
+  shows a small EMD line under the Est. Value cell.
+- **Regression** — `backend/tests/test_v52cp_notices.py` (4 cases):
+  blank section accepted, short placeholder name accepted, public notices
+  expose `emd_amount` + `emd_currency` + `delivery_country`, notice create
+  without primary doc succeeds.
+
+---
+
+
 ## v52co — Section D UX fixes + Investor coverage overlay (13 Oct 2026)
 
 User reported from screen recording:

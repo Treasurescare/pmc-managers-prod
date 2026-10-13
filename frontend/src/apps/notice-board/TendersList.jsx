@@ -221,6 +221,12 @@ export default function TendersList() {
                               </td>
                               <td className="text-[15px] font-semibold text-[#14261F] pt-6">
                                 {n.budget_amount ? `${n.budget_currency || ""} ${Number(n.budget_amount).toLocaleString()}` : "—"}
+                                {Number(n.emd_amount) > 0 && (
+                                  <div className="text-[11px] font-normal text-[#B8741A] mt-1"
+                                       data-testid={`tender-emd-${n.notice_ref}`}>
+                                    EMD {n.emd_currency || n.budget_currency || ""} {Number(n.emd_amount).toLocaleString()}
+                                  </div>
+                                )}
                               </td>
                               <td>
                                 <span className="flex flex-col gap-1.5 items-start pt-4">
@@ -323,6 +329,13 @@ export default function TendersList() {
                       <div><span className="pmc-label">Budget</span>
                         <div className="text-brand-navy font-semibold mt-0.5">{n.budget_currency} {Number(n.budget_amount).toLocaleString()}</div>
                       </div>)}
+                    {/* v52cp — public card now shows EMD too (users complained
+                        it wasn't visible on the Live tenders list). */}
+                    {Number(n.emd_amount) > 0 && (
+                      <div data-testid={`tender-emd-${n.notice_ref}`}>
+                        <span className="pmc-label">EMD</span>
+                        <div className="text-brand-navy font-semibold mt-0.5">{n.emd_currency || n.budget_currency || ""} {Number(n.emd_amount).toLocaleString()}</div>
+                      </div>)}
                     {n.submission_deadline && (
                       <div><span className="pmc-label">Deadline</span>
                         <div className="text-brand-navy font-mono mt-0.5">{n.submission_deadline.slice(0, 10)}</div>
@@ -330,6 +343,11 @@ export default function TendersList() {
                     {n.category && (
                       <div><span className="pmc-label">Category</span>
                         <div className="text-brand-navy mt-0.5">{n.category}</div>
+                      </div>)}
+                    {n.delivery_country && (
+                      <div data-testid={`tender-country-${n.notice_ref}`}>
+                        <span className="pmc-label">Country</span>
+                        <div className="text-brand-navy mt-0.5 font-mono">{n.delivery_country}</div>
                       </div>)}
                   </div>
                 </Link>

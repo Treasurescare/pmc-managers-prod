@@ -33,9 +33,12 @@ router = APIRouter(prefix="/api/v1/tender-templates", tags=["tender-templates"])
 
 
 class SectionBlock(BaseModel):
-    code: str
+    # v52cp — allow drafts with half-written sections. Previously an empty
+    # section code or title fired a Pydantic 422 on every PATCH, which users
+    # hit "sometimes" when they added a new blank section before filling it.
+    code: Optional[str] = ""
     kind: str = Field(default="section", description="section | annexure | form")
-    title: str
+    title: Optional[str] = ""
     hint: Optional[str] = None
     body: Optional[str] = ""
     order: Optional[int] = None   # auto-assigned server-side if omitted
@@ -43,7 +46,10 @@ class SectionBlock(BaseModel):
 
 
 class TenderTemplateIn(BaseModel):
-    name: str = Field(min_length=2, max_length=120)
+    # v52cp — relaxed name constraint: an in-progress draft can have a short
+    # placeholder name without blocking auto-save. The frontend still prompts
+    # for a real name on explicit "Save as master".
+    name: str = Field(default="Untitled draft", max_length=120)
     kind: str = Field(default="tender", description="tender | rfp | rfq")
     industry: Optional[str] = None
     is_master: bool = False
