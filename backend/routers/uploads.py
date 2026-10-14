@@ -196,10 +196,19 @@ async def get_public_file(key: str, download: bool = False):
         raise HTTPException(status_code=404, detail="File not found")
     # Allow only notice-attachment files whose parent notice is published.
     # v52bp — corrigendum attachments are also public on a published notice.
-    if doc.get("scope") not in ("notice-attachments", "corrigendum-attachments"):
+    # v52cz rev3 — files uploaded via POST /notices/{ref}/document land under
+    # notice-docs/<ref>/... WITHOUT a scope tag (legacy). Treat those as
+    # public attachments of that notice, still gated on publication.
+    scoped_public = doc.get("scope") in ("notice-attachments", "corrigendum-attachments")
+    notice_ref = doc.get("notice_ref")
+    if not scoped_public and key.startswith("notice-docs/"):
+        parts = key.split("/")
+        if len(parts) >= 3:
+            notice_ref = notice_ref or parts[1]
+            scoped_public = True
+    if not scoped_public:
         raise HTTPException(status_code=403,
             detail="This file is not publicly downloadable")
-    notice_ref = doc.get("notice_ref")
     if notice_ref:
         notice = await db.notices.find_one({"notice_ref": notice_ref})
         if not notice or not notice.get("is_published"):

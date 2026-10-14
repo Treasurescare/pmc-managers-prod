@@ -224,6 +224,10 @@ async def upload_notice_document(notice_ref: str,
     await db.uploads.insert_one({
         "key": key, "content_type": file.content_type,
         "size_bytes": len(body),
+        # v52cz rev3 — tag as a public notice attachment so anonymous bidders
+        # can download individual files from the Documents tab via
+        # /api/v1/uploads/public-files/{key} (publication still enforced).
+        "scope": "notice-attachments", "notice_ref": notice_ref,
         "data_b64": base64.b64encode(body).decode("ascii"),
         "created_at": now_iso(),
     })

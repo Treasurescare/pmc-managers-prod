@@ -1,5 +1,12 @@
 # PMC Managers v2 — PRD (last touched 13 Oct 2026)
 
+## v52cz rev3 — Documents tab data-driven + Download all above list (14 Feb 2026)
+
+- E-theme notice detail Documents tab was hard-coded demo markup (5 fake rows, dead buttons); now rebuilt from live notice data — real rows, real count, working per-file public downloads, plus "↓ Download all (N)" above the list (pack zip, all real docs).
+- Notice document uploads now tagged `scope: notice-attachments`; public-files endpoint accepts legacy `notice-docs/<ref>/` keys when parent notice is published.
+- 16/16 backend regression; preview E2E verified (5-doc pack zip round-trip).
+- Release: `pmc-*-v52cz-rev3*.zip` + `DOWNLOAD_v52cz_rev3.md`. Supersedes rev2. Awaiting user deploy.
+
 ## v52cz rev2 — Blank form regen + Bundle picker + Reg-doc CORS (14 Feb 2026)
 
 - "Download Blank Form" now ALWAYS auto-generated from the live registration schema (sections A→E via RegistrationUpdateIn + DOC_SLOTS). Canonical filename `PMC-Vendor-Registration-Form.pdf`. Admin uploads to `vendor_templates` no longer surface to vendors → stray resume DOCX leak permanently prevented.

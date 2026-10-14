@@ -9,6 +9,7 @@ Covers the user-reported bugs:
 """
 from __future__ import annotations
 import os
+import uuid
 import requests
 
 BASE = os.environ.get("REACT_APP_BACKEND_URL",
@@ -63,7 +64,27 @@ def test_tender_template_accepts_short_placeholder_name():
 def test_public_notices_expose_emd_amount_and_country():
     """v52cp — every notice must expose `delivery_country` so the public
     card can show it, and notices with an EMD config must additionally
-    expose `emd_amount` + `emd_currency` so the EMD chip renders."""
+    expose `emd_amount` + `emd_currency` so the EMD chip renders.
+    v52cz rev3 — self-seed an EMD-configured notice first: the old version
+    depended on whatever the last 20 notices happened to be, which broke
+    once bulk regression seeds (no EMD) dominated the top of the list."""
+    s, _ = _admin_session()
+    from datetime import datetime, timedelta, timezone
+    dl = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+    payload = {
+        "title": f"v52cp emd probe {uuid.uuid4().hex[:6]}",
+        "description": "regression — emd exposure",
+        "category": "Civil Works",
+        "document_type": "tender",
+        "budget_amount": 100000,
+        "budget_currency": "USD",
+        "delivery_country": "KZ",
+        "submission_deadline": dl,
+        "emd_config": {"percentage": 2.0, "currency": "USD"},
+        "is_published": True,
+    }
+    r = s.post(f"{API}/notices", json=payload, timeout=15)
+    assert r.status_code == 200, r.text
     r = requests.get(f"{API}/notices", params={"limit": 20}, timeout=15)
     assert r.status_code == 200, r.text
     items = r.json().get("items") or r.json()
@@ -75,7 +96,7 @@ def test_public_notices_expose_emd_amount_and_country():
         if (cfg.get("fixed_amount") or 0) > 0 or (cfg.get("percentage") or 0) > 0:
             assert "emd_amount" in n and "emd_currency" in n, n
             saw_emd = True
-    # At least one notice in the dataset should exercise the EMD branch.
+    # Our freshly-seeded EMD notice must be inside the latest-20 window.
     assert saw_emd, "No seeded notice has an EMD config to validate against"
 
 

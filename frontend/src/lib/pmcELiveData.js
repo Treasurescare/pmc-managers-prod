@@ -601,22 +601,115 @@ export function useNoticeDetailLive({ enabled = true, noticeRef } = {}) {
         // Description / scope paragraph — first <p> under the .dt-sec or main col
         const scopeP = root.querySelector(".dt-sec p, main p");
         if (scopeP && n.description) scopeP.textContent = n.description;
-        // v49j — wire Download buttons on the document rows to the notice's
-        // real attachments (primary doc first). The delegated click handler
-        // in PmcLinkPatcher opens data-doc-url links; rows without one get
-        // the register gate / tender-desk toast instead.
+        // v52cz rev3 — Documents tab is now FULLY data-driven. The template
+        // ships 5 hard-coded demo rows with dead href="#" buttons; previously
+        // we only patched row N with attachment N and left the fake demo rows
+        // in place — so the tab claimed "Documents 5" while the Download pack
+        // zip (rightly) contained only the real files. Now the list is rebuilt
+        // from the live notice: real rows only, real count, real sizes,
+        // working per-file downloads (public endpoint), plus one
+        // "Download all (N)" control above the list wired to the pack zip.
         const atts = [];
         if (n.primary_document && n.primary_document.url) atts.push(n.primary_document);
         (n.attachments || []).forEach((a) => { if (a && a.url) atts.push(a); });
-        root.querySelectorAll(".pmc-docrow").forEach((rowEl, i) => {
-          const a = atts[i];
-          if (!a) return;
-          rowEl.setAttribute("data-doc-url", a.url);
-          const dl = rowEl.querySelector("a.pmc-btn");
-          if (dl) dl.setAttribute("data-doc-url", a.url);
-          const nm = rowEl.querySelector("b");
-          if (nm && a.file_name) nm.textContent = a.file_name;
-        });
+
+        // Tab counter reflects the real count (chip dropped entirely at 0).
+        const docsTab = Array.from(root.querySelectorAll(".pmc-tab"))
+          .find((t) => /documents/i.test(t.textContent || ""));
+        if (docsTab) {
+          let cnt = docsTab.querySelector(".n");
+          if (atts.length) {
+            if (!cnt) { cnt = document.createElement("span"); cnt.className = "n"; docsTab.appendChild(cnt); }
+            cnt.textContent = atts.length;
+          } else if (cnt) cnt.remove();
+        }
+
+        const firstRow = root.querySelector(".pmc-docrow");
+        const docsPanel = firstRow && firstRow.closest(".pmc-panel");
+        if (docsPanel) {
+          const tpl = firstRow.cloneNode(true);
+          docsPanel.querySelectorAll(".pmc-docrow").forEach((r) => r.remove());
+          docsPanel.querySelectorAll('[data-testid="notice-docs-empty"]').forEach((r) => r.remove());
+
+          // "Download all (N)" above the list — public pack zip, one click.
+          let dlAll = docsPanel.querySelector('[data-testid="notice-docs-download-all"]');
+          if (!dlAll) {
+            dlAll = document.createElement("button");
+            dlAll.type = "button";
+            dlAll.className = "pmc-btn pmc-btn--primary pmc-btn--sm";
+            dlAll.setAttribute("data-testid", "notice-docs-download-all");
+            dlAll.style.cssText = "margin-bottom:14px";
+            docsPanel.insertBefore(dlAll, docsPanel.firstChild);
+          }
+          const packUrl = n.tender_template_id
+            ? `/api/v1/tender-templates/${n.tender_template_id}/public/zip?notice_ref=${encodeURIComponent(n.notice_ref)}`
+            : `/api/v1/notices/${encodeURIComponent(n.notice_ref)}/pack`;
+          if (atts.length) {
+            dlAll.hidden = false;
+            dlAll.disabled = false;
+            dlAll.textContent = `↓ Download all (${atts.length})`;
+            dlAll.onclick = async () => {
+              try {
+                dlAll.disabled = true;
+                dlAll.textContent = "Preparing…";
+                const res = await fetch(packUrl);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url; a.download = `${n.notice_ref}-tender-pack.zip`;
+                document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 30000);
+              } catch (_) {
+                dlAll.textContent = "Download failed — retry";
+                setTimeout(() => { dlAll.textContent = `↓ Download all (${atts.length})`; }, 2500);
+              } finally {
+                dlAll.disabled = false;
+              }
+            };
+          } else {
+            dlAll.hidden = true;
+          }
+
+          const fmtSize = (b) => {
+            const n0 = Number(b) || 0;
+            if (n0 >= 1048576) return `${(n0 / 1048576).toFixed(1)} MB`;
+            if (n0 >= 1024) return `${Math.round(n0 / 1024)} KB`;
+            return `${n0} B`;
+          };
+          const fmtKind = (ct, fn) => {
+            const ext = (fn || "").split(".").pop();
+            if (ext && ext.length <= 5 && ext !== fn) return ext.toUpperCase();
+            return String(ct || "FILE").split("/").pop().toUpperCase().slice(0, 8);
+          };
+
+          if (!atts.length) {
+            const empty = document.createElement("div");
+            empty.className = "pmc-muted";
+            empty.style.cssText = "padding:18px 4px;font-size:13px";
+            empty.setAttribute("data-testid", "notice-docs-empty");
+            empty.textContent = "No documents have been published for this tender yet.";
+            docsPanel.appendChild(empty);
+          }
+          atts.forEach((a, i) => {
+            const row = tpl.cloneNode(true);
+            row.setAttribute("data-testid", `notice-doc-row-${i}`);
+            const nm = row.querySelector("b");
+            if (nm) nm.textContent = a.file_name || `Document ${i + 1}`;
+            const sub = row.querySelector(".s");
+            if (sub) sub.textContent = `${fmtKind(a.content_type, a.file_name)} · ${fmtSize(a.size_bytes)}`;
+            const key = (a.url || "").replace("/api/v1/uploads/files/", "");
+            const pub = `/api/v1/uploads/public-files/${key}?download=1`;
+            row.setAttribute("data-doc-url", pub);
+            const dl = row.querySelector("a.pmc-btn");
+            if (dl) {
+              dl.setAttribute("href", pub);
+              dl.setAttribute("data-doc-url", pub);
+              dl.setAttribute("data-testid", `notice-doc-download-${i}`);
+            }
+            docsPanel.appendChild(row);
+          });
+        }
         // Update page title
         document.title = `${n.title || n.notice_ref} · PMC Managers`;
       } catch (e) {

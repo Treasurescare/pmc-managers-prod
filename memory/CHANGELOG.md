@@ -1,6 +1,29 @@
 # PMC Managers v2 — Changelog
 # PMC Managers v2 — Changelog
 
+## 2026-02-14 — v52cz rev3 Documents tab rebuilt + Download all above list
+
+### User report
+Tender detail Documents tab listed 5 files but the Download pack zip had only 2 (1 doc + README). User also asked for a "Download all" control directly above the documents list.
+
+### Root cause
+`NoticeDetailE.jsx` ships 5 hard-coded demo document rows with dead `href="#"` buttons; `useNoticeDetailLive` only patched row N with attachment N, leaving fake demo rows in place. Separately, notice documents uploaded via `POST /notices/{ref}/document` were stored in `uploads` WITHOUT a `scope` tag, so `/api/v1/uploads/public-files/{key}` would 403 them.
+
+### Fixes
+- `frontend/src/lib/pmcELiveData.js` — Documents tab is now fully data-driven: rows rebuilt from real notice docs (primary + attachments, any count), real tab counter (dropped at 0), per-row Download → public-files URL, plus "↓ Download all (N)" button above the list wired to the public pack zip (`data-testid=notice-docs-download-all`).
+- `backend/routers/uploads.py` — public-files gate accepts legacy `notice-docs/<ref>/...` keys, still gated on the parent notice being published.
+- `backend/routers/notices.py` — new notice-document uploads tagged `scope: "notice-attachments"` + `notice_ref`.
+- `backend/tests/test_v52cp_notices.py` — EMD exposure test now self-seeds an EMD notice (bulk regression seeds had pushed EMD-configured notices out of the top-20 window).
+
+### Verification
+- 16/16 backend regression (test_v52cp_notices 7 + test_v52cz_downloads 6 + test_v52cz_blank_form 3).
+- Preview E2E on seeded 5-doc notice PMC-NOT-2026-0087: 5 real rows, working hrefs, "Download all (5)" → 200 application/zip with all 5 PDFs + README. Legacy pre-tag key downloadable (200). Vendor-scope files still blocked.
+
+### Release artefacts
+- `pmc-backend-v52cz-rev3.zip`, `pmc-frontend-v52cz-rev3-prod-build.zip`, `DOWNLOAD_v52cz_rev3.md` in `frontend/public/downloads/`. Supersedes rev2. Awaiting user production deploy + confirmation.
+
+
+
 ## 2026-02-14 — v52cz rev2 Blank form regen + Bundle picker + Reg-doc CORS
 
 ### User reports
