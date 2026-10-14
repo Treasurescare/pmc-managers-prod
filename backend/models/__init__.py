@@ -1,5 +1,5 @@
 from .base import PyObjectId, BaseDocument, now_iso
-from .notice import Notice, NoticeIn, NoticePublic
+from .notice import Notice, NoticeIn, NoticePatchIn, NoticePublic
 from .registration import (
     Registration, RegistrationDraftIn, RegistrationUpdateIn, RegistrationDecisionIn,
 )
@@ -21,7 +21,7 @@ from .auction import AuctionIn, AuctionBidIn, TicketIn, TicketReplyIn
 
 __all__ = [
     "PyObjectId", "BaseDocument", "now_iso",
-    "Notice", "NoticeIn", "NoticePublic",
+    "Notice", "NoticeIn", "NoticePatchIn", "NoticePublic",
     "Registration", "RegistrationDraftIn", "RegistrationUpdateIn", "RegistrationDecisionIn",
     "Package", "PackageIn", "PackagePatchIn",
     "AdminUser", "AdminLoginIn", "AdminPasswordChangeIn",

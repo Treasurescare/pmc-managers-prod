@@ -138,18 +138,23 @@ async def _bootstrap_masters():
                 n = await loop.run_in_executor(None, _seed_country_formats)
                 print(f"[bg-bootstrap] seeded country formats rows={n}")
             # v52cz rev6 — banks master for the escrow banking step.
-            if await _db.masters_banks.estimated_document_count() == 0:
-                from scripts.seed_banks import ROWS as _BANKS
-                def _seed_banks():
-                    for row in _BANKS:
-                        _db.delegate.masters_banks.update_one(
-                            {"country_code": row["country_code"], "name": row["name"]},
-                            {"$set": row}, upsert=True)
-                    _db.delegate.masters_banks.create_index(
-                        [("country_code", 1), ("name", 1)], unique=True)
-                    return len(_BANKS)
-                n = await loop.run_in_executor(None, _seed_banks)
-                print(f"[bg-bootstrap] seeded banks rows={n}")
+            # rev9 fix: upsert unconditionally instead of only when the
+            # collection is empty — production was seeded by an older, smaller
+            # roster, so later additions (Revolut, Wise, …) never appeared.
+            from scripts.seed_banks import ROWS as _BANKS
+            def _seed_banks():
+                added = 0
+                for row in _BANKS:
+                    r = _db.delegate.masters_banks.update_one(
+                        {"country_code": row["country_code"], "name": row["name"]},
+                        {"$set": row}, upsert=True)
+                    if r.upserted_id:
+                        added += 1
+                _db.delegate.masters_banks.create_index(
+                    [("country_code", 1), ("name", 1)], unique=True)
+                return added
+            n = await loop.run_in_executor(None, _seed_banks)
+            print(f"[bg-bootstrap] banks roster upserted new={n}")
             if await _db.masters_country_licenses.estimated_document_count() == 0:
                 added = await loop.run_in_executor(None, seed_country_licenses, _db.delegate)
                 print(f"[bg-bootstrap] seeded country licenses added={added}")

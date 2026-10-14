@@ -12,8 +12,9 @@
  *   routing, UK sort code, India IFSC).
  */
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Field, Input } from "@/apps/registration-portal/sections/FormPrimitives";
-import { mastersApi } from "@/lib/api";
+import { mastersApi, showApiError } from "@/lib/api";
 
 const SWIFT_RX = /^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/;
 const IBAN_RX  = /^[A-Z]{2}\d{2}[A-Z0-9]{10,30}$/;
@@ -65,9 +66,12 @@ function BankCountrySelect({ testId, value, countries, onPick, placeholder }) {
   );
 }
 
-function BankNameAutocomplete({ testId, value, banks, onPickBank, onType }) {
+function BankNameAutocomplete({ testId, value, banks, country, onPickBank, onType, onAddCustom }) {
   const [open, setOpen] = useState(false);
   const matches = banks.slice(0, 40);
+  const typed = (value || "").trim();
+  const exact = banks.some((b) => b.name.toLowerCase() === typed.toLowerCase());
+  const canAdd = typed.length >= 2 && !exact;
   return (
     <div className="relative">
       <input className={cls(null)}
@@ -77,7 +81,7 @@ function BankNameAutocomplete({ testId, value, banks, onPickBank, onType }) {
              onFocus={() => setOpen(true)}
              onChange={(e) => { onType(e.target.value); setOpen(true); }}
              onBlur={() => setTimeout(() => setOpen(false), 150)} />
-      {open && matches.length > 0 && (
+      {open && (matches.length > 0 || canAdd) && (
         <div className="absolute z-30 left-0 right-0 mt-1 max-h-56 overflow-auto bg-white border border-brand-navy/20 shadow-lg">
           {matches.map((b) => (
             <button type="button" key={b.name}
@@ -90,6 +94,17 @@ function BankNameAutocomplete({ testId, value, banks, onPickBank, onType }) {
               </span>
             </button>
           ))}
+          {canAdd && (
+            <button type="button"
+                    onMouseDown={(e) => { e.preventDefault(); onAddCustom(typed); setOpen(false); }}
+                    data-testid={`${testId}-add-custom`}
+                    className="block w-full text-left px-3 py-2 text-sm text-brand-navy bg-brand-pale/60 hover:bg-brand-pale border-t border-brand-navy/10">
+              <span className="block font-semibold">+ Add “{typed}”</span>
+              <span className="block text-[11px] text-brand-navy/50">
+                Not listed — save it to the {country || ""} bank master so it's selectable next time
+              </span>
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -104,6 +119,19 @@ function BankRow({ row, idx, countries, onPatch, onRemove, canRemove }) {
     if (!row.bank_country) { setBanks([]); return; }
     mastersApi.listBanks(row.bank_country, bankQ).then(setBanks).catch(() => setBanks([]));
   }, [row.bank_country, bankQ]);
+
+  // "+" affordance: bank missing from the master → persist it, refresh the
+  // list, keep it selected. Lets registrants self-serve instead of bouncing.
+  const addCustomBank = async (name) => {
+    if (!row.bank_country) { toast.error("Pick the bank's country first"); return; }
+    try {
+      const b = await mastersApi.suggestBank({ country_code: row.bank_country, name });
+      toast.success(`"${b.name}" added to the ${row.bank_country} bank list`);
+      setBankQ("");
+      setBanks(await mastersApi.listBanks(row.bank_country, ""));
+      onPatch({ institution_name: b.name });
+    } catch (e) { showApiError(e); }
+  };
 
   // Load state/city for the picked bank country so Branch is cascaded.
   const [states, setStates] = useState([]);
@@ -146,6 +174,8 @@ function BankRow({ row, idx, countries, onPatch, onRemove, canRemove }) {
         <BankNameAutocomplete testId={`escrow-bank-${idx}-name`}
                               value={row.institution_name}
                               banks={banks}
+                              country={row.bank_country}
+                              onAddCustom={addCustomBank}
                               onType={(v) => { setBankQ(v); onPatch({ institution_name: v }); }}
                               onPickBank={(b) => onPatch({
                                 institution_name: b.name,

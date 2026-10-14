@@ -6,7 +6,7 @@ import base64, uuid, io, zipfile
 
 import config
 from db import db, next_sequence
-from models import NoticeIn
+from models import NoticeIn, NoticePatchIn
 from models.base import BaseDocument, now_iso
 from security import require_role
 from routers.permissions import require_notice_permission
@@ -247,17 +247,19 @@ async def upload_notice_document(notice_ref: str,
 
 
 @router.patch("/{notice_ref}")
-async def update_notice(notice_ref: str, payload: NoticeIn,
+async def update_notice(notice_ref: str, payload: NoticePatchIn,
                          admin=Depends(require_role(
                              "admin", "reviewer", "legal_counsel", "committee_member"))):
     """Edit an existing notice. Published notices can be edited by admins but
-    the publish-state can only be flipped by callers with publish rights."""
+    the publish-state can only be flipped by callers with publish rights.
+    Partial body: only keys present in the request are $set, so callers like
+    the Escrow routing picker can PATCH just `escrow_account_id`."""
     notice = await db.notices.find_one({"notice_ref": notice_ref})
     if not notice:
         raise HTTPException(status_code=404, detail="Notice not found")
     await require_notice_permission(admin, "modify", notice.get("document_type", "*"))
 
-    updates = payload.model_dump()
+    updates = payload.model_dump(exclude_unset=True)
     # Primary document / attachments are managed through the dedicated upload
     # routes — never let a PATCH overwrite them, so a plain "save edits" never
     # drops a file the admin uploaded via the edit modal.

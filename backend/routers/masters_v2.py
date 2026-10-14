@@ -165,6 +165,36 @@ async def list_banks(country_code: str, q: Optional[str] = None, limit: int = 60
     return rows
 
 
+class BankSuggestIn(BaseModel):
+    country_code: str
+    name: str
+    swift_prefix: Optional[str] = None
+
+
+@router.post("/banks")
+async def suggest_bank(payload: BankSuggestIn):
+    """v52cz rev9 — deliberate exception to "writes are admin-only": the
+    escrow registration banking step is pre-auth, and its "+" affordance lets
+    a registrant add a bank missing from the master. Upsert keyed on
+    (country_code, name); tagged source=user_suggested for later curation."""
+    cc = (payload.country_code or "").strip().upper()
+    name = " ".join((payload.name or "").split())
+    if len(cc) != 2 or not cc.isalpha():
+        raise HTTPException(status_code=422,
+            detail="country_code must be a 2-letter ISO code")
+    if not (2 <= len(name) <= 120):
+        raise HTTPException(status_code=422,
+            detail="name must be 2-120 characters")
+    doc = {"country_code": cc, "name": name,
+           "aliases": [], "currencies": [],
+           "swift_prefix": (payload.swift_prefix or "").strip().upper() or None,
+           "source": "user_suggested"}
+    await db.masters_banks.update_one(
+        {"country_code": cc, "name": name}, {"$set": doc}, upsert=True)
+    return await db.masters_banks.find_one(
+        {"country_code": cc, "name": name}, {"_id": 0})
+
+
 # ---------- Country-specific business-identifier formats ----------
 @router.get("/country-formats/{country_code}")
 async def get_country_formats(country_code: str):

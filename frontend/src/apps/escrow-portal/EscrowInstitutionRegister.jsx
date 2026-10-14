@@ -155,7 +155,7 @@ export default function EscrowInstitutionRegister() {
             their own email — these become the signing identities inside PMC.
           </div>
           {form.signatories.map((s, i) => (
-            <div key={i} className="grid md:grid-cols-4 gap-3 border-b pb-3 mb-3"
+            <div key={i} className="grid md:grid-cols-2 gap-4 border-b pb-3 mb-3"
                  data-testid={`escrow-sig-row-${i}`}>
               <Input label="Name" v={s.name} on={(x) => { const a=[...form.signatories]; a[i].name=x; set("signatories",a); }} />
               <Input label="Designation" v={s.designation} on={(x) => { const a=[...form.signatories]; a[i].designation=x; set("signatories",a); }} />

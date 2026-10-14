@@ -82,6 +82,60 @@ class NoticeIn(BaseModel):
         return self
 
 
+class NoticePatchIn(BaseModel):
+    """Partial update for PATCH /notices/{ref}. Every field optional; the
+    handler uses model_dump(exclude_unset=True) so only keys actually sent
+    are $set. Fixes the HTTP 422 the Escrow routing picker hit when it
+    PATCHed just `escrow_account_id` (the handler reused the full NoticeIn)."""
+    model_config = ConfigDict(extra="allow")
+
+    title: Optional[str] = Field(default=None, min_length=3)
+    description: Optional[str] = Field(default=None, min_length=10)
+    document_type: Optional[DocumentType] = None
+    category: Optional[str] = None
+    delivery_country: Optional[str] = None
+    submission_deadline: Optional[str] = None
+    pre_bid_meeting_date: Optional[str] = None
+    budget_currency: Optional[str] = None
+    budget_amount: Optional[float] = Field(default=None, ge=0)
+    required_licenses: Optional[List[str]] = None
+    contact_email: Optional[EmailStr] = None
+    contact_name: Optional[str] = None
+    is_published: Optional[bool] = None
+    escrow_account_id: Optional[str] = None
+    emd_config: Optional[dict] = None
+    approval_matrix_id: Optional[str] = None
+    tender_template_id: Optional[str] = None
+
+    @field_validator("contact_email", mode="before")
+    @classmethod
+    def _blank_email_is_none(cls, v):
+        if v is None:
+            return None
+        if isinstance(v, str) and v.strip() == "":
+            return None
+        return v
+
+    @model_validator(mode="after")
+    def _no_negative_amounts(self):
+        """Same negative-money sweep as NoticeIn, applied to sent keys only."""
+        def check(name: str, val):
+            if isinstance(val, (int, float)) and val < 0:
+                raise ValueError(f"{name} cannot be negative")
+            if isinstance(val, dict):
+                for k, v in val.items():
+                    check(f"{name}.{k}", v)
+
+        check("budget_amount", self.budget_amount)
+        for fname in ("tender_fee",):
+            check(fname, getattr(self, fname, None))
+        check("emd_config", self.emd_config)
+        for k, v in (self.model_extra or {}).items():
+            if any(t in k.lower() for t in ("amount", "fee", "emd", "price", "value")):
+                check(k, v)
+        return self
+
+
 class NoticePublic(BaseModel):
     """Public shape — safe to serve without authentication."""
     id: str

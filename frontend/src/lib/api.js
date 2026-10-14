@@ -668,6 +668,10 @@ export const mastersApi = {
     api.get("/api/v1/masters/banks",
       { params: { country_code, q: q || undefined } }
     ).then((r) => r.data).catch(() => []),
+  // rev9 — "+" affordance on the banking step: persist a bank the registrant
+  // typed but couldn't find, so it becomes selectable for everyone after.
+  suggestBank: (payload) =>
+    api.post("/api/v1/masters/banks", payload).then((r) => r.data),
   // v50y — legal entity types master (vendor registration Section A dropdown)
   listLegalEntityTypes: ({ includeInactive = false, country } = {}) =>
     api.get("/api/v1/masters/legal-entity-types", {

@@ -331,6 +331,19 @@ export default function EscrowTransactionsSection({ accounts, txs, onReload }) {
     } catch (e) { showApiError(e, { fallbackTitle: "Cancel failed" }); }
   };
 
+  // One-click duplicate cleanup — keep the NEWEST open row (ObjectIds sort by
+  // creation time), cancel the rest via the existing per-row cancel endpoint.
+  const cancelDupes = async (d) => {
+    const keep = [...d.tx_ids].sort().pop();
+    const extras = d.tx_ids.filter((id) => id !== keep);
+    if (!window.confirm(`Cancel ${extras.length} extra open row(s) for ${d.bid_ref}? The newest open row is kept; cancelled rows stay in the audit trail.`)) return;
+    try {
+      for (const tid of extras) await escrowApi.cancel(tid);
+      toast.success(`${d.bid_ref}: ${extras.length} duplicate row(s) cancelled`);
+      onReload();
+    } catch (e) { showApiError(e, { fallbackTitle: "Duplicate cleanup failed" }); }
+  };
+
   return (
     <section>
       <div className="flex items-center justify-between mb-3">
@@ -377,6 +390,12 @@ export default function EscrowTransactionsSection({ accounts, txs, onReload }) {
                   {d.bid_ref}
                 </button>{" "}
                 — {d.open_count} open rows ({d.statuses.join(", ")})
+                <button type="button"
+                        onClick={() => cancelDupes(d)}
+                        data-testid={`escrow-tx-dupe-cancel-${d.bid_ref}`}
+                        className="ml-2 px-2 py-0.5 border border-red-400 text-[10px] uppercase tracking-widest hover:bg-red-600 hover:text-white">
+                  Cancel extras
+                </button>
               </li>
             ))}
             {dupes.items.length > 6 && (<li>…and {dupes.items.length - 6} more</li>)}
