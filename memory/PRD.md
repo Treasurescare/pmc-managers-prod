@@ -1,5 +1,12 @@
 # PMC Managers v2 — PRD (last touched 13 Oct 2026)
 
+## v52cy rev3 — Bid Submit copy matches expanded file types
+
+Bid Submit tiles/messages said "PDFs are required" while v52cy allowed
+PDF/DOC/XLS/PPT/JPG/DWG. Relabelled to "Technical/Commercial document" and
+caption now lists allowed formats. Verified in built bundle. Frontend zip
+rebuilt; backend unchanged.
+
 ## v52cy — seven-issue vendor-flow + bid-upload hardening (13 Oct 2026)
 
 - Bid uploads restricted to pdf/doc(x)/xls(x)/ppt(x)/jpg/png/dwg (client enforced + caption).

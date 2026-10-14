@@ -1,6 +1,25 @@
 # PMC Managers v2 — Changelog
 # PMC Managers v2 — Changelog
 
+## 2026-02-13 — v52cy rev3 Bid Submit copy matches expanded file types
+
+### User report
+Highlighted text on the vendor Bid Submit page: "Both Technical and
+Commercial **PDFs** are required to submit. Missing: Technical + Commercial"
+— inconsistent with v52cy's expanded allowed types (DOC/XLS/PPT/JPG/DWG).
+
+### Fix (`BidSubmit.jsx`)
+- Tiles relabelled "Technical PDF" / "Commercial PDF" → "Technical document"
+  / "Commercial document".
+- Caption now reads "Both Technical and Commercial **documents** are required
+  to submit (PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX, JPG/PNG or DWG)."
+- Submit-time error + toast + button tooltip all updated to "documents".
+
+### Bundle
+`pmc-frontend-v52cy-prod-build.zip` rebuilt (3.1 MB) — backend unchanged.
+
+
+
 ## 2026-02-13 — v52cy rev2 REQUIRED pills now global + "Add another office"
 
 ### User question

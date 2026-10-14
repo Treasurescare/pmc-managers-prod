@@ -126,11 +126,11 @@ export default function BidSubmit() {
     const cleanDocs = docs.filter(
       (d) => d && d.kind && d.key && d.filename && typeof d.size_bytes === "number" && d.uploaded_at
     );
-    // v51bc — both envelope PDFs are mandatory on submit.
+    // v51bc — both envelope documents are mandatory on submit.
     const kinds = new Set(cleanDocs.map((d) => d.kind));
     if (!kinds.has("technical") || !kinds.has("commercial")) {
-      setFormError("Both the Technical and Commercial envelope PDFs are required before you can submit. You can keep working on this bid with Save draft.");
-      return toast.error("Upload Technical and Commercial PDFs before submitting");
+      setFormError("Both the Technical and Commercial envelope documents are required before you can submit (PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX, JPG/PNG or DWG). You can keep working on this bid with Save draft.");
+      return toast.error("Upload Technical and Commercial documents before submitting");
     }
     setBusy(true);
     try {
@@ -381,7 +381,8 @@ export default function BidSubmit() {
           <div className="space-y-2">
             <div className="text-sm font-semibold text-slate-900">Supporting documents <span className="text-red-600">*</span></div>
             <div className="text-xs text-slate-600">
-              Both <strong>Technical</strong> and <strong>Commercial</strong> PDFs are required to submit.
+              Both <strong>Technical</strong> and <strong>Commercial</strong> documents are required to submit
+              (PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX, JPG/PNG or DWG).
               {!docsOk && (
                 <span className="ml-2 text-amber-700" data-testid="bid-docs-status">
                   Missing: {!hasTech && "Technical"}{!hasTech && !hasComm && " + "}{!hasComm && "Commercial"}
@@ -390,7 +391,7 @@ export default function BidSubmit() {
               {docsOk && <span className="ml-2 text-emerald-700" data-testid="bid-docs-status">Both envelopes ready ✓</span>}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-              {[["technical", "Technical PDF"], ["commercial", "Commercial PDF"], ["supporting", "Other doc"]].map(([k, label]) => (
+              {[["technical", "Technical document"], ["commercial", "Commercial document"], ["supporting", "Other doc"]].map(([k, label]) => (
                 <label key={k}
                   className="group border-2 border-dashed border-amber-400 bg-amber-50 hover:bg-amber-100 hover:border-amber-500 rounded-md p-3 text-center cursor-pointer transition-colors"
                   data-testid={`bid-upload-${k}`}>
@@ -460,7 +461,7 @@ export default function BidSubmit() {
             <button type="submit" disabled={busy || deadlinePassed || !docsOk || !allAcked}
               className="flex-[2] bg-slate-900 text-white rounded-md py-4 text-sm font-semibold hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed"
               data-testid="bid-submit-btn"
-              title={!allAcked ? "Acknowledge every corrigendum above first" : !docsOk ? "Upload Technical AND Commercial PDFs first" : ""}>
+              title={!allAcked ? "Acknowledge every corrigendum above first" : !docsOk ? "Upload Technical AND Commercial documents first" : ""}>
               {busy ? "Submitting…" : deadlinePassed ? "Deadline passed" : !allAcked ? `Acknowledge ${pendingCorr.length} corrigend${pendingCorr.length === 1 ? "um" : "a"} to submit` : !docsOk ? "Upload both envelopes to submit" : (emdDue > 0 ? `Submit & pay EMD (${emdConfig.currency} ${emdDue.toLocaleString()})` : "Submit bid")}
             </button>
           </div>
