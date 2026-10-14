@@ -1,6 +1,29 @@
 # PMC Managers v2 — Changelog
 # PMC Managers v2 — Changelog
 
+## 2026-02-14 — v52cz Vendor-download defects (Download all + Download pack)
+
+### User report
+Production vendor reported: (1) bid submission page needs one visible "Download all" to pull every uploaded doc (3, 5, or any N) in one go; (2) yellow "Download pack" button on tender detail still silently fails on pmcmanagers.com.
+
+### Root cause
+`NoticeDetailE.jsx` built `packUrl = ${REACT_APP_BACKEND_URL}/api/v1/notices/{ref}/pack`. REACT_APP_BACKEND_URL is baked at build time, so prod bundles pointed at the preview host, triggering CORS from pmcmanagers.com. Backend endpoint was always healthy (returned 200 ZIP for PMC-NOT-2026-0095 on prod when probed with curl).
+
+### Fix
+- `backend/routers/uploads.py` — new `POST /api/v1/uploads/bundle` endpoint. Admin bearer OR vendor cookie required. Accepts `{keys: [...], filename}`, returns application/zip containing every resolvable file + README.txt manifest (missing keys listed, not fatal). 404 only if NOTHING resolves.
+- `frontend/src/lib/api.js` — new `uploadsApi.downloadBundle(keys, {filename})` helper.
+- `frontend/src/apps/vendor-portal/BidSubmit.jsx` — single visible `Download all (N)` button (data-testid=`bid-docs-download-all`) above the uploaded documents list; counts live, works for any N.
+- `frontend/src/apps/notice-board-e/NoticeDetailE.jsx` — packUrl now a RELATIVE path (`/api/v1/...`). axios baseURL resolves same-origin on prod and preview-host on preview. Empty-state toast reworded to "No documents available for this tender".
+
+### Tests
+- `backend/tests/test_v52cz_downloads.py` — 6 passing: pack ZIP for notice w/ primary doc, pack 404 for empty notice, bundle admin ZIP, bundle 401 anon, bundle 404 all missing, bundle 200 with partial missing.
+- Testing agent iter 62: 7/7 backend, 3/3 frontend. CORS fix verified end-to-end.
+
+### Deployment status
+Preview-tested only. New versioned production package NOT built yet (user asked to review preview first).
+
+
+
 ## 2026-02-13 — v52cy rev6 Bid "View" — in-page modal (popup path abandoned)
 
 ### User report

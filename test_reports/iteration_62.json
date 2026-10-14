@@ -1,0 +1,25 @@
+{
+  "summary": "v52cz download defects — backend + frontend end-to-end verified. 7/7 backend tests pass (6 existing + 1 new vendor-cookie coverage). 3/3 frontend scenarios pass: vendor BidSubmit 'Download all (2)' button triggers POST /api/v1/uploads/bundle → 200 application/zip → bid-PMC-NOT-2026-0020-documents.zip; Notice detail 'Download pack' with primary doc downloads via relative /api/v1 path (no CORS, no 404); empty-state notice shows exact toast 'No documents available for this tender'.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": { "ui_bugs": [], "integration_issues": [], "design_issues": [] },
+  "test_report_links": [
+    "/app/backend/tests/test_v52cz_downloads.py",
+    "/app/backend/tests/test_v52cz_vendor_bundle.py",
+    "/app/test_reports/pytest/v52cz_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "NoticeDetailE.jsx packUrl build correctly uses relative /api/v1 path so axios baseURL resolves both preview and production — matches the stated fix.",
+    "Pack endpoint remains public (GET returns ZIP without auth) — but frontend goes through authenticated axios instance. Public callers from third-party origin still work with plain curl, which matches design.",
+    "uploadsApi.downloadBundle correctly POSTs an array of keys and triggers a blob download; auth gate on /uploads/bundle covers admin bearer AND vendor cookie (both verified).",
+    "Minor: Many unrelated 401/404 console errors appear on vendor-session pages (background polling / telemetry). Not caused by this change; worth cleaning up later."
+  ],
+  "updated_files": ["/app/backend/tests/test_v52cz_vendor_bundle.py"],
+  "success_rate": { "backend": "100% (7/7)", "frontend": "100% (3/3)" },
+  "test_credentials": "Admin: adminsupport@pmcmanagers.com / Admin@12345 ; Vendor: manualvendor@pmcmanagers.com / Vendor@12345",
+  "seed_data_creation": "Backend tests seed fresh notice+primary doc per run via admin login. Frontend test uploads 2 tiny PDFs to vendor bid draft on PMC-NOT-2026-0020 (committee_target notice). No permanent data left behind that affects other suites.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Both download defects validated. Pack button has data-pack-state attribute ('empty' when no docs). Download all appears when docs.length>=1 inside [data-testid=bid-docs-list]. Button data-testids: notice-download-pack, bid-docs-download-all. For a reliably empty notice in preview use any ref that returns 404 from GET /api/v1/notices/{ref} (e.g. PMC-NOT-2026-0095 at this moment). For a reliably doc-bearing notice use PMC-NOT-2026-0020 (has tender_template_id) or any ref created by test_v52cz_downloads.py.",
+  "rca of the issue": "Root cause of silent Download pack failure in production: NoticeDetailE.jsx previously built packUrl as `${REACT_APP_BACKEND_URL}/api/v1/notices/{ref}/pack`. REACT_APP_BACKEND_URL is baked at build time, so the production bundle pointed at the preview host, triggering CORS from pmcmanagers.com. Fix: switch to relative `/api/v1/...` path so axios baseURL resolves same-origin on prod and preview-host on preview. Verified via network tab — pack request hits same origin and returns application/zip."
+}

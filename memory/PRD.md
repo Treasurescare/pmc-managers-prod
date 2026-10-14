@@ -1,5 +1,15 @@
 # PMC Managers v2 — PRD (last touched 13 Oct 2026)
 
+## v52cz — Vendor download defects fixed (14 Feb 2026)
+
+- NEW `POST /api/v1/uploads/bundle` — ZIPs any set of upload keys for signed-in admin OR vendor; README.txt manifest lists missing keys.
+- Vendor bid submission now shows one `Download all (N)` button above uploaded docs (dynamic for any count).
+- `Download pack` fixed on production: `NoticeDetailE` now uses relative `/api/v1/...` paths so axios baseURL resolves same-origin on prod (the old `${REACT_APP_BACKEND_URL}` prefix baked the preview host into prod bundles → CORS blocked).
+- Empty-state Download pack now shows "No documents available for this tender" toast.
+- Testing agent iter 62: 7/7 backend, 3/3 frontend. Not deployed to prod yet (user requested review first).
+
+
+
 ## v52cy rev6 — Bid "View" in-page modal (13 Oct 2026)
 
 Popup-based viewing kept failing (async window.open blocked; blob:
