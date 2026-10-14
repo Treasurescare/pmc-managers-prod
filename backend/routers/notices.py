@@ -1,8 +1,8 @@
 from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from bson import ObjectId
-import base64, uuid
+import base64, uuid, io, zipfile
 
 import config
 from db import db, next_sequence
@@ -404,3 +404,78 @@ async def publish_notice(notice_ref: str, admin=Depends(require_role("admin"))):
         raise HTTPException(status_code=404, detail="Notice not found or already published")
     await audit_log("notice.publish", admin, "notice", notice_ref, {})
     return {"ok": True}
+
+
+# v52cy — PUBLIC "Download pack" endpoint. Builds a zip of the primary
+# document + every attachment on a published notice. No auth required —
+# this is how the public Notice Board exposes a one-click download for all
+# tender documents (the earlier flow tried `/api/v1/uploads/files/{key}`
+# which is protected and 401s for anonymous visitors).
+@router.get("/{notice_ref}/pack")
+async def download_notice_pack(notice_ref: str):
+    doc = await db.notices.find_one({"notice_ref": notice_ref, "is_published": True})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Notice not found or not yet published")
+
+    files: list[tuple[str, bytes]] = []
+    seen_names: set[str] = set()
+
+    def _pick_name(fn: str) -> str:
+        base = (fn or "document").replace("/", "_").replace("\\", "_")
+        name = base
+        i = 1
+        while name in seen_names:
+            if "." in base:
+                stem, ext = base.rsplit(".", 1)
+                name = f"{stem} ({i}).{ext}"
+            else:
+                name = f"{base} ({i})"
+            i += 1
+        seen_names.add(name)
+        return name
+
+    async def _load(url_or_key: Optional[str]) -> bytes:
+        if not url_or_key:
+            return b""
+        key = (url_or_key or "").replace("/api/v1/uploads/files/", "", 1)
+        u = await db.uploads.find_one({"key": key}) if key else None
+        return base64.b64decode(u["data_b64"]) if u and u.get("data_b64") else b""
+
+    pd = doc.get("primary_document") or {}
+    if pd:
+        body = await _load(pd.get("url"))
+        if body:
+            files.append((_pick_name(pd.get("file_name") or "notice.pdf"), body))
+
+    for a in (doc.get("attachments") or []):
+        body = await _load(a.get("url"))
+        if body:
+            files.append((_pick_name(a.get("file_name") or "attachment"), body))
+
+    if not files:
+        raise HTTPException(status_code=404, detail="No documents have been published against this notice yet")
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for name, body in files:
+            zf.writestr(name, body)
+        # README manifest helps the recipient know what's inside.
+        manifest = (
+            f"PMC Managers — Tender Pack\n"
+            f"Notice reference: {notice_ref}\n"
+            f"Title: {doc.get('title') or ''}\n"
+            f"Published at: {doc.get('published_at') or ''}\n"
+            f"Delivery country: {doc.get('delivery_country') or ''}\n"
+            f"Files included:\n"
+            + "".join(f"  - {name}\n" for name, _ in files)
+        )
+        zf.writestr("README.txt", manifest)
+    buf.seek(0)
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{notice_ref}-tender-pack.zip"',
+            "Cache-Control": "no-store",
+        },
+    )

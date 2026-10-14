@@ -1,5 +1,15 @@
 # PMC Managers v2 — PRD (last touched 13 Oct 2026)
 
+## v52cy — seven-issue vendor-flow + bid-upload hardening (13 Oct 2026)
+
+- Bid uploads restricted to pdf/doc(x)/xls(x)/ppt(x)/jpg/png/dwg (client enforced + caption).
+- New public `GET /api/v1/notices/{ref}/pack` zips notice documents, no auth; NoticeDetailE Download pack now anonymous-safe.
+- `registrationApi.update()` client-side whitelist strips extras → kills 422 "Extra inputs are not permitted".
+- Prominent **REQUIRED** pills in `Field` + REQUIRED/OPTIONAL pills in `DocSlot`.
+- New `NumericInput` keeps commas while typing (parses on blur) → fixes "comma blocked" complaint.
+- Download blank form (already OK on preview) and all previous v52cu/v52cx backend changes bundled.
+- Bundles: `pmc-frontend-v52cy-prod-build.zip` + `pmc-backend-v52cy.zip`. Supersedes v52cu/v52cv/v52cw/v52cx.
+
 ## v52cx — approval matrix edit/delete + escrow institution invite (13 Oct 2026)
 
 - Backend: `DELETE /api/v1/masters/approval-matrices/{id}` (409 when a notice still uses it); admin-only `POST /api/v1/escrow-institutions/admin-invite` creates/reuses a draft record and emails the institution a magic-link resume URL — admin never enters third-party KYC.

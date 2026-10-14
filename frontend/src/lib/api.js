@@ -158,11 +158,42 @@ export const publicApi = {
   countries: () => api.get("/api/v1/meta/countries").then((r) => r.data),
 };
 
+// v52cy — allowed PATCH fields on a registration draft. Pydantic
+// `RegistrationUpdateIn` uses `extra="forbid"` so sending anything outside
+// this list raises HTTP 422 ("Extra inputs are not permitted"). Admins were
+// hitting this when the Admin "fill full form" screen leaked `email`,
+// `document_slots`, `kzMeta`, `vendor_ref`, etc. into the save payload. We
+// now whitelist on the client so every caller is safe.
+const REGISTRATION_UPDATE_FIELDS = new Set([
+  "company_name", "trade_name", "registered_address", "mailing_address", "country",
+  "country_id_label", "registration_number", "incorporation_date", "tax_id",
+  "legal_entity_type", "website", "employees_count",
+  "contact_name", "contact_title", "contact_office_phone", "contact_mobile",
+  "contact_email", "signatory_name", "signatory_title", "signatory_contact",
+  "bank_name", "bank_branch", "bank_account_number", "bank_swift", "bank_address",
+  "turnover_year1", "turnover_year2", "turnover_year3", "turnover_currency",
+  "primary_sector", "business_description", "operating_regions",
+  "business_categories", "previous_projects", "references", "iso_certifications",
+  "licenses_permits", "insurance_details", "litigation_history", "kz_licenses",
+  "documents", "decl_conflict_of_interest", "decl_integrity", "decl_accuracy",
+  "decl_data_consent", "decl_fee", "decl_notification",
+  "primary_unspsc_code", "primary_unspsc_title",
+]);
+const _stripRegExtras = (payload) => {
+  if (!payload || typeof payload !== "object") return payload;
+  const clean = {};
+  for (const k of Object.keys(payload)) {
+    if (REGISTRATION_UPDATE_FIELDS.has(k)) clean[k] = payload[k];
+  }
+  return clean;
+};
+
 export const registrationApi = {
   createDraft: (payload) => api.post("/api/v1/registrations", payload).then((r) => r.data),
   resume: (token) => api.get(`/api/v1/registrations/resume/${token}`).then((r) => r.data),
   update: (id, token, payload) =>
-    api.patch(`/api/v1/registrations/${id}`, payload, { params: { token } }).then((r) => r.data),
+    api.patch(`/api/v1/registrations/${id}`, _stripRegExtras(payload),
+              { params: { token } }).then((r) => r.data),
   submit: (id, token) =>
     api.post(`/api/v1/registrations/${id}/submit`, {}, { params: { token } }).then((r) => r.data),
   status: (token) => api.get(`/api/v1/registrations/status/${token}`).then((r) => r.data),

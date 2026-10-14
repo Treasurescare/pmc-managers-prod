@@ -76,6 +76,16 @@ export default function BidSubmit() {
 
   const uploadFile = async (kind, file, inputEl) => {
     try {
+      // v52cy — enforce allowed file-type list on client. Backend already
+      // caps size + sniffs magic bytes; this prevents a misleading UX where
+      // the user picks an unsupported file and only sees failure after
+      // upload. Allowed: pdf, doc(x), xls(x), ppt(x), jpg/jpeg, png, dwg.
+      const ALLOWED_EXT = /\.(pdf|docx?|xlsx?|pptx?|jpe?g|png|dwg)$/i;
+      if (!ALLOWED_EXT.test(file.name)) {
+        if (inputEl) inputEl.value = "";
+        toast.error(`"${file.name}" is not allowed — pick a PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX, JPG/PNG or DWG file.`);
+        return;
+      }
       const p = await uploadsApi.presign(file.name, file.type || "application/pdf", "bid-docs", file.size);
       const r = await uploadsApi.direct(p.key, file);
       // Guard: never push a partial BidDocument — backend requires all 5 fields.
@@ -384,10 +394,15 @@ export default function BidSubmit() {
                 <label key={k}
                   className="group border-2 border-dashed border-amber-400 bg-amber-50 hover:bg-amber-100 hover:border-amber-500 rounded-md p-3 text-center cursor-pointer transition-colors"
                   data-testid={`bid-upload-${k}`}>
-                  <input type="file" accept="application/pdf,image/*" hidden
+                  <input type="file"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.dwg,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,image/jpeg,image/png,image/vnd.dwg,application/acad,application/dwg"
+                    hidden
                     onChange={(e) => e.target.files?.[0] && uploadFile(k, e.target.files[0], e.target)} />
                   <span className="block text-amber-900 font-semibold">{label}</span>
                   <span className="block text-amber-700 mt-1 font-medium">+ Click to upload</span>
+                  <span className="block text-[10px] text-amber-700/80 mt-1 leading-snug">
+                    PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX, JPG/PNG, DWG only · max 10 MB
+                  </span>
                 </label>
               ))}
             </div>

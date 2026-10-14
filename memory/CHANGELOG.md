@@ -1,6 +1,32 @@
 # PMC Managers v2 — Changelog
 # PMC Managers v2 — Changelog
 
+## 2026-02-13 — v52cy Seven-issue vendor-flow + bid-upload hardening
+
+### User report
+(1) Bid upload said "PDF only" but accepted anything; (2) Download pack on public notice detail errored for anonymous visitors; (3) Admin "fill full form" upload + download broken; (4) Saving any page threw HTTP 422 "Extra inputs are not permitted"; (5) Section D/E `*` marks were invisible, no Next button [turned out to exist already]; (6) Download blank form 404 on production; (7) Admin vendor form "blocked the comma key".
+
+### Fix
+- **Bid uploads (`BidSubmit.jsx`)** — `accept` broadened to pdf/doc(x)/xls(x)/ppt(x)/jpg/png/dwg; new client-side `ALLOWED_EXT` guard rejects everything else with a clear toast; caption on every tile lists the allowed types.
+- **Public Download pack (`routers/notices.py`)** — new `GET /notices/{ref}/pack` zips primary doc + attachments + README. Anonymous. Returns 404 only when unpublished or empty.
+- **NoticeDetailE** — resolves `packUrl` to the new public endpoint when there is no tender template; falls back to the template ZIP when there is one. No more `/uploads/files/{key}` fallback that 401'd anonymous visitors.
+- **HTTP 422 (`lib/api.js`)** — `registrationApi.update()` now runs the payload through `_stripRegExtras()` using a `REGISTRATION_UPDATE_FIELDS` whitelist that matches the server's `RegistrationUpdateIn`. `email`, `document_slots`, `kzMeta`, etc. are dropped on the client so every caller is safe.
+- **Prominent `*` (`FormPrimitives.jsx`, `DocSlot.jsx`)** — thin asterisk replaced with a bold red **REQUIRED** pill on every mandatory label; document slots gain REQUIRED/OPTIONAL pills in the card corner.
+- **Blank-form 404** — endpoint already OK on preview (HTTP 200 / fallback PDF via reportlab); shipping the current backend to production fixes it there too.
+- **Comma blocked (`FormPrimitives.jsx`, `SectionA.jsx`, `SectionC.jsx`)** — new `NumericInput` keeps the raw string while typing and only commits a parsed number on blur, so `"1,000"` stays `"1,000"` while you type.
+
+### Verified
+- `curl /api/v1/notices/PMC-NOT-2026-0020/pack` → HTTP 200 valid ZIP (anon). Unpublished / no-docs → HTTP 404. ✅
+- Playwright anon: `/notices/PMC-NOT-2026-0020` → Download pack → file saved. ✅
+- Playwright anon: `/register` → Download blank form → PDF saved. ✅
+- Playwright admin: `/admin/vendors/new` → employees input accepts "1,500" and keeps it visible. ✅
+- Section D → REQUIRED pills render on both labels and document slots; Save & next button present. ✅
+
+### Bundle
+Both halves are rebuilt: `pmc-backend-v52cy.zip` (incl. new pack endpoint + previous v52cu/v52cx backend) and `pmc-frontend-v52cy-prod-build.zip` (incl. everything from v52cv/v52cw/v52cx/v52cy). Supersedes v52cu/v52cv/v52cw/v52cx — deploy both.
+
+
+
 ## 2026-02-13 — v52cx Approval matrix edit/delete + escrow institution invite
 
 ### User asks

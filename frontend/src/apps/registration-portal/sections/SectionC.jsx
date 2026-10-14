@@ -1,4 +1,4 @@
-import { Field, Input } from "./FormPrimitives";
+import { Field, Input, NumericInput } from "./FormPrimitives";
 import { DocSlotsBlock } from "./DocSlot";
 import { useI18n } from "@/context/I18nContext";
 import UnspscPicker from "@/components/UnspscPicker";
@@ -25,9 +25,9 @@ export default function SectionC({ reg, update, regId, token, onDocChange, ensur
             <option>USD</option><option>EUR</option><option>KZT</option><option>RUB</option><option>GBP</option>
           </select>
         </Field>
-        <Field label={t("section_c.turnover_y1")}><Input testId="f-turnover-1" type="text" inputMode="decimal" value={reg.turnover_year1 || ""} onChange={(e) => update({ turnover_year1: parseFloat(String(e.target.value).replace(/,/g, "") || "0") || null })} /></Field>
-        <Field label={t("section_c.turnover_y2")}><Input testId="f-turnover-2" type="text" inputMode="decimal" value={reg.turnover_year2 || ""} onChange={(e) => update({ turnover_year2: parseFloat(String(e.target.value).replace(/,/g, "") || "0") || null })} /></Field>
-        <Field label={t("section_c.turnover_y3")}><Input testId="f-turnover-3" type="text" inputMode="decimal" value={reg.turnover_year3 || ""} onChange={(e) => update({ turnover_year3: parseFloat(String(e.target.value).replace(/,/g, "") || "0") || null })} /></Field>
+        <Field label={t("section_c.turnover_y1")}><NumericInput testId="f-turnover-1" value={reg.turnover_year1} onCommit={(n) => update({ turnover_year1: n })} /></Field>
+        <Field label={t("section_c.turnover_y2")}><NumericInput testId="f-turnover-2" value={reg.turnover_year2} onCommit={(n) => update({ turnover_year2: n })} /></Field>
+        <Field label={t("section_c.turnover_y3")}><NumericInput testId="f-turnover-3" value={reg.turnover_year3} onCommit={(n) => update({ turnover_year3: n })} /></Field>
       </div>
 
       {/* Wave 44 — Primary UNSPSC commodity tag */}

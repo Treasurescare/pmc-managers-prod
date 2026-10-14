@@ -64,9 +64,18 @@ export default function DocSlot({ regId, token, slot, label, required, existing,
          data-testid={`docslot-${slot}`}>
       <div className="flex items-start justify-between gap-2 flex-wrap">
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-semibold text-brand-navy truncate">
-            {label}
-            {required && <span className="ml-1 text-red-600">*</span>}
+          <div className="text-sm font-semibold text-brand-navy truncate flex items-center gap-2">
+            <span className="truncate">{label}</span>
+            {/* v52cy — REQUIRED / OPTIONAL pill so mandatory document slots
+                stand out at the top of each card instead of hiding in grey
+                caption text. Admins kept missing which docs were mandatory. */}
+            {required ? (
+              <span className="inline-flex items-center shrink-0 text-[9px] font-bold tracking-widest px-1.5 py-0.5 bg-red-600 text-white rounded-sm"
+                    data-testid={`docslot-required-${slot}`}>REQUIRED</span>
+            ) : (
+              <span className="inline-flex items-center shrink-0 text-[9px] font-bold tracking-widest px-1.5 py-0.5 bg-slate-200 text-slate-700 rounded-sm"
+                    data-testid={`docslot-optional-${slot}`}>OPTIONAL</span>
+            )}
           </div>
           {existing ? (
             <div className="mt-1 text-xs text-brand-navy/70 truncate">

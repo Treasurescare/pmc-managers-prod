@@ -34,10 +34,16 @@ export default function NoticeDetailE({ legacy: Legacy }) {
     if (!isE || !noticeRef) return;
     publicApi.getNotice(noticeRef).then((n) => {
       const base = process.env.REACT_APP_BACKEND_URL || "";
+      // v52cy — prefer the public per-notice pack endpoint. It is unauthed,
+      // zips every published document and never 401s on anonymous visitors
+      // (the earlier flow fell back to protected /uploads/files/{key} and
+      // returned "Sign in to download tender documents"). If the notice is
+      // template-linked we still prefer the richer template ZIP (PDF +
+      // annexures + README) when it is available.
       if (n?.tender_template_id) {
         setPackUrl(`${base}/api/v1/tender-templates/${n.tender_template_id}/public/zip?notice_ref=${encodeURIComponent(noticeRef)}`);
-      } else if (n?.primary_document?.url) {
-        setPackUrl(`${base}${n.primary_document.url}`);
+      } else if ((n?.primary_document && n.primary_document.url) || (Array.isArray(n?.attachments) && n.attachments.length)) {
+        setPackUrl(`${base}/api/v1/notices/${encodeURIComponent(noticeRef)}/pack`);
       } else {
         setPackUrl("");
       }
