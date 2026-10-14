@@ -281,10 +281,18 @@ export default function EscrowCoreForm({ form, set, onNext, saving }) {
         <EmailInput testId="escrow-f-contact-email" value={form.primary_contact_email || ""}
                     onChange={(e) => set("primary_contact_email", e.target.value)} />
       </Field>
-      <Field label="Primary contact phone"
-             hint={country?.phone_code ? `Starts with +${country.phone_code}` : undefined}>
-        <PhoneInput testId="escrow-f-contact-phone" value={form.primary_contact_phone || ""}
-                    onChange={(e) => set("primary_contact_phone", e.target.value)} />
+      {/* v52cz rev6 — dual phone: mobile + office tel, both ISD-prefixed */}
+      <Field label="Mobile number"
+             hint={country?.phone_code ? `Starts with +${country.phone_code}` : "ISD code auto-added from Country"}>
+        <PhoneInput testId="escrow-f-mobile-phone"
+                    value={form.mobile_phone || form.primary_contact_phone || ""}
+                    onChange={(e) => { set("mobile_phone", e.target.value);
+                                       set("primary_contact_phone", e.target.value); }} />
+      </Field>
+      <Field label="Office telephone"
+             hint={country?.phone_code ? `Starts with +${country.phone_code}` : "ISD code auto-added from Country"}>
+        <PhoneInput testId="escrow-f-office-phone" value={form.office_phone || ""}
+                    onChange={(e) => set("office_phone", e.target.value)} />
       </Field>
 
       <div className="md:col-span-2 flex items-center justify-between">

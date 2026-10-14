@@ -1,6 +1,15 @@
 # PMC Managers v2 — PRD (last touched 13 Oct 2026)
 
 
+## v52cz rev6 — Escrow Save-as-draft + Back + Bank picker + Doc-view fix (14 Feb 2026)
+
+- Save-as-draft + Previous buttons on EVERY step; backend model relaxed (all optional on PATCH, submit still enforces mandatory set).
+- Core: dual phones (mobile + office tel) ISD-prefixed via PhoneInput.
+- Banking rewritten: Bank country typeahead → Bank autocomplete from new `masters_banks` (73 banks × 17 countries) → auto-fills SWIFT prefix + currency; cascading State/City from geography master; IBAN/SWIFT/IFSC/UK sort/US ABA live-regex validated; correspondent bank + correspondent SWIFT.
+- Documents: new magic-token endpoint `/api/v1/escrow-institutions/{iid}/documents/{slot}/file?token=`; frontend View button uses it so anonymous (magic-link) registrants can view uploaded files — no more "Sign in to download tender documents".
+- Bootstrap auto-seeds `masters_banks` on first boot; no SSH needed on prod.
+- 14/14 targeted tests green. Release `pmc-*-v52cz-rev6*.zip` + `DOWNLOAD_v52cz_rev6.md`. Supersedes rev5.
+
 ## v52cz rev5 — Searchable geo pickers + blank-signatory 422 + prod geography auto-seed (14 Feb 2026)
 
 - Country & State on escrow Core are typeable/searchable comboboxes; City is a 152k-row typeahead.

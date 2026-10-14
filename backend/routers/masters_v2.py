@@ -144,6 +144,27 @@ class CountryLicenseUpdate(BaseModel):
     licenses: List[CountryLicenseItem]
 
 
+# ---------- Banks master (escrow banking picker) ----------
+@router.get("/banks")
+async def list_banks(country_code: str, q: Optional[str] = None, limit: int = 60):
+    """v52cz rev6 — Public, used by the escrow registration banking step.
+    Returns a short list of banks for the given country, filterable by free
+    text (name or SWIFT). Admin can extend the master; the UI gracefully
+    falls back to free-text when a country has no entries yet."""
+    cc = (country_code or "").upper()
+    if not cc:
+        return []
+    filt: dict = {"country_code": cc}
+    if q:
+        pat = {"$regex": q.strip(), "$options": "i"}
+        filt["$or"] = [{"name": pat}, {"swift_prefix": pat}, {"aliases": pat}]
+    rows = []
+    async for d in db.masters_banks.find(filt).sort("name", 1).limit(max(1, min(limit, 200))):
+        d.pop("_id", None)
+        rows.append(d)
+    return rows
+
+
 # ---------- Country-specific business-identifier formats ----------
 @router.get("/country-formats/{country_code}")
 async def get_country_formats(country_code: str):

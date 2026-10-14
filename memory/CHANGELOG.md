@@ -1,6 +1,34 @@
 # PMC Managers v2 — Changelog
 # PMC Managers v2 — Changelog
 
+## 2026-02-14 — v52cz rev6 Escrow Save-as-draft + Back + Bank picker + doc view fix
+
+### User report
+1. Need Save-as-draft + Back/Previous on every step.
+2. Mobile + Office tel with ISD code.
+3. Signatories/Banking: IBAN & SWIFT must follow international banking regulation; bank picker driven by country master; branches from state/city master; correspondent bank + routing.
+4. Documents viewer error: `{"detail":"Sign in to download tender documents"}`.
+
+### Fixes
+- `backend/routers/escrow_institutions.py` — all `EscrowInstitutionIn` fields Optional (submit still enforces required); new `BankingCoord` fields (`bank_country/state/city`, `bank_code`, `sort_code`, `routing_number`, `correspondent_swift`). New `GET /{iid}/documents/{slot}/file?token=` magic-token-gated endpoint — reuses `uploads._legacy_get_file_body`.
+- `backend/routers/masters_v2.py` — new public `GET /masters/banks?country_code=&q=` endpoint.
+- `backend/scripts/seed_banks.py` — 73 banks across 17 countries (SBI, HDFC, Chase, Barclays, DBS, Deutsche, Emirates NBD, …). `masters_banks` indexed on (country_code, name) unique + text (name, swift_prefix).
+- `backend/server.py` — bootstrap auto-seeds `masters_banks` when empty.
+- `frontend/src/apps/escrow-portal/EscrowInstitutionRegister.jsx` — new `StepShell` with Previous + Save-as-draft + Save-and-continue toolbar on every step; unified `persist({advance})` handler lazily creates the draft on step 1 then PATCHes thereafter; DocSlot `View` uses magic-token endpoint.
+- `frontend/src/apps/escrow-portal/EscrowCoreForm.jsx` — dual `mobile_phone` + `office_phone` ISD-prefixed via `PhoneInput`.
+- `frontend/src/apps/escrow-portal/EscrowBankingStep.jsx` — new. Bank country typeahead, bank autocomplete from `masters_banks`, cascading State/City, SWIFT/IBAN/IFSC/sort/ABA live-regex validation, correspondent bank + SWIFT.
+- `frontend/src/lib/api.js` — `mastersApi.listBanks`.
+
+### Tests
+- `backend/tests/test_v52cz_rev6_escrow.py` — 5 tests: banks filter+search, banks empty for unknown country, PATCH as draft with partial fields + dual phones, magic-token file serve, wrong-token rejected.
+- 14/14 targeted green (rev4+rev5+rev6).
+- Preview smoke screenshot: dual phones + Back/Draft on steps 2+ + bank picker list visible.
+
+### Release artefacts
+- `pmc-backend-v52cz-rev6.zip`, `pmc-frontend-v52cz-rev6-prod-build.zip`, `DOWNLOAD_v52cz_rev6.md` in `frontend/public/downloads/`. Supersedes rev5. Backend bootstrap auto-seeds all masters on first boot (no SSH).
+
+
+
 ## 2026-02-14 — v52cz rev5 Escrow pickers searchable + blank-signatory 422 + prod geography seed
 
 ### User report

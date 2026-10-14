@@ -663,6 +663,11 @@ export const mastersApi = {
     api.get("/api/v1/masters/cities",
       { params: { country_code, state_code, q: q || undefined, limit } }
     ).then((r) => r.data),
+  // v52cz rev6 — banks master for the escrow banking step (country + optional q).
+  listBanks: (country_code, q) =>
+    api.get("/api/v1/masters/banks",
+      { params: { country_code, q: q || undefined } }
+    ).then((r) => r.data).catch(() => []),
   // v50y — legal entity types master (vendor registration Section A dropdown)
   listLegalEntityTypes: ({ includeInactive = false, country } = {}) =>
     api.get("/api/v1/masters/legal-entity-types", {

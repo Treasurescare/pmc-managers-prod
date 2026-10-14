@@ -66,43 +66,64 @@ def _clean_payload(doc: dict) -> dict:
 
 
 class BankingCoord(BaseModel):
-    account_name: str
-    account_number: str
+    # v52cz rev6 — every field optional so a half-filled bank row can be
+    # saved as draft. `submit()` still enforces account+institution.
+    account_name: str = ""
+    account_number: str = ""
     iban: Optional[str] = None
     swift: Optional[str] = None
     currency: str = "USD"
-    institution_name: str
+    institution_name: str = ""
+    bank_country: Optional[str] = None              # ISO-2 code of the bank
+    bank_state: Optional[str] = None
+    bank_city: Optional[str] = None
     branch: Optional[str] = None
+    bank_code: Optional[str] = None                 # IFSC / ABA / BSB — local routing
+    sort_code: Optional[str] = None                 # UK sort code
+    routing_number: Optional[str] = None            # US ABA routing
     correspondent_bank: Optional[str] = None
-    settlement_cutoff: Optional[str] = None       # free-text TZ-aware, e.g. "16:00 UK"
+    correspondent_swift: Optional[str] = None
+    settlement_cutoff: Optional[str] = None         # free-text TZ-aware, e.g. "16:00 UK"
 
 
 class EscrowInstitutionIn(BaseModel):
-    legal_name: str
+    # v52cz rev6 — core fields all optional on PATCH so "Save as draft"
+    # works at any step without the user having completed the previous
+    # one. submit() still enforces the mandatory set.
+    legal_name: str = ""
     trading_name: Optional[str] = None
-    country: str                                   # ISO-2 code, e.g. "IN"
+    country: str = ""                              # ISO-2 code, e.g. "IN"
     # v52cz rev4 — structured registered address (country→state→city→zip
     # →address1→address2). `registered_address` kept for backwards compat;
     # it's auto-populated from the structured pieces when any are supplied.
-    registered_address: str
+    registered_address: str = ""
     address_line1: Optional[str] = None
     address_line2: Optional[str] = None
     city: Optional[str] = None
     state_code: Optional[str] = None
     state_name: Optional[str] = None
     postal_code: Optional[str] = None
-    reg_number: str                                # company / trust registration no.
+    reg_number: str = ""                           # company / trust registration no.
     tax_id: Optional[str] = None
     gst_or_vat: Optional[str] = None
     regulator: Optional[str] = None               # issuing authority
     licence_number: Optional[str] = None
     licence_expiry: Optional[str] = None          # ISO date
     website: Optional[str] = None
-    primary_contact_email: EmailStr
-    primary_contact_phone: Optional[str] = None
+    primary_contact_email: Optional[EmailStr] = None
+    primary_contact_phone: Optional[str] = None   # kept for back-compat
+    mobile_phone: Optional[str] = None            # v52cz rev6
+    office_phone: Optional[str] = None            # v52cz rev6
     phone_country_code: Optional[str] = None       # e.g. "91" (dial code)
     primary_contact_name: Optional[str] = None
     institution_type: Literal["corporate", "personal"] = "corporate"
+
+    @field_validator("primary_contact_email", mode="before")
+    @classmethod
+    def _empty_email_to_none(cls, v):
+        if isinstance(v, str) and not v.strip():
+            return None
+        return v
     # Document upload keys collected during registration
     documents: dict = Field(default_factory=dict)  # slot -> {key, filename, uploaded_at}
     banking: List[BankingCoord] = Field(default_factory=list)
@@ -163,6 +184,27 @@ async def resume(token: str) -> dict:
     if not doc:
         raise HTTPException(status_code=404, detail="Invalid or expired link")
     return _out(doc)
+
+
+# v52cz rev6 — magic-token-gated file serve. Vendors in the escrow registration
+# flow previously used /api/v1/uploads/files/{key}, which requires a signed-in
+# admin OR vendor cookie — and returned {"detail":"Sign in to download tender
+# documents"} to anonymous (magic-link) users. This endpoint validates the
+# token against the registration + confirms the file key is attached to it
+# before serving.
+@router.get("/{iid}/documents/{slot}/file")
+async def get_registration_document(iid: str, slot: str, token: str,
+                                      download: bool = False):
+    doc = await db.escrow_institutions.find_one({"_id": ObjectId(iid),
+                                                   "magic_token": token})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Invalid or expired link")
+    slot_meta = (doc.get("documents") or {}).get(slot) or {}
+    key = slot_meta.get("key")
+    if not key:
+        raise HTTPException(status_code=404, detail="File not uploaded")
+    from routers.uploads import _legacy_get_file_body
+    return await _legacy_get_file_body(key, download)
 
 
 @router.patch("/{iid}")

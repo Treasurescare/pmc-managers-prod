@@ -2,6 +2,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { api, showApiError, uploadsApi } from "@/lib/api";
 import EscrowCoreForm from "./EscrowCoreForm";
+import EscrowBankingStep from "./EscrowBankingStep";
 
 const DOC_SLOTS = [
   ["incorporation_certificate", "Certificate of incorporation / trust deed"],
@@ -31,10 +32,14 @@ const EMPTY = {
   licence_number: "", licence_expiry: "", website: "",
   primary_contact_email: "", primary_contact_phone: "", phone_country_code: "",
   signatories: [{ name: "", designation: "", email: "", phone: "" }],
+  // v52cz rev6 — new fields: dual phones + bank_country/state/city per row.
+  mobile_phone: "", office_phone: "",
   banking: [{
     account_name: "", account_number: "", iban: "", swift: "",
     currency: "USD", institution_name: "", branch: "",
-    correspondent_bank: "", settlement_cutoff: "",
+    bank_country: "", bank_state: "", bank_city: "",
+    bank_code: "", sort_code: "", routing_number: "",
+    correspondent_bank: "", correspondent_swift: "", settlement_cutoff: "",
   }],
   documents: {},
 };
@@ -57,31 +62,31 @@ export default function EscrowInstitutionRegister() {
       (b.institution_name || "").trim()),
   });
 
-  const createDraft = async () => {
-    // Validation is enforced inside EscrowCoreForm — if this handler is
-    // called, all required + regex rules already passed. Guard rails for
-    // the signatories-less legacy path remain.
+  // v52cz rev6 — unified persist that works at any step.
+  // `advance`: true → go to next step, false → stay (Save as draft).
+  // Also lazily creates the draft on step 1 if we don't have an id yet.
+  const persist = async ({ advance }) => {
     setSaving(true);
     try {
-      const r = (await api.post("/api/v1/escrow-institutions/register", cleanPayload(form))).data;
-      setRegistration(r);
-      toast.success("Draft saved — complete signatories, banking and documents next");
-      setStep(2);
+      if (!registration) {
+        const r = (await api.post("/api/v1/escrow-institutions/register",
+                                  cleanPayload(form))).data;
+        setRegistration(r);
+      } else {
+        await api.patch(`/api/v1/escrow-institutions/${registration.id}`,
+                        cleanPayload(form),
+                        { params: { token: registration.magic_token } });
+      }
+      toast.success(advance ? "Saved" : "Draft saved");
+      if (advance) setStep((s) => Math.min(5, s + 1));
     } catch (e) { showApiError(e); }
     finally { setSaving(false); }
   };
 
-  const saveStep = async () => {
-    if (!registration) return;
-    setSaving(true);
-    try {
-      await api.patch(`/api/v1/escrow-institutions/${registration.id}`,
-                      cleanPayload(form), { params: { token: registration.magic_token } });
-      toast.success("Saved");
-      setStep((s) => s + 1);
-    } catch (e) { showApiError(e); }
-    finally { setSaving(false); }
-  };
+  const createDraft = () => persist({ advance: true });
+  const saveStep = () => persist({ advance: true });
+  const saveDraft = () => persist({ advance: false });
+  const goBack = () => setStep((s) => Math.max(1, s - 1));
 
   const submit = async () => {
     if (!registration) return;
@@ -125,17 +130,29 @@ export default function EscrowInstitutionRegister() {
       </div>
 
       {step === 1 && (
-        <EscrowCoreForm form={form} set={set} onNext={createDraft} saving={saving} />
+        <>
+          <EscrowCoreForm form={form} set={set} onNext={createDraft} saving={saving} />
+          {/* v52cz rev6 — Save as draft on step 1 too (no Back since first step) */}
+          <div className="flex justify-end mt-3">
+            <button type="button" onClick={saveDraft} disabled={saving}
+                    data-testid="escrow-reg-draft-1"
+                    className="px-5 py-2 text-[11px] uppercase tracking-widest border border-brand-navy/40 text-brand-navy hover:bg-brand-navy hover:text-white disabled:opacity-50">
+              {saving ? "Saving…" : "Save as draft"}
+            </button>
+          </div>
+        </>
       )}
 
       {step === 2 && (
-        <div className="bg-white p-6 border border-brand-navy/15 space-y-4">
-          <div className="text-xs text-brand-navy/70">
+        <StepShell step={2} canBack goBack={goBack}
+                   saveDraft={saveDraft} saveNext={saveStep} saving={saving}>
+          <div className="text-xs text-brand-navy/70 mb-4">
             Named signatories who may sign releases on joint accounts. Each needs
             their own email — these become the signing identities inside PMC.
           </div>
           {form.signatories.map((s, i) => (
-            <div key={i} className="grid md:grid-cols-4 gap-3 border-b pb-3">
+            <div key={i} className="grid md:grid-cols-4 gap-3 border-b pb-3 mb-3"
+                 data-testid={`escrow-sig-row-${i}`}>
               <Input label="Name" v={s.name} on={(x) => { const a=[...form.signatories]; a[i].name=x; set("signatories",a); }} />
               <Input label="Designation" v={s.designation} on={(x) => { const a=[...form.signatories]; a[i].designation=x; set("signatories",a); }} />
               <Input label="Email" v={s.email} on={(x) => { const a=[...form.signatories]; a[i].email=x; set("signatories",a); }} />
@@ -147,50 +164,26 @@ export default function EscrowInstitutionRegister() {
               </div>
             </div>
           ))}
-          <div className="flex justify-between">
-            <button onClick={addSignatory} className="text-xs uppercase tracking-widest text-brand-navy">+ Add signatory</button>
-            <button onClick={saveStep} disabled={saving}
-                    data-testid="escrow-reg-next-2"
-                    className="px-6 py-2 text-[11px] uppercase tracking-widest bg-brand-navy text-white disabled:opacity-50">
-              {saving ? "Saving…" : "Save and continue"}
-            </button>
-          </div>
-        </div>
+          <button onClick={addSignatory} className="text-xs uppercase tracking-widest text-brand-navy hover:underline">
+            + Add signatory
+          </button>
+        </StepShell>
       )}
 
       {step === 3 && (
-        <div className="bg-white p-6 border border-brand-navy/15 space-y-4">
-          <div className="text-xs text-brand-navy/70">
-            Banking coordinates for each account you can hold funds in. Settlement
-            cutoff is free text (e.g. "16:00 London").
-          </div>
-          {form.banking.map((b, i) => (
-            <div key={i} className="grid md:grid-cols-3 gap-3 border-b pb-3">
-              <Input label="Account name" v={b.account_name} on={(x) => { const a=[...form.banking]; a[i].account_name=x; set("banking",a); }} />
-              <Input label="Account number" v={b.account_number} on={(x) => { const a=[...form.banking]; a[i].account_number=x; set("banking",a); }} />
-              <Input label="Currency" v={b.currency} on={(x) => { const a=[...form.banking]; a[i].currency=x; set("banking",a); }} />
-              <Input label="IBAN" v={b.iban} on={(x) => { const a=[...form.banking]; a[i].iban=x; set("banking",a); }} />
-              <Input label="SWIFT" v={b.swift} on={(x) => { const a=[...form.banking]; a[i].swift=x; set("banking",a); }} />
-              <Input label="Institution" v={b.institution_name} on={(x) => { const a=[...form.banking]; a[i].institution_name=x; set("banking",a); }} />
-              <Input label="Branch" v={b.branch} on={(x) => { const a=[...form.banking]; a[i].branch=x; set("banking",a); }} />
-              <Input label="Correspondent bank" v={b.correspondent_bank} on={(x) => { const a=[...form.banking]; a[i].correspondent_bank=x; set("correspondent_bank",a); }} />
-              <Input label="Settlement cutoff" v={b.settlement_cutoff} on={(x) => { const a=[...form.banking]; a[i].settlement_cutoff=x; set("banking",a); }} />
-            </div>
-          ))}
-          <div className="flex justify-between">
-            <button onClick={addBank} className="text-xs uppercase tracking-widest text-brand-navy">+ Add bank</button>
-            <button onClick={saveStep} disabled={saving}
-                    data-testid="escrow-reg-next-3"
-                    className="px-6 py-2 text-[11px] uppercase tracking-widest bg-brand-navy text-white disabled:opacity-50">
-              {saving ? "Saving…" : "Save and continue"}
-            </button>
-          </div>
-        </div>
+        <StepShell step={3} canBack goBack={goBack}
+                   saveDraft={saveDraft} saveNext={saveStep} saving={saving}>
+          <EscrowBankingStep banking={form.banking}
+                             onChange={(next) => set("banking", next)} />
+        </StepShell>
       )}
 
       {step === 4 && (
-        <div className="bg-white p-6 border border-brand-navy/15 space-y-3">
-          <div className="text-xs text-brand-navy/70">
+        <StepShell step={4} canBack goBack={goBack}
+                   saveDraft={saveDraft}
+                   nextLabel="Submit for PMC review" saveNext={submit}
+                   saving={saving}>
+          <div className="text-xs text-brand-navy/70 mb-3">
             Upload KYC documents. Files are kept confidential — only PMC
             reviewers and your own signatories can retrieve them.
           </div>
@@ -204,8 +197,6 @@ export default function EscrowInstitutionRegister() {
                          const next = { ...(form.documents || {}), [slot]: meta };
                          const nf = { ...form, documents: next };
                          setForm(nf);
-                         // Persist straight to the backend so a browser refresh
-                         // doesn't lose the uploaded doc reference.
                          if (registration) {
                            try {
                              await api.patch(`/api/v1/escrow-institutions/${registration.id}`,
@@ -228,14 +219,7 @@ export default function EscrowInstitutionRegister() {
               />
             ))}
           </div>
-          <div className="flex justify-end">
-            <button onClick={submit}
-                    data-testid="escrow-reg-submit"
-                    className="px-6 py-2 text-[11px] uppercase tracking-widest bg-brand-navy text-white">
-              Submit for PMC review
-            </button>
-          </div>
-        </div>
+        </StepShell>
       )}
 
       {step === 5 && (
@@ -260,8 +244,48 @@ function Input({ label, v, on, wide }) {
   );
 }
 
-function DocSlot({ slot, label, current, onUploaded, onRemoved }) {
+/**
+ * v52cz rev6 — StepShell wraps every registration step with the same
+ * Back + Save as draft + Save & continue toolbar. Previously only step 1
+ * had a next button, Back was impossible, and there was no draft-save,
+ * which blocked institutions from pausing mid-registration.
+ */
+function StepShell({ children, canBack, goBack, saveDraft, saveNext,
+                     saving, nextLabel = "Save and continue" }) {
+  return (
+    <div className="bg-white p-6 border border-brand-navy/15">
+      {children}
+      <div className="flex items-center justify-between mt-6 pt-4 border-t border-brand-navy/10 flex-wrap gap-3">
+        {canBack ? (
+          <button type="button" onClick={goBack} disabled={saving}
+                  data-testid="escrow-reg-back"
+                  className="px-5 py-2 text-[11px] uppercase tracking-widest border border-brand-navy/40 text-brand-navy hover:bg-brand-pale disabled:opacity-50">
+            ← Previous
+          </button>
+        ) : <span />}
+        <div className="flex items-center gap-3 ml-auto">
+          <button type="button" onClick={saveDraft} disabled={saving}
+                  data-testid="escrow-reg-draft"
+                  className="px-5 py-2 text-[11px] uppercase tracking-widest border border-brand-navy/40 text-brand-navy hover:bg-brand-navy hover:text-white disabled:opacity-50">
+            {saving ? "Saving…" : "Save as draft"}
+          </button>
+          <button type="button" onClick={saveNext} disabled={saving}
+                  data-testid="escrow-reg-next"
+                  className="px-6 py-2 text-[11px] uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep disabled:opacity-50">
+            {saving ? "Saving…" : nextLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DocSlot({ slot, label, current, onUploaded, onRemoved,
+                   institutionId, token }) {
   const [busy, setBusy] = useState(false);
+  const viewHref = () => institutionId && token
+    ? `/api/v1/escrow-institutions/${institutionId}/documents/${slot}/file?token=${encodeURIComponent(token)}`
+    : "#";
   const upload = async (file) => {
     if (!file) return;
     setBusy(true);
@@ -295,7 +319,11 @@ function DocSlot({ slot, label, current, onUploaded, onRemoved }) {
       </div>
       <div className="flex gap-2">
         {current?.key && (
-          <a href={`/api/v1/uploads/files/${current.key}`} target="_blank" rel="noopener noreferrer"
+          // v52cz rev6 — use the magic-token-gated endpoint. The old
+          // /uploads/files/{key} returned "Sign in to download tender
+          // documents" because the registering institution has no admin
+          // or vendor session yet.
+          <a href={viewHref(current.key)} target="_blank" rel="noopener noreferrer"
              data-testid={`escrow-doc-view-${slot}`}
              className="text-[10px] uppercase tracking-widest px-3 py-1.5 border border-brand-navy/20 hover:bg-brand-navy/5">
             View
