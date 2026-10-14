@@ -1,5 +1,13 @@
 # PMC Managers v2 — PRD (last touched 13 Oct 2026)
 
+## v52cy rev4/5 — Bid "View" after upload (13 Oct 2026)
+
+`uploadsApi.openInNewTab` had two stacked bugs: async `window.open` (popup
+blocked) and `popup.location.href = blobUrl` (silently ignored by Chromium).
+Now opens a same-origin about:blank placeholder synchronously and writes an
+`<embed src=blobUrl>` into it; office/DWG files download instead. Verified
+e2e on preview (popup title + embed present). Frontend zip rebuilt.
+
 ## v52cy rev3 — Bid Submit copy matches expanded file types
 
 Bid Submit tiles/messages said "PDFs are required" while v52cy allowed

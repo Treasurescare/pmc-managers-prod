@@ -424,21 +424,80 @@ export const uploadsApi = {
   // (SameSite=None + Partitioned CHIPS), so a raw <a> tab 401s. Fetch via
   // axios (withCredentials) → blob → URL.createObjectURL so the user sees
   // the file inline on both admin + vendor sides.
+  // v52cy rev4 — popup-blocker fix. The previous version called
+  // window.open() only AFTER awaiting the axios fetch, which loses the
+  // user-gesture context, so Chrome/Safari silently blocked the tab and
+  // "View" looked dead. We now open the tab synchronously in the click
+  // handler and navigate it once the blob is ready.
   openInNewTab: async (key, { download = false, filename } = {}) => {
-    const res = await api.get(`/api/v1/uploads/files/${encodeURI(key)}`,
-                               { params: download ? { download: 1 } : {},
-                                 responseType: "blob" });
-    const blob = new Blob([res.data], { type: res.headers?.["content-type"] || "application/octet-stream" });
-    const url = URL.createObjectURL(blob);
-    if (download) {
-      const a = document.createElement("a");
-      a.href = url; a.download = filename || key.split("/").pop() || "file";
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
-    } else {
-      window.open(url, "_blank", "noopener,noreferrer");
-      // Keep the blob around a bit so the new tab can render it.
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    let popup = null;
+    if (!download) {
+      // NOTE: no "noopener" feature string — it makes window.open return
+      // null, and we need the handle to navigate the tab once the blob is
+      // ready. We clear opener manually right after for the same isolation.
+      popup = window.open("about:blank", "_blank");
+      if (popup) {
+        try { popup.opener = null; } catch { /* ignore */ }
+        try {
+          popup.document.title = "Opening document…";
+          popup.document.body.style.cssText =
+            "font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f5f5f4;color:#44403c";
+          popup.document.body.innerHTML = "<div>Loading document…</div>";
+        } catch { /* cross-origin about:blank styling is best-effort */ }
+      }
+    }
+    try {
+      const res = await api.get(`/api/v1/uploads/files/${encodeURI(key)}`,
+                                 { params: download ? { download: 1 } : {},
+                                   responseType: "blob" });
+      const blob = new Blob([res.data], { type: res.headers?.["content-type"] || "application/octet-stream" });
+      const url = URL.createObjectURL(blob);
+      if (download) {
+        const a = document.createElement("a");
+        a.href = url; a.download = filename || key.split("/").pop() || "file";
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+      } else if (popup) {
+        // v52cy rev5 — `popup.location.href = blobUrl` is silently ignored by
+        // Chromium for blob: targets (top-level cross-scheme navigation).
+        // The popup is a same-origin about:blank we created, so write an
+        // inline viewer INTO its document instead — embed the blob directly.
+        const ct = blob.type || "application/octet-stream";
+        const inlineOk = ct === "application/pdf" || ct.startsWith("image/") || ct.startsWith("text/");
+        if (inlineOk) {
+          try {
+            popup.document.title = filename || "Document";
+            popup.document.body.style.cssText = "margin:0;height:100vh;overflow:hidden";
+            popup.document.body.innerHTML =
+              `<embed src="${url}" type="${ct}" style="width:100%;height:100vh;border:0" />`;
+          } catch {
+            // Last-resort: replace the whole document via location.replace
+            // with an HTML wrapper page we control.
+            popup.close();
+            const w = window.open(url, "_blank");
+            if (!w) throw new Error("Popup blocked — allow popups and retry");
+          }
+        } else {
+          // Office docs / DWG can't render in-browser — close the placeholder
+          // tab and trigger a download instead of leaving a blank tab.
+          try { popup.close(); } catch { /* ignore */ }
+          const a = document.createElement("a");
+          a.href = url; a.download = filename || key.split("/").pop() || "file";
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 2000);
+        }
+        // Keep the blob around a bit so the viewer tab can render it.
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+      } else {
+        // Popup blocked even for about:blank — download instead.
+        const a = document.createElement("a");
+        a.href = url; a.download = filename || key.split("/").pop() || "file";
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+      }
+    } catch (err) {
+      if (popup) { try { popup.close(); } catch { /* ignore */ } }
+      throw err;
     }
   },
 };

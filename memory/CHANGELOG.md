@@ -1,6 +1,37 @@
 # PMC Managers v2 — Changelog
 # PMC Managers v2 — Changelog
 
+## 2026-02-13 — v52cy rev4/5 Bid "View" button dead after upload
+
+### User report
+"uploaded file. unable to view. once uploaded." — vendor Bid Submit, the
+View link next to a freshly uploaded document did nothing.
+
+### Root cause (two stacked bugs in `uploadsApi.openInNewTab`)
+1. `window.open()` was called only AFTER awaiting the axios fetch → browser
+   popup blockers kill async window.open (no user-gesture context).
+2. After switching to a synchronous `about:blank` placeholder,
+   `popup.location.href = blobUrl` is silently ignored by Chromium
+   (top-level cross-scheme navigation to blob:).
+
+### Fix (`frontend/src/lib/api.js` openInNewTab)
+- Open `about:blank` synchronously in the click handler (keeps gesture);
+  write a "Loading document…" placeholder into it.
+- After the authenticated blob fetch resolves, write an `<embed src=blobUrl>`
+  INTO the same-origin placeholder document (PDF/image/text render inline).
+- Non-renderable types (DOCX/XLSX/PPTX/DWG) auto-download instead of showing
+  a blank tab; if even about:blank was blocked, falls back to download too.
+- Fetch errors close the placeholder and rethrow so the existing
+  `showApiError` toast still fires.
+
+### Verified
+- Backend serves the uploaded file with vendor cookie: HTTP 200 PDF. ✅
+- Playwright e2e: vendor login → bid page → upload tiny.pdf → View → popup
+  opens, title = "tiny.pdf", `<embed src="blob:…">` present. ✅
+- Frontend bundle rebuilt: `pmc-frontend-v52cy-prod-build.zip` (same link).
+
+
+
 ## 2026-02-13 — v52cy rev3 Bid Submit copy matches expanded file types
 
 ### User report
