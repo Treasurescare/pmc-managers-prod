@@ -161,6 +161,23 @@ def _new_token() -> str:
 
 # -------- Public (vendor-like) endpoints -----------------------------------
 
+@router.get("/email-available")
+async def email_available(email: str) -> dict:
+    """v52cz rev8 — public dedup probe. The register form calls this on
+    email blur so users see "already registered" BEFORE they fill the whole
+    form. Returns {available: bool, status?: str} — never leaks any other
+    detail about the existing institution."""
+    e = (email or "").strip().lower()
+    if not e:
+        return {"available": False}
+    doc = await db.escrow_institutions.find_one(
+        {"primary_contact_email": {"$regex": f"^{e}$", "$options": "i"}},
+        {"status": 1})
+    if doc:
+        return {"available": False, "status": doc.get("status") or "draft"}
+    return {"available": True}
+
+
 @router.post("/register")
 async def register_institution(payload: EscrowInstitutionIn) -> dict:
     """Public self-registration — creates a draft that the institution
@@ -235,6 +252,20 @@ async def update_institution(iid: str, payload: EscrowInstitutionIn,
         raise HTTPException(status_code=400,
             detail=f"Cannot edit — status is {doc['status']}")
     updates = _clean_payload(payload.model_dump(exclude_unset=True))
+    # v52cz rev8 — if the user tries to change their primary email to one
+    # that already belongs to a DIFFERENT institution, reject with 409.
+    new_email = (updates.get("primary_contact_email") or "").strip().lower()
+    cur_email = (doc.get("primary_contact_email") or "").strip().lower()
+    if new_email and new_email != cur_email:
+        clash = await db.escrow_institutions.find_one({
+            "_id": {"$ne": ObjectId(iid)},
+            "primary_contact_email": {"$regex": f"^{new_email}$", "$options": "i"},
+        })
+        if clash:
+            raise HTTPException(status_code=409,
+                detail={"error": "escrow_email_already_registered",
+                         "message": f"{new_email} is already registered.",
+                         "status": clash.get("status")})
     updates["updated_at"] = now_iso()
     await db.escrow_institutions.update_one({"_id": ObjectId(iid)}, {"$set": updates})
     return _out(await db.escrow_institutions.find_one({"_id": ObjectId(iid)}))
@@ -283,9 +314,23 @@ class AdminInviteIn(BaseModel):
 @router.post("/admin-invite")
 async def admin_invite(payload: AdminInviteIn,
                         admin=Depends(require_role("admin"))) -> dict:
+    # v52cz rev8 — reject if ANY institution already registered with this
+    # email in a terminal state (approved / rejected) OR in review. We only
+    # reuse draft / needs_clarification rows.
+    email = payload.primary_contact_email.strip().lower()
+    clash = await db.escrow_institutions.find_one({
+        "primary_contact_email": {"$regex": f"^{email}$", "$options": "i"},
+        "status": {"$in": ["submitted", "under_review", "approved", "rejected"]},
+    })
+    if clash:
+        raise HTTPException(status_code=409,
+            detail={"error": "escrow_email_already_registered",
+                     "message": f"{email} already has an institution in status "
+                                f"'{clash.get('status')}'. Resend their resume "
+                                f"link or ask them to use a different email.",
+                     "status": clash.get("status")})
     # Dedupe: if a draft/needs_clarification record already exists for this
     # email, reuse it (reissue a magic_token) instead of creating a duplicate.
-    email = payload.primary_contact_email.strip().lower()
     existing = await db.escrow_institutions.find_one({
         "primary_contact_email": {"$regex": f"^{email}$", "$options": "i"},
         "status": {"$in": ["draft", "needs_clarification"]},

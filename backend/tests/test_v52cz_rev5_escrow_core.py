@@ -15,6 +15,8 @@ API = f"{BASE}/api/v1"
 
 
 def _core_payload(**over):
+    import uuid
+    tag = uuid.uuid4().hex[:8]
     p = {
         "legal_name": "Rev5 Test Bank Ltd",
         "country": "IN",
@@ -25,7 +27,7 @@ def _core_payload(**over):
         "state_name": "Maharashtra",
         "postal_code": "400001",
         "reg_number": "L17110MH1973PLC019786",
-        "primary_contact_email": "ops.rev5@testbank.in",
+        "primary_contact_email": f"ops.rev5.{tag}@testbank.in",
         "signatories": [{"name": "", "designation": "", "email": "", "phone": ""}],
         "banking": [{"account_name": "", "account_number": "", "iban": None,
                      "swift": None, "currency": "USD", "institution_name": "",
@@ -45,8 +47,10 @@ def test_register_with_blank_signatory_row_succeeds():
 
 
 def test_blank_rows_are_dropped_from_persisted_draft():
+    import uuid
+    tag = uuid.uuid4().hex[:8]
     r = requests.post(f"{API}/escrow-institutions/register",
-                      json=_core_payload(primary_contact_email="ops.rev5b@testbank.in"),
+                      json=_core_payload(primary_contact_email=f"ops.rev5b.{tag}@testbank.in"),
                       timeout=15)
     assert r.status_code == 200, r.text
     token = r.json()["magic_token"]
@@ -64,8 +68,10 @@ def test_blank_rows_are_dropped_from_persisted_draft():
 
 def test_partial_signatory_kept_with_none_email():
     """A row with a name but no email must survive (email=None), not 422."""
+    import uuid
+    tag = uuid.uuid4().hex[:8]
     p = _core_payload(
-        primary_contact_email="ops.rev5c@testbank.in",
+        primary_contact_email=f"ops.rev5c.{tag}@testbank.in",
         signatories=[{"name": "Priya Nair", "designation": "Director", "email": ""}],
     )
     r = requests.post(f"{API}/escrow-institutions/register", json=p, timeout=15)
@@ -79,8 +85,10 @@ def test_partial_signatory_kept_with_none_email():
 
 def test_invalid_signatory_email_still_rejected():
     """Garbage (non-empty, non-email) must still fail — guard stays intact."""
+    import uuid
+    tag = uuid.uuid4().hex[:8]
     p = _core_payload(
-        primary_contact_email="ops.rev5d@testbank.in",
+        primary_contact_email=f"ops.rev5d.{tag}@testbank.in",
         signatories=[{"name": "Bad", "email": "not-an-email"}],
     )
     r = requests.post(f"{API}/escrow-institutions/register", json=p, timeout=15)

@@ -1,6 +1,24 @@
 # PMC Managers v2 — Changelog
 # PMC Managers v2 — Changelog
 
+## 2026-02-14 — v52cz rev8 Dup-email hardened everywhere + sidebar dashboard + wider bank roster
+
+### User report
+1. Escrow signatory dashboard is bare 3 tiles; needs vendor-style sidebar + clickable KPIs.
+2. Admin panel shows 3 escrow institutions all with the same email → dedup wasn't enforced in prod.
+3. Bank list still not exhaustive.
+
+### Fixes
+- `backend/routers/escrow_institutions.py` — dup-email guard extended to PATCH (email change) and admin-invite (409 if existing institution is submitted/under_review/approved/rejected); new public `GET /email-available?email=` endpoint for a client-side blur check.
+- `backend/scripts/seed_banks.py` — ~100 more entries (India co-op/foreign/NBFC-partner neos; UK/US/EU/UAE/SG/CN/JP/AU/BR/ZA/NG/RU long-tails incl. Nubank/Tide/Chase UK/Zopa/Atom/Allica/OakNorth/SVB/Discover/Current/Dave/Niyo/Fi/Jupiter/slice/etc). Admin can keep extending; free-text fallback retained.
+- `frontend/src/apps/escrow-portal/EscrowInstitutionDashboard.jsx` — rewritten with brand-navy left sidebar (Overview/Pending/Transactions/Accounts/Profile) + clickable KPI tiles that navigate; Sign-out link.
+- `backend/tests/test_v52cz_rev5_escrow_core.py` — tests re-tagged with uuid-unique emails so rev8 dedup guard doesn't break idempotency.
+
+### Release artefacts
+`pmc-backend-v52cz-rev8.zip`, `pmc-frontend-v52cz-rev8-prod-build.zip`, `DOWNLOAD_v52cz_rev8.md`. Supersedes rev7.
+
+
+
 ## 2026-02-14 — v52cz rev7 ISD phone picker + duplicate-email guard + bank roster expansion + in-page doc viewer
 
 ### User report
