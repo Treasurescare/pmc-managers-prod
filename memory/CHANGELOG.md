@@ -1,6 +1,32 @@
 # PMC Managers v2 — Changelog
 # PMC Managers v2 — Changelog
 
+## 2026-02-13 — v52cy rev2 REQUIRED pills now global + "Add another office"
+
+### User question
+"does the ui improvements include all sections of the form field or is it
+only for section d. add another office there are mandatory fields. this is
+not marked."
+
+### Answer / fix
+- The REQUIRED pill lives in the shared `Field` component, so it was already
+  global — every section (A/B/C/E) that sets `required` shows it, plus
+  REQUIRED/OPTIONAL pills on every DocSlot.
+- Gap found: `RegionOfficeEditor` ("Add another office") marked mandatory
+  fields with a bare `*` inside the label text instead of the pill. Fixed:
+  Office name, Country, Address, State/Province and City now use
+  `<Field required>` (pill renders); ZIP stays optional.
+- Also replaced the `alert()` calls in `addOffice()` with proper sonner
+  toasts (consistent with the rest of the app).
+
+### Verified
+- Preview: Section D office editor shows 5 REQUIRED pills, zero labels end
+  in a bare `*`.
+- Frontend bundle rebuilt: `pmc-frontend-v52cy-prod-build.zip` (3.1 MB) —
+  backend unchanged (v52cy backend zip still current).
+
+
+
 ## 2026-02-13 — v52cy Seven-issue vendor-flow + bid-upload hardening
 
 ### User report

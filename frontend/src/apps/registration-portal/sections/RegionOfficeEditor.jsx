@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Field, Input } from "./FormPrimitives";
 import { api } from "@/lib/api";
 
@@ -67,11 +68,11 @@ export default function RegionOfficeEditor({ value, onChange, countries }) {
     const required = ["office_name", "address", "country_code", "state", "city"];
     const missing = required.filter((k) => !String(draft[k] || "").trim());
     if (missing.length) {
-      alert("Fill all required office fields before adding: " + missing.join(", "));
+      toast.error("Fill all REQUIRED office fields before adding: " + missing.join(", "));
       return;
     }
     if (!zipValid) {
-      alert(`ZIP doesn't match the ${draft.country_code} format (${zipFormat || "country rule"}).`);
+      toast.error(`ZIP doesn't match the ${draft.country_code} format (${zipFormat || "country rule"}).`);
       return;
     }
     onChange([...legacyStrings, ...offices, { ...draft }]);
@@ -141,11 +142,11 @@ export default function RegionOfficeEditor({ value, onChange, countries }) {
           Add another office
         </div>
         <div className="grid gap-2 md:grid-cols-2">
-          <Field label="Office name *"><Input value={draft.office_name}
+          <Field label="Office name" required><Input value={draft.office_name}
             onChange={(e) => setDraft({ ...draft, office_name: e.target.value })}
             testId="op-region-new-name" /></Field>
 
-          <Field label="Country *">
+          <Field label="Country" required>
             <select value={draft.country_code}
                     onChange={(e) => setDraft({ ...draft, country_code: e.target.value,
                                                  state_code: "", state: "", city: "", zip: "" })}
@@ -160,14 +161,14 @@ export default function RegionOfficeEditor({ value, onChange, countries }) {
             </select>
           </Field>
 
-          <Field label="Address *" className="md:col-span-2">
+          <Field label="Address" required className="md:col-span-2">
             <textarea rows={2} value={draft.address}
                       onChange={(e) => setDraft({ ...draft, address: e.target.value })}
                       data-testid="op-region-new-address"
                       className="mt-1 w-full px-4 py-3 border border-brand-navy/20 bg-white" />
           </Field>
 
-          <Field label="State / Province *">
+          <Field label="State / Province" required>
             <select value={draft.state_code}
                     onChange={(e) => {
                       const s = states.find((x) => x.state_code === e.target.value);
@@ -184,7 +185,7 @@ export default function RegionOfficeEditor({ value, onChange, countries }) {
             </select>
           </Field>
 
-          <Field label="City *">
+          <Field label="City" required>
             <input list="op-region-city-dl" value={draft.city}
                    onChange={(e) => { setCityQ(e.target.value); setDraft({ ...draft, city: e.target.value }); }}
                    disabled={!draft.state_code}
