@@ -1,5 +1,13 @@
 # PMC Managers v2 — PRD (last touched 13 Oct 2026)
 
+
+## v52cz rev4 — Escrow Core form validated against country masters (14 Feb 2026)
+
+- `/escrow/register` Step 1 rewritten: country dropdown with flag + dial code, structured address (country→state→city→zip→addr1/2) backed by masters_countries/states/cities, REQUIRED pills on mandatory fields, country-aware reg-no / tax-id / VAT labels + examples + regex validation via new /masters/country-formats endpoint.
+- 17 countries seeded with real local formats (CIN, PAN, GSTIN, BIN, UEN, Companies House, CNPJ, EIN…). Unknown countries fall back to free-text safely.
+- 14/14 targeted backend tests green; preview UI verified end-to-end.
+- Release: `pmc-*-v52cz-rev4*.zip` + `DOWNLOAD_v52cz_rev4.md`. Supersedes rev3. **Prod deploy must run `scripts/seed_country_formats.py` once.**
+
 ## v52cz rev3 — Documents tab data-driven + Download all above list (14 Feb 2026)
 
 - E-theme notice detail Documents tab was hard-coded demo markup (5 fake rows, dead buttons); now rebuilt from live notice data — real rows, real count, working per-file public downloads, plus "↓ Download all (N)" above the list (pack zip, all real docs).

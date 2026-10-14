@@ -53,8 +53,17 @@ class BankingCoord(BaseModel):
 class EscrowInstitutionIn(BaseModel):
     legal_name: str
     trading_name: Optional[str] = None
-    country: str
+    country: str                                   # ISO-2 code, e.g. "IN"
+    # v52cz rev4 — structured registered address (country→state→city→zip
+    # →address1→address2). `registered_address` kept for backwards compat;
+    # it's auto-populated from the structured pieces when any are supplied.
     registered_address: str
+    address_line1: Optional[str] = None
+    address_line2: Optional[str] = None
+    city: Optional[str] = None
+    state_code: Optional[str] = None
+    state_name: Optional[str] = None
+    postal_code: Optional[str] = None
     reg_number: str                                # company / trust registration no.
     tax_id: Optional[str] = None
     gst_or_vat: Optional[str] = None
@@ -64,6 +73,7 @@ class EscrowInstitutionIn(BaseModel):
     website: Optional[str] = None
     primary_contact_email: EmailStr
     primary_contact_phone: Optional[str] = None
+    phone_country_code: Optional[str] = None       # e.g. "91" (dial code)
     primary_contact_name: Optional[str] = None
     institution_type: Literal["corporate", "personal"] = "corporate"
     # Document upload keys collected during registration

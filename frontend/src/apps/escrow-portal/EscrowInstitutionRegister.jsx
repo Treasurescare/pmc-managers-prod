@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { api, showApiError, uploadsApi } from "@/lib/api";
+import EscrowCoreForm from "./EscrowCoreForm";
 
 const DOC_SLOTS = [
   ["incorporation_certificate", "Certificate of incorporation / trust deed"],
@@ -23,9 +24,12 @@ const DOC_SLOTS = [
  */
 const EMPTY = {
   legal_name: "", trading_name: "", country: "", registered_address: "",
+  // v52cz rev4 — structured address pieces (country→state→city→zip→addr1/2)
+  address_line1: "", address_line2: "", city: "",
+  state_code: "", state_name: "", postal_code: "",
   reg_number: "", tax_id: "", gst_or_vat: "", regulator: "",
   licence_number: "", licence_expiry: "", website: "",
-  primary_contact_email: "", primary_contact_phone: "",
+  primary_contact_email: "", primary_contact_phone: "", phone_country_code: "",
   signatories: [{ name: "", designation: "", email: "", phone: "" }],
   banking: [{
     account_name: "", account_number: "", iban: "", swift: "",
@@ -43,11 +47,9 @@ export default function EscrowInstitutionRegister() {
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const createDraft = async () => {
-    if (!form.legal_name || !form.country || !form.registered_address ||
-        !form.reg_number || !form.primary_contact_email) {
-      toast.error("Fill legal name, country, address, registration number and primary email");
-      return;
-    }
+    // Validation is enforced inside EscrowCoreForm — if this handler is
+    // called, all required + regex rules already passed. Guard rails for
+    // the signatories-less legacy path remain.
     setSaving(true);
     try {
       const r = (await api.post("/api/v1/escrow-institutions/register", form)).data;
@@ -112,28 +114,7 @@ export default function EscrowInstitutionRegister() {
       </div>
 
       {step === 1 && (
-        <div className="grid md:grid-cols-2 gap-3 bg-white p-6 border border-brand-navy/15">
-          <Input label="Legal name *" v={form.legal_name} on={(x) => set("legal_name", x)} />
-          <Input label="Trading name" v={form.trading_name} on={(x) => set("trading_name", x)} />
-          <Input label="Country *" v={form.country} on={(x) => set("country", x)} />
-          <Input label="Registration number *" v={form.reg_number} on={(x) => set("reg_number", x)} />
-          <Input label="Registered address *" v={form.registered_address} on={(x) => set("registered_address", x)} wide />
-          <Input label="Tax ID" v={form.tax_id} on={(x) => set("tax_id", x)} />
-          <Input label="GST / VAT" v={form.gst_or_vat} on={(x) => set("gst_or_vat", x)} />
-          <Input label="Regulator / licence authority" v={form.regulator} on={(x) => set("regulator", x)} />
-          <Input label="Licence number" v={form.licence_number} on={(x) => set("licence_number", x)} />
-          <Input label="Licence expiry (YYYY-MM-DD)" v={form.licence_expiry} on={(x) => set("licence_expiry", x)} />
-          <Input label="Website" v={form.website} on={(x) => set("website", x)} />
-          <Input label="Primary contact email *" v={form.primary_contact_email} on={(x) => set("primary_contact_email", x)} />
-          <Input label="Primary contact phone" v={form.primary_contact_phone} on={(x) => set("primary_contact_phone", x)} />
-          <div className="md:col-span-2 flex justify-end">
-            <button onClick={createDraft} disabled={saving}
-                    data-testid="escrow-reg-next-1"
-                    className="px-6 py-2 text-[11px] uppercase tracking-widest bg-brand-navy text-white disabled:opacity-50">
-              {saving ? "Saving…" : "Save and continue"}
-            </button>
-          </div>
-        </div>
+        <EscrowCoreForm form={form} set={set} onNext={createDraft} saving={saving} />
       )}
 
       {step === 2 && (

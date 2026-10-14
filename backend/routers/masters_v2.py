@@ -144,6 +144,23 @@ class CountryLicenseUpdate(BaseModel):
     licenses: List[CountryLicenseItem]
 
 
+# ---------- Country-specific business-identifier formats ----------
+@router.get("/country-formats/{country_code}")
+async def get_country_formats(country_code: str):
+    """v52cz rev4 — reg-number / tax-id / VAT display label + example +
+    validation regex for the given country. Public read, used by the escrow
+    institution registration (and other KYC forms) to live-validate what
+    the user types against the real local format instead of accepting any
+    free-text garbage. Falls back to `{reg_number: null, tax_id: null,
+    vat: null}` when a country isn't seeded yet, so the UI degrades to
+    free text with no false negatives."""
+    cc = country_code.upper()
+    doc = await db.masters_country_formats.find_one({"country_code": cc}, {"_id": 0})
+    if not doc:
+        return {"country_code": cc, "reg_number": None, "tax_id": None, "vat": None}
+    return doc
+
+
 @router.get("/country-licenses/{country_code}")
 async def get_country_licenses(country_code: str):
     """v52cm — public read: what licenses does this country require?"""

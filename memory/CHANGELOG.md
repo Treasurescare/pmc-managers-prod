@@ -1,6 +1,32 @@
 # PMC Managers v2 — Changelog
 # PMC Managers v2 — Changelog
 
+## 2026-02-14 — v52cz rev4 Escrow Core step validated against country masters
+
+### User report
+On /escrow/register Step 1 Core: (a) country was a free-text box, (b) no visual marker on mandatory fields, (c) address was a single line (should cascade country→state→city→zip→addr1/2 from masters), (d) nothing was validated — reg-no / tax-id / licence must match the picked country's real format, not hard-coded.
+
+### Fixes
+- **Backend** `backend/routers/masters_v2.py` — new `GET /api/v1/masters/country-formats/{cc}` returning per-country `{reg_number, tax_id, vat}` label/example/regex. Falls back to null fields for un-seeded countries (safe degrade).
+- **Backend** `backend/scripts/seed_country_formats.py` — seeds 17 countries (IN, KZ, SG, JP, CN, AU, AE, SA, GB, DE, FR, US, BR, ZA, NG, RU, UA) with real local formats (CIN, PAN, GSTIN, BIN, UEN, CNPJ, Companies House, HRB, SIREN, EIN, OGRN, EDRPOU, ACN, CR, TRN…). Idempotent upsert.
+- **Backend** `backend/routers/escrow_institutions.py` — `EscrowInstitutionIn` now accepts structured address fields (`address_line1/2`, `city`, `state_code/name`, `postal_code`) + `phone_country_code`. Flat `registered_address` kept for backwards compat.
+- **Frontend** `frontend/src/apps/escrow-portal/EscrowCoreForm.jsx` — new component. Uses vendor-registration primitives (`Field`, `Input`, `EmailInput`, `PhoneInput` with REQUIRED pills), real country `<select>` with flag + dial code, cascading state/city via `/masters/states` + `/masters/cities`, ZIP validated against `postal_code_regex`, reg-no / tax-id / VAT labels + examples + regex pulled from `/masters/country-formats` with inline red-border error on mismatch. Save button blocked until all mandatory + regex rules pass.
+- **Frontend** `frontend/src/apps/escrow-portal/EscrowInstitutionRegister.jsx` — Step 1 renders `<EscrowCoreForm />`.
+- **Frontend** `frontend/src/lib/api.js` — `mastersApi.getCountryFormats / listCountriesPublic / listStates / listCities`.
+
+### Tests
+- `backend/tests/test_v52cz_rev4_country_formats.py` — 5 new tests (India CIN/PAN, UK Companies House, KZ BIN, unknown-country graceful degrade, big-17 seed coverage).
+- Full targeted suite 14/14 green.
+- Preview UI verified end-to-end: country dropdown with +91 for India, REQUIRED pills on every mandatory field, state cascade loads 36 Indian states, CIN regex rejects "notACIN" (border red + missing banner), accepts real "L17110MH1973PLC019786".
+
+### Release artefacts
+- `pmc-backend-v52cz-rev4.zip`, `pmc-frontend-v52cz-rev4-prod-build.zip`, `DOWNLOAD_v52cz_rev4.md` in `frontend/public/downloads/`. Supersedes rev3.
+
+### Deployment note
+After deploying rev4 backend to EB, run `python scripts/seed_country_formats.py` once against production MongoDB to populate `masters_country_formats` (otherwise the endpoint returns the safe-fallback nulls and the Core form reverts to free-text accept-anything).
+
+
+
 ## 2026-02-14 — v52cz rev3 Documents tab rebuilt + Download all above list
 
 ### User report

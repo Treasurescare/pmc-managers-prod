@@ -646,6 +646,23 @@ export const mastersApi = {
   createCurrency: (p) => api.post("/api/v1/masters/currencies", p).then((r) => r.data),
   updateCurrency: (id, p) => api.patch(`/api/v1/masters/currencies/${id}`, p).then((r) => r.data),
   deactivateCurrency: (id) => api.delete(`/api/v1/masters/currencies/${id}`).then((r) => r.data),
+  // v52cz rev4 — country-specific identifier formats (reg no / tax id / VAT).
+  // Used by any KYC form that needs per-country live-validation instead of
+  // free-text accept-anything behaviour (escrow institutions first; vendor
+  // registration can migrate next). Falls back cleanly to null fields when a
+  // country isn't seeded yet.
+  getCountryFormats: (cc) => cc
+    ? api.get(`/api/v1/masters/country-formats/${encodeURIComponent(cc)}`)
+         .then((r) => r.data)
+    : Promise.resolve(null),
+  listCountriesPublic: () =>
+    api.get("/api/v1/masters/countries").then((r) => r.data),
+  listStates: (country_code) =>
+    api.get("/api/v1/masters/states", { params: { country_code } }).then((r) => r.data),
+  listCities: (country_code, state_code, q, limit = 200) =>
+    api.get("/api/v1/masters/cities",
+      { params: { country_code, state_code, q: q || undefined, limit } }
+    ).then((r) => r.data),
   // v50y — legal entity types master (vendor registration Section A dropdown)
   listLegalEntityTypes: ({ includeInactive = false, country } = {}) =>
     api.get("/api/v1/masters/legal-entity-types", {
