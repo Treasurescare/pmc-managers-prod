@@ -1,5 +1,13 @@
 # PMC Managers v2 — PRD (last touched 13 Oct 2026)
 
+## v52cy rev6 — Bid "View" in-page modal (13 Oct 2026)
+
+Popup-based viewing kept failing (async window.open blocked; blob:
+navigation ignored; Safari quirks) even with rev5 deployed to prod.
+openInNewTab now renders an in-page modal (embed for PDF/image/text,
+direct download for Office/DWG). No popups. Verified on preview. Bundle
+serves main.d0061103.js — frontend zip at the usual v52cy link.
+
 ## v52cy rev4/5 — Bid "View" after upload (13 Oct 2026)
 
 `uploadsApi.openInNewTab` had two stacked bugs: async `window.open` (popup

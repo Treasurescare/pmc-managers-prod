@@ -424,81 +424,78 @@ export const uploadsApi = {
   // (SameSite=None + Partitioned CHIPS), so a raw <a> tab 401s. Fetch via
   // axios (withCredentials) → blob → URL.createObjectURL so the user sees
   // the file inline on both admin + vendor sides.
-  // v52cy rev4 — popup-blocker fix. The previous version called
-  // window.open() only AFTER awaiting the axios fetch, which loses the
-  // user-gesture context, so Chrome/Safari silently blocked the tab and
-  // "View" looked dead. We now open the tab synchronously in the click
-  // handler and navigate it once the blob is ready.
+  // v52cy rev6 — the new-tab popup path kept breaking (popup blockers on
+  // async window.open, Chromium ignoring blob: location navigation, Safari
+  // quirks). Replaced with an in-page viewer modal: zero popups involved.
+  // PDF / image / text render inline; Office + DWG files download instead.
   openInNewTab: async (key, { download = false, filename } = {}) => {
-    let popup = null;
-    if (!download) {
-      // NOTE: no "noopener" feature string — it makes window.open return
-      // null, and we need the handle to navigate the tab once the blob is
-      // ready. We clear opener manually right after for the same isolation.
-      popup = window.open("about:blank", "_blank");
-      if (popup) {
-        try { popup.opener = null; } catch { /* ignore */ }
-        try {
-          popup.document.title = "Opening document…";
-          popup.document.body.style.cssText =
-            "font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f5f5f4;color:#44403c";
-          popup.document.body.innerHTML = "<div>Loading document…</div>";
-        } catch { /* cross-origin about:blank styling is best-effort */ }
-      }
-    }
-    try {
-      const res = await api.get(`/api/v1/uploads/files/${encodeURI(key)}`,
-                                 { params: download ? { download: 1 } : {},
-                                   responseType: "blob" });
-      const blob = new Blob([res.data], { type: res.headers?.["content-type"] || "application/octet-stream" });
-      const url = URL.createObjectURL(blob);
-      if (download) {
-        const a = document.createElement("a");
-        a.href = url; a.download = filename || key.split("/").pop() || "file";
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 2000);
-      } else if (popup) {
-        // v52cy rev5 — `popup.location.href = blobUrl` is silently ignored by
-        // Chromium for blob: targets (top-level cross-scheme navigation).
-        // The popup is a same-origin about:blank we created, so write an
-        // inline viewer INTO its document instead — embed the blob directly.
-        const ct = blob.type || "application/octet-stream";
-        const inlineOk = ct === "application/pdf" || ct.startsWith("image/") || ct.startsWith("text/");
-        if (inlineOk) {
-          try {
-            popup.document.title = filename || "Document";
-            popup.document.body.style.cssText = "margin:0;height:100vh;overflow:hidden";
-            popup.document.body.innerHTML =
-              `<embed src="${url}" type="${ct}" style="width:100%;height:100vh;border:0" />`;
-          } catch {
-            // Last-resort: replace the whole document via location.replace
-            // with an HTML wrapper page we control.
-            popup.close();
-            const w = window.open(url, "_blank");
-            if (!w) throw new Error("Popup blocked — allow popups and retry");
-          }
-        } else {
-          // Office docs / DWG can't render in-browser — close the placeholder
-          // tab and trigger a download instead of leaving a blank tab.
-          try { popup.close(); } catch { /* ignore */ }
-          const a = document.createElement("a");
-          a.href = url; a.download = filename || key.split("/").pop() || "file";
-          document.body.appendChild(a); a.click(); a.remove();
-          setTimeout(() => URL.revokeObjectURL(url), 2000);
-        }
-        // Keep the blob around a bit so the viewer tab can render it.
-        setTimeout(() => URL.revokeObjectURL(url), 60000);
-      } else {
-        // Popup blocked even for about:blank — download instead.
-        const a = document.createElement("a");
-        a.href = url; a.download = filename || key.split("/").pop() || "file";
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 2000);
-      }
-    } catch (err) {
-      if (popup) { try { popup.close(); } catch { /* ignore */ } }
-      throw err;
-    }
+    const res = await api.get(`/api/v1/uploads/files/${encodeURI(key)}`,
+                               { params: download ? { download: 1 } : {},
+                                 responseType: "blob" });
+    const blob = new Blob([res.data], { type: res.headers?.["content-type"] || "application/octet-stream" });
+    const url = URL.createObjectURL(blob);
+    const fname = filename || key.split("/").pop() || "file";
+    const ct = blob.type || "application/octet-stream";
+    const inlineOk = ct === "application/pdf" || ct.startsWith("image/") || ct.startsWith("text/");
+
+    const triggerDownload = () => {
+      const a = document.createElement("a");
+      a.href = url; a.download = fname;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    };
+
+    if (download || !inlineOk) { triggerDownload(); return; }
+
+    // In-page modal viewer (imperative DOM — this helper is not a React
+    // component, so we build and tear down the overlay manually).
+    const overlay = document.createElement("div");
+    overlay.setAttribute("data-testid", "doc-viewer-modal");
+    overlay.style.cssText =
+      "position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.55);" +
+      "display:flex;align-items:center;justify-content:center;padding:16px";
+    const box = document.createElement("div");
+    box.style.cssText =
+      "background:#fff;width:min(980px,96vw);height:90vh;display:flex;flex-direction:column;" +
+      "box-shadow:0 24px 64px rgba(0,0,0,.35);border-radius:8px;overflow:hidden";
+    const bar = document.createElement("div");
+    bar.style.cssText =
+      "display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid #e2e8f0;" +
+      "font:600 13px system-ui;color:#0f172a";
+    const title = document.createElement("span");
+    title.textContent = fname;
+    title.style.cssText = "flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+    const dlBtn = document.createElement("button");
+    dlBtn.textContent = "Download";
+    dlBtn.setAttribute("data-testid", "doc-viewer-download");
+    dlBtn.style.cssText =
+      "padding:6px 14px;font:600 11px system-ui;letter-spacing:.08em;text-transform:uppercase;" +
+      "background:#0f172a;color:#fff;border:0;border-radius:4px;cursor:pointer";
+    dlBtn.onclick = triggerDownload;
+    const closeBtn = document.createElement("button");
+    closeBtn.textContent = "✕ Close";
+    closeBtn.setAttribute("data-testid", "doc-viewer-close");
+    closeBtn.style.cssText =
+      "padding:6px 12px;font:600 11px system-ui;letter-spacing:.08em;text-transform:uppercase;" +
+      "background:#f1f5f9;color:#0f172a;border:1px solid #cbd5e1;border-radius:4px;cursor:pointer";
+    const viewer = document.createElement("embed");
+    viewer.src = url;
+    viewer.type = ct;
+    viewer.setAttribute("data-testid", "doc-viewer-embed");
+    viewer.style.cssText = "flex:1;width:100%;border:0;background:#525659";
+    const close = () => {
+      try { document.body.removeChild(overlay); } catch { /* already gone */ }
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      document.removeEventListener("keydown", onKey);
+    };
+    const onKey = (e) => { if (e.key === "Escape") close(); };
+    closeBtn.onclick = close;
+    overlay.onclick = (e) => { if (e.target === overlay) close(); };
+    document.addEventListener("keydown", onKey);
+    bar.appendChild(title); bar.appendChild(dlBtn); bar.appendChild(closeBtn);
+    box.appendChild(bar); box.appendChild(viewer);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
   },
 };
 

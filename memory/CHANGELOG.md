@@ -1,6 +1,36 @@
 # PMC Managers v2 — Changelog
 # PMC Managers v2 — Changelog
 
+## 2026-02-13 — v52cy rev6 Bid "View" — in-page modal (popup path abandoned)
+
+### User report
+info@emeraldcorporates.com: uploaded bid technical doc fine, but View opens
+a blank browser page. Production was already serving the rev5 build
+(verified main.8abffc32.js contains the fix), so the remaining failure was
+the popup approach itself — popup blockers / Chromium blob: navigation /
+Safari quirks.
+
+### Root cause
+Every window.open-based variant is fragile: async window.open gets blocked,
+sync placeholder + location=blob: is ignored by Chromium, and Safari
+mishandles blob URLs in new tabs.
+
+### Fix (`frontend/src/lib/api.js` openInNewTab rev6)
+Replaced the new-tab flow entirely with an in-page modal viewer:
+authenticated axios blob fetch → URL.createObjectURL → imperative overlay
+with `<embed>` (PDF/image/text render inline), a Download button, and a
+Close button (Esc / backdrop click also close). Non-renderable types
+(DOCX/XLSX/PPTX/DWG) download directly. No popups anywhere. Covers
+BidSubmit and EvidenceManager (both call openInNewTab).
+
+### Verified
+Playwright: vendor login → upload tiny.pdf → View → modal present with
+blob embed + Download + Close; close works. (Headless Chromium shows
+"Couldn't load plugin" for the PDF body — expected; real browsers render.)
+Bundle: `pmc-frontend-v52cy-prod-build.zip` now serves main.d0061103.js.
+
+
+
 ## 2026-02-13 — v52cy rev4/5 Bid "View" button dead after upload
 
 ### User report
