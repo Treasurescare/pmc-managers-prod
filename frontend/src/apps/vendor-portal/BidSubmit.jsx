@@ -28,6 +28,10 @@ export default function BidSubmit() {
   // v52bj — captured from a 409 so we can offer a direct "open / withdraw"
   // path without the vendor having to hunt through My Bids.
   const [existingDup, setExistingDup] = useState(null);
+  // v52cz rev2 — bundle picker selection. Default: every doc is checked so
+  // the natural click flow matches "Download all". Keyed by upload key so
+  // the set survives Remove / Re-upload.
+  const [selectedKeys, setSelectedKeys] = useState(() => new Set());
 
   // v51bd — local draft so vendors can save work and come back later.
   // (persisted BOTH to localStorage AND to the backend via bidApi.saveDraft
@@ -99,6 +103,9 @@ export default function BidSubmit() {
         kind, key, filename: file.name,
         size_bytes, uploaded_at: new Date().toISOString(),
       }]);
+      // v52cz rev2 — auto-tick the new doc so the Download picker always
+      // reflects "everything so far" by default.
+      setSelectedKeys((s) => { const n = new Set(s); n.add(key); return n; });
       toast.success(`Uploaded ${file.name}`);
     } catch (err) { showApiError(err); }
     finally {
@@ -111,7 +118,9 @@ export default function BidSubmit() {
   };
 
   const removeDoc = (idx) => {
+    const gone = docs[idx]?.key;
     setDocs((d) => d.filter((_, i) => i !== idx));
+    if (gone) setSelectedKeys((s) => { const n = new Set(s); n.delete(gone); return n; });
     // Also clear every file input so re-selecting the same filename works.
     document.querySelectorAll('[data-testid^="bid-upload-"] input[type="file"]').forEach((el) => { el.value = ""; });
   };
@@ -431,15 +440,31 @@ export default function BidSubmit() {
                     ↓ Download all ({docs.length})
                   </button>
                 </div>
-                {docs.map((d, i) => (
+                {docs.map((d, i) => {
+                  const checked = d.key ? selectedKeys.has(d.key) : false;
+                  return (
                   <div key={`bid-att-${d.filename || d.kind || i}`}
                     className="flex items-center justify-between gap-2 bg-white border border-slate-300 px-3 py-2 rounded-md"
                     data-testid={`bid-doc-${d.kind}-${i}`}>
-                    <span className="text-xs text-slate-900 font-medium break-all min-w-0">
-                      <span className="uppercase text-slate-500 font-semibold">{d.kind}</span>
-                      {" · "}{d.filename}
-                      <span className="text-slate-500"> ({Math.round((d.size_bytes || 0) / 1024)} KB)</span>
-                    </span>
+                    <label className="flex items-center gap-2 min-w-0 flex-1 cursor-pointer">
+                      <input type="checkbox" checked={checked}
+                        disabled={!d.key}
+                        onChange={(e) => {
+                          if (!d.key) return;
+                          setSelectedKeys((s) => {
+                            const n = new Set(s);
+                            if (e.target.checked) n.add(d.key); else n.delete(d.key);
+                            return n;
+                          });
+                        }}
+                        data-testid={`bid-doc-pick-${d.kind}-${i}`}
+                        className="w-4 h-4 accent-slate-900 shrink-0" />
+                      <span className="text-xs text-slate-900 font-medium break-all min-w-0">
+                        <span className="uppercase text-slate-500 font-semibold">{d.kind}</span>
+                        {" · "}{d.filename}
+                        <span className="text-slate-500"> ({Math.round((d.size_bytes || 0) / 1024)} KB)</span>
+                      </span>
+                    </label>
                     <span className="flex gap-3 shrink-0 text-xs font-semibold">
                       <button type="button"
                         onClick={() => uploadsApi.openInNewTab(d.key, { filename: d.filename })
@@ -451,7 +476,8 @@ export default function BidSubmit() {
                         data-testid={`bid-doc-remove-${d.kind}-${i}`}>Remove</button>
                     </span>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

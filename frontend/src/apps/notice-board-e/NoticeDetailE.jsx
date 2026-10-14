@@ -278,7 +278,7 @@ export default function NoticeDetailE({ legacy: Legacy }) {
                 one-page diff PDF (same artefact bidders receive by email). */}
             <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}
                  data-testid={`corr-e-pdf-row-${c.corrigendum_no}`}>
-              <a href={`${process.env.REACT_APP_BACKEND_URL || ""}/api/v1/notices/${noticeRef}/corrigenda/${c.id}/pdf`}
+              <a href={`/api/v1/notices/${noticeRef}/corrigenda/${c.id}/pdf`}
                  target="_blank" rel="noreferrer"
                  data-testid={`corr-e-pdf-${c.corrigendum_no}`}
                  className="pmc-btn pmc-btn--brass pmc-btn--sm">

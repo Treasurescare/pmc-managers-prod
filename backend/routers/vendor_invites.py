@@ -466,123 +466,23 @@ async def upload_registration_template(file: UploadFile = File(...),
 @router.get("/registration-template")
 async def download_registration_template(inline: bool = True):
     """PUBLIC — vendors download/view the blank form for reference.
-    Bug #4 fix — if no template has been uploaded yet, generate a rich
-    fallback PDF so this endpoint never 404s.
-    v48c fix — default to `inline` disposition so browsers open the PDF
-    in-tab (works via `<a target='_blank'>`) instead of forcing a save
-    that some browsers then flag as "cannot open". Force `?inline=false`
-    to keep the classic download behavior."""
+    v52cz — ALWAYS auto-generate the PDF from the live RegistrationUpdateIn
+    schema + DOC_SLOTS so the blank form stays in lock-step with the UI
+    (sections A→E). The old flow served whatever an admin uploaded to the
+    `vendor_templates` collection, which recently turned the blank-form
+    download into someone's resume (filename `Chaman_Raj_...docx`,
+    content_type DOCX, "unreadable" in Word). We no longer trust that
+    collection: the file is generated here, every time, so tomorrow when
+    we add a Section F or a new field, the download reflects it with no
+    admin step. Filename is now the stable `PMC-Vendor-Registration-Form.pdf`.
+    v48c kept — default inline disposition so <a target=_blank> opens
+    in-tab; ?inline=false for classic download."""
     from fastapi.responses import Response
     disp_type = "inline" if inline else "attachment"
-    doc = await db.vendor_templates.find_one({"kind": "registration_template"})
-    if doc:
-        body = base64.b64decode(doc["data_b64"])
-        ct = doc.get("content_type", "application/octet-stream")
-        fn = doc.get("file_name", "registration-template")
-        # DOCX etc. must always be attachment
-        if ct != "application/pdf":
-            disp_type = "attachment"
-        return Response(content=body, media_type=ct,
-                        headers={"Content-Disposition": f'{disp_type}; filename="{fn}"',
-                                 "Cache-Control": "no-store"})
-    # Fallback — build a printable PDF with header, sections A/B/C, checklist,
-    # signature block. Fully self-contained; opens cleanly in every viewer.
     try:
-        from reportlab.pdfgen import canvas
-        from reportlab.lib.pagesizes import A4
-        from reportlab.lib.colors import HexColor
-        from io import BytesIO
-        buf = BytesIO()
-        c = canvas.Canvas(buf, pagesize=A4)
-        c.setTitle("PMC Managers Vendor Registration Form")
-        c.setAuthor("PMC Managers Limited")
-        c.setSubject("Vendor Registration – Blank Form")
-        w, h = A4
-        NAVY = HexColor("#0F3B2E")
-        GOLD = HexColor("#7A5F1E")
-        MUTED = HexColor("#4F5C55")
-
-        # --- Letterhead ---
-        c.setFillColor(NAVY); c.rect(0, h - 90, w, 90, stroke=0, fill=1)
-        c.setFillColor(HexColor("#F3EFE4"))
-        c.setFont("Helvetica-Bold", 20)
-        c.drawString(50, h - 45, "PMC Managers Limited")
-        c.setFont("Helvetica", 10)
-        c.drawString(50, h - 62, "Global Tender Board  |  Vendor Registration Form")
-        c.setFillColor(GOLD); c.setFont("Helvetica-Bold", 8)
-        c.drawString(50, h - 78, "REV 1.0  ·  BLANK FORM  ·  PRINT · COMPLETE · SIGN · UPLOAD")
-
-        # --- Intro ---
-        y = h - 120; c.setFillColor(HexColor("#14261F")); c.setFont("Helvetica", 10)
-        for line in ("Complete this form in block letters. Upload the signed & scanned copy to your",
-                     "registration record along with the supporting documents listed in Section C."):
-            c.drawString(50, y, line); y -= 14
-
-        def section_header(label):
-            nonlocal y
-            y -= 10; c.setFillColor(GOLD); c.setFont("Helvetica-Bold", 7)
-            c.drawString(50, y, "SECTION"); c.setFillColor(NAVY); c.setFont("Helvetica-Bold", 13)
-            c.drawString(90, y, label); y -= 4
-            c.setStrokeColor(GOLD); c.setLineWidth(0.4); c.line(50, y, w - 50, y); y -= 16
-
-        def field(label):
-            nonlocal y
-            c.setFillColor(MUTED); c.setFont("Helvetica", 9)
-            c.drawString(50, y, label)
-            c.setStrokeColor(HexColor("#C9C1AA")); c.setLineWidth(0.4)
-            c.line(200, y - 1, w - 50, y - 1); y -= 22
-
-        section_header("A  —  COMPANY DETAILS")
-        for lbl in ("Legal Name", "Trade Name", "Country of registration",
-                    "Registration / Trade Licence No.", "Legal entity type",
-                    "Primary sector", "Website", "Employees (headcount)"):
-            field(lbl)
-
-        section_header("B  —  CONTACT DETAILS")
-        for lbl in ("Contact Name", "Contact Email", "Office phone", "Mobile",
-                    "HQ address (line 1)", "HQ address (line 2)", "City / State", "Postal code"):
-            field(lbl)
-
-        c.showPage()
-        y = h - 60
-        section_header("C  —  DOCUMENTS TO ATTACH")
-        c.setFillColor(HexColor("#14261F")); c.setFont("Helvetica", 10)
-        for lbl in ("Certificate of incorporation",
-                    "Registered address proof (utility bill / lease)",
-                    "TIN / VAT / GST proof",
-                    "Audited financial statements (last 3 fiscal years)",
-                    "Previous works & client references",
-                    "ISO 9001 / 14001 / 45001 certifications (as applicable)",
-                    "Trade licences / sector-specific permits",
-                    "Articles of incorporation / MoA",
-                    "Bank reference letter",
-                    "Power of Attorney (if signatory ≠ director)",
-                    "Product data-sheets / catalogues",
-                    "Insurance certificates (Public liability, EAR/CAR)"):
-            c.rect(50, y - 4, 10, 10, stroke=1, fill=0)
-            c.drawString(68, y, lbl); y -= 20
-
-        section_header("D  —  DECLARATION")
-        c.setFillColor(HexColor("#14261F")); c.setFont("Helvetica", 9.5)
-        for line in ("1. All information supplied above is true and correct to the best of my knowledge.",
-                     "2. I understand that any misrepresentation may lead to disqualification and permanent debarment.",
-                     "3. I authorise PMC Managers Limited to verify these details with any third party.",
-                     "4. I have read and accept the Global Tender Board Bidder Terms of Use."):
-            c.drawString(50, y, line); y -= 16
-        y -= 20
-        c.setFillColor(MUTED); c.setFont("Helvetica", 9)
-        c.drawString(50, y, "Authorised signatory (name in block letters):")
-        c.line(300, y - 1, w - 50, y - 1); y -= 28
-        c.drawString(50, y, "Designation:"); c.line(140, y - 1, 320, y - 1)
-        c.drawString(340, y, "Date:"); c.line(380, y - 1, w - 50, y - 1); y -= 28
-        c.drawString(50, y, "Signature & company seal:")
-        c.rect(50, y - 110, w - 100, 100, stroke=1, fill=0); y -= 130
-        c.setFillColor(GOLD); c.setFont("Helvetica", 7)
-        c.drawString(50, 30, "PMC Managers Limited  ·  Global Tender Board  ·  Generated blank form (no template uploaded yet by admin)")
-
-        c.save()
-        return Response(content=buf.getvalue(), media_type="application/pdf",
-                        headers={"Content-Disposition": f'{disp_type}; filename="pmc-registration-form.pdf"',
+        pdf_bytes = _build_registration_form_pdf()
+        return Response(content=pdf_bytes, media_type="application/pdf",
+                        headers={"Content-Disposition": f'{disp_type}; filename="PMC-Vendor-Registration-Form.pdf"',
                                  "Cache-Control": "no-store"})
     except Exception as e:
         import logging as _lg
@@ -590,14 +490,191 @@ async def download_registration_template(inline: bool = True):
         raise HTTPException(status_code=500, detail=f"Failed to build blank form PDF: {e}")
 
 
+def _build_registration_form_pdf() -> bytes:
+    """Build the printable blank form from the LIVE registration schema
+    (RegistrationUpdateIn + DOC_SLOTS from registrations router). Sections
+    A → E are introspected, so adding a field in Python auto-flows into
+    this PDF with no extra wiring. Returns raw PDF bytes."""
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.colors import HexColor
+    from io import BytesIO
+    from routers.registrations import DOC_SLOTS
+
+    # Human labels for the schema field names. Anything missing falls back
+    # to Title-casing the field name, so adding a new field still renders.
+    LABELS = {
+        "company_name": "Legal Name",
+        "trade_name": "Trade Name",
+        "registered_address": "Registered Address",
+        "mailing_address": "Mailing Address",
+        "country": "Country of Registration",
+        "country_id_label": "Country ID / Label",
+        "registration_number": "Registration / Trade Licence No.",
+        "incorporation_date": "Incorporation Date (DD-MM-YYYY)",
+        "tax_id": "Tax ID / VAT / GST",
+        "legal_entity_type": "Legal Entity Type",
+        "website": "Website",
+        "employees_count": "Employees (headcount)",
+        "contact_name": "Primary Contact — Name",
+        "contact_title": "Primary Contact — Title",
+        "contact_office_phone": "Primary Contact — Office Phone",
+        "contact_mobile": "Primary Contact — Mobile",
+        "contact_email": "Primary Contact — Email",
+        "signatory_name": "Authorised Signatory — Name",
+        "signatory_title": "Authorised Signatory — Title",
+        "signatory_contact": "Authorised Signatory — Contact",
+        "bank_name": "Bank Name",
+        "bank_branch": "Bank Branch",
+        "bank_account_number": "Bank Account Number",
+        "bank_swift": "SWIFT / BIC / Routing",
+        "bank_address": "Bank Address",
+        "turnover_year1": "Turnover — Last FY",
+        "turnover_year2": "Turnover — FY-1",
+        "turnover_year3": "Turnover — FY-2",
+        "turnover_currency": "Turnover Currency",
+        "primary_sector": "Primary Sector",
+        "business_description": "Business Description",
+        "operating_regions": "Operating Regions (list)",
+        "business_categories": "Business Categories / UNSPSC codes",
+        "iso_certifications": "ISO Certifications",
+        "licenses_permits": "Licences & Permits",
+        "insurance_details": "Insurance Details",
+        "litigation_history": "Litigation History (if any)",
+        "signature_name": "Signatory Name (block letters)",
+        "signature_title": "Signatory Title / Designation",
+        "signature_date": "Date of Signature",
+    }
+    # Section groupings mirror the UI stepper (RegistrationUpdateIn).
+    SECTIONS = [
+        ("A  —  IDENTITY & COMPANY DETAILS", [
+            "company_name", "trade_name", "registered_address", "mailing_address",
+            "country", "registration_number", "incorporation_date", "tax_id",
+            "legal_entity_type", "website", "employees_count",
+        ]),
+        ("B  —  CONTACT & SIGNATORY", [
+            "contact_name", "contact_title", "contact_office_phone",
+            "contact_mobile", "contact_email", "signatory_name",
+            "signatory_title", "signatory_contact",
+        ]),
+        ("C  —  BANKING & FINANCIAL", [
+            "bank_name", "bank_branch", "bank_account_number", "bank_swift",
+            "bank_address", "turnover_year1", "turnover_year2",
+            "turnover_year3", "turnover_currency",
+        ]),
+        ("D  —  BUSINESS PROFILE", [
+            "primary_sector", "business_description", "operating_regions",
+            "business_categories", "iso_certifications", "licenses_permits",
+            "insurance_details", "litigation_history",
+        ]),
+    ]
+    buf = BytesIO()
+    c = canvas.Canvas(buf, pagesize=A4)
+    c.setTitle("PMC Managers — Vendor Registration Form")
+    c.setAuthor("PMC Managers Limited")
+    c.setSubject("Vendor Registration — Blank Form (sections A → E)")
+    w, h = A4
+    NAVY = HexColor("#0F3B2E"); GOLD = HexColor("#7A5F1E")
+    MUTED = HexColor("#4F5C55"); INK = HexColor("#14261F")
+
+    def header_band():
+        c.setFillColor(NAVY); c.rect(0, h - 90, w, 90, stroke=0, fill=1)
+        c.setFillColor(HexColor("#F3EFE4")); c.setFont("Helvetica-Bold", 20)
+        c.drawString(50, h - 45, "PMC Managers Limited")
+        c.setFont("Helvetica", 10)
+        c.drawString(50, h - 62, "Global Tender Board  |  Vendor Registration Form")
+        c.setFillColor(GOLD); c.setFont("Helvetica-Bold", 8)
+        c.drawString(50, h - 78, "BLANK FORM  ·  PRINT · COMPLETE · SIGN · UPLOAD")
+
+    def footer_line():
+        c.setFillColor(GOLD); c.setFont("Helvetica", 7)
+        c.drawString(50, 30, "PMC Managers Limited  ·  Global Tender Board  ·  Auto-generated from the live registration schema")
+
+    def new_page():
+        c.showPage(); header_band(); footer_line()
+        return h - 110
+
+    header_band(); footer_line()
+    y = h - 110
+    c.setFillColor(INK); c.setFont("Helvetica", 10)
+    for line in (
+        "Complete every section below. Section A–D captures your business profile.",
+        "Section E lists the documents to attach and the declarations you must sign.",
+        "Submit online via the PMC Managers portal, or print → sign → upload the scan.",
+    ):
+        c.drawString(50, y, line); y -= 14
+
+    def section_header(label):
+        nonlocal y
+        if y < 120: y = new_page()
+        y -= 10; c.setFillColor(GOLD); c.setFont("Helvetica-Bold", 7)
+        c.drawString(50, y, "SECTION"); c.setFillColor(NAVY); c.setFont("Helvetica-Bold", 13)
+        c.drawString(90, y, label); y -= 4
+        c.setStrokeColor(GOLD); c.setLineWidth(0.4); c.line(50, y, w - 50, y); y -= 16
+
+    def field(label):
+        nonlocal y
+        if y < 60: y = new_page()
+        c.setFillColor(MUTED); c.setFont("Helvetica", 9)
+        c.drawString(50, y, label)
+        c.setStrokeColor(HexColor("#C9C1AA")); c.setLineWidth(0.4)
+        c.line(220, y - 1, w - 50, y - 1); y -= 22
+
+    for heading, fields in SECTIONS:
+        section_header(heading)
+        for fname in fields:
+            field(LABELS.get(fname) or fname.replace("_", " ").title())
+
+    # Section E — Documents to attach (from DOC_SLOTS) + declarations.
+    section_header("E  —  DOCUMENTS & DECLARATIONS")
+    c.setFillColor(INK); c.setFont("Helvetica-Bold", 10)
+    c.drawString(50, y, "Documents to attach"); y -= 16
+    c.setFont("Helvetica", 9.5)
+    for slot_key, meta in DOC_SLOTS.items():
+        if y < 60: y = new_page()
+        c.rect(50, y - 4, 10, 10, stroke=1, fill=0)
+        tag = " (required)" if meta.get("required") else " (optional)"
+        c.setFillColor(INK)
+        c.drawString(68, y, f"{meta.get('label', slot_key)}{tag}")
+        y -= 18
+
+    if y < 180: y = new_page()
+    y -= 6; c.setFillColor(INK); c.setFont("Helvetica-Bold", 10)
+    c.drawString(50, y, "Declarations"); y -= 14
+    c.setFont("Helvetica", 9.5)
+    for line in (
+        "1. All information supplied is true and correct to the best of my knowledge.",
+        "2. I understand that any misrepresentation may lead to disqualification and permanent debarment.",
+        "3. I authorise PMC Managers Limited to verify these details with any third party.",
+        "4. I have no conflict of interest with the procurement or evaluation team.",
+        "5. I accept the data-processing terms published on the PMC Managers portal.",
+        "6. I accept the Global Tender Board Bidder Terms of Use.",
+    ):
+        if y < 60: y = new_page()
+        c.drawString(50, y, line); y -= 15
+
+    if y < 160: y = new_page()
+    y -= 10; c.setFillColor(MUTED); c.setFont("Helvetica", 9)
+    c.drawString(50, y, "Authorised signatory (block letters):")
+    c.setStrokeColor(HexColor("#C9C1AA"))
+    c.line(260, y - 1, w - 50, y - 1); y -= 24
+    c.drawString(50, y, "Designation:"); c.line(140, y - 1, 320, y - 1)
+    c.drawString(340, y, "Date:"); c.line(380, y - 1, w - 50, y - 1); y -= 28
+    c.drawString(50, y, "Signature & company seal:")
+    if y - 110 < 60: y = new_page()
+    c.rect(50, y - 110, w - 100, 100, stroke=1, fill=0)
+
+    c.save()
+    return buf.getvalue()
+
+
 @router.get("/registration-template/meta")
 async def registration_template_meta():
     """PUBLIC — is a template available? Used to show/hide the download button.
-    Bug #4 fix — we always have SOMETHING to serve (a generated fallback PDF
-    if the admin hasn't uploaded one), so this always reports available."""
-    doc = await db.vendor_templates.find_one({"kind": "registration_template"})
-    if not doc:
-        return {"available": True, "file_name": "pmc-registration-form.pdf",
-                "size_bytes": 0, "uploaded_at": None, "fallback": True}
-    return {"available": True, "file_name": doc.get("file_name"),
-            "size_bytes": doc.get("size_bytes"), "uploaded_at": doc.get("uploaded_at")}
+    v52cz — the blank form is now ALWAYS auto-generated server-side from the
+    live schema, so this endpoint always reports the stable canonical name.
+    (The old flow leaked the uploader's filename — e.g. a stray resume DOCX
+    once got surfaced as the "blank form".)"""
+    return {"available": True,
+            "file_name": "PMC-Vendor-Registration-Form.pdf",
+            "size_bytes": 0, "uploaded_at": None, "fallback": True}

@@ -423,7 +423,7 @@ export default function CorrigendaPanel() {
                 diff PDF (same artefact bidders received by email on publish). */}
             {c.is_active && (
               <div className="mt-3 flex items-center gap-2 flex-wrap">
-                <a href={`${process.env.REACT_APP_BACKEND_URL || ""}/api/v1/notices/${pickedNoticeRef}/corrigenda/${c.id}/pdf`}
+                <a href={`/api/v1/notices/${pickedNoticeRef}/corrigenda/${c.id}/pdf`}
                    target="_blank" rel="noreferrer"
                    data-testid={`corr-pdf-admin-${c.corrigendum_no}`}
                    className="text-[10px] uppercase tracking-widest px-2 py-1 border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white">

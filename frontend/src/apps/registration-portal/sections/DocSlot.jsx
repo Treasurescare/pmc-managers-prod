@@ -54,8 +54,12 @@ export default function DocSlot({ regId, token, slot, label, required, existing,
   // magic token server-side. The old /api/v1/uploads/files/{key} path
   // required a signed-in session (admin bearer OR vendor cookie), so vendors
   // mid-registration always hit 401 and View/Download appeared broken.
+  // v52cz — RELATIVE URL only. `${REACT_APP_BACKEND_URL}` is baked at build
+  // time, so production bundles were pointing View/Download at the preview
+  // host → CORS blocked / 404'd on pmcmanagers.com. The browser routes
+  // `/api/v1/...` to the same origin, which CloudFront forwards to EB.
   const viewUrl = existing && regId && token
-    ? `${process.env.REACT_APP_BACKEND_URL || ""}/api/v1/registrations/${regId}/documents/${slot}/file?token=${encodeURIComponent(token)}`
+    ? `/api/v1/registrations/${regId}/documents/${slot}/file?token=${encodeURIComponent(token)}`
     : null;
   const downloadUrl = viewUrl ? `${viewUrl}&download=1` : null;
 

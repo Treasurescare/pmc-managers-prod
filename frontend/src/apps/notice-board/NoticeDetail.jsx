@@ -283,7 +283,7 @@ export default function NoticeDetail() {
                     </div>
                   ) : (
                     <GatedDownload
-                      href={`${process.env.REACT_APP_BACKEND_URL}${notice.primary_document.url}`}
+                      href={notice.primary_document.url}
                       fileName={notice.primary_document.file_name}
                       sizeKb={Math.round((notice.primary_document.size_bytes || 0) / 1024)}
                       testid="notice-primary-download" />
@@ -298,13 +298,13 @@ export default function NoticeDetail() {
                     <span className="text-[10px] uppercase tracking-widest text-brand-navy/60">Language:</span>
                     {["en", "ru", "kk"].map((lg) => (
                       <a key={lg}
-                         href={`${process.env.REACT_APP_BACKEND_URL}/api/v1/tender-templates/${notice.tender_template_id}/public/pdf?notice_ref=${encodeURIComponent(notice.notice_ref)}&lang=${lg}`}
+                         href={`/api/v1/tender-templates/${notice.tender_template_id}/public/pdf?notice_ref=${encodeURIComponent(notice.notice_ref)}&lang=${lg}`}
                          data-testid={`notice-composed-download-${lg}`}
                          className={`inline-flex items-center gap-2 px-3 py-2 border text-[11px] uppercase tracking-widest ${lg === 'en' ? 'bg-brand-navy text-white border-brand-navy hover:bg-brand-navy-deep' : 'border-brand-navy/40 text-brand-navy hover:bg-brand-navy hover:text-white'}`}>
                         ⬇ PDF · {lg.toUpperCase()}
                       </a>
                     ))}
-                    <a href={`${process.env.REACT_APP_BACKEND_URL}/api/v1/tender-templates/${notice.tender_template_id}/public/zip?notice_ref=${encodeURIComponent(notice.notice_ref)}`}
+                    <a href={`/api/v1/tender-templates/${notice.tender_template_id}/public/zip?notice_ref=${encodeURIComponent(notice.notice_ref)}`}
                        data-testid="notice-composed-zip"
                        className="inline-flex items-center gap-2 px-3 py-2 text-[11px] uppercase tracking-widest border border-brand-navy text-brand-navy hover:bg-brand-navy hover:text-white">
                       🗂 all docs (.zip)
@@ -329,8 +329,8 @@ export default function NoticeDetail() {
                       // carries { key, url, file_name } — we rebuild the URL
                       // ourselves to hit the public endpoint.
                       const publicUrl = a.key
-                        ? `${process.env.REACT_APP_BACKEND_URL}/api/v1/uploads/public-files/${a.key}?download=1`
-                        : (a.url ? `${process.env.REACT_APP_BACKEND_URL}${a.url}` : "#");
+                        ? `/api/v1/uploads/public-files/${a.key}?download=1`
+                        : (a.url || "#");
                       const href = publicUrl;
                       const label = a.file_name || a.name || a.key || "attachment";
                       const sizeKb = a.size_bytes ? Math.round(a.size_bytes / 1024) : null;

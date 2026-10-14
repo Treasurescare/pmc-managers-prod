@@ -709,8 +709,10 @@ export const vendorInviteApi = {
       { headers: { "Content-Type": "multipart/form-data" } }).then((r) => r.data);
   },
   templateMeta: () => api.get("/api/v1/vendors/registration-template/meta").then((r) => r.data),
-  templateDownloadUrl: () =>
-    `${process.env.REACT_APP_BACKEND_URL}/api/v1/vendors/registration-template`,
+  // v52cz — RELATIVE path only. Baking REACT_APP_BACKEND_URL into the
+  // production bundle pointed this at the preview host and triggered CORS
+  // from pmcmanagers.com. CloudFront routes /api same-origin to EB.
+  templateDownloadUrl: () => `/api/v1/vendors/registration-template`,
   // v44 — Admin one-click activation for an existing inactive vendor row.
   // mode: "resend_link" (default) resends the verify email; "set_password"
   // force-activates immediately using the supplied password.
@@ -718,8 +720,8 @@ export const vendorInviteApi = {
     api.post(`/api/v1/vendors/${vendor_ref}/activate`,
              { mode, password }).then((r) => r.data),
   // v51aa — rich bulk-invite CSV template that covers every Section A–E field.
-  bulkTemplateUrl: () =>
-    `${process.env.REACT_APP_BACKEND_URL}/api/v1/vendors/invite-bulk/template`,
+  // v52cz — relative, see templateDownloadUrl above.
+  bulkTemplateUrl: () => `/api/v1/vendors/invite-bulk/template`,
   // v51aa — full vendor doc (includes `profile` sub-dict) for the Edit screen.
   getFull: (vendor_ref) =>
     api.get(`/api/v1/vendors/admin/${vendor_ref}/full`).then((r) => r.data),
