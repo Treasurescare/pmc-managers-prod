@@ -114,6 +114,94 @@ BANKS = [
     ("UA", "PrivatBank",                  "PBANUA", ("UAH", "USD")),
     ("UA", "Oschadbank",                  "COSBUA", ("UAH",)),
     ("UA", "Raiffeisen Bank Ukraine",     "AVALUA", ("UAH",)),
+    # v52cz rev7 — more neobanks + expanded India / UK / US / EU rosters.
+    # Still not literally "every bank in the world"; admin can extend via
+    # the masters_banks collection. UI falls back to free text when the
+    # country isn't seeded.
+
+    # India — additional PSU, private, foreign, neo
+    ("IN", "Canara Bank",                 "CNRBIN", ("INR",)),
+    ("IN", "Bank of India",               "BKIDIN", ("INR",)),
+    ("IN", "Central Bank of India",       "CBININ", ("INR",)),
+    ("IN", "Indian Bank",                 "IDIBIN", ("INR",)),
+    ("IN", "Indian Overseas Bank",        "IOBAIN", ("INR",)),
+    ("IN", "UCO Bank",                    "UCBAIN", ("INR",)),
+    ("IN", "IDBI Bank",                   "IBKLIN", ("INR",)),
+    ("IN", "IDFC FIRST Bank",             "IDFBIN", ("INR",)),
+    ("IN", "Federal Bank",                "FDRLIN", ("INR",)),
+    ("IN", "South Indian Bank",           "SIBLIN", ("INR",)),
+    ("IN", "Karnataka Bank",              "KARBIN", ("INR",)),
+    ("IN", "Karur Vysya Bank",            "KVBLIN", ("INR",)),
+    ("IN", "RBL Bank",                    "RATNIN", ("INR",)),
+    ("IN", "DBS Bank India",              "DBSSIN", ("INR", "USD")),
+    ("IN", "Standard Chartered India",    "SCBLIN", ("INR", "USD")),
+    ("IN", "Citibank India",              "CITIIN", ("INR", "USD")),
+    ("IN", "Deutsche Bank India",         "DEUTIN", ("INR", "USD", "EUR")),
+    ("IN", "AU Small Finance Bank",       "AUBLIN", ("INR",)),
+    ("IN", "Equitas Small Finance Bank",  "ESFBIN", ("INR",)),
+    ("IN", "Jio Payments Bank",           "JIOPIN", ("INR",)),
+    ("IN", "Paytm Payments Bank",         "PYTMIN", ("INR",)),
+    ("IN", "Airtel Payments Bank",        "ARTBIN", ("INR",)),
+    ("IN", "FINO Payments Bank",          "FINOIN", ("INR",)),
+    ("IN", "NSDL Payments Bank",          "NSPBIN", ("INR",)),
+    # UK — more incl. neobanks
+    ("GB", "Monzo Bank",                  "MONZGB", ("GBP",)),
+    ("GB", "Starling Bank",               "SRLGGB", ("GBP",)),
+    ("GB", "Revolut",                     "REVOGB", ("GBP", "EUR", "USD")),
+    ("GB", "Wise",                        "TRWIGB", ("GBP", "EUR", "USD")),
+    ("GB", "Metro Bank",                  "MYMBGB", ("GBP",)),
+    ("GB", "Virgin Money",                "VMUKGB", ("GBP",)),
+    ("GB", "Clydesdale Bank",             "CDLSGB", ("GBP",)),
+    ("GB", "The Co-operative Bank",       "COOPGB", ("GBP",)),
+    ("GB", "TSB Bank",                    "TSBSGB", ("GBP",)),
+    ("GB", "Nationwide Building Society", "NAIAGB", ("GBP",)),
+    ("GB", "Halifax",                     "HLFXGB", ("GBP",)),
+    # US — more incl. neobanks
+    ("US", "US Bank",                     "USBKUS", ("USD",)),
+    ("US", "PNC Bank",                    "PNCCUS", ("USD",)),
+    ("US", "Truist Bank",                 "TRBTUS", ("USD",)),
+    ("US", "Capital One",                 "HIBKUS", ("USD",)),
+    ("US", "Goldman Sachs",               "GSCBUS", ("USD",)),
+    ("US", "Morgan Stanley",              "MSNYUS", ("USD",)),
+    ("US", "Chime Financial",             "CHIMEUS", ("USD",)),
+    ("US", "SoFi Bank",                   "SOFIUS", ("USD",)),
+    ("US", "Mercury (Choice Fin.)",       "MRCYUS", ("USD",)),
+    ("US", "Varo Bank",                   "VAROUS", ("USD",)),
+    ("US", "Ally Bank",                   "ALLYUS", ("USD",)),
+    ("US", "Fifth Third Bank",            "FTBCUS", ("USD",)),
+    ("US", "Charles Schwab Bank",         "CSCHUS", ("USD",)),
+    # Germany — more + neobanks
+    ("DE", "N26",                         "NTSBDE", ("EUR",)),
+    ("DE", "DKB (Deutsche Kreditbank)",   "BYLADEM1001", ("EUR",)),
+    ("DE", "ING Deutschland",             "INGDDE", ("EUR",)),
+    ("DE", "HypoVereinsbank (UniCredit)", "HYVEDE", ("EUR",)),
+    ("DE", "Postbank",                    "PBNKDE", ("EUR",)),
+    # Singapore — expand
+    ("SG", "MariBank",                    "MARBSG", ("SGD",)),
+    ("SG", "Trust Bank Singapore",        "TRBKSG", ("SGD",)),
+    ("SG", "ANEXT Bank",                  "ANEXSG", ("SGD",)),
+    # UAE — more
+    ("AE", "RAKBANK",                     "NRAKAE", ("AED",)),
+    ("AE", "Commercial Bank of Dubai",    "CBDUAE", ("AED",)),
+    ("AE", "Union National Bank",         "UNNBAE", ("AED",)),
+    ("AE", "Al Hilal Bank",               "ALHIAE", ("AED",)),
+    # Kazakhstan — more
+    ("KZ", "Bank CenterCredit",           "KCJBKZ", ("KZT",)),
+    ("KZ", "Eurasian Bank",               "EURIKZ", ("KZT",)),
+    ("KZ", "Freedom Finance Bank",        "KSNVKZ", ("KZT",)),
+    ("KZ", "Nurbank",                     "NBPAKZ", ("KZT",)),
+    # France — more
+    ("FR", "La Banque Postale",           "PSSTFR", ("EUR",)),
+    ("FR", "Credit Mutuel",               "CMCIFR", ("EUR",)),
+    ("FR", "Caisse d'Epargne",            "CEPAFR", ("EUR",)),
+    # Australia — more
+    ("AU", "Bendigo and Adelaide Bank",   "BENDAU", ("AUD",)),
+    ("AU", "Macquarie Bank",              "MACQAU", ("AUD",)),
+    ("AU", "Suncorp Bank",                "METWAU", ("AUD",)),
+    # International (country-agnostic neobanks — pick any country)
+    ("US", "Wise USD Account",            "TRWIUS", ("USD",)),
+    ("US", "Payoneer",                    "PAYOUS", ("USD",)),
+    ("GB", "Payoneer Europe",             "PAYOGB", ("GBP", "EUR", "USD")),
 ]
 
 

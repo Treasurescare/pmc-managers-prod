@@ -1,6 +1,14 @@
 # PMC Managers v2 — PRD (last touched 13 Oct 2026)
 
 
+## v52cz rev7 — ISD phone picker + Dup email guard + Bank roster expansion + In-page doc viewer (14 Feb 2026)
+
+- New `PhonePrefixInput`: dial-code dropdown pre-selected from Core country (overrideable per field) + digits-only local input with ITU E.164 length validation. Used on Core Mobile/Office tel AND per-signatory Phone.
+- `/register` 409s with structured detail when the primary email already belongs to any escrow institution (any status).
+- `masters_banks` doubled (73 → 146) across 20+ countries incl. major neobanks (Monzo, Starling, Revolut, Wise, N26, Chime, SoFi, Mercury, Varo, Ally, Paytm/Jio/Airtel Payments…). Free-text fallback for unlisted banks retained.
+- Document View now opens an in-page modal (iframe + Download + Close) instead of a bare browser tab.
+- 11 targeted backend tests green (rev7+rev6). Release `pmc-*-v52cz-rev7*.zip` + `DOWNLOAD_v52cz_rev7.md`. Prod with existing rev6 masters_banks needs one idempotent run of `python scripts/seed_banks.py`.
+
 ## v52cz rev6 — Escrow Save-as-draft + Back + Bank picker + Doc-view fix (14 Feb 2026)
 
 - Save-as-draft + Previous buttons on EVERY step; backend model relaxed (all optional on PATCH, submit still enforces mandatory set).

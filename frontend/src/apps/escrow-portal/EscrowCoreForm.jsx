@@ -10,8 +10,9 @@
  *   d) reg-no / tax-id / VAT live-validated against /masters/country-formats
  */
 import { useEffect, useMemo, useState } from "react";
-import { Field, Input, EmailInput, PhoneInput } from "@/apps/registration-portal/sections/FormPrimitives";
+import { Field, Input, EmailInput } from "@/apps/registration-portal/sections/FormPrimitives";
 import { mastersApi } from "@/lib/api";
+import PhonePrefixInput from "./PhonePrefixInput";
 
 const JOIN_ADDR = (f) => [
   f.address_line1, f.address_line2,
@@ -281,18 +282,23 @@ export default function EscrowCoreForm({ form, set, onNext, saving }) {
         <EmailInput testId="escrow-f-contact-email" value={form.primary_contact_email || ""}
                     onChange={(e) => set("primary_contact_email", e.target.value)} />
       </Field>
-      {/* v52cz rev6 — dual phone: mobile + office tel, both ISD-prefixed */}
+      {/* v52cz rev7 — ISD prefix dropdown + length-validated local number */}
       <Field label="Mobile number"
-             hint={country?.phone_code ? `Starts with +${country.phone_code}` : "ISD code auto-added from Country"}>
-        <PhoneInput testId="escrow-f-mobile-phone"
-                    value={form.mobile_phone || form.primary_contact_phone || ""}
-                    onChange={(e) => { set("mobile_phone", e.target.value);
-                                       set("primary_contact_phone", e.target.value); }} />
+             hint={country?.phone_code ? `Pre-selected +${country.phone_code} — click to change` : "Pick a country above to pre-select the ISD code"}>
+        <PhonePrefixInput testId="escrow-f-mobile-phone"
+                          value={form.mobile_phone || form.primary_contact_phone || ""}
+                          onChange={(v) => { set("mobile_phone", v);
+                                              set("primary_contact_phone", v); }}
+                          countries={countries}
+                          defaultCountry={form.country} />
       </Field>
       <Field label="Office telephone"
-             hint={country?.phone_code ? `Starts with +${country.phone_code}` : "ISD code auto-added from Country"}>
-        <PhoneInput testId="escrow-f-office-phone" value={form.office_phone || ""}
-                    onChange={(e) => set("office_phone", e.target.value)} />
+             hint={country?.phone_code ? `Pre-selected +${country.phone_code} — click to change` : "Pick a country above to pre-select the ISD code"}>
+        <PhonePrefixInput testId="escrow-f-office-phone"
+                          value={form.office_phone || ""}
+                          onChange={(v) => set("office_phone", v)}
+                          countries={countries}
+                          defaultCountry={form.country} />
       </Field>
 
       <div className="md:col-span-2 flex items-center justify-between">

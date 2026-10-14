@@ -164,7 +164,24 @@ def _new_token() -> str:
 @router.post("/register")
 async def register_institution(payload: EscrowInstitutionIn) -> dict:
     """Public self-registration — creates a draft that the institution
-    continues to fill via the returned magic link, then submits for review."""
+    continues to fill via the returned magic link, then submits for review.
+    v52cz rev7 — reject if the primary contact email is already associated
+    with ANY escrow institution (draft or further). Returns 409 so the
+    frontend can surface a clear "already registered" message."""
+    email = (payload.primary_contact_email or "").strip().lower()
+    if email:
+        existing = await db.escrow_institutions.find_one(
+            {"primary_contact_email": {"$regex": f"^{email}$", "$options": "i"}})
+        if existing:
+            raise HTTPException(status_code=409,
+                detail={
+                    "error": "escrow_email_already_registered",
+                    "message": f"An escrow institution is already registered with "
+                               f"{email} (status: {existing.get('status','draft')}). "
+                               f"If this is you, use the resume link we emailed, or "
+                               f"contact PMC support.",
+                    "status": existing.get("status"),
+                })
     doc = _clean_payload(payload.model_dump())
     doc["status"] = "draft"
     doc["magic_token"] = _new_token()

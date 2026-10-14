@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { api, showApiError, uploadsApi } from "@/lib/api";
+import { api, showApiError, uploadsApi, mastersApi } from "@/lib/api";
 import EscrowCoreForm from "./EscrowCoreForm";
 import EscrowBankingStep from "./EscrowBankingStep";
+import PhonePrefixInput from "./PhonePrefixInput";
 
 const DOC_SLOTS = [
   ["incorporation_certificate", "Certificate of incorporation / trust deed"],
@@ -49,6 +50,9 @@ export default function EscrowInstitutionRegister() {
   const [step, setStep] = useState(1);
   const [registration, setRegistration] = useState(null); // {id, magic_token}
   const [saving, setSaving] = useState(false);
+  const [viewer, setViewer] = useState(null); // {href, title}
+  const [allCountries, setAllCountries] = useState([]);
+  useEffect(() => { mastersApi.listCountriesPublic().then(setAllCountries).catch(() => setAllCountries([])); }, []);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   // v52cz rev5 — drop scaffold rows that are completely empty before
@@ -156,10 +160,17 @@ export default function EscrowInstitutionRegister() {
               <Input label="Name" v={s.name} on={(x) => { const a=[...form.signatories]; a[i].name=x; set("signatories",a); }} />
               <Input label="Designation" v={s.designation} on={(x) => { const a=[...form.signatories]; a[i].designation=x; set("signatories",a); }} />
               <Input label="Email" v={s.email} on={(x) => { const a=[...form.signatories]; a[i].email=x; set("signatories",a); }} />
-              <div className="flex items-end gap-2">
-                <Input label="Phone" v={s.phone} on={(x) => { const a=[...form.signatories]; a[i].phone=x; set("signatories",a); }} />
+              <div>
+                <div className="pmc-label text-[10px]">Phone</div>
+                <div className="mt-1">
+                  <PhonePrefixInput testId={`escrow-sig-${i}-phone`}
+                                    value={s.phone || ""}
+                                    onChange={(v) => { const a=[...form.signatories]; a[i].phone=v; set("signatories",a); }}
+                                    countries={allCountries}
+                                    defaultCountry={form.country} />
+                </div>
                 {form.signatories.length > 1 && (
-                  <button onClick={() => removeSignatory(i)} className="px-2 py-1 text-xs text-red-700">×</button>
+                  <button onClick={() => removeSignatory(i)} className="mt-1 px-2 py-1 text-xs text-red-700">× Remove</button>
                 )}
               </div>
             </div>
@@ -193,6 +204,7 @@ export default function EscrowInstitutionRegister() {
                        current={form.documents?.[slot]}
                        institutionId={registration?.id}
                        token={registration?.magic_token}
+                       onView={(href) => setViewer({ href, title: label })}
                        onUploaded={async (meta) => {
                          const next = { ...(form.documents || {}), [slot]: meta };
                          const nf = { ...form, documents: next };
@@ -228,6 +240,35 @@ export default function EscrowInstitutionRegister() {
           <p className="text-sm text-emerald-800 mt-2">
             PMC will email {form.primary_contact_email} within 3 business days.
           </p>
+        </div>
+      )}
+
+      {/* v52cz rev7 — in-page document viewer modal. View no longer opens
+          a bare browser tab; it iframes the PDF beside the form so users
+          stay in context. */}
+      {viewer && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
+             data-testid="escrow-doc-viewer"
+             onClick={() => setViewer(null)}>
+          <div className="bg-white w-full max-w-4xl h-[85vh] flex flex-col"
+               onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-brand-navy/15 px-4 py-2">
+              <div className="text-sm font-semibold text-brand-navy">{viewer.title}</div>
+              <div className="flex gap-2">
+                <a href={viewer.href + "&download=1"}
+                   className="px-3 py-1 text-xs uppercase tracking-widest border border-brand-navy/30 text-brand-navy hover:bg-brand-pale"
+                   data-testid="escrow-doc-viewer-download">
+                  Download
+                </a>
+                <button type="button" onClick={() => setViewer(null)}
+                        data-testid="escrow-doc-viewer-close"
+                        className="px-3 py-1 text-xs uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep">
+                  Close
+                </button>
+              </div>
+            </div>
+            <iframe src={viewer.href} title={viewer.title} className="flex-1 w-full" />
+          </div>
         </div>
       )}
     </div>
@@ -280,7 +321,7 @@ function StepShell({ children, canBack, goBack, saveDraft, saveNext,
   );
 }
 
-function DocSlot({ slot, label, current, onUploaded, onRemoved,
+function DocSlot({ slot, label, current, onUploaded, onRemoved, onView,
                    institutionId, token }) {
   const [busy, setBusy] = useState(false);
   const viewHref = () => institutionId && token
@@ -319,15 +360,14 @@ function DocSlot({ slot, label, current, onUploaded, onRemoved,
       </div>
       <div className="flex gap-2">
         {current?.key && (
-          // v52cz rev6 — use the magic-token-gated endpoint. The old
-          // /uploads/files/{key} returned "Sign in to download tender
-          // documents" because the registering institution has no admin
-          // or vendor session yet.
-          <a href={viewHref(current.key)} target="_blank" rel="noopener noreferrer"
+          // v52cz rev7 — open the in-page modal viewer instead of navigating
+          // the browser to a bare file URL. Keeps the user on the form.
+          <button type="button"
+             onClick={() => onView && onView(viewHref())}
              data-testid={`escrow-doc-view-${slot}`}
              className="text-[10px] uppercase tracking-widest px-3 py-1.5 border border-brand-navy/20 hover:bg-brand-navy/5">
             View
-          </a>
+          </button>
         )}
         {current ? (
           <button onClick={onRemoved} disabled={busy}

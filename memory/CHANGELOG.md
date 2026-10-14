@@ -1,6 +1,30 @@
 # PMC Managers v2 — Changelog
 # PMC Managers v2 — Changelog
 
+## 2026-02-14 — v52cz rev7 ISD phone picker + duplicate-email guard + bank roster expansion + in-page doc viewer
+
+### User report
+1. Phone needs country code DROPDOWN pre-selected from the Core country; length must be validated per country. Same on Signatories.
+2. Email that was already registered went through — must reject duplicates.
+3. Bank list is sparse; need exhaustive incl. online banks.
+4. View on uploaded document opens a new browser page; want to stay on the form.
+
+### Fixes
+- **Frontend** `frontend/src/apps/escrow-portal/PhonePrefixInput.jsx` — new. Dial-code button (searchable, pre-selected from Core country, overrideable per field) + digits-only local input with ITU E.164 length rule (min 7−dialLen, max 15−dialLen). Returns combined E.164 string.
+- **Frontend** `EscrowCoreForm.jsx` — Mobile + Office tel use `PhonePrefixInput` instead of plain `PhoneInput`.
+- **Frontend** `EscrowInstitutionRegister.jsx` — Signatories Phone also uses `PhonePrefixInput`; loads `allCountries` once at page level; adds in-page viewer modal (iframe + Download + Close) and passes `onView` to each `DocSlot`; `View` button becomes a `<button>` that opens the modal instead of `<a target=_blank>`.
+- **Backend** `routers/escrow_institutions.py` — `/register` now rejects duplicate `primary_contact_email` with HTTP 409 + structured detail `{error, message, status}`.
+- **Backend** `scripts/seed_banks.py` — doubled roster (73 → 146): added UK neobanks (Monzo, Starling, Revolut, Wise, Metro, Virgin Money…), US neobanks (Chime, SoFi, Mercury, Varo, Ally…), German neobanks (N26, DKB, ING DE, HypoVereinsbank), India PSU/private/foreign/payments banks (Canara, BOI, Federal, IDFC, DBS India, Standard Chartered India, Deutsche India, Paytm/Jio/Airtel Payments, AU SFB…), KZ (BCC, Eurasian, Freedom, Nurbank), UAE (RAKBANK, CBD, UNB, Al Hilal), FR / AU extras.
+- **Backend** `tests/test_v52cz_rev7_escrow.py` — 3 new tests (duplicate-email 409 with structured detail, roster size by country, neobank searchability).
+
+### Release artefacts
+`pmc-backend-v52cz-rev7.zip`, `pmc-frontend-v52cz-rev7-prod-build.zip`, `DOWNLOAD_v52cz_rev7.md` in `frontend/public/downloads/`. Supersedes rev6. Prod bootstrap auto-seeds `masters_banks` on first boot; existing prod with rev6 banks needs one run of `python scripts/seed_banks.py` to add the new rows (idempotent).
+
+### Note on "exhaustive banks"
+There is no single public master dataset of all ~25k licensed banks worldwide. The roster now covers 20+ countries and includes major neobanks; admin can keep extending `masters_banks` or we can seed more per request.
+
+
+
 ## 2026-02-14 — v52cz rev6 Escrow Save-as-draft + Back + Bank picker + doc view fix
 
 ### User report
