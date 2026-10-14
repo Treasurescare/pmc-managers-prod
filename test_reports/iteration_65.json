@@ -1,0 +1,36 @@
+{
+  "summary": "v52cz rev9 frontend-only testing: escrow registration wizard (steps 2+3) and admin console (notice↔escrow routing + duplicates banner). 3/4 flows verified green, 1 is N/A (no duplicates in preview DB).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Escrow wizard step 3 - +Add custom bank", "issue": "Clicking the '+ Add \"<name>\"' button fires the success toast TWICE (two identical toasts stacked). mastersApi.suggestBank network call likely dispatched twice (either React StrictMode double-invoke of onMouseDown handler or useEffect re-trigger after onPatch). Functionally correct — bank is upserted idempotently by server and field keeps new value — but UX shows duplicate toast.", "affected_selectors": ["escrow-bank-0-name-add-custom"]},
+      {"flow": "Admin routing panel - bulk apply", "issue": "Clicked notice-account-bulk-apply with 1 ticked notice + Kaspi account picked. No success toast captured in 5s window (toasts panel was empty). No 422/error visible either. Needs manual re-verification — likely transient but worth E1 confirming the 'Bulk assigned N notice' toast actually fires.", "affected_selectors": ["notice-account-bulk-apply", "notice-account-bulk-select"]}
+    ],
+    "design_issues": [
+      {"screen": "Escrow wizard step 2 Signatories on mobile (390px)", "issues": ["The phone-local digits input slightly overflows the signatory row rect by ~24px on 390px viewport (phone-local right=365 vs row right=341). Visually it stays within the outer card padding so may not be perceptible, but worth E1 reviewing — set the phone wrap min-width:0 or flex-1."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Investigate double-fired success toast on BankNameAutocomplete '+ Add' button (suggestBank called twice).",
+    "Manually re-confirm 'Bulk assigned N notice' toast fires on notice-account-bulk-apply (per-row flow works and shows the correct toast)."
+  ],
+  "critical_code_review_comments": [
+    "EscrowBankingStep.jsx BankNameAutocomplete uses onMouseDown handler which can double-fire with React StrictMode in dev; consider onClick + e.preventDefault() to avoid double-dispatch.",
+    "EscrowInstitutionRegister.jsx step 2 row uses md:grid-cols-2 which fixes desktop overflow (verified) but mobile could use min-w-0 on PhonePrefixInput wrapper to prevent minor overflow in <400px viewports."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped per request)", "frontend": "3/4 green, 1 N/A (dupes banner), 2 minor UX nits"},
+  "test_credentials": "adminsupport@pmcmanagers.com / Admin@12345 — works. Admin login uses /api/v1/admin/auth/login.",
+  "seed_data_creation": "Created public escrow-institution draft registration 'TEST Rev9 Bank UI' (GB, reg 12345678, test-rev9@example.com) via the wizard — visible in Admin > Escrow institutions > Pipeline. Also upserted 'Testbank Zqx' into masters_banks for GB via the +Add flow.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "P0 Notice-routing PATCH is confirmed fixed: per-row notice-account-select-<ref> change via /api/v1/notices/{ref} returns success toast 'Escrow account linked to this notice' (no more HTTP 422). Admin login requires click→keyboard.type (page.fill does NOT populate the input reliably for some reason; same with ComboSelect — must use click + fill or focus+press_sequentially for the escrow wizard ComboSelect fields). Preview DB has no duplicate escrow bids so the 'Unresolved duplicates' banner on /admin/e/escrow was correctly absent (N/A). Draft 'TEST Rev9 Bank UI' can be deleted/rejected to clean up.",
+  "verified_flows": [
+    "Wizard step 2 signatories layout: grid md:grid-cols-2 → desktop (1280px) 2x391px columns, no overflow (over=0). Phone shows +44 dial-btn + local input testid=escrow-sig-0-phone-local accepts digits.",
+    "Wizard step 3 banking: Revolut and Wise appear in dropdown for GB. '+ Add \"Testbank Zqx\"' button (data-testid escrow-bank-0-name-add-custom) appears when nonsense typed; click → success toast + field retains new value.",
+    "Admin per-row notice-account-select-<ref>: selecting Kaspi Bank fires 'Escrow account linked to this notice' toast (P0 422 bug fixed).",
+    "Dupes banner on /admin/e/escrow: absent (N/A — no duplicates seeded in preview)."
+  ]
+}

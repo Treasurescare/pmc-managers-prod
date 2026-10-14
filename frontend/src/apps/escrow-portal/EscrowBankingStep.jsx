@@ -11,7 +11,7 @@
  * - Country-specific routing fields appear only when relevant (US ABA
  *   routing, UK sort code, India IFSC).
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Field, Input } from "@/apps/registration-portal/sections/FormPrimitives";
 import { mastersApi, showApiError } from "@/lib/api";
@@ -122,15 +122,19 @@ function BankRow({ row, idx, countries, onPatch, onRemove, canRemove }) {
 
   // "+" affordance: bank missing from the master → persist it, refresh the
   // list, keep it selected. Lets registrants self-serve instead of bouncing.
+  const addingRef = useRef(false);
   const addCustomBank = async (name) => {
-    if (!row.bank_country) { toast.error("Pick the bank's country first"); return; }
+    if (addingRef.current) return; // guard double-fire (mousedown + blur race)
+    addingRef.current = true;
     try {
+      if (!row.bank_country) { toast.error("Pick the bank's country first"); return; }
       const b = await mastersApi.suggestBank({ country_code: row.bank_country, name });
       toast.success(`"${b.name}" added to the ${row.bank_country} bank list`);
       setBankQ("");
       setBanks(await mastersApi.listBanks(row.bank_country, ""));
       onPatch({ institution_name: b.name });
     } catch (e) { showApiError(e); }
+    finally { addingRef.current = false; }
   };
 
   // Load state/city for the picked bank country so Branch is cascaded.

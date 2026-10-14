@@ -77,7 +77,7 @@ export default function PhonePrefixInput({ value, onChange, defaultCountry,
     return base.slice(0, 80);
   })();
 
-  const inputCls = (good) => "flex-1 px-3 py-3 border focus:outline-none text-brand-navy bg-white " +
+  const inputCls = (good) => "flex-1 min-w-0 px-3 py-3 border focus:outline-none text-brand-navy bg-white " +
     (good === false ? "border-red-500" : "border-brand-navy/20 focus:border-brand-navy-soft");
 
   return (

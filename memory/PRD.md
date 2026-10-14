@@ -1,4 +1,15 @@
-# PMC Managers v2 — PRD (last touched 13 Oct 2026)
+# PMC Managers v2 — PRD (last touched 14 Feb 2026)
+
+
+## v52cz rev9 — Notice-routing 422 fix + dup escrow cleanup + bank "+" self-serve + signatories UI (14 Feb 2026)
+
+- **P0 — HTTP 422 on Notice ↔ Escrow account routing (admin Escrow institutions page):** `PATCH /api/v1/notices/{ref}` reused the full `NoticeIn` model, so the routing picker PATCHing just `{escrow_account_id}` tripped 4× "Field required". New `NoticePatchIn` (all fields Optional, same validators) + `model_dump(exclude_unset=True)` → true partial update. Bonus fix: a PATCH that omits `is_published` no longer silently unpublishes.
+- **P1 — duplicate open escrow transactions:** one-shot `scripts/cleanup_duplicate_escrow_tx.py` (dry-run by default, `--apply` keeps newest open row per bid and cancels extras with audit trail) AND a reusable "Cancel extras" button per duplicated bid in the EMD duplicates banner (`escrow-tx-dupe-cancel-<bid_ref>`, reuses the per-row cancel endpoint). Preview DB had 0 dupes (production-only data) — button ships for prod use.
+- **Banks master:** root cause of "Revolut/Wise missing" — server.py only upserted `masters_banks` when the collection was EMPTY, so production's older roster never received rev7/rev8 additions. Bootstrap now upserts the full 146-row roster on every boot (idempotent). Preview verified: GB list has Revolut, Wise, Monzo, Starling.
+- **"+ Add bank" self-serve:** banking-step autocomplete shows `+ Add "<typed>"` when no exact match → new PUBLIC `POST /api/v1/masters/banks` upserts tagged `source: user_suggested`, list refreshes, bank stays selected. Re-entry guard prevents double-toast. Tested by testing agent (iter 65).
+- **Signatories step UI:** row grid `md:grid-cols-4 → md:grid-cols-2` (phone prefix input overflowed the card); `PhonePrefixInput` local input gets `min-w-0` for <400px viewports. Verified by testing agent: no overflow at 1280px.
+- Tests: `tests/test_v52cz_rev9.py` 5/5 green (partial PATCH keeps title, sent-field validation still 422s, GB neobanks present, suggest-bank upsert idempotent + 422 on bad input). Testing agent iteration 65: 3/4 flows green, 1 N/A, both minor nits fixed (double-toast guard, mobile min-w-0). Bulk-apply toast not captured in agent's 5s window but per-row flow confirmed — same code path.
+- **Prod deploy note:** backend redeploy auto-heals the bank roster on boot (no script run needed); the 409 screenshot was correct behaviour (one-open-tx-per-bid guard) — use the new Cancel extras button or the script to clear `BID-2026-TEST2` / `PMC-BID-2026-00048` extras.
 
 
 ## v52cz rev7 — ISD phone picker + Dup email guard + Bank roster expansion + In-page doc viewer (14 Feb 2026)
