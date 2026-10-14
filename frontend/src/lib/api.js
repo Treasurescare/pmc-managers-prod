@@ -418,6 +418,25 @@ export const uploadsApi = {
       headers: { "Content-Type": "multipart/form-data" },
     }).then((r) => r.data);
   },
+  // v52cz — "Download all" bundler: POST a list of upload keys, get back a
+  // single ZIP. Used by the Vendor bid screen so a bidder can pull every
+  // uploaded envelope/support document in one click without hitting View on
+  // each row. Reuses the authenticated axios instance so admin AND vendor
+  // sessions are honoured.
+  downloadBundle: async (keys, { filename } = {}) => {
+    const list = (keys || []).filter(Boolean);
+    if (!list.length) throw new Error("No files selected for download");
+    const res = await api.post("/api/v1/uploads/bundle",
+      { keys: list, filename: filename || "documents" },
+      { responseType: "blob" });
+    const blob = new Blob([res.data], { type: res.headers?.["content-type"] || "application/zip" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${(filename || "documents").replace(/[^A-Za-z0-9._ -]/g, "")}.zip`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  },
   // v51bd — authenticated-fetch of an uploaded file, returning a blob URL.
   // Browser `target=_blank` to the gated file endpoint does not reliably
   // forward the vendor's httpOnly cookie across the preview domain

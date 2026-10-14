@@ -15,9 +15,13 @@ security requirement that "without supplier or vendor login no one can
 download any document or notice".
 """
 import base64
+import io
 import uuid
+import zipfile
+from typing import List, Optional
 from fastapi import APIRouter, UploadFile, File, HTTPException, Form, Request, Depends
-from pydantic import BaseModel
+from fastapi.responses import Response
+from pydantic import BaseModel, Field
 import config
 from db import db
 from models.base import now_iso
@@ -99,6 +103,86 @@ async def get_file(key: str, download: bool = False,
     return await _serve_file(key, download)
 
 
+# v52cz — "Download all" for a set of previously-uploaded files. Vendors use
+# this on the bid submission screen to pull every uploaded envelope/support
+# document in one zip instead of clicking View on each row. Protected: only
+# a signed-in admin OR vendor can bundle files they already know the keys
+# for (same auth gate as /files/{key}).
+class BundleRequest(BaseModel):
+    keys: List[str] = Field(..., min_length=1, max_length=50)
+    filename: Optional[str] = None  # output zip filename, without extension
+
+
+@router.post("/bundle")
+async def download_bundle(req: BundleRequest,
+                           _who: dict = Depends(_require_any_signed_in)):
+    """Zip the files identified by `keys` and stream the archive back.
+    Keys that no longer exist are skipped and listed in the README manifest.
+    Clear 404 if nothing resolves (never a silent empty zip)."""
+    found: list[tuple[str, bytes]] = []
+    missing: list[str] = []
+    seen: set[str] = set()
+
+    def _pick_name(fn: str) -> str:
+        base = (fn or "document").replace("/", "_").replace("\\", "_")
+        name = base
+        i = 1
+        while name in seen:
+            if "." in base:
+                stem, ext = base.rsplit(".", 1)
+                name = f"{stem} ({i}).{ext}"
+            else:
+                name = f"{base} ({i})"
+            i += 1
+        seen.add(name)
+        return name
+
+    for raw_key in req.keys:
+        key = (raw_key or "").replace("/api/v1/uploads/files/", "", 1)
+        if not key:
+            continue
+        doc = await db.uploads.find_one({"key": key})
+        if not doc or not doc.get("data_b64"):
+            missing.append(key)
+            continue
+        body = base64.b64decode(doc["data_b64"])
+        display = key.rsplit("/", 1)[-1]
+        if "_" in display:
+            display = display.split("_", 1)[1]
+        found.append((_pick_name(display), body))
+
+    if not found:
+        raise HTTPException(status_code=404,
+            detail="None of the requested files are available anymore")
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for name, body in found:
+            zf.writestr(name, body)
+        manifest_lines = [
+            "PMC Managers — Bundled download",
+            f"Files included: {len(found)}",
+            *(f"  - {name}" for name, _ in found),
+        ]
+        if missing:
+            manifest_lines.append("")
+            manifest_lines.append(f"Missing / expired keys ({len(missing)}):")
+            manifest_lines.extend(f"  - {k}" for k in missing)
+        zf.writestr("README.txt", "\n".join(manifest_lines) + "\n")
+    buf.seek(0)
+    out_name = (req.filename or "documents").strip() or "documents"
+    # Sanitize filename: strip path separators + quotes
+    safe = "".join(c for c in out_name if c.isalnum() or c in "-_. ")[:80] or "documents"
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="{safe}.zip"',
+            "Cache-Control": "no-store",
+        },
+    )
+
+
 # v51au — Public endpoint for notice attachments (xlsx #3, #8). The old
 # /files/{key} endpoint required a signed-in user, so downloading NIT PDFs
 # from the public tender page returned 401 and the frontend bounced the
@@ -128,7 +212,6 @@ async def _serve_file(key: str, download: bool):
     doc = await db.uploads.find_one({"key": key})
     if not doc:
         raise HTTPException(status_code=404, detail="File not found")
-    from fastapi.responses import Response
     body = base64.b64decode(doc["data_b64"])
     display_name = key.rsplit("/", 1)[-1]
     if "_" in display_name:
@@ -149,7 +232,6 @@ async def _legacy_get_file_body(key: str, download: bool = False):
     doc = await db.uploads.find_one({"key": key})
     if not doc:
         raise HTTPException(status_code=404, detail="File not found")
-    from fastapi.responses import Response
     body = base64.b64decode(doc["data_b64"])
     # Default: serve inline so browsers render PDFs/images in a tab.
     # ?download=1 forces an attachment so the file saves to disk.
