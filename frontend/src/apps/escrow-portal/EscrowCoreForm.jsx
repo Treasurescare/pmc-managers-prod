@@ -1,18 +1,13 @@
 /**
  * EscrowCoreForm — Step-1 ("Core") of the Escrow Institution registration.
  *
- * v52cz rev4 — rewritten against user feedback:
- *   a) country is a real dropdown (ISO-2 + phone code + emoji) backed by
- *      the masters_countries collection, not a free-text box.
- *   b) all mandatory fields show the same bold red REQUIRED pill as the
- *      vendor registration (Field primitive from registration-portal).
- *   c) registered address is a cascading country → state → city → zip →
- *      address 1 → address 2 block, with city/state loaded from masters
- *      and ZIP live-validated against the country's postal regex.
- *   d) reg-number / tax-id / VAT inputs live-validate against the
- *      country-specific regex coming from /masters/country-formats/{cc};
- *      the input's hint shows the local label + example (e.g. "CIN —
- *      L17110MH1973PLC019786"). Empty + regex-mismatch both block submit.
+ * v52cz rev5 — country + state are now TYPEABLE / SEARCHABLE comboboxes
+ * (the plain <select> forced users to scroll 250 countries / 36+ states).
+ * Everything else from rev4 stands:
+ *   a) country dropdown backed by masters_countries (ISO-2 + dial code + emoji)
+ *   b) bold red REQUIRED pills on mandatory fields (vendor-registration parity)
+ *   c) structured address: country → state → city → zip → address 1/2
+ *   d) reg-no / tax-id / VAT live-validated against /masters/country-formats
  */
 import { useEffect, useMemo, useState } from "react";
 import { Field, Input, EmailInput, PhoneInput } from "@/apps/registration-portal/sections/FormPrimitives";
@@ -21,7 +16,6 @@ import { mastersApi } from "@/lib/api";
 const JOIN_ADDR = (f) => [
   f.address_line1, f.address_line2,
   f.city, f.state_name, f.postal_code,
-  // Use country name when available, else code
   f._country_label || f.country,
 ].filter(Boolean).join(", ");
 
@@ -51,13 +45,60 @@ function regexValid(value, regex) {
   catch { return true; }
 }
 
+const BASE_INPUT = "mt-1 w-full px-4 py-3 border focus:outline-none text-brand-navy bg-white";
+const inputCls = (ok) => BASE_INPUT + " " +
+  (ok === false ? "border-red-500 focus:border-red-500"
+                : "border-brand-navy/20 focus:border-brand-navy-soft");
+
 /**
- * Props:
- *   form        – full form object (parent-owned state)
- *   set(k, v)   – setter for a single field
- *   onNext()    – called when the user clicks Save & continue AFTER local validation passes
- *   saving      – show spinner on the button
+ * v52cz rev5 — typeable/searchable dropdown. Renders an input that filters
+ * the option list as you type (matches label, sub-label and code). onPick
+ * receives the full option object so callers can fan out dependent fields.
  */
+function ComboSelect({ testId, value, options, onPick, placeholder, disabled, invalid }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const sel = options.find((o) => o.value === value);
+  const query = q.trim().toLowerCase();
+  const filtered = (query
+    ? options.filter((o) =>
+        (o.label + " " + (o.sub || "") + " " + o.value).toLowerCase().includes(query))
+    : options).slice(0, 80);
+  return (
+    <div className="relative" data-testid={testId}>
+      <input
+        className={inputCls(invalid ? false : null) + (disabled ? " bg-brand-pale/50" : "")}
+        placeholder={placeholder}
+        disabled={disabled}
+        autoComplete="off"
+        data-testid={`${testId}-input`}
+        value={open ? q : (sel ? sel.label : "")}
+        onFocus={() => { if (!disabled) { setOpen(true); setQ(""); } }}
+        onChange={(e) => { setQ(e.target.value); setOpen(true); }}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+      />
+      {open && !disabled && (
+        <div className="absolute z-30 left-0 right-0 mt-1 max-h-60 overflow-auto bg-white border border-brand-navy/20 shadow-lg">
+          {filtered.length === 0 && (
+            <div className="px-3 py-2 text-xs text-brand-navy/50" data-testid={`${testId}-empty`}>
+              No matches
+            </div>
+          )}
+          {filtered.map((o) => (
+            <button key={o.value} type="button"
+                    onMouseDown={(e) => { e.preventDefault(); onPick(o); setOpen(false); setQ(""); }}
+                    className="block w-full text-left px-3 py-2 text-sm text-brand-navy hover:bg-brand-pale"
+                    data-testid={`${testId}-opt-${o.value}`}>
+              {o.label}
+              {o.sub ? <span className="text-brand-navy/50 text-xs ml-2">{o.sub}</span> : null}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function EscrowCoreForm({ form, set, onNext, saving }) {
   const [countries, setCountries] = useState([]);
   const [states, setStates] = useState([]);
@@ -73,7 +114,6 @@ export default function EscrowCoreForm({ form, set, onNext, saving }) {
   const fmt = useCountryFormats(form.country);
   const country = form.country ? byCode.get(form.country) : null;
 
-  // Cascade: country → states → cities
   useEffect(() => {
     if (!form.country) { setStates([]); return; }
     mastersApi.listStates(form.country).then(setStates).catch(() => setStates([]));
@@ -83,7 +123,6 @@ export default function EscrowCoreForm({ form, set, onNext, saving }) {
     mastersApi.listCities(form.country, form.state_code, cityQ).then(setCities).catch(() => setCities([]));
   }, [form.country, form.state_code, cityQ]);
 
-  // Derived validation state
   const zipRegex = country?.postal_code_regex;
   const zipFormat = country?.postal_code_format;
   const zipOk = regexValid(form.postal_code, zipRegex);
@@ -91,7 +130,6 @@ export default function EscrowCoreForm({ form, set, onNext, saving }) {
   const taxOk = regexValid(form.tax_id, fmt?.tax_id?.regex);
   const vatOk = regexValid(form.gst_or_vat, fmt?.vat?.regex);
 
-  // Required fields
   const requiredMissing = (() => {
     const miss = [];
     if (!form.legal_name) miss.push("Legal name");
@@ -109,16 +147,19 @@ export default function EscrowCoreForm({ form, set, onNext, saving }) {
   const submit = () => {
     setTouched(true);
     if (!allOk) return;
-    // Compose the flat registered_address string the backend expects for
-    // backwards compat, from the structured pieces.
-    const addr = JOIN_ADDR({ ...form, _country_label: country?.name });
-    set("registered_address", addr);
+    set("registered_address", JOIN_ADDR({ ...form, _country_label: country?.name }));
     onNext && onNext();
   };
 
-  const inputCls = (ok) => "mt-1 w-full px-4 py-3 border focus:outline-none text-brand-navy bg-white " +
-    (ok === false ? "border-red-500 focus:border-red-500"
-                  : "border-brand-navy/20 focus:border-brand-navy-soft");
+  const countryOptions = countries.map((c) => ({
+    value: c.code,
+    label: `${c.emoji ? c.emoji + " " : ""}${c.name} (${c.code})`,
+    sub: c.phone_code ? `+${c.phone_code}` : "",
+    data: c,
+  }));
+  const stateOptions = states.map((s) => ({
+    value: s.state_code, label: s.name, sub: s.state_code, data: s,
+  }));
 
   return (
     <div className="grid md:grid-cols-2 gap-5 bg-white p-6 border border-brand-navy/15"
@@ -134,26 +175,18 @@ export default function EscrowCoreForm({ form, set, onNext, saving }) {
       </Field>
 
       <Field label="Country" required
-             hint={country?.phone_code ? `Dial code +${country.phone_code}` : undefined}>
-        <select data-testid="escrow-f-country"
-                value={form.country || ""}
-                onChange={(e) => {
-                  const cc = e.target.value;
-                  const c = byCode.get(cc);
-                  set("country", cc);
-                  set("phone_country_code", c?.phone_code || "");
-                  // Reset dependent fields.
-                  set("state_code", ""); set("state_name", "");
-                  set("city", ""); set("postal_code", "");
-                }}
-                className={inputCls(touched ? !!form.country : null)}>
-          <option value="">Pick a country…</option>
-          {countries.map((c) => (
-            <option key={c.code} value={c.code}>
-              {c.emoji ? `${c.emoji} ` : ""}{c.name} ({c.code}) +{c.phone_code}
-            </option>
-          ))}
-        </select>
+             hint={country?.phone_code ? `Dial code +${country.phone_code}` : "Type to search…"}>
+        <ComboSelect testId="escrow-f-country"
+                     value={form.country || ""}
+                     options={countryOptions}
+                     placeholder="Type to search country…"
+                     invalid={touched && !form.country}
+                     onPick={(o) => {
+                       set("country", o.value);
+                       set("phone_country_code", o.data?.phone_code || "");
+                       set("state_code", ""); set("state_name", "");
+                       set("city", ""); set("postal_code", "");
+                     }} />
       </Field>
 
       <Field label={fmt?.reg_number?.label || "Registration number"} required
@@ -164,26 +197,23 @@ export default function EscrowCoreForm({ form, set, onNext, saving }) {
         <Hint fmt={fmt} field="reg_number" />
       </Field>
 
-      {/* --- Structured registered address: country → state → city → zip → addr1/2 */}
       <div className="md:col-span-2 border-t border-brand-navy/10 pt-4 mt-1">
         <div className="pmc-label text-brand-navy/70 mb-2">REGISTERED ADDRESS</div>
         <div className="grid md:grid-cols-2 gap-5">
           <Field label="State / Province" required>
-            <select data-testid="escrow-f-state"
-                    value={form.state_code || ""}
-                    disabled={!form.country}
-                    onChange={(e) => {
-                      const s = states.find((x) => x.state_code === e.target.value);
-                      set("state_code", e.target.value);
-                      set("state_name", s?.name || "");
-                      set("city", "");
-                    }}
-                    className={inputCls(touched ? !!form.state_code : null)}>
-              <option value="">{form.country
-                ? (states.length ? "Pick a state…" : "No states for this country")
-                : "Pick a country first"}</option>
-              {states.map((s) => <option key={s.state_code} value={s.state_code}>{s.name}</option>)}
-            </select>
+            <ComboSelect testId="escrow-f-state"
+                         value={form.state_code || ""}
+                         options={stateOptions}
+                         disabled={!form.country}
+                         placeholder={form.country
+                           ? (states.length ? "Type to search state…" : "No states for this country")
+                           : "Pick a country first"}
+                         invalid={touched && !form.state_code}
+                         onPick={(o) => {
+                           set("state_code", o.value);
+                           set("state_name", o.data?.name || o.label);
+                           set("city", "");
+                         }} />
           </Field>
           <Field label="City" required>
             <input list="escrow-city-dl" data-testid="escrow-f-city"
@@ -214,7 +244,6 @@ export default function EscrowCoreForm({ form, set, onNext, saving }) {
         </div>
       </div>
 
-      {/* --- Tax ids --- */}
       <Field label={fmt?.tax_id?.label || "Tax ID"}
              error={touched && form.tax_id && !taxOk ? "Doesn't match the country format." : null}>
         <Input testId="escrow-f-tax-id" value={form.tax_id || ""}

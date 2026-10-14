@@ -16,7 +16,7 @@ from typing import List, Literal, Optional
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from db import db
 from security import require_role
@@ -30,12 +30,39 @@ Status = Literal["draft", "submitted", "under_review", "needs_clarification",
 
 
 class Signatory(BaseModel):
-    name: str
-    designation: str
-    email: EmailStr
+    name: str = ""
+    designation: str = ""
+    # v52cz rev5 — Optional so the default empty row the form starts with
+    # (name="", email="") no longer 422s on EmailStr. "" → None via the
+    # pre-validator; blank rows are then dropped entirely in _clean_payload.
+    email: Optional[EmailStr] = None
     phone: Optional[str] = None
     passport_or_id_key: Optional[str] = None     # upload key for photo ID
     specimen_signature_key: Optional[str] = None
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def _empty_email_to_none(cls, v):
+        if isinstance(v, str) and not v.strip():
+            return None
+        return v
+
+
+def _clean_payload(doc: dict) -> dict:
+    """Drop scaffold rows that are completely empty so a fresh form (one
+    blank signatory + one blank bank row) doesn't trip required-field or
+    format validation. Rows with ANY meaningful content are kept."""
+    doc["signatories"] = [
+        s for s in (doc.get("signatories") or [])
+        if (s.get("name") or "").strip() or (s.get("email") or "").strip()
+    ]
+    doc["banking"] = [
+        b for b in (doc.get("banking") or [])
+        if (b.get("account_name") or "").strip()
+        or (b.get("account_number") or "").strip()
+        or (b.get("institution_name") or "").strip()
+    ]
+    return doc
 
 
 class BankingCoord(BaseModel):
@@ -117,7 +144,7 @@ def _new_token() -> str:
 async def register_institution(payload: EscrowInstitutionIn) -> dict:
     """Public self-registration — creates a draft that the institution
     continues to fill via the returned magic link, then submits for review."""
-    doc = payload.model_dump()
+    doc = _clean_payload(payload.model_dump())
     doc["status"] = "draft"
     doc["magic_token"] = _new_token()
     doc["created_at"] = now_iso()
@@ -148,7 +175,7 @@ async def update_institution(iid: str, payload: EscrowInstitutionIn,
     if doc["status"] not in ("draft", "needs_clarification"):
         raise HTTPException(status_code=400,
             detail=f"Cannot edit — status is {doc['status']}")
-    updates = payload.model_dump(exclude_unset=True)
+    updates = _clean_payload(payload.model_dump(exclude_unset=True))
     updates["updated_at"] = now_iso()
     await db.escrow_institutions.update_one({"_id": ObjectId(iid)}, {"$set": updates})
     return _out(await db.escrow_institutions.find_one({"_id": ObjectId(iid)}))

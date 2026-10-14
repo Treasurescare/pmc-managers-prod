@@ -1,6 +1,13 @@
 # PMC Managers v2 — PRD (last touched 13 Oct 2026)
 
 
+## v52cz rev5 — Searchable geo pickers + blank-signatory 422 + prod geography auto-seed (14 Feb 2026)
+
+- Country & State on escrow Core are typeable/searchable comboboxes; City is a 152k-row typeahead.
+- Blank scaffold signatory/bank rows no longer 422 (`EmailStr` → Optional + `_clean_payload`); frontend strips them too.
+- Prod "No states" root cause: bootstrap seeded geography only when countries was empty — prod had duplicated countries but zero states/cities. Bootstrap now checks all three collections + auto-seeds `masters_country_formats`. One backend restart repairs prod data.
+- 9/9 targeted tests; preview E2E verified. Release: `pmc-*-v52cz-rev5*.zip` (supersedes rev4).
+
 ## v52cz rev4 — Escrow Core form validated against country masters (14 Feb 2026)
 
 - `/escrow/register` Step 1 rewritten: country dropdown with flag + dial code, structured address (country→state→city→zip→addr1/2) backed by masters_countries/states/cities, REQUIRED pills on mandatory fields, country-aware reg-no / tax-id / VAT labels + examples + regex validation via new /masters/country-formats endpoint.

@@ -46,13 +46,24 @@ export default function EscrowInstitutionRegister() {
   const [saving, setSaving] = useState(false);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
+  // v52cz rev5 — drop scaffold rows that are completely empty before
+  // sending. A fresh form starts with one blank signatory + one blank bank
+  // row; sending them as-is 422s on EmailStr / wastes DB rows.
+  const cleanPayload = (f) => ({
+    ...f,
+    signatories: (f.signatories || []).filter((s) => (s.name || "").trim() || (s.email || "").trim()),
+    banking: (f.banking || []).filter((b) =>
+      (b.account_name || "").trim() || (b.account_number || "").trim() ||
+      (b.institution_name || "").trim()),
+  });
+
   const createDraft = async () => {
     // Validation is enforced inside EscrowCoreForm — if this handler is
     // called, all required + regex rules already passed. Guard rails for
     // the signatories-less legacy path remain.
     setSaving(true);
     try {
-      const r = (await api.post("/api/v1/escrow-institutions/register", form)).data;
+      const r = (await api.post("/api/v1/escrow-institutions/register", cleanPayload(form))).data;
       setRegistration(r);
       toast.success("Draft saved — complete signatories, banking and documents next");
       setStep(2);
@@ -65,7 +76,7 @@ export default function EscrowInstitutionRegister() {
     setSaving(true);
     try {
       await api.patch(`/api/v1/escrow-institutions/${registration.id}`,
-                      form, { params: { token: registration.magic_token } });
+                      cleanPayload(form), { params: { token: registration.magic_token } });
       toast.success("Saved");
       setStep((s) => s + 1);
     } catch (e) { showApiError(e); }

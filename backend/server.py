@@ -105,11 +105,38 @@ async def _bootstrap_masters():
                 if _os.path.exists(sqlite_src):
                     n = await loop.run_in_executor(None, seed_unspsc, _db.delegate, sqlite_src)
                     print(f"[bg-bootstrap] seeded masters_unspsc rows={n}")
-            if await _db.masters_countries.estimated_document_count() == 0:
+            # v52cz rev5 — check the WHOLE geography set, not just countries.
+            # Production had ~500 country rows (seeded twice by an older
+            # codepath) but ZERO states/cities, so the old countries-only
+            # check silently skipped geography seeding and every
+            # country→state→city cascade (escrow/vendor registration)
+            # rendered "No states for this country". seed_geography drops
+            # and rebuilds all three collections, which also repairs the
+            # duplicated countries.
+            geo_missing = (
+                await _db.masters_countries.estimated_document_count() == 0
+                or await _db.masters_states.estimated_document_count() == 0
+                or await _db.masters_cities.estimated_document_count() == 0
+            )
+            if geo_missing:
                 geo_src = _os.path.join(DATA_DIR, "csc.json")
                 if _os.path.exists(geo_src):
                     stats = await loop.run_in_executor(None, seed_geography, _db.delegate, geo_src)
                     print(f"[bg-bootstrap] seeded geography {stats}")
+            # v52cz rev5 — country identifier formats (CIN/PAN/GSTIN/BIN…)
+            # used by the escrow Core form live-validation.
+            if await _db.masters_country_formats.estimated_document_count() == 0:
+                from scripts.seed_country_formats import FORMATS as _CF
+                def _seed_country_formats():
+                    for row in _CF:
+                        _db.delegate.masters_country_formats.update_one(
+                            {"country_code": row["country_code"]},
+                            {"$set": row}, upsert=True)
+                    _db.delegate.masters_country_formats.create_index(
+                        "country_code", unique=True)
+                    return len(_CF)
+                n = await loop.run_in_executor(None, _seed_country_formats)
+                print(f"[bg-bootstrap] seeded country formats rows={n}")
             if await _db.masters_country_licenses.estimated_document_count() == 0:
                 added = await loop.run_in_executor(None, seed_country_licenses, _db.delegate)
                 print(f"[bg-bootstrap] seeded country licenses added={added}")

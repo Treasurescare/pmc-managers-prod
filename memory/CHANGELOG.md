@@ -1,6 +1,33 @@
 # PMC Managers v2 — Changelog
 # PMC Managers v2 — Changelog
 
+## 2026-02-14 — v52cz rev5 Escrow pickers searchable + blank-signatory 422 + prod geography seed
+
+### User report
+1. Production escrow register: State dropdown "No states for this country" (India). Preview worked.
+2. Preview: Save-and-continue 422 — "email must have an @-sign" (blank scaffold signatory row).
+3. Country (and state) must be typeable/searchable.
+
+### Root causes
+- Prod: startup auto-seed only ran `seed_geography` when `masters_countries` was EMPTY. Prod already had ~500 duplicated country rows but 0 states/cities → geography never seeded → cascades empty.
+- 422: `Signatory.email: EmailStr` rejected the default blank row (`email: ""`) before any cleaning could run.
+- Plain `<select>` elements not searchable.
+
+### Fixes
+- `backend/server.py` `_bootstrap_masters` — geography seeds when ANY of countries/states/cities is empty (seed_geography drops+rebuilds, also fixing the duplicated countries); `masters_country_formats` now auto-seeds from `scripts/seed_country_formats.FORMATS` when empty. Prod repair = one backend restart, no SSH needed.
+- `backend/routers/escrow_institutions.py` — `Signatory.email` Optional with pre-validator mapping `""` → None; `_clean_payload()` drops fully-blank signatory/banking rows on register + update. Partial rows (name, no email) kept with `email: null`. Garbage emails still 422.
+- `frontend/.../EscrowCoreForm.jsx` — new `ComboSelect` (type-to-filter by name/code/dial) for Country and State; City stays 152k-row typeahead.
+- `frontend/.../EscrowInstitutionRegister.jsx` — `cleanPayload()` strips blank rows before POST/PATCH (defence in depth).
+
+### Tests
+- `backend/tests/test_v52cz_rev5_escrow_core.py` — 4 tests (blank row accepted+dropped, partial kept, garbage email 422, structured address persisted). Suite 9/9 green.
+- Preview E2E: "kaza"→Kazakhstan, "alm"→Almaty, city typeahead, KZ BIN hint — verified.
+
+### Release artefacts
+- `pmc-backend-v52cz-rev5.zip`, `pmc-frontend-v52cz-rev5-prod-build.zip`, `DOWNLOAD_v52cz_rev5.md`. Supersedes rev4. Backend zip includes `scripts/` + `data/` so bootstrap/manual seed works on EB.
+
+
+
 ## 2026-02-14 — v52cz rev4 Escrow Core step validated against country masters
 
 ### User report
