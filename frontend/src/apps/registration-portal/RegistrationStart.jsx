@@ -121,6 +121,13 @@ export default function RegistrationStart() {
               <div className="text-sm text-brand-navy/70 mt-1">
                 {t("register.template_lede")}
               </div>
+              {/* v52cz — surface the canonical filename so vendors see what
+                  they're about to download. Prevents repeats of the "chaman
+                  raj resume.docx" leak where a stray admin upload sat here. */}
+              <div className="mt-1 text-[11px] uppercase tracking-widest text-brand-navy/60 font-mono"
+                   data-testid="reg-template-filename">
+                {filename}
+              </div>
             </div>
             <button type="button" onClick={handleView} disabled={tplBusy === "view"}
                     data-testid="reg-template-view"

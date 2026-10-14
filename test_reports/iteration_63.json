@@ -1,0 +1,52 @@
+{
+  "summary": "v52cz rev2 — blank-form regen validated; DocSlot CORS fix verified; v52cz_downloads 6/6 still pass; however vendor BidSubmit bundle-picker is only partially implemented (critical gap vs spec).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "vendor-portal/BidSubmit.jsx (bundle picker)",
+        "issue": "Spec requires 'Download selected (N)' with per-row checkboxes defaulting to checked, a 'N of M selected' counter (data-testid=bid-docs-selected-count), 'All'/'None' bulk toggles (data-testid=bid-docs-select-all / bid-docs-select-none), and the download button must POST only selectedKeys and be disabled when 0 selected. Current code: button text is 'Download all ({docs.length})', hardcoded to send ALL docs.map(x=>x.key) regardless of selectedKeys; selectedKeys state exists but is never consumed by the download handler; checkboxes default to UNCHECKED (new Set()); counter/All/None controls and their testids are missing entirely. Grep confirms no occurrences of bid-docs-selected-count, bid-docs-select-all, bid-docs-select-none, or 'Download selected' in BidSubmit.jsx.",
+        "selector": "[data-testid=bid-docs-download-all], missing [data-testid=bid-docs-selected-count], missing [data-testid=bid-docs-select-all], missing [data-testid=bid-docs-select-none]",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "/register — Blank registration form block",
+        "issues": ["Spec says the block should visibly show the filename 'PMC-Vendor-Registration-Form.pdf'; it only shows title + lede. template.file_name is fetched (meta API returns it) but never rendered. Minor UX miss."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_v52cz_blank_form.py",
+    "/app/backend/tests/test_v52cz_downloads.py",
+    "/app/test_reports/pytest/v52cz_rev2_results.xml"
+  ],
+  "action_items": [
+    "BidSubmit.jsx: wire selectedKeys through to the download POST, change button label to 'Download selected ({selectedKeys.size})', disable when size==0, add data-testid=bid-docs-selected-count showing 'N of M selected', add 'All' and 'None' buttons with data-testid=bid-docs-select-all / bid-docs-select-none, and default every newly-uploaded doc key into selectedKeys (so initial state matches '2 of 2 selected').",
+    "RegistrationStart.jsx: render template.file_name next to the Download/View buttons so the vendor sees the canonical 'PMC-Vendor-Registration-Form.pdf' filename as the spec requires."
+  ],
+  "critical_code_review_comments": [
+    "BidSubmit.jsx L420-442 — Download button ignores selectedKeys; selectedKeys is dead state. This is the exact bug the user complained about: vendor cannot bundle a subset of uploaded docs.",
+    "RegistrationStart.jsx L36-48 — fetchTemplateBlob uses credentials:'omit' which is correct for the public template endpoint; relative URL via vendorInviteApi.templateDownloadUrl() ('/api/v1/vendors/registration-template') confirmed CORS-safe for production bundles.",
+    "DocSlot.jsx L61-64 — viewUrl/downloadUrl are correctly relative '/api/v1/registrations/.../file?token=...' — baked-in REACT_APP_BACKEND_URL leak is fixed.",
+    "test_v52cz_blank_form.py — original raw-bytes grep assertions could not match because reportlab compresses content streams. Converted to pypdf text extraction (main agent's own note recommended this). All 3 blank-form tests now pass against live preview."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_v52cz_blank_form.py"
+  ],
+  "success_rate": {
+    "backend": "100% (9/9 — test_v52cz_blank_form.py 3/3 + test_v52cz_downloads.py 6/6)",
+    "frontend": "50% — blank-form Download works (PDF 6621 bytes, %PDF magic, filename PMC-Vendor-Registration-Form.pdf); DocSlot CORS fix verified by code; blank-form View fetch fires to the correct endpoint (window.open(blob:) suppressed by Playwright headless, works in real browsers); vendor bundle-picker UI missing required controls (see HIGH issue)."
+  },
+  "test_credentials": "Admin: adminsupport@pmcmanagers.com / Admin@12345 ; Vendor: manualvendor@pmcmanagers.com / Vendor@12345 (vendor login not exercised live due to time; code review was sufficient to prove the picker gap)",
+  "seed_data_creation": "test_v52cz_downloads.py seeds a transient published notice + primary PDF per run via admin login. No new seed required for blank-form or DocSlot checks.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend blank-form endpoint returns a 3-page reportlab PDF — section headers decompose only via pypdf text extraction, NEVER raw-bytes grep (reportlab compresses the content stream). test_v52cz_blank_form.py has been updated to use pypdf and all 3 tests pass. The vendor bundle-picker spec in the review request (checkboxes default-checked, counter, All/None, Download selected (N), disabled at 0) is NOT yet implemented in /app/frontend/src/apps/vendor-portal/BidSubmit.jsx — only the checkbox markup + inert selectedKeys state exists. After main agent fixes BidSubmit, re-run frontend: vendor login → /vendor/bid/new/PMC-NOT-2026-0020 → upload 2 PDFs → verify counter reads '2 of 2 selected', toggle one checkbox → counter '1 of 2' and button text 'Download selected (1)', uncheck both → button disabled.",
+  "rca of the issue": "Blank-form regression: previous test file compared marker substrings against raw PDF bytes (r.content.lower()). Reportlab emits compressed FlateDecode content streams, so section labels like 'Identity', 'Banking', 'Business Profile', 'Documents & Declarations' and schema labels never appear in raw bytes even though they render correctly on screen. Fix: use pypdf.PdfReader to extract page text, then substring-match. Content verified: all 5 section markers (Identity/Contact/Banking/Business Profile/Documents & Declarations) + all 5 schema labels (Legal Name/Primary Contact/Bank Account Number/Primary Sector/Incorporation Certificate) present; canonical filename + application/pdf content-type confirmed. BidSubmit picker gap: the main agent added the selectedKeys useState hook and per-row checkbox but did not refactor the download button (still consumes docs.map), did not add the counter/All/None controls, and left the default selection empty — so the UX contract in the review request ('2 of 2 selected', 'Download selected (N)', disabled at 0) cannot be met until BidSubmit.jsx L420-442 is rewritten to drive off selectedKeys."
+}

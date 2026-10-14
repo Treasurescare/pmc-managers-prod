@@ -418,15 +418,30 @@ export default function BidSubmit() {
             </div>
             {docs.length > 0 && (
               <div className="mt-2 space-y-2" data-testid="bid-docs-list">
-                {/* v52cz — single clearly-visible "Download all" so the vendor
-                    can pull every uploaded envelope + supporting document in
-                    one ZIP, regardless of count (works for 1 doc or 20). */}
-                <div className="flex justify-end">
+                {/* v52cz rev2 — Bundle picker. Each row has a checkbox (all
+                    ticked by default); "Download selected" bundles only the
+                    checked rows. "All" / "None" shortcuts + live count keep
+                    UX clear for 3, 5, or 20+ attachments. */}
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="text-[11px] text-slate-600 flex items-center gap-3">
+                    <span data-testid="bid-docs-selected-count">
+                      {selectedKeys.size} of {docs.length} selected
+                    </span>
+                    <button type="button"
+                      onClick={() => setSelectedKeys(new Set(docs.map((d) => d.key).filter(Boolean)))}
+                      data-testid="bid-docs-select-all"
+                      className="underline hover:text-slate-900">All</button>
+                    <button type="button"
+                      onClick={() => setSelectedKeys(new Set())}
+                      data-testid="bid-docs-select-none"
+                      className="underline hover:text-slate-900">None</button>
+                  </div>
                   <button type="button"
                     data-testid="bid-docs-download-all"
+                    disabled={selectedKeys.size === 0}
                     onClick={async () => {
-                      const keys = docs.map((x) => x.key).filter(Boolean);
-                      if (!keys.length) return toast.error("Nothing to download yet");
+                      const keys = docs.map((x) => x.key).filter((k) => k && selectedKeys.has(k));
+                      if (!keys.length) return toast.error("Pick at least one document to download");
                       try {
                         await uploadsApi.downloadBundle(keys, {
                           filename: `bid-${noticeRef || "documents"}-documents`,
@@ -436,8 +451,8 @@ export default function BidSubmit() {
                         showApiError(err, { fallbackTitle: "Could not bundle the documents" });
                       }
                     }}
-                    className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest border border-slate-900 text-slate-900 bg-white hover:bg-slate-900 hover:text-white transition-colors rounded-md">
-                    ↓ Download all ({docs.length})
+                    className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest border border-slate-900 text-slate-900 bg-white hover:bg-slate-900 hover:text-white transition-colors rounded-md disabled:opacity-40 disabled:cursor-not-allowed">
+                    ↓ Download selected ({selectedKeys.size})
                   </button>
                 </div>
                 {docs.map((d, i) => {
