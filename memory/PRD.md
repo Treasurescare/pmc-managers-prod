@@ -1,5 +1,12 @@
 # PMC Managers v2 — PRD (last touched 13 Oct 2026)
 
+## v52cz rev2 — Blank form regen + Bundle picker + Reg-doc CORS (14 Feb 2026)
+
+- "Download Blank Form" now ALWAYS auto-generated from the live registration schema (sections A→E via RegistrationUpdateIn + DOC_SLOTS). Canonical filename `PMC-Vendor-Registration-Form.pdf`. Admin uploads to `vendor_templates` no longer surface to vendors → stray resume DOCX leak permanently prevented.
+- Bundle picker on /vendor/bid/new: per-doc checkboxes (default checked), `N of M selected` counter, All/None shortcuts, `Download selected (N)` with disabled-at-0.
+- Reg Doc View fixed: DocSlot (and NoticeDetail, NoticeDetailE, CorrigendaPanel, api.js template URLs) now use RELATIVE `/api/v1/...` paths so production bundles stop baking the preview host into cross-origin download URLs.
+- Testing agent iter 64: 9/9 backend + 100% frontend. Preview-only — production bundles NOT built yet (awaiting user signoff).
+
 ## v52cz — Vendor download defects fixed (14 Feb 2026)
 
 - NEW `POST /api/v1/uploads/bundle` — ZIPs any set of upload keys for signed-in admin OR vendor; README.txt manifest lists missing keys.

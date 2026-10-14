@@ -1,0 +1,27 @@
+{
+  "summary": "Re-verification of v52cz rev2 BidSubmit bundle-picker and RegistrationStart filename rendering. All targeted flows now pass end-to-end against preview. Backend regression (test_v52cz_blank_form.py + test_v52cz_downloads.py) = 9/9 green. Frontend picker shows default both-checked, correct '2 of 2 selected' counter, 'Download selected (N)' button text updates as checkboxes toggle, disables at 0, All/None shortcuts work, and clicking triggers POST /api/v1/uploads/bundle -> 200 application/zip (bid-PMC-NOT-2026-0082-documents.zip). RegistrationStart renders data-testid=reg-template-filename with textContent exactly 'PMC-Vendor-Registration-Form.pdf' (CSS uppercases the display, raw text is correct).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "critical_code_review_comments": [
+    "BidSubmit.jsx uses <Link> inside the duplicate-bid 409 error block (line ~306) but Link is NOT imported from react-router-dom (only useParams, useNavigate are imported). If a vendor hits a 409 duplicate-bid path, the React render will throw ReferenceError: Link is not defined. Not triggered in the current picker regression test but a latent crash. Suggest: add `Link` to the import on line 2."
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_v52cz_blank_form.py",
+    "/app/backend/tests/test_v52cz_downloads.py",
+    "/app/test_reports/pytest/pytest_v52cz_rev2.xml"
+  ],
+  "action_items": [
+    "(Non-blocking) Import Link in BidSubmit.jsx to prevent runtime crash on 409 duplicate-bid error branch."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (9/9)", "frontend": "100% (all picker + filename checks pass)"},
+  "test_credentials": "Vendor: manualvendor@pmcmanagers.com / Vendor@12345 (used)",
+  "seed_data_creation": "Submitted no bid; uploaded 2 small PDFs to notice PMC-NOT-2026-0082 for picker test (left as draft/attachments only).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "v52cz rev2 picker is fully wired (selectedKeys state drives counter, download button text, disabled state, bundle request keys). RegistrationStart filename rendering is correct — note raw textContent is 'PMC-Vendor-Registration-Form.pdf' though CSS text-transform:uppercase renders it uppercase visually; use textContent (not inner_text) to assert. The only latent issue is a missing Link import in BidSubmit.jsx."
+}

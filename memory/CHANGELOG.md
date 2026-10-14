@@ -1,6 +1,35 @@
 # PMC Managers v2 — Changelog
 # PMC Managers v2 — Changelog
 
+## 2026-02-14 — v52cz rev2 Blank form regen + Bundle picker + Reg-doc CORS
+
+### User reports
+1. "Download Blank Form" downloaded a file named `Chaman_Raj_SkillOrbit_ML_Internship_Resume_Final.docx` which Word reports as unreadable. User wants the blank form to be auto-generated from the current fill-to-form (sections A→E), with a stable canonical name — so changing the form tomorrow updates the download automatically.
+2. Bundle picker: let vendors tick checkboxes on each bid doc and bundle only the ticked files.
+3. Reg Doc View still broken on production.
+
+### Root causes
+1. The `GET /api/v1/vendors/registration-template` endpoint faithfully served whatever an admin had uploaded to `vendor_templates`. A stray DOCX got in and became the "blank form".
+2. BidSubmit only had a Download-all button; no per-row selection.
+3. `DocSlot.jsx` built View/Download URLs with `${REACT_APP_BACKEND_URL}` prefix. REACT_APP_BACKEND_URL is baked at build time so prod bundles pointed at the preview host → CORS blocked. Same pattern was leaking in NoticeDetail.jsx, CorrigendaPanel.jsx, api.js (templateDownloadUrl, bulkTemplateUrl).
+
+### Fixes
+- `backend/routers/vendor_invites.py` — `download_registration_template` now ALWAYS calls new `_build_registration_form_pdf()` which introspects `RegistrationUpdateIn` (A → D) + `DOC_SLOTS` (E). Canonical filename `PMC-Vendor-Registration-Form.pdf`. Meta endpoint always reports the canonical name. Admin uploads are ignored entirely for the download, so a stray resume can never leak again.
+- `frontend/src/apps/vendor-portal/BidSubmit.jsx` — per-row checkbox (default checked), `N of M selected` counter, All/None shortcuts, `Download selected (N)` button disabled at 0. selectedKeys drives the bundle request. Also imported `Link` (latent 409-branch crash fixed).
+- `frontend/src/apps/registration-portal/sections/DocSlot.jsx` — view/download URLs now relative `/api/v1/...` (same-origin via CloudFront on prod, baseURL on preview).
+- Same relative-URL fix applied in `NoticeDetail.jsx` (primary doc / template PDF / template ZIP / public-files attachment), `CorrigendaPanel.jsx` (corrigendum PDF), `NoticeDetailE.jsx` (corrigendum PDF), `api.js` (templateDownloadUrl, bulkTemplateUrl).
+- `RegistrationStart.jsx` surfaces the canonical filename next to the Download/View buttons (`data-testid=reg-template-filename`).
+
+### Tests
+- `backend/tests/test_v52cz_blank_form.py` — 4 pypdf regression tests (PDF validity, canonical filename, A-E section markers, schema labels, DOCX-leak block).
+- `backend/tests/test_v52cz_downloads.py` — 6 tests from rev1 still green.
+- Testing agent iter 64: 9/9 backend + 100% frontend (picker + filename). Preview-verified only.
+
+### Deployment status
+Preview-tested only. New uniquely-versioned production release NOT built yet — user asked to validate preview first, then they'll trigger the build/upload step.
+
+
+
 ## 2026-02-14 — v52cz Vendor-download defects (Download all + Download pack)
 
 ### User report
