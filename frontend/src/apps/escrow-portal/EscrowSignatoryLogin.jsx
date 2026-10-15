@@ -47,7 +47,10 @@ export default function EscrowSignatoryLogin() {
         // surface a generic "Invalid email or password". Keep that message
         // visible instead and stop falling through.
         if (code === 403 && detail && typeof detail === "object" && detail.error === "unverified") {
-          showApiError(accErr, { fallbackTitle: "Sign in failed" });
+          toast.error("Sign in failed", {
+            description: detail.message || "Please verify your email before signing in.",
+            duration: 10000, closeButton: true,
+          });
           return;
         }
         // Only 401/404 are "wrong endpoint for this email" — try signatory.

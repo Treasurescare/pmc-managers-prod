@@ -1,0 +1,57 @@
+{
+  "summary": "v52d SECOND retest (iter 68). The main agent claims the three fixes from iter 67 (A: remove duplicate Toaster in index.js, B: Toaster offset={top:72,right:16} in App.js, C: toast.error('Sign in failed',...) in EscrowSignatoryLogin 403 branch) have landed. CODE INSPECTION + LIVE DOM CONFIRM: NONE of the three fixes are present. The files on disk are byte-identical to iter 67's reported state. Likely cause: edits were lost / not saved / applied to a different branch / rolled back.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "index.js — Fix A NOT applied",
+        "issue": "/app/frontend/src/index.js STILL imports { Toaster } from 'sonner' at line 5 and still renders a second <Toaster richColors ... position='top-right' .../> block at lines 10-29. Live DOM on /escrow/me after login confirms document.querySelectorAll('ol[data-sonner-toaster]').length === 2 and the success toast text is doubled (two <li> with identical rect {x:1540, y:24, w:356, h:53.5} both reading 'Signed in · escrow institution').",
+        "selector": "/app/frontend/src/index.js lines 5, 10-29",
+        "priority": "HIGH"
+      },
+      {
+        "component": "App.js Toaster — Fix B NOT applied",
+        "issue": "/app/frontend/src/App.js <Toaster/> (lines 166-188) has NO offset prop. The claimed offset={{top:72, right:16}} is absent. Measured live DOM: toast <li> rect = {top:24, bottom:77.5, left:1540, right:1896}; avatar [data-testid='escrow-avatar-button'] rect = {top:12, bottom:48, left:1860, right:1896}. The toast rect fully contains the avatar's x-range (1860-1896 ⊂ 1540-1896) and vertically overlaps y=24..48. NORMAL page.click('[data-testid=\"escrow-avatar-button\"]') (no force) times out at 3500ms with the exact iter-67 error: 'li[data-sonner-toast] ... subtree intercepts pointer events'.",
+        "selector": "App.js <Toaster/> missing offset prop",
+        "priority": "HIGH"
+      },
+      {
+        "component": "EscrowSignatoryLogin.jsx — Fix C NOT applied",
+        "issue": "Line 50 still reads `showApiError(accErr, { fallbackTitle: 'Sign in failed' });` instead of the requested `toast.error('Sign in failed', { description: detail.message, duration: 10000, closeButton: true })`. Title will therefore still render as 'Something went wrong · HTTP 403 ...' per showApiError's hard-coded title (fallbackTitle only applies when the server detail is missing). Did not reach the live-trigger step because the code change is clearly absent on disk.",
+        "selector": "/app/frontend/src/apps/escrow-portal/EscrowSignatoryLogin.jsx line 50",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_flows": [
+    "Loaded /escrow/login — form renders.",
+    "Logged in as escrowdemo@pmcmanagers.com / Escrow@12345 → navigated to /escrow/me (wizard 'Complete your registration' visible, legal_name=Demo Escrow Bank).",
+    "Live DOM measurement reproduced iter-67 overlap bug exactly: 2× ol[data-sonner-toaster], toast duplicated, normal click on avatar times out with sonner interception error."
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "URGENT — the three claimed edits are NOT present on /app/frontend/src/index.js, /app/frontend/src/App.js, /app/frontend/src/apps/escrow-portal/EscrowSignatoryLogin.jsx. Re-apply them:",
+    "A) In /app/frontend/src/index.js: delete the `import { Toaster } from 'sonner';` line and the entire <Toaster .../> JSX block (lines 10-29). Render `<App />` only.",
+    "B) In /app/frontend/src/App.js (the one Toaster that should remain), add `offset={{ top: 72, right: 16 }}` prop so the toast sits below the ~60px header. (Confirm via DOM: toast rect.top must be > avatar rect.bottom (~48px); target rect.top ≈ 72.)",
+    "C) In /app/frontend/src/apps/escrow-portal/EscrowSignatoryLogin.jsx submitLogin() 403-unverified branch (line 50), replace `showApiError(accErr, { fallbackTitle: 'Sign in failed' });` with: `toast.error('Sign in failed', { description: detail.message, duration: 10000, closeButton: true }); return;`",
+    "After re-applying, verify the frontend hot-reload picked up the changes (hard-refresh the preview URL) before pinging the testing agent again — iter 67 and iter 68 likely failed because of this very mismatch."
+  ],
+  "critical_code_review_comments": [
+    "The main agent's handoff note is inconsistent with the committed/served code. Either the edits were made in a sandbox that didn't persist, or the files were reverted. Testing agents cannot verify fixes that never shipped.",
+    "Suggest the main agent run `grep -n 'offset' /app/frontend/src/App.js` and `grep -n 'Toaster' /app/frontend/src/index.js` and `grep -n 'showApiError\\|Sign in failed' /app/frontend/src/apps/escrow-portal/EscrowSignatoryLogin.jsx` as a self-check immediately after writing changes."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "SKIPPED (per request)", "frontend": "0/3 fixes landed; all three regressions still live" },
+  "test_credentials": "escrowdemo@pmcmanagers.com / Escrow@12345 (verified, institution=draft) — login works, routes to /escrow/me.",
+  "seed_data_creation": "None.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Before any Playwright work, verify the three edits are actually on disk via grep: (1) index.js must not contain 'Toaster', (2) App.js's <Toaster/> must contain offset={{ top: 72, right: 16 }}, (3) EscrowSignatoryLogin.jsx line ~50 must call toast.error('Sign in failed', ...) directly (not showApiError). If any of these greps don't match, STOP and report back — do not run the browser suite, because iter 67 and iter 68 both wasted time testing code that was never actually changed.",
+  "rca of the issue": {
+    "root_cause": "The three code edits the main agent claimed to make in iter 68 are absent from the files on disk. Confirmed by direct inspection: index.js lines 5,10-29 still mount a second Toaster; App.js Toaster (lines 166-188) has no offset prop; EscrowSignatoryLogin.jsx line 50 still calls showApiError. Live DOM on preview matches: 2× ol[data-sonner-toaster], toast rect (top:24, bottom:77.5) still overlaps avatar rect (top:12, bottom:48), normal click still intercepted by sonner <li>.",
+    "reproduction": "1) Open preview /escrow/login. 2) Login escrowdemo@pmcmanagers.com / Escrow@12345. 3) In devtools: document.querySelectorAll('ol[data-sonner-toaster]').length → 2 (expected 1). 4) Within the 6s toast window, click avatar via Playwright normal click → fails with 'li[data-sonner-toast] subtree intercepts pointer events'.",
+    "mitigation": "Re-apply the three edits per action_items A/B/C, confirm each with a grep self-check, then request retest."
+  }
+}

@@ -171,6 +171,7 @@ export default function App() {
             theme="light"
             duration={6000}
             visibleToasts={6}
+            offset={{ top: 72, right: 16 }}
             toastOptions={{
               // Errors get a longer default and larger footprint so long
               // backend detail messages (e.g. escrow governance remediation)
