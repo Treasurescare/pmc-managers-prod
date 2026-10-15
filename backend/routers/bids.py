@@ -542,6 +542,9 @@ async def release_loser_emd(bid_id: str, payload: EmdLoserReleaseIn,
 async def list_all_bids(
     notice_ref: Optional[str] = None,
     status: Optional[str] = None,
+    created_by_email: Optional[str] = None,
+    created_from: Optional[str] = None,
+    created_to: Optional[str] = None,
     admin=Depends(require_role("admin", "reviewer", "escrow_agent", "certifier",
                                "legal_counsel", "accounting", "committee_member", "auditor")),
 ) -> List[dict]:
@@ -551,6 +554,14 @@ async def list_all_bids(
         q["notice_ref"] = notice_ref
     if status:
         q["status"] = status
+    # v52v — Created-by/from/to filters match the shared frontend bar.
+    if created_by_email:
+        q["vendor_email"] = {"$regex": created_by_email.strip(), "$options": "i"}
+    if created_from or created_to:
+        rng: dict = {}
+        if created_from: rng["$gte"] = f"{created_from[:10]}T00:00:00"
+        if created_to:   rng["$lte"] = f"{created_to[:10]}T23:59:59.999"
+        q["created_at"] = rng
     viewer_roles = _viewer_role_set(admin)
     rows: List[dict] = []
     async for b in db.bids.find(q).sort("created_at", -1).limit(300):

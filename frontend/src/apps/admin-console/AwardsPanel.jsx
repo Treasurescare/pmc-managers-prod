@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { awardsApi, bidApi, docusignApi, formatApiError, BACKEND_URL, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import { InfoDot } from "@/components/InfoDot";
+import CreatorDateFilterBar, { matchCreatorDate } from "@/components/CreatorDateFilterBar";
 
 /** Wave 39 — Post-Award document dashboard.
  *
@@ -26,6 +27,10 @@ export default function AwardsPanel() {
   const [signDelivery, setSignDelivery] = useState("email");
   const [signBusy, setSignBusy] = useState(false);
   const [bidSearch, setBidSearch] = useState("");
+  // v52v — Created by / from / to for Awards.
+  const [cdf, setCdf] = useState({ createdBy: "", from: "", to: "" });
+  const awardCreators = useMemo(() => awardedBids.map((b) => b.vendor_email).filter(Boolean), [awardedBids]);
+  const visibleAwards = useMemo(() => awardedBids.filter(matchCreatorDate(cdf)), [awardedBids, cdf]);
 
   const loadBids = useCallback(() => {
     bidApi.listAll({ status: "awarded" }).then((rows) => {
@@ -145,6 +150,7 @@ export default function AwardsPanel() {
 
       <label className="block mb-4">
         <span className="pmc-label">{t("panels.awards.awarded_bid")}<InfoDot tip="Only bids that reached Awarded state are eligible. Selecting a bid loads its auto-generated PO / SLA / Contract PDFs." /></span>
+        <CreatorDateFilterBar value={cdf} onChange={setCdf} creators={awardCreators} testid="awards-cdf" />
         <input value={bidSearch} onChange={(e) => setBidSearch(e.target.value)}
           placeholder="Search by bid ref, vendor or award ref…"
           data-testid="awards-bid-search"
@@ -154,14 +160,14 @@ export default function AwardsPanel() {
                 className="mt-1 w-full px-4 py-3 border border-brand-navy/20">
           {(() => {
             const q = bidSearch.trim().toLowerCase();
-            const list = q
-              ? awardedBids.filter((b) =>
+            const list = (q
+              ? visibleAwards.filter((b) =>
                   (b.bid_ref || "").toLowerCase().includes(q)
                   || (b.company_name || "").toLowerCase().includes(q)
                   || (b.vendor_email || "").toLowerCase().includes(q)
                   || (b.award_ref || "").toLowerCase().includes(q)
                   || (b.notice_ref || "").toLowerCase().includes(q))
-              : awardedBids;
+              : visibleAwards);
             if (list.length === 0) return <option value="">{q ? "No matches" : t("panels.awards.no_awarded_bids")}</option>;
             return list.map((b) => (
               <option key={b.id} value={b.id}>

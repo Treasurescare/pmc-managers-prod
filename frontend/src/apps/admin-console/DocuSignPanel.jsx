@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { docusignApi, bidApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import { InfoDot } from "@/components/InfoDot";
 import { useListPager } from "@/components/ListPager";
+import CreatorDateFilterBar, { matchCreatorDate } from "@/components/CreatorDateFilterBar";
 
 /** Wave 43 — DocuSign eSignature admin panel.
  *
@@ -30,6 +31,10 @@ export default function DocuSignPanel() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [viewEnv, setViewEnv] = useState(null);
+  // v52v — shared Created by / from / to.
+  const [cdf, setCdf] = useState({ createdBy: "", from: "", to: "" });
+  const envCreators = useMemo(() => envelopes.map((e) => e.signer_email).filter(Boolean), [envelopes]);
+  const matchCdf = useMemo(() => matchCreatorDate(cdf), [cdf]);
 
   const filteredEnvelopes = envelopes.filter((e) => {
     const q = search.trim().toLowerCase();
@@ -44,7 +49,7 @@ export default function DocuSignPanel() {
       || (e.bid_ref || "").toLowerCase().includes(q)
       || (e.signer_name || "").toLowerCase().includes(q)
       || (e.signer_email || "").toLowerCase().includes(q);
-    return matchStatus && matchSearch;
+    return matchStatus && matchSearch && matchCdf(e);
   });
   const { paged: pagedEnvelopes, controls: envelopeControls } =
     useListPager(filteredEnvelopes, { defaultSize: 20, testid: "ds-pager" });
@@ -402,6 +407,7 @@ export default function DocuSignPanel() {
             placeholder="Search by ref, signer, email…"
             data-testid="ds-search"
             className="flex-1 min-w-[200px] px-3 py-1.5 border border-brand-navy/20 text-sm bg-white" />
+          <CreatorDateFilterBar value={cdf} onChange={setCdf} creators={envCreators} testid="ds-cdf" />
         </div>
         <table className="w-full text-sm">
           <thead className="text-xs text-brand-navy/60 bg-brand-navy/5">

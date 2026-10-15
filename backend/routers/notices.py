@@ -80,6 +80,9 @@ def _out(doc: dict) -> dict:
 async def list_notices_admin(
     limit: int = 200,
     offset: int = 0,
+    created_by_email: Optional[str] = None,
+    created_from: Optional[str] = None,
+    created_to: Optional[str] = None,
     admin=Depends(require_role("admin", "reviewer", "auditor", "legal_counsel",
                                 "committee_member", "certifier", "accounting")),
 ):
@@ -91,6 +94,14 @@ async def list_notices_admin(
     limit = max(1, min(int(limit), 500))
     offset = max(0, int(offset))
     q = {"tenant_id": admin["tenant_id"]}
+    # v52v — Created-by/from/to filters for the shared admin filter bar.
+    if created_by_email:
+        q["created_by_email"] = {"$regex": created_by_email.strip(), "$options": "i"}
+    if created_from or created_to:
+        rng: dict = {}
+        if created_from: rng["$gte"] = f"{created_from[:10]}T00:00:00"
+        if created_to:   rng["$lte"] = f"{created_to[:10]}T23:59:59.999"
+        q["created_at"] = rng
     cursor = db.notices.find(q).sort("created_at", -1).skip(offset).limit(limit)
     total = await db.notices.count_documents(q)
     items = [_out(t) async for t in cursor]

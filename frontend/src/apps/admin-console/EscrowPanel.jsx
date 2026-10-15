@@ -17,6 +17,7 @@ import { escrowApi } from "@/lib/api";
 import EscrowAccountsSection from "./escrow/EscrowAccountsSection";
 import EscrowTransactionsSection from "./escrow/EscrowTransactionsSection";
 import EscrowSignerEditor from "./escrow/EscrowSignerEditor";
+import CreatorDateFilterBar, { matchCreatorDate } from "@/components/CreatorDateFilterBar";
 
 // E-03 fix — reconciliation-vs-bank sub-panel.
 // Renders one row per joint account with Ledger balance vs Bank balance and
@@ -94,6 +95,10 @@ function ReconciliationSection({ accounts, txs }) {
 export default function EscrowPanel() {
   const [accounts, setAccounts] = useState([]);
   const [txs, setTxs] = useState([]);
+  // v52v — Created by / from / to filter.
+  const [cdf, setCdf] = useState({ createdBy: "", from: "", to: "" });
+  const txCreators = useMemo(() => txs.map((t) => t.recorded_by || t.created_by_email).filter(Boolean), [txs]);
+  const visibleTxs = useMemo(() => txs.filter(matchCreatorDate(cdf)), [txs, cdf]);
 
   const load = useCallback(() => {
     escrowApi.listAccounts().then((d) => setAccounts(d.items || [])).catch(() => {});
@@ -105,7 +110,8 @@ export default function EscrowPanel() {
     <div className="space-y-8" data-testid="escrow-panel">
       <EscrowAccountsSection accounts={accounts} onReload={load}/>
       <EscrowSignerEditor accounts={accounts} onReload={load}/>
-      <EscrowTransactionsSection accounts={accounts} txs={txs} onReload={load}/>
+      <CreatorDateFilterBar value={cdf} onChange={setCdf} creators={txCreators} testid="escrow-cdf" />
+      <EscrowTransactionsSection accounts={accounts} txs={visibleTxs} onReload={load}/>
       <ReconciliationSection accounts={accounts} txs={txs}/>
     </div>
   );

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { bidApi, committeeApi, staffApi, inspectionApi, formatApiError, showApiError } from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
@@ -7,6 +7,7 @@ import CommitteeList from "./bidding/CommitteeList";
 import BidTable from "./bidding/BidTable";
 import AssignCertifierModal from "./bidding/AssignCertifierModal";
 import { InfoDot } from "@/components/InfoDot";
+import CreatorDateFilterBar, { matchCreatorDate } from "@/components/CreatorDateFilterBar";
 
 const STATUS_LABELS = {
   emd_pending: "EMD pending", emd_paid: "EMD paid — Awaits Escrow",
@@ -31,6 +32,10 @@ export default function BiddingOpsPanel() {
   const [extDraft, setExtDraft] = useState({ email: "", name: "", designation: "" });
   const [assignFor, setAssignFor] = useState(null);
   const [inspDraft, setInspDraft] = useState({ certifier_id: "", scheduled_at: "", location: "" });
+  // v52v — shared Created by / Created from / Created to filter.
+  const [cdf, setCdf] = useState({ createdBy: "", from: "", to: "" });
+  const visibleBids = useMemo(() => bids.filter(matchCreatorDate(cdf)), [bids, cdf]);
+  const bidCreators = useMemo(() => bids.map((b) => b.vendor_email || b.created_by_email).filter(Boolean), [bids]);
 
   const load = useCallback(async () => {
     // Bug #3 fix — use allSettled so a single 403 (e.g. non-admin staff role)
@@ -176,8 +181,10 @@ export default function BiddingOpsPanel() {
 
       <CommitteeList committees={committees} onChange={load} />
 
+      <CreatorDateFilterBar value={cdf} onChange={setCdf} creators={bidCreators} testid="bidops-filter" />
+
       <BidTable
-        bids={bids}
+        bids={visibleBids}
         onAdminFlag={doAdminFlag}
         onReject={doReject}
         onHold={doHold}

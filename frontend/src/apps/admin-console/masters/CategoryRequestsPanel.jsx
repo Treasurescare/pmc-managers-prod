@@ -14,6 +14,8 @@ export default function CategoryRequestsPanel() {
   const [q, setQ] = useState("");
   const [reqFrom, setReqFrom] = useState("");
   const [reqTo, setReqTo] = useState("");
+  // v52v — Created by filter (shared pattern).
+  const [createdBy, setCreatedBy] = useState("");
 
   const load = useCallback(() => {
     mastersApi.listCategoryRequests(status)
@@ -24,6 +26,7 @@ export default function CategoryRequestsPanel() {
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
+    const cby = (createdBy || "").trim().toLowerCase();
     return rows.filter((r) => {
       if (needle) {
         const hay = [
@@ -32,12 +35,16 @@ export default function CategoryRequestsPanel() {
         ].filter(Boolean).join(" ").toLowerCase();
         if (!hay.includes(needle)) return false;
       }
+      if (cby) {
+        const h = String(r.vendor_email || r.created_by_email || "").toLowerCase();
+        if (!h.includes(cby)) return false;
+      }
       const d = (r.requested_at || "").slice(0, 10);
       if (reqFrom && d && d < reqFrom) return false;
       if (reqTo   && d && d > reqTo)   return false;
       return true;
     });
-  }, [rows, q, reqFrom, reqTo]);
+  }, [rows, q, reqFrom, reqTo, createdBy]);
 
   const decide = async (id, action) => {
     const note = notes[id] || "";
@@ -56,7 +63,7 @@ export default function CategoryRequestsPanel() {
     finally { setBusyId(null); }
   };
 
-  const clearFilters = () => { setQ(""); setReqFrom(""); setReqTo(""); };
+  const clearFilters = () => { setQ(""); setReqFrom(""); setReqTo(""); setCreatedBy(""); };
 
   return (
     <div data-testid="category-requests-panel">
@@ -80,6 +87,13 @@ export default function CategoryRequestsPanel() {
           <input value={q} onChange={(e) => setQ(e.target.value)}
                  placeholder="Category, vendor name or email…"
                  data-testid="cat-req-search"
+                 className="mt-1 px-2 py-1.5 border border-brand-navy/15 text-sm"/>
+        </label>
+        <label className="flex flex-col min-w-[180px]">
+          <span className="pmc-label text-[10px]">Created by</span>
+          <input value={createdBy} onChange={(e) => setCreatedBy(e.target.value)}
+                 placeholder="vendor email contains…"
+                 data-testid="cat-req-created-by"
                  className="mt-1 px-2 py-1.5 border border-brand-navy/15 text-sm"/>
         </label>
         <label className="flex flex-col">

@@ -50,7 +50,7 @@ export default function VendorAuctionsE() {
                     </div>
                   </div>
                   <div style={{ alignSelf: "center" }}>
-                    <Link to={`/auction/${a.id}`} className="pmc-btn pmc-btn--primary pmc-btn--sm" data-testid={`va-enter-${a.id}`}>
+                    <Link to={`/vendor/auction/${a.id}`} className="pmc-btn pmc-btn--primary pmc-btn--sm" data-testid={`va-enter-${a.id}`}>
                       {a.status === "live" ? "Enter" : "View details"}
                     </Link>
                   </div>

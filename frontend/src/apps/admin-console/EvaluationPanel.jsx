@@ -6,6 +6,7 @@ import RubricEditor from "./evaluation/RubricEditor";
 import BidScoreList from "./evaluation/BidScoreList";
 import AwardReport from "./evaluation/AwardReport";
 import { InfoDot } from "@/components/InfoDot";
+import CreatorDateFilterBar, { matchCreatorDate } from "@/components/CreatorDateFilterBar";
 
 const DEFAULT_CRITERIA = [
   { code: "experience", label: "Relevant Experience", weight: 0.30, max_score: 100 },
@@ -53,6 +54,11 @@ export default function EvaluationPanel() {
   // here so saveRubric() can veto keyboard/programmatic bypass of the
   // disabled Save button.
   const rubricErrorsRef = useRef([]);
+  // v52v — Created by / from / to filter the notice picker list AND the loaded bids.
+  const [cdf, setCdf] = useState({ createdBy: "", from: "", to: "" });
+  const noticeCreators = useMemo(() => allNotices.map((n) => n.created_by_email).filter(Boolean), [allNotices]);
+  const bidCreators = useMemo(() => bids.map((b) => b.vendor_email).filter(Boolean), [bids]);
+  const visibleBids = useMemo(() => bids.filter(matchCreatorDate(cdf)), [bids, cdf]);
 
   const loadBids = useCallback(async () => {
     if (!noticeRef) return;
@@ -170,6 +176,7 @@ export default function EvaluationPanel() {
   return (
     <div data-testid="admin-evaluation-panel" className="space-y-6">
       <div className="bg-white border border-brand-navy/10 p-4">
+        <CreatorDateFilterBar value={cdf} onChange={setCdf} creators={[...new Set([...noticeCreators, ...bidCreators])]} testid="eval-cdf" />
         <div className="flex flex-wrap gap-3 items-end">
           <label className="flex-1 min-w-[280px] text-sm relative">
             <span className="pmc-label">{t("panels.evaluation.notice_ref")}<InfoDot tip="Reference of the tender being evaluated. Type any fragment (e.g. '18', 'pump') to find the tender; pick a row to lock it in." /></span>
@@ -281,7 +288,7 @@ export default function EvaluationPanel() {
       </div>
 
       <BidScoreList
-        bids={bids} rubric={rubric}
+        bids={visibleBids} rubric={rubric}
         scoreDraft={scoreDraft} setScoreDraft={setScoreDraft}
         onSaveTech={submitTechScore} onSaveComm={submitCommScore}
         readOnly={fullyLocked}

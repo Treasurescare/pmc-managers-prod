@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { reverseAuctionApi, publicApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import { InfoDot } from "@/components/InfoDot";
 import AuctionInvitations from "./auction/AuctionInvitations";
 import { useListPager } from "@/components/ListPager";
+import CreatorDateFilterBar, { matchCreatorDate } from "@/components/CreatorDateFilterBar";
 
 /** Wave 40 — Admin live-auction management. */
 export default function LiveAuctionsPanel() {
@@ -84,10 +85,15 @@ export default function LiveAuctionsPanel() {
   }[status] || "");
 
   const q = search.trim().toLowerCase();
+  // v52v — Created by / from / to added alongside the existing status + search.
+  const [cdf, setCdf] = useState({ createdBy: "", from: "", to: "" });
+  const auctionCreators = useMemo(() => items.map((a) => a.created_by_email).filter(Boolean), [items]);
+  const matchCdf = useMemo(() => matchCreatorDate(cdf), [cdf]);
   const filtered = items.filter((a) =>
     (statusFilter === "all" || a.status === statusFilter)
     && (!q || (a.title || "").toLowerCase().includes(q)
           || (a.notice_ref || "").toLowerCase().includes(q))
+    && matchCdf(a)
   );
   const { paged, controls } = useListPager(filtered, { testid: "ra-pager" });
 
@@ -179,6 +185,8 @@ export default function LiveAuctionsPanel() {
           data-testid="ra-search"
           className="flex-1 min-w-[220px] px-3 py-1.5 border border-brand-navy/20 text-sm bg-white" />
       </div>
+
+      <CreatorDateFilterBar value={cdf} onChange={setCdf} creators={auctionCreators} testid="ra-cdf" />
 
       <div className="border border-brand-navy/10 bg-white">
         {filtered.length === 0 ? (

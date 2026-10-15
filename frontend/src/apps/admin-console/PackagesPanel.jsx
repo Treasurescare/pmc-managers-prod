@@ -23,6 +23,10 @@ export default function PackagesPanel() {
   const [showNew, setShowNew] = useState(false);
   const [search, setSearch] = useState("");
   const [newDraft, setNewDraft] = useState({ title: "", category: "", phase: "", value: "", float_target_date: "", status: "backlog" });
+  // v52v — Created by / from / to filter.
+  const [cdf, setCdf] = useState({ createdBy: "", from: "", to: "" });
+  const pkgCreators = useMemo(() => packages.map((p) => p.created_by_email).filter(Boolean), [packages]);
+  const visiblePackages = useMemo(() => packages.filter(matchCreatorDate(cdf)), [packages, cdf]);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -117,6 +121,7 @@ export default function PackagesPanel() {
             placeholder="Search packages by title, category or phase…"
             data-testid="pkg-search"
             className="px-3 py-2 border border-brand-navy/20 text-sm bg-white min-w-[220px]" />
+          <CreatorDateFilterBar value={cdf} onChange={setCdf} creators={pkgCreators} testid="pkg-cdf" />
           <label data-testid="pkg-import-label"
             className={"px-4 py-2 text-[11px] font-semibold uppercase tracking-widest border border-brand-navy/20 text-brand-navy bg-white hover:border-brand-navy-soft/60 cursor-pointer " + (importing ? "opacity-50" : "")}>
             {importing ? "Importing…" : "Import CSV"}

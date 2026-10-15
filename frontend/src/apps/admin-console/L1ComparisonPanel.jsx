@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { adminApi, comparisonApi, formatApiError, showApiError} from "@/lib/api";
 import { InfoDot } from "@/components/InfoDot";
+import CreatorDateFilterBar, { matchCreatorDate } from "@/components/CreatorDateFilterBar";
 
 /** Wave 41 — L1 Auto-Comparison Engine (rule-based lowest-price shortlist). */
 export default function L1ComparisonPanel() {
@@ -9,6 +10,10 @@ export default function L1ComparisonPanel() {
   const [pickedRef, setPickedRef] = useState("");
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
+  // v52v — Created by / from / to for the notice picker.
+  const [cdf, setCdf] = useState({ createdBy: "", from: "", to: "" });
+  const noticeCreators = useMemo(() => notices.map((n) => n.created_by_email).filter(Boolean), [notices]);
+  const visibleNotices = useMemo(() => notices.filter(matchCreatorDate(cdf)), [notices, cdf]);
 
   useEffect(() => {
     // Bug #37 fix — v50m. Was `publicApi.listNotices({limit:200})` which only
@@ -58,11 +63,12 @@ export default function L1ComparisonPanel() {
       <div className="grid gap-3 md:grid-cols-[1fr_auto] mb-6">
         <label className="text-xs uppercase tracking-widest text-brand-navy/60">
           Notice<InfoDot tip="Which tender to shortlist. The engine will only rank bids on this notice whose technical envelope has been cleared." />
+          <CreatorDateFilterBar value={cdf} onChange={setCdf} creators={noticeCreators} testid="l1-cdf" />
           <select value={pickedRef} onChange={(e) => { setPickedRef(e.target.value); setResult(null); }}
                   data-testid="l1-notice-picker"
                   className="mt-1 w-full px-4 py-3 border border-brand-navy/20 normal-case tracking-normal">
             <option value="">— pick a notice —</option>
-            {notices.map((n) => (
+            {visibleNotices.map((n) => (
               <option key={n.id} value={n.notice_ref}>{n.notice_ref} — {n.title}</option>
             ))}
           </select>

@@ -18,6 +18,9 @@ def _out(doc: dict) -> dict:
 
 @router.get("")
 async def list_packages(status: Optional[str] = None, category: Optional[str] = None,
+                        created_by_email: Optional[str] = None,
+                        created_from: Optional[str] = None,
+                        created_to: Optional[str] = None,
                         limit: int = 500, offset: int = 0,
                         admin=Depends(require_role("admin", "reviewer"))):
     q: dict = {"tenant_id": admin["tenant_id"]}
@@ -25,6 +28,14 @@ async def list_packages(status: Optional[str] = None, category: Optional[str] = 
         q["status"] = status
     if category:
         q["category"] = category
+    # v52v — Created-by/from/to filters.
+    if created_by_email:
+        q["created_by_email"] = {"$regex": created_by_email.strip(), "$options": "i"}
+    if created_from or created_to:
+        rng: dict = {}
+        if created_from: rng["$gte"] = f"{created_from[:10]}T00:00:00"
+        if created_to:   rng["$lte"] = f"{created_to[:10]}T23:59:59.999"
+        q["created_at"] = rng
     limit = max(1, min(int(limit), 1000))
     total = await db.packages.count_documents(q)
     items = [_out(p) async for p in db.packages.find(q).sort("float_target_date", 1).skip(offset).limit(limit)]

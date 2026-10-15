@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { api, vendorInviteApi, kycApi, formatApiError, showApiError, mastersGeoApi } from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import BulkInviteModal from "./BulkInviteModal";
 import { InfoDot } from "@/components/InfoDot";
 import { useListPager } from "@/components/ListPager";
+import CreatorDateFilterBar, { matchCreatorDate } from "@/components/CreatorDateFilterBar";
 
 function KpiTile({ label, value }) {
   return (
@@ -35,6 +36,9 @@ export default function VendorsPanel() {
   const [highlightRef, setHighlightRef] = useState(null);
   const [activatingRef, setActivatingRef] = useState(null);
   const [kycBusy, setKycBusy] = useState(false);
+  // v52v — Created by / from / to filter.
+  const [cdf, setCdf] = useState({ createdBy: "", from: "", to: "" });
+  const vendorCreators = useMemo(() => vendors.map((v) => v.email).filter(Boolean), [vendors]);
   const rowRefs = useRef({});
   // Below lg the two-column layout stacks; the KPI detail then renders
   // inline right under the tapped vendor row instead of far down the page.
@@ -345,6 +349,7 @@ export default function VendorsPanel() {
           {vendors.length} {t("panels.vendors.count_hint_suffix")}
         </div>
         <div className="flex flex-wrap gap-2 items-center vendors-toolbar">
+          <CreatorDateFilterBar value={cdf} onChange={setCdf} creators={vendorCreators} testid="vendors-cdf" />
           <label className="text-xs cursor-pointer border border-brand-navy/20 px-3 py-1.5 uppercase tracking-widest text-brand-navy hover:bg-brand-navy/5"
                  data-testid="vendor-template-upload-label">
             {templateMeta.available ? t("panels.vendors.replace_template") : t("panels.vendors.upload_template")}

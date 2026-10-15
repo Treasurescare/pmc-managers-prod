@@ -13,6 +13,7 @@ const NAV = [
   { to: "/vendor",            label: "Home",             icon: "i-home" },
   { to: "/vendor/tenders",    label: "Find tenders",     icon: "i-search" },
   { to: "/vendor/mybids",     label: "My bids",          icon: "i-gavel" },
+  { to: "/vendor/auctions",   label: "Reverse auctions", icon: "i-gavel" },
   { to: "/vendor/emd",        label: "EMD & payments",   icon: "i-coin" },
   { to: "/vendor/signatures", label: "Signatures",       icon: "i-sign" },
 ];
