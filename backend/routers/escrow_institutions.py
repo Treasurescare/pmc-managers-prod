@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from typing import List, Literal, Optional
 
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from db import db
@@ -24,6 +24,29 @@ from audit import audit_log
 from models.base import now_iso
 
 router = APIRouter(prefix="/api/v1/escrow-institutions", tags=["escrow-institutions"])
+
+
+# v52d — session OR magic-token gate. Lets the new account-first wizard
+# PATCH / submit / view an institution using the escrow_account_token cookie
+# while existing admin-invited magic links keep working during the transition.
+async def _institution_for_write(iid: str, request: Request, token: Optional[str] = None):
+    """Returns (doc, caller_tag). Order matters: cookie > magic token."""
+    # 1 — new account cookie (preferred)
+    try:
+        from routers.escrow_accounts import current_account
+        acc = await current_account(request)
+        doc = await db.escrow_institutions.find_one({"_id": ObjectId(iid)})
+        if doc and doc.get("account_id") == acc["id"]:
+            return doc, f"account:{acc['id']}"
+    except HTTPException:
+        pass
+    # 2 — legacy magic token (admin-invited rows + anything in transition)
+    if token:
+        doc = await db.escrow_institutions.find_one(
+            {"_id": ObjectId(iid), "magic_token": token})
+        if doc:
+            return doc, "magic_token"
+    raise HTTPException(status_code=404, detail="Not found")
 
 Status = Literal["draft", "submitted", "under_review", "needs_clarification",
                  "approved", "rejected"]
@@ -178,38 +201,19 @@ async def email_available(email: str) -> dict:
     return {"available": True}
 
 
-@router.post("/register")
+@router.post("/register", deprecated=True)
 async def register_institution(payload: EscrowInstitutionIn) -> dict:
-    """Public self-registration — creates a draft that the institution
-    continues to fill via the returned magic link, then submits for review.
-    v52cz rev7 — reject if the primary contact email is already associated
-    with ANY escrow institution (draft or further). Returns 409 so the
-    frontend can surface a clear "already registered" message."""
-    email = (payload.primary_contact_email or "").strip().lower()
-    if email:
-        existing = await db.escrow_institutions.find_one(
-            {"primary_contact_email": {"$regex": f"^{email}$", "$options": "i"}})
-        if existing:
-            raise HTTPException(status_code=409,
-                detail={
-                    "error": "escrow_email_already_registered",
-                    "message": f"An escrow institution is already registered with "
-                               f"{email} (status: {existing.get('status','draft')}). "
-                               f"If this is you, use the resume link we emailed, or "
-                               f"contact PMC support.",
-                    "status": existing.get("status"),
-                })
-    doc = _clean_payload(payload.model_dump())
-    doc["status"] = "draft"
-    doc["magic_token"] = _new_token()
-    doc["created_at"] = now_iso()
-    r = await db.escrow_institutions.insert_one(doc)
-    doc["_id"] = r.inserted_id
-    await audit_log("escrow_inst.register", None, "escrow_institution",
-                    str(r.inserted_id), {"email": payload.primary_contact_email})
-    return {"id": str(r.inserted_id),
-            "magic_token": doc["magic_token"],
-            "status": "draft"}
+    """DEPRECATED (v52d) — use POST /api/v1/escrow-accounts/register instead.
+    The account-first flow replaces this magic-link draft entry point. We
+    reject new submissions here so no new orphan drafts are created."""
+    raise HTTPException(status_code=410,
+        detail={
+            "error": "endpoint_deprecated",
+            "message": "The escrow registration flow has moved. Please "
+                       "create an account at /escrow/register — verify your "
+                       "email, then sign in to complete all five sections.",
+            "redirect_to": "/escrow/register",
+        })
 
 
 @router.get("/resume/{token}")
@@ -217,6 +221,22 @@ async def resume(token: str) -> dict:
     doc = await db.escrow_institutions.find_one({"magic_token": token})
     if not doc:
         raise HTTPException(status_code=404, detail="Invalid or expired link")
+    return _out(doc)
+
+
+@router.get("/{iid}/admin-view-public")
+async def view_own_institution(iid: str, request: Request) -> dict:
+    """v52d — session-only read of the account's OWN institution.
+    Used by the wizard to preload existing draft fields on sign-in.
+    No magic-token fallback (reads are 1:1 with the signed-in account)."""
+    try:
+        from routers.escrow_accounts import current_account
+        acc = await current_account(request)
+    except HTTPException:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    doc = await db.escrow_institutions.find_one({"_id": ObjectId(iid)})
+    if not doc or doc.get("account_id") != acc["id"]:
+        raise HTTPException(status_code=404, detail="Not found")
     return _out(doc)
 
 
@@ -243,11 +263,9 @@ async def get_registration_document(iid: str, slot: str, token: str,
 
 @router.patch("/{iid}")
 async def update_institution(iid: str, payload: EscrowInstitutionIn,
-                              token: str) -> dict:
-    doc = await db.escrow_institutions.find_one({"_id": ObjectId(iid),
-                                                   "magic_token": token})
-    if not doc:
-        raise HTTPException(status_code=404, detail="Not found")
+                              request: Request,
+                              token: Optional[str] = None) -> dict:
+    doc, _ = await _institution_for_write(iid, request, token)
     if doc["status"] not in ("draft", "needs_clarification"):
         raise HTTPException(status_code=400,
             detail=f"Cannot edit — status is {doc['status']}")
@@ -272,11 +290,8 @@ async def update_institution(iid: str, payload: EscrowInstitutionIn,
 
 
 @router.post("/{iid}/submit")
-async def submit(iid: str, token: str) -> dict:
-    doc = await db.escrow_institutions.find_one({"_id": ObjectId(iid),
-                                                   "magic_token": token})
-    if not doc:
-        raise HTTPException(status_code=404, detail="Not found")
+async def submit(iid: str, request: Request, token: Optional[str] = None) -> dict:
+    doc, _ = await _institution_for_write(iid, request, token)
     required = ["legal_name", "country", "registered_address", "reg_number",
                 "primary_contact_email"]
     missing = [k for k in required if not doc.get(k)]
@@ -291,8 +306,20 @@ async def submit(iid: str, token: str) -> dict:
             detail="At least one banking coordinate is required")
     await db.escrow_institutions.update_one(
         {"_id": ObjectId(iid)},
-        {"$set": {"status": "submitted", "updated_at": now_iso()}})
+        {"$set": {"status": "submitted", "updated_at": now_iso(),
+                   "submitted_at": now_iso()}})
     await audit_log("escrow_inst.submit", None, "escrow_institution", iid, {})
+    # Notify owning account (if any) that submission is now in review.
+    if doc.get("account_id"):
+        try:
+            from routers.escrow_accounts import notify_account
+            await notify_account(doc["account_id"], "submitted",
+                "Registration submitted for review",
+                "Your escrow institution registration is now with PMC's review "
+                "team. We'll come back to you within 3 business days.",
+                "/escrow/me")
+        except Exception:
+            pass
     return {"ok": True, "status": "submitted"}
 
 
@@ -431,6 +458,31 @@ async def decide(iid: str, action: Literal["approve", "reject", "needs_clarifica
                   "magic_token": token, "updated_at": now_iso()}})
     await audit_log(f"escrow_inst.{action}", admin, "escrow_institution", iid,
                     {"notes": notes})
+    # v52d — also push an in-app notification on the owning account so the
+    # bell + status banner update without waiting for email delivery.
+    if doc.get("account_id"):
+        try:
+            from routers.escrow_accounts import notify_account
+            titles = {
+                "approve": "Registration approved",
+                "needs_clarification": "More information needed",
+                "reject": "Registration not approved",
+            }
+            bodies = {
+                "approve": "Welcome aboard — your escrow institution is approved. "
+                            "Signatories can now set passwords and sign in.",
+                "needs_clarification": notes or
+                    "PMC's review team has asked for more information. "
+                    "Open your dashboard to resume the registration.",
+                "reject": notes or
+                    "After review, PMC is unable to approve this registration. "
+                    "Reviewer notes are on your dashboard.",
+            }
+            await notify_account(doc["account_id"], action,
+                                   titles[action], bodies[action],
+                                   "/escrow/me")
+        except Exception:
+            pass
     # v51am — fire an email to the primary contact + every named signatory
     # so banks/trustees can self-serve from the moment PMC approves them.
     try:

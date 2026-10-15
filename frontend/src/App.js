@@ -58,6 +58,8 @@ import AdminBidDetailPage from "@/apps/admin-console/bidding/AdminBidDetailPage"
 
 // v51al — Escrow Institution portal (external bank/trustee registration + dashboard)
 import EscrowInstitutionRegister from "@/apps/escrow-portal/EscrowInstitutionRegister";
+import EscrowAccountRegister from "@/apps/escrow-portal/EscrowAccountRegister";
+import EscrowAccountVerify from "@/apps/escrow-portal/EscrowAccountVerify";
 import EscrowInstitutionResume from "@/apps/escrow-portal/EscrowInstitutionResume";
 import EscrowInstitutionDashboardPage from "@/apps/escrow-portal/EscrowInstitutionDashboardPage";
 import EscrowSignatoryLogin from "@/apps/escrow-portal/EscrowSignatoryLogin";
@@ -321,7 +323,11 @@ export default function App() {
             <Route path="/escrow/officer/:token" element={<EscrowOfficerSign />} />
 
             {/* v51al — Escrow Institution portal (external bank / trustee entity) */}
-            <Route path="/escrow/register" element={<EscrowInstitutionRegister />} />
+            {/* v52d — account-first registration (replaces magic-link draft flow) */}
+            <Route path="/escrow/register" element={<EscrowAccountRegister />} />
+            <Route path="/escrow/verify/:token" element={<EscrowAccountVerify />} />
+            {/* Legacy magic-link register (deprecated endpoint; still routable for admin-invited drafts) */}
+            <Route path="/escrow/register-legacy" element={<EscrowInstitutionRegister />} />
             <Route path="/escrow/resume/:token" element={<EscrowInstitutionResume />} />
             <Route path="/escrow/dashboard/:iid" element={<EscrowInstitutionDashboardPage />} />
             {/* v51an — signatory password login + authed dashboard */}

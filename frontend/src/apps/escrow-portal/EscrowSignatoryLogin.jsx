@@ -31,6 +31,19 @@ export default function EscrowSignatoryLogin() {
     e.preventDefault();
     setBusy(true);
     try {
+      // v52d — try the account-first login first (new primary-contact flow).
+      // Falls back to the signatory login below for anyone who already
+      // claimed a signatory password.
+      try {
+        await api.post("/api/v1/escrow-accounts/auth/login", { email, password });
+        toast.success("Signed in · escrow institution");
+        nav("/escrow/me");
+        return;
+      } catch (accErr) {
+        // 401/403 → fall through to signatory login. Anything else bubbles.
+        const code = accErr?.response?.status;
+        if (code !== 401 && code !== 403 && code !== 404) throw accErr;
+      }
       await api.post("/api/v1/escrow-signatories/auth/login", { email, password });
       toast.success("Signed in · escrow signatory");
       nav("/escrow/me");
