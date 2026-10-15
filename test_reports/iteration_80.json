@@ -1,0 +1,21 @@
+{
+  "iteration": 80,
+  "summary": "v52l — Owner-side 'Changes pending — institution paused' banner on the escrow Overview dashboard and Institution profile tab (invite section explains the lock, form disabled while paused). Suggested Banks admin page pinned to the light palette to prevent dark-on-dark remap issues.",
+  "files_changed": [
+    "/app/frontend/src/apps/escrow-portal/EscrowAccountDashboardBody.jsx",
+    "/app/frontend/src/apps/escrow-portal/EscrowInstitutionProfile.jsx",
+    "/app/frontend/src/index.css",
+    "/app/memory/PRD.md"
+  ],
+  "verification": {
+    "overview_banner": "Renders with full pause explanation while status=changes_requested (screenshot iteration_80_overview_banner.png).",
+    "profile_banner_and_invite_lock": "Banner present; invite section shows 'Temporarily locked…' copy; form has pointer-events-none (screenshot iteration_80_profile_banner.png).",
+    "bank_master_light": "admin-bank-master-page renders with readable light card bg + dark ink (screenshot iteration_80_bankmaster.png)."
+  },
+  "artifacts": {
+    "backend_zip": "/downloads/pmc-backend-v52l.zip",
+    "frontend_zip": "/downloads/pmc-frontend-v52l-prod-build.zip",
+    "notes": "/downloads/DOWNLOAD_v52l.md"
+  },
+  "retest_needed": false
+}

@@ -1,5 +1,11 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
 
+## v52l — Owner pause banners + Suggested Banks light pin (15 Oct 2026)
+
+- **Owner visibility:** `EscrowAccountDashboardBody` overview and `EscrowInstitutionProfile` both render an amber "Changes pending PMC review — institution paused (not live)" banner while status is `changes_requested`; invite section shows lock copy and the form stays disabled until the queue clears.
+- **Palette:** `admin-bank-master-page` (Suggested banks curation) pinned to the light palette like the Escrow Institutions page (bg/text/inputs/hover).
+- **Verified:** ACME flipped to `changes_requested` via a real change request; overview banner + profile banner + locked invite copy all render (screenshots iteration_80_*); Suggested Banks page computed colors stay light/readable.
+
 ## v52k — Pause-on-change + readable diffs + multi-invite (15 Oct 2026)
 
 - **Status gate (user decision):** approved institution + any pending change request ⇒ status `changes_requested` ("not live"); auto-restores to `approved` when the queue empties (approve/reject/cancel). `previous_status` tracked; `Status` Literal + admin filter + chart sources updated; signatory invites blocked while paused (403).

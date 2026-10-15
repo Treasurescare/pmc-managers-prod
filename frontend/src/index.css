@@ -787,6 +787,27 @@
 [data-ui="e"] [data-testid="admin-escrow-insts-page"] select,
 [data-ui="e"] [data-testid="admin-escrow-insts-page"] textarea {
   background: #FFFFFF !important; border-color: #CBD5E1 !important; color: #0F172A !important;
+
+/* v52l — Suggested Banks admin page gets the same light-palette pin as the
+   Escrow Institutions screen, so no dark-on-dark surprises there either. */
+[data-ui="e"] [data-testid="admin-bank-master-page"] .bg-white { background: #FFFFFF !important; }
+[data-ui="e"] [data-testid="admin-bank-master-page"] .bg-slate-50 { background: #F8FAFC !important; }
+[data-ui="e"] [data-testid="admin-bank-master-page"] .bg-slate-100 { background: #F1F5F9 !important; }
+[data-ui="e"] [data-testid="admin-bank-master-page"] .bg-amber-50 { background: #FFFBEB !important; }
+[data-ui="e"] [data-testid="admin-bank-master-page"] .bg-emerald-50 { background: #ECFDF5 !important; }
+[data-ui="e"] [data-testid="admin-bank-master-page"] .bg-red-50 { background: #FEF2F2 !important; }
+[data-ui="e"] [data-testid="admin-bank-master-page"] .text-slate-900,
+[data-ui="e"] [data-testid="admin-bank-master-page"] .text-slate-800 { color: #0F172A !important; }
+[data-ui="e"] [data-testid="admin-bank-master-page"] .text-slate-700 { color: #334155 !important; }
+[data-ui="e"] [data-testid="admin-bank-master-page"] .text-slate-600 { color: #475569 !important; }
+[data-ui="e"] [data-testid="admin-bank-master-page"] .text-slate-500 { color: #64748B !important; }
+[data-ui="e"] [data-testid="admin-bank-master-page"] .text-slate-400 { color: #94A3B8 !important; }
+[data-ui="e"] [data-testid="admin-bank-master-page"] input,
+[data-ui="e"] [data-testid="admin-bank-master-page"] select,
+[data-ui="e"] [data-testid="admin-bank-master-page"] textarea {
+  background: #FFFFFF !important; border-color: #CBD5E1 !important; color: #0F172A !important;
+}
+
 }
 /* v52k — the same global remap also washes slate TEXT out to cream on this
    light page; pin the ink colors back. */

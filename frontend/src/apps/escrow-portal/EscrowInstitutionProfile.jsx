@@ -136,6 +136,15 @@ export default function EscrowInstitutionProfile({ account, inst, onInvited }) {
         Full view of your registered details. Changes stay pending until PMC approves them.
       </p>
 
+      {inst?.status === "changes_requested" && (
+        <div className="mb-5 px-4 py-3 border border-orange-300 bg-orange-50 text-orange-900 text-sm"
+             data-testid="escrow-profile-paused-banner">
+          <strong>Changes pending PMC review.</strong> Your institution is paused (not live)
+          until the review completes — signatory invites are locked in the meantime and
+          re-enable automatically once the queue is cleared.
+        </div>
+      )}
+
       {requests.length > 0 && (
         <section className="bg-white border border-brand-navy/15 p-4 mb-5"
                  data-testid="escrow-change-requests">
@@ -312,7 +321,9 @@ export default function EscrowInstitutionProfile({ account, inst, onInvited }) {
         <p className="text-xs text-brand-navy/60 mb-4">
           {canInvite
             ? "They'll get a password-claim email and can co-sign EMD releases on your joint accounts once set up."
-            : `Available once PMC approves your institution (current status: ${inst?.status || "draft"}).`}
+            : inst?.status === "changes_requested"
+              ? "Temporarily locked — your institution is paused while PMC reviews your change requests. Invites re-enable automatically once the queue is cleared."
+              : `Available once PMC approves your institution (current status: ${inst?.status || "draft"}).`}
         </p>
         <form onSubmit={invite} className={!canInvite ? "opacity-50 pointer-events-none" : ""}>
           {invites.map((r, idx) => (

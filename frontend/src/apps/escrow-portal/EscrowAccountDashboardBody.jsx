@@ -89,6 +89,15 @@ export default function EscrowAccountDashboardBody({ account }) {
                 email and in-app when there's an update — usually within 3 business days.
               </p>
             )}
+            {inst.status === "changes_requested" && (
+              <div className="mt-6 px-4 py-3 border border-orange-300 bg-orange-50 text-orange-900 text-sm"
+                   data-testid="escrow-changes-pending-banner">
+                <strong>Changes pending PMC review.</strong> Your institution is paused
+                (not live) while your requested edits await approval. Signatory invites
+                are temporarily locked — everything re-activates automatically once PMC
+                clears the queue.
+              </div>
+            )}
             {inst.status === "approved" && pending.length === 0 && accounts.length === 0 && (
               <p className="mt-6 text-sm text-brand-navy/70">
                 Approved — waiting for PMC to open the first joint escrow account
