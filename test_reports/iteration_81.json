@@ -1,0 +1,23 @@
+{
+  "iteration": 81,
+  "summary": "v52m — Audit ledger: fixed the hash-chain write race (asyncio lock around seq/read/insert), added admin rechain repair endpoint + UI Repair chain button, and moved event-type/actor/date filtering server-side (was client-side over last 100 rows only).",
+  "files_changed": [
+    "/app/backend/audit.py",
+    "/app/backend/routers/audit_routes.py",
+    "/app/frontend/src/lib/api.js",
+    "/app/frontend/src/apps/admin-console/AuditPanel.jsx",
+    "/app/memory/PRD.md"
+  ],
+  "verification": {
+    "chain_repair": "verify broken at seq 1504 -> rechain (2431 events, 932 links rewritten) -> verify OK (2432).",
+    "race_fix": "30 parallel vendor logins -> all 200 -> verify still OK (2462 events).",
+    "filters": "event_type=staff.login -> 163 rows all matching; actor=adminsupport -> 500 rows all matching; from_date=2026-10-15 -> 291 rows min at 02:07 that day; combo vendor.login on 2026-10-11 -> 19 rows all matching.",
+    "ui": "Event-type filter narrows rows server-side; verify shows green post-repair; clear restores (screenshot iteration_81_audit.png)."
+  },
+  "artifacts": {
+    "backend_zip": "/downloads/pmc-backend-v52m.zip",
+    "frontend_zip": "/downloads/pmc-frontend-v52m-prod-build.zip",
+    "notes": "/downloads/DOWNLOAD_v52m.md"
+  },
+  "retest_needed": false
+}

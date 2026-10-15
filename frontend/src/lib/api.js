@@ -266,6 +266,7 @@ export const adminApi = {
   updatePackage: (id, payload) => api.patch(`/api/v1/packages/${id}`, payload).then((r) => r.data),
   audit: (params = {}) => api.get("/api/v1/audit-events", { params }).then((r) => r.data),
   verifyAudit: () => api.get("/api/v1/audit-events/verify").then((r) => r.data),
+  repairAudit: () => api.post("/api/v1/audit-events/rechain").then((r) => r.data),
 };
 
 // ---------- Public auth helpers (forgot username / help request / reset) ----------

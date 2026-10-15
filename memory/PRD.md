@@ -1,5 +1,15 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
 
+## v52m — Audit ledger: race fix + repair + real filters (15 Oct 2026)
+
+- **Root cause of "chain broken":** `audit_log` allocated the seq and read the last hash in two non-atomic steps — concurrent writers (login bursts) chained off the same parent (preview: seq 1503/1504 share `previous_hash`, 0.6 ms apart; prod broke at 2037 the same way). Not tampering.
+- **Fixes:**
+  - `audit.py`: process-level `asyncio.Lock` wraps seq → read-last → insert; writes are serialized (single-instance deployment).
+  - New `rechain_audit()` + `POST /api/v1/audit-events/rechain` (admin, CSRF): recomputes previous/current hash links for the whole ledger, payloads untouched, appends an `audit.chain_repaired` marker event.
+  - `GET /api/v1/audit-events` now supports server-side `event_type` / `actor` (case-insensitive substring, regex-escaped), `from_date` / `to_date` (inclusive), `target_type`, limit ≤ 500. Previously the UI fetched the last 100 and filtered client-side — older matches were invisible.
+  - UI (`AuditPanel.jsx`): filters refetch server-side (350 ms debounce); failed verify now explains the legacy race and offers a **Repair chain** button that rechains and re-verifies.
+- **Verified:** chain broken at 1504 → rechain (2431 events, 932 links rewritten) → verify OK; 30 parallel logins → chain still OK (2462 events); filters: staff.login 163/163 match, actor substring, from-date, and type+date combo all correct.
+
 ## v52l — Owner pause banners + Suggested Banks light pin (15 Oct 2026)
 
 - **Owner visibility:** `EscrowAccountDashboardBody` overview and `EscrowInstitutionProfile` both render an amber "Changes pending PMC review — institution paused (not live)" banner while status is `changes_requested`; invite section shows lock copy and the form stays disabled until the queue clears.

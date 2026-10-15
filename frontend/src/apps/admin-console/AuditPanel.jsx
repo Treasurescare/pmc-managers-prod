@@ -9,28 +9,44 @@ export default function AuditPanel() {
   const { t } = useI18n();
   const [events, setEvents] = useState([]);
   const [verifyResult, setVerifyResult] = useState(null);
-  // AU-01 fix — filter bar
+  const [repairing, setRepairing] = useState(false);
+  // AU-01 fix — filter bar; v52m — filters run SERVER-SIDE now (the old
+  // client filter only saw the last 100 events, so older matches vanished).
   const [flt, setFlt] = useState({ actor: "", type: "", from: "", to: "" });
 
   useEffect(() => {
-    adminApi.audit({ limit: 100 })
-      .then(setEvents)
-      .catch((err) => console.warn("Failed to load audit events:", err));
-  }, []);
+    const handle = setTimeout(() => {
+      adminApi.audit({
+        limit: 500,
+        actor: flt.actor || undefined,
+        event_type: flt.type || undefined,
+        from_date: flt.from || undefined,
+        to_date: flt.to || undefined,
+      })
+        .then(setEvents)
+        .catch((err) => console.warn("Failed to load audit events:", err));
+    }, 350);
+    return () => clearTimeout(handle);
+  }, [flt.actor, flt.type, flt.from, flt.to]);
 
-  const filtered = events.filter((e) => {
-    if (flt.actor && !(e.actor_email || "").toLowerCase().includes(flt.actor.toLowerCase())) return false;
-    if (flt.type && !(e.event_type || "").toLowerCase().includes(flt.type.toLowerCase())) return false;
-    if (flt.from && e.at && e.at < flt.from) return false;
-    if (flt.to && e.at && e.at > flt.to + "T23:59:59Z") return false;
-    return true;
-  });
+  const filtered = events;
 
   const { paged, controls } = useListPager(filtered, { testid: "audit-pager" });
 
   const verify = async () => {
     try { setVerifyResult(await adminApi.verifyAudit()); }
     catch (err) { showApiError(err); }
+  };
+
+  const repair = async () => {
+    if (!window.confirm("Recompute hash links across the whole ledger? Event payloads are never modified — only the chain links. The repair itself is recorded on the ledger.")) return;
+    setRepairing(true);
+    try {
+      const r = await adminApi.repairAudit();
+      toast.success(`Chain repaired · ${r.events_checked} events relinked from seq #${r.first_broken_seq ?? "—"}`);
+      setVerifyResult(await adminApi.verifyAudit());
+    } catch (err) { showApiError(err); }
+    finally { setRepairing(false); }
   };
 
   return (
@@ -47,7 +63,14 @@ export default function AuditPanel() {
         <div data-testid="audit-verify-result" className={"mb-4 border p-4 text-sm " + (verifyResult.ok ? "border-green-500/40 bg-green-50 text-green-800" : "border-red-500/40 bg-red-50 text-red-800")}>
           {verifyResult.ok
             ? <>{t("panels.audit.verified_ok")} · {verifyResult.events_checked} {t("panels.audit.events_checked")}</>
-            : <>{t("panels.audit.chain_broken_at")} #{verifyResult.at_seq} — {verifyResult.reason}</>}
+            : <div className="flex items-center justify-between gap-3 flex-wrap">
+                <span>{t("panels.audit.chain_broken_at")} #{verifyResult.at_seq} — {verifyResult.reason}. This is a broken hash link from a legacy write race; event payloads are intact.</span>
+                <button type="button" onClick={repair} disabled={repairing}
+                        data-testid="audit-repair"
+                        className="px-4 py-1.5 text-[11px] uppercase tracking-widest bg-red-800 text-white hover:bg-red-900 disabled:opacity-50">
+                  {repairing ? "Repairing…" : "Repair chain"}
+                </button>
+              </div>}
         </div>
       )}
       {/* AU-01 fix — filter bar: actor / type / date range */}
@@ -76,7 +99,7 @@ export default function AuditPanel() {
           Clear
         </button>
         <div className="md:col-span-5 text-[11px] text-brand-navy/50">
-          Showing {filtered.length} of {events.length} events.
+          Showing {filtered.length} events (server-filtered, latest 500 max).
         </div>
       </div>
 
