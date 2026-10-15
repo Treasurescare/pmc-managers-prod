@@ -1,6 +1,13 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
 
-## v52g+ — Escrow CSRF resilience on change-request submit (15 Oct 2026)
+## v52h — Document download gate + sign-out routing (15 Oct 2026)
+
+- **Bug 1 — institution users couldn't view uploaded files:** `uploads.py::_require_any_signed_in` only accepted admin Bearer or vendor cookie, so escrow account / signatory sessions got 401 on `/api/v1/uploads/files/{key}`. Now accepts `escrow_account_token` and `escrow_sig_token` cookies too (lazy imports, anonymous still 401).
+- **Bug 2 — sign-out landed on `/escrow/login`:** `EscrowAccountHeader` sign-out now routes to the unified `/login` page.
+- **UX:** Institution profile documents now show a **View** link next to Replace (when a file exists); admin change-request panel shows **View proposed file** for document replacements.
+- **Verification:** escrow cookie GET → 200, anonymous → 401, admin bearer + admin cookie (new-tab case) → 200. Browser: View button visible, in-page fetch 200, sign-out lands on `/login` with "Signed out" toast.
+
+
 
 - **Reported issue:** submitting a profile change request from `/escrow/me` 403'd with `CSRF token missing or invalid` in the preview iframe.
 - **Root cause (two layers):**

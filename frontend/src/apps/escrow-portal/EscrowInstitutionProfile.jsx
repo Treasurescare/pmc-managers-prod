@@ -238,9 +238,19 @@ export default function EscrowInstitutionProfile({ account, inst, onInvited }) {
                     <div className="text-[11px] text-amber-800 mt-1">Pending replacement: {pending.proposed_value?.filename}</div>
                   )}
                 </div>
-                <DocReplaceButton slot={slot} label={label}
-                                  onReady={(newMeta) =>
-                                    openEditor("documents", `documents.${slot}`, label, newMeta)} />
+                <div className="flex items-center gap-2 shrink-0">
+                  {meta?.key && (
+                    <a href={`/api/v1/uploads/files/${meta.key}`}
+                       target="_blank" rel="noopener noreferrer"
+                       data-testid={`escrow-doc-view-${slot}`}
+                       className="px-3 py-1 text-[11px] uppercase tracking-widest border border-brand-navy/40 text-brand-navy hover:bg-brand-pale">
+                      View
+                    </a>
+                  )}
+                  <DocReplaceButton slot={slot} label={label}
+                                    onReady={(newMeta) =>
+                                      openEditor("documents", `documents.${slot}`, label, newMeta)} />
+                </div>
               </li>
             );
           })}

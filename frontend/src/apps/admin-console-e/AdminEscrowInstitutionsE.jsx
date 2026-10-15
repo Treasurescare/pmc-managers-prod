@@ -358,6 +358,14 @@ function ChangeRequestsPanel({ iid }) {
               <div>
                 <div className="pmc-label text-[9px]">Proposed</div>
                 <pre className="bg-amber-50 border border-amber-200 p-2 overflow-auto max-h-40">{JSON.stringify(r.proposed_value, null, 2)}</pre>
+                {r.section === "documents" && r.proposed_value?.key && (
+                  <a href={`/api/v1/uploads/files/${r.proposed_value.key}`}
+                     target="_blank" rel="noopener noreferrer"
+                     data-testid={`admin-escrow-change-view-${r.id}`}
+                     className="inline-block mt-1 px-3 py-1 text-[10px] uppercase tracking-widest border border-brand-navy/40 text-brand-navy hover:bg-brand-pale">
+                    View proposed file
+                  </a>
+                )}
               </div>
             </div>
             {r.reason && (

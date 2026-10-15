@@ -1,0 +1,18 @@
+{
+  "iteration": 74,
+  "summary": "v52h — Fixed two escrow issues: (1) institution/signatory sessions got 401 viewing uploaded files because the uploads download gate only accepted admin/vendor sessions; extended _require_any_signed_in to escrow account + signatory cookies. (2) Sign-out now routes to unified /login instead of /escrow/login. Added View links for documents in the institution profile tab and 'View proposed file' in the admin change-request panel.",
+  "files_changed": [
+    "/app/backend/routers/uploads.py",
+    "/app/frontend/src/apps/escrow-portal/EscrowAccountHeader.jsx",
+    "/app/frontend/src/apps/escrow-portal/EscrowInstitutionProfile.jsx",
+    "/app/frontend/src/apps/admin-console-e/AdminEscrowInstitutionsE.jsx",
+    "/app/memory/PRD.md"
+  ],
+  "verification": {
+    "escrow_cookie_file_get": "200 with escrow_account_token cookie; 401 anonymous",
+    "admin_file_get": "200 via Bearer header AND 200 via cookie-only (new-tab navigation case)",
+    "ui": "View button renders on profile documents; in-page fetch returns 200; sign-out lands on /login with 'Signed out' toast — screenshot /app/test_reports/iteration_73_signout_view.png"
+  },
+  "retest_needed": false,
+  "main_agent_can_self_test": true
+}

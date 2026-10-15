@@ -33,8 +33,8 @@ router = APIRouter(prefix="/api/v1/uploads", tags=["uploads"])
 
 async def _require_any_signed_in(request: Request) -> dict:
     """Pass if the caller is a signed-in admin (Bearer token) OR a signed-in
-    vendor (vendor_token cookie). Raise 401 otherwise so the browser's auth
-    UX kicks in cleanly."""
+    vendor (vendor_token cookie) OR an escrow institution account /
+    signatory. Raise 401 otherwise so the browser's auth UX kicks in cleanly."""
     # Try admin bearer first (no CSRF required for a safe GET).
     try:
         admin = await _bearer_admin(request)
@@ -47,6 +47,27 @@ async def _require_any_signed_in(request: Request) -> dict:
         vendor = await current_vendor(request)
         if vendor:
             return {"kind": "vendor", "id": vendor.get("id"), "email": vendor.get("email")}
+    except HTTPException:
+        pass
+    except Exception:
+        pass
+    # v52h — escrow institution account cookie (owners viewing their own
+    # KYC uploads from the dashboard/profile tab).
+    try:
+        from routers.escrow_accounts import current_account
+        acc = await current_account(request)
+        if acc:
+            return {"kind": "escrow_account", "id": acc.get("id"), "email": acc.get("email")}
+    except HTTPException:
+        pass
+    except Exception:
+        pass
+    # v52h — escrow signatory cookie (co-signers reviewing documents).
+    try:
+        from routers.escrow_signatories import current_signatory
+        sig = await current_signatory(request)
+        if sig:
+            return {"kind": "escrow_signatory", "id": sig.get("id"), "email": sig.get("email")}
     except HTTPException:
         pass
     except Exception:

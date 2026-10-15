@@ -3,7 +3,7 @@
  * and the registration wizard. Carries the brand lockup on the left,
  * a notification bell with unread badge, and an avatar menu
  * (Change password · Change profile · Sign out). Sign-out routes to
- * /escrow/login — the master login page for escrow institutions.
+ * /login — the unified PMC Managers sign-in page.
  */
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -52,7 +52,7 @@ export default function EscrowAccountHeader({ account, onProfileUpdated }) {
       await api.post("/api/v1/escrow-accounts/auth/logout");
     } catch (e) { /* ignore */ }
     toast.success("Signed out");
-    nav("/escrow/login");
+    nav("/login");
   };
 
   const initials = (account?.legal_name || account?.email || "?")
