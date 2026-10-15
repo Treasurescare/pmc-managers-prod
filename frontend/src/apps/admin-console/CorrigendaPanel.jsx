@@ -65,7 +65,7 @@ export default function CorrigendaPanel() {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   };
   const [draft, setDraft] = useState({
-    title: "", summary: "", corrigendum_date: todayLocal(),
+    corrigendum_date: todayLocal(),
     new_submission_deadline: "",
   });
   // v52bm — per-field edits keyed by field name:
@@ -127,16 +127,13 @@ export default function CorrigendaPanel() {
   }, [pickedNoticeRef, loadCorrigenda, loadNoticeDetail]);
 
   const publish = async () => {
-    if (!draft.title || draft.title.trim().length < 3) {
-      toast.error("Corrigendum title is required (min 3 characters)");
-      return;
-    }
-    if (!draft.summary || draft.summary.trim().length < 8) {
-      toast.error("Overall change description is required (min 8 characters)");
-      return;
-    }
-    // v52bm — build field_amendments from per-row edits where the admin
-    // entered a NEW value AND a per-field reason.
+    // v52r — Title / overall description are no longer typed at the top of
+    // the form (they duplicated the Title / Description rows in the field
+    // table below). We derive them automatically:
+    //   title   = "Corrigendum N — <notice title>"
+    //   summary = joined per-field reasons (or a deadline-change default)
+    const nextNo = (items || []).reduce((m, c) => Math.max(m, c.corrigendum_no || 0), 0) + 1;
+    const autoTitle = `Corrigendum ${nextNo} — ${(pickedNotice?.title || pickedNoticeRef || "tender")}`.slice(0, 190);
     const amendments = [];
     for (const f of NOTICE_FIELDS) {
       const e = edits[f.key];
@@ -158,10 +155,17 @@ export default function CorrigendaPanel() {
         note: e.note.trim(),
       });
     }
+    if (!amendments.length && !draft.new_submission_deadline) {
+      toast.error("Nothing to publish — change at least one field below (or set a new submission deadline).");
+      return;
+    }
+    const autoSummary = amendments.length
+      ? amendments.map((a) => `${a.field}: ${a.note}`).join("\n").slice(0, 3900)
+      : "Bid submission deadline revised. See the amended dates on this notice.";
     try {
       const payload = {
-        title: draft.title.trim(),
-        summary: draft.summary.trim(),
+        title: autoTitle,
+        summary: autoSummary,
         effective_from: draft.corrigendum_date || undefined,
       };
       if (draft.new_submission_deadline) {
@@ -171,7 +175,7 @@ export default function CorrigendaPanel() {
       const res = await corrigendaApi.publish(pickedNoticeRef, payload);
       toast.success(`Corrigendum No. ${res.corrigendum.corrigendum_no} published`);
       setShowNew(false);
-      setDraft({ title: "", summary: "", corrigendum_date: todayLocal(),
+      setDraft({ corrigendum_date: todayLocal(),
                  new_submission_deadline: "" });
       setEdits({});
       // v52bn — round-trip: after publishing from the live-notice Edit flow,
@@ -266,16 +270,15 @@ export default function CorrigendaPanel() {
       {showNew && (
         <div className="border border-brand-navy-soft/40 bg-white p-6 mb-6 grid gap-4 md:grid-cols-2"
              data-testid="corr-new-form">
-          <label className="col-span-2"><span className="pmc-label">{t("panels.corrigenda.title_label")} <span className="text-red-600">*</span><InfoDot tip="Short headline shown on the public notice page (e.g. 'Deadline extended by 7 days')." /></span>
-            <input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-                   data-testid="corr-title"
-                   className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <label className="col-span-2"><span className="pmc-label">Overall change description <span className="text-red-600">*</span><InfoDot tip="Full text of the amendment. Rendered verbatim in the corrigendum PDF and notification email to registered bidders. Minimum 8 characters." /></span>
-            <textarea rows={4} value={draft.summary}
-                      onChange={(e) => setDraft({ ...draft, summary: e.target.value })}
-                      data-testid="corr-summary"
-                      placeholder="Why is this corrigendum being issued? What is changing and why?"
-                      className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
+          {/* v52r — the old top-level "Title" and "Overall change
+              description" inputs duplicated the Title / Description rows in
+              the field table below and are removed. The corrigendum title
+              and summary are derived automatically at publish time
+              ("Corrigendum N — <notice title>" + joined per-field reasons). */}
+          <div className="col-span-2 text-xs text-brand-navy/60 bg-brand-pale/50 border border-brand-navy/15 px-3 py-2">
+            This corrigendum's headline and summary are generated automatically from the fields you change below —
+            edit <b>Title</b> or <b>Description</b> directly in the table if the tender itself is being renamed or reworded.
+          </div>
           <label><span className="pmc-label">Corrigendum date <span className="text-red-600">*</span><InfoDot tip="When this corrigendum takes effect. Defaults to now. Shown to vendors and recorded in the audit ledger." /></span>
             <input type="datetime-local" value={draft.corrigendum_date}
                    onChange={(e) => setDraft({ ...draft, corrigendum_date: e.target.value })}

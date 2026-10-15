@@ -1,5 +1,24 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
 
+## v52r — Corrigendum form dedupe + production Stripe webhook live (15 Oct 2026)
+
+- **Corrigendum form dedupe:** removed the top-level "Title" and "Overall
+  change description" inputs from the New Corrigendum form — they duplicated
+  the Title / Description rows in the field-amendment table. Title and
+  summary are now derived automatically at publish time
+  (`Corrigendum N — <notice title>` + joined per-field reasons; deadline-only
+  default text when no field amendments are given). Admin edits the tender's
+  title/description directly in the table when those need changing.
+  Verified E2E in preview (auto title/summary accepted by backend validation,
+  amendment applied to notice, rollback on withdraw).
+- **Production Stripe webhook live:** `STRIPE_WEBHOOK_SECRET` loaded via AWS
+  SSM Parameter Store (`/pmc/prod/…`); attached
+  `ssm:GetParametersByPath` + `kms:Decrypt` inline policy to
+  `aws-elasticbeanstalk-ec2-role`; v52p deployed to EB; signed
+  `checkout.session.completed` trigger verified end-to-end. Biogas tender
+  `PMC-NOT-2026-0093` confirmed showing amended budget/EMD/deadline after
+  corrigenda re-publish under the v52q sync fix.
+
 ## v52q — Corrigendum amendments sync to the tender notice (15 Oct 2026)
 
 - **Bug:** publishing a corrigendum with field amendments (budget, EMD,
