@@ -12,7 +12,7 @@ from db import db
 from models.staff_user import StaffLoginIn, StaffCreateIn, StaffUpdateIn, ALL_STAFF_ROLES
 from security import (
     verify_password, hash_password, create_admin_token, current_admin,
-    new_csrf_token, require_role, require_csrf,
+    new_csrf_token, require_role, require_csrf, set_csrf_cookie,
 )
 from audit import audit_log
 import config
@@ -28,8 +28,7 @@ def _set_session_cookies(response: Response, access_token: str) -> str:
         ck["domain"] = config.COOKIE_DOMAIN
     response.set_cookie("access_token", access_token, **ck)
     csrf = new_csrf_token()
-    ck["httponly"] = False
-    response.set_cookie("csrf_token", csrf, **ck)
+    set_csrf_cookie(response, csrf, max_age)
     return csrf
 
 

@@ -73,6 +73,18 @@ async def current_admin(request: Request) -> dict:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
+def set_csrf_cookie(response, csrf: str, max_age: int) -> None:
+    """JS-readable double-submit cookie with attributes that survive
+    cross-site iframe previews: SameSite=None + Secure + Partitioned (CHIPS).
+    Starlette 0.37's set_cookie lacks a `partitioned` kwarg, so append the
+    raw header."""
+    parts = [f"csrf_token={csrf}", f"Max-Age={max_age}", "Path=/",
+             "Secure", "SameSite=None", "Partitioned"]
+    if config.COOKIE_DOMAIN:
+        parts.append(f"Domain={config.COOKIE_DOMAIN}")
+    response.headers.append("set-cookie", "; ".join(parts))
+
+
 async def require_csrf(request: Request) -> None:
     """Double-submit CSRF check. Enforced on state-changing admin endpoints.
 

@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Response, Depends, Request
 
 from db import db
 from models import AdminLoginIn, AdminPasswordChangeIn
-from security import verify_password, hash_password, create_admin_token, current_admin, new_csrf_token, require_csrf
+from security import verify_password, hash_password, create_admin_token, current_admin, new_csrf_token, require_csrf, set_csrf_cookie
 from audit import audit_log
 import config
 
@@ -23,8 +23,7 @@ def _set_session_cookies(response: Response, access_token: str) -> str:
     csrf = new_csrf_token()
     # csrf_token cookie is INTENTIONALLY not httpOnly — client JS reads it and
     # echoes as X-CSRF-Token header (double-submit-cookie pattern).
-    ck["httponly"] = False
-    response.set_cookie("csrf_token", csrf, **ck)
+    set_csrf_cookie(response, csrf, max_age)
     return csrf
 
 

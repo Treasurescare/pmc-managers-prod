@@ -21,7 +21,7 @@ import config
 from audit import audit_log
 from db import db
 from models.base import now_iso
-from security import hash_password, new_csrf_token, require_csrf, verify_password
+from security import hash_password, new_csrf_token, require_csrf, verify_password, set_csrf_cookie
 
 router = APIRouter(prefix="/api/v1/escrow-signatories", tags=["escrow-signatories"])
 
@@ -66,8 +66,7 @@ def _set_cookies(response: Response, token: str) -> str:
         ck["domain"] = config.COOKIE_DOMAIN
     response.set_cookie("escrow_sig_token", token, **ck)
     csrf = new_csrf_token()
-    ck["httponly"] = False
-    response.set_cookie("csrf_token", csrf, **ck)
+    set_csrf_cookie(response, csrf, max_age)
     return csrf
 
 

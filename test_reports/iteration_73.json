@@ -1,0 +1,20 @@
+{
+  "iteration": 73,
+  "summary": "v52g+ follow-up — CSRF 403 persisted for the user because the deeper cause was the csrf_token cookie itself being SameSite=Lax while the platform proxy only rewrites auth cookies to SameSite=None; Partitioned. Cross-site iframes (Emergent preview) drop the Lax CSRF cookie on POST, and require_csrf needs header AND cookie. Fixed at the source: all five auth routers now set csrf_token via security.set_csrf_cookie() with SameSite=None; Secure; Partitioned (raw header, Starlette 0.37 has no partitioned kwarg). Earlier sessionStorage cacheCsrf layer kept as fallback.",
+  "files_changed": [
+    "/app/backend/security.py",
+    "/app/backend/routers/admin_auth.py",
+    "/app/backend/routers/staff_auth.py",
+    "/app/backend/routers/vendor_auth.py",
+    "/app/backend/routers/escrow_accounts.py",
+    "/app/backend/routers/escrow_signatories.py",
+    "/app/memory/PRD.md"
+  ],
+  "verification": {
+    "set_cookie_header": "curl login response shows 'Set-Cookie: csrf_token=...; Max-Age=86400; Path=/; Secure; SameSite=None; Partitioned'.",
+    "cross_site_iframe_e2e": "PASS — localhost page embedding the preview URL in an iframe: login reached /escrow/me, document.cookie inside the iframe contains csrf_token, change request on office_phone submitted with success toast and pending entry; zero CSRF errors. Screenshot /app/test_reports/iteration_72_iframe_csrf.png.",
+    "note": "Sessions created before this fix must sign out and sign back in once to receive the new cookie."
+  },
+  "retest_needed": false,
+  "main_agent_can_self_test": true
+}

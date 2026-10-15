@@ -2,10 +2,15 @@
 
 ## v52g+ — Escrow CSRF resilience on change-request submit (15 Oct 2026)
 
-- **Reported issue:** submitting a profile change request from `/escrow/me` 403'd with `CSRF token missing or invalid` for some sessions (iframe / partitioned-cookie contexts where the JS-readable `csrf_token` cookie was dropped).
-- **Root cause:** admin and vendor logins cache the CSRF token returned in the response body into `sessionStorage` via `cacheCsrf()` so the axios interceptor has a reliable fallback. The three escrow entry points (`EscrowSignatoryLogin`, `SignInE` Escrow Institution tab) called `api.post` directly and never cached the token, so cookie-less sessions had no CSRF value to send.
-- **Fix:** exported `cacheCsrf` from `lib/api.js` and called it after each escrow account/signatory login (`/escrow/login` default + claim + reset-login paths, plus the unified `/login` Escrow Institution tab).
-- **Verification:** preview browser smoke — fresh escrow login → `sessionStorage['pmc.csrf']` is now populated, profile tab submits a `website` change request, success toast + pending entry visible, no HTTP 403.
+- **Reported issue:** submitting a profile change request from `/escrow/me` 403'd with `CSRF token missing or invalid` in the preview iframe.
+- **Root cause (two layers):**
+  1. Escrow login handlers never cached the server-issued CSRF token into `sessionStorage` (admin/vendor logins already did via `cacheCsrf()`), so iframe sessions that lose the JS-readable cookie had no header fallback.
+  2. Deeper cause confirmed via response headers: the platform proxy rewrites auth cookies (`escrow_account_token`, `vendor_token`, `access_token`, `escrow_sig_token`) to `SameSite=None; Partitioned`, but the app's own `csrf_token` cookie stayed `SameSite=Lax`, which cross-site iframes drop on POST. `require_csrf` requires header AND cookie, so the header fallback alone still 403'd.
+- **Fix:**
+  - `security.py`: new `set_csrf_cookie()` helper appends a raw `Set-Cookie: csrf_token=...; Secure; SameSite=None; Partitioned` (Starlette 0.37 lacks the `partitioned` kwarg).
+  - All five auth routers (`admin_auth`, `staff_auth`, `vendor_auth`, `escrow_accounts`, `escrow_signatories`) now use it at login.
+  - Frontend: exported `cacheCsrf` from `lib/api.js` and called it after every escrow login path (`EscrowSignatoryLogin` default/claim/reset-login + unified `/login` Escrow Institution tab).
+- **Verification:** curl confirms `Set-Cookie: csrf_token=...; Secure; SameSite=None; Partitioned`. True cross-site iframe repro (localhost page embedding the preview URL): login → profile → submit change request passes with `document.cookie` containing `csrf_token`, no 403, pending entry visible. **Note:** existing sessions must sign out and back in once to receive the new cookie.
 
 
 
