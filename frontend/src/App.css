@@ -9,3 +9,12 @@
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
 }
+
+/* v52d — sonner toaster click interception fix (testing_agent iter 66).
+   The <ol data-sonner-toaster> is a fixed, wide region that overlaps the
+   top-right header. Without this, elementFromPoint over the avatar/bell
+   returns a toast <li>, swallowing clicks right after a success toast.
+   Make the empty regions of the container ignore pointer events; keep
+   individual toasts clickable. */
+ol[data-sonner-toaster] { pointer-events: none; }
+ol[data-sonner-toaster] > li { pointer-events: auto; }

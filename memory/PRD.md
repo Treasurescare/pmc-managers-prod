@@ -1,4 +1,54 @@
-# PMC Managers v2 — PRD (last touched 14 Feb 2026)
+# PMC Managers v2 — PRD (last touched 15 Feb 2026)
+
+
+## v52d — Account-first escrow institution registration (15 Feb 2026)
+
+**User brief:** "first we ask for email, legal entity name and phone — once we verify that we proceed for the other five sections. The email directs them to a login page. He can login but has to proceed to complete the remaining. He also gets notified either through app or his web login." Plus a dashboard header redesign: avatar top-right with Change profile / Change password / Sign out, bell left of the avatar, Sign out → master login page.
+
+**User choices (via ask_human):** Full build (gate + login + account-saved wizard + notifications). Verify-link email (vendor pattern). Primary contact only gets a login. Force everyone to the new flow (legacy POST /escrow-institutions/register → 410).
+
+### Backend (new router + hooks)
+- **New router `routers/escrow_accounts.py`** — cookie-based auth (HttpOnly `escrow_account_token` + double-submit CSRF), JWT `type=escrow_account_access`, `token_generation` rotation on password change.
+- **New collection `escrow_accounts`** `{email, legal_name, primary_contact_phone, password_hash, status (unverified|verified), verify_token, verify_token_expires_at, token_generation, institution_id, avatar_data_url, created_at}`. Unique by email.
+- **New collection `escrow_notifications`** `{account_id, kind, title, body, link, read_at, created_at}`.
+- **Endpoints:**
+  - `POST /api/v1/escrow-accounts/register` — captures email+legal_name+phone+password → status=unverified → Resend verify email.
+  - `GET /api/v1/escrow-accounts/verify/{token}` — one-click verify, auto-creates draft institution owned by the account.
+  - `POST /auth/login` — refuses with 403 while unverified; 401 on bad creds.
+  - `POST /auth/logout`, `GET /auth/me` (includes institution snapshot + unread_notifications count), `POST /auth/change-password`, `POST /auth/forgot`, `POST /auth/reset`, `POST /auth/resend-verify`.
+  - `PATCH /me/profile` — updates legal_name/phone/avatar, mirrors to owned institution.
+  - `GET /me/notifications`, `POST /me/notifications/{id}/read`, `POST /me/notifications/mark-all-read`.
+  - `notify_account()` helper used by the admin decision endpoint and submit flow — writes in-app row AND fires email.
+- **Legacy guard:** old `POST /api/v1/escrow-institutions/register` → **HTTP 410 Gone** pointing to `/escrow/register` so no orphan drafts are created.
+- **Session gate on institution writes:** `escrow_institutions.py` now has `_institution_for_write(iid, request, token)` — cookie-first, magic-token fallback. PATCH/submit/dashboard all route through it so admin-invited magic links keep working during the transition.
+- **Status-change hook:** admin decide (approve / reject / needs_clarification) and submit now call `notify_account(...)` so the account owner's bell + inbox update immediately.
+- **New owner-scoped read:** `GET /api/v1/escrow-institutions/{iid}/admin-view-public` — session-only, 1:1 with the owning account; used by the wizard to preload drafts.
+
+### Frontend
+- **`/escrow/register`** — new single-screen gate (email, legal entity name, phone with ISD, password, confirm) → "Check your inbox" state → resend button. Legacy wizard moved to `/escrow/register-legacy` so admin-invited drafts still work.
+- **`/escrow/verify/:token`** — one-click verification landing with success/failure states and a Sign-in CTA.
+- **`/escrow/login`** — tries `escrow_accounts` login first, falls back to `escrow_signatories` (so pre-approval signatories still sign in). After login routes to `/escrow/me`.
+- **`/escrow/me`** — fetches `auth/me`; if institution status in {draft, needs_clarification} renders the new **account-authed wizard** (session cookie, no magic-token URL), otherwise renders the dashboard body.
+- **New shared header `EscrowAccountHeader`** — brand lockup left; bell (left of avatar) with unread badge + dropdown + mark-all-read; avatar circle with menu: Change profile, Change password, Sign out → `/escrow/login`. Keyboard-dismiss + outside-click close.
+- **Change profile modal** — legal name + phone, saves via `PATCH /me/profile`.
+- **Change password modal** — current + new + confirm; backend rotates `token_generation`.
+
+### Tests
+- `backend/tests/test_v52d_escrow_accounts.py` — 8 tests, all green:
+  - Register creates unverified; login blocked until verified.
+  - Verify creates draft institution; subsequent login returns institution snapshot.
+  - Duplicate register for unverified reuses the row + re-sends verify.
+  - Session cookie authorises PATCH / submit on owned institution.
+  - PATCH on foreign institution → 404.
+  - Change-password rotates session (new password works).
+  - Legacy POST /escrow-institutions/register → 410.
+  - Submit notifies the account (kind=submitted).
+- Backend end-to-end verified live via curl: register → verify → login → PATCH → submit → notification visible on `GET /me/notifications`.
+- Frontend testing_agent iteration 66 covers: gate form validation, inbox-sent screen, unverified login blocked, verify link success/failure, signed-in wizard render, header bell + avatar menu, profile modal save, sign-out, notification bell workflow.
+
+**Pre-seeded demo account** (preview only, see `/app/memory/test_credentials.md`): `escrowdemo@pmcmanagers.com` / `Escrow@12345` — status=verified, institution=draft so the wizard renders immediately.
+
+**Production migration note:** anyone mid-registration on the old magic-link flow needs to visit `/escrow/register` and start fresh (user explicitly chose "force everyone"). Admin-invited drafts (via `POST /admin-invite`) still resume through `/escrow/resume/:token` + legacy wizard — only the self-serve `/escrow/register` entry point moved.
 
 
 ## v52cz rev9 — Notice-routing 422 fix + dup escrow cleanup + bank "+" self-serve + signatories UI (14 Feb 2026)

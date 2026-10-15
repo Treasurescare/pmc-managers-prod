@@ -40,9 +40,18 @@ export default function EscrowSignatoryLogin() {
         nav("/escrow/me");
         return;
       } catch (accErr) {
-        // 401/403 → fall through to signatory login. Anything else bubbles.
         const code = accErr?.response?.status;
-        if (code !== 401 && code !== 403 && code !== 404) throw accErr;
+        const detail = accErr?.response?.data?.detail;
+        // v52d bug fix (testing_agent iter 66): 403 "unverified" from the
+        // account endpoint used to fall through to the signatory login and
+        // surface a generic "Invalid email or password". Keep that message
+        // visible instead and stop falling through.
+        if (code === 403 && detail && typeof detail === "object" && detail.error === "unverified") {
+          showApiError(accErr);
+          return;
+        }
+        // Only 401/404 are "wrong endpoint for this email" — try signatory.
+        if (code !== 401 && code !== 404) throw accErr;
       }
       await api.post("/api/v1/escrow-signatories/auth/login", { email, password });
       toast.success("Signed in · escrow signatory");

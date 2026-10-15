@@ -1,0 +1,61 @@
+{
+  "summary": "v52d escrow account-first flow — frontend-only validation. Register gate, verify page (ok + err), unverified-login gating, pre-seeded signed-in flow, header (bell left of avatar), avatar menu (profile → password → signout in order), profile update, change-password 401 toast, notifications empty + badge '1' + mark-all-read, sign-out → /escrow/login. All critical UI testids present and functional. 1 real bug + 1 UX issue found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "EscrowSignatoryLogin",
+        "issue": "Unverified-account login shows generic 'Invalid email or password' instead of the backend's actual message 'Please verify your email before signing in'. Root cause: the login handler catches the 403 (unverified) from /api/v1/escrow-accounts/auth/login and falls through to /api/v1/escrow-signatories/auth/login (fallthrough codes include 403), which then returns a 401 'Invalid email or password'. The user-facing error from the account endpoint is swallowed.",
+        "selector": "/escrow/login submitLogin() in EscrowSignatoryLogin.jsx lines 42-46",
+        "priority": "HIGH"
+      },
+      {
+        "component": "Sonner Toaster overlay on /escrow/me",
+        "issue": "The sonner toast container (ol[data-sonner-toaster]) sits above the header on the signed-in page and intercepts pointer events at the avatar button area. elementFromPoint at the avatar's center returns the toast <li>, so a real user clicking the avatar while a toast is still visible (e.g. the 'Signed in' toast right after login) will have the click swallowed. Playwright's force-click also failed with 30s timeout; only JS .click() worked.",
+        "selector": "[data-testid=\"escrow-avatar-button\"] / ol[data-sonner-toaster]",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_flows": [
+    "/escrow/register — valid submit → escrow-reg-sent screen",
+    "/escrow/register — mismatched password toast ('Passwords don't match')",
+    "/escrow/register — short password: HTML5 required minLength=8 blocks submit natively (toast path not reached, acceptable)",
+    "/escrow/verify/<valid_token> → escrow-verify-ok visible",
+    "/escrow/verify/NOT_A_REAL_TOKEN → escrow-verify-err visible",
+    "Pre-seeded login escrowdemo@pmcmanagers.com / Escrow@12345 → /escrow/me, wizard renders (status=draft)",
+    "Header: bell_x=1799 < avatar_x=1860 (bell is left of avatar) ✓",
+    "Avatar menu order: Change profile (y=124) → Change password (y=160) → Sign out (y=196) ✓",
+    "Change profile modal: fill name → Save → 'Profile updated' toast, modal closes ✓",
+    "Change password: wrong current password → 'Current password incorrect' 401 toast ✓ (did not change pwd; backend-only sub-step skipped per request)",
+    "Notifications: empty state copy shown when 0 notifs; after seeding one, badge shows '1' and dropdown lists the item; 'Mark all read' clears the badge ✓",
+    "Sign out → navigates to /escrow/login with 'Signed out' toast ✓"
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "FIX unverified login error: In EscrowSignatoryLogin.jsx submitLogin, detect the account-endpoint's structured 403 detail ({error:'unverified', message:'...'}) and surface that message (via showApiError on accErr or a direct toast.error) INSTEAD of falling through to signatory login. Suggest: only fall through on 401/404; on 403 with detail.error==='unverified', call showApiError(accErr) and return.",
+    "FIX toast overlay z-index/pointer-events: constrain ol[data-sonner-toaster] to the toast-sized box (pointer-events:none on the container, pointer-events:auto only on individual toasts) so it doesn't intercept clicks on the header avatar / bell."
+  ],
+  "critical_code_review_comments": [
+    "EscrowAccountRegister uses useMemo(() => fetch, []) to load countries — this works but useEffect is the idiomatic choice for side effects; useMemo semantics don't guarantee a single invocation under React StrictMode double-render.",
+    "EscrowSignatoryLogin fallthrough list includes 403 — this masks the account endpoint's semantic 'unverified' error. See action_items.",
+    "showApiError likely doesn't recognise detail payloads that are objects ({error,message}) — the toast shows 'HTTP 401' + generic message. Consider branching when typeof detail==='object' to prefer detail.message.",
+    "Toast library z-index/pointer-events needs scoping to avoid blocking page interactions on the signed-in dashboard."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "SKIPPED (per request)", "frontend": "~85% (2 ui issues)"},
+  "test_credentials": "escrowdemo@pmcmanagers.com / Escrow@12345 (preserved — password unchanged, demo notification cleaned up, legal_name restored to 'Demo Escrow Bank').",
+  "seed_data_creation": "Created unverified test accounts for registration flow (reg.1792030456@example.com, ui.*, direct.*, testv52d.*). Inserted and then deleted one escrow_notification against the demo account to exercise the badge.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All v52d UI testids verified present. Known blocker: toast overlay intercepts clicks on avatar/bell — use JS .click() workaround (`page.evaluate(el=>el.click())`) when exercising the header right after login until this is fixed. Unverified-login message bug is in EscrowSignatoryLogin.jsx fallthrough logic, not in the backend (backend returns correct 403 detail). Pre-seeded account restored at end of run.",
+  "rca of the issue": {
+    "unverified_login_wrong_toast": "EscrowSignatoryLogin.submitLogin tries POST /api/v1/escrow-accounts/auth/login first. For an unverified account, the backend correctly returns 403 with detail={error:'unverified', message:'Please verify your email ...'}. The frontend catches 401/403/404 and silently falls through to /api/v1/escrow-signatories/auth/login, which returns 401 'Invalid email or password' because that email isn't a signatory. The user then sees the signatory 401, hiding the real unverified-reason. Fix: don't fall through on 403 (or specifically not when detail.error==='unverified'); call showApiError(accErr) in that case.",
+    "avatar_click_intercepted_by_toast": "Right after login a sonner success toast renders. The toast container ol[data-sonner-toaster] is a fixed-position wide element overlapping the top-right header. Because pointer-events isn't set to 'none' on the empty regions of the container, elementFromPoint at the avatar's coordinates returns the toast <li>, so a real/Playwright click lands on the toast, not on the button. Playwright click (even with force) times out because the toast element blocks the actionability check; only js-dispatched button.click() worked. Fix at the Toaster config / global CSS."
+  }
+}
