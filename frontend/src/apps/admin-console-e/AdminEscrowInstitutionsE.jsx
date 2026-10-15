@@ -235,6 +235,8 @@ export default function AdminEscrowInstitutionsE() {
                     </div>
                   )}
 
+                  <ChangeRequestsPanel iid={sel.id} />
+
                   <div>
                     <label className="pmc-label text-[10px]">Reviewer note (required for reject / clarification)</label>
                     <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)}
@@ -292,6 +294,95 @@ function F({ label, v, mono }) {
     <div>
       <div className="text-[10px] uppercase tracking-widest text-slate-500">{label}</div>
       <div className={`text-slate-800 text-sm ${mono ? "font-mono text-xs" : ""}`}>{v || "—"}</div>
+    </div>
+  );
+}
+
+function ChangeRequestsPanel({ iid }) {
+  const [rows, setRows] = useState([]);
+  const [busy, setBusy] = useState({});
+
+  const load = async () => {
+    try {
+      const r = (await api.get(`/api/v1/escrow-institutions/${iid}/change-requests`)).data;
+      setRows(r.items || []);
+    } catch (e) { showApiError(e); }
+  };
+  useEffect(() => { if (iid) load(); /* eslint-disable-line */ }, [iid]);
+
+  const decide = async (row, action) => {
+    const notes = action === "reject"
+      ? window.prompt(`Reviewer notes (required for reject):`)
+      : window.prompt(`Reviewer notes (optional):`, "") || "";
+    if (action === "reject" && !notes) return;
+    setBusy((b) => ({ ...b, [row.id]: true }));
+    try {
+      await api.post(`/api/v1/escrow-institutions/change-requests/${row.id}/${action}`,
+                     { reviewer_notes: notes || null });
+      toast.success(action === "approve" ? "Change applied" : "Change rejected");
+      await load();
+    } catch (e) { showApiError(e); }
+    finally { setBusy((b) => ({ ...b, [row.id]: false })); }
+  };
+
+  if (!rows.length) {
+    return (
+      <div className="pmc-label text-[10px] text-brand-navy/50"
+           data-testid="admin-escrow-change-requests-empty">
+        No profile change requests from this institution.
+      </div>
+    );
+  }
+
+  return (
+    <div data-testid="admin-escrow-change-requests">
+      <div className="pmc-label mb-2">Profile change requests · {rows.length}</div>
+      <ul className="divide-y divide-brand-navy/10">
+        {rows.map((r) => (
+          <li key={r.id} className="py-3"
+              data-testid={`admin-escrow-change-request-${r.id}`}>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="text-sm text-brand-navy">
+                <strong>{r.section}</strong> · <code className="text-xs">{r.field_path}</code>
+                <span className="ml-2 text-[10px] uppercase tracking-widest text-brand-navy/60">· {r.status}</span>
+              </div>
+              <div className="text-[10px] text-brand-navy/40">
+                {(r.created_at || "").slice(0, 16).replace("T", " ")}
+              </div>
+            </div>
+            <div className="mt-2 grid md:grid-cols-2 gap-3 text-xs">
+              <div>
+                <div className="pmc-label text-[9px]">Current</div>
+                <pre className="bg-slate-50 border border-brand-navy/10 p-2 overflow-auto max-h-40">{JSON.stringify(r.current_value, null, 2)}</pre>
+              </div>
+              <div>
+                <div className="pmc-label text-[9px]">Proposed</div>
+                <pre className="bg-amber-50 border border-amber-200 p-2 overflow-auto max-h-40">{JSON.stringify(r.proposed_value, null, 2)}</pre>
+              </div>
+            </div>
+            {r.reason && (
+              <div className="mt-1 text-xs text-brand-navy/70">Reason: {r.reason}</div>
+            )}
+            {r.reviewer_notes && (
+              <div className="mt-1 text-xs text-brand-navy/70">Reviewer: {r.reviewer_notes}</div>
+            )}
+            {r.status === "pending" && (
+              <div className="mt-2 flex gap-2">
+                <button onClick={() => decide(r, "approve")} disabled={busy[r.id]}
+                        data-testid={`admin-escrow-change-approve-${r.id}`}
+                        className="px-4 py-1.5 text-[10px] uppercase tracking-widest bg-emerald-700 text-white disabled:opacity-50">
+                  Approve &amp; apply
+                </button>
+                <button onClick={() => decide(r, "reject")} disabled={busy[r.id]}
+                        data-testid={`admin-escrow-change-reject-${r.id}`}
+                        className="px-4 py-1.5 text-[10px] uppercase tracking-widest border border-red-600 text-red-800 disabled:opacity-50">
+                  Reject
+                </button>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

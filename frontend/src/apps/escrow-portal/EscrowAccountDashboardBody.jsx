@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { api, showApiError } from "@/lib/api";
 import EscrowDashboardChart from "./EscrowDashboardChart";
+import EscrowInstitutionProfile from "./EscrowInstitutionProfile";
 
 const TABS = [
   ["overview",     "Overview"],
@@ -110,7 +111,8 @@ export default function EscrowAccountDashboardBody({ account }) {
           <AccountsList rows={accounts} />
         )}
         {tab === "profile" && (
-          <ProfileView account={account} inst={inst} onInvited={() => window.location.reload()} />
+          <EscrowInstitutionProfile account={account} inst={inst}
+                                     onInvited={() => window.location.reload()} />
         )}
       </main>
     </div>

@@ -418,6 +418,31 @@ export const uploadsApi = {
       headers: { "Content-Type": "multipart/form-data" },
     }).then((r) => r.data);
   },
+  // v52g — one-shot helper used by the escrow registration wizard and the
+  // institution profile tab. Does the presign → direct dance and returns a
+  // ready-to-store meta object { key, filename, size_bytes, uploaded_at }.
+  uploadFile: async (file, { scope = "escrow-docs" } = {}) => {
+    if (!file) throw new Error("No file selected");
+    const pre = await api.post("/api/v1/uploads/presign", {
+      file_name: file.name,
+      content_type: file.type || "application/octet-stream",
+      scope,
+      size_bytes: file.size || 0,
+    }).then((r) => r.data);
+    const fd = new FormData();
+    fd.append("key", pre.key);
+    fd.append("file", file);
+    const up = await api.post("/api/v1/uploads/direct", fd, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }).then((r) => r.data);
+    return {
+      key: up.key,
+      filename: file.name,
+      content_type: file.type || "application/octet-stream",
+      size_bytes: up.size_bytes || file.size || 0,
+      uploaded_at: new Date().toISOString(),
+    };
+  },
   // v52cz — "Download all" bundler: POST a list of upload keys, get back a
   // single ZIP. Used by the Vendor bid screen so a bidder can pull every
   // uploaded envelope/support document in one click without hitting View on

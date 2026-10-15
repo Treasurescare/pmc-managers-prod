@@ -1,6 +1,23 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
 
-## v52g — Unified escrow-account login fix (15 Oct 2026)
+## v52g — Institution profile change workflow + document upload fix (15 Oct 2026)
+
+- **P0 bug fixed:** institution document upload was failing with `uploadsApi.uploadFile is not a function`. Added a `uploadsApi.uploadFile(file, { scope })` helper in `frontend/src/lib/api.js` that chains presign + direct and returns `{key, filename, content_type, size_bytes, uploaded_at}`. Wizard DocSlot now calls it with scope `escrow-docs`.
+- **New change-request workflow (user-chosen scope: all five sections, every stage, unlimited field-level, admin review in the existing panel):**
+  - Backend: new router `routers/escrow_profile_changes.py` mounted in `server.py`.
+    - `POST /api/v1/escrow-accounts/me/change-requests` — owner creates a pending request (section + field_path + current_value + proposed_value + optional reason).
+    - `GET /api/v1/escrow-accounts/me/change-requests` — owner lists their requests.
+    - `DELETE /api/v1/escrow-accounts/me/change-requests/{id}` — cancel own pending.
+    - `GET /api/v1/escrow-institutions/{iid}/change-requests` — admin list per institution.
+    - `POST /api/v1/escrow-institutions/change-requests/{id}/approve` — applies via `$set` and notifies owner.
+    - `POST /api/v1/escrow-institutions/change-requests/{id}/reject` — notes required; notifies owner.
+    - Allowed targets: whitelisted core fields; whole-array replacement for `signatories` / `banking`; whole-dict or `documents.<slot>` for documents. Admin keys (status/account_id/magic_token/etc.) are rejected 422.
+  - Frontend: new `EscrowInstitutionProfile.jsx` replaces the simple ProfileView — full read-only sections, per-field "Request change" buttons, pending list with cancel, document replace that uploads then stages a `documents.<slot>` change request. Admin console gets `ChangeRequestsPanel` inside the detail panel with current-vs-proposed diff and approve/reject buttons.
+- **Verification:**
+  - Backend round-trip (presign+direct upload, create request, admin approve, applied field, invalid field → 422) all passed via live curl.
+  - Preview UI: owner profile tab renders full details and the pending list; new change request submits and reflects immediately.
+
+
 
 - **User-reported issue:** login appeared to crash/stick from the main sign-in portal. The supplied recording showed the unified `/login` page with the **Escrow Institution** role selected.
 - **Root cause:** `SignInE.jsx` still sent Escrow Institution logins only to the legacy `/api/v1/escrow-signatories/auth/login` endpoint. v52d account-first credentials live in `/api/v1/escrow-accounts/auth/login`, so a valid verified escrow account was rejected as "not an escrow signatory" and remained on `/login`.

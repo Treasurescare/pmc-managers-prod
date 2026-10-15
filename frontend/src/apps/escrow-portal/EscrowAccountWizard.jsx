@@ -297,7 +297,7 @@ function DocSlot({ slot, label, current, institutionId, onUploaded, onRemoved })
   const upload = async (file) => {
     setBusy(true);
     try {
-      const meta = await uploadsApi.uploadFile(file);
+      const meta = await uploadsApi.uploadFile(file, { scope: "escrow-docs" });
       await onUploaded?.(meta);
       toast.success(`${label}: uploaded`);
     } catch (e) { showApiError(e); }

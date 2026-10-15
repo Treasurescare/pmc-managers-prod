@@ -1,0 +1,25 @@
+{
+  "iteration": 71,
+  "summary": "v52g — Fixed institution document upload crash and shipped full profile change-request workflow (owner-side pending edits + admin approve/reject in detail panel).",
+  "files_changed": [
+    "/app/frontend/src/lib/api.js",
+    "/app/frontend/src/apps/escrow-portal/EscrowAccountWizard.jsx",
+    "/app/frontend/src/apps/escrow-portal/EscrowAccountDashboardBody.jsx",
+    "/app/frontend/src/apps/escrow-portal/EscrowInstitutionProfile.jsx",
+    "/app/frontend/src/apps/admin-console-e/AdminEscrowInstitutionsE.jsx",
+    "/app/backend/routers/escrow_profile_changes.py",
+    "/app/backend/server.py",
+    "/app/memory/PRD.md"
+  ],
+  "verification": {
+    "upload_round_trip": "presign + direct returned matching key; UI DocSlot no longer references the missing uploadsApi.uploadFile.",
+    "owner_change_request": "POST /me/change-requests returned 200 with id and status=pending; GET /me/change-requests listed it.",
+    "admin_review_round_trip": "GET /escrow-institutions/{iid}/change-requests surfaced the pending row; POST /change-requests/{id}/approve returned 200 and applied trading_name=\"Demo Escrow Bank (Trading)\" on the institution.",
+    "field_whitelist": "POST /me/change-requests with section=core field_path=status rejected 422.",
+    "owner_ui_smoke": "Profile tab shows full details and pending section; submitting a tax_id change surfaced success toast and pending badge NEW-TAX-ID-123; screenshot /app/test_reports/iteration_71_profile.png."
+  },
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "retest_needed": false,
+  "main_agent_can_self_test": true
+}
