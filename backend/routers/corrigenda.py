@@ -26,6 +26,139 @@ import config
 router = APIRouter(prefix="/api/v1/notices", tags=["corrigenda"])
 
 
+# v52q — Corrigendum field_amendments must actually flow onto the parent
+# notice, not just the corrigendum row. Previously only
+# new_submission_deadline was applied; budget / EMD / other date edits were
+# visible in the corrigendum diff but the notice view kept stale values.
+# This helper applies a whitelisted set of amendment keys to the notice doc
+# (keeping the pre-amendment value in `notice.amendment_base` the first time
+# each key is touched so a withdraw can restore it), and
+# `_rollback_corrigendum_amendments` replays remaining ACTIVE corrigenda on
+# withdraw so the notice always reflects the live amendment stack.
+
+# field_key -> (mongo dot-path, kind). kind "number" coerces to float.
+_AMENDABLE_FIELDS = {
+    "title":                 ("title",                     "text"),
+    "description":           ("description",               "text"),
+    "category":              ("category",                  "text"),
+    "document_type":         ("document_type",             "text"),
+    "delivery_country":      ("delivery_country",          "text"),
+    "submission_deadline":   ("submission_deadline",       "text"),
+    "budget_currency":       ("budget_currency",           "text"),
+    "budget_amount":         ("budget_amount",             "number"),
+    "tender_fee":            ("tender_fee",                "number"),
+    "form_of_contract":      ("form_of_contract",          "text"),
+    "emd_fixed_amount":      ("emd_config.fixed_amount",   "number"),
+    "emd_percentage":        ("emd_config.percentage",     "number"),
+    "pre_bid_meeting_date":  ("pre_bid_meeting_date",      "text"),
+    "clarification_deadline":("clarification_deadline",    "text"),
+}
+
+
+def _coerce_amend(kind: str, after):
+    if kind == "number":
+        try:
+            return float(str(after).replace(",", "").strip())
+        except (TypeError, ValueError):
+            return None
+    s = str(after).strip()
+    return s or None
+
+
+def _get_path(doc: dict, path: str):
+    cur = doc
+    for part in path.split("."):
+        if not isinstance(cur, dict):
+            return None
+        cur = cur.get(part)
+    return cur
+
+
+def _set_update(updates: dict, notice: dict, path: str, val) -> None:
+    """Add path->val to a $set map. Dotted paths whose parent is missing or
+    null in Mongo can't be targeted directly, so materialise the parent dict
+    (merged with any queued sibling updates) and set it whole."""
+    if "." not in path:
+        updates[path] = val
+        return
+    parent_key, child = path.split(".", 1)
+    parent = updates.get(parent_key)
+    if not isinstance(parent, dict):
+        cur = notice.get(parent_key)
+        parent = dict(cur) if isinstance(cur, dict) else {}
+    parent[child] = val
+    updates[parent_key] = parent
+
+
+async def _apply_corrigendum_amendments(notice: dict, amendments: list) -> int:
+    """$set each whitelisted amendment onto the notice; stash the original
+    value under `amendment_base[field_key]` (first touch only)."""
+    if not amendments:
+        return 0
+    base = dict(notice.get("amendment_base") or {})
+    updates: dict = {}
+    applied = 0
+    for a in amendments:
+        fkey = a.get("field_key")
+        spec = _AMENDABLE_FIELDS.get(fkey)
+        if not spec:
+            continue
+        path, kind = spec
+        val = _coerce_amend(kind, a.get("after"))
+        if val is None:
+            continue
+        if fkey not in base:
+            base[fkey] = _get_path(notice, path)
+        _set_update(updates, notice, path, val)
+        applied += 1
+    if not updates:
+        return 0
+    updates["amendment_base"] = base
+    updates["amended_at"] = now_iso()
+    await db.notices.update_one({"_id": notice["_id"]}, {"$set": updates})
+    return applied
+
+
+async def _rollback_corrigendum_amendments(notice_ref: str) -> None:
+    """After a withdraw: for every field this notice's amendment_base knows
+    about, the live value is the LAST active corrigendum's `after` for that
+    field, else the stashed base value."""
+    n = await db.notices.find_one({"notice_ref": notice_ref})
+    if not n:
+        return
+    base = dict(n.get("amendment_base") or {})
+    if not base:
+        return
+    latest: dict = {}
+    async for c in db.corrigenda.find(
+            {"notice_ref": notice_ref, "is_active": True})\
+            .sort("corrigendum_no", 1):
+        for a in (c.get("field_amendments") or []):
+            fkey = a.get("field_key")
+            if fkey in _AMENDABLE_FIELDS and fkey in base:
+                latest[fkey] = a.get("after")
+        if c.get("new_submission_deadline"):
+            latest.pop("submission_deadline", None)  # deadline handled separately
+    updates: dict = {}
+    unset_base: list = []
+    for fkey, path_kind in _AMENDABLE_FIELDS.items():
+        path, kind = path_kind
+        if fkey not in base:
+            continue
+        if fkey in latest:
+            _set_update(updates, n, path, _coerce_amend(kind, latest[fkey]))
+        else:
+            _set_update(updates, n, path, base[fkey])
+            unset_base.append(fkey)
+    if updates:
+        updates["amended_at"] = now_iso()
+        await db.notices.update_one({"_id": n["_id"]},
+                                    {"$set": updates,
+                                     "$unset": {f"amendment_base.{k}": ""
+                                                for k in unset_base}})
+
+
+
 # v51ad — vendor-facing endpoints (not admin-only). Live under
 # /api/v1/corrigenda/* so they don't collide with the notice tree.
 _vendor_router = APIRouter(prefix="/api/v1/corrigenda", tags=["corrigenda-vendor"])
@@ -110,6 +243,17 @@ async def publish_corrigendum(
             {"$set": {"submission_deadline": new_deadline,
                       "deadline_last_amended_at": now_iso(),
                       "deadline_last_amended_by_corr": corr_no}},
+        )
+
+    # v52q — apply the field-level amendments (budget, EMD, dates, …) onto
+    # the parent notice so the tender notice view shows the amended values.
+    n_fresh = await db.notices.find_one({"notice_ref": notice_ref})
+    applied_count = await _apply_corrigendum_amendments(
+        n_fresh, payload.field_amendments or [])
+    if applied_count:
+        await db.corrigenda.update_one(
+            {"_id": res.inserted_id},
+            {"$set": {"amendments_applied": applied_count}},
         )
 
     await audit_log("corrigendum.publish", admin, "notice", notice_ref,
@@ -263,6 +407,14 @@ async def withdraw_corrigendum(
                   "withdrawn_by": admin.get("email"),
                   "withdrawn_reason": reason.strip()}},
     )
+    # v52q — rolling back this corrigendum must restore/replay the parent
+    # notice fields: last remaining active corrigendum wins per field,
+    # otherwise the stashed pre-amendment base value is restored.
+    try:
+        await _rollback_corrigendum_amendments(notice_ref)
+    except Exception as _e:
+        import logging as _lg
+        _lg.warning("corrigendum rollback failed for %s: %s", notice_ref, _e)
     await audit_log("corrigendum.withdraw", admin, "notice", notice_ref,
                     {"corrigendum_no": c.get("corrigendum_no"),
                      "reason": reason.strip()})

@@ -1,5 +1,29 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
 
+## v52q — Corrigendum amendments sync to the tender notice (15 Oct 2026)
+
+- **Bug:** publishing a corrigendum with field amendments (budget, EMD,
+  dates) stored the diff on the corrigendum row but never applied it to the
+  parent notice — only `new_submission_deadline` flowed through. The tender
+  notice view kept showing stale values (user's Biogas tender).
+- **Fix (`routers/corrigenda.py`):** `_apply_corrigendum_amendments` now
+  $sets every whitelisted amendment (`title/description/category/
+  document_type/delivery_country/submission_deadline/budget_*/
+  tender_fee/form_of_contract/emd_fixed_amount/emd_percentage/
+  pre_bid_meeting_date/clarification_deadline`) onto the notice, stashing
+  pre-amendment values under `amendment_base`. Dotted paths whose parent is
+  null (e.g. `emd_config: null`) are materialised as full objects — Mongo
+  rejects `$set emd_config.fixed_amount` on a null parent (WriteError 28).
+- **Withdraw rollback:** `_rollback_corrigendum_amendments` replays the
+  remaining ACTIVE corrigenda (latest wins per field) and restores the
+  stashed base when none remain.
+- **Verified E2E (PMC-NOT-2026-0102):** publish → budget 50000→555000,
+  emd_config {fixed_amount:2500}, deadline updated; withdraw all → restored
+  to base. An orphan corrigendum left by an interim 500 was cleaned up.
+- **Migration note:** corrigenda published BEFORE this fix never synced.
+  User action for the Biogas tender: withdraw Corrigendum 1 and re-publish
+  it with the same edits — the new flow applies them to the notice.
+
 ## v52p — Bid lockout + categories chip + resync pending + hover fixes (15 Oct 2026)
 
 - **Vendor bid lockout (P0 ask):** `vendor-portal/BidSubmit.jsx` now

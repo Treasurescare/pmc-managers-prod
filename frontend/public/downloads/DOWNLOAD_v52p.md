@@ -1,5 +1,17 @@
 # PMC Managers — Release v52p
 
+## Addendum (same bundle) — v52q corrigendum sync fix
+- `backend/routers/corrigenda.py` — field amendments (budget, EMD amounts,
+  deadlines, pre-bid meeting, etc.) now apply onto the parent notice when a
+  corrigendum is published, and roll back correctly when withdrawn
+  (latest active corrigendum wins per field; stashed base values restored).
+- Notice view now always shows amended values, matching the corrigendum diff.
+- Verified end-to-end on a test notice (publish → values changed on notice;
+  withdraw → values restored).
+- Existing corrigenda published before this fix did NOT sync. To fix a live
+  tender (e.g. Biogas): withdraw the old corrigendum and re-publish it with
+  the same edits.
+
 ## What's in this release
 
 ### 1. Vendor Submit-Bid lockout once bidding closes (P0)
