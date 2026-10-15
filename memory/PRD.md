@@ -1,4 +1,12 @@
-# PMC Managers v2 — PRD (last touched 15 Feb 2026)
+# PMC Managers v2 — PRD (last touched 15 Oct 2026)
+
+## v52g — Unified escrow-account login fix (15 Oct 2026)
+
+- **User-reported issue:** login appeared to crash/stick from the main sign-in portal. The supplied recording showed the unified `/login` page with the **Escrow Institution** role selected.
+- **Root cause:** `SignInE.jsx` still sent Escrow Institution logins only to the legacy `/api/v1/escrow-signatories/auth/login` endpoint. v52d account-first credentials live in `/api/v1/escrow-accounts/auth/login`, so a valid verified escrow account was rejected as "not an escrow signatory" and remained on `/login`.
+- **Fix:** the unified Escrow tab now tries account-first login, preserves the 403 unverified-account message, and falls back to legacy signatory login only on 401/404.
+- **Verification:** pre-fix browser repro failed on `/login`; post-fix the same verified account reaches `/escrow/me`. Unified Supplier login also still reaches `/vendor`. Backend vendor and escrow login endpoints returned 200 with the known test accounts.
+- **Preview data caveat:** `info@emeraldcorporates.com` has no vendor account, escrow account, or signatory account in the preview database; it only appears on a submitted legacy escrow institution with no account link. Production must be validated after the frontend bundle is deployed.
 
 
 ## v52d — Account-first escrow institution registration (15 Feb 2026)

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useUiTheme } from "@/context/UiThemeContext";
-import { adminApi, staffApi, vendorApi, showApiError } from "@/lib/api";
+import { adminApi, api, staffApi, vendorApi, showApiError } from "@/lib/api";
 
 // v50-login-fix (Feb 2026) — Made the Option E sign-in form fully functional.
 // Previously this was a pure static template (hardcoded password value, no
@@ -29,22 +29,30 @@ export default function SignInE({ legacy: Legacy }) {
     setBusy(true);
     try {
       if (role === "escrow") {
-        // v51an — Escrow Institutions get a real password login now.
-        if (!email || !password) {
-          toast.error("Enter your email and password.");
-          setBusy(false);
-          return;
+        try {
+          await api.post("/api/v1/escrow-accounts/auth/login", { email, password });
+          toast.success("Signed in · escrow institution");
+          return nav("/escrow/me");
+        } catch (accErr) {
+          const code = accErr?.response?.status;
+          const detail = accErr?.response?.data?.detail;
+          if (code === 403 && detail && typeof detail === "object" && detail.error === "unverified") {
+            toast.error("Sign in failed", {
+              description: detail.message || "Please verify your email before signing in.",
+              duration: 10000,
+              closeButton: true,
+            });
+            return;
+          }
+          if (code !== 401 && code !== 404) throw accErr;
         }
         try {
-          await (await import("@/lib/api")).api.post(
-            "/api/v1/escrow-signatories/auth/login", { email, password });
+          await api.post("/api/v1/escrow-signatories/auth/login", { email, password });
           toast.success("Signed in · escrow signatory");
-          setBusy(false);
           return nav("/escrow/me");
         } catch (err) {
-          toast.error("Those credentials don't match an escrow signatory. New institutions can register below.",
-                       { duration: 8000 });
-          setBusy(false);
+          toast.error("Those credentials don't match an escrow account or signatory. New institutions can register below.",
+                      { duration: 8000 });
           return;
         }
       }

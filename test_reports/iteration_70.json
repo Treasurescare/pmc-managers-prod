@@ -1,0 +1,39 @@
+{
+  "iteration": 70,
+  "summary": "Vendor-reported sign-in crash investigated. Recording showed the unified /login Escrow Institution tab. Root cause: SignInE used only the legacy escrow-signatory endpoint, so verified account-first escrow credentials were rejected. Fixed unified login to try escrow account auth first, preserve unverified 403 messaging, and fall back to signatory auth only on 401/404.",
+  "files_changed": [
+    "/app/frontend/src/apps/auth-e/SignInE.jsx",
+    "/app/auth_testing.md",
+    "/app/memory/PRD.md"
+  ],
+  "root_cause": "Frontend endpoint mismatch: /login Escrow Institution role did not know about the v52d escrow_accounts auth collection/endpoint.",
+  "verification": {
+    "recording_review": "Escrow Institution tab selected; login stayed on the sign-in page with no visible application error details.",
+    "pre_fix_repro": "Unified /login with escrowdemo account remained on /login and showed legacy signatory mismatch toast.",
+    "post_fix_unified_escrow": "PASS — /login -> /escrow/me using the verified escrow demo account; screenshot /app/test_reports/iteration_70_unified_escrow_fixed.png.",
+    "direct_escrow_login_control": "PASS — /escrow/login -> /escrow/me before and after fix.",
+    "unified_supplier_smoke": "PASS — /login Supplier role -> /vendor using the known vendor test account.",
+    "backend_endpoint_smoke": "PASS — vendor and escrow account login endpoints each returned HTTP 200 with known test credentials."
+  },
+  "reported_email_preview_state": {
+    "email": "info@emeraldcorporates.com",
+    "vendor_account_exists": false,
+    "escrow_account_exists": false,
+    "escrow_signatory_exists": false,
+    "submitted_legacy_institution_exists": true,
+    "institution_has_account_link": false
+  },
+  "limitations": [
+    "The exact reported production password was not available and was not requested.",
+    "Preview data does not contain an auth account for the reported email; production verification is still required after deploying this frontend fix."
+  ],
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "action_items": [
+    "Build and deploy a frontend bundle containing SignInE.jsx before asking the user to validate production.",
+    "After deployment, validate the real reported account on pmcmanagers.com."
+  ],
+  "success_rate": {"backend": "targeted smoke passed", "frontend": "targeted browser repro passed"},
+  "retest_needed": false,
+  "main_agent_can_self_test": true
+}
