@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { api, vendorInviteApi, kycApi, formatApiError, showApiError} from "@/lib/api";
+import { api, vendorInviteApi, kycApi, formatApiError, showApiError, mastersGeoApi } from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import BulkInviteModal from "./BulkInviteModal";
 import { InfoDot } from "@/components/InfoDot";
@@ -27,6 +27,8 @@ export default function VendorsPanel() {
   const [sendingInvite, setSendingInvite] = useState(false);  // Bug #5 — prevent double-submit + dead-button feel
   const [statusFilter, setStatusFilter] = useState("all");  // V-02 fix
   const [inviteDraft, setInviteDraft] = useState({ email: "", company_name: "", country: "KZ", contact_name: "" });
+  // v52o — country dropdown comes from the 250-row country master, not free text.
+  const [inviteCountries, setInviteCountries] = useState([]);
   const [templateMeta, setTemplateMeta] = useState({ available: false });
   // v44 — highlight a specific vendor_ref after activation/creation so the
   // admin visually locates the row instead of feeling like it "disappeared".
@@ -94,6 +96,9 @@ export default function VendorsPanel() {
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
     vendorInviteApi.templateMeta().then(setTemplateMeta).catch(() => {});
+    mastersGeoApi.countries()
+      .then((rows) => setInviteCountries(rows?.items || rows || []))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -118,9 +123,17 @@ export default function VendorsPanel() {
     setSendingInvite(true);
     try {
       const r = await vendorInviteApi.invite({ ...inviteDraft, email: inviteDraft.email.trim() });
-      toast.success(`Invited ${r?.email || inviteDraft.email || "vendor"} · ${r?.vendor_ref || "pending"}`, {
-        description: "Verification email sent. Row is highlighted below.",
-      });
+      if (r?.email_sent === false) {
+        // v52o — backend now reports whether Resend accepted the message.
+        toast.warning(`Invite created (${r?.vendor_ref || "pending"}) but the verification email FAILED to send`, {
+          description: "Check the Resend key / sender domain, then re-invite from the vendor row.",
+          duration: 10000,
+        });
+      } else {
+        toast.success(`Invited ${r?.email || inviteDraft.email || "vendor"} · ${r?.vendor_ref || "pending"}`, {
+          description: "Verification email sent. Row is highlighted below.",
+        });
+      }
       setShowInvite(false);
       setInviteDraft({ email: "", company_name: "", country: "KZ", contact_name: "" });
       setStatusFilter("all");  // ensure the just-invited pending vendor is visible
@@ -385,10 +398,18 @@ export default function VendorsPanel() {
                    className="mt-1 w-full px-3 py-2 border border-brand-navy/20" />
           </label>
           <label className="text-sm">
-            <span className="pmc-label">{t("panels.vendors.invite_country")}<InfoDot tip="ISO-2 country code. Drives KYC provider selection and country-specific required documents." /></span>
-            <input value={inviteDraft.country}
-                   onChange={(e) => setInviteDraft({ ...inviteDraft, country: e.target.value })}
-                   className="mt-1 w-full px-3 py-2 border border-brand-navy/20" />
+            <span className="pmc-label">{t("panels.vendors.invite_country")}<InfoDot tip="From the country master (ISO-2). Drives KYC provider selection and country-specific required documents." /></span>
+            <select value={inviteDraft.country}
+                    onChange={(e) => setInviteDraft({ ...inviteDraft, country: e.target.value })}
+                    data-testid="vendor-invite-country"
+                    className="mt-1 w-full px-3 py-2 border border-brand-navy/20 bg-white">
+              {!inviteCountries.length && (
+                <option value={inviteDraft.country}>{inviteDraft.country}</option>
+              )}
+              {inviteCountries.map((c) => (
+                <option key={c.code} value={c.code}>{c.name} ({c.code})</option>
+              ))}
+            </select>
           </label>
           <div className="md:col-span-4 text-[11px] text-brand-navy/50">
             {t("panels.vendors.invite_hint")}

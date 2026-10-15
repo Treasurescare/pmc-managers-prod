@@ -80,17 +80,21 @@ async def invite_vendor(payload: VendorInviteIn, admin=Depends(require_role("adm
         await db.vendors.insert_one(doc)
 
     verify_url = f"{config.FRONTEND_URL}/vendor/verify/{token}"
-    asyncio.create_task(send_email(
+    # v52o — await the send and report it. Fire-and-forget create_task meant
+    # the UI toasted "Invited" even when Resend rejected the message.
+    email_sent = await send_email(
         payload.email, "PMC Managers — You've been invited as a vendor",
         wrap(f"Welcome to PMC · {vendor_ref}",
              f"<p>The PMC Managers procurement team has pre-registered your company "
              f"<strong>{payload.company_name or payload.email}</strong> as a vendor "
              f"on the Global Tender Board.</p>"
              f"<p>To activate your account, please verify your email and set a password:</p>",
-             "Verify email & set password", verify_url)))
+             "Verify email & set password", verify_url))
     await audit_log("vendor.invite", admin, "vendor", vendor_ref,
-                    {"email": payload.email, "company_name": payload.company_name})
-    return {"vendor_ref": vendor_ref, "email": payload.email, "verify_url": verify_url}
+                    {"email": payload.email, "company_name": payload.company_name,
+                     "email_sent": email_sent})
+    return {"vendor_ref": vendor_ref, "email": payload.email,
+            "verify_url": verify_url, "email_sent": email_sent}
 
 
 class BulkInviteIn(BaseModel):

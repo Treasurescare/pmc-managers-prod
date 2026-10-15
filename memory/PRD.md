@@ -1,5 +1,12 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
 
+## v52o — Vendor invite: country master dropdown + visible email delivery (15 Oct 2026)
+
+- **Country field:** `VendorsPanel.jsx` quick-invite country was a free-text input; now a `<select>` fed from `mastersGeoApi.countries()` (250-row master, ISO-2 codes stored — consistent with the full registration form and KYC routing).
+- **Email delivery visibility:** `vendor_invites.invite_vendor` fired `asyncio.create_task(send_email(...))` — fire-and-forget, so the UI toasted "Invited" even when Resend failed. The send is now awaited; the API returns `email_sent`; the UI shows a warning toast on failure. `email_sent` is also recorded in the `vendor.invite` audit event.
+- **Verified:** invite round-trip returns `email_sent: true` with Resend HTTP 200 in logs; dropdown renders 250 options and stores the ISO code (screenshot iteration_83).
+- **Note:** `/api/v1/vendors/invite` is mounted twice (vendor_invites router at server.py lines 178 & 217; first match wins — behavior unchanged, cosmetic duplication only).
+
 ## v52n — Audit rechain speed + reverse-auction invite delivery (15 Oct 2026)
 
 - **Audit repair timeout (reported "timeout of 20000ms exceeded"):** `rechain_audit()` was issuing one `update_one` per event (~4300 docs). Rewritten with 500-doc `bulk_write` batches; prod-size ledger now rechains in < 1 s. Frontend `repairAudit` call also gets a 120 s per-request timeout as safety net.

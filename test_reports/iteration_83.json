@@ -1,0 +1,20 @@
+{
+  "iteration": 83,
+  "summary": "v52o — Vendor invite screen: country field replaced by a 250-country master dropdown; invite email send is now awaited and reported (email_sent in API response + audit event), with a UI warning toast when dispatch fails instead of a fake success.",
+  "files_changed": [
+    "/app/frontend/src/apps/admin-console/VendorsPanel.jsx",
+    "/app/backend/routers/vendor_invites.py",
+    "/app/memory/PRD.md"
+  ],
+  "verification": {
+    "country_dropdown": "vendor-invite-country select renders 250 options from /api/v1/masters/countries; selecting United Arab Emirates stores AE (screenshot iteration_83_invite_country2.png).",
+    "email_delivery_visible": "POST /vendors/invite returned email_sent=true; backend log shows Resend HTTP 200 OK for the message.",
+    "failure_path": "email_sent=false now produces a warning toast with retry guidance (code-reviewed path)."
+  },
+  "artifacts": {
+    "backend_zip": "/downloads/pmc-backend-v52o.zip",
+    "frontend_zip": "/downloads/pmc-frontend-v52o-prod-build.zip",
+    "notes": "/downloads/DOWNLOAD_v52o.md"
+  },
+  "retest_needed": false
+}
