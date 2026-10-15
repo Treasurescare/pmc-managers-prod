@@ -1,0 +1,25 @@
+{
+  "iteration": 77,
+  "summary": "v52i — Fixed escrow password reset (account tokens were being posted to the signatory endpoint), added legacy-claim auto-provisioning so approved magic-link-era institutions recover access via Forgot password, added Escrow Institution option to the unified /forgot-password page, reset now flips account to verified. Rebuilt v52i bundles.",
+  "files_changed": [
+    "/app/backend/routers/escrow_accounts.py",
+    "/app/frontend/src/apps/escrow-portal/EscrowSignatoryLogin.jsx",
+    "/app/frontend/src/apps/auth-e/ForgotPasswordE.jsx",
+    "/app/memory/PRD.md"
+  ],
+  "verification": {
+    "legacy_claim_roundtrip": "Seeded approved institution with NO account -> POST /auth/forgot -> account auto-created (verified, legacy_claim=true, institution linked) -> reset token present -> POST /auth/reset 200 -> POST /auth/login 200 with institution attached.",
+    "single_use": "Reusing the reset token returns 404.",
+    "no_enumeration": "Unknown email returns 200 ok without creating anything.",
+    "existing_account_regression": "escrowdemo forgot/reset/login all 200.",
+    "browser_reset_page": "Real token via /escrow/login?reset=1&token=... -> reset toast -> login with new password -> /escrow/me. Screenshot /app/test_reports/iteration_77_reset_login.png.",
+    "forgot_page_ui": "Escrow radio present, submit renders sent panel. Screenshot /app/test_reports/iteration_77_forgot.png."
+  },
+  "artifacts": {
+    "backend_zip": "/downloads/pmc-backend-v52i.zip",
+    "frontend_zip": "/downloads/pmc-frontend-v52i-prod-build.zip",
+    "notes": "/downloads/DOWNLOAD_v52i.md"
+  },
+  "retest_needed": false,
+  "main_agent_can_self_test": true
+}

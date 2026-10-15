@@ -87,7 +87,13 @@ export default function EscrowSignatoryLogin() {
     e.preventDefault();
     setBusy(true);
     try {
-      await api.post("/api/v1/escrow-signatories/auth/forgot-password", { email });
+      // v52i — fire BOTH account + signatory forgot endpoints. Both always
+      // return ok (no user enumeration) and only the side that recognises
+      // the email actually sends a link.
+      await Promise.all([
+        api.post("/api/v1/escrow-accounts/auth/forgot", { email }).catch(() => null),
+        api.post("/api/v1/escrow-signatories/auth/forgot-password", { email }).catch(() => null),
+      ]);
       toast.success("If this email is registered, a reset link has been sent.");
       setForgotMode(false);
     } catch (err) { showApiError(err); }
@@ -100,8 +106,18 @@ export default function EscrowSignatoryLogin() {
     if (password !== confirm) return toast.error("Passwords don't match.");
     setBusy(true);
     try {
-      await api.post("/api/v1/escrow-signatories/auth/reset-password",
-                     { token: resetToken, new_password: password });
+      // v52i — account reset emails land here too. Try the ACCOUNT endpoint
+      // first (its tokens live on escrow_accounts.reset_token), then fall
+      // back to the signatory endpoint (escrow_sig_password_resets).
+      try {
+        await api.post("/api/v1/escrow-accounts/auth/reset",
+                       { token: resetToken, new_password: password });
+      } catch (accErr) {
+        const code = accErr?.response?.status;
+        if (code !== 400 && code !== 404) throw accErr;
+        await api.post("/api/v1/escrow-signatories/auth/reset-password",
+                       { token: resetToken, new_password: password });
+      }
       toast.success("Password reset — please sign in with the new password.");
       nav("/escrow/login");
     } catch (err) { showApiError(err); }

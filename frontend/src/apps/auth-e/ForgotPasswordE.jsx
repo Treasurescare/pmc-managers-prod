@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import { authApi, showApiError } from "@/lib/api";
+import { authApi, api, showApiError } from "@/lib/api";
 
 // v50 — Option E "Forgot password?" request form.
 // Always confirms request was received (no user enumeration).
@@ -16,7 +16,17 @@ export default function ForgotPasswordE() {
     if (!email) return toast.error("Enter your account email.");
     setBusy(true);
     try {
-      await authApi.requestPasswordReset(email, portal);
+      if (portal === "escrow") {
+        // v52i — fire both escrow forgot endpoints (account-first flow and
+        // legacy signatory flow). Both always return ok, so nothing here
+        // leaks whether the email exists.
+        await Promise.all([
+          api.post("/api/v1/escrow-accounts/auth/forgot", { email }).catch(() => null),
+          api.post("/api/v1/escrow-signatories/auth/forgot-password", { email }).catch(() => null),
+        ]);
+      } else {
+        await authApi.requestPasswordReset(email, portal);
+      }
       setSent(true);
     } catch (err) {
       showApiError(err);
@@ -104,6 +114,7 @@ export default function ForgotPasswordE() {
                   <Radio value="vendor" label="Supplier" sub="Vendor portal" icon="i-users" />
                   <Radio value="staff" label="Administrator" sub="Admin console (Owner, Master Admin, Support)" icon="i-shield" />
                   <Radio value="staff" label="PMC staff" sub="Tender desk, evaluation, escrow, committee" icon="i-briefcase" />
+                  <Radio value="escrow" label="Escrow Institution" sub="Banks & trustees · owner accounts and signatories" icon="i-link" />
                 </div>
 
                 <div className="pmc-field">

@@ -1,5 +1,16 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
 
+## v52i — Escrow password reset + legacy account recovery (15 Oct 2026)
+
+- **Root cause of "reset not working":** escrow *account* reset emails link to `/escrow/login?reset=1&token=…`, but that page only posted to the **signatory** reset endpoint (`escrow_sig_password_resets`); account tokens live on `escrow_accounts.reset_token` → every account reset failed with "invalid link".
+- **Root cause of "invalid credentials on approved institution":** institutions registered under the old magic-link flow have **no `escrow_accounts` row at all**, so login 401s and forgot-password silently no-opped — owners were permanently locked out.
+- **Fixes:**
+  - `POST /escrow-accounts/auth/forgot` now **auto-provisions a verified account** linked to the institution when the email matches a `primary_contact_email` on file (legacy claim). Reset link is emailed only to the address on record — mailbox possession = proof of ownership. Audited as `escrow_account.legacy_claim`.
+  - `POST /escrow-accounts/auth/reset` now also flips `status` → `verified` on success.
+  - `/escrow/login` reset mode tries the **account** endpoint first, falls back to the signatory endpoint on 400/404; forgot mode fires **both** endpoints (both enumeration-safe).
+  - Unified `/forgot-password` page gained an **Escrow Institution** radio that fires both escrow endpoints.
+- **Verified end-to-end:** seeded a legacy approved institution with no account → forgot → account auto-created + linked → reset → login 200 with the new password → token single-use (reuse 404) → unknown email still silently 200. Existing verified account forgot/reset/login regression passed. UI: Escrow radio present on `/forgot-password`, sent panel renders.
+
 ## v52h — Deployable bundles ready (15 Oct 2026)
 
 - Backend: `/downloads/pmc-backend-v52h.zip` · 20 MB · EB-ready (Dockerfile + .ebextensions at root, no docker-compose, **no .env in the archive**).

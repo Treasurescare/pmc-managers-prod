@@ -383,7 +383,38 @@ async def change_password(payload: ChangePasswordIn, response: Response,
 
 @router.post("/auth/forgot")
 async def forgot_password(payload: ForgotIn) -> Dict[str, bool]:
-    acc = await db.escrow_accounts.find_one({"email": payload.email.lower().strip()})
+    email = payload.email.lower().strip()
+    acc = await db.escrow_accounts.find_one({"email": email})
+    if not acc:
+        # v52i — legacy recovery. Institutions registered under the old
+        # magic-link flow have no account row, so forgot-password used to
+        # silently no-op and those owners could never sign in. Provision a
+        # verified account on the fly, linked to the institution on file —
+        # the reset link then doubles as the account-claim link. It is only
+        # emailed to the address already registered for the institution, so
+        # mailbox possession is the proof of ownership.
+        inst = await db.escrow_institutions.find_one(
+            {"primary_contact_email": email}, sort=[("created_at", -1)])
+        if inst:
+            doc = {
+                "email": email,
+                "legal_name": inst.get("legal_name") or email,
+                "primary_contact_phone": inst.get("primary_contact_phone") or "",
+                "password_hash": hash_password(secrets.token_urlsafe(24)),
+                "status": "verified",
+                "token_generation": 0,
+                "institution_id": str(inst["_id"]),
+                "legacy_claim": True,
+                "created_at": now_iso(),
+            }
+            r = await db.escrow_accounts.insert_one(doc)
+            acc = {**doc, "_id": r.inserted_id}
+            await db.escrow_institutions.update_one(
+                {"_id": inst["_id"]},
+                {"$set": {"account_id": str(r.inserted_id)}})
+            await audit_log("escrow_account.legacy_claim", None,
+                            "escrow_account", str(r.inserted_id),
+                            {"email": email})
     if acc:
         tok = _token()
         await db.escrow_accounts.update_one(
@@ -406,9 +437,14 @@ async def reset_password(payload: ResetIn) -> Dict[str, bool]:
     await db.escrow_accounts.update_one(
         {"_id": acc["_id"]},
         {"$set": {"password_hash": hash_password(payload.new_password),
+                   # Resetting via the emailed link proves mailbox ownership,
+                   # so the account counts as verified from here on.
+                   "status": "verified",
                    "password_changed_at": now_iso()},
          "$inc": {"token_generation": 1},
          "$unset": {"reset_token": "", "reset_token_expires_at": ""}})
+    await audit_log("escrow_account.password_reset", None, "escrow_account",
+                    str(acc["_id"]), {"email": acc["email"]})
     return {"ok": True}
 
 
