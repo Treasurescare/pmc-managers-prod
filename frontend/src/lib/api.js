@@ -51,6 +51,11 @@ function readCookie(name) {
 // interceptor had no CSRF value and every POST/PUT/DELETE 403'd with
 // "CSRF token missing or invalid". We now also cache the token returned in
 // the login JSON body and use it as a fallback.
+// v52g — expose cacheCsrf so escrow account/signatory login paths can
+// stash the CSRF token in sessionStorage as a fallback (same resilience
+// as adminApi.login / vendorApi.login).
+export { cacheCsrf };
+
 function cacheCsrf(token) {
   try { if (token) sessionStorage.setItem("pmc.csrf", token); } catch { /* ignore */ }
 }

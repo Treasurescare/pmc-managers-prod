@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
-import { api, showApiError } from "@/lib/api";
+import { api, showApiError, cacheCsrf } from "@/lib/api";
 
 /**
  * EscrowSignatoryLogin + Claim — v51an.
@@ -35,7 +35,8 @@ export default function EscrowSignatoryLogin() {
       // Falls back to the signatory login below for anyone who already
       // claimed a signatory password.
       try {
-        await api.post("/api/v1/escrow-accounts/auth/login", { email, password });
+        const accRes = await api.post("/api/v1/escrow-accounts/auth/login", { email, password });
+        cacheCsrf(accRes?.data?.csrf_token);
         toast.success("Signed in · escrow institution");
         nav("/escrow/me");
         return;
@@ -56,7 +57,8 @@ export default function EscrowSignatoryLogin() {
         // Only 401/404 are "wrong endpoint for this email" — try signatory.
         if (code !== 401 && code !== 404) throw accErr;
       }
-      await api.post("/api/v1/escrow-signatories/auth/login", { email, password });
+      const sigRes2 = await api.post("/api/v1/escrow-signatories/auth/login", { email, password });
+      cacheCsrf(sigRes2?.data?.csrf_token);
       toast.success("Signed in · escrow signatory");
       nav("/escrow/me");
     } catch (err) { showApiError(err, { fallbackTitle: "Sign in failed" }); }
@@ -74,7 +76,8 @@ export default function EscrowSignatoryLogin() {
                      { institution_id: iid, email, password },
                      { params: { token } });
       toast.success("Password set — you can now sign in with your email.");
-      await api.post("/api/v1/escrow-signatories/auth/login", { email, password });
+      const sigRes = await api.post("/api/v1/escrow-signatories/auth/login", { email, password });
+      cacheCsrf(sigRes?.data?.csrf_token);
       nav("/escrow/me");
     } catch (err) { showApiError(err); }
     finally { setBusy(false); }

@@ -1,6 +1,13 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
 
-## v52g — Institution profile change workflow + document upload fix (15 Oct 2026)
+## v52g+ — Escrow CSRF resilience on change-request submit (15 Oct 2026)
+
+- **Reported issue:** submitting a profile change request from `/escrow/me` 403'd with `CSRF token missing or invalid` for some sessions (iframe / partitioned-cookie contexts where the JS-readable `csrf_token` cookie was dropped).
+- **Root cause:** admin and vendor logins cache the CSRF token returned in the response body into `sessionStorage` via `cacheCsrf()` so the axios interceptor has a reliable fallback. The three escrow entry points (`EscrowSignatoryLogin`, `SignInE` Escrow Institution tab) called `api.post` directly and never cached the token, so cookie-less sessions had no CSRF value to send.
+- **Fix:** exported `cacheCsrf` from `lib/api.js` and called it after each escrow account/signatory login (`/escrow/login` default + claim + reset-login paths, plus the unified `/login` Escrow Institution tab).
+- **Verification:** preview browser smoke — fresh escrow login → `sessionStorage['pmc.csrf']` is now populated, profile tab submits a `website` change request, success toast + pending entry visible, no HTTP 403.
+
+
 
 - **P0 bug fixed:** institution document upload was failing with `uploadsApi.uploadFile is not a function`. Added a `uploadsApi.uploadFile(file, { scope })` helper in `frontend/src/lib/api.js` that chains presign + direct and returns `{key, filename, content_type, size_bytes, uploaded_at}`. Wizard DocSlot now calls it with scope `escrow-docs`.
 - **New change-request workflow (user-chosen scope: all five sections, every stage, unlimited field-level, admin review in the existing panel):**

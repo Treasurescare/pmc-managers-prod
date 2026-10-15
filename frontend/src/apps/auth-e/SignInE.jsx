@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useUiTheme } from "@/context/UiThemeContext";
-import { adminApi, api, staffApi, vendorApi, showApiError } from "@/lib/api";
+import { adminApi, api, staffApi, vendorApi, showApiError, cacheCsrf } from "@/lib/api";
 
 // v50-login-fix (Feb 2026) — Made the Option E sign-in form fully functional.
 // Previously this was a pure static template (hardcoded password value, no
@@ -30,7 +30,8 @@ export default function SignInE({ legacy: Legacy }) {
     try {
       if (role === "escrow") {
         try {
-          await api.post("/api/v1/escrow-accounts/auth/login", { email, password });
+          const accRes = await api.post("/api/v1/escrow-accounts/auth/login", { email, password });
+          cacheCsrf(accRes?.data?.csrf_token);
           toast.success("Signed in · escrow institution");
           return nav("/escrow/me");
         } catch (accErr) {
@@ -47,7 +48,8 @@ export default function SignInE({ legacy: Legacy }) {
           if (code !== 401 && code !== 404) throw accErr;
         }
         try {
-          await api.post("/api/v1/escrow-signatories/auth/login", { email, password });
+          const sigRes = await api.post("/api/v1/escrow-signatories/auth/login", { email, password });
+          cacheCsrf(sigRes?.data?.csrf_token);
           toast.success("Signed in · escrow signatory");
           return nav("/escrow/me");
         } catch (err) {

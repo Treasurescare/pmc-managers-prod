@@ -1,0 +1,17 @@
+{
+  "iteration": 72,
+  "summary": "v52g+ — Fixed CSRF 403 on escrow profile change-request submit. Login paths now cache the server-issued CSRF token in sessionStorage (same pattern used by admin/vendor logins), so iframe/partitioned-cookie sessions still send a valid X-CSRF-Token header.",
+  "files_changed": [
+    "/app/frontend/src/lib/api.js",
+    "/app/frontend/src/apps/escrow-portal/EscrowSignatoryLogin.jsx",
+    "/app/frontend/src/apps/auth-e/SignInE.jsx",
+    "/app/memory/PRD.md"
+  ],
+  "verification": {
+    "sessionStorage_cache": "After /escrow/login, sessionStorage['pmc.csrf'] contains the CSRF token.",
+    "change_request_submit": "POST /api/v1/escrow-accounts/me/change-requests returned 200; UI showed 'Change request submitted — awaiting PMC review' and the pending row (website -> https://demo-escrow.example.com).",
+    "no_csrf_error": "'CSRF token missing or invalid' no longer appears in the page body."
+  },
+  "retest_needed": false,
+  "main_agent_can_self_test": true
+}
