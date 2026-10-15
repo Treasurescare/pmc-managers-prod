@@ -65,11 +65,17 @@ async def rechain_audit() -> dict:
     payloads are never modified; only previous_hash / current_hash are
     rewritten. Heals chains broken by the pre-v52m write race (sibling rows
     pointing at the same parent). Appends an `audit.chain_repaired` marker
-    event so the repair itself is on the ledger."""
+    event so the repair itself is on the ledger.
+
+    v52n — batched bulk writes so 4k+ events finish well inside the HTTP
+    timeout (prod was 20 s on prior single-doc updates)."""
+    from pymongo import UpdateOne
     prev = "GENESIS"
     total = 0
     relinked = 0
     first_broken = None
+    batch: list = []
+    BATCH = 500
     async with _AUDIT_LOCK:
         async for ev in db.audit_events.find().sort("seq", 1):
             total += 1
@@ -80,13 +86,18 @@ async def rechain_audit() -> dict:
             new_hash = _hash(body)
             if ev.get("previous_hash") != prev or ev.get("current_hash") != new_hash:
                 relinked += 1
-            await db.audit_events.update_one(
-                {"_id": ev["_id"]},
-                {"$set": {"previous_hash": prev, "current_hash": new_hash}})
+                batch.append(UpdateOne({"_id": ev["_id"]},
+                                        {"$set": {"previous_hash": prev,
+                                                   "current_hash": new_hash}}))
+            if len(batch) >= BATCH:
+                await db.audit_events.bulk_write(batch, ordered=False)
+                batch = []
             prev = new_hash
+        if batch:
+            await db.audit_events.bulk_write(batch, ordered=False)
     await audit_log("audit.chain_repaired", None, "audit_chain", "audit_events",
                     {"events_checked": total, "links_rewritten": relinked,
                      "first_broken_seq": first_broken,
-                     "note": "v52m race repair — links recomputed, payloads untouched"})
+                     "note": "v52n race repair — links recomputed, payloads untouched"})
     return {"ok": True, "events_checked": total, "links_rewritten": relinked,
             "first_broken_seq": first_broken}

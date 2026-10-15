@@ -15,6 +15,7 @@ Data model:
   `reverse_auction_participants` — one row per vendor who joined the round
   `reverse_auction_bids`         — immutable ledger of every bid (manual + auto)
 """
+import asyncio
 import secrets
 from typing import Optional, List
 from datetime import datetime, timezone
@@ -559,7 +560,21 @@ async def invite_bidders(aid: str, payload: InviteBatchIn,
         # v46c — auto-send via managed email proxy when requested
         if payload.auto_send and tpl:
             invite_url = f"{(payload.origin_url or '').rstrip('/')}/vendor/auction/invite/{token}"
-            body_html = (tpl.get("body_html") or "")\
+            # v52n — any legacy template without the {{invite_url}} placeholder
+            # left vendors with a mail that had NO join link ("shows sent but
+            # emails not received/usable"). Append the join button when the
+            # placeholder is missing.
+            raw_body = tpl.get("body_html") or ""
+            if "{{invite_url}}" not in raw_body:
+                raw_body = raw_body + (
+                    f'<p style="margin-top:16px"><a href="{{{{invite_url}}}}" '
+                    f'style="display:inline-block;padding:10px 18px;background:#0F3B2E;'
+                    f'color:#ffffff;text-decoration:none;font-weight:600;'
+                    f'letter-spacing:0.5px;text-transform:uppercase;font-size:12px;">'
+                    f'Join the auction</a></p>'
+                    f'<p style="font-size:12px;color:#64748B">Or paste this link into your '
+                    f'browser: {{{{invite_url}}}}</p>')
+            body_html = raw_body\
                 .replace("{{invite_url}}", invite_url)\
                 .replace("{{auction_title}}", a.get("title", ""))\
                 .replace("{{notice_ref}}", a.get("notice_ref", ""))\
@@ -571,8 +586,12 @@ async def invite_bidders(aid: str, payload: InviteBatchIn,
                 .replace("{{auction_title}}", a.get("title", ""))\
                 .replace("{{notice_ref}}", a.get("notice_ref", ""))
             wrapped = email_wrap(subject, body_html, "Join auction", invite_url)
+            # v52n — respect Resend's 10 req/s cap. A fast burst (10+ invites
+            # pasted at once) was returning 429 on later rows and silently
+            # dropping those invite emails. 120 ms stagger keeps us well under.
             if await send_email(email, subject, wrapped):
                 sent_count += 1
+            await asyncio.sleep(0.12)
     await audit_log("reverse_auction.invite", admin, "auction", aid,
                     {"count": len(out), "auto_sent": sent_count})
     return {"invited": out, "count": len(out), "auto_sent": sent_count}

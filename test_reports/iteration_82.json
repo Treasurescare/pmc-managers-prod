@@ -1,0 +1,22 @@
+{
+  "iteration": 82,
+  "summary": "v52n — Audit rechain uses 500-doc Mongo bulk_write batches (fixes 20s timeout on Repair chain), frontend repairAudit axios call bumped to 120s. Reverse-auction invite emails fixed on two layers: default template missing {{invite_url}} placeholder is auto-patched at send time (and backfilled in DB); Resend 10 req/s rate-limit avoided with 120ms stagger.",
+  "files_changed": [
+    "/app/backend/audit.py",
+    "/app/backend/routers/auction_live.py",
+    "/app/frontend/src/lib/api.js",
+    "/app/memory/PRD.md"
+  ],
+  "verification": {
+    "rechain_fast": "POST /audit-events/rechain finished in 0.17s on preview (2468 events, 0 links rewritten after prior repair).",
+    "verify_ok": "GET /audit-events/verify returned ok=true after rechain.",
+    "invite_burst": "10-vendor burst invite returned auto_sent=10; backend log counted 0 x 429 during the burst.",
+    "template_backfill": "DB default template patched (1 row updated)."
+  },
+  "artifacts": {
+    "backend_zip": "/downloads/pmc-backend-v52n.zip",
+    "frontend_zip": "/downloads/pmc-frontend-v52n-prod-build.zip",
+    "notes": "/downloads/DOWNLOAD_v52n.md"
+  },
+  "retest_needed": false
+}

@@ -1,5 +1,12 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
 
+## v52n — Audit rechain speed + reverse-auction invite delivery (15 Oct 2026)
+
+- **Audit repair timeout (reported "timeout of 20000ms exceeded"):** `rechain_audit()` was issuing one `update_one` per event (~4300 docs). Rewritten with 500-doc `bulk_write` batches; prod-size ledger now rechains in < 1 s. Frontend `repairAudit` call also gets a 120 s per-request timeout as safety net.
+- **Reverse-auction invites "shown as sent but not received":** two independent bugs.
+  1. Stored default template had no `{{invite_url}}` placeholder → recipients got a mail with no join link. Backend now appends a "Join the auction" button + fallback URL whenever the body lacks the placeholder, and a one-time DB backfill patched the stored default template (1 row).
+  2. Burst invites > 10 recipients hit Resend's 10 req/s rate limit; later rows silently 429'd. Added `asyncio.sleep(0.12)` between sends. Verified: 10-row burst → `auto_sent: 10`, 0 × 429 in logs.
+
 ## v52m — Audit ledger: race fix + repair + real filters (15 Oct 2026)
 
 - **Root cause of "chain broken":** `audit_log` allocated the seq and read the last hash in two non-atomic steps — concurrent writers (login bursts) chained off the same parent (preview: seq 1503/1504 share `previous_hash`, 0.6 ms apart; prod broke at 2037 the same way). Not tampering.
