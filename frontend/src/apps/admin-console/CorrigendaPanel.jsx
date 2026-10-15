@@ -159,6 +159,32 @@ export default function CorrigendaPanel() {
       toast.error("Nothing to publish — change at least one field below (or set a new submission deadline).");
       return;
     }
+    // v52t — same date-chain as Tender Builder, applied to the corrigendum
+    // path: a new deadline cannot land in the past, and pre-bid /
+    // clarification-close amendments cannot sit after the effective
+    // submission deadline. (Backend enforces the same — this is the live
+    // hint so admins see it before hitting Publish.)
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const dlNew = (edits.submission_deadline?.new || "").trim();
+    const effDeadline = draft.new_submission_deadline || dlNew || pickedNotice?.submission_deadline || "";
+    if (draft.new_submission_deadline && new Date(draft.new_submission_deadline) < todayStart) {
+      toast.error("New submission deadline cannot be in the past.");
+      return;
+    }
+    if (dlNew && new Date(dlNew) < todayStart) {
+      toast.error("Submission deadline (new value) cannot be in the past.");
+      return;
+    }
+    const after = (key) => (edits[key]?.new || "").trim();
+    const effEnd = effDeadline ? new Date(effDeadline) : null;
+    if (effEnd && after("pre_bid_meeting_date") && new Date(after("pre_bid_meeting_date")) > effEnd) {
+      toast.error("Pre-bid meeting date must be on or before the submission deadline.");
+      return;
+    }
+    if (effEnd && after("clarification_deadline") && new Date(after("clarification_deadline")) > effEnd) {
+      toast.error("Clarifications close date must be on or before the submission deadline.");
+      return;
+    }
     const autoSummary = amendments.length
       ? amendments.map((a) => `${a.field}: ${a.note}`).join("\n").slice(0, 3900)
       : "Bid submission deadline revised. See the amended dates on this notice.";

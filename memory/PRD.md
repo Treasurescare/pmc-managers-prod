@@ -2,6 +2,16 @@
 
 ## v52t — Tender date-chain validation (15 Oct 2026)
 
+- **Corrigendum path added (frontend + backend):** `CorrigendaPanel.publish`
+  now blocks past new-deadlines / past deadline amendments and pre-bid or
+  clarifications-close values landing after the effective submission
+  deadline (live toast hints); backend `corrigenda.py` publish enforces the
+  same rules (verified: pre-bid after deadline → 400
+  "Submission deadline must be on or after Pre-bid meeting date";
+  valid clarification-close amendment publishes and withdraws cleanly).
+- **Filters verified:** Audit ledger From/To pick up native min/max guards
+  (screenshot-verified: setting To immediately caps From).
+
 - **Chain enforced** (both sides, shared rule sets):
   frontend `src/lib/dateRules.js` ↔ backend `routers/date_rules.py`.
   Submission end ≥ today · Publish ≥ today · Pre-bid ≥ Publish ·
