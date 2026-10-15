@@ -1,5 +1,20 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
 
+## v52s — Production verification of corrigenda fixes (15 Oct 2026)
+
+- **Public notice Corrigenda tab** on `PMC-NOT-2026-0093` now renders both
+  corrigenda with full Field/Before/After/Reason tables (screenshot-verified
+  on production). Empty-state regression ("No corrigenda published") was a
+  pre-deploy build, resolved by the v52p backend deploy.
+- **Download diff PDF** returns 200 + valid PDF on production for both
+  Biogas corrigenda (route `GET /api/v1/notices/{ref}/corrigenda/{cid}/pdf`,
+  public, regenerates on demand via `build_corrigendum_pdf`). Earlier 404
+  was the pre-v52p production backend missing the route.
+- **Withdraw visibility:** verified in preview E2E — withdraw flips
+  `is_active=False` server-side and the corrigendum immediately leaves both
+  the admin ACTIVE list and the public page (both lists filter on
+  `is_active`). Admin panel additionally does an optimistic local flip.
+
 ## v52r — Corrigendum form dedupe + production Stripe webhook live (15 Oct 2026)
 
 - **Corrigendum form dedupe:** removed the top-level "Title" and "Overall
