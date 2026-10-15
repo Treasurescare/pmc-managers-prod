@@ -1,0 +1,26 @@
+{
+  "iteration": 79,
+  "summary": "v52k — Institutions pause to changes_requested while change requests are pending and auto-restore to approved when the queue clears; admin pipeline shows pending-count badges and a changes-pending filter; Current/Proposed diff boxes render human-readable values on a pinned light palette (fixes dark-on-hover/dark JSON boxes); owner invite form gains multi-row '+ Add another teammate' and a country dial dropdown with per-country digit validation, backed by a server-side international-format check.",
+  "files_changed": [
+    "/app/backend/routers/escrow_profile_changes.py",
+    "/app/backend/routers/escrow_institutions.py",
+    "/app/backend/routers/escrow_v52f.py",
+    "/app/frontend/src/apps/admin-console-e/AdminEscrowInstitutionsE.jsx",
+    "/app/frontend/src/apps/escrow-portal/EscrowInstitutionProfile.jsx",
+    "/app/frontend/src/index.css",
+    "/app/memory/PRD.md"
+  ],
+  "verification": {
+    "status_roundtrip": "create -> changes_requested(previous=approved); approve 1 of 2 pending -> still paused; cancel last -> approved; reject path -> approved.",
+    "admin_list": "GET /escrow-institutions?status=changes_requested returns 200 and pending_changes=1 on the seeded row.",
+    "invite_phone": "raw digits 454545454 -> 422; '+971 501234567' -> 200 when approved; 403 while paused (intended gating).",
+    "invite_ui": "add-row renders escrow-invite-row-1; country select has 30 options; remove works; bad phone shows 'United Arab Emirates phone numbers must be exactly 9 digits (you entered 3)' toast (screenshot iteration_79_invite2.png).",
+    "admin_diff_ui": "no raw JSON braces in change panel; friendly value 'Abu Dhabi' visible; diff box background computed as rgb(248,250,252) light slate (screenshot iteration_79_admin_diff.png)."
+  },
+  "artifacts": {
+    "backend_zip": "/downloads/pmc-backend-v52k.zip",
+    "frontend_zip": "/downloads/pmc-frontend-v52k-prod-build.zip",
+    "notes": "/downloads/DOWNLOAD_v52k.md"
+  },
+  "retest_needed": false
+}

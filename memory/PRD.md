@@ -1,5 +1,13 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
 
+## v52k — Pause-on-change + readable diffs + multi-invite (15 Oct 2026)
+
+- **Status gate (user decision):** approved institution + any pending change request ⇒ status `changes_requested` ("not live"); auto-restores to `approved` when the queue empties (approve/reject/cancel). `previous_status` tracked; `Status` Literal + admin filter + chart sources updated; signatory invites blocked while paused (403).
+- **Admin list** now returns `pending_changes` per institution; pipeline rows show an orange "N changes pending" badge; status filter gained "Changes pending (awaiting approval)".
+- **Readable review:** Current/Proposed diff boxes render plain values / document cards (filename · KB · View) / list items instead of JSON; inline-styled to dodge the global `[data-ui="e"]` slate→dark remap; whole page palette pinned light in `index.css` (bg + text + inputs + hover) — fixes the dark-on-hover / dark box issue.
+- **Invite form:** multi-row with "+ Add another teammate" + per-row remove; country dial dropdown (30 countries from `lib/phoneCountries.js`) with per-country digit validation; backend enforces `^\+\d{1,4}\s?\d{5,15}$` (422 otherwise).
+- **Verified:** full status round-trip (create→paused, approve-1-of-2→still paused, cancel-last→approved, reject→approved); filter+count 200; bad phone 422 / good phone 200 / paused 403; UI add/remove rows + validation toast + readable admin diff (screenshots iter 79).
+
 ## v52j — Signatory claim auto-login (15 Oct 2026)
 
 - **Reported:** magic-link claim showed BOTH a green "Password set" toast and a red "HTTP 401 Invalid email or password" toast. Backend logs showed `/claim` → 200, then an auto-login `POST /escrow-signatories/auth/login` → 401. Preview reproduction with the same code path returned 200/200 — the production 401 was most likely browser password-autofill cross-wiring or a stale CloudFront-cached frontend touching the two-call sequence.

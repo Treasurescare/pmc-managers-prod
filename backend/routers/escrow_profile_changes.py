@@ -122,6 +122,24 @@ def _validate_target(section: str, field_path: str) -> str:
     raise HTTPException(status_code=422, detail="Unknown section")
 
 
+async def _restore_live_if_clear(iid: str) -> None:
+    """v52k — an approved institution is paused (`changes_requested`) while
+    any change request is pending. Once the queue is empty (approved,
+    rejected or cancelled), flip it back to its previous live status."""
+    inst = await db.escrow_institutions.find_one({"_id": ObjectId(iid)})
+    if not inst or inst.get("status") != "changes_requested":
+        return
+    pending = await db.escrow_change_requests.count_documents(
+        {"institution_id": iid, "status": "pending"})
+    if pending:
+        return
+    await db.escrow_institutions.update_one(
+        {"_id": ObjectId(iid)},
+        {"$set": {"status": inst.get("previous_status") or "approved",
+                   "updated_at": now_iso()},
+         "$unset": {"previous_status": "", "changes_requested_at": ""}})
+
+
 # ---------- Owner (escrow_account cookie) --------------------------------
 
 @router.post("", dependencies=[Depends(require_csrf)])
@@ -153,6 +171,16 @@ async def create_change_request(payload: ChangeRequestIn, request: Request):
     await audit_log("escrow_profile.request_create", None, "escrow_change_request",
                     str(r.inserted_id),
                     {"iid": iid, "field_path": payload.field_path})
+    # v52k — a live (approved) institution with pending changes must NOT
+    # stay live until PMC clears the queue. Pause it immediately.
+    if inst.get("status") == "approved":
+        await db.escrow_institutions.update_one(
+            {"_id": ObjectId(iid)},
+            {"$set": {"status": "changes_requested",
+                       "previous_status": "approved",
+                       "changes_requested_at": now_iso()}})
+        await audit_log("escrow_institution.changes_requested", None,
+                        "escrow_institution", iid, {"by_account": acc["id"]})
     return _row_out(row)
 
 
@@ -183,6 +211,7 @@ async def cancel_my_change_request(cid: str, request: Request):
         {"$set": {"status": "cancelled", "reviewed_at": now_iso()}})
     await audit_log("escrow_profile.request_cancel", None,
                     "escrow_change_request", cid, {})
+    await _restore_live_if_clear(row["institution_id"])
     return {"ok": True}
 
 
@@ -226,6 +255,7 @@ async def admin_approve(cid: str, payload: DecisionIn,
     await audit_log("escrow_profile.request_approve", admin,
                     "escrow_change_request", cid,
                     {"iid": iid, "field_path": row["field_path"]})
+    await _restore_live_if_clear(iid)
     # Notify the owner so the bell + email light up.
     if row.get("account_id"):
         try:
@@ -261,6 +291,7 @@ async def admin_reject(cid: str, payload: DecisionIn,
                     "escrow_change_request", cid,
                     {"iid": row["institution_id"],
                      "field_path": row["field_path"]})
+    await _restore_live_if_clear(row["institution_id"])
     if row.get("account_id"):
         try:
             from routers.escrow_accounts import notify_account

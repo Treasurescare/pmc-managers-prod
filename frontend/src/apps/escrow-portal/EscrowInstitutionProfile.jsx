@@ -16,6 +16,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { api, showApiError, uploadsApi } from "@/lib/api";
+import { COUNTRY_PHONE, phoneSpecFor, validatePhoneForCountry } from "@/lib/phoneCountries";
 
 const CORE_FIELDS = [
   ["legal_name", "Legal name"],
@@ -58,7 +59,8 @@ export default function EscrowInstitutionProfile({ account, inst, onInvited }) {
   const [requests, setRequests] = useState([]);
   const [editor, setEditor] = useState(null); // { section, field_path, label, current }
   const canInvite = inst?.status === "approved";
-  const [inv, setInv] = useState({ name: "", designation: "", email: "", phone: "" });
+  const emptyInvite = () => ({ name: "", designation: "", email: "", cc: "AE", phone: "" });
+  const [invites, setInvites] = useState([emptyInvite()]);
   const [inviting, setInviting] = useState(false);
 
   const refresh = async () => {
@@ -77,19 +79,46 @@ export default function EscrowInstitutionProfile({ account, inst, onInvited }) {
   const openEditor = (section, field_path, label, current) =>
     setEditor({ section, field_path, label, current });
 
+  const updateInvite = (idx, patch) =>
+    setInvites((rows) => rows.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+
   const invite = async (e) => {
     e.preventDefault();
+    // v52k — validate every row before sending anything.
+    for (const r of invites) {
+      if (!r.name.trim() || !r.designation.trim() || !r.email.trim()) {
+        toast.error("Name, designation and email are required for every invite row.");
+        return;
+      }
+      if (r.phone.trim()) {
+        const errMsg = validatePhoneForCountry(r.cc, r.phone);
+        if (errMsg) { toast.error(errMsg); return; }
+      }
+    }
     setInviting(true);
-    try {
-      await api.post("/api/v1/escrow-accounts/me/signatories/invite", {
-        name: inv.name.trim(), designation: inv.designation.trim(),
-        email: inv.email.trim(), phone: inv.phone.trim() || undefined,
-      });
-      toast.success(`${inv.name} invited — password-claim email sent`);
-      setInv({ name: "", designation: "", email: "", phone: "" });
+    const okIdx = new Set();
+    let sent = 0;
+    for (let idx = 0; idx < invites.length; idx++) {
+      const r = invites[idx];
+      try {
+        const spec = phoneSpecFor(r.cc);
+        const digits = r.phone.replace(/\D/g, "");
+        await api.post("/api/v1/escrow-accounts/me/signatories/invite", {
+          name: r.name.trim(), designation: r.designation.trim(),
+          email: r.email.trim(),
+          phone: r.phone.trim() ? `+${spec.dial} ${digits}` : undefined,
+        });
+        okIdx.add(idx);
+        sent += 1;
+      } catch (err) { showApiError(err); }
+    }
+    if (sent) {
+      toast.success(`${sent} invite${sent > 1 ? "s" : ""} sent — password-claim email on the way`);
       onInvited?.();
-    } catch (err) { showApiError(err); }
-    finally { setInviting(false); }
+    }
+    const remaining = invites.filter((_, i) => !okIdx.has(i));
+    setInvites(remaining.length ? remaining : [emptyInvite()]);
+    setInviting(false);
   };
 
   if (!full) {
@@ -285,28 +314,58 @@ export default function EscrowInstitutionProfile({ account, inst, onInvited }) {
             ? "They'll get a password-claim email and can co-sign EMD releases on your joint accounts once set up."
             : `Available once PMC approves your institution (current status: ${inst?.status || "draft"}).`}
         </p>
-        <form onSubmit={invite} className={"grid gap-3 md:grid-cols-4 " + (!canInvite ? "opacity-50 pointer-events-none" : "")}>
-          <input placeholder="Full name" value={inv.name}
-                 data-testid="escrow-invite-name"
-                 onChange={(e) => setInv({ ...inv, name: e.target.value })}
-                 className="px-3 py-2 border border-brand-navy/20 text-sm" required minLength={2} />
-          <input placeholder="Designation" value={inv.designation}
-                 data-testid="escrow-invite-designation"
-                 onChange={(e) => setInv({ ...inv, designation: e.target.value })}
-                 className="px-3 py-2 border border-brand-navy/20 text-sm" required minLength={2} />
-          <input placeholder="Email" type="email" value={inv.email}
-                 data-testid="escrow-invite-email"
-                 onChange={(e) => setInv({ ...inv, email: e.target.value })}
-                 className="px-3 py-2 border border-brand-navy/20 text-sm" required />
-          <input placeholder="Phone (optional)" value={inv.phone}
-                 data-testid="escrow-invite-phone"
-                 onChange={(e) => setInv({ ...inv, phone: e.target.value })}
-                 className="px-3 py-2 border border-brand-navy/20 text-sm" />
-          <div className="md:col-span-4 flex justify-end">
+        <form onSubmit={invite} className={!canInvite ? "opacity-50 pointer-events-none" : ""}>
+          {invites.map((r, idx) => (
+            <div key={idx} className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_1.4fr_auto] mb-3 items-start"
+                 data-testid={`escrow-invite-row-${idx}`}>
+              <input placeholder="Full name" value={r.name}
+                     data-testid={`escrow-invite-name-${idx}`}
+                     onChange={(e) => updateInvite(idx, { name: e.target.value })}
+                     className="px-3 py-2 border border-brand-navy/20 text-sm" required minLength={2} />
+              <input placeholder="Designation" value={r.designation}
+                     data-testid={`escrow-invite-designation-${idx}`}
+                     onChange={(e) => updateInvite(idx, { designation: e.target.value })}
+                     className="px-3 py-2 border border-brand-navy/20 text-sm" required minLength={2} />
+              <input placeholder="Email" type="email" value={r.email}
+                     data-testid={`escrow-invite-email-${idx}`}
+                     onChange={(e) => updateInvite(idx, { email: e.target.value })}
+                     className="px-3 py-2 border border-brand-navy/20 text-sm" required />
+              <div className="flex gap-1">
+                <select value={r.cc}
+                        data-testid={`escrow-invite-cc-${idx}`}
+                        onChange={(e) => updateInvite(idx, { cc: e.target.value })}
+                        className="px-2 py-2 border border-brand-navy/20 text-sm bg-white w-28">
+                  {COUNTRY_PHONE.map((c) => (
+                    <option key={c.code} value={c.code}>+{c.dial} {c.code}</option>
+                  ))}
+                </select>
+                <input placeholder={`Mobile · ${phoneSpecFor(r.cc).digits} digits`} value={r.phone}
+                       data-testid={`escrow-invite-phone-${idx}`}
+                       onChange={(e) => updateInvite(idx, { phone: e.target.value })}
+                       inputMode="numeric"
+                       className="px-3 py-2 border border-brand-navy/20 text-sm flex-1" />
+              </div>
+              {invites.length > 1 && (
+                <button type="button"
+                        data-testid={`escrow-invite-remove-${idx}`}
+                        onClick={() => setInvites((rows) => rows.filter((_, i) => i !== idx))}
+                        className="px-2 py-2 text-xs uppercase tracking-widest text-red-700 hover:underline">
+                  Remove
+                </button>
+              )}
+            </div>
+          ))}
+          <div className="flex items-center justify-between mt-1">
+            <button type="button"
+                    data-testid="escrow-invite-add-row"
+                    onClick={() => setInvites((rows) => [...rows, emptyInvite()])}
+                    className="px-4 py-2 text-xs uppercase tracking-widest border border-brand-navy/40 text-brand-navy hover:bg-brand-pale">
+              + Add another teammate
+            </button>
             <button type="submit" disabled={inviting || !canInvite}
                     data-testid="escrow-invite-submit"
                     className="px-5 py-2 text-xs uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy/90 disabled:opacity-50">
-              {inviting ? "Inviting…" : "Send invite"}
+              {inviting ? "Inviting…" : invites.length > 1 ? `Send ${invites.length} invites` : "Send invite"}
             </button>
           </div>
         </form>

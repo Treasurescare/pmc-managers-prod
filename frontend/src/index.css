@@ -770,6 +770,34 @@
 [data-ui="e"] [data-testid="blacklist-dashboard-panel"] .bg-white { background: #FFFFFF !important; }
 [data-ui="e"] [data-testid="blacklist-dashboard-panel"] .bg-slate-50 { background: #F8FAFC !important; }
 
+/* v52k — Admin Escrow Institutions page is a LIGHT page; pin the palette so
+   the global slate→dark remap never blacks out the change-request diff
+   boxes, pipeline rows, filter inputs or hover states (dark-on-dark bug
+   reported on production). */
+[data-ui="e"] [data-testid="admin-escrow-insts-page"] .bg-white { background: #FFFFFF !important; }
+[data-ui="e"] [data-testid="admin-escrow-insts-page"] .bg-slate-50 { background: #F8FAFC !important; }
+[data-ui="e"] [data-testid="admin-escrow-insts-page"] .bg-slate-100 { background: #F1F5F9 !important; }
+[data-ui="e"] [data-testid="admin-escrow-insts-page"] .bg-amber-50 { background: #FFFBEB !important; }
+[data-ui="e"] [data-testid="admin-escrow-insts-page"] .bg-emerald-50 { background: #ECFDF5 !important; }
+[data-ui="e"] [data-testid="admin-escrow-insts-page"] .bg-red-50 { background: #FEF2F2 !important; }
+[data-ui="e"] [data-testid="admin-escrow-insts-page"] .bg-sky-50 { background: #F0F9FF !important; }
+[data-ui="e"] [data-testid="admin-escrow-insts-page"] .bg-orange-100 { background: #FFEDD5 !important; }
+[data-ui="e"] [data-testid="admin-escrow-insts-page"] .hover\:bg-brand-navy\/5:hover { background: rgba(15,59,46,0.05) !important; }
+[data-ui="e"] [data-testid="admin-escrow-insts-page"] input,
+[data-ui="e"] [data-testid="admin-escrow-insts-page"] select,
+[data-ui="e"] [data-testid="admin-escrow-insts-page"] textarea {
+  background: #FFFFFF !important; border-color: #CBD5E1 !important; color: #0F172A !important;
+}
+/* v52k — the same global remap also washes slate TEXT out to cream on this
+   light page; pin the ink colors back. */
+[data-ui="e"] [data-testid="admin-escrow-insts-page"] .text-slate-900,
+[data-ui="e"] [data-testid="admin-escrow-insts-page"] .text-slate-800 { color: #0F172A !important; }
+[data-ui="e"] [data-testid="admin-escrow-insts-page"] .text-slate-700 { color: #334155 !important; }
+[data-ui="e"] [data-testid="admin-escrow-insts-page"] .text-slate-600 { color: #475569 !important; }
+[data-ui="e"] [data-testid="admin-escrow-insts-page"] .text-slate-500 { color: #64748B !important; }
+[data-ui="e"] [data-testid="admin-escrow-insts-page"] .text-slate-400 { color: #94A3B8 !important; }
+
+
 /* v51bb — Admin vendor create/edit forms: brighten for readability.
    Under Option E these pages sat on a cream wash with muddy gold labels
    (#7A5F1E) and nearly invisible 18%-alpha input borders. Pin the form

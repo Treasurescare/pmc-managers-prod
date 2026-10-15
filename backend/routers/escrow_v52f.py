@@ -140,7 +140,8 @@ async def admin_chart(months: int = 12,
     # Flat list of every institution (for the multi-select source), even when
     # a filter is active, so the UI knows the full option set.
     all_opts: List[Dict[str, Any]] = []
-    async for d in db.escrow_institutions.find({"status": "approved"}):
+    async for d in db.escrow_institutions.find(
+            {"status": {"$in": ["approved", "changes_requested"]}}):
         all_opts.append({"id": str(d["_id"]),
                            "legal_name": d.get("legal_name")})
     return {"series": series, "institutions": insts,
@@ -153,7 +154,10 @@ class SignatoryInviteIn(BaseModel):
     name: str = Field(min_length=2, max_length=120)
     designation: str = Field(min_length=2, max_length=120)
     email: EmailStr
-    phone: Optional[str] = None
+    # v52k — international format enforced; the UI pairs a country dropdown
+    # with digit-count validation before anything reaches this endpoint.
+    phone: Optional[str] = Field(default=None,
+                                  pattern=r"^\+\d{1,4}\s?\d{5,15}$")
 
 
 @router.post("/me/signatories/invite", dependencies=[Depends(require_csrf)])

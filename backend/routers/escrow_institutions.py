@@ -12,7 +12,7 @@ and reviewed. Flip the switch by adding
 to backend/server.py when ready to go live.
 """
 from datetime import datetime, timezone
-from typing import List, Literal, Optional
+from typing import Dict, List, Literal, Optional
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -49,7 +49,7 @@ async def _institution_for_write(iid: str, request: Request, token: Optional[str
     raise HTTPException(status_code=404, detail="Not found")
 
 Status = Literal["draft", "submitted", "under_review", "needs_clarification",
-                 "approved", "rejected"]
+                 "approved", "rejected", "changes_requested"]
 
 
 class Signatory(BaseModel):
@@ -449,6 +449,16 @@ async def list_institutions(status: Optional[Status] = None,
         for i in items:
             if i.get("account_id") and i["account_id"] in acc_map:
                 i["owner_account"] = acc_map[i["account_id"]]
+    # v52k — flag institutions with pending profile-change requests so the
+    # pipeline shows "N changes pending" without opening each record.
+    pending_map: Dict[str, int] = {}
+    async for cr in db.escrow_change_requests.find(
+            {"status": "pending"}, {"institution_id": 1}):
+        k = cr.get("institution_id")
+        pending_map[k] = pending_map.get(k, 0) + 1
+    for i in items:
+        if pending_map.get(i["id"]):
+            i["pending_changes"] = pending_map[i["id"]]
     return {"items": items, "total": len(items)}
 
 

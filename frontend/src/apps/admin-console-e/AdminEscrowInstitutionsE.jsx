@@ -86,18 +86,20 @@ export default function AdminEscrowInstitutionsE() {
       rejected: "bg-red-50 text-red-900 border-red-200",
       submitted: "bg-amber-50 text-amber-900 border-amber-300",
       under_review: "bg-amber-50 text-amber-900 border-amber-300",
+      changes_requested: "bg-orange-100 text-orange-900 border-orange-300",
       needs_clarification: "bg-sky-50 text-sky-900 border-sky-300",
       draft: "bg-slate-50 text-slate-700 border-slate-200",
     };
     return (
       <span className={`inline-block text-[10px] uppercase tracking-widest px-2 py-0.5 border ${map[s] || map.draft}`}>
-        {s}
+        {s === "changes_requested" ? "changes pending" : s}
       </span>
     );
   };
 
   return (
-    <div className="min-h-screen" style={{ background: "var(--brand-pale, #F3EFE4)" }}>
+    <div className="min-h-screen" style={{ background: "var(--brand-pale, #F3EFE4)" }}
+         data-testid="admin-escrow-insts-page">
       <AdminEShell active="Escrow institutions"
                     crumb={<>Money &amp; compliance / <b>Escrow institutions</b></>}>
         <div className="p-6" data-testid="admin-escrow-insts-page">
@@ -138,6 +140,7 @@ export default function AdminEscrowInstitutionsE() {
                 <option value="">All statuses</option>
                 <option value="submitted">Submitted (new)</option>
                 <option value="under_review">Under review</option>
+                <option value="changes_requested">Changes pending (awaiting approval)</option>
                 <option value="needs_clarification">Needs clarification</option>
                 <option value="approved">Approved</option>
                 <option value="rejected">Rejected</option>
@@ -174,7 +177,15 @@ export default function AdminEscrowInstitutionsE() {
                             className={`w-full text-left p-4 hover:bg-brand-navy/5 transition-colors ${sel?.id === i.id ? "bg-brand-navy/5" : ""}`}>
                       <div className="flex items-center justify-between gap-2 flex-wrap">
                         <strong className="text-brand-navy">{i.legal_name}</strong>
-                        {statusChip(i.status)}
+                        <span className="flex items-center gap-1">
+                          {statusChip(i.status)}
+                          {i.pending_changes > 0 && (
+                            <span className="inline-block text-[10px] uppercase tracking-widest px-2 py-0.5 border bg-orange-100 text-orange-900 border-orange-300"
+                                  data-testid={`admin-escrow-inst-pending-${i.id}`}>
+                              {i.pending_changes} change{i.pending_changes > 1 ? "s" : ""} pending
+                            </span>
+                          )}
+                        </span>
                       </div>
                       <div className="text-xs text-brand-navy/60 mt-1">
                         {i.country} · reg {i.reg_number || "—"} · {i.primary_contact_email}
@@ -334,6 +345,62 @@ export default function AdminEscrowInstitutionsE() {
   );
 }
 
+function ValueBox({ label, value, section, tone, viewKey, viewTestId }) {
+  // v52k — human-readable diff boxes. Inline styles dodge the global
+  // [data-ui="e"] slate→dark remap that was blacking these boxes out.
+  const boxStyle = tone === "amber"
+    ? { background: "#FFFBEB", border: "1px solid #FDE68A", color: "#0F172A" }
+    : { background: "#F8FAFC", border: "1px solid #E2E8F0", color: "#0F172A" };
+  return (
+    <div>
+      <div className="pmc-label text-[9px]">{label}</div>
+      <div className="p-2 overflow-auto max-h-40 text-xs rounded-sm" style={boxStyle}>
+        {renderFriendly(value, section)}
+      </div>
+      {viewKey && (
+        <button type="button"
+                onClick={() => uploadsApi.openFile(viewKey).catch(showApiError)}
+                data-testid={viewTestId}
+                className="mt-1 px-3 py-1 text-[10px] uppercase tracking-widest border border-brand-navy/40 text-brand-navy hover:bg-brand-pale">
+          View proposed file
+        </button>
+      )}
+    </div>
+  );
+}
+
+function renderFriendly(v, section) {
+  if (v == null || v === "") return <span style={{ color: "#94A3B8" }}>—</span>;
+  if (section === "documents" && typeof v === "object" && !Array.isArray(v)) {
+    return (
+      <span>
+        <strong>{v.filename || "file"}</strong>
+        {v.size_bytes != null && ` · ${Math.max(1, Math.round(v.size_bytes / 1024))} KB`}
+        {v.uploaded_at && <span style={{ color: "#64748B" }}>{` · uploaded ${String(v.uploaded_at).slice(0, 10)}`}</span>}
+      </span>
+    );
+  }
+  if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") return String(v);
+  if (Array.isArray(v)) {
+    if (!v.length) return <span style={{ color: "#94A3B8" }}>Empty list</span>;
+    return (
+      <ul className="space-y-1">
+        {v.map((item, i) => (
+          <li key={i}>
+            {item && typeof item === "object"
+              ? Object.entries(item)
+                  .filter(([, val]) => val != null && val !== "")
+                  .map(([k, val]) => `${k}: ${val}`)
+                  .join(" · ")
+              : String(item)}
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  return <pre className="whitespace-pre-wrap break-words m-0">{JSON.stringify(v, null, 2)}</pre>;
+}
+
 function F({ label, v, mono }) {
   return (
     <div>
@@ -396,22 +463,10 @@ function ChangeRequestsPanel({ iid }) {
               </div>
             </div>
             <div className="mt-2 grid md:grid-cols-2 gap-3 text-xs">
-              <div>
-                <div className="pmc-label text-[9px]">Current</div>
-                <pre className="bg-slate-50 border border-brand-navy/10 p-2 overflow-auto max-h-40">{JSON.stringify(r.current_value, null, 2)}</pre>
-              </div>
-              <div>
-                <div className="pmc-label text-[9px]">Proposed</div>
-                <pre className="bg-amber-50 border border-amber-200 p-2 overflow-auto max-h-40">{JSON.stringify(r.proposed_value, null, 2)}</pre>
-                {r.section === "documents" && r.proposed_value?.key && (
-                  <button type="button"
-                          onClick={() => uploadsApi.openFile(r.proposed_value.key).catch(showApiError)}
-                          data-testid={`admin-escrow-change-view-${r.id}`}
-                          className="inline-block mt-1 px-3 py-1 text-[10px] uppercase tracking-widest border border-brand-navy/40 text-brand-navy hover:bg-brand-pale">
-                    View proposed file
-                  </button>
-                )}
-              </div>
+              <ValueBox label="Current" value={r.current_value} section={r.section} tone="slate" />
+              <ValueBox label="Proposed" value={r.proposed_value} section={r.section} tone="amber"
+                        viewKey={r.section === "documents" ? r.proposed_value?.key : null}
+                        viewTestId={`admin-escrow-change-view-${r.id}`} />
             </div>
             {r.reason && (
               <div className="mt-1 text-xs text-brand-navy/70">Reason: {r.reason}</div>
