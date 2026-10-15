@@ -1,0 +1,15 @@
+{
+  "iteration": 76,
+  "summary": "v52h deployable bundles built and published. Backend ZIP is EB-ready (Dockerfile + .ebextensions at root, no docker-compose). Frontend CRA build has downloads/ pruned.",
+  "artifacts": {
+    "backend_zip": "/app/frontend/public/downloads/pmc-backend-v52h.zip (20M)",
+    "frontend_zip": "/app/frontend/public/downloads/pmc-frontend-v52h-prod-build.zip (3.8M)",
+    "release_notes": "/app/frontend/public/downloads/DOWNLOAD_v52h.md"
+  },
+  "download_urls": {
+    "backend": "{REACT_APP_BACKEND_URL}/downloads/pmc-backend-v52h.zip",
+    "frontend": "{REACT_APP_BACKEND_URL}/downloads/pmc-frontend-v52h-prod-build.zip",
+    "notes": "{REACT_APP_BACKEND_URL}/downloads/DOWNLOAD_v52h.md"
+  },
+  "retest_needed": false
+}

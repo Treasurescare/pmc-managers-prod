@@ -1,5 +1,13 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
 
+## v52h — Deployable bundles ready (15 Oct 2026)
+
+- Backend: `/downloads/pmc-backend-v52h.zip` · 20 MB · EB-ready (Dockerfile + .ebextensions at root, no docker-compose, **no .env in the archive**).
+- Frontend: `/downloads/pmc-frontend-v52h-prod-build.zip` · 3.8 MB CRA build (14 MB unzipped, `downloads/` pruned).
+- Release notes: `/downloads/DOWNLOAD_v52h.md`.
+- Contains every v52g / v52g+ / v52h fix: upload crash, CSRF cookie partitioned, download gate for escrow sessions, file view inside iframe (blob fetch), institution profile change-request workflow, admin filters, sign-out to unified `/login`.
+- Sessions created before this deploy must sign out and back in once to receive the new `csrf_token` cookie.
+
 ## v52h — Document download gate + sign-out routing (15 Oct 2026)
 
 - **Bug 1 — institution users couldn't view uploaded files:** `uploads.py::_require_any_signed_in` only accepted admin Bearer or vendor cookie, so escrow account / signatory sessions got 401 on `/api/v1/uploads/files/{key}`. Now accepts `escrow_account_token` and `escrow_sig_token` cookies too (lazy imports, anonymous still 401).
