@@ -1,0 +1,59 @@
+{
+  "summary": "Iter 69 (final retest v52d). All three live-DOM pre-checks PASS: 1 Toaster <ol>, offset top=72, EscrowSignatoryLogin.jsx line 50 contains toast.error('Sign in failed', ...). Fix A, B, C all verified green against live served bundle at REACT_APP_BACKEND_URL. No regressions on avatar menu order.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "verification_evidence": {
+    "preflight_dom": {
+      "toaster_count": 1,
+      "app_js_offset": "offset={{ top: 72, right: 16 }} at /app/frontend/src/App.js:174",
+      "escrow_login_grep": "line 50: toast.error(\"Sign in failed\", { description: detail.message || 'Please verify your email before signing in.', duration: 10000, closeButton: true })"
+    },
+    "fix_a_single_toaster": {
+      "credential": "escrowdemo@pmcmanagers.com",
+      "ol_count": 1,
+      "li_count": 1,
+      "toast_text": "Signed in \u00b7 escrow institution",
+      "status": "PASS"
+    },
+    "fix_b_avatar_bell_clickable_during_toast": {
+      "toast_rect": {"top": 72, "bottom": 125.5, "left": 1548, "right": 1904},
+      "avatar_rect": {"top": 12, "bottom": 48, "left": 1860, "right": 1896},
+      "bell_rect": {"top": 12, "bottom": 48, "left": 1799, "right": 1840},
+      "avatar_normal_click_opened_menu": true,
+      "avatar_menu_items_in_order": ["Change profile", "Change password", "Sign out"],
+      "avatar_menu_testid": "escrow-avatar-menu",
+      "bell_dropdown_opens": true,
+      "bell_empty_state_text": "No notifications yet. We'll ping you here when PMC reviews your registration.",
+      "status": "PASS"
+    },
+    "fix_c_unverified_login_toast_title": {
+      "registered_via": "POST /api/v1/escrow-accounts/register (200, status=unverified)",
+      "login_response_status": 403,
+      "login_response_detail": {"error": "unverified", "message": "Please verify your email before signing in. Check your inbox for the link we sent you."},
+      "toast_title": "Sign in failed",
+      "toast_description": "Please verify your email before signing in. Check your inbox for the link we sent you.",
+      "toast_type": "error",
+      "status": "PASS"
+    },
+    "regression": {
+      "avatar_menu_order_profile_password_signout": "PASS",
+      "wizard_render_after_login": "PASS (Complete your registration + 5 tabs visible)",
+      "bell_empty_state": "PASS"
+    }
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "EscrowSignatoryLogin.jsx submitClaim/submitLogin flow is correct; 403 unverified branch is specific and avoids fall-through to signatory login.",
+    "Toaster is correctly singleton in App.js with offset top=72 to clear the ~60px fixed header.",
+    "Consider adding data-testid on each DropdownMenu.Item (e.g. escrow-avatar-profile, escrow-avatar-password, escrow-avatar-signout) \u2014 currently only parent escrow-avatar-menu testid exists which makes individual item automation harder (regression concern noted, not blocking)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only)", "frontend": "100%"},
+  "test_credentials": "escrowdemo@pmcmanagers.com / Escrow@12345 (verified, institution=draft). Fresh unverified users created via POST /api/v1/escrow-accounts/register with legal_name + primary_contact_phone (both required).",
+  "seed_data_creation": "Created 1 unverified test account (freshtest<ts>@example.com) via API register. Harmless, no cleanup required.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Fix A/B/C all green on live bundle. If testing escrow register via UI, note that submit testid is 'escrow-reg-submit' and the backend route is POST /api/v1/escrow-accounts/register requiring {email, password, legal_name, primary_contact_phone}. Avatar dropdown items don\u2019t use role=menuitem; use data-testid='escrow-avatar-menu' and read textContent, or add per-item testids.",
+  "rca of the issue": "Prior iter 68 falsely reported no edits due to webpack dev-server serving a stale bundle. After supervisor restart (performed by main agent), disk + live DOM both reflect fixes. Verified in this iteration by reading from REACT_APP_BACKEND_URL only."
+}

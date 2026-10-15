@@ -48,9 +48,13 @@
 
 **Pre-seeded demo account** (preview only, see `/app/memory/test_credentials.md`): `escrowdemo@pmcmanagers.com` / `Escrow@12345` — status=verified, institution=draft so the wizard renders immediately.
 
-### v52d post-review patches (15 Feb 2026, from testing_agent iter 66)
-- **Unverified-login message surfaced** — `EscrowSignatoryLogin.submitLogin` used to swallow the account endpoint's 403 "unverified" by falling through to the signatory login (which then returned a generic 401). Fallthrough now triggers ONLY on 401/404; 403-unverified calls `showApiError(..., {fallbackTitle:"Sign in failed"})`. The retest confirms the toast now reads "Sign in failed · HTTP 403 · Please verify your email before signing in. Check your inbox for the link we sent you."
-- **Toast container no longer intercepts header clicks** — `App.css` ends with `ol[data-sonner-toaster]{pointer-events:none}` and `> li{pointer-events:auto}`. The toast remains clickable (close button, dismiss) but the empty regions of its wide container no longer swallow clicks on the avatar/bell during the ~6s a success toast is visible after login.
+### v52d post-review patches (15 Feb 2026, from testing_agent iter 66, 67, 68)
+- **Unverified-login message surfaced** — `EscrowSignatoryLogin.submitLogin` used to swallow the account endpoint's 403 "unverified" by falling through to the signatory login (which then returned a generic 401). Fallthrough now triggers ONLY on 401/404; 403-unverified calls `toast.error("Sign in failed", {description: detail.message, duration:10000, closeButton:true})` directly so the title reads exactly "Sign in failed".
+- **Toast container no longer intercepts header clicks** — root cause was two-fold: (a) a duplicate `<Toaster/>` was mounted in both `src/index.js` AND `src/App.js` so every toast rendered twice, and (b) the top-right toast rect overlapped the header avatar/bell for its ~6s lifetime. Fixes: removed the `index.js` Toaster (App.js is the sole mount, inside providers/error boundary), and added `offset={{ top: 72, right: 16 }}` to the App.js Toaster so toasts open BELOW the header. Live-verified: toast rect top=72, avatar rect bottom=48 — no overlap.
+- **Build cache gotcha logged** — the first retest round reported edits "missing on disk". Root cause: webpack dev-server served a stale cached bundle after a .css append + rapid file edits. Fix: `sudo supervisorctl restart frontend` after structural changes (index.js mount changes especially); hot-reload alone wasn't enough.
+
+### v52d — Final retest (iter 69) outcome
+- **100% pass**, retest_needed=false. Live-DOM evidence: toaster_count=1, toast rect top=72 (sits below the ~60px header, no overlap), avatar normal page.click opens the menu while the "Signed in" toast is visible, 403-unverified toast title is exactly "Sign in failed" with the "Please verify your email…" description, avatar menu order is Change profile → Change password → Sign out, sign-out returns to `/escrow/login`, bell dropdown empty state renders correctly.
 
 **Production migration note:** anyone mid-registration on the old magic-link flow needs to visit `/escrow/register` and start fresh (user explicitly chose "force everyone"). Admin-invited drafts (via `POST /admin-invite`) still resume through `/escrow/resume/:token` + legacy wizard — only the self-serve `/escrow/register` entry point moved.
 
