@@ -95,6 +95,28 @@ Backlog remaining: deployment of rev10 bundle (v52d + v52e combined).
 - `/app/frontend/public/downloads/pmc-frontend-v52e-prod-build.zip` — S3/CloudFront static assets
 - `/app/frontend/public/downloads/DOWNLOAD_v52e.md` — release notes + deploy checklist + rollback
 
+
+## v52f — Charts, signatory invites, PDF statements (15 Feb 2026)
+
+### Features
+- **Dashboard chart** — `/escrow/me` Overview tab now has a 12-month volume line + currency pie with an account picker (`EscrowDashboardChart.jsx`). Admin version with a multi-select institution filter on the admin pipeline page (`AdminEscrowChart.jsx`).
+- **Signatory invites unlock post-approval** — new form on the Profile tab (disabled until status=approved); submit calls `POST /api/v1/escrow-accounts/me/signatories/invite` which appends to the institution's `signatories[]` and fires the password-claim email. 409 on duplicate email.
+- **PDF statements** — Download / Download+email-me buttons on each joint account; backend `GET /me/joint-accounts/{aid}/statement.pdf?email_me=1` renders a reportlab PDF (branded header, transaction table, totals, footer) and optionally emails as attachment.
+
+### Backend
+- New router `routers/escrow_v52f.py` mounted as `/api/v1/escrow-accounts/me/*` (chart, signatories/invite, joint-accounts/*/statement.pdf) + admin router `/api/v1/escrow/admin/chart`.
+- Shared `_month_series()` aggregator (buckets `escrow_transactions` by YYYY-MM × currency over configurable 3-24 month window).
+- `_resolve_joint_account_ids(iid)` reused across chart and statement scopes.
+
+### Tests
+- `backend/tests/test_v52f.py` — 8 tests covering chart shape + clamp, invite 403 pre-approval, 200 + 409 post-approval, statement foreign-reject + PDF magic bytes, admin chart all + filtered.
+- Cumulative suite (rev9 + v52d + v52e + v52f) — green.
+
+### Deployment artifacts
+- `/app/frontend/public/downloads/pmc-backend-v52f.zip`
+- `/app/frontend/public/downloads/pmc-frontend-v52f-prod-build.zip`
+- `/app/frontend/public/downloads/DOWNLOAD_v52f.md`
+
 **Production migration note:** anyone mid-registration on the old magic-link flow needs to visit `/escrow/register` and start fresh (user explicitly chose "force everyone"). Admin-invited drafts (via `POST /admin-invite`) still resume through `/escrow/resume/:token` + legacy wizard — only the self-serve `/escrow/register` entry point moved.
 
 

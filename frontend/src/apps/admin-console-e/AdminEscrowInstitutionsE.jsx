@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import AdminEShell from "./AdminEShell";
+import AdminEscrowChart from "./AdminEscrowChart";
 import { api, showApiError, escrowInstitutionsApi } from "@/lib/api";
 /**
  * v51am — Admin review queue for Escrow Institution registrations.
@@ -269,6 +270,11 @@ export default function AdminEscrowInstitutionsE() {
                 </div>
               )}
             </section>
+          </div>
+
+          {/* v52f — cross-institution escrow volume chart */}
+          <div className="mb-6">
+            <AdminEscrowChart />
           </div>
 
           {/* v51an — Notice ↔ Escrow account picker. Admin can assign a

@@ -6,7 +6,9 @@
  * empty state when PMC hasn't opened a joint account yet.
  */
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { api, showApiError } from "@/lib/api";
+import EscrowDashboardChart from "./EscrowDashboardChart";
 
 const TABS = [
   ["overview",     "Overview"],
@@ -93,6 +95,9 @@ export default function EscrowAccountDashboardBody({ account }) {
                 main login page.
               </p>
             )}
+            <div className="mt-6">
+              <EscrowDashboardChart />
+            </div>
           </>
         )}
         {tab === "pending" && (
@@ -105,7 +110,7 @@ export default function EscrowAccountDashboardBody({ account }) {
           <AccountsList rows={accounts} />
         )}
         {tab === "profile" && (
-          <ProfileView account={account} inst={inst} />
+          <ProfileView account={account} inst={inst} onInvited={() => window.location.reload()} />
         )}
       </main>
     </div>
@@ -168,6 +173,17 @@ function TxList({ title, rows, empty }) {
 }
 
 function AccountsList({ rows }) {
+  const dl = (aid, name, emailToo) => {
+    // v52f — Statement PDF download. If `emailToo`, server also emails the PDF
+    // to the primary contact as an attachment.
+    const url = `/api/v1/escrow-accounts/me/joint-accounts/${aid}/statement.pdf?email_me=${emailToo ? 1 : 0}`;
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `statement-${(name || "account").replace(/\s+/g, "_")}.pdf`;
+    document.body.appendChild(a); a.click(); a.remove();
+    if (emailToo) toast.success("Statement downloaded and emailed");
+    else toast.success("Statement downloaded");
+  };
   return (
     <>
       <h1 className="font-serif text-2xl text-brand-navy mb-4">Joint accounts</h1>
@@ -178,7 +194,8 @@ function AccountsList({ rows }) {
       ) : (
         <div className="grid md:grid-cols-2 gap-3">
           {rows.map((a) => (
-            <div key={a.id} className="bg-white p-5 border border-brand-navy/15">
+            <div key={a.id} className="bg-white p-5 border border-brand-navy/15"
+                 data-testid={`escrow-joint-${a.id}`}>
               <div className="text-[10px] uppercase tracking-widest text-brand-navy/60">
                 {a.currency || "—"} account
               </div>
@@ -190,6 +207,18 @@ function AccountsList({ rows }) {
                   <strong>{a.balance.toLocaleString?.()} {a.currency}</strong>
                 </div>
               )}
+              <div className="mt-3 flex gap-2">
+                <button type="button" onClick={() => dl(a.id, a.name, false)}
+                        data-testid={`escrow-statement-dl-${a.id}`}
+                        className="px-3 py-1.5 text-[10px] uppercase tracking-widest border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white">
+                  Download statement
+                </button>
+                <button type="button" onClick={() => dl(a.id, a.name, true)}
+                        data-testid={`escrow-statement-email-${a.id}`}
+                        className="px-3 py-1.5 text-[10px] uppercase tracking-widest border border-brand-gold text-brand-navy hover:bg-brand-gold">
+                  Download + email me
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -198,7 +227,26 @@ function AccountsList({ rows }) {
   );
 }
 
-function ProfileView({ account, inst }) {
+function ProfileView({ account, inst, onInvited }) {
+  const [inv, setInv] = useState({ name: "", designation: "", email: "", phone: "" });
+  const [busy, setBusy] = useState(false);
+  const canInvite = inst.status === "approved";
+
+  const invite = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await api.post("/api/v1/escrow-accounts/me/signatories/invite", {
+        name: inv.name.trim(), designation: inv.designation.trim(),
+        email: inv.email.trim(), phone: inv.phone.trim() || undefined,
+      });
+      toast.success(`${inv.name} invited — password-claim email sent`);
+      setInv({ name: "", designation: "", email: "", phone: "" });
+      onInvited?.();
+    } catch (err) { showApiError(err); }
+    finally { setBusy(false); }
+  };
+
   return (
     <>
       <h1 className="font-serif text-2xl text-brand-navy mb-4">Institution profile</h1>
@@ -211,6 +259,40 @@ function ProfileView({ account, inst }) {
           Use the avatar menu (top right) to update your name or phone.
           To change registration data after approval, contact PMC support.
         </div>
+      </div>
+
+      <div className="mt-6 bg-white border border-brand-navy/15 p-6" data-testid="escrow-invite-section">
+        <h2 className="font-serif text-lg text-brand-navy mb-1">Invite a teammate as signatory</h2>
+        <p className="text-xs text-brand-navy/60 mb-4">
+          {canInvite
+            ? "They'll get a password-claim email and can co-sign EMD releases on your joint accounts once set up."
+            : `Available once PMC approves your institution (current status: ${inst.status}).`}
+        </p>
+        <form onSubmit={invite} className={"grid gap-3 md:grid-cols-4 " + (!canInvite ? "opacity-50 pointer-events-none" : "")}>
+          <input placeholder="Full name" value={inv.name}
+                 data-testid="escrow-invite-name"
+                 onChange={(e) => setInv({ ...inv, name: e.target.value })}
+                 className="px-3 py-2 border border-brand-navy/20 text-sm" required minLength={2} />
+          <input placeholder="Designation" value={inv.designation}
+                 data-testid="escrow-invite-designation"
+                 onChange={(e) => setInv({ ...inv, designation: e.target.value })}
+                 className="px-3 py-2 border border-brand-navy/20 text-sm" required minLength={2} />
+          <input placeholder="Email" type="email" value={inv.email}
+                 data-testid="escrow-invite-email"
+                 onChange={(e) => setInv({ ...inv, email: e.target.value })}
+                 className="px-3 py-2 border border-brand-navy/20 text-sm" required />
+          <input placeholder="Phone (optional)" value={inv.phone}
+                 data-testid="escrow-invite-phone"
+                 onChange={(e) => setInv({ ...inv, phone: e.target.value })}
+                 className="px-3 py-2 border border-brand-navy/20 text-sm" />
+          <div className="md:col-span-4 flex justify-end">
+            <button type="submit" disabled={busy || !canInvite}
+                    data-testid="escrow-invite-submit"
+                    className="px-5 py-2 text-xs uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy/90 disabled:opacity-50">
+              {busy ? "Inviting…" : "Send invite"}
+            </button>
+          </div>
+        </form>
       </div>
     </>
   );
