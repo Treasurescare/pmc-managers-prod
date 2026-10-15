@@ -5,7 +5,7 @@ import { useI18n } from "@/context/I18nContext";
 import { InfoDot } from "@/components/InfoDot";
 import AuctionInvitations from "./auction/AuctionInvitations";
 import { useListPager } from "@/components/ListPager";
-import CreatorDateFilterBar, { matchCreatorDate } from "@/components/CreatorDateFilterBar";
+import CreatorDateFilterBar, { matchCreatorDate, creatorDateParams } from "@/components/CreatorDateFilterBar";
 
 /** Wave 40 — Admin live-auction management. */
 export default function LiveAuctionsPanel() {
@@ -22,10 +22,13 @@ export default function LiveAuctionsPanel() {
     min_decrement: 5000, duration_minutes: 30, anti_snipe_seconds: 120,
   });
 
+  // v52w — Created by / from / to pushed to the API (client-side match below
+  // kept as an instant fallback while the refetch is in flight).
+  const [cdf, setCdf] = useState({ createdBy: "", from: "", to: "" });
   const load = useCallback(() => {
-    reverseAuctionApi.list().then((d) => setItems(d.items || []))
+    reverseAuctionApi.list(creatorDateParams(cdf)).then((d) => setItems(d.items || []))
       .catch((e) => showApiError(e));
-  }, []);
+  }, [cdf]);
 
   useEffect(() => {
     load();
@@ -86,8 +89,7 @@ export default function LiveAuctionsPanel() {
 
   const q = search.trim().toLowerCase();
   // v52v — Created by / from / to added alongside the existing status + search.
-  const [cdf, setCdf] = useState({ createdBy: "", from: "", to: "" });
-  const auctionCreators = useMemo(() => items.map((a) => a.created_by_email).filter(Boolean), [items]);
+  const auctionCreators = useMemo(() => items.map((a) => a.created_by_email || a.created_by).filter(Boolean), [items]);
   const matchCdf = useMemo(() => matchCreatorDate(cdf), [cdf]);
   const filtered = items.filter((a) =>
     (statusFilter === "all" || a.status === statusFilter)

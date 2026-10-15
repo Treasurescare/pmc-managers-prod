@@ -4,7 +4,7 @@ import { docusignApi, bidApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import { InfoDot } from "@/components/InfoDot";
 import { useListPager } from "@/components/ListPager";
-import CreatorDateFilterBar, { matchCreatorDate } from "@/components/CreatorDateFilterBar";
+import CreatorDateFilterBar, { matchCreatorDate, creatorDateParams } from "@/components/CreatorDateFilterBar";
 
 /** Wave 43 — DocuSign eSignature admin panel.
  *
@@ -33,7 +33,7 @@ export default function DocuSignPanel() {
   const [viewEnv, setViewEnv] = useState(null);
   // v52v — shared Created by / from / to.
   const [cdf, setCdf] = useState({ createdBy: "", from: "", to: "" });
-  const envCreators = useMemo(() => envelopes.map((e) => e.signer_email).filter(Boolean), [envelopes]);
+  const envCreators = useMemo(() => envelopes.map((e) => e.created_by || e.signer_email).filter(Boolean), [envelopes]);
   const matchCdf = useMemo(() => matchCreatorDate(cdf), [cdf]);
 
   const filteredEnvelopes = envelopes.filter((e) => {
@@ -140,14 +140,16 @@ export default function DocuSignPanel() {
     try {
       const [s, e, b] = await Promise.all([
         docusignApi.status(),
-        docusignApi.listEnvelopes().catch(() => ({ items: [] })),
+        // v52w — created-by/from/to pushed to the API; client-side matchCdf
+        // stays as an instant fallback over the returned rows.
+        docusignApi.listEnvelopes(creatorDateParams(cdf)).catch(() => ({ items: [] })),
         bidApi.listAll({ status: "awarded" }).catch(() => []),
       ]);
       setStatus(s); setEnvelopes(e.items || []);
       setAwardedBids(b || []);
       if (!pickedBidId && b?.length) setPickedBidId(b[0].id);
     } catch (err) { showApiError(err); }
-  }, [pickedBidId]);
+  }, [pickedBidId, cdf]);
 
   useEffect(() => { load(); }, [load]);
 

@@ -44,6 +44,17 @@ export function matchCreatorDate({ createdBy, from, to }) {
   };
 }
 
+/** v52w — build the server-side query params (created_by_email / created_from /
+ * created_to) for endpoints that support DB-side filtering. Empty filters are
+ * omitted so the request is a no-op. */
+export function creatorDateParams({ createdBy, from, to } = {}) {
+  const p = {};
+  if ((createdBy || "").trim()) p.created_by_email = createdBy.trim();
+  if (from) p.created_from = from;
+  if (to) p.created_to = to;
+  return p;
+}
+
 export default function CreatorDateFilterBar({ value, onChange, creators, testid = "cdf-bar" }) {
   const v = value || { createdBy: "", from: "", to: "" };
   const set = (patch) => onChange({ ...v, ...patch });

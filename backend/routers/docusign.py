@@ -875,11 +875,25 @@ async def get_envelope(envelope_id: str, admin=Depends(current_admin)):
 
 
 @router.get("/envelopes")
-async def list_envelopes(admin=Depends(current_admin), limit: int = 100):
+async def list_envelopes(admin=Depends(current_admin), limit: int = 100,
+                         created_by_email: Optional[str] = None,
+                         created_from: Optional[str] = None,
+                         created_to: Optional[str] = None):
     # v49y — sync live statuses from DocuSign first so the panel reflects
     # signings even when the Connect webhook is not configured.
     await _sync_recent_statuses()
-    cursor = db.docusign_envelopes.find({}).sort("created_at", -1).limit(limit)
+    # v52w — DB-side created-by / created-range filters (created_at is ISO str).
+    q: dict = {}
+    if created_by_email:
+        q["created_by"] = {"$regex": created_by_email.strip(), "$options": "i"}
+    if created_from or created_to:
+        rng: dict = {}
+        if created_from:
+            rng["$gte"] = f"{created_from[:10]}T00:00:00"
+        if created_to:
+            rng["$lte"] = f"{created_to[:10]}T23:59:59.999"
+        q["created_at"] = rng
+    cursor = db.docusign_envelopes.find(q).sort("created_at", -1).limit(limit)
     items = []
     async for row in cursor:
         row.pop("_id", None)

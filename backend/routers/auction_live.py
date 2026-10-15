@@ -276,12 +276,26 @@ async def patch_reverse_auction(aid: str, payload: AuctionPatchIn,
 
 
 @router.get("")
-async def list_reverse_auctions(admin=Depends(current_admin)):
+async def list_reverse_auctions(admin=Depends(current_admin),
+                                created_by_email: Optional[str] = None,
+                                created_from: Optional[str] = None,
+                                created_to: Optional[str] = None):
     # v51z — include participant_count on every row so the admin UI can show
     # a "0/2" / "1/2" / "✓ ready" readiness badge next to each Draft auction
     # without needing a second round-trip per row.
+    # v52w — DB-side created-by / created-range filters (created_at is ISO str).
+    q: dict = {}
+    if created_by_email:
+        q["created_by"] = {"$regex": created_by_email.strip(), "$options": "i"}
+    if created_from or created_to:
+        rng: dict = {}
+        if created_from:
+            rng["$gte"] = f"{created_from[:10]}T00:00:00"
+        if created_to:
+            rng["$lte"] = f"{created_to[:10]}T23:59:59.999"
+        q["created_at"] = rng
     rows = []
-    async for a in db.reverse_auctions.find({}).sort("created_at", -1).limit(200):
+    async for a in db.reverse_auctions.find(q).sort("created_at", -1).limit(200):
         out = _out_auction(a)
         out["participant_count"] = await db.reverse_auction_participants.count_documents(
             {"auction_id": out["id"]})

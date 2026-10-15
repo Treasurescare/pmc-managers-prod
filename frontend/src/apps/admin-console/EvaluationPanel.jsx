@@ -6,7 +6,7 @@ import RubricEditor from "./evaluation/RubricEditor";
 import BidScoreList from "./evaluation/BidScoreList";
 import AwardReport from "./evaluation/AwardReport";
 import { InfoDot } from "@/components/InfoDot";
-import CreatorDateFilterBar, { matchCreatorDate } from "@/components/CreatorDateFilterBar";
+import CreatorDateFilterBar, { matchCreatorDate, creatorDateParams } from "@/components/CreatorDateFilterBar";
 
 const DEFAULT_CRITERIA = [
   { code: "experience", label: "Relevant Experience", weight: 0.30, max_score: 100 },
@@ -63,10 +63,12 @@ export default function EvaluationPanel() {
   const loadBids = useCallback(async () => {
     if (!noticeRef) return;
     try {
-      const list = await bidApi.list({ notice_ref: noticeRef });
+      // v52w — created-by/from/to pushed to the API (bids endpoint supports
+      // them since v52v); client-side match stays as instant fallback.
+      const list = await bidApi.list({ notice_ref: noticeRef, ...creatorDateParams(cdf) });
       setBids(list || []);
     } catch (e) { showApiError(e); }
-  }, [noticeRef]);
+  }, [noticeRef, cdf]);
   const loadLockState = useCallback(async () => {
     if (!noticeRef) { setLockState({ technical_locked_at: null, commercial_locked_at: null }); return; }
     try {

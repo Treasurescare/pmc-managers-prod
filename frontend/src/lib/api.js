@@ -1090,7 +1090,7 @@ export const awardsApi = {
 export const reverseAuctionApi = {
   create: (p) => api.post("/api/v1/reverse-auctions", p).then((r) => r.data),
   update: (aid, p) => api.patch(`/api/v1/reverse-auctions/${aid}`, p).then((r) => r.data),
-  list: () => api.get("/api/v1/reverse-auctions").then((r) => r.data),
+  list: (params = {}) => api.get("/api/v1/reverse-auctions", { params }).then((r) => r.data),
   // v52bx — vendor-scoped list for the vendor home KPI tile.
   mine: () => api.get("/api/v1/reverse-auctions/mine").then((r) => r.data),
   get: (aid) => api.get(`/api/v1/reverse-auctions/${aid}`).then((r) => r.data),
@@ -1218,8 +1218,8 @@ export const docusignApi = {
   signBidAck: (bidId, payload) =>
     api.post(`/api/v1/docusign/bids/${bidId}/ack/envelope`, payload).then((r) => r.data),
   envelope: (eid) => api.get(`/api/v1/docusign/envelopes/${eid}`).then((r) => r.data),
-  listEnvelopes: (limit = 100) =>
-    api.get(`/api/v1/docusign/envelopes?limit=${limit}`).then((r) => r.data),
+  listEnvelopes: (params = {}) =>
+    api.get("/api/v1/docusign/envelopes", { params: { limit: 100, ...params } }).then((r) => r.data),
   // Vendor-facing (Wave 44)
   refresh: (envelopeId) => api.post(`/api/v1/docusign/envelopes/${envelopeId}/refresh`).then((r) => r.data),
   listMine: () => api.get("/api/v1/docusign/mine").then((r) => r.data),

@@ -1,4 +1,26 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
+## v52w — Server-side Created-by/From/To rollout to remaining 4 panels (15 Oct 2026)
+
+- **Backend (new params `created_by_email`/`created_from`/`created_to`):**
+  `GET /api/v1/reverse-auctions` (auction_live.py) and
+  `GET /api/v1/docusign/envelopes` (docusign.py) now regex-match the
+  `created_by` field and range-filter ISO-string `created_at`, same pattern
+  as bids.py/packages.py/notices.py from v52v. DocuSign `limit` still works
+  alongside filters. Evaluation bids + Awards ride on `GET /api/v1/bids`
+  which already had the params — no backend change.
+- **Frontend:** new `creatorDateParams()` helper in
+  `CreatorDateFilterBar.jsx` (omits empty filters). LiveAuctionsPanel,
+  DocuSignPanel, EvaluationPanel, AwardsPanel now send the params on every
+  filter change; client-side `matchCreatorDate` kept as instant fallback
+  (user chose both). `docusignApi.listEnvelopes` signature changed from
+  `(limit)` to a params object. Datalist creator sources fixed to read
+  `created_by` (auctions/envelopes don't have `created_by_email`).
+- **Verified (preview curl, admin login):** auctions empty→7, no-match
+  creator→0, 2026 range→7, 2027 range→0; envelopes empty→4, no-match→0,
+  range+limit→4, future range→0. Frontend prod build compiles clean.
+- **Bundles:** pmc-backend-v52w.zip (20.9MB), pmc-frontend-v52w-prod-build.zip
+  (3.9MB), DOWNLOAD_v52w.md — all verified HTTP 200 under /downloads/.
+
 
 ## v52t — Tender date-chain validation (15 Oct 2026)
 

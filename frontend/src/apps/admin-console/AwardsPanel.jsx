@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { awardsApi, bidApi, docusignApi, formatApiError, BACKEND_URL, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import { InfoDot } from "@/components/InfoDot";
-import CreatorDateFilterBar, { matchCreatorDate } from "@/components/CreatorDateFilterBar";
+import CreatorDateFilterBar, { matchCreatorDate, creatorDateParams } from "@/components/CreatorDateFilterBar";
 
 /** Wave 39 — Post-Award document dashboard.
  *
@@ -32,8 +32,10 @@ export default function AwardsPanel() {
   const awardCreators = useMemo(() => awardedBids.map((b) => b.vendor_email).filter(Boolean), [awardedBids]);
   const visibleAwards = useMemo(() => awardedBids.filter(matchCreatorDate(cdf)), [awardedBids, cdf]);
 
+  // v52w — created-by/from/to pushed to the API (bids endpoint supports them
+  // since v52v); client-side match stays as instant fallback.
   const loadBids = useCallback(() => {
-    bidApi.listAll({ status: "awarded" }).then((rows) => {
+    bidApi.listAll({ status: "awarded", ...creatorDateParams(cdf) }).then((rows) => {
       setAwardedBids(rows || []);
       // Prefer the previously-picked bid; otherwise fall back to the first.
       setPickedBidId((prev) => {
@@ -41,7 +43,7 @@ export default function AwardsPanel() {
         return rows?.[0]?.id || "";
       });
     }).catch((e) => showApiError(e));
-  }, []);
+  }, [cdf]);
 
   const loadDocs = useCallback((bidId) => {
     if (!bidId) return;
