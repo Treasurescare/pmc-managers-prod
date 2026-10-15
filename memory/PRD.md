@@ -56,6 +56,45 @@
 ### v52d — Final retest (iter 69) outcome
 - **100% pass**, retest_needed=false. Live-DOM evidence: toaster_count=1, toast rect top=72 (sits below the ~60px header, no overlap), avatar normal page.click opens the menu while the "Signed in" toast is visible, 403-unverified toast title is exactly "Sign in failed" with the "Please verify your email…" description, avatar menu order is Change profile → Change password → Sign out, sign-out returns to `/escrow/login`, bell dropdown empty state renders correctly.
 
+
+## v52e — Escrow full-flow completion (15 Feb 2026)
+
+User brief: "can we complete this full flow of escrow and then continue with deployment". Three items from the v52d backlog, shipped together:
+
+### 1. Admin pipeline — "Account" column + Notify-owner action
+- **Backend `GET /api/v1/escrow-institutions`** now hydrates every item with `owner_account: {email, status, legal_name}` by looking up `account_id → escrow_accounts`. Legacy magic-link rows (no `account_id`) return the row without the owner key.
+- **New `POST /api/v1/escrow-institutions/{iid}/notify-owner`** (admin/reviewer). Body: `{title, body, send_email}`. Writes an in-app notification (kind=`admin_message`) via `notify_account()` and optionally fires the email. Returns 400 for legacy drafts without an owner account.
+- **Admin UI `AdminEscrowInstitutionsE.jsx`** — list rows now show `owner · <email> (<status>)` under the primary contact line. Detail panel gets a "Notify owner" button next to Approve/Clarify/Reject (hidden for legacy drafts).
+
+### 2. Dashboard data wiring — real pending signatures + transactions
+- **New `GET /api/v1/escrow-accounts/me/dashboard`** (session-authed). Resolves the signed-in account → institution → signatory emails → joint `escrow_accounts` the institution's officers operate → every `escrow_transactions` row on those accounts. Returns separate buckets `pending_signatures` (status in {received, awaiting_signatures} and institution has NOT signed) + `transactions` (all 200 most recent) + `joint_accounts` with balances.
+- **`EscrowAccountDashboardBody.jsx`** rewritten to consume this payload: KPI tiles are now real counts, click-through routes to the matching tab. New responsive tables render pending transactions and joint-account cards; empty states tailored per institution status (submitted = "with review team", approved + 0 accounts = "waiting for PMC to open the first joint account").
+- Sidebar tab labels get live badges when counts > 0.
+
+### 3. Bank admin UI — review-and-merge for user_suggested banks
+- **Backend admin endpoints under `/api/v1/masters/banks-admin/`:**
+  - `GET /suggested` — lists `source=user_suggested` rows (oldest first).
+  - `POST /{id}/approve` — promote to `source=curated`, optional swift_prefix / currencies / aliases enrichment; stamps `curated_by/curated_at`.
+  - `POST /{id}/merge` — moves the suggestion's name into the target's aliases, deletes the source, writes an audit row to `masters_banks_merge_log`. Rejects cross-country merges with 422.
+  - `DELETE /{id}` — hard-reject a user_suggested row (spam / wrong country); audited.
+- **New admin page `AdminBankMasterE.jsx`** at `/admin/e/suggested-banks` (new sidebar entry "Suggested banks" under Masters). Left-column list of pending suggestions, right-column detail with editable swift_prefix / currencies / aliases, Approve / Reject buttons, and a same-country merge-target list with per-row "Merge into" buttons.
+- `GET /api/v1/masters/banks` now returns the row's `_id` so the admin UI can key its rows (public /banks list was previously `_id`-stripped).
+
+### Tests
+- `backend/tests/test_v52e.py` — 6/6 green:
+  - admin list enriches with owner_account ✓
+  - notify-owner lands in bell + legacy draft returns 400 ✓
+  - /me/dashboard returns all buckets with correct zero counts ✓
+  - bank suggest → approve → curated + merge → aliased on target + reject → gone ✓
+  - cross-country merge rejected 422 ✓
+
+Backlog remaining: deployment of rev10 bundle (v52d + v52e combined).
+
+### Deployment artifacts shipped (same session)
+- `/app/frontend/public/downloads/pmc-backend-v52e.zip` — EB bundle (Dockerfile at ZIP root)
+- `/app/frontend/public/downloads/pmc-frontend-v52e-prod-build.zip` — S3/CloudFront static assets
+- `/app/frontend/public/downloads/DOWNLOAD_v52e.md` — release notes + deploy checklist + rollback
+
 **Production migration note:** anyone mid-registration on the old magic-link flow needs to visit `/escrow/register` and start fresh (user explicitly chose "force everyone"). Admin-invited drafts (via `POST /admin-invite`) still resume through `/escrow/resume/:token` + legacy wizard — only the self-serve `/escrow/register` entry point moved.
 
 

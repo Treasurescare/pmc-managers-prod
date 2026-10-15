@@ -8,9 +8,11 @@ from __future__ import annotations
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+from bson import ObjectId
 
 from db import db
 from security import require_role
+from models.base import now_iso
 
 router = APIRouter(prefix="/api/v1/masters", tags=["masters-v2"])
 
@@ -160,7 +162,7 @@ async def list_banks(country_code: str, q: Optional[str] = None, limit: int = 60
         filt["$or"] = [{"name": pat}, {"swift_prefix": pat}, {"aliases": pat}]
     rows = []
     async for d in db.masters_banks.find(filt).sort("name", 1).limit(max(1, min(limit, 200))):
-        d.pop("_id", None)
+        d["_id"] = str(d["_id"])  # keep id so admin UI can edit/approve/merge
         rows.append(d)
     return rows
 
@@ -191,8 +193,111 @@ async def suggest_bank(payload: BankSuggestIn):
            "source": "user_suggested"}
     await db.masters_banks.update_one(
         {"country_code": cc, "name": name}, {"$set": doc}, upsert=True)
-    return await db.masters_banks.find_one(
-        {"country_code": cc, "name": name}, {"_id": 0})
+    out = await db.masters_banks.find_one(
+        {"country_code": cc, "name": name})
+    out["_id"] = str(out["_id"])
+    return out
+
+
+# ---------- Admin bank curation (v52e) ----------
+
+class BankApproveIn(BaseModel):
+    swift_prefix: Optional[str] = None
+    currencies: Optional[List[str]] = None
+    aliases: Optional[List[str]] = None
+
+
+class BankMergeIn(BaseModel):
+    target_id: str  # ObjectId of the bank to keep
+
+
+@router.get("/banks-admin/suggested")
+async def list_suggested_banks(
+        admin=Depends(require_role("admin", "reviewer"))):
+    """v52e — admin curation queue for banks that registrants have added
+    via the "+ Add" affordance. Returns oldest-first so new suggestions
+    bubble up at the top of the list when reviewers sort by created_at."""
+    rows = []
+    async for d in db.masters_banks.find({"source": "user_suggested"}
+                                           ).sort("name", 1).limit(200):
+        d["_id"] = str(d["_id"])
+        rows.append(d)
+    return {"items": rows, "total": len(rows)}
+
+
+@router.post("/banks-admin/{bank_id}/approve")
+async def approve_suggested_bank(bank_id: str, payload: BankApproveIn,
+                                   admin=Depends(require_role("admin"))):
+    """Promote a user_suggested bank to a curated entry. Reviewer can
+    enrich swift_prefix / currencies / aliases at the same time."""
+    try:
+        oid = ObjectId(bank_id)
+    except Exception:
+        raise HTTPException(status_code=422, detail="Bad bank id")
+    update: dict = {"source": "curated",
+                     "curated_by": admin.get("email"),
+                     "curated_at": now_iso()}
+    if payload.swift_prefix is not None:
+        update["swift_prefix"] = payload.swift_prefix.strip().upper() or None
+    if payload.currencies is not None:
+        update["currencies"] = [c.strip().upper() for c in payload.currencies if c.strip()]
+    if payload.aliases is not None:
+        update["aliases"] = [a.strip() for a in payload.aliases if a.strip()]
+    r = await db.masters_banks.update_one({"_id": oid}, {"$set": update})
+    if r.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Bank not found")
+    doc = await db.masters_banks.find_one({"_id": oid})
+    doc["_id"] = str(doc["_id"])
+    return doc
+
+
+@router.post("/banks-admin/{bank_id}/merge")
+async def merge_suggested_bank(bank_id: str, payload: BankMergeIn,
+                                 admin=Depends(require_role("admin"))):
+    """Mark the suggestion as a duplicate of `target_id` and delete it.
+    Target gets the suggestion's name recorded as an alias so the search
+    still finds it. Preserves audit continuity in masters_banks_merge_log."""
+    try:
+        src_oid = ObjectId(bank_id)
+        tgt_oid = ObjectId(payload.target_id)
+    except Exception:
+        raise HTTPException(status_code=422, detail="Bad bank id")
+    src = await db.masters_banks.find_one({"_id": src_oid})
+    tgt = await db.masters_banks.find_one({"_id": tgt_oid})
+    if not src or not tgt:
+        raise HTTPException(status_code=404, detail="Bank not found")
+    if src["country_code"] != tgt["country_code"]:
+        raise HTTPException(status_code=422,
+            detail="Cannot merge banks across countries")
+    await db.masters_banks.update_one(
+        {"_id": tgt_oid},
+        {"$addToSet": {"aliases": src["name"]}})
+    await db.masters_banks.delete_one({"_id": src_oid})
+    await db.masters_banks_merge_log.insert_one({
+        "merged_at": now_iso(), "merged_by": admin.get("email"),
+        "source": src, "target_id": str(tgt_oid)})
+    return {"ok": True, "target_id": str(tgt_oid)}
+
+
+@router.delete("/banks-admin/{bank_id}")
+async def reject_suggested_bank(bank_id: str,
+                                   admin=Depends(require_role("admin"))):
+    """Hard-reject a suggestion (spam / wrong country / etc)."""
+    try:
+        oid = ObjectId(bank_id)
+    except Exception:
+        raise HTTPException(status_code=422, detail="Bad bank id")
+    src = await db.masters_banks.find_one({"_id": oid})
+    if not src:
+        raise HTTPException(status_code=404, detail="Bank not found")
+    if src.get("source") != "user_suggested":
+        raise HTTPException(status_code=400,
+            detail="Can only reject user_suggested banks via this endpoint")
+    await db.masters_banks.delete_one({"_id": oid})
+    await db.masters_banks_merge_log.insert_one({
+        "rejected_at": now_iso(), "rejected_by": admin.get("email"),
+        "source": src})
+    return {"ok": True}
 
 
 # ---------- Country-specific business-identifier formats ----------

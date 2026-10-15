@@ -112,6 +112,7 @@ import VendorVerifyEmailChange from "@/apps/vendor-portal-e/VendorVerifyEmailCha
 import VendorVerifyPhoneChange from "@/apps/vendor-portal-e/VendorVerifyPhoneChange";
 import AdminDashboardE from "@/apps/admin-console-e/AdminDashboardE";
 import AdminMastersE from "@/apps/admin-console-e/AdminMastersE";
+import AdminBankMasterE from "@/apps/admin-console-e/AdminBankMasterE";
 import AdminAuditE from "@/apps/admin-console-e/AdminAuditE";
 import AdminNoticesE from "@/apps/admin-console-e/AdminNoticesE";
 import AdminTenderBuilderE from "@/apps/admin-console-e/AdminTenderBuilderE";
@@ -261,6 +262,7 @@ export default function App() {
             <Route path="/admin/e/docusign" element={<AdminDocuSignE />} />
             <Route path="/admin/e/permissions" element={<AdminPermissionsE />} />
             <Route path="/admin/e/masters" element={<AdminMastersE />} />
+            <Route path="/admin/e/suggested-banks" element={<AdminBankMasterE />} />
             <Route path="/admin/e/events" element={<AdminEventsE />} />
             <Route path="/admin/e/auctions" element={<AdminAuctionsE />} />
             <Route path="/admin/e/stakeholder-reports" element={<AdminStakeholderReportsE />} />

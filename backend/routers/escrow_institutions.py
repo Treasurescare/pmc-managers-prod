@@ -174,6 +174,10 @@ DOC_SLOTS = [
 def _out(d: dict) -> dict:
     d = dict(d)
     d["id"] = str(d.pop("_id"))
+    # v52e — expose owner account linkage so admin pipeline can show the
+    # "Account" column + enable the Notify owner action.
+    if d.get("account_id"):
+        d["account_id"] = str(d["account_id"])
     return d
 
 
@@ -427,7 +431,56 @@ async def list_institutions(status: Optional[Status] = None,
                               admin=Depends(require_role("admin", "reviewer"))):
     q = {"status": status} if status else {}
     items = [_out(d) async for d in db.escrow_institutions.find(q).sort("created_at", -1)]
+    # v52e — enrich with owner-account email/status so the admin pipeline
+    # can show WHICH account owns each registration.
+    acc_ids = [i["account_id"] for i in items if i.get("account_id")]
+    if acc_ids:
+        valid = []
+        for aid in acc_ids:
+            try: valid.append(ObjectId(aid))
+            except Exception: pass
+        acc_map = {}
+        async for a in db.escrow_accounts.find({"_id": {"$in": valid}}):
+            acc_map[str(a["_id"])] = {
+                "email": a.get("email"),
+                "status": a.get("status"),
+                "legal_name": a.get("legal_name"),
+            }
+        for i in items:
+            if i.get("account_id") and i["account_id"] in acc_map:
+                i["owner_account"] = acc_map[i["account_id"]]
     return {"items": items, "total": len(items)}
+
+
+class NotifyOwnerIn(BaseModel):
+    title: str = Field(min_length=3, max_length=140)
+    body: str = Field(min_length=1, max_length=2000)
+    send_email: bool = True
+
+
+@router.post("/{iid}/notify-owner")
+async def notify_owner(iid: str, payload: NotifyOwnerIn,
+                        admin=Depends(require_role("admin", "reviewer"))):
+    """v52e — admin pushes a direct message to the owner account's bell
+    (and optionally email). Lets reviewers nudge an institution without
+    forcing an approve / reject / clarification state transition."""
+    doc = await db.escrow_institutions.find_one({"_id": ObjectId(iid)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Institution not found")
+    if not doc.get("account_id"):
+        raise HTTPException(status_code=400,
+            detail="This registration has no owner account (legacy "
+                   "magic-link draft). Use the admin-invite flow instead.")
+    try:
+        from routers.escrow_accounts import notify_account
+        await notify_account(doc["account_id"], "admin_message",
+                              payload.title, payload.body, "/escrow/me",
+                              send_email_too=payload.send_email)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Could not send: {e}")
+    await audit_log("escrow_inst.notify_owner", admin, "escrow_institution",
+                     iid, {"title": payload.title})
+    return {"ok": True}
 
 
 @router.get("/{iid}")

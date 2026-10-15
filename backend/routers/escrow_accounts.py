@@ -454,6 +454,81 @@ async def mark_all_read(acc=Depends(current_account)) -> Dict[str, int]:
 
 # ---------- Helper for other routers (status change hook) ---------------
 
+@router.get("/me/dashboard")
+async def dashboard(acc=Depends(current_account)) -> Dict[str, Any]:
+    """v52e — real pending signatures + transactions for the owning account.
+    Scans escrow_transactions for rows whose escrow_account_snapshot points
+    at an escrow_accounts row operated by one of this institution's named
+    signatories, OR whose institution_id matches directly."""
+    full = await db.escrow_accounts.find_one({"_id": ObjectId(acc["id"])})
+    iid = full.get("institution_id")
+    inst: Dict[str, Any] = {}
+    signatory_emails: List[str] = []
+    if iid:
+        d = await db.escrow_institutions.find_one({"_id": ObjectId(iid)})
+        if d:
+            inst = {"id": str(d["_id"]),
+                    "legal_name": d.get("legal_name"),
+                    "status": d.get("status")}
+            signatory_emails = [
+                (s.get("email") or "").lower()
+                for s in (d.get("signatories") or []) if s.get("email")
+            ]
+    # Joint accounts: any escrow_accounts row where the escrow_officer email
+    # matches one of our signatories. Legacy data uses escrow_account_id on
+    # the transaction; new flow also tags account_id on the institution.
+    joint_accounts: List[Dict[str, Any]] = []
+    joint_account_ids: List[str] = []
+    if signatory_emails:
+        async for a in db.escrow_accounts.find({}):
+            officer_email = ((a.get("escrow_officer") or {}).get("email") or "").lower()
+            if officer_email and officer_email in signatory_emails:
+                joint_account_ids.append(str(a["_id"]))
+                joint_accounts.append({
+                    "id": str(a["_id"]),
+                    "name": a.get("name"),
+                    "account_no": a.get("account_no"),
+                    "currency": a.get("currency"),
+                    "balance": a.get("balance"),
+                })
+    pending: List[Dict[str, Any]] = []
+    transactions: List[Dict[str, Any]] = []
+    if joint_account_ids:
+        async for t in db.escrow_transactions.find(
+                {"escrow_account_id": {"$in": joint_account_ids}}
+            ).sort("created_at", -1).limit(200):
+            sigs = t.get("signatures") or {}
+            row = {
+                "id": str(t["_id"]),
+                "bid_ref": t.get("bid_ref"),
+                "notice_ref": t.get("notice_ref"),
+                "vendor_ref": t.get("vendor_ref"),
+                "amount": t.get("amount"),
+                "currency": t.get("currency"),
+                "status": t.get("status"),
+                "created_at": t.get("created_at"),
+                "signed_by_pmc": bool((sigs.get("pmc") or {}).get("signed_at")),
+                "signed_by_institution": bool((sigs.get("escrow_institution") or {}).get("signed_at")),
+            }
+            transactions.append(row)
+            if t.get("status") in ("received", "awaiting_signatures") \
+                    and not row["signed_by_institution"]:
+                pending.append(row)
+    unread = await db.escrow_notifications.count_documents(
+        {"account_id": acc["id"], "read_at": None})
+    return {
+        "account": _public(full),
+        "institution": inst,
+        "joint_accounts": joint_accounts,
+        "joint_accounts_count": len(joint_accounts),
+        "pending_signatures": pending,
+        "pending_signatures_count": len(pending),
+        "transactions": transactions,
+        "transactions_count": len(transactions),
+        "unread_notifications": unread,
+    }
+
+
 async def notify_account(account_id: str, kind: str, title: str,
                           body: str, link: Optional[str] = None,
                           send_email_too: bool = True) -> None:

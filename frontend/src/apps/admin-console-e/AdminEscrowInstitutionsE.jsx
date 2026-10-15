@@ -44,6 +44,22 @@ export default function AdminEscrowInstitutionsE() {
     finally { setBusy(false); }
   };
 
+  // v52e — direct message to the owner account (bell + email).
+  const notifyOwner = async () => {
+    if (!sel?.account_id) {
+      return toast.error("Legacy magic-link draft — no owner account to notify.");
+    }
+    const title = window.prompt("Notification title (shown in the bell):");
+    if (!title) return;
+    const body = window.prompt("Message to the owner:");
+    if (!body) return;
+    try {
+      await api.post(`/api/v1/escrow-institutions/${sel.id}/notify-owner`,
+                      { title, body, send_email: true });
+      toast.success("Owner notified · bell + email dispatched");
+    } catch (e) { showApiError(e); }
+  };
+
   const statusChip = (s) => {
     const map = {
       approved: "bg-emerald-50 text-emerald-900 border-emerald-200",
@@ -118,6 +134,12 @@ export default function AdminEscrowInstitutionsE() {
                       <div className="text-xs text-brand-navy/60 mt-1">
                         {i.country} · reg {i.reg_number || "—"} · {i.primary_contact_email}
                       </div>
+                      {i.owner_account && (
+                        <div className="text-[10px] text-brand-navy/50 mt-0.5"
+                             data-testid={`admin-escrow-inst-owner-${i.id}`}>
+                          owner · {i.owner_account.email} ({i.owner_account.status})
+                        </div>
+                      )}
                       <div className="text-[10px] text-brand-navy/40 mt-1">
                         {(i.created_at || "").slice(0, 16).replace("T", " ")}
                       </div>
@@ -236,6 +258,13 @@ export default function AdminEscrowInstitutionsE() {
                             className="px-5 py-2 text-xs uppercase tracking-widest border border-red-600 text-red-800 disabled:opacity-50 hover:bg-red-50">
                       Reject
                     </button>
+                    {sel?.account_id && (
+                      <button onClick={notifyOwner} disabled={busy}
+                              data-testid="admin-escrow-inst-notify"
+                              className="px-5 py-2 text-xs uppercase tracking-widest border border-brand-navy/40 text-brand-navy disabled:opacity-50 hover:bg-brand-navy hover:text-white">
+                        Notify owner
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
