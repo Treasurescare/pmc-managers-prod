@@ -1,0 +1,58 @@
+{
+  "summary": "v52d escrow RETEST of two bug fixes from iter 66. (1) Unverified-login message — FIXED (403 branch now surfaces 'Please verify your email before signing in. Check your inbox for the link we sent you.'). (2) Toast overlay intercepting avatar/bell — STILL BROKEN. The CSS fix made the <ol> container ignore pointer events, but the toast <li> itself physically overlaps the avatar/bell (toast right-edge at x=1896, avatar at x=1860–1896). elementFromPoint over the avatar still returns the sonner <li>. Normal Playwright click on avatar WHILE 'Signed in' toast is visible times out with 'sonner-toast subtree intercepts pointer events'. Clicks succeed once the toast expires (~6s). Also detected a duplicate <Toaster> (one in App.js, one in index.js) — two sonner <ol> containers and two aria sections in DOM.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Sonner Toaster overlap on /escrow/me header",
+        "issue": "After login, the success toast <li> at position (1540→1896, 24→77) physically overlaps the avatar button (1860→1896, 12→48) and bell (1799→1840, 12→48 — bell is to the left of the toast's left-edge but Playwright still times out when toast is wide enough). A real-user normal click on the avatar immediately after login gets intercepted by the toast <li>. The iter-66 CSS fix (pointer-events:none on ol[data-sonner-toaster] + pointer-events:auto on > li) is INSUFFICIENT because the visible <li> itself still blocks clicks that geographically fall inside its rect.",
+        "selector": "ol[data-sonner-toaster] > li[data-sonner-toast] vs [data-testid=\"escrow-avatar-button\"]",
+        "priority": "HIGH"
+      },
+      {
+        "component": "Duplicate <Toaster/> components",
+        "issue": "Both /app/frontend/src/App.js (line 166) and /app/frontend/src/index.js (line 10) mount a <Toaster/>. DOM shows toasterCount=2 and two <section aria-label='Notifications'>. Every toast renders twice (confirmed in captured text: 'HTTP 403 ... || HTTP 403 ...'). Remove one.",
+        "selector": "ol[data-sonner-toaster]",
+        "priority": "HIGH"
+      },
+      {
+        "component": "EscrowSignatoryLogin unverified toast title",
+        "issue": "Minor polish: fix for unverified login now surfaces the backend message correctly but still uses showApiError, so toast title reads 'Something went wrong · HTTP 403' instead of the requested 'Sign in failed'. Review request explicitly asked for the title 'Sign in failed · ...'. Suggest calling toast.error('Sign in failed', { description: detail.message }) directly for this branch.",
+        "selector": "EscrowSignatoryLogin.jsx submitLogin() line 50",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "verified_flows": [
+    "FIX #1 VERIFIED: unverified-account login now shows 'Please verify your email before signing in. Check your inbox for the link we sent you.' (403 no longer falls through to signatory login).",
+    "Pre-seeded demo login escrowdemo@pmcmanagers.com / Escrow@12345 → /escrow/me (wizard renders, status=draft, Demo Escrow Bank).",
+    "Avatar menu opens after toast expires: Y order profile=124, password=160, signout=196 (correct).",
+    "Bell dropdown opens with escrow-notif-empty state after toast expires.",
+    "Sign-out from avatar menu navigates to /escrow/login.",
+    "Toast overlap bug reproduced: with viewport 1920x1080, click on [data-testid='escrow-avatar-button'] immediately after login times out at 3.5s with 'sonner-toast subtree intercepts pointer events'. Repeats on retry. Succeeds only after waiting for the 6s default toast dismissal."
+  ],
+  "test_report_links": [],
+  "action_items": [
+    "CRITICAL: Toast overlap not fixed. Either (a) narrow the toast position so it does not overlap the header right-edge (e.g. offset=\"4rem 4rem\" so it starts below the header), (b) raise header z-index above sonner's z-index (sonner defaults to 999999 — tricky), or (c) reduce `visibleToasts`/width so toasts don't reach x=1896.  Simplest robust fix: Toaster offset={{ top: 72, right: 16 }} (push toasts below the 56–60px tall header).",
+    "CRITICAL: Remove the duplicate <Toaster/> component — pick either /app/frontend/src/App.js OR /app/frontend/src/index.js, not both. Every toast is currently rendered twice.",
+    "LOW: In EscrowSignatoryLogin.submitLogin, replace showApiError(accErr) in the 403-unverified branch with toast.error('Sign in failed', { description: detail.message }) so the title matches the review-request wording 'Sign in failed · Please verify your email…'."
+  ],
+  "critical_code_review_comments": [
+    "Duplicate <Toaster/> in App.js AND index.js is a bug — doubles every toast and doubles the pointer-event footprint. Collapse to one mount (preferred: index.js only, remove App.js copy).",
+    "The current pointer-events CSS fix only disables the empty container; it does not solve the overlap on the actual visible toast. The right structural fix is to offset the toast position so it does not sit on top of the header's avatar/bell.",
+    "The 403-unverified branch calls showApiError which hard-codes title 'Something went wrong'. For an authentication-specific error, a dedicated toast.error('Sign in failed', ...) would be clearer."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "SKIPPED (per request)", "frontend": "~70% (fix #1 landed, fix #2 did NOT land, extra duplicate-Toaster bug surfaced)" },
+  "test_credentials": "escrowdemo@pmcmanagers.com / Escrow@12345 restored (status=verified, legal_name=Demo Escrow Bank).",
+  "seed_data_creation": "Inserted one unverified escrow_accounts row (iter67unv.<ts>@example.com) to exercise the 403 branch; deleted at end of run.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "FIX #1 (unverified login) is working — do not re-flag. FIX #2 (toast overlay) was NOT actually fixed by the CSS change. The toast <li> at top-right physically overlaps the avatar button rect; pointer-events on the <ol> container doesn't help because the <li> itself is visible and intercepts. Also found 2 Toaster instances mounted (App.js + index.js). After the toast expires (~6s) normal clicks on avatar/bell work fine and all other flows pass. When testing fix again, after login immediately attempt a NORMAL (non-force, non-JS) page.click on [data-testid='escrow-avatar-button'] within 1s — it must succeed.",
+  "rca of the issue": {
+    "toast_overlay_still_blocks": "The iter-66 CSS added pointer-events:none to ol[data-sonner-toaster] and pointer-events:auto to its > li. The <ol> is 356px wide fixed at top:24, right:24 (so left=1540, right=1896 at 1920px viewport). The toast <li> inherits pointer-events:auto and occupies that whole 356x~54 rect. The avatar button rect is (1860,12,36,36) which lies INSIDE the toast <li>'s x range (1860 > 1540 AND 1896 ≤ 1896). Therefore the visible toast genuinely sits above the avatar's clickable area for its ~6s lifetime. Fixing pointer-events on the parent doesn't help — the <li> itself is the blocker. Correct fix: push the Toaster position below the header (offset={{top:72}}), or shrink min-width, or align it to the center/bottom instead of top-right.",
+    "duplicate_toaster": "Two <Toaster/> components are mounted: /app/frontend/src/App.js:166 AND /app/frontend/src/index.js:10. Every toast therefore renders twice (confirmed in captured DOM text and element counts). Remove one — easiest is to drop the one in index.js and keep App.js's (which is already inside the ErrorBoundary/providers)."
+  }
+}
