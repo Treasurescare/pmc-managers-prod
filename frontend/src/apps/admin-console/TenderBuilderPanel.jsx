@@ -325,23 +325,29 @@ export default function TenderBuilderPanel() {
   // to flag freeform garbage saved on individual templates.
   const [masterCountries, setMasterCountries] = useState([]);
   useEffect(() => {
-    publicApi.countries()
-      .then((rows) => setMasterCountries(
-        (Array.isArray(rows) ? rows : [])
+    // v52u — use /api/v1/masters/countries (full 250-country master)
+    // instead of /api/v1/meta/countries (returns only the ~30 licence-mapped
+    // countries). Admins now see every country in the master.
+    mastersApi.listCountriesPublic()
+      .then((rows) => {
+        const items = Array.isArray(rows) ? rows : (rows?.items || []);
+        setMasterCountries(items
           .map((c) => ({
             code: String(c.code || c.iso2 || c.value || c || "").toUpperCase(),
             name: String(c.name || c.name_en || c.label || "").trim(),
           }))
-          .filter((c) => c.code && c.code.length <= 3)
-      ))
+          .filter((c) => c.code && c.code.length <= 3));
+      })
       .catch(() => setMasterCountries([]));
   }, []);
   const countries = useMemo(() => {
+    // v52u — show the FULL country master, not just codes that appear on
+    // existing templates. The old implementation only populated this list
+    // when a template already carried a usable ISO code, so a fresh account
+    // (or one whose templates were all orphan/garbage country values) saw
+    // "KZ, IN" only. Admins now see all ~250 countries.
     const map = new Map();
     for (const c of masterCountries) map.set(c.code, c.name);
-    // Pull template-stored country values ONLY when they look like an ISO
-    // code (<=3 chars, letters/digits). This strips the "full company name
-    // leaked into country" rows the user flagged.
     for (const d of list) {
       const raw = String(d.country || d.header?.country || "").trim().toUpperCase();
       if (!raw) continue;
@@ -350,7 +356,7 @@ export default function TenderBuilderPanel() {
     }
     return [...map.entries()]
       .map(([code, name]) => ({ code, name }))
-      .sort((a, b) => a.code.localeCompare(b.code));
+      .sort((a, b) => (a.name || a.code).localeCompare(b.name || b.code));
   }, [list, masterCountries]);
   const [showDpr, setShowDpr]           = useState(false);
   const [aiFillBusy, setAiFillBusy]     = useState(false);
