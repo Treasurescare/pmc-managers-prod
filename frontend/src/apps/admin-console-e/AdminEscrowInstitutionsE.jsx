@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import AdminEShell from "./AdminEShell";
 import AdminEscrowChart from "./AdminEscrowChart";
-import { api, showApiError, escrowInstitutionsApi } from "@/lib/api";
+import { api, showApiError, uploadsApi } from "@/lib/api";
 /**
  * v51am — Admin review queue for Escrow Institution registrations.
  * Lists all institutions with status filter, drill-in panel showing core
@@ -13,6 +13,9 @@ import { api, showApiError, escrowInstitutionsApi } from "@/lib/api";
 export default function AdminEscrowInstitutionsE() {
   const [items, setItems] = useState([]);
   const [status, setStatus] = useState("");
+  const [search, setSearch] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [sel, setSel] = useState(null);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
@@ -27,6 +30,22 @@ export default function AdminEscrowInstitutionsE() {
     } catch (e) { showApiError(e); }
   };
   useEffect(() => { load(); /* eslint-disable-line */ }, [status]);
+
+  // v52h — client-side filter so the server list call stays simple.
+  const filteredItems = items.filter((i) => {
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      const hay = [
+        i.legal_name, i.trading_name, i.primary_contact_email,
+        i.reg_number, i.owner_account?.email,
+      ].filter(Boolean).join(" ").toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    const created = (i.created_at || "").slice(0, 10);
+    if (fromDate && created && created < fromDate) return false;
+    if (toDate && created && created > toDate) return false;
+    return true;
+  });
 
   const decide = async (action) => {
     if (!sel) return;
@@ -96,6 +115,23 @@ export default function AdminEscrowInstitutionsE() {
                       className="px-4 py-2 text-xs uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy/90">
                 + Invite institution
               </button>
+              <input type="search" value={search}
+                     onChange={(e) => setSearch(e.target.value)}
+                     placeholder="Search name or email…"
+                     data-testid="admin-escrow-insts-search"
+                     className="px-3 py-2 text-sm border border-brand-navy/20 bg-white w-56" />
+              <label className="text-[10px] uppercase tracking-widest text-brand-navy/60">From
+                <input type="date" value={fromDate}
+                       onChange={(e) => setFromDate(e.target.value)}
+                       data-testid="admin-escrow-insts-from"
+                       className="ml-1 px-2 py-2 text-sm border border-brand-navy/20 bg-white" />
+              </label>
+              <label className="text-[10px] uppercase tracking-widest text-brand-navy/60">To
+                <input type="date" value={toDate}
+                       onChange={(e) => setToDate(e.target.value)}
+                       data-testid="admin-escrow-insts-to"
+                       className="ml-1 px-2 py-2 text-sm border border-brand-navy/20 bg-white" />
+              </label>
               <select value={status} onChange={(e) => setStatus(e.target.value)}
                       data-testid="admin-escrow-insts-filter"
                       className="px-3 py-2 text-sm border border-brand-navy/20 bg-white">
@@ -107,6 +143,14 @@ export default function AdminEscrowInstitutionsE() {
                 <option value="rejected">Rejected</option>
                 <option value="draft">Draft</option>
               </select>
+              {(search || fromDate || toDate || status) && (
+                <button type="button"
+                        onClick={() => { setSearch(""); setFromDate(""); setToDate(""); setStatus(""); }}
+                        data-testid="admin-escrow-insts-reset"
+                        className="px-3 py-2 text-[11px] uppercase tracking-widest text-brand-navy/70 hover:text-brand-navy underline">
+                  Reset
+                </button>
+              )}
             </div>
           </div>
 
@@ -117,13 +161,13 @@ export default function AdminEscrowInstitutionsE() {
           <div className="grid gap-4 lg:grid-cols-[5fr_7fr]">
             <section className="bg-white border border-brand-navy/15">
               <div className="pmc-label p-4 border-b border-brand-navy/10">
-                Pipeline · {items.length}
+                Pipeline · {filteredItems.length}{filteredItems.length !== items.length ? ` of ${items.length}` : ""}
               </div>              <ul className="divide-y divide-brand-navy/10 max-h-[70vh] overflow-y-auto"
                   data-testid="admin-escrow-insts-list">
-                {items.length === 0 && (
+                {filteredItems.length === 0 && (
                   <li className="p-6 text-sm text-brand-navy/50">No registrations match this filter yet.</li>
                 )}
-                {items.map((i) => (
+                {filteredItems.map((i) => (
                   <li key={i.id}>
                     <button onClick={() => { setSel(i); setNotes(i.reviewer_notes || ""); }}
                             data-testid={`admin-escrow-inst-row-${i.id}`}
@@ -216,10 +260,11 @@ export default function AdminEscrowInstitutionsE() {
                             </div>
                           </div>
                           {d?.key && (
-                            <a href={`/api/v1/uploads/files/${d.key}`} target="_blank" rel="noopener noreferrer"
-                               className="text-[10px] uppercase tracking-widest px-3 py-1 border border-brand-navy/20 hover:bg-brand-navy/5">
+                            <button type="button"
+                                    onClick={() => uploadsApi.openFile(d.key).catch(showApiError)}
+                                    className="text-[10px] uppercase tracking-widest px-3 py-1 border border-brand-navy/20 hover:bg-brand-navy/5">
                               Open
-                            </a>
+                            </button>
                           )}
                         </li>
                       ))}
@@ -359,12 +404,12 @@ function ChangeRequestsPanel({ iid }) {
                 <div className="pmc-label text-[9px]">Proposed</div>
                 <pre className="bg-amber-50 border border-amber-200 p-2 overflow-auto max-h-40">{JSON.stringify(r.proposed_value, null, 2)}</pre>
                 {r.section === "documents" && r.proposed_value?.key && (
-                  <a href={`/api/v1/uploads/files/${r.proposed_value.key}`}
-                     target="_blank" rel="noopener noreferrer"
-                     data-testid={`admin-escrow-change-view-${r.id}`}
-                     className="inline-block mt-1 px-3 py-1 text-[10px] uppercase tracking-widest border border-brand-navy/40 text-brand-navy hover:bg-brand-pale">
+                  <button type="button"
+                          onClick={() => uploadsApi.openFile(r.proposed_value.key).catch(showApiError)}
+                          data-testid={`admin-escrow-change-view-${r.id}`}
+                          className="inline-block mt-1 px-3 py-1 text-[10px] uppercase tracking-widest border border-brand-navy/40 text-brand-navy hover:bg-brand-pale">
                     View proposed file
-                  </a>
+                  </button>
                 )}
               </div>
             </div>

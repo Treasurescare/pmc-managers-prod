@@ -121,8 +121,28 @@ export default function EscrowInstitutionProfile({ account, inst, onInvited }) {
                     <span className="text-[10px] uppercase tracking-widest text-brand-navy/60">· {r.status}</span>
                   </div>
                   <div className="text-xs text-brand-navy/60 mt-0.5 break-words">
-                    <span className="text-brand-navy/50">Proposed:</span>{" "}
-                    <code>{renderValue(r.proposed_value)}</code>
+                    {r.section === "documents" && r.proposed_value && typeof r.proposed_value === "object" ? (
+                      <>
+                        <span className="text-brand-navy/50">New file:</span>{" "}
+                        <strong>{r.proposed_value.filename || "—"}</strong>
+                        {r.proposed_value.size_bytes != null && (
+                          <span> · {Math.max(1, Math.round(r.proposed_value.size_bytes / 1024))} KB</span>
+                        )}
+                        {r.proposed_value.key && (
+                          <button type="button"
+                                  data-testid={`escrow-change-req-view-${r.id}`}
+                                  onClick={() => uploadsApi.openFile(r.proposed_value.key).catch(showApiError)}
+                                  className="ml-2 text-[11px] uppercase tracking-widest text-brand-navy underline hover:no-underline">
+                            View
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-brand-navy/50">Proposed:</span>{" "}
+                        <code>{renderValue(r.proposed_value)}</code>
+                      </>
+                    )}
                   </div>
                   {r.reason && <div className="text-xs text-brand-navy/60 mt-0.5">Reason: {r.reason}</div>}
                   {r.reviewer_notes && <div className="text-xs text-brand-navy/60 mt-0.5">Reviewer: {r.reviewer_notes}</div>}
@@ -240,12 +260,12 @@ export default function EscrowInstitutionProfile({ account, inst, onInvited }) {
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {meta?.key && (
-                    <a href={`/api/v1/uploads/files/${meta.key}`}
-                       target="_blank" rel="noopener noreferrer"
-                       data-testid={`escrow-doc-view-${slot}`}
-                       className="px-3 py-1 text-[11px] uppercase tracking-widest border border-brand-navy/40 text-brand-navy hover:bg-brand-pale">
+                    <button type="button"
+                            data-testid={`escrow-doc-view-${slot}`}
+                            onClick={() => uploadsApi.openFile(meta.key).catch(showApiError)}
+                            className="px-3 py-1 text-[11px] uppercase tracking-widest border border-brand-navy/40 text-brand-navy hover:bg-brand-pale">
                       View
-                    </a>
+                    </button>
                   )}
                   <DocReplaceButton slot={slot} label={label}
                                     onReady={(newMeta) =>

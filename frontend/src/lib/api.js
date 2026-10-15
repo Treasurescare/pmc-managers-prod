@@ -423,9 +423,24 @@ export const uploadsApi = {
       headers: { "Content-Type": "multipart/form-data" },
     }).then((r) => r.data);
   },
-  // v52g — one-shot helper used by the escrow registration wizard and the
-  // institution profile tab. Does the presign → direct dance and returns a
-  // ready-to-store meta object { key, filename, size_bytes, uploaded_at }.
+  // v52h — Partitioned (CHIPS) auth cookies are isolated to the top-level
+  // site that set them. A plain <a target="_blank"> to /uploads/files/{key}
+  // becomes its own top-level navigation, so the cookie isn't attached and
+  // the gate returns 401. Fetch the bytes inside the SPA (same partition),
+  // then open the blob URL in a new tab — works for images, PDFs, zips.
+  openFile: async (key) => {
+    if (!key) return;
+    const r = await api.get(`/api/v1/uploads/files/${key}`, { responseType: "blob" });
+    const url = URL.createObjectURL(r.data);
+    const w = window.open(url, "_blank", "noopener,noreferrer");
+    if (!w) {
+      const a = document.createElement("a");
+      a.href = url; a.target = "_blank"; a.rel = "noopener noreferrer";
+      a.click();
+    }
+    // Revoke after a minute — long enough for the tab to load the content.
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  },
   uploadFile: async (file, { scope = "escrow-docs" } = {}) => {
     if (!file) throw new Error("No file selected");
     const pre = await api.post("/api/v1/uploads/presign", {
