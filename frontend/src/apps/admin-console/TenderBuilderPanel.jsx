@@ -11,6 +11,7 @@ import TenderFilterBar, { applyTenderFilters } from "./tender/TenderFilterBar";
 import DprGenerateModal from "./tender/DprGenerateModal";
 import { exportTenderPdf } from "./tender/tenderPdf";
 import { InfoDot } from "@/components/InfoDot";
+import { tenderDateChainViolations } from "@/lib/dateRules";
 import { useNavigate } from "react-router-dom";
 
 /**
@@ -423,6 +424,13 @@ export default function TenderBuilderPanel() {
     }).map(([, label]) => label);
     if (missing.length) {
       toast.error(`Fill the mandatory (*) fields first: ${missing.join(", ")}`);
+      return;
+    }
+    // v52t — the Critical Dates chain must hold before a tender can become
+    // a notice (live hints also show inside the Tender Header form).
+    const dateViolations = tenderDateChainViolations(h);
+    if (dateViolations.length) {
+      toast.error(`Fix the Critical Dates first — ${dateViolations[0]}${dateViolations.length > 1 ? ` (+${dateViolations.length - 1} more)` : ""}`);
       return;
     }
     // v52cp — carry EVERY detail the user already entered, including the

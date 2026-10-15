@@ -169,6 +169,12 @@ async def create_notice(payload: NoticeIn, admin=Depends(require_role(
             detail="Budget amount must be greater than zero. A tender with no indicative value cannot be published.")
     # v52bo — EMD is allowed to be zero (walk-in tenders, free RFQs, pre-qualifications).
     # Only budget stays mandatory.
+    # v52t — date-chain: a brand-new notice cannot open with a past deadline,
+    # and the pre-bid meeting must happen on or before the deadline.
+    from routers.date_rules import require_future, require_order
+    require_future(payload.submission_deadline, "Bid submission deadline")
+    require_order(payload.submission_deadline, "Bid submission deadline",
+                  payload.pre_bid_meeting_date, "Pre-bid meeting date")
     seq = await next_sequence("notice_seq")
     from datetime import datetime, timezone
     year = datetime.now(timezone.utc).year
@@ -260,6 +266,16 @@ async def update_notice(notice_ref: str, payload: NoticePatchIn,
     await require_notice_permission(admin, "modify", notice.get("document_type", "*"))
 
     updates = payload.model_dump(exclude_unset=True)
+    # v52t — date-chain on edits: ordering only (legacy notices may
+    # legitimately carry past dates, so no "must be ≥ today" here).
+    if "submission_deadline" in updates or "pre_bid_meeting_date" in updates:
+        from routers.date_rules import require_order
+        require_order(
+            updates.get("submission_deadline", notice.get("submission_deadline")),
+            "Bid submission deadline",
+            updates.get("pre_bid_meeting_date", notice.get("pre_bid_meeting_date")),
+            "Pre-bid meeting date",
+        )
     # Primary document / attachments are managed through the dedicated upload
     # routes — never let a PATCH overwrite them, so a plain "save edits" never
     # drops a file the admin uploaded via the edit modal.

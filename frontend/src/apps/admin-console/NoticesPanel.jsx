@@ -648,14 +648,14 @@ export default function NoticesPanel() {
                className="px-3 py-1.5 border border-brand-navy/20 text-sm w-[200px]"/>
         <label className="flex items-center gap-1 text-xs text-brand-navy/70">
           Created from
-          <input type="date" value={filterCreatedFrom}
+          <input type="date" value={filterCreatedFrom} max={filterCreatedTo || undefined}
                  onChange={(e) => setFilterCreatedFrom(e.target.value)}
                  data-testid="notices-filter-created-from"
                  className="px-2 py-1 border border-brand-navy/20 text-sm" />
         </label>
         <label className="flex items-center gap-1 text-xs text-brand-navy/70">
           to
-          <input type="date" value={filterCreatedTo}
+          <input type="date" value={filterCreatedTo} min={filterCreatedFrom || undefined}
                  onChange={(e) => setFilterCreatedTo(e.target.value)}
                  data-testid="notices-filter-created-to"
                  className="px-2 py-1 border border-brand-navy/20 text-sm" />

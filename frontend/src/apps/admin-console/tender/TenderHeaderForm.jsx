@@ -6,6 +6,7 @@
  * All fields stream into `header` on the parent tender doc — no backend change.
  */
 import CategoryMultiPicker from "./CategoryMultiPicker";
+import { tenderDateChainViolations } from "@/lib/dateRules";
 
 // tiny local primitives to keep the parent lean and match the CPPP density
 function Group({ title, children, testid }) {
@@ -352,6 +353,20 @@ export default function TenderHeaderForm({ header, patchHeader }) {
       </Group>
 
       <Group title="Critical Dates" testid="th-dates">
+        {/* v52t — live date-chain hints. Violations recompute on every
+            keystroke; the same list blocks Create notice downstream. */}
+        {(() => {
+          const violations = tenderDateChainViolations(h);
+          return violations.length > 0 ? (
+            <div className="mb-4 border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-800"
+                 data-testid="th-date-violations">
+              <div className="font-semibold uppercase tracking-widest text-[10px] mb-1">Date order problems</div>
+              <ul className="list-disc pl-4 space-y-0.5">
+                {violations.map((v) => <li key={v}>{v}</li>)}
+              </ul>
+            </div>
+          ) : null;
+        })()}
         <div className="grid md:grid-cols-2">
           <Row label="Publish Date">
             <Text type="datetime-local" value={h.publish_date} onChange={(v) => patchHeader({ publish_date: v })} testid="th-publish" />
@@ -376,6 +391,9 @@ export default function TenderHeaderForm({ header, patchHeader }) {
           </Row>
           <Row label="Bid Submission End Date *">
             <Text type="datetime-local" value={h.sub_end} onChange={(v) => patchHeader({ sub_end: v })} testid="th-sub-end" />
+          </Row>
+          <Row label="Bid Award Date">
+            <Text type="datetime-local" value={h.bid_award_date} onChange={(v) => patchHeader({ bid_award_date: v })} testid="th-award-date" />
           </Row>
         </div>
       </Group>

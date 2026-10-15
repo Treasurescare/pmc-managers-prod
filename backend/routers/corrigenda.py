@@ -238,12 +238,32 @@ async def publish_corrigendum(
 
     # If a new deadline was supplied/computed, also update the parent notice.
     if new_deadline:
+        from routers.date_rules import require_future
+        require_future(new_deadline, "New submission deadline")
         await db.notices.update_one(
             {"notice_ref": notice_ref},
             {"$set": {"submission_deadline": new_deadline,
                       "deadline_last_amended_at": now_iso(),
                       "deadline_last_amended_by_corr": corr_no}},
         )
+
+    # v52t — date-chain on field amendments: a moved deadline cannot land in
+    # the past, and meeting/clarification dates cannot land after the
+    # effective deadline (corrigendum path edits a live notice, so ordering
+    # only — no "publish date ≥ today" checks here).
+    from routers.date_rules import require_future as _rf, require_order as _ro
+    eff_deadline = new_deadline
+    for _a in (payload.field_amendments or []):
+        if _a.get("field_key") == "submission_deadline":
+            _rf(_a.get("after"), "Submission deadline")
+            eff_deadline = _a.get("after") or eff_deadline
+    eff_deadline = eff_deadline or n.get("submission_deadline")
+    for _a in (payload.field_amendments or []):
+        _fk, _after = _a.get("field_key"), _a.get("after")
+        if _fk == "pre_bid_meeting_date":
+            _ro(eff_deadline, "Submission deadline", _after, "Pre-bid meeting date")
+        elif _fk == "clarification_deadline":
+            _ro(eff_deadline, "Submission deadline", _after, "Clarification close date")
 
     # v52q — apply the field-level amendments (budget, EMD, dates, …) onto
     # the parent notice so the tender notice view shows the amended values.

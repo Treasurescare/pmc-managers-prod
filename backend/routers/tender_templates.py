@@ -408,6 +408,7 @@ HEADER_FIELDS = [
     ("sub_start", "Bid Submission Start"),
     ("sub_end", "Bid Submission End"),
     ("bid_opening_date", "Bid Opening Date"),
+    ("bid_award_date", "Bid Award Date"),
     ("bid_opening_place", "Bid Opening Place"),
     ("pre_bid_date", "Pre-Bid Meeting Date"),
     ("pre_bid_place", "Pre-Bid Meeting Place"),

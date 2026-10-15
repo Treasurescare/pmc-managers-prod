@@ -123,13 +123,13 @@ export default function AdminEscrowInstitutionsE() {
                      data-testid="admin-escrow-insts-search"
                      className="px-3 py-2 text-sm border border-brand-navy/20 bg-white w-56" />
               <label className="text-[10px] uppercase tracking-widest text-brand-navy/60">From
-                <input type="date" value={fromDate}
+                <input type="date" value={fromDate} max={toDate || undefined}
                        onChange={(e) => setFromDate(e.target.value)}
                        data-testid="admin-escrow-insts-from"
                        className="ml-1 px-2 py-2 text-sm border border-brand-navy/20 bg-white" />
               </label>
               <label className="text-[10px] uppercase tracking-widest text-brand-navy/60">To
-                <input type="date" value={toDate}
+                <input type="date" value={toDate} min={fromDate || undefined}
                        onChange={(e) => setToDate(e.target.value)}
                        data-testid="admin-escrow-insts-to"
                        className="ml-1 px-2 py-2 text-sm border border-brand-navy/20 bg-white" />

@@ -1,5 +1,28 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
 
+## v52t — Tender date-chain validation (15 Oct 2026)
+
+- **Chain enforced** (both sides, shared rule sets):
+  frontend `src/lib/dateRules.js` ↔ backend `routers/date_rules.py`.
+  Submission end ≥ today · Publish ≥ today · Pre-bid ≥ Publish ·
+  Doc-dl start ≥ Pre-bid · Doc-dl end ≥ Doc-dl start · Clarif start ≥
+  Doc-dl end · Clarif end > Clarif start · Sub start ≥ Clarif end ·
+  Sub end ≥ Sub start · **Bid Award Date** (new header field) ≥ Sub end.
+- **Live hints:** TenderHeaderForm shows a red "Date order problems" box
+  that recomputes on every keystroke (screenshot-verified).
+- **Block at create/publish:** TenderBuilderPanel refuses "Create notice"
+  while violations exist; `notices.py` create rejects past deadlines and
+  pre-bid-after-deadline (400 with clear message); `update_notice` PATCH
+  enforces ordering only (legacy past dates allowed, per user choice);
+  corrigenda publish rejects past new deadlines and meeting/clarification
+  dates that land after the effective deadline.
+- **Every start/end filter pair guarded** with native `min`/`max` (+toast):
+  Audit ledger, Notices list, Escrow institutions (added now);
+  BOQ & contracts, Profile change requests, Category requests, and the
+  shared `MoneyFilterBar` already enforced it.
+- Verified E2E in preview: past deadline → 400, pre-bid after deadline →
+  400, valid chain → created, corrigendum past deadline → 400.
+
 ## v52s — Production verification of corrigenda fixes (15 Oct 2026)
 
 - **Public notice Corrigenda tab** on `PMC-NOT-2026-0093` now renders both

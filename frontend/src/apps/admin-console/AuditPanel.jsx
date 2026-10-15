@@ -86,11 +86,13 @@ export default function AuditPanel() {
                  placeholder="e.g. notice.publish"
                  className="w-full px-3 py-2 border border-brand-navy/20 text-sm"/></label>
         <label className="text-xs"><div className="pmc-label mb-1">From (UTC)<InfoDot tip="Inclusive lower bound of event timestamp. UTC." /></div>
-          <input type="date" value={flt.from} onChange={(e) => setFlt({ ...flt, from: e.target.value })}
+          <input type="date" value={flt.from} max={flt.to || undefined}
+                 onChange={(e) => setFlt({ ...flt, from: e.target.value })}
                  data-testid="audit-filter-from"
                  className="w-full px-3 py-2 border border-brand-navy/20 text-sm"/></label>
         <label className="text-xs"><div className="pmc-label mb-1">To (UTC)<InfoDot tip="Inclusive upper bound (end-of-day UTC)." /></div>
-          <input type="date" value={flt.to} onChange={(e) => setFlt({ ...flt, to: e.target.value })}
+          <input type="date" value={flt.to} min={flt.from || undefined}
+                 onChange={(e) => setFlt({ ...flt, to: e.target.value })}
                  data-testid="audit-filter-to"
                  className="w-full px-3 py-2 border border-brand-navy/20 text-sm"/></label>
         <button type="button" onClick={() => setFlt({ actor: "", type: "", from: "", to: "" })}
