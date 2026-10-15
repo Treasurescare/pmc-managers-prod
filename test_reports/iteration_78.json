@@ -1,0 +1,21 @@
+{
+  "iteration": 78,
+  "summary": "v52j — Signatory magic-link claim now sets its own session cookie + csrf cookie and returns the bearer+csrf in body, so the frontend no longer needs a second /auth/login call. Eliminates the HTTP 401 that appeared immediately after a successful password set.",
+  "files_changed": [
+    "/app/backend/routers/escrow_signatories.py",
+    "/app/frontend/src/apps/escrow-portal/EscrowSignatoryLogin.jsx",
+    "/app/memory/PRD.md"
+  ],
+  "verification": {
+    "claim_response": "Returns 200 with id, email, name, institution_ids, token, csrf_token.",
+    "cookies_dropped_by_claim": "Both escrow_sig_token and csrf_token are set on the claim response.",
+    "me_with_claim_session": "GET /escrow-signatories/auth/me returns 200 using only the cookies set by /claim.",
+    "standalone_login_regression": "Fresh session login with just email+password after claim still returns 200."
+  },
+  "artifacts": {
+    "backend_zip": "/downloads/pmc-backend-v52j.zip",
+    "frontend_zip": "/downloads/pmc-frontend-v52j-prod-build.zip",
+    "notes": "/downloads/DOWNLOAD_v52j.md"
+  },
+  "retest_needed": false
+}

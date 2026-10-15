@@ -113,10 +113,17 @@ async def _resolve_signatory_institutions(email: str) -> List[dict]:
 # ---------- Claim password -----------------------------------------------
 
 @router.post("/claim")
-async def claim_password(payload: SignatoryClaimIn, token: str) -> dict:
+async def claim_password(payload: SignatoryClaimIn, token: str, response: Response) -> dict:
     """A registered signatory on an approved institution sets a password so
     they can sign in without the magic link going forward. Protected by the
-    institution's `magic_token` so only insiders can perform the claim."""
+    institution's `magic_token` so only insiders can perform the claim.
+
+    v52j — on success this endpoint ALSO signs the user in (sets the
+    `escrow_sig_token` cookie + CSRF cookie, returns a bearer token in the
+    body). The frontend no longer needs to call `/auth/login` immediately
+    after claim, which previously tripped over browser password-autofill
+    and surfaced a bogus "HTTP 401 Invalid email or password" right after
+    a successful password set."""
     try:
         inst = await db.escrow_institutions.find_one(
             {"_id": ObjectId(payload.institution_id), "magic_token": token})
@@ -143,8 +150,10 @@ async def claim_password(payload: SignatoryClaimIn, token: str) -> dict:
             {"_id": existing["_id"]},
             {"$set": {"password_hash": pw_hash,
                       "institution_ids": list(inst_ids),
+                      "is_active": True,
                       "updated_at": now_iso()}})
         sid = str(existing["_id"])
+        sig_name = existing.get("name") or email
     else:
         name = next((s.get("name") for s in inst.get("signatories") or []
                       if (s.get("email") or "").lower() == email), email)
@@ -154,9 +163,16 @@ async def claim_password(payload: SignatoryClaimIn, token: str) -> dict:
             "is_active": True, "created_at": now_iso(),
         })
         sid = str(r.inserted_id)
+        sig_name = name
     await audit_log("escrow_sig.claim", None, "escrow_signatory", sid,
                     {"email": email, "institution_id": payload.institution_id})
-    return {"ok": True, "signatory_id": sid}
+    # Auto-login — drop the session cookies right here.
+    jwt_token = _create_token(sid, email)
+    csrf = _set_cookies(response, jwt_token)
+    return {"ok": True, "signatory_id": sid,
+            "id": sid, "email": email, "name": sig_name,
+            "institution_ids": [payload.institution_id],
+            "token": jwt_token, "csrf_token": csrf}
 
 
 # ---------- Login / Logout / Me ------------------------------------------

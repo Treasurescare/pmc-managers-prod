@@ -72,12 +72,13 @@ export default function EscrowSignatoryLogin() {
     if (password !== confirm) return toast.error("Passwords don't match.");
     setBusy(true);
     try {
-      await api.post("/api/v1/escrow-signatories/claim",
+      // v52j — /claim now sets the session cookie itself and returns the
+      // CSRF token in the body. No more "set password → auto-login" race.
+      const res = await api.post("/api/v1/escrow-signatories/claim",
                      { institution_id: iid, email, password },
                      { params: { token } });
-      toast.success("Password set — you can now sign in with your email.");
-      const sigRes = await api.post("/api/v1/escrow-signatories/auth/login", { email, password });
-      cacheCsrf(sigRes?.data?.csrf_token);
+      cacheCsrf(res?.data?.csrf_token);
+      toast.success("Password set — signing you in…");
       nav("/escrow/me");
     } catch (err) { showApiError(err); }
     finally { setBusy(false); }

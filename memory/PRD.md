@@ -1,5 +1,11 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
 
+## v52j — Signatory claim auto-login (15 Oct 2026)
+
+- **Reported:** magic-link claim showed BOTH a green "Password set" toast and a red "HTTP 401 Invalid email or password" toast. Backend logs showed `/claim` → 200, then an auto-login `POST /escrow-signatories/auth/login` → 401. Preview reproduction with the same code path returned 200/200 — the production 401 was most likely browser password-autofill cross-wiring or a stale CloudFront-cached frontend touching the two-call sequence.
+- **Fix:** `POST /escrow-signatories/claim` now sets the `escrow_sig_token` + `csrf_token` cookies and returns the bearer token + csrf in the body. Frontend no longer makes a second `/auth/login` call — one toast, one navigation. Standalone sign-in still works for returning users.
+- **Verified:** claim response carries `token`, `csrf_token`, drops both session cookies; `/auth/me` 200 immediately; a fresh-session login with the same email+password still returns 200 after the claim.
+
 ## v52i — Escrow password reset + legacy account recovery (15 Oct 2026)
 
 - **Root cause of "reset not working":** escrow *account* reset emails link to `/escrow/login?reset=1&token=…`, but that page only posted to the **signatory** reset endpoint (`escrow_sig_password_resets`); account tokens live on `escrow_accounts.reset_token` → every account reset failed with "invalid link".
