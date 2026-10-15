@@ -16,6 +16,9 @@ export default function BillingTransactionsPanel() {
   // v52ck — Stripe webhook health: surfaces a missing/rotated
   // STRIPE_WEBHOOK_SECRET as a red banner instead of silent 503s.
   const [whHealth, setWhHealth] = useState(null);
+  // v52p — bulk "Resync pending payments" state.
+  const [resyncBusy, setResyncBusy] = useState(false);
+  const [resyncReport, setResyncReport] = useState(null);
 
   const load = useCallback(async () => {
     try {
@@ -28,6 +31,19 @@ export default function BillingTransactionsPanel() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const resync = async () => {
+    if (!window.confirm("Poll Stripe for every pending payment and mark the ones Stripe reports as PAID?\nSafe to run — the webhook idempotency guard prevents double-processing.")) return;
+    setResyncBusy(true);
+    try {
+      const r = await feeBillingApi.resyncPending(200);
+      setResyncReport(r);
+      if (r.reconciled > 0) toast.success(`Resynced ${r.reconciled} payment(s)`);
+      else toast.info(`Nothing to reconcile · ${r.still_pending} still pending`);
+      await load();
+    } catch (e) { showApiError(e, { fallbackTitle: "Resync failed" }); }
+    finally { setResyncBusy(false); }
+  };
 
   const refund = async (row) => {
     const reason = window.prompt(`Refund ${row.currency?.toUpperCase()} ${row.amount} for ${row.buyer_email}?\nOptional reason:`, "");
@@ -97,11 +113,30 @@ export default function BillingTransactionsPanel() {
             transaction to trigger a Stripe refund on the underlying PaymentIntent.
           </p>
         </div>
-        <button onClick={load} data-testid="btp-refresh"
-                className="text-[11px] uppercase tracking-widest px-3 py-1 border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white">
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={resync} disabled={resyncBusy}
+                  data-testid="btp-resync"
+                  title="Poll Stripe for every pending transaction and mark the ones Stripe says are paid. Use this after a production webhook outage."
+                  className="text-[11px] uppercase tracking-widest px-3 py-1 border border-emerald-600 text-emerald-700 hover:bg-emerald-600 hover:text-white disabled:opacity-40">
+            {resyncBusy ? "Resyncing…" : "Resync pending"}
+          </button>
+          <button onClick={load} data-testid="btp-refresh"
+                  className="text-[11px] uppercase tracking-widest px-3 py-1 border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white">
+            Refresh
+          </button>
+        </div>
       </div>
+      {resyncReport && (
+        <div data-testid="btp-resync-report"
+             className={"mb-3 border px-3 py-2 text-xs " + (
+               resyncReport.reconciled > 0
+                 ? "bg-emerald-50 border-emerald-300 text-emerald-900"
+                 : "bg-amber-50 border-amber-300 text-amber-900")}>
+          Scanned <b>{resyncReport.scanned}</b> · reconciled <b>{resyncReport.reconciled}</b>
+          {" · "}still pending <b>{resyncReport.still_pending}</b>
+          {resyncReport.failed?.length ? <> · failed <b>{resyncReport.failed.length}</b></> : null}
+        </div>
+      )}
       <div className="mb-3 flex flex-wrap items-center gap-2" data-testid="btp-filter-bar">
         {[["all","All"],["paid","Paid"],["unpaid","Unpaid"],["refunded","Refunded"]].map(([k,l]) => (
           <button key={k} type="button" onClick={() => setStatusFilter(k)}

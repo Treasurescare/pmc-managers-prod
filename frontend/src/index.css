@@ -251,6 +251,19 @@
 [data-ui="e"] .hover\:border-brand-navy:hover { border-color: rgba(15,59,46,0.7) !important; }
 [data-ui="e"] .hover\:border-brand-navy-soft\/60:hover { border-color: rgba(15,59,46,0.6) !important; }
 
+/* v52p — fix: in Option E palette, .text-brand-navy is remapped to --e-ink
+   with !important, which was defeating `hover:text-white` on dark-fill
+   buttons (Masters → Staff "Clone", Escrow EMD "Sign ·" buttons, Bidding Ops
+   "Refresh"/other outline-fills-on-hover). Give the hover utilities the same
+   !important weight so dark-hover-with-white-text stays readable. */
+[data-ui="e"] .hover\:text-white:hover,
+[data-ui="e"] a.hover\:text-white:hover,
+[data-ui="e"] button.hover\:text-white:hover { color: #fff !important; }
+[data-ui="e"] .hover\:bg-brand-navy:hover,
+[data-ui="e"] .hover\:bg-brand-navy-deep:hover,
+[data-ui="e"] .hover\:bg-brand-navy-soft:hover { background-color: var(--e-bg-hero) !important; }
+[data-ui="e"] .hover\:bg-brand-navy-soft\/90:hover { background-color: var(--e-bg-panel) !important; }
+
 /* Legacy stat/label helpers pick up the new palette */
 [data-ui="e"] .pmc-stat,
 [data-ui="e"] .pmc-stat-lg {

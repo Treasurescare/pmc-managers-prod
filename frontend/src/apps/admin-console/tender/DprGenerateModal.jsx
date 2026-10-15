@@ -359,6 +359,45 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
                       <div key={k}><span className="font-mono text-brand-navy/60">{k}:</span> {String(v).slice(0, 70)}</div>
                     ))}
                   </div>
+                  {/* v52p — Explicitly show the categories the AI extracted
+                      from this DPR so the admin can confirm what will be
+                      written on the draft header. Categories remain fully
+                      editable in Tender Builder itself (chip picker). */}
+                  {(() => {
+                    const hdr = p.preview.header || {};
+                    const raw = hdr.product_categories || hdr.product_category || "";
+                    const list = Array.isArray(raw)
+                      ? raw.filter(Boolean)
+                      : String(raw).split(/[,;]+/).map((s) => s.trim()).filter(Boolean);
+                    if (!list.length) return (
+                      <div className="mb-2 text-[11px] text-amber-800 bg-amber-50 border border-amber-200 px-2 py-1"
+                           data-testid={`dpr-cats-missing-${idx}`}>
+                        AI could not extract a category — you can pick one in Tender Builder after Create.
+                      </div>
+                    );
+                    return (
+                      <div className="mb-2 border border-brand-navy/15 bg-white p-2"
+                           data-testid={`dpr-cats-${idx}`}>
+                        <div className="pmc-label mb-1">Categories extracted from this PDF</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {list.map((c, i) => (
+                            <span key={`${c}-${i}`}
+                              data-testid={`dpr-cat-chip-${idx}-${i}`}
+                              className={"inline-block px-2 py-0.5 text-[11px] border " +
+                                (i === 0
+                                  ? "bg-brand-navy text-white border-brand-navy"
+                                  : "bg-white text-brand-navy border-brand-navy/40")}>
+                              {i === 0 && <span className="text-[9px] uppercase tracking-widest mr-1 opacity-70">primary</span>}
+                              {c}
+                            </span>
+                          ))}
+                        </div>
+                        <div className="text-[10px] text-brand-navy/50 mt-1">
+                          Open the draft to add more from the category master or edit the chips.
+                        </div>
+                      </div>
+                    );
+                  })()}
                   <label className="block text-xs mb-2">
                     <span className="pmc-label">Tender name (editable — this is what you search for in the left column)</span>
                     <input value={p.name || ""}

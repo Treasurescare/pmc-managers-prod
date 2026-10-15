@@ -1132,6 +1132,8 @@ export const feeBillingApi = {
     api.post(`/api/v1/billing/refund/${session_id}`, { reason }).then((r) => r.data),
   webhookHealth: () =>
     api.get("/api/v1/billing/webhook-health").then((r) => r.data),
+  resyncPending: (limit = 200) =>
+    api.post("/api/v1/billing/resync-pending", null, { params: { limit } }).then((r) => r.data),
 };
 
 // ---------- Wave 40: UNSPSC taxonomy ----------

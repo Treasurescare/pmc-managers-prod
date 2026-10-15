@@ -208,7 +208,16 @@ export default function BidSubmit() {
 
   const emdConfig = notice.emd_config || { fixed_amount: 0, percentage: 0, currency: notice.budget_currency };
   const emdDue = (emdConfig.fixed_amount || 0) + ((emdConfig.percentage || 0) / 100) * (notice.budget_amount || 0);
-  const deadlinePassed = !!notice.submission_deadline && new Date(notice.submission_deadline) < new Date();
+  // v52p — bid window gating. A bid is submittable ONLY when the current
+  // time sits inside the admin-configured [submission_start, submission_deadline]
+  // range. If admin reopens a closed tender by moving the end date forward
+  // (and we're back inside the window), the form becomes submittable again.
+  const now = new Date();
+  const subStart = notice.submission_start || notice.bid_submission_start || null;
+  const subEnd = notice.submission_deadline || null;
+  const notYetOpen = !!subStart && new Date(subStart) > now;
+  const deadlinePassed = !!subEnd && new Date(subEnd) < now;
+  const windowClosed = notYetOpen || deadlinePassed;
   // v52bc — gate submit on both envelope kinds being uploaded.
   const uploadedKinds = new Set(docs.map((d) => d.kind));
   const hasTech = uploadedKinds.has("technical");
@@ -267,6 +276,63 @@ export default function BidSubmit() {
       }
     } catch { toast.error("Could not save draft"); }
   };
+
+  // v52p — When the bid window is closed (deadline passed or not yet open),
+  // the submit form must NOT be rendered. Admin can reopen by extending the
+  // deadline; the vendor is told why they can't bid right now and offered
+  // the usual exit paths. Keeps the tender detail visible for reference.
+  if (windowClosed) {
+    return (
+      <div className="min-h-screen bg-slate-50 pt-6 pb-40 md:py-10" data-testid="bid-submit-page">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6">
+          <button onClick={() => nav("/vendor")} className="text-xs text-slate-500 hover:underline">← Back</button>
+          <h1 className="text-3xl font-serif mt-2 text-slate-900">Submit a bid</h1>
+          <div className="text-sm text-slate-600">{notice.notice_ref}</div>
+
+          <div className="bg-white border rounded-lg p-5 mt-5">
+            <div className="text-xs text-slate-500 uppercase tracking-wider">Tender</div>
+            <div className="font-serif text-lg mt-1">{notice.title}</div>
+            <div className="text-sm text-slate-600 mt-2">{notice.description}</div>
+            <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+              <div>Category: <strong>{notice.category}</strong></div>
+              <div>Budget: <strong>{notice.budget_currency} {(notice.budget_amount || 0).toLocaleString()}</strong></div>
+              {subStart && <div>Bidding opens: <strong>{String(subStart).slice(0, 16).replace("T", " ")}</strong></div>}
+              <div>Bidding closes: <strong>{String(subEnd || "").slice(0, 16).replace("T", " ")}</strong></div>
+            </div>
+          </div>
+
+          <div className="border border-red-300 bg-red-50 rounded-lg p-6 mt-5"
+               data-testid="bid-window-closed">
+            <div className="text-xs uppercase tracking-widest font-semibold text-red-700">
+              {notYetOpen ? "Bidding hasn't opened yet" : "Bidding is closed"}
+            </div>
+            <h2 className="text-xl font-serif text-red-900 mt-1">
+              {notYetOpen
+                ? "You can't submit a bid until the opening date set by the issuer."
+                : "This tender is no longer accepting bids."}
+            </h2>
+            <p className="text-sm text-red-900/80 mt-2">
+              {notYetOpen
+                ? <>Come back after <strong>{String(subStart).slice(0, 16).replace("T", " ")}</strong>. If the issuer changes the schedule, this page will unlock automatically.</>
+                : <>The submission deadline was <strong>{String(subEnd || "").slice(0, 16).replace("T", " ")}</strong>. If PMC reopens the tender by extending the deadline, this page will unlock automatically.</>}
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link to="/vendor"
+                data-testid="bid-closed-back"
+                className="px-4 py-2 text-[11px] uppercase tracking-widest bg-slate-900 text-white hover:bg-black">
+                Back to dashboard
+              </Link>
+              <Link to="/vendor/mybids"
+                data-testid="bid-closed-mybids"
+                className="px-4 py-2 text-[11px] uppercase tracking-widest border border-slate-900 text-slate-900 hover:bg-slate-900 hover:text-white">
+                View my bids
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 pt-6 pb-40 md:py-10" data-testid="bid-submit-page">

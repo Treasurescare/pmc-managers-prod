@@ -277,6 +277,57 @@ async def list_transactions(admin=Depends(current_admin), limit: int = 50):
         out.append(d)
     return {"items": out, "count": len(out)}
 
+
+# v52p — Admin "Resync pending payments". Bulk-poll Stripe for every
+# payment_transactions row still stuck in pending/initiated, mark the ones
+# Stripe reports as paid, and advance the bid to emd_paid via the same
+# idempotent `_mark_paid` helper the webhook uses. Safe to re-run; only
+# touches rows the webhook never processed.
+@router.post("/api/v1/billing/resync-pending")
+async def resync_pending_payments(admin=Depends(current_admin), limit: int = 200) -> dict:
+    import os as _os
+    from pmc_lib.payments.stripe.checkout import StripeCheckout as _SC
+    from routers.payments import _mark_paid
+
+    api_key = _os.environ.get("STRIPE_API_KEY", "sk_test_managed")
+    checkout = _SC(api_key=api_key, webhook_url="")
+
+    q = {
+        "payment_status": {"$nin": ["paid", "refunded"]},
+        "session_id": {"$exists": True, "$ne": None},
+    }
+    docs = await db.payment_transactions.find(q).sort("created_at", -1).limit(limit).to_list(limit)
+
+    reconciled = 0
+    still_pending = 0
+    failed: list[dict] = []
+    for d in docs:
+        sid = d.get("session_id")
+        if not sid:
+            continue
+        try:
+            s = await checkout.get_checkout_status(sid)
+            paid = (getattr(s, "payment_status", "") == "paid") or (getattr(s, "status", "") == "complete")
+            if paid:
+                await _mark_paid(sid, getattr(s, "payment_status", None) or "paid")
+                reconciled += 1
+            else:
+                still_pending += 1
+        except Exception as e:
+            failed.append({"session_id": sid, "error": str(e)[:120]})
+            log.warning("resync %s failed: %s", sid, e)
+
+    await audit_log("billing.resync_pending", admin, "billing", "resync",
+                    {"scanned": len(docs), "reconciled": reconciled,
+                     "still_pending": still_pending, "failed": len(failed)})
+    return {
+        "scanned": len(docs),
+        "reconciled": reconciled,
+        "still_pending": still_pending,
+        "failed": failed,
+    }
+
+
 # ---- Fee master → Stripe checkout (v46b) ---------------------------------
 # Turns any EMD / registration / subscription / premium / transaction /
 # data-intel fee master into a Stripe Checkout session. Amount is computed

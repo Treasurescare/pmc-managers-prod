@@ -1,5 +1,61 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
 
+## v52p — Bid lockout + categories chip + resync pending + hover fixes (15 Oct 2026)
+
+- **Vendor bid lockout (P0 ask):** `vendor-portal/BidSubmit.jsx` now
+  short-circuits to a view-only **"Bidding is closed" / "Bidding hasn't
+  opened yet"** screen whenever the current time is outside the admin-set
+  `[submission_start, submission_deadline]` window. The old behaviour kept
+  rendering the form with just a disabled submit button, confusing vendors
+  who thought they could still edit a closed bid. If PMC later extends the
+  deadline (or opens a tender) and the current time re-enters the window,
+  the form re-appears automatically on next load — no code change needed.
+  Backend `routers/bids.py:create_bid` already enforces this with HTTP 400
+  on late submits; this is a UX reinforcement.
+- **Tender Maker categories (P1 ask):**
+  * New `tender/CategoryMultiPicker.jsx` — chip-based picker fed live from
+    `/api/v1/masters/categories/public` with multi-select, type-to-add,
+    per-chip remove, and star-to-promote to **primary**.
+  * `TenderHeaderForm.jsx` swaps the Product Category text input for the
+    chip picker.
+  * `DprGenerateModal.jsx` surfaces AI-extracted PDF categories as chips in
+    the DPR preview card so admins see exactly what the AI picked before
+    clicking Create (amber hint when the AI couldn't extract any).
+  * Primary chip still writes back to the existing `product_category`
+    string (keeps notice create / matching / filters working); a new
+    `product_categories` list is stored alongside for the full tagging.
+- **Admin "Resync pending payments" (P2 ask → done):**
+  * Backend `POST /api/v1/billing/resync-pending?limit=N` in `routers/billing.py`.
+    Polls Stripe for every stuck row (`payment_status` ∉ paid/refunded),
+    calls the webhook's own idempotent `_mark_paid`, writes a
+    `billing.resync_pending` audit event, and returns
+    `{scanned, reconciled, still_pending, failed[]}`.
+  * Frontend green **Resync pending** button on
+    `BillingTransactionsPanel.jsx` with confirm prompt + inline report.
+  * Verified E2E in preview (scanned 25, reconciled 0, 20 still pending,
+    5 known-stale `cs_test_` ids reported in `failed`).
+- **Hover readability (P1 ask):** `index.css` adds matching-weight hover
+  rules so `hover:text-white`, `hover:bg-brand-navy`,
+  `hover:bg-brand-navy-deep`, `hover:bg-brand-navy-soft` can beat the
+  Option-E palette overrides. Fixes:
+  * Masters → Staff Master → row **Clone** button (was invisible on
+    hover).
+  * Masters → Escrow EMD → **Sign · release-to-vendor / forfeit /
+    release-to-contractor** and **Release** button.
+  * Admin → Billing → **Refresh** / **Resync pending**.
+- **Stripe production webhook (P2 ask, no code change):** existing handler
+  already enforces `STRIPE_WEBHOOK_SECRET` and returns 503 when missing
+  (SEC-001). Operational remediation steps written into
+  `public/downloads/DOWNLOAD_v52p.md`:
+  1. Stripe Dashboard → Developers → Webhooks → prod endpoint
+     (`.../api/webhook/stripe`).
+  2. Enable `checkout.session.completed/.async_payment_succeeded/
+     .async_payment_failed/.expired` and `charge.refunded`.
+  3. Reveal signing secret, set `STRIPE_WEBHOOK_SECRET` on prod backend,
+     redeploy.
+  4. Confirm Recent deliveries return 200 (not 503).
+  5. Admin → Billing → **Resync pending** to reconcile the backlog.
+
 ## v52o — Vendor invite: country master dropdown + visible email delivery (15 Oct 2026)
 
 - **Country field:** `VendorsPanel.jsx` quick-invite country was a free-text input; now a `<select>` fed from `mastersGeoApi.countries()` (250-row master, ISO-2 codes stored — consistent with the full registration form and KYC routing).

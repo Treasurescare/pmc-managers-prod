@@ -5,6 +5,7 @@
  *   · Tender Documents · Inviting Authority.
  * All fields stream into `header` on the parent tender doc — no backend change.
  */
+import CategoryMultiPicker from "./CategoryMultiPicker";
 
 // tiny local primitives to keep the parent lean and match the CPPP density
 function Group({ title, children, testid }) {
@@ -305,7 +306,11 @@ export default function TenderHeaderForm({ header, patchHeader }) {
             <Text type="number" value={h.tender_value} onChange={(v) => patchHeader({ tender_value: v })} testid="th-value" />
           </Row>
           <Row label="Product Category *">
-            <Text value={h.product_category} onChange={(v) => patchHeader({ product_category: v })} testid="th-prod-cat" />
+            <CategoryMultiPicker
+              primary={h.product_category}
+              list={h.product_categories}
+              onChange={(patch) => patchHeader(patch)}
+            />
           </Row>
           <Row label="Sub category">
             <Text value={h.sub_category} onChange={(v) => patchHeader({ sub_category: v })} testid="th-sub-cat" />
