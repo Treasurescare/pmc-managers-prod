@@ -285,7 +285,31 @@ async def resend_verify(payload: ForgotIn) -> Dict[str, bool]:
 @router.post("/auth/login")
 async def login(payload: LoginIn, response: Response, request: Request) -> Dict[str, Any]:
     acc = await db.escrow_accounts.find_one({"email": payload.email.lower().strip()})
-    if not acc or not verify_password(payload.password, acc.get("password_hash", "")):
+    # v53m — be specific about which part failed so the user can self-serve:
+    #   * no account at all → tell them to register / ask admin for an invite
+    #   * account exists but password wrong → "wrong password"
+    # Password-wrong still uses 401, no-account uses 404 so the UI can show
+    # a dedicated hint without leaking account enumeration everywhere else.
+    if not acc:
+        # Check if ANY institution exists for this email so we can hint the
+        # user that admin invited them but no account was ever created yet.
+        inst = await db.escrow_institutions.find_one({
+            "primary_contact_email": {
+                "$regex": f"^{payload.email.lower().strip()}$", "$options": "i"}},
+            {"status": 1, "magic_token": 1})
+        if inst:
+            raise HTTPException(status_code=404, detail={
+                "error": "no_account_only_institution",
+                "message": "This email was invited by an admin but you haven't "
+                           "finished registration yet. Open the invite link in "
+                           "your mailbox, or ask the admin to resend it.",
+            })
+        raise HTTPException(status_code=404, detail={
+            "error": "no_account",
+            "message": "No escrow account found with this email. Register at "
+                       "/escrow/register, or ask the admin to invite you.",
+        })
+    if not verify_password(payload.password, acc.get("password_hash", "")):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     if acc.get("status") != "verified":
         raise HTTPException(status_code=403,

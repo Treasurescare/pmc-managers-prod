@@ -1,4 +1,43 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
+## v53n — Fix set-password→crash-to-login loop in signatory claim (16 Oct 2026)
+
+- **Blocker fixed:** admin approve → magic-link set-password worked
+  server-side (dropped `escrow_sig_token` cookie correctly), but
+  `EscrowMePage` only called `/escrow-accounts/auth/me` and 401'd on
+  the signatory cookie, bouncing user back to login forever.
+- **Fix (frontend-only):** `EscrowMePage.jsx` now tries
+  `/escrow-accounts/auth/me` first; on 401 falls back to
+  `/escrow-signatories/auth/me`; only bounces to `/escrow/login` when
+  both fail.
+- **New component:** `EscrowSignatoryDashboard.jsx` — KPIs + pending
+  signatures + joint accounts + transactions. Reads existing
+  `GET /api/v1/escrow-signatories/dashboard`.
+- Backend unchanged vs v53m; bundle re-shipped for self-contained
+  deploy.
+- Bundles: pmc-backend-v53n.zip + pmc-frontend-v53n-prod-build.zip.
+
+
+## v53m — Duplicate-institution cleanup + login error specificity (16 Oct 2026)
+
+- **Fix: duplicate escrow institutions by email.** New admin endpoints
+  `GET /api/v1/escrow-institutions/duplicates` and
+  `DELETE /api/v1/escrow-institutions/{iid}`. Delete is safe-only
+  (409 if row has owning account or in-use signatory).
+- **Admin UI:** "Find duplicates" button in Escrow institutions header
+  opens a cleanup panel listing every email group with per-row Delete
+  buttons + status/account/signatory badges.
+- **Fix: login error specificity.** `/api/v1/escrow-accounts/auth/login`
+  now returns 404 `no_account` or `no_account_only_institution` with a
+  structured message instead of generic 401. SignInE surfaces the
+  message verbatim so the user knows whether to register, click the
+  invite link, or fix the password.
+- Explains the production login symptom reported by user:
+  `accounts@pmcmanagers.com` / `escrowdemo@pmcmanagers.com` likely have
+  no `escrow_accounts` row (admin invited but set-password step never
+  ran). New message will tell them exactly that.
+- Bundles: pmc-backend-v53m.zip + pmc-frontend-v53m-prod-build.zip.
+
+
 ## v53l — Signatory-required badge + one-click Backfill (16 Oct 2026)
 
 - **Signatory-required health check per row:** AccountRow in

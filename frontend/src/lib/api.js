@@ -660,6 +660,11 @@ export const escrowInstitutionsApi = {
   // v53k — admin list of institutions (status filter optional).
   list: (params = {}) =>
     api.get("/api/v1/escrow-institutions", { params }).then((r) => r.data),
+  // v53m — admin cleanup for institutions sharing a primary_contact_email.
+  duplicates: () =>
+    api.get("/api/v1/escrow-institutions/duplicates").then((r) => r.data),
+  delete: (iid) =>
+    api.delete(`/api/v1/escrow-institutions/${iid}`).then((r) => r.data),
 };
 
 

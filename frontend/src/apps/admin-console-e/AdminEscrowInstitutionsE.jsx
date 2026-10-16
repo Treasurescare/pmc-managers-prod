@@ -21,6 +21,35 @@ export default function AdminEscrowInstitutionsE() {
   const [busy, setBusy] = useState(false);
   // v52cx — invite drawer.
   const [inviteOpen, setInviteOpen] = useState(false);
+  // v53m — duplicate-email cleanup panel.
+  const [dupGroups, setDupGroups] = useState([]);
+  const [dupOpen, setDupOpen] = useState(false);
+
+  const loadDups = async () => {
+    try {
+      const r = await escrowInstitutionsApi.duplicates();
+      setDupGroups(r.groups || []);
+    } catch (e) { showApiError(e); }
+  };
+
+  const deleteInst = async (iid, label) => {
+    if (!window.confirm(`Delete institution "${label}"?\n\nOnly safe when this row has no owning account and no signatory tied to a joint escrow. Backend will refuse otherwise.`)) return;
+    try {
+      await escrowInstitutionsApi.delete(iid);
+      toast.success("Institution deleted");
+      loadDups();
+      // Refresh the main list too, best-effort.
+      try {
+        const q = status ? `?status=${status}` : "";
+        const r = (await api.get(`/api/v1/escrow-institutions${q}`)).data;
+        setItems(r.items || []);
+      } catch (_) {}
+    } catch (e) {
+      const d = e?.response?.data?.detail;
+      if (d?.error && d?.message) toast.error(d.message, { duration: 10000, closeButton: true });
+      else showApiError(e);
+    }
+  };
 
   const load = async () => {
     try {
@@ -112,6 +141,11 @@ export default function AdminEscrowInstitutionsE() {
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
+              <button type="button" onClick={() => { setDupOpen(!dupOpen); if (!dupOpen) loadDups(); }}
+                      data-testid="admin-escrow-dup-open"
+                      className="px-4 py-2 text-xs uppercase tracking-widest border border-rose-700 text-rose-700 hover:bg-rose-50">
+                {dupOpen ? "Hide duplicates" : "Find duplicates"}
+              </button>
               <button type="button" onClick={() => setInviteOpen(true)}
                       data-testid="admin-escrow-inst-invite-open"
                       className="px-4 py-2 text-xs uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy/90">
@@ -159,6 +193,64 @@ export default function AdminEscrowInstitutionsE() {
 
           {inviteOpen && (
             <InviteDrawer onClose={() => setInviteOpen(false)} onInvited={() => { setInviteOpen(false); load(); }} />
+          )}
+
+          {/* v53m — duplicate-email cleanup panel. Shows institution rows
+              grouped by primary_contact_email where more than one row
+              exists. Admin can delete the stragglers; backend refuses if
+              the row has an owning account or an in-use signatory. */}
+          {dupOpen && (
+            <div className="mt-4 mb-4 border-2 border-rose-500 bg-rose-50 p-4" data-testid="admin-escrow-dup-panel">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <div className="font-semibold text-rose-900">Duplicate institutions by email</div>
+                  <div className="text-xs text-rose-900/80 mt-0.5">
+                    Each group below has more than one institution row for the same primary contact email.
+                    Keep one (ideally the latest / approved) and delete the rest.
+                  </div>
+                </div>
+                <button type="button" onClick={loadDups}
+                        data-testid="admin-escrow-dup-reload"
+                        className="px-3 py-1.5 text-[11px] uppercase tracking-widest bg-white border border-rose-300 text-rose-900">
+                  Reload
+                </button>
+              </div>
+              {dupGroups.length === 0 && (
+                <div className="text-sm text-rose-900/70 italic p-2" data-testid="admin-escrow-dup-empty">
+                  No duplicate emails found.
+                </div>
+              )}
+              {dupGroups.map((g) => (
+                <div key={g.email} className="mt-3 bg-white border border-rose-300"
+                     data-testid={`admin-escrow-dup-group-${g.email}`}>
+                  <div className="flex items-center justify-between px-3 py-2 border-b border-rose-200 bg-rose-100/50">
+                    <div className="font-mono text-xs text-rose-900">
+                      {g.email} <span className="opacity-60">· {g.count} rows</span>
+                    </div>
+                  </div>
+                  <ul className="divide-y divide-rose-100">
+                    {g.rows.map((r) => (
+                      <li key={r.id} className="px-3 py-2 flex items-center justify-between gap-2 text-sm">
+                        <div className="min-w-0">
+                          <div className="truncate">
+                            <strong>{r.legal_name || "(no legal name)"}</strong>
+                            <span className="text-xs text-brand-navy/60 ml-2">{statusChip(r.status)}</span>
+                            {r.account_id && <span className="ml-2 text-[10px] uppercase tracking-widest text-emerald-800 bg-emerald-50 border border-emerald-300 px-1.5 py-0.5">has-account</span>}
+                            {r.has_signatories && <span className="ml-2 text-[10px] uppercase tracking-widest text-sky-800 bg-sky-50 border border-sky-300 px-1.5 py-0.5">has-signatories</span>}
+                          </div>
+                          <div className="text-[11px] text-brand-navy/50 font-mono">{r.id} · created {(r.created_at || "").slice(0, 10)}</div>
+                        </div>
+                        <button type="button" onClick={() => deleteInst(r.id, r.legal_name || r.id)}
+                                data-testid={`admin-escrow-dup-del-${r.id}`}
+                                className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest bg-rose-700 text-white hover:bg-rose-800">
+                          Delete
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
           )}
 
           <div className="grid gap-4 lg:grid-cols-[5fr_7fr]">

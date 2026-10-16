@@ -53,6 +53,15 @@ export default function SignInE({ legacy: Legacy }) {
           toast.success("Signed in · escrow signatory");
           return nav("/escrow/me");
         } catch (err) {
+          // v53m — surface the backend's structured detail so the user
+          // knows WHICH part failed (no-account vs no-account-only-institution
+          // vs wrong-password) and what to do next.
+          const code = err?.response?.status;
+          const d = err?.response?.data?.detail;
+          if (code === 404 && d && typeof d === "object" && d.message) {
+            toast.error(d.message, { duration: 10000, closeButton: true });
+            return;
+          }
           toast.error("Those credentials don't match an escrow account or signatory. New institutions can register below.",
                       { duration: 8000 });
           return;

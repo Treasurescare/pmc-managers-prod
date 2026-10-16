@@ -329,6 +329,93 @@ async def submit(iid: str, request: Request, token: Optional[str] = None) -> dic
 
 # -------- Admin endpoints ---------------------------------------------------
 
+
+# v53m — admin cleanup for duplicate institutions. The user reported three
+# approved institutions with the same primary_contact_email, which is
+# impossible to resolve via the normal UI. These two endpoints list and
+# delete duplicates so the master collection stays unique on email.
+
+@router.get("/duplicates")
+async def duplicates(admin=Depends(require_role("admin"))) -> dict:
+    """v53m — group institutions by lowercased primary_contact_email and
+    return every group that has more than one row. Admin can then pick
+    which to keep + delete the stragglers."""
+    pipeline = [
+        {"$match": {"primary_contact_email": {"$exists": True, "$nin": [None, ""]}}},
+        {"$addFields": {
+            "email_lc": {"$toLower": {"$trim": {"input": "$primary_contact_email"}}}
+        }},
+        {"$group": {
+            "_id": "$email_lc",
+            "count": {"$sum": 1},
+            "rows": {"$push": {
+                "id": {"$toString": "$_id"},
+                "legal_name": "$legal_name",
+                "status": "$status",
+                "created_at": "$created_at",
+                "account_id": {"$ifNull": ["$account_id", None]},
+                "has_signatories": {"$gt": [{"$size": {"$ifNull": ["$signatories", []]}}, 0]},
+            }},
+        }},
+        {"$match": {"count": {"$gt": 1}}},
+        {"$sort": {"count": -1}},
+    ]
+    groups = []
+    async for g in db.escrow_institutions.aggregate(pipeline):
+        groups.append({"email": g["_id"], "count": g["count"], "rows": g["rows"]})
+    return {"groups": groups}
+
+
+@router.delete("/{iid}")
+async def delete_institution(iid: str, admin=Depends(require_role("admin"))) -> dict:
+    """v53m — hard-delete a stray / duplicate institution row. Safe-only:
+    refuses when the row has an owning escrow_accounts record OR a
+    signatory is tied to any joint escrow account's escrow_officer email.
+    Everything else — stale invites, duplicate drafts, abandoned
+    needs-clarification rows — is fair game."""
+    try:
+        doc = await db.escrow_institutions.find_one({"_id": ObjectId(iid)})
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid institution id")
+    if not doc:
+        raise HTTPException(status_code=404, detail="Not found")
+    if doc.get("account_id"):
+        acc = await db.escrow_accounts.find_one(
+            {"_id": ObjectId(doc["account_id"])}, {"email": 1})
+        if acc:
+            raise HTTPException(status_code=409, detail={
+                "error": "institution_has_owner",
+                "message": f"Cannot delete — owned by escrow account "
+                           f"{acc.get('email')}. Delete the account first, or "
+                           f"keep this institution and remove the siblings.",
+            })
+    # Reject if a joint escrow account references one of this institution's
+    # signatory emails (so we don't orphan a live joint account).
+    emails = [(s.get("email") or "").lower()
+              for s in (doc.get("signatories") or [])
+              if (s.get("email") or "").strip()]
+    if emails:
+        in_use = await db.escrow_accounts.find_one(
+            {"escrow_officer.email": {"$in": emails}}) or \
+                 await db.escrow_accounts.find_one(
+            {"pmc_officer.email": {"$in": emails}})
+        if in_use:
+            raise HTTPException(status_code=409, detail={
+                "error": "signatory_in_use",
+                "message": "A signatory of this institution is already a "
+                           "signer on a joint escrow account. Reassign the "
+                           "joint account first, then delete.",
+            })
+    await db.escrow_institutions.delete_one({"_id": ObjectId(iid)})
+    await audit_log("escrow_inst.delete", admin, "escrow_institution",
+                     iid, {"legal_name": doc.get("legal_name"),
+                             "primary_contact_email": doc.get("primary_contact_email"),
+                             "status": doc.get("status")})
+    return {"ok": True, "deleted": iid}
+
+
+
+
 # v52cx — admin invite flow. Instead of filling the full institution form
 # themselves, admins drop in just the primary contact email (optional legal
 # name) and we send that address a magic-link email. The institution then
