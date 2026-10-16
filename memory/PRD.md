@@ -1,4 +1,24 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
+## v53a — Vendor address form: masters cascade (16 Oct 2026)
+
+- **VendorAccountE.jsx** Registered-address change form rebuilt:
+  Country (250-country master) → State/County (states master, free-text
+  fallback when country has none) → City (type-to-search 150k cities
+  master, state-filtered) → Address line 1 (required) → Address line 2
+  (optional) → ZIP. `address_parts` now carries address1/address2/
+  state_code; composed one-line value unchanged in format.
+- Masters cascade curl-verified (KZ: 20 states, cities by state, q=alm →
+  Almaty). Screenshot-verified E2E in preview (vendor login → account →
+  address form: KZ → Abai → city type-ahead, Submit enables). Fixed a
+  crash where the Submit-button disabled check still referenced the
+  removed `street` key (line 514). Frontend build clean.
+  Bundle: pmc-frontend-v53a-prod-build.zip.
+- **Vendor profile-change emails:** preview verified WORKING (mobile
+  change request → 2× Resend 200). Production non-delivery = missing
+  RESEND_API_KEY in EB env / SSM /pmc/prod (recurrence of the documented
+  EB_ENV_FIX issue). User to add key + redeploy.
+
+
 ## v52z — Create Notice 422 fix + Mongo storage audit (16 Oct 2026)
 
 - **Bug:** Tender Builder → Create Notice / Generate reference → HTTP 422

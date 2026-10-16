@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { useUiTheme } from "@/context/UiThemeContext";
-import { vendorApi, publicApi, showApiError } from "@/lib/api";
+import { vendorApi, publicApi, mastersApi, showApiError } from "@/lib/api";
 import { COUNTRY_PHONE, phoneSpecFor, validatePhoneForCountry } from "@/lib/phoneCountries";
 import VendorPortalChrome from "./VendorPortalChrome";
 
@@ -14,7 +14,9 @@ const FIELD_META = {
   email:        { label: "Login email",        type: "email",    placeholder: "name@company.com" },
 };
 
-const EMPTY_ADDR = { street: "", city: "", state: "", country: "KZ", zip: "" };
+// v53a — masters-driven structured address: country → state/county → city
+// cascades from the geography masters; address1/address2 stay free text.
+const EMPTY_ADDR = { address1: "", address2: "", city: "", state: "", state_code: "", country: "KZ", zip: "" };
 
 export default function VendorAccountE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
@@ -29,6 +31,9 @@ export default function VendorAccountE({ legacy: Legacy }) {
   const [phoneError, setPhoneError] = useState("");
   const [addrParts, setAddrParts] = useState(EMPTY_ADDR);
   const [addrError, setAddrError] = useState("");
+  const [addrStates, setAddrStates] = useState([]);
+  const [addrCities, setAddrCities] = useState([]);
+  const [cityQ, setCityQ] = useState("");
   const [countries, setCountries] = useState([]);
   const [saving, setSaving] = useState(false);
   const [revoking, setRevoking] = useState(false);
@@ -51,12 +56,27 @@ export default function VendorAccountE({ legacy: Legacy }) {
   useEffect(() => {
     if (!isE) return;
     load();
-    // v50o — country master for the structured address dropdown.
-    publicApi.countries().then((rows) => {
-      const list = Array.isArray(rows) ? rows : (rows?.countries || []);
+    // v53a — FULL country master (250) for the address cascade, instead of
+    // publicApi.countries() which only returns the ~30 licence-mapped ones.
+    mastersApi.listCountriesPublic().then((rows) => {
+      const list = (Array.isArray(rows) ? rows : (rows?.items || []))
+        .map((c) => ({ code: String(c.code || c.iso2 || "").toUpperCase(),
+                        name: String(c.name || c.code || "").trim() }))
+        .filter((c) => c.code);
       setCountries(list);
     }).catch(() => setCountries([]));
   }, [isE, load]);
+
+  // v53a — cascade: country → states → cities, all from the masters.
+  useEffect(() => {
+    if (!addrParts.country) { setAddrStates([]); return; }
+    mastersApi.listStates(addrParts.country).then(setAddrStates).catch(() => setAddrStates([]));
+  }, [addrParts.country]);
+  useEffect(() => {
+    if (!addrParts.country || !addrParts.state_code) { setAddrCities([]); return; }
+    mastersApi.listCities(addrParts.country, addrParts.state_code, cityQ, 200)
+      .then(setAddrCities).catch(() => setAddrCities([]));
+  }, [addrParts.country, addrParts.state_code, cityQ]);
 
   const openEdit = (field) => {
     setEditing(field);
@@ -78,6 +98,7 @@ export default function VendorAccountE({ legacy: Legacy }) {
     // v50o — address is a structured set of fields, not a free-text blob.
     if (field === "address") {
       setAddrParts({ ...EMPTY_ADDR, country: (profile?.country || "KZ").toUpperCase() });
+      setCityQ("");
       setAddrError("");
     }
   };
@@ -127,12 +148,15 @@ export default function VendorAccountE({ legacy: Legacy }) {
       valueToSend = `+${spec.dial}${phoneLocal.replace(/\D/g, "")}`;
     }
     if (editing === "address") {
-      // v50o — structured address validation: street, city, country, zip
-      // are mandatory; state is optional (some countries don't use it).
+      // v53a — structured address from masters: country → state/county →
+      // city cascade. address1, city, country, zip mandatory; state required
+      // only when the master has states for the chosen country; address2
+      // optional.
       const missing = [];
-      if (!addrParts.street.trim()) missing.push("Street");
-      if (!addrParts.city.trim()) missing.push("City");
       if (!addrParts.country) missing.push("Country");
+      if (addrStates.length > 0 && !addrParts.state_code) missing.push("State / county");
+      if (!addrParts.city.trim()) missing.push("City");
+      if (!addrParts.address1.trim()) missing.push("Address line 1");
       if (!addrParts.zip.trim()) missing.push("ZIP / postal code");
       if (missing.length) {
         setAddrError(`Please fill in: ${missing.join(", ")}`);
@@ -142,16 +166,9 @@ export default function VendorAccountE({ legacy: Legacy }) {
         setAddrError("ZIP / postal code must be 3–12 letters or digits.");
         return;
       }
-      const countryLabel = (() => {
-        const c = countries.find((x) => {
-          const code = Array.isArray(x) ? x[0] : (x.code || x.iso || x.value);
-          return String(code).toUpperCase() === addrParts.country.toUpperCase();
-        });
-        if (!c) return addrParts.country;
-        return Array.isArray(c) ? c[1] : (c.name || c.label || addrParts.country);
-      })();
+      const countryLabel = (countries.find((x) => x.code === addrParts.country) || {}).name || addrParts.country;
       const cityState = [addrParts.city.trim(), addrParts.state.trim()].filter(Boolean).join(", ");
-      valueToSend = [addrParts.street.trim(), cityState, `${addrParts.zip.trim()}`, countryLabel]
+      valueToSend = [addrParts.address1.trim(), addrParts.address2.trim(), cityState, `${addrParts.zip.trim()}`, countryLabel]
         .filter(Boolean).join(", ");
       parts = { ...addrParts, country_label: countryLabel };
     }
@@ -306,49 +323,64 @@ export default function VendorAccountE({ legacy: Legacy }) {
               {editing === "address" ? (
                 <div style={{ display: "grid", gap: 10, marginTop: 4 }}
                      data-testid="vacc-address-form">
-                  <input value={addrParts.street}
-                         onChange={(e) => setAddrParts({ ...addrParts, street: e.target.value })}
-                         placeholder="Street address (building, street, area)"
-                         className="pmc-input" style={{ width: "100%" }}
-                         data-testid="vacc-addr-street" />
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                    <input value={addrParts.city}
-                           onChange={(e) => setAddrParts({ ...addrParts, city: e.target.value })}
-                           placeholder="City"
-                           className="pmc-input" style={{ width: "100%" }}
-                           data-testid="vacc-addr-city" />
+                  {/* v53a — masters cascade: Country → State/County → City,
+                      then free-text Address line 1 / 2 and ZIP. */}
+                  <select value={addrParts.country}
+                          onChange={(e) => setAddrParts({ ...addrParts, country: e.target.value, state: "", state_code: "", city: "" })}
+                          className="pmc-input" style={{ width: "100%" }}
+                          data-testid="vacc-addr-country">
+                    {countries.length === 0 && (
+                      <option value={addrParts.country}>{addrParts.country}</option>
+                    )}
+                    {countries.map((c) => (
+                      <option key={c.code} value={c.code}>{c.name} ({c.code})</option>
+                    ))}
+                  </select>
+                  {addrStates.length > 0 ? (
+                    <select value={addrParts.state_code}
+                            onChange={(e) => {
+                              const st = addrStates.find((s) => s.state_code === e.target.value);
+                              setAddrParts({ ...addrParts, state_code: e.target.value, state: st?.name || "", city: "" });
+                              setCityQ("");
+                            }}
+                            className="pmc-input" style={{ width: "100%" }}
+                            data-testid="vacc-addr-state">
+                      <option value="">State / county…</option>
+                      {addrStates.map((s) => (
+                        <option key={s.state_code} value={s.state_code}>{s.name}</option>
+                      ))}
+                    </select>
+                  ) : (
                     <input value={addrParts.state}
-                           onChange={(e) => setAddrParts({ ...addrParts, state: e.target.value })}
-                           placeholder="State / region (optional)"
+                           onChange={(e) => setAddrParts({ ...addrParts, state: e.target.value, state_code: "" })}
+                           placeholder="State / county"
                            className="pmc-input" style={{ width: "100%" }}
                            data-testid="vacc-addr-state" />
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                    <select value={addrParts.country}
-                            onChange={(e) => setAddrParts({ ...addrParts, country: e.target.value })}
-                            className="pmc-input" style={{ width: "100%" }}
-                            data-testid="vacc-addr-country">
-                      {countries.length === 0 && (
-                        <>
-                          <option value="KZ">Kazakhstan</option>
-                          <option value="IN">India</option>
-                          <option value="AE">UAE</option>
-                          <option value="GB">United Kingdom</option>
-                          <option value="US">United States</option>
-                        </>
-                      )}
-                      {countries.map((c) => {
-                        const code = Array.isArray(c) ? c[0] : (c.code || c.iso || c.value);
-                        const name = Array.isArray(c) ? c[1] : (c.name || c.label || code);
-                        return <option key={code} value={code}>{name}</option>;
-                      })}
-                    </select>
-                    <input value={addrParts.zip}
-                           onChange={(e) => setAddrParts({ ...addrParts, zip: e.target.value })}
-                           placeholder="ZIP / postal code"
-                           className="pmc-input" style={{ width: "100%" }}
-                           data-testid="vacc-addr-zip" />
-                  </div>
+                  )}
+                  <input value={addrParts.city}
+                         onChange={(e) => { setAddrParts({ ...addrParts, city: e.target.value }); setCityQ(e.target.value); }}
+                         placeholder="City — type to search the masters list"
+                         list="vacc-city-list"
+                         className="pmc-input" style={{ width: "100%" }}
+                         data-testid="vacc-addr-city" />
+                  <datalist id="vacc-city-list">
+                    {addrCities.map((c, i) => <option key={`${c.name}-${i}`} value={c.name} />)}
+                  </datalist>
+                  <input value={addrParts.address1}
+                         onChange={(e) => setAddrParts({ ...addrParts, address1: e.target.value })}
+                         placeholder="Address line 1 (building, street)"
+                         className="pmc-input" style={{ width: "100%" }}
+                         data-testid="vacc-addr-line1" />
+                  <input value={addrParts.address2}
+                         onChange={(e) => setAddrParts({ ...addrParts, address2: e.target.value })}
+                         placeholder="Address line 2 (area, district — optional)"
+                         className="pmc-input" style={{ width: "100%" }}
+                         data-testid="vacc-addr-line2" />
+                  <input value={addrParts.zip}
+                         onChange={(e) => setAddrParts({ ...addrParts, zip: e.target.value })}
+                         placeholder="ZIP / postal code"
+                         className="pmc-input" style={{ width: "100%" }}
+                         data-testid="vacc-addr-zip" />
                   {addrError && (
                     <div style={{ fontSize: 12, color: "var(--danger,#b91c1c)" }}
                          data-testid="vacc-addr-error">{addrError}</div>
@@ -479,7 +511,7 @@ export default function VendorAccountE({ legacy: Legacy }) {
                         addrError !== "" ||
                         (editing === "company_name" && !evidence) ||
                         (editing === "address"
-                          ? !(addrParts.street.trim() && addrParts.city.trim() && addrParts.country && addrParts.zip.trim())
+                          ? !(addrParts.address1.trim() && addrParts.city.trim() && addrParts.country && addrParts.zip.trim() && (addrStates.length === 0 || addrParts.state_code))
                           : (editing === "mobile" || editing === "office_phone")
                             ? phoneLocal.replace(/\D/g, "").length !== phoneSpecFor(phoneCountry).digits
                             : (!draft.trim() || draft.trim() === (profile?.[editing] || "")))
