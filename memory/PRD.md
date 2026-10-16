@@ -1,4 +1,24 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
+## v52z — Create Notice 422 fix + Mongo storage audit (16 Oct 2026)
+
+- **Bug:** Tender Builder → Create Notice / Generate reference → HTTP 422
+  "String should have at most 3 characters". Root cause: AI/DPR fill can
+  store country as full NAME ("India"); `tender-pro/next-reference` and
+  `save-as-master` enforce `country` max_length=3 (ISO-2). Reproduced:
+  `next-reference?country=INDIA` → 422; `country=IN` → 200.
+- **Fix (frontend-only, `TenderBuilderPanel.jsx`):** `toIso2()` helper maps
+  full names → ISO-2 via the 250-country master; applied at `genRef`,
+  `saveAsMaster`, and the Create Notice prefill (`delivery_country`).
+  Backend stays strict — correct contract.
+- **Mongo storage audit (preview DB, 75.3 MB / 84 collections):**
+  `masters_unspsc` 40 MB + `masters_cities` 25.4 MB (required reference
+  data, user said keep), `uploads` 7.1 MB inline base64 (growth risk, user
+  said leave for now), `audit_events` 1.1 MB, notifications 0.3 MB, all
+  business data < 1 MB combined. User to pull PROD Atlas sizes themselves
+  (step-by-step guide in DOWNLOAD_v52z.md appendix) and report back.
+- **Bundle:** pmc-frontend-v52z-prod-build.zip only (no backend change).
+
+
 ## v52y — Corrigenda ↔ Tender Maker date parity + v52x cron REMOVED (16 Oct 2026)
 
 - **Removed v52x submission-close cron entirely** (per user: no

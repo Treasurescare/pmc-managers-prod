@@ -394,8 +394,9 @@ export default function TenderBuilderPanel() {
 
   const saveAsMaster = async () => {
     if (!doc?.id) return;
-    const country = prompt("Save as master under which country (ISO-2, e.g. KZ, IN, MY, GB)?", (doc.country || doc.header?.country || "KZ"));
-    if (!country) return;
+    const countryRaw = prompt("Save as master under which country (ISO-2, e.g. KZ, IN, MY, GB)?", (toIso2(doc.country || doc.header?.country) || "KZ"));
+    if (!countryRaw) return;
+    const country = toIso2(countryRaw) || countryRaw.trim().toUpperCase().slice(0, 3);
     const industry = prompt("Industry / vertical (e.g. Public Works, Software, Consulting)?", doc.industry || "General");
     if (!industry) return;
     setSaveMasterBusy(true);
@@ -406,9 +407,20 @@ export default function TenderBuilderPanel() {
     } catch (e) { showApiError(e); } finally { setSaveMasterBusy(false); }
   };
 
+  // v52z — country may be stored as a full NAME ("India") by the AI/DPR
+  // fill, while next-reference / save-as-master demand the ISO-2 code
+  // (max 3 chars, else HTTP 422 "at most 3 characters"). Normalise here.
+  const toIso2 = (raw) => {
+    const s = String(raw || "").trim();
+    if (!s) return "";
+    if (/^[A-Za-z]{2,3}$/.test(s)) return s.toUpperCase();
+    const hit = masterCountries.find((c) => (c.name || "").toLowerCase() === s.toLowerCase());
+    return hit ? hit.code : "";
+  };
+
   const genRef = async () => {
     if (!doc) return;
-    const country = doc.country || doc.header?.country || prompt("Country code (ISO-2)?", "KZ");
+    const country = toIso2(doc.country || doc.header?.country) || prompt("Country code (ISO-2)?", "KZ");
     if (!country) return;
     try {
       const r = await tenderProApi.nextReference(country.toUpperCase(), doc.industry || "GEN", doc.kind || "tender");
@@ -460,7 +472,9 @@ export default function TenderBuilderPanel() {
       description: String(h.work_description).trim(),
       category: String(h.product_category).trim(),
       // v52cp — delivery country from tender header; falls back to doc.country.
-      delivery_country: String(h.country || doc.country || "KZ").toUpperCase(),
+      // v52z — normalise full names ("India") to the ISO-2 code the notice
+      // form / EMD master / reference generator all expect.
+      delivery_country: toIso2(h.country || doc.country) || "KZ",
       budget_amount: Number(h.tender_value),
       budget_currency: budgetCurrency,
       emd_config: {
