@@ -1,4 +1,56 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
+## v53i — Invited-but-didn't-register fan-out + distinct outcome (16 Oct 2026)
+
+- **User report:** awarded auction (winner managerspmc@gmail.com) → the
+  other invitee info@emeraldcorporates.com got no email at close, and the
+  auction was not referenced on their dashboard with "invited but did not
+  participate" context.
+- **Root cause #1 (silent email gap):** `close_reverse_auction` fanned out
+  only to `reverse_auction_participants` (vendors who registered). Invitees
+  who never clicked the invite link were skipped entirely.
+- **Root cause #2 (misleading UI):** `/mine` already returns invited
+  auctions, but `_stamp_outcome` only had `won`/`lost` — invitees who
+  never bid got `outcome: "lost"` and the UI said "your bid was not the
+  lowest", which is wrong.
+- **Backend (auction_live.py):**
+  - `_stamp_outcome` now async; new third outcome `not_participated` for
+    invited vendors with no participant row.
+  - `close_reverse_auction` → after mailing losers, loops
+    `reverse_auction_invitations` and mails every non-participant invitee
+    ("you were invited but did not register, auction closed, awarded to
+    another bidder").
+  - `award_reverse_auction` → same fan-out at award time so the user's
+    existing Modular OT auction (closed before v53i) still mails
+    info@emeraldcorporates.com + any registered losers on the next
+    Award Winner click.
+- **Frontend (VendorAuctionsE.jsx):** new grey "invited — did not
+  participate — awarded to another bidder" badge row for
+  `outcome === "not_participated"`.
+- Bundles: pmc-backend-v53i.zip + pmc-frontend-v53i-prod-build.zip.
+
+
+## v53h — My-bids deep-link honesty + winner-email backfill (16 Oct 2026)
+
+- **Root cause of "bid not in My bids":** TWO auctions exist on
+  PMC-NOT-2026-0020 — "OT Auction Wave40 Test" (winner TEST_Dec) was the
+  one awarded (BID-AUC-A03BF7); the user's "Modular OT Reverse Round 1"
+  (winner Managers PMC) was never awarded (awarded_bid_id null) → no bid
+  exists → My bids correctly showed only the old bid. Fix path for user:
+  Award winner on the Modular OT row.
+- **Backend (auction_live.py):** state-mine now exposes
+  `me.awarded_bid_id` / `me.awarded_bid_ref` to the winning vendor only;
+  award endpoint backfills missing `winner.vendor_email` from the
+  participant record (pre-v53b closes stored none).
+- **Frontend (AuctionRoom.jsx):** "What happens next" step 4 is
+  conditional — pre-award: "Once PMC confirms the award, the new bid will
+  appear under My bids"; post-award: shows the actual BID-AUC ref and
+  links to My bids.
+- **E2E verified:** pre-v53b-style closed auction → award → email
+  backfilled, bid at escrow_accepted (v53g zero-EMD auto-clear), winner's
+  state-mine shows awarded_bid_ref. Cleaned.
+- Bundles: pmc-backend-v53h.zip + pmc-frontend-v53h-prod-build.zip.
+
+
 ## v53g — Zero-EMD auto-clear for sealed bids + L1 live-statuses fix (16 Oct 2026)
 
 - **bids.py create_bid:** zero-EMD sealed bids now created directly at

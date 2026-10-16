@@ -90,15 +90,27 @@ def _out_auction(a: dict) -> dict:
     return o
 
 
-def _stamp_outcome(out: dict, raw: dict, vendor_id: str) -> None:
+async def _stamp_outcome(out: dict, raw: dict, vendor_id: str) -> None:
     """v53b — on closed auctions, tell THIS vendor whether they won, plus the
-    winning price. Winner identity (company name) stays masked to losers."""
+    winning price. Winner identity (company name) stays masked to losers.
+
+    v53i — invited vendors who NEVER registered get a distinct outcome
+    `not_participated` so the vendor UI shows a correct "you were invited but
+    did not take part" reference instead of the misleading "your bid was not
+    the lowest" losing message."""
     if raw.get("status") != "closed":
         return
     w = raw.get("winner") or {}
-    out["outcome"] = "won" if w.get("vendor_id") == vendor_id else "lost"
     out["winning_price"] = raw.get("current_price")
     out["awarded_bid_id"] = raw.get("awarded_bid_id")
+    if w.get("vendor_id") == vendor_id:
+        out["outcome"] = "won"
+        return
+    # Did this vendor actually register as a participant?
+    p = await db.reverse_auction_participants.find_one(
+        {"auction_id": str(raw["_id"]), "vendor_id": vendor_id},
+        {"_id": 1})
+    out["outcome"] = "lost" if p else "not_participated"
 
 
 async def _mask_participants(aid: str) -> dict:
@@ -333,7 +345,7 @@ async def list_my_reverse_auctions(vendor=Depends(current_vendor)):
         ).sort("created_at", -1).limit(100):
             out = _out_auction(a)
             out["why"] = "You bid on this tender"
-            _stamp_outcome(out, a, vendor["id"])
+            await _stamp_outcome(out, a, vendor["id"])
             rows.append(out); seen.add(out["id"])
     # Also match any explicit invite row for this vendor's email.
     async for inv in db.reverse_auction_invitations.find(
@@ -346,7 +358,7 @@ async def list_my_reverse_auctions(vendor=Depends(current_vendor)):
         if not a: continue
         out = _out_auction(a)
         out["why"] = "You were invited by PMC"
-        _stamp_outcome(out, a, vendor["id"])
+        await _stamp_outcome(out, a, vendor["id"])
         rows.append(out); seen.add(out["id"])
     return {"items": rows, "count": len(rows)}
 
@@ -465,6 +477,30 @@ async def close_reverse_auction(aid: str, admin=Depends(require_role("admin"))):
                         f"not the lowest on this round, so you have not been selected.</p>"
                         f"<p>Thank you for participating — watch the supplier portal for "
                         f"future rounds.</p>"))
+            # v53i — invitees who never registered as participants were
+            # silently excluded from the close fan-out. Mail them too so an
+            # invited vendor who skipped the round still learns that the
+            # auction has concluded and was awarded to another bidder.
+            participant_emails = set()
+            async for pp in db.reverse_auction_participants.find(
+                    {"auction_id": aid}, {"vendor_email": 1}):
+                if pp.get("vendor_email"):
+                    participant_emails.add(pp["vendor_email"].lower())
+            async for inv in db.reverse_auction_invitations.find(
+                    {"auction_id": aid}):
+                em = (inv.get("email") or "").lower()
+                if not em or em in participant_emails:
+                    continue
+                await send_email(
+                    em,
+                    f"Reverse auction closed — {title}",
+                    email_wrap("Reverse auction closed",
+                        f"<p>You were invited to participate in <strong>{title}</strong> "
+                        f"({ref}), but did not register for this round.</p>"
+                        f"<p>The auction has now closed and will be awarded to another "
+                        f"bidder. The invitation record stays visible under "
+                        f"<em>Reverse auctions</em> in your supplier portal for your "
+                        f"reference. Watch there for future rounds.</p>"))
     except Exception:
         pass  # email failures must never block the close itself
     return {"ok": True, "status": "closed", "winner": winner}
@@ -490,6 +526,14 @@ async def award_reverse_auction(aid: str, admin=Depends(require_role("admin"))):
     if not winner.get("vendor_id"):
         raise HTTPException(status_code=400,
             detail="This auction closed with no bids — there is no winner to award.")
+    # v53h — auctions closed before v53b stored no winner email; backfill it
+    # from the participant record so the created bid is complete (else the
+    # vendor pipeline notifications have nobody to address).
+    if not winner.get("vendor_email"):
+        _p = await db.reverse_auction_participants.find_one(
+            {"auction_id": aid, "vendor_id": winner.get("vendor_id")})
+        if _p and _p.get("vendor_email"):
+            winner["vendor_email"] = _p["vendor_email"]
     if a.get("awarded_bid_id"):
         return {"ok": True, "already_awarded": True, "bid_id": a["awarded_bid_id"]}
     existing = await db.bids.find_one({"auction_id": aid})
@@ -553,6 +597,44 @@ async def award_reverse_auction(aid: str, admin=Depends(require_role("admin"))):
                      "winner": winner.get("company_name"),
                      "winning_price": winner.get("winning_price"),
                      "escrow_auto_cleared": skip_escrow})
+    # v53i — for auctions closed before v53i the loser/invitee fan-out never
+    # ran. Running it here on award means a historical auction's non-winners
+    # still receive a clean "auction awarded to another bidder" mail, and the
+    # specific gap the user reported — invitees who never registered got no
+    # mail at all — is backfilled at award time.
+    try:
+        cur = a.get("currency", "USD")
+        money = (f"{cur} {winner.get('winning_price'):,.0f}"
+                 if winner.get("winning_price") else "—")
+        title = a.get("title") or aid
+        ref = a.get("notice_ref") or ""
+        subject = f"Reverse auction awarded — {title}"
+        body_loser = email_wrap("Reverse auction awarded",
+            f"<p><strong>{title}</strong> ({ref}) has been awarded to another "
+            f"bidder at <strong>{money}</strong>. Thank you for participating — "
+            f"watch the supplier portal for future rounds.</p>")
+        body_invited = email_wrap("Reverse auction awarded",
+            f"<p>You were invited to <strong>{title}</strong> ({ref}) but did "
+            f"not register for the round. The auction has now been awarded to "
+            f"another bidder at <strong>{money}</strong>. The invitation stays "
+            f"on your Reverse auctions page for reference; watch there for "
+            f"future rounds.</p>")
+        participant_emails = set()
+        async for lp in db.reverse_auction_participants.find(
+                {"auction_id": aid, "vendor_id": {"$ne": winner["vendor_id"]}}):
+            if lp.get("vendor_email"):
+                participant_emails.add(lp["vendor_email"].lower())
+                await send_email(lp["vendor_email"], subject, body_loser)
+        # Winner email too so participant_emails is complete for dedup below
+        if winner.get("vendor_email"):
+            participant_emails.add(winner["vendor_email"].lower())
+        async for inv in db.reverse_auction_invitations.find({"auction_id": aid}):
+            em = (inv.get("email") or "").lower()
+            if not em or em in participant_emails:
+                continue
+            await send_email(em, subject, body_invited)
+    except Exception:
+        pass  # email failures must never block the award itself
     return {"ok": True, "bid_id": bid_id, "bid_ref": bid_ref,
             "status": initial_status,
             "next_step": ("Bid created at escrow_accepted (no EMD — escrow "
@@ -648,6 +730,19 @@ async def get_state_mine(aid: str, vendor=Depends(current_vendor)):
         "autobid_floor": p.get("autobid_floor") if p else None,
         "is_leader": bool(p and state.get("leader_alias") == p.get("alias")),
     }
+    # v53h — once the admin has awarded, tell the WINNING vendor the bid ref
+    # so the room can deep-link to My bids. Only the winner sees this.
+    try:
+        a = await db.reverse_auctions.find_one({"_id": ObjectId(aid)},
+                                               {"winner": 1, "awarded_bid_id": 1})
+        w = (a or {}).get("winner") or {}
+        if w.get("vendor_id") == vendor["id"] and (a or {}).get("awarded_bid_id"):
+            bid = await db.bids.find_one({"_id": ObjectId(a["awarded_bid_id"])},
+                                         {"bid_ref": 1})
+            state["me"]["awarded_bid_id"] = a["awarded_bid_id"]
+            state["me"]["awarded_bid_ref"] = (bid or {}).get("bid_ref")
+    except Exception:
+        pass
     return state
 
 

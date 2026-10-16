@@ -86,6 +86,20 @@ export default function VendorAuctionsE() {
                         This auction has closed — your bid was not the lowest this round.
                       </div>
                     )}
+                    {/* v53i — invited but never registered. Show a distinct
+                        reference so an invitee still has a trail of the
+                        opportunity they were given, and is told it was
+                        awarded to another bidder. */}
+                    {a.status === "closed" && a.outcome === "not_participated" && (
+                      <div data-testid={`va-notpart-${a.id}`}
+                           style={{ marginTop: 8, padding: "8px 12px", borderRadius: 6,
+                                    background: "rgba(148,163,184,.12)",
+                                    border: "1px solid rgba(100,116,139,.35)",
+                                    fontSize: 12, color: "var(--on-chrome-muted)" }}>
+                        <strong>You were invited to this auction</strong> but did not register
+                        before it closed. It has been awarded to another bidder.
+                      </div>
+                    )}
                   </div>
                   <div style={{ alignSelf: "center" }}>
                     <Link to={`/vendor/auction/${a.id}`} className="pmc-btn pmc-btn--primary pmc-btn--sm" data-testid={`va-enter-${a.id}`}>

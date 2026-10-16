@@ -232,7 +232,14 @@ export default function AuctionRoom() {
                   <li>PMC reviews the result and clicks <b>Award winner</b> — you'll get a confirmation email.</li>
                   <li>Your winning price becomes a formal bid that passes EMD verification → escrow → legal → accounting sign-off.</li>
                   <li>You receive the Purchase Order / contract for e-signature (DocuSign) under <b>Signatures</b>.</li>
-                  <li>Track every step under <Link to="/vendor/mybids" className="underline font-semibold">My bids</Link>.</li>
+                  {/* v53h — only point at My bids once the bid actually
+                      exists (award confirmed). Before that, saying "track
+                      under My bids" sends the vendor to an empty list. */}
+                  {state.me?.awarded_bid_ref ? (
+                    <li>Your bid <b>{state.me.awarded_bid_ref}</b> is now in the approval pipeline — track every step under <Link to="/vendor/mybids" className="underline font-semibold">My bids</Link>.</li>
+                  ) : (
+                    <li>Once PMC confirms the award, the new bid will appear under <Link to="/vendor/mybids" className="underline font-semibold">My bids</Link>.</li>
+                  )}
                 </ol>
               </div>
             )}
