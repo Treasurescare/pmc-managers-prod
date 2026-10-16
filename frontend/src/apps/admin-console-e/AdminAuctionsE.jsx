@@ -94,6 +94,21 @@ export default function AdminAuctionsE() {
     finally { setBusyId(null); }
   };
 
+  // v53d — hand the winner into the standard bid pipeline (emd_paid →
+  // escrow → certifier → legal → accounting → award docs). Backend is
+  // idempotent; second click just reports the existing bid.
+  const award = async (aid) => {
+    setBusyId(aid);
+    try {
+      const r = await reverseAuctionApi.award(aid);
+      toast.success(r.already_awarded
+        ? "Already awarded — bid exists in Bidding Ops."
+        : `Bid ${r.bid_ref} created at emd_paid — continue in Bidding Ops.`);
+      load();
+    } catch (e) { showApiError(e, { fallbackTitle: "Cannot award" }); }
+    finally { setBusyId(null); }
+  };
+
   // v51ab — inline edit for draft auctions.
   const openEdit = (a) => {
     setEditingAid(a.id);
@@ -334,6 +349,30 @@ export default function AdminAuctionsE() {
                           : `${a.participant_count}/2 participants`}
                       </span>
                     )}
+                    {/* v53d — closed rows were a dead end ("just says
+                        closed"). Show the winner + result, and either the
+                        Award button or the awarded state. */}
+                    {a.status === "closed" && a.winner && (
+                      <span className="text-[11px] font-mono text-emerald-800"
+                            data-testid={`auction-winner-${a.id}`}>
+                        Won by {a.winner.company_name || a.winner.alias} · {a.currency} {Number(a.winner.winning_price || 0).toLocaleString()}
+                        {a.starting_price && a.winner.winning_price
+                          ? ` (−${(((a.starting_price - a.winner.winning_price) / a.starting_price) * 100).toFixed(1)}%)`
+                          : ""}
+                      </span>
+                    )}
+                    {a.status === "closed" && !a.winner && (
+                      <span className="text-[11px] text-brand-navy/50 italic"
+                            data-testid={`auction-nowinner-${a.id}`}>
+                        Closed with no winning bid — nothing to award.
+                      </span>
+                    )}
+                    {a.status === "closed" && a.awarded_bid_id && (
+                      <span className="text-[10px] uppercase tracking-widest px-2 py-0.5 border bg-emerald-50 border-emerald-300 text-emerald-800"
+                            data-testid={`auction-awarded-${a.id}`}>
+                        Awarded · in pipeline
+                      </span>
+                    )}
                   </div>
                   <div className="flex gap-2 justify-end flex-wrap">
                     {a.status === "draft" && (
@@ -366,6 +405,15 @@ export default function AdminAuctionsE() {
                               data-testid={`auction-close-${a.id}`}
                               className="px-3 py-1.5 text-[11px] uppercase tracking-widest bg-red-700 text-white hover:bg-red-800 disabled:opacity-50">
                         {busyId === a.id ? "…" : "Close"}
+                      </button>
+                    )}
+                    {a.status === "closed" && a.winner && !a.awarded_bid_id && (
+                      <button type="button" onClick={() => award(a.id)}
+                              disabled={busyId === a.id}
+                              data-testid={`auction-award-${a.id}`}
+                              title="Creates a bid at emd_paid and moves it through the standard escrow → legal → accounting pipeline"
+                              className="px-3 py-1.5 text-[11px] uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep disabled:opacity-50">
+                        {busyId === a.id ? "…" : "Award winner"}
                       </button>
                     )}
                     <a href={`/auctions/${a.id}/live`}

@@ -414,7 +414,10 @@ export default function VendorAccountE({ legacy: Legacy }) {
                       onChange={(e) => {
                         const v = e.target.value.replace(/\D/g, "");
                         setPhoneLocal(v);
-                        setPhoneError(v ? validatePhoneForCountry(phoneCountry, v) : "");
+                        // v53d — validatePhoneForCountry returns NULL on success;
+                        // store "" so the submit-button check (phoneError !== "")
+                        // doesn't read null as an error and stay disabled forever.
+                        setPhoneError(v ? (validatePhoneForCountry(phoneCountry, v) || "") : "");
                       }}
                       placeholder={`${phoneSpecFor(phoneCountry).digits} digits`}
                       maxLength={phoneSpecFor(phoneCountry).digits}

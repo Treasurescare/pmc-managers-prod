@@ -1,4 +1,23 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
+## v53d — Phone-submit bug fix + Award button in the REAL admin panel (16 Oct 2026)
+
+- **Phone-change greyed button ROOT CAUSE:** `validatePhoneForCountry`
+  returns `null` on success; disabled check `phoneError !== ""` treats
+  `null` as error → button never enables. Fixed by storing `""` on success
+  (`VendorAccountE.jsx` onChange). Verified: 10 digits → enabled; 6 digits
+  → disabled with precise error. This also explains "no email": the request
+  never left the browser, so prod DB correctly has zero mobile requests.
+- **Admin auctions panel fix:** v53b's Award button was added to
+  `admin-console/LiveAuctionsPanel.jsx` — DEAD CODE (legacy /admin route).
+  The live surface is `admin-console-e/AdminAuctionsE.jsx`
+  (`/admin/e/auctions`). Added there: winner line (company, price, −savings%),
+  "Award winner" button (closed + winner + not awarded), "Awarded · in
+  pipeline" badge, and "Closed with no winning bid" note. Screenshot-verified:
+  closed row shows "Won by Bidder-42 · USD 872,500 (−12.8%)" + AWARD WINNER.
+- Bundle: pmc-frontend-v53d-prod-build.zip (frontend-only; needs v53b
+  backend on EB for /award).
+
+
 ## v53c — Vendor auction UX + prod email root cause found (16 Oct 2026)
 
 - **VendorAuctionsE.jsx:** trophy badge on the list row itself — "You won"
