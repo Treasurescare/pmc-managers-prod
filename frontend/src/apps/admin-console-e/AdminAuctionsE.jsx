@@ -368,9 +368,16 @@ export default function AdminAuctionsE() {
                       </span>
                     )}
                     {a.status === "closed" && a.awarded_bid_id && (
-                      <span className="text-[10px] uppercase tracking-widest px-2 py-0.5 border bg-emerald-50 border-emerald-300 text-emerald-800"
+                      <span className="inline-flex items-center gap-2 text-[10px] uppercase tracking-widest px-2 py-0.5 border bg-emerald-50 border-emerald-300 text-emerald-800"
                             data-testid={`auction-awarded-${a.id}`}>
                         Awarded · in pipeline
+                        {/* v53e — tell the admin WHERE the award went: the bid
+                            sits in Bidding Ops at emd_paid, not in Awards. */}
+                        <a href="/admin/e/bidding"
+                           className="underline underline-offset-2 hover:text-emerald-900 normal-case"
+                           data-testid={`auction-goto-bidops-${a.id}`}>
+                          Track in Bidding Ops →
+                        </a>
                       </span>
                     )}
                   </div>

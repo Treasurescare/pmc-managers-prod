@@ -93,10 +93,11 @@ export default function AuctionRoom() {
     <div className="min-h-screen bg-brand-pale" data-testid="vendor-auction-room">
       <TopBar />
       <main className="max-w-5xl mx-auto px-6 lg:px-10 py-8">
-        {/* v53c — the room was a dead-end; link back to the auctions list. */}
-        <div className="mb-4" data-testid="ra-back">
+        {/* v53e — the room was a dead-end; prominent button back to the
+            auctions list (was a subtle text link that users missed). */}
+        <div className="mb-5" data-testid="ra-back">
           <Link to="/vendor/auctions"
-                className="text-[11px] uppercase tracking-widest text-brand-navy/70 hover:text-brand-navy border-b border-brand-navy/30">
+                className="inline-flex items-center gap-2 px-4 py-2 border border-brand-navy text-brand-navy text-[11px] uppercase tracking-widest font-semibold hover:bg-brand-navy hover:text-white transition-colors">
             ← Back to reverse auctions
           </Link>
         </div>

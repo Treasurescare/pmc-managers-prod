@@ -1,4 +1,19 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
+## v53e — Auction-room back button + awarded-bid discoverability (16 Oct 2026)
+
+- **Vendor AuctionRoom:** v53c's back link was too subtle (11px text) —
+  now a prominent bordered "← Back to reverse auctions" button.
+- **AdminAuctionsE:** awarded badge now reads "Awarded · in pipeline —
+  Track in Bidding Ops →" with a deep link to /admin/e/bidding. Explains
+  the confusion: auction-awarded bids sit at `emd_paid` in Bidding Ops and
+  only appear in the Awards panel after the full pipeline completes.
+  Verified on prod: BID-AUC-A03BF7 (TEST_Dec, USD 925,000,
+  PMC-NOT-2026-0020) present at emd_paid.
+- **Prod bundle check:** confirmed prod is already serving the v53c/d
+  frontend (main.392550cb.js contains ra-back, trophy, award strings).
+- Bundle: pmc-frontend-v53e-prod-build.zip (frontend-only).
+
+
 ## v53d — Phone-submit bug fix + Award button in the REAL admin panel (16 Oct 2026)
 
 - **Phone-change greyed button ROOT CAUSE:** `validatePhoneForCountry`
