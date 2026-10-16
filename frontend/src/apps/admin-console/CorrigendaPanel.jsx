@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { corrigendaApi, adminApi, publicApi, formatApiError, showApiError} from "@/lib/api";
+import { tenderDateChainViolations } from "@/lib/dateRules";
 import { useI18n } from "@/context/I18nContext";
 import { InfoDot } from "@/components/InfoDot";
 import { useListPager } from "@/components/ListPager";
@@ -11,13 +12,15 @@ import {
 
 // v52bm — Fields on a notice that a corrigendum can amend. Order drives the
 // display order of the "Current → New" rows. `kind` hints the input widget.
+// v52y — now carries ALL Tender Maker Critical Dates so admins can restart
+// a closed tender's full timeline from here. New dates with a `chainKey`
+// feed the shared tender-chain validator (lib/dateRules.js).
 const NOTICE_FIELDS = [
   { key: "title",                 label: "Title",                 kind: "text" },
   { key: "description",           label: "Description",           kind: "textarea" },
   { key: "category",              label: "Category",              kind: "text" },
   { key: "document_type",         label: "Document type",         kind: "text" },
   { key: "delivery_country",      label: "Delivery country",      kind: "text" },
-  { key: "submission_deadline",   label: "Submission deadline",   kind: "datetime" },
   { key: "budget_currency",       label: "Budget currency",       kind: "text" },
   { key: "budget_amount",         label: "Budget amount",         kind: "number" },
   { key: "tender_fee",            label: "Tender fee",            kind: "number" },
@@ -26,8 +29,17 @@ const NOTICE_FIELDS = [
     read: (n) => n?.emd_config?.fixed_amount },
   { key: "emd_percentage",        label: "EMD % of budget",       kind: "number",
     read: (n) => n?.emd_config?.percentage },
-  { key: "pre_bid_meeting_date",  label: "Pre-bid meeting",       kind: "datetime" },
-  { key: "clarification_deadline",label: "Clarifications close",  kind: "datetime" },
+  // --- Critical Dates (mirrors Tender Maker) ---
+  { key: "publish_date",          label: "Publish Date",          kind: "datetime", chainKey: "publish_date" },
+  { key: "pre_bid_meeting_date",  label: "Pre-Bid Meeting Date",  kind: "datetime", chainKey: "pre_bid_date" },
+  { key: "doc_dl_start",          label: "Document Download / Sale Start", kind: "datetime", chainKey: "doc_dl_start" },
+  { key: "doc_dl_end",            label: "Document Download / Sale End",   kind: "datetime", chainKey: "doc_dl_end" },
+  { key: "clarif_start",          label: "Clarification Start Date", kind: "datetime", chainKey: "clarif_start" },
+  { key: "clarification_deadline",label: "Clarification End Date",   kind: "datetime", chainKey: "clarif_end" },
+  { key: "sub_start",             label: "Bid Submission Start Date", kind: "datetime", chainKey: "sub_start" },
+  { key: "submission_deadline",   label: "Bid Submission End Date",   kind: "datetime", chainKey: "sub_end" },
+  { key: "bid_opening_date",      label: "Bid Opening Date",      kind: "datetime", chainKey: "bid_opening_date" },
+  { key: "bid_award_date",        label: "Bid Award Date",        kind: "datetime", chainKey: "bid_award_date" },
 ];
 
 const readField = (notice, f) => {
@@ -159,14 +171,11 @@ export default function CorrigendaPanel() {
       toast.error("Nothing to publish — change at least one field below (or set a new submission deadline).");
       return;
     }
-    // v52t — same date-chain as Tender Builder, applied to the corrigendum
-    // path: a new deadline cannot land in the past, and pre-bid /
-    // clarification-close amendments cannot sit after the effective
-    // submission deadline. (Backend enforces the same — this is the live
-    // hint so admins see it before hitting Publish.)
+    // v52y — full tender-maker date-chain, applied to the EFFECTIVE
+    // (post-amendment) notice. Mirrors Tender Builder so a corrigendum can
+    // restart a closed tender's whole timeline with the same rules.
     const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
     const dlNew = (edits.submission_deadline?.new || "").trim();
-    const effDeadline = draft.new_submission_deadline || dlNew || pickedNotice?.submission_deadline || "";
     if (draft.new_submission_deadline && new Date(draft.new_submission_deadline) < todayStart) {
       toast.error("New submission deadline cannot be in the past.");
       return;
@@ -175,14 +184,18 @@ export default function CorrigendaPanel() {
       toast.error("Submission deadline (new value) cannot be in the past.");
       return;
     }
-    const after = (key) => (edits[key]?.new || "").trim();
-    const effEnd = effDeadline ? new Date(effDeadline) : null;
-    if (effEnd && after("pre_bid_meeting_date") && new Date(after("pre_bid_meeting_date")) > effEnd) {
-      toast.error("Pre-bid meeting date must be on or before the submission deadline.");
-      return;
+    const effHeader = {};
+    for (const f of NOTICE_FIELDS) {
+      if (!f.chainKey) continue;
+      const newVal = (edits[f.key]?.new || "").trim();
+      effHeader[f.chainKey] = newVal || readField(pickedNotice, f) || "";
     }
-    if (effEnd && after("clarification_deadline") && new Date(after("clarification_deadline")) > effEnd) {
-      toast.error("Clarifications close date must be on or before the submission deadline.");
+    if (draft.new_submission_deadline) effHeader.sub_end = draft.new_submission_deadline;
+    // Corrigenda edit a LIVE notice, so skip the "future-only" checks on
+    // publish_date / sub_end — only enforce ordering across the chain.
+    const chainErrs = tenderDateChainViolations(effHeader, { requireToday: false });
+    if (chainErrs.length) {
+      toast.error(`Date order problems: ${chainErrs[0]}`);
       return;
     }
     const autoSummary = amendments.length

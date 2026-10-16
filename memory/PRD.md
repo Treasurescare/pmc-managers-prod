@@ -1,4 +1,33 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
+## v52y — Corrigenda ↔ Tender Maker date parity + v52x cron REMOVED (16 Oct 2026)
+
+- **Removed v52x submission-close cron entirely** (per user: no
+  Emergent-platform dependencies). Deleted
+  `routers/cron_submission_close.py`, its server.py registration, and the
+  `.emergent/crons.yml` entry. Escrow-expiry cron untouched. Verified:
+  endpoint 404; escrow endpoint still 401.
+- **Corrigenda now exposes all 10 tender-maker Critical Dates** (7 new:
+  Publish Date, Doc DL Start/End, Clarif Start, Sub Start, Bid Opening,
+  Bid Award + 3 pre-existing with Tender-Maker labels) so admins can
+  restart a closed tender's full timeline from the Corrigenda form.
+- **Backend `_AMENDABLE_FIELDS`** extended with the 7 new keys, flat on
+  the notice doc. New `_validate_tender_chain(notice, amendments,
+  new_submission_deadline)` runs the full `routers/date_rules.py` chain
+  (mirrors frontend `tenderDateChainViolations`) over the EFFECTIVE
+  post-amendment state on publish, with corrigendum-specific aliasing:
+  `sub_end↔submission_deadline`, `clarif_end↔clarification_deadline`,
+  `pre_bid_date↔pre_bid_meeting_date`. Future-only checks skipped for
+  publish/sub_end (edits live notice); new-deadline past guard retained.
+- **Frontend `CorrigendaPanel`** `NOTICE_FIELDS` rebuilt with
+  Tender-Maker labels + `chainKey` for each date; hand-rolled validation
+  replaced with `tenderDateChainViolations({ requireToday: false })`.
+- **Verified E2E (preview, admin login via curl with cookie jar):**
+  out-of-order (doc_dl_start > doc_dl_end) → 400 with precise message;
+  in-order 10-date restart → 200, corrigendum #2 applied=10, every date
+  on notice updated, `amendment_base` captured 10 originals for rollback.
+- **Bundles:** pmc-backend-v52y.zip + pmc-frontend-v52y-prod-build.zip.
+
+
 ## v52x — Submission-close notification cron (16 Oct 2026)
 
 - **Gap closed:** deadline expiry was previously silent — nobody was told a

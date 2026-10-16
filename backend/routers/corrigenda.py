@@ -37,6 +37,12 @@ router = APIRouter(prefix="/api/v1/notices", tags=["corrigenda"])
 # withdraw so the notice always reflects the live amendment stack.
 
 # field_key -> (mongo dot-path, kind). kind "number" coerces to float.
+# v52y — the 7 tender-maker Critical Dates (publish_date / bid_opening_date /
+# doc_dl_start / doc_dl_end / clarif_start / sub_start / bid_award_date) are
+# also amendable now so admins can restart a closed tender's full timeline
+# from the Corrigenda form. These are stored flat on the notice doc; older
+# notices created before this will show "—" as the Current value until the
+# first amendment lands.
 _AMENDABLE_FIELDS = {
     "title":                 ("title",                     "text"),
     "description":           ("description",               "text"),
@@ -52,7 +58,81 @@ _AMENDABLE_FIELDS = {
     "emd_percentage":        ("emd_config.percentage",     "number"),
     "pre_bid_meeting_date":  ("pre_bid_meeting_date",      "text"),
     "clarification_deadline":("clarification_deadline",    "text"),
+    # v52y — tender-maker Critical Dates
+    "publish_date":          ("publish_date",              "text"),
+    "bid_opening_date":      ("bid_opening_date",          "text"),
+    "doc_dl_start":          ("doc_dl_start",              "text"),
+    "doc_dl_end":            ("doc_dl_end",                "text"),
+    "clarif_start":          ("clarif_start",              "text"),
+    "sub_start":             ("sub_start",                 "text"),
+    "bid_award_date":        ("bid_award_date",            "text"),
 }
+
+
+# v52y — tender-maker chain uses sub_end / clarif_end as its canonical keys,
+# but the notice stores Bid Submission End as `submission_deadline` and
+# Clarification End as `clarification_deadline`. This alias map lets us feed
+# the shared tender date-chain validator (routers/date_rules.py mirrors
+# frontend lib/dateRules.js) the right values regardless of which key the
+# admin edited.
+_CHAIN_ALIAS = {
+    "sub_end":     "submission_deadline",
+    "clarif_end":  "clarification_deadline",
+    "pre_bid_date": "pre_bid_meeting_date",
+}
+
+
+def _validate_tender_chain(notice: dict, amendments: list,
+                           new_submission_deadline: Optional[str]) -> None:
+    """v52y — run the full tender-maker date chain over the effective
+    (post-amendment) notice state. Mirrors frontend dateRules.js /
+    tenderDateChainViolations."""
+    from routers.date_rules import require_order
+    # Build the effective view (current notice values overlaid with
+    # pending amendments + the optional top-level new_submission_deadline).
+    eff: dict = {}
+    chain_keys = ("publish_date", "pre_bid_date", "doc_dl_start", "doc_dl_end",
+                  "clarif_start", "clarif_end", "sub_start", "sub_end",
+                  "bid_award_date", "bid_opening_date")
+    for ck in chain_keys:
+        notice_key = _CHAIN_ALIAS.get(ck, ck)
+        eff[ck] = notice.get(notice_key)
+    for a in (amendments or []):
+        fk = a.get("field_key")
+        if not fk:
+            continue
+        if fk in ("submission_deadline", "clarification_deadline",
+                  "pre_bid_meeting_date"):
+            inv = {v: k for k, v in _CHAIN_ALIAS.items()}
+            eff[inv[fk]] = a.get("after")
+        elif fk in chain_keys:
+            eff[fk] = a.get("after")
+    if new_submission_deadline:
+        eff["sub_end"] = new_submission_deadline
+
+    L = {"publish_date": "Publish Date", "pre_bid_date": "Pre-Bid Meeting Date",
+         "doc_dl_start": "Document Download / Sale Start",
+         "doc_dl_end": "Document Download / Sale End",
+         "clarif_start": "Clarification Start",
+         "clarif_end": "Clarification End",
+         "sub_start": "Bid Submission Start",
+         "sub_end": "Bid Submission End",
+         "bid_award_date": "Bid Award Date",
+         "bid_opening_date": "Bid Opening Date"}
+    def _ord(later, earlier, strict=False):
+        if not eff.get(later) or not eff.get(earlier):
+            return
+        require_order(eff[later], L[later], eff[earlier], L[earlier],
+                      strict=strict)
+    _ord("pre_bid_date", "publish_date")
+    _ord("doc_dl_start", "pre_bid_date")
+    _ord("doc_dl_end", "doc_dl_start")
+    _ord("clarif_start", "doc_dl_end")
+    _ord("clarif_end", "clarif_start", strict=True)
+    _ord("sub_start", "clarif_end")
+    _ord("sub_end", "sub_start")
+    _ord("bid_award_date", "sub_end")
+    _ord("bid_opening_date", "sub_end")
 
 
 def _coerce_amend(kind: str, after):
@@ -247,23 +327,15 @@ async def publish_corrigendum(
                       "deadline_last_amended_by_corr": corr_no}},
         )
 
-    # v52t — date-chain on field amendments: a moved deadline cannot land in
-    # the past, and meeting/clarification dates cannot land after the
-    # effective deadline (corrigendum path edits a live notice, so ordering
-    # only — no "publish date ≥ today" checks here).
-    from routers.date_rules import require_future as _rf, require_order as _ro
-    eff_deadline = new_deadline
+    # v52t — a moved deadline cannot land in the past.
+    # v52y — plus the full tender-maker date chain over the effective
+    # post-amendment notice state (so a corrigendum can restart a closed
+    # tender's whole timeline, same rules as Tender Builder).
+    from routers.date_rules import require_future as _rf
     for _a in (payload.field_amendments or []):
         if _a.get("field_key") == "submission_deadline":
             _rf(_a.get("after"), "Submission deadline")
-            eff_deadline = _a.get("after") or eff_deadline
-    eff_deadline = eff_deadline or n.get("submission_deadline")
-    for _a in (payload.field_amendments or []):
-        _fk, _after = _a.get("field_key"), _a.get("after")
-        if _fk == "pre_bid_meeting_date":
-            _ro(eff_deadline, "Submission deadline", _after, "Pre-bid meeting date")
-        elif _fk == "clarification_deadline":
-            _ro(eff_deadline, "Submission deadline", _after, "Clarification close date")
+    _validate_tender_chain(n, payload.field_amendments or [], new_deadline)
 
     # v52q — apply the field-level amendments (budget, EMD, dates, …) onto
     # the parent notice so the tender notice view shows the amended values.
