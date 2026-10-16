@@ -1052,6 +1052,31 @@ export const escrowApi = {
   cancel: (tid) => api.post(`/api/v1/escrow/transactions/${tid}/cancel`).then((r) => r.data),
   duplicates: () => api.get("/api/v1/escrow/transactions/duplicates").then((r) => r.data),
   exportReleasesCsvUrl: (year) => `/api/v1/escrow/exports/releases.csv${year ? `?year=${year}` : ""}`,
+  // v54a — payment entries + DocuSign envelope on a transaction
+  listPaymentEntries: (tid) =>
+    api.get(`/api/v1/escrow/transactions/${tid}/payment-entries`).then((r) => r.data),
+  createPaymentEntry: (p) =>
+    api.post("/api/v1/escrow/payment-entries", p).then((r) => r.data),
+  signPaymentEntry: (peid, p) =>
+    api.post(`/api/v1/escrow/payment-entries/${peid}/sign`, p).then((r) => r.data),
+  voidPaymentEntry: (peid) =>
+    api.post(`/api/v1/escrow/payment-entries/${peid}/void`).then((r) => r.data),
+  sendTxDocuSign: (tid) =>
+    api.post(`/api/v1/escrow/transactions/${tid}/docusign`).then((r) => r.data),
+  getTxDocuSignUrl: (tid, side = "pmc") =>
+    api.get(`/api/v1/escrow/transactions/${tid}/docusign-url`, { params: { side } }).then((r) => r.data),
+};
+
+// v54a — institution-portal-scoped escrow APIs
+export const escrowMeApi = {
+  getTransaction: (tid) =>
+    api.get(`/api/v1/escrow-accounts/me/transactions/${tid}`).then((r) => r.data),
+  createPaymentEntry: (tid, p) =>
+    api.post(`/api/v1/escrow-accounts/me/transactions/${tid}/payment-entries`, p).then((r) => r.data),
+  signPaymentEntry: (peid, p) =>
+    api.post(`/api/v1/escrow-accounts/me/payment-entries/${peid}/sign`, p).then((r) => r.data),
+  getDocuSignUrl: (tid) =>
+    api.get(`/api/v1/escrow-accounts/me/transactions/${tid}/docusign-url`).then((r) => r.data),
 };
 
 export const gdprApi = {

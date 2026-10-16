@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { api, showApiError } from "@/lib/api";
 import EscrowDashboardChart from "./EscrowDashboardChart";
 import EscrowInstitutionProfile from "./EscrowInstitutionProfile";
+import TransactionDetailModal from "./TransactionDetailModal";
 
 const TABS = [
   ["overview",     "Overview"],
@@ -22,12 +23,14 @@ const TABS = [
 export default function EscrowAccountDashboardBody({ account }) {
   const [tab, setTab] = useState("overview");
   const [data, setData] = useState(null);
+  const [openTxId, setOpenTxId] = useState(null);
 
-  useEffect(() => {
+  const reload = () =>
     api.get("/api/v1/escrow-accounts/me/dashboard")
       .then((r) => setData(r.data))
       .catch(showApiError);
-  }, []);
+
+  useEffect(() => { reload(); }, []);
 
   const inst = data?.institution || account?.institution || {};
   const pending = data?.pending_signatures || [];
@@ -111,10 +114,14 @@ export default function EscrowAccountDashboardBody({ account }) {
           </>
         )}
         {tab === "pending" && (
-          <TxList title="Pending signatures" rows={pending} empty="Nothing is waiting on your signature right now." />
+          <TxList title="Pending signatures" rows={pending}
+                  empty="Nothing is waiting on your signature right now."
+                  onOpen={setOpenTxId}/>
         )}
         {tab === "transactions" && (
-          <TxList title="All transactions" rows={txs} empty="No transactions on your joint accounts yet." />
+          <TxList title="All transactions" rows={txs}
+                  empty="No transactions on your joint accounts yet."
+                  onOpen={setOpenTxId}/>
         )}
         {tab === "accounts" && (
           <AccountsList rows={accounts} />
@@ -124,6 +131,10 @@ export default function EscrowAccountDashboardBody({ account }) {
                                      onInvited={() => window.location.reload()} />
         )}
       </main>
+      {openTxId && (
+        <TransactionDetailModal txId={openTxId}
+                                 onClose={() => { setOpenTxId(null); reload(); }}/>
+      )}
     </div>
   );
 }
@@ -140,7 +151,7 @@ function KPI({ label, value, onClick, testId }) {
   );
 }
 
-function TxList({ title, rows, empty }) {
+function TxList({ title, rows, empty, onOpen }) {
   return (
     <>
       <h1 className="font-serif text-2xl text-brand-navy mb-4">{title}</h1>
@@ -158,11 +169,14 @@ function TxList({ title, rows, empty }) {
                 <th className="px-3 py-2 text-right">Amount</th>
                 <th className="px-3 py-2 text-left">Status</th>
                 <th className="px-3 py-2 text-left">Signatures</th>
+                <th className="px-3 py-2 text-right"></th>
               </tr>
             </thead>
             <tbody>
               {rows.map((t) => (
-                <tr key={t.id} className="border-t border-brand-navy/5">
+                <tr key={t.id} className="border-t border-brand-navy/5 hover:bg-brand-pale/50 cursor-pointer"
+                    data-testid={`escrow-tx-list-row-${t.id}`}
+                    onClick={() => onOpen?.(t.id)}>
                   <td className="px-3 py-2 font-mono text-xs">{t.bid_ref}</td>
                   <td className="px-3 py-2 font-mono text-xs">{t.notice_ref}</td>
                   <td className="px-3 py-2 text-right">
@@ -173,10 +187,16 @@ function TxList({ title, rows, empty }) {
                     {t.signed_by_pmc ? "PMC ✓" : "PMC ·"} ·{" "}
                     {t.signed_by_institution ? "Us ✓" : "Us ·"}
                   </td>
+                  <td className="px-3 py-2 text-xs text-right text-brand-navy/60">
+                    Open →
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          <div className="px-3 py-2 bg-brand-pale/50 text-[11px] text-brand-navy/60 border-t border-brand-navy/5">
+            Click any row to view details · sign the DocuSign document · record payment entries.
+          </div>
         </div>
       )}
     </>

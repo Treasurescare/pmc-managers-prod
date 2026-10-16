@@ -588,6 +588,248 @@ async def dashboard(acc=Depends(current_account)) -> Dict[str, Any]:
     }
 
 
+# ---------- v54a: Transaction detail + payment entries + DocuSign signing ----------
+#
+# The institution-portal views one of their joint-account transactions, lists
+# payment entries, creates new ones (receipts / releases / refunds / fees)
+# with a proof upload, signs them, and opens the DocuSign signing session
+# for the transaction. All endpoints scoped to the current account via
+# escrow_officer.email matching institution.signatories[].email.
+
+async def _account_signatory_emails(acc_full: dict) -> List[str]:
+    """Emails of users who can act for this institution: the account's own
+    email plus every signatory on the owned institution."""
+    emails = [acc_full.get("email", "").lower()]
+    iid = acc_full.get("institution_id")
+    if iid:
+        d = await db.escrow_institutions.find_one({"_id": ObjectId(iid)})
+        if d:
+            for s in d.get("signatories") or []:
+                e = (s.get("email") or "").lower()
+                if e: emails.append(e)
+    return list({e for e in emails if e})
+
+
+async def _assert_tx_owned_by_account(tx: dict, acc: Dict[str, Any]) -> None:
+    """Allow the current account to touch this tx only if the escrow
+    officer on the account snapshot is one of the account's signatories."""
+    full = await db.escrow_accounts.find_one({"_id": ObjectId(acc["id"])})
+    emails = await _account_signatory_emails(full)
+    snap = tx.get("escrow_account_snapshot") or {}
+    esc_email = ((snap.get("escrow_officer") or {}).get("email") or "").lower()
+    if esc_email and esc_email in emails:
+        return
+    # Fallback: account_id on the escrow_accounts row stored on this institution
+    acc_doc = await db.escrow_accounts.find_one(
+        {"_id": ObjectId(tx.get("escrow_account_id") or "0" * 24)}
+    ) if tx.get("escrow_account_id") else None
+    officer_email = ""
+    if acc_doc:
+        officer_email = ((acc_doc.get("escrow_officer") or {}).get("email") or "").lower()
+    if officer_email and officer_email in emails:
+        return
+    raise HTTPException(
+        403,
+        "This transaction is not on an escrow account operated by your institution.",
+    )
+
+
+class _PaymentEntryInstIn(BaseModel):
+    direction: str  # "in" | "out"
+    kind: str  # "emd_in" | "release_out" | "refund_out" | "fee_out"
+    amount: float
+    currency: str
+    dated_on: Optional[str] = None
+    bank_reference: Optional[str] = None
+    counterparty_name: Optional[str] = None
+    counterparty_account: Optional[str] = None
+    notes: Optional[str] = None
+    proof_data_url: Optional[str] = None
+    proof_filename: Optional[str] = None
+
+
+class _SignIn(BaseModel):
+    action: str = "approve"  # approve | reject
+    comment: Optional[str] = None
+
+
+@router.get("/me/transactions/{tid}")
+async def get_my_transaction(tid: str, acc=Depends(current_account)) -> Dict[str, Any]:
+    if not ObjectId.is_valid(tid):
+        raise HTTPException(400, "Invalid transaction id")
+    tx = await db.escrow_transactions.find_one({"_id": ObjectId(tid)})
+    if not tx:
+        raise HTTPException(404, "Transaction not found")
+    await _assert_tx_owned_by_account(tx, acc)
+    # Payment entries
+    entries: List[Dict[str, Any]] = []
+    async for pe in db.escrow_payment_entries.find(
+        {"transaction_id": tid}
+    ).sort("created_at", -1):
+        entries.append({**{k: v for k, v in pe.items() if k != "_id"},
+                        "id": str(pe["_id"])})
+    # DocuSign envelope detail
+    envelope = None
+    env_id = tx.get("docusign_envelope_id")
+    if env_id:
+        row = await db.docusign_envelopes.find_one({"envelope_id": env_id})
+        if row:
+            envelope = {
+                "envelope_id": env_id,
+                "status": row.get("status"),
+                "signers": row.get("signers") or [],
+                "created_at": row.get("created_at"),
+            }
+    out = {k: v for k, v in tx.items() if k != "_id"}
+    out["id"] = str(tx["_id"])
+    out["payment_entries"] = entries
+    out["docusign_envelope"] = envelope
+    return out
+
+
+@router.post("/me/transactions/{tid}/payment-entries",
+              dependencies=[Depends(require_csrf)])
+async def create_my_payment_entry(tid: str, payload: _PaymentEntryInstIn,
+                                    acc=Depends(current_account)) -> Dict[str, Any]:
+    if payload.direction not in ("in", "out"):
+        raise HTTPException(400, "direction must be in or out")
+    if payload.kind not in ("emd_in", "release_out", "refund_out", "fee_out"):
+        raise HTTPException(400, "kind not allowed")
+    if payload.amount <= 0:
+        raise HTTPException(400, "amount must be > 0")
+    if not ObjectId.is_valid(tid):
+        raise HTTPException(400, "Invalid transaction id")
+    tx = await db.escrow_transactions.find_one({"_id": ObjectId(tid)})
+    if not tx:
+        raise HTTPException(404, "Transaction not found")
+    await _assert_tx_owned_by_account(tx, acc)
+    doc = {
+        "transaction_id": tid,
+        "escrow_account_id": tx.get("escrow_account_id"),
+        "escrow_account_snapshot": tx.get("escrow_account_snapshot"),
+        "bid_ref": tx.get("bid_ref"),
+        "notice_ref": tx.get("notice_ref"),
+        "direction": payload.direction,
+        "kind": payload.kind,
+        "amount": payload.amount,
+        "currency": payload.currency.upper(),
+        "dated_on": payload.dated_on or now_iso(),
+        "bank_reference": payload.bank_reference,
+        "counterparty_name": payload.counterparty_name,
+        "counterparty_account": payload.counterparty_account,
+        "notes": payload.notes,
+        "proof": {
+            "data_url": payload.proof_data_url,
+            "filename": payload.proof_filename,
+        } if payload.proof_data_url else None,
+        "signatures": {},
+        "status": "pending_signatures",
+        "audit_trail": [{
+            "at": now_iso(), "by": acc.get("email"),
+            "event": "created", "source": "institution",
+        }],
+        "docusign_envelope_id": None,
+        "created_at": now_iso(),
+        "created_by": acc.get("email"),
+        "created_by_role": "institution",
+    }
+    r = await db.escrow_payment_entries.insert_one(doc)
+    doc["_id"] = r.inserted_id
+    await audit_log(
+        "escrow.payment_entry_create", None, "escrow_payment_entry",
+        str(r.inserted_id),
+        {"tx_id": tid, "kind": payload.kind, "amount": payload.amount,
+         "by_institution": acc.get("email")},
+    )
+    return {**{k: v for k, v in doc.items() if k != "_id"}, "id": str(r.inserted_id)}
+
+
+@router.post("/me/payment-entries/{peid}/sign",
+              dependencies=[Depends(require_csrf)])
+async def sign_my_payment_entry(peid: str, payload: _SignIn,
+                                  acc=Depends(current_account)) -> Dict[str, Any]:
+    if not ObjectId.is_valid(peid):
+        raise HTTPException(400, "Invalid payment entry id")
+    pe = await db.escrow_payment_entries.find_one({"_id": ObjectId(peid)})
+    if not pe:
+        raise HTTPException(404, "Payment entry not found")
+    tx = await db.escrow_transactions.find_one({"_id": ObjectId(pe["transaction_id"])})
+    if not tx:
+        raise HTTPException(404, "Linked transaction missing")
+    await _assert_tx_owned_by_account(tx, acc)
+    if pe.get("status") in ("fully_signed", "rejected", "void"):
+        raise HTTPException(409, f"Already {pe.get('status')}")
+    if payload.action not in ("approve", "reject"):
+        raise HTTPException(400, "action must be approve or reject")
+    sigs = pe.get("signatures") or {}
+    sigs["escrow_institution"] = {
+        "email": acc.get("email"),
+        "action": payload.action,
+        "comment": payload.comment,
+        "signed_at": now_iso(),
+        "via": "institution_portal",
+    }
+    trail = pe.get("audit_trail") or []
+    trail.append({"at": now_iso(), "by": acc.get("email"),
+                   "event": "signed_escrow_institution",
+                   "action": payload.action, "comment": payload.comment,
+                   "via": "institution_portal"})
+    # Compute final status
+    pmc_sig = (sigs.get("pmc") or {})
+    new_status = pe.get("status") or "pending_signatures"
+    if payload.action == "reject" or pmc_sig.get("action") == "reject":
+        new_status = "rejected"
+    elif pmc_sig.get("action") == "approve" and sigs["escrow_institution"]["action"] == "approve":
+        new_status = "fully_signed"
+    await db.escrow_payment_entries.update_one(
+        {"_id": ObjectId(peid)},
+        {"$set": {"signatures": sigs, "audit_trail": trail,
+                   "status": new_status, "updated_at": now_iso()}},
+    )
+    await audit_log("escrow.payment_entry_sign", None, "escrow_payment_entry",
+                    peid, {"side": "escrow_institution", "action": payload.action,
+                            "by_institution": acc.get("email")})
+    pe = await db.escrow_payment_entries.find_one({"_id": ObjectId(peid)})
+    return {**{k: v for k, v in pe.items() if k != "_id"}, "id": str(pe["_id"])}
+
+
+@router.get("/me/transactions/{tid}/docusign-url")
+async def my_transaction_docusign_url(tid: str,
+                                        acc=Depends(current_account)) -> Dict[str, Any]:
+    """Return a one-time hosted-signing URL for the escrow institution
+    officer on this transaction's DocuSign envelope. If the envelope was
+    issued in email-mode (default), DocuSign already emailed them the link
+    the moment the envelope was sent; this endpoint reissues a fresh console
+    view so they can sign from inside the PMC portal too."""
+    if not ObjectId.is_valid(tid):
+        raise HTTPException(400, "Invalid transaction id")
+    tx = await db.escrow_transactions.find_one({"_id": ObjectId(tid)})
+    if not tx:
+        raise HTTPException(404, "Transaction not found")
+    await _assert_tx_owned_by_account(tx, acc)
+    env_id = tx.get("docusign_envelope_id")
+    if not env_id:
+        raise HTTPException(
+            404,
+            "PMC admin has not sent a DocuSign envelope for this transaction yet. "
+            "They can issue one from the admin console.",
+        )
+    try:
+        import docusign_esign as ds
+        from routers.docusign import _client, DS_ACCOUNT_ID
+        client = _client()
+        envelopes = ds.EnvelopesApi(client)
+        view = envelopes.create_console_view(DS_ACCOUNT_ID,
+            console_view_request=ds.ConsoleViewRequest(
+                envelope_id=env_id,
+                return_url=f"{config.FRONTEND_URL}/escrow/me"))
+        return {"url": view.url, "envelope_id": env_id, "mode": "console"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(502, f"Could not create signing URL: {e}")
+
+
 async def notify_account(account_id: str, kind: str, title: str,
                           body: str, link: Optional[str] = None,
                           send_email_too: bool = True) -> None:

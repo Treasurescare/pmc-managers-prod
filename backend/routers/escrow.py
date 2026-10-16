@@ -54,6 +54,7 @@ class EscrowOfficer(BaseModel):
 class EscrowAccountIn(BaseModel):
     name: str = Field(min_length=2, description="Display name, e.g. 'PMC-KZ Tender EMD Escrow #1'")
     institution: str = Field(min_length=2, description="Bank / escrow trustee")
+    institution_id: Optional[str] = Field(None, description="Approved escrow_institutions._id if picked from master")
     account_no: str = Field(min_length=4)
     iban: Optional[str] = None
     swift: Optional[str] = None
@@ -67,6 +68,7 @@ class EscrowAccountIn(BaseModel):
 class EscrowAccountPatch(BaseModel):
     name: Optional[str] = None
     institution: Optional[str] = None
+    institution_id: Optional[str] = None
     account_no: Optional[str] = None
     iban: Optional[str] = None
     swift: Optional[str] = None
@@ -256,11 +258,27 @@ async def signatory_pool(admin=Depends(require_role("admin", "reviewer"))):
                     "email": s.get("email"),
                     "designation": s.get("designation") or "",
                 })
+        # v54a — also surface the primary contact as a fallback signatory
+        # option. Many approved institutions have a verified primary contact
+        # but have not yet added themselves to signatories[]; without this
+        # the escrow-officer dropdown appears empty even for correctly
+        # approved institutions.
+        pce = (i.get("primary_contact_email") or "").strip()
+        if pce and not any((r["email"] or "").lower() == pce.lower() for r in sig_rows):
+            sig_rows.append({
+                "name": i.get("primary_contact_name") or i.get("legal_name") or pce,
+                "email": pce,
+                "designation": "Primary contact",
+            })
         insts.append({
             "id": str(i["_id"]),
             "legal_name": i.get("legal_name"),
+            "primary_contact_email": pce,
             "signatories": sig_rows,
         })
+    return {"pmc_officers": pmc_officers, "institutions": insts}
+
+
 @router.get("/transactions/duplicates")
 async def duplicate_scan(admin=Depends(require_role("admin", "accounting"))):
     pipeline = [

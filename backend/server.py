@@ -228,6 +228,8 @@ app.include_router(_tender_pro.router)
 app.include_router(notice_qa.router)
 app.include_router(bids_ai_compare.router)
 app.include_router(escrow.router)
+from routers import escrow_payment_entries as _escrow_pe  # noqa: E402 — v54a
+app.include_router(_escrow_pe.router)
 app.include_router(escrow_institutions.router)
 app.include_router(escrow_signatories.router)
 app.include_router(escrow_accounts.router)

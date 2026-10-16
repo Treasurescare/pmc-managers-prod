@@ -30,7 +30,7 @@ function SignatureBox({ label, officer, sig }) {
   );
 }
 
-function TransactionRow({ t, onSign, onRelease, onCancel, onSendSignLink }) {
+function TransactionRow({ t, onSign, onRelease, onCancel, onSendSignLink, onSendDocuSign }) {
   const sigs = t.signatures || {};
   const pmc = sigs.pmc || {};
   const esc = sigs.escrow_institution || {};
@@ -130,6 +130,25 @@ function TransactionRow({ t, onSign, onRelease, onCancel, onSendSignLink }) {
                     className="px-3 py-1 text-[11px] uppercase tracking-widest border border-emerald-500 text-emerald-800 bg-emerald-50 hover:bg-emerald-100 disabled:opacity-40">
               Email Escrow link
             </button>
+          )}
+          {/* v54a — DocuSign envelope: single click issues a 2-signer
+              envelope for this transaction. Both officers receive the
+              DocuSign hosted-signing email AND can open it from inside the
+              PMC escrow portal. */}
+          {!t.docusign_envelope_id && (
+            <button onClick={() => onSendDocuSign(t)}
+                    disabled={sameEmail}
+                    data-testid={`escrow-docusign-send-${t.id}`}
+                    title="Issue a DocuSign envelope for this transaction. Both officers get a hosted signing link; the institution signatory also sees it inside their PMC escrow dashboard."
+                    className="px-3 py-1 text-[11px] uppercase tracking-widest border border-brand-navy text-brand-navy hover:bg-brand-navy hover:text-white disabled:opacity-40 disabled:cursor-not-allowed">
+              Send DocuSign envelope
+            </button>
+          )}
+          {t.docusign_envelope_id && (
+            <span className="px-3 py-1 text-[11px] uppercase tracking-widest border border-emerald-400 text-emerald-800 bg-emerald-50"
+                  data-testid={`escrow-docusign-sent-${t.id}`}>
+              DocuSign · {t.docusign_status || "sent"}
+            </span>
           )}
           <button onClick={() => onRelease(t)} disabled={!bothMatch || sameEmail}
                   data-testid={`escrow-release-${t.id}`}
@@ -373,6 +392,24 @@ export default function EscrowTransactionsSection({ accounts, txs, onReload }) {
     } catch (e) { showApiError(e, { fallbackTitle: "Could not issue signing link" }); }
   };
 
+  const sendDocuSign = async (t) => {
+    if (!window.confirm(
+      `Issue a DocuSign envelope for ${t.bid_ref}?\n\n` +
+      `Both PMC officer (${t.escrow_account_snapshot?.pmc_officer?.email || "—"}) and\n` +
+      `Institution officer (${t.escrow_account_snapshot?.escrow_officer?.email || "—"})\n` +
+      `will receive a DocuSign-hosted signing email, and the institution\n` +
+      `signatory will also see this envelope inside their PMC escrow dashboard.`
+    )) return;
+    try {
+      const r = await escrowApi.sendTxDocuSign(t.id);
+      toast.success(`DocuSign envelope sent · ${r.envelope_id?.slice(0, 8)}…`, {
+        description: `Both officers now have the hosted-signing link in their inbox.`,
+        duration: 10000,
+      });
+      onReload();
+    } catch (e) { showApiError(e, { fallbackTitle: "DocuSign send failed" }); }
+  };
+
   const cancelTx = async (t) => {
     if (!window.confirm(`Cancel this escrow transaction for ${t.bid_ref}? Use this to clear duplicates or mis-entries. The row stays in the audit trail.`)) return;
     try {
@@ -530,7 +567,7 @@ export default function EscrowTransactionsSection({ accounts, txs, onReload }) {
       <div className="border border-brand-navy/10 bg-white divide-y divide-brand-navy/10">
         {txs.length === 0 && <div className="p-6 text-sm text-brand-navy/50">No transactions yet.</div>}
         {paged.map((t) => (
-          <TransactionRow key={t.id} t={t} onSign={signAction} onRelease={release} onCancel={cancelTx} onSendSignLink={sendSignLink}/>
+          <TransactionRow key={t.id} t={t} onSign={signAction} onRelease={release} onCancel={cancelTx} onSendSignLink={sendSignLink} onSendDocuSign={sendDocuSign}/>
         ))}
         {controls}
       </div>

@@ -229,24 +229,29 @@ export default function EscrowAccountsSection({ accounts, onReload }) {
 }
 
 
-// v51ab — single-row Edit for an existing joint escrow account.
-// v53k — dropdown-driven: pick officers from the pool (PMC + institution signatories)
-// instead of typing emails. Falls back to free text when the pool is still empty
-// so admins can bootstrap the first few accounts.
+// v54a — single-row Edit for an existing joint escrow account.
+// Lets the admin re-bind the account to any approved escrow institution
+// master (fixes the "escrow officer dropdown is empty forever" bug when
+// the account's free-text institution name doesn't match any master).
 function AccountRow({ acc, onReload, pool }) {
   const [editing, setEditing] = useState(false);
   const [pmc, setPmc] = useState(acc.pmc_officer || { name: "", email: "", designation: "", role: "pmc" });
   const [esc, setEsc] = useState(acc.escrow_officer || { name: "", email: "", designation: "", role: "escrow_institution" });
+  const [institutionId, setInstitutionId] = useState(acc.institution_id || "");
   const [busy, setBusy] = useState(false);
 
-  // Match the account's institution to the master list so the institution
-  // signatory dropdown is pre-populated.
+  // Match on institution_id first (explicit, set on creation / rebind),
+  // then fall back to legal_name (legacy accounts).
   const matchedInst = useMemo(() => {
     if (!pool || !pool.institutions) return null;
+    if (institutionId) {
+      const m = pool.institutions.find((i) => i.id === institutionId);
+      if (m) return m;
+    }
     return pool.institutions.find((i) =>
       (i.legal_name || "").trim().toLowerCase() === (acc.institution || "").trim().toLowerCase()
     );
-  }, [pool, acc.institution]);
+  }, [pool, acc.institution, institutionId]);
 
   // v53l — compute signatory-health badges from the pool.
   const health = useMemo(() => {
@@ -292,6 +297,7 @@ function AccountRow({ acc, onReload, pool }) {
   const open = () => {
     setPmc({ name: "", email: "", designation: "", role: "pmc", ...(acc.pmc_officer || {}) });
     setEsc({ name: "", email: "", designation: "", role: "escrow_institution", ...(acc.escrow_officer || {}) });
+    setInstitutionId(acc.institution_id || "");
     setEditing(true);
   };
   const cancel = () => setEditing(false);
@@ -305,8 +311,10 @@ function AccountRow({ acc, onReload, pool }) {
     }
     if ((pmc.name || "").trim().length < 2) return toast.error("PMC officer name too short");
     if ((esc.name || "").trim().length < 2) return toast.error("Escrow officer name too short");
+    const institutionName = matchedInst ? matchedInst.legal_name : acc.institution;
     if (!window.confirm(
       `Update signers on "${acc.name}"?\n\n` +
+      `  Institution     → ${institutionName}\n` +
       `  PMC officer     → ${pmc.name} <${pmc.email}>\n` +
       `  Escrow officer  → ${esc.name} <${esc.email}>\n\n` +
       `Every change is written to the audit trail.`
@@ -314,6 +322,8 @@ function AccountRow({ acc, onReload, pool }) {
     setBusy(true);
     try {
       await escrowApi.patchAccount(acc.id, {
+        institution: institutionName,
+        institution_id: institutionId || null,
         pmc_officer: {
           name: pmc.name.trim(), email: pmc.email.trim(),
           designation: (pmc.designation || "").trim() || null, role: "pmc",
@@ -388,6 +398,13 @@ function AccountRow({ acc, onReload, pool }) {
 
   const pmcPool = (pool && pool.pmc_officers) || [];
   const instSigs = matchedInst ? (matchedInst.signatories || []) : [];
+  const allInsts = (pool && pool.institutions) || [];
+  const pickInstitution = (id) => {
+    setInstitutionId(id);
+    // Clear the chosen escrow officer; the previous selection may not
+    // belong to the newly selected institution.
+    setEsc({ name: "", email: "", designation: "", role: "escrow_institution" });
+  };
   const pickPmc = (email) => {
     const s = pmcPool.find((p) => p.email === email);
     if (s) setPmc({ name: s.name, email: s.email,
@@ -412,9 +429,46 @@ function AccountRow({ acc, onReload, pool }) {
           Pick signatories from the managed lists — every change is written to the audit ledger.
         </div>
       </div>
+
+      {/* v54a — institution picker. Lets admin rebind an account to any
+          approved escrow institution, which auto-unlocks the signatory
+          dropdown below (previously a legacy free-text name mismatch
+          locked the escrow officer field forever). */}
+      <fieldset className="border border-brand-navy/15 p-3 bg-white mb-4">
+        <legend className="pmc-label px-2">Escrow institution</legend>
+        <div className="text-[11px] text-brand-navy/60 mb-2">
+          Only <b>approved</b> institutions are listed. Pick a different one
+          here to rebind this account — the escrow officer dropdown will
+          repopulate with the newly selected institution&apos;s registered
+          signatories (plus its primary contact as a fallback).
+        </div>
+        <select value={institutionId || ""} onChange={(e) => pickInstitution(e.target.value)}
+                data-testid={`escrow-edit-inst-select-${acc.id}`}
+                className="w-full px-3 py-2 border border-brand-navy/20 bg-white">
+          <option value="">
+            {acc.institution ? `— Keep "${acc.institution}" (unmatched master) —` : "— Choose an approved institution —"}
+          </option>
+          {allInsts.map((i) => (
+            <option key={i.id} value={i.id}>
+              {i.legal_name}
+              {i.primary_contact_email ? ` · ${i.primary_contact_email}` : ""}
+              {" · "}{(i.signatories || []).length} signatory
+              {(i.signatories || []).length === 1 ? "" : "ies"}
+            </option>
+          ))}
+        </select>
+      </fieldset>
+
       <div className="grid gap-4 md:grid-cols-2">
         <fieldset className="border border-brand-navy/15 p-3 bg-white">
           <legend className="pmc-label px-2">PMC officer</legend>
+          {pmcPool.length === 0 && (
+            <div className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 px-2 py-1 mb-2">
+              No staff is flagged as <b>Escrow signatory</b> yet. Go to
+              Masters → Staff and tick the flag on at least one active
+              staff member, then come back.
+            </div>
+          )}
           <select value={pmc.email} onChange={(e) => pickPmc(e.target.value)}
                   data-testid={`escrow-edit-pmc-select-${acc.id}`}
                   className="w-full px-3 py-2 border border-brand-navy/20 bg-white">
@@ -428,23 +482,39 @@ function AccountRow({ acc, onReload, pool }) {
               {pmc.name} · <span className="font-mono">{pmc.email}</span>
             </div>
           )}
+          {pmc.email && !pmcPool.find((p) => p.email === pmc.email) && (
+            <div className="text-[11px] text-amber-800 mt-1">
+              Current email is <b>not in the signatory pool</b> — releases
+              on this account will fail until you pick someone from the
+              dropdown above.
+            </div>
+          )}
         </fieldset>
         <fieldset className="border border-brand-navy/15 p-3 bg-white">
           <legend className="pmc-label px-2">Escrow-institution officer</legend>
           {!matchedInst && (
             <div className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 px-2 py-1 mb-2">
-              This account's institution name doesn't match any approved
-              escrow institution master. Fix the master or recreate the
-              account so the signatory list auto-populates.
+              Pick an approved institution above first — the signatory list
+              is specific to the chosen institution.
+            </div>
+          )}
+          {matchedInst && instSigs.length === 0 && (
+            <div className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 px-2 py-1 mb-2">
+              <b>{matchedInst.legal_name}</b> has no registered signatories
+              yet. Open the institution portal and invite one, then come
+              back. (Primary contact appears as a fallback here if one is
+              configured on the institution.)
             </div>
           )}
           <select value={esc.email} onChange={(e) => pickEsc(e.target.value)}
-                  disabled={!matchedInst}
+                  disabled={!matchedInst || instSigs.length === 0}
                   data-testid={`escrow-edit-eo-select-${acc.id}`}
                   className="w-full px-3 py-2 border border-brand-navy/20 bg-white disabled:opacity-50">
             <option value="">— Choose an institution signatory —</option>
             {instSigs.map((s) => (
-              <option key={s.email} value={s.email}>{s.name} · {s.email}</option>
+              <option key={s.email} value={s.email}>
+                {s.name} · {s.email}{s.designation ? ` · ${s.designation}` : ""}
+              </option>
             ))}
           </select>
           {esc.email && (
@@ -463,7 +533,7 @@ function AccountRow({ acc, onReload, pool }) {
         <button type="button" onClick={save} disabled={busy}
                 data-testid={`escrow-acc-edit-save-${acc.id}`}
                 className="px-5 py-2 text-[11px] uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep disabled:opacity-40">
-          {busy ? "Saving…" : "Save both signers"}
+          {busy ? "Saving…" : "Save institution &amp; both signers"}
         </button>
       </div>
     </div>
