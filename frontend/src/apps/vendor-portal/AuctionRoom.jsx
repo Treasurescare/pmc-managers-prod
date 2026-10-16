@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { reverseAuctionApi, formatApiError, showApiError} from "@/lib/api";
 import TopBar from "@/apps/shared/TopBar";
@@ -93,6 +93,13 @@ export default function AuctionRoom() {
     <div className="min-h-screen bg-brand-pale" data-testid="vendor-auction-room">
       <TopBar />
       <main className="max-w-5xl mx-auto px-6 lg:px-10 py-8">
+        {/* v53c — the room was a dead-end; link back to the auctions list. */}
+        <div className="mb-4" data-testid="ra-back">
+          <Link to="/vendor/auctions"
+                className="text-[11px] uppercase tracking-widest text-brand-navy/70 hover:text-brand-navy border-b border-brand-navy/30">
+            ← Back to reverse auctions
+          </Link>
+        </div>
         <div className="pmc-label">Reverse Auction · {state.notice_ref}</div>
         <h1 className="font-display text-3xl lg:text-4xl mt-1 text-brand-navy">{state.title}</h1>
 
@@ -215,6 +222,24 @@ export default function AuctionRoom() {
               {" · "}Leader: <b>{state.leader_alias || "—"}</b>
               {iAmLeader && <span className="ml-2 text-emerald-700 font-semibold">— you won 🏆</span>}
             </div>
+            {/* v53c — process flow so the vendor knows exactly what to wait
+                for after the gavel falls. */}
+            {iAmLeader && (
+              <div className="mt-4 border-t border-emerald-200 pt-4 text-sm" data-testid="ra-won-flow">
+                <div className="pmc-label mb-2">What happens next</div>
+                <ol className="list-decimal ml-5 space-y-1.5 text-emerald-900">
+                  <li>PMC reviews the result and clicks <b>Award winner</b> — you'll get a confirmation email.</li>
+                  <li>Your winning price becomes a formal bid that passes EMD verification → escrow → legal → accounting sign-off.</li>
+                  <li>You receive the Purchase Order / contract for e-signature (DocuSign) under <b>Signatures</b>.</li>
+                  <li>Track every step under <Link to="/vendor/mybids" className="underline font-semibold">My bids</Link>.</li>
+                </ol>
+              </div>
+            )}
+            {state.me?.registered && !iAmLeader && (
+              <div className="mt-4 border-t border-emerald-200 pt-4 text-sm text-emerald-900" data-testid="ra-lost-note">
+                You were not the lowest bidder this round. No action is needed from you — your EMD (if paid) follows the standard release timeline.
+              </div>
+            )}
           </div>
         )}
       </main>

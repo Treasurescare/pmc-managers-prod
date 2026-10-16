@@ -1,4 +1,27 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
+## v53c — Vendor auction UX + prod email root cause found (16 Oct 2026)
+
+- **VendorAuctionsE.jsx:** trophy badge on the list row itself — "You won"
+  (closed, outcome=won) / "Contract awarded" (awarded_bid_id set), lucide
+  Trophy icon, no need to open the room.
+- **AuctionRoom.jsx (vendor room):** "← Back to reverse auctions" link +
+  closed-state "What happens next" flow (winner: award email → EMD/escrow/
+  legal/accounting → DocuSign PO → My bids; loser: no-action + EMD release
+  note).
+- **PROD EMAIL RCA (corrected after deeper probes):** version-marker probe
+  (`reverse-auctions?created_by_email=zzz` → total 0 vs 9 unfiltered)
+  proves prod backend IS current (v52w+); Resend verified working (prod
+  test-send ok:true). Prod audit shows only address-change requests (Oct
+  7/12) — NO mobile request ever reached the DB, so the vendor's Submit
+  never completed (validation/frontend), not an email failure. Asked user
+  for the exact toast seen on Submit. (CloudFront rewrites 404s to the SPA
+  page, which made route-probe HTML responses misleading.)
+- Preview verified: list rows + lost note render, room back-link present,
+  no console errors. Trophy/won path API-verified in v53b E2E.
+- Bundle: pmc-frontend-v53c-prod-build.zip (frontend-only; backend v53b
+  carries the email fix).
+
+
 ## v53b — Reverse-auction award hand-off (16 Oct 2026)
 
 - **Gap closed:** auction close was previously silent and terminal — no

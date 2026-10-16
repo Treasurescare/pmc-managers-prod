@@ -5,6 +5,7 @@
  */
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { Trophy } from "lucide-react";
 import { reverseAuctionApi, showApiError } from "@/lib/api";
 import VendorPortalChrome from "./VendorPortalChrome";
 
@@ -40,7 +41,24 @@ export default function VendorAuctionsE() {
                 <div key={a.id} className="pmc-txn" data-testid={`va-row-${a.id}`}
                      style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 12, padding: 12, borderBottom: "1px solid rgba(15,59,46,.08)" }}>
                   <div>
-                    <div style={{ fontWeight: 600 }}>{a.title}</div>
+                    <div style={{ fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
+                      {a.title}
+                      {/* v53c — trophy badge so a WON/awarded auction is
+                          visible on the list without opening the room. */}
+                      {a.status === "closed" && a.outcome === "won" && (
+                        <span title={a.awarded_bid_id ? "Contract awarded to you" : "You won — awaiting award"}
+                              data-testid={`va-trophy-${a.id}`}
+                              style={{ display: "inline-flex", alignItems: "center", gap: 4,
+                                       fontSize: 10, fontWeight: 700, letterSpacing: ".08em",
+                                       textTransform: "uppercase", color: "#0f5132",
+                                       background: "rgba(16,122,74,.12)",
+                                       border: "1px solid rgba(16,122,74,.4)",
+                                       borderRadius: 999, padding: "2px 8px" }}>
+                          <Trophy size={11} strokeWidth={2.5} />
+                          {a.awarded_bid_id ? "Contract awarded" : "You won"}
+                        </span>
+                      )}
+                    </div>
                     <div style={{ fontSize: 12, color: "var(--on-chrome-muted)" }}>
                       {a.notice_ref} · {a.currency} · start {Number(a.starting_price || 0).toLocaleString()} → floor {Number(a.floor_price || 0).toLocaleString()}
                     </div>
