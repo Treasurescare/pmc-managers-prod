@@ -1040,6 +1040,8 @@ export const escrowApi = {
   backfillSigners: (aid) =>
     api.post(`/api/v1/escrow/accounts/${aid}/backfill-signers`).then((r) => r.data),
   // v53k — dropdown source for PMC officers + approved institutions + their signatories.
+  magicIssue: (account_id, officer_email) =>
+    api.post("/api/v1/escrow/magic-tokens", { account_id, officer_email }).then((r) => r.data),
   signatoryPool: () =>
     api.get("/api/v1/escrow/signatory-pool").then((r) => r.data),
   listTransactions: (params) =>

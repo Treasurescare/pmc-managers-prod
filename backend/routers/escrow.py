@@ -36,6 +36,7 @@ from db import db
 from models.base import BaseDocument, now_iso
 from security import require_role
 from audit import audit_log
+import config
 
 router = APIRouter(prefix="/api/v1/escrow", tags=["escrow"])
 
@@ -666,7 +667,13 @@ async def issue_magic_token(payload: MagicIssueIn,
                              admin=Depends(require_role("admin"))):
     """Admin generates a magic-link token for a specific officer of a specific
     joint account. Token is single-account, multi-use (officer can sign as
-    many transactions on that account as arrive)."""
+    many transactions on that account as arrive).
+
+    v53q — this now ALSO emails the officer the signing link via Resend so
+    the admin doesn't have to copy/paste the URL out of a toast. Email send
+    failures are soft — the token is still returned so the admin can send
+    manually from the UI's Copy button.
+    """
     if not ObjectId.is_valid(payload.account_id):
         raise HTTPException(status_code=400, detail="Invalid account id")
     acc = await db.escrow_accounts.find_one({"_id": ObjectId(payload.account_id)})
@@ -690,7 +697,36 @@ async def issue_magic_token(payload: MagicIssueIn,
     })
     await audit_log("escrow.magic_issue", admin, "escrow_account",
                      payload.account_id, {"officer_email": email_l})
-    return {"token": token, "portal_url": f"/escrow/officer/{token}"}
+    # v53q — email the officer so they can click and sign without being
+    # logged in as an admin. Soft-fails so the API never blocks on Resend.
+    emailed = False
+    try:
+        from emails import send_email, wrap as email_wrap
+        base = (getattr(config, "FRONTEND_URL", "") or "").rstrip("/")
+        portal_url = f"{base}/escrow/officer/{token}" if base else f"/escrow/officer/{token}"
+        side = "PMC officer" if email_l == (pmc.get("email") or "").lower() else "Escrow institution officer"
+        subject = f"Signature required — {acc.get('name') or 'Joint escrow account'}"
+        body = email_wrap(subject,
+            f"<p>You are listed as the <strong>{side}</strong> on "
+            f"<strong>{acc.get('name')}</strong> ({acc.get('institution')}).</p>"
+            f"<p>PMC Managers has pending escrow transactions awaiting your "
+            f"signature. Open the officer portal below — no password needed, "
+            f"the link itself authenticates you.</p>"
+            f"<p style='margin-top:16px'>"
+            f"<a href='{portal_url}' style='display:inline-block;padding:12px 24px;"
+            f"background:#0F3B2E;color:#fff;text-decoration:none;font-weight:600;"
+            f"letter-spacing:0.5px;text-transform:uppercase;font-size:12px;'>"
+            f"Review &amp; sign</a></p>"
+            f"<p style='font-size:11px;color:#64748B'>Direct link: {portal_url}</p>"
+            f"<p style='font-size:11px;color:#64748B'>Issued by: {admin.get('email')}</p>")
+        emailed = bool(await send_email(email_l, subject, body))
+    except Exception as e:
+        import logging; logging.getLogger("escrow").warning(
+            "magic-token email failed for %s: %s", email_l, e)
+    return {"token": token,
+             "portal_url": f"/escrow/officer/{token}",
+             "emailed": emailed,
+             "officer_email": email_l}
 
 
 @router.get("/magic/{token}")

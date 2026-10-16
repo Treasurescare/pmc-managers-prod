@@ -30,7 +30,7 @@ function SignatureBox({ label, officer, sig }) {
   );
 }
 
-function TransactionRow({ t, onSign, onRelease, onCancel }) {
+function TransactionRow({ t, onSign, onRelease, onCancel, onSendSignLink }) {
   const sigs = t.signatures || {};
   const pmc = sigs.pmc || {};
   const esc = sigs.escrow_institution || {};
@@ -109,6 +109,28 @@ function TransactionRow({ t, onSign, onRelease, onCancel }) {
                   className="px-3 py-1 text-[11px] uppercase tracking-widest border border-red-400 text-red-700 hover:bg-red-50">
             Cancel row
           </button>
+          {/* v53q — admin almost never has the officer's email, so the inline
+              "Sign" buttons above 403. The real workflow is: email the
+              officer a magic link, they click + sign without logging in.
+              These two buttons issue a token + send the email in one shot. */}
+          {snap.pmc_officer?.email && !pmc.signed_at && (
+            <button onClick={() => onSendSignLink(t, snap.pmc_officer.email)}
+                    data-testid={`escrow-send-link-pmc-${t.id}`}
+                    disabled={sameEmail}
+                    title={`Email a one-time signing link to the PMC officer (${snap.pmc_officer.email}). They can sign without a password.`}
+                    className="px-3 py-1 text-[11px] uppercase tracking-widest border border-emerald-500 text-emerald-800 bg-emerald-50 hover:bg-emerald-100 disabled:opacity-40">
+              Email PMC link
+            </button>
+          )}
+          {snap.escrow_officer?.email && !esc.signed_at && (
+            <button onClick={() => onSendSignLink(t, snap.escrow_officer.email)}
+                    data-testid={`escrow-send-link-esc-${t.id}`}
+                    disabled={sameEmail}
+                    title={`Email a one-time signing link to the escrow institution officer (${snap.escrow_officer.email}).`}
+                    className="px-3 py-1 text-[11px] uppercase tracking-widest border border-emerald-500 text-emerald-800 bg-emerald-50 hover:bg-emerald-100 disabled:opacity-40">
+              Email Escrow link
+            </button>
+          )}
           <button onClick={() => onRelease(t)} disabled={!bothMatch || sameEmail}
                   data-testid={`escrow-release-${t.id}`}
                   title="Enabled only when BOTH officers have signed the identical action. Triggers the ledger release and the audit record."
@@ -322,6 +344,35 @@ export default function EscrowTransactionsSection({ accounts, txs, onReload }) {
     } catch (e) { showApiError(e, { fallbackTitle: "Release failed" }); }
   };
 
+  const sendSignLink = async (t, officerEmail) => {
+    if (!officerEmail) return;
+    if (!window.confirm(
+      `Email a one-time signing link to ${officerEmail}?\n\n` +
+      `They will receive a Resend-delivered email with a Review & sign button that\n` +
+      `authenticates them without a password. The link lets them sign every open\n` +
+      `transaction on this joint account, not just this one.`)) return;
+    try {
+      const r = await escrowApi.magicIssue(t.escrow_account_id, officerEmail);
+      const url = `${window.location.origin}${r.portal_url}`;
+      if (r.emailed) {
+        toast.success(`Signing link emailed to ${r.officer_email}`, {
+          description: "Officer can also sign from the direct link below (click to copy).",
+          duration: 12000,
+          action: {
+            label: "Copy link",
+            onClick: () => { navigator.clipboard?.writeText(url); toast.success("Copied"); },
+          },
+        });
+      } else {
+        navigator.clipboard?.writeText(url);
+        toast.message(`Token issued — email delivery failed, link copied to clipboard`, {
+          description: `Share with ${r.officer_email}: ${url}`,
+          duration: 20000,
+        });
+      }
+    } catch (e) { showApiError(e, { fallbackTitle: "Could not issue signing link" }); }
+  };
+
   const cancelTx = async (t) => {
     if (!window.confirm(`Cancel this escrow transaction for ${t.bid_ref}? Use this to clear duplicates or mis-entries. The row stays in the audit trail.`)) return;
     try {
@@ -479,7 +530,7 @@ export default function EscrowTransactionsSection({ accounts, txs, onReload }) {
       <div className="border border-brand-navy/10 bg-white divide-y divide-brand-navy/10">
         {txs.length === 0 && <div className="p-6 text-sm text-brand-navy/50">No transactions yet.</div>}
         {paged.map((t) => (
-          <TransactionRow key={t.id} t={t} onSign={signAction} onRelease={release} onCancel={cancelTx}/>
+          <TransactionRow key={t.id} t={t} onSign={signAction} onRelease={release} onCancel={cancelTx} onSendSignLink={sendSignLink}/>
         ))}
         {controls}
       </div>

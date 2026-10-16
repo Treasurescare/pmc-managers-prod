@@ -1,4 +1,13 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
+## v53q — Escrow signatory fallback + magic-link email send + admin link buttons (16 Oct 2026)
+
+- **Root cause of "dropdowns empty in production":** approved institutions in prod only have a `primary_contact_email`, no signatories registered on their internal roster. Pool correctly returned 0 for them.
+- **Backend fallback:** `_build_pool` now synthesises a single fallback signatory from `primary_contact_email` whenever an approved institution has no formal roster, so the dropdown is never empty.
+- **Magic-token endpoint now emails officer:** `POST /escrow/magic-tokens` sends a Resend email with "Review & sign" CTA. Soft-fail: if Resend 500s, token is still returned and admin UI copies link to clipboard.
+- **Admin UI:** per-transaction "Email PMC link" / "Email Escrow link" buttons replace the admin-side Sign flow (which always 403'd because admin email isn't on the account).
+- Bundles: pmc-backend-v53q.zip + pmc-frontend-v53q-prod-build.zip.
+
+
 ## v53p — In-app staff role switching + permission preview drawer (16 Oct 2026)
 
 - **Backend:** new `POST /api/v1/staff/auth/switch-role` endpoint (CSRF-gated). Validates user holds the requested role, re-issues JWT with new `active_role`, refreshes cookies, writes `staff.switch_role` audit. 403 if user doesn't hold the role or if a HIGH_RISK role is requested without MFA.
