@@ -371,7 +371,13 @@ async def create_tx_docusign_envelope(
     pdf = _build_tx_pdf(tx)
     try:
         client = _client()
-    except HTTPException:
+    except HTTPException as e:
+        # Normalise consent/auth failures to a 503 so clients can treat
+        # "no DocuSign in this environment" identically regardless of
+        # whether the SDK is missing, consent is pending or JWT auth fails.
+        if 400 <= (e.status_code or 0) < 500:
+            raise HTTPException(503, "DocuSign is not configured in this "
+                                      "environment — contact platform admin.")
         raise
     import base64 as _b64
     document = ds.Document(

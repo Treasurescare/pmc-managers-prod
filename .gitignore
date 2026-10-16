@@ -129,3 +129,5 @@ frontend/node_modules/.cache/default-development/19.pack
 frontend/node_modules/.cache/default-development/5.pack
 frontend/node_modules/.cache/default-development/2.pack
 backend/data/unspsc_v26.sqlite
+frontend/build/downloads/pmc-frontend-v54a-prod-build.zip
+frontend/public/downloads/pmc-frontend-v54a-prod-build.zip

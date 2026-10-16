@@ -67,7 +67,15 @@ export default function TransactionDetailModal({ txId, onClose }) {
     setBusy(true);
     try {
       const r = await escrowMeApi.getDocuSignUrl(txId);
-      window.open(r.url, "_blank", "noopener");
+      if (r?.url) {
+        window.open(r.url, "_blank", "noopener");
+      } else {
+        toast.info("Open your DocuSign email to sign", {
+          description: r?.message || "DocuSign emailed the hosted-signing "
+            + "link to the institution officer when the envelope was issued.",
+          duration: 12000,
+        });
+      }
     } catch (e) { showApiError(e, { fallbackTitle: "Could not open DocuSign" }); }
     finally { setBusy(false); }
   };

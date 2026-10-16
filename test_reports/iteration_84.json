@@ -1,0 +1,38 @@
+{
+  "iteration": 84,
+  "summary": "v54a backend testing — escrow payment entries + institution-portal + DocuSign envelope flows. 15/15 pytest tests pass against the preview backend URL. Covers signatory-pool fix (both pmc_officers + institutions arrays, primary_contact fallback), admin payment-entries CRUD + sign + void, PATCH /escrow/accounts/{aid} with institution_id, institution-portal /me/transactions/{tid} 200 vs 403 authorisation, institution payment-entry create + sign (fully_signed when PMC pre-approved), and DocuSign same-email 400 + 503/424 fallback.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/v1/escrow/transactions/{tid}/docusign", "issue": "In this environment DocuSign auth fails with 424 code 'DOCUSIGN_AUTH_FAILED' (invalid_grant / issuer_not_found). This is expected because production DocuSign DOCUSIGN_* env vars are not provisioned in preview. Code path otherwise reachable: same-email → 400, missing officers → 400, SDK import OK."},
+      {"endpoint": "GET /api/v1/escrow-accounts/me/transactions/{tid}/docusign-url and /api/v1/escrow/transactions/{tid}/docusign-url", "issue": "Only create_console_view is used; email-mode envelopes without client_user_id cannot mint recipient-view URLs. Comment acknowledges this, but if DocuSign account doesn't support console-view either, callers get a 502. Consider degrading to 'use the emailed link' message instead of 502."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_v54a_escrow_payment_entries.py",
+    "/app/test_reports/pytest/v54a.xml"
+  ],
+  "action_items": [
+    "No code fixes required for the review scope — the v54a routers behave as specified.",
+    "Optional: downgrade DocuSign 424 (DOCUSIGN_AUTH_FAILED) to a 503 to match the review brief's '503 when DocuSign SDK/config missing' contract, so clients can treat auth-missing identically to SDK-missing.",
+    "Optional: in /me/transactions/{tid}/docusign-url, if create_console_view fails, return a 200 with mode='email_only' + envelope_id instead of 502, so the institution dashboard can still display 'open the email we sent you' without surfacing a technical error."
+  ],
+  "critical_code_review_comments": [
+    "escrow_accounts.py v54a block re-imports BaseModel at top of file (line 20) — consistent, no duplicate import issue found.",
+    "escrow_payment_entries.py uses require_role('admin','accounting') for POST /payment-entries but require_role('admin','accounting','escrow_agent') for /sign and admin-only for /void. Reasonable split.",
+    "_resolve_signer_side uses case-insensitive compare — good. But comparison is based on the PE's cached escrow_account_snapshot, not the live transaction snapshot; if admin updates the joint account AFTER a PE is created the old officers can still sign. Acceptable but worth documenting.",
+    "/me/payment-entries/{peid}/sign does not verify that the signing escrow institution signatory still belongs to the institution that owns the transaction — relies on _assert_tx_owned_by_account which checks escrow_officer email match. Good.",
+    "Institution-side sign only ever records sigs['escrow_institution'] regardless of who signs — multiple signatories collapse to a single slot. If more than one institution signatory needs independent sign-off this is lost. May be fine per 'one officer per side' DocuSign model.",
+    "DocuSign tx envelope: hard-codes routing_order='1' for both signers (parallel), which is correct for 'either can sign first'. OK.",
+    "signatory-pool returns fallback primary-contact as a Signatory with designation='Primary contact'. Nice UX, verified in tests."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (15/15)", "frontend": "n/a"},
+  "test_credentials": "Admin adminsupport@pmcmanagers.com / Admin@12345; institution portal: fresh account auto-registered per test run with verify_token read directly from Mongo.",
+  "seed_data_creation": "Each run creates: 1 test escrow_accounts row (test_v54a_<hex>@example.com, cleaned up on teardown), several escrow_payment_entries under an existing transaction (not cleaned — tagged with TEST_UTR_1 / notes='pytest v54a'); synthetic escrow_transactions row with TEST_BID_* bid_ref IF no existing tx had both officers (unlikely in this DB).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Pytest file lives at /app/backend/tests/test_v54a_escrow_payment_entries.py. It uses dotenv to load /app/backend/.env + /app/frontend/.env, hits the public REACT_APP_BACKEND_URL, and queries Mongo at MONGO_URL/DB_NAME to grab verify_token for institution signup. Backend lowercases email on register — look up by email.lower() when going via Mongo. DocuSign in this env returns 424 (invalid_grant / issuer_not_found) — treated as acceptable fallback.",
+  "rca of the issue": "Signatory-pool previously fell through with no return (bug #): confirmed fixed — both pmc_officers and institutions returned. Institution dropdown empty on edit: previously because signatories[] could be empty with no fallback — v54a now injects primary_contact_email as a fallback signatory row, confirmed in test_pool_institutions_have_primary_contact_and_signatories. Institution dashboard rows with no detail: addressed by new /me/transactions/{tid} + payment-entries sub-collection returning full tx + payment_entries + docusign_envelope, confirmed by test_get_tx_200_when_signatory_match."
+}
