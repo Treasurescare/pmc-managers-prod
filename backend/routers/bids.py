@@ -198,6 +198,13 @@ async def create_bid(payload: BidCreateIn, vendor=Depends(current_vendor)) -> di
     year = datetime.now(timezone.utc).year
     bid_ref = f"PMC-BID-{year}-{seq:05d}"
 
+    # v53g — zero-EMD sealed bids: same rule as v53f auction awards. No EMD
+    # due means no money is held and there is nothing for an escrow agent or
+    # escrow-institution officer to sign off. Land the bid directly at
+    # escrow_accepted with system-stamped history (audit-visible), so the
+    # next action is the admin flagging it to the certifier. EMD-bearing
+    # bids are untouched.
+    zero_emd = emd_due <= 0
     doc = {
         "bid_ref": bid_ref,
         "notice_ref": payload.notice_ref,
@@ -214,16 +221,38 @@ async def create_bid(payload: BidCreateIn, vendor=Depends(current_vendor)) -> di
         "emd_currency": emd_currency,
         "emd_paid_amount": 0.0,
         "emd_source": emd_source,
-        "status": "emd_pending" if emd_due > 0 else "submitted",
+        "status": "emd_pending" if emd_due > 0 else "escrow_accepted",
         "tenant_id": config.DEFAULT_TENANT_ID,
-        "workflow_history": [],
+        "workflow_history": ([
+            {"role": "system", "action": "emd_paid", "from_status": "submitted",
+             "to_status": "emd_paid",
+             "notes": "Auto-cleared: no EMD due on this tender.",
+             "by": "system", "at": now_iso()},
+            {"role": "system", "action": "escrow_accepted", "from_status": "emd_paid",
+             "to_status": "escrow_accepted",
+             "notes": "Auto-cleared: no EMD held, so no escrow sign-off is required.",
+             "by": "system", "at": now_iso()},
+        ] if zero_emd else []),
         "created_at": now_iso(),
         "submitted_at": now_iso(),
     }
+    if zero_emd:
+        doc["escrow_auto_cleared"] = True
+        doc["escrow_accepted_at"] = now_iso()
     res = await db.bids.insert_one(doc)
     doc["_id"] = res.inserted_id
     await audit_log("bid.submit", None, "bid", bid_ref,
                     {"vendor": vendor["email"], "notice": payload.notice_ref, "price": payload.price_amount})
+    # v53g — zero-EMD bids land at escrow_accepted, which is the tender desk's
+    # move (flag to certifier). Notify them; EMD-bearing bids notify the
+    # escrow agent later, when the payment webhook flips them to emd_paid.
+    if zero_emd:
+        try:
+            doc["id"] = str(res.inserted_id)
+            from notify import notify_bid_transition
+            await notify_bid_transition(doc, "escrow_accepted")
+        except Exception:
+            pass
     # v47c — confirmatory email to the bidder. EMD-due bids include the direct
     # payment deep-link so the vendor can pay without hunting the dashboard.
     try:

@@ -16,6 +16,8 @@ const STATUS_PILL = {
   submitted:     ["pmc-pill--info", "Submitted"],
   emd_pending:   ["pmc-pill--warning", "Awaiting your EMD"],
   emd_paid:      ["pmc-pill--info", "EMD paid"],
+  escrow_accepted: ["pmc-pill--info", "In PMC review"],
+  admin_flagged: ["pmc-pill--info", "In PMC review"],
   under_review:  ["pmc-pill--info", "Under review"],
   technical_cleared: ["pmc-pill--info", "Tech cleared"],
   escrow_pending: ["pmc-pill--info", "Escrow confirming"],
@@ -47,7 +49,10 @@ function fmtCountdown(iso) {
 }
 
 const ACTIVE_STATUSES = new Set(["submitted","emd_pending","emd_paid","under_review",
-                                  "technical_cleared","escrow_pending"]);
+                                  "technical_cleared","escrow_pending",
+                                  "escrow_accepted","admin_flagged","certifier_cleared",
+                                  "legal_cleared","accounting_cleared","under_evaluation",
+                                  "commercial_open"]);
 const DRAFT_STATUSES  = new Set(["draft"]);
 const CLOSED_STATUSES = new Set(["awarded","rejected","closed"]);
 const WITHDRAWN_STATUSES = new Set(["withdrawn"]);

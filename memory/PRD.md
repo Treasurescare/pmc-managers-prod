@@ -1,4 +1,27 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
+## v53g — Zero-EMD auto-clear for sealed bids + L1 live-statuses fix (16 Oct 2026)
+
+- **bids.py create_bid:** zero-EMD sealed bids now created directly at
+  `escrow_accepted` with system workflow_history + `escrow_auto_cleared`,
+  and the tender desk is notified (notify_bid_transition). EMD-bearing
+  bids unchanged (emd_pending). Same rule as v53f auction awards — the
+  user's call: no EMD ⇒ no escrow stop, any bid source.
+- **comparison.py L1 bug fixed:** live_statuses excluded every mid-pipeline
+  governance status (emd_paid, escrow_accepted, admin_flagged,
+  certifier_cleared, legal_cleared, accounting_cleared) — such bids were
+  mislabelled "withdrawn/rejected" in L1 results. All alive statuses now
+  included. (This was a pre-existing blind spot, made critical by v53f/g.)
+- **VendorMyBidsE:** mid-pipeline statuses labelled "In PMC review" and
+  counted as Active.
+- **E2E verified (preview, real vendor submit):** zero-EMD notice →
+  escrow_accepted + system history + admin notification; EMD notice →
+  emd_pending, untouched. Data cleaned.
+- **Legacy rows:** pre-v53g zero-EMD bids at submitted/emd_pending remain
+  movable via the v52cs escrow-accept path; one-time sweep available on
+  request.
+- Bundles: pmc-backend-v53g.zip + pmc-frontend-v53g-prod-build.zip.
+
+
 ## v53f — Zero-EMD escrow auto-clear (16 Oct 2026)
 
 - **User insight:** no EMD ⇒ no money held ⇒ no escrow sign-off should be

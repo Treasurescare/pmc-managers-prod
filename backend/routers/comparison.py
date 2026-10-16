@@ -69,8 +69,13 @@ async def run_l1_comparison(notice_ref: str,
         raise HTTPException(status_code=404, detail="Notice not found")
 
     # Only bids that are alive in the pipeline. Withdrawn/rejected are excluded.
-    live_statuses = {"submitted", "technical_cleared", "commercial_open",
-                      "under_evaluation", "awarded"}
+    # v53g — include the mid-pipeline governance statuses too, otherwise bids
+    # that already passed escrow/admin/legal (including v53g zero-EMD bids,
+    # which are CREATED at escrow_accepted) silently dropped out of L1.
+    live_statuses = {"submitted", "emd_paid", "escrow_accepted",
+                      "admin_flagged", "certifier_cleared", "legal_cleared",
+                      "accounting_cleared", "technical_cleared",
+                      "commercial_open", "under_evaluation", "awarded"}
     all_bids = []
     async for b in db.bids.find({"notice_ref": notice_ref}):
         all_bids.append(b)
