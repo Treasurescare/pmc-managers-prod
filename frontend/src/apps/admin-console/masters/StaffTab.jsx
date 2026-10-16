@@ -30,6 +30,7 @@ export default function StaffTab({
       roles: [...(s.roles || (s.role ? [s.role] : []))],
       hierarchy_level: s.hierarchy_level || 3,
       is_active: s.is_active !== false,
+      is_escrow_signatory: !!s.is_escrow_signatory,
       password: "",
     });
   };
@@ -50,6 +51,7 @@ export default function StaffTab({
         roles: editDraft.roles,
         hierarchy_level: editDraft.hierarchy_level,
         is_active: editDraft.is_active,
+        is_escrow_signatory: !!editDraft.is_escrow_signatory,
       };
       if (editDraft.password) patch.password = editDraft.password;
       await onUpdate(s.id, patch);
@@ -118,6 +120,16 @@ export default function StaffTab({
               onChange={(e) => setStaffDraft({ ...staffDraft, hierarchy_level: Number(e.target.value) })}
               className="mt-1 w-full px-3 py-2 border" />
           </label>
+          {/* v53k — mark staff as PMC-side escrow signatory. Only ticked
+              rows appear in the "PMC officer" dropdown when creating a
+              joint escrow account. Without this the EMD escrow accept
+              step has no routable signer. */}
+          <label className="text-sm flex items-center gap-2 md:col-span-2">
+            <input type="checkbox" checked={!!staffDraft.is_escrow_signatory}
+              onChange={(e) => setStaffDraft({ ...staffDraft, is_escrow_signatory: e.target.checked })}
+              data-testid="staff-escrow-signatory" />
+            <span>Escrow signatory <InfoDot tip="Tick to let this staff member be picked as the PMC co-signer on a joint EMD escrow account." /></span>
+          </label>
           <button onClick={onCreate} data-testid="staff-create"
             className="md:col-span-3 px-4 py-2 text-[11px] uppercase tracking-widest bg-brand-navy-soft text-white">
             Create staff
@@ -179,6 +191,13 @@ export default function StaffTab({
                           data-testid={`staff-edit-active-${s.email}`} />
                         Active
                       </label>
+                      {/* v53k — toggle the PMC escrow-signatory flag inline. */}
+                      <label className="inline-flex items-center gap-1 text-xs cursor-pointer mt-1 block">
+                        <input type="checkbox" checked={!!editDraft.is_escrow_signatory}
+                          onChange={(e) => setEditDraft({ ...editDraft, is_escrow_signatory: e.target.checked })}
+                          data-testid={`staff-edit-escrow-signatory-${s.email}`} />
+                        Escrow signatory
+                      </label>
                     </td>
                     <td className="px-3 py-3 text-center align-top">
                       <div className="flex flex-col gap-1">
@@ -201,7 +220,16 @@ export default function StaffTab({
                 <tr key={s.id} className="border-t" data-testid={`staff-row-${s.email}`}>
                   <td className="px-3 py-2 font-mono text-xs">{s.email}</td>
                   <td className="px-3 py-2">{s.name}</td>
-                  <td className="px-3 py-2 text-xs">{(s.roles || [s.role]).join(", ")}</td>
+                  <td className="px-3 py-2 text-xs">
+                    {(s.roles || [s.role]).join(", ")}
+                    {s.is_escrow_signatory && (
+                      <span data-testid={`staff-escrow-badge-${s.email}`}
+                            title="Appears in the PMC-side dropdown when creating a joint escrow account"
+                            className="ml-1 text-[9px] uppercase tracking-widest text-emerald-800 bg-emerald-50 border border-emerald-300 px-1.5 py-0.5">
+                        escrow-signer
+                      </span>
+                    )}
+                  </td>
                   <td className="px-3 py-2 text-center">{s.hierarchy_level}</td>
                   <td className="px-3 py-2 text-center">
                     <button type="button" onClick={() => toggleActive(s)}

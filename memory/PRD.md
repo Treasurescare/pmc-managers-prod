@@ -1,4 +1,25 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
+## v53k — Dropdown-driven joint escrow signatories (16 Oct 2026)
+
+- **Blocker fixed:** EMD-bearing bids were stuck at `emd_paid` because
+  joint escrow accounts stored signatories as free text, not linked to
+  any real PMC staff or institution signatory. Nobody could actually act
+  on the escrow-accept step.
+- **Backend:** `is_escrow_signatory` added to `StaffCreateIn` /
+  `StaffUpdateIn` (persisted on `admin_users`). New admin endpoint
+  `GET /api/v1/escrow/signatory-pool` returns `pmc_officers` (active
+  staff with the flag) + `institutions` (approved rows with signatories).
+- **Frontend:** Joint-account create and edit use dropdowns sourced from
+  the pool for institution, PMC officer, and escrow-institution officer.
+  Masters → Staff shows an "Escrow signatory" checkbox in create + edit,
+  plus an `escrow-signer` badge on the roster.
+- **Operator steps post-deploy:** flag at least one PMC staff as escrow
+  signatory and ensure at least one escrow institution is approved; then
+  joint-account creation routes correctly and `emd_paid → escrow_accepted`
+  advances.
+- Bundles: pmc-backend-v53k.zip + pmc-frontend-v53k-prod-build.zip.
+
+
 ## v53j — Resend/decline/awarded panel + weekly digest cron (16 Oct 2026)
 
 - **Resend invite (admin, one-click):** new POST

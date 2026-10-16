@@ -657,6 +657,9 @@ export const vendorIntelApi = {
 export const escrowInstitutionsApi = {
   adminInvite: (payload) =>
     api.post("/api/v1/escrow-institutions/admin-invite", payload).then((r) => r.data),
+  // v53k — admin list of institutions (status filter optional).
+  list: (params = {}) =>
+    api.get("/api/v1/escrow-institutions", { params }).then((r) => r.data),
 };
 
 
@@ -1021,6 +1024,9 @@ export const escrowApi = {
     api.get("/api/v1/escrow/accounts", { params: { active_only: activeOnly } }).then((r) => r.data),
   createAccount: (p) => api.post("/api/v1/escrow/accounts", p).then((r) => r.data),
   patchAccount: (aid, p) => api.patch(`/api/v1/escrow/accounts/${aid}`, p).then((r) => r.data),
+  // v53k — dropdown source for PMC officers + approved institutions + their signatories.
+  signatoryPool: () =>
+    api.get("/api/v1/escrow/signatory-pool").then((r) => r.data),
   listTransactions: (params) =>
     api.get("/api/v1/escrow/transactions", { params: params || {} }).then((r) => r.data),
   initTransaction: (p) => api.post("/api/v1/escrow/transactions/init", p).then((r) => r.data),

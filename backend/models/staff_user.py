@@ -38,6 +38,10 @@ class StaffCreateIn(BaseModel):
     company_id: Optional[str] = None
     reports_to: Optional[str] = None  # staff_id of manager
     designation: Optional[str] = None  # e.g. "Chief Procurement Officer"
+    # v53k — flag that this staff member can co-sign EMD escrow releases
+    # on behalf of PMC. Only staff with this flag appear in the "PMC
+    # officer" dropdown when creating a joint escrow account.
+    is_escrow_signatory: bool = False
 
 
 class StaffUpdateIn(BaseModel):
@@ -48,6 +52,7 @@ class StaffUpdateIn(BaseModel):
     designation: Optional[str] = None
     is_active: Optional[bool] = None
     password: Optional[str] = Field(None, min_length=8)
+    is_escrow_signatory: Optional[bool] = None
 
 
 class StaffPublic(BaseModel):

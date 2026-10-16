@@ -142,6 +142,7 @@ async def create_staff(payload: StaffCreateIn, admin=Depends(require_role("admin
         "company_id": payload.company_id,
         "reports_to": payload.reports_to,
         "designation": payload.designation,
+        "is_escrow_signatory": bool(payload.is_escrow_signatory),
         "tenant_id": admin["tenant_id"],
         "is_active": True,
         "created_at": datetime.now(timezone.utc).isoformat(),

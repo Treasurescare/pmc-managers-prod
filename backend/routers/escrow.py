@@ -227,6 +227,46 @@ async def patch_account(aid: str, payload: EscrowAccountPatch,
 # escrow transaction (status ∈ pending/received/awaiting_signatures) so the
 # UI can nag the admin until the ledger is clean. Returns bid_ref +
 # transaction ids. Read-only.
+@router.get("/signatory-pool")
+async def signatory_pool(admin=Depends(require_role("admin", "reviewer"))):
+    """v53k — source of truth for the two dropdowns used when creating a
+    joint escrow account:
+      * `pmc_officers` — every active staff user flagged
+        `is_escrow_signatory=True`.
+      * `institutions`  — every APPROVED escrow institution plus its
+        registered signatories (name + email + designation).
+    Avoids free-text entry of signatory names/emails, which was the user's
+    blocker (EMD-bearing bids could not advance because nobody could
+    actually match the typed email to a real PMC or institution officer).
+    """
+    pmc_officers = []
+    async for s in db.admin_users.find(
+        {"is_escrow_signatory": True, "is_active": {"$ne": False}}
+    ).sort("name", 1):
+        pmc_officers.append({
+            "id": str(s["_id"]),
+            "name": s.get("name") or s.get("email"),
+            "email": s.get("email"),
+            "designation": s.get("designation") or "",
+        })
+    insts = []
+    async for i in db.escrow_institutions.find({"status": "approved"}).sort("legal_name", 1):
+        sig_rows = []
+        for s in i.get("signatories") or []:
+            if (s.get("email") or "").strip() and (s.get("name") or "").strip():
+                sig_rows.append({
+                    "name": s.get("name"),
+                    "email": s.get("email"),
+                    "designation": s.get("designation") or "",
+                })
+        insts.append({
+            "id": str(i["_id"]),
+            "legal_name": i.get("legal_name"),
+            "signatories": sig_rows,
+        })
+    return {"pmc_officers": pmc_officers, "institutions": insts}
+
+
 @router.get("/transactions/duplicates")
 async def duplicate_scan(admin=Depends(require_role("admin", "accounting"))):
     pipeline = [
