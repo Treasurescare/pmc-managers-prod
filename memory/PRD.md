@@ -1,4 +1,30 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
+## v52x — Submission-close notification cron (16 Oct 2026)
+
+- **Gap closed:** deadline expiry was previously silent — nobody was told a
+  tender's submission window had closed.
+- **New:** `routers/cron_submission_close.py` →
+  `POST /api/v1/cron/submission-close-sweep` (bearer auth via
+  WEBHOOK_CRON_SECRET, ack-then-background, idempotent via cron_runs +
+  per-notice `submission_close_notified_at` flag). Sweeps notices whose
+  deadline passed in the last 24h.
+- **Fan-out:** admins + committee get per-tender summary (bid counts, EMD
+  paid/pending, tech-cleared, per-bid table, next-step checklist); each
+  bidder gets their current pipeline stage + full 5-step chain (EMD →
+  technical → legal/accounting → committee → award), with action-needed
+  warning when EMD unpaid; escrow agents get ONE daily summary of all
+  pending EMDs across closed tenders.
+- **Schedule:** `.emergent/crons.yml` daily 09:00 Europe/London.
+  PRODUCTION NOTE: crons.yml only runs on the Emergent platform — on AWS EB
+  the user must wire an external scheduler (EventBridge / cron-job.org) to
+  POST the endpoint with the bearer secret (same pattern as escrow cron).
+- **Verified in preview:** run 1 → tenders:1, vendor_emails:2, 3 admin + 6
+  committee notifications, 1 escrow summary; run 2 → tenders:0 (flag skip);
+  same run_id → duplicate:true. Test data cleaned.
+- **Bundle:** pmc-backend-v52x.zip (backend-only release; frontend unchanged
+  from v52w).
+
+
 ## v52w — Server-side Created-by/From/To rollout to remaining 4 panels (15 Oct 2026)
 
 - **Backend (new params `created_by_email`/`created_from`/`created_to`):**
