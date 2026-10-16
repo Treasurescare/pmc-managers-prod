@@ -103,7 +103,7 @@ export default function AdminAuctionsE() {
       const r = await reverseAuctionApi.award(aid);
       toast.success(r.already_awarded
         ? "Already awarded — bid exists in Bidding Ops."
-        : `Bid ${r.bid_ref} created at emd_paid — continue in Bidding Ops.`);
+        : `Bid ${r.bid_ref} created (${r.status}) — ${r.next_step || "continue in Bidding Ops."}`);
       load();
     } catch (e) { showApiError(e, { fallbackTitle: "Cannot award" }); }
     finally { setBusyId(null); }
@@ -418,7 +418,7 @@ export default function AdminAuctionsE() {
                       <button type="button" onClick={() => award(a.id)}
                               disabled={busyId === a.id}
                               data-testid={`auction-award-${a.id}`}
-                              title="Creates a bid at emd_paid and moves it through the standard escrow → legal → accounting pipeline"
+                              title="Creates the winning bid in Bidding Ops. With no EMD due, escrow is auto-cleared and the bid lands at escrow_accepted, ready to flag to the certifier."
                               className="px-3 py-1.5 text-[11px] uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep disabled:opacity-50">
                         {busyId === a.id ? "…" : "Award winner"}
                       </button>

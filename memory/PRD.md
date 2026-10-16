@@ -1,4 +1,23 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
+## v53f — Zero-EMD escrow auto-clear (16 Oct 2026)
+
+- **User insight:** no EMD ⇒ no money held ⇒ no escrow sign-off should be
+  required. Money layer (institution dual sign-off on releases) already
+  only engaged on real EMD transactions; the pipeline layer was the gap —
+  zero-EMD auction-awarded bids parked at the manual escrow step.
+- **Backend (auction_live.py award):** bids with no EMD due are created
+  directly at `escrow_accepted` with two system workflow_history entries +
+  `escrow_auto_cleared: true`; next-step notification goes to admin instead
+  of escrow agent. EMD-bearing bids unchanged (full manual escrow step).
+- **Frontend (AdminAuctionsE):** award toast/tooltip reflect actual landing
+  stage.
+- **E2E verified:** award → bid at escrow_accepted with system history,
+  idempotent re-award, data cleaned.
+- **Prod note:** pre-fix bid BID-AUC-A03BF7 still at emd_paid — one-time
+  manual accept as escrow@ staff login, or re-award a fresh auction.
+- Bundles: pmc-backend-v53f.zip + pmc-frontend-v53f-prod-build.zip.
+
+
 ## v53e — Auction-room back button + awarded-bid discoverability (16 Oct 2026)
 
 - **Vendor AuctionRoom:** v53c's back link was too subtle (11px text) —

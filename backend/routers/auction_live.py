@@ -499,13 +499,22 @@ async def award_reverse_auction(aid: str, admin=Depends(require_role("admin"))):
             {"_id": ObjectId(aid)}, {"$set": {"awarded_bid_id": bid_id}})
         return {"ok": True, "already_awarded": True, "bid_id": bid_id}
     bid_ref = f"BID-AUC-{aid[-6:].upper()}"
+    # v53f — zero-EMD logic: an auction award collects no EMD, so no money is
+    # held in escrow and there is nothing for an escrow officer (institution)
+    # or escrow agent (staff) to sign off. Auto-clear the escrow step with
+    # system-stamped history and land the bid at escrow_accepted (next
+    # action: admin flags to certifier). EMD-bearing bids keep the manual
+    # escrow step untouched.
+    emd_due = float(a.get("emd_due_amount") or 0)
+    skip_escrow = emd_due <= 0
+    initial_status = "escrow_accepted" if skip_escrow else "emd_paid"
     bid = {
         "bid_ref": bid_ref,
         "notice_ref": a.get("notice_ref"),
         "vendor_id": winner["vendor_id"],
         "vendor_email": winner.get("vendor_email"),
         "company_name": winner.get("company_name"),
-        "status": "emd_paid",
+        "status": initial_status,
         "price_amount": winner.get("winning_price"),
         "price_currency": a.get("currency", "USD"),
         "source": "reverse_auction",
@@ -513,26 +522,43 @@ async def award_reverse_auction(aid: str, admin=Depends(require_role("admin"))):
         "created_at": now_iso(),
         "created_by_email": admin.get("email"),
     }
+    if skip_escrow:
+        bid["escrow_auto_cleared"] = True
+        bid["escrow_accepted_at"] = now_iso()
+        bid["workflow_history"] = [
+            {"role": "system", "action": "emd_paid", "from_status": None,
+             "to_status": "emd_paid",
+             "notes": "Auto-cleared: no EMD due on this bid (auction award).",
+             "by": "system", "at": now_iso()},
+            {"role": "system", "action": "escrow_accepted",
+             "from_status": "emd_paid", "to_status": "escrow_accepted",
+             "notes": "Auto-cleared: no EMD held, so no escrow sign-off is required.",
+             "by": "system", "at": now_iso()},
+        ]
     res = await db.bids.insert_one(bid)
     bid_id = str(res.inserted_id)
     await db.reverse_auctions.update_one(
         {"_id": ObjectId(aid)},
         {"$set": {"awarded_bid_id": bid_id, "awarded_at": now_iso(),
                    "awarded_by": admin.get("email")}})
-    # emd_paid → escrow agent is the next stage in the standard pipeline;
-    # reuse the same notification copy sealed bids use.
+    # Notify whoever owns the step we landed on: escrow agent when EMD is
+    # due, otherwise straight to the admin/tender desk.
     try:
         bid["id"] = bid_id
-        await notify_bid_transition(bid, "emd_paid")
+        await notify_bid_transition(bid, initial_status)
     except Exception:
         pass
     await audit_log("reverse_auction.award", admin, "auction", aid,
                     {"bid_id": bid_id, "bid_ref": bid_ref,
                      "winner": winner.get("company_name"),
-                     "winning_price": winner.get("winning_price")})
+                     "winning_price": winner.get("winning_price"),
+                     "escrow_auto_cleared": skip_escrow})
     return {"ok": True, "bid_id": bid_id, "bid_ref": bid_ref,
-            "status": "emd_paid",
-            "next_step": "Bid created at emd_paid — continue in Bidding Ops."}
+            "status": initial_status,
+            "next_step": ("Bid created at escrow_accepted (no EMD — escrow "
+                          "auto-cleared) — flag it to the certifier in Bidding Ops."
+                          if skip_escrow else
+                          "Bid created at emd_paid — continue in Bidding Ops.")}
 
 
 # ---------- Vendor endpoints ------------------------------------------
