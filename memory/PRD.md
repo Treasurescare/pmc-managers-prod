@@ -1,4 +1,26 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
+## v53l — Signatory-required badge + one-click Backfill (16 Oct 2026)
+
+- **Signatory-required health check per row:** AccountRow in
+  EscrowAccountsSection.jsx compares current signers to the pool and
+  shows red SIGNATORY REQUIRED badge + ✗ marks + breakdown when the
+  institution name doesn't match any approved master, the PMC officer
+  email isn't a flagged staff, or the escrow officer email isn't a
+  signatory of the matched institution.
+- **Backend backfill:** `POST /api/v1/escrow/accounts/{aid}/backfill-signers`
+  (admin). Matches institution to master (case+whitespace insensitive),
+  refreshes PMC/escrow officer rows from the pool, or swaps escrow
+  officer to first institution signatory. Returns 409 with closest
+  legal_name suggestions when institution unmatched. Audit event
+  `escrow.account.backfill_signers`.
+- **Frontend:** red Backfill button appears only on flagged rows, shows
+  diagnostics toast with what was refreshed/swapped/left as-is.
+- Known production login crash is NOT in this bundle — deployer could
+  not RCA (AWS-hosted; v3 deployment not found). See DOWNLOAD_v53l.md
+  for 2-minute self-diagnosis via F12 Network tab.
+- Bundles: pmc-backend-v53l.zip + pmc-frontend-v53l-prod-build.zip.
+
+
 ## v53k — Dropdown-driven joint escrow signatories (16 Oct 2026)
 
 - **Blocker fixed:** EMD-bearing bids were stuck at `emd_paid` because

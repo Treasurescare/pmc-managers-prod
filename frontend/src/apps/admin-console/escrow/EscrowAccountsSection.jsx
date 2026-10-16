@@ -248,6 +248,47 @@ function AccountRow({ acc, onReload, pool }) {
     );
   }, [pool, acc.institution]);
 
+  // v53l — compute signatory-health badges from the pool.
+  const health = useMemo(() => {
+    if (!pool) return null;
+    const pmcEmail = (acc.pmc_officer?.email || "").toLowerCase();
+    const escEmail = (acc.escrow_officer?.email || "").toLowerCase();
+    const pmcOk = !!(pool.pmc_officers || []).find((p) => p.email === pmcEmail);
+    const escOk = !!matchedInst && !!(matchedInst.signatories || []).find((s) => s.email === escEmail);
+    const institutionOk = !!matchedInst;
+    const anyBad = !pmcOk || !escOk || !institutionOk;
+    return { pmcOk, escOk, institutionOk, anyBad };
+  }, [pool, matchedInst, acc.pmc_officer, acc.escrow_officer]);
+
+  const runBackfill = async () => {
+    if (!window.confirm(
+      `Backfill signers on "${acc.name}"?\n\n` +
+      `This matches the institution name to the escrow institution master,\n` +
+      `refreshes the PMC officer from the staff pool (if the email matches),\n` +
+      `and swaps the escrow officer to a real institution signatory.\n\n` +
+      `All changes are written to the audit trail.`)) return;
+    try {
+      const r = await escrowApi.backfillSigners(acc.id);
+      const d = r.diagnostics || {};
+      toast.success(
+        `Backfilled · institution: ${d.institution_matched || "ok"} · ` +
+        `pmc: ${d.pmc_officer} · escrow: ${d.escrow_officer}`,
+        { duration: 8000 });
+      onReload?.();
+    } catch (e) {
+      const detail = e?.response?.data?.detail;
+      if (detail && detail.error === "institution_unmatched") {
+        const list = (detail.suggestions || []).map((s) => s.legal_name).join(", ");
+        toast.error(detail.message || "Institution not found", {
+          description: list ? `Closest matches in master: ${list}. Fix the master, or recreate this account.` : undefined,
+          duration: 10000, closeButton: true,
+        });
+      } else {
+        showApiError(e, { fallbackTitle: "Backfill failed" });
+      }
+    }
+  };
+
   const open = () => {
     setPmc({ name: "", email: "", designation: "", role: "pmc", ...(acc.pmc_officer || {}) });
     setEsc({ name: "", email: "", designation: "", role: "escrow_institution", ...(acc.escrow_officer || {}) });
@@ -293,18 +334,48 @@ function AccountRow({ acc, onReload, pool }) {
     return (
       <div className="p-4 grid gap-3 md:grid-cols-5 items-start" data-testid={`escrow-acc-row-${acc.id}`}>
         <div className="md:col-span-2 min-w-0">
-          <div className="font-semibold text-brand-navy">{acc.name}</div>
+          <div className="font-semibold text-brand-navy flex items-center gap-2 flex-wrap">
+            {acc.name}
+            {health?.anyBad && (
+              <span data-testid={`escrow-acc-health-bad-${acc.id}`}
+                    title="Current signers do not match the escrow institution master or the PMC signatory pool. Releases on this account will fail until fixed."
+                    className="text-[9px] uppercase tracking-widest text-rose-800 bg-rose-50 border border-rose-300 px-1.5 py-0.5">
+                signatory required
+              </span>
+            )}
+          </div>
           <div className="text-xs text-brand-navy/60 break-all">{acc.institution} · {acc.account_no} · {acc.currency}</div>
+          {health?.anyBad && (
+            <div className="text-[11px] text-rose-700 mt-1" data-testid={`escrow-acc-health-detail-${acc.id}`}>
+              {!health.institutionOk && <div>• Institution does not match any approved master row.</div>}
+              {!health.pmcOk && <div>• PMC officer email is not in the escrow-signatory staff pool.</div>}
+              {!health.escOk && health.institutionOk && <div>• Escrow officer email is not a signatory of this institution.</div>}
+            </div>
+          )}
         </div>
         <div className="text-xs min-w-0">
           <div className="pmc-label">PMC officer</div>
-          <div className="break-all">{acc.pmc_officer?.name} · <span className="font-mono">{acc.pmc_officer?.email}</span></div>
+          <div className="break-all">
+            {acc.pmc_officer?.name} · <span className="font-mono">{acc.pmc_officer?.email}</span>
+            {health && !health.pmcOk && <span className="ml-1 text-rose-700">✗</span>}
+          </div>
         </div>
         <div className="text-xs min-w-0">
           <div className="pmc-label">Escrow officer</div>
-          <div className="break-all">{acc.escrow_officer?.name} · <span className="font-mono">{acc.escrow_officer?.email}</span></div>
+          <div className="break-all">
+            {acc.escrow_officer?.name} · <span className="font-mono">{acc.escrow_officer?.email}</span>
+            {health && !health.escOk && <span className="ml-1 text-rose-700">✗</span>}
+          </div>
         </div>
-        <div className="flex md:justify-end">
+        <div className="flex md:justify-end gap-2 flex-wrap">
+          {health?.anyBad && (
+            <button type="button" onClick={runBackfill}
+                    data-testid={`escrow-acc-backfill-${acc.id}`}
+                    title="Match institution to the master and swap in real signatory emails from the pool."
+                    className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest bg-rose-700 text-white border border-rose-700 hover:bg-rose-800">
+              Backfill
+            </button>
+          )}
           <button type="button" onClick={open}
                   data-testid={`escrow-acc-edit-${acc.id}`}
                   className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest bg-brand-navy text-white border border-brand-navy hover:bg-brand-navy-deep">

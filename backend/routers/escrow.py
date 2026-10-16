@@ -223,10 +223,6 @@ async def patch_account(aid: str, payload: EscrowAccountPatch,
     return _out_account(await db.escrow_accounts.find_one({"_id": ObjectId(aid)}))
 
 
-# v51aq — Admin cleanup helper. Finds every bid holding more than one open
-# escrow transaction (status ∈ pending/received/awaiting_signatures) so the
-# UI can nag the admin until the ledger is clean. Returns bid_ref +
-# transaction ids. Read-only.
 @router.get("/signatory-pool")
 async def signatory_pool(admin=Depends(require_role("admin", "reviewer"))):
     """v53k — source of truth for the two dropdowns used when creating a
@@ -264,9 +260,6 @@ async def signatory_pool(admin=Depends(require_role("admin", "reviewer"))):
             "legal_name": i.get("legal_name"),
             "signatories": sig_rows,
         })
-    return {"pmc_officers": pmc_officers, "institutions": insts}
-
-
 @router.get("/transactions/duplicates")
 async def duplicate_scan(admin=Depends(require_role("admin", "accounting"))):
     pipeline = [

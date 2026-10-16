@@ -1024,6 +1024,10 @@ export const escrowApi = {
     api.get("/api/v1/escrow/accounts", { params: { active_only: activeOnly } }).then((r) => r.data),
   createAccount: (p) => api.post("/api/v1/escrow/accounts", p).then((r) => r.data),
   patchAccount: (aid, p) => api.patch(`/api/v1/escrow/accounts/${aid}`, p).then((r) => r.data),
+  // v53l — one-click backfill for legacy accounts: match institution to
+  // master + refresh signatory emails from the pool. Returns diagnostics.
+  backfillSigners: (aid) =>
+    api.post(`/api/v1/escrow/accounts/${aid}/backfill-signers`).then((r) => r.data),
   // v53k — dropdown source for PMC officers + approved institutions + their signatories.
   signatoryPool: () =>
     api.get("/api/v1/escrow/signatory-pool").then((r) => r.data),

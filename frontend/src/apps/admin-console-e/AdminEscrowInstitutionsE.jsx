@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import AdminEShell from "./AdminEShell";
 import AdminEscrowChart from "./AdminEscrowChart";
-import { api, showApiError, uploadsApi } from "@/lib/api";
+import { api, showApiError, uploadsApi, escrowInstitutionsApi } from "@/lib/api";
 /**
  * v51am — Admin review queue for Escrow Institution registrations.
  * Lists all institutions with status filter, drill-in panel showing core
