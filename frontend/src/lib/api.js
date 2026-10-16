@@ -300,6 +300,12 @@ export const staffApi = {
   listStaff: () => api.get("/api/v1/staff").then((r) => r.data),
   createStaff: (p) => api.post("/api/v1/staff", p).then((r) => r.data),
   updateStaff: (id, p) => api.patch(`/api/v1/staff/${id}`, p).then((r) => r.data),
+  // v53p — multi-role staff can swap their active role without logging out.
+  switchRole: (active_role) =>
+    api.post("/api/v1/staff/auth/switch-role", { active_role }).then((r) => {
+      cacheCsrf(r.data?.csrf_token);
+      return r.data;
+    }),
 };
 
 // ---------- Wave 1: Vendor ----------

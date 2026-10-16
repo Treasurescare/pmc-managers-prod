@@ -1,4 +1,13 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
+## v53p — In-app staff role switching + permission preview drawer (16 Oct 2026)
+
+- **Backend:** new `POST /api/v1/staff/auth/switch-role` endpoint (CSRF-gated). Validates user holds the requested role, re-issues JWT with new `active_role`, refreshes cookies, writes `staff.switch_role` audit. 403 if user doesn't hold the role or if a HIGH_RISK role is requested without MFA.
+- **Frontend (StaffDashboard):** Active-role dropdown in header listing every role the user actually holds. Switch triggers the new endpoint, refreshes me/queue, routes to /admin if admin. Hidden for single-role staff.
+- **Frontend (StaffTab):** New "Preview what this staff can do →" button in New Staff form. Drawer shows (a) landing route per ticked role so admins see /admin vs /staff before saving, and (b) a live permission matrix pulled from `permissionsApi.get()` with role × doc-type × view/create/modify/delete/publish cells.
+- Live-verified on preview: switch-role returns 200 with fresh CSRF for roles the user holds.
+- Bundles: pmc-backend-v53p.zip + pmc-frontend-v53p-prod-build.zip.
+
+
 ## v53o — Staff role resolution, avatar role display & portal routing (16 Oct 2026)
 
 - **Fix (Staff portal routing & role candidates in SignInE):** Expanded `allStaffRoles` candidate list in `SignInE.jsx` to include `escrow_agent`, `certifier`, `legal_counsel`, `accounting`, `auditor`, `support`. Non-admin staff are routed to `/staff` rather than `/admin`.

@@ -4,9 +4,12 @@ import { toast } from "sonner";
 import { staffApi, bidApi, inspectionApi, uploadsApi, formatApiError, showApiError} from "@/lib/api";
 
 const ROLE_LABELS = {
+  admin: "Administrator",
+  reviewer: "Reviewer",
   escrow_agent: "Escrow Agent", certifier: "Site Certifier",
   legal_counsel: "Legal Counsel", accounting: "Accounting Team",
   committee_member: "Bid Committee", auditor: "Auditor", support: "Support",
+  management: "Management", partner: "Partner", agent: "Agent",
 };
 
 // What each role can accept AT (bid status prerequisite -> next status)
@@ -54,6 +57,20 @@ export default function StaffDashboard() {
       if (process.env.NODE_ENV !== "production") console.debug("staff logout skipped:", err?.response?.status);
     }
     nav("/login");
+  };
+
+  // v53p — swap active role in place for multi-role staff. Re-issues JWT,
+  // refreshes the queue, and routes to /admin if the new role is admin.
+  const switchRole = async (newRole) => {
+    if (!newRole || newRole === me?.active_role) return;
+    try {
+      const r = await staffApi.switchRole(newRole);
+      toast.success(`Switched to ${ROLE_LABELS[newRole] || newRole}`);
+      if (newRole === "admin") return nav("/admin");
+      const m = await staffApi.me();
+      setMe(m);
+      await refresh(m);
+    } catch (err) { showApiError(err); }
   };
 
   const decide = async (bid, action) => {
@@ -112,6 +129,23 @@ export default function StaffDashboard() {
             <h1 className="text-lg font-serif">{me.name} — {ROLE_LABELS[me.active_role] || me.active_role}</h1>
           </div>
           <div className="text-sm flex items-center gap-4">
+            {/* v53p — in-place role swap for multi-role staff. Hidden
+                when the user only holds a single role. */}
+            {(me.roles || []).length > 1 && (
+              <label className="text-xs flex items-center gap-2" data-testid="staff-role-switch">
+                <span className="text-white/60 uppercase tracking-widest">Active role</span>
+                <select value={me.active_role}
+                        onChange={(e) => switchRole(e.target.value)}
+                        className="bg-white/10 border border-white/20 text-white px-2 py-1 rounded"
+                        data-testid="staff-role-switch-select">
+                  {(me.roles || []).map((r) => (
+                    <option key={r} value={r} style={{ color: "#0b1e3f" }}>
+                      {ROLE_LABELS[r] || r}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <span className="text-white/70">{me.email}</span>
             <button onClick={logout} className="text-white/80 hover:text-white underline"
               data-testid="staff-logout">Sign out</button>

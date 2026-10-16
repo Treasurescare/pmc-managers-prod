@@ -7,9 +7,10 @@ legacy `admin_users` collection: existing admins are auto-migrated on login.
 from typing import Dict, Any, List
 from fastapi import APIRouter, HTTPException, Response, Depends, Request
 from bson import ObjectId
+from pydantic import BaseModel
 
 from db import db
-from models.staff_user import StaffLoginIn, StaffCreateIn, StaffUpdateIn, ALL_STAFF_ROLES
+from models.staff_user import StaffLoginIn, StaffCreateIn, StaffUpdateIn, ALL_STAFF_ROLES, StaffRole
 from security import (
     verify_password, hash_password, create_admin_token, current_admin,
     new_csrf_token, require_role, require_csrf, set_csrf_cookie,
@@ -118,6 +119,38 @@ async def staff_me(admin: Dict[str, Any] = Depends(current_admin)) -> Dict[str, 
 @router.get("/roles")
 async def list_role_choices() -> Dict[str, Any]:
     return {"roles": ALL_STAFF_ROLES}
+
+
+class SwitchRoleIn(BaseModel):
+    active_role: StaffRole
+
+
+@router.post("/auth/switch-role")
+async def switch_role(payload: SwitchRoleIn, response: Response,
+                       admin: Dict[str, Any] = Depends(current_admin)):
+    """v53p — re-issue the staff session JWT with a new active_role so a
+    multi-role employee can switch (e.g. Reviewer → Escrow Agent) without
+    logging out. The user MUST already hold the requested role on their
+    admin_users record; roles themselves are set only by an admin via
+    Masters → Staff, so this cannot elevate privileges.
+    """
+    doc = await db.admin_users.find_one({"_id": ObjectId(admin["id"])})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Staff not found")
+    held = doc.get("roles") or ([doc["role"]] if doc.get("role") else [])
+    if payload.active_role not in held:
+        raise HTTPException(status_code=403,
+            detail=f"You do not hold the {payload.active_role} role.")
+    HIGH_RISK_ROLES = {"escrow_agent", "legal_counsel", "accounting"}
+    if payload.active_role in HIGH_RISK_ROLES and not doc.get("mfa_enabled"):
+        raise HTTPException(status_code=403,
+            detail=f"MFA is required for {payload.active_role}. Enable Two-Factor first.")
+    token = create_admin_token(str(doc["_id"]), doc["email"], payload.active_role)
+    csrf = _set_session_cookies(response, token)
+    await audit_log("staff.switch_role", admin, "admin_user", admin["id"],
+                     {"from": admin.get("role"), "to": payload.active_role})
+    return {"active_role": payload.active_role, "csrf_token": csrf,
+             "roles": held, "email": doc["email"], "name": doc.get("name")}
 
 
 # ---------- Staff master (admin-only CRUD) ----------

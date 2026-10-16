@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { InfoDot } from "@/components/InfoDot";
 import { useListPager } from "@/components/ListPager";
+import { permissionsApi } from "@/lib/api";
 
 const ROLE_LABELS = {
   admin: "Admin", reviewer: "Reviewer", escrow_agent: "Escrow Agent",
@@ -9,6 +10,21 @@ const ROLE_LABELS = {
   accounting: "Accounting", committee_member: "Committee Member",
   auditor: "Auditor", support: "Support",
 };
+
+// v53p — map role → the Staff Portal queue the user will land on after sign-in.
+const ROLE_QUEUE = {
+  admin: "/admin  — full admin console (all pages in sidebar)",
+  reviewer: "/admin — review notices, bids, vendor registrations",
+  escrow_agent: "/staff — EMD-paid bids awaiting escrow acceptance",
+  certifier: "/staff — admin-flagged bids + assigned site inspections",
+  legal_counsel: "/staff — certifier-cleared bids awaiting legal review",
+  accounting: "/staff — legal-cleared bids awaiting accounting",
+  committee_member: "/staff — accounting-cleared bids awaiting committee award",
+  auditor: "/staff — read-only audit ledger access",
+  support: "/staff — vendor and bid support tickets",
+};
+
+const ACTIONS = ["view", "create", "modify", "delete", "publish"];
 
 /**
  * StaffTab — new-staff form + roster table with inline edit / role change /
@@ -22,6 +38,17 @@ export default function StaffTab({
   const [editDraft, setEditDraft] = useState(null);
   const [saving, setSaving] = useState(false);
   const { paged, controls } = useListPager(staff, { testid: "staff-pager" });
+  // v53p — permission preview drawer. Lazy-loaded on first open.
+  const [permPreviewOpen, setPermPreviewOpen] = useState(false);
+  const [permRows, setPermRows] = useState(null);
+  useEffect(() => {
+    if (!permPreviewOpen || permRows) return;
+    permissionsApi.get()
+      .then((r) => setPermRows(r.rows || []))
+      .catch(() => setPermRows([]));
+  }, [permPreviewOpen, permRows]);
+
+  const previewRoles = (showStaffNew ? staffDraft.roles : (editDraft?.roles || []));
 
   const startEdit = (s) => {
     setEditingId(s.id);
@@ -113,6 +140,14 @@ export default function StaffTab({
                 </label>
               ))}
             </div>
+            {/* v53p — permission preview drawer trigger */}
+            <button type="button"
+                    onClick={() => setPermPreviewOpen(!permPreviewOpen)}
+                    disabled={!staffDraft.roles.length}
+                    data-testid="staff-perm-preview-toggle"
+                    className="mt-2 text-[11px] underline text-brand-navy disabled:opacity-40 disabled:no-underline">
+              {permPreviewOpen ? "Hide" : "Preview"} what this staff can do →
+            </button>
           </div>
           <label className="text-sm">
             <span>Hierarchy level</span>
@@ -134,6 +169,67 @@ export default function StaffTab({
             className="md:col-span-3 px-4 py-2 text-[11px] uppercase tracking-widest bg-brand-navy-soft text-white">
             Create staff
           </button>
+
+          {/* v53p — Permission preview drawer. Shows the exact rows from
+              the permission matrix for the currently-ticked roles plus
+              the landing route they'll see after sign-in. Avoids the "every
+              new staff seems to get admin access" confusion. */}
+          {permPreviewOpen && previewRoles.length > 0 && (
+            <div className="md:col-span-3 border-2 border-brand-navy/30 bg-brand-pale/60 p-4"
+                 data-testid="staff-perm-preview">
+              <div className="font-semibold text-brand-navy mb-2">
+                Permission preview for roles: {previewRoles.map((r) => ROLE_LABELS[r] || r).join(", ")}
+              </div>
+              <div className="text-xs text-brand-navy/70 mb-3">
+                Landing routes after sign-in:
+                <ul className="list-disc ml-5 mt-1">
+                  {previewRoles.map((r) => (
+                    <li key={r} data-testid={`staff-perm-route-${r}`}>
+                      <b>{ROLE_LABELS[r] || r}:</b> {ROLE_QUEUE[r] || "/staff — specialist queue"}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              {permRows === null && <div className="text-xs text-brand-navy/50 italic">Loading permission matrix…</div>}
+              {permRows !== null && (
+                <div className="bg-white border border-brand-navy/15 overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead className="bg-brand-navy/5 text-brand-navy/70 uppercase tracking-wider">
+                      <tr>
+                        <th className="px-2 py-1 text-left">Role</th>
+                        <th className="px-2 py-1 text-left">Doc type</th>
+                        {ACTIONS.map((a) => <th key={a} className="px-2 py-1 text-center capitalize">{a}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {previewRoles.flatMap((r) =>
+                        permRows.filter((row) => row.role === r).map((row, i) => (
+                          <tr key={`${r}-${i}`} className="border-t border-brand-navy/10"
+                              data-testid={`staff-perm-row-${r}-${row.document_type}`}>
+                            <td className="px-2 py-1 font-semibold">{ROLE_LABELS[r] || r}</td>
+                            <td className="px-2 py-1 font-mono">{row.document_type}</td>
+                            {ACTIONS.map((a) => (
+                              <td key={a} className="px-2 py-1 text-center">
+                                {row[a] ? <span className="text-emerald-600">✓</span> : <span className="text-brand-navy/20">·</span>}
+                              </td>
+                            ))}
+                          </tr>
+                        ))
+                      )}
+                      {previewRoles.every((r) => !permRows.some((row) => row.role === r)) && (
+                        <tr><td colSpan={ACTIONS.length + 2} className="px-2 py-3 text-brand-navy/50 italic">
+                          No explicit permission rows configured for these roles yet — defaults from Admin → Permissions apply.
+                        </td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <div className="text-[10px] text-brand-navy/50 mt-2">
+                Admin role always has implicit full access; it is not shown in the matrix.
+              </div>
+            </div>
+          )}
         </div>
       )}
       <div className="bg-white border">
