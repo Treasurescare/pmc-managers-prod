@@ -544,18 +544,61 @@ export default function AdminAuctionsE() {
                               data-testid={`auction-invite-pending-list-${a.id}`}>
                             {part.invitations.map((inv) => {
                               const url = `${window.location.origin}/vendor/auction/invite/${inv.token}`;
+                              const declined = inv.status === "declined";
                               return (
                                 <li key={inv.token}
                                     data-testid={`auction-invite-pending-${inv.token}`}
                                     className="flex justify-between gap-2 items-center">
-                                  <span className="truncate">{inv.email}</span>
-                                  <button type="button"
-                                          onClick={() => { navigator.clipboard?.writeText(url); toast.success("Link copied"); }}
-                                          className="text-brand-navy underline whitespace-nowrap">Copy link</button>
+                                  <span className="truncate flex items-center gap-2">
+                                    {inv.email}
+                                    {declined && (
+                                      <span title={inv.decline_reason || "Declined"}
+                                            data-testid={`inv-declined-${inv.token}`}
+                                            className="text-[10px] uppercase tracking-widest text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.5">
+                                        declined
+                                      </span>
+                                    )}
+                                    {inv.joined && (
+                                      <span className="text-[10px] uppercase tracking-widest text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5">
+                                        joined
+                                      </span>
+                                    )}
+                                  </span>
+                                  <span className="flex items-center gap-2 whitespace-nowrap">
+                                    <button type="button"
+                                            onClick={() => { navigator.clipboard?.writeText(url); toast.success("Link copied"); }}
+                                            className="text-brand-navy underline">Copy</button>
+                                    {!inv.joined && !declined && (
+                                      <button type="button"
+                                              data-testid={`inv-resend-${inv.token}`}
+                                              onClick={async () => {
+                                                try {
+                                                  const r = await reverseAuctionApi.resendInvite(a.id, inv.token, window.location.origin);
+                                                  toast.success(r.ok ? `Resent to ${r.email}` : `Resend prepared but email failed`);
+                                                  loadParticipants(a.id);
+                                                } catch (e) { showApiError(e); }
+                                              }}
+                                              className="text-brand-navy underline">Resend</button>
+                                    )}
+                                  </span>
                                 </li>
                               );
                             })}
                           </ul>
+                          {/* v53j — show decline reasons under the list, so
+                              admin sees soft-no feedback at a glance. */}
+                          {part.invitations.some((i) => i.status === "declined") && (
+                            <div className="mt-2 text-[11px]" data-testid={`auction-decline-reasons-${a.id}`}>
+                              <div className="pmc-label">Decline reasons</div>
+                              <ul className="mt-1 space-y-1 text-brand-navy/70">
+                                {part.invitations.filter((i) => i.status === "declined").map((i) => (
+                                  <li key={`dr-${i.token}`}>
+                                    <span className="font-mono">{i.email}</span>: {i.decline_reason || "—"}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

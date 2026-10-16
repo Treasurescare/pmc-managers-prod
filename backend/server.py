@@ -23,6 +23,7 @@ from routers import (
     envelope_authoritative, contracts_export,
     admin_demo, push, vendor_categories, vendor_profile_changes, vendor_licenses,
     legal_entity_types, escrow_institutions, escrow_signatories, escrow_accounts, escrow_v52f, cron_escrow,
+    cron_vendor_digest,
     currencies,
 )
 from routers import password_reset as _password_reset
@@ -236,6 +237,7 @@ from routers import escrow_profile_changes  # noqa: E402
 app.include_router(escrow_profile_changes.router)
 app.include_router(escrow_profile_changes.admin_router)
 app.include_router(cron_escrow.router)
+app.include_router(cron_vendor_digest.router)
 app.include_router(reports.router)
 app.include_router(stakeholder_reports.router)
 app.include_router(dashboard_drill.router)

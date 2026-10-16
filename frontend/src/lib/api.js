@@ -1112,6 +1112,15 @@ export const reverseAuctionApi = {
     api.get(`/api/v1/reverse-auctions/invite/resolve/${token}`).then((r) => r.data),
   acceptInvite: (token) =>
     api.post(`/api/v1/reverse-auctions/invite/accept/${token}`).then((r) => r.data),
+  // v53j — resend / decline / awarded digest
+  resendInvite: (aid, token, origin_url) =>
+    api.post(`/api/v1/reverse-auctions/${aid}/invite/${token}/resend`,
+             null, { params: { origin_url } }).then((r) => r.data),
+  declineInvite: (token, reason) =>
+    api.post(`/api/v1/reverse-auctions/invite/decline/${token}`,
+             { reason }).then((r) => r.data),
+  awardedList: () =>
+    api.get(`/api/v1/reverse-auctions/awarded/list`).then((r) => r.data),
   // v46c — invitation templates
   listTemplates: () =>
     api.get(`/api/v1/reverse-auctions/invite/tpl`).then((r) => r.data),

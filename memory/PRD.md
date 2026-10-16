@@ -1,4 +1,33 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
+## v53j — Resend/decline/awarded panel + weekly digest cron (16 Oct 2026)
+
+- **Resend invite (admin, one-click):** new POST
+  `/{aid}/invite/{token}/resend` reuses the stored token + default
+  template and emails a "Reminder — …" nudge via Resend. Admin UI shows
+  Resend button inline per pending invite row with resent_count tracking.
+- **Decline-with-reason (vendor):** new POST `/invite/decline/{token}`.
+  AuctionRoom shows "Decline with reason" button beside Join when the
+  vendor is an invitee who hasn't joined; textarea → persists
+  `status: declined`, `decline_reason`, `declined_at` and fires admin
+  notification. Admin panel shows declined badge + reasons summary.
+- **Awarded reverse auctions panel:** new GET `/awarded/list` + new page
+  AdminAwardedAuctionsE at `/admin/e/awarded-auctions` (sidebar entry
+  added). Columns: title/notice, winner, starting → final, saving %
+  (emerald when ≥10%), current pipeline stage, awarded date.
+- **Weekly opportunity digest cron:** second entry in
+  `.emergent/crons.yml` (`0 9 * * 1`), hits
+  `/api/v1/cron/vendor-opportunity-digest`. New router
+  `routers/cron_vendor_digest.py` (bearer-auth, idempotent via
+  `cron_runs`, ACKs 200 + enqueues `_do_digest` via asyncio.create_task).
+  Groups still-open invites per vendor and emails one digest per week.
+- **state-mine (auction_live.py):** now also returns `me.invite_token`,
+  `me.invite_status`, `me.decline_reason` so the vendor room can wire
+  the decline action to the correct token.
+- Preview smoke: cron 401 w/o bearer, 200 w/ bearer; awarded/resend/
+  decline endpoints 401 unauthenticated. Code-level verified.
+- Bundles: pmc-backend-v53j.zip + pmc-frontend-v53j-prod-build.zip.
+
+
 ## v53i — Invited-but-didn't-register fan-out + distinct outcome (16 Oct 2026)
 
 - **User report:** awarded auction (winner managerspmc@gmail.com) → the

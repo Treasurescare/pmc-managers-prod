@@ -17,6 +17,9 @@ export default function AuctionRoom() {
   const [autoFloor, setAutoFloor] = useState("");
   const [autoOn, setAutoOn] = useState(false);
   const [busy, setBusy] = useState(false);
+  // v53j — decline-with-reason flow for invited vendors who can't take part.
+  const [declineOpen, setDeclineOpen] = useState(false);
+  const [declineReason, setDeclineReason] = useState("");
   const pollTimer = useRef(null);
 
   const pollState = useCallback(async () => {
@@ -65,6 +68,34 @@ export default function AuctionRoom() {
     try {
       await reverseAuctionApi.autobid(aid, { floor: parseFloat(autoFloor), enabled: autoOn });
       toast.success(autoOn ? `Auto-bid armed with floor ${autoFloor}` : "Auto-bid disabled");
+      pollState();
+    } catch (e) { showApiError(e); }
+    finally { setBusy(false); }
+  };
+
+  // v53j — invited vendor declines with a reason. Looks up the invite token
+  // for this auction (invite URL is /vendor/auction/invite/:token, but once
+  // the vendor is on /vendor/auction/:aid we fetch from state_mine; the
+  // backend decline endpoint accepts a token keyed off the vendor's email,
+  // so we query the invite listing to find the right token).
+  const submitDecline = async () => {
+    const reason = declineReason.trim();
+    if (!reason) { toast.error("Please add a short reason."); return; }
+    setBusy(true);
+    try {
+      // Find token via /invite/resolve requires a token already; instead
+      // we hit a lightweight listing filtered by auction + current vendor,
+      // falling back to the token present in URL state if any.
+      const inv = state?.me?.invite_token;
+      if (!inv) {
+        toast.error("No pending invitation found to decline for this auction.");
+        setBusy(false);
+        return;
+      }
+      await reverseAuctionApi.declineInvite(inv, reason);
+      toast.success("Invitation declined. Thanks for the feedback.");
+      setDeclineOpen(false);
+      setDeclineReason("");
       pollState();
     } catch (e) { showApiError(e); }
     finally { setBusy(false); }
@@ -143,13 +174,50 @@ export default function AuctionRoom() {
         {!state.me?.registered && state.status !== "closed" && (
           <div className="mt-6 border-2 border-amber-500 bg-amber-50 p-5 flex items-center justify-between flex-wrap gap-4">
             <div className="text-amber-900 text-sm">
-              You are not yet registered for this auction. Click "Join" to receive a masked alias.
+              You are not yet registered for this auction. Click "Join" to receive a masked alias, or decline with a short reason if you can't take part.
             </div>
-            <button type="button" onClick={register} disabled={busy}
-                    data-testid="ra-join"
-                    className="px-6 py-2 text-[11px] font-semibold uppercase tracking-widest bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-40">
-              Join auction
-            </button>
+            <div className="flex gap-2">
+              <button type="button" onClick={register} disabled={busy}
+                      data-testid="ra-join"
+                      className="px-6 py-2 text-[11px] font-semibold uppercase tracking-widest bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-40">
+                Join auction
+              </button>
+              <button type="button" onClick={() => setDeclineOpen(true)} disabled={busy}
+                      data-testid="ra-decline-open"
+                      className="px-6 py-2 text-[11px] font-semibold uppercase tracking-widest border border-amber-700 text-amber-900 bg-white hover:bg-amber-100 disabled:opacity-40">
+                Decline with reason
+              </button>
+            </div>
+          </div>
+        )}
+
+        {declineOpen && (
+          <div data-testid="ra-decline-modal"
+               className="mt-6 border-2 border-rose-400 bg-rose-50 p-5">
+            <div className="pmc-label text-rose-900">Decline invitation</div>
+            <p className="text-sm text-rose-900 mt-1">
+              Let PMC know why you can't take part in this round. Your reason
+              is shared with the admin only — it helps us invite the right
+              vendors to future auctions.
+            </p>
+            <textarea value={declineReason}
+                      onChange={(e) => setDeclineReason(e.target.value)}
+                      placeholder="e.g. Lead time doesn't fit our current capacity"
+                      rows={3}
+                      data-testid="ra-decline-reason"
+                      className="mt-2 w-full px-3 py-2 border border-rose-300 text-sm" />
+            <div className="mt-3 flex gap-2">
+              <button type="button" onClick={submitDecline} disabled={busy || !declineReason.trim()}
+                      data-testid="ra-decline-submit"
+                      className="px-6 py-2 text-[11px] font-semibold uppercase tracking-widest bg-rose-700 text-white hover:bg-rose-800 disabled:opacity-40">
+                Submit decline
+              </button>
+              <button type="button" onClick={() => setDeclineOpen(false)}
+                      data-testid="ra-decline-cancel"
+                      className="px-6 py-2 text-[11px] font-semibold uppercase tracking-widest border border-rose-700 text-rose-900 bg-white hover:bg-rose-100">
+                Cancel
+              </button>
+            </div>
           </div>
         )}
 

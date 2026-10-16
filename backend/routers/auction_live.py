@@ -743,7 +743,151 @@ async def get_state_mine(aid: str, vendor=Depends(current_vendor)):
             state["me"]["awarded_bid_ref"] = (bid or {}).get("bid_ref")
     except Exception:
         pass
+    # v53j — surface the vendor's own invite token (if they have one) so the
+    # auction room can offer "Decline with reason" to the right token.
+    try:
+        inv = await db.reverse_auction_invitations.find_one(
+            {"auction_id": aid,
+             "email": (vendor.get("email") or "").lower()},
+            {"token": 1, "status": 1, "decline_reason": 1})
+        if inv:
+            state["me"]["invite_token"] = inv.get("token")
+            state["me"]["invite_status"] = inv.get("status")
+            state["me"]["decline_reason"] = inv.get("decline_reason")
+    except Exception:
+        pass
     return state
+
+
+@router.post("/{aid}/invite/{token}/resend")
+async def resend_invite(aid: str, token: str,
+                         admin=Depends(require_role("admin")),
+                         origin_url: Optional[str] = None):
+    """v53j — one-click resend for an existing invitation. Reuses the stored
+    token (same join URL stays valid) and the default invite template."""
+    a = await db.reverse_auctions.find_one({"_id": ObjectId(aid)})
+    if not a:
+        raise HTTPException(status_code=404, detail="Auction not found")
+    inv = await db.reverse_auction_invitations.find_one(
+        {"auction_id": aid, "token": token})
+    if not inv:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+    tpl = await db.auction_invite_templates.find_one({"is_default": True}) or {
+        "subject": _DEFAULT_INVITE_SUBJECT, "body_html": _DEFAULT_INVITE_BODY,
+    }
+    invite_url = f"{(origin_url or '').rstrip('/')}/vendor/auction/invite/{token}"
+    raw_body = tpl.get("body_html") or ""
+    if "{{invite_url}}" not in raw_body:
+        raw_body = raw_body + (
+            f'<p style="margin-top:16px"><a href="{{{{invite_url}}}}" '
+            f'style="display:inline-block;padding:10px 18px;background:#0F3B2E;'
+            f'color:#ffffff;text-decoration:none;font-weight:600;'
+            f'letter-spacing:0.5px;text-transform:uppercase;font-size:12px;">'
+            f'Join the auction</a></p>'
+            f'<p style="font-size:12px;color:#64748B">Or paste this link into '
+            f'your browser: {{{{invite_url}}}}</p>')
+    body_html = raw_body\
+        .replace("{{invite_url}}", invite_url)\
+        .replace("{{auction_title}}", a.get("title", ""))\
+        .replace("{{notice_ref}}", a.get("notice_ref", ""))\
+        .replace("{{vendor_email}}", inv["email"])\
+        .replace("{{starting_price}}", str(a.get("starting_price", "")))\
+        .replace("{{currency}}", a.get("currency", ""))\
+        .replace("{{admin_note}}", inv.get("note") or "")
+    subject = (tpl.get("subject") or f"Reminder: {a.get('title')}")\
+        .replace("{{auction_title}}", a.get("title", ""))\
+        .replace("{{notice_ref}}", a.get("notice_ref", ""))
+    # Soft tag so the vendor sees this is a nudge, not a new invite.
+    subject = f"Reminder — {subject}"
+    wrapped = email_wrap(subject, body_html, "Join auction", invite_url)
+    ok = await send_email(inv["email"], subject, wrapped)
+    resent_count = int(inv.get("resent_count") or 0) + (1 if ok else 0)
+    await db.reverse_auction_invitations.update_one(
+        {"_id": inv["_id"]},
+        {"$set": {"resent_at": now_iso(),
+                   "resent_by": admin.get("email"),
+                   "resent_count": resent_count}})
+    await audit_log("reverse_auction.invite_resend", admin, "auction", aid,
+                    {"email": inv["email"], "sent": ok})
+    return {"ok": ok, "email": inv["email"], "resent_count": resent_count}
+
+
+class DeclineIn(BaseModel):
+    reason: str = Field(min_length=1, max_length=500)
+
+
+@router.post("/invite/decline/{token}")
+async def decline_invite(token: str, payload: DeclineIn,
+                           vendor=Depends(current_vendor)):
+    """v53j — invited vendor can soft-decline an open invitation with a
+    free-text reason. Admin sees the decline + reason on the auction
+    detail panel. Captures soft-no feedback instead of silent no-shows."""
+    inv = await db.reverse_auction_invitations.find_one({"token": token})
+    if not inv:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+    if inv.get("email") and inv["email"].lower() != (vendor.get("email") or "").lower():
+        raise HTTPException(status_code=403,
+            detail=f"This invitation is for {inv['email']}. Sign in as that vendor first.")
+    if inv.get("status") == "accepted":
+        raise HTTPException(status_code=400,
+            detail="You already joined this auction — leave it to the admin to close.")
+    await db.reverse_auction_invitations.update_one(
+        {"_id": inv["_id"]},
+        {"$set": {"status": "declined",
+                   "declined_at": now_iso(),
+                   "decline_reason": payload.reason.strip()}})
+    # Soft notification to admin so the reason is seen immediately.
+    try:
+        a = await db.reverse_auctions.find_one({"_id": ObjectId(inv["auction_id"])})
+        title = (a or {}).get("title") or inv["auction_id"]
+        ref = (a or {}).get("notice_ref") or ""
+        await notify_role("admin",
+            f"Reverse auction invite declined — {title}",
+            email_wrap("Invitation declined",
+                f"<p><strong>{inv['email']}</strong> declined the invite for "
+                f"<strong>{title}</strong> ({ref}).</p>"
+                f"<p><strong>Reason:</strong> {payload.reason.strip()}</p>"),
+            related_type="auction", related_id=inv["auction_id"])
+    except Exception:
+        pass
+    return {"ok": True, "status": "declined"}
+
+
+@router.get("/awarded/list")
+async def list_awarded_auctions(admin=Depends(current_admin)):
+    """v53j — admin digest of all awarded reverse auctions with winner,
+    saving %, pipeline stage. Powers the new 'Recently awarded' panel."""
+    out = []
+    async for a in db.reverse_auctions.find(
+        {"status": "closed", "awarded_bid_id": {"$ne": None}}
+    ).sort("awarded_at", -1).limit(200):
+        aid = str(a["_id"])
+        start = float(a.get("starting_price") or 0)
+        final = float(a.get("current_price") or 0)
+        saving_pct = ((start - final) / start * 100.0) if start > 0 else 0.0
+        bid = None
+        try:
+            bid = await db.bids.find_one({"_id": ObjectId(a["awarded_bid_id"])})
+        except Exception:
+            pass
+        w = a.get("winner") or {}
+        out.append({
+            "auction_id": aid,
+            "title": a.get("title"),
+            "notice_ref": a.get("notice_ref"),
+            "currency": a.get("currency"),
+            "starting_price": start,
+            "winning_price": final,
+            "saving_pct": round(saving_pct, 2),
+            "winner_company": w.get("company_name"),
+            "winner_email": w.get("vendor_email"),
+            "closed_at": a.get("closed_at"),
+            "awarded_at": a.get("awarded_at"),
+            "awarded_bid_id": a.get("awarded_bid_id"),
+            "bid_ref": (bid or {}).get("bid_ref"),
+            "pipeline_stage": (bid or {}).get("status") or "unknown",
+        })
+    return {"items": out, "count": len(out)}
 
 
 # ---------- Invitations (v46b) ----------------------------------------

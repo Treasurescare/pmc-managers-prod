@@ -143,6 +143,7 @@ import AdminEngagementsE from "@/apps/admin-console-e/AdminEngagementsE";
 import AdminBillingE from "@/apps/admin-console-e/AdminBillingE";
 import AdminEvaluationListE from "@/apps/admin-console-e/AdminEvaluationListE";
 import AdminAwardsE from "@/apps/admin-console-e/AdminAwardsE";
+import AdminAwardedAuctionsE from "@/apps/admin-console-e/AdminAwardedAuctionsE";
 import AdminEventsE from "@/apps/admin-console-e/AdminEventsE";
 import AdminAuctionsE from "@/apps/admin-console-e/AdminAuctionsE";
 import AdminStakeholderReportsE from "@/apps/admin-console-e/AdminStakeholderReportsE";
@@ -259,6 +260,7 @@ export default function App() {
             <Route path="/admin/e/evaluation" element={<AdminEvaluationE />} />
             <Route path="/admin/e/l1-award" element={<AdminL1AwardE />} />
             <Route path="/admin/e/awards" element={<AdminAwardsE />} />
+            <Route path="/admin/e/awarded-auctions" element={<AdminAwardedAuctionsE />} />
             <Route path="/admin/e/docusign" element={<AdminDocuSignE />} />
             <Route path="/admin/e/permissions" element={<AdminPermissionsE />} />
             <Route path="/admin/e/masters" element={<AdminMastersE />} />
