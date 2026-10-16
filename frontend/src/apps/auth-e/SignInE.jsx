@@ -82,14 +82,19 @@ export default function SignInE({ legacy: Legacy }) {
           return;
         }
       }
-      const roleCandidates = role === "admin" ? ["admin"] : ["reviewer", "management", "agent", "committee_member", "admin"];
+      // v53o — try all active staff roles for the staff sign-in card
+      const allStaffRoles = [
+        "reviewer", "escrow_agent", "certifier", "legal_counsel", "accounting",
+        "committee_member", "auditor", "support", "management", "partner", "agent",
+      ];
+      const roleCandidates = role === "admin" ? ["admin"] : allStaffRoles;
       let lastErr = null;
       for (const rc of roleCandidates) {
         try {
           const r = await staffApi.login(email, password, rc, undefined);
           if (r && !r.mfa_required) {
             toast.success(`Signed in · ${r.active_role}`);
-            if (["admin", "reviewer"].includes(r.active_role)) return nav("/admin");
+            if (role === "admin" || r.active_role === "admin") return nav("/admin");
             return nav("/staff");
           }
           if (r && r.mfa_required) {

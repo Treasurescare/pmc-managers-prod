@@ -1,4 +1,12 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
+## v53o — Staff role resolution, avatar role display & portal routing (16 Oct 2026)
+
+- **Fix (Staff portal routing & role candidates in SignInE):** Expanded `allStaffRoles` candidate list in `SignInE.jsx` to include `escrow_agent`, `certifier`, `legal_counsel`, `accounting`, `auditor`, `support`. Non-admin staff are routed to `/staff` rather than `/admin`.
+- **Fix (StaffLogin.jsx):** Default role dropdown changed from `admin` to `reviewer`. Only `res.active_role === "admin"` routes to `/admin`; all others route to `/staff`.
+- **Fix (AdminAvatarMenu.jsx):** Role subtitle dynamically renders `ROLE_DISPLAY[me.role]` (e.g. "Reviewer", "Escrow Agent", "Staff") instead of hardcoded "Administrator".
+- Bundles: pmc-backend-v53o.zip + pmc-frontend-v53o-prod-build.zip.
+
+
 ## v53n — Fix set-password→crash-to-login loop in signatory claim (16 Oct 2026)
 
 - **Blocker fixed:** admin approve → magic-link set-password worked

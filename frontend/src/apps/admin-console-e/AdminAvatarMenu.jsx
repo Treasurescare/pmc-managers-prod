@@ -4,6 +4,20 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { adminApi, showApiError } from "@/lib/api";
 
+const ROLE_DISPLAY = {
+  admin: "Administrator",
+  reviewer: "Reviewer",
+  escrow_agent: "Escrow Agent",
+  certifier: "Site Certifier",
+  legal_counsel: "Legal Counsel",
+  accounting: "Accounting Team",
+  committee_member: "Bid Committee",
+  auditor: "Auditor",
+  support: "Support",
+  management: "Management",
+  partner: "Partner",
+};
+
 // Admin avatar with working dropdown: profile info, change photo,
 // change password, sign out. Used by AdminEShell and the two pages
 // (Dashboard, Bidding Ops) that render their own top bar.
@@ -136,7 +150,9 @@ export default function AdminAvatarMenu() {
             </span>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontWeight: 600, fontSize: 14, maxWidth: 150, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} data-testid="avatar-email">{email}</div>
-              <div className="pmc-muted" style={{ fontSize: 12 }}>Administrator</div>
+              <div className="pmc-muted" style={{ fontSize: 12 }}>
+                {ROLE_DISPLAY[me?.role] || ROLE_DISPLAY[me?.active_role] || (me?.role ? me.role : "Staff")}
+              </div>
             </div>
           </div>
           <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPhoto} data-testid="avatar-file-input" />

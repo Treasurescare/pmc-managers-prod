@@ -4,17 +4,25 @@ import { toast } from "sonner";
 import { staffApi, formatApiError, showApiError} from "@/lib/api";
 
 const ROLE_LABELS = {
-  admin: "Admin", reviewer: "Reviewer",
-  escrow_agent: "Escrow Agent", certifier: "Site Certifier",
-  legal_counsel: "Legal Counsel", accounting: "Accounting Team",
-  committee_member: "Bid Committee", auditor: "Auditor", support: "Support",
+  admin: "Administrator",
+  reviewer: "Reviewer",
+  escrow_agent: "Escrow Agent",
+  certifier: "Site Certifier",
+  legal_counsel: "Legal Counsel",
+  accounting: "Accounting Team",
+  committee_member: "Bid Committee",
+  auditor: "Auditor",
+  support: "Support",
+  management: "Management",
+  partner: "Partner",
+  agent: "Agent",
 };
 
 export default function StaffLogin() {
   const nav = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState("admin");
+  const [role, setRole] = useState("reviewer");
   const [roles, setRoles] = useState(Object.keys(ROLE_LABELS));
   const [loading, setLoading] = useState(false);
   const [otpRequired, setOtpRequired] = useState(false);
@@ -36,7 +44,7 @@ export default function StaffLogin() {
         return;
       }
       toast.success(`Signed in as ${ROLE_LABELS[role] || role}`);
-      if (["admin", "reviewer"].includes(res.active_role)) nav("/admin");
+      if (res.active_role === "admin") nav("/admin");
       else nav("/staff");
     } catch (err) {
       showApiError(err);
