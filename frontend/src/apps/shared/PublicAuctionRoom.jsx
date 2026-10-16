@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { reverseAuctionApi } from "@/lib/api";
 import TopBar from "@/apps/shared/TopBar";
 
@@ -60,6 +60,13 @@ export default function PublicAuctionRoom() {
     <div className="min-h-screen bg-brand-pale" data-testid="public-auction-spectator">
       <TopBar />
       <main className="max-w-5xl mx-auto px-6 lg:px-10 py-8">
+        {/* v53b — spectator view was a dead-end; give a way back. */}
+        <div className="mb-4" data-testid="spectator-back">
+          <Link to="/notices"
+                className="text-[11px] uppercase tracking-widest text-brand-navy/70 hover:text-brand-navy border-b border-brand-navy/30">
+            ← Back to notices
+          </Link>
+        </div>
         <div className="pmc-label">Reverse Auction · Public spectator view</div>
         <h1 className="font-display text-3xl lg:text-4xl mt-1 text-brand-navy">{state.title}</h1>
         <div className="text-sm text-brand-navy-soft font-mono mt-1">{state.notice_ref}</div>

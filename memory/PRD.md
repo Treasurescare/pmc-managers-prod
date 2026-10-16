@@ -1,4 +1,28 @@
 # PMC Managers v2 — PRD (last touched 15 Oct 2026)
+## v53b — Reverse-auction award hand-off (16 Oct 2026)
+
+- **Gap closed:** auction close was previously silent and terminal — no
+  emails, no bid record, no award path; winners couldn't tell they won.
+- **Backend (auction_live.py):** close now fans out emails (admin summary +
+  next step, winner "you won" + pipeline explainer, losers not-selected —
+  winner identity stays masked). New idempotent `POST /{aid}/award` creates
+  a `BID-AUC-XXXXXX` bid at `emd_paid` (source=reverse_auction, linked to
+  notice_ref) and fires the standard `notify_bid_transition` to the escrow
+  agent — **full governance pipeline kept per user decision** (escrow →
+  certifier → legal → accounting → award docs). `_stamp_outcome()` adds
+  outcome=won/lost + winning_price + awarded_bid_id to vendor `/mine`.
+- **Frontend:** LiveAuctionsPanel closed rows get "Award winner" button →
+  "Awarded · in pipeline" badge; VendorAuctionsE shows won/lost outcome
+  cards with My bids link; PublicAuctionRoom gets a "← Back to notices"
+  link (was a dead-end).
+- **E2E verified (preview):** full lifecycle create→register→start→bid→
+  close→award→re-award (idempotent)→vendor outcome=won. Test data cleaned.
+- **Also answered:** prod email config is FINE — prod test-send returned
+  ok:true via Resend; the user's missing profile-change mail is a
+  delivery/spam or old-backend question, pending their inbox check.
+- **Bundles:** pmc-backend-v53b.zip + pmc-frontend-v53b-prod-build.zip.
+
+
 ## v53a — Vendor address form: masters cascade (16 Oct 2026)
 
 - **VendorAccountE.jsx** Registered-address change form rebuilt:

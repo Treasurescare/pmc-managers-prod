@@ -246,6 +246,31 @@ export default function LiveAuctionsPanel() {
                     {t("panels.live_auctions.winner_prefix")} {a.winner.alias} · {a.currency} {a.winner.winning_price?.toLocaleString()}
                   </span>
                 )}
+                {/* v53b — award hand-off: push the winner into the standard
+                    bid pipeline (emd_paid → escrow → certifier → legal →
+                    accounting → awarded). Idempotent on the backend. */}
+                {a.status === "closed" && a.winner && !a.awarded_bid_id && (
+                  <button type="button"
+                          onClick={async () => {
+                            try {
+                              const r = await reverseAuctionApi.award(a.id);
+                              toast.success(r.already_awarded
+                                ? `Already awarded — bid ${r.bid_id}`
+                                : `Bid ${r.bid_ref} created at emd_paid — continue in Bidding Ops`);
+                              load();
+                            } catch (e) { showApiError(e); }
+                          }}
+                          data-testid={`ra-award-${a.id}`}
+                          className="text-[10px] uppercase tracking-widest px-3 py-1 text-white bg-brand-navy hover:bg-brand-navy-deep">
+                    Award winner
+                  </button>
+                )}
+                {a.status === "closed" && a.awarded_bid_id && (
+                  <span className="text-[10px] uppercase tracking-widest px-2 py-1 border border-emerald-600 text-emerald-700"
+                        data-testid={`ra-awarded-${a.id}`}>
+                    Awarded · in pipeline
+                  </span>
+                )}
                 {/* RA-01 fix — post-auction summary report */}
                 {a.status === "closed" && (
                   <button type="button" onClick={() => setSummaryFor(summaryFor === a.id ? null : a.id)}

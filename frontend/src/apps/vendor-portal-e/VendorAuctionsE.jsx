@@ -48,6 +48,26 @@ export default function VendorAuctionsE() {
                       <span className={`pmc-pill ${a.status === "live" ? "pmc-pill--success" : a.status === "draft" ? "pmc-pill--info" : "pmc-pill--warning"}`}>{a.status}</span>
                       {a.why && <span style={{ marginLeft: 8, color: "var(--on-chrome-muted)" }}>· {a.why}</span>}
                     </div>
+                    {/* v53b — closed-auction outcome so the vendor immediately
+                        knows whether they won and what happens next. */}
+                    {a.status === "closed" && a.outcome === "won" && (
+                      <div data-testid={`va-won-${a.id}`}
+                           style={{ marginTop: 8, padding: "8px 12px", borderRadius: 6,
+                                    background: "rgba(16,122,74,.08)", border: "1px solid rgba(16,122,74,.35)",
+                                    fontSize: 12, color: "#0f5132" }}>
+                        <strong>You won this auction</strong>
+                        {a.winning_price != null && <> at {a.currency} {Number(a.winning_price).toLocaleString()}</>}.
+                        {a.awarded_bid_id
+                          ? <> The award is confirmed — your bid is moving through the approval pipeline. Track it under <Link to="/vendor/mybids">My bids</Link>.</>
+                          : <> PMC will confirm the award shortly; you'll then receive the purchase order for e-signature.</>}
+                      </div>
+                    )}
+                    {a.status === "closed" && a.outcome === "lost" && (
+                      <div data-testid={`va-lost-${a.id}`}
+                           style={{ marginTop: 8, fontSize: 12, color: "var(--on-chrome-muted)" }}>
+                        This auction has closed — your bid was not the lowest this round.
+                      </div>
+                    )}
                   </div>
                   <div style={{ alignSelf: "center" }}>
                     <Link to={`/vendor/auction/${a.id}`} className="pmc-btn pmc-btn--primary pmc-btn--sm" data-testid={`va-enter-${a.id}`}>

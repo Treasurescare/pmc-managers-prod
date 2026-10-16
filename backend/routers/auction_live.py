@@ -29,6 +29,7 @@ from security import require_role, current_admin
 from routers.vendor_auth import current_vendor
 from audit import audit_log
 from emails import send_email, wrap as email_wrap
+from notify import notify_role, notify_bid_transition
 
 router = APIRouter(prefix="/api/v1/reverse-auctions", tags=["reverse-auctions"])
 
@@ -87,6 +88,17 @@ def _iso_to_dt(iso: str) -> datetime:
 def _out_auction(a: dict) -> dict:
     o = BaseDocument.out(dict(a))
     return o
+
+
+def _stamp_outcome(out: dict, raw: dict, vendor_id: str) -> None:
+    """v53b — on closed auctions, tell THIS vendor whether they won, plus the
+    winning price. Winner identity (company name) stays masked to losers."""
+    if raw.get("status") != "closed":
+        return
+    w = raw.get("winner") or {}
+    out["outcome"] = "won" if w.get("vendor_id") == vendor_id else "lost"
+    out["winning_price"] = raw.get("current_price")
+    out["awarded_bid_id"] = raw.get("awarded_bid_id")
 
 
 async def _mask_participants(aid: str) -> dict:
@@ -321,6 +333,7 @@ async def list_my_reverse_auctions(vendor=Depends(current_vendor)):
         ).sort("created_at", -1).limit(100):
             out = _out_auction(a)
             out["why"] = "You bid on this tender"
+            _stamp_outcome(out, a, vendor["id"])
             rows.append(out); seen.add(out["id"])
     # Also match any explicit invite row for this vendor's email.
     async for inv in db.reverse_auction_invitations.find(
@@ -333,6 +346,7 @@ async def list_my_reverse_auctions(vendor=Depends(current_vendor)):
         if not a: continue
         out = _out_auction(a)
         out["why"] = "You were invited by PMC"
+        _stamp_outcome(out, a, vendor["id"])
         rows.append(out); seen.add(out["id"])
     return {"items": rows, "count": len(rows)}
 
@@ -391,6 +405,7 @@ async def close_reverse_auction(aid: str, admin=Depends(require_role("admin"))):
             "vendor_id": a["current_leader_id"],
             "company_name": p.get("company_name") if p else None,
             "alias": p.get("alias") if p else None,
+            "vendor_email": p.get("vendor_email") if p else None,
             "winning_price": a.get("current_price"),
         }
     await db.reverse_auctions.update_one(
@@ -400,7 +415,124 @@ async def close_reverse_auction(aid: str, admin=Depends(require_role("admin"))):
     await audit_log("reverse_auction.close", admin, "auction", aid,
                     {"winning_price": a.get("current_price"),
                      "winner_alias": winner["alias"] if winner else None})
+    # v53b — close fan-out. Today closing an auction was silent: nobody was
+    # told who won or what happens next. Now:
+    #   admin  → winner summary + "click Award winner" next step
+    #   winner → "you won" mail with the pipeline that follows
+    #   losers → polite not-selected mail
+    try:
+        cur = a.get("currency", "USD")
+        money = (f"{cur} {a.get('current_price'):,.0f}"
+                 if a.get("current_price") else "—")
+        start_money = f"{cur} {a.get('starting_price', 0):,.0f}"
+        title = a.get("title") or aid
+        ref = a.get("notice_ref") or ""
+        if winner:
+            await notify_role(
+                "admin",
+                f"Reverse auction closed — {title}",
+                email_wrap("Reverse auction closed",
+                    f"<p><strong>{title}</strong> ({ref}) has closed.</p>"
+                    f"<p>Winner: <strong>{winner.get('company_name') or winner.get('alias')}</strong> "
+                    f"({winner.get('alias')}) at <strong>{money}</strong> "
+                    f"(started at {start_money}).</p>"
+                    f"<p><strong>Next step:</strong> open this auction in the admin "
+                    f"console (Reverse auctions) and click <strong>Award winner</strong> "
+                    f"— the winning bid enters the standard EMD &rarr; escrow &rarr; "
+                    f"legal &rarr; accounting pipeline before the award is final.</p>"),
+                related_type="auction", related_id=aid)
+            if winner.get("vendor_email"):
+                await send_email(
+                    winner["vendor_email"],
+                    f"You won the reverse auction — {title}",
+                    email_wrap("You won the reverse auction",
+                        f"<p>Congratulations — your bid of <strong>{money}</strong> was "
+                        f"the lowest in <strong>{title}</strong> ({ref}).</p>"
+                        f"<p>PMC will now confirm the award. Once confirmed, your bid "
+                        f"enters the standard pipeline (EMD verification &rarr; escrow "
+                        f"&rarr; legal &rarr; accounting) and you'll receive the purchase "
+                        f"order for e-signature. Track progress under "
+                        f"<em>My bids</em> in the supplier portal.</p>"))
+            async for lp in db.reverse_auction_participants.find(
+                    {"auction_id": aid, "vendor_id": {"$ne": winner["vendor_id"]}}):
+                if not lp.get("vendor_email"):
+                    continue
+                await send_email(
+                    lp["vendor_email"],
+                    f"Reverse auction closed — {title}",
+                    email_wrap("Reverse auction closed",
+                        f"<p><strong>{title}</strong> ({ref}) has closed. Your bid was "
+                        f"not the lowest on this round, so you have not been selected.</p>"
+                        f"<p>Thank you for participating — watch the supplier portal for "
+                        f"future rounds.</p>"))
+    except Exception:
+        pass  # email failures must never block the close itself
     return {"ok": True, "status": "closed", "winner": winner}
+
+
+@router.post("/{aid}/award")
+async def award_reverse_auction(aid: str, admin=Depends(require_role("admin"))):
+    """v53b — hand the winner into the standard bid pipeline.
+
+    Creates a bids row at status=emd_paid (source=reverse_auction) linked to
+    the parent notice. From there it flows through the normal chain
+    (escrow → certifier → legal → accounting → awarded) exactly like a
+    sealed-bid winner — user decision: reverse-auction awards must NOT skip
+    governance sign-off. Idempotent: a second click returns the same bid.
+    """
+    a = await db.reverse_auctions.find_one({"_id": ObjectId(aid)})
+    if not a:
+        raise HTTPException(status_code=404, detail="Auction not found")
+    if a.get("status") != "closed":
+        raise HTTPException(status_code=400,
+            detail="Award is only possible after the auction is closed.")
+    winner = a.get("winner") or {}
+    if not winner.get("vendor_id"):
+        raise HTTPException(status_code=400,
+            detail="This auction closed with no bids — there is no winner to award.")
+    if a.get("awarded_bid_id"):
+        return {"ok": True, "already_awarded": True, "bid_id": a["awarded_bid_id"]}
+    existing = await db.bids.find_one({"auction_id": aid})
+    if existing:
+        bid_id = str(existing["_id"])
+        await db.reverse_auctions.update_one(
+            {"_id": ObjectId(aid)}, {"$set": {"awarded_bid_id": bid_id}})
+        return {"ok": True, "already_awarded": True, "bid_id": bid_id}
+    bid_ref = f"BID-AUC-{aid[-6:].upper()}"
+    bid = {
+        "bid_ref": bid_ref,
+        "notice_ref": a.get("notice_ref"),
+        "vendor_id": winner["vendor_id"],
+        "vendor_email": winner.get("vendor_email"),
+        "company_name": winner.get("company_name"),
+        "status": "emd_paid",
+        "price_amount": winner.get("winning_price"),
+        "price_currency": a.get("currency", "USD"),
+        "source": "reverse_auction",
+        "auction_id": aid,
+        "created_at": now_iso(),
+        "created_by_email": admin.get("email"),
+    }
+    res = await db.bids.insert_one(bid)
+    bid_id = str(res.inserted_id)
+    await db.reverse_auctions.update_one(
+        {"_id": ObjectId(aid)},
+        {"$set": {"awarded_bid_id": bid_id, "awarded_at": now_iso(),
+                   "awarded_by": admin.get("email")}})
+    # emd_paid → escrow agent is the next stage in the standard pipeline;
+    # reuse the same notification copy sealed bids use.
+    try:
+        bid["id"] = bid_id
+        await notify_bid_transition(bid, "emd_paid")
+    except Exception:
+        pass
+    await audit_log("reverse_auction.award", admin, "auction", aid,
+                    {"bid_id": bid_id, "bid_ref": bid_ref,
+                     "winner": winner.get("company_name"),
+                     "winning_price": winner.get("winning_price")})
+    return {"ok": True, "bid_id": bid_id, "bid_ref": bid_ref,
+            "status": "emd_paid",
+            "next_step": "Bid created at emd_paid — continue in Bidding Ops."}
 
 
 # ---------- Vendor endpoints ------------------------------------------
