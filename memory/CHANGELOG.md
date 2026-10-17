@@ -1,5 +1,18 @@
 # PMC Managers — Changelog
 
+## v54l — 17 Feb 2026 — Vendor "Request change" document 400 fix
+- **Company-name change rejected with HTTP 400** ("supporting document is
+  required") even though the file showed attached. Root cause: the uploader
+  set `evidence.key` from the direct-upload response (`r.data.key`) instead of
+  the canonical presign key (`pres.data.key`); when the upload response had no
+  `key`, `evidence_key` went out null → backend (correctly) rejected it.
+- Fix: use `pres.data.key` for evidence + require `evidence.key` in the submit
+  guard and Submit-button disable. (`frontend/src/apps/vendor-portal-e/VendorAccountE.jsx`)
+- Verified on preview via real UI (success toast, Pending request) and via API
+  (WITH evidence → 200, WITHOUT → 400). Backend was already correct.
+- Build stamp → v54l (backend otherwise identical to v54k).
+- Bundles: `pmc-backend-v54l.zip`, `pmc-frontend-v54l-prod-build.zip`.
+
 ## v54k — 17 Feb 2026 — Approve-registration 500 fix
 - **Approving a SUBMITTED registration → HTTP 500** when a vendor with the
   same email already existed (e.g. company also added via Admin→Vendors, or a

@@ -193,3 +193,15 @@ and backlog.
 - Verified in preview: collision→409 (was 500), clean approve→200 (vendor
   created), double-approve→409.
 - Bundles: `pmc-backend-v54k.zip`, `pmc-frontend-v54k-prod-build.zip`.
+
+## Status note — v54l (17 Feb 2026): vendor "Request change" document 400 fix
+- Vendor Account → Company name → Request change returned HTTP 400 "supporting
+  document is required" even with a file attached. Root cause: uploader set
+  `evidence.key` from the direct-upload response (`r.data.key`) instead of the
+  canonical presign key (`pres.data.key`); null key → backend (correctly)
+  rejected. Production was running an OLD frontend (main.0dfca871.js) with this
+  path; current repo now uses the presign key + requires `evidence.key`.
+  (`frontend/src/apps/vendor-portal-e/VendorAccountE.jsx`)
+- Verified on preview via real UI (success toast + Pending request) and API
+  (WITH evidence → 200, WITHOUT → 400). Backend already correct.
+- Bundles: `pmc-backend-v54l.zip`, `pmc-frontend-v54l-prod-build.zip`.

@@ -124,7 +124,11 @@ export default function VendorAccountE({ legacy: Legacy }) {
       const r = await (await import("@/lib/api")).api.post(pres.data.direct_url, fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      setEvidence({ key: r.data.key, filename: file.name, size_bytes: r.data.size_bytes });
+      // v54l — use the canonical presign key (always present). In the S3
+      // phase the direct-upload response has no JSON `key`, so `r.data.key`
+      // was undefined → evidence_key went out null → backend returned 400
+      // "A supporting document is required" even though a file was attached.
+      setEvidence({ key: pres.data.key, filename: file.name, size_bytes: (r?.data?.size_bytes ?? file.size) });
       toast.success(`Uploaded: ${file.name}`);
     } catch (e) {
       showApiError(e, { fallbackTitle: "Upload failed" });
@@ -177,7 +181,7 @@ export default function VendorAccountE({ legacy: Legacy }) {
       return;
     }
     // v51t — company_name requires a supporting incorporation document.
-    if (editing === "company_name" && !evidence) {
+    if (editing === "company_name" && !evidence?.key) {
       toast.error("Please upload a certificate of incorporation or change-of-name certificate.");
       return;
     }
@@ -512,7 +516,7 @@ export default function VendorAccountE({ legacy: Legacy }) {
                         saving ||
                         phoneError !== "" ||
                         addrError !== "" ||
-                        (editing === "company_name" && !evidence) ||
+                        (editing === "company_name" && !evidence?.key) ||
                         (editing === "address"
                           ? !(addrParts.address1.trim() && addrParts.city.trim() && addrParts.country && addrParts.zip.trim() && (addrStates.length === 0 || addrParts.state_code))
                           : (editing === "mobile" || editing === "office_phone")
