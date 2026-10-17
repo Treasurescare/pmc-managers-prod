@@ -1,5 +1,22 @@
 # PMC Managers — Changelog
 
+## v54j — 17 Feb 2026 — Reference-data expansion
+- **ZIP/postal validation now fires**: backfilled `postal_code_regex` +
+  `postal_code_format` onto `masters_countries` for ~86 countries (was 0).
+  New `scripts/seed_postal_formats.py`; backfilled on every startup.
+- **Country ID formats 17 → 34**: added Malaysia (SSM), ID, TH, VN, PH, PK,
+  BD, AE, SA, QA, EG, KE, CA, MX, NL, ES, IT, TR, PL to
+  `seed_country_formats.FORMATS`. Startup now upserts formats on every boot
+  (was only when empty) so new countries reach prod.
+- **Banks 159 → 198 (26 countries)**: added MY/ID/TH/VN/PH/SA/QA/KW/EG/KE top
+  banks + SWIFT prefixes to `seed_banks`.
+- **Manual state/city entry**: Section D office editor State is now a
+  type-or-pick `<input list>` (free text allowed); City enables on any state
+  value. (`RegionOfficeEditor.jsx`)
+- Verified via testing_agent iteration 86 (100% frontend pass): Malaysia reg
+  format validation, SWIFT autofill, ZIP validation, custom state entry.
+- Build stamp → v54j. Bundles: `pmc-backend-v54j.zip`, `pmc-frontend-v54j-prod-build.zip`.
+
 ## v54i — 17 Feb 2026 — Stale-bundle self-heal
 - **ROOT CAUSE of the recurring "uploads don't View/Download and vanish on
   save" report**: NOT a code bug. Reproduced the user's exact production

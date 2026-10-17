@@ -164,3 +164,20 @@ and backlog.
 - Action for user: deploy v54i pair + CloudFront `/*` invalidation. After
   that, stuck clients auto-recover on next load.
 
+## Status note — v54j (17 Feb 2026): reference-data expansion
+- Seeded postal/ZIP regex for ~86 countries (`scripts/seed_postal_formats.py`)
+  — ZIP validation in the Section D office editor now fires (was dead: 0
+  countries had regex).
+- Country ID formats 17 → 34 (added MY/ID/TH/VN/PH/PK/BD/AE/SA/QA/EG/KE/CA/
+  MX/NL/ES/IT/TR/PL); banks 159 → 198 across 26 countries. Startup bootstrap
+  now upserts formats + postal on every boot so new data reaches prod.
+- Section D office editor: State/City are now type-or-pick (manual entry
+  allowed) for renamed/missing places. (`RegionOfficeEditor.jsx`)
+- Verified by testing_agent iter 86 (100% frontend pass).
+- HONEST LIMITS: complete global bank+SWIFT+routing and authoritative
+  per-country license codes for all 250 countries are not public data —
+  seeded major markets + kept free-text/admin-curation for the long tail.
+  Backlog: expand more countries' formats/banks/licenses on request;
+  optional GeoNames city-level ZIP lookup if true ZIP↔city match is needed.
+- Bundles: `pmc-backend-v54j.zip`, `pmc-frontend-v54j-prod-build.zip`.
+
