@@ -74,7 +74,7 @@ export default function RegistrationResume() {
         "submitted_at", "vendor_ref", "reviewed_at", "reviewer_notes",
         "reviewed_by", "approved_at", "rejected_at", "magic_token",
         "email", "data_processing_consent", "marketing_consent",
-        "consent_at",
+        "consent_at", "document_slots",
       ]) delete payload[k];
       const fresh = fromAdmin && ridParam
         ? await adminApi.registrationAdminUpdate(ridParam, payload)

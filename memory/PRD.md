@@ -10,6 +10,23 @@ reverse auctions, bid governance, EMD escrow workflows, vendor/staff/
 institution portals, AWS deployment bundles, and transactional notifications
 (Stripe, Resend, DocuSign, Emergent crons).
 
+## Current P0 — v54c FINAL all-in-one (17 Feb 2026)
+v54c bundles = v54a (escrow EMD pack) + v54b (registration unblocked) +
+v54c (signature whitelist + upload persistence). Deploy ONLY the v54c pair.
+
+v54c root fixes on top of v54b:
+- `REGISTRATION_UPDATE_FIELDS` whitelist (api.js) was missing
+  `signature_name/title/date` and `directors` — the browser silently
+  dropped the signature block on every save → Submit always 400'd with
+  "Missing signature field: signature_name". Whitelist extended.
+- `adminApi.registrationAdminUpdate` bypassed the whitelist → admin
+  "Edit sections" 422'd on extras. Now routed through `_stripRegExtras`.
+- `document_slots` deliberately excluded from save whitelist — upload
+  state is owned exclusively by the slot endpoints; stale-tab PATCHes
+  can no longer wipe uploaded files.
+- Verified E2E against preview: create → upload → save → resume →
+  view file 200 → submit 200.
+
 ## Current P0 — Escrow EMD operational pack (v54a, 16 Feb 2026)
 Delivered in this release:
 - Signatory-pool returns `{pmc_officers, institutions}` reliably; now also

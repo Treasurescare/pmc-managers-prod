@@ -1,5 +1,19 @@
 # PMC Managers — Changelog
 
+## v54c — 17 Feb 2026 — FINAL all-in-one (registration + escrow)
+- **ROOT FIX**: `REGISTRATION_UPDATE_FIELDS` whitelist in `api.js` was
+  missing `signature_name/title/date` and `directors` — the browser
+  silently dropped the signature block on every save, so Submit always
+  400'd. Whitelist extended; verified save → resume → submit = 200.
+- `adminApi.registrationAdminUpdate` now routes through `_stripRegExtras`
+  (admin "Edit sections" screen was 422ing on `email`/consent extras).
+- `document_slots` deliberately excluded from the save whitelist and
+  stripped in `saveDraft` — slot state is owned by the upload/delete
+  endpoints only, so a stale-tab save can no longer wipe uploaded files.
+- Full E2E verified: create → upload → save (signature persists) →
+  resume (slots intact) → view file 200 → submit 200.
+- v54c bundles contain v54a + v54b + v54c. Deploy ONLY the v54c pair.
+
 ## v54b — 17 Feb 2026 — Public vendor registration unblocked
 - **BUG FIX**: `/api/v1/meta/countries` now reads the full
   `masters_countries` master (250 rows) instead of the 30-row pilot

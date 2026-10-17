@@ -183,6 +183,15 @@ const REGISTRATION_UPDATE_FIELDS = new Set([
   "documents", "decl_conflict_of_interest", "decl_integrity", "decl_accuracy",
   "decl_data_consent", "decl_fee", "decl_notification",
   "primary_unspsc_code", "primary_unspsc_title",
+  // v54c — Section E signature block + Directors section were silently
+  // stripped by this whitelist, so the signature never reached the DB and
+  // submit always failed with "Missing signature field: signature_name".
+  "signature_name", "signature_title", "signature_date",
+  "directors",
+  // NOTE: `document_slots` is deliberately NOT here. Uploads manage their
+  // own state through the dedicated slot endpoints; if a stale-tab PATCH
+  // carried document_slots it could wipe a doc uploaded in another tab —
+  // the exact "file is gone after navigating" bug.
 ]);
 const _stripRegExtras = (payload) => {
   if (!payload || typeof payload !== "object") return payload;
@@ -247,7 +256,7 @@ export const adminApi = {
   // registration using the same 5-section stepper the vendor fills.
   registrationResumeLink: (rid) => api.get(`/api/v1/registrations/admin/${rid}/resume-link`).then((r) => r.data),
   registrationAdminUpdate: (rid, payload) =>
-    api.patch(`/api/v1/registrations/admin/${rid}`, payload).then((r) => r.data),
+    api.patch(`/api/v1/registrations/admin/${rid}`, _stripRegExtras(payload)).then((r) => r.data),
   getRegistration: (id) => api.get(`/api/v1/registrations/${id}`).then((r) => r.data),
   decideRegistration: (id, action, notes) =>
     api.post(`/api/v1/registrations/${id}/decision`, { action, notes }).then((r) => r.data),
