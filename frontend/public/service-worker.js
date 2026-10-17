@@ -12,7 +12,7 @@
  * page load; no manual "clear cache" needed.
  */
 
-const CACHE_VERSION = "pmc-shell-v50j-rev1";
+const CACHE_VERSION = "pmc-shell-v54i";
 const SHELL_ASSETS = [
   "/",
   "/manifest.json",
@@ -61,10 +61,11 @@ self.addEventListener("install", (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_VERSION);
     try { await cache.addAll(SHELL_ASSETS); } catch (_) { /* offline install */ }
-    // v50j — do NOT auto skipWaiting on install. We now wait for an explicit
-    // SKIP_WAITING message from the page (triggered when the user taps the
-    // "New version available" banner), so the old controller keeps serving
-    // the current session until the user chooses to upgrade.
+    // v54i — take over promptly so a freshly-deployed build reaches returning
+    // visitors without needing them to tap the update banner. Combined with
+    // the version guard in src/lib/versionGuard.js this eliminates the
+    // "deployed but user still sees old code" class of bug.
+    try { await self.skipWaiting(); } catch (_) {}
   })());
 });
 

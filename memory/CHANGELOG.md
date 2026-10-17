@@ -1,5 +1,22 @@
 # PMC Managers — Changelog
 
+## v54i — 17 Feb 2026 — Stale-bundle self-heal
+- **ROOT CAUSE of the recurring "uploads don't View/Download and vanish on
+  save" report**: NOT a code bug. Reproduced the user's exact production
+  resume link in a clean browser — Section A, C and D all upload correctly,
+  show VIEW/DOWNLOAD/DELETE, and persist through Save + reload (backend
+  returned every slot, file endpoint 200). The vendor's browser was running
+  a cached older JS bundle, so the already-deployed fix never reached them.
+- **Fix**: new version self-heal guard (`src/lib/versionGuard.js`, called
+  from `src/index.js`). On cold load it compares the baked build version to
+  `/api/v1/_version` (always fresh — bypasses SW + CDN). If the backend is
+  newer, it wipes caches, unregisters the SW and hard-reloads once (loop-
+  guarded). Stale clients now recover automatically after any deploy.
+- Service worker `CACHE_VERSION` → `pmc-shell-v54i` and now `skipWaiting()`
+  on install so a new worker takes control promptly (banner reload applies).
+- Build stamp bumped to v54i.
+- Bundles: `pmc-backend-v54i.zip`, `pmc-frontend-v54i-prod-build.zip`.
+
 ## v54h — 17 Feb 2026 — Default country + upload polish
 - `/register` default country now blank + remembered in localStorage
   (prefills your last choice on the next visit) instead of hardcoded KZ.

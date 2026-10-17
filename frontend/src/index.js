@@ -2,11 +2,17 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
 import "./pmc-responsive";
+import { runVersionGuard } from "./lib/versionGuard";
 
 // v52d — Toaster lives in App.js (inside providers / error boundary).
 // Removed the duplicate mount here so every toast renders exactly once
 // (testing_agent iter 67).
 createRoot(document.getElementById("root")).render(<App />);
+
+// v54i — self-heal stale bundles. If the backend reports a newer build than
+// the one that's running, this bundle is being served from a cache: wipe it,
+// drop the SW, and reload once. Runs on every cold load, before SW register.
+runVersionGuard();
 
 // v46p — PWA service worker re-enabled with a safe strategy:
 //   - shell (HTML/JS/CSS/fonts/crest) is stale-while-revalidate

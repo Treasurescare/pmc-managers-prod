@@ -149,3 +149,18 @@ must upload v54a bundles to EB + S3/CloudFront.
 
 See `/app/memory/CHANGELOG.md` and `/app/memory/ROADMAP.md` for history
 and backlog.
+
+## Status note — v54i (17 Feb 2026): registration upload "still broken" = stale client
+- The long-running "uploads don't View/Download / vanish on save" report was
+  reproduced against the user's EXACT production resume link in a clean
+  browser and found to be ALREADY WORKING on the deployed build: Sections A,
+  C and D upload, render VIEW/DOWNLOAD/DELETE, and persist through Save +
+  reload; backend returns all `document_slots` and the file endpoint 200s.
+- Root cause of the user still seeing it: their browser ran a cached older JS
+  bundle (service worker / CloudFront edge). Fix shipped in v54i: version
+  self-heal guard (`frontend/src/lib/versionGuard.js` + `index.js`) that
+  reloads stale clients once when `/api/v1/_version` > baked build version,
+  plus SW `skipWaiting()` and `CACHE_VERSION=pmc-shell-v54i`.
+- Action for user: deploy v54i pair + CloudFront `/*` invalidation. After
+  that, stuck clients auto-recover on next load.
+
