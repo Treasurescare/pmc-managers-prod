@@ -147,18 +147,11 @@ export default function RegionOfficeEditor({ value, onChange, countries }) {
             testId="op-region-new-name" /></Field>
 
           <Field label="Country" required>
-            <select value={draft.country_code}
-                    onChange={(e) => setDraft({ ...draft, country_code: e.target.value,
-                                                 state_code: "", state: "", city: "", zip: "" })}
-                    data-testid="op-region-new-country"
-                    className="mt-1 w-full px-4 py-3 border border-brand-navy/20 bg-white">
-              <option value="">Pick a country…</option>
-              {(countries || []).map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.emoji ? `${c.emoji} ` : ""}{c.code} — {c.name}
-                </option>
-              ))}
-            </select>
+            <CountryCombobox
+              countries={countries || []}
+              value={draft.country_code}
+              onSelect={(code) => setDraft({ ...draft, country_code: code,
+                                             state_code: "", state: "", city: "", zip: "" })} />
           </Field>
 
           <Field label="Address" required className="md:col-span-2">
@@ -214,6 +207,106 @@ export default function RegionOfficeEditor({ value, onChange, countries }) {
           + Add office
         </button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * v54d — searchable country combobox for the office editor.
+ *
+ * Typing letters instantly floats matching countries to the top of the
+ * list (name OR ISO code, starts-with ranked first); the full country
+ * list stays visible below a divider so nothing is ever hidden. Mouse,
+ * Enter (first match) and Escape are all supported. Replaces the plain
+ * 250-row <select> that forced manual scrolling.
+ */
+function CountryCombobox({ countries, value, onSelect }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const selected = (countries || []).find((c) => c.code === value);
+  const query = q.trim().toLowerCase();
+
+  const ranked = useMemo(() => {
+    if (!query) return { matches: [], rest: countries || [] };
+    const m = (countries || []).filter((c) =>
+      (c.name || "").toLowerCase().includes(query) ||
+      (c.code || "").toLowerCase().includes(query));
+    m.sort((a, b) => {
+      const aS = (a.name || "").toLowerCase().startsWith(query) ? 0 : 1;
+      const bS = (b.name || "").toLowerCase().startsWith(query) ? 0 : 1;
+      return aS - bS || (a.name || "").localeCompare(b.name || "");
+    });
+    const mSet = new Set(m.map((c) => c.code));
+    return { matches: m, rest: (countries || []).filter((c) => !mSet.has(c.code)) };
+  }, [countries, query]);
+
+  const pick = (code) => {
+    onSelect(code);
+    setQ("");
+    setOpen(false);
+  };
+
+  const display = open
+    ? q
+    : selected
+      ? `${selected.emoji ? selected.emoji + " " : ""}${selected.code} — ${selected.name}`
+      : "";
+
+  const renderRow = (c) => (
+    <button
+      key={c.code}
+      type="button"
+      onMouseDown={(e) => { e.preventDefault(); pick(c.code); }}
+      data-testid={`op-region-country-option-${c.code}`}
+      className={"w-full text-left px-3 py-2 text-sm hover:bg-brand-navy hover:text-white " +
+                 (c.code === value ? "bg-brand-navy/10 font-semibold " : "") +
+                 "text-brand-navy"}>
+      {c.emoji ? `${c.emoji} ` : ""}{c.code} — {c.name}
+    </button>
+  );
+
+  return (
+    <div className="relative" data-testid="op-region-new-country">
+      <input
+        value={display}
+        placeholder="Type to search country…"
+        onFocus={() => { setQ(""); setOpen(true); }}
+        onChange={(e) => { setQ(e.target.value); setOpen(true); }}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") setOpen(false);
+          if (e.key === "Enter") {
+            e.preventDefault();
+            const first = ranked.matches[0] || ranked.rest[0];
+            if (first) pick(first.code);
+          }
+        }}
+        data-testid="op-region-new-country-input"
+        autoComplete="off"
+        className="mt-1 w-full px-4 py-3 border border-brand-navy/20 bg-white text-brand-navy focus:outline-none focus:border-brand-navy-soft"
+      />
+      {open && (
+        <div className="absolute z-30 left-0 right-0 mt-1 max-h-64 overflow-y-auto bg-white border border-brand-navy/25 shadow-lg"
+             data-testid="op-region-new-country-list">
+          {ranked.matches.length > 0 && (
+            <>
+              <div className="px-3 py-1 text-[10px] uppercase tracking-widest text-emerald-700 bg-emerald-50 sticky top-0">
+                Matches
+              </div>
+              {ranked.matches.map(renderRow)}
+              <div className="px-3 py-1 text-[10px] uppercase tracking-widest text-brand-navy/50 bg-brand-pale sticky">
+                All countries
+              </div>
+            </>
+          )}
+          {ranked.rest.map(renderRow)}
+          {query && ranked.matches.length === 0 && (
+            <div className="px-3 py-2 text-xs text-brand-navy/50 italic">
+              No country matches “{q}” — scroll the full list.
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

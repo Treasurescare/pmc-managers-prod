@@ -10,6 +10,11 @@ reverse auctions, bid governance, EMD escrow workflows, vendor/staff/
 institution portals, AWS deployment bundles, and transactional notifications
 (Stripe, Resend, DocuSign, Emergent crons).
 
+## Current P0 — v54d all-in-one (17 Feb 2026)
+v54d = v54c (registration + escrow fixes) + searchable country combobox in
+Section D Operating Regions (type-to-filter with matches on top, full list
+below; verified live). Deploy the v54d pair and skip v54c.
+
 ## Current P0 — v54c FINAL all-in-one (17 Feb 2026)
 v54c bundles = v54a (escrow EMD pack) + v54b (registration unblocked) +
 v54c (signature whitelist + upload persistence). Deploy ONLY the v54c pair.

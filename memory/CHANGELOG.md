@@ -1,5 +1,14 @@
 # PMC Managers — Changelog
 
+## v54d — 17 Feb 2026 — Searchable country picker in Operating Regions
+- Section D → Operating Regions → Country is now a searchable combobox:
+  type letters to float matches (name or ISO code, starts-with first)
+  under a MATCHES heading; the full 250-country list remains below an
+  ALL COUNTRIES divider. Enter picks first match, Escape closes.
+  Verified live via Playwright: "ind" → IN/ID/IO matched → selected.
+- Backend identical to v54c; frontend rebuilt.
+- Bundles: `pmc-backend-v54d.zip`, `pmc-frontend-v54d-prod-build.zip`.
+
 ## v54c — 17 Feb 2026 — FINAL all-in-one (registration + escrow)
 - **ROOT FIX**: `REGISTRATION_UPDATE_FIELDS` whitelist in `api.js` was
   missing `signature_name/title/date` and `directors` — the browser
