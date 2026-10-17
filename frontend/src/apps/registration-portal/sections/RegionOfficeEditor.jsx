@@ -162,28 +162,32 @@ export default function RegionOfficeEditor({ value, onChange, countries }) {
           </Field>
 
           <Field label="State / Province" required>
-            <select value={draft.state_code}
-                    onChange={(e) => {
-                      const s = states.find((x) => x.state_code === e.target.value);
-                      setDraft({ ...draft, state_code: e.target.value,
-                                 state: s?.name || "", city: "" });
-                    }}
-                    disabled={!draft.country_code}
-                    data-testid="op-region-new-state"
-                    className="mt-1 w-full px-4 py-3 border border-brand-navy/20 bg-white disabled:bg-brand-pale/50">
-              <option value="">
-                {draft.country_code ? (states.length ? "Pick a state…" : "No states for country") : "Pick a country first"}
-              </option>
-              {states.map((s) => <option key={s.state_code} value={s.state_code}>{s.name}</option>)}
-            </select>
+            {/* v54j — type-or-pick: suggests seeded states but accepts a
+                free-typed value so renamed / missing states never block. */}
+            <input list="op-region-state-dl" value={draft.state}
+                   onChange={(e) => {
+                     const typed = e.target.value;
+                     const s = states.find((x) => x.name === typed);
+                     setDraft({ ...draft, state: typed,
+                                state_code: s ? s.state_code : "", city: "" });
+                     setCityQ("");
+                   }}
+                   disabled={!draft.country_code}
+                   data-testid="op-region-new-state"
+                   placeholder={draft.country_code ? (states.length ? "Select or type your state/province…" : "Type your state/province") : "Pick a country first"}
+                   autoComplete="off"
+                   className="mt-1 w-full px-4 py-3 border border-brand-navy/20 bg-white disabled:bg-brand-pale/50" />
+            <datalist id="op-region-state-dl">
+              {states.map((s) => <option key={s.state_code} value={s.name} />)}
+            </datalist>
           </Field>
 
           <Field label="City" required>
             <input list="op-region-city-dl" value={draft.city}
                    onChange={(e) => { setCityQ(e.target.value); setDraft({ ...draft, city: e.target.value }); }}
-                   disabled={!draft.state_code}
+                   disabled={!draft.state}
                    data-testid="op-region-new-city"
-                   placeholder={draft.state_code ? "Type to search city…" : "Pick a state first"}
+                   placeholder={draft.state ? "Select or type your city…" : "Pick a state first"}
                    className="mt-1 w-full px-4 py-3 border border-brand-navy/20 bg-white disabled:bg-brand-pale/50" />
             <datalist id="op-region-city-dl">
               {cities.map((c, i) => <option key={i} value={c.name} />)}

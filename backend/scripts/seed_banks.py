@@ -202,6 +202,58 @@ BANKS = [
     ("US", "Wise USD Account",            "TRWIUS", ("USD",)),
     ("US", "Payoneer",                    "PAYOUS", ("USD",)),
     ("GB", "Payoneer Europe",             "PAYOGB", ("GBP", "EUR", "USD")),
+    # ---- Malaysia ----
+    ("MY", "Maybank",                     "MBBEMY", ("MYR",)),
+    ("MY", "CIMB Bank",                   "CIBBMY", ("MYR",)),
+    ("MY", "Public Bank",                 "PBBEMY", ("MYR",)),
+    ("MY", "RHB Bank",                    "RHBBMY", ("MYR",)),
+    ("MY", "Hong Leong Bank",             "HLBBMY", ("MYR",)),
+    ("MY", "AmBank",                      "ARBKMY", ("MYR",)),
+    ("MY", "Bank Islam Malaysia",         "BIMBMY", ("MYR",)),
+    ("MY", "OCBC Bank (Malaysia)",        "OCBCMY", ("MYR",)),
+    ("MY", "HSBC Bank Malaysia",          "HBMBMY", ("MYR",)),
+    ("MY", "Standard Chartered Malaysia", "SCBLMY", ("MYR",)),
+    # ---- Indonesia ----
+    ("ID", "Bank Mandiri",                "BMRIID", ("IDR",)),
+    ("ID", "Bank Rakyat Indonesia (BRI)", "BRINIID", ("IDR",)),
+    ("ID", "Bank Central Asia (BCA)",     "CENAID", ("IDR",)),
+    ("ID", "Bank Negara Indonesia (BNI)", "BNINIID", ("IDR",)),
+    ("ID", "CIMB Niaga",                  "BNIAID", ("IDR",)),
+    # ---- Thailand ----
+    ("TH", "Bangkok Bank",                "BKKBTH", ("THB",)),
+    ("TH", "Kasikornbank",                "KASITH", ("THB",)),
+    ("TH", "Siam Commercial Bank",        "SICOTH", ("THB",)),
+    ("TH", "Krung Thai Bank",             "KRTHTH", ("THB",)),
+    ("TH", "Bank of Ayudhya (Krungsri)",  "AYUDTH", ("THB",)),
+    # ---- Vietnam ----
+    ("VN", "Vietcombank",                 "BFTVVN", ("VND",)),
+    ("VN", "BIDV",                        "BIDVVN", ("VND",)),
+    ("VN", "VietinBank",                  "ICBVVN", ("VND",)),
+    ("VN", "Agribank",                    "VBAAVN", ("VND",)),
+    # ---- Philippines ----
+    ("PH", "BDO Unibank",                 "BNORPH", ("PHP",)),
+    ("PH", "Bank of the Philippine Islands", "BOPIPH", ("PHP",)),
+    ("PH", "Metrobank",                   "MBTCPH", ("PHP",)),
+    ("PH", "Land Bank of the Philippines", "TLBPPH", ("PHP",)),
+    # ---- Saudi Arabia ----
+    ("SA", "Al Rajhi Bank",               "RJHISA", ("SAR",)),
+    ("SA", "Saudi National Bank (SNB)",   "NCBKSA", ("SAR",)),
+    ("SA", "Riyad Bank",                  "RIBLSA", ("SAR",)),
+    ("SA", "Banque Saudi Fransi",         "BSFRSA", ("SAR",)),
+    # ---- Qatar ----
+    ("QA", "Qatar National Bank (QNB)",   "QNBAQA", ("QAR",)),
+    ("QA", "Doha Bank",                   "DOHBQA", ("QAR",)),
+    # ---- Kuwait ----
+    ("KW", "National Bank of Kuwait",     "NBOKKW", ("KWD",)),
+    ("KW", "Kuwait Finance House",        "KFHOKW", ("KWD",)),
+    # ---- Egypt ----
+    ("EG", "National Bank of Egypt",      "NBEGEG", ("EGP",)),
+    ("EG", "Banque Misr",                 "BMISEG", ("EGP",)),
+    ("EG", "Commercial International Bank (CIB)", "CIBEEG", ("EGP",)),
+    # ---- Kenya ----
+    ("KE", "Kenya Commercial Bank (KCB)", "KCBLKE", ("KES",)),
+    ("KE", "Equity Bank",                 "EQBLKE", ("KES",)),
+    ("KE", "Co-operative Bank of Kenya",  "KCOOKE", ("KES",)),
 ]
 
 

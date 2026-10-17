@@ -124,20 +124,26 @@ async def _bootstrap_masters():
                 if _os.path.exists(geo_src):
                     stats = await loop.run_in_executor(None, seed_geography, _db.delegate, geo_src)
                     print(f"[bg-bootstrap] seeded geography {stats}")
-            # v52cz rev5 — country identifier formats (CIN/PAN/GSTIN/BIN…)
-            # used by the escrow Core form live-validation.
-            if await _db.masters_country_formats.estimated_document_count() == 0:
-                from scripts.seed_country_formats import FORMATS as _CF
-                def _seed_country_formats():
-                    for row in _CF:
-                        _db.delegate.masters_country_formats.update_one(
-                            {"country_code": row["country_code"]},
-                            {"$set": row}, upsert=True)
-                    _db.delegate.masters_country_formats.create_index(
-                        "country_code", unique=True)
-                    return len(_CF)
-                n = await loop.run_in_executor(None, _seed_country_formats)
-                print(f"[bg-bootstrap] seeded country formats rows={n}")
+            # v54j — country identifier formats (CIN/PAN/GSTIN/BIN/SSM…) +
+            # postal (ZIP) regex. Upsert on EVERY boot (idempotent) instead of
+            # only when the collection is empty, so newly-added countries reach
+            # production without needing a wiped collection.
+            from scripts.seed_country_formats import FORMATS as _CF
+            def _seed_country_formats():
+                for row in _CF:
+                    _db.delegate.masters_country_formats.update_one(
+                        {"country_code": row["country_code"]},
+                        {"$set": row}, upsert=True)
+                _db.delegate.masters_country_formats.create_index(
+                    "country_code", unique=True)
+                return len(_CF)
+            n = await loop.run_in_executor(None, _seed_country_formats)
+            print(f"[bg-bootstrap] country formats upserted rows={n}")
+            # v54j — backfill postal/ZIP regex onto masters_countries so the
+            # office editor live-validates ZIP for ~90 countries.
+            from scripts.seed_postal_formats import seed_postal as _seed_postal
+            pn = await loop.run_in_executor(None, _seed_postal, _db.delegate)
+            print(f"[bg-bootstrap] postal formats backfilled countries={pn}")
             # v52cz rev6 — banks master for the escrow banking step.
             # rev9 fix: upsert unconditionally instead of only when the
             # collection is empty — production was seeded by an older, smaller
