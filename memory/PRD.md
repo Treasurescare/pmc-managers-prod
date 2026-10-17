@@ -205,3 +205,18 @@ and backlog.
 - Verified on preview via real UI (success toast + Pending request) and API
   (WITH evidence → 200, WITHOUT → 400). Backend already correct.
 - Bundles: `pmc-backend-v54l.zip`, `pmc-frontend-v54l-prod-build.zip`.
+
+## Status note — v54m (17 Feb 2026): LatAm + Africa data + upload audit fix
+- ID formats 34→67 (added LatAm AR/CL/CO/PE/UY/EC/CR/DO/GT/VE/BO/PY/PA/SV/HN +
+  Africa GH/MA/CI/SN/CM/TZ/UG/ET/DZ/TN/RW/MZ/ZM/ZW/AO/CD), banks 198→252,
+  postal regex 86→93 (+CR/DO/GT/PY/HN/MZ). All idempotent on startup.
+- Upload audit fix: `uploadsApi.uploadFile` now uses the presign key
+  (`pre.key`) not the upload-response key (same null-evidence class as v54l;
+  affects escrow/shared evidence uploaders). (`frontend/src/lib/api.js`)
+- Verified: CL RUT format+regex, GH labels, CL/MA banks with SWIFT.
+- HONEST LIMITS unchanged: long-tail bank SWIFTs best-effort; ID regex only
+  where reliable (else label+example guidance, no hard block).
+- Bundles: `pmc-backend-v54m.zip`, `pmc-frontend-v54m-prod-build.zip`.
+- De-dup guidance given to user (MongoDB, not SQL): dry-run aggregation to
+  find dup emails in registrations/vendors, then delete older copies keeping
+  newest. Preview DB had 0 duplicate emails.

@@ -1,5 +1,17 @@
 # PMC Managers — Changelog
 
+## v54m — 17 Feb 2026 — Latin America + Africa data + upload audit fix
+- **ID formats 34 → 67 countries**: added LatAm (AR/CL/CO/PE/UY/EC/CR/DO/GT/
+  VE/BO/PY/PA/SV/HN) + Africa (GH/MA/CI/SN/CM/TZ/UG/ET/DZ/TN/RW/MZ/ZM/ZW/AO/CD)
+  reg/tax labels + examples, regex where reliable.
+- **Banks 198 → 252**: top banks + SWIFT for MX + LatAm + African markets.
+- **Postal regex 86 → 93**: added CR/DO/GT/PY/HN/MZ.
+- **Upload audit fix**: `uploadsApi.uploadFile` now uses the presign key
+  (`pre.key`) instead of the direct-upload response key — same null-evidence
+  class as v54l, affects escrow/shared evidence uploaders. (`lib/api.js`)
+- Verified: CL RUT format + regex, GH labels, CL/MA banks with SWIFT.
+- Build stamp → v54m. Bundles: `pmc-backend-v54m.zip`, `pmc-frontend-v54m-prod-build.zip`.
+
 ## v54l — 17 Feb 2026 — Vendor "Request change" document 400 fix
 - **Company-name change rejected with HTTP 400** ("supporting document is
   required") even though the file showed attached. Root cause: the uploader

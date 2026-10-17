@@ -472,7 +472,7 @@ export const uploadsApi = {
       headers: { "Content-Type": "multipart/form-data" },
     }).then((r) => r.data);
     return {
-      key: up.key,
+      key: pre.key,
       filename: file.name,
       content_type: file.type || "application/octet-stream",
       size_bytes: up.size_bytes || file.size || 0,
