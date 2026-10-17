@@ -1,5 +1,22 @@
 # PMC Managers — Changelog
 
+## v54r (2026-06-17) — ROOT CAUSE: stale service worker pinned browsers to old code
+The persistent "login crashes to /undefined after logout" was NOT a code bug in
+v54q — production served v54q, but users' browsers ran OLD cached v54n JS.
+
+Cause: the SW `CACHE_VERSION` was frozen at `pmc-shell-v54n` through v54o/p/q, so
+`service-worker.js` bytes never changed → browsers never installed a new SW →
+old cache (with old buggy login JS) was served. CloudFront also edge-cached
+`/service-worker.js` and `/index.html` with no no-cache header.
+
+Fix:
+- Bumped SW to `pmc-shell-v54r` (`frontend/public/service-worker.js`). On deploy
+  the SW bytes now change → browsers install the new SW → `activate` purges the
+  stale cache → old JS removed. Carries all v54o–v54q fixes.
+- Deploy MUST include a CloudFront `/*` invalidation (clears the SW + index.html).
+- Recommended: set `Cache-Control: no-cache` on service-worker.js + index.html.
+
+
 ## v54q (2026-06-17) — Account type (Admin vs Staff) + reverted v54p escalation
 **IMPORTANT: v54q supersedes v54p. Do NOT deploy v54p — it contained a
 privilege-escalation bug (the unified "PMC staff" card could sign an

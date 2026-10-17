@@ -10,7 +10,16 @@ reverse auctions, bid governance, EMD escrow workflows, vendor/staff/
 institution portals, AWS deployment bundles, and transactional notifications
 (Stripe, Resend, DocuSign, Emergent crons).
 
-## Current P0 — v54q (17 Jun 2026) — Account type (Admin vs Staff)
+## Current P0 — v54r (17 Jun 2026) — ROOT CAUSE of recurring login crash
+Production ran v54q on the server but browsers ran OLD v54n JS: the SW
+CACHE_VERSION was frozen at pmc-shell-v54n across v54o/p/q, so the SW never
+updated and served the stale cache (old buggy /undefined login). CloudFront also
+edge-cached service-worker.js + index.html. Fix: bumped SW to pmc-shell-v54r so
+the SW bytes change on deploy → browsers reinstall → activate purges old cache.
+Deploy REQUIRES a CloudFront /* invalidation. Recommended: no-cache on
+service-worker.js + index.html.
+
+## Prev P0 — v54q (17 Jun 2026) — Account type (Admin vs Staff)
 Added an explicit `account_type` (admin|staff) to staff records. Staff-type
 accounts cannot hold admin/reviewer and only reach /staff; admin-type reach the
 admin console. Enforced server-side on create+update (`staff_auth._validate_account_type`),
