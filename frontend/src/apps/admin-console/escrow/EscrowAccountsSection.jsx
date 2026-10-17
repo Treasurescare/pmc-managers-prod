@@ -354,7 +354,10 @@ function AccountRow({ acc, onReload, pool }) {
               </span>
             )}
           </div>
-          <div className="text-xs text-brand-navy/60 break-all">{acc.institution} · {acc.account_no} · {acc.currency}</div>
+          <div className="text-xs text-brand-navy/60 break-all">
+            {acc.institution || <span className="text-rose-700 font-semibold">institution not set</span>}
+            {" · "}{acc.account_no || "—"}{" · "}{acc.currency || "—"}
+          </div>
           {health?.anyBad && (
             <div className="text-[11px] text-rose-700 mt-1" data-testid={`escrow-acc-health-detail-${acc.id}`}>
               {!health.institutionOk && <div>• Institution does not match any approved master row.</div>}

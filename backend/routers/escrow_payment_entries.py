@@ -499,4 +499,12 @@ async def get_tx_docusign_url(
                 envelope_id=env_id, return_url=f"{config.FRONTEND_URL}/admin"))
         return {"url": view.url, "mode": "console"}
     except Exception as e:
-        raise HTTPException(502, f"Could not create signing URL: {e}")
+        # v54a — degrade gracefully: email-mode envelopes always ship the
+        # hosted-signing link directly to both officers' inboxes, so the
+        # console-view is only a convenience, never a hard failure.
+        import logging; logging.getLogger("escrow").info(
+            "admin docusign-url fallback for %s: %s", env_id, e)
+        return {"url": None, "envelope_id": env_id, "mode": "email_only",
+                "message": "DocuSign emailed the hosted-signing link to both "
+                           "officers when the envelope was issued. Ask the "
+                           "officer to open that email to sign."}

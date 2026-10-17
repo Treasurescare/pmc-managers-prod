@@ -453,6 +453,16 @@ async def init_transaction(payload: TransactionInitIn,
                                               "active": True})
     if not acc:
         raise HTTPException(status_code=404, detail="Active escrow account not found")
+    # v54a — mirror the account-level governance guard at init time so a
+    # broken/legacy account can never accept an inbound EMD tx.
+    _pmc_e = ((acc.get("pmc_officer") or {}).get("email") or "").lower()
+    _esc_e = ((acc.get("escrow_officer") or {}).get("email") or "").lower()
+    if not _pmc_e or not _esc_e:
+        raise HTTPException(status_code=400,
+            detail="This joint account is missing an officer email — fix it via Edit signers before recording EMD receipts.")
+    if _pmc_e == _esc_e:
+        raise HTTPException(status_code=400,
+            detail="PMC and Escrow officer share the same email on this account — dual-signature impossible. Fix officers via Edit signers first.")
     # v51ap — reject duplicate inbound EMD per bid. Each bid can hold ONE
     # open ledger row at a time; once the current row is released or
     # cancelled the admin can record a new one against a different account.

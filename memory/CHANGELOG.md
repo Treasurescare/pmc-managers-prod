@@ -37,7 +37,20 @@
   - Admin `EscrowAccountsSection.jsx` — Escrow-institution picker inside
     Edit signers.
 - Backend tests: `tests/test_v54a_escrow_payment_entries.py` (15 cases,
-  all green).
+  all green) + `tests/test_v54a_e2e_review.py` (15 cases, all green,
+  iteration_85).
+- Follow-up fixes after E2E review (iteration_85):
+  - `transactions/init` enforces same-email governance guard at init.
+  - Admin-side `docusign-url` degrades to `email_only` instead of 502.
+  - Legacy joint-account rows show "institution not set" instead of "· ·".
+  - Fixed typo'd demo institution signatory email in dev DB
+    (`escrowwdemo@` → `escrowdemo@pmcmanagers.com`).
+  - DocuSign 424/428 auth failures normalised to 503 in the escrow
+    envelope endpoint; verified live (503 + 400 missing-officer guard).
+- Bundle fixes: backend zip layout matches v53q exactly (Dockerfile at
+  root, `.ebextensions` + `.dockerignore` included, `keys/` excluded —
+  prod secrets come from SSM/EB env vars); frontend zip excludes
+  `build/downloads/` (was 346 MB → 3.9 MB).
 - Release bundles: `pmc-backend-v54a.zip`, `pmc-frontend-v54a-prod-build.zip`.
 
 ## Earlier releases

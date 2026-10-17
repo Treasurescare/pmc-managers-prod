@@ -30,13 +30,23 @@ Delivered in this release:
   proof upload + dual-sign per entry, and the full audit trail.
 - Payment entries sub-collection with per-entry dual-signature workflow.
 - Resilient DocuSign fallbacks: auth/consent failures surface as 503;
-  institution-side `docusign-url` degrades to `{mode: 'email_only'}` and
-  the UI tells the signer to open the DocuSign email instead of showing
-  a 502.
+  both admin-side and institution-side `docusign-url` degrade to
+  `{mode: 'email_only'}` and the UI tells the signer to open the
+  DocuSign email instead of showing a 502.
+- `transactions/init` now enforces the same-email governance guard at
+  init time, so broken legacy accounts can never accept inbound EMD.
+- Legacy joint-account rows show "institution not set" instead of a
+  blank "· ·" separator.
 
-Testing status: 15/15 backend pytest in `test_v54a_escrow_payment_entries.py`
-pass against the preview backend. User production verification is still
-pending (user must upload the v54a bundles to EB + S3/CloudFront).
+Testing status: backend pytest `test_v54a_escrow_payment_entries.py`
+(15/15) + E2E review `test_v54a_e2e_review.py` (15/15, iteration_85:
+signatory pool, account create/edit+rebind, ledger init + duplicate
+guard, DocuSign graceful 503, magic-link issuance, institution-portal
+dashboard + tx detail + payment-entry create/sign/void, 403 foreign-tx
+authorisation). Verified live via curl: missing-officer 400 guard,
+503 DocuSign fallback, cancel 200. Frontend smoke (Playwright): both
+portals render without 500s. Production verification pending — user
+must upload v54a bundles to EB + S3/CloudFront.
 
 ## Must-have invariants
 - Escrow institution status `approved` is NOT enough — the institution

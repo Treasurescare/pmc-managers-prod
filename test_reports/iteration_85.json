@@ -1,0 +1,47 @@
+{
+  "iteration": 85,
+  "summary": "v54a E2E review of escrow workflows against public preview URL. Built /app/backend/tests/test_v54a_e2e_review.py (15 tests, all pass) covering E2E-1 signatory pool (pmc_officers + institutions arrays, primary-contact fallback), E2E-2 admin joint account create + edit-signers PATCH, E2E-3 auto-tx creation via admin ledger (transactions/init), E2E-4 DocuSign send graceful 503/424 fallback, E2E-5 magic-token issuance + public officer-context fetch, E2E-6/7 institution portal dashboard + /me/transactions/{tid} detail + payment-entry create + institution-side sign, E2E-8 kinds validation + admin void blocks further signing (409), E2E-12 403 authorisation on foreign tx. Also ran Playwright smoke on institution portal (/escrow/login → dashboard tabs ok) and admin console (/admin/e/escrow loads with 61 legacy joint accounts + 8 ledger rows, no 500s). Previous iteration_84 unit-level pass still holds.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/v1/escrow/transactions/{tid}/docusign", "issue": "In preview env DocuSign returns 424 DOCUSIGN_AUTH_FAILED (invalid_grant / issuer_not_found) instead of the review-spec 503. UI graceful-failure path works, but the brief asked for consistent 503 'DocuSign is not configured'. Already flagged in iteration_84."},
+      {"endpoint": "GET /api/v1/escrow-accounts/me/transactions/{tid}/docusign-url", "issue": "Email-mode envelopes without client_user_id can't mint recipient URLs; current code degrades to mode=email_only (good), but admin-side /escrow/transactions/{tid}/docusign-url still returns 502 on console-view failure instead of same email_only fallback."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Institution dashboard /escrow/me", "issue": "KPI cards + tabs render fine (Overview, Pending signatures, All transactions, Joint accounts, Institution profile), but demo institution escrowdemo@pmcmanagers.com has 0 txs owned (its institution signatory email 'escrowwdemo@pmcmanagers.com' has a typo and does not match any seeded tx). UI handles 0-state cleanly with 'No transaction history yet' message. Not a bug per se but means TransactionDetailModal cannot be exercised without seeding — my backend tests seed+clean a tx per run.", "affected_selectors": ["escrow-tab-transactions", "escrow-tx-list-row-*"]}
+    ],
+    "design_issues": [
+      {"screen": "Admin → Escrow / EMD → Joint escrow accounts", "issues": ["61 legacy joint accounts all display red 'SIGNATORY REQUIRED' banner with two errors: 'Institution does not match any approved master row' and 'PMC officer email is not in the escrow-signatory staff pool'. This is the governance guard working as designed, but every single legacy row is non-functional until an admin runs Edit signers. Consider a bulk 'Edit signers' or 'Rebind' action — users will have to click through 61 records one by one. Also, the top of the list shows no institution name text on these legacy rows (just '· ·' separator), making it hard to tell which row is which bank."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_v54a_e2e_review.py",
+    "/app/test_reports/pytest/v54a_e2e_review.xml"
+  ],
+  "action_items": [
+    "Optional: in POST /escrow/transactions/{tid}/docusign, downgrade DocuSign 424 to 503 so clients can uniformly handle 'DocuSign not configured in this env'.",
+    "Optional: in GET /escrow/transactions/{tid}/docusign-url, mirror the escrow-accounts /me/.../docusign-url email_only fallback so admin side doesn't 502 when console-view is unsupported.",
+    "UX: add a bulk-rebind or at least show institution name on legacy joint-account rows that fail governance checks (61 rows currently appear 'blank' with just error banners).",
+    "Data: fix the typo in the demo escrow institution signatory email ('escrowwdemo@pmcmanagers.com' → 'escrowdemo@pmcmanagers.com') so the demo flow surfaces real transactions without seeding."
+  ],
+  "critical_code_review_comments": [
+    "escrow_payment_entries.py:_resolve_signer_side relies on cached escrow_account_snapshot, so if admin edits the joint account AFTER a payment entry is created, the OLD officers can still sign. Acceptable per spec but should be documented.",
+    "escrow_accounts.py:/me/payment-entries/{peid}/sign always writes under signatures['escrow_institution'] regardless of which institution signatory signs — multiple signatories collapse to one slot. Matches 'one officer per side' DocuSign model but limits audit granularity.",
+    "escrow.py:/transactions/init does NOT guard against the same email being pmc + escrow officer at init time (relies on upstream joint-account same-email guard). If an admin somehow bypasses the account edit flow, a bad account could still accept an inbound tx.",
+    "escrow_accounts.py:_assert_tx_owned_by_account uses live institution signatories[] — correct and lets us scope dashboard rows to the right institution even after admin edits.",
+    "No end-to-end rate limiting on /escrow-accounts/me/payment-entries POST — an institution could spam-create entries. Consider a per-tx cap or basic rate limit."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_v54a_e2e_review.py (new)"
+  ],
+  "success_rate": {"backend": "100% (15/15 pytest)", "frontend": "smoke-pass (institution dashboard + admin escrow list render without 500s)"},
+  "test_credentials": "Admin adminsupport@pmcmanagers.com / Admin@12345; institution portal escrowdemo@pmcmanagers.com / Escrow@12345 (works).",
+  "seed_data_creation": "Each test run creates: 1 TEST_ joint account (via admin POST /escrow/accounts, cleaned up on teardown), 1 inbound EMD tx bound to it (cleaned up), several TEST_UTR_ payment entries under that tx (cleaned up). If demo account doesn't exist, auto-registers TEST_v54a_e2e_<hex>@example.com and verifies via Mongo verify_token.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Pytest file /app/backend/tests/test_v54a_e2e_review.py is self-contained and uses seeded_tx_for_inst fixture that creates+cleans a joint account + inbound tx bound to the inst_session account email. Tests pass against preview URL in ~4s. If re-running, note demo institution's signatory email has a typo so 'organic' tx discovery returns 0 rows — the seed fixture is required. DocuSign 424 vs 503 contract is still pending a tiny code change in routers/escrow_payment_entries.py around line 378 (DOCUSIGN_AUTH_FAILED normalisation).",
+  "rca of the issue": "Not a bug run — review-scope E2E validation. The v54a changes behave correctly end-to-end: signatory pool returns pmc_officers + institutions with primary-contact fallback (verified), joint account create+edit works with institution_id rebind (verified), auto_init idempotency not tested in-depth (Stripe sandbox not wired; manual admin init works via /transactions/init), DocuSign gracefully fails with 424/503 (verified), institution-portal transaction detail + payment entries CRUD + sign flow works end-to-end including fully_signed status transition after admin countersign (verified), admin void + 409 on further sign works (verified), institution-cross-tx authorisation returns 403 (verified). The only functional observation outside the review scope is the 61 legacy joint accounts with governance errors — this is the guard working but the UX of mass-fixing them is painful."
+}
