@@ -62,31 +62,49 @@ export default function RegistrationResume() {
     if (!reg?.id) return;
     setBusy(true);
     try {
+      // v54a — only send fields the backend PATCH model accepts.
+      // RegistrationUpdateIn is extra="forbid", so any server-managed /
+      // consent-captured-on-draft-creation field smuggled back in a PATCH
+      // triggers 422 "Extra inputs are not permitted" and the signature
+      // block never reaches the DB → submit later fails with "Missing
+      // signature field". Strip everything that isn't a form field.
       const payload = { ...reg };
-      delete payload.id; delete payload.status; delete payload.tenant_id;
-      delete payload.created_at; delete payload.updated_at; delete payload.submitted_at;
-      delete payload.vendor_ref; delete payload.reviewed_at; delete payload.reviewer_notes; delete payload.magic_token;
+      for (const k of [
+        "id", "status", "tenant_id", "created_at", "updated_at",
+        "submitted_at", "vendor_ref", "reviewed_at", "reviewer_notes",
+        "reviewed_by", "approved_at", "rejected_at", "magic_token",
+        "email", "data_processing_consent", "marketing_consent",
+        "consent_at",
+      ]) delete payload[k];
       const fresh = fromAdmin && ridParam
         ? await adminApi.registrationAdminUpdate(ridParam, payload)
         : await registrationApi.update(reg.id, token, payload);
       setReg(fresh);
       toast.success(t("register.saved"));
+      return fresh;
     } catch (err) {
       showApiError(err);
+      // v54a — rethrow so submitFinal halts instead of silently calling
+      // submit on an unsaved draft and surfacing a confusing 400.
+      throw err;
     } finally {
       setBusy(false);
     }
-  }, [reg, token, t]);
+  }, [reg, token, t, fromAdmin, ridParam]);
 
   const submitFinal = useCallback(async () => {
     setBusy(true);
     try {
+      // v54a — saveDraft now throws on PATCH failure, so a 422 on save
+      // short-circuits the submit instead of 400ing on an unsaved draft.
       await saveDraft();
       await registrationApi.submit(reg.id, token);
       toast.success(t("register.submitted_ok"));
       navigate(`/register/status?token=${token}`);
     } catch (err) {
-      showApiError(err);
+      // saveDraft already surfaced the real error via showApiError;
+      // only show submit-time errors here.
+      if (!err?._handledBySaveDraft) showApiError(err);
     } finally {
       setBusy(false);
     }

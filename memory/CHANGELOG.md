@@ -1,5 +1,19 @@
 # PMC Managers — Changelog
 
+## v54b — 17 Feb 2026 — Public vendor registration unblocked
+- **BUG FIX**: `/api/v1/meta/countries` now reads the full
+  `masters_countries` master (250 rows) instead of the 30-row pilot
+  config. Public Section A country dropdown is complete.
+- **BUG FIX**: `RegistrationUpdateIn` whitelists `directors` and
+  `document_slots` (new fields that were being blocked by `extra="forbid"`
+  and 422ing every Save Draft). Signature block now persists so Submit
+  no longer 400s with "Missing signature field: signature_name".
+- `RegistrationResume.saveDraft` strips server-managed fields (email,
+  consent flags, timestamps, magic_token, reviewer fields) before PATCH
+  and now throws on failure so `submitFinal` halts instead of submitting
+  an unsaved draft.
+- Release bundles: `pmc-backend-v54b.zip`, `pmc-frontend-v54b-prod-build.zip`.
+
 ## v54a — 16 Feb 2026 — Escrow EMD operational pack
 - **BUG FIX**: `GET /api/v1/escrow/signatory-pool` was falling through
   with no `return` statement; now reliably returns

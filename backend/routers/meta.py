@@ -19,8 +19,38 @@ async def kz_licenses() -> Dict[str, Any]:
 
 
 @router.get("/countries")
-async def countries() -> List[Dict[str, str]]:
-    """Returns each country with trilingual labels. Client picks by current lang."""
+async def countries() -> List[Dict[str, Any]]:
+    """Returns the full country master (dr5hn, 250 rows) with trilingual
+    display labels. The vendor registration portal uses this to populate
+    the Section A country dropdown.
+
+    v54a — previously served only the 30 pilot-config countries, which left
+    vendors in Bangladesh / Nigeria / etc with no way to self-register.
+    Now reads from `masters_countries` and falls back to config.COUNTRIES
+    only if the master collection is empty (first boot, offline cache).
+    """
+    rows: List[Dict[str, Any]] = []
+    try:
+        async for c in db.masters_countries.find({}, {
+            "_id": 0, "code": 1, "name": 1, "iso3": 1, "nationality": 1,
+            "phone_code": 1, "currency": 1, "emoji": 1,
+        }).sort("name", 1):
+            name = c.get("name") or c.get("code") or ""
+            rows.append({
+                "code": c.get("code"),
+                "name": name,
+                # trilingual label slots — populated with the English name as
+                # a safe default so existing frontend keys never resolve to
+                # undefined. The i18n team can override specific rows later.
+                "name_en": name, "name_ru": name, "name_kk": name,
+                "iso3": c.get("iso3"), "nationality": c.get("nationality"),
+                "phone_code": c.get("phone_code"), "currency": c.get("currency"),
+                "emoji": c.get("emoji"),
+            })
+    except Exception:
+        rows = []
+    if rows:
+        return rows
     out = []
     for row in config.COUNTRIES:
         code, en, ru, kk = row if len(row) == 4 else (row[0], row[1], row[1], row[1])

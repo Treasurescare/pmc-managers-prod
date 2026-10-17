@@ -87,6 +87,15 @@ class RegistrationUpdateIn(BaseModel):
     signature_title: Optional[str] = None
     signature_date: Optional[str] = None
 
+    # v54a — Directors & Beneficial Owners (section between D and E) and
+    # per-slot document metadata written by DocSlotsBlock. Both were being
+    # merged into `reg` on the frontend and sent back on every PATCH; with
+    # extra="forbid" that raised a 422 on every save and silently blocked
+    # the signature fields from reaching the DB → submit failed with
+    # "Missing signature field: signature_name". Explicitly allow them.
+    directors: List[dict] = []
+    document_slots: dict = {}
+
 
 class RegistrationDecisionIn(BaseModel):
     action: DecisionAction
