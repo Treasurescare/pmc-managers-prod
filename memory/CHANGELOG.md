@@ -1,5 +1,13 @@
 # PMC Managers — Changelog
 
+## v54n — 17 Feb 2026 — Escrow registration document View/Download
+- Escrow registration (EscrowAccountWizard) → 4. Documents step: uploaded KYC
+  files only had Replace/Remove. Added **View** (open in new tab via SPA blob
+  fetch) and **Download** (save with original filename) buttons to each
+  document slot that has a file. (`frontend/src/apps/escrow-portal/EscrowAccountWizard.jsx`)
+- Frontend-only; backend identical to v54m. Build stamp → v54n.
+- Bundles: `pmc-backend-v54n.zip`, `pmc-frontend-v54n-prod-build.zip`.
+
 ## v54m — 17 Feb 2026 — Latin America + Africa data + upload audit fix
 - **ID formats 34 → 67 countries**: added LatAm (AR/CL/CO/PE/UY/EC/CR/DO/GT/
   VE/BO/PY/PA/SV/HN) + Africa (GH/MA/CI/SN/CM/TZ/UG/ET/DZ/TN/RW/MZ/ZM/ZW/AO/CD)

@@ -303,6 +303,19 @@ function DocSlot({ slot, label, current, institutionId, onUploaded, onRemoved })
     } catch (e) { showApiError(e); }
     finally { setBusy(false); }
   };
+  const viewDoc = async () => {
+    try { await uploadsApi.openFile(current.key); } catch (e) { showApiError(e); }
+  };
+  const downloadDoc = async () => {
+    try {
+      const r = await api.get(`/api/v1/uploads/files/${current.key}?download=true`, { responseType: "blob" });
+      const url = URL.createObjectURL(r.data);
+      const a = document.createElement("a");
+      a.href = url; a.download = current.filename || "document";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (e) { showApiError(e); }
+  };
   return (
     <div className="flex items-center justify-between bg-white p-3 border border-brand-navy/15"
          data-testid={`escrow-doc-${slot}`}>
@@ -313,6 +326,20 @@ function DocSlot({ slot, label, current, institutionId, onUploaded, onRemoved })
         )}
       </div>
       <div className="flex gap-2 shrink-0 ml-2">
+        {current?.key && (
+          <>
+            <button type="button" onClick={viewDoc}
+                    data-testid={`escrow-doc-view-${slot}`}
+                    className="px-3 py-1 text-[11px] uppercase tracking-widest border border-brand-navy/40 text-brand-navy hover:bg-brand-pale">
+              View
+            </button>
+            <button type="button" onClick={downloadDoc}
+                    data-testid={`escrow-doc-download-${slot}`}
+                    className="px-3 py-1 text-[11px] uppercase tracking-widest border border-brand-navy/40 text-brand-navy hover:bg-brand-pale">
+              Download
+            </button>
+          </>
+        )}
         <label className="px-3 py-1 text-[11px] uppercase tracking-widest border border-brand-navy/40 text-brand-navy cursor-pointer hover:bg-brand-pale">
           {busy ? "…" : current ? "Replace" : "Upload"}
           <input type="file" className="hidden"

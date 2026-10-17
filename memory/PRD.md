@@ -220,3 +220,12 @@ and backlog.
 - De-dup guidance given to user (MongoDB, not SQL): dry-run aggregation to
   find dup emails in registrations/vendors, then delete older copies keeping
   newest. Preview DB had 0 duplicate emails.
+
+## Status note — v54n (17 Feb 2026): escrow registration document View/Download
+- Escrow registration wizard (EscrowAccountWizard) → 4. Documents: uploaded
+  KYC files only had Replace/Remove. Added View (SPA blob fetch → new tab) and
+  Download (save with original filename) buttons to each slot with a file.
+  Buttons render on upload + resume. (`frontend/src/apps/escrow-portal/EscrowAccountWizard.jsx`)
+- Frontend-only; backend identical to v54m. Compiles clean; mirrors the proven
+  uploadsApi.openFile/blob pattern used in vendor docs.
+- Bundles: `pmc-backend-v54n.zip`, `pmc-frontend-v54n-prod-build.zip`.
