@@ -73,36 +73,54 @@ async def current_admin(request: Request) -> dict:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
-def set_csrf_cookie(response, csrf: str, max_age: int) -> None:
-    """JS-readable double-submit cookie with attributes that survive
-    cross-site iframe previews: SameSite=None + Secure + Partitioned (CHIPS).
-    Starlette 0.37's set_cookie lacks a `partitioned` kwarg, so append the
-    raw header."""
-    parts = [f"csrf_token={csrf}", f"Max-Age={max_age}", "Path=/",
-             "Secure", "SameSite=None", "Partitioned"]
+def is_preview_request(request) -> bool:
+    """True only for the Emergent preview sandbox, which embeds the app in a
+    CROSS-SITE iframe — that context genuinely needs SameSite=None + Partitioned
+    (CHIPS) cookies. Production (the custom domain) and localhost are FIRST-PARTY,
+    same-origin setups where SameSite=None is both unnecessary and actively
+    rejected by Safari/ITP, causing the "login 200 then instantly logged out"
+    bounce. Those must use a plain SameSite=Lax cookie."""
+    if request is None:
+        return False
+    src = request.headers.get("origin") or request.headers.get("referer") or ""
+    return "preview.emergentagent.com" in src
+
+
+def _samesite_parts(cross_site: bool) -> list:
+    # Cross-site (preview iframe) → None+Partitioned. First-party (prod/local) → Lax.
+    return ["SameSite=None", "Partitioned"] if cross_site else ["SameSite=Lax"]
+
+
+def set_csrf_cookie(response, csrf: str, max_age: int, cross_site: bool = True) -> None:
+    """JS-readable double-submit CSRF cookie. Attributes depend on context:
+    cross-site preview iframe → SameSite=None; Secure; Partitioned; first-party
+    production/localhost → SameSite=Lax; Secure. Starlette 0.37's set_cookie
+    lacks a `partitioned` kwarg, so we append the raw header."""
+    parts = [f"csrf_token={csrf}", f"Max-Age={max_age}", "Path=/", "Secure"]
+    parts += _samesite_parts(cross_site)
     if config.COOKIE_DOMAIN:
         parts.append(f"Domain={config.COOKIE_DOMAIN}")
     response.headers.append("set-cookie", "; ".join(parts))
 
 
-def set_access_cookie(response, name: str, value: str, max_age: int) -> None:
-    """HttpOnly session cookie with CHIPS attributes that survive a CDN /
-    cross-context first-party setup (CloudFront in prod): SameSite=None +
-    Secure + Partitioned. Starlette's set_cookie can't emit `Partitioned`, so
-    we build the header manually — mirroring set_csrf_cookie. Using SameSite=Lax
-    here caused prod browsers to drop the cookie, so /me 401'd right after a
-    successful login and the user was bounced back to /login."""
-    parts = [f"{name}={value}", f"Max-Age={max_age}", "Path=/",
-             "HttpOnly", "Secure", "SameSite=None", "Partitioned"]
+def set_access_cookie(response, name: str, value: str, max_age: int, cross_site: bool = True) -> None:
+    """HttpOnly session cookie. First-party production (same-origin behind
+    CloudFront) uses SameSite=Lax; Secure — the only combination Safari reliably
+    keeps first-party. The cross-site preview iframe keeps SameSite=None; Secure;
+    Partitioned. Starlette can't emit `Partitioned`, so we build the header
+    manually."""
+    parts = [f"{name}={value}", f"Max-Age={max_age}", "Path=/", "HttpOnly", "Secure"]
+    parts += _samesite_parts(cross_site)
     if config.COOKIE_DOMAIN:
         parts.append(f"Domain={config.COOKIE_DOMAIN}")
     response.headers.append("set-cookie", "; ".join(parts))
 
 
-def clear_session_cookie(response, name: str) -> None:
-    """Expire a cookie that was set with SameSite=None; Partitioned. The clear
-    header's attributes must match or the browser keeps the cookie."""
-    parts = [f"{name}=", "Max-Age=0", "Path=/", "Secure", "SameSite=None", "Partitioned"]
+def clear_session_cookie(response, name: str, cross_site: bool = True) -> None:
+    """Expire a cookie. The clear header's SameSite/Partitioned attributes must
+    match the ones used when the cookie was set, or the browser keeps it."""
+    parts = [f"{name}=", "Max-Age=0", "Path=/", "Secure"]
+    parts += _samesite_parts(cross_site)
     if config.COOKIE_DOMAIN:
         parts.append(f"Domain={config.COOKIE_DOMAIN}")
     response.headers.append("set-cookie", "; ".join(parts))

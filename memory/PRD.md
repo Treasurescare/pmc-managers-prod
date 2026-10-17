@@ -10,7 +10,25 @@ reverse auctions, bid governance, EMD escrow workflows, vendor/staff/
 institution portals, AWS deployment bundles, and transactional notifications
 (Stripe, Resend, DocuSign, Emergent crons).
 
-## Current P0 — v54s (17 Jun 2026) — REAL staff-login fix (SameSite=None cookie)
+## Current P0 — v54u (17 Jun 2026) — REAL staff-login fix (Safari / first-party cookie)
+ACTUAL confirmed root cause of "staff can't log in" on the real domain. Proven
+live: server + CloudFront are correct (clean Chromium logs in, /me 200, lands on
+/staff; curl gets Set-Cookie). It failed in SAFARI (incl. Private) + the user's
+browser even in Incognito → never a cache or CloudFront problem. Cause: backend
+set the session cookie SameSite=None;Partitioned (CHIPS) — needed ONLY for the
+cross-site preview iframe. On the same-origin production domain
+(www.pmcmanagers.com serves both site + /api), Safari/ITP REJECTS that cookie
+first-party, so it's never stored → next /me is unauthenticated → bounce.
+Fix (security.py): cookies are now context-aware. Production/same-origin/localhost
+→ SameSite=Lax;Secure. Preview sandbox only (Origin contains preview.emergentagent.com)
+→ SameSite=None;Secure;Partitioned. Applied to staff+admin login, switch-role,
+and logout clears (clears match set attrs). Verified locally: prod-origin login →
+access_token+csrf_token = Lax, /me 200; preview-origin → None;Partitioned.
+No CloudFront change needed (/api/* already CachingDisabled + AllViewer = correct).
+Bundles: pmc-backend-v54u.zip, pmc-frontend-v54u-prod-build.zip. STATUS: built +
+verified locally; awaiting user prod deploy + Safari confirmation.
+
+## Prev P0 — v54s (17 Jun 2026) — staff-login attempt (SameSite=None cookie) [SUPERSEDED by v54u]
 Reproduced on prod: staff login returns 200 but the next /me returns 401 →
 bounced to /login ("staff can't log in"). Cause: access_token cookie was
 SameSite=Lax, which prod CloudFront drops (preview ingress rewrote it to

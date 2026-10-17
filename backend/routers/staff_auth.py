@@ -14,7 +14,7 @@ from models.staff_user import StaffLoginIn, StaffCreateIn, StaffUpdateIn, ALL_ST
 from security import (
     verify_password, hash_password, create_admin_token, current_admin,
     new_csrf_token, require_role, require_csrf, set_csrf_cookie,
-    set_access_cookie, clear_session_cookie,
+    set_access_cookie, clear_session_cookie, is_preview_request,
 )
 from audit import audit_log
 import config
@@ -22,11 +22,12 @@ import config
 router = APIRouter(prefix="/api/v1/staff", tags=["staff-auth"])
 
 
-def _set_session_cookies(response: Response, access_token: str) -> str:
+def _set_session_cookies(response: Response, access_token: str, request: Request = None) -> str:
     max_age = config.ACCESS_TOKEN_TTL_MIN * 60
-    set_access_cookie(response, "access_token", access_token, max_age)
+    cross_site = is_preview_request(request)
+    set_access_cookie(response, "access_token", access_token, max_age, cross_site)
     csrf = new_csrf_token()
-    set_csrf_cookie(response, csrf, max_age)
+    set_csrf_cookie(response, csrf, max_age, cross_site)
     return csrf
 
 
@@ -95,7 +96,7 @@ async def staff_login(payload: StaffLoginIn, response: Response, request: Reques
             raise HTTPException(status_code=401, detail="Invalid OTP")
 
     token = create_admin_token(str(user["_id"]), user["email"], payload.active_role)
-    csrf = _set_session_cookies(response, token)
+    csrf = _set_session_cookies(response, token, request)
     # v52bx — bug #34: nuke stale vendor cookie on staff login too.
     response.delete_cookie("vendor_token", path="/", domain=config.COOKIE_DOMAIN)
     await audit_log("staff.login", {"id": str(user["_id"]), "email": user["email"]},
@@ -122,13 +123,14 @@ async def staff_login(payload: StaffLoginIn, response: Response, request: Reques
 
 
 @router.post("/auth/logout")
-async def staff_logout(response: Response) -> Dict[str, bool]:
+async def staff_logout(response: Response, request: Request) -> Dict[str, bool]:
     # Bug #82 fix — nuke ALL three cookie realms (see admin_auth.logout).
-    # Must use matching SameSite=None; Partitioned attributes or the browser
-    # keeps the cookie, which blocks the next login (v54s).
-    clear_session_cookie(response, "access_token")
-    clear_session_cookie(response, "vendor_token")
-    clear_session_cookie(response, "csrf_token")
+    # Clear attributes must match how they were set (context-aware SameSite) or
+    # the browser keeps the cookie, which blocks the next login (v54s/v54u).
+    cross_site = is_preview_request(request)
+    clear_session_cookie(response, "access_token", cross_site)
+    clear_session_cookie(response, "vendor_token", cross_site)
+    clear_session_cookie(response, "csrf_token", cross_site)
     return {"ok": True}
 
 
@@ -152,7 +154,7 @@ class SwitchRoleIn(BaseModel):
 
 
 @router.post("/auth/switch-role")
-async def switch_role(payload: SwitchRoleIn, response: Response,
+async def switch_role(payload: SwitchRoleIn, response: Response, request: Request,
                        admin: Dict[str, Any] = Depends(current_admin)):
     """v53p — re-issue the staff session JWT with a new active_role so a
     multi-role employee can switch (e.g. Reviewer → Escrow Agent) without
@@ -172,7 +174,7 @@ async def switch_role(payload: SwitchRoleIn, response: Response,
         raise HTTPException(status_code=403,
             detail=f"MFA is required for {payload.active_role}. Enable Two-Factor first.")
     token = create_admin_token(str(doc["_id"]), doc["email"], payload.active_role)
-    csrf = _set_session_cookies(response, token)
+    csrf = _set_session_cookies(response, token, request)
     await audit_log("staff.switch_role", admin, "admin_user", admin["id"],
                      {"from": admin.get("role"), "to": payload.active_role})
     return {"active_role": payload.active_role, "csrf_token": csrf,

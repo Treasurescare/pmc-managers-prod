@@ -337,6 +337,24 @@ browser/cache once — this is what ends the recurring "old code on prod" crashe
   `build/downloads/` (was 346 MB → 3.9 MB).
 - Release bundles: `pmc-backend-v54a.zip`, `pmc-frontend-v54a-prod-build.zip`.
 
+## v54u (17 Jun 2026) — Safari staff-login fix (context-aware first-party cookie)
+- Confirmed root cause of the long-running "staff can't log in" bounce. Live
+  tests proved server + CloudFront correct (clean Chromium + curl both work);
+  it failed in Safari (incl. Private) and the user's browser even in Incognito.
+- Backend was sending `SameSite=None; Partitioned` (CHIPS) cookies — correct
+  only for the cross-site preview iframe. On the same-origin production domain
+  Safari/ITP rejects them first-party, so the session cookie was never stored.
+- Fix (`backend/security.py` + `routers/staff_auth.py` + `routers/admin_auth.py`):
+  cookies are now chosen by request Origin — `SameSite=Lax; Secure` for
+  production/localhost (first-party), `SameSite=None; Secure; Partitioned` only
+  for `*.preview.emergentagent.com`. Covers login, switch-role and logout clears.
+- Verified locally against :8001: prod-origin → both cookies `SameSite=Lax`,
+  `/me` 200; preview-origin → both `SameSite=None; Partitioned`. Full UI login
+  on production (clean browser) lands on `/staff` and stays.
+- No CloudFront change required — the `/api/*` behaviour (CachingDisabled +
+  AllViewer, confirmed via the user's console screenshots) is already correct.
+- Bundles: `pmc-backend-v54u.zip`, `pmc-frontend-v54u-prod-build.zip`.
+
 ## Earlier releases
 See `/app/frontend/public/downloads/DOWNLOAD_v53*.md` for v53i through v53q
 summary notes.

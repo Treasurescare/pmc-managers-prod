@@ -4,22 +4,23 @@ from fastapi import APIRouter, HTTPException, Response, Depends, Request
 
 from db import db
 from models import AdminLoginIn, AdminPasswordChangeIn
-from security import verify_password, hash_password, create_admin_token, current_admin, new_csrf_token, require_csrf, set_csrf_cookie, set_access_cookie, clear_session_cookie
+from security import verify_password, hash_password, create_admin_token, current_admin, new_csrf_token, require_csrf, set_csrf_cookie, set_access_cookie, clear_session_cookie, is_preview_request
 from audit import audit_log
 import config
 
 router = APIRouter(prefix="/api/v1/admin/auth", tags=["admin-auth"])
 
 
-def _set_session_cookies(response: Response, access_token: str) -> str:
+def _set_session_cookies(response: Response, access_token: str, request: Request = None) -> str:
     """Set both httpOnly access_token cookie AND JS-readable csrf_token cookie.
     Returns the csrf_token so the caller can echo it in the JSON body too."""
     max_age = config.ACCESS_TOKEN_TTL_MIN * 60
-    set_access_cookie(response, "access_token", access_token, max_age)
+    cross_site = is_preview_request(request)
+    set_access_cookie(response, "access_token", access_token, max_age, cross_site)
     csrf = new_csrf_token()
     # csrf_token cookie is INTENTIONALLY not httpOnly — client JS reads it and
     # echoes as X-CSRF-Token header (double-submit-cookie pattern).
-    set_csrf_cookie(response, csrf, max_age)
+    set_csrf_cookie(response, csrf, max_age, cross_site)
     return csrf
 
 
@@ -29,7 +30,7 @@ async def admin_login(payload: AdminLoginIn, response: Response, request: Reques
     if not user or not verify_password(payload.password, user.get("password_hash", "")):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     token = create_admin_token(str(user["_id"]), user["email"], user.get("role", "admin"))
-    csrf = _set_session_cookies(response, token)
+    csrf = _set_session_cookies(response, token, request)
     # v52bx — bug #34: a stale vendor_token on the same browser was leaking
     # vendor permissions into the admin session (and vice versa). On every
     # admin login we now kill the OTHER role cookies so switching accounts
@@ -52,15 +53,16 @@ async def admin_login(payload: AdminLoginIn, response: Response, request: Reques
 
 
 @router.post("/logout")
-async def admin_logout(response: Response) -> Dict[str, bool]:
+async def admin_logout(response: Response, request: Request) -> Dict[str, bool]:
     # Logout does not require CSRF — it's idempotent and only clears cookies.
     # Bug #82 fix — nuke ALL three cookie realms so switching roles never
     # leaves a stale vendor_token / access_token behind (which caused the
     # "Your session is still active" ErrorBoundary crash on the next login).
+    cross_site = is_preview_request(request)
     response.delete_cookie("access_token", path="/", domain=config.COOKIE_DOMAIN)
-    clear_session_cookie(response, "access_token")
-    clear_session_cookie(response, "vendor_token")
-    clear_session_cookie(response, "csrf_token")
+    clear_session_cookie(response, "access_token", cross_site)
+    clear_session_cookie(response, "vendor_token", cross_site)
+    clear_session_cookie(response, "csrf_token", cross_site)
     return {"ok": True}
 
 
