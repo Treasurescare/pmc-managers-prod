@@ -96,8 +96,17 @@ export default function RegistrationStart() {
       const r = await registrationApi.createDraft({ email, company_name: companyName || undefined, country });
       setSent(r);
       toast.success(t("register.start_success"));
-      // In pilot: redirect to the resume link so the user can continue immediately
-      setTimeout(() => navigate(`/register/resume?token=${r.magic_token}`), 800);
+      if (r.magic_token) {
+        // Fresh draft — continue immediately via the one-time token.
+        setTimeout(() => navigate(`/register/resume?token=${r.magic_token}`), 800);
+      } else {
+        // v54f — SEC-002 path: a draft already exists for this email, so the
+        // API deliberately omits the token. Navigating with it undefined sent
+        // users to /register/resume?token=undefined which 404'd, bounced them
+        // back here with an empty email field, and broke uploads. Instead
+        // tell them to use the fresh link we just emailed.
+        toast.info("A draft already exists for this email — we've re-sent your private resume link. Please continue from that email.", { duration: 12000 });
+      }
     } catch (err) {
       showApiError(err);
     } finally {
@@ -195,7 +204,9 @@ export default function RegistrationStart() {
 
           {sent && (
             <div className="text-xs text-brand-navy/60 mt-2" data-testid="reg-start-sent">
-              Draft created · <Link className="underline" to={`/register/resume?token=${sent.magic_token}`}>continue now</Link>
+              {sent.magic_token
+                ? <>Draft created · <Link className="underline" to={`/register/resume?token=${sent.magic_token}`}>continue now</Link></>
+                : <>Resume link sent to <span className="font-mono">{email}</span> — open it from your inbox to continue.</>}
             </div>
           )}
         </form>

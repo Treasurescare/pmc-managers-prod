@@ -10,6 +10,14 @@ reverse auctions, bid governance, EMD escrow workflows, vendor/staff/
 institution portals, AWS deployment bundles, and transactional notifications
 (Stripe, Resend, DocuSign, Emergent crons).
 
+## Current P0 — v54f all-in-one (17 Feb 2026)
+v54f = v54e + resume-link repair: the SEC-002 existing-draft path no longer
+navigates to `token=undefined` (root cause of "upload view/download broken
++ email not populated" from the emailed resume link), invalid tokens get a
+clear message, the resume page shows the vendor's email, and legacy rows
+without magic tokens get one minted on first use. Deploy the v54f pair and
+skip all earlier v54x bundles.
+
 ## Current P0 — v54e all-in-one (17 Feb 2026)
 v54e = v54d + registration validation pack: country-format regex checks
 (reg no / tax ID), mandatory non-future incorporation date, ISD phone

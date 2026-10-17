@@ -22,6 +22,18 @@ def _out(doc: dict) -> dict:
     return d
 
 
+async def _magic_token_for(doc: dict) -> str:
+    """v54f — legacy registration rows pre-date magic tokens. Mint and
+    persist one on first use so resume links never KeyError → 500."""
+    tok = doc.get("magic_token") or ""
+    if not tok:
+        tok = new_magic_token()
+        await db.registrations.update_one(
+            {"_id": doc["_id"]},
+            {"$set": {"magic_token": tok, "updated_at": now_iso()}})
+    return tok
+
+
 # ---------- Wave 10 — Per-section document slots ----------
 
 # Slot definitions — each slot is a canonical "kind" of document a vendor must
@@ -272,7 +284,7 @@ async def create_draft(payload: RegistrationDraftIn):
     if existing:
         # SEC-002 — mail the resume link to the record's own address, do not
         # expose the token in the API response under any circumstance.
-        resume_url = f"{config.FRONTEND_URL}/register/resume?token={existing['magic_token']}"
+        resume_url = f"{config.FRONTEND_URL}/register/resume?token={await _magic_token_for(existing)}"
         asyncio.create_task(send_email(
             existing["email"], "PMC Managers — Continue your registration",
             wrap("Continue your PMC registration",
@@ -434,7 +446,7 @@ async def admin_send_reminders(admin: dict = Depends(require_role("admin"))) -> 
     reminded = 0
     async for reg in db.registrations.find(q):
         checked += 1
-        resume_url = f"{config.FRONTEND_URL}/register/resume?token={reg['magic_token']}"
+        resume_url = f"{config.FRONTEND_URL}/register/resume?token={await _magic_token_for(reg)}"
         asyncio.create_task(send_email(
             reg["email"],
             "PMC Managers — Your registration is still open",
@@ -544,6 +556,9 @@ async def admin_decide(registration_id: str, payload: RegistrationDecisionIn,
         if not payload.notes:
             raise HTTPException(status_code=400, detail="Notes required when requesting clarification")
         updates["status"] = "needs_clarification"
+        # v54f — mint a magic token for legacy rows before the helper builds
+        # the resume URL (previously KeyError → 500 on the whole decision).
+        doc["magic_token"] = await _magic_token_for(doc)
         dispatch_clarification_email(doc, payload.notes)
     else:
         raise HTTPException(status_code=400, detail="Invalid action")

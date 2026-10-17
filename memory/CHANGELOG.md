@@ -1,5 +1,24 @@
 # PMC Managers — Changelog
 
+## v54f — 17 Feb 2026 — Resume-link repair (token=undefined)
+- **ROOT FIX**: RegistrationStart navigated to
+  `/register/resume?token=${r.magic_token}` even on the SEC-002
+  existing-draft path where the API deliberately omits the token →
+  `token=undefined` → resume 404 → bounce to /register with empty email →
+  uploads dead-ended with "enter the vendor email first". Navigation now
+  happens only with a real token; the duplicate path shows a
+  "resume link re-sent to <email>" message instead.
+- RegistrationResume treats `undefined`/`null`/missing tokens as invalid
+  links with a clear "request a fresh link" message.
+- Resume page now shows the vendor's email at the top of the form
+  ("Registering as … · private draft link").
+- Backend `_magic_token_for` mints a token for legacy rows on first use —
+  SEC-002 re-request, reminder loop, and clarification emails can no
+  longer KeyError → 500 on pre-token registrations.
+- Verified: fresh draft token ✓, duplicate no-token ✓, legacy-row token
+  mint ✓.
+- Bundles: `pmc-backend-v54f.zip`, `pmc-frontend-v54f-prod-build.zip`.
+
 ## v54e — 17 Feb 2026 — Vendor registration validation & upload pack
 - Section A: registration number + tax ID live-validated against
   `masters_country_formats` regex with local label + example hint;

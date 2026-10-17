@@ -49,7 +49,14 @@ export default function RegistrationResume() {
   const [aFormatIssue, setAFormatIssue] = useState(false);
 
   useEffect(() => {
-    if (!token) { navigate("/register"); return; }
+    if (!token || token === "undefined" || token === "null") {
+      // v54f — a broken resume link (token=undefined/null) used to fetch a
+      // 404 and bounce with a confusing generic error. Say what happened
+      // and send the vendor back to the start page to request a fresh link.
+      toast.error("That resume link is invalid or expired. Enter your email again and we'll send a fresh one.", { duration: 9000 });
+      navigate("/register");
+      return;
+    }
     setLoading(true);
     Promise.all([
       registrationApi.resume(token),
@@ -203,6 +210,13 @@ export default function RegistrationResume() {
         )}
         <div className="pmc-label">{t("register.title")}</div>
         <h1 className="font-display text-3xl lg:text-4xl mt-2 text-brand-navy">{stepLabel}</h1>
+        {/* v54f — anchor the vendor's identity: the resume page never showed
+            which email the draft belongs to, so vendors bounced from a broken
+            link couldn't tell the form knew them at all. */}
+        <div className="mt-2 text-sm text-brand-navy/70" data-testid="reg-resume-email">
+          Registering as <span className="font-mono font-semibold text-brand-navy">{reg.email}</span>
+          {" · "}private draft link — do not share
+        </div>
 
         <ol className="mt-6 flex items-center gap-2 flex-wrap" data-testid="stepper">
           {STEPS.map((s, i) => {
