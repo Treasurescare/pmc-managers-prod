@@ -88,6 +88,31 @@ export default function RegistrationResume() {
         "email", "data_processing_consent", "marketing_consent",
         "consent_at", "document_slots",
       ]) delete payload[k];
+      // v54h — defence in depth: `registrationApi.update` already filters
+      // via _stripRegExtras, but when some caller or future refactor
+      // sends a raw PATCH, this console helper surfaces the offending
+      // field names instead of the opaque "Extra inputs are not permitted".
+      const whitelist = new Set([
+        "company_name","trade_name","registered_address","mailing_address","country",
+        "country_id_label","registration_number","incorporation_date","tax_id",
+        "legal_entity_type","website","employees_count","contact_name","contact_title",
+        "contact_office_phone","contact_mobile","contact_email","signatory_name",
+        "signatory_title","signatory_contact","bank_name","bank_branch",
+        "bank_account_number","bank_swift","bank_address","turnover_year1",
+        "turnover_year2","turnover_year3","turnover_currency","primary_sector",
+        "business_description","operating_regions","business_categories",
+        "previous_projects","references","iso_certifications","licenses_permits",
+        "insurance_details","litigation_history","kz_licenses","documents",
+        "decl_conflict_of_interest","decl_integrity","decl_accuracy",
+        "decl_data_consent","decl_fee","decl_notification","primary_unspsc_code",
+        "primary_unspsc_title","signature_name","signature_title","signature_date","directors",
+      ]);
+      const stray = Object.keys(payload).filter((k) => !whitelist.has(k));
+      if (stray.length) {
+        // eslint-disable-next-line no-console
+        console.warn("[saveDraft] dropping unknown fields:", stray);
+        for (const k of stray) delete payload[k];
+      }
       const fresh = fromAdmin && ridParam
         ? await adminApi.registrationAdminUpdate(ridParam, payload)
         : await registrationApi.update(reg.id, token, payload);

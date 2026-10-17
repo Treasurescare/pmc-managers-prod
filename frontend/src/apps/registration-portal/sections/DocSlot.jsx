@@ -11,6 +11,10 @@ import { useI18n } from "@/context/I18nContext";
 export default function DocSlot({ regId, token, slot, label, required, existing, onChange, ensureDraft }) {
   const { t } = useI18n();
   const [busy, setBusy] = useState(false);
+  // v54h — track the ids actually used for the upload so View/Download
+  // links render immediately, even if the parent didn't re-render with
+  // regId/token yet (first-upload-then-save flow).
+  const [localIds, setLocalIds] = useState(null);
 
   const upload = async (file) => {
     if (!file) return;
@@ -32,6 +36,11 @@ export default function DocSlot({ regId, token, slot, label, required, existing,
         return;
       }
       const meta = await registrationApi.uploadDocument(rid, tok, slot, file);
+      // v54h — remember rid/tok locally so the View / Download links render
+      // immediately after upload even if parent state propagation is slow or
+      // the parent hasn't re-rendered yet. Previously vendors saw a green
+      // "uploaded" toast but no View button, forcing a page reload.
+      setLocalIds({ rid, tok });
       toast.success(`${label} · ${t("docs.uploaded_ok")}`);
       onChange({ ...meta });
     } catch (e) { showApiError(e); }
@@ -50,16 +59,13 @@ export default function DocSlot({ regId, token, slot, label, required, existing,
   };
 
   const kb = existing?.size_bytes ? Math.round(existing.size_bytes / 1024) : null;
-  // v50y — use the dedicated registration file endpoint which validates the
-  // magic token server-side. The old /api/v1/uploads/files/{key} path
-  // required a signed-in session (admin bearer OR vendor cookie), so vendors
-  // mid-registration always hit 401 and View/Download appeared broken.
-  // v52cz — RELATIVE URL only. `${REACT_APP_BACKEND_URL}` is baked at build
-  // time, so production bundles were pointing View/Download at the preview
-  // host → CORS blocked / 404'd on pmcmanagers.com. The browser routes
-  // `/api/v1/...` to the same origin, which CloudFront forwards to EB.
-  const viewUrl = existing && regId && token
-    ? `/api/v1/registrations/${regId}/documents/${slot}/file?token=${encodeURIComponent(token)}`
+  // v54h — fall back to locally-captured ids from the upload call so the
+  // View/Download links are available immediately even if props haven't
+  // been re-rendered yet.
+  const effRid = regId || localIds?.rid;
+  const effTok = token || localIds?.tok;
+  const viewUrl = existing && effRid && effTok
+    ? `/api/v1/registrations/${effRid}/documents/${slot}/file?token=${encodeURIComponent(effTok)}`
     : null;
   const downloadUrl = viewUrl ? `${viewUrl}&download=1` : null;
 

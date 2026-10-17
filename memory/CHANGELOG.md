@@ -1,5 +1,18 @@
 # PMC Managers — Changelog
 
+## v54h — 17 Feb 2026 — Default country + upload polish
+- `/register` default country now blank + remembered in localStorage
+  (prefills your last choice on the next visit) instead of hardcoded KZ.
+- DocSlot captures the actual `rid`/`tok` used for the upload call and
+  uses them as a fallback for the View/Download links, so action buttons
+  render immediately on upload even if parent props haven't re-rendered.
+- `saveDraft` now logs stray non-whitelisted fields to the browser
+  console and drops them in place (defence in depth), so an "Extra
+  inputs are not permitted" 422 can no longer block the user — plus the
+  exact offending field name shows up in console logs for debugging.
+- Build stamp bumped to v54h.
+- Bundles: `pmc-backend-v54h.zip`, `pmc-frontend-v54h-prod-build.zip`.
+
 ## v54g — 17 Feb 2026 — Prod URL fix + visible build stamp
 - **ROOT FIX**: backend `.env` shipped `FRONTEND_URL="https://pmc-forest-green.preview.emergentagent.com"` — the Emergent preview, not pmcmanagers.com. Resume-registration emails from the production backend therefore pointed to a different environment; clicking the link opened preview, where the production draft/documents/email did not exist. Default now `https://pmcmanagers.com`. If EB env vars already override this, nothing changes.
 - Added public `GET /api/v1/_version` endpoint + visible footer build stamp (`Frontend v54g · Backend v54g`) so we can confirm which bundle is live from any browser.

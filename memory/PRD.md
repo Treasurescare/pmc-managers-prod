@@ -10,6 +10,20 @@ reverse auctions, bid governance, EMD escrow workflows, vendor/staff/
 institution portals, AWS deployment bundles, and transactional notifications
 (Stripe, Resend, DocuSign, Emergent crons).
 
+## Current P0 — v54h all-in-one (17 Feb 2026)
+v54h = v54g + default-country-fix + upload polish:
+- `/register` default country now blank with localStorage memory of last
+  pick (no more "Kazakhstan by default").
+- DocSlot captures the actual rid/tok used for the upload call and uses
+  them as a fallback for the View/Download links so the action buttons
+  render immediately on upload, not only when parent re-renders.
+- `saveDraft` logs stray non-whitelisted fields to the browser console
+  and drops them (defence in depth) so the opaque "Extra inputs are not
+  permitted" 422 can't block a user — the exact offending field name is
+  now diagnosable from console logs.
+- Build stamp bumped to v54h.
+Deploy the v54h pair and skip all earlier v54x bundles.
+
 ## Current P0 — v54g all-in-one (17 Feb 2026)
 v54g = v54f + visible build stamp + prod URL fix:
 - `.env` default `FRONTEND_URL` changed from the Emergent preview to

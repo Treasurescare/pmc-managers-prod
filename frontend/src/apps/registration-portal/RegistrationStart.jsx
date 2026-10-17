@@ -11,8 +11,14 @@ export default function RegistrationStart() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [companyName, setCompanyName] = useState("");
-  const [country, setCountry] = useState("KZ");
-  const [countries, setCountries] = useState([{ code: "KZ", name: "Kazakhstan" }]);
+  // v54h — default country is BLANK; after a successful send we remember
+  // the vendor's choice in localStorage so re-opening /register prefills
+  // their last country instead of forcing them to re-pick from Kazakhstan.
+  const [country, setCountry] = useState(() => {
+    try { return localStorage.getItem("pmc.last_register_country") || ""; }
+    catch { return ""; }
+  });
+  const [countries, setCountries] = useState([]);
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(null);
   const [template, setTemplate] = useState({ available: false });
