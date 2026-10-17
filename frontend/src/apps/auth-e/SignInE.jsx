@@ -87,14 +87,15 @@ export default function SignInE({ legacy: Legacy }) {
         "reviewer", "escrow_agent", "certifier", "legal_counsel", "accounting",
         "committee_member", "auditor", "support", "management", "partner", "agent",
       ];
-      const roleCandidates = role === "admin" ? ["admin"] : allStaffRoles;
+      const roleCandidates = role === "admin" ? ["admin"] : [...allStaffRoles, "admin"];
       let lastErr = null;
       for (const rc of roleCandidates) {
         try {
           const r = await staffApi.login(email, password, rc, undefined);
           if (r && !r.mfa_required) {
-            toast.success(`Signed in · ${r.active_role}`);
-            if (role === "admin" || r.active_role === "admin") return nav("/admin");
+            const active = r.active_role || rc;
+            toast.success(`Signed in · ${active}`);
+            if (active === "admin") return nav("/admin");
             return nav("/staff");
           }
           if (r && r.mfa_required) {
@@ -116,6 +117,15 @@ export default function SignInE({ legacy: Legacy }) {
           lastErr = err;
           // fall through to the generic error below
         }
+      }
+      // v54p — if the only matching role is high-risk (escrow_agent /
+      // legal_counsel / accounting) the backend returns a 403 explaining that
+      // MFA must be enabled from the admin portal first. Surface that exact
+      // guidance instead of the generic "sign-in failed" message.
+      const lastDetail = lastErr?.response?.data?.detail;
+      if (lastErr?.response?.status === 403 && typeof lastDetail === "string" && /MFA/i.test(lastDetail)) {
+        toast.error(lastDetail, { duration: 12000, closeButton: true });
+        return;
       }
       // v50g bug #124 — show a clear role-aware error toast (duration 8s) so
       // testers never think a wrong-credentials sign-in silently succeeded.

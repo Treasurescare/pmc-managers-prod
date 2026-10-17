@@ -10,7 +10,16 @@ reverse auctions, bid governance, EMD escrow workflows, vendor/staff/
 institution portals, AWS deployment bundles, and transactional notifications
 (Stripe, Resend, DocuSign, Emergent crons).
 
-## Current P0 — v54o (17 Jun 2026) — Staff RBAC end-to-end
+## Current P0 — v54p (17 Jun 2026) — Staff login hardening
+Production report: staff set to `admin + escrow_agent` crashed on login
+("Signed in · undefined" → blank `/undefined`). Root cause = STALE production
+build; current code is safe (verified). Shipped hardening in `SignInE.jsx`: the
+"PMC staff" card also tries `admin` fallback; navigation never reads an
+undefined role; high-risk-role-without-MFA now shows the exact "enable 2FA"
+message. Deploying v54p backend makes `/api/v1/_version=v54p`, which triggers the
+version guard to auto-clear stale clients. Artifacts: pmc-{backend,frontend}-v54p.
+
+## Prev P0 — v54o (17 Jun 2026) — Staff RBAC end-to-end
 Specialist staff (escrow signer / certifier / etc.) were seeing the FULL
 admin console. Root cause: `/admin` + `/admin/e/*` had no frontend role
 guard. Fix: `RequireAdmin` guard (admin + reviewer only; others → `/staff`)

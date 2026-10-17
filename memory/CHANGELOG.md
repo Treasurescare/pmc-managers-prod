@@ -1,5 +1,32 @@
 # PMC Managers — Changelog
 
+## v54p (2026-06-17) — Staff login hardening (admin-holding accounts + clear MFA message)
+Follow-up to a production report where a staff set to `admin + escrow_agent`
+crashed on login ("Signed in · undefined" → blank `/undefined` screen).
+
+**Finding:** The crash was from a STALE production build. Current code's backend
+validates role membership and always returns a real `active_role`; current
+`SignInE` navigates only to literal `/admin` or `/staff` (never `/${active_role}`),
+and an ErrorBoundary catches render errors. Verified on preview — no crash in any case.
+
+**Hardening shipped anyway (SignInE.jsx):**
+- The "PMC staff" sign-in card now also tries `admin` as a last candidate, so an
+  account that holds `admin` (plus a high-risk specialist role that needs MFA)
+  signs in cleanly as admin instead of failing.
+- Navigation uses the returned `active_role` safely; success toast falls back to
+  the attempted role so it can never read `undefined`.
+- When the only matching role is high-risk (escrow_agent/legal_counsel/accounting)
+  and MFA isn't enabled, the backend's exact guidance is surfaced
+  ("MFA is required… sign in as admin and enable 2FA") instead of a generic error.
+- Verified: unified "PMC staff" and `/staff/login` both land admin+escrow_agent on
+  the admin console; escrow_agent-only (no MFA) shows the MFA toast, no crash.
+
+**Action for user:** deploy v54p. Deploying the v54p BACKEND makes `/api/v1/_version`
+report v54p, which triggers the built-in version guard to auto-clear every stale
+browser/cache once — this is what ends the recurring "old code on prod" crashes.
+
+
+
 ## v54o (2026-06-17) — Staff RBAC end-to-end: specialists can no longer reach the admin console
 **Reported bug:** A staff member created in Staff Master with only a specialist role (e.g. Escrow Agent / "escrow signer") could still see the FULL admin console after logging in.
 
