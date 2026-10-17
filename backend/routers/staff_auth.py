@@ -39,7 +39,34 @@ def _out(doc: dict) -> dict:
     d = dict(doc)
     d["id"] = str(d.pop("_id"))
     d.pop("password_hash", None)
+    roles = d.get("roles") or ([d.get("role")] if d.get("role") else [])
+    # v55 — backfill account_type for legacy records: a record that holds an
+    # admin-console role is an "admin" account, otherwise it's a "staff" account.
+    d["account_type"] = d.get("account_type") or (
+        "admin" if (set(roles) & ADMIN_CONSOLE_ROLES) else "staff"
+    )
     return d
+
+
+# v55 — roles that unlock the admin console. "staff" accounts may never hold these.
+ADMIN_CONSOLE_ROLES = {"admin", "reviewer"}
+
+
+def _validate_account_type(account_type: str, roles: List[str]) -> None:
+    held_admin = ADMIN_CONSOLE_ROLES & set(roles or [])
+    if account_type == "staff" and held_admin:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Staff accounts cannot hold the {', '.join(sorted(held_admin))} "
+                "role. Set the account type to Admin, or remove those roles."
+            ),
+        )
+    if account_type == "admin" and not held_admin:
+        raise HTTPException(
+            status_code=400,
+            detail="Admin accounts must include the Admin or Reviewer role.",
+        )
 
 
 @router.post("/auth/login")
@@ -164,6 +191,7 @@ async def list_staff(admin=Depends(require_role("admin"))) -> List[dict]:
 async def create_staff(payload: StaffCreateIn, admin=Depends(require_role("admin"))) -> dict:
     if await db.admin_users.find_one({"email": payload.email.lower()}):
         raise HTTPException(status_code=409, detail="Email already exists")
+    _validate_account_type(payload.account_type, payload.roles)
     from datetime import datetime, timezone
     doc = {
         "email": payload.email.lower(),
@@ -171,6 +199,7 @@ async def create_staff(payload: StaffCreateIn, admin=Depends(require_role("admin
         "password_hash": hash_password(payload.password),
         "roles": payload.roles,
         "role": payload.roles[0],  # legacy compat
+        "account_type": payload.account_type,
         "hierarchy_level": payload.hierarchy_level,
         "company_id": payload.company_id,
         "reports_to": payload.reports_to,
@@ -191,9 +220,21 @@ async def create_staff(payload: StaffCreateIn, admin=Depends(require_role("admin
 @router.patch("/{staff_id}")
 async def update_staff(staff_id: str, payload: StaffUpdateIn,
                        admin=Depends(require_role("admin"))) -> dict:
+    existing = await db.admin_users.find_one({"_id": ObjectId(staff_id)})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Not found")
     updates = payload.model_dump(exclude_unset=True)
     if "roles" in updates and updates["roles"]:
         updates["role"] = updates["roles"][0]
+    # v55 — validate the resulting (account_type, roles) combination so a staff
+    # account can never be given admin/reviewer, and an admin account always
+    # keeps one. Persist account_type (backfilling legacy records).
+    eff_roles = updates.get("roles") or existing.get("roles") or (
+        [existing.get("role")] if existing.get("role") else [])
+    eff_type = (updates.get("account_type") or existing.get("account_type")
+                or ("admin" if (set(eff_roles) & ADMIN_CONSOLE_ROLES) else "staff"))
+    _validate_account_type(eff_type, eff_roles)
+    updates["account_type"] = eff_type
     # Password reset: hash before persisting, never store raw
     if updates.get("password"):
         updates["password_hash"] = hash_password(updates.pop("password"))

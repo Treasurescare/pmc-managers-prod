@@ -1,5 +1,31 @@
 # PMC Managers — Changelog
 
+## v54q (2026-06-17) — Account type (Admin vs Staff) + reverted v54p escalation
+**IMPORTANT: v54q supersedes v54p. Do NOT deploy v54p — it contained a
+privilege-escalation bug (the unified "PMC staff" card could sign an
+admin-holding account in as admin). That is reverted in v54q.**
+
+**New: explicit account type at staff creation.**
+- Every staff record now has an `account_type`: **Admin** or **Staff**.
+  - **Admin** → signs in via the Administrator login, reaches the admin console;
+    must hold the Admin or Reviewer role.
+  - **Staff** → signs in via the staff login, only ever reaches the /staff
+    specialist dashboard; may NOT hold Admin or Reviewer.
+- Enforced server-side on create AND update (`staff_auth.py` `_validate_account_type`):
+  staff+admin/reviewer → 400; admin without admin/reviewer → 400.
+- Legacy records are backfilled on read: holds admin/reviewer ⇒ "admin", else "staff".
+- Staff Master UI (`StaffTab.jsx`): Account Type radio; selecting "Staff" hides the
+  Admin/Reviewer checkboxes so a specialist can never be given console access.
+- Verified: 6 backend curl scenarios + UI radio/role-visibility + the full
+  iteration_87 RBAC/login suite (12/12 backend, 7/7 frontend) still pass.
+
+**Also in v54q (carried from the reverted v54p):**
+- Unified "PMC staff" card never signs anyone in as admin (admin fallback removed).
+- High-risk-role-without-MFA shows the backend's exact "enable 2FA" message.
+- v54o staff RBAC guard (specialists blocked from the admin console).
+
+
+
 ## v54p (2026-06-17) — Staff login hardening (admin-holding accounts + clear MFA message)
 Follow-up to a production report where a staff set to `admin + escrow_agent`
 crashed on login ("Signed in · undefined" → blank `/undefined` screen).

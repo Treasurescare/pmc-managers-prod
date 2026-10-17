@@ -42,6 +42,11 @@ class StaffCreateIn(BaseModel):
     # on behalf of PMC. Only staff with this flag appear in the "PMC
     # officer" dropdown when creating a joint escrow account.
     is_escrow_signatory: bool = False
+    # v55 — portal type. "admin" accounts sign in via the Administrator login
+    # and reach the admin console; "staff" accounts sign in via the staff login
+    # and only ever reach the /staff specialist dashboard. A "staff" account may
+    # NOT hold the admin/reviewer roles (enforced server-side on create/update).
+    account_type: Literal["admin", "staff"] = "staff"
 
 
 class StaffUpdateIn(BaseModel):
@@ -53,6 +58,7 @@ class StaffUpdateIn(BaseModel):
     is_active: Optional[bool] = None
     password: Optional[str] = Field(None, min_length=8)
     is_escrow_signatory: Optional[bool] = None
+    account_type: Optional[Literal["admin", "staff"]] = None
 
 
 class StaffPublic(BaseModel):

@@ -1,0 +1,20 @@
+{
+  "summary": "Full validation of v55 RBAC/privilege-escalation fixes: 12/12 backend pytest + 7/7 Playwright frontend scenarios PASS. (1) ESCALATION GUARD: previewmulti@pmcmanagers.com (roles=[admin,escrow_agent]) submitted via the 'PMC staff' card stays on /login (URL not /admin, body ~1084 chars) — no admin escalation. (2) ADMIN LOGIN/LOGOUT CYCLE x3: Administrator card with previewmulti lands on /admin/e/dashboard each cycle, Sign-out (admin-avatar-btn → avatar-sign-out) returns to /login; URL never contained '/undefined' and body length stayed substantial (2890 logged-in / 977 logged-out). (3) SPECIALIST GUARD: certifier logs in → /staff; direct nav to /admin and /admin/e/dashboard both bounce to /staff. (4a) /staff/login with certifier+role=certifier → /staff OK. (4b) /staff/login with escrow@+role=escrow_agent → stays on form, no blank screen, no /undefined, staff-login-form still visible. (5) adminsupport via Administrator card → /admin/e/dashboard. BACKEND: certifier gets 403 on /api/v1/billing/transactions,/docusign/envelopes,/registrations,/vendors and 200 on /api/v1/inspections; admin gets 200 on all four. staff/auth/login with certifier+active_role=admin returns 403 with 'admin role' message. previewmulti+active_role=escrow_agent returns 403 'MFA is required for escrow_agent'.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": ["/app/backend/tests/test_rbac_escalation_v55.py", "/app/test_reports/pytest/rbac_v55.xml"],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "SignInE.jsx roleCandidates loop correctly excludes 'admin' for the staff card (line 93). The admin-only legacy fallback at lines 118-127 is scoped to role==='admin' so it cannot cause escalation from the staff card.",
+    "RequireAdmin.jsx uses an allow-list {admin, reviewer} and redirects everything else to /staff — correct defense-in-depth even if a non-admin somehow obtained a staff session.",
+    "The staff card currently shows a 'Signed in · <role>' or 'MFA required' toast; both scenarios keep the user on /login. Working as intended."
+  ],
+  "updated_files": ["/app/backend/tests/test_rbac_escalation_v55.py"],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "100% (7/7)"},
+  "test_credentials": "Used file /app/memory/test_credentials.md; previewmulti preview account verified live.",
+  "seed_data_creation": "None — previewmulti and all other accounts already seeded.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "RBAC/escalation fixes are fully validated at both backend and UI layers. The admin-fallback regression from v54p is confirmed removed. Regression file at /app/backend/tests/test_rbac_escalation_v55.py — reuse for future auth/RBAC changes.",
+  "rca of the issue": "Root cause of the earlier privilege escalation was in SignInE.jsx: a buggy staff login loop included 'admin' as a trailing fallback candidate so a user holding both admin+escrow_agent would be silently signed in as admin via the 'PMC staff' card. Current code sets roleCandidates=allStaffRoles for role==='staff' (admin excluded) and only the Administrator card uses ['admin']. Verified live: previewmulti via staff card now stays on /login with the MFA guidance toast."
+}

@@ -10,7 +10,15 @@ reverse auctions, bid governance, EMD escrow workflows, vendor/staff/
 institution portals, AWS deployment bundles, and transactional notifications
 (Stripe, Resend, DocuSign, Emergent crons).
 
-## Current P0 — v54p (17 Jun 2026) — Staff login hardening
+## Current P0 — v54q (17 Jun 2026) — Account type (Admin vs Staff)
+Added an explicit `account_type` (admin|staff) to staff records. Staff-type
+accounts cannot hold admin/reviewer and only reach /staff; admin-type reach the
+admin console. Enforced server-side on create+update (`staff_auth._validate_account_type`),
+legacy records backfilled on read, Staff Master UI has an Account Type radio that
+hides Admin/Reviewer for staff. SUPERSEDES v54p (which had a privilege-escalation
+bug — reverted). Verified: 6 curl scenarios + UI + iteration_87 RBAC suite.
+
+## Prev P0 — v54p (17 Jun 2026) — Staff login hardening
 Production report: staff set to `admin + escrow_agent` crashed on login
 ("Signed in · undefined" → blank `/undefined`). Root cause = STALE production
 build; current code is safe (verified). Shipped hardening in `SignInE.jsx`: the

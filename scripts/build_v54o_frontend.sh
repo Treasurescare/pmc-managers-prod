@@ -3,7 +3,7 @@
 # CRITICAL: public/downloads/ is stashed during the build so CRA does not copy
 # the (huge) release archives into build/. It is restored afterwards.
 set -e
-VER=v54p
+VER=v54q
 cd /app/frontend
 
 STASH=/tmp/pmc_dl_stash

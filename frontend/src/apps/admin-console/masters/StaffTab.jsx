@@ -50,11 +50,24 @@ export default function StaffTab({
 
   const previewRoles = (showStaffNew ? staffDraft.roles : (editDraft?.roles || []));
 
+  // v55 — account type gates which roles are selectable. "staff" accounts can
+  // only ever reach the /staff dashboard, so admin/reviewer are hidden for them.
+  const createType = staffDraft.account_type || "staff";
+  const rolesForType = (type) =>
+    Object.entries(ROLE_LABELS).filter(([r]) => type === "admin" || !["admin", "reviewer"].includes(r));
+  const setCreateType = (type) => {
+    const roles = type === "staff"
+      ? (staffDraft.roles || []).filter((r) => !["admin", "reviewer"].includes(r))
+      : staffDraft.roles;
+    setStaffDraft({ ...staffDraft, account_type: type, roles });
+  };
+
   const startEdit = (s) => {
     setEditingId(s.id);
     setEditDraft({
       name: s.name || "",
       roles: [...(s.roles || (s.role ? [s.role] : []))],
+      account_type: s.account_type || ((s.roles || []).some((r) => ["admin", "reviewer"].includes(r)) ? "admin" : "staff"),
       hierarchy_level: s.hierarchy_level || 3,
       is_active: s.is_active !== false,
       is_escrow_signatory: !!s.is_escrow_signatory,
@@ -62,6 +75,13 @@ export default function StaffTab({
     });
   };
   const cancelEdit = () => { setEditingId(null); setEditDraft(null); };
+  const setEditType = (type) => {
+    setEditDraft((d) => ({
+      ...d,
+      account_type: type,
+      roles: type === "staff" ? d.roles.filter((r) => !["admin", "reviewer"].includes(r)) : d.roles,
+    }));
+  };
   const toggleEditRole = (r) => {
     setEditDraft((d) => ({
       ...d,
@@ -76,6 +96,7 @@ export default function StaffTab({
       const patch = {
         name: editDraft.name,
         roles: editDraft.roles,
+        account_type: editDraft.account_type,
         hierarchy_level: editDraft.hierarchy_level,
         is_active: editDraft.is_active,
         is_escrow_signatory: !!editDraft.is_escrow_signatory,
@@ -130,9 +151,24 @@ export default function StaffTab({
               className="mt-1 w-full px-3 py-2 border normal-case tracking-normal" data-testid="staff-password" />
           </label>
           <div className="md:col-span-3">
+            <div className="pmc-label mb-1">Account type<InfoDot tip="Admin accounts sign in via the Administrator login and reach the admin console. Staff accounts sign in via the staff login and only ever reach the /staff dashboard — they cannot hold the Admin or Reviewer role." /></div>
+            <div className="flex gap-4 text-sm mb-1">
+              <label className="flex items-center gap-1 cursor-pointer">
+                <input type="radio" name="staff-account-type" checked={createType === "staff"}
+                  onChange={() => setCreateType("staff")} data-testid="staff-account-type-staff" />
+                Staff <span className="text-brand-navy/50 text-xs">(specialist → /staff)</span>
+              </label>
+              <label className="flex items-center gap-1 cursor-pointer">
+                <input type="radio" name="staff-account-type" checked={createType === "admin"}
+                  onChange={() => setCreateType("admin")} data-testid="staff-account-type-admin" />
+                Admin <span className="text-brand-navy/50 text-xs">(admin console)</span>
+              </label>
+            </div>
+          </div>
+          <div className="md:col-span-3">
             <div className="pmc-label mb-1">Roles (multi-select)<InfoDot tip="One user can hold multiple roles. Roles drive dashboard visibility and permission-matrix gates." /></div>
             <div className="grid grid-cols-3 gap-1 text-xs">
-              {Object.entries(ROLE_LABELS).map(([r, l]) => (
+              {rolesForType(createType).map(([r, l]) => (
                 <label key={r} className="flex items-center gap-1">
                   <input type="checkbox" checked={staffDraft.roles.includes(r)}
                     onChange={() => onToggleRole(r)} data-testid={`staff-role-${r}`} />
@@ -262,8 +298,22 @@ export default function StaffTab({
                         data-testid={`staff-edit-password-${s.email}`} />
                     </td>
                     <td className="px-3 py-3 align-top" colSpan={2}>
+                      <div className="flex gap-3 text-xs mb-2">
+                        <label className="flex items-center gap-1 cursor-pointer">
+                          <input type="radio" name={`edit-type-${s.email}`} checked={(editDraft.account_type || "staff") === "staff"}
+                            onChange={() => setEditType("staff")} data-testid={`staff-edit-account-type-${s.email}-staff`} />
+                          Staff
+                        </label>
+                        <label className="flex items-center gap-1 cursor-pointer">
+                          <input type="radio" name={`edit-type-${s.email}`} checked={editDraft.account_type === "admin"}
+                            onChange={() => setEditType("admin")} data-testid={`staff-edit-account-type-${s.email}-admin`} />
+                          Admin
+                        </label>
+                      </div>
                       <div className="grid grid-cols-2 gap-1 text-xs">
-                        {Object.entries(ROLE_LABELS).map(([r, l]) => (
+                        {Object.entries(ROLE_LABELS)
+                          .filter(([r]) => editDraft.account_type === "admin" || !["admin", "reviewer"].includes(r))
+                          .map(([r, l]) => (
                           <label key={r} className="flex items-center gap-1">
                             <input type="checkbox" checked={editDraft.roles.includes(r)}
                               onChange={() => toggleEditRole(r)}
