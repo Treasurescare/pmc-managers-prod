@@ -87,8 +87,12 @@ export default function SignInE({ legacy: Legacy }) {
         "reviewer", "escrow_agent", "certifier", "legal_counsel", "accounting",
         "committee_member", "auditor", "support", "management", "partner", "agent",
       ];
-      const roleCandidates = role === "admin" ? ["admin"] : [...allStaffRoles, "admin"];
+      // The "PMC staff" card must NEVER sign a user in as admin — that would
+      // let an escrow/specialist account escalate to the admin console. Admin
+      // sign-in is only via the "Administrator" card (roleCandidates=["admin"]).
+      const roleCandidates = role === "admin" ? ["admin"] : allStaffRoles;
       let lastErr = null;
+      let mfaDetail = null;
       for (const rc of roleCandidates) {
         try {
           const r = await staffApi.login(email, password, rc, undefined);
@@ -104,6 +108,9 @@ export default function SignInE({ legacy: Legacy }) {
           }
         } catch (err) {
           lastErr = err;
+          // Remember a high-risk-role MFA 403 even if later candidates overwrite lastErr.
+          const d = err?.response?.data?.detail;
+          if (err?.response?.status === 403 && typeof d === "string" && /MFA/i.test(d)) mfaDetail = d;
           // try next candidate
         }
       }
@@ -122,9 +129,8 @@ export default function SignInE({ legacy: Legacy }) {
       // legal_counsel / accounting) the backend returns a 403 explaining that
       // MFA must be enabled from the admin portal first. Surface that exact
       // guidance instead of the generic "sign-in failed" message.
-      const lastDetail = lastErr?.response?.data?.detail;
-      if (lastErr?.response?.status === 403 && typeof lastDetail === "string" && /MFA/i.test(lastDetail)) {
-        toast.error(lastDetail, { duration: 12000, closeButton: true });
+      if (mfaDetail) {
+        toast.error(mfaDetail, { duration: 12000, closeButton: true });
         return;
       }
       // v50g bug #124 — show a clear role-aware error toast (duration 8s) so
