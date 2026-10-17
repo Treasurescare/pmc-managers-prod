@@ -10,6 +10,14 @@ reverse auctions, bid governance, EMD escrow workflows, vendor/staff/
 institution portals, AWS deployment bundles, and transactional notifications
 (Stripe, Resend, DocuSign, Emergent crons).
 
+## Current P0 — v54e all-in-one (17 Feb 2026)
+v54e = v54d + registration validation pack: country-format regex checks
+(reg no / tax ID), mandatory non-future incorporation date, ISD phone
+dropdowns, country-filtered bank datalist with SWIFT autofill, numeric-only
+turnover, UNSPSC mousedown-click fix + comma custom chips, upload
+view/download/persist verified via 13-check browser run.
+Deploy the v54e pair and skip all earlier v54x bundles.
+
 ## Current P0 — v54d all-in-one (17 Feb 2026)
 v54d = v54c (registration + escrow fixes) + searchable country combobox in
 Section D Operating Regions (type-to-filter with matches on top, full list

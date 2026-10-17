@@ -1,5 +1,24 @@
 # PMC Managers — Changelog
 
+## v54e — 17 Feb 2026 — Vendor registration validation & upload pack
+- Section A: registration number + tax ID live-validated against
+  `masters_country_formats` regex with local label + example hint;
+  incorporation date mandatory and capped at today; format errors block
+  the Next gate.
+- Section B: office/mobile/signatory phones get a country ISD dropdown
+  (defaults to vendor country) + 4–14 digit national-number validation;
+  stored as "+ISD national".
+- Section C: bank name is a country-filtered datalist from
+  `masters_banks` (escrow's source); picking a bank autofills SWIFT
+  prefix+XXX (editable); turnover inputs reject letters at keypress.
+- Section D: UNSPSC options activate on mousedown (fixes the
+  debounce-re-render swallowed-click bug — "unable to choose"); trailing
+  comma / Enter adds a custom category chip.
+- Uploads: view/download verified; document_slots fully excluded from
+  save payloads so files can't vanish on save.
+- Verified via 13-check Playwright run on a seeded IN draft (all pass).
+- Bundles: `pmc-backend-v54e.zip`, `pmc-frontend-v54e-prod-build.zip`.
+
 ## v54d — 17 Feb 2026 — Searchable country picker in Operating Regions
 - Section D → Operating Regions → Country is now a searchable combobox:
   type letters to float matches (name or ISO code, starts-with first)

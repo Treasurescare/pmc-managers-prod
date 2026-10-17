@@ -27,6 +27,9 @@ export default function UnspscMultiPicker({ value = [], onChange, testidPrefix =
   }, []);
 
   const onInput = (v) => {
+    // v54e — a trailing comma commits the typed text as a custom chip,
+    // so comma-separated entry works the way users expect.
+    if (v.endsWith(",")) { addCustom(v); return; }
     setQ(v);
     setOpen(true);
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -40,6 +43,20 @@ export default function UnspscMultiPicker({ value = [], onChange, testidPrefix =
   }, []);
 
   const codes = new Set((value || []).map((v) => (typeof v === "string" ? v : v.code)));
+
+  // v54e — free-text escape hatch: typing text followed by a comma (or
+  // Enter with no highlighted result) adds it as a custom category chip.
+  // The backend model accepts {code,title} dicts; legacy strings stay
+  // readable too.
+  const addCustom = (text) => {
+    const t = String(text || "").replace(/,+$/, "").trim();
+    if (t.length < 2) return;
+    const dupe = (value || []).some((v) =>
+      (typeof v === "string" ? v : v.title)?.toLowerCase() === t.toLowerCase());
+    if (dupe) { setQ(""); setOpen(false); return; }
+    onChange?.([...value, { code: `CUSTOM:${t.slice(0, 40)}`, title: t }]);
+    setQ(""); setRows([]); setOpen(false);
+  };
 
   const add = (row) => {
     if (codes.has(row.code)) return;
@@ -71,7 +88,13 @@ export default function UnspscMultiPicker({ value = [], onChange, testidPrefix =
       <input value={q}
              onChange={(e) => onInput(e.target.value)}
              onFocus={() => q.length >= 2 && setOpen(true)}
-             placeholder="Search UNSPSC — e.g. biogas, solar plant, construction, CBG, STP…"
+             onKeyDown={(e) => {
+               if (e.key === "Enter") {
+                 e.preventDefault();
+                 if (rows[0]) add(rows[0]); else addCustom(q);
+               }
+             }}
+             placeholder="Search UNSPSC — or type a category and press Enter / comma to add it…"
              data-testid={`${testidPrefix}-input`}
              className="w-full border border-brand-navy/20 px-3 py-2 text-sm" />
       {open && rows.length > 0 && (
@@ -80,7 +103,15 @@ export default function UnspscMultiPicker({ value = [], onChange, testidPrefix =
           {rows.map((r) => {
             const already = codes.has(r.code);
             return (
-              <button type="button" key={r.code} onClick={() => add(r)}
+              <button type="button" key={r.code}
+                      // v54e — activate on mousedown (with preventDefault so
+                      // the input keeps focus) instead of click: the debounced
+                      // search re-render could swap the option node between
+                      // mousedown and click, silently dropping the pick.
+                      // add() already no-ops on duplicates, so the onClick
+                      // backup can never double-add.
+                      onMouseDown={(e) => { e.preventDefault(); add(r); }}
+                      onClick={() => add(r)}
                       disabled={already}
                       data-testid={`${testidPrefix}-option-${r.code}`}
                       className={`block w-full text-left px-3 py-2 text-sm border-b border-brand-navy/5 last:border-0 ${already ? "bg-emerald-50 text-emerald-800 cursor-not-allowed" : "hover:bg-brand-navy/5"}`}>
@@ -98,7 +129,8 @@ export default function UnspscMultiPicker({ value = [], onChange, testidPrefix =
       )}
       {open && !busy && q.length >= 2 && rows.length === 0 && (
         <div className="absolute z-30 mt-1 left-0 right-0 bg-white border border-brand-navy/20 shadow-lg p-3 text-xs text-brand-navy/60">
-          No UNSPSC entries match "{q}". Try broader words (e.g. "methane" instead of "biogas").
+          No UNSPSC match for “{q}” — press Enter or type a trailing comma to
+          add it as a custom category.
         </div>
       )}
     </div>

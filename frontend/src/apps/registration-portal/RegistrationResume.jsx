@@ -22,9 +22,10 @@ const DECL_KEYS = [
 
 // Section A required fields — vendor cannot advance until Identity & Basic
 // Info is complete. Anything else per section is optional/progressive.
+// v54e — incorporation_date is mandatory and capped at today.
 const SECTION_A_REQUIRED = [
   "company_name", "registered_address", "country",
-  "registration_number", "legal_entity_type",
+  "registration_number", "legal_entity_type", "incorporation_date",
 ];
 const missingSectionA = (reg) =>
   SECTION_A_REQUIRED.filter((k) => !reg?.[k] || String(reg[k]).trim() === "");
@@ -42,6 +43,10 @@ export default function RegistrationResume() {
   const [busy, setBusy] = useState(false);
   const [countries, setCountries] = useState([]);
   const [kzMeta, setKzMeta] = useState({ licenses: [], category_map: {} });
+  // v54e — Section A reports live format problems (reg-number / tax-id
+  // regex mismatch, future incorporation date) so the Next gate blocks
+  // until they're fixed, not just until fields are non-empty.
+  const [aFormatIssue, setAFormatIssue] = useState(false);
 
   useEffect(() => {
     if (!token) { navigate("/register"); return; }
@@ -127,7 +132,11 @@ export default function RegistrationResume() {
   const sectionAGaps = useMemo(() => missingSectionA(reg), [reg]);
   const step = STEPS[stepIdx];
   const stepLabel = t(`register.section_${step}`);
-  const nextBlocked = step === "a" && sectionAGaps.length > 0;
+  const sectionABlocked = sectionAGaps.length > 0 || aFormatIssue;
+  const sectionAReason = sectionAGaps.length > 0
+    ? `Please fill Identity & Basic Info first. Missing: ${sectionAGaps.map((k) => k.replace(/_/g, " ")).join(", ")}`
+    : "Fix the highlighted format errors in Section A first (registration number / tax ID format, or a future incorporation date).";
+  const nextBlocked = step === "a" && sectionABlocked;
 
   if (loading || !reg) {
     return (
@@ -202,16 +211,14 @@ export default function RegistrationResume() {
             // Bug-blitz (a) — Registration step gate. Jumping past Section A
             // via the stepper used to bypass the required-field check; block
             // it here so the only way past Section A is completing it.
-            const jumpBlocked = i > 0 && sectionAGaps.length > 0;
+            const jumpBlocked = i > 0 && sectionABlocked;
             return (
               <li key={s}>
                 <button
                   type="button"
                   onClick={() => {
                     if (jumpBlocked) {
-                      toast.error(
-                        `Please fill Identity & Basic Info first. Missing: ${sectionAGaps.map((k) => k.replace(/_/g, " ")).join(", ")}`,
-                      );
+                      toast.error(sectionAReason);
                       return;
                     }
                     setStepIdx(i);
@@ -248,8 +255,8 @@ export default function RegistrationResume() {
                 });
               },
             };
-            if (step === "a") return <SectionA reg={reg} update={update} countries={countries} {...docProps} />;
-            if (step === "b") return <SectionB reg={reg} update={update} {...docProps} />;
+            if (step === "a") return <SectionA reg={reg} update={update} countries={countries} onFormatIssue={setAFormatIssue} {...docProps} />;
+            if (step === "b") return <SectionB reg={reg} update={update} countries={countries} {...docProps} />;
             if (step === "c") return <SectionC reg={reg} update={update} {...docProps} />;
             if (step === "d") return <SectionD reg={reg} update={update} kzMeta={kzMeta} {...docProps} />;
             if (step === "directors") return <SectionDirectors reg={reg} update={update} />;
@@ -286,9 +293,7 @@ export default function RegistrationResume() {
                   type="button"
                   onClick={async () => {
                     if (nextBlocked) {
-                      toast.error(
-                        `Please fill Identity & Basic Info first. Missing: ${sectionAGaps.map((k) => k.replace(/_/g, " ")).join(", ")}`,
-                      );
+                      toast.error(sectionAReason);
                       return;
                     }
                     await saveDraft();

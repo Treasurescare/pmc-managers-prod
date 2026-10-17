@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export function Field({ label, children, hint, error, required }) {
   return (
@@ -75,7 +75,7 @@ export function NumericInput({ testId, value, onCommit, integer = false, ...rest
       inputMode={integer ? "numeric" : "decimal"}
       value={raw}
       onFocus={() => setFocused(true)}
-      onChange={(e) => setRaw(e.target.value)}
+      onChange={(e) => setRaw(e.target.value.replace(/[^\d,.\-\s]/g, ""))}
       onBlur={commit}
       onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commit(); } }}
       className="mt-1 w-full px-4 py-3 border border-brand-navy/20 focus:outline-none focus:border-brand-navy-soft text-brand-navy bg-white"
@@ -163,5 +163,81 @@ export function PhoneInput({ testId, value, onChange, ...rest }) {
         </span>
       )}
     </>
+  );
+}
+
+/**
+ * v54e — Phone with country ISD dropdown. The ISD code is picked from the
+ * countries master (native select type-ahead works — focus and type "ind"
+ * to jump to India); the national number accepts digits/spaces/hyphens and
+ * is live-validated to 4–14 digits. Stored as "+91 98765 43210" so existing
+ * backend fields and E.164 checks keep working.
+ */
+export function PhoneWithIsd({ testId, value, onChange, countries = [], defaultCountry }) {
+  const parsed = (() => {
+    const m = /^\s*\+(\d{1,4})[\s\-]*(.*)$/.exec(String(value || ""));
+    return m ? { isd: m[1], national: m[2] } : { isd: "", national: String(value || "") };
+  })();
+  const defaultIsd = useMemo(() => {
+    const c = (countries || []).find((x) => x.code === defaultCountry);
+    return c?.phone_code ? String(c.phone_code).replace(/^\+/, "") : "";
+  }, [countries, defaultCountry]);
+  const isd = parsed.isd || defaultIsd;
+  const national = parsed.national || "";
+
+  const emit = (nextIsd, nextNationalRaw) => {
+    const n = String(nextNationalRaw || "").replace(/[^\d\s\-()]/g, "").trim();
+    const v = n ? (nextIsd ? `+${nextIsd} ${n}` : n) : "";
+    onChange({ target: { value: v } });
+  };
+
+  const digits = national.replace(/[^\d]/g, "");
+  const showError = !!national && (digits.length < 4 || digits.length > 14);
+
+  const options = useMemo(() => {
+    const seen = new Map();
+    for (const c of countries || []) {
+      const pc = String(c.phone_code || "").replace(/^\+/, "").trim();
+      if (!pc) continue;
+      if (!seen.has(pc)) seen.set(pc, []);
+      seen.get(pc).push(c.code);
+    }
+    return [...seen.entries()].sort((a, b) => Number(a[0]) - Number(b[0]));
+  }, [countries]);
+
+  return (
+    <div data-testid={testId ? `${testId}-with-isd` : undefined}>
+      <div className="mt-1 flex gap-2">
+        <select
+          value={isd}
+          onChange={(e) => emit(e.target.value, national)}
+          data-testid={testId ? `${testId}-isd` : undefined}
+          className="w-36 shrink-0 px-2 py-3 border border-brand-navy/20 bg-white text-brand-navy text-sm focus:outline-none focus:border-brand-navy-soft">
+          <option value="">+ ISD</option>
+          {options.map(([pc, codes]) => (
+            <option key={pc} value={pc}>
+              +{pc} · {codes.slice(0, 3).join("/")}{codes.length > 3 ? "…" : ""}
+            </option>
+          ))}
+        </select>
+        <input
+          type="tel"
+          inputMode="tel"
+          data-testid={testId}
+          value={national}
+          onChange={(e) => emit(isd, e.target.value)}
+          placeholder="number without country code"
+          aria-invalid={showError || undefined}
+          className={"flex-1 px-4 py-3 border focus:outline-none text-brand-navy bg-white " +
+            (showError ? "border-red-500 focus:border-red-500"
+                       : "border-brand-navy/20 focus:border-brand-navy-soft")} />
+      </div>
+      {showError && (
+        <span className="block text-[11px] text-red-600 mt-1"
+              data-testid={testId ? `${testId}-error` : undefined}>
+          Enter the national number without the country code — 4 to 14 digits.
+        </span>
+      )}
+    </div>
   );
 }
