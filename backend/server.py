@@ -45,6 +45,23 @@ _boot_log.info(
 app = FastAPI(title="PMC Managers v2 — Tender & Registration API")
 
 
+@app.middleware("http")
+async def _no_store_api(request, call_next):
+    """Force API responses to be uncacheable. Production sits behind CloudFront;
+    if the CDN caches an /api response it strips Set-Cookie, so the login cookie
+    never reaches the browser → /me 401 → user bounced back to /login. Marking
+    every /api response no-store stops the CDN from caching auth responses.
+    NOTE: CloudFront must also be configured with a /api/* behavior that honours
+    origin cache headers (or CachingDisabled) and forwards Cookie/Authorization."""
+    response = await call_next(request)
+    if request.url.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
+        response.headers["Pragma"] = "no-cache"
+        existing_vary = response.headers.get("Vary")
+        response.headers["Vary"] = (existing_vary + ", Cookie, Authorization") if existing_vary else "Cookie, Authorization"
+    return response
+
+
 # ---------- Root health probes for load balancers (Elastic Beanstalk / ALB)
 # EB Enhanced Health hits `/` (and sometimes `/health`) on the ALB. Without a
 # handler these return 404 and EB reports "100% 4xx" → environment goes

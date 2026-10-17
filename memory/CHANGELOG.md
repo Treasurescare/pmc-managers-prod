@@ -1,5 +1,17 @@
 # PMC Managers — Changelog
 
+## v54t (2026-06-17) — ACTUAL root cause: CloudFront caching /api (strips Set-Cookie)
+Proven in the user's live browser: staff login POST returned 200 but the browser
+got the response WITHOUT Set-Cookie, with `x-cache: Error from cloudfront` + age:154
+(a CACHED response). So the session cookie never reached the browser → /me 401 →
+bounced to /login. curl worked (fresh/uncached). Preview has no CloudFront.
+
+Fix (code): server.py middleware sets `Cache-Control: no-store` + `Vary: Cookie,
+Authorization` on ALL /api/* responses so the CDN won't cache them.
+Fix (infra, user-side, authoritative): add a CloudFront `/api/*` behavior with
+CachingDisabled + AllViewer origin-request policy, then invalidate /*.
+
+
 ## v54s (2026-06-17) — THE real staff-login fix: SameSite=None cookie
 Reproduced on production with a valid staff account: `POST /staff/auth/login`
 returned 200 but the immediate `GET /staff/auth/me` returned 401 → the app
