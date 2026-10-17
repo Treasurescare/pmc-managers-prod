@@ -10,6 +10,18 @@ reverse auctions, bid governance, EMD escrow workflows, vendor/staff/
 institution portals, AWS deployment bundles, and transactional notifications
 (Stripe, Resend, DocuSign, Emergent crons).
 
+## Current P0 — v54g all-in-one (17 Feb 2026)
+v54g = v54f + visible build stamp + prod URL fix:
+- `.env` default `FRONTEND_URL` changed from the Emergent preview to
+  `https://pmcmanagers.com` — root cause of "upload works, then file is
+  gone when I open the emailed resume link" was that production emails
+  were pointing to the preview environment, so clicking the link opened
+  a different environment where the file never existed.
+- Public `/api/v1/_version` endpoint + footer stamp showing frontend AND
+  backend bundle versions, so we can confirm which bundle is live from
+  any browser before testing.
+Deploy the v54g pair and skip all earlier v54x bundles.
+
 ## Current P0 — v54f all-in-one (17 Feb 2026)
 v54f = v54e + resume-link repair: the SEC-002 existing-draft path no longer
 navigates to `token=undefined` (root cause of "upload view/download broken

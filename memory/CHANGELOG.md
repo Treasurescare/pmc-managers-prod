@@ -1,5 +1,10 @@
 # PMC Managers — Changelog
 
+## v54g — 17 Feb 2026 — Prod URL fix + visible build stamp
+- **ROOT FIX**: backend `.env` shipped `FRONTEND_URL="https://pmc-forest-green.preview.emergentagent.com"` — the Emergent preview, not pmcmanagers.com. Resume-registration emails from the production backend therefore pointed to a different environment; clicking the link opened preview, where the production draft/documents/email did not exist. Default now `https://pmcmanagers.com`. If EB env vars already override this, nothing changes.
+- Added public `GET /api/v1/_version` endpoint + visible footer build stamp (`Frontend v54g · Backend v54g`) so we can confirm which bundle is live from any browser.
+- Bundles: `pmc-backend-v54g.zip`, `pmc-frontend-v54g-prod-build.zip`.
+
 ## v54f — 17 Feb 2026 — Resume-link repair (token=undefined)
 - **ROOT FIX**: RegistrationStart navigated to
   `/register/resume?token=${r.magic_token}` even on the SEC-002
