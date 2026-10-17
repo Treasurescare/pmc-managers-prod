@@ -14,6 +14,7 @@ from models.staff_user import StaffLoginIn, StaffCreateIn, StaffUpdateIn, ALL_ST
 from security import (
     verify_password, hash_password, create_admin_token, current_admin,
     new_csrf_token, require_role, require_csrf, set_csrf_cookie,
+    set_access_cookie, clear_session_cookie,
 )
 from audit import audit_log
 import config
@@ -23,11 +24,7 @@ router = APIRouter(prefix="/api/v1/staff", tags=["staff-auth"])
 
 def _set_session_cookies(response: Response, access_token: str) -> str:
     max_age = config.ACCESS_TOKEN_TTL_MIN * 60
-    ck = {"httponly": True, "secure": True, "samesite": "lax",
-          "max_age": max_age, "path": "/"}
-    if config.COOKIE_DOMAIN:
-        ck["domain"] = config.COOKIE_DOMAIN
-    response.set_cookie("access_token", access_token, **ck)
+    set_access_cookie(response, "access_token", access_token, max_age)
     csrf = new_csrf_token()
     set_csrf_cookie(response, csrf, max_age)
     return csrf
@@ -127,9 +124,11 @@ async def staff_login(payload: StaffLoginIn, response: Response, request: Reques
 @router.post("/auth/logout")
 async def staff_logout(response: Response) -> Dict[str, bool]:
     # Bug #82 fix — nuke ALL three cookie realms (see admin_auth.logout).
-    response.delete_cookie("access_token", path="/", domain=config.COOKIE_DOMAIN)
-    response.delete_cookie("vendor_token", path="/", domain=config.COOKIE_DOMAIN)
-    response.delete_cookie("csrf_token", path="/", domain=config.COOKIE_DOMAIN)
+    # Must use matching SameSite=None; Partitioned attributes or the browser
+    # keeps the cookie, which blocks the next login (v54s).
+    clear_session_cookie(response, "access_token")
+    clear_session_cookie(response, "vendor_token")
+    clear_session_cookie(response, "csrf_token")
     return {"ok": True}
 
 

@@ -10,7 +10,15 @@ reverse auctions, bid governance, EMD escrow workflows, vendor/staff/
 institution portals, AWS deployment bundles, and transactional notifications
 (Stripe, Resend, DocuSign, Emergent crons).
 
-## Current P0 — v54r (17 Jun 2026) — ROOT CAUSE of recurring login crash
+## Current P0 — v54s (17 Jun 2026) — REAL staff-login fix (SameSite=None cookie)
+Reproduced on prod: staff login returns 200 but the next /me returns 401 →
+bounced to /login ("staff can't log in"). Cause: access_token cookie was
+SameSite=Lax, which prod CloudFront drops (preview ingress rewrote it to
+None;Partitioned, masking it). Fix: set access_token with
+HttpOnly;Secure;SameSite=None;Partitioned (security.set_access_cookie) + matching
+clear on logout. Verified via local Set-Cookie. Affects all staff+admin logins.
+
+## Prev P0 — v54r (17 Jun 2026) — ROOT CAUSE of recurring login crash
 Production ran v54q on the server but browsers ran OLD v54n JS: the SW
 CACHE_VERSION was frozen at pmc-shell-v54n across v54o/p/q, so the SW never
 updated and served the stale cache (old buggy /undefined login). CloudFront also

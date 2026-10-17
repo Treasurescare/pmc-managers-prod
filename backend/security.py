@@ -85,6 +85,29 @@ def set_csrf_cookie(response, csrf: str, max_age: int) -> None:
     response.headers.append("set-cookie", "; ".join(parts))
 
 
+def set_access_cookie(response, name: str, value: str, max_age: int) -> None:
+    """HttpOnly session cookie with CHIPS attributes that survive a CDN /
+    cross-context first-party setup (CloudFront in prod): SameSite=None +
+    Secure + Partitioned. Starlette's set_cookie can't emit `Partitioned`, so
+    we build the header manually — mirroring set_csrf_cookie. Using SameSite=Lax
+    here caused prod browsers to drop the cookie, so /me 401'd right after a
+    successful login and the user was bounced back to /login."""
+    parts = [f"{name}={value}", f"Max-Age={max_age}", "Path=/",
+             "HttpOnly", "Secure", "SameSite=None", "Partitioned"]
+    if config.COOKIE_DOMAIN:
+        parts.append(f"Domain={config.COOKIE_DOMAIN}")
+    response.headers.append("set-cookie", "; ".join(parts))
+
+
+def clear_session_cookie(response, name: str) -> None:
+    """Expire a cookie that was set with SameSite=None; Partitioned. The clear
+    header's attributes must match or the browser keeps the cookie."""
+    parts = [f"{name}=", "Max-Age=0", "Path=/", "Secure", "SameSite=None", "Partitioned"]
+    if config.COOKIE_DOMAIN:
+        parts.append(f"Domain={config.COOKIE_DOMAIN}")
+    response.headers.append("set-cookie", "; ".join(parts))
+
+
 async def require_csrf(request: Request) -> None:
     """Double-submit CSRF check. Enforced on state-changing admin endpoints.
 

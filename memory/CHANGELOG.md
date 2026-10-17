@@ -1,5 +1,19 @@
 # PMC Managers — Changelog
 
+## v54s (2026-06-17) — THE real staff-login fix: SameSite=None cookie
+Reproduced on production with a valid staff account: `POST /staff/auth/login`
+returned 200 but the immediate `GET /staff/auth/me` returned 401 → the app
+bounced back to /login = "staff can't log in at all". Root cause: the
+`access_token` session cookie was `SameSite=Lax`; preview's ingress rewrites it
+to `SameSite=None; Partitioned` (so it worked there) but production CloudFront
+does not, so the browser dropped the cookie.
+
+Fix (`security.py` + `admin_auth.py` + `staff_auth.py`): set `access_token` with
+`HttpOnly; Secure; SameSite=None; Partitioned` (same CHIPS attrs as csrf_token),
+and clear cookies with matching attrs on logout. Verified the local backend now
+emits the correct Set-Cookie. Affects all staff + admin logins.
+
+
 ## v54r (2026-06-17) — ROOT CAUSE: stale service worker pinned browsers to old code
 The persistent "login crashes to /undefined after logout" was NOT a code bug in
 v54q — production served v54q, but users' browsers ran OLD cached v54n JS.

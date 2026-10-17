@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Response, Depends, Request
 
 from db import db
 from models import AdminLoginIn, AdminPasswordChangeIn
-from security import verify_password, hash_password, create_admin_token, current_admin, new_csrf_token, require_csrf, set_csrf_cookie
+from security import verify_password, hash_password, create_admin_token, current_admin, new_csrf_token, require_csrf, set_csrf_cookie, set_access_cookie, clear_session_cookie
 from audit import audit_log
 import config
 
@@ -15,11 +15,7 @@ def _set_session_cookies(response: Response, access_token: str) -> str:
     """Set both httpOnly access_token cookie AND JS-readable csrf_token cookie.
     Returns the csrf_token so the caller can echo it in the JSON body too."""
     max_age = config.ACCESS_TOKEN_TTL_MIN * 60
-    ck = {"httponly": True, "secure": True, "samesite": "lax",
-          "max_age": max_age, "path": "/"}
-    if config.COOKIE_DOMAIN:
-        ck["domain"] = config.COOKIE_DOMAIN
-    response.set_cookie("access_token", access_token, **ck)
+    set_access_cookie(response, "access_token", access_token, max_age)
     csrf = new_csrf_token()
     # csrf_token cookie is INTENTIONALLY not httpOnly — client JS reads it and
     # echoes as X-CSRF-Token header (double-submit-cookie pattern).
@@ -62,8 +58,9 @@ async def admin_logout(response: Response) -> Dict[str, bool]:
     # leaves a stale vendor_token / access_token behind (which caused the
     # "Your session is still active" ErrorBoundary crash on the next login).
     response.delete_cookie("access_token", path="/", domain=config.COOKIE_DOMAIN)
-    response.delete_cookie("vendor_token", path="/", domain=config.COOKIE_DOMAIN)
-    response.delete_cookie("csrf_token", path="/", domain=config.COOKIE_DOMAIN)
+    clear_session_cookie(response, "access_token")
+    clear_session_cookie(response, "vendor_token")
+    clear_session_cookie(response, "csrf_token")
     return {"ok": True}
 
 
