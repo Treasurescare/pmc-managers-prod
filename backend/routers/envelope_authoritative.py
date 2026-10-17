@@ -8,7 +8,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends
 
 from db import db
-from security import current_admin
+from security import current_admin, require_role
 
 router = APIRouter(prefix="/api/v1/envelope-log", tags=["envelope-log"])
 
@@ -25,7 +25,7 @@ async def envelope_log(
     bid_id: Optional[str] = None,
     kind: Optional[str] = None,   # award | bid_ack
     sub_kind: Optional[str] = None,  # po | sla | contract
-    admin=Depends(current_admin),
+    admin=Depends(require_role("admin", "legal_counsel", "reviewer", "accounting")),
 ):
     """Return envelopes filtered by bid + kind and flag the authoritative one.
     Authoritative = highest-ranked status; break ties by most recent created_at.

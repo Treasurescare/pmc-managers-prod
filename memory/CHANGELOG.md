@@ -1,5 +1,20 @@
 # PMC Managers — Changelog
 
+## v54o (2026-06-17) — Staff RBAC end-to-end: specialists can no longer reach the admin console
+**Reported bug:** A staff member created in Staff Master with only a specialist role (e.g. Escrow Agent / "escrow signer") could still see the FULL admin console after logging in.
+
+**Root cause:** The `/admin` and all `/admin/e/*` routes had NO frontend role guard — any authenticated staff session rendered the entire admin UI. (Backend was mostly gated, but ~20 `current_admin` any-staff endpoints also leaked admin-console data.)
+
+**Fix (end-to-end):**
+- Frontend: new `components/RequireAdmin.jsx` layout guard wraps every admin route. Only `admin` + `reviewer` enter the console; every other role is redirected to `/staff`. On no session → `/login`.
+- Backend: tightened the remaining any-staff (`current_admin`) data endpoints to proper `require_role(...)` sets — billing, docusign (admin mgmt), engagements, auction_live, evaluations, meetings, governance, envelope_authoritative, tenant-logo, help-requests. Left genuinely self-scoped endpoints as-is (own avatar, mfa, notifications, chat, tasks, me/switch-role).
+- Verified: certifier specialist → 403 on billing/docusign/registrations/vendors, 200 on own inspections; `/admin` bounces to `/staff`. Admin → full console + 200 on all.
+
+**Who does what (role model, enforced):**
+- `admin` → full admin console. `reviewer` → admin console (deputy).
+- `escrow_agent`, `certifier`, `legal_counsel`, `accounting`, `committee_member`, `auditor`, `support`, `management/partner/agent` → `/staff` specialist dashboard only.
+
+
 ## v54n — 17 Feb 2026 — Escrow registration document View/Download
 - Escrow registration (EscrowAccountWizard) → 4. Documents step: uploaded KYC
   files only had Replace/Remove. Added **View** (open in new tab via SPA blob

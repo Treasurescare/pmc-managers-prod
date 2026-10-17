@@ -300,7 +300,7 @@ async def patch_reverse_auction(aid: str, payload: AuctionPatchIn,
 
 
 @router.get("")
-async def list_reverse_auctions(admin=Depends(current_admin),
+async def list_reverse_auctions(admin=Depends(require_role("admin", "reviewer", "auditor")),
                                 created_by_email: Optional[str] = None,
                                 created_from: Optional[str] = None,
                                 created_to: Optional[str] = None):
@@ -364,7 +364,7 @@ async def list_my_reverse_auctions(vendor=Depends(current_vendor)):
 
 
 @router.get("/{aid}")
-async def get_reverse_auction_admin(aid: str, admin=Depends(current_admin)):
+async def get_reverse_auction_admin(aid: str, admin=Depends(require_role("admin", "reviewer", "auditor"))):
     a = await db.reverse_auctions.find_one({"_id": ObjectId(aid)})
     if not a:
         raise HTTPException(status_code=404, detail="Auction not found")
@@ -854,7 +854,7 @@ async def decline_invite(token: str, payload: DeclineIn,
 
 
 @router.get("/awarded/list")
-async def list_awarded_auctions(admin=Depends(current_admin)):
+async def list_awarded_auctions(admin=Depends(require_role("admin", "reviewer", "auditor"))):
     """v53j — admin digest of all awarded reverse auctions with winner,
     saving %, pipeline stage. Powers the new 'Recently awarded' panel."""
     out = []
@@ -1018,7 +1018,7 @@ class InviteTemplateIn(BaseModel):
 
 
 @router.get("/invite/tpl")
-async def list_invite_templates(admin=Depends(current_admin)):
+async def list_invite_templates(admin=Depends(require_role("admin", "reviewer", "auditor"))):
     return [BaseDocument.out(t) async for t in db.auction_invite_templates.find({}).sort("name", 1)]
 
 
@@ -1057,7 +1057,7 @@ async def delete_invite_template(tid: str, admin=Depends(require_role("admin")))
 
 
 @router.get("/{aid}/invitations")
-async def list_invitations(aid: str, admin=Depends(current_admin)):
+async def list_invitations(aid: str, admin=Depends(require_role("admin", "reviewer", "auditor"))):
     rows = []
     async for r in db.reverse_auction_invitations.find({"auction_id": aid}).sort("invited_at", -1):
         r["id"] = str(r.pop("_id"))

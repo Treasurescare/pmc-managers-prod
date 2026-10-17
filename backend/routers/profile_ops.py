@@ -17,7 +17,7 @@ from fastapi import APIRouter, HTTPException, Depends, Response
 from pydantic import BaseModel, EmailStr, Field
 
 from db import db
-from security import current_admin, require_csrf
+from security import current_admin, require_csrf, require_role
 from audit import audit_log
 from routers.vendor_auth import current_vendor
 
@@ -104,7 +104,7 @@ class TenantLogoIn(BaseModel):
 
 @router.post("/tenants/{tenant_id}/logo", dependencies=[Depends(require_csrf)])
 async def tenant_upload_logo(tenant_id: str, payload: TenantLogoIn,
-                             admin=Depends(current_admin)):
+                             admin=Depends(require_role("admin"))):
     data_url = _validate_data_url(payload.data_url)
     r = await db.tenants.update_one(
         {"_id": ObjectId(tenant_id)},
@@ -118,7 +118,7 @@ async def tenant_upload_logo(tenant_id: str, payload: TenantLogoIn,
 
 
 @router.delete("/tenants/{tenant_id}/logo", dependencies=[Depends(require_csrf)])
-async def tenant_remove_logo(tenant_id: str, admin=Depends(current_admin)):
+async def tenant_remove_logo(tenant_id: str, admin=Depends(require_role("admin"))):
     await db.tenants.update_one(
         {"_id": ObjectId(tenant_id)},
         {"$unset": {"logo_data_url": "", "logo_updated_at": ""}},
@@ -228,7 +228,7 @@ async def submit_help_request(payload: HelpRequestIn):
 
 
 @router.get("/admin/help-requests")
-async def list_help_requests(admin=Depends(current_admin),
+async def list_help_requests(admin=Depends(require_role("admin", "support")),
                               status: Optional[str] = None):
     q = {} if status is None else {"status": status}
     out = []
@@ -245,7 +245,7 @@ class HelpResolveIn(BaseModel):
 @router.post("/admin/help-requests/{req_id}/resolve",
              dependencies=[Depends(require_csrf)])
 async def resolve_help_request(req_id: str, payload: HelpResolveIn,
-                                admin=Depends(current_admin)):
+                                admin=Depends(require_role("admin", "support"))):
     r = await db.help_requests.update_one(
         {"_id": ObjectId(req_id)},
         {"$set": {"status": "resolved",

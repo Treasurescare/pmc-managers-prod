@@ -17,7 +17,7 @@ from bson import ObjectId
 
 from db import db
 from models.base import BaseDocument, now_iso
-from security import current_admin
+from security import current_admin, require_role
 from routers.vendor_auth import current_vendor
 from audit import audit_log
 
@@ -126,7 +126,7 @@ async def list_my_engagements(vendor=Depends(current_vendor)):
 
 @router.get("")
 async def list_engagements(status: Optional[str] = None,
-                            admin=Depends(current_admin)):
+                            admin=Depends(require_role("admin", "reviewer", "support", "accounting"))):
     q: dict = {}
     if status and status in STATUSES:
         q["status"] = status
@@ -135,7 +135,7 @@ async def list_engagements(status: Optional[str] = None,
 
 
 @router.get("/{eid}")
-async def get_engagement(eid: str, admin=Depends(current_admin)):
+async def get_engagement(eid: str, admin=Depends(require_role("admin", "reviewer", "support", "accounting"))):
     if not ObjectId.is_valid(eid):
         raise HTTPException(status_code=400, detail="Invalid engagement id")
     d = await db.engagements.find_one({"_id": ObjectId(eid)})
@@ -145,7 +145,7 @@ async def get_engagement(eid: str, admin=Depends(current_admin)):
 
 
 @router.patch("/{eid}/quote")
-async def set_quote(eid: str, payload: QuoteSetIn, admin=Depends(current_admin)):
+async def set_quote(eid: str, payload: QuoteSetIn, admin=Depends(require_role("admin", "reviewer", "support", "accounting"))):
     """Admin sets the quoted amount + currency. Moves engagement to `quoted`."""
     if not ObjectId.is_valid(eid):
         raise HTTPException(status_code=400, detail="Invalid engagement id")
@@ -175,7 +175,7 @@ async def set_quote(eid: str, payload: QuoteSetIn, admin=Depends(current_admin))
 
 @router.post("/{eid}/checkout")
 async def engagement_checkout(eid: str, payload: CheckoutIn, request: Request,
-                                admin=Depends(current_admin)):
+                                admin=Depends(require_role("admin", "reviewer", "support", "accounting"))):
     """Admin generates a Stripe checkout URL for the buyer using the quoted amount.
     Marks engagement as `invoiced` once the session is created (still needs payment)."""
     if not ObjectId.is_valid(eid):
@@ -244,7 +244,7 @@ class CancelIn(BaseModel):
 
 @router.post("/{eid}/cancel")
 async def cancel_engagement(eid: str, payload: CancelIn,
-                             admin=Depends(current_admin)):
+                             admin=Depends(require_role("admin", "reviewer", "support", "accounting"))):
     """Cancel with a required non-empty reason. Reason is logged + audited."""
     if not ObjectId.is_valid(eid):
         raise HTTPException(status_code=400, detail="Invalid engagement id")
@@ -278,7 +278,7 @@ class MeetingIn(BaseModel):
 
 @router.post("/{eid}/meetings")
 async def schedule_meeting(eid: str, payload: MeetingIn,
-                           admin=Depends(current_admin)):
+                           admin=Depends(require_role("admin", "reviewer", "support", "accounting"))):
     """v52bl — schedule a lightweight PMC-internal meeting with the buyer
     and/or supplier on this engagement. Stored on the engagement doc, posted
     to the audit ledger, and surfaced on both parties' dashboards."""
@@ -328,7 +328,7 @@ async def schedule_meeting(eid: str, payload: MeetingIn,
 
 
 @router.get("/{eid}/meetings")
-async def list_meetings(eid: str, admin=Depends(current_admin)):
+async def list_meetings(eid: str, admin=Depends(require_role("admin", "reviewer", "support", "accounting"))):
     if not ObjectId.is_valid(eid):
         raise HTTPException(status_code=400, detail="Invalid engagement id")
     doc = await db.engagements.find_one({"_id": ObjectId(eid)})
@@ -338,7 +338,7 @@ async def list_meetings(eid: str, admin=Depends(current_admin)):
 
 
 @router.get("/aging/summary")
-async def aging_summary(admin=Depends(current_admin)):
+async def aging_summary(admin=Depends(require_role("admin", "reviewer", "support", "accounting"))):
     """Age buckets for receivables — used by the Engagements panel top-row."""
     from datetime import datetime, timezone as _tz
     now = datetime.now(_tz.utc)

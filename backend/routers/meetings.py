@@ -244,7 +244,7 @@ async def create_meeting(payload: MeetingIn,
 
 @router.get("")
 async def list_meetings(include_cancelled: bool = False,
-                        admin=Depends(current_admin)):
+                        admin=Depends(require_role("admin", "reviewer", "committee_member"))):
     # Bug #54 — hide cancelled meetings by default; toggle to include.
     q = {} if include_cancelled else {"status": {"$ne": "cancelled"}}
     rows = []
@@ -254,7 +254,7 @@ async def list_meetings(include_cancelled: bool = False,
 
 
 @router.get("/{mid}")
-async def get_meeting(mid: str, admin=Depends(current_admin)):
+async def get_meeting(mid: str, admin=Depends(require_role("admin", "reviewer", "committee_member"))):
     m = await db.meetings.find_one({"_id": ObjectId(mid)})
     if not m:
         raise HTTPException(status_code=404, detail="Meeting not found")

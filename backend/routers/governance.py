@@ -32,7 +32,7 @@ async def create_auction(payload: AuctionIn, admin=Depends(require_role("admin")
 
 
 @router.get("/auctions")
-async def list_auctions(admin=Depends(current_admin)):
+async def list_auctions(admin=Depends(require_role("admin", "reviewer", "support", "auditor"))):
     return [_out(a) async for a in db.auctions.find({}).sort("start_at", -1)]
 
 
@@ -66,7 +66,7 @@ async def place_auction_bid(payload: AuctionBidIn, vendor=Depends(current_vendor
 # ---------- Helpdesk / Tickets ----------
 
 @router.post("/support/tickets")
-async def create_ticket(payload: TicketIn, admin=Depends(current_admin)):
+async def create_ticket(payload: TicketIn, admin=Depends(require_role("admin", "reviewer", "support", "auditor"))):
     doc = payload.model_dump()
     doc.update({"raised_by": admin["id"], "raised_by_email": admin["email"],
                 "status": "open", "replies": [], "created_at": now_iso()})
@@ -76,13 +76,13 @@ async def create_ticket(payload: TicketIn, admin=Depends(current_admin)):
 
 
 @router.get("/support/tickets")
-async def list_tickets(admin=Depends(current_admin)):
+async def list_tickets(admin=Depends(require_role("admin", "reviewer", "support", "auditor"))):
     q = {} if admin.get("role") in ("admin", "support") else {"raised_by": admin["id"]}
     return [_out(t) async for t in db.tickets.find(q).sort("created_at", -1).limit(200)]
 
 
 @router.post("/support/tickets/reply")
-async def reply_ticket(payload: TicketReplyIn, admin=Depends(current_admin)):
+async def reply_ticket(payload: TicketReplyIn, admin=Depends(require_role("admin", "reviewer", "support", "auditor"))):
     entry = {"body": payload.body, "attachments": payload.attachments,
              "by_id": admin["id"], "by_email": admin["email"], "at": now_iso()}
     r = await db.tickets.update_one(

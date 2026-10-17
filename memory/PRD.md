@@ -10,7 +10,15 @@ reverse auctions, bid governance, EMD escrow workflows, vendor/staff/
 institution portals, AWS deployment bundles, and transactional notifications
 (Stripe, Resend, DocuSign, Emergent crons).
 
-## Current P0 — v54h all-in-one (17 Feb 2026)
+## Current P0 — v54o (17 Jun 2026) — Staff RBAC end-to-end
+Specialist staff (escrow signer / certifier / etc.) were seeing the FULL
+admin console. Root cause: `/admin` + `/admin/e/*` had no frontend role
+guard. Fix: `RequireAdmin` guard (admin + reviewer only; others → `/staff`)
++ tightened all remaining any-staff backend endpoints to `require_role(...)`.
+Verified: certifier → 403 on admin data, bounced from `/admin`; admin → full
+console. See CHANGELOG v54o for the enforced role→access map.
+
+## Previous P0 — v54h all-in-one (17 Feb 2026)
 v54h = v54g + default-country-fix + upload polish:
 - `/register` default country now blank with localStorage memory of last
   pick (no more "Kazakhstan by default").

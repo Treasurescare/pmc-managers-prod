@@ -484,7 +484,7 @@ async def _apply_live_status(envelope_id: str, live_status: str) -> None:
 
 
 @router.post("/envelopes/{envelope_id}/refresh")
-async def refresh_envelope_status(envelope_id: str, admin=Depends(current_admin)):
+async def refresh_envelope_status(envelope_id: str, admin=Depends(require_role("admin", "legal_counsel", "reviewer", "accounting"))):
     """v52bw — explicit status pull. Called by the admin UI after the admin
     signs or dispatches so the vendor's row flips immediately, without
     waiting for the next poll or a Connect webhook. Returns the live
@@ -565,7 +565,7 @@ class EnvelopeRequest(BaseModel):
 @router.post("/awards/{bid_id}/{kind}/envelope")
 async def create_award_envelope(
     bid_id: str, kind: str, req: EnvelopeRequest,
-    admin=Depends(current_admin),
+    admin=Depends(require_role("admin", "legal_counsel", "reviewer", "accounting")),
 ):
     if kind not in ("po", "sla", "contract"):
         raise HTTPException(400, "kind must be po|sla|contract")
@@ -615,7 +615,7 @@ async def create_award_envelope(
 @router.post("/bids/{bid_id}/ack/envelope")
 async def create_bid_ack_envelope(
     bid_id: str, req: EnvelopeRequest,
-    admin=Depends(current_admin),
+    admin=Depends(require_role("admin", "legal_counsel", "reviewer", "accounting")),
 ):
     bid = await _load_bid(bid_id)
     # Reuse contract PDF if bid already has an award — otherwise render a
@@ -671,7 +671,7 @@ async def create_bid_ack_envelope(
 # ---------------- Status + list ----------------
 
 @router.post("/envelopes/{envelope_id}/resend")
-async def resend_envelope(envelope_id: str, admin=Depends(current_admin)):
+async def resend_envelope(envelope_id: str, admin=Depends(require_role("admin", "legal_counsel", "reviewer", "accounting"))):
     """v47f — re-send the DocuSign envelope reminder to the current signer.
     Uses the SDK's resend by re-issuing the recipient view URL for embedded
     envelopes, or triggering a reminder for email delivery."""
@@ -781,7 +781,7 @@ async def resend_envelope(envelope_id: str, admin=Depends(current_admin)):
 @router.post("/envelopes/{envelope_id}/reassign")
 async def reassign_envelope(envelope_id: str,
                              payload: dict,
-                             admin=Depends(current_admin)) -> dict:
+                             admin=Depends(require_role("admin", "legal_counsel", "reviewer", "accounting"))) -> dict:
     """v51b — admin reassigns an orphaned envelope to a new signer.
 
     Updates signer_email + signer_name on the envelope so the new vendor
@@ -818,7 +818,7 @@ async def reassign_envelope(envelope_id: str,
 @router.post("/envelopes/{envelope_id}/archive")
 async def archive_envelope(envelope_id: str,
                             payload: Optional[dict] = None,
-                            admin=Depends(current_admin)) -> dict:
+                            admin=Depends(require_role("admin", "legal_counsel", "reviewer", "accounting"))) -> dict:
     """v51b — soft-archive an orphaned envelope so vendors never see it in
     /mine (list_my_envelopes already excludes archived)."""
     env = await db.docusign_envelopes.find_one({"envelope_id": envelope_id})
@@ -838,7 +838,7 @@ async def archive_envelope(envelope_id: str,
 
 @router.post("/envelopes/{envelope_id}/unarchive")
 async def unarchive_envelope(envelope_id: str,
-                              admin=Depends(current_admin)) -> dict:
+                              admin=Depends(require_role("admin", "legal_counsel", "reviewer", "accounting"))) -> dict:
     env = await db.docusign_envelopes.find_one({"envelope_id": envelope_id})
     if not env:
         raise HTTPException(status_code=404, detail="Envelope not found")
@@ -853,7 +853,7 @@ async def unarchive_envelope(envelope_id: str,
 
 
 @router.get("/envelopes/{envelope_id}")
-async def get_envelope(envelope_id: str, admin=Depends(current_admin)):
+async def get_envelope(envelope_id: str, admin=Depends(require_role("admin", "legal_counsel", "reviewer", "accounting"))):
     row = await db.docusign_envelopes.find_one({"envelope_id": envelope_id})
     if not row:
         raise HTTPException(404, "Envelope not found in DB")
@@ -875,7 +875,7 @@ async def get_envelope(envelope_id: str, admin=Depends(current_admin)):
 
 
 @router.get("/envelopes")
-async def list_envelopes(admin=Depends(current_admin), limit: int = 100,
+async def list_envelopes(admin=Depends(require_role("admin", "legal_counsel", "reviewer", "accounting")), limit: int = 100,
                          created_by_email: Optional[str] = None,
                          created_from: Optional[str] = None,
                          created_to: Optional[str] = None):
@@ -1088,7 +1088,7 @@ async def vendor_resume_signing(envelope_id: str, vendor=Depends(current_vendor)
                     envelope_id, {"vendor": ve})
     return {"envelope_id": envelope_id, "signing_url": signing_url, "expires_in": 300}
 @router.get("/envelopes/{envelope_id}/combined-pdf")
-async def download_combined_pdf(envelope_id: str, admin=Depends(current_admin)):
+async def download_combined_pdf(envelope_id: str, admin=Depends(require_role("admin", "legal_counsel", "reviewer", "accounting"))):
     """Return the fully-signed combined PDF for a completed envelope.
 
     Only allowed when envelope status is `completed`. Streams the PDF bytes
@@ -1208,7 +1208,7 @@ async def vendor_download_document(envelope_id: str, disposition: str = "inline"
 
 @router.post("/envelopes/{envelope_id}/archive-pdf")
 async def archive_envelope_pdf(envelope_id: str,
-                               admin=Depends(current_admin)):
+                               admin=Depends(require_role("admin", "legal_counsel", "reviewer", "accounting"))):
     """v50q — Admin repair tool. Fetches the combined signed PDF from DocuSign
     and archives it in our own storage (db.uploads). Vendor + admin downloads
     then serve from the archive, so envelopes whose documents DocuSign can no

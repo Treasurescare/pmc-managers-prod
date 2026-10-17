@@ -48,7 +48,7 @@ async def lock_envelope(payload: EnvelopeLockIn, admin=Depends(require_role("adm
 
 
 @router.get("/lock-state/{notice_ref}")
-async def get_lock_state(notice_ref: str, admin=Depends(current_admin)):
+async def get_lock_state(notice_ref: str, admin=Depends(require_role("admin", "committee_member", "reviewer", "auditor"))):
     """v46m — expose envelope lock timestamps so the frontend can
     disable the "Lock envelope" / "Submit score" buttons after lock and
     render a "sealed at …" badge with attribution."""
@@ -85,7 +85,7 @@ async def create_rubric(payload: ScoringRubricIn, admin=Depends(require_role("ad
 
 
 @router.get("/rubric/{notice_ref}")
-async def get_rubric(notice_ref: str, admin=Depends(current_admin)):
+async def get_rubric(notice_ref: str, admin=Depends(require_role("admin", "committee_member", "reviewer", "auditor"))):
     doc = await db.rubrics.find_one({"notice_ref": notice_ref})
     if not doc:
         raise HTTPException(status_code=404, detail="Rubric not defined for this tender")
@@ -95,7 +95,7 @@ async def get_rubric(notice_ref: str, admin=Depends(current_admin)):
 # ---------- Conflict-of-Interest ----------
 
 @router.post("/coi")
-async def declare_coi(payload: COIDeclarationIn, admin=Depends(current_admin)):
+async def declare_coi(payload: COIDeclarationIn, admin=Depends(require_role("admin", "committee_member", "reviewer", "auditor"))):
     """Evaluator must declare COI BEFORE scoring."""
     doc = payload.model_dump()
     doc.update({"evaluator_id": admin["id"], "evaluator_email": admin["email"],

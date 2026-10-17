@@ -155,6 +155,7 @@ import EmailsE from "@/apps/reference-e/EmailsE";
 import PrintablesE from "@/apps/reference-e/PrintablesE";
 import MobileSupplierE from "@/apps/mobile-e/MobileSupplierE";
 import RequireVendor from "@/components/RequireVendor";
+import RequireAdmin from "@/components/RequireAdmin";
 import MobilePublicE from "@/apps/mobile-e/MobilePublicE";
 
 export default function App() {
@@ -234,6 +235,9 @@ export default function App() {
             <Route path="/register/status" element={<RegistrationStatus />} />
 
             <Route path="/admin/login" element={<AdminLogin />} />
+            {/* All admin-console routes require an admin/reviewer session.
+                Specialist roles (escrow_agent, certifier, …) are bounced to /staff. */}
+            <Route element={<RequireAdmin />}>
             <Route path="/admin/vendors/new" element={<AdminVendorCreate />} />
             <Route path="/admin/vendors/:vendor_ref/edit" element={<AdminVendorEdit />} />
             <Route path="/admin/bids/:bidId" element={<AdminBidDetailPage />} />
@@ -272,6 +276,7 @@ export default function App() {
             <Route path="/admin/e/profile-changes" element={<AdminProfileChangesE />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/*" element={<AdminDashboard />} />
+            </Route>
 
             {/* Vendor Portal */}
             <Route path="/vendor/login" element={<VendorLogin />} />

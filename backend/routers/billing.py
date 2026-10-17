@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 
 from db import db
 from models.base import BaseDocument, now_iso
-from security import current_admin
+from security import current_admin, require_role
 from routers.vendor_auth import current_vendor
 from audit import audit_log
 
@@ -243,7 +243,7 @@ async def stripe_webhook(request: Request):
 # rotated STRIPE_WEBHOOK_SECRET is obvious from the Billing page instead of
 # silently 503-ing Stripe retries for weeks.
 @router.get("/api/v1/billing/webhook-health")
-async def webhook_health(admin=Depends(current_admin)):
+async def webhook_health(admin=Depends(require_role("admin", "accounting", "reviewer", "auditor"))):
     import config as _config
     last = await db.webhook_events.find_one({"provider": "stripe"}, sort=[("received_at", -1)])
     cutoff = datetime.now(timezone.utc).timestamp() - 24 * 3600
@@ -265,7 +265,7 @@ async def webhook_health(admin=Depends(current_admin)):
 
 
 @router.get("/api/v1/billing/transactions")
-async def list_transactions(admin=Depends(current_admin), limit: int = 50):
+async def list_transactions(admin=Depends(require_role("admin", "accounting", "reviewer", "auditor")), limit: int = 50):
     docs = await db.payment_transactions.find({}).sort("created_at", -1).limit(limit).to_list(limit)
     out = []
     for d in docs:
@@ -284,7 +284,7 @@ async def list_transactions(admin=Depends(current_admin), limit: int = 50):
 # idempotent `_mark_paid` helper the webhook uses. Safe to re-run; only
 # touches rows the webhook never processed.
 @router.post("/api/v1/billing/resync-pending")
-async def resync_pending_payments(admin=Depends(current_admin), limit: int = 200) -> dict:
+async def resync_pending_payments(admin=Depends(require_role("admin", "accounting", "reviewer", "auditor")), limit: int = 200) -> dict:
     import os as _os
     from pmc_lib.payments.stripe.checkout import StripeCheckout as _SC
     from routers.payments import _mark_paid
@@ -458,7 +458,7 @@ class FeeRefundRequest(BaseModel):
 
 @router.post("/api/v1/billing/refund/{session_id}")
 async def refund_fee_checkout(session_id: str, payload: FeeRefundRequest,
-                                admin=Depends(current_admin)):
+                                admin=Depends(require_role("admin", "accounting", "reviewer", "auditor"))):
     """Admin refunds a paid Stripe fee-checkout. Uses stripe.Refund.create
     against the PaymentIntent for the session."""
     record = await db.payment_transactions.find_one({"session_id": session_id})
