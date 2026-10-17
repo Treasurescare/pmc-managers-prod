@@ -546,6 +546,24 @@ async def admin_decide(registration_id: str, payload: RegistrationDecisionIn,
                     "the registration or use Request Clarification instead."
                 ),
             )
+        # v54k — a vendor row carries a UNIQUE email index. If a vendor
+        # already exists for this email (created via Admin → Vendors, or a
+        # prior approval of a duplicate registration), the insert in
+        # approve_and_create_vendor throws DuplicateKeyError → HTTP 500. Detect
+        # it up front and return a clear 409 so the reviewer understands the
+        # clash instead of an opaque "Something went wrong · HTTP 500".
+        email_l = (doc.get("email") or "").strip().lower()
+        existing_vendor = await db.vendors.find_one({"email": email_l}) if email_l else None
+        if existing_vendor:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"A vendor already exists for {email_l} "
+                    f"({existing_vendor.get('vendor_ref') or '—'}). Approving this "
+                    "registration would create a duplicate supplier. Reject this "
+                    "registration, or remove/merge the existing vendor first."
+                ),
+            )
         updates.update(await approve_and_create_vendor(doc))
     elif payload.action == "reject":
         if not payload.notes:

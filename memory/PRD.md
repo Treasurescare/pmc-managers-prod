@@ -181,3 +181,15 @@ and backlog.
   optional GeoNames city-level ZIP lookup if true ZIP↔city match is needed.
 - Bundles: `pmc-backend-v54j.zip`, `pmc-frontend-v54j-prod-build.zip`.
 
+
+## Status note — v54k (17 Feb 2026): approve-registration 500 fix
+- Approving a SUBMITTED registration threw HTTP 500 when a vendor with the
+  same email already existed (same company also added via Admin→Vendors, or a
+  duplicate approved earlier). Root cause: `vendors.email` UNIQUE index +
+  un-caught `DuplicateKeyError` in `approve_and_create_vendor`.
+- Fix: `admin_decide` approve pre-checks for an existing vendor by email →
+  clear 409 naming the vendor; insert also guarded with DuplicateKeyError→409.
+  (`routers/registrations.py`, `routers/registrations_helpers.py`)
+- Verified in preview: collision→409 (was 500), clean approve→200 (vendor
+  created), double-approve→409.
+- Bundles: `pmc-backend-v54k.zip`, `pmc-frontend-v54k-prod-build.zip`.

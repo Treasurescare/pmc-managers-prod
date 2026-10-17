@@ -6,6 +6,9 @@ rejection, notify clarification) so the router branch stays small.
 import asyncio
 import secrets
 
+from fastapi import HTTPException
+from pymongo.errors import DuplicateKeyError
+
 import config
 from db import db, next_sequence
 from models.base import now_iso
@@ -32,20 +35,31 @@ async def approve_and_create_vendor(doc: dict) -> dict:
         "documents", "document_slots", "attachments", "uploads",
         "primary_document", "signed_documents",
     }
-    await db.vendors.insert_one({
-        "vendor_ref": vendor_ref,
-        "email": (doc["email"] or "").lower(),
-        "company_name": doc.get("company_name"),
-        "country": doc.get("country"),
-        "kz_licenses": doc.get("kz_licenses") or [],
-        "profile": {k: doc.get(k) for k in doc.keys() if k not in _EXCLUDE},
-        "registration_id": str(doc.get("_id")) if doc.get("_id") else None,
-        "tenant_id": doc.get("tenant_id", config.DEFAULT_TENANT_ID),
-        "password_hash": hash_password(temp_password),
-        "must_change_password": True,
-        "is_active": True,
-        "created_at": now_iso(),
-    })
+    try:
+        await db.vendors.insert_one({
+            "vendor_ref": vendor_ref,
+            "email": (doc["email"] or "").lower(),
+            "company_name": doc.get("company_name"),
+            "country": doc.get("country"),
+            "kz_licenses": doc.get("kz_licenses") or [],
+            "profile": {k: doc.get(k) for k in doc.keys() if k not in _EXCLUDE},
+            "registration_id": str(doc.get("_id")) if doc.get("_id") else None,
+            "tenant_id": doc.get("tenant_id", config.DEFAULT_TENANT_ID),
+            "password_hash": hash_password(temp_password),
+            "must_change_password": True,
+            "is_active": True,
+            "created_at": now_iso(),
+        })
+    except DuplicateKeyError:
+        # Safety net behind admin_decide's pre-check — a vendor with this
+        # email already exists (unique index). Never surface a 500.
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"A vendor already exists for {(doc['email'] or '').lower()}. "
+                "Cannot create a duplicate supplier from this registration."
+            ),
+        )
     login_url = f"{config.FRONTEND_URL}/login"
     await send_email(
         doc["email"],
