@@ -23,7 +23,7 @@ const HOLDABLE = ["submitted", "emd_pending", "emd_paid", "escrow_accepted",
  * BidTable — extracted from BiddingOpsPanel. Renders the bids pipeline table
  * and the per-row action buttons.
  */
-export default function BidTable({ bids, onAdminFlag, onReject, onOpenAssign, onHold, onResume, onSendEmdLink }) {
+export default function BidTable({ bids, onAdminFlag, onReject, onOpenAssign, onOpenSpecialists, onHold, onResume, onSendEmdLink }) {
   const nav = useNavigate();
   const { paged, controls } = useListPager(bids || [], { defaultSize: 20 });
   void bidApi; void showApiError; void toast;
@@ -70,6 +70,10 @@ export default function BidTable({ bids, onAdminFlag, onReject, onOpenAssign, on
               <td className="px-3 py-2 flex gap-1 flex-wrap">
                 <button onClick={() => nav(`/admin/bids/${b.id}`)} data-testid={`admin-view-bid-${b.bid_ref}`}
                   className="text-[10px] bg-slate-700 text-white px-2 py-1 rounded hover:bg-slate-900">View</button>
+                {!["withdrawn", "rejected", "closed"].includes(b.status) && (
+                  <button onClick={() => onOpenSpecialists(b)} data-testid={`assign-specialists-${b.bid_ref}`}
+                    className="text-[10px] bg-violet-600 text-white px-2 py-1 rounded hover:bg-violet-700">Assign</button>
+                )}
                 {b.status === "escrow_accepted" && b.active_step?.role_code === "admin" && (
                   <button onClick={() => onAdminFlag(b)} data-testid={`admin-approve-${b.bid_ref}`}
                     className="text-[10px] bg-emerald-600 text-white px-2 py-1 rounded hover:bg-emerald-700">Approve → Certifier</button>

@@ -6,6 +6,7 @@ import CommitteeForm from "./bidding/CommitteeForm";
 import CommitteeList from "./bidding/CommitteeList";
 import BidTable from "./bidding/BidTable";
 import AssignCertifierModal from "./bidding/AssignCertifierModal";
+import AssignSpecialistsModal from "./bidding/AssignSpecialistsModal";
 import { InfoDot } from "@/components/InfoDot";
 import CreatorDateFilterBar, { matchCreatorDate } from "@/components/CreatorDateFilterBar";
 
@@ -31,6 +32,7 @@ export default function BiddingOpsPanel() {
                                               external_invitees: [] });
   const [extDraft, setExtDraft] = useState({ email: "", name: "", designation: "" });
   const [assignFor, setAssignFor] = useState(null);
+  const [specialistFor, setSpecialistFor] = useState(null);
   const [inspDraft, setInspDraft] = useState({ certifier_id: "", scheduled_at: "", location: "" });
   // v52v — shared Created by / Created from / Created to filter.
   const [cdf, setCdf] = useState({ createdBy: "", from: "", to: "" });
@@ -98,6 +100,16 @@ export default function BiddingOpsPanel() {
   const openAssign = (b) => {
     setAssignFor(b);
     setInspDraft({ certifier_id: "", scheduled_at: "", location: "" });
+  };
+
+  // v56 — per-role specialist assignment (escrow/certifier/legal/accounting/committee).
+  const assignSpecialist = async (role, staffId) => {
+    try {
+      const res = await bidApi.assign(specialistFor.id, role, staffId);
+      toast.success(staffId ? "Specialist assigned" : "Assignment cleared");
+      await load();
+      return res;
+    } catch (e) { showApiError(e); }
   };
 
   const submitAssign = async () => {
@@ -191,6 +203,14 @@ export default function BiddingOpsPanel() {
         onResume={doResume}
         onSendEmdLink={doSendEmdLink}
         onOpenAssign={openAssign}
+        onOpenSpecialists={setSpecialistFor}
+      />
+
+      <AssignSpecialistsModal
+        bid={specialistFor}
+        staffList={staffList}
+        onAssign={assignSpecialist}
+        onClose={() => setSpecialistFor(null)}
       />
 
       <AssignCertifierModal

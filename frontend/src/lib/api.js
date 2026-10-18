@@ -394,6 +394,9 @@ export const bidApi = {
   decide: (id, payload) => api.post(`/api/v1/bids/${id}/decision`, payload).then((r) => r.data),
   assignCertifier: (id, certifierId) =>
     api.post(`/api/v1/bids/${id}/assign-certifier`, null, { params: { certifier_id: certifierId } }).then((r) => r.data),
+  // v56 — assign (or clear with staff_id=null) a specialist role on a bid.
+  assign: (id, role, staff_id) =>
+    api.post(`/api/v1/bids/${id}/assign`, { role, staff_id: staff_id || null }).then((r) => r.data),
   technicalClear: (id) => api.post(`/api/v1/bids/${id}/technical-clear`).then((r) => r.data),
   financialOpen: (id) => api.post(`/api/v1/bids/${id}/financial-open`).then((r) => r.data),
   // v51bd — server-side bid drafts so vendors can switch devices mid-bid
@@ -701,12 +704,25 @@ export const escrowInstitutionsApi = {
     api.get("/api/v1/escrow-institutions/duplicates").then((r) => r.data),
   delete: (iid) =>
     api.delete(`/api/v1/escrow-institutions/${iid}`).then((r) => r.data),
+  // v56 — set institution country scope ([] = global). Admin/reviewer.
+  setScope: (iid, country_scope) =>
+    api.patch(`/api/v1/escrow-institutions/${iid}/scope`, { country_scope }).then((r) => r.data),
 };
 
 
 export const mastersApi = {
   listCompanies: () => api.get("/api/v1/masters/companies").then((r) => r.data),
   createCompany: (p) => api.post("/api/v1/masters/companies", p).then((r) => r.data),
+  // v56 — full company master: profile update + document/license management.
+  updateCompany: (id, p) => api.patch(`/api/v1/masters/companies/${id}`, p).then((r) => r.data),
+  setCompanyDocument: (id, slot, p) =>
+    api.put(`/api/v1/masters/companies/${id}/documents/${slot}`, p).then((r) => r.data),
+  deleteCompanyDocument: (id, slot) =>
+    api.delete(`/api/v1/masters/companies/${id}/documents/${slot}`).then((r) => r.data),
+  addCompanyLicense: (id, p) =>
+    api.post(`/api/v1/masters/companies/${id}/licenses`, p).then((r) => r.data),
+  deleteCompanyLicense: (id, index) =>
+    api.delete(`/api/v1/masters/companies/${id}/licenses/${index}`).then((r) => r.data),
   listRoles: () => api.get("/api/v1/masters/roles").then((r) => r.data),
   createRole: (p) => api.post("/api/v1/masters/roles", p).then((r) => r.data),
   listMatrices: () => api.get("/api/v1/masters/approval-matrices").then((r) => r.data),

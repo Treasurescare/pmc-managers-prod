@@ -140,6 +140,9 @@ class EscrowInstitutionIn(BaseModel):
     phone_country_code: Optional[str] = None       # e.g. "91" (dial code)
     primary_contact_name: Optional[str] = None
     institution_type: Literal["corporate", "personal"] = "corporate"
+    # v56 — country scope for institution visibility. None/[] = all countries
+    # (global); otherwise ISO-2 codes this institution serves.
+    country_scope: Optional[List[str]] = None
 
     @field_validator("primary_contact_email", mode="before")
     @classmethod
@@ -515,8 +518,19 @@ async def admin_invite(payload: AdminInviteIn,
 
 @router.get("")
 async def list_institutions(status: Optional[Status] = None,
+                              country: Optional[str] = None,
                               admin=Depends(require_role("admin", "reviewer"))):
-    q = {"status": status} if status else {}
+    q: dict = {"status": status} if status else {}
+    # v56 — country scope: when a country is supplied, return only institutions
+    # that are global (empty/absent country_scope) OR cover that country.
+    if country:
+        cu = country.strip().upper()
+        q["$or"] = [
+            {"country_scope": {"$in": [cu]}},
+            {"country_scope": {"$exists": False}},
+            {"country_scope": None},
+            {"country_scope": []},
+        ]
     items = [_out(d) async for d in db.escrow_institutions.find(q).sort("created_at", -1)]
     # v52e — enrich with owner-account email/status so the admin pipeline
     # can show WHICH account owns each registration.
@@ -587,6 +601,31 @@ async def admin_get(iid: str,
     if not doc:
         raise HTTPException(status_code=404, detail="Not found")
     return _out(doc)
+
+
+class InstScopeIn(BaseModel):
+    country_scope: List[str] = []
+
+
+@router.patch("/{iid}/scope")
+async def set_institution_scope(iid: str, payload: InstScopeIn,
+                                admin=Depends(require_role("admin", "reviewer"))) -> dict:
+    """v56 — set the country scope for an escrow institution. Empty list =
+    global (visible for any country). Drives country-based institution
+    visibility when assigning escrow to a notice/bid."""
+    try:
+        doc = await db.escrow_institutions.find_one({"_id": ObjectId(iid)})
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid institution id")
+    if not doc:
+        raise HTTPException(status_code=404, detail="Not found")
+    scope = sorted({c.strip().upper() for c in (payload.country_scope or []) if c.strip()})
+    await db.escrow_institutions.update_one(
+        {"_id": ObjectId(iid)},
+        {"$set": {"country_scope": scope, "updated_at": now_iso()}})
+    await audit_log("escrow_inst.set_scope", admin, "escrow_institution", iid,
+                    {"country_scope": scope})
+    return {"ok": True, "country_scope": scope}
 
 
 @router.post("/{iid}/decision")

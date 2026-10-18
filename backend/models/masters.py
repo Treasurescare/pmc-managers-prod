@@ -4,10 +4,20 @@ from pydantic import BaseModel
 
 
 class CompanyIn(BaseModel):
+    """v56 — full company profile. Documents + licenses are managed through
+    the dedicated company-document endpoints, NOT this payload, so saving the
+    profile never wipes uploaded files."""
     name: str
     code: str
-    country: str = "KZ"
+    country: str = "KZ"              # ISO-2 code
+    state_code: Optional[str] = None
+    state_name: Optional[str] = None
+    city: Optional[str] = None
+    postal_code: Optional[str] = None
     address: Optional[str] = None
+    reg_number: Optional[str] = None       # incorporation / registration no.
+    incorporation_date: Optional[str] = None  # ISO date
+    tax_id: Optional[str] = None
     parent_id: Optional[str] = None  # for branches
     is_active: bool = True
 

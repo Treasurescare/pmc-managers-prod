@@ -135,7 +135,8 @@ async def create_company(payload: CompanyIn, admin=Depends(require_role("admin")
     if await db.companies.find_one({"code": payload.code}):
         raise HTTPException(status_code=409, detail="Company code already exists")
     doc = payload.model_dump()
-    doc.update({"created_at": now_iso(), "created_by": admin["id"]})
+    doc.update({"documents": {}, "licenses": [],
+                "created_at": now_iso(), "created_by": admin["id"]})
     res = await db.companies.insert_one(doc)
     doc["_id"] = res.inserted_id
     await audit_log("company.create", admin, "company", payload.code, {"name": payload.name})
@@ -145,10 +146,103 @@ async def create_company(payload: CompanyIn, admin=Depends(require_role("admin")
 @router.patch("/companies/{company_id}")
 async def update_company(company_id: str, payload: CompanyIn,
                          admin=Depends(require_role("admin"))) -> dict:
+    # v56 — profile-only update. `documents`/`licenses` are NOT in CompanyIn,
+    # so this $set can never clear uploaded files.
     r = await db.companies.update_one({"_id": ObjectId(company_id)},
-                                      {"$set": payload.model_dump()})
+                                      {"$set": {**payload.model_dump(),
+                                                "updated_at": now_iso()}})
     if r.matched_count == 0:
         raise HTTPException(status_code=404, detail="Not found")
+    await audit_log("company.update", admin, "company", payload.code, {"name": payload.name})
+    return _out(await db.companies.find_one({"_id": ObjectId(company_id)}))
+
+
+# ---------- Company documents (v56) ----------
+# Single upload slot each for Incorporation Certificate, MOA and AOA; Licenses
+# are a repeatable list (multiple files). Files are uploaded via the shared
+# /uploads flow (scope="company-docs"); we persist only the storage key + meta.
+
+COMPANY_DOC_SLOTS = {"incorporation_certificate", "moa", "aoa"}
+
+
+class CompanyDocIn(BaseModel):
+    key: str
+    filename: str
+    content_type: Optional[str] = None
+
+
+class CompanyLicenseIn(CompanyDocIn):
+    label: Optional[str] = None
+
+
+async def _get_company_or_404(company_id: str) -> dict:
+    try:
+        doc = await db.companies.find_one({"_id": ObjectId(company_id)})
+    except Exception:
+        raise HTTPException(status_code=400, detail="Malformed company id")
+    if not doc:
+        raise HTTPException(status_code=404, detail="Company not found")
+    return doc
+
+
+@router.put("/companies/{company_id}/documents/{slot}")
+async def set_company_document(company_id: str, slot: str, payload: CompanyDocIn,
+                               admin=Depends(require_role("admin"))) -> dict:
+    if slot not in COMPANY_DOC_SLOTS:
+        raise HTTPException(status_code=422,
+            detail=f"Unknown document slot '{slot}'")
+    await _get_company_or_404(company_id)
+    meta = {"key": payload.key, "filename": payload.filename,
+            "content_type": payload.content_type, "uploaded_at": now_iso(),
+            "uploaded_by": admin.get("email")}
+    await db.companies.update_one({"_id": ObjectId(company_id)},
+                                  {"$set": {f"documents.{slot}": meta,
+                                            "updated_at": now_iso()}})
+    await audit_log("company.document_set", admin, "company", company_id,
+                    {"slot": slot, "filename": payload.filename})
+    return _out(await db.companies.find_one({"_id": ObjectId(company_id)}))
+
+
+@router.delete("/companies/{company_id}/documents/{slot}")
+async def delete_company_document(company_id: str, slot: str,
+                                  admin=Depends(require_role("admin"))) -> dict:
+    await _get_company_or_404(company_id)
+    await db.companies.update_one({"_id": ObjectId(company_id)},
+                                  {"$unset": {f"documents.{slot}": ""},
+                                   "$set": {"updated_at": now_iso()}})
+    await audit_log("company.document_delete", admin, "company", company_id,
+                    {"slot": slot})
+    return _out(await db.companies.find_one({"_id": ObjectId(company_id)}))
+
+
+@router.post("/companies/{company_id}/licenses")
+async def add_company_license(company_id: str, payload: CompanyLicenseIn,
+                              admin=Depends(require_role("admin"))) -> dict:
+    await _get_company_or_404(company_id)
+    lic = {"key": payload.key, "filename": payload.filename,
+           "content_type": payload.content_type, "label": payload.label,
+           "uploaded_at": now_iso(), "uploaded_by": admin.get("email")}
+    await db.companies.update_one({"_id": ObjectId(company_id)},
+                                  {"$push": {"licenses": lic},
+                                   "$set": {"updated_at": now_iso()}})
+    await audit_log("company.license_add", admin, "company", company_id,
+                    {"filename": payload.filename, "label": payload.label})
+    return _out(await db.companies.find_one({"_id": ObjectId(company_id)}))
+
+
+@router.delete("/companies/{company_id}/licenses/{index}")
+async def delete_company_license(company_id: str, index: int,
+                                 admin=Depends(require_role("admin"))) -> dict:
+    doc = await _get_company_or_404(company_id)
+    lics = doc.get("licenses") or []
+    if index < 0 or index >= len(lics):
+        raise HTTPException(status_code=404, detail="License not found")
+    removed = lics.pop(index)
+    await db.companies.update_one({"_id": ObjectId(company_id)},
+                                  {"$set": {"licenses": lics,
+                                            "updated_at": now_iso()}})
+    await audit_log("company.license_delete", admin, "company", company_id,
+                    {"filename": removed.get("filename")})
     return _out(await db.companies.find_one({"_id": ObjectId(company_id)}))
 
 

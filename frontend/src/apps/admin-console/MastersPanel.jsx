@@ -15,6 +15,7 @@ import ProfileChangeRequestsPanel from "./masters/ProfileChangeRequestsPanel";
 import EmdMastersPanel from "./masters/EmdMastersPanel";
 import CountryLicensesTab from "./masters/CountryLicensesTab";
 import GeographyTab from "./masters/GeographyTab";
+import CompaniesTab from "./masters/CompaniesTab";
 import { InfoDot } from "@/components/InfoDot";
 import { useListPager } from "@/components/ListPager";
 
@@ -31,9 +32,8 @@ export default function MastersPanel() {
   const [staffDraft, setStaffDraft] = useState({
     email: "", name: "", password: "",
     roles: ["certifier"], hierarchy_level: 3,
-    is_escrow_signatory: false, account_type: "staff", country_scope: [],
+    is_escrow_signatory: false, account_type: "staff", country_scope: [], company_id: "",
   });
-  const [companyDraft, setCompanyDraft] = useState({ name: "", code: "", country: "KZ" });
   const [matrixDraft, setMatrixDraft] = useState({
     name: "Standard Pipeline", applies_to: "bid",
     tender_value_min: 0, tender_value_max: 100000000,
@@ -74,7 +74,8 @@ export default function MastersPanel() {
   const filteredTenants = mq ? tenants.filter((tn) => (tn.name||"").toLowerCase().includes(mq)
       || (tn.code||"").toLowerCase().includes(mq)
       || (tn.kind||"").toLowerCase().includes(mq)) : tenants;
-  const companiesPager = useListPager(filteredCompanies, { testid: "company-pager" });
+  const companiesPager = useListPager(filteredCompanies, { testid: "company-pager-unused" });
+  void companiesPager;
   const tenantsPager = useListPager(filteredTenants, { testid: "tenant-pager" });
 
   const createStaff = async () => {
@@ -83,7 +84,7 @@ export default function MastersPanel() {
       await staffApi.createStaff(staffDraft);
       toast.success(t("panels.masters.staff_created"));
       setShowStaffNew(false);
-      setStaffDraft({ email: "", name: "", password: "", roles: ["certifier"], hierarchy_level: 3, is_escrow_signatory: false, account_type: "staff", country_scope: [] });
+      setStaffDraft({ email: "", name: "", password: "", roles: ["certifier"], hierarchy_level: 3, is_escrow_signatory: false, account_type: "staff", country_scope: [], company_id: "" });
       load();
     } catch (e) { showApiError(e); }
   };
@@ -99,16 +100,6 @@ export default function MastersPanel() {
     try {
       await staffApi.updateStaff(id, patch);
       toast.success("Staff updated");
-      load();
-    } catch (e) { showApiError(e); }
-  };
-
-  const createCompany = async () => {
-    if (!companyDraft.name || !companyDraft.code) return toast.error(t("panels.masters.name_code_required"));
-    try {
-      await mastersApi.createCompany(companyDraft);
-      toast.success(t("panels.masters.company_added"));
-      setCompanyDraft({ name: "", code: "", country: "KZ" });
       load();
     } catch (e) { showApiError(e); }
   };
@@ -193,50 +184,12 @@ export default function MastersPanel() {
           showStaffNew={showStaffNew} setShowStaffNew={setShowStaffNew}
           staffDraft={staffDraft} setStaffDraft={setStaffDraft}
           onCreate={createStaff} onToggleRole={toggleRole} onUpdate={updateStaff}
+          companies={companies}
         />
       )}
 
       {tab === "companies" && (
-        <>
-          <div className="bg-white border p-4 mb-4 grid gap-2 md:grid-cols-4" data-testid="company-new">
-            <label className="text-xs uppercase tracking-widest text-brand-navy/60">
-              {t("panels.masters.name")}<InfoDot tip="Legal name of the buying/PMC entity (parent org). Referenced by Approval Matrices and tender headers." />
-              <input placeholder={t("panels.masters.name")} value={companyDraft.name}
-                onChange={(e) => setCompanyDraft({ ...companyDraft, name: e.target.value })}
-                className="mt-1 w-full px-3 py-2 border normal-case tracking-normal" data-testid="company-name" />
-            </label>
-            <label className="text-xs uppercase tracking-widest text-brand-navy/60">
-              {t("panels.masters.code")}<InfoDot tip="Short unique code (e.g. PMC-KZ). Used in URLs and export filenames." />
-              <input placeholder={t("panels.masters.code")} value={companyDraft.code}
-                onChange={(e) => setCompanyDraft({ ...companyDraft, code: e.target.value })}
-                className="mt-1 w-full px-3 py-2 border normal-case tracking-normal" data-testid="company-code" />
-            </label>
-            <label className="text-xs uppercase tracking-widest text-brand-navy/60">
-              {t("panels.masters.country")}<InfoDot tip="ISO-2 country code. Used for regional tax/EMD defaults." />
-              <input placeholder={t("panels.masters.country")} value={companyDraft.country}
-                onChange={(e) => setCompanyDraft({ ...companyDraft, country: e.target.value })}
-                className="mt-1 w-full px-3 py-2 border normal-case tracking-normal" />
-            </label>
-            <button onClick={createCompany} data-testid="company-create"
-              className="px-4 py-2 text-[11px] uppercase tracking-widest bg-brand-navy text-white self-end">
-              {t("panels.masters.add_company")}
-            </button>
-          </div>
-          <div className="bg-white border">
-            {filteredCompanies.length === 0 ? (
-              <div className="p-6 text-sm text-slate-500">
-                {companies.length === 0 ? t("panels.masters.no_companies") : "No matches"}
-              </div>
-            ) : companiesPager.paged.map((c) => (
-              <div key={c.id} className="border-b p-3 text-sm" data-testid={`company-row-${c.code}`}>
-                <span className="font-mono text-xs mr-3">{c.code}</span>
-                <strong>{c.name}</strong>
-                <span className="ml-3 text-xs text-slate-500">{c.country}</span>
-              </div>
-            ))}
-            {companiesPager.controls}
-          </div>
-        </>
+        <CompaniesTab companies={filteredCompanies} onChange={load} />
       )}
 
       {tab === "matrix" && (

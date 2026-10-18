@@ -32,7 +32,7 @@ const ACTIONS = ["view", "create", "modify", "delete", "publish"];
  */
 export default function StaffTab({
   staff, showStaffNew, setShowStaffNew,
-  staffDraft, setStaffDraft, onCreate, onToggleRole, onUpdate,
+  staffDraft, setStaffDraft, onCreate, onToggleRole, onUpdate, companies = [],
 }) {
   const [editingId, setEditingId] = useState(null);
   const [editDraft, setEditDraft] = useState(null);
@@ -72,6 +72,7 @@ export default function StaffTab({
       is_active: s.is_active !== false,
       is_escrow_signatory: !!s.is_escrow_signatory,
       country_scope: [...(s.country_scope || [])],
+      company_id: s.company_id || "",
       password: "",
     });
   };
@@ -102,6 +103,7 @@ export default function StaffTab({
         is_active: editDraft.is_active,
         is_escrow_signatory: !!editDraft.is_escrow_signatory,
         country_scope: editDraft.country_scope || [],
+        company_id: editDraft.company_id || null,
       };
       if (editDraft.password) patch.password = editDraft.password;
       await onUpdate(s.id, patch);
@@ -192,6 +194,15 @@ export default function StaffTab({
             <input type="number" min="1" max="10" value={staffDraft.hierarchy_level}
               onChange={(e) => setStaffDraft({ ...staffDraft, hierarchy_level: Number(e.target.value) })}
               className="mt-1 w-full px-3 py-2 border" />
+          </label>
+          <label className="text-sm">
+            <span>Company <InfoDot tip="Which PMC company/office this staff member belongs to. Optional; used for company-aware work distribution." /></span>
+            <select value={staffDraft.company_id || ""}
+              onChange={(e) => setStaffDraft({ ...staffDraft, company_id: e.target.value })}
+              className="mt-1 w-full px-3 py-2 border bg-white" data-testid="staff-company">
+              <option value="">— None —</option>
+              {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
           </label>
           <label className="text-sm md:col-span-2">
             <span>Country scope <InfoDot tip="ISO country codes this staff member covers, comma-separated (e.g. MY, SG). Leave BLANK = all countries / global. Drives which bids appear in their /staff queue: they see bids assigned to them, plus unassigned bids in these countries." /></span>
@@ -345,6 +356,16 @@ export default function StaffTab({
                           onChange={(e) => setEditDraft({ ...editDraft, country_scope: e.target.value.split(",").map((x) => x.trim().toUpperCase()).filter(Boolean) })}
                           className="mt-1 w-full px-2 py-1 border"
                           data-testid={`staff-edit-country-scope-${s.email}`} />
+                      </label>
+                      <label className="text-xs mt-2 block">
+                        <span>Company</span>
+                        <select value={editDraft.company_id || ""}
+                          onChange={(e) => setEditDraft({ ...editDraft, company_id: e.target.value })}
+                          className="mt-1 w-full px-2 py-1 border bg-white"
+                          data-testid={`staff-edit-company-${s.email}`}>
+                          <option value="">— None —</option>
+                          {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
                       </label>
                     </td>
                     <td className="px-3 py-3 text-center align-top">

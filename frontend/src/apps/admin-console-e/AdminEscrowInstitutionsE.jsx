@@ -19,6 +19,8 @@ export default function AdminEscrowInstitutionsE() {
   const [sel, setSel] = useState(null);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
+  // v56 — country scope editor for the selected institution.
+  const [scopeDraft, setScopeDraft] = useState("");
   // v52cx — invite drawer.
   const [inviteOpen, setInviteOpen] = useState(false);
   // v53m — duplicate-email cleanup panel.
@@ -59,6 +61,19 @@ export default function AdminEscrowInstitutionsE() {
     } catch (e) { showApiError(e); }
   };
   useEffect(() => { load(); /* eslint-disable-line */ }, [status]);
+
+  useEffect(() => { setScopeDraft((sel?.country_scope || []).join(", ")); }, [sel]);
+
+  const saveScope = async () => {
+    if (!sel) return;
+    const arr = scopeDraft.split(",").map((x) => x.trim().toUpperCase()).filter(Boolean);
+    try {
+      await escrowInstitutionsApi.setScope(sel.id, arr);
+      toast.success(arr.length ? `Scope set: ${arr.join(", ")}` : "Scope set to Global (all countries)");
+      setSel({ ...sel, country_scope: arr });
+      await load();
+    } catch (e) { showApiError(e); }
+  };
 
   // v52h — client-side filter so the server list call stays simple.
   const filteredItems = items.filter((i) => {
@@ -375,6 +390,26 @@ export default function AdminEscrowInstitutionsE() {
                         <li className="text-xs text-brand-navy/50">No documents uploaded.</li>
                       )}
                     </ul>
+                  </div>
+
+                  <div data-testid="escrow-inst-scope-editor">
+                    <div className="pmc-label mb-1">Country scope</div>
+                    <div className="text-[11px] text-brand-navy/60 mb-1">
+                      ISO-2 codes, comma-separated (e.g. MY, SG). Leave blank = Global
+                      (all countries). Controls which notice/bid countries this
+                      institution is offered for.
+                    </div>
+                    <div className="flex gap-2">
+                      <input value={scopeDraft} onChange={(e) => setScopeDraft(e.target.value)}
+                        placeholder="blank = all countries"
+                        data-testid="escrow-inst-scope-input"
+                        className="flex-1 border border-brand-navy/20 px-3 py-2 text-sm" />
+                      <button onClick={saveScope} disabled={busy}
+                        data-testid="escrow-inst-scope-save"
+                        className="px-4 py-2 text-xs uppercase tracking-widest bg-brand-navy text-white disabled:opacity-50">
+                        Save scope
+                      </button>
+                    </div>
                   </div>
 
                   {sel.reviewer_notes && (
