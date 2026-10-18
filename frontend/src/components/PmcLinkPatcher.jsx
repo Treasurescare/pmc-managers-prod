@@ -1041,7 +1041,7 @@ export default function PmcLinkPatcher() {
       if (ref) { e.preventDefault(); navigate(`/notices/${ref}`); }
     };
 
-    // Whole tender card click on public pages → gate
+    // Whole tender card click on public pages → open the notice detail
     const onCardClick = (e) => {
       const art = e.target.closest("article.pmc-tender");
       if (!art) return;
@@ -1051,7 +1051,8 @@ export default function PmcLinkPatcher() {
       if (pageId.startsWith("vendor-") || pageId.startsWith("admin-")) return;
       if (e.target.closest("a, button")) return;
       e.preventDefault();
-      navigate(isVendorAuthed() ? "/vendor/tenders" : "/register");
+      const ref = extractNoticeRef(art);
+      navigate(ref ? `/notices/${ref}` : (isVendorAuthed() ? "/vendor/tenders" : "/register"));
     };
 
     // Hero search form submit → /tenders/live?country=…&q=…

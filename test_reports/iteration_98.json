@@ -1,0 +1,45 @@
+{
+  "summary": "v56n public upgrades tested (both backend + frontend). Backend: 7/7 pytest passed. Frontend: 8/9 flows passed — one regression confirmed: homepage tender card body click still routes to /register (deep-link fix is overridden by a stale onCardClick listener in PmcLinkPatcher).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "PmcLinkPatcher.jsx - onCardClick",
+        "issue": "Clicking the body of article.pmc-tender on the public homepage navigates to /register instead of /notices/<ref>. The new deep-link block at line 1020 is correct, but a leftover document-level listener onCardClick (lines 1044-1055) still fires and navigates to /register, defeating the fix. The live-board rows work correctly; only tender cards fail.",
+        "selector": "article.pmc-tender",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_v56n_public_upgrades.py",
+    "/app/test_reports/pytest/v56n_results.xml"
+  ],
+  "action_items": [
+    "In /app/frontend/src/components/PmcLinkPatcher.jsx around line 1044-1055, either remove the onCardClick listener entirely (now handled by the deep-link block in the main onClick) OR change its navigation target from '/register' to the deep-link path using extractNoticeRef(art). Current behaviour sends every public tender-card body click to /register, which is the exact regression the v56n deep-link upgrade was meant to fix."
+  ],
+  "critical_code_review_comments": [
+    "Duplicate click handlers on article.pmc-tender (onClick capture at line 1020 AND onCardClick at 1044) — classic source of flaky routing. Consolidate into a single handler.",
+    "PmcLinkPatcher.jsx is 1085 lines (>700 threshold). Split into: deepLinks.js, publicNav.js, roleGuards.js for maintainability.",
+    "Public /api/v1/meta/public/contact correctly validates missing fields (422) and returns a tracked reference ENQ-YYYY-#####. Reference also appended to audit_log. Good.",
+    "verify-record endpoint returns full 64-char SHA-256 hashes and resolves by seq (digits/#NNNN) and target_id — all paths tested green."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_v56n_public_upgrades.py (new)"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "88%"
+  },
+  "test_credentials": "None required — all tested endpoints/pages are public.",
+  "seed_data_creation": "Created 2 TEST_ contact enquiries via POST /api/v1/meta/public/contact (ENQ-2026-00003 and ENQ-2026-00004). Harmless, append-only, cannot be deleted per ledger policy.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend verify-record and public contact are solid. On re-test, specifically re-run frontend tender-card click: navigate to '/' , query article.pmc-tender, call .click(), expect URL to contain '/notices/PMC-NOT-'. Also re-check Live board rows (passed), 'Closing this week' chip → status=closing, Awards KPI → status=awarded, and Trust /trust Verify flow (passed with ref '2840' showing 'Record intact' + hash chain details).",
+  "rca_of_the_issue": "RCA: PmcLinkPatcher.jsx registers two document-level click delegators that both match article.pmc-tender. The newer deep-link path (lines 1020-1027) uses extractNoticeRef to navigate to /notices/<ref>, but a legacy onCardClick listener (lines 1044-1055) also attaches to document and unconditionally navigates to '/register' when not vendor-authed. Depending on listener order, the legacy one still runs after the main onClick returns (preventDefault doesn't stop sibling listeners). Fix: delete the onCardClick listener registration, or update its navigate() call to use extractNoticeRef(art) first and only fall back to /register when ref is missing. Reproduction: open https://pmc-forest-green.preview.emergentagent.com/ → scroll to 'Open for bids this week' → click any article.pmc-tender card body (not the 'View notice' link) → observes navigation to /register. Expected: /notices/PMC-NOT-2026-00xx."
+}
