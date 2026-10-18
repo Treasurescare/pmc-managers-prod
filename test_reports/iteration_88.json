@@ -1,0 +1,29 @@
+{
+  "summary": "v56 admin UI verification (frontend only). 3 of 4 target features PASS; Bidding Ops 'Assign' button is MISSING on the live /admin/e/bidding page (critical). Test 1 (Bidding Ops Assign): FAIL — Needs PMC / Waiting / Awarded / All tabs enumerated, 9 bid rows (6 non-terminal), zero [data-testid^='assign-specialists-'] on the page; row actions are only 'Send link', 'Review', '⋯' (kebab also exposes no assign action). Test 2 (Companies master): PASS — created Test Co TESTCO3056 (code TESTCO3056) via company-name/code/country(AF)/state(Badakhshan)/city/zip/reg/incorp-date → row appears, Edit shows company-documents section, PDF upload into Incorporation Certificate slot works (View/Download/Remove appear, toast 'Document uploaded'), License add works (company-license-row-0 rendered), re-saving the profile preserves both doc and license on re-open. Test 3 (Staff company picker): PASS — [data-testid='staff-company'] in New Staff form has 4 options including the TEST company; inline edit also exposes [data-testid='staff-edit-company-certifier@pmcmanagers.com'] with the same options. Test 4 (Escrow institution scope): PASS — selecting an institution exposes escrow-inst-scope-editor + input + save, saving 'MY, SG' shows toast 'Scope set: MY, SG' and persists across reload. Test 5 (regression /staff/bids): certifier logs in to /staff but direct navigation to /staff/bids redirects to '/' (public home); not a v56 regression check but noted.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AdminBiddingOpsE (admin-console-e/AdminBiddingOpsE.jsx)", "issue": "Bidding Ops Assign specialists button not rendered. The /admin/e/bidding route renders AdminBiddingOpsE.jsx which contains NO references to BidTable / AssignSpecialistsModal / assign-specialists. The v56 wiring (openSpecialists → BidTable Assign button → AssignSpecialistsModal) was only added to the legacy BiddingOpsPanel.jsx which is not mounted by App.js. Result: admin cannot assign per-role specialists from the UI.", "selector": "[data-testid^='assign-specialists-']", "priority": "CRITICAL"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Wire the v56 Assign-specialists flow into /admin/e/bidding (AdminBiddingOpsE.jsx): import BidTable + AssignSpecialistsModal, add specialistFor state + openSpecialists + assignSpecialist handlers that call bidApi.assign(bidId, role, staffId), render the AssignSpecialistsModal and pass onOpenSpecialists to the bid rows so the violet 'Assign' button with testid assign-specialists-{bid_ref} appears for non-terminal bids. Alternatively, replace AdminBiddingOpsE's custom table with BiddingOpsPanel/BidTable.",
+    "Confirm which component is the intended v56 target — BiddingOpsPanel.jsx (which already has the wiring) is not mounted on any route, so either route /admin/e/bidding to it or port the wiring into AdminBiddingOpsE."
+  ],
+  "critical_code_review_comments": [
+    "App.js line 259 mounts <AdminBiddingOpsE/> at /admin/e/bidding; this component (457 lines) has no BidTable/AssignSpecialistsModal imports, so BidTable.jsx:74 (assign-specialists-{bid_ref}) is dead code reachable only via BiddingOpsPanel which has no route.",
+    "BiddingOpsPanel.jsx line 108 toast strings 'Specialist assigned' / 'Assignment cleared' are correct per spec but unreachable until the component is mounted or ported.",
+    "CompaniesTab + staff-company + escrow-inst-scope-editor all expose the exact testids referenced in the spec — good test discipline."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "not tested (per request)", "frontend": "3/4 features (75%)"},
+  "test_credentials": "/app/memory/test_credentials.md — adminsupport@pmcmanagers.com / Admin@12345, certifier@pmcmanagers.com / Certify@123",
+  "seed_data_creation": "Created company 'Test Co TESTCO3056' (code TESTCO3056, country AF, state Badakhshan) with 1 uploaded Incorporation Certificate PDF and 1 License PDF. No admin UI delete path for companies observed; leaving in place for next iteration. 'Scope set: MY, SG' now persisted on first institution in Escrow Institutions list (TEST Inst v54a).",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "After main agent wires AdminBiddingOpsE to use BidTable + AssignSpecialistsModal, retest Test 1 only: open /admin/e/bidding, click [data-testid='assign-specialists-PMC-BID-2026-00019'] (or any non-terminal bid_ref), verify modal appears, each role dropdown lists eligible staff with country-scope labels, selecting fires 'Specialist assigned' toast, clearing fires 'Assignment cleared', re-opening reflects persisted assignment. Companies, Staff company picker, Escrow scope editor already verified and persisted.",
+  "rca of the issue": "Root cause: /admin/e/bidding route in App.js:259 renders AdminBiddingOpsE.jsx, which was not updated as part of the v56 UI release. The v56 Assign-specialists wiring (BidTable button + AssignSpecialistsModal) was added only to the legacy BiddingOpsPanel.jsx that isn't mounted anywhere. Reproduction: login as adminsupport, click 'Bidding ops' in side nav → /admin/e/bidding → inspect any bid row → no violet Assign button, no [data-testid^='assign-specialists-'] in DOM. Mitigation: either (a) swap route to BiddingOpsPanel, or (b) import BidTable+AssignSpecialistsModal into AdminBiddingOpsE and provide specialistFor state + bidApi.assign handler mirroring BiddingOpsPanel lines 100-115."
+}

@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { bidApi, showApiError } from "@/lib/api";
+import { bidApi, staffApi, showApiError } from "@/lib/api";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { useAdminBiddingOpsLive } from "@/lib/pmcELiveData";
 import AdminAvatarMenu from "./AdminAvatarMenu";
 import AdminSideNavE from "./AdminSideNavE";
+import AssignSpecialistsModal from "../admin-console/bidding/AssignSpecialistsModal";
 import MoneyFilterBar from "@/components/MoneyFilterBar";
 import "./bidding-ops.css";
 
@@ -17,6 +18,27 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
   const navigate = useNavigate();
   const [tick, setTick] = useState(0);
   useAdminBiddingOpsLive({ enabled: isE, tick });
+
+  // v56 — per-role specialist assignment. The row list + detail panel are
+  // DOM-rendered by the live-data layer, so we expose the React opener via a
+  // ref and render the modal from JSX.
+  const [specialistFor, setSpecialistFor] = useState(null);
+  const [staffList, setStaffList] = useState([]);
+  const specialistOpenRef = useRef(null);
+  specialistOpenRef.current = setSpecialistFor;
+  useEffect(() => {
+    if (!isE) return;
+    staffApi.listStaff().then((r) => setStaffList(r || [])).catch(() => setStaffList([]));
+  }, [isE]);
+  const assignSpecialist = async (role, staffId) => {
+    if (!specialistFor) return;
+    try {
+      const res = await bidApi.assign(specialistFor.id, role, staffId);
+      toast.success(staffId ? "Specialist assigned" : "Assignment cleared");
+      setTick((t) => t + 1);
+      return res;
+    } catch (e) { showApiError(e); }
+  };
 
   // Wire tabs, hide-test, select-all, row selection — pure DOM so it
   // survives live-data innerHTML replacements.
@@ -162,6 +184,10 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
         else if (st === "on_hold") act.innerHTML = `<div class="pmc-callout pmc-callout--warn" style="margin:0" data-testid="bo-detail-hold-note"><b>On hold.</b> ${b.hold_reason ? `Reason: ${b.hold_reason}. ` : ""}${b.held_by ? `Held by ${b.held_by}. ` : ""}The vendor cannot change anything until you resume.</div><button class="pmc-btn pmc-btn--primary" data-bo-action="resume" data-bid-id="${b.id}" data-testid="bo-resume-btn">Resume bid</button><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><button class="pmc-btn pmc-btn--secondary" data-bo-action="review" data-bid-id="${b.id}">Open bid</button><button class="pmc-btn pmc-btn--danger" data-bo-action="reject" data-bid-id="${b.id}">Reject…</button></div>`;
         else act.innerHTML = (st === "escrow_accepted" ? `<button class="pmc-btn pmc-btn--primary" data-bo-action="flag" data-bid-id="${b.id}">Flag to certifier</button>` : `<button class="pmc-btn pmc-btn--primary" data-bo-action="review" data-bid-id="${b.id}">Open bid</button>`) + `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><button class="pmc-btn pmc-btn--secondary" data-bo-action="hold" data-bid-id="${b.id}">Hold…</button><button class="pmc-btn pmc-btn--danger" data-bo-action="reject" data-bid-id="${b.id}">Reject…</button></div>`;
       }
+      // v56 — specialist assignment available on every non-terminal bid.
+      if (act && !awarded) {
+        act.innerHTML += `<button class="pmc-btn pmc-btn--secondary" data-bo-action="assign" data-bid-id="${b.id}" data-testid="assign-specialists-${b.bid_ref}" style="margin-top:4px">Assign specialists</button>`;
+      }
     };
     const onRowClick = (e) => {
       if (e.target.closest('.chk') || e.target.closest('.bo-act')) return;
@@ -197,6 +223,12 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
         // ⋯ opens the right-side detail panel (Hold / Reject / History live there)
         const row = root.querySelector(`.bo-r[data-bid-id="${bidId}"]`);
         if (row) row.click();
+        return;
+      }
+      if (act === 'assign') {
+        // v56 — open the Assign-specialists modal for this bid.
+        const bid = (root._bids || []).find((x) => (x.id || "") === bidId);
+        if (bid) specialistOpenRef.current?.(bid);
         return;
       }
       // v51ab — confirmation dialog before sending the EMD payment link so
@@ -452,6 +484,12 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
 </main>
 </div>
 </div>
+      <AssignSpecialistsModal
+        bid={specialistFor}
+        staffList={staffList}
+        onAssign={assignSpecialist}
+        onClose={() => setSpecialistFor(null)}
+      />
     </div>
   );
 }
