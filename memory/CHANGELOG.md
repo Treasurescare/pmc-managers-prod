@@ -354,6 +354,12 @@ browser/cache once — this is what ends the recurring "old code on prod" crashe
   with a CloudFront Function for SPA routing so `/api` errors are never mangled.
 - Bundles: `pmc-backend-v54v.zip` (== v54u code + version bump),
   `pmc-frontend-v54v-prod-build.zip`.
+- v54v backend rev 2 (same version label): added `config.REQUIRE_HIGH_RISK_MFA`
+  (default FALSE for testing) gating the mandatory-2FA check on accounting /
+  escrow_agent / legal_counsel in staff_login + switch_role. These roles now
+  sign in with email+password during testing; flip the flag true before beta.
+  Normal MFA (user has mfa_enabled) path is unchanged. Verified: accounting 200,
+  escrow_agent 200, unheld role 403, MFA-enabled OTP path untouched.
 
 ## v54u (17 Jun 2026) — Safari staff-login fix (context-aware first-party cookie)
 - Confirmed root cause of the long-running "staff can't log in" bounce. Live

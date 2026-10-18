@@ -79,9 +79,10 @@ async def staff_login(payload: StaffLoginIn, response: Response, request: Reques
     if not user.get("is_active", True):
         raise HTTPException(status_code=403, detail="Account disabled")
 
-    # Wave 8 — Force MFA on high-risk roles
+    # Wave 8 — Force MFA on high-risk roles (gated by config flag; OFF for
+    # testing, re-enable before beta via REQUIRE_HIGH_RISK_MFA).
     HIGH_RISK_ROLES = {"escrow_agent", "legal_counsel", "accounting"}
-    if payload.active_role in HIGH_RISK_ROLES and not user.get("mfa_enabled"):
+    if config.REQUIRE_HIGH_RISK_MFA and payload.active_role in HIGH_RISK_ROLES and not user.get("mfa_enabled"):
         raise HTTPException(
             status_code=403,
             detail=f"MFA is required for {payload.active_role}. Sign in as 'admin' first and enable Two-Factor from the Security · 2FA button, then retry.",
@@ -170,7 +171,7 @@ async def switch_role(payload: SwitchRoleIn, response: Response, request: Reques
         raise HTTPException(status_code=403,
             detail=f"You do not hold the {payload.active_role} role.")
     HIGH_RISK_ROLES = {"escrow_agent", "legal_counsel", "accounting"}
-    if payload.active_role in HIGH_RISK_ROLES and not doc.get("mfa_enabled"):
+    if config.REQUIRE_HIGH_RISK_MFA and payload.active_role in HIGH_RISK_ROLES and not doc.get("mfa_enabled"):
         raise HTTPException(status_code=403,
             detail=f"MFA is required for {payload.active_role}. Enable Two-Factor first.")
     token = create_admin_token(str(doc["_id"]), doc["email"], payload.active_role)

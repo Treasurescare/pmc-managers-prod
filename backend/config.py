@@ -174,6 +174,11 @@ CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "*").strip()
 # Leave empty to fall back to the request host (dev / preview).
 COOKIE_DOMAIN = os.environ.get("COOKIE_DOMAIN", "").strip() or None
 
+# High-risk staff roles (accounting / escrow_agent / legal_counsel) can be hard-
+# gated behind 2FA. OFF during testing so these roles sign in with email+password;
+# flip to true (env REQUIRE_HIGH_RISK_MFA=true or edit here) before beta launch.
+REQUIRE_HIGH_RISK_MFA = os.environ.get("REQUIRE_HIGH_RISK_MFA", "false").strip().lower() == "true"
+
 # KZ Licenses & Category map (from Domain_Spec §3 and §4)
 KZ_LICENSE_TYPES = [
     "Construction (1st category)",
