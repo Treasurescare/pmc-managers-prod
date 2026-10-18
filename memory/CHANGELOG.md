@@ -456,3 +456,20 @@ preview (testing_agent iteration_89 Bidding Ops 100%; iteration_88 the other thr
 ## Earlier releases
 See `/app/frontend/public/downloads/DOWNLOAD_v53*.md` for v53i through v53q
 summary notes.
+
+## v56f (18 Jun 2026) — PMC-officer staff-portal signing + signed-PDF email
+- Staff portal now surfaces the PMC officer's escrow signing work: new
+  "Escrow documents — your signature" section (StaffDashboard.jsx /
+  EscrowSignatures) listing their transactions with Open-in-DocuSign
+  (Safari-safe), Refresh DocuSign, and Download signed PDF.
+- Backend (staff_auth.py): GET /api/v1/staff/escrow/signatures + per-tx
+  detail / docusign-url / docusign/refresh / signed-document, all scoped to
+  escrow_account_snapshot.pmc_officer.email (403 cross-officer).
+- docusign.py _deliver_escrow_signed_document(): on envelope completion,
+  downloads the COMBINED signed PDF, stores it on the tx and emails it (as an
+  attachment) to both officers incl. the escrow institution officer. Resolves
+  "signed document never reached Sakina / dashboard".
+- Readability: staff dashboard forced to light bg (#eef2f7) + dark text.
+- Verified iteration_93: backend 100%, frontend 100%. PREVIEW ONLY — not yet
+  deployed. Next release bundle to build: pmc-backend-v56f.zip /
+  pmc-frontend-v56f-prod-build.zip.

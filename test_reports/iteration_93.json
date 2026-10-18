@@ -1,0 +1,28 @@
+{
+  "summary": "Verified new PMC-officer escrow signing surface in Staff Portal + signed-PDF download. Backend endpoints (signatures listing, docusign-url, docusign/refresh, signed-document) scoped by pmc_officer.email work correctly; cross-officer access returns 403. Frontend renders staff-escrow-signatures section with both seeded transactions, all target data-testids present, buttons wired to API, graceful toasts on DocuSign test envelope responses (no crash), signed PDF downloads successfully as PMC-Escrow-Signed-TMP.pdf. EMD-paid queue with Accept/Reject still renders.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/staff dashboard — Escrow documents section", "issues": ["Secondary 'Refresh DocuSign' button text and the awaiting-signature chips ('You (PMC) · awaiting', 'Institution · awaiting') render in a very pale gray on near-white card/amber card backgrounds — contrast appears borderline for WCAG AA. Section/row primary text (bid ref, vendor, amount, institution) is readable; the ghost/secondary button and awaiting chips should be strengthened."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Consider darkening the 'Refresh DocuSign' secondary button text and the 'awaiting' signature chip text for better contrast on the light (#eef2f7) and amber pending card backgrounds."
+  ],
+  "critical_code_review_comments": [
+    "Backend auth scoping on /api/v1/staff/escrow/transactions/{tid}* correctly returns 403 (verified with mfatest officer).",
+    "DocuSign refresh failure returns HTTP 424 and the UI surfaces a clear, non-crashing error toast — good error handling.",
+    "'Open in DocuSign' fallback (test envelope id) correctly displays info toast telling user to open the DocuSign email — no crash."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "escrow@pmcmanagers.com / Escrow@123 (Escrow Agent); mfatest@pmcmanagers.com / Escrow@123 (Escrow Agent, cross-officer).",
+  "seed_data_creation": "None — used existing seeded TMP-SIGN-PENDING and TMP-SIGN-DONE transactions.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend endpoints verified via curl: GET /api/v1/staff/escrow/signatures (200, returns pending + transactions); GET /api/v1/staff/escrow/transactions/{tid}/signed-document (200 with base64 PDF); cross-officer access returns 403. Frontend verified via Playwright on https://pmc-forest-green.preview.emergentagent.com/staff — all data-testids present (staff-dashboard, staff-escrow-signatures, staff-escrow-sign-TMP-SIGN-PENDING, staff-escrow-refresh-TMP-SIGN-PENDING, staff-escrow-download-TMP-SIGN-DONE). DocuSign test envelope IDs produce graceful info/error toasts. Only outstanding feedback is minor contrast on secondary button and awaiting chips.",
+  "rca of the issue": "N/A — feature works as designed."
+}

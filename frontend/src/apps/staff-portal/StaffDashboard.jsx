@@ -358,11 +358,11 @@ function EscrowSignatures() {
                   </div>
                   <div className="flex items-center gap-2 mt-2 text-[11px]">
                     <span className={"px-2 py-0.5 rounded-full " +
-                      (t.signed_by_pmc ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-700")}>
+                      (t.signed_by_pmc ? "bg-emerald-100 text-emerald-800" : "bg-slate-300 text-slate-800")}>
                       You (PMC) {t.signed_by_pmc ? "✓ signed" : "· awaiting"}
                     </span>
                     <span className={"px-2 py-0.5 rounded-full " +
-                      (t.signed_by_institution ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-700")}>
+                      (t.signed_by_institution ? "bg-emerald-100 text-emerald-800" : "bg-slate-300 text-slate-800")}>
                       Institution {t.signed_by_institution ? "✓ signed" : "· awaiting"}
                     </span>
                     {t.docusign_status && (
@@ -383,7 +383,7 @@ function EscrowSignatures() {
                         </button>
                       )}
                       <button onClick={() => refresh(t.id)} disabled={busy === t.id}
-                        className="text-xs border border-slate-300 text-slate-700 px-3 py-1.5 rounded hover:bg-slate-100 disabled:opacity-40"
+                        className="text-xs border border-slate-400 text-slate-800 font-medium px-3 py-1.5 rounded hover:bg-slate-100 disabled:opacity-40"
                         data-testid={`staff-escrow-refresh-${t.bid_ref || t.id}`}>
                         Refresh DocuSign
                       </button>
@@ -396,7 +396,7 @@ function EscrowSignatures() {
                       )}
                     </>
                   ) : (
-                    <span className="text-xs text-slate-500 italic text-right max-w-[220px]">
+                    <span className="text-xs text-slate-600 italic text-right max-w-[220px]">
                       Awaiting PMC admin to issue the DocuSign envelope.
                     </span>
                   )}

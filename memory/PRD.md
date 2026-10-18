@@ -19,6 +19,28 @@ officers → tx at `received` → dual sign (in-app / magic-link / DocuSign) →
 confirmed: EMD USD 500,000 recorded, tx `received`, governance_ok, both officers
 distinct, ready for signature hand-off.
 
+## v56f (18 Jun 2026) — PMC-officer signing surface + signed-PDF delivery
+- Staff portal (`StaffDashboard.jsx`) now shows an **"Escrow documents — your
+  signature"** section for the logged-in PMC officer: lists every escrow
+  transaction where `escrow_account_snapshot.pmc_officer.email` == their email,
+  with pending items highlighted. Actions per row: **Open in DocuSign to sign**
+  (Safari-safe sync-open), **Refresh DocuSign**, **Download signed PDF**.
+- New staff endpoints (`staff_auth.py`, scoped to the officer's own email →
+  403 otherwise): `GET /api/v1/staff/escrow/signatures`,
+  `GET /escrow/transactions/{tid}`, `GET …/docusign-url`,
+  `POST …/docusign/refresh`, `GET …/signed-document`.
+- On DocuSign completion, `_deliver_escrow_signed_document()` (docusign.py,
+  called from `_apply_live_status` escrow_tx branch) downloads the COMBINED
+  signed PDF, stores it on the transaction (`signed_document`) and EMAILS it as
+  an attachment to BOTH officers (incl. the escrow institution officer, e.g.
+  Sakina) — so the executed document actually reaches their inbox, not just a
+  status flag. Idempotent + best-effort.
+- Readability fix: staff dashboard forced to a solid light background (#eef2f7)
+  with dark text; contrast strengthened on refs, chips and secondary buttons.
+- Verified (iteration_93): backend 100% (listing + 403 scoping + signed-doc),
+  frontend 100% (section renders, all data-testids, graceful toasts, PDF
+  downloads). Still PREVIEW-only — not yet deployed/confirmed in production.
+
 ## v56d/v56e (18 Jun 2026) — escrow DocuSign signing reflects on dashboards
 - v56d: Safari fix — institution portal "Open in DocuSign to sign" now works
   (open tab synchronously then navigate; was window.open after await → blocked).
