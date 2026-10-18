@@ -45,7 +45,7 @@ export default function SignInE({ legacy: Legacy }) {
             });
             return;
           }
-          if (code !== 401 && code !== 404) throw accErr;
+          if (code !== 401 && code !== 404 && !accErr?.__pmcHtmlGuard) throw accErr;
         }
         try {
           const sigRes = await api.post("/api/v1/escrow-signatories/auth/login", { email, password });
