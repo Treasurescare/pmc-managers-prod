@@ -337,7 +337,19 @@ browser/cache once — this is what ends the recurring "old code on prod" crashe
   `build/downloads/` (was 346 MB → 3.9 MB).
 - Release bundles: `pmc-backend-v54a.zip`, `pmc-frontend-v54a-prod-build.zip`.
 
-## v56b (18 Jun 2026) — follow-up fixes (footer version, country pickers, city/zip, CSRF, backfill)
+## v56b2 (18 Jun 2026) — session-bound HMAC CSRF (prod CloudFront cookie fix)
+- Prod kept 403'ing CSRF on POSTs (escrow Save, Backfill) even after v56a +
+  invalidation + incognito: the `csrf_token` cookie wasn't reaching the origin
+  through CloudFront, so the classic cookie==header check failed while the
+  access_token cookie worked.
+- Fix (security.py require_csrf): accept EITHER classic cookie==header OR
+  header==HMAC(JWT_SECRET,"csrf:"+session_sub) via new `csrf_for_session()` +
+  `_session_sub()`. Login (admin_auth + staff_auth) and the csrf-refresh
+  endpoint now issue the session-bound token. Needs NO cookie; unforgeable
+  cross-site. Curl-verified: csrf cookie stripped → protected POST passes CSRF.
+- Stamped v56b. Bundles: pmc-backend-v56b.zip, pmc-frontend-v56b-prod-build.zip.
+
+## v56a (18 Jun 2026) — follow-up fixes (footer version, country pickers, city/zip, CSRF, backfill)
 - **Footer version** now shows live build on the main site: HomeE + PmcFooter read `/api/v1/_version` → "Frontend v56 · Backend v56" (PmcFooter previously hard-coded v51b; HomeE showed nothing).
 - **Country pickers**: new `components/CountryMultiSelect.jsx` (country NAMES + flags, chips, search; empty = all/global). Wired into staff Country scope (new + edit forms) and the escrow-institution scope editor — replaces free-text ISO input.
 - **Company Master City/ZIP**: City is a cascading autocomplete from the cities master (country→state→city); ZIP live-validates against the country's postal_code_regex (invalid disables Save). Company country option now name-first. Upload panel now appears right after Create (auto edit mode).

@@ -10,7 +10,17 @@ reverse auctions, bid governance, EMD escrow workflows, vendor/staff/
 institution portals, AWS deployment bundles, and transactional notifications
 (Stripe, Resend, DocuSign, Emergent crons).
 
-## Current P0 — v56 (18 Jun 2026) — work-distribution phase complete (4 admin features)
+## Current P0 — v56b (18 Jun 2026) — session-bound HMAC CSRF (prod CloudFront cookie fix)
+Production kept returning "CSRF token missing or invalid" on POST/PATCH (escrow
+Save, Backfill) even after v56a + CloudFront invalidation + incognito. Root
+cause: the `csrf_token` cookie was not reaching the origin through CloudFront,
+so the classic cookie==header double-submit failed (while the access_token
+cookie worked). Fix: `require_csrf` now also accepts header == HMAC(JWT_SECRET,
+"csrf:"+session_sub); login + csrf-refresh issue this session-bound token — no
+cookie required, still unforgeable cross-site. Curl-verified with the csrf
+cookie stripped. Bundles: pmc-backend-v56b.zip / pmc-frontend-v56b-prod-build.zip.
+
+## Prev — v56a (18 Jun 2026) — footer version, country-name pickers, company city/zip, CSRF refresh endpoint + escrow backfill endpoint
 Completes the v55 phase. All four verified in preview (testing_agent iter 89
 Bidding Ops 100%; iter 88 the other three PASS):
 1. **Bidding Ops assignment UI** (`/admin/e/bidding`): click a bid row → detail

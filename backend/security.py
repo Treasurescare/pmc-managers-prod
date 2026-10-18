@@ -1,6 +1,8 @@
 import bcrypt
 import jwt
 import secrets
+import hmac
+import hashlib
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 from fastapi import HTTPException, Request, Depends
@@ -37,6 +39,33 @@ def new_magic_token() -> str:
 def new_csrf_token() -> str:
     """Double-submit CSRF token — sent as both cookie (JS-readable) AND header."""
     return secrets.token_urlsafe(24)
+
+
+def csrf_for_session(sub: str) -> str:
+    """v56b2 — session-bound CSRF token: HMAC(JWT_SECRET, 'csrf:'+sub). Lets the
+    server validate the X-CSRF-Token header WITHOUT depending on the csrf cookie
+    surviving the CDN, while remaining unforgeable from a cross-site context."""
+    return hmac.new(config.JWT_SECRET.encode(), f"csrf:{sub}".encode(),
+                    hashlib.sha256).hexdigest()
+
+
+def _session_sub(request) -> Optional[str]:
+    """Resolve the authenticated subject (user id) from the access_token
+    cookie or Bearer header, for the session-bound CSRF fallback."""
+    token = request.cookies.get("access_token")
+    if not token:
+        h = request.headers.get("Authorization", "")
+        if h.startswith("Bearer "):
+            token = h[7:]
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, config.JWT_SECRET, algorithms=[config.JWT_ALGORITHM])
+        if payload.get("type") != "access":
+            return None
+        return payload.get("sub")
+    except Exception:
+        return None
 
 
 async def current_admin(request: Request) -> dict:
@@ -127,19 +156,29 @@ def clear_session_cookie(response, name: str, cross_site: bool = True) -> None:
 
 
 async def require_csrf(request: Request) -> None:
-    """Double-submit CSRF check. Enforced on state-changing admin endpoints.
+    """Double-submit CSRF check with a session-bound HMAC fallback.
 
-    Rejects the request unless the `csrf_token` cookie matches the
-    `X-CSRF-Token` header. Because attackers cannot read the cookie from a
-    cross-site page (browser same-origin policy on document.cookie), they
-    cannot forge the header.
+    v56b2 — production behind CloudFront can fail to deliver the JS-readable
+    `csrf_token` cookie to the origin, which broke the classic cookie==header
+    check even though the session was valid. We now accept EITHER:
+      1. classic double-submit: `csrf_token` cookie == `X-CSRF-Token` header, OR
+      2. session-bound token: header == HMAC(JWT_SECRET, "csrf:"+session_sub),
+         which needs no cookie at all yet stays unforgeable cross-site (an
+         attacker can neither read the session nor compute the HMAC, and cannot
+         set a custom header on a cross-site request).
     """
     if request.method in ("GET", "HEAD", "OPTIONS"):
         return
-    cookie_val = request.cookies.get("csrf_token")
     header_val = request.headers.get("x-csrf-token") or request.headers.get("X-CSRF-Token")
-    if not cookie_val or not header_val or not secrets.compare_digest(cookie_val, header_val):
+    if not header_val:
         raise HTTPException(status_code=403, detail="CSRF token missing or invalid")
+    cookie_val = request.cookies.get("csrf_token")
+    if cookie_val and secrets.compare_digest(cookie_val, header_val):
+        return
+    sub = _session_sub(request)
+    if sub and secrets.compare_digest(header_val, csrf_for_session(sub)):
+        return
+    raise HTTPException(status_code=403, detail="CSRF token missing or invalid")
 
 
 def require_role(*roles: str):

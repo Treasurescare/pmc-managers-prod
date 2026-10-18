@@ -14,7 +14,7 @@ from db import db
 from models.staff_user import StaffLoginIn, StaffCreateIn, StaffUpdateIn, ALL_STAFF_ROLES, StaffRole
 from security import (
     verify_password, hash_password, create_admin_token, current_admin,
-    new_csrf_token, require_role, require_csrf, set_csrf_cookie,
+    new_csrf_token, csrf_for_session, require_role, require_csrf, set_csrf_cookie,
     set_access_cookie, clear_session_cookie, is_preview_request,
 )
 from audit import audit_log
@@ -27,7 +27,12 @@ def _set_session_cookies(response: Response, access_token: str, request: Request
     max_age = config.ACCESS_TOKEN_TTL_MIN * 60
     cross_site = is_preview_request(request)
     set_access_cookie(response, "access_token", access_token, max_age, cross_site)
-    csrf = new_csrf_token()
+    try:
+        sub = jwt.decode(access_token, config.JWT_SECRET,
+                         algorithms=[config.JWT_ALGORITHM]).get("sub")
+        csrf = csrf_for_session(sub) if sub else new_csrf_token()
+    except Exception:
+        csrf = new_csrf_token()
     set_csrf_cookie(response, csrf, max_age, cross_site)
     return csrf
 
@@ -98,7 +103,7 @@ async def refresh_csrf_token(request: Request, response: Response):
         raise HTTPException(status_code=401, detail="Invalid token")
     max_age = config.ACCESS_TOKEN_TTL_MIN * 60
     cross_site = is_preview_request(request)
-    csrf = new_csrf_token()
+    csrf = csrf_for_session(payload["sub"]) if payload.get("sub") else new_csrf_token()
     set_csrf_cookie(response, csrf, max_age, cross_site)
     return {"csrf_token": csrf}
 

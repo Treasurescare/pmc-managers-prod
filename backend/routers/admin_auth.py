@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Response, Depends, Request
 
 from db import db
 from models import AdminLoginIn, AdminPasswordChangeIn
-from security import verify_password, hash_password, create_admin_token, current_admin, new_csrf_token, require_csrf, set_csrf_cookie, set_access_cookie, clear_session_cookie, is_preview_request
+from security import verify_password, hash_password, create_admin_token, current_admin, new_csrf_token, csrf_for_session, require_csrf, set_csrf_cookie, set_access_cookie, clear_session_cookie, is_preview_request
 from audit import audit_log
 import config
 
@@ -17,11 +17,24 @@ def _set_session_cookies(response: Response, access_token: str, request: Request
     max_age = config.ACCESS_TOKEN_TTL_MIN * 60
     cross_site = is_preview_request(request)
     set_access_cookie(response, "access_token", access_token, max_age, cross_site)
-    csrf = new_csrf_token()
+    csrf = _csrf_from_token(access_token)
     # csrf_token cookie is INTENTIONALLY not httpOnly — client JS reads it and
     # echoes as X-CSRF-Token header (double-submit-cookie pattern).
     set_csrf_cookie(response, csrf, max_age, cross_site)
     return csrf
+
+
+def _csrf_from_token(access_token: str) -> str:
+    """v56b2 — derive the session-bound CSRF token so validation never depends
+    on the cookie surviving the CDN. Falls back to a random token if decode
+    fails (keeps classic cookie==header behaviour)."""
+    try:
+        import jwt as _jwt
+        sub = _jwt.decode(access_token, config.JWT_SECRET,
+                          algorithms=[config.JWT_ALGORITHM]).get("sub")
+        return csrf_for_session(sub) if sub else new_csrf_token()
+    except Exception:
+        return new_csrf_token()
 
 
 @router.post("/login")
