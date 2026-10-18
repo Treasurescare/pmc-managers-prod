@@ -337,6 +337,24 @@ browser/cache once — this is what ends the recurring "old code on prod" crashe
   `build/downloads/` (was 346 MB → 3.9 MB).
 - Release bundles: `pmc-backend-v54a.zip`, `pmc-frontend-v54a-prod-build.zip`.
 
+## v54v (17 Jun 2026) — unified /login fix (CloudFront HTML-200 error pages)
+- Staff could sign in at /staff/login but the unified /login bounced to
+  /login?expired=1. Root cause: CloudFront "Error Pages" rewrites backend
+  403/404 on /api/* into index.html with HTTP 200. The unified login probes
+  each staff role; the first wrong-role 403 became a fake 200+HTML, read as
+  success → navigated with no cookie → /me 401 → bounce.
+- Fix (frontend only): central axios response guard (`lib/api.js`) rejects any
+  `/api` response whose body is HTML (a CloudFront error page), so it is treated
+  as the real error — protects the staff login loop, escrow login, and every
+  future call. `SignInE.jsx` staff loop now only accepts a JSON object with
+  `active_role` as a successful sign-in.
+- Verified in preview: /login as PMC staff → reviewer 403 → escrow_agent 403 →
+  certifier 200 → /me 200 → lands on /staff.
+- Recommended server-side completion: replace CloudFront custom error responses
+  with a CloudFront Function for SPA routing so `/api` errors are never mangled.
+- Bundles: `pmc-backend-v54v.zip` (== v54u code + version bump),
+  `pmc-frontend-v54v-prod-build.zip`.
+
 ## v54u (17 Jun 2026) — Safari staff-login fix (context-aware first-party cookie)
 - Confirmed root cause of the long-running "staff can't log in" bounce. Live
   tests proved server + CloudFront correct (clean Chromium + curl both work);

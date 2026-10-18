@@ -10,7 +10,25 @@ reverse auctions, bid governance, EMD escrow workflows, vendor/staff/
 institution portals, AWS deployment bundles, and transactional notifications
 (Stripe, Resend, DocuSign, Emergent crons).
 
-## Current P0 — v54u (17 Jun 2026) — REAL staff-login fix (Safari / first-party cookie)
+## Current P0 — v54v (17 Jun 2026) — unified /login fix (CloudFront HTML-200 error pages)
+Staff could log in via /staff/login but NOT via the unified /login. Root cause:
+CloudFront "Error Pages" rewrites a backend 403/404 on /api/* into index.html
+with HTTP 200. The unified /login "PMC staff" option probes each staff role; the
+first wrong-role attempt got a 403 that CloudFront turned into a fake 200+HTML,
+which the app read as a successful sign-in → navigated to /staff with NO cookie →
+/me 401 → bounced to /login?expired=1. (/staff/login works because you pick the
+exact role, no wrong-role attempt.) Fix (frontend): (1) central axios guard in
+lib/api.js rejects any /api response whose body is HTML (a CloudFront error page)
+so it is handled as the error it is — protects staff loop, escrow login, and all
+future calls; (2) SignInE staff loop only treats a JSON object with active_role as
+success. Verified in preview: unified /login as PMC staff → reviewer 403 →
+escrow_agent 403 → certifier 200 → /me 200 → lands on /staff. Bundles:
+pmc-backend-v54v.zip (code == v54u + version bump), pmc-frontend-v54v-prod-build.zip.
+Recommended complete server-side fix: replace CloudFront custom error responses
+with a CloudFront Function for SPA routing so /api errors pass through untouched.
+STATUS: verified in preview; awaiting user prod deploy + confirmation on /login.
+
+## Prev P0 — v54u (17 Jun 2026) — REAL staff-login fix (Safari / first-party cookie)
 ACTUAL confirmed root cause of "staff can't log in" on the real domain. Proven
 live: server + CloudFront are correct (clean Chromium logs in, /me 200, lands on
 /staff; curl gets Set-Cookie). It failed in SAFARI (incl. Private) + the user's

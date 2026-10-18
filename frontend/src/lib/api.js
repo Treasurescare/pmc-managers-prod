@@ -80,7 +80,28 @@ api.interceptors.request.use((cfg) => {
 // row). Now we redirect to /login once, with a return path, instead of
 // letting each panel show a cryptic failure.
 api.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    // v54v — CloudFront's SPA "Error Pages" rule rewrites a backend 4xx on
+    // /api/* (e.g. a 403 for a wrong staff role, or a 404) into the app's
+    // index.html with HTTP 200. That HTML arrives here looking like a success,
+    // which made the unified /login "sign in" with no cookie set (then /me
+    // 401'd and bounced to /login). Treat an HTML body on an API call as the
+    // error it really is so callers never mistake it for a real response.
+    try {
+      const ct = (res?.headers?.["content-type"] || "").toLowerCase();
+      const url = res?.config?.url || "";
+      const looksHtml = ct.includes("text/html") ||
+        (typeof res?.data === "string" && /^\s*<!doctype html/i.test(res.data));
+      if (url.includes("/api/") && looksHtml) {
+        return Promise.reject({
+          response: { status: 502, data: { detail: "The server returned an unexpected response. Please try again." }, config: res.config },
+          config: res.config,
+          __pmcHtmlGuard: true,
+        });
+      }
+    } catch { /* never let the guard itself break a response */ }
+    return res;
+  },
   (err) => {
     const status = err?.response?.status;
     const detail = err?.response?.data?.detail;

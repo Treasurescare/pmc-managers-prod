@@ -96,16 +96,20 @@ export default function SignInE({ legacy: Legacy }) {
       for (const rc of roleCandidates) {
         try {
           const r = await staffApi.login(email, password, rc, undefined);
-          if (r && !r.mfa_required) {
-            const active = r.active_role || rc;
-            toast.success(`Signed in · ${active}`);
-            if (active === "admin") return nav("/admin");
+          // A genuine login result is a JSON OBJECT from our API. Guard against
+          // anything else (belt-and-suspenders with the HTML-response guard in
+          // api.js) so a masked error can never look like a successful sign-in.
+          const isLoginJson = r && typeof r === "object" && !Array.isArray(r);
+          if (isLoginJson && r.active_role) {
+            toast.success(`Signed in · ${r.active_role}`);
+            if (r.active_role === "admin") return nav("/admin");
             return nav("/staff");
           }
-          if (r && r.mfa_required) {
+          if (isLoginJson && r.mfa_required) {
             toast.info("MFA required — use the admin portal for 2FA.");
             return;
           }
+          // Otherwise (wrong role for this account) keep probing the next role.
         } catch (err) {
           lastErr = err;
           // Remember a high-risk-role MFA 403 even if later candidates overwrite lastErr.
