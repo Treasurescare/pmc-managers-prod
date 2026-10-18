@@ -473,3 +473,21 @@ summary notes.
 - Verified iteration_93: backend 100%, frontend 100%. PREVIEW ONLY — not yet
   deployed. Next release bundle to build: pmc-backend-v56f.zip /
   pmc-frontend-v56f-prod-build.zip.
+
+## v56g (18 Jun 2026) — staff portal sidebar + readability + embedded DocuSign
+- Rewrote StaffDashboard.jsx: left SIDEBAR (Overview/Escrow signatures/Work
+  queue/Site inspections) + explicit inline colour palette so the global
+  [data-ui=e] dark theme can no longer wash out slate utilities (root cause:
+  index.css:708 `[data-ui=e] .bg-slate-50 {deep-dark !important}`).
+- DocuSign EMBEDDED signing: envelope signers now carry client_user_id; the
+  "Open in DocuSign" endpoints mint create_recipient_view URLs with a return_url
+  back to the originating portal (/staff, /escrow/me, /admin ?signed=1), same-tab
+  navigation. Legacy email-mode envelopes auto-convert via update_recipients.
+  New helper docusign.create_escrow_recipient_view(). Fixes "only shows signed
+  doc, PMC officer can never sign".
+- On completion the combined signed PDF is emailed to both officers + the admin
+  who issued the envelope (docusign._deliver_escrow_signed_document).
+- Verified iteration_94: backend 100%, frontend 100% (readability, sidebar,
+  graceful 424 on preview). EMBEDDED signing needs PRODUCTION validation
+  (DocuSign JWT not configured in preview → 424). Bundles: pmc-backend-v56g.zip,
+  pmc-frontend-v56g-prod-build.zip.

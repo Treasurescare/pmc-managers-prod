@@ -19,6 +19,19 @@ officers → tx at `received` → dual sign (in-app / magic-link / DocuSign) →
 confirmed: EMD USD 500,000 recorded, tx `received`, governance_ok, both officers
 distinct, ready for signature hand-off.
 
+## v56g (18 Jun 2026) — staff portal sidebar + readable + embedded DocuSign
+- Staff dashboard rewritten with a left SIDEBAR + inline-colour palette (fixes
+  the unreadable/faint text caused by the global `[data-ui="e"]` dark theme
+  repainting `bg-slate-*`/`text-slate-*`).
+- DocuSign signing is now EMBEDDED (recipient view): signers carry
+  `client_user_id`; "Open in DocuSign" mints `create_recipient_view` with a
+  `return_url` back to the portal (/staff, /escrow/me, /admin) so the PMC
+  officer actually SIGNS and is returned to their dashboard — not the DocuSign
+  email login. Legacy email-mode envelopes auto-convert via `update_recipients`.
+- Signed PDF emailed to both officers + the issuing admin on completion.
+- NOTE: embedded signing verified only structurally in preview (DocuSign JWT
+  not configured there → 424 handled gracefully); REQUIRES production validation.
+
 ## v56f (18 Jun 2026) — PMC-officer signing surface + signed-PDF delivery
 - Staff portal (`StaffDashboard.jsx`) now shows an **"Escrow documents — your
   signature"** section for the logged-in PMC officer: lists every escrow

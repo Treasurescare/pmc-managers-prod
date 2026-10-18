@@ -1,0 +1,25 @@
+{
+  "summary": "Verified v56g Staff Portal rewrite: SIDEBAR layout, inline-color READABILITY, embedded DocuSign signing. Login as escrow@pmcmanagers.com (Escrow Agent) lands on /staff with staff-dashboard. Sidebar (staff-sidebar) renders with nav items staff-nav-overview, staff-nav-escrow, staff-nav-queue and badge counts (1/1). Text contrast is strong — dark text on light surfaces (nav items rgb(20,32,26) on light bg; h2 rgb(91,107,98); header white on navy #0b1e3f), nothing faint or washed out by global data-ui='e' theme. Escrow tab lists both seeded transactions (TMP-SIGN-DONE signed + Download signed PDF; TMP-SIGN-PENDING amber with Open in DocuSign + Refresh). All target data-testids present. Clicking 'Open in DocuSign to sign' triggers backend 424 (expected — fake envelope / DocuSign auth not configured in preview) and the UI shows a NON-CRASHING red error toast ('Could not open DocuSign · HTTP 424 — DocuSign authentication failed…'), app remains on /staff and dashboard stays usable. Download signed PDF works (PMC-Escrow-Signed-TMP.pdf). Queue tab (EMD paid) renders with Accept/Reject and is readable. Backend: GET /api/v1/staff/escrow/signatures returns pending+transactions for logged-in officer; cross-officer access to another officer's tx returns 403 (verified with mfatest@pmcmanagers.com).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Readability regression fully resolved — StaffDashboard.jsx uses inline color palette (const C) so the global data-ui='e' dark theme no longer washes out slate utility classes.",
+    "Sidebar nav + badges wired correctly; clicking nav items switches the main panel and highlights active state.",
+    "Embedded DocuSign flow handles the fake preview envelope gracefully: backend returns 424 with structured detail ('DOCUSIGN_AUTH_FAILED'), frontend shows a toast and does NOT blank the screen. No console pageerrors.",
+    "Cross-officer 403 guard confirmed on /api/v1/staff/escrow/transactions/{tid}/signed-document."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "escrow@pmcmanagers.com / Escrow@123 (role escrow_agent); mfatest@pmcmanagers.com / Escrow@123 (role escrow_agent, cross-officer check).",
+  "seed_data_creation": "None — used existing seeded TMP-SIGN-PENDING / TMP-SIGN-DONE and docusign_envelopes rows.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend login requires active_role as enum value (e.g. 'escrow_agent', not 'Escrow Agent'); auth uses httpOnly cookies not bearer tokens — use -c/-b jar in curl. Signatures endpoint: GET /api/v1/staff/escrow/signatures. Download: GET /api/v1/staff/escrow/transactions/{id}/signed-document. DocuSign-url: GET /api/v1/staff/escrow/transactions/{id}/docusign-url (returns 424 in preview due to invalid DocuSign creds — this is expected and the UI handles it gracefully). All data-testids verified: staff-dashboard, staff-sidebar, staff-nav-overview, staff-nav-escrow, staff-nav-queue, staff-escrow-signatures, staff-escrow-sign-TMP-SIGN-PENDING, staff-escrow-refresh-TMP-SIGN-PENDING, staff-escrow-download-TMP-SIGN-DONE, staff-escrow-refresh-TMP-SIGN-DONE.",
+  "rca of the issue": "N/A — v56g rewrite verified; previous iteration_93 contrast concern on 'awaiting' chips / Refresh ghost button is also addressed by the new inline-color palette."
+}
