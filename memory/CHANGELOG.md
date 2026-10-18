@@ -491,3 +491,20 @@ summary notes.
   graceful 424 on preview). EMBEDDED signing needs PRODUCTION validation
   (DocuSign JWT not configured in preview → 424). Bundles: pmc-backend-v56g.zip,
   pmc-frontend-v56g-prod-build.zip.
+
+## v56h (18 Jun 2026) — staff portal Option-E restyle + PMC release signing
+- StaffDashboard.jsx restyled to Option-E theme tokens (cream/green/brass) via
+  CSS vars — matches admin console, readable, dark-mode aware. Kept the sidebar.
+- NEW: PMC-officer release-signing panel (EscrowRow) — action dropdown
+  (release_to_contractor / release_to_vendor / forfeit) + comment + Sign, calling
+  escrowApi.sign. Resolves the action-mismatch that blocked release (PMC could
+  previously only acknowledge via DocuSign). Row now shows pmc_action /
+  institution_action + a mismatch warning.
+- Universal CSRF fix: retry preserves the fresh session-bound token (cfg._freshCsrf)
+  so the request interceptor can't clobber it with a stale cookie — fixes the
+  certifier Accept 403 and all staff POSTs.
+- Certifier/staff bid rows now have a comment box (passed as decision notes).
+- Verified iteration_95: frontend 100% (restyle, sidebar, PMC sign persists,
+  download). Backend sign path curl-verified. Bundles: pmc-backend-v56h.zip /
+  pmc-frontend-v56h-prod-build.zip. NOTE: prior v56g "no change" was a CloudFront
+  cache miss — MUST invalidate /* on deploy.

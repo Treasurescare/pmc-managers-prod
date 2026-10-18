@@ -1,0 +1,24 @@
+{
+  "summary": "v56h Staff Portal (Option-E restyle + PMC release-signing panel) verified end-to-end. Logged in at /staff/login as escrow@pmcmanagers.com (role Escrow Agent) → lands on /staff with staff-dashboard. LEFT SIDEBAR (staff-sidebar) renders with nav items staff-nav-overview, staff-nav-escrow, staff-nav-queue and badge counts (EMD paid: 1). Option-E palette confirmed: dashboard bg rgb(246,243,236) cream paper, fg rgb(20,32,26) dark ink — strong contrast. Header is emerald-green chrome with brass 'STAFF PORTAL' eyebrow. Escrow tab: TMP-REL-01 initially shows 'You (PMC) · awaiting' + 'Institution ✓ release to contractor'. The new 'Sign release decision (PMC officer)' panel (staff-escrow-release-panel-TMP-REL-01) exposes action dropdown (staff-escrow-action-TMP-REL-01) with Release→Contractor / Refund→Vendor / Forfeit, comment input (staff-escrow-comment-TMP-REL-01), and Sign button (staff-escrow-release-sign-TMP-REL-01). Selecting 'release_to_contractor' + typing comment + clicking Sign → success toast 'Signature recorded' and the PMC chip flips to '✓ release to contractor'; button relabels to 'Update my signature'. PERSISTS after full reload. TMP-DONE-01 shows both chips ✓ release to contractor, DocuSign: completed, Download signed PDF (staff-escrow-download-TMP-DONE-01) triggers download of PMC-Escrow-Signed-TMP.pdf. Sidebar nav switching verified: Overview panel renders stat cards (Escrow docs to sign: 0, EMD paid: 1); Queue tab lists bid row PMC-BID-2026-00017 with comment textarea and Accept & forward / Reject buttons — readable and clickable. No console errors, no pageerrors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Option-E CSS vars (--paper/--chrome/--primary/etc.) wired cleanly via const C — no hardcoded hex, matches admin console chrome and preserves dark-mode support.",
+    "escrowApi.sign(tid, {intended_action, comment}) correctly flips PMC chip and persists across reload — key v56h capability works.",
+    "Readability regression from iter_93 remains fixed; cream-on-dark-ink everywhere with brass accents."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "100%"},
+  "test_credentials": "escrow@pmcmanagers.com / Escrow@123 (active_role=escrow_agent)",
+  "seed_data_creation": "None — used seeded TMP-REL-01 and TMP-DONE-01. Note: TMP-REL-01 PMC side is now signed (release_to_contractor) by this run — main agent should reset if needed for re-testing.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All targeted data-testids present and working: staff-dashboard, staff-sidebar, staff-nav-overview, staff-nav-escrow, staff-nav-queue, staff-escrow-release-panel-{ref}, staff-escrow-action-{ref}, staff-escrow-comment-{ref}, staff-escrow-release-sign-{ref}, staff-escrow-download-{ref}, staff-bid-{ref}, staff-bid-comment-{ref}. Signing API: POST /api/v1/escrow/transactions/{tid}/sign {intended_action, comment}. GET /api/v1/staff/escrow/signatures returns transactions with pmc_action + institution_action fields now.",
+  "rca of the issue": "N/A — v56h delivers as specified. PMC officer can now sign release_to_contractor / release_to_vendor / forfeit directly from the staff portal, resolving the action-mismatch with the institution signatory."
+}
