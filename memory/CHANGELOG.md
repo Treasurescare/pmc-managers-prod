@@ -545,3 +545,12 @@ summary notes.
   only on request; vendors/users deletion only if explicitly chosen. Vendors list
   is NOT affected by the base cleanup.
 - Bundles: pmc-backend-v56k.zip / pmc-frontend-v56k-prod-build.zip.
+
+## v56l (18 Jun 2026) — gate UI hint + release confirmation email
+- staff_escrow_signatures returns bid_status per row; StaffDashboard EscrowRow
+  greys/locks "Release → Contractor" until bid awarded (disabled option, disabled
+  Sign button "Locked until awarded" + tooltip + warning hint). Refund/Forfeit stay open.
+- escrow.py release(): best-effort confirmation email to both officers + the bid
+  vendor (beneficiary) with the signed PDF attached.
+- QA iteration_96: 100% both layers of gate + Completed filters/CSV. No blockers.
+- Bundles: pmc-backend-v56l.zip / pmc-frontend-v56l-prod-build.zip.

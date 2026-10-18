@@ -1,0 +1,26 @@
+{
+  "summary": "v56j + v56k/l QA — both PASS. GATE BACKEND: curl POST /api/v1/escrow/transactions/{TMP-UIH}/sign with intended_action release_to_contractor → HTTP 409 'Release to contractor is blocked — bid TMP-UIH is accounting_cleared, not awarded yet. EMD can only be released … (pending: committee award / admin sign-off).' Same endpoint with release_to_vendor → HTTP 200, PMC side signed. bid_status surfaces in GET /api/v1/staff/escrow/signatures per row. GATE UI (logged in via browser as escrow@pmcmanagers.com / Escrow@123, active_role=escrow_agent → /staff): staff-escrow-release-panel-TMP-UIH renders. Action dropdown (staff-escrow-action-TMP-UIH) options: 'Release → Contractor (winning vendor) — locked until awarded' with disabled attr set, 'Refund → Vendor (bid did not win)' enabled, 'Forfeit (withdrawal / mis-declaration)' enabled. Selecting release_to_contractor → Sign button (staff-escrow-release-sign-TMP-UIH) disabled, label flips to 'Locked until awarded', title tooltip 'Release to contractor is locked until the bid is awarded (certifier → legal → accounting → committee).' Warning hint reads '⚠ Release to contractor unlocks only once this bid is awarded (certifier → legal → accounting → committee). Current bid status: accounting_cleared.' Switching to release_to_vendor or forfeit re-enables the Sign button. COMPLETED (v56j) — logged in as certifier@pmcmanagers.com / Escrow@123, active_role=site_certifier. staff-nav-completed present in sidebar; clicking renders staff-completed panel with staff-completed-filters containing completed-filter-from, completed-filter-to, completed-filter-action, completed-filter-clear, and completed-export-csv (all testids present and interactive). Processed-bids list is empty for this account (0 items) — per request this is acceptable; empty-state 'No processed items match. Items you Accept/Reject appear here with their audit trail.' is displayed. Clear button works; Export CSV triggers a download named pmc-my-decisions.csv without error. Readability across both portals is strong (cream paper rgb(246,243,236) on dark ink, emerald chrome header, brass accents).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Staff Completed panel", "issues": ["From/To filters use the browser-native date picker (<input type='date'>) rather than a shadcn/calendar component. Minor consistency note, not a blocker."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Gate is enforced at BOTH layers (backend _assert_release_governance returns 409 with pending-stage message; frontend EscrowRow greys the option, disables Sign, adds tooltip + hint) — correct defence-in-depth.",
+    "bid_status is now included on each row of /staff/escrow/signatures, enabling the hint ('Current bid status: accounting_cleared.') without an extra round-trip. Good shape.",
+    "CompletedPanel renders filter controls + empty-state cleanly even when the processed list is empty — safer than hiding the toolbar.",
+    "Action dropdown in Completed is dynamically derived from processed items (only 'All actions' visible when list is empty). Consider seeding static options (accept/reject) so filters are visible even for empty history — minor UX nit."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (gate 409 + allowed path verified via curl)", "frontend": "100% (gate UI + Completed filters/CSV verified end-to-end)"},
+  "test_credentials": "escrow@pmcmanagers.com / Escrow@123 (active_role=escrow_agent); certifier@pmcmanagers.com / Escrow@123 (active_role=site_certifier)",
+  "seed_data_creation": "None. NOTE: During backend curl verification the PMC side of TMP-UIH was signed with intended_action=release_to_vendor (idempotent-ish — can be re-signed by selecting a different action). Main agent may want to reset TMP-UIH if a 'before signing' UI state is desired for the next pass; the gate still demonstrates correctly because the dropdown option remains disabled regardless of signature state while the bid is not awarded.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All data-testids used in this pass: staff-nav-escrow, staff-nav-completed, staff-escrow-release-panel-TMP-UIH, staff-escrow-action-TMP-UIH, staff-escrow-release-sign-TMP-UIH, staff-completed, staff-completed-filters, completed-filter-from, completed-filter-to, completed-filter-action, completed-filter-clear, completed-export-csv. Login endpoint expects {email,password,active_role}. Signing endpoint POST /api/v1/escrow/transactions/{id}/sign requires X-CSRF-Token header (value from login response csrf_token). TMP-UIH id = 6ad4caf1ce2d658f14645231. Export CSV produces pmc-my-decisions.csv."
+}
