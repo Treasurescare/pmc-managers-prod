@@ -71,6 +71,7 @@ export default function StaffTab({
       hierarchy_level: s.hierarchy_level || 3,
       is_active: s.is_active !== false,
       is_escrow_signatory: !!s.is_escrow_signatory,
+      country_scope: [...(s.country_scope || [])],
       password: "",
     });
   };
@@ -100,6 +101,7 @@ export default function StaffTab({
         hierarchy_level: editDraft.hierarchy_level,
         is_active: editDraft.is_active,
         is_escrow_signatory: !!editDraft.is_escrow_signatory,
+        country_scope: editDraft.country_scope || [],
       };
       if (editDraft.password) patch.password = editDraft.password;
       await onUpdate(s.id, patch);
@@ -190,6 +192,13 @@ export default function StaffTab({
             <input type="number" min="1" max="10" value={staffDraft.hierarchy_level}
               onChange={(e) => setStaffDraft({ ...staffDraft, hierarchy_level: Number(e.target.value) })}
               className="mt-1 w-full px-3 py-2 border" />
+          </label>
+          <label className="text-sm md:col-span-2">
+            <span>Country scope <InfoDot tip="ISO country codes this staff member covers, comma-separated (e.g. MY, SG). Leave BLANK = all countries / global. Drives which bids appear in their /staff queue: they see bids assigned to them, plus unassigned bids in these countries." /></span>
+            <input placeholder="e.g. MY, SG  —  blank = all countries"
+              value={(staffDraft.country_scope || []).join(", ")}
+              onChange={(e) => setStaffDraft({ ...staffDraft, country_scope: e.target.value.split(",").map((x) => x.trim().toUpperCase()).filter(Boolean) })}
+              className="mt-1 w-full px-3 py-2 border normal-case tracking-normal" data-testid="staff-country-scope" />
           </label>
           {/* v53k — mark staff as PMC-side escrow signatory. Only ticked
               rows appear in the "PMC officer" dropdown when creating a
@@ -328,6 +337,14 @@ export default function StaffTab({
                           onChange={(e) => setEditDraft({ ...editDraft, hierarchy_level: Number(e.target.value) })}
                           className="mt-1 w-24 px-2 py-1 border"
                           data-testid={`staff-edit-level-${s.email}`} />
+                      </label>
+                      <label className="text-xs mt-2 block">
+                        <span>Country scope (ISO codes, comma-sep — blank = all)</span>
+                        <input placeholder="e.g. MY, SG"
+                          value={(editDraft.country_scope || []).join(", ")}
+                          onChange={(e) => setEditDraft({ ...editDraft, country_scope: e.target.value.split(",").map((x) => x.trim().toUpperCase()).filter(Boolean) })}
+                          className="mt-1 w-full px-2 py-1 border"
+                          data-testid={`staff-edit-country-scope-${s.email}`} />
                       </label>
                     </td>
                     <td className="px-3 py-3 text-center align-top">

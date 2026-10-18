@@ -592,16 +592,96 @@ async def list_all_bids(
         if created_to:   rng["$lte"] = f"{created_to[:10]}T23:59:59.999"
         q["created_at"] = rng
     viewer_roles = _viewer_role_set(admin)
+
+    # v55 — specialist-role work distribution (hybrid). When acting as a
+    # specialist role, a staff member sees only: (a) bids explicitly assigned
+    # to them for that role, PLUS (b) UNASSIGNED bids whose notice
+    # delivery_country is within their country_scope (empty scope = all
+    # countries). Oversight roles (admin/reviewer/auditor) always see all.
+    SPECIALIST_SCOPED = {"escrow_agent", "certifier", "legal_counsel",
+                         "accounting", "committee_member"}
+    active = admin.get("role")
+    apply_scope = active in SPECIALIST_SCOPED
+    my_scope: list = []
+    my_id = admin.get("id")
+    if apply_scope and my_id:
+        sdoc = await db.admin_users.find_one({"_id": ObjectId(my_id)}, {"country_scope": 1})
+        my_scope = (sdoc or {}).get("country_scope") or []
+
+    bdocs = [b async for b in db.bids.find(q).sort("created_at", -1).limit(300)]
+
+    country_by_ref: dict = {}
+    if apply_scope:
+        refs = sorted({b.get("notice_ref") for b in bdocs if b.get("notice_ref")})
+        async for n in db.notices.find({"notice_ref": {"$in": refs}},
+                                       {"notice_ref": 1, "delivery_country": 1}):
+            country_by_ref[n["notice_ref"]] = n.get("delivery_country")
+
+    def _visible(b: dict) -> bool:
+        if not apply_scope:
+            return True
+        assigned = (b.get("assignments") or {}).get(active)
+        if not assigned and active == "certifier":
+            assigned = b.get("assigned_certifier_id")  # legacy field compat
+        if assigned:
+            return assigned == my_id                   # mine only; others hidden
+        if not my_scope:
+            return True                                # no scope = see all unassigned
+        return country_by_ref.get(b.get("notice_ref")) in my_scope
+
     rows: List[dict] = []
-    async for b in db.bids.find(q).sort("created_at", -1).limit(300):
+    for b in bdocs:
+        if not _visible(b):
+            continue
         row = _out(_redact_commercial(b, viewer_roles))
         row["active_step"] = await active_step(b)
         rows.append(row)
     return rows
 
 
-# ---------- Wave 39: Two-Cover flow control -----------------------------
+class AssignBidIn(BaseModel):
+    role: str
+    staff_id: Optional[str] = None   # None/"" clears the assignment for that role
 
+
+@router.post("/{bid_id}/assign")
+async def assign_bid(bid_id: str, payload: AssignBidIn,
+                     admin=Depends(require_role("admin", "reviewer"))) -> dict:
+    """v55 — assign (or clear) a specialist staff member to a bid for a given
+    role. Powers the 'assigned to me' queue + the Bidding Ops assignment UI."""
+    try:
+        oid = ObjectId(bid_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Malformed bid id")
+    b = await db.bids.find_one({"_id": oid})
+    if not b:
+        raise HTTPException(status_code=404, detail="Bid not found")
+    role = (payload.role or "").strip()
+    SPECIALIST_SCOPED = {"escrow_agent", "certifier", "legal_counsel",
+                         "accounting", "committee_member"}
+    if role not in SPECIALIST_SCOPED:
+        raise HTTPException(status_code=422, detail=f"Cannot assign role '{role}'")
+    sid = (payload.staff_id or "").strip() or None
+    if sid:
+        staff = await db.admin_users.find_one({"_id": ObjectId(sid)})
+        if not staff:
+            raise HTTPException(status_code=404, detail="Staff not found")
+        held = staff.get("roles") or ([staff.get("role")] if staff.get("role") else [])
+        if role not in held:
+            raise HTTPException(status_code=400,
+                detail="Assigned staff does not hold that role")
+    assignments = b.get("assignments") or {}
+    if sid:
+        assignments[role] = sid
+    else:
+        assignments.pop(role, None)
+    await db.bids.update_one({"_id": oid}, {"$set": {"assignments": assignments}})
+    await audit_log("bid.assign", admin, "bid", b.get("bid_ref"),
+                    {"role": role, "staff_id": sid})
+    return {"ok": True, "assignments": assignments}
+
+
+# ---------- Wave 39: Two-Cover flow control -----------------------------
 @router.post("/{bid_id}/technical-clear")
 async def technical_clear(bid_id: str,
                            admin=Depends(require_role("admin", "committee_member", "reviewer"))):

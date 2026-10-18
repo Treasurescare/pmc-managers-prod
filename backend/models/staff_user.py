@@ -47,6 +47,9 @@ class StaffCreateIn(BaseModel):
     # and only ever reach the /staff specialist dashboard. A "staff" account may
     # NOT hold the admin/reviewer roles (enforced server-side on create/update).
     account_type: Literal["admin", "staff"] = "staff"
+    # v55 — country scope for work distribution. None/[] = all countries
+    # (global); otherwise a list of ISO country codes this staff member covers.
+    country_scope: Optional[List[str]] = None
 
 
 class StaffUpdateIn(BaseModel):
@@ -59,6 +62,8 @@ class StaffUpdateIn(BaseModel):
     password: Optional[str] = Field(None, min_length=8)
     is_escrow_signatory: Optional[bool] = None
     account_type: Optional[Literal["admin", "staff"]] = None
+    company_id: Optional[str] = None
+    country_scope: Optional[List[str]] = None
 
 
 class StaffPublic(BaseModel):
@@ -69,5 +74,6 @@ class StaffPublic(BaseModel):
     active_role: Optional[str] = None
     hierarchy_level: int = 1
     company_id: Optional[str] = None
+    country_scope: Optional[List[str]] = None
     reports_to: Optional[str] = None
     is_active: bool = True

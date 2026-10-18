@@ -337,6 +337,28 @@ browser/cache once — this is what ends the recurring "old code on prod" crashe
   `build/downloads/` (was 346 MB → 3.9 MB).
 - Release bundles: `pmc-backend-v54a.zip`, `pmc-frontend-v54a-prod-build.zip`.
 
+## v55 (17 Jun 2026) — staff country-scope + hybrid bid-queue work distribution
+- Specialist queues (escrow_agent, certifier, legal_counsel, accounting,
+  committee_member) were global — everyone saw every country's bids. Now scoped.
+- Added `country_scope: List[str]` to staff (StaffCreateIn/UpdateIn/Public +
+  create_staff persistence; empty=[] = all countries). Set in Admin → Masters →
+  Staff (new + inline edit forms, `staff-country-scope` testids).
+- `GET /api/v1/bids` hybrid filter: when acting as a specialist role, see bids
+  assigned to me (bid.assignments[role], legacy assigned_certifier_id honored)
+  PLUS unassigned bids whose notice.delivery_country ∈ my country_scope (empty =
+  all). admin/reviewer/auditor unaffected.
+- `POST /api/v1/bids/{id}/assign` {role, staff_id} (admin/reviewer) — assign or
+  clear a specialist; validates the staff holds that role. Backs the future
+  Bidding Ops assignment UI.
+- 2FA gate on high-risk roles made flag-driven (`REQUIRE_HIGH_RISK_MFA`, default
+  FALSE for testing).
+- Verified in preview via curl: scope=[ZZ] unassigned→0, scope=[]→all,
+  assigned-to-me→shown, assigned-to-other→hidden.
+- Bundles: `pmc-backend-v55.zip`, `pmc-frontend-v55-prod-build.zip`.
+- NEXT (same phase, not yet built): Bidding Ops assignment UI; Company Master
+  full fields + documents + company_id picker on staff; escrow-institution
+  country scoping.
+
 ## v54v (17 Jun 2026) — unified /login fix (CloudFront HTML-200 error pages)
 - Staff could sign in at /staff/login but the unified /login bounced to
   /login?expired=1. Root cause: CloudFront "Error Pages" rewrites backend

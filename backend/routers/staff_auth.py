@@ -204,6 +204,7 @@ async def create_staff(payload: StaffCreateIn, admin=Depends(require_role("admin
         "account_type": payload.account_type,
         "hierarchy_level": payload.hierarchy_level,
         "company_id": payload.company_id,
+        "country_scope": payload.country_scope or [],
         "reports_to": payload.reports_to,
         "designation": payload.designation,
         "is_escrow_signatory": bool(payload.is_escrow_signatory),
