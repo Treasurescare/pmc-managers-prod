@@ -10,7 +10,16 @@ reverse auctions, bid governance, EMD escrow workflows, vendor/staff/
 institution portals, AWS deployment bundles, and transactional notifications
 (Stripe, Resend, DocuSign, Emergent crons).
 
-## Current P0 — v56b (18 Jun 2026) — session-bound HMAC CSRF (prod CloudFront cookie fix)
+## EMD → Escrow flow (validated on preview, 18 Jun 2026)
+Lifecycle: bid `emd_paid`→`escrow_accepted` (auto) → admin records EMD receipt
+(`POST /api/v1/escrow/transactions/init`) against a joint account with DISTINCT
+officers → tx at `received` → dual sign (in-app / magic-link / DocuSign) →
+`Release`. DocuSign hand-off = `POST /api/v1/escrow/transactions/{tid}/docusign`
+(503 if DocuSign not configured; magic-link email is the fallback). Preview E2E
+confirmed: EMD USD 500,000 recorded, tx `received`, governance_ok, both officers
+distinct, ready for signature hand-off.
+
+## Current deployable: v56c
 Production kept returning "CSRF token missing or invalid" on POST/PATCH (escrow
 Save, Backfill) even after v56a + CloudFront invalidation + incognito. Root
 cause: the `csrf_token` cookie was not reaching the origin through CloudFront,
