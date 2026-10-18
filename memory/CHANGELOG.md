@@ -1,5 +1,24 @@
 # PMC Managers — Changelog
 
+## v56m (2026-06-24) — Public marketing site fully wired (nav/search/links)
+User reported the public site was mostly non-functional: hero search box, country
+dropdown and "Find tenders" did nothing; "Popular:" chips dead; platform stat
+numbers not clickable; Trust page "Verify a record" / "Report a concern" dead; most
+top-nav and footer links were placeholder `href="#"`.
+Root cause: the Option-E public pages are static JSX with `href="#"` placeholders;
+only a few elements were rewired imperatively by `pmcELiveData`.
+Fix: new shared hook `frontend/src/lib/pmcEPublicNav.js` (`usePublicNav`) attached to
+all 9 public pages (Home, TendersList, Trust, Contact, About/Vision, ForSuppliers,
+ForBuyers, Privacy, Awards/Completed). It wires, via react-router SPA navigation:
+brand logo, live chip, hero search+country → `/tenders/live?q=&country=`, popular
+chips, clickable stat cards, programme category cards, Help Centre tile, Trust
+"Verify"→/contact and "Report a concern"→/contact, Contact form "Send message"
+(no reload, shows confirmation), and every top-nav/footer link via a text→route map.
+`data-help-open` elements still open the help drawer (not wired as nav).
+Testing agent iteration_97: 34/35 (fixed a PmcLinkPatcher double-navigation that
+stripped `?q=`; now href keeps full path + stopPropagation). No backend logic change
+(version bumped to v56m to keep footer stamps in sync).
+
 ## v54t (2026-06-17) — ACTUAL root cause: CloudFront caching /api (strips Set-Cookie)
 Proven in the user's live browser: staff login POST returned 200 but the browser
 got the response WITHOUT Set-Cookie, with `x-cache: Error from cloudfront` + age:154

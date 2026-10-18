@@ -1,0 +1,30 @@
+{
+  "summary": "Frontend-only test of PMC Option-E public marketing pages (home, tenders list, trust, contact, about, vision, suppliers, buyers, privacy, completed). Found and fixed a critical double-navigation bug in /app/frontend/src/lib/pmcEPublicNav.js that stripped the ?q= query from chip navigations (home hero popular chips). After the fix 34/35 assertions pass. All review-request scenarios (hero search, chips, stat cards, top-nav, footer links, Trust Verify/Report, Contact form Message-sent, Help & FAQs drawer regression, tenders list filter regression, Frontend/Backend v56m build stamp) work end-to-end.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Home (/)", "issues": ["Category tiles (Modular medical, Education, Hostels & residential, Utilities & infrastructure) and the mid-page 'Help Centre' tile still carry href=\"#\" so they are dead clicks. Not in the explicit review-request list but the request did say 'wire ALL public marketing pages in one pass' – consider wiring the category tiles to /tenders/live and the Help Centre tile to /help."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Consider wiring the four home-page category cards (Modular medical, Education, Hostels & residential, Utilities & infrastructure) to /tenders/live and the home-page 'Help Centre' promo tile to /help. They currently remain on href=\"#\". Everything in the explicit review spec is working."
+  ],
+  "critical_code_review_comments": [
+    "pmcEPublicNav.js wire(): previously set the anchor's href attribute to path.split('?')[0] which caused the global click delegator in /app/frontend/src/components/PmcLinkPatcher.jsx (line ~982) to run AFTER the chip's own handler and navigate to the stripped path, overwriting the ?q= query. Fix applied: keep full path in href AND stopPropagation on the chip handler so PmcLinkPatcher never double-navigates. Future wiring work on this hook must preserve this pattern or the chip/filter queries will silently vanish.",
+    "pmcELiveData.js is 1973 lines – well over the 700-line split guideline; consider breaking into per-page modules.",
+    "Multiple document-level click delegators (PmcLinkPatcher.onClick, usePublicNav.wire listeners, pmcELiveData apply handlers) share the same anchors – add a shared 'data-nav-wired' convention honoured by all delegators to avoid future double-navigation bugs."
+  ],
+  "updated_files": [
+    "/app/frontend/src/lib/pmcEPublicNav.js"
+  ],
+  "success_rate": {"backend": "n/a (skipped per request)", "frontend": "97% (34/35)"},
+  "test_credentials": "none required",
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "The chip navigation query-string loss was caused by PmcLinkPatcher.jsx's document-level click handler re-navigating to the (stripped) href attribute set by usePublicNav.wire(). The fix stores the full path in href AND stopPropagation()s so only usePublicNav navigates. If someone re-strips the query from href, chip + hero search prefill will regress. Public-page testids: home-e, tenders-list-e, trust-security-e, contact-e, about-vision-e, for-suppliers-e, for-buyers-e, privacy-terms-e, awards-public-e.",
+  "rca of the issue": "Chip click: usePublicNav attached a click listener that called navigate('/tenders/live?q=Medical') and set the anchor href to '/tenders/live' (query stripped). Click bubbled to document; PmcLinkPatcher.jsx's generic 'real href' branch (line ~982) read the stripped href and called navigate('/tenders/live') – a second pushState immediately overwriting the first. Verified via history.pushState instrumentation showing two consecutive push events. Fix: keep full path in href and call e.stopPropagation() in the chip handler."
+}

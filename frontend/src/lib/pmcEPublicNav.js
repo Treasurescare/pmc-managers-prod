@@ -59,9 +59,9 @@ export function usePublicNav(enabled = true) {
     const wire = (el, path) => {
       if (!el || el.dataset.navWired) return;
       el.dataset.navWired = "1";
-      if (el.tagName === "A") el.setAttribute("href", path.split("?")[0]);
+      if (el.tagName === "A") el.setAttribute("href", path);
       el.style.cursor = "pointer";
-      el.addEventListener("click", (e) => navTo(path, e));
+      el.addEventListener("click", (e) => { e.stopPropagation(); navTo(path, e); });
     };
 
     // Brand logo -> home
@@ -106,6 +106,16 @@ export function usePublicNav(enabled = true) {
       root.querySelectorAll(".pmc-stats > div").forEach((d, i) => {
         if (d.dataset.navWired) return;
         wire(d, statDest[i] || "/tenders/live");
+      });
+      // Programme spotlight category cards -> tenders list
+      root.querySelectorAll(".pmc-cats a.pmc-cat").forEach((a) => wire(a, "/tenders/live"));
+      // Help & FAQs contact tiles
+      root.querySelectorAll(".pmc-contact a").forEach((a) => {
+        if (a.dataset.navWired) return;
+        if ((a.getAttribute("href") || "").startsWith("mailto:")) return;
+        const b = (a.querySelector("b")?.textContent || "").trim().toLowerCase();
+        if (b.includes("help centre")) wire(a, "/help");
+        else if (b.includes("raise a ticket")) wire(a, "/contact");
       });
     }
 

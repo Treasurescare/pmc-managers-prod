@@ -10,6 +10,14 @@ reverse auctions, bid governance, EMD escrow workflows, vendor/staff/
 institution portals, AWS deployment bundles, and transactional notifications
 (Stripe, Resend, DocuSign, Emergent crons).
 
+
+## Current deployable: v56m (24 Jun 2026)
+Public marketing site fully wired (nav/search/links). See CHANGELOG v56m.
+Artifacts (preview): `pmc-backend-v56m.zip`, `pmc-frontend-v56m-prod-build.zip`,
+`DOWNLOAD_v56m.md` under `/downloads/`. Deploy: EB backend → S3 frontend root →
+CloudFront invalidate `/*` → confirm footer "Frontend v56m · Backend v56m".
+Agent-tested in preview (iteration_97, 34/35); NOT yet user-confirmed in production.
+
 ## EMD → Escrow flow (validated on preview, 18 Jun 2026)
 Lifecycle: bid `emd_paid`→`escrow_accepted` (auto) → admin records EMD receipt
 (`POST /api/v1/escrow/transactions/init`) against a joint account with DISTINCT
