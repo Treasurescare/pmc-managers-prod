@@ -19,7 +19,19 @@ officers → tx at `received` → dual sign (in-app / magic-link / DocuSign) →
 confirmed: EMD USD 500,000 recorded, tx `received`, governance_ok, both officers
 distinct, ready for signature hand-off.
 
-## Current deployable: v56c
+## v56d/v56e (18 Jun 2026) — escrow DocuSign signing reflects on dashboards
+- v56d: Safari fix — institution portal "Open in DocuSign to sign" now works
+  (open tab synchronously then navigate; was window.open after await → blocked).
+- v56e: completed escrow DocuSign envelope now reconciles the escrow TRANSACTION
+  (`_apply_live_status` escrow_tx branch): mirrors status + marks both officer
+  signatures Signed on completion. New admin **Refresh DocuSign** button +
+  `POST /escrow/transactions/{tid}/docusign/refresh` pulls status on demand
+  (works even without the Connect webhook). Curl-simulation verified.
+- Open next: signed-PDF download into the dashboard; PMC-officer signing view +
+  sidebar inside the Staff portal (confirmed, not yet built); DocuSign "completed"
+  email to signers is an account-level Connect setting.
+
+## Current deployable: v56e
 Production kept returning "CSRF token missing or invalid" on POST/PATCH (escrow
 Save, Backfill) even after v56a + CloudFront invalidation + incognito. Root
 cause: the `csrf_token` cookie was not reaching the origin through CloudFront,

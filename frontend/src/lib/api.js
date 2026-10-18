@@ -1146,6 +1146,8 @@ export const escrowApi = {
     api.post(`/api/v1/escrow/payment-entries/${peid}/void`).then((r) => r.data),
   sendTxDocuSign: (tid) =>
     api.post(`/api/v1/escrow/transactions/${tid}/docusign`).then((r) => r.data),
+  refreshTxDocuSign: (tid) =>
+    api.post(`/api/v1/escrow/transactions/${tid}/docusign/refresh`).then((r) => r.data),
   getTxDocuSignUrl: (tid, side = "pmc") =>
     api.get(`/api/v1/escrow/transactions/${tid}/docusign-url`, { params: { side } }).then((r) => r.data),
 };

@@ -479,6 +479,38 @@ async def _apply_live_status(envelope_id: str, live_status: str) -> None:
                           "docusign_updated_at": now_iso()}})
     except Exception as e:
         _log.warning("mirror live status failed for %s: %s", envelope_id, e)
+    # v56e — escrow transaction envelopes: mirror DocuSign status onto the
+    # escrow_transaction so the admin + institution dashboards reflect signing,
+    # and on completion mark BOTH officer acknowledgements. (Previously only
+    # bids/awards were mirrored, so a completed escrow envelope never showed up.)
+    if row.get("kind") == "escrow_tx" and row.get("escrow_transaction_id"):
+        try:
+            from bson import ObjectId as _Oid3
+            tid = row["escrow_transaction_id"]
+            upd = {"docusign_status": live_status, "updated_at": now_iso()}
+            op = {"$set": upd}
+            if live_status == "completed":
+                now = now_iso()
+                upd["docusign_completed_at"] = now
+                tx = await db.escrow_transactions.find_one({"_id": _Oid3(tid)})
+                snap = (tx or {}).get("escrow_account_snapshot") or {}
+                sigs = dict((tx or {}).get("signatures") or {})
+                for side, off in (("pmc", snap.get("pmc_officer") or {}),
+                                  ("escrow_institution", snap.get("escrow_officer") or {})):
+                    cur = sigs.get(side) or {}
+                    if not cur.get("signed_at"):
+                        sigs[side] = {"email": off.get("email"),
+                                      "action": "acknowledge_receipt",
+                                      "comment": "Signed via DocuSign",
+                                      "signed_at": now, "via": "docusign"}
+                upd["signatures"] = sigs
+                op["$push"] = {"audit_trail": {"at": now, "by": "docusign",
+                                               "event": "docusign_completed",
+                                               "envelope_id": envelope_id}}
+            await db.escrow_transactions.update_one({"_id": _Oid3(tid)}, op)
+        except Exception as e:
+            _log.warning("escrow_tx reconcile failed for %s: %s", envelope_id, e)
+
     if live_status == "completed" and prev != "completed":
         await _on_envelope_completed(row)
 

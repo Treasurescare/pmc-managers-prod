@@ -64,20 +64,28 @@ export default function TransactionDetailModal({ txId, onClose }) {
   const entries = data?.payment_entries || [];
 
   const openDocuSign = async () => {
+    // v56d — Safari blocks window.open() that runs AFTER an await (outside the
+    // click gesture). Open a blank tab synchronously, then navigate it once the
+    // recipient-view URL arrives. Falls back to same-tab if the popup is blocked.
+    const win = window.open("", "_blank");
     setBusy(true);
     try {
       const r = await escrowMeApi.getDocuSignUrl(txId);
       if (r?.url) {
-        window.open(r.url, "_blank", "noopener");
+        if (win) win.location.href = r.url;
+        else window.location.href = r.url;
       } else {
+        if (win) win.close();
         toast.info("Open your DocuSign email to sign", {
           description: r?.message || "DocuSign emailed the hosted-signing "
             + "link to the institution officer when the envelope was issued.",
           duration: 12000,
         });
       }
-    } catch (e) { showApiError(e, { fallbackTitle: "Could not open DocuSign" }); }
-    finally { setBusy(false); }
+    } catch (e) {
+      if (win) win.close();
+      showApiError(e, { fallbackTitle: "Could not open DocuSign" });
+    } finally { setBusy(false); }
   };
 
   const signEntry = async (peid, action) => {

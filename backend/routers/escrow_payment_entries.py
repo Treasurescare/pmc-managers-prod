@@ -508,3 +508,34 @@ async def get_tx_docusign_url(
                 "message": "DocuSign emailed the hosted-signing link to both "
                            "officers when the envelope was issued. Ask the "
                            "officer to open that email to sign."}
+
+
+@router.post("/transactions/{tid}/docusign/refresh")
+async def refresh_tx_docusign(
+    tid: str,
+    admin=Depends(require_role("admin", "accounting", "reviewer", "escrow_agent")),
+):
+    """v56e — pull the live DocuSign envelope status and reconcile the escrow
+    transaction (flips signatures to Signed + status to completed). Works even
+    when the DocuSign Connect webhook is not configured, so the admin can
+    reconcile on demand after both officers have signed."""
+    tx = await _load_tx(tid)
+    env_id = tx.get("docusign_envelope_id")
+    if not env_id:
+        raise HTTPException(404, "No DocuSign envelope on this transaction")
+    try:
+        import docusign_esign as ds
+        from routers.docusign import _client, DS_ACCOUNT_ID, _apply_live_status
+        client = _client()
+        envelopes = ds.EnvelopesApi(client)
+        live = envelopes.get_envelope(DS_ACCOUNT_ID, env_id)
+        live_status = (live.status or "").lower()
+        await _apply_live_status(env_id, live_status)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(502, f"Could not read DocuSign status: {e}")
+    fresh = await _load_tx(tid)
+    return {"ok": True, "status": live_status,
+            "docusign_status": fresh.get("docusign_status"),
+            "signatures": fresh.get("signatures") or {}}

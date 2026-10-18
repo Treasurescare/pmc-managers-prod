@@ -30,7 +30,7 @@ function SignatureBox({ label, officer, sig }) {
   );
 }
 
-function TransactionRow({ t, onSign, onRelease, onCancel, onSendSignLink, onSendDocuSign }) {
+function TransactionRow({ t, onSign, onRelease, onCancel, onSendSignLink, onSendDocuSign, onRefreshDocuSign }) {
   const sigs = t.signatures || {};
   const pmc = sigs.pmc || {};
   const esc = sigs.escrow_institution || {};
@@ -149,6 +149,14 @@ function TransactionRow({ t, onSign, onRelease, onCancel, onSendSignLink, onSend
                   data-testid={`escrow-docusign-sent-${t.id}`}>
               DocuSign · {t.docusign_status || "sent"}
             </span>
+          )}
+          {t.docusign_envelope_id && t.docusign_status !== "completed" && (
+            <button onClick={() => onRefreshDocuSign(t)}
+                    data-testid={`escrow-docusign-refresh-${t.id}`}
+                    title="Pull the live DocuSign status now (use after both officers have signed). Flips the signatures + status without waiting for the webhook."
+                    className="px-3 py-1 text-[11px] uppercase tracking-widest border border-brand-navy/40 text-brand-navy hover:bg-brand-navy hover:text-white">
+              Refresh DocuSign
+            </button>
           )}
           <button onClick={() => onRelease(t)} disabled={!bothMatch || sameEmail}
                   data-testid={`escrow-release-${t.id}`}
@@ -410,6 +418,20 @@ export default function EscrowTransactionsSection({ accounts, txs, onReload }) {
     } catch (e) { showApiError(e, { fallbackTitle: "DocuSign send failed" }); }
   };
 
+  const refreshDocuSign = async (t) => {
+    try {
+      const r = await escrowApi.refreshTxDocuSign(t.id);
+      if (r.docusign_status === "completed") {
+        toast.success("DocuSign completed — both signatures recorded");
+      } else {
+        toast.info(`DocuSign status: ${r.status || r.docusign_status || "pending"}`, {
+          description: "Not fully signed yet. Refresh again once both officers have signed.",
+        });
+      }
+      onReload();
+    } catch (e) { showApiError(e, { fallbackTitle: "Could not refresh DocuSign status" }); }
+  };
+
   const cancelTx = async (t) => {
     if (!window.confirm(`Cancel this escrow transaction for ${t.bid_ref}? Use this to clear duplicates or mis-entries. The row stays in the audit trail.`)) return;
     try {
@@ -567,7 +589,7 @@ export default function EscrowTransactionsSection({ accounts, txs, onReload }) {
       <div className="border border-brand-navy/10 bg-white divide-y divide-brand-navy/10">
         {txs.length === 0 && <div className="p-6 text-sm text-brand-navy/50">No transactions yet.</div>}
         {paged.map((t) => (
-          <TransactionRow key={t.id} t={t} onSign={signAction} onRelease={release} onCancel={cancelTx} onSendSignLink={sendSignLink} onSendDocuSign={sendDocuSign}/>
+          <TransactionRow key={t.id} t={t} onSign={signAction} onRelease={release} onCancel={cancelTx} onSendSignLink={sendSignLink} onSendDocuSign={sendDocuSign} onRefreshDocuSign={refreshDocuSign}/>
         ))}
         {controls}
       </div>
