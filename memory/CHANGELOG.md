@@ -337,6 +337,15 @@ browser/cache once — this is what ends the recurring "old code on prod" crashe
   `build/downloads/` (was 346 MB → 3.9 MB).
 - Release bundles: `pmc-backend-v54a.zip`, `pmc-frontend-v54a-prod-build.zip`.
 
+## v56c (18 Jun 2026) — joint-account naming + institution picker country scope
+- Blank-name joint accounts now render a professional fallback label
+  ("<Institution> Escrow ••<last4>") in the list, edit header and confirm dialogs
+  (EscrowAccountsSection accountLabel()).
+- Escrow institution dropdowns (create + edit/rebind) now tag each option with
+  its country scope and expose a country filter (global-or-matching). signatory-pool
+  now returns each institution's country_scope. Filter auto-hides until a scope exists.
+- Bundles: pmc-backend-v56c.zip, pmc-frontend-v56c-prod-build.zip.
+
 ## v56b2 (18 Jun 2026) — session-bound HMAC CSRF (prod CloudFront cookie fix)
 - Prod kept 403'ing CSRF on POSTs (escrow Save, Backfill) even after v56a +
   invalidation + incognito: the `csrf_token` cookie wasn't reaching the origin

@@ -22,11 +22,46 @@ const EMPTY = {
   active: true, notes: "",
 };
 
+// v56c — professional fallback label for accounts with a blank display name
+// (legacy rows). Convention: "<Institution> Escrow ••<last4>", else
+// "Joint Escrow Account ••<last4>".
+function accountLabel(acc) {
+  if (acc.name && acc.name.trim()) return acc.name.trim();
+  const tail = (acc.account_no || "").slice(-4);
+  const inst = (acc.institution || "").trim();
+  if (inst) return `${inst} Escrow${tail ? ` ••${tail}` : ""}`;
+  return `Joint Escrow Account${tail ? ` ••${tail}` : ""}`;
+}
+
+// v56c — country scope of an institution ("Global" when unscoped).
+const scopeLabel = (i) =>
+  (i.country_scope && i.country_scope.length) ? i.country_scope.join("/") : "Global";
+// An institution is in scope for `country` when it's global (no scope) or lists it.
+const inScope = (i, country) =>
+  !country || !(i.country_scope && i.country_scope.length) || i.country_scope.includes(country);
+
+// Country filter above an institution dropdown. Renders nothing until at
+// least one institution actually has a country scope configured.
+function CountryFilterSelect({ institutions, value, onChange, testid }) {
+  const countries = Array.from(
+    new Set((institutions || []).flatMap((i) => i.country_scope || []))
+  ).sort();
+  if (countries.length === 0) return null;
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)} data-testid={testid}
+            className="mb-2 text-xs px-2 py-1 border border-brand-navy/20 bg-white">
+      <option value="">All countries</option>
+      {countries.map((c) => <option key={c} value={c}>{c}</option>)}
+    </select>
+  );
+}
+
 export default function EscrowAccountsSection({ accounts, onReload }) {
   const [showNew, setShowNew] = useState(false);
   const [acc, setAcc] = useState(EMPTY);
   const [pool, setPool] = useState({ pmc_officers: [], institutions: [] });
   const [poolLoading, setPoolLoading] = useState(true);
+  const [instFilter, setInstFilter] = useState("");
 
   useEffect(() => {
     escrowApi.signatoryPool()
@@ -140,13 +175,14 @@ export default function EscrowAccountsSection({ accounts, onReload }) {
             <input value={acc.name} onChange={(e) => setAcc({ ...acc, name: e.target.value })}
                    data-testid="escrow-acc-name" className="mt-1 w-full px-3 py-2 border border-brand-navy/20"/></label>
 
-          <label><span className="pmc-label">Institution (bank / trustee)<InfoDot tip="Approved escrow institutions. Register a new one in Escrow institutions first." /></span>
+          <label><span className="pmc-label">Institution (bank / trustee)<InfoDot tip="Approved escrow institutions, tagged with the country scope set on each institution. Use the country filter to narrow the list." /></span>
+            <CountryFilterSelect institutions={pool.institutions} value={instFilter} onChange={setInstFilter} testid="escrow-acc-inst-country" />
             <select value={acc.institution_id} onChange={(e) => pickInstitution(e.target.value)}
                     data-testid="escrow-acc-inst"
                     className="mt-1 w-full px-3 py-2 border border-brand-navy/20 bg-white">
               <option value="">— Choose an approved institution —</option>
-              {pool.institutions.map((i) => (
-                <option key={i.id} value={i.id}>{i.legal_name}</option>
+              {pool.institutions.filter((i) => inScope(i, instFilter)).map((i) => (
+                <option key={i.id} value={i.id}>{i.legal_name} · {scopeLabel(i)}</option>
               ))}
             </select></label>
 
@@ -238,6 +274,7 @@ function AccountRow({ acc, onReload, pool }) {
   const [pmc, setPmc] = useState(acc.pmc_officer || { name: "", email: "", designation: "", role: "pmc" });
   const [esc, setEsc] = useState(acc.escrow_officer || { name: "", email: "", designation: "", role: "escrow_institution" });
   const [institutionId, setInstitutionId] = useState(acc.institution_id || "");
+  const [instFilter, setInstFilter] = useState("");
   const [busy, setBusy] = useState(false);
 
   // Match on institution_id first (explicit, set on creation / rebind),
@@ -267,7 +304,7 @@ function AccountRow({ acc, onReload, pool }) {
 
   const runBackfill = async () => {
     if (!window.confirm(
-      `Backfill signers on "${acc.name}"?\n\n` +
+      `Backfill signers on "${accountLabel(acc)}"?\n\n` +
       `This matches the institution name to the escrow institution master,\n` +
       `refreshes the PMC officer from the staff pool (if the email matches),\n` +
       `and swaps the escrow officer to a real institution signatory.\n\n` +
@@ -313,7 +350,7 @@ function AccountRow({ acc, onReload, pool }) {
     if ((esc.name || "").trim().length < 2) return toast.error("Escrow officer name too short");
     const institutionName = matchedInst ? matchedInst.legal_name : acc.institution;
     if (!window.confirm(
-      `Update signers on "${acc.name}"?\n\n` +
+      `Update signers on "${accountLabel(acc)}"?\n\n` +
       `  Institution     → ${institutionName}\n` +
       `  PMC officer     → ${pmc.name} <${pmc.email}>\n` +
       `  Escrow officer  → ${esc.name} <${esc.email}>\n\n` +
@@ -345,7 +382,7 @@ function AccountRow({ acc, onReload, pool }) {
       <div className="p-4 grid gap-3 md:grid-cols-5 items-start" data-testid={`escrow-acc-row-${acc.id}`}>
         <div className="md:col-span-2 min-w-0">
           <div className="font-semibold text-brand-navy flex items-center gap-2 flex-wrap">
-            {acc.name}
+            {accountLabel(acc)}
             {health?.anyBad && (
               <span data-testid={`escrow-acc-health-bad-${acc.id}`}
                     title="Current signers do not match the escrow institution master or the PMC signatory pool. Releases on this account will fail until fixed."
@@ -425,7 +462,7 @@ function AccountRow({ acc, onReload, pool }) {
     <div className="p-4 border-l-4 border-brand-navy bg-brand-pale/30" data-testid={`escrow-acc-edit-form-${acc.id}`}>
       <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
         <div>
-          <div className="font-semibold text-brand-navy">{acc.name}</div>
+          <div className="font-semibold text-brand-navy">{accountLabel(acc)}</div>
           <div className="text-xs text-brand-navy/60">{acc.institution} · {acc.account_no} · {acc.currency}</div>
         </div>
         <div className="text-xs text-brand-navy/60">
@@ -445,15 +482,16 @@ function AccountRow({ acc, onReload, pool }) {
           repopulate with the newly selected institution&apos;s registered
           signatories (plus its primary contact as a fallback).
         </div>
+        <CountryFilterSelect institutions={allInsts} value={instFilter} onChange={setInstFilter} testid={`escrow-edit-inst-country-${acc.id}`} />
         <select value={institutionId || ""} onChange={(e) => pickInstitution(e.target.value)}
                 data-testid={`escrow-edit-inst-select-${acc.id}`}
                 className="w-full px-3 py-2 border border-brand-navy/20 bg-white">
           <option value="">
             {acc.institution ? `— Keep "${acc.institution}" (unmatched master) —` : "— Choose an approved institution —"}
           </option>
-          {allInsts.map((i) => (
+          {allInsts.filter((i) => inScope(i, instFilter)).map((i) => (
             <option key={i.id} value={i.id}>
-              {i.legal_name}
+              {i.legal_name} · {scopeLabel(i)}
               {i.primary_contact_email ? ` · ${i.primary_contact_email}` : ""}
               {" · "}{(i.signatories || []).length} signatory
               {(i.signatories || []).length === 1 ? "" : "ies"}

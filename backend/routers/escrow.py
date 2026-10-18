@@ -392,6 +392,7 @@ async def signatory_pool(admin=Depends(require_role("admin", "reviewer"))):
             "id": str(i["_id"]),
             "legal_name": i.get("legal_name"),
             "primary_contact_email": pce,
+            "country_scope": i.get("country_scope") or [],
             "signatories": sig_rows,
         })
     return {"pmc_officers": pmc_officers, "institutions": insts}
