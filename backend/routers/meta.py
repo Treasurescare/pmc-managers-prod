@@ -1,10 +1,66 @@
 from typing import Optional, List, Dict, Any
+import asyncio
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 import config
-from db import db
+from db import db, next_sequence
+from emails import send_email, wrap
+from audit import audit_log
+from models.base import now_iso
 
 router = APIRouter(prefix="/api/v1/meta", tags=["meta"])
+
+
+class ContactEnquiry(BaseModel):
+    topic: Optional[str] = Field(default="General", max_length=120)
+    tender_ref: Optional[str] = Field(default=None, max_length=120)
+    name: str = Field(min_length=1, max_length=200)
+    email: str = Field(min_length=3, max_length=200)
+    message: str = Field(min_length=1, max_length=5000)
+
+
+@router.post("/public/contact")
+async def public_contact(payload: ContactEnquiry) -> Dict[str, Any]:
+    """PUBLIC — logs a website enquiry with a tracked reference and emails the
+    PMC compliance/tender desk plus an acknowledgement to the sender."""
+    seq = await next_sequence("contact_enquiry_seq")
+    reference = f"ENQ-2026-{seq:05d}"
+    doc = {
+        "reference": reference,
+        "topic": (payload.topic or "General").strip(),
+        "tender_ref": (payload.tender_ref or "").strip() or None,
+        "name": payload.name.strip(),
+        "email": payload.email.strip().lower(),
+        "message": payload.message.strip(),
+        "status": "new",
+        "created_at": now_iso(),
+    }
+    await db.contact_enquiries.insert_one(doc)
+    await audit_log("contact.enquiry", None, "contact_enquiry", reference,
+                    {"topic": doc["topic"], "email": doc["email"],
+                     "tender_ref": doc["tender_ref"]})
+    desk = getattr(config, "EMAIL_REPLY_TO", None) or config.ADMIN_EMAIL
+
+    async def _notify():
+        try:
+            await send_email(
+                desk, f"New enquiry {reference} — {doc['topic']}",
+                wrap("New website enquiry",
+                     f"<p><b>Reference:</b> {reference}</p>"
+                     f"<p><b>Topic:</b> {doc['topic']}</p>"
+                     f"<p><b>Tender:</b> {doc['tender_ref'] or '—'}</p>"
+                     f"<p><b>From:</b> {doc['name']} &lt;{doc['email']}&gt;</p>"
+                     f"<p><b>Message:</b><br/>{doc['message']}</p>"))
+            await send_email(
+                doc["email"], f"PMC Managers — we received your enquiry ({reference})",
+                wrap("Thanks — we'll be in touch",
+                     f"<p>We received your message and logged it as <b>{reference}</b>. "
+                     f"Our desk will reply to this email address shortly.</p>"))
+        except Exception:
+            pass
+    asyncio.create_task(_notify())
+    return {"ok": True, "reference": reference}
 
 
 @router.get("/health")

@@ -78,6 +78,7 @@ function initTenderFilters(list, allItems) {
   const urlParams = new URLSearchParams(window.location.search || "");
   const urlCountry = (urlParams.get("country") || "").toLowerCase();
   const urlQ = urlParams.get("q") || "";
+  const urlStatus = (urlParams.get("status") || "").toLowerCase();
 
   const panel = list.querySelector(".pmc-panel:has(.tl-row)") || list.querySelector(".tl-row")?.parentElement;
   if (!panel) return;
@@ -126,6 +127,13 @@ function initTenderFilters(list, allItems) {
         if (cb) cb.checked = true;
       }
     });
+  }
+  // v56n — apply URL ?status= by selecting the matching status radio
+  if (urlStatus && statusFs) {
+    const order = ["open", "closing", "closed", "awarded"];
+    const idx = order.indexOf(urlStatus);
+    const radios = statusFs.querySelectorAll("input[type=radio]");
+    if (idx >= 0 && radios[idx]) radios[idx].checked = true;
   }
   const catMap = {};
   allItems.forEach((n) => { const c = (n.category || "General").trim(); catMap[c] = (catMap[c] || 0) + 1; });

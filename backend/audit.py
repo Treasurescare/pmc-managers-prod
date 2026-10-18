@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import json
+import re
 from typing import Optional
 from db import db, next_sequence
 from models.base import now_iso
@@ -58,6 +59,43 @@ async def verify_chain() -> dict:
             return {"ok": False, "reason": "payload tampered", "at_seq": ev["seq"]}
         prev = stored_current
     return {"ok": True, "events_checked": checked}
+
+
+async def verify_record(ref: str) -> dict:
+    """Public per-record check: locate one ledger event by reference (target_id)
+    or ledger event number (seq), recompute its SHA-256 and confirm its link to
+    the previous event. Returns metadata only — never sensitive payload."""
+    ref = (ref or "").strip()
+    if not ref:
+        return {"found": False, "ref": ref}
+    token = ref[1:] if ref.startswith("#") else ref
+    ev = None
+    if token.isdigit():
+        ev = await db.audit_events.find_one({"seq": int(token)})
+    if ev is None:
+        ev = await db.audit_events.find_one(
+            {"target_id": {"$regex": f"^{re.escape(ref)}$", "$options": "i"}},
+            sort=[("seq", -1)])
+    if ev is None:
+        return {"found": False, "ref": ref}
+    seq = ev.get("seq")
+    stored_current = ev.get("current_hash")
+    stored_prev = ev.get("previous_hash")
+    body = {k: v for k, v in ev.items() if k not in ("_id", "current_hash")}
+    payload_ok = (_hash(body) == stored_current)
+    prior = await db.audit_events.find_one({"seq": {"$lt": seq}}, sort=[("seq", -1)])
+    expected_prev = (prior or {}).get("current_hash", "GENESIS")
+    link_ok = (stored_prev == expected_prev)
+    ok = bool(payload_ok and link_ok)
+    reason = "intact" if ok else ("payload tampered" if not payload_ok else "chain link broken")
+    return {
+        "found": True, "ref": ref, "ok": ok, "reason": reason,
+        "seq": seq, "event_type": ev.get("event_type"),
+        "target_type": ev.get("target_type"), "target_id": ev.get("target_id"),
+        "at": ev.get("at"),
+        "previous_hash": stored_prev, "current_hash": stored_current,
+        "expected_previous_hash": expected_prev,
+    }
 
 
 async def rechain_audit() -> dict:

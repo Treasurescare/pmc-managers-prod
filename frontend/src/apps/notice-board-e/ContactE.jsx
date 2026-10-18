@@ -1,6 +1,48 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { usePublicNav } from "@/lib/pmcEPublicNav";
+import { api } from "@/lib/api";
+
+function ContactForm() {
+  const [form, setForm] = useState({ topic: "A specific tender", tender_ref: "", name: "", email: "", message: "" });
+  const [sent, setSent] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const upd = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const submit = async (e) => {
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    if (!form.name.trim() || !form.email.trim() || !form.message.trim()) {
+      setErr("Please add your name, email and a message."); return;
+    }
+    setBusy(true); setErr("");
+    try {
+      const r = await api.post("/api/v1/meta/public/contact", form);
+      setSent(r.data?.reference || "received");
+    } catch (_) {
+      setErr("Could not send right now. Please email tenders@pmcmanagers.com.");
+    } finally { setBusy(false); }
+  };
+  if (sent) {
+    return (
+      <div className="pmc-card" style={{ padding: "28px", display: "grid", gap: "12px" }} data-testid="contact-sent">
+        <div className="pmc-callout pmc-callout--ok"><svg className="pmc-ico" aria-hidden="true"><use href="#i-check" /></svg><div><b>Message sent.</b> Your enquiry is logged as <b>{sent}</b>. Our desk will reply to {form.email}.</div></div>
+        <p className="pmc-muted" style={{ fontSize: "13px", margin: 0 }}>Keep this reference if you need to follow up.</p>
+      </div>
+    );
+  }
+  return (
+    <form className="pmc-card" style={{ padding: "28px", display: "grid", gap: "14px" }} onSubmit={submit} data-testid="contact-form">
+      <h2 style={{ margin: "0", fontSize: "20px" }}>Send a message</h2>
+      <div className="pmc-field"><label>Topic</label><select className="pmc-input" value={form.topic} onChange={upd("topic")} data-testid="contact-topic"><option>A specific tender</option><option>Registration &amp; KYC</option><option>Becoming a buyer</option><option>Something else</option></select></div>
+      <div className="pmc-field"><label>Tender reference (optional)</label><input className="pmc-input" placeholder="PMC-NOT-2026-…" value={form.tender_ref} onChange={upd("tender_ref")} data-testid="contact-ref" /></div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}><div className="pmc-field"><label>Name</label><input className="pmc-input" value={form.name} onChange={upd("name")} data-testid="contact-name" /></div><div className="pmc-field"><label>Work email</label><input className="pmc-input" value={form.email} onChange={upd("email")} data-testid="contact-email" /></div></div>
+      <div className="pmc-field"><label>Message</label><textarea className="pmc-input" style={{ height: "120px", padding: "10px" }} value={form.message} onChange={upd("message")} data-testid="contact-message"></textarea></div>
+      {err && <div className="pmc-callout pmc-callout--info" style={{ fontSize: "13px" }}><svg className="pmc-ico" aria-hidden="true"><use href="#i-help" /></svg><div>{err}</div></div>}
+      <div className="pmc-callout pmc-callout--info" style={{ fontSize: "13px", lineHeight: "20px" }}><svg className="pmc-ico" aria-hidden="true"><use href="#i-help" /></svg><div>Questions about a tender's content are answered as clarifications to all bidders, not privately.</div></div>
+      <button type="button" className="pmc-btn pmc-btn--primary pmc-btn--lg" onClick={submit} disabled={busy} data-testid="contact-send">{busy ? "Sending…" : "Send message"}</button>
+    </form>
+  );
+}
 
 export default function ContactE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
@@ -28,13 +70,7 @@ export default function ContactE({ legacy: Legacy }) {
 </div></header><section className="pmc-chrome" style={{ padding: "48px 0 56px" }}><div className="pmc-wrap"><div className="pmc-eyebrow">Contact</div><h1 className="pmc-display" style={{ fontSize: "56px", lineHeight: "60px", margin: "10px 0 0", color: "var(--on-chrome)" }}>Talk to the right desk</h1></div></section>
 <div className="pmc-wrap" style={{ padding: "40px 0 72px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "32px", alignItems: "start" }}>
 <div style={{ display: "grid", gap: "12px" }}><div className="pmc-panel" style={{ padding: "20px", display: "grid", gridTemplateColumns: "40px 1fr", gap: "14px" }}><svg className="pmc-ico lf-i" aria-hidden="true"><use href="#i-gavel" /></svg><div><b style={{ fontSize: "16px" }}>Tenders &amp; bids</b><div className="pmc-muted" style={{ fontSize: "14px", margin: "2px 0 6px" }}>Questions on a notice, clarifications, deadlines</div><a href="mailto:tenders@pmcmanagers.com">tenders@pmcmanagers.com</a></div></div><div className="pmc-panel" style={{ padding: "20px", display: "grid", gridTemplateColumns: "40px 1fr", gap: "14px" }}><svg className="pmc-ico lf-i" aria-hidden="true"><use href="#i-lock" /></svg><div><b style={{ fontSize: "16px" }}>Account &amp; access</b><div className="pmc-muted" style={{ fontSize: "14px", margin: "2px 0 6px" }}>Sign-in, two-factor, locked accounts</div><a href="mailto:adminsupport@pmcmanagers.com">adminsupport@pmcmanagers.com</a></div></div><div className="pmc-panel" style={{ padding: "20px", display: "grid", gridTemplateColumns: "40px 1fr", gap: "14px" }}><svg className="pmc-ico lf-i" aria-hidden="true"><use href="#i-chat" /></svg><div><b style={{ fontSize: "16px" }}>Signed-in users</b><div className="pmc-muted" style={{ fontSize: "14px", margin: "2px 0 6px" }}>Tickets are tracked in your portal</div><a href="#">Raise a ticket</a></div></div><div className="pmc-panel" style={{ padding: "20px", display: "grid", gridTemplateColumns: "40px 1fr", gap: "14px" }}><svg className="pmc-ico lf-i" aria-hidden="true"><use href="#i-flag" /></svg><div><b style={{ fontSize: "16px" }}>Report a concern</b><div className="pmc-muted" style={{ fontSize: "14px", margin: "2px 0 6px" }}>Goes to an independent compliance desk</div><a href="#">Report a concern</a></div></div></div>
-<form className="pmc-card" style={{ padding: "28px", display: "grid", gap: "14px" }}><h2 style={{ margin: "0", fontSize: "20px" }}>Send a message</h2>
-<div className="pmc-field"><label>Topic</label><select className="pmc-input"><option>A specific tender</option><option>Registration &amp; KYC</option><option>Becoming a buyer</option><option>Something else</option></select></div>
-<div className="pmc-field"><label>Tender reference (optional)</label><input className="pmc-input" placeholder="PMC-NOT-2026-…" /></div>
-<div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}><div className="pmc-field"><label>Name</label><input className="pmc-input" /></div><div className="pmc-field"><label>Work email</label><input className="pmc-input" /></div></div>
-<div className="pmc-field"><label>Message</label><textarea className="pmc-input" style={{ height: "120px", padding: "10px" }}></textarea></div>
-<div className="pmc-callout pmc-callout--info" style={{ fontSize: "13px", lineHeight: "20px" }}><svg className="pmc-ico" aria-hidden="true"><use href="#i-help" /></svg><div>Questions about a tender's content are answered as clarifications to all bidders, not privately.</div></div>
-<button className="pmc-btn pmc-btn--primary pmc-btn--lg">Send message</button></form></div>
+<ContactForm /></div>
 <footer className="pmc-chrome" style={{ padding: "40px 0 28px", marginTop: "0" }}><div className="pmc-wrap" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px" }}>
   <div className="pmc-brand"><span className="pmc-brand__n" style={{ fontSize: "20px" }}>PMC Managers</span><span className="pmc-brand__s">Global Tender Board</span></div>
   <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "20px" }} className="pmc-fcol"><a href="#">Open notices</a><a href="#">Help Centre</a><a href="#">Trust &amp; security</a><a href="#">Privacy</a><span className="pmc-muted">© 2026 PMC Managers Limited</span></div>

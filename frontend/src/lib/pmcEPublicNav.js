@@ -87,19 +87,18 @@ export function usePublicNav(enabled = true) {
           navTo(`/tenders/live${params.toString() ? "?" + params.toString() : ""}`);
         });
       }
-      // Popular chips -> prefiltered search
-      const chipQ = {
-        "closing this week": "",
-        "civil works & mep": "Civil Works",
-        "medical equipment": "Medical",
-        "it & digital health": "IT",
+      // Popular chips -> prefiltered search / status filter
+      const chipPath = {
+        "closing this week": "/tenders/live?status=closing",
+        "civil works & mep": "/tenders/live?q=" + encodeURIComponent("Civil Works"),
+        "medical equipment": "/tenders/live?q=Medical",
+        "it & digital health": "/tenders/live?q=IT",
       };
       root.querySelectorAll(".pmc-hero__in a.pmc-chip, a.pmc-chip").forEach((chip) => {
         if (chip.dataset.navWired) return;
         const t = chip.textContent.replace("×", "").replace(/\s+/g, " ").trim().toLowerCase();
-        if (!(t in chipQ)) return;
-        const q = chipQ[t];
-        wire(chip, `/tenders/live${q ? "?q=" + encodeURIComponent(q) : ""}`);
+        if (!(t in chipPath)) return;
+        wire(chip, chipPath[t]);
       });
       // Stat cards -> relevant destinations
       const statDest = ["/tenders/live", "/register", "/tenders/live", "/trust"];
@@ -119,26 +118,10 @@ export function usePublicNav(enabled = true) {
       });
     }
 
-    if (page === "trust-security-e") {
-      const verifyBtn = Array.from(root.querySelectorAll("button.pmc-btn"))
-        .find((b) => /^verify$/i.test(b.textContent.trim()));
-      if (verifyBtn && !verifyBtn.dataset.navWired) {
-        verifyBtn.dataset.navWired = "1";
-        verifyBtn.style.cursor = "pointer";
-        verifyBtn.addEventListener("click", (e) => navTo("/contact", e));
-      }
-    }
-
-    if (page === "contact-e") {
-      const form = root.querySelector("form.pmc-card");
-      if (form && !form.dataset.navWired) {
-        form.dataset.navWired = "1";
-        form.addEventListener("submit", (e) => {
-          e.preventDefault();
-          const btn = form.querySelector("button");
-          if (btn) { btn.textContent = "Message sent \u2713"; btn.disabled = true; }
-        });
-      }
+    if (page === "awards-public-e") {
+      // "Awarded in 2026" KPI tile -> awarded filter on the tenders list
+      const kpi = root.querySelector(".pmc-kpi.pmc-panel");
+      if (kpi && !kpi.dataset.navWired) wire(kpi, "/tenders/live?status=awarded");
     }
 
     // Generic chrome anchors still pointing at "#"

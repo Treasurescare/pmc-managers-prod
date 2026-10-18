@@ -4,7 +4,7 @@ import re
 from fastapi import APIRouter, Depends
 from db import db
 from security import require_role, require_csrf
-from audit import verify_chain, rechain_audit
+from audit import verify_chain, rechain_audit, verify_record
 
 router = APIRouter(prefix="/api/v1/audit-events", tags=["audit"])
 
@@ -44,6 +44,13 @@ async def list_events(
 @router.get("/verify")
 async def verify(admin: Dict[str, Any] = Depends(require_role("admin"))) -> Dict[str, Any]:
     return await verify_chain()
+
+
+@router.get("/verify-record")
+async def verify_record_public(ref: str) -> Dict[str, Any]:
+    """PUBLIC — recompute one record's SHA-256 chain link by reference or
+    ledger event number. Used by the Trust & Security page's Verify box."""
+    return await verify_record(ref)
 
 
 @router.post("/rechain", dependencies=[Depends(require_csrf)])

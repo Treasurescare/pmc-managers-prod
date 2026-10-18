@@ -1012,10 +1012,17 @@ export default function PmcLinkPatcher() {
         e.preventDefault(); toggleWhoMenu(el, false, navigate); return;
       }
 
-      // Public live-board rows + tender cards → register/login gate
-      if (isPublic && (el.classList.contains("pmc-live__row") || el.classList.contains("pmc-live__all") || el.closest("article.pmc-tender"))) {
+      // Public live-board rows + tender cards → open the full notice detail.
+      // "See all" goes to the public tenders list.
+      if (isPublic && el.closest(".pmc-live__all")) {
+        e.preventDefault(); navigate("/tenders/live"); return;
+      }
+      if (isPublic && (el.closest(".pmc-live__row") || el.closest("article.pmc-tender"))) {
         e.preventDefault();
-        navigate(isVendorAuthed() ? "/vendor/tenders" : "/register");
+        const scope = el.closest(".pmc-live__row, article.pmc-tender");
+        const ref = extractNoticeRef(scope)
+          || (scope && (scope.getAttribute("href") || "").match(/PMC-NOT-\d{4}-\d+/)?.[0]);
+        navigate(ref ? `/notices/${ref}` : (isVendorAuthed() ? "/vendor/tenders" : "/register"));
         return;
       }
 
