@@ -5,6 +5,7 @@ Same cookie/CSRF mechanics as admin_auth. Backwards-compatible with the
 legacy `admin_users` collection: existing admins are auto-migrated on login.
 """
 from typing import Dict, Any, List
+import re
 from fastapi import APIRouter, HTTPException, Response, Depends, Request
 from bson import ObjectId
 from pydantic import BaseModel
@@ -294,3 +295,149 @@ async def update_staff(staff_id: str, payload: StaffUpdateIn,
         audit_updates["password_reset"] = True
     await audit_log("staff.update", admin, "admin_user", staff_id, audit_updates)
     return _out(fresh)
+
+
+# ---------- v56f: PMC-officer escrow signing surface (staff portal) ----------
+# A staff member who is the named PMC officer on a joint escrow account needs
+# to see — and sign — the EMD escrow document right inside their staff portal
+# (not only via the DocuSign email). These endpoints are scoped strictly to the
+# transactions where the logged-in staff email == escrow_account_snapshot
+# .pmc_officer.email, so an officer can only ever see their own signing work.
+
+def _escrow_tx_row(t: dict) -> dict:
+    sigs = t.get("signatures") or {}
+    snap = t.get("escrow_account_snapshot") or {}
+    return {
+        "id": str(t["_id"]),
+        "bid_ref": t.get("bid_ref"),
+        "notice_ref": t.get("notice_ref"),
+        "vendor_ref": t.get("vendor_ref"),
+        "amount": t.get("amount"),
+        "currency": t.get("currency"),
+        "status": t.get("status"),
+        "docusign_status": t.get("docusign_status"),
+        "docusign_envelope_id": t.get("docusign_envelope_id"),
+        "created_at": t.get("created_at"),
+        "institution": snap.get("institution"),
+        "account_name": snap.get("name"),
+        "pmc_officer": snap.get("pmc_officer") or {},
+        "escrow_officer": snap.get("escrow_officer") or {},
+        "signed_by_pmc": bool((sigs.get("pmc") or {}).get("signed_at")),
+        "signed_by_institution": bool((sigs.get("escrow_institution") or {}).get("signed_at")),
+        "has_signed_document": bool((t.get("signed_document") or {}).get("content_b64")),
+    }
+
+
+async def _staff_escrow_tx_or_403(tid: str, email: str) -> dict:
+    if not ObjectId.is_valid(tid):
+        raise HTTPException(status_code=400, detail="Invalid transaction id")
+    tx = await db.escrow_transactions.find_one({"_id": ObjectId(tid)})
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    pmc_email = (((tx.get("escrow_account_snapshot") or {}).get("pmc_officer") or {})
+                 .get("email") or "").lower()
+    if pmc_email != (email or "").lower():
+        raise HTTPException(status_code=403,
+            detail="You are not the PMC officer on this escrow transaction.")
+    return tx
+
+
+@router.get("/escrow/signatures")
+async def staff_escrow_signatures(admin=Depends(current_admin)) -> Dict[str, Any]:
+    email = (admin.get("email") or "").lower()
+    pending: List[dict] = []
+    transactions: List[dict] = []
+    if email:
+        cur = db.escrow_transactions.find(
+            {"escrow_account_snapshot.pmc_officer.email":
+                {"$regex": f"^{re.escape(email)}$", "$options": "i"}}
+        ).sort("created_at", -1).limit(200)
+        done = {"cancelled", "forfeited", "released_to_vendor", "released_to_contractor"}
+        async for t in cur:
+            row = _escrow_tx_row(t)
+            transactions.append(row)
+            if (t.get("docusign_envelope_id") and not row["signed_by_pmc"]
+                    and t.get("status") not in done):
+                pending.append(row)
+    return {"email": email,
+            "pending_signatures": pending,
+            "pending_signatures_count": len(pending),
+            "transactions": transactions,
+            "transactions_count": len(transactions)}
+
+
+@router.get("/escrow/transactions/{tid}")
+async def staff_escrow_transaction(tid: str, admin=Depends(current_admin)) -> Dict[str, Any]:
+    tx = await _staff_escrow_tx_or_403(tid, admin.get("email"))
+    env = None
+    env_id = tx.get("docusign_envelope_id")
+    if env_id:
+        row = await db.docusign_envelopes.find_one({"envelope_id": env_id})
+        if row:
+            env = {"envelope_id": env_id, "status": row.get("status"),
+                   "signers": row.get("signers") or [], "created_at": row.get("created_at")}
+    out = _escrow_tx_row(tx)
+    out["audit_trail"] = tx.get("audit_trail") or []
+    out["signatures"] = tx.get("signatures") or {}
+    out["docusign_envelope"] = env
+    return out
+
+
+@router.get("/escrow/transactions/{tid}/docusign-url")
+async def staff_escrow_docusign_url(tid: str, admin=Depends(current_admin)) -> Dict[str, Any]:
+    tx = await _staff_escrow_tx_or_403(tid, admin.get("email"))
+    env_id = tx.get("docusign_envelope_id")
+    if not env_id:
+        raise HTTPException(status_code=404,
+            detail="PMC admin has not issued a DocuSign envelope for this "
+                   "transaction yet.")
+    try:
+        import docusign_esign as ds
+        from routers.docusign import _client, DS_ACCOUNT_ID
+        client = _client()
+        envelopes = ds.EnvelopesApi(client)
+        view = envelopes.create_console_view(DS_ACCOUNT_ID,
+            console_view_request=ds.ConsoleViewRequest(
+                envelope_id=env_id, return_url=f"{config.FRONTEND_URL}/staff"))
+        return {"url": view.url, "envelope_id": env_id, "mode": "console"}
+    except Exception as e:
+        import logging
+        logging.getLogger("escrow").info("staff docusign-url fallback %s: %s", env_id, e)
+        return {"url": None, "envelope_id": env_id, "mode": "email_only",
+                "message": "DocuSign emailed the hosted-signing link to you when "
+                           "the envelope was issued. Open that email to sign."}
+
+
+@router.post("/escrow/transactions/{tid}/docusign/refresh")
+async def staff_escrow_refresh(tid: str, admin=Depends(current_admin)) -> Dict[str, Any]:
+    tx = await _staff_escrow_tx_or_403(tid, admin.get("email"))
+    env_id = tx.get("docusign_envelope_id")
+    if not env_id:
+        raise HTTPException(status_code=404, detail="No DocuSign envelope on this transaction")
+    try:
+        import docusign_esign as ds
+        from routers.docusign import _client, DS_ACCOUNT_ID, _apply_live_status
+        client = _client()
+        envelopes = ds.EnvelopesApi(client)
+        live = envelopes.get_envelope(DS_ACCOUNT_ID, env_id)
+        live_status = (live.status or "").lower()
+        await _apply_live_status(env_id, live_status)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Could not read DocuSign status: {e}")
+    fresh = await db.escrow_transactions.find_one({"_id": ObjectId(tid)})
+    return {"ok": True, "status": live_status, **_escrow_tx_row(fresh)}
+
+
+@router.get("/escrow/transactions/{tid}/signed-document")
+async def staff_escrow_signed_document(tid: str, admin=Depends(current_admin)) -> Dict[str, Any]:
+    tx = await _staff_escrow_tx_or_403(tid, admin.get("email"))
+    doc = tx.get("signed_document") or {}
+    if not doc.get("content_b64"):
+        raise HTTPException(status_code=404,
+            detail="Signed document not available yet. Click Refresh after both "
+                   "officers have signed in DocuSign.")
+    return {"filename": doc.get("filename"),
+            "content_b64": doc.get("content_b64"),
+            "content_type": doc.get("content_type") or "application/pdf"}

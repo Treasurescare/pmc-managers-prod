@@ -121,7 +121,7 @@ export default function StaffDashboard() {
   if (!me) return <div className="p-10 text-slate-500">Loading…</div>;
 
   return (
-    <div className="min-h-screen bg-slate-50" data-testid="staff-dashboard">
+    <div className="min-h-screen" style={{ background: "#eef2f7", color: "#0f172a" }} data-testid="staff-dashboard">
       <header className="bg-[#0b1e3f] text-white">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div>
@@ -154,21 +154,23 @@ export default function StaffDashboard() {
       </header>
 
       <div className="max-w-6xl mx-auto px-6 py-6 space-y-8">
+        <EscrowSignatures />
+
         <section>
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-600 mb-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-700 mb-3">
             {queueLabel} · {bids.length}
           </h2>
           <div className="space-y-2" data-testid="staff-bid-queue">
             {bids.map((b) => (
-              <div key={b.id} className="bg-white border rounded-lg p-4"
+              <div key={b.id} className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm"
                 data-testid={`staff-bid-${b.bid_ref}`}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-xs text-slate-500">{b.bid_ref} · {b.notice_ref}</div>
-                    <div className="text-sm">{b.company_name || b.vendor_email} — 
+                    <div className="text-xs font-medium text-slate-600">{b.bid_ref} · {b.notice_ref}</div>
+                    <div className="text-sm text-slate-900">{b.company_name || b.vendor_email} — 
                       <strong> {b.price_currency} {(b.price_amount || 0).toLocaleString()}</strong>
                     </div>
-                    <div className="text-xs text-slate-500 mt-1">Status: {b.status}</div>
+                    <div className="text-xs text-slate-600 mt-1">Status: {b.status}</div>
                   </div>
                   <div className="flex gap-2">
                     {me.active_role !== "committee_member" && (
@@ -254,5 +256,156 @@ export default function StaffDashboard() {
         )}
       </div>
     </div>
+  );
+}
+
+
+// v56f — PMC-officer escrow signing surface. Self-contained: lists the escrow
+// transactions where the logged-in staff member is the named PMC officer, with
+// Open in DocuSign (Safari-safe), Refresh status, and Download signed PDF.
+function fmtDate(iso) {
+  if (!iso) return "—";
+  return String(iso).slice(0, 19).replace("T", " ");
+}
+
+function EscrowSignatures() {
+  const [data, setData] = useState(null);
+  const [busy, setBusy] = useState("");
+
+  const load = () =>
+    staffApi.escrowSignatures()
+      .then(setData)
+      .catch(() => setData({ pending_signatures: [], transactions: [] }));
+
+  useEffect(() => { load(); }, []);
+
+  const openDocuSign = async (tid) => {
+    // Safari blocks window.open() that runs AFTER an await; pre-open synchronously.
+    const win = window.open("", "_blank");
+    setBusy(tid);
+    try {
+      const r = await staffApi.escrowDocuSignUrl(tid);
+      if (r?.url) {
+        if (win) win.location.href = r.url; else window.location.href = r.url;
+      } else {
+        if (win) win.close();
+        toast.info("Open your DocuSign email to sign", {
+          description: r?.message || "DocuSign emailed you the hosted-signing link.",
+          duration: 12000,
+        });
+      }
+    } catch (e) {
+      if (win) win.close();
+      showApiError(e, { fallbackTitle: "Could not open DocuSign" });
+    } finally { setBusy(""); }
+  };
+
+  const refresh = async (tid) => {
+    setBusy(tid);
+    try {
+      const r = await staffApi.escrowRefresh(tid);
+      toast.success(`DocuSign status: ${r.docusign_status || r.status || "updated"}`);
+      await load();
+    } catch (e) { showApiError(e, { fallbackTitle: "Refresh failed" }); }
+    finally { setBusy(""); }
+  };
+
+  const download = async (tid) => {
+    setBusy(tid);
+    try {
+      const r = await staffApi.escrowSignedDoc(tid);
+      const bin = atob(r.content_b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const blob = new Blob([bytes], { type: r.content_type || "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = r.filename || "PMC-Escrow-Signed.pdf"; a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) { showApiError(e, { fallbackTitle: "No signed document yet" }); }
+    finally { setBusy(""); }
+  };
+
+  if (!data) return null;
+  const txns = data.transactions || [];
+  if (txns.length === 0) return null;
+  const pendingIds = new Set((data.pending_signatures || []).map((t) => t.id));
+
+  return (
+    <section data-testid="staff-escrow-signatures">
+      <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-700 mb-3">
+        Escrow documents — your signature · {data.pending_signatures_count || 0} pending
+      </h2>
+      <div className="space-y-2">
+        {txns.map((t) => {
+          const isPending = pendingIds.has(t.id);
+          return (
+            <div key={t.id}
+              className={"rounded-lg p-4 border shadow-sm " +
+                (isPending ? "bg-amber-50 border-amber-300" : "bg-white border-slate-200")}
+              data-testid={`staff-escrow-tx-${t.bid_ref || t.id}`}>
+              <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div className="min-w-0">
+                  <div className="text-xs font-medium text-slate-600">
+                    {t.bid_ref || "—"} · {t.notice_ref || "—"}
+                  </div>
+                  <div className="text-sm text-slate-900">
+                    {t.vendor_ref ? `${t.vendor_ref} — ` : ""}
+                    <strong>{t.currency} {(t.amount || 0).toLocaleString()}</strong>
+                  </div>
+                  <div className="text-xs text-slate-600 mt-1">
+                    {t.institution ? `${t.institution} · ` : ""}{t.account_name || ""}
+                  </div>
+                  <div className="flex items-center gap-2 mt-2 text-[11px]">
+                    <span className={"px-2 py-0.5 rounded-full " +
+                      (t.signed_by_pmc ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-700")}>
+                      You (PMC) {t.signed_by_pmc ? "✓ signed" : "· awaiting"}
+                    </span>
+                    <span className={"px-2 py-0.5 rounded-full " +
+                      (t.signed_by_institution ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-700")}>
+                      Institution {t.signed_by_institution ? "✓ signed" : "· awaiting"}
+                    </span>
+                    {t.docusign_status && (
+                      <span className="px-2 py-0.5 rounded-full bg-slate-800 text-white">
+                        DocuSign: {t.docusign_status}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2 items-end">
+                  {t.docusign_envelope_id ? (
+                    <>
+                      {!t.signed_by_pmc && (
+                        <button onClick={() => openDocuSign(t.id)} disabled={busy === t.id}
+                          className="text-xs bg-[#0b1e3f] text-white px-3 py-1.5 rounded hover:bg-[#0a1733] disabled:opacity-40"
+                          data-testid={`staff-escrow-sign-${t.bid_ref || t.id}`}>
+                          {busy === t.id ? "Opening…" : "Open in DocuSign to sign"}
+                        </button>
+                      )}
+                      <button onClick={() => refresh(t.id)} disabled={busy === t.id}
+                        className="text-xs border border-slate-300 text-slate-700 px-3 py-1.5 rounded hover:bg-slate-100 disabled:opacity-40"
+                        data-testid={`staff-escrow-refresh-${t.bid_ref || t.id}`}>
+                        Refresh DocuSign
+                      </button>
+                      {t.has_signed_document && (
+                        <button onClick={() => download(t.id)} disabled={busy === t.id}
+                          className="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded hover:bg-emerald-700 disabled:opacity-40"
+                          data-testid={`staff-escrow-download-${t.bid_ref || t.id}`}>
+                          Download signed PDF
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <span className="text-xs text-slate-500 italic text-right max-w-[220px]">
+                      Awaiting PMC admin to issue the DocuSign envelope.
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }

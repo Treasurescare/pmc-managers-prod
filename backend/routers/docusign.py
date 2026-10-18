@@ -430,6 +430,57 @@ async def _on_envelope_completed(row: dict) -> None:
         pass
 
 
+async def _deliver_escrow_signed_document(tid: str, envelope_id: str) -> None:
+    """v56f — on escrow-tx envelope completion, download the combined signed
+    PDF, store it on the transaction and EMAIL it (attached) to BOTH officers
+    so the escrow institution officer actually receives the fully-executed
+    document — not just a status flag. Idempotent + best-effort."""
+    try:
+        from bson import ObjectId as _Oid
+        tx = await db.escrow_transactions.find_one({"_id": _Oid(tid)})
+        if not tx:
+            return
+        if (tx.get("signed_document") or {}).get("content_b64"):
+            return  # already delivered
+        client = _client()
+        envelopes = ds.EnvelopesApi(client)
+        pdf = _fetch_document_bytes(envelopes, envelope_id, "combined")
+        import base64 as _b64
+        b64 = _b64.b64encode(pdf).decode("ascii")
+        fname = f"PMC-Escrow-Signed-{tx.get('bid_ref') or tid}.pdf"
+        await db.escrow_transactions.update_one(
+            {"_id": _Oid(tid)},
+            {"$set": {"signed_document": {
+                "filename": fname, "content_b64": b64,
+                "content_type": "application/pdf",
+                "envelope_id": envelope_id, "fetched_at": now_iso()}}})
+        snap = tx.get("escrow_account_snapshot") or {}
+        recipients = []
+        for off in (snap.get("escrow_officer") or {}, snap.get("pmc_officer") or {}):
+            e = (off.get("email") or "").strip()
+            if e and e.lower() not in {r.lower() for r in recipients}:
+                recipients.append(e)
+        from emails import send_email, _wrap
+        subject = f"Signed escrow document — {tx.get('bid_ref') or 'EMD'}"
+        html = _wrap(
+            "Escrow document fully executed",
+            f"<p>The EMD escrow receipt &amp; release mandate for bid "
+            f"<b>{tx.get('bid_ref') or '—'}</b> (tender "
+            f"<b>{tx.get('notice_ref') or '—'}</b>) has now been signed by "
+            f"both officers. The fully-executed PDF is attached for your "
+            f"records.</p>",
+            "Open your dashboard", f"{config.FRONTEND_URL}/escrow/me")
+        for email in recipients:
+            try:
+                await send_email(email, f"PMC Escrow · {subject}", html,
+                    attachments=[{"filename": fname, "content_b64": b64,
+                                  "content_type": "application/pdf"}])
+            except Exception as ee:
+                _log.warning("signed-doc email to %s failed: %s", email, ee)
+    except Exception as e:
+        _log.warning("escrow signed-doc delivery failed for tx %s: %s", tid, e)
+
+
 async def _apply_live_status(envelope_id: str, live_status: str) -> None:
     """Update the DB row and fire completion side effects on transition."""
     row = await db.docusign_envelopes.find_one({"envelope_id": envelope_id})
@@ -508,6 +559,8 @@ async def _apply_live_status(envelope_id: str, live_status: str) -> None:
                                                "event": "docusign_completed",
                                                "envelope_id": envelope_id}}
             await db.escrow_transactions.update_one({"_id": _Oid3(tid)}, op)
+            if live_status == "completed":
+                await _deliver_escrow_signed_document(tid, envelope_id)
         except Exception as e:
             _log.warning("escrow_tx reconcile failed for %s: %s", envelope_id, e)
 

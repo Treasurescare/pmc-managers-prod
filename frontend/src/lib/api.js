@@ -373,6 +373,17 @@ export const staffApi = {
       cacheCsrf(r.data?.csrf_token);
       return r.data;
     }),
+  // v56f — PMC-officer escrow signing surface (scoped to the officer's email).
+  escrowSignatures: () =>
+    api.get("/api/v1/staff/escrow/signatures").then((r) => r.data),
+  escrowTx: (tid) =>
+    api.get(`/api/v1/staff/escrow/transactions/${tid}`).then((r) => r.data),
+  escrowDocuSignUrl: (tid) =>
+    api.get(`/api/v1/staff/escrow/transactions/${tid}/docusign-url`).then((r) => r.data),
+  escrowRefresh: (tid) =>
+    api.post(`/api/v1/staff/escrow/transactions/${tid}/docusign/refresh`).then((r) => r.data),
+  escrowSignedDoc: (tid) =>
+    api.get(`/api/v1/staff/escrow/transactions/${tid}/signed-document`).then((r) => r.data),
 };
 
 // ---------- Wave 1: Vendor ----------
