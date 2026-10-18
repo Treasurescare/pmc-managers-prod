@@ -1,10 +1,12 @@
 import { useEffect } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { usePublicLiveData } from "@/lib/pmcELiveData";
+import { usePublicNav } from "@/lib/pmcEPublicNav";
 
 export default function TendersListE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
   usePublicLiveData({ enabled: isE });
+  usePublicNav(isE);
   useEffect(() => {
     if (!isE) return;
     const tick = () => {

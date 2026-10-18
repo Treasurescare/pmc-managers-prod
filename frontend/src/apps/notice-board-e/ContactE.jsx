@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
+import { usePublicNav } from "@/lib/pmcEPublicNav";
 
 export default function ContactE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
+  usePublicNav(isE);
   useEffect(() => {
     if (!isE) return;
     const tick = () => {

@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { usePublicLiveData } from "@/lib/pmcELiveData";
+import { usePublicNav } from "@/lib/pmcEPublicNav";
 import { api } from "@/lib/api";
 import { BUILD_VERSION } from "@/lib/buildStamp";
 
 export default function HomeE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
   usePublicLiveData({ enabled: isE });
+  usePublicNav(isE);
   const [beVer, setBeVer] = useState(null);
   useEffect(() => {
     api.get("/api/v1/_version").then((r) => setBeVer(r.data?.version)).catch(() => setBeVer("unreachable"));
