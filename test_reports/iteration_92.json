@@ -1,0 +1,24 @@
+{
+  "summary": "Verified v56b CSRF auto-recovery on the Escrow Backfill POST in the real browser against the preview URL. Signed in as admin via /admin/login (Administrator role), navigated to /admin/e/escrow, picked the joint account 'TEST_v54a_smoke' (id 6ad2cd7b767d0390a2486e79) which has officers filled in. Deleted ONLY the csrf_token cookie (access_token kept). Clicked the escrow-acc-backfill-{id} button and accepted the window.confirm. Captured network trace exactly matches the expected v56b recovery sequence: 1) POST /api/v1/escrow/accounts/{id}/backfill-signers -> 403, 2) GET /api/v1/staff/auth/csrf -> 200, 3) POST /api/v1/escrow/accounts/{id}/backfill-signers -> 404 (structured institution_unmatched for 'TEST Bank'). csrf_token cookie was re-issued. The user-visible toast is the business 'rebind this account via Edit signers' institution-unmatched toast listing closest master matches - NOT a 'CSRF token missing' toast. Happy-path 200 could not be exercised because no visible joint account has a free-text institution matching an approved master (all listed accounts show 'Institution does not match any approved master row'); however the endpoint itself is live (returns structured 404 institution_unmatched instead of a plain 404 'not found'), confirming the key fix.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Axios response interceptor correctly triggers refreshCsrf() + retry-once on 403+/csrf/i, observed working on the escrow backfill POST (previously verified on masters/companies POST in iteration_91).",
+    "Backend POST /api/v1/escrow/accounts/{aid}/backfill-signers exists and returns a structured 404 payload {error:'institution_unmatched', suggestions:[...]} rather than a plain 'not found' - matches the review request spec.",
+    "To exercise the backfill 200 happy path, main agent would need to seed one joint account whose free-text institution exactly matches an approved institution master name (e.g. 'V52F Bank' or 'Signatory Test Bank'). All currently seeded joint accounts fail institution match."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "adminsupport@pmcmanagers.com / Admin@12345 via /admin/login (Administrator role)",
+  "seed_data_creation": "None created in this iteration. Reused existing joint account TEST_v54a_smoke (id 6ad2cd7b767d0390a2486e79). No side effects (backend returned 404 institution_unmatched, so no data was mutated).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "v56b CSRF auto-recovery is fully verified on BOTH a masters POST (iteration_91) and the escrow backfill POST (this iteration). Observed network for backfill with only csrf_token cookie deleted: 403 -> GET /api/v1/staff/auth/csrf 200 -> 404 institution_unmatched. User sees only the institution-unmatched toast, never a 'CSRF token missing' toast. The csrf_token cookie is correctly re-minted. To test the backfill 200 success toast, seed/edit a joint account to use an institution name matching an approved escrow institution master, then click Backfill - should return 200 + diagnostics toast.",
+  "rca of the issue": "Original user report ('Backfill failed · HTTP 403 - CSRF token missing' at /admin/e/escrow) is fixed by the v56b combo of (a) backend GET /api/v1/staff/auth/csrf re-minting the csrf_token cookie for an authenticated session, and (b) frontend axios response interceptor detecting 403 + /csrf/i, calling refreshCsrf() once, and replaying the original POST with the new X-CSRF-Token header. User's original symptom will disappear once the v56b backend+frontend builds are deployed to their live site."
+}
