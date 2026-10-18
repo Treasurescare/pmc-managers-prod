@@ -1,0 +1,21 @@
+{
+  "summary": "RETEST of Bidding Ops 'Assign specialists' flow on live page /admin/e/bidding. All scenarios PASS: assign button appears in detail panel after clicking a non-awarded bid row, modal opens with 5 role dropdowns (escrow_agent, certifier, legal_counsel, accounting, committee_member) populated with eligible staff labeled with country scope ('— Global'), selecting a staff shows 'Specialist assigned' toast, selecting blank shows 'Assignment cleared' toast, close button works, and assignment persists across modal close/reopen on the same bid.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AdminBiddingOpsE.jsx mixes imperative innerHTML DOM building with React (detail panel #d-act). While functional, this is brittle — e.g., element handles get detached after re-render. Recommend migrating detail panel to pure React in a future refactor."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped per request)", "frontend": "100%"},
+  "test_credentials": "adminsupport@pmcmanagers.com / Admin@12345 via /admin/login",
+  "seed_data_creation": "None. Reused existing bid PMC-BID-2026-00022; assignment was cleared at test end to avoid state leak.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Bidding Ops Assign specialists flow fully functional at /admin/e/bidding. Click a non-awarded bid row (data-testid='bo-table' tbody '#bo-rows' tr), the detail panel's #d-act area then contains button [data-bo-action='assign'][data-testid='assign-specialists-{bidRef}']. Modal has [data-testid='assign-specialists-modal'] with selects [data-testid='assign-select-{role}'] and close [data-testid='assign-specialists-close']. Toasts rendered as portal elements (text 'Specialist assigned' / 'Assignment cleared'). Persistence confirmed via re-opening modal — selected value is restored from bid.assignments."
+}

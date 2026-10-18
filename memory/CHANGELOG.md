@@ -337,7 +337,30 @@ browser/cache once — this is what ends the recurring "old code on prod" crashe
   `build/downloads/` (was 346 MB → 3.9 MB).
 - Release bundles: `pmc-backend-v54a.zip`, `pmc-frontend-v54a-prod-build.zip`.
 
-## v55 (17 Jun 2026) — staff country-scope + hybrid bid-queue work distribution
+## v56 (18 Jun 2026) — Bidding Ops assignment UI + full Company Master + escrow scope
+Completes the v55 work-distribution phase. Four admin features, all verified in
+preview (testing_agent iteration_89 Bidding Ops 100%; iteration_88 the other three PASS).
+- **Bidding Ops assignment UI** (`/admin/e/bidding`, AdminBiddingOpsE.jsx): click a
+  bid row → detail panel shows **Assign specialists** → modal with one dropdown per
+  role (escrow_agent/certifier/legal_counsel/accounting/committee_member), each listing
+  active role-holders tagged with country scope (or Global). Calls
+  `POST /api/v1/bids/{id}/assign`. Feeds the v55 assigned-to-me queue.
+- **Company Master (full)** (Admin → Masters → Companies, new CompaniesTab.jsx):
+  profile = name/code/country→state→city→ZIP/address/reg no/incorporation date/tax id;
+  documents = single slot each for Incorporation Certificate / MOA / AOA
+  (upload/view/download/remove); **Licenses** = repeatable multi-file list. Profile
+  save never wipes documents. New endpoints: `PATCH /masters/companies/{id}`,
+  `PUT|DELETE /masters/companies/{id}/documents/{slot}`,
+  `POST /masters/companies/{id}/licenses`, `DELETE …/licenses/{index}`.
+- **Staff company picker**: New Staff + inline Edit forms have a Company dropdown →
+  persists `company_id`.
+- **Escrow institution country scope**: Admin → Escrow Institutions → select →
+  Country scope editor (blank = Global). `PATCH /escrow-institutions/{iid}/scope`;
+  `GET /escrow-institutions?country=XX` returns global-or-XX only.
+- Bundles: `pmc-backend-v56.zip`, `pmc-frontend-v56-prod-build.zip`. STATUS: verified
+  in preview; awaiting user prod deploy (one combined upload) + confirmation.
+
+
 - Specialist queues (escrow_agent, certifier, legal_counsel, accounting,
   committee_member) were global — everyone saw every country's bids. Now scoped.
 - Added `country_scope: List[str]` to staff (StaffCreateIn/UpdateIn/Public +

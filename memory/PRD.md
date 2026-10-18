@@ -10,7 +10,24 @@ reverse auctions, bid governance, EMD escrow workflows, vendor/staff/
 institution portals, AWS deployment bundles, and transactional notifications
 (Stripe, Resend, DocuSign, Emergent crons).
 
-## Current P0 — v54v (17 Jun 2026) — unified /login fix (CloudFront HTML-200 error pages)
+## Current P0 — v56 (18 Jun 2026) — work-distribution phase complete (4 admin features)
+Completes the v55 phase. All four verified in preview (testing_agent iter 89
+Bidding Ops 100%; iter 88 the other three PASS):
+1. **Bidding Ops assignment UI** (`/admin/e/bidding`): click a bid row → detail
+   panel → **Assign specialists** modal (one dropdown per role, staff tagged by
+   country scope / Global) → `POST /api/v1/bids/{id}/assign`.
+2. **Company Master (full)** (Admin → Masters → Companies): profile
+   (country→state→city→ZIP + incorporation details) + documents (Incorporation
+   Certificate / MOA / AOA single slots) + Licenses (multi-file); profile save
+   never wipes docs.
+3. **Staff company picker**: Company dropdown on New/Edit staff → `company_id`.
+4. **Escrow institution country scope**: per-institution scope editor (blank =
+   Global); `?country=` filter returns global-or-matching.
+Bundles: `pmc-backend-v56.zip`, `pmc-frontend-v56-prod-build.zip` — ONE combined
+upload. STATUS: preview-verified; awaiting user prod deploy + confirmation
+(Malaysia staff no longer see LATAM unassigned bids).
+
+## Prev P0 — v54v (17 Jun 2026) — unified /login fix (CloudFront HTML-200 error pages)
 Staff could log in via /staff/login but NOT via the unified /login. Root cause:
 CloudFront "Error Pages" rewrites a backend 403/404 on /api/* into index.html
 with HTTP 200. The unified /login "PMC staff" option probes each staff role; the
