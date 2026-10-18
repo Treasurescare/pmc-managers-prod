@@ -430,6 +430,49 @@ async def _on_envelope_completed(row: dict) -> None:
         pass
 
 
+async def create_escrow_recipient_view(envelope_id: str, side: str, return_url: str) -> str:
+    """v56g — mint an EMBEDDED signing URL for one side of an escrow_tx
+    envelope so the signer actually signs in-app (not the view-only console
+    view) and is redirected back to `return_url` afterwards. If the envelope
+    was created email-mode (no client_user_id on the recipient), we first
+    convert that recipient to embedded via update_recipients."""
+    row = await db.docusign_envelopes.find_one({"envelope_id": envelope_id})
+    if not row:
+        raise HTTPException(404, "Envelope row missing")
+    signer = None
+    for s in (row.get("signers") or []):
+        if s.get("side") == side:
+            signer = s
+            break
+    if not signer:
+        raise HTTPException(400, f"No signer on side {side}")
+    cuid = signer.get("client_user_id") or signer.get("email")
+    client = _client()
+    envelopes = ds.EnvelopesApi(client)
+    if not signer.get("client_user_id"):
+        # Legacy email-mode envelope — convert this recipient to embedded.
+        recips = ds.Recipients(signers=[ds.Signer(
+            recipient_id=str(signer.get("recipient_id")),
+            name=signer.get("name"), email=signer.get("email"),
+            routing_order=str(signer.get("routing_order") or "1"),
+            client_user_id=cuid)])
+        envelopes.update_recipients(DS_ACCOUNT_ID, envelope_id,
+                                     recipients=recips, resend_envelope="false")
+        await db.docusign_envelopes.update_one(
+            {"envelope_id": envelope_id, "signers.recipient_id": signer.get("recipient_id")},
+            {"$set": {"signers.$.client_user_id": cuid}})
+    view = envelopes.create_recipient_view(
+        DS_ACCOUNT_ID, envelope_id,
+        recipient_view_request=ds.RecipientViewRequest(
+            authentication_method="none",
+            client_user_id=cuid,
+            recipient_id=str(signer.get("recipient_id")),
+            user_name=signer.get("name") or signer.get("email"),
+            email=signer.get("email"),
+            return_url=return_url))
+    return view.url
+
+
 async def _deliver_escrow_signed_document(tid: str, envelope_id: str) -> None:
     """v56f — on escrow-tx envelope completion, download the combined signed
     PDF, store it on the transaction and EMAIL it (attached) to BOTH officers
@@ -460,6 +503,10 @@ async def _deliver_escrow_signed_document(tid: str, envelope_id: str) -> None:
             e = (off.get("email") or "").strip()
             if e and e.lower() not in {r.lower() for r in recipients}:
                 recipients.append(e)
+        # Also copy the admin who issued the envelope (admin master record).
+        creator = (row.get("created_by") if (row := await db.docusign_envelopes.find_one({"envelope_id": envelope_id})) else None)
+        if creator and creator.lower() not in {r.lower() for r in recipients}:
+            recipients.append(creator)
         from emails import send_email, _wrap
         subject = f"Signed escrow document — {tx.get('bid_ref') or 'EMD'}"
         html = _wrap(

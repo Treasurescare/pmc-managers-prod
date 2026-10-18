@@ -389,6 +389,7 @@ async def create_tx_docusign_envelope(
     pmc_signer = ds.Signer(
         email=pmc["email"], name=pmc.get("name") or pmc["email"],
         recipient_id="1", routing_order="1",
+        client_user_id=pmc["email"],
         tabs=ds.Tabs(
             sign_here_tabs=[ds.SignHere(
                 anchor_string="/pmc_sig/", anchor_units="pixels",
@@ -401,6 +402,7 @@ async def create_tx_docusign_envelope(
     esc_signer = ds.Signer(
         email=esc["email"], name=esc.get("name") or esc["email"],
         recipient_id="2", routing_order="1",
+        client_user_id=esc["email"],
         tabs=ds.Tabs(
             sign_here_tabs=[ds.SignHere(
                 anchor_string="/esc_sig/", anchor_units="pixels",
@@ -434,9 +436,10 @@ async def create_tx_docusign_envelope(
         "status": "sent",
         "signers": [
             {"side": "pmc", "name": pmc_signer.name, "email": pmc_signer.email,
-             "recipient_id": "1"},
+             "recipient_id": "1", "client_user_id": pmc_signer.email},
             {"side": "escrow_institution", "name": esc_signer.name,
-             "email": esc_signer.email, "recipient_id": "2"},
+             "email": esc_signer.email, "recipient_id": "2",
+             "client_user_id": esc_signer.email},
         ],
         "created_at": now_iso(),
         "created_by": admin.get("email"),
@@ -485,29 +488,19 @@ async def get_tx_docusign_url(
     if not signer:
         raise HTTPException(400, f"No signer on side {side}")
     try:
-        import docusign_esign as ds
-        from routers.docusign import _client, DS_ACCOUNT_ID
-        client = _client()
-        envelopes = ds.EnvelopesApi(client)
-        # Email-flow envelopes do NOT carry a client_user_id, so recipient
-        # view URLs cannot be minted; instead redirect to the DocuSign
-        # hosted signing session URL via the envelope's console view, or
-        # tell the operator to use the emailed link. We attempt console
-        # view and fall back to a message.
-        view = envelopes.create_console_view(DS_ACCOUNT_ID,
-            console_view_request=ds.ConsoleViewRequest(
-                envelope_id=env_id, return_url=f"{config.FRONTEND_URL}/admin"))
-        return {"url": view.url, "mode": "console"}
+        from routers.docusign import create_escrow_recipient_view
+        url = await create_escrow_recipient_view(
+            env_id, side, f"{config.FRONTEND_URL}/admin?signed=1")
+        return {"url": url, "envelope_id": env_id, "mode": "recipient"}
+    except HTTPException:
+        raise
     except Exception as e:
-        # v54a — degrade gracefully: email-mode envelopes always ship the
-        # hosted-signing link directly to both officers' inboxes, so the
-        # console-view is only a convenience, never a hard failure.
         import logging; logging.getLogger("escrow").info(
-            "admin docusign-url fallback for %s: %s", env_id, e)
+            "admin docusign recipient-view fallback for %s: %s", env_id, e)
         return {"url": None, "envelope_id": env_id, "mode": "email_only",
-                "message": "DocuSign emailed the hosted-signing link to both "
-                           "officers when the envelope was issued. Ask the "
-                           "officer to open that email to sign."}
+                "message": "In-app signing could not be opened for this envelope. "
+                           "Re-issue the DocuSign envelope (Send DocuSign) so both "
+                           "officers get an embedded signing session."}
 
 
 @router.post("/transactions/{tid}/docusign/refresh")

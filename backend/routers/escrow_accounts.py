@@ -815,28 +815,19 @@ async def my_transaction_docusign_url(tid: str,
             "They can issue one from the admin console.",
         )
     try:
-        import docusign_esign as ds
-        from routers.docusign import _client, DS_ACCOUNT_ID
-        client = _client()
-        envelopes = ds.EnvelopesApi(client)
-        view = envelopes.create_console_view(DS_ACCOUNT_ID,
-            console_view_request=ds.ConsoleViewRequest(
-                envelope_id=env_id,
-                return_url=f"{config.FRONTEND_URL}/escrow/me"))
-        return {"url": view.url, "envelope_id": env_id, "mode": "console"}
+        from routers.docusign import create_escrow_recipient_view
+        url = await create_escrow_recipient_view(
+            env_id, "escrow_institution", f"{config.FRONTEND_URL}/escrow/me?signed=1")
+        return {"url": url, "envelope_id": env_id, "mode": "recipient"}
+    except HTTPException:
+        raise
     except Exception as e:
-        # v54a — email-mode envelopes always ship a hosted-signing URL
-        # directly in the DocuSign email. If the console-view call fails
-        # (SDK missing, auth, account doesn't support console-view) we
-        # degrade gracefully so the institution can still see "the email
-        # from DocuSign is your signing route" instead of a 502 error.
         import logging; logging.getLogger("escrow").info(
-            "docusign console view fallback for %s: %s", env_id, e)
+            "institution docusign recipient-view fallback for %s: %s", env_id, e)
         return {"url": None, "envelope_id": env_id, "mode": "email_only",
-                "message": "DocuSign emailed the hosted-signing link to the "
-                           "institution officer when the envelope was issued. "
-                           "Please open that email to sign — in-portal signing "
-                           "is not available for this envelope."}
+                "message": "In-app signing could not be opened for this envelope. "
+                           "Ask PMC admin to re-issue the DocuSign envelope so you "
+                           "get an embedded signing session."}
 
 
 async def notify_account(account_id: str, kind: str, title: str,

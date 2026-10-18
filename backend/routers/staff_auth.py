@@ -392,20 +392,19 @@ async def staff_escrow_docusign_url(tid: str, admin=Depends(current_admin)) -> D
             detail="PMC admin has not issued a DocuSign envelope for this "
                    "transaction yet.")
     try:
-        import docusign_esign as ds
-        from routers.docusign import _client, DS_ACCOUNT_ID
-        client = _client()
-        envelopes = ds.EnvelopesApi(client)
-        view = envelopes.create_console_view(DS_ACCOUNT_ID,
-            console_view_request=ds.ConsoleViewRequest(
-                envelope_id=env_id, return_url=f"{config.FRONTEND_URL}/staff"))
-        return {"url": view.url, "envelope_id": env_id, "mode": "console"}
+        from routers.docusign import create_escrow_recipient_view
+        url = await create_escrow_recipient_view(
+            env_id, "pmc", f"{config.FRONTEND_URL}/staff?signed=1")
+        return {"url": url, "envelope_id": env_id, "mode": "recipient"}
+    except HTTPException:
+        raise
     except Exception as e:
         import logging
-        logging.getLogger("escrow").info("staff docusign-url fallback %s: %s", env_id, e)
+        logging.getLogger("escrow").info("staff docusign recipient-view fallback %s: %s", env_id, e)
         return {"url": None, "envelope_id": env_id, "mode": "email_only",
-                "message": "DocuSign emailed the hosted-signing link to you when "
-                           "the envelope was issued. Open that email to sign."}
+                "message": "In-app signing could not be opened. Ask PMC admin to "
+                           "re-issue the DocuSign envelope so you get an embedded "
+                           "signing session."}
 
 
 @router.post("/escrow/transactions/{tid}/docusign/refresh")

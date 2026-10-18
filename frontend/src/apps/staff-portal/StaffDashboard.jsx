@@ -1,24 +1,30 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { staffApi, bidApi, inspectionApi, uploadsApi, formatApiError, showApiError} from "@/lib/api";
+import { staffApi, bidApi, inspectionApi, uploadsApi, showApiError } from "@/lib/api";
 
 const ROLE_LABELS = {
-  admin: "Administrator",
-  reviewer: "Reviewer",
+  admin: "Administrator", reviewer: "Reviewer",
   escrow_agent: "Escrow Agent", certifier: "Site Certifier",
   legal_counsel: "Legal Counsel", accounting: "Accounting Team",
   committee_member: "Bid Committee", auditor: "Auditor", support: "Support",
   management: "Management", partner: "Partner", agent: "Agent",
 };
 
-// What each role can accept AT (bid status prerequisite -> next status)
 const ROLE_QUEUE_STATUS = {
-  escrow_agent: "emd_paid",
-  certifier: "admin_flagged",
-  legal_counsel: "certifier_cleared",
-  accounting: "legal_cleared",
+  escrow_agent: "emd_paid", certifier: "admin_flagged",
+  legal_counsel: "certifier_cleared", accounting: "legal_cleared",
   committee_member: "accounting_cleared",
+};
+
+// Explicit palette — inline styles so the global [data-ui="e"] slate→dark
+// remap can never wash the staff portal out again.
+const C = {
+  page: "#eef2f7", chrome: "#0b1e3f", surface: "#ffffff",
+  ink: "#14201a", muted: "#5b6b62", faint: "#7c8a81",
+  border: "#d9e0ea", amberBg: "#fdf6d8", amberBorder: "#e3b55c",
+  emerald: "#059669", red: "#dc2626", navy: "#0b1e3f",
+  chipBg: "#e2e8f0", chipInk: "#334155", okBg: "#d1fae5", okInk: "#065f46",
 };
 
 export default function StaffDashboard() {
@@ -26,6 +32,9 @@ export default function StaffDashboard() {
   const [me, setMe] = useState(null);
   const [bids, setBids] = useState([]);
   const [inspections, setInspections] = useState([]);
+  const [escrow, setEscrow] = useState({ pending_signatures: [], transactions: [] });
+  const [tab, setTab] = useState("overview");
+  const [busy, setBusy] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -34,10 +43,23 @@ export default function StaffDashboard() {
         setMe(m);
         if (["admin", "reviewer"].includes(m.active_role)) return nav("/admin");
         await refresh(m);
-      } catch {
-        nav("/staff/login");
-      }
+        await loadEscrow();
+        // Returning from a DocuSign embedded signing ceremony?
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("signed") || params.get("event")) {
+          const tid = sessionStorage.getItem("pmc.signing.tid");
+          window.history.replaceState({}, "", "/staff");
+          toast.message("Returned from DocuSign — reconciling signature…");
+          setTab("escrow");
+          if (tid) { try { await staffApi.escrowRefresh(tid); } catch { /* ignore */ } }
+          sessionStorage.removeItem("pmc.signing.tid");
+          await loadEscrow();
+        } else if ((await staffApi.escrowSignatures().catch(() => null))?.pending_signatures_count) {
+          setTab("escrow");
+        }
+      } catch { nav("/staff/login"); }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nav]);
 
   const refresh = async (m = me) => {
@@ -51,20 +73,20 @@ export default function StaffDashboard() {
     setInspections(inspList || []);
   };
 
+  const loadEscrow = () =>
+    staffApi.escrowSignatures()
+      .then(setEscrow)
+      .catch(() => setEscrow({ pending_signatures: [], transactions: [] }));
+
   const logout = async () => {
-    try { await staffApi.logout(); }
-    catch (err) {
-      if (process.env.NODE_ENV !== "production") console.debug("staff logout skipped:", err?.response?.status);
-    }
+    try { await staffApi.logout(); } catch { /* ignore */ }
     nav("/login");
   };
 
-  // v53p — swap active role in place for multi-role staff. Re-issues JWT,
-  // refreshes the queue, and routes to /admin if the new role is admin.
   const switchRole = async (newRole) => {
     if (!newRole || newRole === me?.active_role) return;
     try {
-      const r = await staffApi.switchRole(newRole);
+      await staffApi.switchRole(newRole);
       toast.success(`Switched to ${ROLE_LABELS[newRole] || newRole}`);
       if (newRole === "admin") return nav("/admin");
       const m = await staffApi.me();
@@ -93,10 +115,8 @@ export default function StaffDashboard() {
     try {
       const p = await uploadsApi.presign(file.name, file.type || "image/jpeg", "site-media", file.size);
       const r = await uploadsApi.direct(p.key, file);
-      await inspectionApi.addMedia(ins.id, {
-        kind, key: r.key, filename: file.name,
-        content_type: file.type || "image/jpeg", size_bytes: r.size_bytes,
-      });
+      await inspectionApi.addMedia(ins.id, { kind, key: r.key, filename: file.name,
+        content_type: file.type || "image/jpeg", size_bytes: r.size_bytes });
       toast.success("Uploaded");
       await refresh();
     } catch (err) { showApiError(err); }
@@ -110,215 +130,42 @@ export default function StaffDashboard() {
     } catch (err) { showApiError(err); }
   };
 
-  const queueLabel = useMemo(() => ({
-    escrow_agent: "EMD paid — awaiting Escrow acceptance",
-    certifier: "Admin-flagged — awaiting Certifier",
-    legal_counsel: "Certifier-cleared — awaiting Legal",
-    accounting: "Legal-cleared — awaiting Accounting",
-    committee_member: "Accounting-cleared — awaiting Committee",
-  })[me?.active_role] || "Queue", [me]);
-
-  if (!me) return <div className="p-10 text-slate-500">Loading…</div>;
-
-  return (
-    <div className="min-h-screen" style={{ background: "#eef2f7", color: "#0f172a" }} data-testid="staff-dashboard">
-      <header className="bg-[#0b1e3f] text-white">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
-            <div className="text-xs tracking-widest uppercase text-amber-300">Staff Portal</div>
-            <h1 className="text-lg font-serif">{me.name} — {ROLE_LABELS[me.active_role] || me.active_role}</h1>
-          </div>
-          <div className="text-sm flex items-center gap-4">
-            {/* v53p — in-place role swap for multi-role staff. Hidden
-                when the user only holds a single role. */}
-            {(me.roles || []).length > 1 && (
-              <label className="text-xs flex items-center gap-2" data-testid="staff-role-switch">
-                <span className="text-white/60 uppercase tracking-widest">Active role</span>
-                <select value={me.active_role}
-                        onChange={(e) => switchRole(e.target.value)}
-                        className="bg-white/10 border border-white/20 text-white px-2 py-1 rounded"
-                        data-testid="staff-role-switch-select">
-                  {(me.roles || []).map((r) => (
-                    <option key={r} value={r} style={{ color: "#0b1e3f" }}>
-                      {ROLE_LABELS[r] || r}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-            <span className="text-white/70">{me.email}</span>
-            <button onClick={logout} className="text-white/80 hover:text-white underline"
-              data-testid="staff-logout">Sign out</button>
-          </div>
-        </div>
-      </header>
-
-      <div className="max-w-6xl mx-auto px-6 py-6 space-y-8">
-        <EscrowSignatures />
-
-        <section>
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-700 mb-3">
-            {queueLabel} · {bids.length}
-          </h2>
-          <div className="space-y-2" data-testid="staff-bid-queue">
-            {bids.map((b) => (
-              <div key={b.id} className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm"
-                data-testid={`staff-bid-${b.bid_ref}`}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-xs font-medium text-slate-600">{b.bid_ref} · {b.notice_ref}</div>
-                    <div className="text-sm text-slate-900">{b.company_name || b.vendor_email} — 
-                      <strong> {b.price_currency} {(b.price_amount || 0).toLocaleString()}</strong>
-                    </div>
-                    <div className="text-xs text-slate-600 mt-1">Status: {b.status}</div>
-                  </div>
-                  <div className="flex gap-2">
-                    {me.active_role !== "committee_member" && (
-                      <>
-                        <button onClick={() => decide(b, "accept")}
-                          className="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded hover:bg-emerald-700"
-                          data-testid={`accept-${b.bid_ref}`}>Accept</button>
-                        <button onClick={() => decide(b, "reject")}
-                          className="text-xs bg-red-600 text-white px-3 py-1.5 rounded hover:bg-red-700"
-                          data-testid={`reject-${b.bid_ref}`}>Reject</button>
-                      </>
-                    )}
-                    {me.active_role === "committee_member" && (
-                      <button onClick={() => committeeAward(b)}
-                        className="text-xs bg-amber-500 text-white px-3 py-1.5 rounded hover:bg-amber-600"
-                        data-testid={`award-${b.bid_ref}`}>Award</button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-            {bids.length === 0 && <div className="text-sm text-slate-500">Queue is clear.</div>}
-          </div>
-        </section>
-
-        {me.active_role === "certifier" && (
-          <section>
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-600 mb-3">
-              My site inspections · {inspections.length}
-            </h2>
-            <div className="space-y-3" data-testid="certifier-inspections">
-              {inspections.map((ins) => (
-                <div key={ins.id} className="bg-white border rounded-lg p-4"
-                  data-testid={`inspection-${ins.id}`}>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="text-xs text-slate-500">{ins.notice_ref}</div>
-                      <div className="text-sm mt-0.5">
-                        Scheduled: {(ins.scheduled_at || "").slice(0, 16).replace("T", " ")}
-                      </div>
-                      <div className="text-xs text-slate-500">Location: {ins.location || "—"}</div>
-                      <div className="text-xs mt-1">Status: <strong>{ins.status}</strong> · Result: <strong>{ins.result}</strong></div>
-                    </div>
-                    <div className="flex gap-2">
-                      <label className="text-xs bg-slate-100 border rounded px-2 py-1 cursor-pointer">
-                        📷 Photo
-                        <input type="file" accept="image/*" hidden
-                          onChange={(e) => e.target.files?.[0] && uploadInspectionMedia(ins, e.target.files[0], "photo")} />
-                      </label>
-                      <label className="text-xs bg-slate-100 border rounded px-2 py-1 cursor-pointer">
-                        🎥 Video
-                        <input type="file" accept="video/*" hidden
-                          onChange={(e) => e.target.files?.[0] && uploadInspectionMedia(ins, e.target.files[0], "video")} />
-                      </label>
-                    </div>
-                  </div>
-
-                  {ins.media?.length > 0 && (
-                    <div className="mt-3 grid grid-cols-4 gap-2 text-xs">
-                      {ins.media.map((m, i) => (
-                        <div key={`media-${m.filename || i}`} className="border rounded p-2 bg-slate-50">
-                          <div className="truncate">{m.kind === "video" ? "🎥" : "📷"} {m.filename}</div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {ins.status !== "completed" && (
-                    <div className="mt-3 flex gap-2">
-                      <button onClick={() => completeInspection(ins, "pass")}
-                        className="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded hover:bg-emerald-700"
-                        data-testid={`inspect-pass-${ins.id}`}>Complete — Pass</button>
-                      <button onClick={() => completeInspection(ins, "fail")}
-                        className="text-xs bg-red-600 text-white px-3 py-1.5 rounded hover:bg-red-700"
-                        data-testid={`inspect-fail-${ins.id}`}>Complete — Fail</button>
-                    </div>
-                  )}
-                </div>
-              ))}
-              {inspections.length === 0 && <div className="text-sm text-slate-500">No inspections assigned yet.</div>}
-            </div>
-          </section>
-        )}
-      </div>
-    </div>
-  );
-}
-
-
-// v56f — PMC-officer escrow signing surface. Self-contained: lists the escrow
-// transactions where the logged-in staff member is the named PMC officer, with
-// Open in DocuSign (Safari-safe), Refresh status, and Download signed PDF.
-function fmtDate(iso) {
-  if (!iso) return "—";
-  return String(iso).slice(0, 19).replace("T", " ");
-}
-
-function EscrowSignatures() {
-  const [data, setData] = useState(null);
-  const [busy, setBusy] = useState("");
-
-  const load = () =>
-    staffApi.escrowSignatures()
-      .then(setData)
-      .catch(() => setData({ pending_signatures: [], transactions: [] }));
-
-  useEffect(() => { load(); }, []);
-
+  // ---- Escrow embedded signing ----
   const openDocuSign = async (tid) => {
-    // Safari blocks window.open() that runs AFTER an await; pre-open synchronously.
-    const win = window.open("", "_blank");
     setBusy(tid);
     try {
       const r = await staffApi.escrowDocuSignUrl(tid);
       if (r?.url) {
-        if (win) win.location.href = r.url; else window.location.href = r.url;
+        sessionStorage.setItem("pmc.signing.tid", tid);
+        window.location.assign(r.url); // top-level nav; DocuSign returns to /staff?signed=1
       } else {
-        if (win) win.close();
-        toast.info("Open your DocuSign email to sign", {
-          description: r?.message || "DocuSign emailed you the hosted-signing link.",
+        toast.info("In-app signing not available yet", {
+          description: r?.message || "Ask PMC admin to re-issue the DocuSign envelope.",
           duration: 12000,
         });
       }
-    } catch (e) {
-      if (win) win.close();
-      showApiError(e, { fallbackTitle: "Could not open DocuSign" });
-    } finally { setBusy(""); }
+    } catch (e) { showApiError(e, { fallbackTitle: "Could not open DocuSign" }); }
+    finally { setBusy(""); }
   };
 
-  const refresh = async (tid) => {
+  const refreshTx = async (tid) => {
     setBusy(tid);
     try {
       const r = await staffApi.escrowRefresh(tid);
       toast.success(`DocuSign status: ${r.docusign_status || r.status || "updated"}`);
-      await load();
+      await loadEscrow();
     } catch (e) { showApiError(e, { fallbackTitle: "Refresh failed" }); }
     finally { setBusy(""); }
   };
 
-  const download = async (tid) => {
+  const downloadDoc = async (tid) => {
     setBusy(tid);
     try {
       const r = await staffApi.escrowSignedDoc(tid);
       const bin = atob(r.content_b64);
       const bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-      const blob = new Blob([bytes], { type: r.content_type || "application/pdf" });
-      const url = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(new Blob([bytes], { type: r.content_type || "application/pdf" }));
       const a = document.createElement("a");
       a.href = url; a.download = r.filename || "PMC-Escrow-Signed.pdf"; a.click();
       URL.revokeObjectURL(url);
@@ -326,77 +173,250 @@ function EscrowSignatures() {
     finally { setBusy(""); }
   };
 
-  if (!data) return null;
-  const txns = data.transactions || [];
-  if (txns.length === 0) return null;
-  const pendingIds = new Set((data.pending_signatures || []).map((t) => t.id));
+  const queueLabel = useMemo(() => ({
+    escrow_agent: "EMD paid — awaiting Escrow acceptance",
+    certifier: "Admin-flagged — awaiting Certifier",
+    legal_counsel: "Certifier-cleared — awaiting Legal",
+    accounting: "Legal-cleared — awaiting Accounting",
+    committee_member: "Accounting-cleared — awaiting Committee",
+  })[me?.active_role] || "Work queue", [me]);
+
+  if (!me) return <div style={{ padding: 40, color: C.muted }}>Loading…</div>;
+
+  const escrowTxns = escrow.transactions || [];
+  const pendingCount = escrow.pending_signatures_count || (escrow.pending_signatures || []).length || 0;
+
+  const navItems = [
+    { key: "overview", label: "Overview" },
+    { key: "escrow", label: "Escrow signatures", badge: pendingCount || null },
+    { key: "queue", label: queueLabel.split(" — ")[0] || "Work queue", badge: bids.length || null },
+  ];
+  if (me.active_role === "certifier") navItems.push({ key: "inspections", label: "Site inspections", badge: inspections.length || null });
 
   return (
+    <div style={{ minHeight: "100vh", background: C.page, color: C.ink }} data-testid="staff-dashboard">
+      {/* Top bar */}
+      <header style={{ background: C.chrome, color: "#fff" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: "#fcd34d" }}>Staff Portal</div>
+            <h1 style={{ fontSize: 20, fontFamily: "'Cormorant Garamond', Georgia, serif", margin: 0 }}>
+              {me.name} — {ROLE_LABELS[me.active_role] || me.active_role}
+            </h1>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: 14 }}>
+            {(me.roles || []).length > 1 && (
+              <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 8 }} data-testid="staff-role-switch">
+                <span style={{ color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: "0.12em" }}>Active role</span>
+                <select value={me.active_role} onChange={(e) => switchRole(e.target.value)}
+                  style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", padding: "4px 8px", borderRadius: 6 }}
+                  data-testid="staff-role-switch-select">
+                  {(me.roles || []).map((r) => (
+                    <option key={r} value={r} style={{ color: C.navy }}>{ROLE_LABELS[r] || r}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <span style={{ color: "rgba(255,255,255,0.75)" }}>{me.email}</span>
+            <button onClick={logout} style={{ color: "rgba(255,255,255,0.85)", textDecoration: "underline", background: "none", border: "none", cursor: "pointer" }} data-testid="staff-logout">Sign out</button>
+          </div>
+        </div>
+      </header>
+
+      {/* Sidebar + main */}
+      <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 24, padding: "24px" }}>
+        <aside style={{ width: 232, flexShrink: 0 }} data-testid="staff-sidebar">
+          <nav style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", position: "sticky", top: 24 }}>
+            {navItems.map((it) => {
+              const active = tab === it.key;
+              return (
+                <button key={it.key} onClick={() => setTab(it.key)}
+                  data-testid={`staff-nav-${it.key}`}
+                  style={{
+                    width: "100%", textAlign: "left", padding: "12px 16px",
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    border: "none", cursor: "pointer", fontSize: 14,
+                    background: active ? C.navy : "transparent",
+                    color: active ? "#fff" : C.ink,
+                    borderLeft: active ? `3px solid #fcd34d` : "3px solid transparent",
+                  }}>
+                  <span>{it.label}</span>
+                  {it.badge ? (
+                    <span style={{
+                      minWidth: 22, textAlign: "center", fontSize: 12, fontWeight: 600,
+                      borderRadius: 999, padding: "1px 7px",
+                      background: active ? "#fcd34d" : C.navy, color: active ? C.navy : "#fff",
+                    }}>{it.badge}</span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </nav>
+        </aside>
+
+        <main style={{ flex: 1, minWidth: 0 }}>
+          {tab === "overview" && (
+            <section data-testid="staff-overview" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 16 }}>
+              <StatCard label="Escrow documents to sign" value={pendingCount} hint="Awaiting your signature" onClick={() => setTab("escrow")} />
+              <StatCard label={queueLabel} value={bids.length} hint="In your work queue" onClick={() => setTab("queue")} />
+              {me.active_role === "certifier" && (
+                <StatCard label="Site inspections" value={inspections.length} hint="Assigned to you" onClick={() => setTab("inspections")} />
+              )}
+            </section>
+          )}
+
+          {tab === "escrow" && (
+            <EscrowList txns={escrowTxns} pendingIds={new Set((escrow.pending_signatures || []).map((t) => t.id))}
+              busy={busy} onOpen={openDocuSign} onRefresh={refreshTx} onDownload={downloadDoc} />
+          )}
+
+          {tab === "queue" && (
+            <section>
+              <h2 style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.muted, marginBottom: 12 }}>
+                {queueLabel} · {bids.length}
+              </h2>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }} data-testid="staff-bid-queue">
+                {bids.map((b) => (
+                  <div key={b.id} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 16 }} data-testid={`staff-bid-${b.bid_ref}`}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: C.muted }}>{b.bid_ref} · {b.notice_ref}</div>
+                        <div style={{ fontSize: 14, color: C.ink }}>{b.company_name || b.vendor_email} — <strong>{b.price_currency} {(b.price_amount || 0).toLocaleString()}</strong></div>
+                        <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>Status: {b.status}</div>
+                      </div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        {me.active_role !== "committee_member" ? (
+                          <>
+                            <button onClick={() => decide(b, "accept")} style={btn(C.emerald)} data-testid={`accept-${b.bid_ref}`}>Accept</button>
+                            <button onClick={() => decide(b, "reject")} style={btn(C.red)} data-testid={`reject-${b.bid_ref}`}>Reject</button>
+                          </>
+                        ) : (
+                          <button onClick={() => committeeAward(b)} style={btn("#d97706")} data-testid={`award-${b.bid_ref}`}>Award</button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {bids.length === 0 && <div style={{ fontSize: 14, color: C.muted }}>Queue is clear.</div>}
+              </div>
+            </section>
+          )}
+
+          {tab === "inspections" && me.active_role === "certifier" && (
+            <section data-testid="certifier-inspections">
+              <h2 style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.muted, marginBottom: 12 }}>
+                My site inspections · {inspections.length}
+              </h2>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {inspections.map((ins) => (
+                  <div key={ins.id} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 16 }} data-testid={`inspection-${ins.id}`}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+                      <div>
+                        <div style={{ fontSize: 12, color: C.muted }}>{ins.notice_ref}</div>
+                        <div style={{ fontSize: 14 }}>Scheduled: {(ins.scheduled_at || "").slice(0, 16).replace("T", " ")}</div>
+                        <div style={{ fontSize: 12, color: C.muted }}>Location: {ins.location || "—"}</div>
+                        <div style={{ fontSize: 12, marginTop: 4 }}>Status: <strong>{ins.status}</strong> · Result: <strong>{ins.result}</strong></div>
+                      </div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <label style={{ fontSize: 12, background: C.page, border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 8px", cursor: "pointer" }}>
+                          Photo<input type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && uploadInspectionMedia(ins, e.target.files[0], "photo")} />
+                        </label>
+                        <label style={{ fontSize: 12, background: C.page, border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 8px", cursor: "pointer" }}>
+                          Video<input type="file" accept="video/*" hidden onChange={(e) => e.target.files?.[0] && uploadInspectionMedia(ins, e.target.files[0], "video")} />
+                        </label>
+                      </div>
+                    </div>
+                    {ins.status !== "completed" && (
+                      <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+                        <button onClick={() => completeInspection(ins, "pass")} style={btn(C.emerald)} data-testid={`inspect-pass-${ins.id}`}>Complete — Pass</button>
+                        <button onClick={() => completeInspection(ins, "fail")} style={btn(C.red)} data-testid={`inspect-fail-${ins.id}`}>Complete — Fail</button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {inspections.length === 0 && <div style={{ fontSize: 14, color: C.muted }}>No inspections assigned yet.</div>}
+              </div>
+            </section>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+function btn(bg) {
+  return { fontSize: 12, background: bg, color: "#fff", padding: "6px 12px", borderRadius: 6, border: "none", cursor: "pointer" };
+}
+
+function StatCard({ label, value, hint, onClick }) {
+  return (
+    <button onClick={onClick} style={{ textAlign: "left", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, cursor: "pointer" }}>
+      <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.08em", color: C.muted }}>{label}</div>
+      <div style={{ fontSize: 36, fontWeight: 600, color: C.ink, marginTop: 4 }}>{value}</div>
+      <div style={{ fontSize: 12, color: C.faint }}>{hint}</div>
+    </button>
+  );
+}
+
+function Chip({ ok, children }) {
+  return (
+    <span style={{ fontSize: 11, borderRadius: 999, padding: "2px 10px", background: ok ? C.okBg : C.chipBg, color: ok ? C.okInk : C.chipInk }}>
+      {children}
+    </span>
+  );
+}
+
+function EscrowList({ txns, pendingIds, busy, onOpen, onRefresh, onDownload }) {
+  return (
     <section data-testid="staff-escrow-signatures">
-      <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-700 mb-3">
-        Escrow documents — your signature · {data.pending_signatures_count || 0} pending
+      <h2 style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.muted, marginBottom: 12 }}>
+        Escrow documents — your signature · {pendingIds.size} pending
       </h2>
-      <div className="space-y-2">
+      {txns.length === 0 && (
+        <div style={{ fontSize: 14, color: C.muted, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 20 }}>
+          You have no escrow transactions assigned for signature.
+        </div>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {txns.map((t) => {
           const isPending = pendingIds.has(t.id);
           return (
-            <div key={t.id}
-              className={"rounded-lg p-4 border shadow-sm " +
-                (isPending ? "bg-amber-50 border-amber-300" : "bg-white border-slate-200")}
-              data-testid={`staff-escrow-tx-${t.bid_ref || t.id}`}>
-              <div className="flex items-start justify-between gap-3 flex-wrap">
-                <div className="min-w-0">
-                  <div className="text-xs font-medium text-slate-600">
-                    {t.bid_ref || "—"} · {t.notice_ref || "—"}
-                  </div>
-                  <div className="text-sm text-slate-900">
-                    {t.vendor_ref ? `${t.vendor_ref} — ` : ""}
-                    <strong>{t.currency} {(t.amount || 0).toLocaleString()}</strong>
-                  </div>
-                  <div className="text-xs text-slate-600 mt-1">
-                    {t.institution ? `${t.institution} · ` : ""}{t.account_name || ""}
-                  </div>
-                  <div className="flex items-center gap-2 mt-2 text-[11px]">
-                    <span className={"px-2 py-0.5 rounded-full " +
-                      (t.signed_by_pmc ? "bg-emerald-100 text-emerald-800" : "bg-slate-300 text-slate-800")}>
-                      You (PMC) {t.signed_by_pmc ? "✓ signed" : "· awaiting"}
-                    </span>
-                    <span className={"px-2 py-0.5 rounded-full " +
-                      (t.signed_by_institution ? "bg-emerald-100 text-emerald-800" : "bg-slate-300 text-slate-800")}>
-                      Institution {t.signed_by_institution ? "✓ signed" : "· awaiting"}
-                    </span>
+            <div key={t.id} data-testid={`staff-escrow-tx-${t.bid_ref || t.id}`}
+              style={{ background: isPending ? C.amberBg : C.surface, border: `1px solid ${isPending ? C.amberBorder : C.border}`, borderRadius: 10, padding: 16 }}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: C.muted }}>{t.bid_ref || "—"} · {t.notice_ref || "—"}</div>
+                  <div style={{ fontSize: 14, color: C.ink }}>{t.vendor_ref ? `${t.vendor_ref} — ` : ""}<strong>{t.currency} {(t.amount || 0).toLocaleString()}</strong></div>
+                  <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{t.institution ? `${t.institution} · ` : ""}{t.account_name || ""}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                    <Chip ok={t.signed_by_pmc}>You (PMC) {t.signed_by_pmc ? "✓ signed" : "· awaiting"}</Chip>
+                    <Chip ok={t.signed_by_institution}>Institution {t.signed_by_institution ? "✓ signed" : "· awaiting"}</Chip>
                     {t.docusign_status && (
-                      <span className="px-2 py-0.5 rounded-full bg-slate-800 text-white">
-                        DocuSign: {t.docusign_status}
-                      </span>
+                      <span style={{ fontSize: 11, borderRadius: 999, padding: "2px 10px", background: C.navy, color: "#fff" }}>DocuSign: {t.docusign_status}</span>
                     )}
                   </div>
                 </div>
-                <div className="flex flex-col gap-2 items-end">
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
                   {t.docusign_envelope_id ? (
                     <>
                       {!t.signed_by_pmc && (
-                        <button onClick={() => openDocuSign(t.id)} disabled={busy === t.id}
-                          className="text-xs bg-[#0b1e3f] text-white px-3 py-1.5 rounded hover:bg-[#0a1733] disabled:opacity-40"
-                          data-testid={`staff-escrow-sign-${t.bid_ref || t.id}`}>
+                        <button onClick={() => onOpen(t.id)} disabled={busy === t.id} style={{ ...btn(C.navy), opacity: busy === t.id ? 0.5 : 1 }} data-testid={`staff-escrow-sign-${t.bid_ref || t.id}`}>
                           {busy === t.id ? "Opening…" : "Open in DocuSign to sign"}
                         </button>
                       )}
-                      <button onClick={() => refresh(t.id)} disabled={busy === t.id}
-                        className="text-xs border border-slate-400 text-slate-800 font-medium px-3 py-1.5 rounded hover:bg-slate-100 disabled:opacity-40"
+                      <button onClick={() => onRefresh(t.id)} disabled={busy === t.id}
+                        style={{ fontSize: 12, background: "transparent", color: C.ink, fontWeight: 600, padding: "6px 12px", borderRadius: 6, border: `1px solid ${C.muted}`, cursor: "pointer", opacity: busy === t.id ? 0.5 : 1 }}
                         data-testid={`staff-escrow-refresh-${t.bid_ref || t.id}`}>
                         Refresh DocuSign
                       </button>
                       {t.has_signed_document && (
-                        <button onClick={() => download(t.id)} disabled={busy === t.id}
-                          className="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded hover:bg-emerald-700 disabled:opacity-40"
-                          data-testid={`staff-escrow-download-${t.bid_ref || t.id}`}>
+                        <button onClick={() => onDownload(t.id)} disabled={busy === t.id} style={{ ...btn(C.emerald), opacity: busy === t.id ? 0.5 : 1 }} data-testid={`staff-escrow-download-${t.bid_ref || t.id}`}>
                           Download signed PDF
                         </button>
                       )}
                     </>
                   ) : (
-                    <span className="text-xs text-slate-600 italic text-right max-w-[220px]">
+                    <span style={{ fontSize: 12, color: C.muted, fontStyle: "italic", textAlign: "right", maxWidth: 220 }}>
                       Awaiting PMC admin to issue the DocuSign envelope.
                     </span>
                   )}
