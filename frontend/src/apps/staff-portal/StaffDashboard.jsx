@@ -44,6 +44,7 @@ export default function StaffDashboard() {
   const [bids, setBids] = useState([]);
   const [inspections, setInspections] = useState([]);
   const [escrow, setEscrow] = useState({ pending_signatures: [], transactions: [] });
+  const [processed, setProcessed] = useState({ bids: [], count: 0 });
   const [tab, setTab] = useState("overview");
 
   useEffect(() => {
@@ -54,6 +55,7 @@ export default function StaffDashboard() {
         if (["admin", "reviewer"].includes(m.active_role)) return nav("/admin");
         await refresh(m);
         const esc = await loadEscrow();
+        loadProcessed();
         const params = new URLSearchParams(window.location.search);
         if (params.get("signed") || params.get("event")) {
           const tid = sessionStorage.getItem("pmc.signing.tid");
@@ -87,6 +89,9 @@ export default function StaffDashboard() {
     catch { setEscrow({ pending_signatures: [], transactions: [] }); return null; }
   };
 
+  const loadProcessed = () =>
+    staffApi.myProcessedBids().then(setProcessed).catch(() => setProcessed({ bids: [], count: 0 }));
+
   const logout = async () => { try { await staffApi.logout(); } catch { /* ignore */ } nav("/login"); };
 
   const switchRole = async (newRole) => {
@@ -106,6 +111,7 @@ export default function StaffDashboard() {
       await bidApi.decide(bid.id, { action, role: me.active_role, notes: notes || "" });
       toast.success(`Bid ${bid.bid_ref}: ${action}`);
       await refresh();
+      loadProcessed();
     } catch (err) { showApiError(err, { fallbackTitle: "Decision failed" }); }
   };
 
@@ -182,6 +188,7 @@ export default function StaffDashboard() {
     { key: "overview", label: "Overview" },
     { key: "escrow", label: "Escrow signatures", badge: pendingCount || null },
     { key: "queue", label: queueLabel.split(" — ")[0] || "Work queue", badge: bids.length || null },
+    { key: "completed", label: "Completed", badge: processed.count || null },
   ];
   if (me.active_role === "certifier") navItems.push({ key: "inspections", label: "Site inspections", badge: inspections.length || null });
 
@@ -233,6 +240,7 @@ export default function StaffDashboard() {
             <section data-testid="staff-overview" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 16 }}>
               <StatCard label="Escrow documents to sign" value={pendingCount} hint="Awaiting your signature" onClick={() => setTab("escrow")} />
               <StatCard label={queueLabel} value={bids.length} hint="In your work queue" onClick={() => setTab("queue")} />
+              <StatCard label="Completed by you" value={processed.count} hint="Your decision history" onClick={() => setTab("completed")} />
               {me.active_role === "certifier" && <StatCard label="Site inspections" value={inspections.length} hint="Assigned to you" onClick={() => setTab("inspections")} />}
             </section>
           )}
@@ -293,6 +301,30 @@ export default function StaffDashboard() {
               </div>
             </section>
           )}
+          {tab === "completed" && (
+            <section data-testid="staff-completed">
+              <Heading>Completed / processed by you · {processed.count}</Heading>
+              {(processed.bids || []).length === 0 && <Empty>You haven't processed any items yet. Items you Accept/Reject appear here with their audit trail.</Empty>}
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {(processed.bids || []).map((b) => (
+                  <div key={b.id} style={card()} data-testid={`staff-completed-${b.bid_ref}`}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: C.muted }}>{b.bid_ref} · {b.notice_ref}</div>
+                    <div style={{ fontSize: 14, color: C.ink }}>{b.company_name || b.vendor_email}</div>
+                    <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>Current status: <strong>{b.status}</strong></div>
+                    <div style={{ marginTop: 8, borderTop: `1px solid ${C.line}`, paddingTop: 8 }}>
+                      {(b.my_actions || []).map((a, i) => (
+                        <div key={i} style={{ fontSize: 12, marginBottom: 6 }}>
+                          <Chip ok>{(a.action || "").replace(/_/g, " ")}</Chip>
+                          <span style={{ color: C.muted, marginLeft: 8 }}>{a.from_status} → {a.to_status} · {(a.at || "").slice(0, 16).replace("T", " ")}</span>
+                          {a.notes && <div style={{ color: C.faint, marginTop: 2, fontStyle: "italic" }}>“{a.notes}”</div>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
         </main>
       </div>
     </div>
@@ -346,7 +378,9 @@ function BidRow({ b, committee, onDecide, onAward }) {
 }
 
 function EscrowRow({ t, pending, onOpen, onRefresh, onDownload, onSignAction }) {
-  const [action, setAction] = useState(t.pmc_action || "release_to_contractor");
+  const [action, setAction] = useState(
+    ["release_to_contractor", "release_to_vendor", "forfeit"].includes(t.pmc_action)
+      ? t.pmc_action : "release_to_contractor");
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState("");
   const finalized = ["released_to_contractor", "released_to_vendor", "forfeited", "cancelled"].includes(t.status);

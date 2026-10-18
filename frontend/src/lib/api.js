@@ -389,6 +389,8 @@ export const staffApi = {
     api.post(`/api/v1/staff/escrow/transactions/${tid}/docusign/refresh`).then((r) => r.data),
   escrowSignedDoc: (tid) =>
     api.get(`/api/v1/staff/escrow/transactions/${tid}/signed-document`).then((r) => r.data),
+  myProcessedBids: () =>
+    api.get("/api/v1/staff/my-processed-bids").then((r) => r.data),
 };
 
 // ---------- Wave 1: Vendor ----------

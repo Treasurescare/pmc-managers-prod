@@ -508,3 +508,15 @@ summary notes.
   download). Backend sign path curl-verified. Bundles: pmc-backend-v56h.zip /
   pmc-frontend-v56h-prod-build.zip. NOTE: prior v56g "no change" was a CloudFront
   cache miss — MUST invalidate /* on deploy.
+
+## v56i (18 Jun 2026) — release-action 422 fix + staff Completed/audit view
+- Fixed HTTP 422 on PMC release signing: EscrowRow action dropdown defaulted to
+  the stale pmc_action (acknowledge_receipt) which is not a valid release value.
+  Now defaults to a valid release action (release_to_contractor/vendor/forfeit).
+- New staff "Completed" tab + GET /api/v1/staff/my-processed-bids: lists every
+  bid the staff member acted on (from workflow_history.by == email) with action,
+  status transition, their comment and timestamp — the officer's own audit trail.
+  Addresses "certifier accept just moves away, no audit, not in completed list".
+- Decisions already recorded in audit ledger + workflow_history (unchanged);
+  this surfaces them to staff. Bundles: pmc-backend-v56i.zip /
+  pmc-frontend-v56i-prod-build.zip.

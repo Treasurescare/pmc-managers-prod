@@ -442,3 +442,36 @@ async def staff_escrow_signed_document(tid: str, admin=Depends(current_admin)) -
     return {"filename": doc.get("filename"),
             "content_b64": doc.get("content_b64"),
             "content_type": doc.get("content_type") or "application/pdf"}
+
+
+@router.get("/my-processed-bids")
+async def staff_my_processed_bids(admin=Depends(current_admin)) -> Dict[str, Any]:
+    """v56i — the decision history for the logged-in staff member: every bid
+    where they recorded a workflow action (Accept/Reject/clear/etc.), with the
+    action, status transition, their comment and timestamp — the officer's own
+    audit trail + 'completed' list."""
+    email = (admin.get("email") or "").lower()
+    out: List[dict] = []
+    if email:
+        cur = db.bids.find(
+            {"workflow_history.by": {"$regex": f"^{re.escape(email)}$", "$options": "i"}}
+        ).sort("updated_at", -1).limit(200)
+        async for b in cur:
+            mine = [h for h in (b.get("workflow_history") or [])
+                    if (h.get("by") or "").lower() == email]
+            if not mine:
+                continue
+            out.append({
+                "id": str(b["_id"]),
+                "bid_ref": b.get("bid_ref"),
+                "notice_ref": b.get("notice_ref"),
+                "status": b.get("status"),
+                "company_name": b.get("company_name"),
+                "vendor_email": b.get("vendor_email"),
+                "my_actions": [{
+                    "action": h.get("action"), "role": h.get("role"),
+                    "from_status": h.get("from_status"), "to_status": h.get("to_status"),
+                    "notes": h.get("notes"), "at": h.get("at"),
+                } for h in mine],
+            })
+    return {"bids": out, "count": len(out)}
