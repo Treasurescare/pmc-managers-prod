@@ -429,6 +429,8 @@ function EscrowRow({ t, pending, onOpen, onRefresh, onDownload, onSignAction }) 
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState("");
   const finalized = ["released_to_contractor", "released_to_vendor", "forfeited", "cancelled"].includes(t.status);
+  const awarded = t.bid_status === "awarded";
+  const contractorLocked = action === "release_to_contractor" && !awarded;
 
   const run = async (fn, key) => { setBusy(key); try { await fn(); } catch (e) { showApiError(e, { fallbackTitle: "Action failed" }); } finally { setBusy(""); } };
 
@@ -472,7 +474,10 @@ function EscrowRow({ t, pending, onOpen, onRefresh, onDownload, onSignAction }) 
               <div style={{ fontSize: 11, color: C.muted, marginBottom: 2 }}>Intended action</div>
               <select value={action} onChange={(e) => setAction(e.target.value)} data-testid={`staff-escrow-action-${t.bid_ref || t.id}`}
                 style={{ width: "100%", border: `1px solid ${C.lineStrong}`, borderRadius: 4, padding: "8px 10px", background: C.surface, color: C.ink, fontSize: 13 }}>
-                {RELEASE_ACTIONS.map((a) => <option key={a.v} value={a.v}>{a.l}</option>)}
+                {RELEASE_ACTIONS.map((a) => {
+                  const locked = a.v === "release_to_contractor" && !awarded;
+                  return <option key={a.v} value={a.v} disabled={locked}>{a.l}{locked ? " — locked until awarded" : ""}</option>;
+                })}
               </select>
             </label>
             <label style={{ flex: "2 1 300px" }}>
@@ -487,13 +492,17 @@ function EscrowRow({ t, pending, onOpen, onRefresh, onDownload, onSignAction }) 
                   if (!ok) return;
                 }
                 run(() => onSignAction(t.id, action, comment), "s");
-              }} disabled={busy === "s"}
-              style={{ ...btn(C.primary), opacity: busy === "s" ? 0.5 : 1 }} data-testid={`staff-escrow-release-sign-${t.bid_ref || t.id}`}>
-              {busy === "s" ? "Signing…" : (t.signed_by_pmc ? "Update my signature" : "Sign this action")}
+              }} disabled={busy === "s" || contractorLocked}
+              title={contractorLocked ? "Release to contractor is locked until the bid is awarded (certifier → legal → accounting → committee)." : ""}
+              style={{ ...btn(C.primary), opacity: (busy === "s" || contractorLocked) ? 0.5 : 1, cursor: contractorLocked ? "not-allowed" : "pointer" }} data-testid={`staff-escrow-release-sign-${t.bid_ref || t.id}`}>
+              {busy === "s" ? "Signing…" : (contractorLocked ? "Locked until awarded" : (t.signed_by_pmc ? "Update my signature" : "Sign this action"))}
             </button>
           </div>
           <div style={{ fontSize: 11, color: C.faint, marginTop: 6 }}>
             Both officers must sign the SAME action; then an admin fires the final release.
+            {!awarded && <span style={{ color: C.warning, display: "block", marginTop: 2 }}>
+              ⚠ Release to contractor unlocks only once this bid is <b>awarded</b> (certifier → legal → accounting → committee). Current bid status: {t.bid_status || "unknown"}.
+            </span>}
           </div>
         </div>
       )}

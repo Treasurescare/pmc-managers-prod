@@ -819,6 +819,42 @@ async def release(tid: str, payload: ReleaseIn,
     await audit_log(f"escrow.{final_status}", admin, "escrow_tx", tid,
                      {"amount": tx.get("amount"), "currency": tx.get("currency"),
                       "beneficiary": payload.beneficiary_account})
+    # v56l — email the signed release confirmation (+ signed PDF if available)
+    # to both officers and the beneficiary. Best-effort; never blocks release.
+    try:
+        from emails import send_email, wrap as email_wrap
+        snap = tx.get("escrow_account_snapshot") or {}
+        recips = []
+        for off in (snap.get("pmc_officer") or {}, snap.get("escrow_officer") or {}):
+            e = (off.get("email") or "").strip()
+            if e and e.lower() not in {r.lower() for r in recips}:
+                recips.append(e)
+        bid = await db.bids.find_one({"bid_ref": tx.get("bid_ref")}) if tx.get("bid_ref") else None
+        ben = ((bid or {}).get("vendor_email") or "").strip()
+        if ben and ben.lower() not in {r.lower() for r in recips}:
+            recips.append(ben)
+        label = final_status.replace("_", " ")
+        subject = f"EMD {label} — {tx.get('bid_ref') or 'escrow'}"
+        body = email_wrap(
+            "Escrow funds released",
+            f"<p>The EMD of <b>{tx.get('currency')} {tx.get('amount')}</b> for bid "
+            f"<b>{tx.get('bid_ref') or '—'}</b> (tender <b>{tx.get('notice_ref') or '—'}</b>) "
+            f"has been <b>{label}</b>.</p>"
+            f"<p>Beneficiary: {payload.beneficiary_account or '—'}<br/>"
+            f"Authorised by: {admin['email']}"
+            f"{('<br/>Memo: ' + payload.memo) if payload.memo else ''}</p>")
+        doc = tx.get("signed_document") or {}
+        atts = ([{"filename": doc.get("filename") or "release.pdf",
+                  "content_b64": doc["content_b64"],
+                  "content_type": doc.get("content_type") or "application/pdf"}]
+                if doc.get("content_b64") else None)
+        for e in recips:
+            try:
+                await send_email(e, subject, body, attachments=atts)
+            except Exception:
+                pass
+    except Exception:
+        pass
     return _out_tx(await db.escrow_transactions.find_one({"_id": ObjectId(tid)}))
 
 

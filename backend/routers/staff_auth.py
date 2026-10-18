@@ -361,6 +361,15 @@ async def staff_escrow_signatures(admin=Depends(current_admin)) -> Dict[str, Any
             if (t.get("docusign_envelope_id") and not row["signed_by_pmc"]
                     and t.get("status") not in done):
                 pending.append(row)
+        # v56l — attach bid award status so the UI can lock "release to
+        # contractor" until the bid is awarded (same rule the backend enforces).
+        refs = [r["bid_ref"] for r in transactions if r.get("bid_ref")]
+        if refs:
+            statuses = {}
+            async for b in db.bids.find({"bid_ref": {"$in": refs}}, {"bid_ref": 1, "status": 1}):
+                statuses[b.get("bid_ref")] = b.get("status")
+            for r in transactions:
+                r["bid_status"] = statuses.get(r.get("bid_ref"))
     return {"email": email,
             "pending_signatures": pending,
             "pending_signatures_count": len(pending),
