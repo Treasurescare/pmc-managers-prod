@@ -65,6 +65,26 @@ function readCsrf() {
   })();
 }
 
+// v56b — CSRF auto-recovery. If the browser drops the JS-readable csrf_token
+// cookie (Safari ITP / cookie partitioning / long-idle tab) while the session
+// is still valid, the server's double-submit check 403s. A single shared
+// refresh re-issues the cookie for the authenticated session; the failed
+// request is then retried once. Backed by GET /api/v1/staff/auth/csrf.
+let _csrfRefreshInFlight = null;
+function refreshCsrf() {
+  if (!_csrfRefreshInFlight) {
+    _csrfRefreshInFlight = api
+      .get("/api/v1/staff/auth/csrf", { _skipCsrfRecovery: true })
+      .then((r) => {
+        const token = r?.data?.csrf_token;
+        if (token) cacheCsrf(token);
+        return token;
+      })
+      .finally(() => { _csrfRefreshInFlight = null; });
+  }
+  return _csrfRefreshInFlight;
+}
+
 api.interceptors.request.use((cfg) => {
   const method = (cfg.method || "get").toLowerCase();
   if (method !== "get" && method !== "head" && method !== "options") {
@@ -102,9 +122,24 @@ api.interceptors.response.use(
     } catch { /* never let the guard itself break a response */ }
     return res;
   },
-  (err) => {
+  async (err) => {
     const status = err?.response?.status;
     const detail = err?.response?.data?.detail;
+    const cfg = err?.config;
+    // v56b — recover from a dropped csrf_token cookie: refresh the cookie once
+    // for the still-valid session, then retry the original request exactly once.
+    if (status === 403 && detail === "CSRF token missing or invalid" &&
+        cfg && !cfg._skipCsrfRecovery && !cfg._csrfRetried) {
+      cfg._csrfRetried = true;
+      try {
+        const token = await refreshCsrf();
+        if (token) {
+          cfg.headers = cfg.headers || {};
+          cfg.headers["X-CSRF-Token"] = token;
+          return api.request(cfg);
+        }
+      } catch { /* fall through to normal error handling (likely 401) */ }
+    }
     // v52bk — opt-out flag: probe calls (useAuthSession) deliberately hit
     // the three /me endpoints as unauthed and must NOT trigger a session
     // expiry redirect when they 401.

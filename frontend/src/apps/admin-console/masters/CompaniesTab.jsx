@@ -169,7 +169,7 @@ function CompanyForm({ draft, setDraft, countries, onSave, onCancel, isEdit }) {
           data-testid="company-country">
           <option value="">Select…</option>
           {countries.map((c) => (
-            <option key={c.code} value={c.code}>{c.code} — {c.name}</option>
+            <option key={c.code} value={c.code}>{c.name} ({c.code})</option>
           ))}
         </select>
       </label>

@@ -1,0 +1,24 @@
+{
+  "summary": "v56 UI refinements verification (frontend only, per request). All 4 target features PASS. (1) Staff country-scope: data-testid staff-country-scope-toggle shows 'All countries (global)' by default; opening reveals searchable checkbox list of country NAMES; selecting Malaysia + Singapore renders chips with flags; staff-country-scope-chip-remove-{CODE} works; inline Edit row exposes staff-edit-country-scope-{email}-toggle. (2) Companies City+ZIP: company-country is a native <select> listing country names, company-state loads 61 US states after US selected, #company-city-dl datalist loads 200 cities after state picked (verified with Alabama / Beverly Hills), company-zip live-validates against US regex — 'ABCXYZ' shows company-zip-error and disables company-save; '90210' clears the error and enables save; blank zip is accepted and keeps save enabled. (3) Upload-after-create: After CREATE COMPANY (TESTCO1519 US/Alabama/Beverly Hills/90210), the form switched to edit mode and the company-documents section appeared with all 3 upload slots (company-doc-upload-incorporation_certificate/moa/aoa) + company-license-add; uploading a PDF via hidden company-doc-input-incorporation_certificate rendered company-doc-view/download/remove-incorporation_certificate testids and 'Document uploaded' toast; license upload rendered company-license-row-0 with 'License added' toast; editing an EXISTING company (TESTCO3056 from iter 88) also shows the documents section. (4) Escrow institution scope: Opening TEST Inst v54a reveals escrow-inst-scope-editor with CountryMultiSelect (escrow-inst-scope-picker-toggle/-search/-option-{CODE}/-chip-remove-{CODE}) and escrow-inst-scope-save. Selecting Malaysia + Singapore and saving fires 'Scope set: MY, SG' toast; reloading the page and reopening the institution shows chips 🇲🇾 Malaysia + 🇸🇬 Singapore persisted.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Masters -> Companies -> New Company", "issues": ["Country select renders as 'US — United States' (code + em-dash + name). Per spec it should ideally be a country-NAME-only dropdown; the ISO code prefix is minor but technically still exposes codes."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "CompaniesTab.jsx company-country option label format 'US — United States' leaks the ISO code; consider showing only emoji+name to fully meet the 'country NAMES (not ISO codes)' intent (chips/filters inside CountryMultiSelect already correctly show names).",
+    "CountryMultiSelect.jsx uses a module-level _countryCache which is never invalidated — fine for session but could stale across releases/locale changes; acceptable for admin UI."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped per request)", "frontend": "4/4 features (100%)"},
+  "test_credentials": "adminsupport@pmcmanagers.com / Admin@12345 via /admin/login",
+  "seed_data_creation": "Created company 'Test Co TESTCO1519' (code TESTCO1519, US / Alabama / Beverly Hills / 90210, incorporation 2020-01-15) with 1 incorporation_certificate doc + 1 license (t.pdf) attached. Set 'TEST Inst v54a' escrow institution country_scope = [MY, SG] (persisted). Prior TESTCO3056 (iter 88) also still present.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All v56 UI refinements verified. staff-country-scope, staff-edit-country-scope-{email}, company-country(select)/company-state(select)/company-city(input+#company-city-dl datalist)/company-zip(+company-zip-error)/company-save, company-documents(+company-doc-upload-{slot}, company-doc-input-{slot} for file set, company-doc-view/download/remove-{slot}, company-license-add/input, company-license-row-{i}), escrow-inst-scope-picker(+toggle/search/option-{CODE}/chip-remove-{CODE}/clear) + escrow-inst-scope-save all present and functional. Toasts: 'Document uploaded', 'License added', 'Scope set: MY, SG'. The only cosmetic nit is CompaniesTab country option showing 'US — United States' (code + name) rather than pure name."
+}

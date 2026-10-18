@@ -8,6 +8,7 @@ from typing import Dict, Any, List
 from fastapi import APIRouter, HTTPException, Response, Depends, Request
 from bson import ObjectId
 from pydantic import BaseModel
+import jwt
 
 from db import db
 from models.staff_user import StaffLoginIn, StaffCreateIn, StaffUpdateIn, ALL_STAFF_ROLES, StaffRole
@@ -65,6 +66,41 @@ def _validate_account_type(account_type: str, roles: List[str]) -> None:
             status_code=400,
             detail="Admin accounts must include the Admin or Reviewer role.",
         )
+
+
+@router.get("/auth/csrf")
+async def refresh_csrf_token(request: Request, response: Response):
+    """v56b — re-issue the CSRF cookie for an already-authenticated session.
+
+    When the browser drops the JS-readable `csrf_token` cookie (Safari ITP,
+    cookie partitioning, or a long-idle tab) while the HttpOnly `access_token`
+    is still valid, every state-changing request 403s with "CSRF token missing
+    or invalid" — the sessionStorage header fallback can't satisfy the server's
+    double-submit check because the cookie itself is gone. The axios interceptor
+    calls this once to recover, then retries the original request.
+
+    Auth is the existing access_token (any role); the OLD csrf is NOT trusted.
+    """
+    token = request.cookies.get("access_token")
+    if not token:
+        h = request.headers.get("Authorization", "")
+        if h.startswith("Bearer "):
+            token = h[7:]
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    try:
+        payload = jwt.decode(token, config.JWT_SECRET, algorithms=[config.JWT_ALGORITHM])
+        if payload.get("type") != "access":
+            raise HTTPException(status_code=401, detail="Invalid token")
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    max_age = config.ACCESS_TOKEN_TTL_MIN * 60
+    cross_site = is_preview_request(request)
+    csrf = new_csrf_token()
+    set_csrf_cookie(response, csrf, max_age, cross_site)
+    return {"csrf_token": csrf}
 
 
 @router.post("/auth/login")
