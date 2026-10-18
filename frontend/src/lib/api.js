@@ -88,6 +88,10 @@ function refreshCsrf() {
 api.interceptors.request.use((cfg) => {
   const method = (cfg.method || "get").toLowerCase();
   if (method !== "get" && method !== "head" && method !== "options") {
+    // v56h — a retried request already carries a FRESH session-bound token
+    // (set by the 403-recovery handler). Never clobber it with a possibly
+    // stale cookie value, or the retry would 403 again.
+    if (cfg._freshCsrf) return cfg;
     const csrf = readCsrf();
     if (csrf) cfg.headers["X-CSRF-Token"] = csrf;
   }
@@ -138,6 +142,7 @@ api.interceptors.response.use(
         if (token) {
           cfg.headers = cfg.headers || {};
           cfg.headers["X-CSRF-Token"] = token;
+          cfg._freshCsrf = true;
           return api.request(cfg);
         }
       } catch { /* fall through to normal error handling (likely 401) */ }

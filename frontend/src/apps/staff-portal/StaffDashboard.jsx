@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { staffApi, bidApi, inspectionApi, uploadsApi, showApiError } from "@/lib/api";
+import { staffApi, bidApi, inspectionApi, uploadsApi, escrowApi, showApiError } from "@/lib/api";
 
 const ROLE_LABELS = {
   admin: "Administrator", reviewer: "Reviewer",
@@ -17,14 +17,25 @@ const ROLE_QUEUE_STATUS = {
   committee_member: "accounting_cleared",
 };
 
-// Explicit palette — inline styles so the global [data-ui="e"] slate→dark
-// remap can never wash the staff portal out again.
+const RELEASE_ACTIONS = [
+  { v: "release_to_contractor", l: "Release → Contractor (winning vendor)" },
+  { v: "release_to_vendor", l: "Refund → Vendor (bid did not win)" },
+  { v: "forfeit", l: "Forfeit (withdrawal / mis-declaration)" },
+];
+
+// Option-E theme tokens (defined on [data-ui="e"]). Using the CSS vars keeps
+// the staff portal visually identical to the admin console & escrow portals,
+// and respects dark mode — while never being washed out by the global remap.
 const C = {
-  page: "#eef2f7", chrome: "#0b1e3f", surface: "#ffffff",
-  ink: "#14201a", muted: "#5b6b62", faint: "#7c8a81",
-  border: "#d9e0ea", amberBg: "#fdf6d8", amberBorder: "#e3b55c",
-  emerald: "#059669", red: "#dc2626", navy: "#0b1e3f",
-  chipBg: "#e2e8f0", chipInk: "#334155", okBg: "#d1fae5", okInk: "#065f46",
+  page: "var(--paper)", chrome: "var(--chrome)", chromeLine: "var(--chrome-line)",
+  onChrome: "var(--on-chrome)", onChromeMuted: "var(--on-chrome-muted)",
+  surface: "var(--surface)", sunken: "var(--surface-sunken)",
+  ink: "var(--ink)", muted: "var(--ink-muted)", faint: "var(--ink-subtle)",
+  line: "var(--line)", lineStrong: "var(--line-strong)",
+  primary: "var(--primary)", onPrimary: "var(--on-primary)", primarySoft: "var(--primary-soft)",
+  brass: "var(--brass-on-chrome)", success: "var(--success)", successSoft: "var(--success-soft)",
+  danger: "var(--danger)", warning: "var(--warning)", warningSoft: "var(--warning-soft)",
+  display: "var(--font-display)",
 };
 
 export default function StaffDashboard() {
@@ -34,7 +45,6 @@ export default function StaffDashboard() {
   const [inspections, setInspections] = useState([]);
   const [escrow, setEscrow] = useState({ pending_signatures: [], transactions: [] });
   const [tab, setTab] = useState("overview");
-  const [busy, setBusy] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -43,8 +53,7 @@ export default function StaffDashboard() {
         setMe(m);
         if (["admin", "reviewer"].includes(m.active_role)) return nav("/admin");
         await refresh(m);
-        await loadEscrow();
-        // Returning from a DocuSign embedded signing ceremony?
+        const esc = await loadEscrow();
         const params = new URLSearchParams(window.location.search);
         if (params.get("signed") || params.get("event")) {
           const tid = sessionStorage.getItem("pmc.signing.tid");
@@ -54,7 +63,7 @@ export default function StaffDashboard() {
           if (tid) { try { await staffApi.escrowRefresh(tid); } catch { /* ignore */ } }
           sessionStorage.removeItem("pmc.signing.tid");
           await loadEscrow();
-        } else if ((await staffApi.escrowSignatures().catch(() => null))?.pending_signatures_count) {
+        } else if ((esc?.pending_signatures_count || 0) > 0) {
           setTab("escrow");
         }
       } catch { nav("/staff/login"); }
@@ -73,15 +82,12 @@ export default function StaffDashboard() {
     setInspections(inspList || []);
   };
 
-  const loadEscrow = () =>
-    staffApi.escrowSignatures()
-      .then(setEscrow)
-      .catch(() => setEscrow({ pending_signatures: [], transactions: [] }));
-
-  const logout = async () => {
-    try { await staffApi.logout(); } catch { /* ignore */ }
-    nav("/login");
+  const loadEscrow = async () => {
+    try { const d = await staffApi.escrowSignatures(); setEscrow(d); return d; }
+    catch { setEscrow({ pending_signatures: [], transactions: [] }); return null; }
   };
+
+  const logout = async () => { try { await staffApi.logout(); } catch { /* ignore */ } nav("/login"); };
 
   const switchRole = async (newRole) => {
     if (!newRole || newRole === me?.active_role) return;
@@ -95,20 +101,20 @@ export default function StaffDashboard() {
     } catch (err) { showApiError(err); }
   };
 
-  const decide = async (bid, action) => {
+  const decide = async (bid, action, notes) => {
     try {
-      await bidApi.decide(bid.id, { action, role: me.active_role, notes: "" });
+      await bidApi.decide(bid.id, { action, role: me.active_role, notes: notes || "" });
       toast.success(`Bid ${bid.bid_ref}: ${action}`);
       await refresh();
-    } catch (err) { showApiError(err); }
+    } catch (err) { showApiError(err, { fallbackTitle: "Decision failed" }); }
   };
 
-  const committeeAward = async (bid) => {
+  const committeeAward = async (bid, notes) => {
     try {
-      await bidApi.decide(bid.id, { action: "award", role: "committee", notes: "" });
+      await bidApi.decide(bid.id, { action: "award", role: "committee", notes: notes || "" });
       toast.success(`Bid ${bid.bid_ref} awarded`);
       await refresh();
-    } catch (err) { showApiError(err); }
+    } catch (err) { showApiError(err, { fallbackTitle: "Award failed" }); }
   };
 
   const uploadInspectionMedia = async (ins, file, kind) => {
@@ -130,47 +136,32 @@ export default function StaffDashboard() {
     } catch (err) { showApiError(err); }
   };
 
-  // ---- Escrow embedded signing ----
+  // ---- Escrow ----
   const openDocuSign = async (tid) => {
-    setBusy(tid);
     try {
       const r = await staffApi.escrowDocuSignUrl(tid);
-      if (r?.url) {
-        sessionStorage.setItem("pmc.signing.tid", tid);
-        window.location.assign(r.url); // top-level nav; DocuSign returns to /staff?signed=1
-      } else {
-        toast.info("In-app signing not available yet", {
-          description: r?.message || "Ask PMC admin to re-issue the DocuSign envelope.",
-          duration: 12000,
-        });
-      }
+      if (r?.url) { sessionStorage.setItem("pmc.signing.tid", tid); window.location.assign(r.url); }
+      else toast.info("In-app DocuSign not available yet", { description: r?.message, duration: 12000 });
     } catch (e) { showApiError(e, { fallbackTitle: "Could not open DocuSign" }); }
-    finally { setBusy(""); }
   };
-
   const refreshTx = async (tid) => {
-    setBusy(tid);
-    try {
-      const r = await staffApi.escrowRefresh(tid);
-      toast.success(`DocuSign status: ${r.docusign_status || r.status || "updated"}`);
-      await loadEscrow();
-    } catch (e) { showApiError(e, { fallbackTitle: "Refresh failed" }); }
-    finally { setBusy(""); }
+    try { const r = await staffApi.escrowRefresh(tid); toast.success(`DocuSign: ${r.docusign_status || r.status || "updated"}`); await loadEscrow(); }
+    catch (e) { showApiError(e, { fallbackTitle: "Refresh failed" }); }
   };
-
+  const signAction = async (tid, intended_action, comment) => {
+    await escrowApi.sign(tid, { intended_action, comment: comment || null });
+    toast.success("Signature recorded");
+    await loadEscrow();
+  };
   const downloadDoc = async (tid) => {
-    setBusy(tid);
     try {
       const r = await staffApi.escrowSignedDoc(tid);
-      const bin = atob(r.content_b64);
-      const bytes = new Uint8Array(bin.length);
+      const bin = atob(r.content_b64); const bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
       const url = URL.createObjectURL(new Blob([bytes], { type: r.content_type || "application/pdf" }));
-      const a = document.createElement("a");
-      a.href = url; a.download = r.filename || "PMC-Escrow-Signed.pdf"; a.click();
+      const a = document.createElement("a"); a.href = url; a.download = r.filename || "PMC-Escrow-Signed.pdf"; a.click();
       URL.revokeObjectURL(url);
     } catch (e) { showApiError(e, { fallbackTitle: "No signed document yet" }); }
-    finally { setBusy(""); }
   };
 
   const queueLabel = useMemo(() => ({
@@ -181,10 +172,11 @@ export default function StaffDashboard() {
     committee_member: "Accounting-cleared — awaiting Committee",
   })[me?.active_role] || "Work queue", [me]);
 
-  if (!me) return <div style={{ padding: 40, color: C.muted }}>Loading…</div>;
+  if (!me) return <div style={{ padding: 40, color: C.muted, background: C.page, minHeight: "100vh" }}>Loading…</div>;
 
   const escrowTxns = escrow.transactions || [];
   const pendingCount = escrow.pending_signatures_count || (escrow.pending_signatures || []).length || 0;
+  const pendingIds = new Set((escrow.pending_signatures || []).map((t) => t.id));
 
   const navItems = [
     { key: "overview", label: "Overview" },
@@ -194,60 +186,42 @@ export default function StaffDashboard() {
   if (me.active_role === "certifier") navItems.push({ key: "inspections", label: "Site inspections", badge: inspections.length || null });
 
   return (
-    <div style={{ minHeight: "100vh", background: C.page, color: C.ink }} data-testid="staff-dashboard">
-      {/* Top bar */}
-      <header style={{ background: C.chrome, color: "#fff" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+    <div style={{ minHeight: "100vh", background: C.page, color: C.ink, fontFamily: "var(--font-sans)" }} data-testid="staff-dashboard">
+      <header style={{ background: C.chrome, color: C.onChrome }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
           <div>
-            <div style={{ fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: "#fcd34d" }}>Staff Portal</div>
-            <h1 style={{ fontSize: 20, fontFamily: "'Cormorant Garamond', Georgia, serif", margin: 0 }}>
-              {me.name} — {ROLE_LABELS[me.active_role] || me.active_role}
-            </h1>
+            <div style={{ fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: C.brass, fontWeight: 600 }}>Staff Portal</div>
+            <h1 style={{ fontSize: 22, fontFamily: C.display, fontWeight: 500, margin: 0 }}>{me.name} — {ROLE_LABELS[me.active_role] || me.active_role}</h1>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: 14 }}>
             {(me.roles || []).length > 1 && (
               <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 8 }} data-testid="staff-role-switch">
-                <span style={{ color: "rgba(255,255,255,0.6)", textTransform: "uppercase", letterSpacing: "0.12em" }}>Active role</span>
+                <span style={{ color: C.onChromeMuted, textTransform: "uppercase", letterSpacing: "0.12em" }}>Active role</span>
                 <select value={me.active_role} onChange={(e) => switchRole(e.target.value)}
-                  style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", padding: "4px 8px", borderRadius: 6 }}
+                  style={{ background: "rgba(255,255,255,0.08)", border: `1px solid ${C.chromeLine}`, color: C.onChrome, padding: "4px 8px", borderRadius: 4 }}
                   data-testid="staff-role-switch-select">
-                  {(me.roles || []).map((r) => (
-                    <option key={r} value={r} style={{ color: C.navy }}>{ROLE_LABELS[r] || r}</option>
-                  ))}
+                  {(me.roles || []).map((r) => <option key={r} value={r} style={{ color: "#14201a" }}>{ROLE_LABELS[r] || r}</option>)}
                 </select>
               </label>
             )}
-            <span style={{ color: "rgba(255,255,255,0.75)" }}>{me.email}</span>
-            <button onClick={logout} style={{ color: "rgba(255,255,255,0.85)", textDecoration: "underline", background: "none", border: "none", cursor: "pointer" }} data-testid="staff-logout">Sign out</button>
+            <span style={{ color: C.onChromeMuted }}>{me.email}</span>
+            <button onClick={logout} style={{ color: C.onChrome, textDecoration: "underline", background: "none", border: "none", cursor: "pointer" }} data-testid="staff-logout">Sign out</button>
           </div>
         </div>
       </header>
 
-      {/* Sidebar + main */}
-      <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 24, padding: "24px" }}>
-        <aside style={{ width: 232, flexShrink: 0 }} data-testid="staff-sidebar">
-          <nav style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, overflow: "hidden", position: "sticky", top: 24 }}>
+      <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 24, padding: 24, alignItems: "flex-start" }}>
+        <aside style={{ width: 236, flexShrink: 0 }} data-testid="staff-sidebar">
+          <nav style={{ background: C.surface, border: `1px solid ${C.line}`, borderRadius: 8, overflow: "hidden", position: "sticky", top: 24 }}>
             {navItems.map((it) => {
               const active = tab === it.key;
               return (
-                <button key={it.key} onClick={() => setTab(it.key)}
-                  data-testid={`staff-nav-${it.key}`}
-                  style={{
-                    width: "100%", textAlign: "left", padding: "12px 16px",
-                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                    border: "none", cursor: "pointer", fontSize: 14,
-                    background: active ? C.navy : "transparent",
-                    color: active ? "#fff" : C.ink,
-                    borderLeft: active ? `3px solid #fcd34d` : "3px solid transparent",
-                  }}>
+                <button key={it.key} onClick={() => setTab(it.key)} data-testid={`staff-nav-${it.key}`}
+                  style={{ width: "100%", textAlign: "left", padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between",
+                    border: "none", cursor: "pointer", fontSize: 14, background: active ? C.primary : "transparent",
+                    color: active ? C.onPrimary : C.ink, borderLeft: active ? `3px solid ${C.brass}` : "3px solid transparent" }}>
                   <span>{it.label}</span>
-                  {it.badge ? (
-                    <span style={{
-                      minWidth: 22, textAlign: "center", fontSize: 12, fontWeight: 600,
-                      borderRadius: 999, padding: "1px 7px",
-                      background: active ? "#fcd34d" : C.navy, color: active ? C.navy : "#fff",
-                    }}>{it.badge}</span>
-                  ) : null}
+                  {it.badge ? <span style={{ minWidth: 22, textAlign: "center", fontSize: 12, fontWeight: 700, borderRadius: 999, padding: "1px 7px", background: active ? C.brass : C.primary, color: active ? "#1b1606" : C.onPrimary }}>{it.badge}</span> : null}
                 </button>
               );
             })}
@@ -259,57 +233,42 @@ export default function StaffDashboard() {
             <section data-testid="staff-overview" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 16 }}>
               <StatCard label="Escrow documents to sign" value={pendingCount} hint="Awaiting your signature" onClick={() => setTab("escrow")} />
               <StatCard label={queueLabel} value={bids.length} hint="In your work queue" onClick={() => setTab("queue")} />
-              {me.active_role === "certifier" && (
-                <StatCard label="Site inspections" value={inspections.length} hint="Assigned to you" onClick={() => setTab("inspections")} />
-              )}
+              {me.active_role === "certifier" && <StatCard label="Site inspections" value={inspections.length} hint="Assigned to you" onClick={() => setTab("inspections")} />}
             </section>
           )}
 
           {tab === "escrow" && (
-            <EscrowList txns={escrowTxns} pendingIds={new Set((escrow.pending_signatures || []).map((t) => t.id))}
-              busy={busy} onOpen={openDocuSign} onRefresh={refreshTx} onDownload={downloadDoc} />
+            <section data-testid="staff-escrow-signatures">
+              <Heading>Escrow documents — your signature · {pendingCount} pending</Heading>
+              {escrowTxns.length === 0 && <Empty>You have no escrow transactions assigned for signature.</Empty>}
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {escrowTxns.map((t) => (
+                  <EscrowRow key={t.id} t={t} pending={pendingIds.has(t.id)}
+                    onOpen={openDocuSign} onRefresh={refreshTx} onDownload={downloadDoc} onSignAction={signAction} />
+                ))}
+              </div>
+            </section>
           )}
 
           {tab === "queue" && (
             <section>
-              <h2 style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.muted, marginBottom: 12 }}>
-                {queueLabel} · {bids.length}
-              </h2>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }} data-testid="staff-bid-queue">
+              <Heading>{queueLabel} · {bids.length}</Heading>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }} data-testid="staff-bid-queue">
                 {bids.map((b) => (
-                  <div key={b.id} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 16 }} data-testid={`staff-bid-${b.bid_ref}`}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                      <div>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: C.muted }}>{b.bid_ref} · {b.notice_ref}</div>
-                        <div style={{ fontSize: 14, color: C.ink }}>{b.company_name || b.vendor_email} — <strong>{b.price_currency} {(b.price_amount || 0).toLocaleString()}</strong></div>
-                        <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>Status: {b.status}</div>
-                      </div>
-                      <div style={{ display: "flex", gap: 8 }}>
-                        {me.active_role !== "committee_member" ? (
-                          <>
-                            <button onClick={() => decide(b, "accept")} style={btn(C.emerald)} data-testid={`accept-${b.bid_ref}`}>Accept</button>
-                            <button onClick={() => decide(b, "reject")} style={btn(C.red)} data-testid={`reject-${b.bid_ref}`}>Reject</button>
-                          </>
-                        ) : (
-                          <button onClick={() => committeeAward(b)} style={btn("#d97706")} data-testid={`award-${b.bid_ref}`}>Award</button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                  <BidRow key={b.id} b={b} committee={me.active_role === "committee_member"}
+                    onDecide={decide} onAward={committeeAward} />
                 ))}
-                {bids.length === 0 && <div style={{ fontSize: 14, color: C.muted }}>Queue is clear.</div>}
+                {bids.length === 0 && <Empty>Queue is clear.</Empty>}
               </div>
             </section>
           )}
 
           {tab === "inspections" && me.active_role === "certifier" && (
             <section data-testid="certifier-inspections">
-              <h2 style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.muted, marginBottom: 12 }}>
-                My site inspections · {inspections.length}
-              </h2>
+              <Heading>My site inspections · {inspections.length}</Heading>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {inspections.map((ins) => (
-                  <div key={ins.id} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 16 }} data-testid={`inspection-${ins.id}`}>
+                  <div key={ins.id} style={card()} data-testid={`inspection-${ins.id}`}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
                       <div>
                         <div style={{ fontSize: 12, color: C.muted }}>{ins.notice_ref}</div>
@@ -318,23 +277,19 @@ export default function StaffDashboard() {
                         <div style={{ fontSize: 12, marginTop: 4 }}>Status: <strong>{ins.status}</strong> · Result: <strong>{ins.result}</strong></div>
                       </div>
                       <div style={{ display: "flex", gap: 8 }}>
-                        <label style={{ fontSize: 12, background: C.page, border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 8px", cursor: "pointer" }}>
-                          Photo<input type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && uploadInspectionMedia(ins, e.target.files[0], "photo")} />
-                        </label>
-                        <label style={{ fontSize: 12, background: C.page, border: `1px solid ${C.border}`, borderRadius: 6, padding: "4px 8px", cursor: "pointer" }}>
-                          Video<input type="file" accept="video/*" hidden onChange={(e) => e.target.files?.[0] && uploadInspectionMedia(ins, e.target.files[0], "video")} />
-                        </label>
+                        <label style={pill()}>Photo<input type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && uploadInspectionMedia(ins, e.target.files[0], "photo")} /></label>
+                        <label style={pill()}>Video<input type="file" accept="video/*" hidden onChange={(e) => e.target.files?.[0] && uploadInspectionMedia(ins, e.target.files[0], "video")} /></label>
                       </div>
                     </div>
                     {ins.status !== "completed" && (
                       <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-                        <button onClick={() => completeInspection(ins, "pass")} style={btn(C.emerald)} data-testid={`inspect-pass-${ins.id}`}>Complete — Pass</button>
-                        <button onClick={() => completeInspection(ins, "fail")} style={btn(C.red)} data-testid={`inspect-fail-${ins.id}`}>Complete — Fail</button>
+                        <button onClick={() => completeInspection(ins, "pass")} style={btn(C.success)} data-testid={`inspect-pass-${ins.id}`}>Complete — Pass</button>
+                        <button onClick={() => completeInspection(ins, "fail")} style={btn(C.danger)} data-testid={`inspect-fail-${ins.id}`}>Complete — Fail</button>
                       </div>
                     )}
                   </div>
                 ))}
-                {inspections.length === 0 && <div style={{ fontSize: 14, color: C.muted }}>No inspections assigned yet.</div>}
+                {inspections.length === 0 && <Empty>No inspections assigned yet.</Empty>}
               </div>
             </section>
           )}
@@ -344,88 +299,118 @@ export default function StaffDashboard() {
   );
 }
 
-function btn(bg) {
-  return { fontSize: 12, background: bg, color: "#fff", padding: "6px 12px", borderRadius: 6, border: "none", cursor: "pointer" };
-}
-
+const card = () => ({ background: C.surface, border: `1px solid ${C.line}`, borderRadius: 8, padding: 16, boxShadow: "var(--shadow-1)" });
+const pill = () => ({ fontSize: 12, background: C.sunken, border: `1px solid ${C.line}`, borderRadius: 4, padding: "4px 8px", cursor: "pointer" });
+function btn(bg, fg) { return { fontSize: 12, fontWeight: 600, background: bg, color: fg || C.onPrimary, padding: "7px 14px", borderRadius: 4, border: "none", cursor: "pointer" }; }
+function Heading({ children }) { return <h2 style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.muted, marginBottom: 12 }}>{children}</h2>; }
+function Empty({ children }) { return <div style={{ ...card(), fontSize: 14, color: C.muted }}>{children}</div>; }
 function StatCard({ label, value, hint, onClick }) {
   return (
-    <button onClick={onClick} style={{ textAlign: "left", background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20, cursor: "pointer" }}>
+    <button onClick={onClick} style={{ ...card(), textAlign: "left", cursor: "pointer" }}>
       <div style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: "0.08em", color: C.muted }}>{label}</div>
-      <div style={{ fontSize: 36, fontWeight: 600, color: C.ink, marginTop: 4 }}>{value}</div>
+      <div style={{ fontSize: 34, fontWeight: 600, color: C.ink, marginTop: 4, fontFamily: C.display }}>{value}</div>
       <div style={{ fontSize: 12, color: C.faint }}>{hint}</div>
     </button>
   );
 }
-
 function Chip({ ok, children }) {
+  return <span style={{ fontSize: 11, borderRadius: 999, padding: "2px 10px", background: ok ? C.successSoft : C.sunken, color: ok ? C.success : C.muted }}>{children}</span>;
+}
+
+function BidRow({ b, committee, onDecide, onAward }) {
+  const [comment, setComment] = useState("");
   return (
-    <span style={{ fontSize: 11, borderRadius: 999, padding: "2px 10px", background: ok ? C.okBg : C.chipBg, color: ok ? C.okInk : C.chipInk }}>
-      {children}
-    </span>
+    <div style={card()} data-testid={`staff-bid-${b.bid_ref}`}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: C.muted }}>{b.bid_ref} · {b.notice_ref}</div>
+          <div style={{ fontSize: 14, color: C.ink }}>{b.company_name || b.vendor_email} — <strong>{b.price_currency} {(b.price_amount || 0).toLocaleString()}</strong></div>
+          <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>Status: {b.status}</div>
+        </div>
+      </div>
+      <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={2} placeholder="Add your review comment (optional) — saved to the audit trail"
+        style={{ width: "100%", marginTop: 10, border: `1px solid ${C.line}`, borderRadius: 4, padding: "8px 10px", background: C.surface, color: C.ink, fontSize: 13 }}
+        data-testid={`staff-bid-comment-${b.bid_ref}`} />
+      <div style={{ display: "flex", gap: 8, marginTop: 10, justifyContent: "flex-end" }}>
+        {!committee ? (
+          <>
+            <button onClick={() => onDecide(b, "accept", comment)} style={btn(C.success)} data-testid={`accept-${b.bid_ref}`}>Accept &amp; forward</button>
+            <button onClick={() => onDecide(b, "reject", comment)} style={btn(C.danger)} data-testid={`reject-${b.bid_ref}`}>Reject</button>
+          </>
+        ) : (
+          <button onClick={() => onAward(b, comment)} style={btn(C.primary)} data-testid={`award-${b.bid_ref}`}>Award</button>
+        )}
+      </div>
+    </div>
   );
 }
 
-function EscrowList({ txns, pendingIds, busy, onOpen, onRefresh, onDownload }) {
+function EscrowRow({ t, pending, onOpen, onRefresh, onDownload, onSignAction }) {
+  const [action, setAction] = useState(t.pmc_action || "release_to_contractor");
+  const [comment, setComment] = useState("");
+  const [busy, setBusy] = useState("");
+  const finalized = ["released_to_contractor", "released_to_vendor", "forfeited", "cancelled"].includes(t.status);
+
+  const run = async (fn, key) => { setBusy(key); try { await fn(); } catch (e) { showApiError(e, { fallbackTitle: "Action failed" }); } finally { setBusy(""); } };
+
   return (
-    <section data-testid="staff-escrow-signatures">
-      <h2 style={{ fontSize: 13, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: C.muted, marginBottom: 12 }}>
-        Escrow documents — your signature · {pendingIds.size} pending
-      </h2>
-      {txns.length === 0 && (
-        <div style={{ fontSize: 14, color: C.muted, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 20 }}>
-          You have no escrow transactions assigned for signature.
+    <div data-testid={`staff-escrow-tx-${t.bid_ref || t.id}`}
+      style={{ ...card(), background: pending ? C.warningSoft : C.surface, border: `1px solid ${pending ? C.warning : C.line}` }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: C.muted }}>{t.bid_ref || "—"} · {t.notice_ref || "—"}</div>
+          <div style={{ fontSize: 14, color: C.ink }}>{t.vendor_ref ? `${t.vendor_ref} — ` : ""}<strong>{t.currency} {(t.amount || 0).toLocaleString()}</strong></div>
+          <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{t.institution ? `${t.institution} · ` : ""}{t.account_name || ""}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+            <Chip ok={t.signed_by_pmc}>You (PMC) {t.signed_by_pmc ? `✓ ${(t.pmc_action || "signed").replace(/_/g, " ")}` : "· awaiting"}</Chip>
+            <Chip ok={t.signed_by_institution}>Institution {t.signed_by_institution ? `✓ ${(t.institution_action || "signed").replace(/_/g, " ")}` : "· awaiting"}</Chip>
+            {t.docusign_status && <span style={{ fontSize: 11, borderRadius: 999, padding: "2px 10px", background: C.chrome, color: C.onChrome }}>DocuSign: {t.docusign_status}</span>}
+          </div>
+          {t.signed_by_pmc && t.signed_by_institution && t.pmc_action && t.institution_action && t.pmc_action !== t.institution_action && (
+            <div style={{ marginTop: 8, fontSize: 12, color: C.danger }}>
+              ⚠ Action mismatch — you signed <b>{t.pmc_action.replace(/_/g, " ")}</b>, institution signed <b>{t.institution_action.replace(/_/g, " ")}</b>. Both must sign the SAME action before admin can release. Re-sign the matching action below.
+            </div>
+          )}
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
+          {t.docusign_envelope_id && !t.signed_by_pmc && (
+            <button onClick={() => onOpen(t.id)} disabled={!!busy} style={btn(C.chrome)} data-testid={`staff-escrow-sign-${t.bid_ref || t.id}`}>Acknowledge via DocuSign</button>
+          )}
+          {t.docusign_envelope_id && (
+            <button onClick={() => run(() => onRefresh(t.id), "r")} disabled={!!busy} style={{ ...btn("transparent", C.ink), border: `1px solid ${C.lineStrong}` }} data-testid={`staff-escrow-refresh-${t.bid_ref || t.id}`}>Refresh DocuSign</button>
+          )}
+          {t.has_signed_document && (
+            <button onClick={() => run(() => onDownload(t.id), "d")} disabled={!!busy} style={btn(C.success)} data-testid={`staff-escrow-download-${t.bid_ref || t.id}`}>Download signed PDF</button>
+          )}
+        </div>
+      </div>
+
+      {!finalized && (
+        <div style={{ marginTop: 12, borderTop: `1px solid ${C.line}`, paddingTop: 12 }} data-testid={`staff-escrow-release-panel-${t.bid_ref || t.id}`}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: C.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>Sign release decision (PMC officer)</div>
+          <div style={{ display: "flex", gap: 10, marginTop: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
+            <label style={{ flex: "1 1 260px" }}>
+              <div style={{ fontSize: 11, color: C.muted, marginBottom: 2 }}>Intended action</div>
+              <select value={action} onChange={(e) => setAction(e.target.value)} data-testid={`staff-escrow-action-${t.bid_ref || t.id}`}
+                style={{ width: "100%", border: `1px solid ${C.lineStrong}`, borderRadius: 4, padding: "8px 10px", background: C.surface, color: C.ink, fontSize: 13 }}>
+                {RELEASE_ACTIONS.map((a) => <option key={a.v} value={a.v}>{a.l}</option>)}
+              </select>
+            </label>
+            <label style={{ flex: "2 1 300px" }}>
+              <div style={{ fontSize: 11, color: C.muted, marginBottom: 2 }}>Comment (optional)</div>
+              <input value={comment} onChange={(e) => setComment(e.target.value)} data-testid={`staff-escrow-comment-${t.bid_ref || t.id}`}
+                style={{ width: "100%", border: `1px solid ${C.lineStrong}`, borderRadius: 4, padding: "8px 10px", background: C.surface, color: C.ink, fontSize: 13 }} />
+            </label>
+            <button onClick={() => run(() => onSignAction(t.id, action, comment), "s")} disabled={busy === "s"}
+              style={{ ...btn(C.primary), opacity: busy === "s" ? 0.5 : 1 }} data-testid={`staff-escrow-release-sign-${t.bid_ref || t.id}`}>
+              {busy === "s" ? "Signing…" : (t.signed_by_pmc ? "Update my signature" : "Sign this action")}
+            </button>
+          </div>
+          <div style={{ fontSize: 11, color: C.faint, marginTop: 6 }}>
+            Both officers must sign the SAME action; then an admin fires the final release.
+          </div>
         </div>
       )}
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {txns.map((t) => {
-          const isPending = pendingIds.has(t.id);
-          return (
-            <div key={t.id} data-testid={`staff-escrow-tx-${t.bid_ref || t.id}`}
-              style={{ background: isPending ? C.amberBg : C.surface, border: `1px solid ${isPending ? C.amberBorder : C.border}`, borderRadius: 10, padding: 16 }}>
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: C.muted }}>{t.bid_ref || "—"} · {t.notice_ref || "—"}</div>
-                  <div style={{ fontSize: 14, color: C.ink }}>{t.vendor_ref ? `${t.vendor_ref} — ` : ""}<strong>{t.currency} {(t.amount || 0).toLocaleString()}</strong></div>
-                  <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{t.institution ? `${t.institution} · ` : ""}{t.account_name || ""}</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-                    <Chip ok={t.signed_by_pmc}>You (PMC) {t.signed_by_pmc ? "✓ signed" : "· awaiting"}</Chip>
-                    <Chip ok={t.signed_by_institution}>Institution {t.signed_by_institution ? "✓ signed" : "· awaiting"}</Chip>
-                    {t.docusign_status && (
-                      <span style={{ fontSize: 11, borderRadius: 999, padding: "2px 10px", background: C.navy, color: "#fff" }}>DocuSign: {t.docusign_status}</span>
-                    )}
-                  </div>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
-                  {t.docusign_envelope_id ? (
-                    <>
-                      {!t.signed_by_pmc && (
-                        <button onClick={() => onOpen(t.id)} disabled={busy === t.id} style={{ ...btn(C.navy), opacity: busy === t.id ? 0.5 : 1 }} data-testid={`staff-escrow-sign-${t.bid_ref || t.id}`}>
-                          {busy === t.id ? "Opening…" : "Open in DocuSign to sign"}
-                        </button>
-                      )}
-                      <button onClick={() => onRefresh(t.id)} disabled={busy === t.id}
-                        style={{ fontSize: 12, background: "transparent", color: C.ink, fontWeight: 600, padding: "6px 12px", borderRadius: 6, border: `1px solid ${C.muted}`, cursor: "pointer", opacity: busy === t.id ? 0.5 : 1 }}
-                        data-testid={`staff-escrow-refresh-${t.bid_ref || t.id}`}>
-                        Refresh DocuSign
-                      </button>
-                      {t.has_signed_document && (
-                        <button onClick={() => onDownload(t.id)} disabled={busy === t.id} style={{ ...btn(C.emerald), opacity: busy === t.id ? 0.5 : 1 }} data-testid={`staff-escrow-download-${t.bid_ref || t.id}`}>
-                          Download signed PDF
-                        </button>
-                      )}
-                    </>
-                  ) : (
-                    <span style={{ fontSize: 12, color: C.muted, fontStyle: "italic", textAlign: "right", maxWidth: 220 }}>
-                      Awaiting PMC admin to issue the DocuSign envelope.
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </section>
+    </div>
   );
 }

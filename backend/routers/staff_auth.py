@@ -324,6 +324,8 @@ def _escrow_tx_row(t: dict) -> dict:
         "escrow_officer": snap.get("escrow_officer") or {},
         "signed_by_pmc": bool((sigs.get("pmc") or {}).get("signed_at")),
         "signed_by_institution": bool((sigs.get("escrow_institution") or {}).get("signed_at")),
+        "pmc_action": (sigs.get("pmc") or {}).get("action"),
+        "institution_action": (sigs.get("escrow_institution") or {}).get("action"),
         "has_signed_document": bool((t.get("signed_document") or {}).get("content_b64")),
     }
 
