@@ -128,7 +128,9 @@ api.interceptors.response.use(
     const cfg = err?.config;
     // v56b — recover from a dropped csrf_token cookie: refresh the cookie once
     // for the still-valid session, then retry the original request exactly once.
-    if (status === 403 && detail === "CSRF token missing or invalid" &&
+    // Match ANY 403 whose detail mentions CSRF (wording-agnostic).
+    const detailStr = typeof detail === "string" ? detail : "";
+    if (status === 403 && /csrf/i.test(detailStr) &&
         cfg && !cfg._skipCsrfRecovery && !cfg._csrfRetried) {
       cfg._csrfRetried = true;
       try {
