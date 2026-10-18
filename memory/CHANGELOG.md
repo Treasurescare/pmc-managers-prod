@@ -520,3 +520,14 @@ summary notes.
 - Decisions already recorded in audit ledger + workflow_history (unchanged);
   this surfaces them to staff. Bundles: pmc-backend-v56i.zip /
   pmc-frontend-v56i-prod-build.zip.
+
+## v56j (18 Jun 2026) — audit CSV, Completed filters/CSV, signing guardrail
+- AuditPanel.jsx: added Export CSV of the (actor-filtered) audit view → one
+  officer's full decision history as CSV. Backend actor filter already existed.
+- StaffDashboard CompletedPanel: From/To date + Action filters, Clear, and
+  Export CSV of filtered decisions (bid, action, transition, comment, at).
+- EscrowRow signing guardrail: window.confirm warning when the chosen release
+  action differs from the action the institution already signed (prevents the
+  dual-control mismatch that blocked releases).
+- PMC-BID-2026-00060 confirmed RELEASED_TO_CONTRACTOR in production.
+- Bundles: pmc-backend-v56j.zip / pmc-frontend-v56j-prod-build.zip.

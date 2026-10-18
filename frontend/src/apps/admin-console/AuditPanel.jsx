@@ -31,6 +31,18 @@ export default function AuditPanel() {
 
   const filtered = events;
 
+  const exportCsv = () => {
+    const head = ["seq", "event_type", "target_type", "target_id", "actor_email", "at", "current_hash"];
+    const rows = [head, ...filtered.map((e) => [e.seq, e.event_type, e.target_type, e.target_id, e.actor_email || "", e.at || "", e.current_hash || ""])];
+    const csv = rows.map((r) => r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `pmc-audit${flt.actor ? "-" + flt.actor.replace(/[^a-z0-9]/gi, "_") : ""}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const { paged, controls } = useListPager(filtered, { testid: "audit-pager" });
 
   const verify = async () => {
@@ -100,8 +112,14 @@ export default function AuditPanel() {
                 className="px-3 py-2 text-[11px] uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5">
           Clear
         </button>
-        <div className="md:col-span-5 text-[11px] text-brand-navy/50">
-          Showing {filtered.length} events (server-filtered, latest 500 max).
+        <div className="md:col-span-5 flex items-center justify-between gap-3 flex-wrap">
+          <span className="text-[11px] text-brand-navy/50">
+            Showing {filtered.length} events (server-filtered, latest 500 max).
+          </span>
+          <button type="button" onClick={exportCsv} data-testid="audit-export-csv"
+                  className="px-3 py-2 text-[11px] uppercase tracking-widest border border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5">
+            Export CSV{flt.actor ? ` · ${flt.actor}` : ""}
+          </button>
         </div>
       </div>
 

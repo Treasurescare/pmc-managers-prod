@@ -301,30 +301,7 @@ export default function StaffDashboard() {
               </div>
             </section>
           )}
-          {tab === "completed" && (
-            <section data-testid="staff-completed">
-              <Heading>Completed / processed by you · {processed.count}</Heading>
-              {(processed.bids || []).length === 0 && <Empty>You haven't processed any items yet. Items you Accept/Reject appear here with their audit trail.</Empty>}
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {(processed.bids || []).map((b) => (
-                  <div key={b.id} style={card()} data-testid={`staff-completed-${b.bid_ref}`}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: C.muted }}>{b.bid_ref} · {b.notice_ref}</div>
-                    <div style={{ fontSize: 14, color: C.ink }}>{b.company_name || b.vendor_email}</div>
-                    <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>Current status: <strong>{b.status}</strong></div>
-                    <div style={{ marginTop: 8, borderTop: `1px solid ${C.line}`, paddingTop: 8 }}>
-                      {(b.my_actions || []).map((a, i) => (
-                        <div key={i} style={{ fontSize: 12, marginBottom: 6 }}>
-                          <Chip ok>{(a.action || "").replace(/_/g, " ")}</Chip>
-                          <span style={{ color: C.muted, marginLeft: 8 }}>{a.from_status} → {a.to_status} · {(a.at || "").slice(0, 16).replace("T", " ")}</span>
-                          {a.notes && <div style={{ color: C.faint, marginTop: 2, fontStyle: "italic" }}>“{a.notes}”</div>}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
+          {tab === "completed" && <CompletedPanel processed={processed} />}
         </main>
       </div>
     </div>
@@ -347,6 +324,74 @@ function StatCard({ label, value, hint, onClick }) {
 }
 function Chip({ ok, children }) {
   return <span style={{ fontSize: 11, borderRadius: 999, padding: "2px 10px", background: ok ? C.successSoft : C.sunken, color: ok ? C.success : C.muted }}>{children}</span>;
+}
+
+function CompletedPanel({ processed }) {
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [action, setAction] = useState("");
+
+  const rows = [];
+  (processed.bids || []).forEach((b) =>
+    (b.my_actions || []).forEach((a) => rows.push({
+      bid_ref: b.bid_ref, notice_ref: b.notice_ref, company: b.company_name || b.vendor_email,
+      status: b.status, action: a.action, from_status: a.from_status, to_status: a.to_status,
+      notes: a.notes, at: a.at,
+    })));
+  const actionOpts = Array.from(new Set(rows.map((r) => r.action).filter(Boolean)));
+  const filtered = rows.filter((r) => {
+    const d = (r.at || "").slice(0, 10);
+    if (from && d < from) return false;
+    if (to && d > to) return false;
+    if (action && r.action !== action) return false;
+    return true;
+  });
+
+  const exportCsv = () => {
+    const head = ["bid_ref", "notice_ref", "company", "action", "from_status", "to_status", "comment", "at"];
+    const data = [head, ...filtered.map((r) => [r.bid_ref, r.notice_ref, r.company, r.action, r.from_status, r.to_status, r.notes || "", r.at || ""])];
+    const csv = data.map((r) => r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = "pmc-my-decisions.csv"; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const fin = { width: "100%", border: `1px solid ${C.lineStrong}`, borderRadius: 4, padding: "7px 9px", background: C.surface, color: C.ink, fontSize: 13 };
+
+  return (
+    <section data-testid="staff-completed">
+      <Heading>Completed / processed by you · {filtered.length}</Heading>
+      <div style={{ ...card(), display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 10 }} data-testid="staff-completed-filters">
+        <label style={{ flex: "1 1 140px" }}><div style={{ fontSize: 11, color: C.muted, marginBottom: 2 }}>From</div>
+          <input type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} style={fin} data-testid="completed-filter-from" /></label>
+        <label style={{ flex: "1 1 140px" }}><div style={{ fontSize: 11, color: C.muted, marginBottom: 2 }}>To</div>
+          <input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} style={fin} data-testid="completed-filter-to" /></label>
+        <label style={{ flex: "1 1 180px" }}><div style={{ fontSize: 11, color: C.muted, marginBottom: 2 }}>Action</div>
+          <select value={action} onChange={(e) => setAction(e.target.value)} style={fin} data-testid="completed-filter-action">
+            <option value="">All actions</option>
+            {actionOpts.map((a) => <option key={a} value={a}>{a.replace(/_/g, " ")}</option>)}
+          </select></label>
+        <button onClick={() => { setFrom(""); setTo(""); setAction(""); }} style={{ ...btn("transparent", C.ink), border: `1px solid ${C.lineStrong}` }} data-testid="completed-filter-clear">Clear</button>
+        <button onClick={exportCsv} style={btn(C.primary)} data-testid="completed-export-csv">Export CSV</button>
+      </div>
+      {filtered.length === 0 && <Empty>No processed items match. Items you Accept/Reject appear here with their audit trail.</Empty>}
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {filtered.map((r, i) => (
+          <div key={i} style={card()} data-testid={`staff-completed-${r.bid_ref}`}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: C.muted }}>{r.bid_ref} · {r.notice_ref}</div>
+            <div style={{ fontSize: 14, color: C.ink }}>{r.company}</div>
+            <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>Current status: <strong>{r.status}</strong></div>
+            <div style={{ marginTop: 8, borderTop: `1px solid ${C.line}`, paddingTop: 8, fontSize: 12 }}>
+              <Chip ok>{(r.action || "").replace(/_/g, " ")}</Chip>
+              <span style={{ color: C.muted, marginLeft: 8 }}>{r.from_status} → {r.to_status} · {(r.at || "").slice(0, 16).replace("T", " ")}</span>
+              {r.notes && <div style={{ color: C.faint, marginTop: 2, fontStyle: "italic" }}>“{r.notes}”</div>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 function BidRow({ b, committee, onDecide, onAward }) {
@@ -435,7 +480,14 @@ function EscrowRow({ t, pending, onOpen, onRefresh, onDownload, onSignAction }) 
               <input value={comment} onChange={(e) => setComment(e.target.value)} data-testid={`staff-escrow-comment-${t.bid_ref || t.id}`}
                 style={{ width: "100%", border: `1px solid ${C.lineStrong}`, borderRadius: 4, padding: "8px 10px", background: C.surface, color: C.ink, fontSize: 13 }} />
             </label>
-            <button onClick={() => run(() => onSignAction(t.id, action, comment), "s")} disabled={busy === "s"}
+            <button onClick={() => {
+                if (t.signed_by_institution && t.institution_action && t.institution_action !== action) {
+                  const ok = window.confirm(
+                    `The escrow institution already signed "${t.institution_action.replace(/_/g, " ")}", but you chose "${action.replace(/_/g, " ")}".\n\nBoth officers must sign the SAME action or the release stays blocked. Sign anyway?`);
+                  if (!ok) return;
+                }
+                run(() => onSignAction(t.id, action, comment), "s");
+              }} disabled={busy === "s"}
               style={{ ...btn(C.primary), opacity: busy === "s" ? 0.5 : 1 }} data-testid={`staff-escrow-release-sign-${t.bid_ref || t.id}`}>
               {busy === "s" ? "Signing…" : (t.signed_by_pmc ? "Update my signature" : "Sign this action")}
             </button>
