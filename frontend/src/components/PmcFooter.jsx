@@ -1,5 +1,8 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import LangSwitcher from "@/apps/shared/LangSwitcher";
+import { api } from "@/lib/api";
+import { BUILD_VERSION } from "@/lib/buildStamp";
 
 /** Editorial footer with Snapchat, Instagram, WhatsApp social integrations.
  *  URLs are read from window.__PMC_SOCIAL__ so the same build can point at
@@ -19,6 +22,10 @@ function Icon({ kind }) {
 }
 
 export default function PmcFooter() {
+  const [beVer, setBeVer] = useState(null);
+  useEffect(() => {
+    api.get("/api/v1/_version").then((r) => setBeVer(r.data?.version)).catch(() => setBeVer("unreachable"));
+  }, []);
   return (
     <footer className="bg-brand-navy-sovereign text-white/85 mt-24" data-testid="pmc-footer">
       <div className="h-[2px] bg-gradient-to-r from-transparent via-brand-gold to-transparent opacity-70" />
@@ -76,8 +83,8 @@ export default function PmcFooter() {
         </div>
       </div>
       <div className="border-t border-white/10 py-5 flex flex-col sm:flex-row items-center justify-between gap-3 px-6 lg:px-10">
-        <div className="text-[10px] uppercase tracking-[0.35em] text-white/40">
-          © {new Date().getFullYear()} PMC Managers Limited · All rights reserved · v51b
+        <div className="text-[10px] uppercase tracking-[0.35em] text-white/40" data-testid="build-stamp">
+          © {new Date().getFullYear()} PMC Managers Limited · All rights reserved · <span className="font-mono normal-case tracking-normal">FE {BUILD_VERSION} · BE {beVer || "…"}</span>
         </div>
         <div data-testid="footer-lang-switcher">
           <LangSwitcher dark />
