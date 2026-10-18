@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { InfoDot } from "@/components/InfoDot";
 import { useListPager } from "@/components/ListPager";
+import CountryMultiSelect from "@/components/CountryMultiSelect";
 import { permissionsApi } from "@/lib/api";
 
 const ROLE_LABELS = {
@@ -205,11 +206,11 @@ export default function StaffTab({
             </select>
           </label>
           <label className="text-sm md:col-span-2">
-            <span>Country scope <InfoDot tip="ISO country codes this staff member covers, comma-separated (e.g. MY, SG). Leave BLANK = all countries / global. Drives which bids appear in their /staff queue: they see bids assigned to them, plus unassigned bids in these countries." /></span>
-            <input placeholder="e.g. MY, SG  —  blank = all countries"
-              value={(staffDraft.country_scope || []).join(", ")}
-              onChange={(e) => setStaffDraft({ ...staffDraft, country_scope: e.target.value.split(",").map((x) => x.trim().toUpperCase()).filter(Boolean) })}
-              className="mt-1 w-full px-3 py-2 border normal-case tracking-normal" data-testid="staff-country-scope" />
+            <span>Country scope <InfoDot tip="Pick the countries this staff member covers. Leave EMPTY = all countries / global. Drives which bids appear in their /staff queue: bids assigned to them, plus unassigned bids in these countries." /></span>
+            <CountryMultiSelect
+              value={staffDraft.country_scope || []}
+              onChange={(v) => setStaffDraft({ ...staffDraft, country_scope: v })}
+              testid="staff-country-scope" />
           </label>
           {/* v53k — mark staff as PMC-side escrow signatory. Only ticked
               rows appear in the "PMC officer" dropdown when creating a
@@ -350,12 +351,11 @@ export default function StaffTab({
                           data-testid={`staff-edit-level-${s.email}`} />
                       </label>
                       <label className="text-xs mt-2 block">
-                        <span>Country scope (ISO codes, comma-sep — blank = all)</span>
-                        <input placeholder="e.g. MY, SG"
-                          value={(editDraft.country_scope || []).join(", ")}
-                          onChange={(e) => setEditDraft({ ...editDraft, country_scope: e.target.value.split(",").map((x) => x.trim().toUpperCase()).filter(Boolean) })}
-                          className="mt-1 w-full px-2 py-1 border"
-                          data-testid={`staff-edit-country-scope-${s.email}`} />
+                        <span>Country scope (empty = all countries)</span>
+                        <CountryMultiSelect
+                          value={editDraft.country_scope || []}
+                          onChange={(v) => setEditDraft({ ...editDraft, country_scope: v })}
+                          testid={`staff-edit-country-scope-${s.email}`} />
                       </label>
                       <label className="text-xs mt-2 block">
                         <span>Company</span>

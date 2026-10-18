@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import AdminEShell from "./AdminEShell";
 import AdminEscrowChart from "./AdminEscrowChart";
+import CountryMultiSelect from "@/components/CountryMultiSelect";
 import { api, showApiError, uploadsApi, escrowInstitutionsApi } from "@/lib/api";
 /**
  * v51am — Admin review queue for Escrow Institution registrations.
@@ -20,7 +21,7 @@ export default function AdminEscrowInstitutionsE() {
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   // v56 — country scope editor for the selected institution.
-  const [scopeDraft, setScopeDraft] = useState("");
+  const [scopeDraft, setScopeDraft] = useState([]);
   // v52cx — invite drawer.
   const [inviteOpen, setInviteOpen] = useState(false);
   // v53m — duplicate-email cleanup panel.
@@ -62,11 +63,11 @@ export default function AdminEscrowInstitutionsE() {
   };
   useEffect(() => { load(); /* eslint-disable-line */ }, [status]);
 
-  useEffect(() => { setScopeDraft((sel?.country_scope || []).join(", ")); }, [sel]);
+  useEffect(() => { setScopeDraft(sel?.country_scope || []); }, [sel]);
 
   const saveScope = async () => {
     if (!sel) return;
-    const arr = scopeDraft.split(",").map((x) => x.trim().toUpperCase()).filter(Boolean);
+    const arr = (scopeDraft || []).map((x) => String(x).trim().toUpperCase()).filter(Boolean);
     try {
       await escrowInstitutionsApi.setScope(sel.id, arr);
       toast.success(arr.length ? `Scope set: ${arr.join(", ")}` : "Scope set to Global (all countries)");
@@ -395,15 +396,15 @@ export default function AdminEscrowInstitutionsE() {
                   <div data-testid="escrow-inst-scope-editor">
                     <div className="pmc-label mb-1">Country scope</div>
                     <div className="text-[11px] text-brand-navy/60 mb-1">
-                      ISO-2 codes, comma-separated (e.g. MY, SG). Leave blank = Global
-                      (all countries). Controls which notice/bid countries this
-                      institution is offered for.
+                      Pick the countries this institution serves. Leave EMPTY =
+                      Global (all countries). Controls which notice/bid countries
+                      this institution is offered for.
                     </div>
-                    <div className="flex gap-2">
-                      <input value={scopeDraft} onChange={(e) => setScopeDraft(e.target.value)}
-                        placeholder="blank = all countries"
-                        data-testid="escrow-inst-scope-input"
-                        className="flex-1 border border-brand-navy/20 px-3 py-2 text-sm" />
+                    <div className="flex gap-2 items-start">
+                      <div className="flex-1" data-testid="escrow-inst-scope-input">
+                        <CountryMultiSelect value={scopeDraft} onChange={setScopeDraft}
+                          testid="escrow-inst-scope-picker" />
+                      </div>
                       <button onClick={saveScope} disabled={busy}
                         data-testid="escrow-inst-scope-save"
                         className="px-4 py-2 text-xs uppercase tracking-widest bg-brand-navy text-white disabled:opacity-50">

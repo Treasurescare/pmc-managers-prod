@@ -57,12 +57,14 @@ export default function CompaniesTab({ companies, onChange }) {
       if (editingId) {
         await mastersApi.updateCompany(editingId, draft);
         toast.success("Company updated");
+        onChange?.();
       } else {
-        await mastersApi.createCompany(draft);
-        toast.success("Company created");
+        const created = await mastersApi.createCompany(draft);
+        toast.success("Company created — scroll down to upload documents");
+        setShowNew(false);
+        setEditingId(created.id);
+        onChange?.();
       }
-      cancel();
-      onChange?.();
     } catch (e) { showApiError(e); }
   };
 
@@ -119,12 +121,29 @@ export default function CompaniesTab({ companies, onChange }) {
 
 function CompanyForm({ draft, setDraft, countries, onSave, onCancel, isEdit }) {
   const [states, setStates] = useState([]);
+  const [cities, setCities] = useState([]);
+  const countryObj = (countries || []).find((c) => c.code === draft.country);
+
   useEffect(() => {
     if (!draft.country) { setStates([]); return; }
     mastersGeoApi.states(draft.country)
       .then((r) => setStates(Array.isArray(r) ? r : []))
       .catch(() => setStates([]));
   }, [draft.country]);
+
+  useEffect(() => {
+    if (!draft.country || !draft.state_code) { setCities([]); return; }
+    mastersGeoApi.cities(draft.country, draft.state_code, draft.city, 200)
+      .then((r) => setCities(Array.isArray(r) ? r : []))
+      .catch(() => setCities([]));
+  }, [draft.country, draft.state_code, draft.city]);
+
+  const zipPattern = countryObj?.postal_code_regex || null;
+  const zipFormat = countryObj?.postal_code_format || null;
+  let zipValid = true;
+  if (draft.postal_code && zipPattern) {
+    try { zipValid = new RegExp(zipPattern).test(draft.postal_code); } catch { zipValid = true; }
+  }
 
   const set = (k, v) => setDraft((d) => ({ ...d, [k]: v }));
 
@@ -145,7 +164,7 @@ function CompanyForm({ draft, setDraft, countries, onSave, onCancel, isEdit }) {
       <label className="text-xs uppercase tracking-widest text-brand-navy/60">
         Country
         <select value={draft.country}
-          onChange={(e) => setDraft((d) => ({ ...d, country: e.target.value, state_code: "", state_name: "" }))}
+          onChange={(e) => setDraft((d) => ({ ...d, country: e.target.value, state_code: "", state_name: "", city: "", postal_code: "" }))}
           className="mt-1 w-full px-3 py-2 border bg-white normal-case tracking-normal"
           data-testid="company-country">
           <option value="">Select…</option>
@@ -175,13 +194,24 @@ function CompanyForm({ draft, setDraft, countries, onSave, onCancel, isEdit }) {
       </label>
       <label className="text-xs uppercase tracking-widest text-brand-navy/60">
         City
-        <input value={draft.city} onChange={(e) => set("city", e.target.value)}
-          className="mt-1 w-full px-3 py-2 border normal-case tracking-normal" data-testid="company-city" />
+        <input list="company-city-dl" value={draft.city} onChange={(e) => set("city", e.target.value)}
+          disabled={states.length > 0 && !draft.state_code}
+          autoComplete="off"
+          placeholder={draft.country ? (states.length === 0 || draft.state_code ? "Select or type city…" : "Pick a state first") : "Pick a country first"}
+          className="mt-1 w-full px-3 py-2 border normal-case tracking-normal disabled:bg-slate-100" data-testid="company-city" />
+        <datalist id="company-city-dl">
+          {cities.map((c, i) => <option key={i} value={c.name} />)}
+        </datalist>
       </label>
       <label className="text-xs uppercase tracking-widest text-brand-navy/60">
-        ZIP / Postal code
+        ZIP / Postal code{zipFormat ? <span className="normal-case tracking-normal text-brand-navy/40"> ({zipFormat})</span> : null}
         <input value={draft.postal_code} onChange={(e) => set("postal_code", e.target.value)}
-          className="mt-1 w-full px-3 py-2 border normal-case tracking-normal" data-testid="company-zip" />
+          className={`mt-1 w-full px-3 py-2 border normal-case tracking-normal ${!zipValid ? "border-red-400" : ""}`} data-testid="company-zip" />
+        {!zipValid && (
+          <span className="normal-case tracking-normal text-[10px] text-red-700" data-testid="company-zip-error">
+            Doesn't match {draft.country} postal format{zipFormat ? ` (${zipFormat})` : ""}.
+          </span>
+        )}
       </label>
       <label className="text-xs uppercase tracking-widest text-brand-navy/60 md:col-span-3">
         Registered address
@@ -210,8 +240,8 @@ function CompanyForm({ draft, setDraft, countries, onSave, onCancel, isEdit }) {
         <span>Active</span>
       </label>
       <div className="md:col-span-3 flex gap-2">
-        <button onClick={onSave} data-testid="company-save"
-          className="px-4 py-2 text-[11px] uppercase tracking-widest bg-brand-navy-soft text-white">
+        <button onClick={onSave} disabled={!zipValid} data-testid="company-save"
+          className="px-4 py-2 text-[11px] uppercase tracking-widest bg-brand-navy-soft text-white disabled:opacity-50">
           {isEdit ? "Save company" : "Create company"}
         </button>
         <button onClick={onCancel}
