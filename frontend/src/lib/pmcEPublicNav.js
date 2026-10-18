@@ -21,7 +21,7 @@ const LINK_MAP = {
   "for buyers & pmc teams": "/buyers",
   "trust & security": "/trust",
   "verify on ledger": "/trust",
-  "sign in": "/vendor/login",
+  "sign in": "/login",
   "register as supplier": "/register",
   "register": "/register",
   "kyc guide": "/help",

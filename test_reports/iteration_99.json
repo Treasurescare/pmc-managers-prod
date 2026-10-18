@@ -1,0 +1,28 @@
+{
+  "summary": "Retest of HIGH bug fix from iteration_98 (home tender card body click now deep-links to /notices/<ref> instead of /register). All 5 targeted flows + 2 quick regressions PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_results": {
+    "tender_card_deep_link": "PASS — clicking article.pmc-tender title navigated to /notices/PMC-NOT-2026-0071 and notice-detail-e rendered (NOT /register)",
+    "live_board_row": "PASS — .pmc-live__row click -> /notices/PMC-NOT-2026-0071",
+    "see_all_open_notices": "PASS (manually verified in screenshot: 'See all 29 open notices' link visible) — automated selector 'See all open notices' failed because link text is dynamic ('See all 29 open notices'); not a product bug",
+    "closing_this_week_chip": "PASS — URL /tenders/live?status=closing with a radio checked",
+    "awards_kpi_tile": "PASS — /tenders/completed KPI click -> /tenders/live?status=awarded with a radio checked",
+    "hero_search": "PASS — /tenders/live?q=road",
+    "help_drawer": "PASS — data-help-open opens Help & FAQs drawer"
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (not tested per request)", "frontend": "100%"},
+  "seed_data_creation": "none",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "HIGH bug from iteration_98 fully resolved. onCardClick in PmcLinkPatcher.jsx now uses extractNoticeRef and routes to /notices/<ref>. Live board regression + status filter deep-links (closing/awarded) also verified. Note: console 401s observed on home page for some resource (likely unauthenticated API probe) — not blocking UX; worth E1 checking if intentional.",
+  "rca of the issue": "Resolved in main agent patch — leftover onCardClick fallback now extracts notice ref before falling back to /register."
+}
