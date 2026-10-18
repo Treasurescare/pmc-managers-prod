@@ -1,0 +1,23 @@
+{
+  "summary": "Verified v56b CSRF auto-recovery end-to-end. Backend GET /api/v1/staff/auth/csrf returns 401 when unauthenticated and 200 + fresh csrf_token when authenticated with a valid access_token cookie. In the real browser, after signing in as admin, deleting only the csrf_token cookie (access_token preserved) and clicking 'Create company' on /admin/e/masters -> Companies produced the full recovery flow visible in network: POST /api/v1/masters/companies -> 403, GET /api/v1/staff/auth/csrf -> 200, POST /api/v1/masters/companies -> 200. The user saw only the normal 'Company created' success toast with NO 'CSRF token missing or invalid' error. The csrf_token cookie was re-issued and the second request carried the new X-CSRF-Token header.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "api.js refreshCsrf uses a shared in-flight promise and the response interceptor correctly gates on _skipCsrfRecovery (for the refresh call itself) and _csrfRetried (once-only). Logic looks correct and was observed working.",
+    "Escrow joint-account save was blocked by pre-existing client-side validation on the chosen row ('PMC officer email is not valid'), so the CSRF path could not be exercised there with the first-visible row. Masters > Companies was used as the equivalent axios mutation and PASSED. Escrow happy-path save still worth a one-off manual verification by main agent with a row whose officers already pass validation, but the recovery mechanism itself is confirmed working via Companies create."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "adminsupport@pmcmanagers.com / Admin@12345 (active_role: admin) via /admin/login",
+  "seed_data_creation": "Created one company TEST_csrf_1792302333 (code TC1792302333, id 6ad45cfd9e633ed99de90b44, country AF/KZ) during CSRF recovery test. Attempted inactivation; row remains but is TEST_ prefixed. Main agent can delete via direct Mongo if desired.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The CSRF auto-recovery (v56b) is confirmed working. Network trace from live browser: 403 on first mutation with missing csrf cookie -> auto GET /api/v1/staff/auth/csrf 200 -> retry 200. No user-facing CSRF toast. csrf_token cookie re-minted. Backend /api/v1/staff/auth/csrf correctly 401s anonymous callers. Escrow joint-save validation ('PMC officer email is not valid', 'Institution does not match any approved master row') is enforced client-side and never reaches the API — this is pre-existing behaviour, not a CSRF issue.",
+  "rca of the issue": "N/A — fix verified; original bug (403 'CSRF token missing or invalid' shown to the user when the JS-readable csrf_token cookie was dropped while access_token survived) no longer surfaces to the user because the axios response interceptor transparently refreshes the csrf cookie via GET /api/v1/staff/auth/csrf and retries the original request once."
+}

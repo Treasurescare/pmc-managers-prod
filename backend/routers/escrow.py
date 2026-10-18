@@ -226,6 +226,124 @@ async def patch_account(aid: str, payload: EscrowAccountPatch,
     return _out_account(await db.escrow_accounts.find_one({"_id": ObjectId(aid)}))
 
 
+@router.post("/accounts/{aid}/backfill-signers")
+async def backfill_signers(aid: str, admin=Depends(require_role("admin"))):
+    """v56b — repair a joint account's signers against the current masters.
+
+    Matches the account's institution (by id, else legal_name) to an APPROVED
+    escrow institution, refreshes the PMC officer from the staff signatory pool
+    (only when the email already matches), and swaps the escrow officer to a
+    real institution signatory when the current one isn't valid. Every change
+    is audit-logged. Returns `diagnostics` the UI surfaces in a toast.
+    """
+    try:
+        acc = await db.escrow_accounts.find_one({"_id": ObjectId(aid)})
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid account id")
+    if not acc:
+        raise HTTPException(status_code=404, detail="Escrow account not found")
+
+    # 1. Resolve the institution: explicit id first, else legal_name match.
+    inst = None
+    if acc.get("institution_id"):
+        try:
+            inst = await db.escrow_institutions.find_one(
+                {"_id": ObjectId(acc["institution_id"]), "status": "approved"})
+        except Exception:
+            inst = None
+    if not inst:
+        name = (acc.get("institution") or "").strip().lower()
+        if name:
+            async for i in db.escrow_institutions.find({"status": "approved"}):
+                if (i.get("legal_name") or "").strip().lower() == name:
+                    inst = i
+                    break
+    if not inst:
+        suggestions = []
+        async for i in db.escrow_institutions.find({"status": "approved"}).sort("legal_name", 1).limit(10):
+            suggestions.append({"id": str(i["_id"]), "legal_name": i.get("legal_name")})
+        raise HTTPException(status_code=404, detail={
+            "error": "institution_unmatched",
+            "message": (f"\"{acc.get('institution') or '—'}\" does not match any approved "
+                        "escrow institution. Rebind this account via Edit signers, or "
+                        "approve the institution first."),
+            "suggestions": suggestions,
+        })
+
+    # 2. Institution signatory pool (registered signatories + primary contact).
+    sig_rows = []
+    for s in inst.get("signatories") or []:
+        if (s.get("email") or "").strip() and (s.get("name") or "").strip():
+            sig_rows.append({"name": s["name"], "email": s["email"],
+                             "designation": s.get("designation") or ""})
+    pce = (inst.get("primary_contact_email") or "").strip()
+    if pce and not any((r["email"] or "").lower() == pce.lower() for r in sig_rows):
+        sig_rows.append({"name": inst.get("primary_contact_name") or inst.get("legal_name") or pce,
+                         "email": pce, "designation": "Primary contact"})
+
+    # 3. PMC officer — refresh (name/designation) only if the email is still in the pool.
+    pmc_pool = {}
+    async for s in db.admin_users.find({"is_escrow_signatory": True, "is_active": {"$ne": False}}):
+        pmc_pool[(s.get("email") or "").lower()] = {
+            "name": s.get("name") or s.get("email"), "email": s.get("email"),
+            "designation": s.get("designation") or "", "role": "pmc"}
+    cur_pmc = acc.get("pmc_officer") or {}
+    pmc_email = (cur_pmc.get("email") or "").lower()
+    if pmc_email and pmc_email in pmc_pool:
+        new_pmc = pmc_pool[pmc_email]
+        pmc_status = "refreshed from pool"
+    else:
+        new_pmc = {**cur_pmc, "role": "pmc"}
+        pmc_status = "unchanged (email not in signatory pool)" if pmc_email else "unchanged (none set)"
+
+    # 4. Escrow officer — keep if a valid signatory, else swap to the first signatory.
+    cur_esc = acc.get("escrow_officer") or {}
+    esc_email = (cur_esc.get("email") or "").lower()
+    sig_by_email = {(r["email"] or "").lower(): r for r in sig_rows}
+    if esc_email and esc_email in sig_by_email:
+        chosen = sig_by_email[esc_email]
+        esc_status = "kept (valid signatory)"
+    elif sig_rows:
+        chosen = sig_rows[0]
+        esc_status = f"swapped to {chosen['email']}"
+    else:
+        chosen = cur_esc
+        esc_status = "unchanged (institution has no signatories)"
+    new_esc = {"name": chosen.get("name"), "email": chosen.get("email"),
+               "designation": chosen.get("designation") or "", "role": "escrow_institution"}
+
+    # Guard dual-control: PMC and escrow emails must differ.
+    if (new_pmc.get("email") or "").lower() and \
+       (new_pmc.get("email") or "").lower() == (new_esc.get("email") or "").lower():
+        for cand in pmc_pool.values():
+            if (cand["email"] or "").lower() != (new_esc.get("email") or "").lower():
+                new_pmc = cand
+                pmc_status = f"swapped to {cand['email']} (avoid collision)"
+                break
+
+    changes = {
+        "institution": inst.get("legal_name"),
+        "institution_id": str(inst["_id"]),
+        "pmc_officer": {"name": new_pmc.get("name"), "email": new_pmc.get("email"),
+                        "designation": new_pmc.get("designation") or None, "role": "pmc"},
+        "escrow_officer": new_esc,
+        "updated_at": now_iso(),
+    }
+    await db.escrow_accounts.update_one({"_id": ObjectId(aid)}, {"$set": changes})
+    await audit_log("escrow.account_backfill", admin, "escrow_account", aid,
+                    {"institution": inst.get("legal_name"),
+                     "pmc_officer": pmc_status, "escrow_officer": esc_status})
+    return {
+        "ok": True,
+        "account": _out_account(await db.escrow_accounts.find_one({"_id": ObjectId(aid)})),
+        "diagnostics": {
+            "institution_matched": inst.get("legal_name"),
+            "pmc_officer": pmc_status,
+            "escrow_officer": esc_status,
+        },
+    }
+
+
 @router.get("/signatory-pool")
 async def signatory_pool(admin=Depends(require_role("admin", "reviewer"))):
     """v53k — source of truth for the two dropdowns used when creating a

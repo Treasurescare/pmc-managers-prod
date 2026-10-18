@@ -337,6 +337,14 @@ browser/cache once — this is what ends the recurring "old code on prod" crashe
   `build/downloads/` (was 346 MB → 3.9 MB).
 - Release bundles: `pmc-backend-v54a.zip`, `pmc-frontend-v54a-prod-build.zip`.
 
+## v56b (18 Jun 2026) — follow-up fixes (footer version, country pickers, city/zip, CSRF, backfill)
+- **Footer version** now shows live build on the main site: HomeE + PmcFooter read `/api/v1/_version` → "Frontend v56 · Backend v56" (PmcFooter previously hard-coded v51b; HomeE showed nothing).
+- **Country pickers**: new `components/CountryMultiSelect.jsx` (country NAMES + flags, chips, search; empty = all/global). Wired into staff Country scope (new + edit forms) and the escrow-institution scope editor — replaces free-text ISO input.
+- **Company Master City/ZIP**: City is a cascading autocomplete from the cities master (country→state→city); ZIP live-validates against the country's postal_code_regex (invalid disables Save). Company country option now name-first. Upload panel now appears right after Create (auto edit mode).
+- **CSRF 403 fix** (prod bug): browser dropping the `csrf_token` cookie made state-changing admin saves 403 "CSRF token missing or invalid". Added `GET /api/v1/staff/auth/csrf` (re-issues the cookie for the authenticated JWT session) + axios auto-refresh-and-retry-once on that exact 403. Verified in-browser (iteration_91, 100%).
+- **Backfill 404 fix**: frontend called `POST /api/v1/escrow/accounts/{id}/backfill-signers` which didn't exist → 404. Implemented it: matches institution to an approved master, refreshes PMC officer if email still in pool, swaps escrow officer to a real signatory, guards dual-control; returns diagnostics. Unmatched institution → structured 404 with suggestions (UI shows "rebind" hint). Curl-verified both paths.
+- Bundles rebuilt: `pmc-backend-v56.zip`, `pmc-frontend-v56-prod-build.zip`.
+
 ## v56 (18 Jun 2026) — Bidding Ops assignment UI + full Company Master + escrow scope
 Completes the v55 work-distribution phase. Four admin features, all verified in
 preview (testing_agent iteration_89 Bidding Ops 100%; iteration_88 the other three PASS).
