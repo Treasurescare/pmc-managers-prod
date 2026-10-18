@@ -531,3 +531,17 @@ summary notes.
   dual-control mismatch that blocked releases).
 - PMC-BID-2026-00060 confirmed RELEASED_TO_CONTRACTOR in production.
 - Bundles: pmc-backend-v56j.zip / pmc-frontend-v56j-prod-build.zip.
+
+## v56k (18 Jun 2026) — hard release-to-contractor governance gate
+- escrow.py _assert_release_governance(): release_to_contractor refused (at BOTH
+  sign_off and release) unless the bid.status == 'awarded' (full chain: escrow →
+  certifier → legal → accounting → committee award). 409 names the pending stage.
+  release_to_vendor / forfeit are not gated.
+- Verified: non-awarded blocks sign + release; awarded signs + releases OK.
+- NOTE: user explicitly asked NOT to delete any preview/production data yet. A
+  cleanup plan is agreed for later: KEEP masters + escrow_institutions + counters;
+  DELETE transactional (bids/notices/escrow txns/auctions/registrations/etc);
+  audit_events = back up then wipe fully (never partial); escrow_accounts delete
+  only on request; vendors/users deletion only if explicitly chosen. Vendors list
+  is NOT affected by the base cleanup.
+- Bundles: pmc-backend-v56k.zip / pmc-frontend-v56k-prod-build.zip.

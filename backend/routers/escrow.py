@@ -698,6 +698,7 @@ async def sign_off(tid: str, payload: SignIn,
     if tx["status"] in ("released_to_contractor", "released_to_vendor", "forfeited", "cancelled"):
         raise HTTPException(status_code=409,
                              detail=f"Transaction already {tx['status']} — cannot re-sign")
+    await _assert_release_governance(tx, payload.intended_action)
     snap = tx.get("escrow_account_snapshot") or {}
     pmc = snap.get("pmc_officer") or {}
     esc = snap.get("escrow_officer") or {}
@@ -751,6 +752,36 @@ async def sign_off(tid: str, payload: SignIn,
     return _out_tx(await db.escrow_transactions.find_one({"_id": ObjectId(tid)}))
 
 
+async def _assert_release_governance(tx: dict, action: str) -> None:
+    """v56k — HARD governance gate. EMD can only be released to the CONTRACTOR
+    once the bid has cleared ALL evaluation stages (escrow acceptance →
+    certifier → legal → accounting → committee award), i.e. bid.status ==
+    'awarded'. Refund-to-vendor and forfeit are intentionally NOT gated."""
+    if action != "release_to_contractor":
+        return
+    bid_ref = tx.get("bid_ref")
+    bid = await db.bids.find_one({"bid_ref": bid_ref}) if bid_ref else None
+    status = (bid or {}).get("status")
+    if status != "awarded":
+        pending = {
+            "emd_pending": "EMD payment", "emd_paid": "escrow acceptance",
+            "submitted": "escrow acceptance", "escrow_accepted": "admin review",
+            "admin_flagged": "site certifier clearance",
+            "certifier_cleared": "legal clearance",
+            "legal_cleared": "accounting clearance",
+            "accounting_cleared": "committee award / admin sign-off",
+        }.get(status, "the full evaluation")
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Release to contractor is blocked — bid {bid_ref or '—'} is "
+                f"'{status or 'not found'}', not awarded yet. EMD can only be "
+                "released to the contractor after certifier, legal, accounting "
+                f"and committee award are all complete (pending: {pending})."
+            ),
+        )
+
+
 @router.post("/transactions/{tid}/release")
 async def release(tid: str, payload: ReleaseIn,
                    admin=Depends(require_role("admin", "accounting"))):
@@ -765,6 +796,7 @@ async def release(tid: str, payload: ReleaseIn,
         raise HTTPException(status_code=404, detail="Transaction not found")
     if tx["status"] in ("released_to_contractor", "released_to_vendor", "forfeited", "cancelled"):
         raise HTTPException(status_code=409, detail=f"Transaction already {tx['status']}")
+    await _assert_release_governance(tx, payload.action)
     if not _dual_signed(tx, payload.action):
         raise HTTPException(status_code=409,
                              detail="Both officers must sign the same action before release")
