@@ -1,5 +1,15 @@
 # PMC Managers — Changelog
 
+## v56r (2026-06-24) — Notice pickers (Sector + Contract type)
+Wired the v56q taxonomy into notice creation/editing. NoticesPanel.jsx (create) and
+NoticeEditModal.jsx (edit) now load mastersApi.listSectors()/listContractTypes() and render two
+grouped (optgroup parent → indented child) selects under Category, bound to
+draft.sector_code / draft.contract_type_code. Backend needs no model change (NoticeIn/NoticePatchIn
+use extra="allow"), so the fields persist + return. Verified: POST /api/v1/notices with
+sector_code=power-transmission + contract_type_code=epc-turnkey returned both on the created notice
+(test notice deleted after). NEXT: vendor registration/profile tagging, public board filter, go-live
+mandatory enforcement.
+
 ## v56q (2026-06-24) — Sector / Contract-Type taxonomy above UNSPSC
 Model: Sector -> Contract Type -> UNSPSC commodity code, all optional for now (mandatory at
 go-live). New own collections db.sectors (25, 2-level) + db.contract_types (30, 2-level) so they

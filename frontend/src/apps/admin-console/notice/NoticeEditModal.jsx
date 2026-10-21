@@ -14,6 +14,8 @@ import EmdMasterPicker from "./EmdMasterPicker";
 export default function NoticeEditModal({ noticeRef, onClose, onSaved, isMasterAdmin }) {
   const [draft, setDraft] = useState(null);
   const [categories, setCategories] = useState([]);
+  const [sectors, setSectors] = useState([]);
+  const [contractTypes, setContractTypes] = useState([]);
   const [countries, setCountries] = useState([]);
   const [matrices, setMatrices] = useState([]);
   const [templates, setTemplates] = useState([]);
@@ -36,6 +38,8 @@ export default function NoticeEditModal({ noticeRef, onClose, onSaved, isMasterA
           description: n.description || "",
           document_type: n.document_type || "tender",
           category: n.category || "",
+          sector_code: n.sector_code || "",
+          contract_type_code: n.contract_type_code || "",
           delivery_country: n.delivery_country || "KZ",
           submission_deadline: (n.submission_deadline || "").slice(0, 16),
           budget_currency: n.budget_currency || "USD",
@@ -62,6 +66,11 @@ export default function NoticeEditModal({ noticeRef, onClose, onSaved, isMasterA
       .then((rows) => setCategories(Array.isArray(rows) ? rows : []))
       .catch(() => setCategories([]));
   }, [draft?.delivery_country]);
+
+  useEffect(() => {
+    mastersApi.listSectors().then((r) => setSectors(Array.isArray(r) ? r : [])).catch(() => setSectors([]));
+    mastersApi.listContractTypes().then((r) => setContractTypes(Array.isArray(r) ? r : [])).catch(() => setContractTypes([]));
+  }, []);
 
   if (!noticeRef) return null;
 
@@ -173,6 +182,34 @@ export default function NoticeEditModal({ noticeRef, onClose, onSaved, isMasterA
                   <option key={c.id || c.code} value={c.name}>
                     {c.unspsc_code ? `${c.unspsc_code} · ` : ""}{c.name}
                   </option>
+                ))}
+              </select></label>
+
+            <label><span className="pmc-label">Sector<InfoDot tip="Industry/domain for this tender. Optional now; becomes mandatory at go-live." /></span>
+              <select value={draft.sector_code || ""} onChange={(e) => setDraft({ ...draft, sector_code: e.target.value })}
+                data-testid="edit-sector" className="mt-1 w-full px-4 py-3 border border-brand-navy/20 bg-white">
+                <option value="">— Select a sector —</option>
+                {sectors.filter((s) => !s.parent_code).map((p) => (
+                  <optgroup key={p.code} label={p.name}>
+                    <option value={p.code}>{p.name} (all)</option>
+                    {sectors.filter((c) => c.parent_code === p.code).map((c) => (
+                      <option key={c.code} value={c.code}>&nbsp;&nbsp;{c.name}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select></label>
+
+            <label><span className="pmc-label">Contract type<InfoDot tip="Delivery model: EPC, Works, PPP, Supply, Services… Optional now; mandatory at go-live." /></span>
+              <select value={draft.contract_type_code || ""} onChange={(e) => setDraft({ ...draft, contract_type_code: e.target.value })}
+                data-testid="edit-contract-type" className="mt-1 w-full px-4 py-3 border border-brand-navy/20 bg-white">
+                <option value="">— Select a contract type —</option>
+                {contractTypes.filter((s) => !s.parent_code).map((p) => (
+                  <optgroup key={p.code} label={p.name}>
+                    <option value={p.code}>{p.name} (general)</option>
+                    {contractTypes.filter((c) => c.parent_code === p.code).map((c) => (
+                      <option key={c.code} value={c.code}>&nbsp;&nbsp;{c.name}</option>
+                    ))}
+                  </optgroup>
                 ))}
               </select></label>
 

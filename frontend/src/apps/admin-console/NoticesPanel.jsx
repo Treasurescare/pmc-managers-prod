@@ -20,6 +20,8 @@ export default function NoticesPanel() {
   const [matrices, setMatrices] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [sectors, setSectors] = useState([]);
+  const [contractTypes, setContractTypes] = useState([]);
   const [countries, setCountries] = useState([]);
   const [currencies, setCurrencies] = useState([]);
   const [primaryFile, setPrimaryFile] = useState(null);
@@ -33,6 +35,7 @@ export default function NoticesPanel() {
   const [me, setMe] = useState(null);
   const [draft, setDraft] = useState({
     title: "", description: "", document_type: "tender", category: "", category_code: "",
+    sector_code: "", contract_type_code: "",
     delivery_country: "KZ", submission_deadline: "", budget_currency: "USD",
     budget_amount: null, is_published: false,
     emd_config: { fixed_amount: 0, percentage: 0, currency: "USD" },
@@ -190,6 +193,11 @@ export default function NoticesPanel() {
       .catch(() => setCategories([]));
   }, [draft.delivery_country]);
 
+  useEffect(() => {
+    mastersApi.listSectors().then((r) => setSectors(Array.isArray(r) ? r : [])).catch(() => setSectors([]));
+    mastersApi.listContractTypes().then((r) => setContractTypes(Array.isArray(r) ? r : [])).catch(() => setContractTypes([]));
+  }, []);
+
   // Bug #21/#32 — accept any admin role variant (case-insensitive, tolerates
   // legacy "Master Admin" / "MASTER_ADMIN" / "master-admin" etc.). Backend can
   // return "admin" | "master_admin" | "superadmin" depending on seeding path;
@@ -303,6 +311,7 @@ export default function NoticesPanel() {
       // Bug #22 — full form reset instead of only clearing title/description
       setDraft({
         title: "", description: "", document_type: "tender", category: "", category_code: "",
+    sector_code: "", contract_type_code: "",
         delivery_country: "KZ", submission_deadline: "", budget_currency: "USD",
         budget_amount: null, is_published: false,
         emd_config: { fixed_amount: 0, percentage: 0, currency: "USD" },
@@ -455,6 +464,32 @@ export default function NoticesPanel() {
                 testidPrefix="notice-category" />
             </div>
           </label>
+          <label><span className="pmc-label">Sector<InfoDot tip="Industry/domain for this tender (Masters → Sectors). Optional now; mandatory at go-live." /></span>
+            <select value={draft.sector_code || ""} onChange={(e) => setDraft({ ...draft, sector_code: e.target.value })}
+              data-testid="notice-sector" className="mt-1 w-full px-4 py-3 border border-brand-navy/20 bg-white">
+              <option value="">— Select a sector —</option>
+              {sectors.filter((s) => !s.parent_code).map((p) => (
+                <optgroup key={p.code} label={p.name}>
+                  <option value={p.code}>{p.name} (all)</option>
+                  {sectors.filter((c) => c.parent_code === p.code).map((c) => (
+                    <option key={c.code} value={c.code}>&nbsp;&nbsp;{c.name}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select></label>
+          <label><span className="pmc-label">Contract type<InfoDot tip="Delivery model: EPC, Works, PPP, Supply, Services… (Masters → Contract types). Optional now; mandatory at go-live." /></span>
+            <select value={draft.contract_type_code || ""} onChange={(e) => setDraft({ ...draft, contract_type_code: e.target.value })}
+              data-testid="notice-contract-type" className="mt-1 w-full px-4 py-3 border border-brand-navy/20 bg-white">
+              <option value="">— Select a contract type —</option>
+              {contractTypes.filter((s) => !s.parent_code).map((p) => (
+                <optgroup key={p.code} label={p.name}>
+                  <option value={p.code}>{p.name} (general)</option>
+                  {contractTypes.filter((c) => c.parent_code === p.code).map((c) => (
+                    <option key={c.code} value={c.code}>&nbsp;&nbsp;{c.name}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select></label>
           <label><span className="pmc-label">Document type<InfoDot tip="TENDER = works/goods procurement, RFP = solutioning/consulting, RFQ = quick price quote. Drives which template sections are mandatory." /></span>
             <select value={draft.document_type} onChange={(e) => setDraft({ ...draft, document_type: e.target.value })} data-testid="notice-doc-type"
               className="mt-1 w-full px-4 py-3 border border-brand-navy/20">
