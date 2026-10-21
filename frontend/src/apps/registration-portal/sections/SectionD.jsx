@@ -96,7 +96,7 @@ export default function SectionD({ reg, update, kzMeta, regId, token, onDocChang
         </select>
       </Field>
       <Field label={t("section_d.operating_regions")}
-             hint="Add one entry per office with name, address, country, city, state and ZIP. Previously comma-separated regions remain visible above and can be re-added as offices.">
+             hint="Add one entry per office — name, address, country, state, city and ZIP.">
         <RegionOfficeEditor
           value={reg.operating_regions || []}
           onChange={(v) => update({ operating_regions: v })}

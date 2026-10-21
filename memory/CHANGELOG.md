@@ -1,6 +1,21 @@
 # PMC Managers — Changelog
 
-## v56s bug-sheet clearance (25 Jun 2026) — client 24-item sheet reconciled + fixed
+## v56s Open-Five closeout (25 Jun 2026)
+Reconciled the last 5 "open" items against the real client sheet:
+- #40 FIXED (real root cause): the public NoticeDetailE "Key dates" timeline + ledger hash-lines
+  were HARDCODED mock dates (every notice showed the same fake timeline + phantom "Corrigendum 1").
+  Rebuilt to render the notice's real published_at / pre_bid_meeting_date / clarification_deadline /
+  submission_deadline + all published corrigenda, sorted chronologically, local time. Also fixed the
+  legacy NoticeDetail.jsx UTC→local display.
+- #11 FIXED: operating-regions is a structured office editor now; shortened the hint.
+- #46 FIXED: added a distinct visible label + tooltip to the corrigenda-filter box (vs the notice
+  search box) in CorrigendaPanel.jsx.
+- #69 VERIFIED: RegionOfficeEditor already has a type-to-search CountryCombobox (v54d) — works in preview.
+- #56 VERIFIED: live DPR analyse in preview drafted 5/5 sections with real AI bodies; any prod
+  "nothing drafted" is the managed LLM proxy (sk-managed → api.pmcmanagers.com/llm), not code.
+Rebuilt v56s bundles + regenerated PMC_Bug_Clearance_v56s_*.docx/.xlsx (now 14 fixed · 8 verified ·
+0 open · 1 parked) with a new #40 key-dates screenshot.
+
 IMPORTANT: the forked handoff had WRONG descriptions for #13/#15/#69/#6 — reconciled against the
 real client sheet (numbers kept verbatim). Diagnostic showed most BACKENDS already return 200; the
 open items were FRONTEND. Testing iter104 (status sweep) + iter105 (fix retest, 4/4 PASS).

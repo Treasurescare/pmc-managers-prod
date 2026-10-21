@@ -512,6 +512,10 @@ export default function CorrigendaPanel() {
         );
         return (
           <>
+            <div className="pmc-label mb-1 flex items-center gap-1" data-testid="corr-search-within-label">
+              Search within this notice's corrigenda
+              <InfoDot tip="This box filters the corrigenda already published on the notice picked above — it does NOT search for notices. Use the box at the top to find a different notice." />
+            </div>
             <input value={corrSearch} onChange={(e) => setCorrSearch(e.target.value)}
               aria-label="Search within this notice's corrigenda"
               placeholder="Filter THIS notice's corrigenda by number, title or summary…"

@@ -351,8 +351,8 @@ export default function NoticeDetail() {
               <DetailField label={t("notice.category")} value={notice.category} />
               <DetailField label={t("notice.country")} value={notice.delivery_country} />
               <DetailField label={t("notice.budget")} value={budget} mono />
-              <DetailField label={t("notice.submission_deadline")} value={deadline?.toISOString().replace("T", " ").slice(0, 16)} mono />
-              <DetailField label={t("notice.pre_bid")} value={preBid?.toISOString().replace("T", " ").slice(0, 16)} mono />
+              <DetailField label={t("notice.submission_deadline")} value={deadline ? deadline.toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }) : null} mono />
+              <DetailField label={t("notice.pre_bid")} value={preBid ? preBid.toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }) : null} mono />
               <DetailField label={t("notice.required_licenses")} value={notice.required_licenses?.join(", ")} />
               <DetailField label={t("notice.contact")} value={notice.contact_name} />
               <DetailField label="Contact email" value={notice.contact_email} mono />

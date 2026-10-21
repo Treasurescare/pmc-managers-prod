@@ -31,9 +31,11 @@ export default function NoticeDetailE({ legacy: Legacy }) {
   // then the primary uploaded document; "" means "no documents published".
   const [packUrl, setPackUrl] = useState(null);
   const [closed, setClosed] = useState(false);
+  const [notice, setNotice] = useState(null);
   useEffect(() => {
     if (!isE || !noticeRef) return;
     publicApi.getNotice(noticeRef).then((n) => {
+      setNotice(n);
       // v52cz — RELATIVE path only. The old `${REACT_APP_BACKEND_URL}` prefix
       // baked the preview host into every production bundle, which turned
       // the Download pack click into a cross-origin call from
@@ -213,14 +215,34 @@ export default function NoticeDetailE({ legacy: Legacy }) {
         <div className="pmc-muted" style={{ fontSize: "12px", textAlign: "center", marginTop: "8px" }}>New supplier? <Link to="/register">Register first</Link> — about 15 minutes</div>
       )}
     </div>
-    <div className="pmc-panel" style={{ padding: "20px" }}><b style={{ fontSize: "15px" }}>Key dates</b><div className="pmc-timeline" style={{ marginTop: "14px" }}>
-      <div className="done"><span className="dot"></span><div><b>Published</b><span>21 Sep 2026</span></div></div>
-      <div className="done"><span className="dot"></span><div><b>Corrigendum 1</b><span>26 Sep 2026 · clause 4.2 ISO classes</span></div></div>
-      <div className="done"><span className="dot"></span><div><b>Clarifications close</b><span>27 Sep 2026</span></div></div>
-      <div className="now"><span className="dot"></span><div><b>Bid submission closes</b><span>30 Sep 2026, 21:48</span></div></div>
-      <div><span className="dot"></span><div><b>Technical envelopes open</b><span>1 Oct 2026 · committee only</span></div></div>
-      <div><span className="dot"></span><div><b>Commercial opening &amp; L1</b><span>After technical scores are locked</span></div></div></div></div>
-    <div className="pmc-panel" style={{ padding: "16px 20px" }}><div className="pmc-hashline"><svg className="pmc-ico" aria-hidden="true"><use href="#i-link" /></svg><span>Notice sealed on the ledger · <code>notice.publish #1872</code></span></div><div className="pmc-hashline" style={{ marginTop: "6px" }}><svg className="pmc-ico" aria-hidden="true"><use href="#i-link" /></svg><span>Corrigendum 1 · <code>corrigendum.issue #1880</code></span></div></div>
+    <div className="pmc-panel" style={{ padding: "20px" }}><b style={{ fontSize: "15px" }}>Key dates</b><div className="pmc-timeline" style={{ marginTop: "14px" }} data-testid="notice-e-key-dates">
+      {(() => {
+        /* #40 — real, chronological key dates derived from the notice and its
+           published corrigenda. Previously this block was hardcoded mock
+           dates, so every tender showed the same fake timeline (and a phantom
+           "Corrigendum 1") regardless of what was entered at creation. */
+        const fmtDay = (v) => v ? new Date(v).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : null;
+        const fmtDT = (v) => v ? new Date(v).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }) : null;
+        const now = Date.now();
+        const rows = [];
+        if (notice?.published_at) rows.push({ t: new Date(notice.published_at).getTime(), label: "Published", val: fmtDay(notice.published_at) });
+        (corrigenda || []).forEach((c) => {
+          const d = c.effective_from || c.published_at;
+          rows.push({ t: d ? new Date(d).getTime() : now, label: `Corrigendum ${c.corrigendum_no}`, val: [fmtDay(d), c.title].filter(Boolean).join(" · ") });
+        });
+        if (notice?.pre_bid_meeting_date) rows.push({ t: new Date(notice.pre_bid_meeting_date).getTime(), label: "Pre-bid meeting", val: fmtDT(notice.pre_bid_meeting_date) });
+        if (notice?.clarification_deadline) rows.push({ t: new Date(notice.clarification_deadline).getTime(), label: "Clarifications close", val: fmtDT(notice.clarification_deadline) });
+        if (notice?.submission_deadline) rows.push({ t: new Date(notice.submission_deadline).getTime(), label: "Bid submission closes", val: fmtDT(notice.submission_deadline) });
+        rows.sort((a, b) => a.t - b.t);
+        if (!rows.length) return <div className="pmc-muted" style={{ fontSize: "13px" }}>Key dates will appear once this notice is published.</div>;
+        const firstFuture = rows.findIndex((r) => r.t >= now);
+        return rows.map((r, i) => {
+          const cls = r.t < now ? "done" : (i === firstFuture ? "now" : "");
+          return <div key={i} className={cls} data-testid={`notice-e-date-${i}`}><span className="dot"></span><div><b>{r.label}</b><span>{r.val}</span></div></div>;
+        });
+      })()}
+    </div></div>
+    <div className="pmc-panel" style={{ padding: "16px 20px" }}><div className="pmc-hashline"><svg className="pmc-ico" aria-hidden="true"><use href="#i-link" /></svg><span>Notice sealed on the audit ledger</span></div>{(corrigenda || []).map((c) => (<div key={c.id} className="pmc-hashline" style={{ marginTop: "6px" }}><svg className="pmc-ico" aria-hidden="true"><use href="#i-link" /></svg><span>Corrigendum {c.corrigendum_no} issued · {(c.effective_from || c.published_at || "").slice(0, 10)}</span></div>))}</div>
   </aside>
 </div>
 {corrigenda.length > 0 && (
