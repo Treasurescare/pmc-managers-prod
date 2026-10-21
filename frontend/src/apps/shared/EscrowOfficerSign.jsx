@@ -115,7 +115,10 @@ export default function EscrowOfficerSign() {
       setCtx(d);
       setError(null);
     } catch (e) {
-      setError(e.message);
+      const code = e?.response?.status;
+      setError(code === 404 || code === 410
+        ? "This signing link is invalid or has expired. Please ask the PMC team to resend your escrow signing link."
+        : "We couldn't load this signing link right now. Please try again, or ask the PMC team to resend it.");
     } finally {
       setLoading(false);
     }

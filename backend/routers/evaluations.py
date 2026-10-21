@@ -198,11 +198,22 @@ async def list_scores(notice_ref: str, admin=Depends(require_role("admin", "comm
 # ---------- Award Recommendation Report (helpers extracted for clarity) ----------
 
 
+# v56o — bug #44: when no rubric is saved for a notice the evaluation used an
+# empty criteria list, so every technical score computed as 0% and no bid ever
+# qualified. Fall back to the same 4 default criteria the scoring UI shows.
+DEFAULT_TECH_CRITERIA = [
+    {"code": "experience", "label": "Relevant Experience", "weight": 0.30, "max_score": 100},
+    {"code": "methodology", "label": "Methodology & Approach", "weight": 0.30, "max_score": 100},
+    {"code": "team", "label": "Team & Key Personnel", "weight": 0.20, "max_score": 100},
+    {"code": "financial_health", "label": "Financial Health", "weight": 0.20, "max_score": 100},
+]
+
+
 def _load_rubric_config(rubric: dict) -> dict:
     """Normalise rubric weights + minimum threshold. Never returns invalid values."""
     commercial_weight = float(rubric.get("commercial_weight", 0.4) or 0.4)
     return {
-        "tech_criteria":     rubric.get("technical_criteria", []),
+        "tech_criteria":     rubric.get("technical_criteria") or DEFAULT_TECH_CRITERIA,
         "commercial_weight": commercial_weight,
         "tech_weight":       1.0 - commercial_weight,
         "min_tech":          float(rubric.get("minimum_technical", 60.0) or 60.0),

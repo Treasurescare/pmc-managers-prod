@@ -325,7 +325,7 @@ export default function ProductCatalogPanel() {
 
   const toggleActive = async (p) => {
     try {
-      await productCatalogApi.update(p.id, { is_active: !p.is_active });
+      await productCatalogApi.setActive(p.id, !p.is_active);
       toast.success(`${p.name} ${p.is_active ? "disabled" : "enabled"}`);
       reload();
     } catch (e) { showApiError(e, { fallbackTitle: "Toggle failed" }); }

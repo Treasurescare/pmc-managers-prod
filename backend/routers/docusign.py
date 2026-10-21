@@ -1051,10 +1051,15 @@ async def list_my_envelopes(vendor=Depends(current_vendor)):
     # a re-registered vendor reusing an email must NOT inherit envelopes
     # that belonged to the previous registration).
     bid_ids = []
-    async for b in db.bids.find({"$or": [{"vendor_id": vendor.get("id")},
-                                          {"vendor_email": ve}]}, {"id": 1, "vendor_id": 1}):
-        if b.get("id") and b.get("vendor_id") == vendor.get("id"):
-            bid_ids.append(b["id"])
+    vid = vendor.get("id")
+    # v56o — bug #17: envelopes store bid_id as str(_id); bids have no `id`
+    # field, so the old `b.get("id")` match found 0 bids and vendors only saw
+    # email-addressed envelopes. Match on str(_id) and include email-only bids
+    # that predate vendor_id stamping.
+    async for b in db.bids.find({"$or": [{"vendor_id": vid},
+                                          {"vendor_email": ve}]}, {"vendor_id": 1, "vendor_email": 1}):
+        if b.get("vendor_id") == vid or (not b.get("vendor_id") and b.get("vendor_email") == ve):
+            bid_ids.append(str(b["_id"]))
     # signer_email matches only count for envelopes created AFTER this
     # vendor record was created (fresh registration = clean slate).
     vendor_created = vendor.get("created_at") or ""

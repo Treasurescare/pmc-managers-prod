@@ -30,6 +30,7 @@ export default function NoticeDetailE({ legacy: Legacy }) {
   // it did nothing. Priority: composed Tender Builder ZIP (all annexures),
   // then the primary uploaded document; "" means "no documents published".
   const [packUrl, setPackUrl] = useState(null);
+  const [closed, setClosed] = useState(false);
   useEffect(() => {
     if (!isE || !noticeRef) return;
     publicApi.getNotice(noticeRef).then((n) => {
@@ -45,6 +46,11 @@ export default function NoticeDetailE({ legacy: Legacy }) {
       // generic notice pack built from primary doc + attachments. An empty
       // string means "no documents published yet" so the UI can show an
       // informative toast instead of 404.
+      // v56o — bug #36: a closed/awarded or past-deadline tender must not
+      // offer "Start bid". Derive closed state from the live notice.
+      const isClosed = n?.status === "closed" || n?.status === "awarded"
+        || (!!n?.submission_deadline && new Date(n.submission_deadline).getTime() < Date.now());
+      setClosed(isClosed);
       if (n?.tender_template_id) {
         setPackUrl(`/api/v1/tender-templates/${n.tender_template_id}/public/zip?notice_ref=${encodeURIComponent(noticeRef)}`);
       } else if ((n?.primary_document && n.primary_document.url) || (Array.isArray(n?.attachments) && n.attachments.length)) {
@@ -169,7 +175,11 @@ export default function NoticeDetailE({ legacy: Legacy }) {
           <svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg> Download pack
         </button>
       )}
-      <Link to={authed && role === "vendor" ? `/vendor/workspace/new?notice=${noticeRef}` : (authed ? dashboardPath : "/register")} className="pmc-btn pmc-btn--brass pmc-btn--lg" data-testid="notice-start-bid">Start bid</Link>
+      {closed ? (
+        <span className="pmc-btn pmc-btn--brass pmc-btn--lg" data-testid="notice-start-bid" aria-disabled="true" style={{ opacity: 0.55, cursor: "not-allowed", pointerEvents: "none" }}>Bidding closed</span>
+      ) : (
+        <Link to={authed && role === "vendor" ? `/vendor/workspace/new?notice=${noticeRef}` : (authed ? dashboardPath : "/register")} className="pmc-btn pmc-btn--brass pmc-btn--lg" data-testid="notice-start-bid">Start bid</Link>
+      )}
     </div>
   </div>
   <dl className="pmc-facts" style={{ margin: "0" }}><div><dt>Indicative budget</dt><dd>USD 2,100,000</dd></div><div><dt>EMD</dt><dd>3% of bid value</dd></div><div><dt>Tender fee</dt><dd>None</dd></div><div><dt>Delivery</dt><dd>Kazakhstan</dd></div><div><dt>Form of contract</dt><dd>Turnkey · lump sum</dd></div><div><dt>Closes in</dt><dd><span className="pmc-countdown" data-in="52" style={{ color: "var(--brass-on-chrome)", fontSize: "15px" }}>—</span></dd></div></dl>
@@ -194,7 +204,11 @@ export default function NoticeDetailE({ legacy: Legacy }) {
       <div className="pmc-muted" style={{ fontSize: "13px" }}>30 Sep 2026, 21:48 Almaty time</div>
       <hr style={{ border: "0", borderTop: "1px solid var(--line)", margin: "16px 0" }} />
       <dl className="pmc-kv"><dt>Covers</dt><dd>3 sealed envelopes</dd><dt>Withdrawal</dt><dd>Allowed before deadline</dd><dt>Multi-currency bids</dt><dd>No · USD only</dd><dt>Two-stage bidding</dt><dd>No</dd></dl>
-      <Link to={authed && role === "vendor" ? `/vendor/workspace/new?notice=${noticeRef}` : (authed ? dashboardPath : "/register")} className="pmc-btn pmc-btn--primary pmc-btn--lg" style={{ width: "100%", marginTop: "18px" }} data-testid="notice-aside-start-bid">Start bid</Link>
+      {closed ? (
+        <span className="pmc-btn pmc-btn--primary pmc-btn--lg" data-testid="notice-aside-start-bid" aria-disabled="true" style={{ width: "100%", marginTop: "18px", opacity: 0.55, cursor: "not-allowed", pointerEvents: "none", textAlign: "center" }}>Bidding closed</span>
+      ) : (
+        <Link to={authed && role === "vendor" ? `/vendor/workspace/new?notice=${noticeRef}` : (authed ? dashboardPath : "/register")} className="pmc-btn pmc-btn--primary pmc-btn--lg" style={{ width: "100%", marginTop: "18px" }} data-testid="notice-aside-start-bid">Start bid</Link>
+      )}
       {!authed && (
         <div className="pmc-muted" style={{ fontSize: "12px", textAlign: "center", marginTop: "8px" }}>New supplier? <Link to="/register">Register first</Link> — about 15 minutes</div>
       )}

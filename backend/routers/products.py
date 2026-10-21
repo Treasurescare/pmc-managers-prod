@@ -181,6 +181,26 @@ async def update_product(product_id: str, payload: ProductIn,
     return _out(await db.products.find_one({"_id": ObjectId(product_id)}))
 
 
+@router.patch("/{product_id}/active")
+async def set_product_active(product_id: str, is_active: bool,
+                             admin=Depends(require_role("admin"))):
+    """v56o — bug #58: lightweight enable/disable toggle. The full PATCH
+    requires every product field (code/name/category); disabling only needs
+    the flag, so the catalog 'Disable' button now hits this endpoint."""
+    if not ObjectId.is_valid(product_id):
+        raise HTTPException(status_code=400, detail="Invalid product id")
+    existing = await db.products.find_one({"_id": ObjectId(product_id)})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Product not found")
+    await db.products.update_one(
+        {"_id": ObjectId(product_id)},
+        {"$set": {"is_active": bool(is_active), "updated_at": now_iso(),
+                  "updated_by": admin["email"]}})
+    await audit_log("product.toggle_active", admin, "product",
+                    existing.get("code", product_id), {"is_active": bool(is_active)})
+    return _out(await db.products.find_one({"_id": ObjectId(product_id)}))
+
+
 @router.delete("/{product_id}")
 async def delete_product(product_id: str,
                           admin=Depends(require_role("admin"))):

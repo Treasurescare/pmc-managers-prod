@@ -1427,6 +1427,7 @@ export const productCatalogApi = {
   adminList: (active_only = false) => api.get("/api/v1/products", { params: { active_only, _: Date.now() } }).then((r) => r.data),
   create: (p) => api.post("/api/v1/products", p).then((r) => r.data),
   update: (id, p) => api.patch(`/api/v1/products/${id}`, p).then((r) => r.data),
+  setActive: (id, is_active) => api.patch(`/api/v1/products/${id}/active`, null, { params: { is_active } }).then((r) => r.data),
   delete: (id) => api.delete(`/api/v1/products/${id}`).then((r) => r.data),
   reseed: () => api.post("/api/v1/products/reseed").then((r) => r.data),
 };

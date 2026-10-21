@@ -313,13 +313,18 @@ async def publish_corrigendum(
         "published_by": admin.get("email"),
         "created_at": now_iso(),
     }
+    # v56o — bug #23: validate the new deadline BEFORE persisting anything.
+    # Previously the corrigendum was inserted and the notice deadline moved
+    # first; a later 400 left a live orphan corrigendum + a changed deadline.
+    if new_deadline:
+        from routers.date_rules import require_future
+        require_future(new_deadline, "New submission deadline")
+
     res = await db.corrigenda.insert_one(doc)
     doc["_id"] = res.inserted_id
 
     # If a new deadline was supplied/computed, also update the parent notice.
     if new_deadline:
-        from routers.date_rules import require_future
-        require_future(new_deadline, "New submission deadline")
         await db.notices.update_one(
             {"notice_ref": notice_ref},
             {"$set": {"submission_deadline": new_deadline,
