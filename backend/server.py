@@ -442,6 +442,60 @@ async def _seed_categories() -> None:
         logging.info(f"Seeded {inserted} procurement categories (UNSPSC + legacy KZ)")
 
 
+# v56p — PMC contract/works/sector taxonomy requested by customers. Two levels
+# via parent_code. country_scope=None → available for every country.
+PMC_CONTRACT_CATEGORIES = [
+    ("epc", "EPC Contracts", None),
+    ("epc-engineering-design", "Engineering and Design", "epc"),
+    ("epc-procurement", "Procurement", "epc"),
+    ("epc-construction-execution", "Construction and Execution", "epc"),
+    ("epc-turnkey", "Turnkey", "epc"),
+    ("works", "Works", None),
+    ("works-civil", "Civil", "works"),
+    ("works-electrical-mechanical", "Electrical and Mechanical", "works"),
+    ("works-fire-protection", "Fire Protection", "works"),
+    ("works-security", "Security", "works"),
+    ("works-horticulture-landscape", "Horticulture and Landscape", "works"),
+    ("works-interiors-equipment", "Interiors and Equipment", "works"),
+    ("works-operations-maintenance", "Operations and Maintenance", "works"),
+    ("ppp", "PPP (Public-Private Partnership)", None),
+    ("ppp-bot", "BOT (Build-Operate-Transfer)", "ppp"),
+    ("ppp-dbfot", "DBFOT (Design-Build-Finance-Operate-Transfer)", "ppp"),
+    ("ppp-ham", "HAM (Hybrid Annuity Model)", "ppp"),
+    ("renewable-energy", "Renewable Energy", None),
+    ("re-solar", "Solar", "renewable-energy"),
+    ("re-wind", "Wind", "renewable-energy"),
+    ("re-hydro", "Hydro", "renewable-energy"),
+    ("power-sector", "Power Sector", None),
+    ("power-transmission", "Transmission", "power-sector"),
+    ("power-distribution", "Distribution", "power-sector"),
+    ("power-production", "Production", "power-sector"),
+    ("logistics", "Logistics", None),
+]
+
+
+async def _seed_pmc_contract_categories() -> None:
+    """Seed the EPC / Works / PPP / Renewable / Power / Logistics taxonomy.
+    Idempotent per code — safe on every boot; inserts only missing codes so
+    the UNSPSC set and any admin edits are never touched."""
+    now = datetime.now(timezone.utc).isoformat()
+    inserted = 0
+    for code, name, parent in PMC_CONTRACT_CATEGORIES:
+        try:
+            if await db.categories.find_one({"code": code}):
+                continue
+            await db.categories.insert_one({
+                "code": code, "name": name, "parent_code": parent,
+                "country_scope": None, "source": "pmc",
+                "is_active": True, "created_at": now,
+            })
+            inserted += 1
+        except Exception:
+            pass
+    if inserted:
+        logging.info(f"Seeded {inserted} PMC contract/works/sector categories")
+
+
 async def _seed_default_rubric() -> None:
     """v46y — ensure a default 1-10 rating rubric exists so the vendor peer
     review flow always finds a rubric. Idempotent — migrates any existing
@@ -571,6 +625,7 @@ async def on_start() -> None:
     await _seed_product_catalog()
     await _seed_taxonomy()
     await _seed_categories()
+    await _seed_pmc_contract_categories()
     # v52bk — ISO-4217 currency master used by Notice/Bid/EMD money fields
     try:
         from routers.currencies import seed_defaults as _seed_currencies

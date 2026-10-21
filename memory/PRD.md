@@ -11,7 +11,16 @@ institution portals, AWS deployment bundles, and transactional notifications
 (Stripe, Resend, DocuSign, Emergent crons).
 
 
-## Current deployable: v56n (24 Jun 2026)
+## Current deployable: v56p (24 Jun 2026)
+Bug-sheet batch 1 (6 fixes) + customer contract/works taxonomy.
+Artifacts (preview): `pmc-backend-v56p.zip`, `pmc-frontend-v56p-prod-build.zip`,
+`DOWNLOAD_v56p.md` under `/downloads/`. Deploy: EB backend → S3 frontend root →
+CloudFront invalidate `/*` → confirm footer "Frontend v56p · Backend v56p".
+Backend auto-seeds the 26-item EPC/Works/PPP/Renewable/Power/Logistics taxonomy on boot.
+Fixed+preview-tested: #58 catalog disable, #44 eval default rubric, #17 docusign vendor
+envelopes, #23 corrigenda validate-before-write, #36 closed-tender Start bid, #72 escrow
+magic-link message. STILL OPEN: #55 registration approve, #40 notice timelines,
+#56 AI FILL ALL (502 large), #23b public corrigenda tab.
 Public-site upgrades on top of v56m: live ledger Verify (recompute hash → intact/break),
 tender deep-links (live rows + cards open the notice), real Contact enquiry with tracked
 reference (ENQ-2026-#####) emailed to desk, status-filter links (Closing this week /

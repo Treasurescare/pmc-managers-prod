@@ -1,0 +1,42 @@
+{
+  "summary": "Re-verified the 6 v56o bug fixes on PREVIEW. PASS: 58 (catalog disable/enable, API + UI), 44 (award report falls back to 4 default criteria; technical_avg 24.0, not 0), 36 (closed notice shows a disabled 'Bidding closed' label; an open notice's Start bid works), 72 (friendly escrow invalid-link message). 17: the code fix works (proven with a direct call), but manualvendor has no envelopes, so it NEEDS SEED DATA for an end-to-end check. 23: PARTIAL. A past deadline is now rejected with no orphan, but a future deadline that breaks the tender date chain still returns 400 AFTER the corrigendum is inserted and the notice deadline is moved, so the orphan bug is still there on that path.",
+  "per_bug_results": {
+    "BUG_58": "PASS. PATCH /api/v1/products/{id}/active?is_active=false/true returns 200 and the change persists in the DB. Bad id gives 400, unknown id gives 404. UI /admin/e/catalog: DISABLE shows the toast 'Strategic Project Advisory disabled' and the row turns grey with ENABLE; ENABLE restores it. No 422.",
+    "BUG_44": "PASS. GET /api/v1/evaluations/award-report/PMC-NOT-2026-0018 returns rubric.criteria = 4 defaults and the ranking row PMC-BID-2026-00021 has technical_avg=24.0, combined=14.4, qualifies=False. The only technical score saved is {experience:80} (weight 0.3), so 24% is correct. It still does not qualify because 24 is below the 60 minimum, which is real data, not the tech=0 bug. Checked via API only; the 'Generate Award Report' button was not clicked.",
+    "BUG_17": "NEEDS SEED DATA. GET /api/v1/docusign/mine as manualvendor returns 200 with items=[]: the vendor has 8 bids but 0 envelopes in the DB. The logic was checked by calling list_my_envelopes directly for the owner of bid 6a6edf47fb5b2e1fb4ddb6eb, with the email deliberately mismatched: it returned 3 envelopes matched by str(_id). So the fix works.",
+    "BUG_23": "PARTIAL / FAIL. (a) A past new_submission_deadline gives 400, the corrigendum count is unchanged and the deadline is unchanged: PASS. (b) extend_deadline_days=-1000 gives 400 with no orphan: PASS. (c) A valid future corrigendum on PMC-NOT-2026-0098 gives 200 and updates the deadline: PASS. (d) A future deadline on PMC-NOT-2026-0102 (bid_award_date 2026-10-17 is before the deadline) gives 400 'Bid Award Date must be on or after Bid Submission End.', but the corrigenda count went from 8 to 9 and submission_deadline moved from 2026-12-20 to 2026-12-22: FAIL, the orphan is still created on this path.",
+    "BUG_36": "PASS. /notices/PMC-NOT-2026-0016 (past deadline): notice-start-bid and notice-aside-start-bid are both SPAN elements with aria-disabled=true and text 'Bidding closed', no href. /notices/PMC-NOT-2026-0098 (open): both are A elements with 'Start bid', and clicking goes to /register.",
+    "BUG_72": "PASS. /escrow/officer/invalid-token-xyz123 shows 'This signing link is invalid or has expired. Please ask the PMC team to resend your escrow signing link.' and no raw 'Request failed with status code 404'."
+  },
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/v1/notices/{ref}/corrigenda", "issue": "Bug 23 is only partly fixed. _validate_tender_chain() and the field_amendments submission_deadline require_future check still run AFTER db.corrigenda.insert_one and the notices.update_one that moves the deadline. A chain failure returns 400 but leaves an orphan live corrigendum and a moved notice deadline (plus deadline_last_amended_* fields).", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "GET /api/v1/docusign/mine", "issue": "_sync_recent_statuses logs DOCUSIGN_AUTH_FAILED (invalid_grant / issuer_not_found) on preview. The request does not fail, but statuses cannot sync."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "NoticeDetailE (closed notice)", "issues": ["The 'New supplier? Register first — about 15 minutes' hint is still shown under the disabled 'Bidding closed' label. Consider hiding it when closed."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v56o_six_bugfixes.py", "/app/test_reports/pytest/pytest_v56o.xml"],
+  "action_items": [
+    "BUG 23: in publish_corrigendum, move _validate_tender_chain(n, field_amendments, new_deadline) and the field_amendments submission_deadline require_future loop to BEFORE db.corrigenda.insert_one and the notices.update_one. Do all validation first, then persist.",
+    "BUG 17: seed a docusign_envelopes row whose bid_id is str(_id) of one of manualvendor's bids, if you want an end-to-end UI check."
+  ],
+  "critical_code_review_comments": [
+    "corrigenda.py publish_corrigendum: the validate-then-persist order is only applied to require_future(new_deadline). The chain and amendment validators still come after the writes, which is the same class of bug as #23.",
+    "docusign.py list_my_envelopes: vendors collection docs have no 'id' field; vendor['id'] comes from current_vendor as str(_id), which is fine. The bid query projection is correct."
+  ],
+  "updated_files": ["/app/backend/tests/test_v56o_six_bugfixes.py"],
+  "success_rate": {"backend": "7/8 tests pass (bug 23 chain-path orphan fails)", "frontend": "100% (36, 72, 58 UI)"},
+  "seed_data_creation": "None kept. Throwaway TEST_ corrigenda on PMC-NOT-2026-0098 and 0102 were deleted and both submission_deadline values restored. Leftover side effect: PMC-NOT-2026-0102 still has deadline_last_amended_at/by_corr set by the orphan path. Product cli-pre-strategic-advisory was toggled off and back on (is_active=True).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest tests/test_v56o_six_bugfixes.py; test_bug23_chain_violation_leaves_no_orphan uses PMC-NOT-2026-0102, whose bid_award_date 2026-10-17 triggers the chain error. Preview clock is Oct 2026. Admin UI login: /login, then click signin-role-admin, then signin-e-email / signin-e-password / signin-e-submit (/admin/login did not redirect in automation). The closed notice used was PMC-NOT-2026-0016; the open one was PMC-NOT-2026-0098.",
+  "rca of the issue": "Bug 23 residual: publish_corrigendum does insert_one and update_one(submission_deadline) and only then calls _rf() for amendments and _validate_tender_chain(), which raise HTTPException 400. There is no transaction or rollback, so the writes stay. Repro: POST a corrigendum on PMC-NOT-2026-0102 with new_submission_deadline = current + 2 days. Fix: run all validators before any DB write."
+}

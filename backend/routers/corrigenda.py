@@ -319,6 +319,14 @@ async def publish_corrigendum(
     if new_deadline:
         from routers.date_rules import require_future
         require_future(new_deadline, "New submission deadline")
+    # v56o — bug #23: run the amendment + full tender-chain validation BEFORE
+    # any write, so a validation 400 never leaves an orphan corrigendum or a
+    # moved notice deadline behind.
+    from routers.date_rules import require_future as _rf
+    for _a in (payload.field_amendments or []):
+        if _a.get("field_key") == "submission_deadline":
+            _rf(_a.get("after"), "Submission deadline")
+    _validate_tender_chain(n, payload.field_amendments or [], new_deadline)
 
     res = await db.corrigenda.insert_one(doc)
     doc["_id"] = res.inserted_id
@@ -331,16 +339,6 @@ async def publish_corrigendum(
                       "deadline_last_amended_at": now_iso(),
                       "deadline_last_amended_by_corr": corr_no}},
         )
-
-    # v52t — a moved deadline cannot land in the past.
-    # v52y — plus the full tender-maker date chain over the effective
-    # post-amendment notice state (so a corrigendum can restart a closed
-    # tender's whole timeline, same rules as Tender Builder).
-    from routers.date_rules import require_future as _rf
-    for _a in (payload.field_amendments or []):
-        if _a.get("field_key") == "submission_deadline":
-            _rf(_a.get("after"), "Submission deadline")
-    _validate_tender_chain(n, payload.field_amendments or [], new_deadline)
 
     # v52q — apply the field-level amendments (budget, EMD, dates, …) onto
     # the parent notice so the tender notice view shows the amended values.

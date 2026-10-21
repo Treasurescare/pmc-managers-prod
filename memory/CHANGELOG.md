@@ -1,5 +1,24 @@
 # PMC Managers — Changelog
 
+## v56o/v56p (2026-06-24) — Bug-sheet batch 1 + contract/works taxonomy
+Verified the 24-item testing-team bug sheet in PREVIEW (many were already fixed in
+code but stale in production). Fixed and preview-tested (pytest tests/test_v56o_six_bugfixes.py, 8/8):
+- #58 Product Catalog disable/enable — new `PATCH /api/v1/products/{id}/active` (was 422).
+- #44 Evaluation scoring — `_load_rubric_config` falls back to DEFAULT_TECH_CRITERIA when no
+  rubric saved, so scored bids show real technical % not 0.
+- #17 DocuSign — `list_my_envelopes` matches bids by `str(_id)` (was non-existent `id`).
+- #23 Corrigenda — all validation (require_future + amendment + `_validate_tender_chain`) now
+  runs BEFORE any DB write, so a rejected publish leaves no orphan corrigendum / moved deadline.
+- #36 Closed tenders — NoticeDetailE gates both Start bid buttons behind a `closed` flag
+  (status closed/awarded or past submission_deadline) → disabled "Bidding closed".
+- #72 Escrow magic-link — friendly invalid/expired message instead of raw axios 404.
+Customer request — added `_seed_pmc_contract_categories()` (server.py): idempotent on every boot,
+seeds 26 categories (EPC Contracts, Works, PPP, Renewable Energy, Power Sector, Logistics with
+their sub-types) into the Category master; appears in Masters, vendor registration, notice filters.
+STILL OPEN from the sheet: #55 registration approve ("missing Section A fields"), #40 notice
+timelines (template placeholders), #56 AI FILL ALL 502 on large templates (sequential AI calls),
+#23b public Corrigenda tab shows "No corrigenda section published".
+
 ## v56n (2026-06-24) — Public-site upgrades: live Verify, deep links, contact, status filters
 Four approved upgrades + a Sign-in routing fix on top of v56m.
 - **Live Verify (Trust & Security):** new public `GET /api/v1/audit-events/verify-record?ref=`

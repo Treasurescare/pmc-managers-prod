@@ -209,7 +209,7 @@ export default function NoticeDetailE({ legacy: Legacy }) {
       ) : (
         <Link to={authed && role === "vendor" ? `/vendor/workspace/new?notice=${noticeRef}` : (authed ? dashboardPath : "/register")} className="pmc-btn pmc-btn--primary pmc-btn--lg" style={{ width: "100%", marginTop: "18px" }} data-testid="notice-aside-start-bid">Start bid</Link>
       )}
-      {!authed && (
+      {!authed && !closed && (
         <div className="pmc-muted" style={{ fontSize: "12px", textAlign: "center", marginTop: "8px" }}>New supplier? <Link to="/register">Register first</Link> — about 15 minutes</div>
       )}
     </div>
