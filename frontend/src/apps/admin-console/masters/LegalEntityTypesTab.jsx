@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { mastersApi, showApiError } from "@/lib/api";
+import { CountryMultiSelect } from "@/components/CountryPicker";
 
 /**
  * v50y — Legal entity types master.
@@ -12,7 +13,7 @@ export default function LegalEntityTypesTab() {
   const [showInactive, setShowInactive] = useState(false);
   const [draft, setDraft] = useState({
     code: "", name: "", name_ru: "", name_kz: "",
-    country_scope: "", description: "",
+    country_scope: [], description: "",
   });
 
   const load = useCallback(() => {
@@ -30,16 +31,14 @@ export default function LegalEntityTypesTab() {
     const payload = {
       ...draft,
       code: draft.code.toLowerCase().replace(/[^a-z0-9_-]+/g, "_"),
-      country_scope: draft.country_scope
-        ? draft.country_scope.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean)
-        : null,
+      country_scope: (draft.country_scope && draft.country_scope.length) ? draft.country_scope : null,
       is_active: true,
     };
     try {
       await mastersApi.createLegalEntityType(payload);
       toast.success(`"${draft.name}" added.`);
       setShowNew(false);
-      setDraft({ code: "", name: "", name_ru: "", name_kz: "", country_scope: "", description: "" });
+      setDraft({ code: "", name: "", name_ru: "", name_kz: "", country_scope: [], description: "" });
       load();
     } catch (e) { showApiError(e); }
   };
@@ -124,12 +123,10 @@ export default function LegalEntityTypesTab() {
               data-testid="legal-name-kz" />
           </label>
           <label className="text-xs uppercase tracking-widest text-brand-navy/60">
-            Country scope
-            <input value={draft.country_scope}
-              onChange={(e) => setDraft({ ...draft, country_scope: e.target.value })}
-              placeholder="KZ, RU — blank = all"
-              className="mt-1 w-full px-3 py-2 border normal-case tracking-normal"
-              data-testid="legal-countries" />
+            Country scope <span className="normal-case tracking-normal text-brand-navy/40">(blank = all countries)</span>
+            <CountryMultiSelect value={draft.country_scope}
+              onChange={(v) => setDraft({ ...draft, country_scope: v })}
+              testId="legal-countries" />
           </label>
           <label className="text-xs uppercase tracking-widest text-brand-navy/60 md:col-span-3">
             Description

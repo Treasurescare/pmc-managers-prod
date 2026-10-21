@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { tenderProApi, feeBillingApi, showApiError } from "@/lib/api";
+import { CountrySelect } from "@/components/CountryPicker";
 
 /**
  * v46b — "Charge fee" widget. Admin picks a fee master (any of the 5 kinds),
@@ -75,9 +76,7 @@ export default function FeeCharger() {
       <div className="grid gap-3 md:grid-cols-4 mb-4">
         <label className="text-xs uppercase tracking-widest text-brand-navy/60">
           Filter by country (opt)
-          <input value={country} onChange={(e) => setCountry(e.target.value.toUpperCase())}
-                 data-testid="fc-country" maxLength={3}
-                 className="mt-1 w-full px-3 py-2 border normal-case tracking-normal" />
+          <CountrySelect value={country} onChange={setCountry} testId="fc-country" />
         </label>
         <label className="text-xs uppercase tracking-widest text-brand-navy/60">
           Filter by kind (opt)

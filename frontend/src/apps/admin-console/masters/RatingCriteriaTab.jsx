@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { tenderProApi, showApiError } from "@/lib/api";
+import { CountrySelect } from "@/components/CountryPicker";
 
 /**
  * v45 · Phase D — Rating Criteria master editor (sub-tab of Masters).
@@ -103,10 +104,8 @@ export default function RatingCriteriaTab() {
           </label>
           <label className="text-xs uppercase tracking-widest text-brand-navy/60">
             Country (opt)
-            <input value={draft.country} onChange={(e) => setDraft({ ...draft, country: e.target.value.toUpperCase() })}
-                   data-testid="rc-country" maxLength={3}
-                   placeholder="KZ · IN · GB…"
-                   className="mt-1 w-full px-3 py-2 border normal-case tracking-normal" />
+            <CountrySelect value={draft.country} onChange={(v) => setDraft({ ...draft, country: v })}
+                   testId="rc-country" allLabel="Any country" />
           </label>
           <label className="text-xs uppercase tracking-widest text-brand-navy/60">
             Industry (opt)

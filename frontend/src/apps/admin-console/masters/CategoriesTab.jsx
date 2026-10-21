@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { mastersApi, showApiError } from "@/lib/api";
 import { InfoDot } from "@/components/InfoDot";
+import { CountryMultiSelect } from "@/components/CountryPicker";
 import { useListPager } from "@/components/ListPager";
 
 // v50g — Categories master (Masters → Categories).
@@ -15,7 +16,7 @@ export default function CategoriesTab() {
   const [showNew, setShowNew] = useState(false);
   const [draft, setDraft] = useState({
     code: "", name: "", name_ru: "", name_kz: "",
-    country_scope: "", required_licences: "",
+    country_scope: [], required_licences: "",
     parent_code: "", unspsc_code: "",
     source: "manual", is_active: true,
   });
@@ -53,9 +54,7 @@ export default function CategoriesTab() {
     }
     const payload = {
       ...draft,
-      country_scope: draft.country_scope
-        ? draft.country_scope.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean)
-        : null,
+      country_scope: (draft.country_scope && draft.country_scope.length) ? draft.country_scope : null,
       required_licences: draft.required_licences
         ? draft.required_licences.split(",").map((s) => s.trim()).filter(Boolean)
         : null,
@@ -68,7 +67,7 @@ export default function CategoriesTab() {
       setShowNew(false);
       setDraft({
         code: "", name: "", name_ru: "", name_kz: "",
-        country_scope: "", required_licences: "",
+        country_scope: [], required_licences: "",
         parent_code: "", unspsc_code: "", source: "manual", is_active: true,
       });
       load();
@@ -164,12 +163,10 @@ export default function CategoriesTab() {
               data-testid="cat-name-kz" />
           </label>
           <label className="text-xs uppercase tracking-widest text-brand-navy/60">
-            Country scope<InfoDot tip="Comma-separated ISO-2 country codes (e.g. KZ,RU). Leave blank for all countries." />
-            <input value={draft.country_scope}
-              onChange={(e) => setDraft({ ...draft, country_scope: e.target.value })}
-              placeholder="KZ, RU, UZ"
-              className="mt-1 w-full px-3 py-2 border normal-case tracking-normal"
-              data-testid="cat-countries" />
+            Country scope<InfoDot tip="Pick the countries this category applies to. Leave empty for all countries." />
+            <CountryMultiSelect value={draft.country_scope}
+              onChange={(v) => setDraft({ ...draft, country_scope: v })}
+              testId="cat-countries" />
           </label>
           <label className="text-xs uppercase tracking-widest text-brand-navy/60 md:col-span-2">
             Required licences<InfoDot tip="Comma-separated. Used by vendor matching so only licensed bidders see this category." />

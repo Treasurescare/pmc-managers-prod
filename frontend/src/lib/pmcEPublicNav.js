@@ -2,17 +2,20 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 // Maps the public-site chrome anchors (which ship as href="#") to real routes.
+// All tender-listing destinations point at /tenders/all — the live, filterable
+// board (legacy TendersList rendered in the E theme). /tenders/live is a static
+// design shell and must NOT be linked to for real browsing.
 const LINK_MAP = {
-  "tenders": "/tenders/live",
-  "tender notices": "/tenders/live",
-  "open notices": "/tenders/live",
-  "browse open tenders": "/tenders/live",
-  "browse all notices": "/tenders/live",
-  "see programme tenders": "/tenders/live",
+  "tenders": "/tenders/all",
+  "tender notices": "/tenders/all",
+  "open notices": "/tenders/all",
+  "browse open tenders": "/tenders/all",
+  "browse all notices": "/tenders/all",
+  "see programme tenders": "/tenders/all",
   "completed": "/tenders/completed",
   "completed & awarded": "/tenders/completed",
-  "corrigenda": "/tenders/live",
-  "programme": "/tenders/live",
+  "corrigenda": "/tenders/all",
+  "programme": "/tenders/all",
   "how it works": "/",
   "see how it works": "/",
   "home": "/",
@@ -67,7 +70,7 @@ export function usePublicNav(enabled = true) {
     // Brand logo -> home
     root.querySelectorAll("a.pmc-brand").forEach((a) => wire(a, "/"));
     // "Open for bids now" live chip -> tenders list
-    root.querySelectorAll("a.pmc-livechip").forEach((a) => wire(a, "/tenders/live"));
+    root.querySelectorAll("a.pmc-livechip").forEach((a) => wire(a, "/tenders/all"));
 
     const page = root.getAttribute("data-pmc-e-page");
 
@@ -84,15 +87,15 @@ export function usePublicNav(enabled = true) {
           const params = new URLSearchParams();
           if (q) params.set("q", q);
           if (country) params.set("country", country);
-          navTo(`/tenders/live${params.toString() ? "?" + params.toString() : ""}`);
+          navTo(`/tenders/all${params.toString() ? "?" + params.toString() : ""}`);
         });
       }
       // Popular chips -> prefiltered search / status filter
       const chipPath = {
-        "closing this week": "/tenders/live?status=closing",
-        "civil works & mep": "/tenders/live?q=" + encodeURIComponent("Civil Works"),
-        "medical equipment": "/tenders/live?q=Medical",
-        "it & digital health": "/tenders/live?q=IT",
+        "closing this week": "/tenders/all?status=closing",
+        "civil works & mep": "/tenders/all?q=" + encodeURIComponent("Civil Works"),
+        "medical equipment": "/tenders/all?q=Medical",
+        "it & digital health": "/tenders/all?q=IT",
       };
       root.querySelectorAll(".pmc-hero__in a.pmc-chip, a.pmc-chip").forEach((chip) => {
         if (chip.dataset.navWired) return;
@@ -101,13 +104,13 @@ export function usePublicNav(enabled = true) {
         wire(chip, chipPath[t]);
       });
       // Stat cards -> relevant destinations
-      const statDest = ["/tenders/live", "/register", "/tenders/live", "/trust"];
+      const statDest = ["/tenders/all", "/register", "/tenders/all", "/trust"];
       root.querySelectorAll(".pmc-stats > div").forEach((d, i) => {
         if (d.dataset.navWired) return;
-        wire(d, statDest[i] || "/tenders/live");
+        wire(d, statDest[i] || "/tenders/all");
       });
       // Programme spotlight category cards -> tenders list
-      root.querySelectorAll(".pmc-cats a.pmc-cat").forEach((a) => wire(a, "/tenders/live"));
+      root.querySelectorAll(".pmc-cats a.pmc-cat").forEach((a) => wire(a, "/tenders/all"));
       // Help & FAQs contact tiles
       root.querySelectorAll(".pmc-contact a").forEach((a) => {
         if (a.dataset.navWired) return;
@@ -121,7 +124,7 @@ export function usePublicNav(enabled = true) {
     if (page === "awards-public-e") {
       // "Awarded in 2026" KPI tile -> awarded filter on the tenders list
       const kpi = root.querySelector(".pmc-kpi.pmc-panel");
-      if (kpi && !kpi.dataset.navWired) wire(kpi, "/tenders/live?status=awarded");
+      if (kpi && !kpi.dataset.navWired) wire(kpi, "/tenders/all?status=awarded");
     }
 
     // Generic chrome anchors still pointing at "#"
@@ -129,7 +132,7 @@ export function usePublicNav(enabled = true) {
       if (a.dataset.navWired) return;
       const t = a.textContent.replace(/\s+/g, " ").trim().toLowerCase();
       let path = LINK_MAP[t];
-      if (!path && /^see all/.test(t)) path = "/tenders/live";
+      if (!path && /^see all/.test(t)) path = "/tenders/all";
       if (path) wire(a, path);
     });
   }, [enabled, navigate]);

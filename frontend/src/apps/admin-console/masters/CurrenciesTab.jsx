@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { mastersApi, showApiError } from "@/lib/api";
 import { InfoDot } from "@/components/InfoDot";
 import { useListPager } from "@/components/ListPager";
+import { useCountries } from "@/components/CountryPicker";
 
 /**
  * v52bl — Currencies master (Masters → Currencies).
@@ -18,6 +19,11 @@ export default function CurrenciesTab() {
     code: "", name: "", symbol: "", decimals: 2, is_active: true,
   });
   const [editing, setEditing] = useState(null);
+  // #d — currency↔country: a currency is a shared catalogue; the link lives on
+  // the country master (each country has a default currency). "Used by" is
+  // derived read-only so shared currencies (EUR/USD) list every country.
+  const allCountries = useCountries();
+  const usedBy = (code) => allCountries.filter((c) => (c.currency || "").toUpperCase() === code).map((c) => c.code);
 
   const load = useCallback(() => {
     mastersApi
@@ -146,6 +152,7 @@ export default function CurrenciesTab() {
               <th className="px-3 py-2 text-left">Name</th>
               <th className="px-3 py-2 text-left">Symbol</th>
               <th className="px-3 py-2 text-center">Decimals</th>
+              <th className="px-3 py-2 text-left">Used by (default)</th>
               <th className="px-3 py-2 text-center">Active</th>
               <th className="px-3 py-2 text-right">Actions</th>
             </tr>
@@ -179,6 +186,9 @@ export default function CurrenciesTab() {
                              className="w-14 px-2 py-1 border text-center" />
                     ) : (row.decimals ?? 2)}
                   </td>
+                  <td className="px-3 py-2 text-xs text-brand-navy/70" data-testid={`currencies-usedby-${row.code}`}>
+                    {(() => { const u = usedBy(row.code); return u.length ? (u.length > 6 ? `${u.slice(0, 6).join(", ")} +${u.length - 6}` : u.join(", ")) : "—"; })()}
+                  </td>
                   <td className="px-3 py-2 text-center">
                     {row.is_active
                       ? <span className="text-emerald-700 text-xs uppercase tracking-widest">● Active</span>
@@ -210,7 +220,7 @@ export default function CurrenciesTab() {
               );
             })}
             {filtered.length === 0 && (
-              <tr><td colSpan={6} className="text-center py-10 text-brand-navy/60">
+              <tr><td colSpan={7} className="text-center py-10 text-brand-navy/60">
                 No currencies match. Try clearing the filter.
               </td></tr>
             )}
