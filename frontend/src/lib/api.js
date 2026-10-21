@@ -797,6 +797,15 @@ export const mastersApi = {
   createCategory: (p) => api.post("/api/v1/masters/categories", p).then((r) => r.data),
   updateCategory: (id, p) => api.patch(`/api/v1/masters/categories/${id}`, p).then((r) => r.data),
   deactivateCategory: (id) => api.delete(`/api/v1/masters/categories/${id}`).then((r) => r.data),
+  // v56q — Sector & Contract-type taxonomy masters
+  listSectors: (opts = {}) => api.get("/api/v1/masters/sectors", { params: { include_inactive: opts.includeInactive ? true : undefined } }).then((r) => r.data),
+  createSector: (p) => api.post("/api/v1/masters/sectors", p).then((r) => r.data),
+  updateSector: (id, p) => api.patch(`/api/v1/masters/sectors/${id}`, p).then((r) => r.data),
+  deactivateSector: (id) => api.delete(`/api/v1/masters/sectors/${id}`).then((r) => r.data),
+  listContractTypes: (opts = {}) => api.get("/api/v1/masters/contract-types", { params: { include_inactive: opts.includeInactive ? true : undefined } }).then((r) => r.data),
+  createContractType: (p) => api.post("/api/v1/masters/contract-types", p).then((r) => r.data),
+  updateContractType: (id, p) => api.patch(`/api/v1/masters/contract-types/${id}`, p).then((r) => r.data),
+  deactivateContractType: (id) => api.delete(`/api/v1/masters/contract-types/${id}`).then((r) => r.data),
   // v52bk — ISO-4217 currency master (Notice/Bid/EMD money fields)
   listCurrencies: ({ includeInactive = false } = {}) =>
     api.get("/api/v1/masters/currencies", {

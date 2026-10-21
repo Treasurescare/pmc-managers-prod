@@ -11,7 +11,14 @@ institution portals, AWS deployment bundles, and transactional notifications
 (Stripe, Resend, DocuSign, Emergent crons).
 
 
-## Current deployable: v56p (24 Jun 2026)
+## Current deployable: v56q (24 Jun 2026)
+Adds Sector/Contract-Type taxonomy above UNSPSC + all v56o bug fixes.
+Backend: db.sectors (25) + db.contract_types (30) own collections, seeded idempotently on
+boot; full admin CRUD + `/api/v1/masters/{sectors,contract-types}[/public]`. Earlier v56p
+flat-in-categories attempt auto-cleaned (categories back to 105 UNSPSC). Admin UI: Masters →
+Sectors / Contract types tabs. Artifacts: pmc-backend-v56q.zip, pmc-frontend-v56q-prod-build.zip,
+DOWNLOAD_v56q.md. STILL TO WIRE: cascading Sector→ContractType pickers on notice-create &
+vendor registration/profile (optional now, mandatory at go-live) + public board filters.
 Bug-sheet batch 1 (6 fixes) + customer contract/works taxonomy.
 Artifacts (preview): `pmc-backend-v56p.zip`, `pmc-frontend-v56p-prod-build.zip`,
 `DOWNLOAD_v56p.md` under `/downloads/`. Deploy: EB backend → S3 frontend root →

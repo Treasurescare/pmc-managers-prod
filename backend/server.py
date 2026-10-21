@@ -496,6 +496,103 @@ async def _seed_pmc_contract_categories() -> None:
         logging.info(f"Seeded {inserted} PMC contract/works/sector categories")
 
 
+# v56q — proper taxonomy above UNSPSC: Sector -> Contract Type -> UNSPSC code.
+# Kept in their own collections (db.sectors, db.contract_types) so they never
+# mix into the UNSPSC commodity picker.
+SECTORS = [
+    ("power", "Power & Energy", None),
+    ("power-transmission", "Transmission", "power"),
+    ("power-distribution", "Distribution", "power"),
+    ("power-generation", "Generation", "power"),
+    ("renewable", "Renewable Energy", None),
+    ("re-solar", "Solar", "renewable"),
+    ("re-wind", "Wind", "renewable"),
+    ("re-hydro", "Hydro", "renewable"),
+    ("re-biomass", "Biomass & Waste-to-Energy", "renewable"),
+    ("oil-gas", "Oil, Gas & Petrochemicals", None),
+    ("water", "Water, Sanitation & Irrigation", None),
+    ("transport", "Transport & Highways", None),
+    ("rail-metro", "Railways & Metro", None),
+    ("ports-aviation", "Ports, Aviation & Waterways", None),
+    ("buildings", "Buildings & Urban Infrastructure", None),
+    ("industrial", "Industrial & Manufacturing", None),
+    ("healthcare", "Healthcare & Life Sciences", None),
+    ("education", "Education & Institutional", None),
+    ("telecom-it", "Telecom & IT", None),
+    ("logistics", "Logistics & Warehousing", None),
+    ("mining", "Mining & Minerals", None),
+    ("environment", "Environment & Waste Management", None),
+    ("agriculture", "Agriculture & Food Processing", None),
+    ("defence", "Defence & Security", None),
+    ("fm-om", "Facilities Management & O&M", None),
+]
+
+CONTRACT_TYPES = [
+    ("epc", "EPC Contracts", None),
+    ("epc-engineering-design", "Engineering & Design", "epc"),
+    ("epc-procurement", "Procurement", "epc"),
+    ("epc-construction", "Construction & Execution", "epc"),
+    ("epc-turnkey", "Turnkey", "epc"),
+    ("works", "Works", None),
+    ("works-civil", "Civil", "works"),
+    ("works-em", "Electrical & Mechanical", "works"),
+    ("works-fire", "Fire Protection", "works"),
+    ("works-security", "Security", "works"),
+    ("works-horticulture", "Horticulture & Landscape", "works"),
+    ("works-interiors", "Interiors & Equipment", "works"),
+    ("works-om", "Operations & Maintenance", "works"),
+    ("ppp", "PPP (Public-Private Partnership)", None),
+    ("ppp-bot", "BOT (Build-Operate-Transfer)", "ppp"),
+    ("ppp-boot", "BOOT (Build-Own-Operate-Transfer)", "ppp"),
+    ("ppp-dbfot", "DBFOT (Design-Build-Finance-Operate-Transfer)", "ppp"),
+    ("ppp-ham", "HAM (Hybrid Annuity Model)", "ppp"),
+    ("ppp-dbfo", "DBFO (Design-Build-Finance-Operate)", "ppp"),
+    ("ppp-annuity", "Annuity", "ppp"),
+    ("supply", "Supply / Goods", None),
+    ("supply-equipment", "Equipment Supply", "supply"),
+    ("supply-materials", "Materials Supply", "supply"),
+    ("supply-install", "Installation & Commissioning", "supply"),
+    ("services", "Services / Consultancy", None),
+    ("services-design", "Design Consultancy", "services"),
+    ("services-pmc", "PMC / Supervision", "services"),
+    ("services-advisory", "Advisory & Transaction", "services"),
+    ("om", "O&M Contracts", None),
+    ("framework", "Framework / Rate Contract", None),
+]
+
+
+async def _seed_tax_items(coll, items) -> int:
+    now = datetime.now(timezone.utc).isoformat()
+    inserted = 0
+    for code, name, parent in items:
+        try:
+            if await coll.find_one({"code": code}):
+                continue
+            await coll.insert_one({"code": code, "name": name, "parent_code": parent,
+                                   "source": "pmc", "is_active": True, "created_at": now})
+            inserted += 1
+        except Exception:
+            pass
+    return inserted
+
+
+async def _seed_sectors() -> None:
+    n = await _seed_tax_items(db.sectors, SECTORS)
+    if n:
+        logging.info(f"Seeded {n} sectors")
+
+
+async def _seed_contract_types() -> None:
+    # Clean up the earlier v56p attempt that put these in the categories pool.
+    try:
+        await db.categories.delete_many({"source": "pmc"})
+    except Exception:
+        pass
+    n = await _seed_tax_items(db.contract_types, CONTRACT_TYPES)
+    if n:
+        logging.info(f"Seeded {n} contract types")
+
+
 async def _seed_default_rubric() -> None:
     """v46y — ensure a default 1-10 rating rubric exists so the vendor peer
     review flow always finds a rubric. Idempotent — migrates any existing
@@ -625,7 +722,8 @@ async def on_start() -> None:
     await _seed_product_catalog()
     await _seed_taxonomy()
     await _seed_categories()
-    await _seed_pmc_contract_categories()
+    await _seed_sectors()
+    await _seed_contract_types()
     # v52bk — ISO-4217 currency master used by Notice/Bid/EMD money fields
     try:
         from routers.currencies import seed_defaults as _seed_currencies

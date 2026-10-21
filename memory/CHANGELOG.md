@@ -1,5 +1,18 @@
 # PMC Managers — Changelog
 
+## v56q (2026-06-24) — Sector / Contract-Type taxonomy above UNSPSC
+Model: Sector -> Contract Type -> UNSPSC commodity code, all optional for now (mandatory at
+go-live). New own collections db.sectors (25, 2-level) + db.contract_types (30, 2-level) so they
+never pollute UNSPSC pickers. Backend: masters.py TaxonomyIn + _tax_list/_create/_update/_delete
+helpers; endpoints GET/POST/PATCH/DELETE /api/v1/masters/sectors and /contract-types + /public
+list. server.py SECTORS/CONTRACT_TYPES + _seed_sectors/_seed_contract_types (idempotent, renamed
+helper _seed_tax_items to avoid clash with existing _seed_taxonomy); _seed_contract_types also
+delete_many(source=pmc) in categories to undo the v56p flat attempt. Frontend: generic
+masters/TaxonomyTab.jsx (grouped parent->child) wired as Masters → Sectors / Contract types tabs;
+mastersApi gained list/create/update/deactivate Sector & ContractType. Verified via curl (25/30
+seeded, categories back to 105 UNSPSC, 0 pmc leftover) + clean compile.
+NEXT: cascading pickers on notice-create & vendor registration + public board filter.
+
 ## v56o/v56p (2026-06-24) — Bug-sheet batch 1 + contract/works taxonomy
 Verified the 24-item testing-team bug sheet in PREVIEW (many were already fixed in
 code but stale in production). Fixed and preview-tested (pytest tests/test_v56o_six_bugfixes.py, 8/8):

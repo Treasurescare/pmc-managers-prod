@@ -123,6 +123,109 @@ async def delete_category(
     return {"ok": True, "deactivated": True}
 
 
+# ---------- Sectors & Contract Types (v56q — taxonomy above UNSPSC) ----------
+# Two 2-level masters: Sector (industry/domain) -> Contract Type (delivery
+# model) -> UNSPSC commodity code. Own collections so they never pollute the
+# UNSPSC category pickers.
+
+class TaxonomyIn(BaseModel):
+    code: str = Field(..., min_length=1, max_length=48)
+    name: str = Field(..., min_length=1, max_length=200)
+    parent_code: Optional[str] = None
+    is_active: bool = True
+    source: Optional[str] = "manual"
+
+
+async def _tax_list(coll, include_inactive: bool) -> List[dict]:
+    q: dict = {} if include_inactive else {"is_active": True}
+    return [_out(r) async for r in coll.find(q).sort("name", 1)]
+
+
+async def _tax_create(coll, kind: str, payload: "TaxonomyIn", admin) -> dict:
+    if await coll.find_one({"code": payload.code}):
+        raise HTTPException(status_code=409, detail=f"{kind} code already exists")
+    doc = payload.model_dump()
+    doc.update({"created_at": now_iso(), "created_by": admin["id"]})
+    res = await coll.insert_one(doc)
+    doc["_id"] = res.inserted_id
+    await audit_log(f"{kind}.create", admin, kind, payload.code, {"name": payload.name})
+    return _out(doc)
+
+
+async def _tax_update(coll, kind: str, tid: str, payload: "TaxonomyIn", admin) -> dict:
+    r = await coll.update_one({"_id": ObjectId(tid)},
+                              {"$set": {**payload.model_dump(), "updated_at": now_iso()}})
+    if r.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Not found")
+    await audit_log(f"{kind}.update", admin, kind, payload.code, {"name": payload.name})
+    return _out(await coll.find_one({"_id": ObjectId(tid)}))
+
+
+async def _tax_delete(coll, kind: str, tid: str, admin) -> dict:
+    doc = await coll.find_one({"_id": ObjectId(tid)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Not found")
+    await coll.update_one({"_id": ObjectId(tid)},
+                          {"$set": {"is_active": False, "updated_at": now_iso()}})
+    await audit_log(f"{kind}.deactivate", admin, kind, doc.get("code", ""),
+                    {"name": doc.get("name", "")})
+    return {"ok": True, "deactivated": True}
+
+
+@router.get("/sectors")
+async def list_sectors(include_inactive: bool = False,
+                       admin=Depends(require_role("admin", "reviewer", "support", "committee_member"))) -> List[dict]:
+    return await _tax_list(db.sectors, include_inactive)
+
+
+@router.get("/sectors/public")
+async def list_sectors_public() -> List[dict]:
+    """PUBLIC — vendor registration + public notice board filters."""
+    return await _tax_list(db.sectors, False)
+
+
+@router.post("/sectors")
+async def create_sector(payload: TaxonomyIn, admin=Depends(require_role("admin"))) -> dict:
+    return await _tax_create(db.sectors, "sector", payload, admin)
+
+
+@router.patch("/sectors/{tid}")
+async def update_sector(tid: str, payload: TaxonomyIn, admin=Depends(require_role("admin"))) -> dict:
+    return await _tax_update(db.sectors, "sector", tid, payload, admin)
+
+
+@router.delete("/sectors/{tid}")
+async def delete_sector(tid: str, admin=Depends(require_role("admin"))) -> dict:
+    return await _tax_delete(db.sectors, "sector", tid, admin)
+
+
+@router.get("/contract-types")
+async def list_contract_types(include_inactive: bool = False,
+                              admin=Depends(require_role("admin", "reviewer", "support", "committee_member"))) -> List[dict]:
+    return await _tax_list(db.contract_types, include_inactive)
+
+
+@router.get("/contract-types/public")
+async def list_contract_types_public() -> List[dict]:
+    """PUBLIC — vendor registration + public notice board filters."""
+    return await _tax_list(db.contract_types, False)
+
+
+@router.post("/contract-types")
+async def create_contract_type(payload: TaxonomyIn, admin=Depends(require_role("admin"))) -> dict:
+    return await _tax_create(db.contract_types, "contract_type", payload, admin)
+
+
+@router.patch("/contract-types/{tid}")
+async def update_contract_type(tid: str, payload: TaxonomyIn, admin=Depends(require_role("admin"))) -> dict:
+    return await _tax_update(db.contract_types, "contract_type", tid, payload, admin)
+
+
+@router.delete("/contract-types/{tid}")
+async def delete_contract_type(tid: str, admin=Depends(require_role("admin"))) -> dict:
+    return await _tax_delete(db.contract_types, "contract_type", tid, admin)
+
+
 # ---------- Companies ----------
 
 @router.get("/companies")
