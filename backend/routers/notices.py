@@ -192,19 +192,19 @@ async def create_notice(payload: NoticeIn, admin=Depends(require_role(
     require_future(payload.submission_deadline, "Bid submission deadline")
     require_order(payload.submission_deadline, "Bid submission deadline",
                   payload.pre_bid_meeting_date, "Pre-bid meeting date")
-    seq = await next_sequence("notice_seq")
-    from datetime import datetime, timezone
-    year = datetime.now(timezone.utc).year
-    notice_ref = f"PMC-NOT-{year}-{seq:04d}"
-
     doc = payload.model_dump()
 
-    # v56s — Go-live gate: when the portal is live, every NEW notice must carry
-    # a Sector + Contract type. Optional while go-live is OFF.
+    # v56s — Go-live gate (checked BEFORE reserving a notice ref so a rejected
+    # create never burns a PMC-NOT sequence number). Optional while go-live OFF.
     from routers.settings import is_go_live
     if await is_go_live() and (not doc.get("sector_code") or not doc.get("contract_type_code")):
         raise HTTPException(status_code=422,
             detail="Go-live is enabled: Sector and Contract type are required for new notices.")
+
+    seq = await next_sequence("notice_seq")
+    from datetime import datetime, timezone
+    year = datetime.now(timezone.utc).year
+    notice_ref = f"PMC-NOT-{year}-{seq:04d}"
 
     # Auto-attach KZ required licenses per category
     if (doc.get("delivery_country") or "").upper() == "KZ":

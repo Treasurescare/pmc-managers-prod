@@ -106,6 +106,7 @@ export default function RegistrationResume() {
         "decl_conflict_of_interest","decl_integrity","decl_accuracy",
         "decl_data_consent","decl_fee","decl_notification","primary_unspsc_code",
         "primary_unspsc_title","signature_name","signature_title","signature_date","directors",
+        "sector_code","sector_name","contract_type_code","contract_type_name",
       ]);
       const stray = Object.keys(payload).filter((k) => !whitelist.has(k));
       if (stray.length) {

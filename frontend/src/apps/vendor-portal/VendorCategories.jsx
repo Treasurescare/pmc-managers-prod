@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { vendorApi, mastersApi, publicApi, showApiError } from "@/lib/api";
+import { contractTypeOptions } from "@/components/taxonomy";
 
 /**
  * VendorCategories — v50l.
@@ -126,14 +127,13 @@ export default function VendorCategories() {
             {sectors.map((s) => <option key={s.code} value={s.code}>{s.name}</option>)}
           </select>
           <select data-testid="vcat-contract-type-code" value={draft.contract_type_code}
-            disabled={!draft.sector_code}
             onChange={(e) => {
               const c = contractTypes.find((x) => x.code === e.target.value);
               setDraft((d) => ({ ...d, contract_type_code: e.target.value, contract_type_name: c ? c.name : "" }));
             }}
-            className="px-3 py-2 border border-brand-navy/20 text-sm bg-white disabled:opacity-50">
-            <option value="">{draft.sector_code ? "Contract type (optional)…" : "Pick a sector first"}</option>
-            {contractTypes.filter((c) => !draft.sector_code || !c.parent_code || c.parent_code === draft.sector_code).map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+            className="px-3 py-2 border border-brand-navy/20 text-sm bg-white">
+            <option value="">Contract type (optional)…</option>
+            {contractTypeOptions(contractTypes)}
           </select>
         </div>
         <input value={query} onChange={(e) => setQuery(e.target.value)}

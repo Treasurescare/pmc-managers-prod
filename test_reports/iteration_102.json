@@ -1,0 +1,50 @@
+{
+  "summary": "v56s batch tested end-to-end (backend pytest 12/12 + Playwright UI). Go-Live switch (public/admin GET, admin PUT, auth/role enforcement, persistence), Go-Live enforcement on notice create (422) and registration submit (400) when ON and permissive when OFF, public notice filters (sector_code/contract_type_code/category), vendor category-request taxonomy persistence all PASS. UI: Masters->Go-live toggle ON/OFF with toasts + meta + persistence after reload PASS; tender board filters/deep-link/refresh/clear PASS; vendor categories cascade + taxonomy in POST body PASS; #6 REQUIRED pill renders (red bg, white bold) PASS; #15 registrations selection resets on status tab switch PASS. FOUND+FIXED 1 bug: Registration Section D sector/contract choice was silently dropped on Save draft (a second hard-coded whitelist in RegistrationResume.jsx lacked the 4 new fields) - fixed and re-verified (power/epc persists after reload). FOUND 1 HIGH data/logic bug (not fixed): the Sector->Contract-type cascade can never surface child contract types because contract_types.parent_code points to contract-type GROUP codes (ppp/epc/supply/works/services), not to sector codes. Go-live flag left = FALSE at the end.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/v1/notices", "issue": "Go-live check runs AFTER next_sequence('notice_seq'), so every rejected (422) create burns a notice_ref number (gaps in PMC-NOT-YYYY-#### sequence). Move the is_go_live() check above next_sequence."},
+      {"endpoint": "POST /api/v1/notices, PATCH /registrations, POST /vendor/categories/request", "issue": "sector_code / contract_type_code are not validated against the sectors/contract_types masters nor cross-checked (any string accepted, e.g. 'TEST_x'). With go-live ON a garbage code satisfies the gate."},
+      {"endpoint": "GET /api/v1/notices", "issue": "limit clamped to 100 server-side but TendersList requests limit=200 and filters client-side; once >100 published notices exist, filters silently miss older notices. Should pass sector_code/contract_type_code/category/country to the API or paginate. (Currently 58 published, so not yet visible.)"},
+      {"endpoint": "PUT/PATCH notice update path", "issue": "Go-live gate only on create; editing/publishing an existing draft without taxonomy is allowed while ON (may be intended - 'new notices only' - confirm)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Sector -> Contract type cascade (TendersList, SectionD, VendorCategories, all 3 places)", "issue": "Filter `!c.parent_code || c.parent_code === sector` never matches because contract_types parent_code values are 'ppp','epc','supply','works','services' (contract-type groups), not sector codes. Result: for EVERY sector only the 7 top-level groups (epc, framework, om, ppp, services, supply, works) show; the 23 child contract types (ppp-bot, ppp-boot, ppp-annuity, services-advisory, ...) are unreachable. The cascade is effectively not sector-dependent.", "selector": "[data-testid=tenders-contract-filter], [data-testid=f-contract-type-code], [data-testid=vcat-contract-type-code]", "priority": "HIGH"},
+      {"component": "RegistrationResume saveDraft", "issue": "FIXED by testing agent: local whitelist dropped sector_code/sector_name/contract_type_code/contract_type_name so Section D taxonomy never saved (toast said 'Saved'). Added the 4 fields; verified persistence.", "selector": "[data-testid=btn-save-draft]", "priority": "HIGH (fixed)"}
+    ],
+    "integration_issues": [
+      {"flow": "Registration portal with go-live ON", "issue": "Frontend never calls settingsApi goLive (/settings/go-live/public is defined in api.js but unused). Sector/Contract fields don't show REQUIRED pill when go-live is ON and there is no client-side pre-check; user only learns at final submit via a 400.", "affected_selectors": ["f-sector-code", "f-contract-type-code"]}
+    ],
+    "design_issues": [
+      {"screen": "/tenders/all", "issues": ["Column header 'SECTOR · COUNTRY' actually shows notice.category (e.g. 'Civil Works', 'general'), not sector_name", "Hero title says 'Live tenders' while 'All' mode is selected", "Sector dropdown lists sub-sectors flat (power-transmission etc.) with no grouping; a notice tagged power-transmission will not match 'Power & Energy'"]},
+      {"screen": "/register Section D", "issues": ["Legacy free-text 'Primary sector' sits right above the new 'Sector' select - redundant/confusing", "REQUIRED pill is 9px - legible but small"]},
+      {"screen": "/vendor/categories", "issues": ["Sector/Contract selects have no visible labels (only placeholder option)", "Pending request cards don't display the chosen sector/contract type"]},
+      {"screen": "Admin Registrations", "issues": ["Status tabs show raw snake_case (UNDER_REVIEW, NEEDS_CLARIFICATION)"]},
+      {"screen": "Admin Masters -> Go-live", "issues": ["After toggle, go-live-meta updates updated_at locally but keeps old updated_by (stale if a different admin last changed it)"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v56s_golive_taxonomy.py", "/app/test_reports/pytest/pytest_v56s.xml"],
+  "action_items": [
+    "HIGH: Fix the Sector->Contract-type cascade - either re-parent contract_types to sector codes (or add a sector_codes[] mapping), or change the UI to show all contract types grouped by parent group (optgroup) instead of filtering by parent_code === sector. Apply in TendersList.jsx (2 places), SectionD.jsx, VendorCategories.jsx.",
+    "Move is_go_live() check above next_sequence() in routers/notices.py create_notice to avoid burning notice refs.",
+    "Validate sector_code/contract_type_code against masters on notice create/update, registration PATCH/submit and category request.",
+    "Use /settings/go-live/public in SectionD to mark Sector/Contract REQUIRED when go-live is ON.",
+    "TendersList: send filters to backend or paginate (backend caps limit at 100).",
+    "Fix 'SECTOR · COUNTRY' column to show sector_name (fallback category)."
+  ],
+  "critical_code_review_comments": [
+    "Duplicate registration-field whitelists exist (lib/api.js REGISTRATION_UPDATE_FIELDS and RegistrationResume.jsx saveDraft whitelist) - DRY violation that directly caused the v56s save bug; keep one exported set.",
+    "TendersList.jsx ~455 lines with duplicated filter markup (desktop aside + mobile) incl. duplicate data-testid tenders-contract-filter rendering twice - extract a FiltersForm component.",
+    "Contract-type cascade filter logic duplicated in 4 places - extract a helper."
+  ],
+  "updated_files": ["/app/frontend/src/apps/registration-portal/RegistrationResume.jsx", "/app/backend/tests/test_v56s_golive_taxonomy.py"],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "~85% (all requested flows pass after 1 fix; cascade semantics broken by data model)"},
+  "test_credentials": "adminsupport@pmcmanagers.com / Admin@12345 (admin UI login via /login -> signin-role-admin -> signin-e-*); manualvendor@pmcmanagers.com / Vendor@12345",
+  "seed_data_creation": "Left in DB (not deleted per instruction): ~3 unpublished TEST_v56s notices (drafts), ~5 TEST_v56s registrations (delivered+v56s*@resend.dev, some submitted, some draft). Temporary tags on PMC-NOT-2026-0098 and the TEST category requests were reverted/removed. Go-live = false.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run pytest tests/test_v56s_golive_taxonomy.py (module fixture always resets go_live=false). No published notice has sector_code by default - to UI-test sector filter, temporarily $set sector_code on a published IN notice (used PMC-NOT-2026-0098) and revert. Registration Section D needs Section A complete: create draft via API and PATCH registered_address, registration_number, legal_entity_type='llc', incorporation_date, tax_id='AAAPL1234C' (country IN), then open /register/resume?token=... and click step-d. Category search 'medical' yields picks for vendor request.",
+  "rca of the issue": "Section D save bug: RegistrationResume.saveDraft applies its own hard-coded whitelist before calling registrationApi.update; v56s added the 4 taxonomy fields only to lib/api.js REGISTRATION_UPDATE_FIELDS, so saveDraft deleted them first (console warn '[saveDraft] dropping unknown fields'). Repro: pick Sector/Contract in D -> Save draft -> reload -> both empty; DB sector_code None. Fix: add fields to the local whitelist (done). Cascade bug: contract_types seed uses parent_code for intra-contract-type hierarchy (group->child), while the UI assumes parent_code = sector code."
+}

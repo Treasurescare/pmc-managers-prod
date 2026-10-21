@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { publicApi, formatApiError } from "@/lib/api";
+import { contractTypeOptions } from "@/components/taxonomy";
 import { useUiTheme } from "@/context/UiThemeContext";
 import TopBar from "@/apps/shared/TopBar";
 import PmcFooter from "@/components/PmcFooter";
@@ -176,12 +177,12 @@ export default function TendersList() {
                   <span className="e-numeral">III</span>
                   <span className="e-tag">Contract type</span>
                 </label>
-                <select id="e-f-contract" value={contractType} disabled={!sector}
+                <select id="e-f-contract" value={contractType}
                         onChange={(e) => setContractType(e.target.value)}
                         data-testid="tenders-contract-filter"
-                        className="h-11 px-4 rounded-full border border-[#C9C1AA] bg-[#FBF9F3] text-sm outline-none focus:border-[#0F3B2E] disabled:opacity-50">
-                  <option value="">{sector ? "All contract types" : "Pick a sector first"}</option>
-                  {contractTypes.filter((c) => !sector || !c.parent_code || c.parent_code === sector).map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+                        className="h-11 px-4 rounded-full border border-[#C9C1AA] bg-[#FBF9F3] text-sm outline-none focus:border-[#0F3B2E]">
+                  <option value="">All contract types</option>
+                  {contractTypeOptions(contractTypes)}
                 </select>
               </div>
               <div className="flex flex-col gap-2">
@@ -283,7 +284,7 @@ export default function TendersList() {
                               </td>
                               <td>
                                 <span className="flex flex-col gap-1 text-sm text-[#3B4A43]">
-                                  <span className="text-[#14261F]">{n.category || "General"}</span>
+                                  <span className="text-[#14261F]">{n.sector_name || n.category || "General"}</span>
                                   <span>{n.delivery_country || "—"}</span>
                                 </span>
                               </td>
@@ -367,11 +368,11 @@ export default function TendersList() {
             <option value="">All sectors</option>
             {sectors.map((s) => <option key={s.code} value={s.code}>{s.name}</option>)}
           </select>
-          <select value={contractType} disabled={!sector} onChange={(e) => setContractType(e.target.value)}
+          <select value={contractType} onChange={(e) => setContractType(e.target.value)}
                   data-testid="tenders-contract-filter"
-                  className="px-4 py-3 border border-brand-navy/20 bg-white text-sm disabled:opacity-50">
-            <option value="">{sector ? "All contract types" : "Pick a sector first"}</option>
-            {contractTypes.filter((c) => !sector || !c.parent_code || c.parent_code === sector).map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+                  className="px-4 py-3 border border-brand-navy/20 bg-white text-sm">
+            <option value="">All contract types</option>
+            {contractTypeOptions(contractTypes)}
           </select>
           <input value={category} onChange={(e) => setCategory(e.target.value)}
                  placeholder="Category (UNSPSC): solar, construction…"

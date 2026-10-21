@@ -6,6 +6,7 @@ import { api, publicApi } from "@/lib/api";
 import RegionOfficeEditor from "./RegionOfficeEditor";
 import CountryLicenseSlots from "./CountryLicenseSlots";
 import UnspscMultiPicker from "@/components/UnspscMultiPicker";
+import { contractTypeOptions } from "@/components/taxonomy";
 
 /**
  * Section D — Compliance.
@@ -32,12 +33,14 @@ export default function SectionD({ reg, update, kzMeta, regId, token, onDocChang
   const [countries, setCountries] = useState([]);
   const [sectors, setSectors] = useState([]);
   const [contractTypes, setContractTypes] = useState([]);
+  const [goLive, setGoLive] = useState(false);
   useEffect(() => {
     api.get("/api/v1/masters/countries")
       .then((r) => setCountries(Array.isArray(r.data) ? r.data : []))
       .catch(() => setCountries([]));
     publicApi.listSectorsPublic().then((r) => setSectors(Array.isArray(r) ? r : [])).catch(() => setSectors([]));
     publicApi.listContractTypesPublic().then((r) => setContractTypes(Array.isArray(r) ? r : [])).catch(() => setContractTypes([]));
+    publicApi.goLive().then((d) => setGoLive(!!d.go_live)).catch(() => setGoLive(false));
   }, []);
 
   // v52co — normalise business_categories. Existing drafts stored names as
@@ -67,29 +70,29 @@ export default function SectionD({ reg, update, kzMeta, regId, token, onDocChang
           className="mt-1 w-full px-4 py-3 border border-brand-navy/20 focus:outline-none focus:border-brand-navy-soft text-brand-navy bg-white" />
       </Field>
 
-      {/* v56s — Sector → Contract type taxonomy (cascading). Optional now;
-          becomes mandatory on submit once an admin switches the portal to go-live. */}
-      <Field label="Sector" hint="Industry/domain you operate in. Optional now; required once the portal goes live.">
+      {/* v56s — Sector → Contract type taxonomy. Optional now; becomes
+          mandatory on submit once an admin switches the portal to go-live.
+          Contract types are grouped by delivery model (not by sector). */}
+      <Field label={goLive ? "Sector *" : "Sector"} hint={goLive ? "Required — the portal is live." : "Industry/domain you operate in. Optional now; required once the portal goes live."}>
         <select data-testid="f-sector-code" value={reg.sector_code || ""}
           onChange={(e) => {
             const s = sectors.find((x) => x.code === e.target.value);
-            update({ sector_code: e.target.value, sector_name: s ? s.name : "", contract_type_code: "", contract_type_name: "" });
+            update({ sector_code: e.target.value, sector_name: s ? s.name : "" });
           }}
           className="mt-1 w-full px-4 py-3 border border-brand-navy/20 bg-white text-brand-navy focus:outline-none focus:border-brand-navy-soft">
           <option value="">Select a sector…</option>
           {sectors.map((s) => <option key={s.code} value={s.code}>{s.name}</option>)}
         </select>
       </Field>
-      <Field label="Contract type" hint="Delivery model you bid for (EPC, O&M, PPP…). Optional now; required at go-live.">
+      <Field label={goLive ? "Contract type *" : "Contract type"} hint={goLive ? "Required — the portal is live." : "Delivery model you bid for (EPC, O&M, PPP…). Optional now; required at go-live."}>
         <select data-testid="f-contract-type-code" value={reg.contract_type_code || ""}
-          disabled={!reg.sector_code}
           onChange={(e) => {
             const c = contractTypes.find((x) => x.code === e.target.value);
             update({ contract_type_code: e.target.value, contract_type_name: c ? c.name : "" });
           }}
-          className="mt-1 w-full px-4 py-3 border border-brand-navy/20 bg-white text-brand-navy focus:outline-none focus:border-brand-navy-soft disabled:opacity-50">
-          <option value="">{reg.sector_code ? "Select a contract type…" : "Pick a sector first"}</option>
-          {contractTypes.filter((c) => !reg.sector_code || !c.parent_code || c.parent_code === reg.sector_code).map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+          className="mt-1 w-full px-4 py-3 border border-brand-navy/20 bg-white text-brand-navy focus:outline-none focus:border-brand-navy-soft">
+          <option value="">Select a contract type…</option>
+          {contractTypeOptions(contractTypes)}
         </select>
       </Field>
       <Field label={t("section_d.operating_regions")}
