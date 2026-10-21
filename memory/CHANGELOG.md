@@ -1,5 +1,25 @@
 # PMC Managers — Changelog
 
+## v56s bug-sheet clearance (25 Jun 2026) — client 24-item sheet reconciled + fixed
+IMPORTANT: the forked handoff had WRONG descriptions for #13/#15/#69/#6 — reconciled against the
+real client sheet (numbers kept verbatim). Diagnostic showed most BACKENDS already return 200; the
+open items were FRONTEND. Testing iter104 (status sweep) + iter105 (fix retest, 4/4 PASS).
+- FIXED this round: #6 (REQUIRED pill → simple bold red '*' in FormPrimitives + DocSlot + SectionD
+  Sector/Contract via required prop + SectionE), #43 (EvaluationPanel keeps picked notice in
+  ?notice= so refresh reloads saved rubric), #45 (ContractsTab View button + detail panel +
+  /admin/e/boq-contracts route alias), #60 (auction_live.py /mine now matches
+  reverse_auction_participants so registered vendors see live auctions), #13 (invite email sends
+  via Resend, email_sent=true in preview — prod non-delivery = verified-domain/key config).
+- VERIFIED already-correct in preview (need prod deploy): #15, #18, #23, #37, #55, #67. Prior v56o
+  fixes: #17, #44, #58, #36, #72, #71.
+- STILL OPEN (next round): #11 (operating-regions help text), #40 (notice timelines), #46
+  (corrigenda two-search-bar UX), #56 (AI FILL ALL drafts nothing), #69 (Section D country
+  autocomplete). #41 DEFERRED per user.
+- Rebuilt prod bundles pmc-backend-v56s.zip / pmc-frontend-v56s-prod-build.zip and regenerated the
+  CORRECTED client deliverables PMC_Bug_Clearance_v56s_*.docx/.xlsx (generator
+  memory/make_deliverables_v56s.py) — Word render verified. All under frontend/public/downloads.
+
+
 ## v56s (2026-06-25) — Go-Live switch, public board filters, taxonomy persistence + clearance deliverables
 Completed the taxonomy batch on top of v56q/v56r:
 - **Public tender board filters + deep links** (`TendersList.jsx`): Sector, Contract Type,

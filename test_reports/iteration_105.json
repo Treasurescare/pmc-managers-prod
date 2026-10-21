@@ -1,0 +1,38 @@
+{
+  "summary": "Focused UI retest of 4 iter104 fixes on the preview build. Results: #6 PASS, #43 PASS, #45 PASS, #60 PASS. Tested through the real UI with Playwright as admin (adminsupport) and vendor (manualvendor). For Section D a fresh draft was seeded (backend/tests/seed_iter104_sectiond_draft.py), and Section A was completed in the UI with a valid CIN and PAN and a legal entity type. To test Go-Live ON, the go-live endpoint was mocked in the browser (page.route on /api/v1/settings/go-live/public returning {go_live:true}); no real setting was changed.",
+  "results_per_item": {
+    "#6": "PASS - Sections A-E: no leaf element whose text is only 'REQUIRED' or 'OPTIONAL' (0 pills). Each mandatory document slot shows a red (rgb 220,38,38), bold (700) '*' via docslot-required-<slot>: A has incorporation_certificate/address_proof/tin_proof, B has previous_works/licenses_permits, C has articles_of_incorporation/bank_reference, D has country_license_IN_gst/pan. field-required-mark counts per section: A=7, B=5, C=3, D=5, E=3. With Go-Live OFF, Sector and Contract type show no '*'. With Go-Live ON (mocked), each shows one red field-required-mark '*' and the hint 'Required - the portal is live.'",
+    "#43": "PASS - Picking PMC-NOT-2026-0016 set the URL to ?notice=PMC-NOT-2026-0016. Edited weights to experience 0.45, methodology 0.15, commercial 0.35, min tech 65 and saved; the 'Rubric saved' toast appeared. After a browser reload the URL kept ?notice=..., the input still showed PMC-NOT-2026-0016, and all edited weights reloaded (not the 0.3/0.3/0.4/60 defaults).",
+    "#45": "PASS - Going directly to /admin/e/boq-contracts stays on that URL and renders admin-boq-panel. On boq-tab-contracts, contract-view-PMC-CON-2026-0007 expands contract-detail-PMC-CON-2026-0007 with Notice PMC-NOT-2026-0015, Vendor, Start 10/21/2026, End 12/21/2026, Obligations 'None recorded', Milestones 'None'. The button label switches to Hide, and clicking it again removes the panel.",
+    "#60": "PASS - /vendor/auctions (va-list) lists 'TEST_iter104 UI auction' (LIVE, 'You registered for this auction') next to the bid/invite matches. Its va-enter button opens /vendor/auction/6ad8d47049be8a92a1a655df, which shows the bidding room: LIVE timer, current lowest USD 49,000, Bidder A (YOU), manual bid input ra-bid-price, ra-bid-submit and the auto-bid panel. No bid was submitted, to avoid changing test auction state."
+  },
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin BOQ & Contracts - contract detail", "issues": ["Vendor field shows a raw Mongo ObjectId (6a6edf0b2162a7328ab232f5) instead of the vendor/company name"]},
+      {"screen": "Admin Evaluation", "issues": ["Two stacked Created-by / Created-from / Created-to filter bars (page-level plus CreatorDateFilterBar), which is redundant", "Created from/to use the browser's native date picker instead of the shadcn calendar", "Envelope banner shows 'by <ObjectId>' instead of the admin email"]},
+      {"screen": "Vendor /vendor/auctions", "issues": ["The 'why' caption (e.g. 'You registered for this auction') and the ref/price line are very light grey on white, so contrast is low"]},
+      {"screen": "/register Section D", "issues": ["Label 'Operating regions (comma separated)' is stale: the field is now an office editor, not a comma-separated input"]}
+    ]
+  },
+  "critical_code_review_comments": [
+    "EvaluationPanel.loadRubric: switching from a notice with a saved rubric to one without keeps the previous notice's weights on screen (no reset to DEFAULT_CRITERIA when getRubric returns empty or 404). Saving would then copy the wrong rubric to the new notice. Reset the rubric to defaults at the start of loadRubric, or when it fails.",
+    "EvaluationPanel: the rubric stays editable and saveable after the technical envelope is sealed (seen on PMC-NOT-2026-0016). Consider disabling the RubricEditor when techLocked.",
+    "EvaluationPanel: the setSearchParams effect replaces all query params with only 'notice', so any other query params are dropped."
+  ],
+  "test_report_links": ["/app/backend/tests/seed_iter104_sectiond_draft.py"],
+  "action_items": [
+    "Optional: reset the rubric to defaults when switching to a notice that has no saved rubric",
+    "Optional: show the vendor name instead of the ObjectId in the contract detail panel",
+    "Optional: remove the duplicate filter bar on Evaluation; fix the stale 'Operating regions (comma separated)' label"
+  ],
+  "updated_files": ["/app/test_reports/iteration_105.json"],
+  "success_rate": {"backend": "N/A (only the vendor /mine flow checked, through the UI)", "frontend": "100% (4/4 fixes verified)"},
+  "seed_data_creation": "New draft registration test_secd_1792596098@example.com (resume token CcZLXIDbYvus_v40TkMOga2hO93EvR6Tvi-tkmwCH3M). The Section A values entered in the UI were not saved. Rubric for PMC-NOT-2026-0016 saved as 0.45/0.15/0.2/0.2, commercial 0.35, min 65.",
+  "test_credentials": "adminsupport@pmcmanagers.com/Admin@12345; manualvendor@pmcmanagers.com/Vendor@12345 (role button is signin-role-supplier, not signin-role-vendor)",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "To reach Section D, open the resume link and fill f-reg-number=L17110MH1973PLC019786, f-tax-id=AAAPL1234C and f-legal-type (index 1); the stepper is then unlocked. The seed CIN 'U<ts>' fails format validation and blocks the stepper. To test Go-Live ON, mock GET /api/v1/settings/go-live/public with {go_live:true}. Vendor login uses signin-role-supplier."
+}
