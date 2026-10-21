@@ -210,3 +210,41 @@ def test_vendor_category_request_persists_taxonomy(vendor):
     finally:
         from bson import ObjectId
         mdb.vendor_category_requests.delete_one({"_id": ObjectId(rid)})
+
+
+# ---- v56s iter103: go-live rejection must NOT burn a notice_seq number ----
+def test_on_rejected_create_does_not_burn_seq(admin):
+    r = admin.put(f"{API}/settings/go-live", json={"enabled": True})
+    assert r.status_code == 200
+    try:
+        before = (mdb.counters.find_one({"_id": "notice_seq"}) or {}).get("seq")
+        r1 = admin.post(f"{API}/notices", json=_notice_payload(sector_code="power", contract_type_code="ppp-bot"))
+        assert r1.status_code == 200, r1.text
+        s1 = int(r1.json()["notice_ref"].rsplit("-", 1)[1])
+        for _ in range(2):
+            bad = admin.post(f"{API}/notices", json=_notice_payload())
+            assert bad.status_code == 422, bad.text
+        r2 = admin.post(f"{API}/notices", json=_notice_payload(sector_code="power", contract_type_code="ppp-bot"))
+        assert r2.status_code == 200, r2.text
+        s2 = int(r2.json()["notice_ref"].rsplit("-", 1)[1])
+        assert s2 == s1 + 1, f"gap: {s1} -> {s2} (before={before})"
+    finally:
+        admin.put(f"{API}/settings/go-live", json={"enabled": False})
+    assert requests.get(f"{API}/settings/go-live/public").json()["go_live"] is False
+
+
+def test_public_filter_power_pppbot():
+    n = mdb.notices.find_one({"is_published": True, "sector_code": {"$exists": False}})
+    if not n:
+        pytest.skip("no notice")
+    mdb.notices.update_one({"_id": n["_id"]}, {"$set": {"sector_code": "power", "contract_type_code": "ppp-bot"}})
+    try:
+        r = requests.get(f"{API}/notices", params={"sector_code": "power", "contract_type_code": "ppp-bot", "limit": 100})
+        assert r.status_code == 200
+        refs = [i["notice_ref"] for i in r.json()["items"]]
+        assert n["notice_ref"] in refs
+        assert all(i["sector_code"] == "power" and i["contract_type_code"] == "ppp-bot" for i in r.json()["items"])
+        r = requests.get(f"{API}/notices", params={"sector_code": "power", "contract_type_code": "ppp-boot"}).json()
+        assert n["notice_ref"] not in [i["notice_ref"] for i in r["items"]]
+    finally:
+        mdb.notices.update_one({"_id": n["_id"]}, {"$unset": {"sector_code": "", "contract_type_code": ""}})

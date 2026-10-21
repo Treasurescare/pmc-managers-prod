@@ -424,3 +424,19 @@ and backlog.
 - Frontend-only; backend identical to v54m. Compiles clean; mirrors the proven
   uploadsApi.openFile/blob pattern used in vendor docs.
 - Bundles: `pmc-backend-v54n.zip`, `pmc-frontend-v54n-prod-build.zip`.
+
+## Status note — v56s (25 Jun 2026): taxonomy + Go-Live batch complete (preview)
+- Shipped & preview-tested (pending prod deploy + user sign-off): procurement taxonomy
+  (Sector/Contract Type/UNSPSC) across vendor registration, vendor category requests, notice
+  create/edit and the public tender board; admin Go-Live switch (OFF default, server-side
+  enforcement when ON); public board filters + shareable deep-links; escrow incomplete-reg
+  reminders + 30-day dormancy (#13); Events HTML-tag render fix (#71).
+- Verified (no code change): #6 required marker (bold red REQUIRED pill), #15 stale
+  registration selection cleared on tab switch.
+- Deferred by user: #11, #69 help-text wording.
+- Backend `test_v56s_golive_taxonomy.py` 14/14 green; earlier full regression iter 102/103 green.
+- Deliverables for the client team generated + rendered-verified: `PMC_Bug_Clearance_v56s_*`
+  (.docx + .xlsx) in `/app/deliverables` and `/app/frontend/public/downloads`.
+- OPEN: production `contract_types` duplicate remediation — plan only
+  (`memory/PROD_CONTRACT_TYPES_DEDUP_PLAN.md`), needs user authorization; production deploy of
+  v56s pair + CloudFront invalidation.

@@ -165,7 +165,7 @@ export default function TendersList() {
                   <span className="e-tag">Sector</span>
                 </label>
                 <select id="e-f-sector" value={sector}
-                        onChange={(e) => { setSector(e.target.value); setContractType(""); }}
+                        onChange={(e) => setSector(e.target.value)}
                         data-testid="tenders-sector-filter"
                         className="h-11 px-4 rounded-full border border-[#C9C1AA] bg-[#FBF9F3] text-sm outline-none focus:border-[#0F3B2E]">
                   <option value="">All sectors</option>
@@ -362,7 +362,7 @@ export default function TendersList() {
                  className="px-4 py-3 border border-brand-navy/20 bg-white text-sm uppercase" />
         </div>
         <div className="mt-3 grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto] items-stretch">
-          <select value={sector} onChange={(e) => { setSector(e.target.value); setContractType(""); }}
+          <select value={sector} onChange={(e) => setSector(e.target.value)}
                   data-testid="tenders-sector-filter"
                   className="px-4 py-3 border border-brand-navy/20 bg-white text-sm">
             <option value="">All sectors</option>

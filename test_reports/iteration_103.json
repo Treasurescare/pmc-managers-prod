@@ -1,0 +1,28 @@
+{
+  "summary": "Focused retest of the iter-102 HIGH cascade bug fix plus 2 minor fixes (v56s). All requested items PASS. Contract-type selects on /tenders/all, /register Section D and /vendor/categories are enabled without picking a sector first. Each one has 31 options (placeholder + all 30 types). They are grouped into 5 optgroups (EPC, PPP, Services, Supply, Works); framework and om have no children, so they show as plain options. Child types ppp-bot (BOT) and services-advisory can be selected. Picking ppp-bot on the board cuts it from 20 rows to 1, and the Sector·Country column shows 'Power & Energy'. The deep link ?sector=power&contract=ppp-bot restores both selects and survives a refresh. Clear all filters empties both and removes the query string from the URL. Section D: choosing ppp-bot and then power, saving the draft and reloading keeps both, and Mongo has sector_code/sector_name/contract_type_code/contract_type_name. With go-live ON, Section D shows 'Sector *' and 'Contract type *' with the 'Required — the portal is live.' hint. Vendor category request posted sector=power and contract=services-advisory, confirmed via GET /vendor/categories/mine. Backend: 14/14 pytest pass, including a new test showing a rejected (422) go-live notice create does not use up a notice_seq number (two consecutive successful notices are numbered N and N+1 with 2 rejections in between), and a new power+ppp-bot public filter test. go-live was reset to FALSE (verified).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "TendersList (both layouts) + VendorCategories", "issue": "Leftover cascade code: changing the Sector select still resets Contract type to '' (setContractType('') in TendersList.jsx ~L168 and ~L365; contract_type_code:'' in VendorCategories.jsx ~L123). The two selects are now independent, so a user who picks a contract type and then a sector loses the contract type. SectionD does not do this.", "selector": "[data-testid=tenders-sector-filter], [data-testid=vcat-sector-code]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/vendor/categories pending list", "issues": ["Pending entries do not show the chosen sector/contract type, so the vendor cannot see the taxonomy they submitted (optional enhancement)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v56s_golive_taxonomy.py", "/app/test_reports/pytest/iter103.xml"],
+  "action_items": [
+    "(LOW) Remove the contract-type reset in the sector onChange handlers in TendersList.jsx (desktop aside + legacy layout) and VendorCategories.jsx, since sector no longer filters contract type."
+  ],
+  "critical_code_review_comments": [
+    "notices.py: go-live gate now runs before next_sequence(); verified no gap in the sequence.",
+    "taxonomy.jsx: groups without children (framework, om) render as plain options outside any optgroup. This is fine, but the order mixes optgroups and plain options."
+  ],
+  "updated_files": ["/app/backend/tests/test_v56s_golive_taxonomy.py (added test_on_rejected_create_does_not_burn_seq, test_public_filter_power_pppbot)"],
+  "success_rate": {"backend": "100% (14/14)", "frontend": "100% of requested flows"},
+  "test_credentials": "From /app/memory/test_credentials.md: admin adminsupport@pmcmanagers.com/Admin@12345, vendor manualvendor@pmcmanagers.com/Vendor@12345 — both work.",
+  "seed_data_creation": "Registration draft delivered+v56s103a@resend.dev (TEST_v56s103 Reg, power/ppp-bot) was left in place. The pytest run created unpublished TEST_v56s draft notices. PMC-NOT-2026-0098 was tagged power/ppp-bot for the UI test and then reverted. The vendor category request created in the UI was deleted.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest tests/test_v56s_golive_taxonomy.py (fixtures/finally blocks reset go_live=false). For UI board filter tests, temporarily $set sector_code/contract_type_code on PMC-NOT-2026-0098 and $unset afterwards. Section D needs Section A fields PATCHed (see the iter102 note). On /vendor/categories, the category search 'medical' gives pickable items."
+}

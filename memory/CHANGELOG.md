@@ -1,5 +1,31 @@
 # PMC Managers — Changelog
 
+## v56s (2026-06-25) — Go-Live switch, public board filters, taxonomy persistence + clearance deliverables
+Completed the taxonomy batch on top of v56q/v56r:
+- **Public tender board filters + deep links** (`TendersList.jsx`): Sector, Contract Type,
+  Category (UNSPSC), Country, free-text; live filter state mirrored into the URL query string
+  (shareable deep-links). Sector and Contract Type are INDEPENDENT dimensions — changing Sector
+  no longer clears the selected Contract Type (removed the two `setContractType("")` resets).
+- **Admin Go-Live switch** (`routers/settings.py` + `masters/GoLiveTab.jsx`, Masters → Go-Live):
+  OFF by default; `GET /api/v1/settings/go-live/public` → `{go_live:false}`. When ON, backend
+  (`registrations.py`, `notices.py`) requires sector/contract type on NEW registration/notice
+  workflows. Existing vendors/notices untouched.
+- **Taxonomy persistence** across vendor registration (Section D), vendor category requests, and
+  notice create/edit. Contract Types render grouped by their own parent group (NOT filtered by
+  Sector).
+- **#6** required-field marker VERIFIED (bold red REQUIRED pill, `FormPrimitives.jsx`) — retained.
+- **#15** stale Admin-Registrations selection VERIFIED cleared on status-tab switch
+  (`RegistrationsPanel.jsx::load` → `setSelected(null)`).
+- **#11 / #69** help text left unchanged — deferred by user instruction.
+- Backend tests: `tests/test_v56s_golive_taxonomy.py` 14/14 pass.
+- **Deliverables** (team-facing, preview-qualified statuses, with embedded preview screenshots):
+  `deliverables/PMC_Bug_Clearance_v56s_<date>.docx` + `.xlsx` (also under
+  `frontend/public/downloads/`). Generator: `memory/make_deliverables_v56s.py`. Word render
+  verified page-by-page.
+- Production `contract_types` dedup: preview clean (30, 0 dups). Non-destructive remediation plan
+  written to `memory/PROD_CONTRACT_TYPES_DEDUP_PLAN.md` — NOT executed, pending user authorization.
+
+
 ## v56r (2026-06-24) — Notice pickers (Sector + Contract type)
 Wired the v56q taxonomy into notice creation/editing. NoticesPanel.jsx (create) and
 NoticeEditModal.jsx (edit) now load mastersApi.listSectors()/listContractTypes() and render two
