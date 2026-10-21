@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { evalApi, bidApi, adminApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
@@ -17,7 +18,14 @@ const DEFAULT_CRITERIA = [
 
 export default function EvaluationPanel() {
   const { t } = useI18n();
-  const [noticeRef, setNoticeRef] = useState("");
+  // #43 — persist the picked notice in the URL so a page refresh reloads the
+  // same tender and its saved rubric (previously plain state reset to the
+  // default criteria on refresh, so admins thought their weights were lost).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [noticeRef, setNoticeRef] = useState(() => searchParams.get("notice") || "");
+  useEffect(() => {
+    setSearchParams(noticeRef ? { notice: noticeRef } : {}, { replace: true });
+  }, [noticeRef]);  // eslint-disable-line react-hooks/exhaustive-deps
   // v52cb — bug: typing a partial tender number like "18" did not surface
   // the matching tender (the field was a free-text input, not a picker).
   // Load every notice so the admin can type any fragment of the ref or

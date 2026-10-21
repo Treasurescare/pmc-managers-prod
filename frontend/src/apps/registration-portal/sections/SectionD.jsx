@@ -73,7 +73,7 @@ export default function SectionD({ reg, update, kzMeta, regId, token, onDocChang
       {/* v56s — Sector → Contract type taxonomy. Optional now; becomes
           mandatory on submit once an admin switches the portal to go-live.
           Contract types are grouped by delivery model (not by sector). */}
-      <Field label={goLive ? "Sector *" : "Sector"} hint={goLive ? "Required — the portal is live." : "Industry/domain you operate in. Optional now; required once the portal goes live."}>
+      <Field label="Sector" required={goLive} hint={goLive ? "Required — the portal is live." : "Industry/domain you operate in. Optional now; required once the portal goes live."}>
         <select data-testid="f-sector-code" value={reg.sector_code || ""}
           onChange={(e) => {
             const s = sectors.find((x) => x.code === e.target.value);
@@ -84,7 +84,7 @@ export default function SectionD({ reg, update, kzMeta, regId, token, onDocChang
           {sectors.map((s) => <option key={s.code} value={s.code}>{s.name}</option>)}
         </select>
       </Field>
-      <Field label={goLive ? "Contract type *" : "Contract type"} hint={goLive ? "Required — the portal is live." : "Delivery model you bid for (EPC, O&M, PPP…). Optional now; required at go-live."}>
+      <Field label="Contract type" required={goLive} hint={goLive ? "Required — the portal is live." : "Delivery model you bid for (EPC, O&M, PPP…). Optional now; required at go-live."}>
         <select data-testid="f-contract-type-code" value={reg.contract_type_code || ""}
           onChange={(e) => {
             const c = contractTypes.find((x) => x.code === e.target.value);

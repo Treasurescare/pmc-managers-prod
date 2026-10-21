@@ -360,6 +360,25 @@ async def list_my_reverse_auctions(vendor=Depends(current_vendor)):
         out["why"] = "You were invited by PMC"
         await _stamp_outcome(out, a, vendor["id"])
         rows.append(out); seen.add(out["id"])
+    # #60 — also match auctions the vendor joined via the public register link
+    # (reverse_auction_participants). Without this a vendor who registered for
+    # a live auction could not find it on /vendor/auctions to place a bid.
+    async for part in db.reverse_auction_participants.find(
+        {"vendor_id": vendor["id"]}
+    ).limit(100):
+        aid = part.get("auction_id")
+        if not aid or str(aid) in seen:
+            continue
+        try:
+            a = await db.reverse_auctions.find_one({"_id": ObjectId(str(aid))})
+        except Exception:
+            a = None
+        if not a:
+            continue
+        out = _out_auction(a)
+        out["why"] = "You registered for this auction"
+        await _stamp_outcome(out, a, vendor["id"])
+        rows.append(out); seen.add(out["id"])
     return {"items": rows, "count": len(rows)}
 
 

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { toast } from "sonner";
 import { contractApi, formatApiError, showApiError} from "@/lib/api";
 import { InfoDot } from "@/components/InfoDot";
@@ -10,6 +11,7 @@ export default function ContractsTab({
   contracts, awardedBids, showNewContract, setShowNewContract,
   contractDraft, setContractDraft, onReload,
 }) {
+  const [openRef, setOpenRef] = useState(null);
   const createContract = async () => {
     const bid = awardedBids.find((b) => b.id === contractDraft.bid_id);
     if (!bid) return toast.error("Pick an awarded bid");
@@ -110,7 +112,7 @@ export default function ContractsTab({
       <div className="bg-white border">
         {contracts.map((c) => (
           <div key={c.id} className="border-b p-3" data-testid={`contract-row-${c.contract_ref}`}>
-            <div className="flex justify-between">
+            <div className="flex justify-between items-start gap-3">
               <div>
                 <div className="font-mono text-xs text-brand-navy-soft">{c.contract_ref}</div>
                 <div className="text-sm font-semibold">{c.title}</div>
@@ -118,7 +120,28 @@ export default function ContractsTab({
                   {c.currency} {(c.value || 0).toLocaleString()} · status {c.status}
                 </div>
               </div>
+              <button type="button"
+                onClick={() => setOpenRef(openRef === c.contract_ref ? null : c.contract_ref)}
+                data-testid={`contract-view-${c.contract_ref}`}
+                className="shrink-0 px-3 py-1.5 text-[10px] uppercase tracking-widest border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white transition-colors">
+                {openRef === c.contract_ref ? "Hide" : "View"}
+              </button>
             </div>
+            {openRef === c.contract_ref && (
+              <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 text-xs bg-brand-pale/40 border border-brand-navy/10 p-3"
+                  data-testid={`contract-detail-${c.contract_ref}`}>
+                <div><dt className="text-slate-500">Notice</dt><dd className="font-mono">{c.notice_ref || "—"}</dd></div>
+                <div><dt className="text-slate-500">Vendor</dt><dd className="font-mono">{c.vendor_id || "—"}</dd></div>
+                <div><dt className="text-slate-500">Start</dt><dd>{c.start_date ? new Date(c.start_date).toLocaleDateString() : "—"}</dd></div>
+                <div><dt className="text-slate-500">End</dt><dd>{c.end_date ? new Date(c.end_date).toLocaleDateString() : "—"}</dd></div>
+                <div className="col-span-2 mt-1"><dt className="text-slate-500">Obligations</dt>
+                  <dd>{(c.obligations || []).length
+                        ? (c.obligations).map((o, i) => <div key={i}>• {o.text || o.title || JSON.stringify(o)}</div>)
+                        : "None recorded"}</dd></div>
+                <div className="col-span-2"><dt className="text-slate-500">Milestones</dt>
+                  <dd>{(c.milestones || []).length ? `${c.milestones.length} milestone(s)` : "None"}</dd></div>
+              </dl>
+            )}
             {c.milestones?.length > 0 && (
               <div className="mt-2 grid grid-cols-3 gap-2">
                 {c.milestones.map((m) => (

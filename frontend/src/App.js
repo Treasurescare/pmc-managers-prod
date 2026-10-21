@@ -251,6 +251,7 @@ export default function App() {
             <Route path="/admin/e/work-packages" element={<AdminWorkPackagesE />} />
             <Route path="/admin/e/catalog" element={<AdminCatalogE />} />
             <Route path="/admin/e/boq" element={<AdminBoqContractsE />} />
+            <Route path="/admin/e/boq-contracts" element={<AdminBoqContractsE />} />
             <Route path="/admin/e/vendors" element={<AdminVendorsE />} />
             <Route path="/admin/e/registrations" element={<AdminRegistrationsE />} />
             <Route path="/admin/e/engagements" element={<AdminEngagementsE />} />

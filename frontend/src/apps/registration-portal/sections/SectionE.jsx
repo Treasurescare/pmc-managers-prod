@@ -38,7 +38,7 @@ export default function SectionE({ reg, update }) {
               />
               <span className="text-sm text-brand-navy">
                 {t(`section_e.${k}`)}
-                {!reg[k] && <span className="ml-2 text-[10px] uppercase tracking-widest text-amber-700">Required</span>}
+                {!reg[k] && <span className="ml-1 text-red-600 font-bold" aria-label="required">*</span>}
               </span>
             </label>
           ))}
