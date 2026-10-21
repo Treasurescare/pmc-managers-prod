@@ -11,12 +11,16 @@ institution portals, AWS deployment bundles, and transactional notifications
 (Stripe, Resend, DocuSign, Emergent crons).
 
 
-## Current deployable: v56m (24 Jun 2026)
-Public marketing site fully wired (nav/search/links). See CHANGELOG v56m.
-Artifacts (preview): `pmc-backend-v56m.zip`, `pmc-frontend-v56m-prod-build.zip`,
-`DOWNLOAD_v56m.md` under `/downloads/`. Deploy: EB backend → S3 frontend root →
-CloudFront invalidate `/*` → confirm footer "Frontend v56m · Backend v56m".
-Agent-tested in preview (iteration_97, 34/35); NOT yet user-confirmed in production.
+## Current deployable: v56n (24 Jun 2026)
+Public-site upgrades on top of v56m: live ledger Verify (recompute hash → intact/break),
+tender deep-links (live rows + cards open the notice), real Contact enquiry with tracked
+reference (ENQ-2026-#####) emailed to desk, status-filter links (Closing this week /
+Awarded), and "Sign in" now opens the Option-E `/login` chooser (not legacy navy page).
+Artifacts (preview): `pmc-backend-v56n.zip`, `pmc-frontend-v56n-prod-build.zip`,
+`DOWNLOAD_v56n.md` under `/downloads/`. Deploy: EB backend → S3 frontend root →
+CloudFront invalidate `/*` → confirm footer "Frontend v56n · Backend v56n".
+Agent-tested in preview (iteration_98: backend 100%, frontend 88% → card deep-link
+fixed after). NOT yet user-confirmed in production.
 
 ## EMD → Escrow flow (validated on preview, 18 Jun 2026)
 Lifecycle: bid `emd_paid`→`escrow_accepted` (auto) → admin records EMD receipt

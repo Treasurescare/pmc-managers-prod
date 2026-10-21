@@ -1,5 +1,28 @@
 # PMC Managers — Changelog
 
+## v56n (2026-06-24) — Public-site upgrades: live Verify, deep links, contact, status filters
+Four approved upgrades + a Sign-in routing fix on top of v56m.
+- **Live Verify (Trust & Security):** new public `GET /api/v1/audit-events/verify-record?ref=`
+  (`audit.py::verify_record` + `routers/audit_routes.py`) looks up one ledger event by seq
+  (digits / `#NNNN`) or target_id, recomputes `_hash(body)` and checks the previous-hash link.
+  `TrustSecurityE.jsx` now has a `VerifyRecordCard` React component (state + api) showing
+  intact/break with event #, target, prev & current hash.
+- **Tender deep-links:** `PmcLinkPatcher.jsx` public live-board rows AND tender cards now
+  navigate to `/notices/<ref>` via `extractNoticeRef` instead of gating to `/register`.
+  Fixed a leftover `onCardClick` document listener (was still sending cards to `/register`).
+- **Contact delivery:** new public `POST /api/v1/meta/public/contact` (`routers/meta.py`) logs
+  `contact_enquiries`, audit-logs `contact.enquiry`, returns tracked `ENQ-2026-#####`, and
+  emails desk + sender (fire-and-forget). `ContactE.jsx` `ContactForm` posts + shows the ref.
+- **Status filters:** `pmcELiveData.js` reads URL `?status=` and ticks the matching status
+  radio (open/closing/closed/awarded). `pmcEPublicNav.js`: "Closing this week" chip →
+  `?status=closing`; Awards page "Awarded" KPI → `?status=awarded`.
+- **Sign-in fix:** nav "Sign in" now → `/login` (Option-E unified SignInE chooser) instead of
+  the legacy navy `/vendor/login`.
+Testing: iteration_98 — backend 7/7 (100%), frontend 8/9; the one failure (card → /register)
+was fixed post-report. Email to @example.com test addresses returns Resend 422 (harmless;
+send is fire-and-forget). Audit collection is `audit_events` (append-only; test enquiries kept).
+
+
 ## v56m (2026-06-24) — Public marketing site fully wired (nav/search/links)
 User reported the public site was mostly non-functional: hero search box, country
 dropdown and "Find tenders" did nothing; "Popular:" chips dead; platform stat
