@@ -65,6 +65,11 @@ class RegistrationUpdateIn(BaseModel):
     # D — Business Profile
     primary_sector: Optional[str] = None
     business_description: Optional[str] = None
+    # v56s — Sector / Contract-type taxonomy (optional now; mandatory at go-live)
+    sector_code: Optional[str] = None
+    sector_name: Optional[str] = None
+    contract_type_code: Optional[str] = None
+    contract_type_name: Optional[str] = None
     operating_regions: List[Any] = []  # v52ci — accepts legacy strings OR structured office dicts
     business_categories: List[Any] = []  # v52co — accepts legacy strings OR {code,title} dicts
     previous_projects: List[dict] = []

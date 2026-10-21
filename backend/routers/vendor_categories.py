@@ -27,6 +27,11 @@ class CategoryRequestIn(BaseModel):
     category_code: str = Field(min_length=1, max_length=60)
     category_name: str = Field(min_length=1, max_length=200)
     rationale: Optional[str] = Field(default=None, max_length=600)
+    # v56s — optional Sector → Contract-type taxonomy context for the request.
+    sector_code: Optional[str] = Field(default=None, max_length=60)
+    sector_name: Optional[str] = Field(default=None, max_length=200)
+    contract_type_code: Optional[str] = Field(default=None, max_length=60)
+    contract_type_name: Optional[str] = Field(default=None, max_length=200)
 
 
 # ---------- Vendor side ----------
@@ -69,6 +74,10 @@ async def request_category(payload: CategoryRequestIn, vendor=Depends(current_ve
         "category_code": payload.category_code,
         "category_name": payload.category_name,
         "rationale": payload.rationale,
+        "sector_code": payload.sector_code,
+        "sector_name": payload.sector_name,
+        "contract_type_code": payload.contract_type_code,
+        "contract_type_name": payload.contract_type_name,
         "status": "pending",
         "requested_at": now_iso(),
     }

@@ -382,6 +382,14 @@ async def submit_registration(registration_id: str,
         if not doc.get(f):
             raise HTTPException(status_code=400, detail=f"Missing signature field: {f}")
 
+    # v56s — Go-live gate: once the portal is live, a new registration must
+    # declare a Sector + Contract type before it can be submitted. Optional
+    # while go-live is OFF; never re-validated for already-approved vendors.
+    from routers.settings import is_go_live
+    if await is_go_live() and (not doc.get("sector_code") or not doc.get("contract_type_code")):
+        raise HTTPException(status_code=400,
+            detail="Please select a Sector and Contract type in Section D before submitting.")
+
     # Guard against a data row missing an email — must have been captured on
     # RegistrationStart. Return a clean 400 instead of KeyError → 500.
     email = doc.get("email")

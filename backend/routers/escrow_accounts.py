@@ -176,6 +176,40 @@ async def register(payload: RegisterIn, response: Response) -> Dict[str, Any]:
     email = payload.email.lower().strip()
     existing = await db.escrow_accounts.find_one({"email": email})
     if existing:
+        # #13 — a dormant (abandoned 30+ day incomplete) registration may be
+        # restarted. Reactivate the owned institution to a fresh draft and
+        # re-issue the verify link so the applicant can begin again.
+        dormant_inst = None
+        if existing.get("institution_id"):
+            try:
+                dormant_inst = await db.escrow_institutions.find_one(
+                    {"_id": ObjectId(existing["institution_id"])})
+            except Exception:
+                dormant_inst = None
+        if dormant_inst and dormant_inst.get("status") == "dormant":
+            new_tok = _token()
+            await db.escrow_accounts.update_one(
+                {"_id": existing["_id"]},
+                {"$set": {
+                    "legal_name": payload.legal_name.strip(),
+                    "primary_contact_phone": payload.primary_contact_phone.strip(),
+                    "password_hash": hash_password(payload.password),
+                    "status": "unverified",
+                    "verify_token": new_tok,
+                    "verify_token_expires_at":
+                        (datetime.now(timezone.utc) + timedelta(hours=VERIFY_TTL_HOURS)).isoformat(),
+                    "updated_at": now_iso(),
+                }})
+            await db.escrow_institutions.update_one(
+                {"_id": dormant_inst["_id"]},
+                {"$set": {"status": "draft", "updated_at": now_iso()},
+                 "$unset": {"dormant_at": "", "reg_reminder_last_at": "",
+                            "reg_reminder_count": "", "reg_warned_dormant": ""}})
+            await _send_verify_email(email, payload.legal_name, new_tok)
+            await audit_log("escrow_account.reactivate_dormant", None,
+                            "escrow_account", str(existing["_id"]), {"email": email})
+            return {"id": str(existing["_id"]), "status": "unverified",
+                    "message": "Verify email re-sent."}
         # Already verified -> clean 409 the UI can route to login.
         # Still unverified -> re-send verify link, keep the row.
         if existing.get("status") == "verified":

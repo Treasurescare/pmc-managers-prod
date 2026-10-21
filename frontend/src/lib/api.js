@@ -224,6 +224,15 @@ export const publicApi = {
   publicStats: () => api.get("/api/v1/meta/public/stats").then((r) => r.data),
   kzMeta: () => api.get("/api/v1/meta/kz-licenses").then((r) => r.data),
   countries: () => api.get("/api/v1/meta/countries").then((r) => r.data),
+  listSectorsPublic: () => api.get("/api/v1/masters/sectors/public").then((r) => r.data),
+  listContractTypesPublic: () => api.get("/api/v1/masters/contract-types/public").then((r) => r.data),
+  goLive: () => api.get("/api/v1/settings/go-live/public").then((r) => r.data),
+};
+
+// v56s — admin Go-Live switch (persisted; OFF by default).
+export const settingsApi = {
+  getGoLive: () => api.get("/api/v1/settings/go-live").then((r) => r.data),
+  setGoLive: (enabled) => api.put("/api/v1/settings/go-live", { enabled }).then((r) => r.data),
 };
 
 // v52cy — allowed PATCH fields on a registration draft. Pydantic
@@ -246,6 +255,7 @@ const REGISTRATION_UPDATE_FIELDS = new Set([
   "documents", "decl_conflict_of_interest", "decl_integrity", "decl_accuracy",
   "decl_data_consent", "decl_fee", "decl_notification",
   "primary_unspsc_code", "primary_unspsc_title",
+  "sector_code", "sector_name", "contract_type_code", "contract_type_name",
   // v54c — Section E signature block + Directors section were silently
   // stripped by this whitelist, so the signature never reached the DB and
   // submit always failed with "Missing signature field: signature_name".

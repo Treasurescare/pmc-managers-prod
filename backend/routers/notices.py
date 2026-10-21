@@ -120,6 +120,8 @@ async def list_notices(
     country: Optional[str] = None,
     category: Optional[str] = None,
     document_type: Optional[str] = None,
+    sector_code: Optional[str] = None,
+    contract_type_code: Optional[str] = None,
     limit: int = 30,
     offset: int = 0,
 ):
@@ -129,6 +131,10 @@ async def list_notices(
         q["delivery_country"] = country.upper()
     if category:
         q["category"] = category
+    if sector_code:
+        q["sector_code"] = sector_code
+    if contract_type_code:
+        q["contract_type_code"] = contract_type_code
     if document_type in ("tender", "rfp", "rfq"):
         q["document_type"] = document_type
 
@@ -192,6 +198,13 @@ async def create_notice(payload: NoticeIn, admin=Depends(require_role(
     notice_ref = f"PMC-NOT-{year}-{seq:04d}"
 
     doc = payload.model_dump()
+
+    # v56s — Go-live gate: when the portal is live, every NEW notice must carry
+    # a Sector + Contract type. Optional while go-live is OFF.
+    from routers.settings import is_go_live
+    if await is_go_live() and (not doc.get("sector_code") or not doc.get("contract_type_code")):
+        raise HTTPException(status_code=422,
+            detail="Go-live is enabled: Sector and Contract type are required for new notices.")
 
     # Auto-attach KZ required licenses per category
     if (doc.get("delivery_country") or "").upper() == "KZ":

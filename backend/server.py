@@ -25,6 +25,7 @@ from routers import (
     legal_entity_types, escrow_institutions, escrow_signatories, escrow_accounts, escrow_v52f, cron_escrow,
     cron_vendor_digest,
     currencies,
+    settings as app_settings,
 )
 from routers import password_reset as _password_reset
 
@@ -219,6 +220,7 @@ app.include_router(tasks.router)
 app.include_router(chat.router)
 app.include_router(inspections.router)
 app.include_router(masters.router)
+app.include_router(app_settings.router)
 app.include_router(currencies.router)
 app.include_router(legal_entity_types.router)
 # Wave 2-6 — Evaluation, BOQ+Contracts, Vendor Intel, Analytics+AI, Governance, Notifications

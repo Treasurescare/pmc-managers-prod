@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { vendorApi, mastersApi, showApiError } from "@/lib/api";
+import { vendorApi, mastersApi, publicApi, showApiError } from "@/lib/api";
 
 /**
  * VendorCategories — v50l.
@@ -13,7 +13,9 @@ export default function VendorCategories() {
   const navigate = useNavigate();
   const [state, setState] = useState({ approved: [], pending: [], recent: [] });
   const [master, setMaster] = useState([]);
-  const [draft, setDraft] = useState({ code: "", name: "", rationale: "" });
+  const [sectors, setSectors] = useState([]);
+  const [contractTypes, setContractTypes] = useState([]);
+  const [draft, setDraft] = useState({ code: "", name: "", rationale: "", sector_code: "", sector_name: "", contract_type_code: "", contract_type_name: "" });
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -25,6 +27,8 @@ export default function VendorCategories() {
     mastersApi.listCategoriesPublic()
       .then((rows) => setMaster(Array.isArray(rows) ? rows : []))
       .catch(() => setMaster([]));
+    publicApi.listSectorsPublic().then((r) => setSectors(Array.isArray(r) ? r : [])).catch(() => setSectors([]));
+    publicApi.listContractTypesPublic().then((r) => setContractTypes(Array.isArray(r) ? r : [])).catch(() => setContractTypes([]));
   }, []);
 
   const approvedSet = new Set(state.approved);
@@ -45,11 +49,15 @@ export default function VendorCategories() {
         category_code: draft.code,
         category_name: draft.name,
         rationale: draft.rationale || null,
+        sector_code: draft.sector_code || null,
+        sector_name: draft.sector_name || null,
+        contract_type_code: draft.contract_type_code || null,
+        contract_type_name: draft.contract_type_name || null,
       });
       toast.success(`Request submitted · ${draft.name}`, {
         description: "An admin will review it shortly.",
       });
-      setDraft({ code: "", name: "", rationale: "" });
+      setDraft({ code: "", name: "", rationale: "", sector_code: "", sector_name: "", contract_type_code: "", contract_type_name: "" });
       refresh();
     } catch (e) { showApiError(e); }
     finally { setBusy(false); }
@@ -106,6 +114,28 @@ export default function VendorCategories() {
         <p className="text-xs text-brand-navy/60 mt-1 mb-3">
           Pick from the procurement category master. Admin approval is required before tender matching picks it up.
         </p>
+        {/* v56s — Sector → Contract type taxonomy context (cascading). Optional. */}
+        <div className="grid md:grid-cols-2 gap-3 mb-3">
+          <select data-testid="vcat-sector-code" value={draft.sector_code}
+            onChange={(e) => {
+              const s = sectors.find((x) => x.code === e.target.value);
+              setDraft((d) => ({ ...d, sector_code: e.target.value, sector_name: s ? s.name : "", contract_type_code: "", contract_type_name: "" }));
+            }}
+            className="px-3 py-2 border border-brand-navy/20 text-sm bg-white">
+            <option value="">Sector (optional)…</option>
+            {sectors.map((s) => <option key={s.code} value={s.code}>{s.name}</option>)}
+          </select>
+          <select data-testid="vcat-contract-type-code" value={draft.contract_type_code}
+            disabled={!draft.sector_code}
+            onChange={(e) => {
+              const c = contractTypes.find((x) => x.code === e.target.value);
+              setDraft((d) => ({ ...d, contract_type_code: e.target.value, contract_type_name: c ? c.name : "" }));
+            }}
+            className="px-3 py-2 border border-brand-navy/20 text-sm bg-white disabled:opacity-50">
+            <option value="">{draft.sector_code ? "Contract type (optional)…" : "Pick a sector first"}</option>
+            {contractTypes.filter((c) => !draft.sector_code || !c.parent_code || c.parent_code === draft.sector_code).map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+          </select>
+        </div>
         <input value={query} onChange={(e) => setQuery(e.target.value)}
           placeholder="Search by name or UNSPSC code…"
           className="w-full px-3 py-2 border border-brand-navy/20 text-sm mb-3"

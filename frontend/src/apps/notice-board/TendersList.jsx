@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { publicApi, formatApiError } from "@/lib/api";
 import { useUiTheme } from "@/context/UiThemeContext";
 import TopBar from "@/apps/shared/TopBar";
@@ -12,9 +12,18 @@ import PmcFooter from "@/components/PmcFooter";
 export default function TendersList() {
   const { mode = "live" } = useParams();
   const { isE } = useUiTheme();
+  // v56s — deep-linkable filters: Sector / Contract type / UNSPSC-category /
+  // Country / free text are all restored from (and written back to) the query
+  // string so a filtered board can be shared or survive a refresh.
+  const [searchParams, setSearchParams] = useSearchParams();
   const [notices, setNotices] = useState([]);
-  const [q, setQ] = useState("");
-  const [country, setCountry] = useState("");
+  const [q, setQ] = useState(searchParams.get("q") || "");
+  const [country, setCountry] = useState((searchParams.get("country") || "").toUpperCase());
+  const [sector, setSector] = useState(searchParams.get("sector") || "");
+  const [contractType, setContractType] = useState(searchParams.get("contract") || "");
+  const [category, setCategory] = useState(searchParams.get("category") || "");
+  const [sectors, setSectors] = useState([]);
+  const [contractTypes, setContractTypes] = useState([]);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -24,7 +33,23 @@ export default function TendersList() {
       .then((r) => setNotices(r.items || r || []))
       .catch((e) => setErr(formatApiError(e)))
       .finally(() => setLoading(false));
+    publicApi.listSectorsPublic().then((r) => setSectors(Array.isArray(r) ? r : [])).catch(() => setSectors([]));
+    publicApi.listContractTypesPublic().then((r) => setContractTypes(Array.isArray(r) ? r : [])).catch(() => setContractTypes([]));
   }, []);
+
+  // Mirror live filter state into the URL query string (deep-link / shareable).
+  useEffect(() => {
+    const next = {};
+    if (q) next.q = q;
+    if (country) next.country = country;
+    if (sector) next.sector = sector;
+    if (contractType) next.contract = contractType;
+    if (category) next.category = category;
+    setSearchParams(next, { replace: true });
+  }, [q, country, sector, contractType, category, setSearchParams]);
+
+  const clearFilters = () => { setQ(""); setCountry(""); setSector(""); setContractType(""); setCategory(""); };
+  const activeCount = [q, country, sector, contractType, category].filter(Boolean).length;
 
   const now = new Date().toISOString();
   const filtered = useMemo(() => {
@@ -34,6 +59,13 @@ export default function TendersList() {
       if (mode === "live" && past) return false;
       if (mode === "completed" && !past && n.award_status !== "awarded") return false;
       if (country && (n.delivery_country || "").toUpperCase() !== country.toUpperCase()) return false;
+      if (sector && (n.sector_code || "") !== sector) return false;
+      if (contractType && (n.contract_type_code || "") !== contractType) return false;
+      if (category) {
+        const c = category.toLowerCase();
+        if (!(n.category || "").toLowerCase().includes(c) &&
+            !(n.category_code || "").toLowerCase().includes(c)) return false;
+      }
       if (q) {
         const s = q.toLowerCase();
         if (!(n.title || "").toLowerCase().includes(s) &&
@@ -42,7 +74,7 @@ export default function TendersList() {
       }
       return true;
     });
-  }, [notices, mode, q, country, now]);
+  }, [notices, mode, q, country, sector, contractType, category, now]);
 
   const title = mode === "completed" ? "Completed tenders"
               : mode === "all"       ? "All published notices"
@@ -116,7 +148,7 @@ export default function TendersList() {
             <aside className="e-refine-aside" data-testid="tenders-refine-aside" aria-label="Filters">
               <div className="e-refine-head">
                 <h2 className="e-refine-title">Refine</h2>
-                <span className="text-sm text-[#4F5C55]">{(q || country) ? "Applied" : "0 applied"}</span>
+                <span className="text-sm text-[#4F5C55]">{activeCount ? `${activeCount} applied` : "0 applied"}</span>
               </div>
               <div className="flex flex-col gap-2">
                 <div className="e-refine-label">
@@ -127,8 +159,44 @@ export default function TendersList() {
                        placeholder="Keyword, ref…" className="h-11 px-4 rounded-full border border-[#C9C1AA] bg-[#FBF9F3] text-sm outline-none focus:border-[#0F3B2E]" />
               </div>
               <div className="flex flex-col gap-2">
-                <label className="e-refine-label" htmlFor="e-f-country">
+                <label className="e-refine-label" htmlFor="e-f-sector">
                   <span className="e-numeral">II</span>
+                  <span className="e-tag">Sector</span>
+                </label>
+                <select id="e-f-sector" value={sector}
+                        onChange={(e) => { setSector(e.target.value); setContractType(""); }}
+                        data-testid="tenders-sector-filter"
+                        className="h-11 px-4 rounded-full border border-[#C9C1AA] bg-[#FBF9F3] text-sm outline-none focus:border-[#0F3B2E]">
+                  <option value="">All sectors</option>
+                  {sectors.map((s) => <option key={s.code} value={s.code}>{s.name}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="e-refine-label" htmlFor="e-f-contract">
+                  <span className="e-numeral">III</span>
+                  <span className="e-tag">Contract type</span>
+                </label>
+                <select id="e-f-contract" value={contractType} disabled={!sector}
+                        onChange={(e) => setContractType(e.target.value)}
+                        data-testid="tenders-contract-filter"
+                        className="h-11 px-4 rounded-full border border-[#C9C1AA] bg-[#FBF9F3] text-sm outline-none focus:border-[#0F3B2E] disabled:opacity-50">
+                  <option value="">{sector ? "All contract types" : "Pick a sector first"}</option>
+                  {contractTypes.filter((c) => !sector || !c.parent_code || c.parent_code === sector).map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+                </select>
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="e-refine-label" htmlFor="e-f-category">
+                  <span className="e-numeral">IV</span>
+                  <span className="e-tag">Category (UNSPSC)</span>
+                </label>
+                <input id="e-f-category" value={category} onChange={(e) => setCategory(e.target.value)}
+                       placeholder="e.g. solar, construction…"
+                       data-testid="tenders-category-filter"
+                       className="h-11 px-4 rounded-full border border-[#C9C1AA] bg-[#FBF9F3] text-sm outline-none focus:border-[#0F3B2E]" />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="e-refine-label" htmlFor="e-f-country">
+                  <span className="e-numeral">V</span>
                   <span className="e-tag">Country</span>
                 </label>
                 <input id="e-f-country" value={country} onChange={(e) => setCountry(e.target.value.toUpperCase())}
@@ -138,7 +206,7 @@ export default function TendersList() {
               </div>
               <button
                 type="button"
-                onClick={() => { setQ(""); setCountry(""); }}
+                onClick={clearFilters}
                 data-testid="tenders-clear-filters"
                 className="h-11 rounded-full border border-[#14261F] text-sm font-medium hover:bg-[#14261F] hover:text-[#F3EFE4] transition-colors"
               >
@@ -291,6 +359,28 @@ export default function TendersList() {
                  placeholder="Country (KZ, IN, GB…)" maxLength={2}
                  data-testid="tenders-country-filter"
                  className="px-4 py-3 border border-brand-navy/20 bg-white text-sm uppercase" />
+        </div>
+        <div className="mt-3 grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto] items-stretch">
+          <select value={sector} onChange={(e) => { setSector(e.target.value); setContractType(""); }}
+                  data-testid="tenders-sector-filter"
+                  className="px-4 py-3 border border-brand-navy/20 bg-white text-sm">
+            <option value="">All sectors</option>
+            {sectors.map((s) => <option key={s.code} value={s.code}>{s.name}</option>)}
+          </select>
+          <select value={contractType} disabled={!sector} onChange={(e) => setContractType(e.target.value)}
+                  data-testid="tenders-contract-filter"
+                  className="px-4 py-3 border border-brand-navy/20 bg-white text-sm disabled:opacity-50">
+            <option value="">{sector ? "All contract types" : "Pick a sector first"}</option>
+            {contractTypes.filter((c) => !sector || !c.parent_code || c.parent_code === sector).map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+          </select>
+          <input value={category} onChange={(e) => setCategory(e.target.value)}
+                 placeholder="Category (UNSPSC): solar, construction…"
+                 data-testid="tenders-category-filter"
+                 className="px-4 py-3 border border-brand-navy/20 bg-white text-sm" />
+          <button type="button" onClick={clearFilters} data-testid="tenders-clear-filters"
+                  className="px-4 py-3 border border-brand-navy text-brand-navy text-[11px] uppercase tracking-widest hover:bg-brand-navy hover:text-white">
+            Clear
+          </button>
         </div>
 
         {err && <div className="mt-6 text-red-700 bg-red-50 border border-red-200 px-4 py-2 text-sm">{err}</div>}

@@ -5,6 +5,21 @@ import AdminEShell from "./AdminEShell";
 
 const LEVEL_CLASS = { critical: "pmc-pill--danger", warning: "pmc-pill--warning", info: "pmc-pill--info", success: "pmc-pill--success", ok: "pmc-pill--success" };
 
+// #71 — notification bodies may contain stored HTML (<p>, <strong>, <br/>…).
+// Render them as safe, readable plain text in the compact events table instead
+// of showing the raw tags. DOMParser output is inert (no script/resource load).
+function htmlToText(value) {
+  const s = String(value || "");
+  if (!s) return "";
+  if (!/[<&]/.test(s)) return s;
+  try {
+    const doc = new DOMParser().parseFromString(s, "text/html");
+    return (doc.body.textContent || "").replace(/\s+/g, " ").trim();
+  } catch {
+    return s.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  }
+}
+
 function levelOf(n) {
   const t = `${n.level || ""} ${n.title || ""}`.toLowerCase();
   if (t.includes("critical") || t.includes("fail") || t.includes("expir")) return "critical";
@@ -74,7 +89,7 @@ export default function AdminEventsE() {
                     return (
                       <tr key={n.id} data-testid={`event-row-${n.id}`} style={n.is_read ? { opacity: 0.55 } : undefined}>
                         <td><span className={`pmc-pill ${LEVEL_CLASS[lvl]}`}>{lvl === "ok" ? "OK" : lvl[0].toUpperCase() + lvl.slice(1)}</span></td>
-                        <td><div style={{ fontWeight: 600 }}>{n.title || n.event_type || "Event"}</div><div className="pmc-muted" style={{ fontSize: "12px" }}>{n.body || n.message || ""}</div></td>
+                        <td><div style={{ fontWeight: 600 }}>{htmlToText(n.title || n.event_type || "Event")}</div><div className="pmc-muted" style={{ fontSize: "12px" }}>{htmlToText(n.body || n.message || "")}</div></td>
                         <td style={{ whiteSpace: "nowrap" }}>{when}</td>
                         <td>{!n.is_read && <button className="pmc-btn pmc-btn--secondary pmc-btn--sm" data-testid={`event-ack-${n.id}`} onClick={() => ack(n)}>Acknowledge</button>}</td>
                       </tr>

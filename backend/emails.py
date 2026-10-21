@@ -40,11 +40,16 @@ def _wrap(title: str, body_html: str, cta_label: Optional[str] = None, cta_url: 
 
 
 async def send_email(to_email: str, subject: str, html: str,
-                     attachments: Optional[list] = None) -> bool:
+                     attachments: Optional[list] = None,
+                     cc: Optional[list] = None) -> bool:
     # Direct Resend path — sends from the verified pmcmanagers.com domain so
     # recipients see PMC's own address, never a third-party relay domain.
     # v52bo — optional `attachments` list ({filename, content_b64, content_type})
     # is forwarded to Resend so corrigendum PDFs reach bidders inline.
+    # v56s — optional `cc` list (escrow signatory emails) carried alongside the
+    # base recipient so every escrow mail CCs all registered signatories.
+    cc_clean = sorted({(e or "").strip().lower() for e in (cc or [])
+                       if (e or "").strip() and (e or "").strip().lower() != (to_email or "").strip().lower()})
     if config.RESEND_API_KEY:
         payload = {
             "from": f"{config.EMAIL_FROM_NAME} <{config.EMAIL_FROM_ADDRESS}>",
@@ -52,6 +57,8 @@ async def send_email(to_email: str, subject: str, html: str,
             "subject": subject,
             "html": html,
         }
+        if cc_clean:
+            payload["cc"] = cc_clean
         if config.EMAIL_REPLY_TO:
             payload["reply_to"] = config.EMAIL_REPLY_TO
         if attachments:
