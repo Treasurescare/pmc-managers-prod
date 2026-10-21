@@ -3,16 +3,14 @@ import { useEffect, useMemo, useState } from "react";
 export function Field({ label, children, hint, error, required }) {
   return (
     <label className="block">
-      <span className="pmc-label flex items-center gap-2">
+      <span className="pmc-label flex items-center gap-1">
         <span>{label}</span>
-        {/* v52cy — the previous `*` was a thin red asterisk that admins
-            kept missing. Replaced with a bold REQUIRED pill so mandatory
-            fields visually jump out of the Section D/E grid. */}
+        {/* #6 — reverted the heavy REQUIRED pill to a simple bold red
+            asterisk per the testing team (the pill was visually overwhelming
+            across the Section D/E grid). */}
         {required && (
-          <span className="inline-flex items-center text-[9px] font-bold tracking-widest px-1.5 py-0.5 bg-red-600 text-white rounded-sm"
-                aria-label="required" data-testid="field-required-pill">
-            REQUIRED
-          </span>
+          <span className="text-red-600 font-bold" aria-label="required"
+                data-testid="field-required-mark">*</span>
         )}
       </span>
       {children}
