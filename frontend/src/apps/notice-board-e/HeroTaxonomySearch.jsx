@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { publicApi } from "@/lib/api";
-import { contractTypeOptions } from "@/components/taxonomy";
+import { contractTypeOptions, uniqByCode } from "@/components/taxonomy";
 
 const arr = (r) => (Array.isArray(r) ? r : []);
 
@@ -72,7 +72,7 @@ export const HeroTaxonomySearch = () => {
         data-testid="home-hero-sector"
       >
         <option value="">All sectors</option>
-        {sectors.map((s) => <option key={s.code} value={s.code}>{s.name}</option>)}
+        {uniqByCode(sectors).map((s) => <option key={s.code} value={s.code}>{s.name}</option>)}
       </select>
       <select
         className="pmc-input"
@@ -94,7 +94,7 @@ export const HeroTaxonomySearch = () => {
         data-testid="home-hero-category"
       >
         <option value="">All categories</option>
-        {categories.map((c) => <option key={c.code} value={c.name}>{c.name}</option>)}
+        {uniqByCode(categories).map((c) => <option key={c.code} value={c.name}>{c.name}</option>)}
       </select>
       <select
         className="pmc-input"
@@ -105,7 +105,7 @@ export const HeroTaxonomySearch = () => {
         data-testid="home-hero-country"
       >
         <option value="">All countries</option>
-        {countries.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+        {uniqByCode(countries).map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
       </select>
       <button
         type="submit"

@@ -172,6 +172,31 @@ async def _tax_delete(coll, kind: str, tid: str, admin) -> dict:
     return {"ok": True, "deactivated": True}
 
 
+@router.post("/dedupe-taxonomy")
+async def dedupe_taxonomy(admin=Depends(require_role("admin"))) -> dict:
+    """v56u — remove duplicate taxonomy rows (same `code`) from sectors,
+    contract_types and categories, keeping the earliest document per code.
+    Idempotent and non-destructive to unique data; returns duplicates deleted
+    per collection."""
+    result = {}
+    for name, coll in (("sectors", db.sectors),
+                       ("contract_types", db.contract_types),
+                       ("categories", db.categories)):
+        seen = set()
+        dup_ids = []
+        async for doc in coll.find({}, {"_id": 1, "code": 1}).sort("_id", 1):
+            code = doc.get("code")
+            if code in seen:
+                dup_ids.append(doc["_id"])
+            else:
+                seen.add(code)
+        if dup_ids:
+            await coll.delete_many({"_id": {"$in": dup_ids}})
+        result[name] = len(dup_ids)
+    await audit_log("masters.dedupe_taxonomy", admin, "masters", "taxonomy", result)
+    return {"ok": True, "deleted": result}
+
+
 @router.get("/sectors")
 async def list_sectors(include_inactive: bool = False,
                        admin=Depends(require_role("admin", "reviewer", "support", "committee_member"))) -> List[dict]:

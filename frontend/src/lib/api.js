@@ -843,6 +843,7 @@ export const mastersApi = {
     api.get("/api/v1/masters/countries").then((r) => r.data),
   setCountryCurrencies: (code, p) =>
     api.patch(`/api/v1/masters/countries/${code}/currencies`, p).then((r) => r.data),
+  dedupeTaxonomy: () => api.post("/api/v1/masters/dedupe-taxonomy").then((r) => r.data),
   listStates: (country_code) =>
     api.get("/api/v1/masters/states", { params: { country_code } }).then((r) => r.data),
   listCities: (country_code, state_code, q, limit = 200) =>

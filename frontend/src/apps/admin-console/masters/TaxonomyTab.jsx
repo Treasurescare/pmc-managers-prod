@@ -83,6 +83,19 @@ export default function TaxonomyTab({ kind, label }) {
 
   const active = rows.filter((r) => r.is_active !== false).length;
 
+  const dedupe = async () => {
+    if (!window.confirm("Remove duplicate rows (same code) from Sectors, Contract types and Categories? The earliest of each is kept; your data is otherwise untouched.")) return;
+    try {
+      const res = await mastersApi.dedupeTaxonomy();
+      const d = res.deleted || {};
+      const total = (d.sectors || 0) + (d.contract_types || 0) + (d.categories || 0);
+      toast.success(total
+        ? `Removed ${total} duplicate${total === 1 ? "" : "s"} — sectors ${d.sectors}, contract types ${d.contract_types}, categories ${d.categories}`
+        : "No duplicates found — all clean.");
+      load();
+    } catch (e) { showApiError(e); }
+  };
+
   return (
     <div data-testid={`${kind}-tab`}>
       <div className="flex items-center gap-3 mb-3 flex-wrap">
@@ -97,6 +110,11 @@ export default function TaxonomyTab({ kind, label }) {
               data-testid={`${kind}-show-inactive`} />
             Show inactive
           </label>
+          <button onClick={dedupe}
+            className="px-3 py-2 text-[11px] uppercase tracking-widest border border-brand-navy text-brand-navy hover:bg-brand-navy hover:text-white"
+            data-testid="taxonomy-dedupe-btn">
+            Remove duplicates
+          </button>
           <button onClick={() => setShowNew((v) => !v)}
             className="px-3 py-2 text-[11px] uppercase tracking-widest bg-brand-navy text-white"
             data-testid={`${kind}-new-btn`}>

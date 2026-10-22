@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { publicApi, formatApiError } from "@/lib/api";
-import { contractTypeOptions } from "@/components/taxonomy";
+import { contractTypeOptions, uniqByCode } from "@/components/taxonomy";
 import { useUiTheme } from "@/context/UiThemeContext";
 import TopBar from "@/apps/shared/TopBar";
 import PmcFooter from "@/components/PmcFooter";
@@ -25,6 +25,7 @@ export default function TendersList() {
   const [category, setCategory] = useState(searchParams.get("category") || "");
   const [sectors, setSectors] = useState([]);
   const [contractTypes, setContractTypes] = useState([]);
+  const [countries, setCountries] = useState([]);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -36,6 +37,7 @@ export default function TendersList() {
       .finally(() => setLoading(false));
     publicApi.listSectorsPublic().then((r) => setSectors(Array.isArray(r) ? r : [])).catch(() => setSectors([]));
     publicApi.listContractTypesPublic().then((r) => setContractTypes(Array.isArray(r) ? r : [])).catch(() => setContractTypes([]));
+    publicApi.countries().then((r) => setCountries(Array.isArray(r) ? r : [])).catch(() => setCountries([]));
   }, []);
 
   // Mirror live filter state into the URL query string (deep-link / shareable).
@@ -171,7 +173,7 @@ export default function TendersList() {
                         data-testid="tenders-sector-filter"
                         className="h-11 px-4 rounded-full border border-[#C9C1AA] bg-[#FBF9F3] text-sm outline-none focus:border-[#0F3B2E]">
                   <option value="">All sectors</option>
-                  {sectors.map((s) => <option key={s.code} value={s.code}>{s.name}</option>)}
+                  {uniqByCode(sectors).map((s) => <option key={s.code} value={s.code}>{s.name}</option>)}
                 </select>
               </div>
               <div className="flex flex-col gap-2">
@@ -202,10 +204,12 @@ export default function TendersList() {
                   <span className="e-numeral">V</span>
                   <span className="e-tag">Country</span>
                 </label>
-                <input id="e-f-country" value={country} onChange={(e) => setCountry(e.target.value.toUpperCase())}
-                       placeholder="KZ, IN, GB…" maxLength={2}
-                       data-testid="tenders-country-filter"
-                       className="h-11 px-4 rounded-full border border-[#C9C1AA] bg-[#FBF9F3] text-sm outline-none uppercase focus:border-[#0F3B2E]" />
+                <select id="e-f-country" value={country} onChange={(e) => setCountry(e.target.value)}
+                        data-testid="tenders-country-filter"
+                        className="h-11 px-4 rounded-full border border-[#C9C1AA] bg-[#FBF9F3] text-sm outline-none focus:border-[#0F3B2E]">
+                  <option value="">All countries</option>
+                  {uniqByCode(countries).map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+                </select>
               </div>
               <button
                 type="button"
@@ -358,17 +362,19 @@ export default function TendersList() {
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search title, reference, category…"
                  data-testid="tenders-search"
                  className="px-4 py-3 border border-brand-navy/20 bg-white text-sm" />
-          <input value={country} onChange={(e) => setCountry(e.target.value.toUpperCase())}
-                 placeholder="Country (KZ, IN, GB…)" maxLength={2}
-                 data-testid="tenders-country-filter"
-                 className="px-4 py-3 border border-brand-navy/20 bg-white text-sm uppercase" />
+          <select value={country} onChange={(e) => setCountry(e.target.value)}
+                  data-testid="tenders-country-filter"
+                  className="px-4 py-3 border border-brand-navy/20 bg-white text-sm">
+            <option value="">All countries</option>
+            {uniqByCode(countries).map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+          </select>
         </div>
         <div className="mt-3 grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto] items-stretch">
           <select value={sector} onChange={(e) => setSector(e.target.value)}
                   data-testid="tenders-sector-filter"
                   className="px-4 py-3 border border-brand-navy/20 bg-white text-sm">
             <option value="">All sectors</option>
-            {sectors.map((s) => <option key={s.code} value={s.code}>{s.name}</option>)}
+            {uniqByCode(sectors).map((s) => <option key={s.code} value={s.code}>{s.name}</option>)}
           </select>
           <select value={contractType} onChange={(e) => setContractType(e.target.value)}
                   data-testid="tenders-contract-filter"
