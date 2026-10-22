@@ -5,6 +5,7 @@ import { adminApi, mastersApi, publicApi, noticeDocsApi, tenderTemplateApi, form
 import { useI18n } from "@/context/I18nContext";
 import { InfoDot } from "@/components/InfoDot";
 import UnspscPicker from "@/components/UnspscPicker";
+import { CurrencySelect } from "@/components/CurrencySelect";
 import EmdMasterPicker from "./notice/EmdMasterPicker";
 import NoticeViewModal from "./notice/NoticeViewModal";
 import NoticeEditModal from "./notice/NoticeEditModal";
@@ -507,23 +508,15 @@ export default function NoticesPanel() {
           <label><span className="pmc-label">Submission deadline<InfoDot tip="Cut-off timestamp in your local timezone. After this moment bids can no longer be submitted and the notice moves to 'expired'." /></span>
             <input type="datetime-local" value={draft.submission_deadline} onChange={(e) => setDraft({ ...draft, submission_deadline: e.target.value })} data-testid="notice-deadline"
               className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
-          <label><span className="pmc-label">Budget currency <span className="text-red-600" aria-hidden="true">*</span><InfoDot tip="ISO-4217 code (USD, EUR, KZT, INR, AED…). Pulled from the Currency master (Masters → Currencies). Applied to Budget and EMD amounts." /></span>
-            <select value={draft.budget_currency}
-              onChange={(e) => {
-                const v = e.target.value;
-                setDraft({ ...draft, budget_currency: v,
-                  emd_config: { ...draft.emd_config, currency: v } });
-              }}
-              data-testid="notice-currency"
-              required
-              className="mt-1 w-full px-4 py-3 border border-brand-navy/20 bg-white">
-              {currencies.length === 0 && <option value="USD">USD · US Dollar</option>}
-              {currencies.map((c) => (
-                <option key={c.id || c.code} value={c.code}>
-                  {c.code} · {c.name}{c.symbol ? ` (${c.symbol})` : ""}
-                </option>
-              ))}
-            </select></label>
+          <label><span className="pmc-label">Budget currency <span className="text-red-600" aria-hidden="true">*</span><InfoDot tip="ISO-4217 code (USD, EUR, KZT, INR, AED…). Defaults to the delivery country's primary currency; you can pick any active currency. Managed in Masters → Country currencies." /></span>
+            <CurrencySelect
+              country={draft.delivery_country}
+              value={draft.budget_currency}
+              onChange={(v) => setDraft((d) => ({ ...d, budget_currency: v,
+                emd_config: { ...d.emd_config, currency: v } }))}
+              testId="notice-currency"
+              className="mt-1 w-full px-4 py-3 border border-brand-navy/20 bg-white"
+            /></label>
           <label><span className="pmc-label">Budget amount <span className="text-red-600" aria-hidden="true">*</span><InfoDot tip="Estimated contract value. Must be > 0. Informs vendor go/no-go decisions and Approval-Matrix routing." /></span>
             <input type="number" min="1" step="0.01" value={draft.budget_amount || ""}
               onChange={(e) => {

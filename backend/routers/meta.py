@@ -89,7 +89,7 @@ async def countries() -> List[Dict[str, Any]]:
     try:
         async for c in db.masters_countries.find({}, {
             "_id": 0, "code": 1, "name": 1, "iso3": 1, "nationality": 1,
-            "phone_code": 1, "currency": 1, "emoji": 1,
+            "phone_code": 1, "currency": 1, "accepted_currencies": 1, "emoji": 1,
         }).sort("name", 1):
             name = c.get("name") or c.get("code") or ""
             rows.append({
@@ -101,6 +101,8 @@ async def countries() -> List[Dict[str, Any]]:
                 "name_en": name, "name_ru": name, "name_kk": name,
                 "iso3": c.get("iso3"), "nationality": c.get("nationality"),
                 "phone_code": c.get("phone_code"), "currency": c.get("currency"),
+                "accepted_currencies": c.get("accepted_currencies")
+                    or ([c.get("currency")] if c.get("currency") else []),
                 "emoji": c.get("emoji"),
             })
     except Exception:

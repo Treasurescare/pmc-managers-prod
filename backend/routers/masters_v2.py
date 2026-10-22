@@ -97,10 +97,52 @@ async def list_countries():
     cursor = db.masters_countries.find(
         {"is_active": True},
         {"_id": 0, "code": 1, "iso3": 1, "name": 1, "nationality": 1,
-         "phone_code": 1, "currency": 1, "postal_code_format": 1,
-         "postal_code_regex": 1, "emoji": 1},
+         "phone_code": 1, "currency": 1, "accepted_currencies": 1,
+         "postal_code_format": 1, "postal_code_regex": 1, "emoji": 1},
     ).sort("name", 1)
-    return [doc async for doc in cursor]
+    out = []
+    async for doc in cursor:
+        if not doc.get("accepted_currencies"):
+            doc["accepted_currencies"] = [doc["currency"]] if doc.get("currency") else []
+        out.append(doc)
+    return out
+
+
+class CountryCurrenciesUpdate(BaseModel):
+    accepted_currencies: List[str]
+    primary: Optional[str] = None
+
+
+@router.patch("/countries/{code}/currencies")
+async def set_country_currencies(
+    code: str,
+    payload: CountryCurrenciesUpdate,
+    admin=Depends(require_role("admin", "reviewer")),
+):
+    """v56t — set the currencies a country accepts. `primary` is the default
+    pre-loaded on notice/bid/EMD currency pickers for that country; any active
+    currency can still be chosen manually."""
+    cc = (code or "").upper()
+    if len(cc) != 2 or not cc.isalpha():
+        raise HTTPException(status_code=422, detail="country code must be ISO-2")
+    valid = set()
+    async for c in db.currencies.find({"is_active": True}, {"_id": 0, "code": 1}):
+        valid.add((c.get("code") or "").upper())
+    accepted: List[str] = []
+    for raw in payload.accepted_currencies:
+        u = (raw or "").strip().upper()
+        if u and u in valid and u not in accepted:
+            accepted.append(u)
+    primary = (payload.primary or (accepted[0] if accepted else "")).upper()
+    if primary and primary not in accepted:
+        accepted.insert(0, primary)
+    set_fields = {"accepted_currencies": accepted}
+    if primary:
+        set_fields["currency"] = primary
+    res = await db.masters_countries.update_one({"code": cc}, {"$set": set_fields})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail=f"Country {cc} not found")
+    return {"ok": True, "code": cc, "accepted_currencies": accepted, "primary": primary}
 
 
 # ---------- States / Provinces ----------

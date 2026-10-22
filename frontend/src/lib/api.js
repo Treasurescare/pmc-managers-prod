@@ -226,6 +226,8 @@ export const publicApi = {
   countries: () => api.get("/api/v1/meta/countries").then((r) => r.data),
   listSectorsPublic: () => api.get("/api/v1/masters/sectors/public").then((r) => r.data),
   listContractTypesPublic: () => api.get("/api/v1/masters/contract-types/public").then((r) => r.data),
+  listCategoriesPublic: (country) =>
+    api.get("/api/v1/masters/categories/public", { params: { country: country || undefined } }).then((r) => r.data),
   goLive: () => api.get("/api/v1/settings/go-live/public").then((r) => r.data),
 };
 
@@ -837,6 +839,8 @@ export const mastersApi = {
     : Promise.resolve(null),
   listCountriesPublic: () =>
     api.get("/api/v1/masters/countries").then((r) => r.data),
+  setCountryCurrencies: (code, p) =>
+    api.patch(`/api/v1/masters/countries/${code}/currencies`, p).then((r) => r.data),
   listStates: (country_code) =>
     api.get("/api/v1/masters/states", { params: { country_code } }).then((r) => r.data),
   listCities: (country_code, state_code, q, limit = 200) =>

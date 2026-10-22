@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { adminApi, mastersApi, publicApi, noticeDocsApi, tenderTemplateApi, formatApiError, showApiError } from "@/lib/api";
 import { InfoDot } from "@/components/InfoDot";
 import EmdMasterPicker from "./EmdMasterPicker";
+import { CurrencySelect } from "@/components/CurrencySelect";
 
 /**
  * NoticeEditModal — v50i.
@@ -233,9 +234,10 @@ export default function NoticeEditModal({ noticeRef, onClose, onSaved, isMasterA
                 data-testid="edit-deadline" className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
 
             <label><span className="pmc-label">Budget currency</span>
-              <input value={draft.budget_currency}
-                onChange={(e) => setDraft({ ...draft, budget_currency: e.target.value })}
-                data-testid="edit-currency" className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
+              <CurrencySelect country={draft.delivery_country} value={draft.budget_currency}
+                onChange={(v) => setDraft({ ...draft, budget_currency: v })}
+                testId="edit-currency" preserveInitial
+                className="mt-1 w-full px-4 py-3 border border-brand-navy/20 bg-white" /></label>
 
             <label><span className="pmc-label">Budget amount</span>
               <input type="number" min="0" step="0.01" value={draft.budget_amount || ""}

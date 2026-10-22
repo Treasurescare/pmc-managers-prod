@@ -1,32 +1,15 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { usePublicLiveData } from "@/lib/pmcELiveData";
 import { usePublicNav } from "@/lib/pmcEPublicNav";
-import { api, publicApi } from "@/lib/api";
+import { api } from "@/lib/api";
 import { BUILD_VERSION } from "@/lib/buildStamp";
+import { HeroTaxonomySearch } from "@/apps/notice-board-e/HeroTaxonomySearch";
 
 export default function HomeE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
   usePublicLiveData({ enabled: isE });
   usePublicNav(isE);
-  // Hero search — country list sourced from the live country master (was a
-  // hardcoded KZ/India <select>); submitting jumps to the tender board with
-  // the keyword + country applied as deep-link filters.
-  const navigate = useNavigate();
-  const [countries, setCountries] = useState([]);
-  const [kw, setKw] = useState("");
-  const [country, setCountry] = useState("");
-  useEffect(() => {
-    publicApi.countries().then((rows) => setCountries(rows || [])).catch(() => setCountries([]));
-  }, []);
-  const findTenders = (e) => {
-    e?.preventDefault?.();
-    const p = new URLSearchParams();
-    if (kw.trim()) p.set("q", kw.trim());
-    if (country) p.set("country", country);
-    navigate(`/tenders/all${p.toString() ? `?${p}` : ""}`);
-  };
   const [beVer, setBeVer] = useState(null);
   useEffect(() => {
     api.get("/api/v1/_version").then((r) => setBeVer(r.data?.version)).catch(() => setBeVer("unreachable"));
@@ -65,14 +48,7 @@ export default function HomeE({ legacy: Legacy }) {
       <a href="#" className="pmc-livechip"><span className="dot"></span>29 tenders open for bids now <svg className="pmc-ico" aria-hidden="true"><use href="#i-arrow" /></svg></a>
       <h1 className="pmc-display pmc-hero__h">Tenders you<br />can <em>prove.</em></h1>
       <p className="pmc-hero__p">Publish, clarify, receive sealed bids, evaluate and award on one platform. Every action is time-stamped and chained to an audit ledger, so every decision can be shown.</p>
-      <form className="pmc-hero__search" onSubmit={findTenders} data-testid="home-hero-search" data-nav-wired="1">
-        <label className="pmc-search" style={{ flex: "1", height: "52px", background: "var(--surface)", borderColor: "var(--surface)" }}><svg className="pmc-ico" aria-hidden="true"><use href="#i-search" /></svg><input value={kw} onChange={(e) => setKw(e.target.value)} placeholder="Search by keyword, buyer or reference no." style={{ color: "var(--ink)" }} data-testid="home-hero-keyword" /></label>
-        <select className="pmc-input" style={{ height: "52px", width: "170px" }} aria-label="Country" value={country} onChange={(e) => setCountry(e.target.value)} data-testid="home-hero-country">
-          <option value="">All countries</option>
-          {countries.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
-        </select>
-        <button type="submit" className="pmc-btn pmc-btn--brass pmc-btn--lg" style={{ height: "52px" }} data-testid="home-hero-find">Find tenders</button>
-      </form>
+      <HeroTaxonomySearch />
       <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap", marginTop: "14px" }}><span className="pmc-muted" style={{ fontSize: "13px" }}>Popular:</span><a className="pmc-chip" href="#">Closing this week</a><a className="pmc-chip" href="#">Civil works &amp; MEP</a><a className="pmc-chip" href="#">Medical equipment</a><a className="pmc-chip" href="#">IT &amp; digital health</a></div>
     </div>
     <div className="pmc-live">
