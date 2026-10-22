@@ -1,0 +1,24 @@
+{
+  "summary": "v56u frontend-only test. All 3 features PASS. (1) /tenders/all: the tenders-country-filter is a <select> with 251 options ('All countries' + 250 countries) and no duplicates. Selecting IN gives 11 entries, all IN, URL ?country=IN. KZ gives 47; 11+47 = 58 total. Choosing 'All countries' brings back 58 and drops the param from the URL. The deep link ?country=in (lowercase) preselects IN. The tenders-contract-filter has 31 options, no duplicate values or labels, grouped under EPC Contracts / PPP / Services / Supply / Works; Framework and O&M show as plain options because they have no children. (2) Homepage hero, no duplicates in any control: home-hero-country 251 options, home-hero-sector 26, home-hero-contract 31 (same grouping), home-hero-category 106. (3) Admin Masters > Contract types: the 'Remove duplicates' button (taxonomy-dedupe-btn) sits next to '+ New contract type'. Clicking it opens the confirm dialog; accepting calls POST /api/v1/masters/dedupe-taxonomy (200) and shows the toast 'No duplicates found — all clean.' The button is also on the Sectors tab.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin > Masters > Contract types / Sectors table (TaxonomyTab Row, child rows)", "issues": ["Child row names (e.g. '↳ Construction & Execution', '↳ Annuity', '↳ Solar') are nearly invisible: very pale grey on the light row background. The class is text-slate-700, which the admin theme appears to override or wash out. Use text-brand-navy/80 or similar. Not part of v56u; seen in screenshots."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": ["(Low) Fix the contrast of child-row names in the TaxonomyTab table."],
+  "critical_code_review_comments": [
+    "uniqByCode keeps the first row per code. If production duplicates have different is_active or name values, which row the UI shows depends on API order. That is acceptable, but the backend dedupe should keep the same 'earliest' row so the two agree.",
+    "The board's Category filter is still a free-text input, while Sector, Contract type and Country are now dropdowns. Not in scope, noted for consistency."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped as requested)", "frontend": "100%"},
+  "test_credentials": "adminsupport@pmcmanagers.com / Admin@12345 (worked). Note: the admin login form needs ~2s of hydration wait before typing; fields filled immediately were cleared.",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "The E-layout board rows have no tender-country-* testids (only the legacy layout does). Count results by parsing the 'N ENTRIES ·' text. The preview DB has no taxonomy duplicates, so the dedupe toast is 'No duplicates found — all clean.'"
+}

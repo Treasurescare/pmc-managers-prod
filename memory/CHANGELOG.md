@@ -732,3 +732,18 @@ summary notes.
   capabilities in v56t" table/sheet). Rebuilt bundles + PMC_Bug_Clearance_v56t_20261022.docx/.xlsx +
   DOWNLOAD_v56t.md. CurrencySelect now applies country primary on EVERY country change (create forms).
 - Minor: fixed /tenders/all header spacing (Est. Value pr-4).
+
+## v56u (26 Jun 2026) — duplicate taxonomy fix + board country dropdown
+- Contract-type/sector dropdowns showed every item twice (production master seeded twice).
+  Fix: shared uniqByCode() in taxonomy.jsx dedupes by code everywhere (board, homepage hero,
+  notice forms); new admin "Remove duplicates" button in TaxonomyTab (sectors + contract types)
+  calls POST /api/v1/masters/dedupe-taxonomy (admin) which deletes duplicate sector/contract_type/
+  category rows keeping the earliest per code (idempotent; audit-logged). Verified iter 108 (toast
+  'No duplicates found — all clean' on clean preview; endpoint returns {deleted:{...}}).
+- Board Country filter: converted from a 2-char text box to a real dropdown sourced from the
+  country master (TendersList.jsx, both E + legacy layouts); homepage hero already a dropdown.
+  Verified: IN=11, KZ=47, All=58; ?country= deep-link works.
+- Minor: darkened TaxonomyTab child-row text (text-brand-navy/80).
+- Bundles pmc-backend-v56u.zip / pmc-frontend-v56u-prod-build.zip + DOWNLOAD_v56u.md.
+  ACTION for user: after deploy, open Masters -> Contract types -> "Remove duplicates" once to
+  clean production data. Preview-verified; awaiting prod deploy + confirmation.

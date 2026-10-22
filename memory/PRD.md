@@ -11,7 +11,16 @@ institution portals, AWS deployment bundles, and transactional notifications
 (Stripe, Resend, DocuSign, Emergent crons).
 
 
-## Current deployable: v56t (26 Jun 2026)
+## Current deployable: v56u (26 Jun 2026)
+Fix release: (1) contract-type/sector dropdowns no longer duplicate — shared uniqByCode() dedupes
+by code across board/homepage/notice forms, plus an admin "Remove duplicates" button (TaxonomyTab)
+calling POST /api/v1/masters/dedupe-taxonomy to delete duplicate sector/contract_type/category rows
+(keeps earliest per code, idempotent, audit-logged). (2) Tender-board Country filter is now a
+dropdown from the country master (was a 2-char text box). Verified testing_agent iter 108 (100%).
+Artifacts: pmc-backend-v56u.zip, pmc-frontend-v56u-prod-build.zip, DOWNLOAD_v56u.md. USER ACTION
+after deploy: Masters → Contract types → "Remove duplicates" once to clean production data.
+
+## Prev deployable: v56t (26 Jun 2026)
 Homepage hero search rebuilt on the primary taxonomy (Sector → Contract type → Category +
 full country master + keyword; HeroTaxonomySearch.jsx), order-independent, deep-links to
 /tenders/all. Country↔currency master: each country has an editable accepted_currencies[]

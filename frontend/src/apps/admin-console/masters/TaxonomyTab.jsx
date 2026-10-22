@@ -63,7 +63,7 @@ export default function TaxonomyTab({ kind, label }) {
     <tr className="border-t" data-testid={`${kind}-row-${r.code}`}>
       <td className="px-3 py-2 font-mono text-xs">{r.code}</td>
       <td className="px-3 py-2">
-        <span className={child ? "pl-4 text-slate-700" : "font-semibold text-brand-navy"}>
+        <span className={child ? "pl-4 text-brand-navy/80" : "font-semibold text-brand-navy"}>
           {child ? "↳ " : ""}{r.name}
         </span>
       </td>
