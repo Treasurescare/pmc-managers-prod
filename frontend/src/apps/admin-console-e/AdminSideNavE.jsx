@@ -17,6 +17,7 @@ export default function AdminSideNavE({ active }) {
     ["Audit ledger", "/admin/e/audit", "i-link"],
     ["Procurement", null, null],
     ["Notices", "/admin/e/notices", "i-file"],
+    ["Taxonomy backfill", "/admin/e/taxonomy-backfill", "i-tag"],
     ["Tender builder", "/admin/e/tender-builder", "i-spark"],
     ["Corrigenda", "/admin/e/corrigenda", "i-flag"],
     ["BOQ & contracts", "/admin/e/boq", "i-layers"],

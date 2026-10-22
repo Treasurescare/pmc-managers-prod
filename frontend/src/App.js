@@ -115,6 +115,7 @@ import AdminMastersE from "@/apps/admin-console-e/AdminMastersE";
 import AdminBankMasterE from "@/apps/admin-console-e/AdminBankMasterE";
 import AdminAuditE from "@/apps/admin-console-e/AdminAuditE";
 import AdminNoticesE from "@/apps/admin-console-e/AdminNoticesE";
+import AdminTaxonomyBackfillE from "@/apps/admin-console-e/AdminTaxonomyBackfillE";
 import AdminTenderBuilderE from "@/apps/admin-console-e/AdminTenderBuilderE";
 import AdminBoqContractsE from "@/apps/admin-console-e/AdminBoqContractsE";
 import AdminVendorIntelE from "@/apps/admin-console-e/AdminVendorIntelE";
@@ -246,6 +247,7 @@ export default function App() {
             <Route path="/admin/e/programme" element={<AdminProgrammeE />} />
             <Route path="/admin/e/audit" element={<AdminAuditE />} />
             <Route path="/admin/e/notices" element={<AdminNoticesE />} />
+            <Route path="/admin/e/taxonomy-backfill" element={<AdminTaxonomyBackfillE />} />
             <Route path="/admin/e/tender-builder" element={<AdminTenderBuilderE />} />
             <Route path="/admin/e/corrigenda" element={<AdminCorrigendaE />} />
             <Route path="/admin/e/work-packages" element={<AdminWorkPackagesE />} />

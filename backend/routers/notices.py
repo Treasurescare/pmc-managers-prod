@@ -8,6 +8,7 @@ import config
 from db import db, next_sequence
 from models import NoticeIn, NoticePatchIn
 from models.base import BaseDocument, now_iso
+from pydantic import BaseModel
 from security import require_role
 from routers.permissions import require_notice_permission
 from audit import audit_log
@@ -113,6 +114,152 @@ async def list_notices_admin(
         headers={"Cache-Control": "no-store, no-cache, must-revalidate",
                  "Pragma": "no-cache", "Expires": "0"},
     )
+
+
+# ---- v56t Taxonomy backfill ---------------------------------------------
+# Guess Sector + Contract-type codes for legacy notices from their category /
+# title text so the public taxonomy filters return real rows. Admin reviews
+# and corrects the guesses before saving.
+_SECTOR_KW = [
+    (["solar", "photovolta"], "re-solar"),
+    (["offshore wind", "wind farm", "wind "], "re-wind"),
+    (["hydro"], "re-hydro"),
+    (["biomass", "biogas", "waste-to-energy", "waste to energy"], "re-biomass"),
+    (["renewable", "clean energy", "green energy"], "renewable"),
+    (["transmission"], "power-transmission"),
+    (["distribution network", "distribution"], "power-distribution"),
+    (["power plant", "powerplant", "generation"], "power-generation"),
+    (["substation", "grid", "electric", "power", "energy"], "power"),
+    (["sanitation", "sewage", "wastewater", "irrigation", "water"], "water"),
+    (["railway", "rail", "metro"], "rail-metro"),
+    (["airport", "aviation", "seaport", "port", "waterway", "harbour", "harbor"], "ports-aviation"),
+    (["warehouse", "warehousing", "logistics"], "logistics"),
+    (["highway", "road", "bridge", "transport"], "transport"),
+    (["hospital", "healthcare", "health", "medical", "clinic", "pharma", "life science"], "healthcare"),
+    (["university", "college", "school", "education", "institution"], "education"),
+    (["defence", "defense", "military"], "defence"),
+    (["telecom", "software", "digital", "data center", "datacenter", "network", " it "], "telecom-it"),
+    (["mining", "mineral", "coal", "ore"], "mining"),
+    (["oil", "gas", "petro", "refinery", "lng"], "oil-gas"),
+    (["agri", "food", "farm", "crop", "dairy"], "agriculture"),
+    (["environment", "recycl", "pollution", "waste"], "environment"),
+    (["facilit", "o&m", "operation and maintenance"], "fm-om"),
+    (["manufactur", "factory", "industrial"], "industrial"),
+    (["building", "urban", "housing", "civil", "construction"], "buildings"),
+]
+_CONTRACT_KW = [
+    (["boot"], "ppp-boot"),
+    (["build-operate", "build operate", "bot "], "ppp-bot"),
+    (["hybrid annuity", " ham "], "ppp-ham"),
+    (["dbfot"], "ppp-dbfot"),
+    (["dbfo"], "ppp-dbfo"),
+    (["annuity"], "ppp-annuity"),
+    (["public-private", "public private", "ppp"], "ppp"),
+    (["turnkey"], "epc-turnkey"),
+    (["procurement"], "epc-procurement"),
+    (["engineering & design", "engineering and design", "engineering"], "epc-engineering-design"),
+    (["epc"], "epc"),
+    (["construction", "execution"], "epc-construction"),
+    (["electrical", "mechanical", "e&m"], "works-em"),
+    (["fire protection", "fire "], "works-fire"),
+    (["interior"], "works-interiors"),
+    (["horticulture", "landscape"], "works-horticulture"),
+    (["civil"], "works-civil"),
+    (["framework", "rate contract"], "framework"),
+    (["pmc", "supervision"], "services-pmc"),
+    (["design consult"], "services-design"),
+    (["advisory", "transaction"], "services-advisory"),
+    (["o&m", "operation", "maintenance"], "om"),
+    (["equipment"], "supply-equipment"),
+    (["installation", "commission"], "supply-install"),
+    (["material"], "supply-materials"),
+    (["consult"], "services"),
+    (["supply", "goods"], "supply"),
+    (["works", "work"], "works"),
+    (["service"], "services"),
+]
+
+
+def _guess_code(text: str, table) -> str:
+    t = f" {(text or '').lower()} "
+    for kws, code in table:
+        for kw in kws:
+            if kw in t:
+                return code
+    return ""
+
+
+async def _tax_name_maps():
+    sectors, contracts = {}, {}
+    async for s in db.sectors.find({}, {"_id": 0, "code": 1, "name": 1}):
+        sectors[s.get("code")] = s.get("name")
+    async for c in db.contract_types.find({}, {"_id": 0, "code": 1, "name": 1}):
+        contracts[c.get("code")] = c.get("name")
+    return sectors, contracts
+
+
+@router.get("/admin/taxonomy-backfill")
+async def taxonomy_backfill_list(admin=Depends(require_role("admin", "reviewer"))):
+    """v56t — every notice with its current + guessed Sector/Contract-type so an
+    admin can review and save taxonomy codes in bulk."""
+    sectors, contracts = await _tax_name_maps()
+    items = []
+    async for n in db.notices.find({"tenant_id": admin["tenant_id"]}).sort("created_at", -1):
+        text = f"{n.get('category') or ''} {n.get('title') or ''}"
+        items.append({
+            "notice_ref": n.get("notice_ref"),
+            "title": n.get("title"),
+            "category": n.get("category"),
+            "is_published": bool(n.get("is_published")),
+            "sector_code": n.get("sector_code") or "",
+            "contract_type_code": n.get("contract_type_code") or "",
+            "suggested_sector_code": _guess_code(text, _SECTOR_KW),
+            "suggested_contract_type_code": _guess_code(text, _CONTRACT_KW),
+        })
+    return {
+        "items": items,
+        "total": len(items),
+        "sectors": [{"code": k, "name": v} for k, v in sectors.items()],
+        "contract_types": [{"code": k, "name": v} for k, v in contracts.items()],
+    }
+
+
+class _BackfillRow(BaseModel):
+    notice_ref: str
+    sector_code: Optional[str] = ""
+    contract_type_code: Optional[str] = ""
+
+
+class _BackfillIn(BaseModel):
+    items: List[_BackfillRow]
+
+
+@router.post("/admin/taxonomy-backfill")
+async def taxonomy_backfill_save(payload: _BackfillIn,
+                                 admin=Depends(require_role("admin", "reviewer"))):
+    """v56t — persist reviewed Sector/Contract-type codes onto notices."""
+    sectors, contracts = await _tax_name_maps()
+    updated = 0
+    for row in payload.items:
+        ref = (row.notice_ref or "").strip()
+        if not ref:
+            continue
+        sc = (row.sector_code or "").strip()
+        cc = (row.contract_type_code or "").strip()
+        updates = {
+            "sector_code": sc,
+            "sector_name": sectors.get(sc, "") if sc else "",
+            "contract_type_code": cc,
+            "contract_type_name": contracts.get(cc, "") if cc else "",
+        }
+        res = await db.notices.update_one(
+            {"notice_ref": ref, "tenant_id": admin["tenant_id"]},
+            {"$set": updates},
+        )
+        if res.matched_count:
+            updated += 1
+    await audit_log("notice.taxonomy_backfill", admin, "notice", "bulk", {"updated": updated})
+    return {"ok": True, "updated": updated}
 
 
 @router.get("")

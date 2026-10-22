@@ -340,6 +340,8 @@ export const adminApi = {
   getNoticeAdmin: (ref) => api.get(`/api/v1/notices/${ref}/admin`).then((r) => r.data),
   deleteNotice: (ref) => api.delete(`/api/v1/notices/${ref}`).then((r) => r.data),
   listAllNotices: (params = {}) => api.get("/api/v1/notices/admin/all", { params }).then((r) => r.data),
+  taxonomyBackfillList: () => api.get("/api/v1/notices/admin/taxonomy-backfill").then((r) => r.data),
+  taxonomyBackfillSave: (items) => api.post("/api/v1/notices/admin/taxonomy-backfill", { items }).then((r) => r.data),
   // Investor Demo Mode — one-click seed / reset / status
   demoStatus: () => api.get("/api/v1/admin/demo/status").then((r) => r.data),
   demoSeed: () => api.post("/api/v1/admin/demo/seed").then((r) => r.data),
