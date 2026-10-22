@@ -16,9 +16,11 @@ export default function AdminTaxonomyBackfillE() {
   const [rows, setRows] = useState([]);
   const [onlyUntagged, setOnlyUntagged] = useState(false);
   const [query, setQuery] = useState("");
+  const [dirty, setDirty] = useState(() => new Set());
 
   const load = () => {
     setLoading(true);
+    setDirty(new Set());
     adminApi.taxonomyBackfillList().then((d) => {
       setSectors(d.sectors || []);
       setContractTypes(d.contract_types || []);
@@ -43,22 +45,29 @@ export default function AdminTaxonomyBackfillE() {
   }, [rows, onlyUntagged, query]);
   const pager = useListPager(filtered, { testid: "backfill-pager", pageSize: 20 });
 
-  const setCell = (ref, patch) =>
+  const setCell = (ref, patch) => {
     setRows((rs) => rs.map((x) => (x.notice_ref === ref ? { ...x, ...patch } : x)));
+    setDirty((d) => new Set(d).add(ref));
+  };
 
-  const applySuggestions = () =>
-    setRows((rs) => rs.map((x) => ({
-      ...x,
-      sel_sector: x.suggested_sector_code || x.sel_sector,
-      sel_contract: x.suggested_contract_type_code || x.sel_contract,
-    })));
+  const applySuggestions = () => {
+    const changed = new Set();
+    setRows((rs) => rs.map((x) => {
+      const ns = x.suggested_sector_code || x.sel_sector;
+      const nc = x.suggested_contract_type_code || x.sel_contract;
+      if (ns !== x.sel_sector || nc !== x.sel_contract) changed.add(x.notice_ref);
+      return { ...x, sel_sector: ns, sel_contract: nc };
+    }));
+    setDirty((d) => new Set([...d, ...changed]));
+  };
 
   const saveAll = async () => {
+    const items = rows.filter((x) => dirty.has(x.notice_ref)).map((x) => ({
+      notice_ref: x.notice_ref, sector_code: x.sel_sector, contract_type_code: x.sel_contract,
+    }));
+    if (items.length === 0) { toast.message("No changes to save"); return; }
     setSaving(true);
     try {
-      const items = rows.map((x) => ({
-        notice_ref: x.notice_ref, sector_code: x.sel_sector, contract_type_code: x.sel_contract,
-      }));
       const res = await adminApi.taxonomyBackfillSave(items);
       toast.success(`Saved taxonomy for ${res.updated} notice${res.updated === 1 ? "" : "s"}`);
       load();
@@ -84,9 +93,9 @@ export default function AdminTaxonomyBackfillE() {
                     className="px-3 py-2 text-xs uppercase tracking-widest border border-brand-navy/30 text-brand-navy hover:bg-brand-navy/5">
               Apply all guesses
             </button>
-            <button type="button" onClick={saveAll} disabled={saving || loading} data-testid="backfill-save-all"
+            <button type="button" onClick={saveAll} disabled={saving || loading || dirty.size === 0} data-testid="backfill-save-all"
                     className="px-4 py-2 text-xs uppercase tracking-widest bg-brand-navy text-white disabled:opacity-50">
-              {saving ? "Saving…" : "Save all"}
+              {saving ? "Saving…" : `Save changes${dirty.size ? ` (${dirty.size})` : ""}`}
             </button>
           </div>
         </div>

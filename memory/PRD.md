@@ -19,8 +19,10 @@ with a primary default (Masters → Country currencies); notice/bid/EMD currency
 default-load the country's primary while allowing any active currency (CurrencySelect.jsx,
 wired into notice create/edit). Fixed hero-form hijack in PmcLinkPatcher.jsx. Artifacts:
 pmc-backend-v56t.zip, pmc-frontend-v56t-prod-build.zip, DOWNLOAD_v56t.md. Preview-verified
-(testing_agent iter 106). STILL TO WIRE: tag notices with sector/contract codes so those
-public filters return rows; optionally extend CurrencySelect to bid/EMD standalone forms.
+(testing_agent iter 106 + 107, 100%). DONE: admin "Taxonomy backfill" (Admin → Taxonomy
+backfill) auto-guesses + bulk-saves Sector/Contract codes onto legacy notices so public
+filters return rows; bids/EMD already lock to the tender currency; v56t Word/Excel pack
+regenerated with a "New capabilities" section.
 
 ## Prev deployable: v56r (24 Jun 2026)
 Notice pickers: cascading Sector + Contract type selectors on Create-Notice (NoticesPanel)

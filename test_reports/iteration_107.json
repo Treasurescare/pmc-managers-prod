@@ -1,0 +1,32 @@
+{
+  "summary": "v56t frontend-only test of 3 flows, all PASS. (1) Admin > Taxonomy backfill: the sidebar link goes to /admin/e/taxonomy-backfill. The panel shows 93 notices, 20 per page. Notices with category 'Civil Works' come pre-filled with Sector = Buildings & Urban Infrastructure and Contract type = Civil. Biogas notices are pre-filled with Biomass & Waste-to-Energy / Construction & Execution. Search, the Only untagged filter and Apply all guesses work. I changed the Sector for PMC-NOT-2026-0103 to Transmission and clicked Save all. The toast read 'Saved taxonomy for 93 notices', and the change was still there after a page reload. (2) Homepage: picking Sector 'Buildings & Urban Infrastructure' and clicking Find goes to /tenders/all?sector=buildings. tenders-sector-filter is set to buildings, the board shows 30 entries, and PMC-NOT-2026-0102 is the first row. (3) Admin > Notices > new notice: country KZ starts as KZT. Switching to IN gives INR, under 'Accepted in IN' (INR, USD, EUR). Switching to US gives USD, under 'Accepted in US' (USD). Picking EUR or JPY by hand works. Switching countries again resets the currency to that country's primary (IN gives INR, US gives USD).",
+  "backend_issues": {"critical": [], "minor": [
+    {"endpoint": "POST /api/v1/notices/admin/taxonomy-backfill", "issue": "'updated' counts every matched row, not rows that actually changed. Editing one row shows 'Saved taxonomy for 93 notices'. The endpoint also does not check codes against the sector or contract-type masters (an unknown code is saved with an empty name)."}
+  ]},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/tenders/all results table", "issues": ["The 'EST. VALUE' and 'TIME LEFT' column headers run together as 'EST. VALUETIME LEFT' (missing gap or padding)."]},
+      {"screen": "Admin notice create form", "issues": ["Submission deadline uses the browser's built-in datetime-local picker instead of the shadcn calendar."]},
+      {"screen": "Taxonomy backfill", "issues": ["Save all sends all 93 rows, including guesses the admin never looked at. Saving an edit to one row also saved the guesses for the other untagged rows. Consider a confirm dialog or saving only changed rows."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional: make Save all send only changed rows, and have the toast report the number actually changed",
+    "Optional: check sector and contract-type codes against the masters in the backfill save endpoint",
+    "Optional: fix the header spacing between 'Est. value' and 'Time left' on the /tenders/all table"
+  ],
+  "critical_code_review_comments": [
+    "AdminTaxonomyBackfillE.saveAll posts every row, which silently saves auto-guesses for notices nobody reviewed. Track a dirty set, or ask for confirmation first.",
+    "The backfill save endpoint runs about 93 separate update_one calls in a loop. A bulk_write would be faster.",
+    "CurrencySelect logic is correct: it applies the primary on the first run when preserveInitial=false and on every country change."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100%"},
+  "seed_data_creation": "Clicking Save all in the backfill UI saved the auto-guesses for all untagged notices: the header count of notices missing a code dropped from 92 to 57. PMC-NOT-2026-0103 (a TEST draft) now has sector power-transmission, which was my test edit and was not reverted.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Admin login: /admin/login, using the admin-login-email, admin-login-password and admin-login-submit testids. After submit, wait for **/admin/e**. The homepage hero sector control is a native select. The public board API GET /api/v1/notices?sector_code=buildings returns 30 notices."
+}

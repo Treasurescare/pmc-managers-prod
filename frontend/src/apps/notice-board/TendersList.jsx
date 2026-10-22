@@ -260,7 +260,7 @@ export default function TendersList() {
                           <th className="w-11">No.</th>
                           <th className="min-w-[240px]">Ref · Tender · Buyer</th>
                           <th className="w-36">Sector · Country</th>
-                          <th className="w-28">Est. Value</th>
+                          <th className="w-28 pr-4">Est. Value</th>
                           <th className="w-40">Time Left</th>
                           <th className="w-32 text-right">Status</th>
                         </tr>

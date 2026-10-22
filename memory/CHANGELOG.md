@@ -718,3 +718,17 @@ summary notes.
   (NoticesPanel) + edit (NoticeEditModal) budget currency. Bids/EMD inherit the notice currency.
 - Bundles: pmc-backend-v56t.zip, pmc-frontend-v56t-prod-build.zip, DOWNLOAD_v56t.md.
   Preview-verified; awaiting prod deploy + user confirmation.
+
+## v56t follow-ups (26 Jun 2026) — taxonomy backfill, bid/EMD currency, deliverables
+- Notice taxonomy backfill: new admin page AdminTaxonomyBackfillE.jsx (route /admin/e/taxonomy-backfill,
+  nav "Taxonomy backfill"). Backend GET/POST /api/v1/notices/admin/taxonomy-backfill (admin/reviewer):
+  guesses sector_code/contract_type_code from category+title (keyword tables _SECTOR_KW/_CONTRACT_KW),
+  returns full list + masters; save persists sector/contract code+name. Frontend tracks dirty rows and
+  only saves changed ones; endpoint reports modified_count. Verified: tagging PMC-NOT-2026-0102 ->
+  buildings/works-civil makes the homepage Sector=buildings filter return it (testing_agent iter 107, 100%).
+- Bid & EMD currency: confirmed already locked to notice.budget_currency (no vendor currency picker in
+  BidSubmit; EMD uses notice currency) — satisfies "lock bid currency to tender currency".
+- Deliverables: make_deliverables_v56t.py (reuses v56s bug items, bumps version, appends "New
+  capabilities in v56t" table/sheet). Rebuilt bundles + PMC_Bug_Clearance_v56t_20261022.docx/.xlsx +
+  DOWNLOAD_v56t.md. CurrencySelect now applies country primary on EVERY country change (create forms).
+- Minor: fixed /tenders/all header spacing (Est. Value pr-4).

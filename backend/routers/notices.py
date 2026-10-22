@@ -256,7 +256,7 @@ async def taxonomy_backfill_save(payload: _BackfillIn,
             {"notice_ref": ref, "tenant_id": admin["tenant_id"]},
             {"$set": updates},
         )
-        if res.matched_count:
+        if res.modified_count:
             updated += 1
     await audit_log("notice.taxonomy_backfill", admin, "notice", "bulk", {"updated": updated})
     return {"ok": True, "updated": updated}
