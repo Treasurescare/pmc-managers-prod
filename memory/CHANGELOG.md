@@ -699,3 +699,22 @@ summary notes.
   vendor (beneficiary) with the signed PDF attached.
 - QA iteration_96: 100% both layers of gate + Completed filters/CSV. No blockers.
 - Bundles: pmc-backend-v56l.zip / pmc-frontend-v56l-prod-build.zip.
+
+## v56t (26 Jun 2026) — homepage taxonomy search + country↔currency master
+- Public homepage hero search rebuilt on the primary taxonomy: Sector → Contract type →
+  Category + full country master + keyword (HeroTaxonomySearch.jsx in HomeE.jsx). Optional,
+  order-independent AND filters; submit deep-links to /tenders/all which restores+applies
+  them. Confirmed via testing_agent iter 106 (3 applied / 2 applied cases, params restored).
+- Fixed the real root cause of the long-standing "hero routes to /tenders/live with Sector
+  name in ?country=" bug: a document-level submit listener in PmcLinkPatcher.jsx hijacked
+  the hero form; now guarded (skips data-testid=home-hero-search).
+- Country↔currency model (user choice b + ii): masters_countries gains editable
+  accepted_currencies[] with a primary default. New admin editor Masters → Country currencies
+  (CountryCurrenciesTab.jsx). Backend PATCH /api/v1/masters/countries/{code}/currencies
+  (admin/reviewer) + accepted_currencies surfaced on /meta/countries and /masters/countries.
+  Shared CurrencySelect.jsx default-loads a country's primary on every country change (create
+  forms) while preserving an existing value on edit (preserveInitial); lists accepted-first
+  then all currencies; any active currency still selectable. Wired into notice create
+  (NoticesPanel) + edit (NoticeEditModal) budget currency. Bids/EMD inherit the notice currency.
+- Bundles: pmc-backend-v56t.zip, pmc-frontend-v56t-prod-build.zip, DOWNLOAD_v56t.md.
+  Preview-verified; awaiting prod deploy + user confirmation.

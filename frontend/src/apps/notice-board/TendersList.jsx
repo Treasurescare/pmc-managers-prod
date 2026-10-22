@@ -104,7 +104,9 @@ export default function TendersList() {
               <div className="flex flex-col gap-4">
                 <span className="e-hero-kicker">The register · Open to all bidders</span>
                 <h1 className="e-hero-title text-5xl md:text-6xl lg:text-[72px]">
-                  Live <em>tenders</em>
+                  {mode === "completed" ? <>Completed <em>tenders</em></>
+                    : mode === "all" ? <>All <em>notices</em></>
+                    : <>Live <em>tenders</em></>}
                 </h1>
                 <p className="e-hero-sub">Every notice is published to all registered vendors at the same moment. Deadlines are fixed to server time and recorded on the audit log.</p>
               </div>

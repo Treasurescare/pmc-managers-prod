@@ -1,0 +1,43 @@
+{
+  "summary": "Frontend-only test of (P0) homepage taxonomy hero search -> /tenders/all and (P1) country<->currency model (Masters > Country currencies + notice CurrencySelect). Found and FIXED a critical bug: a legacy document-level submit listener in PmcLinkPatcher.jsx was hijacking the new hero form. It routed to /tenders/live and put the selected Sector's text into ?country= (e.g. /tenders/live?q=road&country=Biomass+%26+Waste-to-Energy). After a 1-line guard, all 4 requested flows pass.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PmcLinkPatcher onSubmit (document-level)", "issue": "FIXED BY TESTER. It intercepted every form.pmc-hero__search and navigated to /tenders/live?country=<text of FIRST select>. React's onSubmit ran first, then this listener overrode it, so the hero sent users to the wrong board with Sector name as country. Fix: skip forms whose data-testid is 'home-hero-search'.", "selector": "[data-testid=home-hero-search]", "priority": "CRITICAL (fixed)"},
+      {"component": "TendersList E hero", "issue": "/tenders/all shows the hero title 'Live tenders' even though the 'All' mode pill is active. The non-E title logic has 'All published notices', but the E hero seems to hard-code 'Live tenders'.", "selector": "[data-testid=tenders-hero-e]", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "CurrencySelect on country change", "issue": "When the country changes, the primary is applied only if the current value is NOT in the new country's accepted list. Switching US (USD) -> IN keeps USD, not INR (the IN primary). This may be intended, but it contradicts 'default-load the selected country's primary'. Consider always applying the primary on a user-driven country change (create form).", "affected_selectors": ["[data-testid=notice-currency]", "[data-testid=notice-country]"]}
+    ],
+    "design_issues": [
+      {"screen": "Notice create > Budget currency", "issues": ["'Accepted in IN' group is ordered alphabetically (EUR, INR, USD), so the primary is not listed first", "Delivery country InfoDot still says 'Pulled from the 30-country master', but the dropdown has 250 countries"]},
+      {"screen": "Masters > Country currencies", "issues": ["The sonner success toast (top-right) overlaps the masters tab bar and hides the 'Country currencies' tab label while it shows"]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Review the fix in /app/frontend/src/components/PmcLinkPatcher.jsx onSubmit (guard for data-testid=home-hero-search). Consider removing the legacy hero submit handler entirely now that HeroTaxonomySearch owns submit.",
+    "E-theme TendersList hero: use the mode-aware title ('All published notices' for mode=all)",
+    "Optional: CurrencySelect should apply the primary on any explicit country change in create forms, and list the primary first in the Accepted group",
+    "Update the notice-country InfoDot text ('30-country master')"
+  ],
+  "critical_code_review_comments": [
+    "PmcLinkPatcher global DOM listeners (click/submit) override React-owned components by className. This is fragile, and any new component reusing pmc-* classes can be hijacked. Gate these listeners on an explicit opt-in data attribute instead of className.",
+    "HeroTaxonomySearch sends category by NAME (value=c.name); TendersList matches it with substring includes on n.category/category_code. It works but is inconsistent with sector/contract, which use codes."
+  ],
+  "updated_files": ["/app/frontend/src/components/PmcLinkPatcher.jsx"],
+  "success_rate": {"backend": "skipped (frontend only)", "frontend": "100% of requested flows after fix (hero search failed before the fix)"},
+  "verified": [
+    "Homepage hero: keyword/sector/contract/category/country/find all visible; options sector 26 (incl. 'All'), contract 31 in 5 optgroups, category 106, country 251",
+    "Sector re-biomass + Country IN + q=road -> /tenders/all?q=road&country=IN&sector=re-biomass; board restores tenders-search=road, tenders-sector-filter=re-biomass, tenders-country-filter=IN; shows '3 applied'; empty results (expected)",
+    "Contract epc-construction + Category -> /tenders/all?contract=...&category=...; contract and category filters restored; '2 applied'",
+    "Masters > Country currencies: search India; IN row chips INR,USD,EUR, primary INR; added GBP, primary set to USD, Save -> toast 'IN currencies saved'; after reload the row shows INR,USD,EUR,GBP / USD (persisted); then RESTORED to INR,USD,EUR / INR",
+    "Notice create: default KZ -> KZT; select IN -> notice-currency=INR with groups 'Accepted in IN' (3) + 'All currencies' (22); manual GBP selection works"
+  ],
+  "seed_data_creation": "None. IN currencies were changed temporarily and restored to primary INR, accepted [INR,USD,EUR].",
+  "test_credentials": "adminsupport@pmcmanagers.com / Admin@12345 (works via /admin/login)",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The hero submit hijack is fixed in PmcLinkPatcher.jsx. If the hero ever routes to /tenders/live again, check document-level listeners in PmcLinkPatcher and pmcEPublicNav.js. Repeated admin logins in quick succession sometimes left the user on the login page, so wait for the URL to match **/admin/e/** after submit.",
+  "rca of the issue": "Repro: on '/', choose Sector + Country, click Find tenders -> URL /tenders/live?q=road&country=Biomass+%26+Waste-to-Energy. Cause: PmcLinkPatcher.jsx adds document.addEventListener('submit') for '.pmc-hero__search', reads the first <select> (now Sector) option TEXT as country, and calls navigate('/tenders/live...') after React's own navigate, so the last navigate wins. Mitigation: early return when form data-testid === 'home-hero-search'. Verified fixed."
+}

@@ -1059,6 +1059,8 @@ export default function PmcLinkPatcher() {
     const onSubmit = (e) => {
       const f = e.target;
       if (!(f instanceof HTMLFormElement) || !f.classList.contains("pmc-hero__search")) return;
+      // React-owned taxonomy hero (HeroTaxonomySearch) handles its own submit.
+      if (f.dataset.testid === "home-hero-search") return;
       e.preventDefault();
       const q = f.querySelector("input")?.value?.trim() || "";
       const sel = f.querySelector("select");

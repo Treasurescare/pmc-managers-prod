@@ -47,10 +47,19 @@ export function CurrencySelect({
     lastCountry.current = country;
     if (firstRun && preserveInitial) return;
     if (!firstRun && !changed) return;
-    if (primary && !accepted.includes(up(value))) onChange(primary);
+    if (primary && up(value) !== primary) onChange(primary);
   }, [country, meta, primary, accepted, value, onChange, preserveInitial]);
 
-  const acceptedList = currencies.filter((c) => accepted.includes(up(c.code)));
+  const ordered = (() => {
+    const list = accepted.slice();
+    const i = list.indexOf(primary);
+    if (primary && i > 0) { list.splice(i, 1); list.unshift(primary); }
+    else if (primary && i < 0) list.unshift(primary);
+    return list;
+  })();
+  const byCode = {};
+  currencies.forEach((c) => { byCode[up(c.code)] = c; });
+  const acceptedList = ordered.map((code) => byCode[code]).filter(Boolean);
   const otherList = currencies.filter((c) => !accepted.includes(up(c.code)));
   const known = currencies.some((c) => up(c.code) === up(value));
 

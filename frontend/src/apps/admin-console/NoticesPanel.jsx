@@ -495,7 +495,7 @@ export default function NoticesPanel() {
             <select value={draft.document_type} onChange={(e) => setDraft({ ...draft, document_type: e.target.value })} data-testid="notice-doc-type"
               className="mt-1 w-full px-4 py-3 border border-brand-navy/20">
               <option value="tender">Tender</option><option value="rfp">RFP</option><option value="rfq">RFQ</option></select></label>
-          <label><span className="pmc-label">Delivery country<InfoDot tip="Country where goods/services will be delivered. Pulled from the 30-country master. Drives EMD master selection and vendor matching." /></span>
+          <label><span className="pmc-label">Delivery country<InfoDot tip="Country where goods/services will be delivered. Pulled from the full country master (250 countries). Drives the default budget currency, EMD master selection and vendor matching." /></span>
             <select value={draft.delivery_country}
               onChange={(e) => setDraft({ ...draft, delivery_country: e.target.value })}
               data-testid="notice-country"

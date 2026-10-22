@@ -11,7 +11,18 @@ institution portals, AWS deployment bundles, and transactional notifications
 (Stripe, Resend, DocuSign, Emergent crons).
 
 
-## Current deployable: v56r (24 Jun 2026)
+## Current deployable: v56t (26 Jun 2026)
+Homepage hero search rebuilt on the primary taxonomy (Sector → Contract type → Category +
+full country master + keyword; HeroTaxonomySearch.jsx), order-independent, deep-links to
+/tenders/all. Country↔currency master: each country has an editable accepted_currencies[]
+with a primary default (Masters → Country currencies); notice/bid/EMD currency pickers
+default-load the country's primary while allowing any active currency (CurrencySelect.jsx,
+wired into notice create/edit). Fixed hero-form hijack in PmcLinkPatcher.jsx. Artifacts:
+pmc-backend-v56t.zip, pmc-frontend-v56t-prod-build.zip, DOWNLOAD_v56t.md. Preview-verified
+(testing_agent iter 106). STILL TO WIRE: tag notices with sector/contract codes so those
+public filters return rows; optionally extend CurrencySelect to bid/EMD standalone forms.
+
+## Prev deployable: v56r (24 Jun 2026)
 Notice pickers: cascading Sector + Contract type selectors on Create-Notice (NoticesPanel)
 and Edit-Notice (NoticeEditModal) forms, saved as sector_code/contract_type_code on the
 tender (backend extra="allow"; verified end-to-end — created notice returns both). Builds on
