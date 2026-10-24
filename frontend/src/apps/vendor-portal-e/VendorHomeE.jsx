@@ -200,15 +200,15 @@ export default function VendorHomeE({ legacy: Legacy }) {
           <div className="pmc-panel__body" style={{ display: "grid",
                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
             {[
-              ["/vendor/tenders", "Find tenders", "Browse every open tender on the board"],
-              ["/vendor/categories", "Categories", "Request new categories of interest"],
-              ["/vendor/company", "Licences & KYC", "Keep licences current to avoid KYC gaps"],
-              ["/vendor/account", "Account & security", "Update company details (admin-approved)"],
-            ].map(([to, label, sub]) => (
+              ["/vendor/tenders", "Find tenders", "Browse every open tender on the board", "i-search"],
+              ["/vendor/categories", "Categories", "Request new categories of interest", "i-tag"],
+              ["/vendor/company", "Licences & KYC", "Keep licences current to avoid KYC gaps", "i-shield"],
+              ["/vendor/account", "Account & security", "Update company details (admin-approved)", "i-settings"],
+            ].map(([to, label, sub, icon]) => (
               <Link key={to} to={to} className="pmc-tip"
                     data-testid={`vhome-quick-${label.toLowerCase().replace(/[^a-z]+/g, "-")}`}
                     style={{ textDecoration: "none", color: "inherit" }}>
-                <svg className="pmc-ico" aria-hidden="true"><use href="#i-spark" /></svg>
+                <svg className="pmc-ico" aria-hidden="true"><use href={`#${icon}`} /></svg>
                 <div><b>{label}</b><div className="pmc-muted" style={{ fontSize: 12 }}>{sub}</div></div>
               </Link>
             ))}
