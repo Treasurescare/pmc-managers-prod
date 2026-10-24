@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useEffect } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { useAdminProgrammeLive } from "@/lib/pmcELiveData";
@@ -5,6 +6,7 @@ import AdminSideNavE from "./AdminSideNavE";
 
 export default function AdminProgrammeE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
+  const [navOpen, setNavOpen] = useState(false);
   useAdminProgrammeLive({ enabled: isE });
   useEffect(() => {
     if (!isE) return;
@@ -22,8 +24,11 @@ export default function AdminProgrammeE({ legacy: Legacy }) {
   if (!isE) return null;
   return (
     <div data-testid="admin-programme-e" data-pmc-e-page="admin-programme-e">
-<div className="pmc-adm"><AdminSideNavE active="Dashboard" /><div>
-<header className="pmc-atop"><div className="crumb">Management / <b>Programme at a glance</b></div>
+<div className={"pmc-adm" + (navOpen ? " pmc-adm--navopen" : "")}>
+<AdminSideNavE active="Dashboard" />
+<button className="pmc-side__scrim" aria-label="Close menu" onClick={() => setNavOpen(false)} data-testid="admin-nav-scrim" />
+<div className="pmc-adm__main">
+<header className="pmc-atop"><button className="pmc-navtoggle" aria-label="Open menu" aria-expanded={navOpen} onClick={() => setNavOpen((v) => !v)} data-testid="admin-nav-toggle"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg></button><div className="crumb">Management / <b>Programme at a glance</b></div>
   <label className="pmc-search"><svg className="pmc-ico" aria-hidden="true"><use href="#i-search" /></svg><input placeholder="Search tenders, bids, vendors, ledger events…" /><span className="pmc-kbd">Ctrl K</span></label>
   <div className="pmc-atop__r"><a href="#" className="pmc-btn pmc-btn--primary"><svg className="pmc-ico" aria-hidden="true"><use href="#i-plus" /></svg> Create</a><button className="pmc-btn pmc-btn--secondary" data-help-open=""><svg className="pmc-ico" aria-hidden="true"><use href="#i-help" /></svg> Help</button><button className="pmc-ib pmc-bell" aria-label="6 alerts"><svg className="pmc-ico" aria-hidden="true"><use href="#i-bell" /></svg><span className="pmc-bell__n">6</span></button><button className="pmc-ib" aria-label="AI copilot"><svg className="pmc-ico" aria-hidden="true"><use href="#i-spark" /></svg></button><span className="pmc-avatar" title="adminsupport@pmcmanagers.com · 2FA on">A</span></div>
 </header><main className="pmc-amain"><div className="ah"><div><div className="pmc-eyebrow">Management · executive oversight</div><h1>Programme at a glance</h1><div className="pmc-muted" style={{ fontSize: "14px", marginTop: "4px" }}>Read-only view for directors · figures in USD-equivalent at today's rates</div></div><div style={{ display: "flex", gap: "8px" }}><select className="pmc-input"><option>Kazakhstan Integrated Development Programme</option></select><select className="pmc-input"><option>2026 to date</option></select><a href="#" className="pmc-btn pmc-btn--secondary"><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg> Board pack (PDF)</a></div></div><div className="ak"><div><div className="l">Committed</div><div className="pmc-figure">USD 12.4M</div><div className="s">11 active contracts</div></div><div><div className="l">Savings vs estimate</div><div className="pmc-figure">USD 0.61M</div><div className="s">4.7% below estimates on awarded tenders</div></div><div><div className="l">Time to award</div><div className="pmc-figure">24 days</div><div className="s">median, publish → award</div></div><div><div className="l">Competition</div><div className="pmc-figure">5.0 bids</div><div className="s">average per awarded tender</div></div></div>

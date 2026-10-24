@@ -26,6 +26,25 @@ from models.base import now_iso
 router = APIRouter(prefix="/api/v1/escrow-institutions", tags=["escrow-institutions"])
 
 
+@router.get("/admin/onboarding-stats")
+async def onboarding_stats(admin=Depends(require_role("admin", "reviewer"))) -> dict:
+    """v56v — dashboard counters: escrow institutions awaiting review and new
+    escrow accounts/institutions created this calendar month."""
+    awaiting = await db.escrow_institutions.count_documents(
+        {"status": {"$in": ["submitted", "under_review"]}})
+    month_start = datetime.now(timezone.utc).replace(
+        day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
+    accounts_this_month = await db.escrow_accounts.count_documents(
+        {"created_at": {"$gte": month_start}})
+    institutions_this_month = await db.escrow_institutions.count_documents(
+        {"created_at": {"$gte": month_start}})
+    return {
+        "awaiting_review": awaiting,
+        "accounts_this_month": accounts_this_month,
+        "institutions_this_month": institutions_this_month,
+    }
+
+
 # v52d — session OR magic-token gate. Lets the new account-first wizard
 # PATCH / submit / view an institution using the escrow_account_token cookie
 # while existing admin-invited magic links keep working during the transition.

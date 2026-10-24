@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useEffect } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { useAdminVendorKycLive } from "@/lib/pmcELiveData";
@@ -5,6 +6,7 @@ import AdminSideNavE from "./AdminSideNavE";
 
 export default function AdminVendorKycE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
+  const [navOpen, setNavOpen] = useState(false);
   useAdminVendorKycLive({ enabled: isE });
   useEffect(() => {
     if (!isE) return;
@@ -22,8 +24,11 @@ export default function AdminVendorKycE({ legacy: Legacy }) {
   if (!isE) return null;
   return (
     <div data-testid="admin-vendor-kyc-e" data-pmc-e-page="admin-vendor-kyc-e">
-<div className="pmc-adm"><AdminSideNavE active="Registrations" /><div>
-<header className="pmc-atop"><div className="crumb">Market / Registrations / <b>PMC-SUP-000031</b></div>
+<div className={"pmc-adm" + (navOpen ? " pmc-adm--navopen" : "")}>
+<AdminSideNavE active="Registrations" />
+<button className="pmc-side__scrim" aria-label="Close menu" onClick={() => setNavOpen(false)} data-testid="admin-nav-scrim" />
+<div className="pmc-adm__main">
+<header className="pmc-atop"><button className="pmc-navtoggle" aria-label="Open menu" aria-expanded={navOpen} onClick={() => setNavOpen((v) => !v)} data-testid="admin-nav-toggle"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg></button><div className="crumb">Market / Registrations / <b>PMC-SUP-000031</b></div>
   <label className="pmc-search"><svg className="pmc-ico" aria-hidden="true"><use href="#i-search" /></svg><input placeholder="Search tenders, bids, vendors, ledger events…" /><span className="pmc-kbd">Ctrl K</span></label>
   <div className="pmc-atop__r"><a href="#" className="pmc-btn pmc-btn--primary"><svg className="pmc-ico" aria-hidden="true"><use href="#i-plus" /></svg> Create</a><button className="pmc-btn pmc-btn--secondary" data-help-open=""><svg className="pmc-ico" aria-hidden="true"><use href="#i-help" /></svg> Help</button><button className="pmc-ib pmc-bell" aria-label="6 alerts"><svg className="pmc-ico" aria-hidden="true"><use href="#i-bell" /></svg><span className="pmc-bell__n">6</span></button><button className="pmc-ib" aria-label="AI copilot"><svg className="pmc-ico" aria-hidden="true"><use href="#i-spark" /></svg></button><span className="pmc-avatar" title="adminsupport@pmcmanagers.com · 2FA on">A</span></div>
 </header><main className="pmc-amain">

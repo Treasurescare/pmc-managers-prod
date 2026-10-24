@@ -1,8 +1,9 @@
+import { useState } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { useAdminDashboardLive } from "@/lib/pmcELiveData";
 import AdminAvatarMenu from "./AdminAvatarMenu";
 import AdminSideNavE from "./AdminSideNavE";
-import EscrowInstitutionsKPI from "./EscrowInstitutionsKPI";
+import EscrowOnboardingKPI from "./EscrowOnboardingKPI";
 import "./admin-dashboard.css";
 
 const STAGES = [
@@ -21,16 +22,19 @@ const STAGE_HREFS = [
 // data by useAdminDashboardLive (notices, bids, vendors, audit events).
 export default function AdminDashboardE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
+  const [navOpen, setNavOpen] = useState(false);
   useAdminDashboardLive({ enabled: isE });
   if (!isE && Legacy) return <Legacy />;
   if (!isE) return null;
 
   return (
     <div data-testid="admin-dashboard-e" data-pmc-e-page="admin-dashboard-e">
-<div className="pmc-adm">
+<div className={"pmc-adm" + (navOpen ? " pmc-adm--navopen" : "")}>
 <AdminSideNavE active="Dashboard" />
-<div>
+<button className="pmc-side__scrim" aria-label="Close menu" onClick={() => setNavOpen(false)} data-testid="admin-nav-scrim" />
+<div className="pmc-adm__main">
 <header className="pmc-atop">
+  <button className="pmc-navtoggle" aria-label="Open menu" aria-expanded={navOpen} onClick={() => setNavOpen((v) => !v)} data-testid="admin-nav-toggle"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg></button>
   <div className="crumb">Overview / <b>Dashboard</b></div>
   <label className="pmc-search"><svg className="pmc-ico" aria-hidden="true"><use href="#i-search" /></svg><input placeholder="Search tenders, bids, vendors, ledger events…" data-testid="dash-search-input" /><span className="pmc-kbd">Ctrl K</span></label>
   <div className="pmc-atop__r">
@@ -54,7 +58,7 @@ export default function AdminDashboardE({ legacy: Legacy }) {
     <a href="/admin/e/notices?status=closing" data-testid="dash-attn-closing"><span><span className="n" data-attn="closing">0</span> tenders close this week</span><span className="arr" aria-hidden="true">→</span></a>
     <a href="/admin/e/notices?status=draft" data-testid="dash-attn-approvals"><span><span className="n" data-attn="approvals">0</span> drafts awaiting approval</span><span className="arr" aria-hidden="true">→</span></a>
     <a href="/admin/e/bidding" data-testid="dash-attn-emd"><span><span className="n" data-attn="emd">0</span> bids awaiting EMD</span><span className="arr" aria-hidden="true">→</span></a>
-    <EscrowInstitutionsKPI />
+    <EscrowOnboardingKPI />
   </section>
 
   <section className="pmc-panel" style={{ overflow: "hidden" }} data-testid="dash-pipeline-panel">
