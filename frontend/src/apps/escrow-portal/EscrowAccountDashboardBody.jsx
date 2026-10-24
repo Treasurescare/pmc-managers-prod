@@ -163,17 +163,17 @@ function TxList({ title, rows, empty, onOpen }) {
                 <tr key={t.id} className="border-t border-brand-navy/5 hover:bg-brand-pale/50 cursor-pointer"
                     data-testid={`escrow-tx-list-row-${t.id}`}
                     onClick={() => onOpen?.(t.id)}>
-                  <td className="px-3 py-2 font-mono text-xs">{t.bid_ref}</td>
-                  <td className="px-3 py-2 font-mono text-xs">{t.notice_ref}</td>
-                  <td className="px-3 py-2 text-right">
-                    {t.amount?.toLocaleString?.()} {t.currency}
+                  <td data-label="Bid" className="px-3 py-2 font-mono text-xs">{t.bid_ref || "—"}</td>
+                  <td data-label="Notice" className="px-3 py-2 font-mono text-xs">{t.notice_ref || "—"}</td>
+                  <td data-label="Amount" className="px-3 py-2 text-right">
+                    {t.amount != null ? `${t.amount.toLocaleString?.()} ${t.currency || ""}`.trim() : "—"}
                   </td>
-                  <td className="px-3 py-2 text-xs">{t.status}</td>
-                  <td className="px-3 py-2 text-xs">
+                  <td data-label="Status" className="px-3 py-2 text-xs">{t.status || "—"}</td>
+                  <td data-label="Signatures" className="px-3 py-2 text-xs">
                     {t.signed_by_pmc ? "PMC ✓" : "PMC ·"} ·{" "}
                     {t.signed_by_institution ? "Us ✓" : "Us ·"}
                   </td>
-                  <td className="px-3 py-2 text-xs text-right text-brand-navy/60">
+                  <td data-label="" className="px-3 py-2 text-xs text-right text-brand-navy/60">
                     Open →
                   </td>
                 </tr>

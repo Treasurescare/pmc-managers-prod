@@ -110,10 +110,13 @@ img, svg, video, canvas, iframe { max-width: 100%; }
     position: fixed !important; top: 0; left: 0; bottom: 0; width: 280px; height: 100vh;
     z-index: 60; overflow-y: auto;
     transform: translateX(-100%); transition: transform .22s ease;
-    box-shadow: var(--shadow-pop);
   }
   .pmc-lnav { top: 64px; height: calc(100vh - 64px); }
-  html.pmc-nav-open .pmc-side, html.pmc-nav-open .pmc-lnav { transform: none; }
+  /* v56 — the box-shadow only belongs on the OPEN drawer; on the closed
+     (translated off-canvas) sidebar its 40px blur leaks a grey strip into
+     the viewport on /staff and /escrow/me. */
+  html.pmc-nav-open .pmc-side, html.pmc-nav-open .pmc-lnav,
+  .pmc-adm--navopen .pmc-side { transform: none; box-shadow: var(--shadow-pop); }
   html.pmc-nav-open::after {
     content: ""; position: fixed; inset: 0; z-index: 55; background: rgba(10, 29, 23, .4);
   }
@@ -143,7 +146,10 @@ img, svg, video, canvas, iframe { max-width: 100%; }
   /* Detail panels move above long lists so the selection is visible */
   .bo-grid > aside, .pmc-amain [style*="grid-template-columns:minmax(0,1fr)"] > aside { order: -1; }
 
-  .pmc-atop .crumb { display: none; }
+  /* v56 — keep the breadcrumb (e.g. "Staff / Overview", "Escrow / Overview")
+     visible on the portal top bar below the breakpoint so mobile users get a
+     page title, not just a hamburger + avatar. */
+  .pmc-atop .crumb { display: block; max-width: 52vw; }
   .pmc-atop__r .pmc-btn span, .pmc-atop__r .pmc-btn { font-size: 13px; }
 
   /* Stage strips and pipelines scroll sideways inside themselves */

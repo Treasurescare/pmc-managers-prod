@@ -16,6 +16,8 @@ html, body { overflow-x: clip; }
 
 @media (min-width: 768px) {
   [data-mobile-only="true"] { display: none !important; }
+  .pmc-mobile-menu-drawer,
+  .pmc-mobile-menu-scrim { display: none !important; }
 }
 
 .pmc-mobile-tabbar,
@@ -958,7 +960,7 @@ html, body { overflow-x: clip; }
 .pmc-mobile-menu-scrim {
   position: fixed; inset: 0;
   background: rgba(10,29,23,0.55);
-  z-index: 60; opacity: 0; pointer-events: none;
+  display: block; z-index: 970; opacity: 0; pointer-events: none;
   transition: opacity 0.2s;
 }
 .pmc-mobile-menu-drawer {
@@ -966,7 +968,7 @@ html, body { overflow-x: clip; }
   top: 0; right: 0; bottom: 0;
   width: 82vw; max-width: 340px;
   background: #0f2a22; color: #f3efe4;
-  z-index: 61;
+  z-index: 980;
   transform: translateX(100%);
   transition: transform 0.24s ease;
   display: flex; flex-direction: column;
@@ -975,12 +977,11 @@ html, body { overflow-x: clip; }
     max(20px, env(safe-area-inset-right, 0px))
     calc(env(safe-area-inset-bottom, 0px) + 24px)
     20px;
-  box-shadow: -16px 0 40px rgba(0,0,0,0.35);
   overflow-y: auto;
   box-sizing: border-box;
 }
 body.pmc-mob-menu-open .pmc-mobile-menu-scrim { opacity: 1; pointer-events: auto; }
-body.pmc-mob-menu-open .pmc-mobile-menu-drawer { transform: translateX(0); }
+body.pmc-mob-menu-open .pmc-mobile-menu-drawer { transform: translateX(0); box-shadow: -16px 0 40px rgba(0,0,0,0.35); }
 body.pmc-mob-menu-open { overflow: hidden; }
 
 .pmc-mobile-menu-drawer .pmc-mob-menu-head {
@@ -1299,3 +1300,42 @@ body.pmc-mob-menu-open { overflow: hidden; }
   [data-testid="vendor-status-filter-bar"] > button { flex: 1 1 40%; }
 }
 
+
+/* =====================================================================
+ * v56 — SignInE tablet/mobile stacking.
+ * The sign-in page is a 2-column grid (chrome panel | form). Between 768
+ * and ~1024px each half is ~410px, so the 440px form and its full-width
+ * inputs/buttons overflowed the half-width cell (354px buttons in a 314px
+ * form at 820). Below 1024px collapse to one column, hide the decorative
+ * chrome panel and let the form take the full width.
+ * ===================================================================== */
+@media (max-width: 1024px) {
+  [data-pmc-e-page="sign-in-e"] > div { grid-template-columns: 1fr !important; }
+  [data-pmc-e-page="sign-in-e"] > div > section.pmc-chrome { display: none !important; }
+  [data-pmc-e-page="sign-in-e"] > div > section:last-child { padding: 40px 24px !important; }
+}
+
+/* =====================================================================
+ * v56 — Escrow "All transactions" table reads as a labeled card on phones.
+ * The site-wide table→block transform hides <thead>, so without labels the
+ * stacked cells showed blank lines. Render each cell's data-label before it.
+ * ===================================================================== */
+@media (max-width: 767px) {
+  [data-ui="e"] table[data-testid="escrow-tx-table"]:not(.e-register-table) { min-width: 0 !important; }
+  [data-ui="e"] table[data-testid="escrow-tx-table"]:not(.e-register-table) td {
+    position: relative !important;
+    padding: 6px 14px 6px 104px !important;
+    text-align: left !important;
+    min-height: 20px;
+  }
+  [data-ui="e"] table[data-testid="escrow-tx-table"]:not(.e-register-table) td[data-label]::before {
+    content: attr(data-label);
+    position: absolute; left: 14px; top: 6px;
+    width: 80px;
+    font-size: 10px; font-weight: 700; line-height: 14px;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--ink-muted, #5B6B63);
+  }
+  [data-ui="e"] table[data-testid="escrow-tx-table"]:not(.e-register-table) td[data-label=""] { padding-left: 14px !important; }
+  [data-ui="e"] table[data-testid="escrow-tx-table"]:not(.e-register-table) td[data-label=""]::before { content: none; }
+}

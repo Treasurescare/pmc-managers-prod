@@ -161,7 +161,7 @@ export default function PmcMobileNav() {
             always visible top-RIGHT (no drawer needed to sign out). */}
         <header className="pmc-mobile-topbar" data-testid="pmc-mobile-topbar-vendor" role="banner">
           <button type="button" className="pmc-mob-hamburger"
-                  onClick={() => setMenuOpen(true)} aria-label="Open menu"
+                  onClick={() => setMenuOpen((o) => !o)} aria-label="Open menu"
                   data-testid="pmc-mobile-menu-open">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <line x1="4" y1="7" x2="20" y2="7" />
@@ -332,7 +332,7 @@ export default function PmcMobileNav() {
         <button
           type="button"
           className="pmc-mob-hamburger"
-          onClick={() => setMenuOpen(true)}
+          onClick={() => setMenuOpen((o) => !o)}
           aria-label="Open menu"
           data-testid="pmc-mobile-menu-open"
         >
