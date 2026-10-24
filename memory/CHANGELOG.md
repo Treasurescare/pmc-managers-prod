@@ -747,3 +747,15 @@ summary notes.
 - Bundles pmc-backend-v56u.zip / pmc-frontend-v56u-prod-build.zip + DOWNLOAD_v56u.md.
   ACTION for user: after deploy, open Masters -> Contract types -> "Remove duplicates" once to
   clean production data. Preview-verified; awaiting prod deploy + confirmation.
+
+## v56v (26 Jun 2026) — responsive admin drawer + dashboard escrow counters
+- Admin console: off-canvas sidebar drawer below 1100px (hamburger + scrim) added to
+  AdminEShell + the 6 inline-shell pages (Dashboard, BiddingOps, TenderBuilder, Evaluation,
+  Programme, VendorKyc). Grid collapses to 1fr so content is no longer squeezed (the iPad
+  cut-off). Suppressed the legacy pmc-responsive .pmc-menu-btn in .pmc-atop to avoid a
+  duplicate hamburger; aligned to the 1100px breakpoint; drawer z-index above mobile topbar.
+- Dashboard: EscrowOnboardingKPI chips (awaiting review + new accounts this month) via new
+  backend GET /api/v1/escrow-institutions/admin/onboarding-stats. .ad-attn grid uses auto-fit
+  so 5 chips fit evenly. Verified iter 109 (awaiting 6, accounts 59).
+- Landing hero: filters stack full-width + side padding on mobile (pmc-theme-e.css @media).
+- Bundles pmc-backend-v56v.zip / pmc-frontend-v56v-prod-build.zip + DOWNLOAD_v56v.md.

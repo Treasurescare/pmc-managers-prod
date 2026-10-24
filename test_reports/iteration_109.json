@@ -1,0 +1,32 @@
+{
+  "summary": "Frontend-only test of v56v responsive admin drawer, dashboard escrow chips, and landing hero filter stacking. Core behaviour PASSES on every page tested at 820x1180 and 390x844: dashboard, bidding, tender-builder, evaluation, masters, escrow-institutions. Sidebar is hidden by default (right edge at 0). Clicking admin-nav-toggle slides it in (right edge at 280) and shows admin-nav-scrim at opacity 1. Clicking the scrim closes the sidebar. There is no horizontal overflow. At 1440 the sidebar stays visible and the toggle is hidden. The escrow chips show real numbers ('6 escrow institutions awaiting review' links to /admin/e/escrow-institutions; '59 new escrow accounts this month' links to /admin/e/escrow). The hero controls stack into one full-width column at 390 and 820. At 1440 they use a row layout. Main finding: TWO hamburger buttons now appear in the admin top bar at 1024px and below. One is the older pmc-menu-btn injected by pmc-responsive.js; the other is the new admin-nav-toggle.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Admin top bar (all admin pages)", "issue": "Two hamburger buttons appear side by side at 1024px and below (confirmed at 820 and 390). The older one is .pmc-menu-btn, which /app/frontend/src/pmc-responsive.js addMenuButton() injects and pmc-responsive.css shows at max-width 1100px; it toggles html.pmc-nav-open. The new one is data-testid=admin-nav-toggle, which toggles .pmc-adm--navopen. Both say 'Open menu'. There are also two separate drawer and scrim systems.", "selector": ".pmc-atop .pmc-menu-btn + [data-testid=admin-nav-toggle]", "priority": "HIGH"},
+      {"component": "Breakpoint mismatch 1025-1100px", "issue": "Between 1025 and 1100px, pmc-responsive.css (max-width 1100) still moves the sidebar off-canvas, but the new toggle is forced hidden by @media(min-width:1025px). Only the older button works there. Pick one breakpoint and one drawer system.", "selector": ".pmc-side", "priority": "MEDIUM"},
+      {"component": "Admin drawer on phone (390)", "issue": "The mobile top bar (header.pmc-mobile-topbar, z-index 950, 65px tall) sits on top of the open drawer (z-index 60, top 0). The drawer's 'PMC Managers / ADMIN CONSOLE' brand header is hidden behind it.", "selector": "[data-testid=pmc-mobile-topbar-admin]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin dashboard ATTENTION row at 1440", "issues": ["The two new escrow chips wrap onto a second row. The 'escrow institutions awaiting review' chip is squeezed into the narrow ATTENTION-label column and its text wraps onto 4 lines. The rest of row 2 is an empty beige area. Consider a 3+2 or 5-column layout that fits the chips evenly. At 820 the 2-column layout leaves one empty cell, which is acceptable."]},
+      {"screen": "Landing hero at 390", "issues": ["The hero content has no left padding at 390: the headline and the search card start at x=0, while the card's right edge is at 370, leaving a 20px gap on the right. Add container side padding at phone width."]},
+      {"screen": "Landing hero at 1440", "issues": ["The row layout wraps onto 4 lines (keyword+sector, contract on its own line, category on its own line, country+Find). It works but is not a tidy single row. This was probably already the case and is not a regression."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Remove the duplicate hamburger. Either stop pmc-responsive.js addMenuButton() from injecting .pmc-menu-btn when [data-testid=admin-nav-toggle] exists (or hide it with .pmc-atop:has(.pmc-navtoggle) .pmc-menu-btn{display:none}), or drop the new toggle and keep only one drawer system.",
+    "Align the breakpoints for the 1025-1100px range: pmc-responsive.css uses 1100px, the new drawer uses 1024px.",
+    "Offset the open drawer below .pmc-mobile-topbar on phones (top:65px), or raise the drawer's z-index above it.",
+    "Rebalance the dashboard ATTENTION grid so the two escrow chips are not squeezed at desktop width.",
+    "Add left/right container padding to the landing hero at 390px."
+  ],
+  "critical_code_review_comments": ["There are two parallel drawer implementations: html.pmc-nav-open (pmc-responsive.js/css) and .pmc-adm--navopen (React state, copied into 6+ inline-shell pages). The navOpen/scrim/toggle markup is duplicated across AdminDashboardE, AdminBiddingOpsE, AdminTenderBuilderE, AdminEvaluationListE, AdminProgrammeE, AdminVendorKycE and AdminEShell; extract a shared component."],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "85% (all requested behaviours pass; duplicate hamburger regression)"},
+  "seed_data_creation": "none",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Admin login adminsupport@pmcmanagers.com / Admin@12345 (wait 2.5s before filling). To check the drawer, measure .pmc-side getBoundingClientRect().right (0 = closed, 280 = open). Re-check that .pmc-menu-btn is not visible alongside admin-nav-toggle at 820 and 390, and check the 1060px viewport."
+}

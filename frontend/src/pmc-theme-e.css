@@ -331,25 +331,30 @@ button { font: inherit; color: inherit; cursor: pointer; }
   .pmc-hero__search > *{width:100% !important;flex:1 1 auto !important}
 }
 
-/* v56v — admin shell responsive off-canvas drawer. The content wrapper and
-   main must allow shrink so wide tables can scroll instead of pushing layout. */
+/* v56v — admin shell responsive off-canvas drawer (single system). Hides the
+   legacy pmc-responsive .pmc-menu-btn in the admin top bar to avoid a duplicate
+   hamburger, and matches its 1100px breakpoint. */
 .pmc-adm__main{min-width:0;display:flex;flex-direction:column}
 .pmc-navtoggle{display:none}
 .pmc-side__scrim{display:none}
-@media (min-width:1025px){
+@media (min-width:1101px){
   .pmc-navtoggle{display:none !important}
   .pmc-side__scrim{display:none !important}
 }
-@media (max-width:1024px){
+@media (max-width:1100px){
+  .pmc-atop .pmc-menu-btn{display:none !important}
   .pmc-adm{grid-template-columns:1fr}
-  .pmc-side{position:fixed;top:0;left:0;bottom:0;width:272px;max-width:85vw;z-index:60;transform:translateX(-100%);transition:transform .25s ease;overflow-y:auto}
+  .pmc-side{position:fixed;top:0;left:0;bottom:0;width:272px;max-width:85vw;z-index:1000;transform:translateX(-100%);transition:transform .25s ease;overflow-y:auto}
   .pmc-adm--navopen .pmc-side{transform:translateX(0);box-shadow:0 0 40px rgba(0,0,0,.45)}
-  .pmc-side__scrim{display:block;position:fixed;inset:0;z-index:55;background:rgba(0,0,0,.45);border:0;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .2s}
+  .pmc-side__scrim{display:block;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.45);border:0;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .2s}
   .pmc-adm--navopen .pmc-side__scrim{opacity:1;pointer-events:auto}
   .pmc-navtoggle{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);color:var(--ink);cursor:pointer;flex:0 0 auto}
   .pmc-atop{padding:0 14px;gap:10px}
   .pmc-atop .pmc-search{display:none}
   .pmc-amain{padding:18px 14px 96px}
+}
+@media (max-width:920px){
+  .pmc-hero{padding-left:16px !important;padding-right:16px !important}
 }
 .pmc-livechip{display:inline-flex;align-items:center;gap:10px;height:34px;padding:0 14px;border:1px solid var(--chrome-line);border-radius:var(--radius-sm);color:var(--on-chrome);font-size:13px;font-weight:600}
 .pmc-livechip .dot,.pmc-livedot::before{width:8px;height:8px;border-radius:50%;background:var(--brass-on-chrome);box-shadow:0 0 0 4px rgba(217,189,114,.18);animation:pmcpulse 2s infinite}
