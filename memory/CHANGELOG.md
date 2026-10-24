@@ -773,3 +773,7 @@ summary notes.
   clears the 60px fixed topbar (index.css @media max-width:720px).
 - testing_agent iter 113: all 6 iter-112 defects + 2 polish items verified fixed.
 - Bundles pmc-backend-v56w.zip / pmc-frontend-v56w-prod-build.zip + DOWNLOAD_v56w.md.
+- v56w (addendum): escrow transaction Signatures now render as colour-coded chips
+  (emerald "signed" / amber "pending" with a status dot) via a new SigChip component in
+  EscrowAccountDashboardBody.jsx — replaces the plain text. Preview dedupe-taxonomy run:
+  contract_types=0 duplicates (preview DB already clean).

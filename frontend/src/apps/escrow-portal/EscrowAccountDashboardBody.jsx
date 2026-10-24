@@ -137,6 +137,22 @@ function KPI({ label, value, onClick, testId }) {
   );
 }
 
+function SigChip({ label, signed, testId }) {
+  return (
+    <span
+      data-testid={testId}
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide border ${
+        signed
+          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+          : "bg-amber-50 text-amber-700 border-amber-200"
+      }`}
+    >
+      <span className={`h-1.5 w-1.5 rounded-full ${signed ? "bg-emerald-500" : "bg-amber-500"}`} />
+      {label} {signed ? "signed" : "pending"}
+    </span>
+  );
+}
+
 function TxList({ title, rows, empty, onOpen }) {
   return (
     <>
@@ -170,8 +186,10 @@ function TxList({ title, rows, empty, onOpen }) {
                   </td>
                   <td data-label="Status" className="px-3 py-2 text-xs">{t.status || "—"}</td>
                   <td data-label="Signatures" className="px-3 py-2 text-xs">
-                    {t.signed_by_pmc ? "PMC ✓" : "PMC pending"} ·{" "}
-                    {t.signed_by_institution ? "Us ✓" : "Us pending"}
+                    <span className="inline-flex flex-wrap gap-1.5">
+                      <SigChip label="PMC" signed={!!t.signed_by_pmc} testId={`escrow-tx-sig-pmc-${t.id}`} />
+                      <SigChip label="Us" signed={!!t.signed_by_institution} testId={`escrow-tx-sig-us-${t.id}`} />
+                    </span>
                   </td>
                   <td data-label="" className="px-3 py-2 text-xs text-right text-brand-navy/60">
                     Open →

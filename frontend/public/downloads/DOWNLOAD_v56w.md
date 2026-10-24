@@ -19,6 +19,14 @@ Production bundles (upload to your AWS stack):
 4. **SignInE 820px** — collapses to a single clean column with no overflow.
 5. **/privacy on mobile** — the first legal sub-nav pill ("Privacy notice") is no
    longer clipped under the fixed mobile topbar.
+6. **Signature chips** — escrow transaction signature status now shows as small
+   colour-coded chips (emerald "signed" / amber "pending" with a status dot) so
+   signed vs pending reads at a glance, on desktop and mobile cards.
+
+## Contract-type duplicate cleanup (do this once after deploy)
+Admin console → Masters → Contract types → **Remove duplicates**. This calls the
+idempotent `/api/v1/masters/dedupe-taxonomy` endpoint and is safe to run repeatedly.
+(The preview DB was already clean — 0 duplicates — in this build's verification.)
 
 Preview-verified: testing_agent iteration 113 confirmed all 6 iteration-112
 responsive defects + both polish items fixed (~98%, frontend acceptance gates
