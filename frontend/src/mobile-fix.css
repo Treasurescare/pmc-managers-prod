@@ -1224,12 +1224,12 @@ body.pmc-mob-menu-open { overflow: hidden; }
     z-index: 950;
   }
   body:has(.pmc-mobile-topbar) { padding-top: 60px; }
-  /* Frozen footer menus — content must clear the fixed bottom tab bar on
-     every page that has one, not just vendor roots */
+  /* Bottom tab bar removed (v56x) — all portals now use the single-hamburger
+     off-canvas drawer, so pages only need a small bottom breathing space. */
   [data-pmc-e-page],
   .pmc-app,
   main {
-    padding-bottom: 104px !important;
+    padding-bottom: 24px !important;
   }
   .pmc-mobile-tabbar { z-index: 950; }
   /* Tender listing side padding */

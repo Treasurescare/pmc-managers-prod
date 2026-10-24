@@ -38,14 +38,6 @@ const PUBLIC_MENU = [
   { to: "/contact", label: "Contact" },
 ];
 
-const VENDOR_TABS = [
-  { to: "/vendor", label: "Home", testid: "mnav-home", iconId: "i-home" },
-  { to: "/vendor/tenders", label: "Tenders", testid: "mnav-tenders", iconId: "i-search" },
-  { to: "/vendor/mybids", label: "My Bids", testid: "mnav-bids", iconId: "i-gavel" },
-  { to: "/vendor/signatures", label: "Sign", testid: "mnav-signatures", iconId: "i-sign" },
-  { to: "/vendor/account", label: "Account", testid: "mnav-account", iconId: "i-users" },
-];
-
 export default function PmcMobileNav() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
@@ -223,12 +215,18 @@ export default function PmcMobileNav() {
                     onClick={() => setMenuOpen(false)} aria-label="Close menu">×</button>
           </div>
           <nav aria-label="Supplier">
-            <NavLink to="/vendor/company" data-testid="pmc-mobile-menu-link-company">Company &amp; KYC</NavLink>
-            <NavLink to="/vendor/categories" data-testid="pmc-mobile-menu-link-categories">Categories</NavLink>
-            <NavLink to="/vendor/reviews" data-testid="pmc-mobile-menu-link-reviews">Reviews</NavLink>
-            <NavLink to="/vendor/account" data-testid="pmc-mobile-menu-link-account">Account &amp; security</NavLink>
+            <NavLink to="/vendor" end data-testid="pmc-mobile-menu-link-home">Home</NavLink>
+            <NavLink to="/vendor/tenders" data-testid="pmc-mobile-menu-link-tenders">Find tenders</NavLink>
+            <NavLink to="/vendor/mybids" data-testid="pmc-mobile-menu-link-mybids">My bids</NavLink>
+            <NavLink to="/vendor/auctions" data-testid="pmc-mobile-menu-link-auctions">Reverse auctions</NavLink>
             <NavLink to="/vendor/emd" data-testid="pmc-mobile-menu-link-emd">EMD &amp; payments</NavLink>
             <NavLink to="/vendor/signatures" data-testid="pmc-mobile-menu-link-signatures">Signatures</NavLink>
+            <hr />
+            <NavLink to="/vendor/company" data-testid="pmc-mobile-menu-link-company">Company &amp; KYC</NavLink>
+            <NavLink to="/vendor/categories" data-testid="pmc-mobile-menu-link-categories">Categories</NavLink>
+            <NavLink to="/vendor/services" data-testid="pmc-mobile-menu-link-services">Services</NavLink>
+            <NavLink to="/vendor/reviews" data-testid="pmc-mobile-menu-link-reviews">Reviews</NavLink>
+            <NavLink to="/vendor/account" data-testid="pmc-mobile-menu-link-account">Account &amp; security</NavLink>
             <NavLink to="/vendor/alerts" data-testid="pmc-mobile-menu-link-alerts">Alerts</NavLink>
             <NavLink to="/help" data-testid="pmc-mobile-menu-link-help">Help &amp; FAQs</NavLink>
           </nav>
@@ -249,18 +247,6 @@ export default function PmcMobileNav() {
             </button>
           </div>
         </aside>
-
-        <nav className="pmc-mobile-tabbar" data-testid="pmc-mobile-tabbar"
-             aria-label="Vendor navigation">
-          {VENDOR_TABS.map((t) => (
-            <NavLink key={t.to} to={t.to} end={t.to === "/vendor"}
-                     className={({ isActive }) => (isActive ? "is-active" : "")}
-                     data-testid={t.testid}>
-              <svg aria-hidden="true"><use href={`#${t.iconId}`} /></svg>
-              <span>{t.label}</span>
-            </NavLink>
-          ))}
-        </nav>
       </>
     );
   }

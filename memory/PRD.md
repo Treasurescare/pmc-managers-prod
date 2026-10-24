@@ -475,3 +475,10 @@ and backlog.
   both polish items fixed (~98%); the two residual LOW cosmetic items fixed + screenshot-verified.
 - Bundles: `pmc-backend-v56w.zip`, `pmc-frontend-v56w-prod-build.zip` + `DOWNLOAD_v56w.md`.
   Footer stamp v56w / 2026-06-27. Preview-verified; awaiting prod deploy + user confirmation.
+
+## Status note — v56x (27 Jun 2026): Supplier portal mobile-nav parity (preview)
+- Supplier portal mobile navigation unified to the shared single-hamburger off-canvas drawer
+  pattern (bottom tab bar removed), matching Staff/Escrow/Admin. Desktop was already consistent.
+- Vendor home Quick links given meaningful per-link icons (were all generic sparkles).
+- Screenshot-verified in preview; NOT yet packaged into a build artifact or deployed.
+- NOTE: All four portals (Admin, Staff, Escrow, Supplier) now share the same mobile nav model.

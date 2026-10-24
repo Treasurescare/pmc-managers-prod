@@ -777,3 +777,15 @@ summary notes.
   (emerald "signed" / amber "pending" with a status dot) via a new SigChip component in
   EscrowAccountDashboardBody.jsx — replaces the plain text. Preview dedupe-taxonomy run:
   contract_types=0 duplicates (preview DB already clean).
+
+## v56x (27 Jun 2026) — Supplier portal mobile nav unified + vendor quick-links icons
+- Supplier portal mobile nav now matches Staff/Escrow/Admin: removed the bottom tab bar;
+  the single top-left hamburger opens a full off-canvas drawer + scrim containing the
+  complete nav (Home, Find tenders, My bids, Reverse auctions, EMD & payments, Signatures,
+  Company & KYC, Categories, Services, Reviews, Account & security, Alerts, Help) + Sign out.
+  File: components/PmcMobileNav.jsx (vendor block); removed unused VENDOR_TABS constant.
+- mobile-fix.css: reclaimed the 104px bottom padding that reserved space for the (now removed)
+  tab bar -> 24px. notice-detail sticky-bar padding unchanged.
+- VendorHomeE.jsx: Quick links now use meaningful icons (search/tag/shield/settings) instead
+  of four identical i-spark sparkles that read as loading spinners.
+- Desktop VendorPortalChrome untouched (already visually consistent). Screenshot-verified mobile.
