@@ -2997,3 +2997,50 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 
 .ha .pmc-ico{vertical-align:-3px}
+
+/* === v56y — Supplier portal sidebar unified with Admin/Staff/Escrow ===
+   The vendor left-nav (.pmc-lnav) was the only light sidebar. Repaint it to
+   the dark chrome panel so all four portals match. Appended last so it wins
+   over the earlier duplicate .pmc-lnav blocks in this concatenated theme. */
+.pmc-lnav {
+  background: var(--chrome) !important;
+  border-right: 1px solid var(--chrome-line) !important;
+  color: var(--on-chrome);
+}
+.pmc-lnav a {
+  color: var(--on-chrome) !important;
+}
+.pmc-lnav a:hover {
+  background: var(--chrome-raised) !important;
+}
+.pmc-lnav a[aria-current="page"] {
+  background: var(--chrome-raised) !important;
+  color: var(--brass-on-chrome) !important;
+  box-shadow: inset 2px 0 0 var(--brass-on-chrome);
+  font-weight: 600;
+}
+.pmc-lnav .c {
+  color: var(--on-chrome-muted) !important;
+}
+.pmc-lnav .c.hot {
+  color: var(--on-brass) !important;
+  background: var(--brass) !important;
+}
+.pmc-lnav hr {
+  border-top-color: var(--chrome-line) !important;
+}
+.pmc-lnav .pmc-lnav__helpbtn {
+  color: var(--on-chrome) !important;
+}
+/* "Your PMC desk" footer card sits inside the dark nav */
+.pmc-lnav .pmc-desk {
+  background: var(--chrome-raised) !important;
+  border-color: var(--chrome-line) !important;
+  color: var(--on-chrome-muted) !important;
+}
+.pmc-lnav .pmc-desk b {
+  color: var(--on-chrome) !important;
+}
+.pmc-lnav .pmc-desk a {
+  color: var(--brass-on-chrome) !important;
+}

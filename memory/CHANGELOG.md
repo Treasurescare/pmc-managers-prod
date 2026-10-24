@@ -789,3 +789,10 @@ summary notes.
 - VendorHomeE.jsx: Quick links now use meaningful icons (search/tag/shield/settings) instead
   of four identical i-spark sparkles that read as loading spinners.
 - Desktop VendorPortalChrome untouched (already visually consistent). Screenshot-verified mobile.
+
+## v56y (27 Jun 2026) — Supplier portal sidebar unified (dark)
+- The vendor left-nav (.pmc-lnav) was the only light sidebar; repainted to the dark
+  var(--chrome) panel to match Admin/Staff/Escrow. Light text, brass active-stripe,
+  on-chrome count badges, dark "Your PMC desk" footer card. Appended override block at
+  end of pmc-theme-e.css (wins over 5 duplicate .pmc-lnav blocks). CSS-only, no logic
+  change. Desktop screenshot-verified. Mobile drawer unaffected.
