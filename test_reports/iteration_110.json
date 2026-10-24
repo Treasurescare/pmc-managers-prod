@@ -1,0 +1,32 @@
+{
+  "summary": "Frontend-only regression test of the AdminShellE refactor. The refactor itself is CLEAN, with no regressions found. Code review: all 6 pages (Dashboard, BiddingOps, Programme, EvaluationList, TenderBuilder, VendorKyc) import AdminShellE. Inline navOpen state and scrim markup now exist only in AdminShellE.jsx. The 'active' nav props match the pre-refactor values. AdminEShell is a thin wrapper. Tested 15 admin routes at 1920, 820 and 390: the 6 refactored pages plus notices, masters, audit, taxonomy-backfill, awarded-auctions, escrow-institutions, registrations, vendors and evaluation. Results: login works; every page renders inside .pmc-adm; there is exactly 1 visible admin-nav-toggle at 820 and 390, 0 at 1920, and 0 visible legacy .pmc-menu-btn at any width. Toggle opens the drawer (side right edge 0 -> 280, scrim opacity 1, class pmc-adm--navopen). Clicking the scrim closes it (right edge back to 0). No document-level horizontal overflow on any page. Breakpoint is consistent: toggle shows at 1050 and 1100 and is hidden at 1101 and 1200 (the 1025-1100 mismatch from iteration 109 is fixed). AdminEShell pages show their search input. Dashboard: the ATTENTION strip with the 2 escrow chips is readable at 1920 (5 columns), 820 and 390 (stacked list), with no overflow. TenderBuilder mounts its panel (drafts list tb-draft-*, master library, AI generate) with main padding 0px at 1920. Bidding: bo-flow, bo-tabs, bo-table, bo-committee-panel and bo-search-input all render. Public smoke passes: the homepage hero sector filter routes to /tenders/all?sector=agriculture. Board filters work: sector, contract type, country, and the category text input (category=medical gives 8 vs 21 notices). The notice detail page /notices/PMC-NOT-2026-0064 renders. No horizontal overflow on public pages at 820 or 390. Go-Live badge shows OFF. No React hooks-order warnings and no page errors. One pre-existing CSS bug was found (not caused by the refactor): the Bidding Ops clearance tiles are clipped at 390.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Bidding Ops clearance flow tiles (mobile 390)", "issue": "Pre-existing, not caused by the refactor. At 390px only 2 of the 7 tiles are visible (EMD, Escrow). Admin/Certifier/Legal/Accounts/Awarded sit at x=332..1114 and cannot be reached because they are clipped by an ancestor with overflow-x:hidden. Cause is a CSS conflict. pmc-responsive.css:146 forces `.bo-flow{display:flex !important; overflow-x:auto}` with 150px tiles. bidding-ops.css:93 (mobile media query, loaded later) sets `.bo-flow{...;overflow-x:visible}`, which wins over the non-important auto. The result is a non-scrolling flex row that gets clipped. At 820 it scrolls correctly (overflow-x:auto). Fix: change overflow-x:visible to auto in bidding-ops.css:93 (or drop the grid rule there).", "selector": "[data-testid=bo-flow]", "priority": "MEDIUM"},
+      {"component": "Admin drawer on phone (390)", "issue": "Still present from iteration 109 (LOW). The fixed mobile top bar (pmc-mobile-topbar, z 950, about 65px) covers the top of the open drawer, so the 'PMC Managers / ADMIN CONSOLE' brand block is hidden. The nav links are still usable.", "selector": ".pmc-side", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Tender Builder at 820/390", "issues": ["mainStyle padding:0 is overridden by `.pmc-amain{padding:20px 20px 80px !important}` in pmc-responsive.css:68 at 1100px and below. This behaves the same as before the refactor, because the inline style was overridden the same way, and the padding looks fine. Mentioned only so you know mainStyle has no effect at narrow widths."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix the bo-flow clipping at 390 in apps/admin-console-e/bidding-ops.css line 93: overflow-x:visible -> auto, or let the pmc-responsive flex scroller apply.",
+    "(Optional, LOW) Offset the drawer top, or raise its z-index above the 950 mobile top bar, so the drawer brand header is visible on phones."
+  ],
+  "critical_code_review_comments": [
+    "AdminShellE is a clean extraction. navOpen state lives in one place, and the hamburger and scrim each have a single data-testid.",
+    "The drawer does not close on route change or on Escape. Clicking a nav link navigates and the page remounts, so this is not visible in practice. This matches pre-refactor behaviour.",
+    "Pre-existing console warnings, unrelated to the refactor and present in the old files: AdminProgrammeE uses kebab-case SVG attributes (text-anchor, font-size, font-family, font-weight should be camelCase). AdminVendorKycE puts <textarea> children instead of defaultValue. The EscrowInstitutions recharts container warns about width/height -1.",
+    "Public pages log 401s from /api/v1/{admin,staff,vendor}/auth/me (expected anonymous probes) and a 404 from /api/v1/tenants/by-host. These are noise, not regressions."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (not requested)", "frontend": "~97% (all refactor checks pass; 1 pre-existing mobile clipping bug)"},
+  "test_credentials": "adminsupport@pmcmanagers.com / Admin@12345 worked (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None. No data created or modified. Go-Live left OFF.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "AdminShellE refactor verified at 1920/1100/1101/1050/820/390 across 15 admin routes. The drawer breakpoint is 1100px (pmc-theme-e.css around line 335). Note that /admin/e/evaluations is AdminEvaluationListE (refactored), while /admin/e/evaluation is AdminEvaluationE (AdminEShell). The only open item is the bo-flow mobile clipping in bidding-ops.css:93. The hero filter test IDs are home-hero-*. The board filter test IDs are tenders-*-filter; category is a text input."
+}
