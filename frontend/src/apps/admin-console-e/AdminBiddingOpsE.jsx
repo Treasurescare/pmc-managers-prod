@@ -5,7 +5,7 @@ import { bidApi, staffApi, showApiError } from "@/lib/api";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { useAdminBiddingOpsLive } from "@/lib/pmcELiveData";
 import AdminAvatarMenu from "./AdminAvatarMenu";
-import AdminSideNavE from "./AdminSideNavE";
+import AdminShellE from "./AdminShellE";
 import AssignSpecialistsModal from "../admin-console/bidding/AssignSpecialistsModal";
 import MoneyFilterBar from "@/components/MoneyFilterBar";
 import "./bidding-ops.css";
@@ -15,7 +15,6 @@ import "./bidding-ops.css";
 // useAdminBiddingOpsLive from /api/v1/bids.
 export default function AdminBiddingOpsE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
-  const [navOpen, setNavOpen] = useState(false);
   const navigate = useNavigate();
   const [tick, setTick] = useState(0);
   useAdminBiddingOpsLive({ enabled: isE, tick });
@@ -391,16 +390,11 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
 
   return (
     <div data-testid="admin-bidding-ops-e" data-pmc-e-page="admin-bidding-ops-e">
-<div className={"pmc-adm" + (navOpen ? " pmc-adm--navopen" : "")}>
-<AdminSideNavE active="Bidding ops" />
-<button className="pmc-side__scrim" aria-label="Close menu" onClick={() => setNavOpen(false)} data-testid="admin-nav-scrim" />
-<div className="pmc-adm__main">
-<header className="pmc-atop"><button className="pmc-navtoggle" aria-label="Open menu" aria-expanded={navOpen} onClick={() => setNavOpen((v) => !v)} data-testid="admin-nav-toggle"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg></button>
+<AdminShellE active="Bidding ops" header={<>
   <div className="crumb">Money &amp; compliance / <b>Bidding ops</b></div>
   <label className="pmc-search"><svg className="pmc-ico" aria-hidden="true"><use href="#i-search" /></svg><input placeholder="Search tenders, bids, vendors, ledger events…" data-testid="admin-search-input" /><span className="pmc-kbd">Ctrl K</span></label>
   <div className="pmc-atop__r"><a href="/admin/e/tender-builder" className="pmc-btn pmc-btn--primary" data-testid="bo-create-btn"><svg className="pmc-ico" aria-hidden="true"><use href="#i-plus" /></svg> Create</a><button className="pmc-btn pmc-btn--secondary" data-help-open="" data-testid="bo-help-btn"><svg className="pmc-ico" aria-hidden="true"><use href="#i-help" /></svg> Help</button><button className="pmc-ib pmc-bell" aria-label="Alerts" data-testid="bo-bell-btn"><svg className="pmc-ico" aria-hidden="true"><use href="#i-bell" /></svg><span className="pmc-bell__n">0</span></button><AdminAvatarMenu /></div>
-</header>
-<main className="pmc-amain">
+</>}>
   <div className="bo-head">
     <div><div className="pmc-eyebrow">Money &amp; compliance</div><h1>Bidding ops</h1><div className="pmc-muted" style={{fontSize:"14px"}} data-testid="bo-subtitle"><span data-bo-total>0</span> bids moving through clearance · every step is on the audit ledger</div></div>
     <div style={{display:"flex",gap:"8px"}}>
@@ -484,9 +478,7 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
       </section>
     </aside>
   </div>
-</main>
-</div>
-</div>
+</AdminShellE>
       <AssignSpecialistsModal
         bid={specialistFor}
         staffList={staffList}

@@ -1,12 +1,10 @@
-import { useState } from "react";
 import { useEffect } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { useAdminEvaluationsLive } from "@/lib/pmcELiveData";
-import AdminSideNavE from "./AdminSideNavE";
+import AdminShellE from "./AdminShellE";
 
 export default function AdminEvaluationListE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
-  const [navOpen, setNavOpen] = useState(false);
   useAdminEvaluationsLive({ enabled: isE });
   useEffect(() => {
     if (!isE) return;
@@ -24,14 +22,11 @@ export default function AdminEvaluationListE({ legacy: Legacy }) {
   if (!isE) return null;
   return (
     <div data-testid="admin-evaluation-list-e" data-pmc-e-page="admin-evaluation-list-e">
-<div className={"pmc-adm" + (navOpen ? " pmc-adm--navopen" : "")}>
-<AdminSideNavE active="Evaluation" />
-<button className="pmc-side__scrim" aria-label="Close menu" onClick={() => setNavOpen(false)} data-testid="admin-nav-scrim" />
-<div className="pmc-adm__main">
-<header className="pmc-atop"><button className="pmc-navtoggle" aria-label="Open menu" aria-expanded={navOpen} onClick={() => setNavOpen((v) => !v)} data-testid="admin-nav-toggle"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg></button><div className="crumb">Money &amp; compliance / <b>Evaluation</b></div>
+<AdminShellE active="Evaluation" header={<>
+<div className="crumb">Money &amp; compliance / <b>Evaluation</b></div>
   <label className="pmc-search"><svg className="pmc-ico" aria-hidden="true"><use href="#i-search" /></svg><input placeholder="Search tenders, bids, vendors, ledger events…" /><span className="pmc-kbd">Ctrl K</span></label>
   <div className="pmc-atop__r"><a href="#" className="pmc-btn pmc-btn--primary"><svg className="pmc-ico" aria-hidden="true"><use href="#i-plus" /></svg> Create</a><button className="pmc-btn pmc-btn--secondary" data-help-open=""><svg className="pmc-ico" aria-hidden="true"><use href="#i-help" /></svg> Help</button><button className="pmc-ib pmc-bell" aria-label="6 alerts"><svg className="pmc-ico" aria-hidden="true"><use href="#i-bell" /></svg><span className="pmc-bell__n">6</span></button><button className="pmc-ib" aria-label="AI copilot"><svg className="pmc-ico" aria-hidden="true"><use href="#i-spark" /></svg></button><span className="pmc-avatar" title="adminsupport@pmcmanagers.com · 2FA on">A</span></div>
-</header><main className="pmc-amain"><div className="ah"><div><div className="pmc-eyebrow">Money &amp; compliance</div><h1>Evaluation</h1></div><div style={{ display: "flex", gap: "8px" }}></div></div><section className="pmc-panel"><table className="pmc-table"><thead><tr><th>Tender</th><th className="num">Bids</th><th>Stage</th><th>Detail</th><th></th></tr></thead><tbody><tr><td><div style={{ fontWeight: "600" }}>Turnkey IVF Laboratory Setup</div><div className="pmc-muted" style={{ fontSize: "12px" }}><span className="pmc-ref">PMC-NOT-2026-0055</span></div></td><td className="num">3</td><td><span className="pmc-pill pmc-pill--warning">Technical scoring</span></td><td>3 of 3 scored</td><td><a href="#" className="pmc-btn pmc-btn--primary pmc-btn--sm">Open room</a></td></tr><tr><td><div style={{ fontWeight: "600" }}>OPD Queue Management</div><div className="pmc-muted" style={{ fontSize: "12px" }}><span className="pmc-ref">PMC-NOT-2026-0038</span></div></td><td className="num">2</td><td><span className="pmc-pill ">Waiting for deadline</span></td><td>Opens 1 Oct</td><td><a href="#" className="pmc-btn pmc-btn--secondary pmc-btn--sm">View</a></td></tr><tr><td><div style={{ fontWeight: "600" }}>Modular OTs — Wave 2</div><div className="pmc-muted" style={{ fontSize: "12px" }}><span className="pmc-ref">PMC-NOT-2026-0016</span></div></td><td className="num">6</td><td><span className="pmc-pill pmc-pill--success">Awarded</span></td><td>Locked 8 Sep</td><td><a href="#" className="pmc-btn pmc-btn--secondary pmc-btn--sm">Report</a></td></tr></tbody></table></section></main></div></div>
+</>}><div className="ah"><div><div className="pmc-eyebrow">Money &amp; compliance</div><h1>Evaluation</h1></div><div style={{ display: "flex", gap: "8px" }}></div></div><section className="pmc-panel"><table className="pmc-table"><thead><tr><th>Tender</th><th className="num">Bids</th><th>Stage</th><th>Detail</th><th></th></tr></thead><tbody><tr><td><div style={{ fontWeight: "600" }}>Turnkey IVF Laboratory Setup</div><div className="pmc-muted" style={{ fontSize: "12px" }}><span className="pmc-ref">PMC-NOT-2026-0055</span></div></td><td className="num">3</td><td><span className="pmc-pill pmc-pill--warning">Technical scoring</span></td><td>3 of 3 scored</td><td><a href="#" className="pmc-btn pmc-btn--primary pmc-btn--sm">Open room</a></td></tr><tr><td><div style={{ fontWeight: "600" }}>OPD Queue Management</div><div className="pmc-muted" style={{ fontSize: "12px" }}><span className="pmc-ref">PMC-NOT-2026-0038</span></div></td><td className="num">2</td><td><span className="pmc-pill ">Waiting for deadline</span></td><td>Opens 1 Oct</td><td><a href="#" className="pmc-btn pmc-btn--secondary pmc-btn--sm">View</a></td></tr><tr><td><div style={{ fontWeight: "600" }}>Modular OTs — Wave 2</div><div className="pmc-muted" style={{ fontSize: "12px" }}><span className="pmc-ref">PMC-NOT-2026-0016</span></div></td><td className="num">6</td><td><span className="pmc-pill pmc-pill--success">Awarded</span></td><td>Locked 8 Sep</td><td><a href="#" className="pmc-btn pmc-btn--secondary pmc-btn--sm">Report</a></td></tr></tbody></table></section></AdminShellE>
 <div className="pmc-drawer-scrim" data-help-close=""></div>
 <aside className="pmc-drawer" role="dialog" aria-modal="true" aria-label="Help and FAQs">
   <div className="pmc-drawer__head">

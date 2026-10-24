@@ -1,8 +1,7 @@
-import { useState } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { useAdminDashboardLive } from "@/lib/pmcELiveData";
 import AdminAvatarMenu from "./AdminAvatarMenu";
-import AdminSideNavE from "./AdminSideNavE";
+import AdminShellE from "./AdminShellE";
 import EscrowOnboardingKPI from "./EscrowOnboardingKPI";
 import "./admin-dashboard.css";
 
@@ -22,19 +21,13 @@ const STAGE_HREFS = [
 // data by useAdminDashboardLive (notices, bids, vendors, audit events).
 export default function AdminDashboardE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
-  const [navOpen, setNavOpen] = useState(false);
   useAdminDashboardLive({ enabled: isE });
   if (!isE && Legacy) return <Legacy />;
   if (!isE) return null;
 
   return (
     <div data-testid="admin-dashboard-e" data-pmc-e-page="admin-dashboard-e">
-<div className={"pmc-adm" + (navOpen ? " pmc-adm--navopen" : "")}>
-<AdminSideNavE active="Dashboard" />
-<button className="pmc-side__scrim" aria-label="Close menu" onClick={() => setNavOpen(false)} data-testid="admin-nav-scrim" />
-<div className="pmc-adm__main">
-<header className="pmc-atop">
-  <button className="pmc-navtoggle" aria-label="Open menu" aria-expanded={navOpen} onClick={() => setNavOpen((v) => !v)} data-testid="admin-nav-toggle"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg></button>
+<AdminShellE active="Dashboard" header={<>
   <div className="crumb">Overview / <b>Dashboard</b></div>
   <label className="pmc-search"><svg className="pmc-ico" aria-hidden="true"><use href="#i-search" /></svg><input placeholder="Search tenders, bids, vendors, ledger events…" data-testid="dash-search-input" /><span className="pmc-kbd">Ctrl K</span></label>
   <div className="pmc-atop__r">
@@ -43,8 +36,7 @@ export default function AdminDashboardE({ legacy: Legacy }) {
     <button className="pmc-ib pmc-bell" aria-label="Alerts" data-testid="dash-bell-btn"><svg className="pmc-ico" aria-hidden="true"><use href="#i-bell" /></svg><span className="pmc-bell__n">0</span></button>
     <AdminAvatarMenu />
   </div>
-</header>
-<main className="pmc-amain">
+</>}>
   <div className="adh">
     <div><div className="adh__eyebrow">All departments · <span data-dash-date>—</span></div><h1>Procurement overview</h1></div>
     <div style={{ display: "flex", gap: "8px" }}>
@@ -112,9 +104,7 @@ export default function AdminDashboardE({ legacy: Legacy }) {
       </section>
     </div>
   </div>
-</main>
-</div>
-</div>
+</AdminShellE>
 
 <div className="pmc-drawer-scrim" data-help-close=""></div>
 <aside className="pmc-drawer" role="dialog" aria-modal="true" aria-label="Help and FAQs">
