@@ -121,12 +121,17 @@ export default function PmcMobileNav() {
   const isVendor = pathname === "/vendor" || pathname.startsWith("/vendor/");
   const isAdmin = pathname.startsWith("/admin");
   const isStaff = pathname.startsWith("/staff");
+  const isEscrow = pathname.startsWith("/escrow");
   const isM = pathname.startsWith("/m");
 
   // Suppress mobile chrome on:
   //  - vendor/admin login pages (they already have their own centered form)
   //  - /m/* mobile showcase routes
-  if (isVendorLogin || isAdminLogin || isM) return null;
+  //  - /staff and /escrow/* — these now use PortalShellE, which owns the full
+  //    responsive top bar + off-canvas drawer (one hamburger, one sign-out).
+  //    Rendering the generic mobile chrome here produced a duplicate header,
+  //    a duplicate sign-out and (for escrow) the wrong public menu.
+  if (isVendorLogin || isAdminLogin || isM || isStaff || isEscrow) return null;
 
   // v51e — unified Sign-out for mobile vendor + admin top bar.
   const doSignOut = async () => {

@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { staffApi, bidApi, inspectionApi, uploadsApi, escrowApi, showApiError } from "@/lib/api";
+import PortalShellE from "@/apps/shared/PortalShellE";
+import PortalAvatarMenu from "@/apps/shared/PortalAvatarMenu";
 
 const ROLE_LABELS = {
   admin: "Administrator", reviewer: "Reviewer",
@@ -192,50 +194,41 @@ export default function StaffDashboard() {
   ];
   if (me.active_role === "certifier") navItems.push({ key: "inspections", label: "Site inspections", badge: inspections.length || null });
 
+  const NAV_ICONS = { overview: "i-home", escrow: "i-sign", queue: "i-gavel", completed: "i-check", inspections: "i-eye" };
+  const shellNav = navItems.map((it) => ({ key: it.key, label: it.label, icon: NAV_ICONS[it.key] || "i-file", badge: it.badge, testid: `staff-nav-${it.key}` }));
+  const activeLabel = (navItems.find((n) => n.key === tab) || {}).label || "Overview";
+
   return (
-    <div style={{ minHeight: "100vh", background: C.page, color: C.ink, fontFamily: "var(--font-sans)" }} data-testid="staff-dashboard">
-      <header style={{ background: C.chrome, color: C.onChrome }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-          <div>
-            <div style={{ fontSize: 11, letterSpacing: "0.18em", textTransform: "uppercase", color: C.brass, fontWeight: 600 }}>Staff Portal</div>
-            <h1 style={{ fontSize: 22, fontFamily: C.display, fontWeight: 500, margin: 0 }}>{me.name} — {ROLE_LABELS[me.active_role] || me.active_role}</h1>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: 14 }}>
-            {(me.roles || []).length > 1 && (
-              <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 8 }} data-testid="staff-role-switch">
-                <span style={{ color: C.onChromeMuted, textTransform: "uppercase", letterSpacing: "0.12em" }}>Active role</span>
-                <select value={me.active_role} onChange={(e) => switchRole(e.target.value)}
-                  style={{ background: "rgba(255,255,255,0.08)", border: `1px solid ${C.chromeLine}`, color: C.onChrome, padding: "4px 8px", borderRadius: 4 }}
-                  data-testid="staff-role-switch-select">
-                  {(me.roles || []).map((r) => <option key={r} value={r} style={{ color: "#14201a" }}>{ROLE_LABELS[r] || r}</option>)}
-                </select>
-              </label>
-            )}
-            <span style={{ color: C.onChromeMuted }}>{me.email}</span>
-            <button onClick={logout} style={{ color: C.onChrome, textDecoration: "underline", background: "none", border: "none", cursor: "pointer" }} data-testid="staff-logout">Sign out</button>
-          </div>
+    <PortalShellE
+      rootTestId="staff-dashboard"
+      sideTestId="staff-sidebar"
+      brand={{ title: "PMC Managers", sub: "Staff portal" }}
+      items={shellNav}
+      activeKey={tab}
+      onSelect={setTab}
+      crumb={<>Staff / <b>{activeLabel}</b></>}
+      header={
+        <div className="pmc-atop__r">
+          {(me.roles || []).length > 1 && (
+            <label style={{ fontSize: 12, display: "flex", alignItems: "center", gap: 8 }} data-testid="staff-role-switch">
+              <span className="pmc-muted" style={{ textTransform: "uppercase", letterSpacing: "0.12em" }}>Role</span>
+              <select value={me.active_role} onChange={(e) => switchRole(e.target.value)}
+                style={{ border: "1px solid var(--line-strong)", color: "var(--ink)", background: "var(--surface)", padding: "6px 8px", borderRadius: "var(--radius-sm)", fontSize: 13 }}
+                data-testid="staff-role-switch-select">
+                {(me.roles || []).map((r) => <option key={r} value={r}>{ROLE_LABELS[r] || r}</option>)}
+              </select>
+            </label>
+          )}
+          <PortalAvatarMenu
+            initial={(me.name || me.email || "S").trim().charAt(0).toUpperCase()}
+            title={me.email}
+            sub={ROLE_LABELS[me.active_role] || me.active_role}
+            items={[{ label: "Sign out", onClick: logout, danger: true, testid: "staff-logout" }]}
+            testId="staff-avatar"
+          />
         </div>
-      </header>
-
-      <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", gap: 24, padding: 24, alignItems: "flex-start" }}>
-        <aside style={{ width: 236, flexShrink: 0 }} data-testid="staff-sidebar">
-          <nav style={{ background: C.surface, border: `1px solid ${C.line}`, borderRadius: 8, overflow: "hidden", position: "sticky", top: 24 }}>
-            {navItems.map((it) => {
-              const active = tab === it.key;
-              return (
-                <button key={it.key} onClick={() => setTab(it.key)} data-testid={`staff-nav-${it.key}`}
-                  style={{ width: "100%", textAlign: "left", padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between",
-                    border: "none", cursor: "pointer", fontSize: 14, background: active ? C.primary : "transparent",
-                    color: active ? C.onPrimary : C.ink, borderLeft: active ? `3px solid ${C.brass}` : "3px solid transparent" }}>
-                  <span>{it.label}</span>
-                  {it.badge ? <span style={{ minWidth: 22, textAlign: "center", fontSize: 12, fontWeight: 700, borderRadius: 999, padding: "1px 7px", background: active ? C.brass : C.primary, color: active ? "#1b1606" : C.onPrimary }}>{it.badge}</span> : null}
-                </button>
-              );
-            })}
-          </nav>
-        </aside>
-
-        <main style={{ flex: 1, minWidth: 0 }}>
+      }
+    >
           {tab === "overview" && (
             <section data-testid="staff-overview" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 16 }}>
               <StatCard label="Escrow documents to sign" value={pendingCount} hint="Awaiting your signature" onClick={() => setTab("escrow")} />
@@ -302,9 +295,7 @@ export default function StaffDashboard() {
             </section>
           )}
           {tab === "completed" && <CompletedPanel processed={processed} />}
-        </main>
-      </div>
-    </div>
+    </PortalShellE>
   );
 }
 

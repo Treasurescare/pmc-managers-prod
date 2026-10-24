@@ -264,7 +264,7 @@ export default function HelpCentreE({ legacy: Legacy }) {
               <details className="pmc-faq"><summary>How do I keep my account secure?</summary><p>Turn on two-factor sign-in under <b>Account &rsaquo; Security</b>. On the mobile app you can also sign in with Face ID or fingerprint.</p></details>
             </div>
           </section>
-          <aside style={{ display: "grid", gap: 16, alignContent: "start" }}>
+          <aside style={{ display: "grid", gap: 16, alignContent: "start", minWidth: 0 }}>
             <div className="pmc-panel" style={{ padding: 20 }}>
               <b style={{ fontSize: 16 }}>Still stuck?</b>
               <p className="pmc-muted" style={{ margin: "6px 0 14px", fontSize: 14, lineHeight: "22px" }}>
@@ -276,10 +276,10 @@ export default function HelpCentreE({ legacy: Legacy }) {
                         style={{ justifyContent: "center" }}>
                   <svg className="pmc-ico" aria-hidden="true"><use href="#i-chat" /></svg> Raise a ticket
                 </button>
-                <a href="mailto:tenders@pmcmanagers.com" className="pmc-btn pmc-btn--secondary" style={{ justifyContent: "center" }}>
+                <a href="mailto:tenders@pmcmanagers.com" className="pmc-btn pmc-btn--secondary" style={{ justifyContent: "center", whiteSpace: "normal", wordBreak: "break-word", height: "auto" }}>
                   <svg className="pmc-ico" aria-hidden="true"><use href="#i-mail" /></svg> tenders@pmcmanagers.com
                 </a>
-                <a href="mailto:adminsupport@pmcmanagers.com" className="pmc-btn pmc-btn--ghost" style={{ justifyContent: "center" }}>
+                <a href="mailto:adminsupport@pmcmanagers.com" className="pmc-btn pmc-btn--ghost" style={{ justifyContent: "center", whiteSpace: "normal", wordBreak: "break-word", height: "auto" }}>
                   Account &amp; access: adminsupport@pmcmanagers.com
                 </a>
               </div>

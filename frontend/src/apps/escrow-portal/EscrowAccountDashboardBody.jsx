@@ -1,26 +1,31 @@
 /**
- * EscrowAccountDashboardBody — v52e. Reads real data from
- * /api/v1/escrow-accounts/me/dashboard: joint accounts the institution's
- * signatories operate, every transaction on those accounts and the
- * subset awaiting the institution's signature. Falls back cleanly to the
- * empty state when PMC hasn't opened a joint account yet.
+ * EscrowAccountDashboardBody — v56. Approved-institution landing view. Now
+ * wrapped in the shared PortalShellE frame so it matches the admin console
+ * exactly: a fixed dark sidebar on desktop that collapses to an off-canvas
+ * drawer (single hamburger + scrim) on tablet/phone, and a white sticky top
+ * bar carrying the notifications bell + avatar menu. The five sections live
+ * as shell nav items; no more legacy fixed `w-64` sidebar.
+ *
+ * Reads real data from /api/v1/escrow-accounts/me/dashboard.
  */
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { api, showApiError } from "@/lib/api";
+import PortalShellE from "@/apps/shared/PortalShellE";
+import EscrowHeaderActions from "./EscrowAccountHeader";
 import EscrowDashboardChart from "./EscrowDashboardChart";
 import EscrowInstitutionProfile from "./EscrowInstitutionProfile";
 import TransactionDetailModal from "./TransactionDetailModal";
 
 const TABS = [
-  ["overview",     "Overview"],
-  ["pending",      "Pending signatures"],
-  ["transactions", "All transactions"],
-  ["accounts",     "Joint accounts"],
-  ["profile",      "Institution profile"],
+  ["overview",     "Overview",            "i-home"],
+  ["pending",      "Pending signatures",  "i-sign"],
+  ["transactions", "All transactions",    "i-file"],
+  ["accounts",     "Joint accounts",      "i-briefcase"],
+  ["profile",      "Institution profile", "i-users"],
 ];
 
-export default function EscrowAccountDashboardBody({ account }) {
+export default function EscrowAccountDashboardBody({ account, onProfileUpdated }) {
   const [tab, setTab] = useState("overview");
   const [data, setData] = useState(null);
   const [openTxId, setOpenTxId] = useState(null);
@@ -37,105 +42,86 @@ export default function EscrowAccountDashboardBody({ account }) {
   const txs = data?.transactions || [];
   const accounts = data?.joint_accounts || [];
 
-  return (
-    <div className="flex" data-testid="escrow-account-dashboard">
-      <aside className="w-64 bg-white border-r border-brand-navy/10 min-h-[calc(100vh-60px)] px-4 py-6 flex flex-col gap-1">
-        <div className="mb-4">
-          <div className="text-[10px] uppercase tracking-widest text-brand-navy/50">Institution</div>
-          <div className="font-serif text-lg leading-tight text-brand-navy">
-            {inst.legal_name || "—"}
-          </div>
-          <div className="text-[10px] text-brand-navy/50 mt-1">status · {inst.status || "—"}</div>
-        </div>
-        {TABS.map(([key, label]) => {
-          const badge =
-            key === "pending" ? pending.length :
-            key === "transactions" ? txs.length :
-            key === "accounts" ? accounts.length : 0;
-          return (
-            <button key={key} type="button" onClick={() => setTab(key)}
-                    data-testid={`escrow-tab-${key}`}
-                    className={"text-left px-3 py-2 text-sm rounded flex items-center justify-between " +
-                                (tab === key
-                                   ? "bg-brand-navy text-white"
-                                   : "hover:bg-brand-pale text-brand-navy/80")}>
-              <span>{label}</span>
-              {badge > 0 && (
-                <span className={"text-[10px] px-1.5 py-0.5 rounded-full " +
-                                  (tab === key ? "bg-white text-brand-navy" : "bg-brand-navy text-white")}>
-                  {badge}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </aside>
+  const badges = { pending: pending.length, transactions: txs.length, accounts: accounts.length };
+  const shellNav = TABS.map(([key, label, icon]) => ({
+    key, label, icon, badge: badges[key] || null, testid: `escrow-tab-${key}`,
+  }));
+  const activeLabel = (TABS.find(([k]) => k === tab) || [])[1] || "Overview";
 
-      <main className="flex-1 p-8">
-        {tab === "overview" && (
-          <>
-            <h1 className="font-serif text-2xl text-brand-navy">Overview</h1>
-            <p className="text-sm text-brand-navy/60 mb-6">
-              Signed in to {inst.legal_name || "your institution"}
+  return (
+    <PortalShellE
+      rootTestId="escrow-account-dashboard"
+      sideTestId="escrow-sidebar"
+      brand={{ title: "PMC Managers", sub: inst.legal_name || "Escrow portal" }}
+      items={shellNav}
+      activeKey={tab}
+      onSelect={setTab}
+      crumb={<>Escrow / <b>{activeLabel}</b></>}
+      header={<EscrowHeaderActions account={account} onProfileUpdated={onProfileUpdated} />}
+    >
+      {tab === "overview" && (
+        <>
+          <h1 className="font-serif text-2xl text-brand-navy">Overview</h1>
+          <p className="text-sm text-brand-navy/60 mb-6">
+            Signed in to {inst.legal_name || "your institution"}
+          </p>
+          <div className="grid md:grid-cols-3 gap-4">
+            <KPI label="Pending signatures" value={pending.length}
+                 onClick={() => setTab("pending")} testId="escrow-kpi-pending" />
+            <KPI label="Joint accounts" value={accounts.length}
+                 onClick={() => setTab("accounts")} testId="escrow-kpi-accounts" />
+            <KPI label="Transactions" value={txs.length}
+                 onClick={() => setTab("transactions")} testId="escrow-kpi-transactions" />
+          </div>
+          {inst.status === "submitted" && (
+            <p className="mt-6 text-sm text-brand-navy/70">
+              Your registration is with PMC's review team. We'll notify you by
+              email and in-app when there's an update — usually within 3 business days.
             </p>
-            <div className="grid md:grid-cols-3 gap-4">
-              <KPI label="Pending signatures" value={pending.length}
-                   onClick={() => setTab("pending")} testId="escrow-kpi-pending" />
-              <KPI label="Joint accounts" value={accounts.length}
-                   onClick={() => setTab("accounts")} testId="escrow-kpi-accounts" />
-              <KPI label="Transactions" value={txs.length}
-                   onClick={() => setTab("transactions")} testId="escrow-kpi-transactions" />
+          )}
+          {inst.status === "changes_requested" && (
+            <div className="mt-6 px-4 py-3 border border-orange-300 bg-orange-50 text-orange-900 text-sm"
+                 data-testid="escrow-changes-pending-banner">
+              <strong>Changes pending PMC review.</strong> Your institution is paused
+              (not live) while your requested edits await approval. Signatory invites
+              are temporarily locked — everything re-activates automatically once PMC
+              clears the queue.
             </div>
-            {inst.status === "submitted" && (
-              <p className="mt-6 text-sm text-brand-navy/70">
-                Your registration is with PMC's review team. We'll notify you by
-                email and in-app when there's an update — usually within 3 business days.
-              </p>
-            )}
-            {inst.status === "changes_requested" && (
-              <div className="mt-6 px-4 py-3 border border-orange-300 bg-orange-50 text-orange-900 text-sm"
-                   data-testid="escrow-changes-pending-banner">
-                <strong>Changes pending PMC review.</strong> Your institution is paused
-                (not live) while your requested edits await approval. Signatory invites
-                are temporarily locked — everything re-activates automatically once PMC
-                clears the queue.
-              </div>
-            )}
-            {inst.status === "approved" && pending.length === 0 && accounts.length === 0 && (
-              <p className="mt-6 text-sm text-brand-navy/70">
-                Approved — waiting for PMC to open the first joint escrow account
-                with your institution. Your signatories can already sign in from the
-                main login page.
-              </p>
-            )}
-            <div className="mt-6">
-              <EscrowDashboardChart />
-            </div>
-          </>
-        )}
-        {tab === "pending" && (
-          <TxList title="Pending signatures" rows={pending}
-                  empty="Nothing is waiting on your signature right now."
-                  onOpen={setOpenTxId}/>
-        )}
-        {tab === "transactions" && (
-          <TxList title="All transactions" rows={txs}
-                  empty="No transactions on your joint accounts yet."
-                  onOpen={setOpenTxId}/>
-        )}
-        {tab === "accounts" && (
-          <AccountsList rows={accounts} />
-        )}
-        {tab === "profile" && (
-          <EscrowInstitutionProfile account={account} inst={inst}
-                                     onInvited={() => window.location.reload()} />
-        )}
-      </main>
+          )}
+          {inst.status === "approved" && pending.length === 0 && accounts.length === 0 && (
+            <p className="mt-6 text-sm text-brand-navy/70">
+              Approved — waiting for PMC to open the first joint escrow account
+              with your institution. Your signatories can already sign in from the
+              main login page.
+            </p>
+          )}
+          <div className="mt-6">
+            <EscrowDashboardChart />
+          </div>
+        </>
+      )}
+      {tab === "pending" && (
+        <TxList title="Pending signatures" rows={pending}
+                empty="Nothing is waiting on your signature right now."
+                onOpen={setOpenTxId}/>
+      )}
+      {tab === "transactions" && (
+        <TxList title="All transactions" rows={txs}
+                empty="No transactions on your joint accounts yet."
+                onOpen={setOpenTxId}/>
+      )}
+      {tab === "accounts" && (
+        <AccountsList rows={accounts} />
+      )}
+      {tab === "profile" && (
+        <EscrowInstitutionProfile account={account} inst={inst}
+                                   onInvited={() => window.location.reload()} />
+      )}
       {openTxId && (
         <TransactionDetailModal txId={openTxId}
                                  onClose={() => { setOpenTxId(null); reload(); }}/>
       )}
-    </div>
+    </PortalShellE>
   );
 }
 
@@ -160,8 +146,8 @@ function TxList({ title, rows, empty, onOpen }) {
           {empty}
         </div>
       ) : (
-        <div className="bg-white border border-brand-navy/15 overflow-hidden">
-          <table className="w-full text-sm" data-testid="escrow-tx-table">
+        <div className="bg-white border border-brand-navy/15 overflow-x-auto">
+          <table className="w-full text-sm min-w-[640px]" data-testid="escrow-tx-table">
             <thead className="bg-brand-pale text-[10px] uppercase tracking-widest text-brand-navy/70">
               <tr>
                 <th className="px-3 py-2 text-left">Bid</th>
@@ -205,8 +191,6 @@ function TxList({ title, rows, empty, onOpen }) {
 
 function AccountsList({ rows }) {
   const dl = (aid, name, emailToo) => {
-    // v52f — Statement PDF download. If `emailToo`, server also emails the PDF
-    // to the primary contact as an attachment.
     const url = `/api/v1/escrow-accounts/me/joint-accounts/${aid}/statement.pdf?email_me=${emailToo ? 1 : 0}`;
     const a = document.createElement("a");
     a.href = url;
@@ -238,7 +222,7 @@ function AccountsList({ rows }) {
                   <strong>{a.balance.toLocaleString?.()} {a.currency}</strong>
                 </div>
               )}
-              <div className="mt-3 flex gap-2">
+              <div className="mt-3 flex flex-wrap gap-2">
                 <button type="button" onClick={() => dl(a.id, a.name, false)}
                         data-testid={`escrow-statement-dl-${a.id}`}
                         className="px-3 py-1.5 text-[10px] uppercase tracking-widest border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white">
@@ -254,77 +238,6 @@ function AccountsList({ rows }) {
           ))}
         </div>
       )}
-    </>
-  );
-}
-
-function ProfileView({ account, inst, onInvited }) {
-  const [inv, setInv] = useState({ name: "", designation: "", email: "", phone: "" });
-  const [busy, setBusy] = useState(false);
-  const canInvite = inst.status === "approved";
-
-  const invite = async (e) => {
-    e.preventDefault();
-    setBusy(true);
-    try {
-      await api.post("/api/v1/escrow-accounts/me/signatories/invite", {
-        name: inv.name.trim(), designation: inv.designation.trim(),
-        email: inv.email.trim(), phone: inv.phone.trim() || undefined,
-      });
-      toast.success(`${inv.name} invited — password-claim email sent`);
-      setInv({ name: "", designation: "", email: "", phone: "" });
-      onInvited?.();
-    } catch (err) { showApiError(err); }
-    finally { setBusy(false); }
-  };
-
-  return (
-    <>
-      <h1 className="font-serif text-2xl text-brand-navy mb-4">Institution profile</h1>
-      <div className="bg-white border border-brand-navy/15 p-6 text-sm text-brand-navy/80 space-y-1">
-        <div><b>Legal name:</b> {inst.legal_name || "—"}</div>
-        <div><b>Status:</b> {inst.status || "—"}</div>
-        <div><b>Primary contact:</b> {account?.email}</div>
-        <div><b>Phone:</b> {account?.primary_contact_phone || "—"}</div>
-        <div className="text-[11px] text-brand-navy/50 mt-2">
-          Use the avatar menu (top right) to update your name or phone.
-          To change registration data after approval, contact PMC support.
-        </div>
-      </div>
-
-      <div className="mt-6 bg-white border border-brand-navy/15 p-6" data-testid="escrow-invite-section">
-        <h2 className="font-serif text-lg text-brand-navy mb-1">Invite a teammate as signatory</h2>
-        <p className="text-xs text-brand-navy/60 mb-4">
-          {canInvite
-            ? "They'll get a password-claim email and can co-sign EMD releases on your joint accounts once set up."
-            : `Available once PMC approves your institution (current status: ${inst.status}).`}
-        </p>
-        <form onSubmit={invite} className={"grid gap-3 md:grid-cols-4 " + (!canInvite ? "opacity-50 pointer-events-none" : "")}>
-          <input placeholder="Full name" value={inv.name}
-                 data-testid="escrow-invite-name"
-                 onChange={(e) => setInv({ ...inv, name: e.target.value })}
-                 className="px-3 py-2 border border-brand-navy/20 text-sm" required minLength={2} />
-          <input placeholder="Designation" value={inv.designation}
-                 data-testid="escrow-invite-designation"
-                 onChange={(e) => setInv({ ...inv, designation: e.target.value })}
-                 className="px-3 py-2 border border-brand-navy/20 text-sm" required minLength={2} />
-          <input placeholder="Email" type="email" value={inv.email}
-                 data-testid="escrow-invite-email"
-                 onChange={(e) => setInv({ ...inv, email: e.target.value })}
-                 className="px-3 py-2 border border-brand-navy/20 text-sm" required />
-          <input placeholder="Phone (optional)" value={inv.phone}
-                 data-testid="escrow-invite-phone"
-                 onChange={(e) => setInv({ ...inv, phone: e.target.value })}
-                 className="px-3 py-2 border border-brand-navy/20 text-sm" />
-          <div className="md:col-span-4 flex justify-end">
-            <button type="submit" disabled={busy || !canInvite}
-                    data-testid="escrow-invite-submit"
-                    className="px-5 py-2 text-xs uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy/90 disabled:opacity-50">
-              {busy ? "Inviting…" : "Send invite"}
-            </button>
-          </div>
-        </form>
-      </div>
     </>
   );
 }

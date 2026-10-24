@@ -209,7 +209,7 @@ export default function SignInE({ legacy: Legacy }) {
           </div>
         </section>
 
-        <section style={{ display: "grid", placeItems: "center", padding: "48px" }}>
+        <section style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr)", placeItems: "center", padding: "48px" }}>
           <form onSubmit={submit} style={{ width: "440px", maxWidth: "100%" }} data-testid="signin-e-form">
             <h2 style={{ fontSize: "28px", lineHeight: "34px", margin: "0 0 6px" }}>Sign in</h2>
             <p className="pmc-muted" style={{ margin: "0 0 24px" }}>

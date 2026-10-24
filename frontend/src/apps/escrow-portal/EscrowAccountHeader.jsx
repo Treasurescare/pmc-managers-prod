@@ -1,25 +1,28 @@
 /**
- * EscrowAccountHeader — v52d. Shared header used by the account dashboard
- * and the registration wizard. Carries the brand lockup on the left,
- * a notification bell with unread badge, and an avatar menu
- * (Change password · Change profile · Sign out). Sign-out routes to
- * /login — the unified PMC Managers sign-in page.
+ * EscrowHeaderActions — v56. Top-bar actions for the escrow institution
+ * portal, rendered inside PortalShellE's .pmc-atop bar so it sits next to the
+ * shared hamburger and matches the admin console shell exactly. Carries the
+ * notifications bell with unread badge and an avatar dropdown (Change profile ·
+ * Change password · Sign out). Sign-out routes to /login.
+ *
+ * Previously this exported a full dark <header> with its own brand lockup;
+ * that produced a second header + fixed sidebar that did not collapse on
+ * mobile. The shell now owns the chrome; this only contributes the right-hand
+ * actions.
  */
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, showApiError } from "@/lib/api";
 import { toast } from "sonner";
+import PortalAvatarMenu from "@/apps/shared/PortalAvatarMenu";
 
-export default function EscrowAccountHeader({ account, onProfileUpdated }) {
+export default function EscrowHeaderActions({ account, onProfileUpdated }) {
   const nav = useNavigate();
   const [notifsOpen, setNotifsOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unread, setUnread] = useState(account?.unread_notifications || 0);
   const [modal, setModal] = useState(null); // 'profile' | 'password' | null
-
   const bellRef = useRef(null);
-  const avatarRef = useRef(null);
 
   const refreshNotifications = async () => {
     try {
@@ -34,7 +37,6 @@ export default function EscrowAccountHeader({ account, onProfileUpdated }) {
     const t = setInterval(refreshNotifications, 30000);
     const close = (e) => {
       if (bellRef.current && !bellRef.current.contains(e.target)) setNotifsOpen(false);
-      if (avatarRef.current && !avatarRef.current.contains(e.target)) setMenuOpen(false);
     };
     document.addEventListener("mousedown", close);
     return () => { clearInterval(t); document.removeEventListener("mousedown", close); };
@@ -48,9 +50,7 @@ export default function EscrowAccountHeader({ account, onProfileUpdated }) {
   };
 
   const signOut = async () => {
-    try {
-      await api.post("/api/v1/escrow-accounts/auth/logout");
-    } catch (e) { /* ignore */ }
+    try { await api.post("/api/v1/escrow-accounts/auth/logout"); } catch (e) { /* ignore */ }
     toast.success("Signed out");
     nav("/login");
   };
@@ -59,58 +59,62 @@ export default function EscrowAccountHeader({ account, onProfileUpdated }) {
     .split(/\s+/).slice(0, 2).map((s) => s[0]).join("").toUpperCase();
 
   return (
-    <header className="bg-brand-navy text-white px-6 py-3 flex items-center justify-between"
-            data-testid="escrow-account-header">
-      <div className="flex items-center gap-3">
-        <div className="text-[11px] uppercase tracking-widest text-brand-gold">
-          PMC Managers
-        </div>
-        <div className="text-white/40">·</div>
-        <div className="font-serif text-lg">{account?.legal_name || "Escrow institution"}</div>
-      </div>
-
-      <div className="flex items-center gap-5">
-        {/* Notifications bell (left of avatar) */}
-        <div className="relative" ref={bellRef}>
+    <>
+      <div className="pmc-atop__r">
+        {/* Notifications bell */}
+        <div style={{ position: "relative" }} ref={bellRef}>
           <button type="button" onClick={() => setNotifsOpen((o) => !o)}
-                  data-testid="escrow-notif-bell"
-                  className="relative px-2 py-1 hover:text-brand-gold">
-            <span className="text-xl">🔔</span>
+                  data-testid="escrow-notif-bell" aria-label="Notifications"
+                  style={{ width: 40, height: 40, display: "grid", placeItems: "center",
+                           borderRadius: "var(--radius-sm)", border: "1px solid var(--line)",
+                           background: "var(--surface)", color: "var(--ink)", cursor: "pointer",
+                           position: "relative" }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+              <path d="M10 21a2 2 0 0 0 4 0" />
+            </svg>
             {unread > 0 && (
-              <span className="absolute -top-1 -right-1 bg-brand-gold text-brand-navy text-[10px] px-1.5 py-0.5 rounded-full font-bold"
-                    data-testid="escrow-notif-badge">
+              <span data-testid="escrow-notif-badge"
+                    style={{ position: "absolute", top: -4, right: -4, background: "var(--brass-on-chrome)",
+                             color: "var(--on-brass)", fontSize: 10, fontWeight: 700, borderRadius: 999,
+                             padding: "1px 5px", lineHeight: "14px" }}>
                 {unread > 9 ? "9+" : unread}
               </span>
             )}
           </button>
           {notifsOpen && (
-            <div className="absolute right-0 mt-2 w-80 bg-white text-brand-navy border border-brand-navy/10 shadow-xl z-50"
-                 data-testid="escrow-notif-dropdown">
-              <div className="flex items-center justify-between px-4 py-2 border-b border-brand-navy/10">
-                <div className="text-[11px] uppercase tracking-widest">Notifications</div>
+            <div data-testid="escrow-notif-dropdown"
+                 style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", width: 320, maxWidth: "90vw",
+                          background: "var(--surface)", color: "var(--ink)", border: "1px solid var(--line)",
+                          borderRadius: "var(--radius-md)", boxShadow: "0 20px 50px rgba(0,0,0,.25)",
+                          zIndex: 60, overflow: "hidden" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
+                            padding: "10px 14px", borderBottom: "1px solid var(--line)" }}>
+                <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--ink-muted)" }}>
+                  Notifications
+                </div>
                 {unread > 0 && (
-                  <button type="button" onClick={markAllRead}
-                          data-testid="escrow-notif-mark-all"
-                          className="text-[11px] text-brand-navy/60 hover:text-brand-navy underline">
+                  <button type="button" onClick={markAllRead} data-testid="escrow-notif-mark-all"
+                          style={{ fontSize: 11, color: "var(--ink-muted)", background: "none", border: "none",
+                                   cursor: "pointer", textDecoration: "underline" }}>
                     Mark all read
                   </button>
                 )}
               </div>
-              <div className="max-h-80 overflow-auto">
+              <div style={{ maxHeight: 320, overflow: "auto" }}>
                 {notifications.length === 0 && (
-                  <div className="px-4 py-6 text-xs text-brand-navy/50">
-                    No notifications yet. We'll ping you here when PMC reviews
-                    your registration.
+                  <div style={{ padding: "18px 14px", fontSize: 12, color: "var(--ink-subtle)" }}>
+                    No notifications yet. We'll ping you here when PMC reviews your registration.
                   </div>
                 )}
                 {notifications.map((n) => (
-                  <div key={n.id}
-                       data-testid={`escrow-notif-item-${n.id}`}
-                       className={"px-4 py-3 border-b border-brand-navy/5 text-sm " +
-                                   (n.read ? "" : "bg-brand-pale")}>
-                    <div className="font-semibold">{n.title}</div>
-                    <div className="text-xs text-brand-navy/70 mt-0.5">{n.body}</div>
-                    <div className="text-[10px] text-brand-navy/40 mt-1">
+                  <div key={n.id} data-testid={`escrow-notif-item-${n.id}`}
+                       style={{ padding: "12px 14px", borderBottom: "1px solid var(--line)",
+                                background: n.read ? "transparent" : "var(--primary-soft)" }}>
+                    <div style={{ fontWeight: 600, fontSize: 14 }}>{n.title}</div>
+                    <div style={{ fontSize: 12, color: "var(--ink-muted)", marginTop: 2 }}>{n.body}</div>
+                    <div style={{ fontSize: 10, color: "var(--ink-subtle)", marginTop: 4 }}>
                       {new Date(n.created_at).toLocaleString()}
                     </div>
                   </div>
@@ -121,51 +125,26 @@ export default function EscrowAccountHeader({ account, onProfileUpdated }) {
         </div>
 
         {/* Avatar menu */}
-        <div className="relative" ref={avatarRef}>
-          <button type="button" onClick={() => setMenuOpen((o) => !o)}
-                  data-testid="escrow-avatar-button"
-                  className="flex items-center gap-2 hover:text-brand-gold">
-            <div className="w-9 h-9 rounded-full bg-brand-gold text-brand-navy font-bold flex items-center justify-center text-sm">
-              {initials}
-            </div>
-          </button>
-          {menuOpen && (
-            <div className="absolute right-0 mt-2 w-56 bg-white text-brand-navy border border-brand-navy/10 shadow-xl z-50"
-                 data-testid="escrow-avatar-menu">
-              <div className="px-4 py-3 border-b border-brand-navy/10">
-                <div className="text-xs font-semibold truncate">{account?.email}</div>
-                <div className="text-[10px] text-brand-navy/50 uppercase tracking-widest mt-0.5">
-                  {account?.institution?.status || "draft"}
-                </div>
-              </div>
-              <button type="button" onClick={() => { setModal("profile"); setMenuOpen(false); }}
-                      data-testid="escrow-menu-profile"
-                      className="block w-full text-left px-4 py-2 text-sm hover:bg-brand-pale">
-                Change profile
-              </button>
-              <button type="button" onClick={() => { setModal("password"); setMenuOpen(false); }}
-                      data-testid="escrow-menu-password"
-                      className="block w-full text-left px-4 py-2 text-sm hover:bg-brand-pale">
-                Change password
-              </button>
-              <button type="button" onClick={signOut}
-                      data-testid="escrow-menu-signout"
-                      className="block w-full text-left px-4 py-2 text-sm hover:bg-brand-pale border-t border-brand-navy/10 text-red-700">
-                Sign out
-              </button>
-            </div>
-          )}
-        </div>
+        <PortalAvatarMenu
+          initial={initials}
+          title={account?.email}
+          sub={account?.institution?.status || "draft"}
+          items={[
+            { label: "Change profile", onClick: () => setModal("profile"), testid: "escrow-menu-profile" },
+            { label: "Change password", onClick: () => setModal("password"), testid: "escrow-menu-password" },
+            { label: "Sign out", onClick: signOut, danger: true, testid: "escrow-menu-signout" },
+          ]}
+          testId="escrow-avatar-button"
+        />
       </div>
 
       {modal === "profile" && (
-        <ProfileModal account={account} onClose={() => setModal(null)}
-                      onSaved={onProfileUpdated} />
+        <ProfileModal account={account} onClose={() => setModal(null)} onSaved={onProfileUpdated} />
       )}
       {modal === "password" && (
         <PasswordModal onClose={() => setModal(null)} />
       )}
-    </header>
+    </>
   );
 }
 

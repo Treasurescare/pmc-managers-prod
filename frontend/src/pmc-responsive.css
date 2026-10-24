@@ -60,6 +60,10 @@ img, svg, video, canvas, iframe { max-width: 100%; }
 .pmc-atop .pmc-search, .pmc-vtop .pmc-cmd { flex: 1 1 200px; min-width: 120px; margin-left: 12px; }
 .pmc-atop .crumb { overflow: hidden; text-overflow: ellipsis; }
 .pmc-atop__r, .pmc-vtop__r { flex: none; }
+/* v56 — PmcMobileNav owns the mobile public top bar + drawer on every public
+   route, so TopBar's own hamburger is a duplicate. Hide it everywhere (it is
+   already hidden >=768 by Tailwind md:hidden, and dashboards never render it). */
+[data-testid="topbar-hamburger"] { display: none !important; }
 
 .pmc-menu-btn { display: none; }
 

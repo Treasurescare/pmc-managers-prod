@@ -90,7 +90,6 @@ import TendersList from "@/apps/notice-board/TendersList";
 
 // v49a — Option E design overhaul (routes exposed when ?ui=e is active)
 import HomeE from "@/apps/notice-board-e/HomeE";
-import TendersListE from "@/apps/notice-board-e/TendersListE";
 import NoticeDetailE from "@/apps/notice-board-e/NoticeDetailE";
 import AwardsPublicE from "@/apps/notice-board-e/AwardsPublicE";
 import AboutVisionE from "@/apps/notice-board-e/AboutVisionE";
@@ -204,7 +203,7 @@ export default function App() {
             <Route path="/about" element={<AboutVisionE legacy={AboutUs} />} />
             <Route path="/vision" element={<AboutVisionE legacy={VisionMission} />} />
             <Route path="/tenders" element={<Navigate to="/tenders/live" replace />} />
-            <Route path="/tenders/live" element={<TendersListE legacy={TendersList} />} />
+            <Route path="/tenders/live" element={<TendersList />} />
             <Route path="/tenders/completed" element={<AwardsPublicE legacy={TendersList} />} />
             <Route path="/tenders/:mode" element={<TendersList />} />
             <Route path="/trust" element={<TrustSecurityE />} />

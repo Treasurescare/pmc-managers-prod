@@ -184,7 +184,7 @@ export default function HomeE({ legacy: Legacy }) {
       <div className="pmc-eyebrow">Programme spotlight</div>
       <h2 className="pmc-display" style={{ fontSize: "48px", lineHeight: "52px", margin: "10px 0 16px" }}>Kazakhstan Integrated Development Programme</h2>
       <p className="pmc-muted" style={{ fontSize: "17px", lineHeight: "28px", margin: "0 0 24px" }}>Modular medical, education, hostel and utilities packages, published for global supply. Suppliers from any country can register, qualify and bid.</p>
-      <div style={{ display: "flex", gap: "12px" }}><a href="#" className="pmc-btn pmc-btn--primary pmc-btn--lg">See programme tenders</a><a href="#" className="pmc-btn pmc-btn--secondary pmc-btn--lg">Download the brief</a></div>
+      <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}><a href="#" className="pmc-btn pmc-btn--primary pmc-btn--lg">See programme tenders</a><a href="#" className="pmc-btn pmc-btn--secondary pmc-btn--lg">Download the brief</a></div>
     </div>
     <div className="pmc-cats"><a href="#" className="pmc-cat"><svg className="pmc-ico" aria-hidden="true"><use href="#i-box" /></svg><div><h3>Modular medical</h3><p>Hospitals, OPD blocks, IVF and cleanroom labs, medical equipment and consumables.</p></div><svg className="pmc-ico pmc-cat__go" aria-hidden="true"><use href="#i-arrow" /></svg></a><a href="#" className="pmc-cat"><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg><div><h3>Education</h3><p>University academic packages, digital learning and campus fit-out.</p></div><svg className="pmc-ico pmc-cat__go" aria-hidden="true"><use href="#i-arrow" /></svg></a><a href="#" className="pmc-cat"><svg className="pmc-ico" aria-hidden="true"><use href="#i-home" /></svg><div><h3>Hostels & residential</h3><p>Student and staff hostels, modular residential blocks.</p></div><svg className="pmc-ico pmc-cat__go" aria-hidden="true"><use href="#i-arrow" /></svg></a><a href="#" className="pmc-cat"><svg className="pmc-ico" aria-hidden="true"><use href="#i-layers" /></svg><div><h3>Utilities & infrastructure</h3><p>Power, water, networks and site infrastructure.</p></div><svg className="pmc-ico pmc-cat__go" aria-hidden="true"><use href="#i-arrow" /></svg></a></div>
   </div>
@@ -198,7 +198,7 @@ export default function HomeE({ legacy: Legacy }) {
       <li><span className="n">2</span><h3>Get matched tenders</h3><p>Once approved, notices that fit your licences and categories come to your portal and inbox.</p></li>
       <li><span className="n">3</span><h3>Bid sealed, track live</h3><p>Submit both envelopes, pay EMD, and follow every step to signature.</p></li>
     </ol>
-    <div style={{ display: "flex", justifyContent: "center", gap: "12px", marginTop: "36px" }}><a href="#" className="pmc-btn pmc-btn--primary pmc-btn--lg">Register as supplier</a><button className="pmc-btn pmc-btn--secondary pmc-btn--lg" data-help-open=""><svg className="pmc-ico" aria-hidden="true"><use href="#i-play" /></svg> Take the 2-minute tour</button></div>
+    <div style={{ display: "flex", justifyContent: "center", gap: "12px", marginTop: "36px", flexWrap: "wrap" }}><a href="#" className="pmc-btn pmc-btn--primary pmc-btn--lg">Register as supplier</a><button className="pmc-btn pmc-btn--secondary pmc-btn--lg" data-help-open=""><svg className="pmc-ico" aria-hidden="true"><use href="#i-play" /></svg> Take the 2-minute tour</button></div>
   </div>
 </section>
 
