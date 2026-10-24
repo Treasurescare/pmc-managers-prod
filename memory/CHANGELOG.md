@@ -796,3 +796,13 @@ summary notes.
   on-chrome count badges, dark "Your PMC desk" footer card. Appended override block at
   end of pmc-theme-e.css (wins over 5 duplicate .pmc-lnav blocks). CSS-only, no logic
   change. Desktop screenshot-verified. Mobile drawer unaffected.
+
+## v56z (27 Jun 2026) — Vendor "Find tenders" card fixes + sort/filter bar
+- Fixed delivery country showing "—": card read n.country but API returns delivery_country;
+  now resolves ISO code -> full country name via /meta/countries (fallback to code).
+- Fixed EMD showing "See notice" when an amount exists: now renders emd_amount+emd_currency
+  (e.g. ₹50,000), or "<pct>% of bid", else "See notice" when no EMD is configured on the notice.
+- Added a sort/filter toolbar: Sort (Closing soonest default, Closing latest, Budget high→low,
+  Budget low→high) + filters Country / Sector / Contract type / Category + Clear. All client-side
+  over the loaded list; deadline sorts rank open tenders above closed ones. File:
+  apps/vendor-portal-e/VendorFindTendersE.jsx. Added data-testids vft-sort/vft-filter-*.
