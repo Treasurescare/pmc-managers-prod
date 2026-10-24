@@ -759,3 +759,17 @@ summary notes.
   so 5 chips fit evenly. Verified iter 109 (awaiting 6, accounts 59).
 - Landing hero: filters stack full-width + side padding on mobile (pmc-theme-e.css @media).
 - Bundles pmc-backend-v56v.zip / pmc-frontend-v56v-prod-build.zip + DOWNLOAD_v56v.md.
+
+## v56w (27 Jun 2026) — responsive remediation batch (Staff/Escrow shell parity)
+- Staff/Escrow portals adopt the shared Admin-E shell (PortalShellE/PortalSideNavE):
+  desktop sidebar, mobile drawer + functional scrim, unified header, single hamburger.
+  Files: StaffDashboard.jsx, EscrowAccountDashboardBody.jsx, EscrowMePage.jsx,
+  EscrowAccountHeader.jsx, PmcMobileNav.jsx.
+- Mobile breadcrumb/title context exposed (pmc-responsive.css) and tab-reactive.
+- Escrow tx mobile cards: data-label metadata + fallbacks; raised selector specificity to
+  beat the global [data-ui=e] table rule; Signatures now "PMC pending · Us pending".
+- SignInE 820px single-column (mobile-fix.css tablet breakpoint).
+- /privacy mobile: added padding-top:76px to the legal .pmc-wrap so the first sub-nav pill
+  clears the 60px fixed topbar (index.css @media max-width:720px).
+- testing_agent iter 113: all 6 iter-112 defects + 2 polish items verified fixed.
+- Bundles pmc-backend-v56w.zip / pmc-frontend-v56w-prod-build.zip + DOWNLOAD_v56w.md.

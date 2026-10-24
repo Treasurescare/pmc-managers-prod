@@ -1,0 +1,29 @@
+{
+  "summary": "Frontend-only responsive regression at 390x844, 820x1180 and 1920x1080. All 6 defects and 2 polish items from iteration 112 are verified fixed. (1) Public mobile menu works by touch (real touchscreen taps in a has_touch context) on /tenders/live, /, /help, /trust, /about and /contact. The scrim is 390x844 at z-index 970 and closes the menu when tapped. The X button closes it. Tapping where the hamburger sits closes the open menu: the drawer (left 24, z-index 980) covers the hamburger and puts the X button in that spot, so it acts as a toggle. (2) Every .pmc-wrap has padding-left 20px and the content starts at x=20, so pages are no longer flush-left. (3) The closed drawer [data-testid=pmc-mobile-menu-drawer] has box-shadow none and sits at left=390. It is display:none at 820 and 1920. The help drawer shadow is none. A pixel scan of the right edge on 12 public routes at 3 widths found no shadow strip; the few differing rows came from hero artwork or the Help button's shadow. (4) No horizontal scroll (scrollWidth equals clientWidth) on any of the 12 public routes at 390, 820 or 1920. (5) /privacy at 390: the legal sub-nav (5 links, bottom 276) sits above the LEGAL eyebrow (top 300) and the H1 (top 322, left 20). No overlap. (6) SignInE at 820 is a single column with no chrome panel. The form, email input, Continue button, Register button and role cards are all 440px wide (190 to 630). Nothing overflows. (7) /staff at 390 and 820 (escrow@pmcmanagers.com): the drawer is closed by default (.pmc-side at -280, box-shadow none). There is exactly one hamburger (portal-nav-toggle) and no public topbar. The 'Staff / Overview' breadcrumb is visible (display:block). The scrim (z-index 999, full viewport) closes on tap. The staff-nav-escrow item changed the breadcrumb to 'Staff / Escrow signatures' and closed the drawer. No visible sign-out except staff-avatar -> staff-logout, and the menu fits in the viewport. No left-edge shadow. At 1920 the sidebar is fixed (260px) and the toggle is hidden. (8) /escrow/me at 390 and 820 (escrowdemo): same shell behaviour, all 5 escrow-tab-* items, bell, badge and avatar button. The 'Escrow / Overview' breadcrumb is visible and the KPI cards stack (each 358px wide at x=16). The drawer and scrim work, and the transactions tab sets the breadcrumb to 'Escrow / All transactions' and closes the drawer. The avatar menu shows only escrow-menu-signout. At 1920 the sidebar is 260px and the toggle is hidden. (9) Escrow transactions at 390: escrow-tx-table is display:block with labeled cards (Bid, Notice, Amount, Status, Signatures shown in uppercase via ::before). The empty Notice shows a '—' dash, and the 'Open →' cell has no label (::before content none). (10) /admin plus 12 /admin/e/* routes at 1920 have no horizontal overflow and the sidebar is 260px.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "/privacy legal sub-nav at 390", "issue": "The first sub-nav item ('Privacy notice', top=60px) starts about 5px under the fixed .pmc-mobile-topbar (bottom=65px), so the top of the active pill is slightly clipped. It does not overlap the eyebrow or H1. Add about 8px more top padding to the legal page container on mobile.", "selector": ".pmc-mobile-topbar + legal sub-nav", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/escrow/me All transactions (mobile card)", "issues": ["The Signatures cell reads 'PMC · · Us ·' when neither party has signed, which is hard to read. Consider 'PMC pending · Us pending' or small status chips."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "LOW: Add about 8px more top padding to the /privacy (legal) page at 390 so the first sub-nav pill is not clipped by the fixed mobile topbar.",
+    "LOW (polish): Make the unsigned glyph in the escrow tx Signatures cell clearer (for example 'pending' instead of '·')."
+  ],
+  "critical_code_review_comments": [
+    "PmcMobileNav: when open, the drawer (left 24) covers the hamburger, so the 'hamburger toggles closed' behaviour actually comes from the X button in the same spot. This works, but if the drawer width changes, the setMenuOpen(o=>!o) toggle can no longer be reached. It is fine as is."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped per request)", "frontend": "~98% (all 9 acceptance gates pass; 1 low-severity cosmetic clip)"},
+  "test_credentials": "Used from /app/memory/test_credentials.md: escrow@pmcmanagers.com/Escrow@123 (staff), escrowdemo@pmcmanagers.com/Escrow@12345 (escrow), adminsupport@pmcmanagers.com/Admin@12345 (admin).",
+  "seed_data_creation": "None. No data was changed.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Touch tests need browser.new_context(has_touch=True). page.tap fails in the default context, so use touchscreen.tap with coordinates. The public drawer selector is [data-testid=pmc-mobile-menu-drawer]; there is no element id. The menu is open when body.pmc-mob-menu-open is set. On the portal shell, .pmc-adm--navopen marks the drawer as open. The Signed-in toast can cover the first card on /staff and /escrow/me overview screenshots.",
+  "rca of the issue": "N/A. All iteration 112 defects are confirmed resolved."
+}

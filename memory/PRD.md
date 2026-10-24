@@ -462,3 +462,16 @@ and backlog.
 - OPEN: production `contract_types` duplicate remediation — plan only
   (`memory/PROD_CONTRACT_TYPES_DEDUP_PLAN.md`), needs user authorization; production deploy of
   v56s pair + CloudFront invalidation.
+
+## Status note — v56w (27 Jun 2026): responsive remediation batch complete (preview)
+- Staff (/staff) and Escrow (/escrow/me) portals migrated to the shared Admin-E shell:
+  desktop sidebar, mobile off-canvas drawer + working tap-to-close scrim, unified header,
+  exactly one hamburger. Mobile title/breadcrumb context added and tab-reactive.
+- Escrow transaction mobile cards now labeled (Bid, Notice, Amount, Status, Signatures),
+  no blank cells; empty Notice shows "—"; Signatures reads "PMC pending · Us pending".
+- SignInE collapses to a single clean column at 820px; /privacy first legal sub-nav pill
+  no longer clipped under the fixed mobile topbar.
+- Verified: testing_agent iteration 113 confirmed all 6 iteration-112 responsive defects +
+  both polish items fixed (~98%); the two residual LOW cosmetic items fixed + screenshot-verified.
+- Bundles: `pmc-backend-v56w.zip`, `pmc-frontend-v56w-prod-build.zip` + `DOWNLOAD_v56w.md`.
+  Footer stamp v56w / 2026-06-27. Preview-verified; awaiting prod deploy + user confirmation.

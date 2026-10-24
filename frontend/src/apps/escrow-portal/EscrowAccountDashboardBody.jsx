@@ -170,8 +170,8 @@ function TxList({ title, rows, empty, onOpen }) {
                   </td>
                   <td data-label="Status" className="px-3 py-2 text-xs">{t.status || "—"}</td>
                   <td data-label="Signatures" className="px-3 py-2 text-xs">
-                    {t.signed_by_pmc ? "PMC ✓" : "PMC ·"} ·{" "}
-                    {t.signed_by_institution ? "Us ✓" : "Us ·"}
+                    {t.signed_by_pmc ? "PMC ✓" : "PMC pending"} ·{" "}
+                    {t.signed_by_institution ? "Us ✓" : "Us pending"}
                   </td>
                   <td data-label="" className="px-3 py-2 text-xs text-right text-brand-navy/60">
                     Open →

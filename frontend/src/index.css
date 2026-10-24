@@ -1095,7 +1095,7 @@
  * ===================================================================== */
 @media (max-width: 720px) {
   [data-ui="e"] .pmc-wrap { max-width: 100% !important; padding: 0 20px !important; margin: 0 auto !important; }
-  [data-pmc-e-page="privacy-terms-e"] .pmc-wrap { grid-template-columns: 1fr !important; gap: 24px !important; }
+  [data-pmc-e-page="privacy-terms-e"] .pmc-wrap { grid-template-columns: 1fr !important; gap: 24px !important; padding-top: 76px !important; }
   [data-pmc-e-page="privacy-terms-e"] .lg-nav { position: static !important; }
   [data-ui="e"] .pmc-hero { padding: 20px 0 32px !important; }
   [data-ui="e"] .pmc-hero__in { grid-template-columns: 1fr !important; gap: 24px !important; }
