@@ -806,3 +806,16 @@ summary notes.
   Budget low→high) + filters Country / Sector / Contract type / Category + Clear. All client-side
   over the loaded list; deadline sorts rank open tenders above closed ones. File:
   apps/vendor-portal-e/VendorFindTendersE.jsx. Added data-testids vft-sort/vft-filter-*.
+
+## Preview DB flush (25 Jun 2026) — fresh-start reset (PREVIEW ONLY)
+- Cleared 5,303 docs across 53 transactional + vendor collections (bids, payments, escrow
+  accounts/txns, notices/tenders, registrations, kyc, reverse auctions, contracts, awards,
+  docusign, notifications, audit_events, counters, uploads, vendors + vendor_* etc.).
+- KEPT: logins (admin_users 14, users 158), all master/reference data (countries, cities,
+  UNSPSC, sectors, contract types, categories, currencies, banks), reusable templates/config,
+  and escrow partner institutions (76) + signatories.
+- Backup of every deleted collection: /app/backups/preview_flush_20261025_033556/*.json
+- Script: /app/scripts/flush_preview_transactions.py (KEEP allow-list; backs up then delete_many).
+- Verified: admin login 200, dashboard all-zero and boots clean, public board empty (0), masters intact.
+- NOTE: old vendor user logins remain in `users` but their vendor company records are gone (orphaned);
+  new suppliers register fresh. Production NOT touched (user will replicate after preview sign-off).
