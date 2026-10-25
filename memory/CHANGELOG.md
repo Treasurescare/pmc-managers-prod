@@ -819,3 +819,11 @@ summary notes.
 - Verified: admin login 200, dashboard all-zero and boots clean, public board empty (0), masters intact.
 - NOTE: old vendor user logins remain in `users` but their vendor company records are gone (orphaned);
   new suppliers register fresh. Production NOT touched (user will replicate after preview sign-off).
+
+## Preview DB flush pass 2 (25 Jun 2026) — cleared over-kept operational data
+- Pass 1 kept some operational collections too conservatively. Pass 2 cleared: packages (48
+  "work packages"), products (55 catalog), escrow_institutions (75), escrow_signatories (2),
+  audit_events (4 post-flush login events) -> all 0. Backup: /app/backups/preview_flush2_20261025_035006/.
+- Verified: public home shows 0 tenders / 0 work packages; escrow institutions pipeline 0;
+  logins (14 admins, 158 users) + masters (countries/contract_types/etc.) intact; app boots clean.
+- Note: audit ledger will re-accumulate login events by design (each sign-in is recorded).
