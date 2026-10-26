@@ -75,6 +75,7 @@ import EscrowOfficerSign from "@/apps/shared/EscrowOfficerSign";
 import PublicRoadmap from "@/apps/shared/PublicRoadmap";
 import PublicVendorProfile from "@/apps/shared/PublicVendorProfile";
 import PublicAuctionRoom from "@/apps/shared/PublicAuctionRoom";
+import { PublicAuctionsPage } from "@/apps/notice-board-e/LiveAuctionsBand";
 
 // Wave 40 — Reverse-auction live room
 import AuctionRoom from "@/apps/vendor-portal/AuctionRoom";
@@ -224,6 +225,7 @@ export default function App() {
             <Route path="/m/e/supplier" element={<MobileSupplierE />} />
             <Route path="/m/e/public" element={<MobilePublicE />} />
             <Route path="/vendors/:vendorRef" element={<PublicVendorProfile />} />
+            <Route path="/auctions" element={<PublicAuctionsPage />} />
             <Route path="/auctions/:aid/live" element={<PublicAuctionRoom />} />
 
             {/* v50-login-fix: /register now serves the fully-functional legacy

@@ -1307,6 +1307,15 @@ export const reverseAuctionApi = {
     api.patch(`/api/v1/reverse-auctions/invite/tpl/${id}`, p).then((r) => r.data),
   deleteTemplate: (id) =>
     api.delete(`/api/v1/reverse-auctions/invite/tpl/${id}`).then((r) => r.data),
+  // v57e — public discovery + live transport
+  publicList: (status) =>
+    api.get(`/api/v1/reverse-auctions/public/list`,
+            { params: status ? { status } : {} }).then((r) => r.data),
+  events: (aid) =>
+    api.get(`/api/v1/reverse-auctions/${aid}/events`).then((r) => r.data),
+  heartbeat: (aid, viewer_id) =>
+    api.post(`/api/v1/reverse-auctions/${aid}/heartbeat`, { viewer_id }).then((r) => r.data),
+  streamUrl: (aid) => `${BACKEND_URL}/api/v1/reverse-auctions/${aid}/stream`,
 };
 
 // v46c — Fee master → Stripe checkout + refund + transactions

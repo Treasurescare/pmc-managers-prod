@@ -61,6 +61,17 @@ _INDEX_SPECS = [
     ("bids", [("vendor_id", 1), ("created_at", -1)], {}),
     ("payment_transactions", "session_id", {"unique": True, "sparse": True, "name": "session_id_unique"}),
     ("payment_transactions", "bid_id", {}),
+    # Wave 40 — reverse auctions. The (auction_id, price) unique index is the
+    # atomic guard that lets exactly ONE bid win a given price under
+    # simultaneous equal bids (duplicate-price race). NOT sparse — both keys
+    # are always present on a bid row.
+    ("reverse_auction_bids", [("auction_id", 1), ("price", 1)], {"unique": True, "name": "ra_bid_auction_price_unique"}),
+    ("reverse_auction_bids", [("auction_id", 1), ("at", -1)], {}),
+    ("reverse_auction_participants", [("auction_id", 1), ("vendor_id", 1)], {}),
+    ("reverse_auction_events", [("auction_id", 1), ("seq", 1)], {}),
+    ("reverse_auction_viewers", [("auction_id", 1), ("viewer_id", 1)], {"unique": True, "name": "ra_viewer_unique"}),
+    ("reverse_auction_viewers", "last_seen", {}),
+    ("reverse_auction_invitations", [("auction_id", 1)], {}),
     ("committees", [("notice_ref", 1), ("status", 1)], {}),
     ("tasks", [("assignee_id", 1), ("status", 1)], {}),
     ("tasks", [("related_type", 1), ("related_id", 1)], {}),

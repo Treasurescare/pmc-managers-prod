@@ -1,34 +1,133 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Link, useParams } from "react-router-dom";
 import { reverseAuctionApi } from "@/lib/api";
 import TopBar from "@/apps/shared/TopBar";
 
-/**
- * v46c — Public read-only spectator view for a reverse auction.
- *
- * Route: /auctions/:aid/live (public — no auth required)
- * Polls /state every 2s. Shows masked bid history, countdown, leader alias,
- * anti-snipe extensions. No bid/register controls — pure view.
- */
+const money = (cur, v) => `${cur || "USD"} ${Number(v || 0).toLocaleString()}`;
+
+function viewerId() {
+  try {
+    let v = localStorage.getItem("ra_viewer_id");
+    if (!v) {
+      v = "anon-" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+      localStorage.setItem("ra_viewer_id", v);
+    }
+    return v;
+  } catch {
+    return "anon-" + Math.random().toString(36).slice(2);
+  }
+}
+
+/** Descending-price chart built from the masked bid ledger (oldest→newest). */
+function PriceChart({ bids, starting, floor, currency }) {
+  const pts = [...(bids || [])].reverse().map((b) => Number(b.price)).filter((n) => !isNaN(n));
+  const series = [Number(starting), ...pts].filter((n) => !isNaN(n));
+  if (series.length < 2) {
+    return <div className="text-brand-navy/40 text-sm p-6" data-testid="price-chart-empty">Chart appears once bidding starts.</div>;
+  }
+  const W = 640, H = 160, PAD = 8;
+  const max = Math.max(...series), min = Math.min(floor || Math.min(...series), ...series);
+  const span = max - min || 1;
+  const x = (i) => PAD + (i * (W - 2 * PAD)) / (series.length - 1);
+  const y = (v) => PAD + ((max - v) / span) * (H - 2 * PAD);
+  const line = series.map((v, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+  const area = `${line} L${x(series.length - 1).toFixed(1)},${H - PAD} L${PAD},${H - PAD} Z`;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="160" data-testid="price-chart" preserveAspectRatio="none">
+      <path d={area} fill="rgba(5,95,70,0.08)" />
+      <path d={line} fill="none" stroke="#065f46" strokeWidth="2" />
+      {series.map((v, i) => <circle key={i} cx={x(i)} cy={y(v)} r="2.5" fill="#065f46" />)}
+      <title>{`${money(currency, max)} → ${money(currency, series[series.length - 1])}`}</title>
+    </svg>
+  );
+}
+
+const AWARD_COPY = {
+  in_approvals: {
+    tone: "#92400e", bg: "#fffbeb", border: "#fcd34d",
+    title: "Result gone for approvals",
+    body: "The auction has closed. The winning bid is now moving through PMC's governance sign-off (escrow, legal, accounting). The winning company is published only after the award is approved.",
+  },
+  awarded_published: {
+    tone: "#1d4ed8", bg: "#eff6ff", border: "#93c5fd",
+    title: "Award published",
+    body: "This auction has been awarded and approved.",
+  },
+  closed_unawarded: {
+    tone: "#475569", bg: "#f8fafc", border: "#cbd5e1",
+    title: "Auction closed with no award",
+    body: "The auction closed without a winning bid.",
+  },
+};
+
 export default function PublicAuctionRoom() {
   const { aid } = useParams();
   const [state, setState] = useState(null);
+  const [events, setEvents] = useState([]);
   const [error, setError] = useState(null);
   const [now, setNow] = useState(Date.now());
-  const timer = useRef(null);
+  const [transport, setTransport] = useState("connecting");
+  const esRef = useRef(null);
+  const pollRef = useRef(null);
+  const vid = useRef(viewerId());
 
+  const applyState = useCallback((s) => { setState(s); setError(null); }, []);
+
+  const pollOnce = useCallback(() => {
+    reverseAuctionApi.state(aid)
+      .then(applyState)
+      .catch((e) => setError(e?.response?.data?.detail || "Auction not found"));
+  }, [aid, applyState]);
+
+  // Live transport: SSE with polling fallback.
   useEffect(() => {
     let cancelled = false;
-    const poll = () => {
-      reverseAuctionApi.state(aid)
-        .then((s) => { if (!cancelled) { setState(s); setError(null); } })
-        .catch((e) => { if (!cancelled) setError(e?.response?.data?.detail || "Auction not found"); });
+    const startPolling = () => {
+      if (pollRef.current) return;
+      setTransport("polling");
+      pollOnce();
+      pollRef.current = setInterval(pollOnce, 2500);
     };
-    poll();
-    timer.current = setInterval(poll, 2000);
-    const clock = setInterval(() => setNow(Date.now()), 500);
-    return () => { cancelled = true; clearInterval(timer.current); clearInterval(clock); };
+    try {
+      const es = new EventSource(reverseAuctionApi.streamUrl(aid));
+      esRef.current = es;
+      es.onmessage = (ev) => {
+        if (cancelled) return;
+        try { applyState(JSON.parse(ev.data)); setTransport("live"); } catch { /* ignore */ }
+      };
+      es.addEventListener("gone", () => { if (!cancelled) setError("Auction not found"); });
+      es.onerror = () => { try { es.close(); } catch { /* noop */ } esRef.current = null; startPolling(); };
+    } catch {
+      startPolling();
+    }
+    return () => {
+      cancelled = true;
+      if (esRef.current) { try { esRef.current.close(); } catch { /* noop */ } }
+      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+    };
+  }, [aid, applyState, pollOnce]);
+
+  // Anonymous presence heartbeat.
+  useEffect(() => {
+    const beat = () => reverseAuctionApi.heartbeat(aid, vid.current).catch(() => {});
+    beat();
+    const t = setInterval(beat, 10000);
+    return () => clearInterval(t);
   }, [aid]);
+
+  // Hash-chained public timeline.
+  useEffect(() => {
+    const load = () => reverseAuctionApi.events(aid).then((r) => setEvents(r.items || [])).catch(() => {});
+    load();
+    const t = setInterval(load, 5000);
+    return () => clearInterval(t);
+  }, [aid]);
+
+  // Local clock for countdown.
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(t);
+  }, []);
 
   if (error) return (
     <div className="min-h-screen bg-brand-pale">
@@ -42,7 +141,7 @@ export default function PublicAuctionRoom() {
 
   if (!state) return (
     <div className="min-h-screen bg-brand-pale"><TopBar />
-      <div className="p-16 text-center text-brand-navy/60">Loading auction…</div>
+      <div className="p-16 text-center text-brand-navy/60" data-testid="spectator-loading">Loading auction…</div>
     </div>
   );
 
@@ -55,26 +154,36 @@ export default function PublicAuctionRoom() {
   const savings = state.status === "closed" && state.current_price
     ? (((state.starting_price - state.current_price) / state.starting_price) * 100).toFixed(1)
     : null;
+  const award = state.status === "closed" ? AWARD_COPY[state.award_status] : null;
 
   return (
     <div className="min-h-screen bg-brand-pale" data-testid="public-auction-spectator">
       <TopBar />
       <main className="max-w-5xl mx-auto px-6 lg:px-10 py-8">
-        {/* v53b — spectator view was a dead-end; give a way back. */}
-        <div className="mb-4" data-testid="spectator-back">
-          <Link to="/notices"
+        <div className="mb-4 flex items-center justify-between" data-testid="spectator-back">
+          <Link to="/auctions"
                 className="text-[11px] uppercase tracking-widest text-brand-navy/70 hover:text-brand-navy border-b border-brand-navy/30">
-            ← Back to notices
+            ← All auctions
           </Link>
+          <span className="text-[11px] uppercase tracking-widest text-brand-navy/50 flex items-center gap-2"
+                data-testid="spectator-transport">
+            <span className={`inline-block w-2 h-2 rounded-full ${transport === "live" ? "bg-emerald-500" : transport === "polling" ? "bg-amber-500" : "bg-slate-400"}`} />
+            {transport === "live" ? "Live" : transport === "polling" ? "Auto-refresh" : "Connecting"}
+            <span className="ml-3" data-testid="spectator-viewers">{state.viewer_count ?? 0} watching</span>
+          </span>
         </div>
+
         <div className="pmc-label">Reverse Auction · Public spectator view</div>
-        <h1 className="font-display text-3xl lg:text-4xl mt-1 text-brand-navy">{state.title}</h1>
-        <div className="text-sm text-brand-navy-soft font-mono mt-1">{state.notice_ref}</div>
+        <h1 className="font-display text-3xl lg:text-4xl mt-1 text-brand-navy" data-testid="spectator-title">{state.title}</h1>
+        <div className="text-sm text-brand-navy-soft font-mono mt-1">
+          {state.notice_ref}{state.is_standalone ? " · standalone" : ""}
+        </div>
 
         <div className="mt-6 grid gap-4 md:grid-cols-4">
           <div className="border border-brand-navy/10 bg-white p-4">
             <div className="pmc-label">Status</div>
-            <div className={`mt-1 text-xl font-semibold ${state.status === "live" ? "text-emerald-700" : state.status === "closed" ? "text-slate-500" : "text-brand-navy"}`}>
+            <div className={`mt-1 text-xl font-semibold ${state.status === "live" ? "text-emerald-700" : state.status === "closed" ? "text-slate-500" : "text-brand-navy"}`}
+                 data-testid="spectator-status">
               {state.status.toUpperCase()}
             </div>
             {state.status === "live" && (
@@ -86,7 +195,7 @@ export default function PublicAuctionRoom() {
           <div className="border border-brand-navy/10 bg-white p-4">
             <div className="pmc-label">Current lowest</div>
             <div className="mt-1 text-2xl font-semibold text-brand-navy font-mono tabular-nums" data-testid="spectator-current-price">
-              {state.currency} {(cur ?? 0).toLocaleString()}
+              {money(state.currency, cur)}
             </div>
             <div className="text-xs text-brand-navy/60 mt-1">Δ {state.min_decrement?.toLocaleString()} · floor {state.floor_price?.toLocaleString()}</div>
           </div>
@@ -95,14 +204,18 @@ export default function PublicAuctionRoom() {
             <div className="mt-1 text-2xl font-semibold text-brand-navy" data-testid="spectator-leader">
               {state.leader_alias || "—"}
             </div>
-            <div className="text-xs text-brand-navy/60 mt-1">{state.participant_count} bidders</div>
+            <div className="text-xs text-brand-navy/60 mt-1" data-testid="spectator-counts">
+              {state.participant_count} bidders · {state.invite_count} invited
+            </div>
           </div>
           <div className="border border-brand-navy/10 bg-white p-4">
-            <div className="pmc-label">Starting price</div>
+            <div className="pmc-label">{state.status === "closed" ? "Final / compliant" : "Starting price"}</div>
             <div className="mt-1 text-2xl font-semibold text-brand-navy font-mono tabular-nums">
-              {state.currency} {state.starting_price?.toLocaleString()}
+              {money(state.currency, state.status === "closed" ? state.current_price : state.starting_price)}
             </div>
-            {savings && <div className="text-xs text-emerald-700 mt-1">−{savings}% saved</div>}
+            <div className="text-xs text-brand-navy/60 mt-1" data-testid="spectator-compliant">
+              {savings ? `−${savings}% saved · ` : ""}{state.compliant_bidder_count ?? 0} compliant bidder{(state.compliant_bidder_count ?? 0) === 1 ? "" : "s"}
+            </div>
           </div>
         </div>
 
@@ -112,32 +225,61 @@ export default function PublicAuctionRoom() {
           during the live round. Only registered vendors can place bids.
         </div>
 
-        <div className="mt-8 border border-brand-navy/10 bg-white">
-          <div className="p-4 border-b border-brand-navy/10 text-sm text-brand-navy/70">
-            Live bid activity (masked)
-          </div>
-          {state.bids.length === 0 && <div className="p-6 text-brand-navy/40 text-sm">No bids yet.</div>}
-          {state.bids.map((b, i) => (
-            <div key={`${b.at}-${b.alias}-${b.price}`} className="p-3 border-b border-brand-navy/5 flex items-baseline gap-4"
-                 data-testid={`spectator-bid-${i}`}>
-              <span className="font-mono text-xs text-brand-navy/50 w-32">{b.at?.slice(11, 19)}</span>
-              <span className="text-sm font-semibold w-24">{b.alias}</span>
-              <span className="font-mono tabular-nums text-brand-navy flex-1">
-                {state.currency} {b.price?.toLocaleString()}
-              </span>
-              {b.auto && <span className="text-[10px] uppercase tracking-widest text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5">auto</span>}
-            </div>
-          ))}
+        <div className="mt-8 border border-brand-navy/10 bg-white p-4" data-testid="spectator-chart-panel">
+          <div className="text-sm text-brand-navy/70 mb-2">Price descent</div>
+          <PriceChart bids={state.bids} starting={state.starting_price} floor={state.floor_price} currency={state.currency} />
         </div>
 
-        {state.status === "closed" && (
-          <div className="mt-6 border-2 border-emerald-500 bg-emerald-50 p-6 text-emerald-900" data-testid="spectator-closed">
-            <div className="pmc-label">Auction closed</div>
-            <div className="mt-1 text-lg">
-              Final: <b>{state.currency} {(state.current_price ?? 0).toLocaleString()}</b>
-              {" · "}Winner: <b>{state.leader_alias || "—"}</b>
+        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+          <div className="border border-brand-navy/10 bg-white">
+            <div className="p-4 border-b border-brand-navy/10 text-sm text-brand-navy/70">Live bid ladder (masked)</div>
+            {state.bids.length === 0 && <div className="p-6 text-brand-navy/40 text-sm" data-testid="spectator-no-bids">No bids yet.</div>}
+            {state.bids.map((b, i) => (
+              <div key={`${b.at}-${b.alias}-${b.price}`} className="p-3 border-b border-brand-navy/5 flex items-baseline gap-4"
+                   data-testid={`spectator-bid-${i}`}>
+                <span className="font-mono text-xs text-brand-navy/50 w-20">{b.at?.slice(11, 19)}</span>
+                <span className="text-sm font-semibold w-24">{b.alias}</span>
+                <span className="font-mono tabular-nums text-brand-navy flex-1">{money(state.currency, b.price)}</span>
+                {b.auto && <span className="text-[10px] uppercase tracking-widest text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5">auto</span>}
+              </div>
+            ))}
+          </div>
+
+          <div className="border border-brand-navy/10 bg-white">
+            <div className="p-4 border-b border-brand-navy/10 text-sm text-brand-navy/70 flex items-center justify-between">
+              <span>Audit timeline</span>
+              <span className="text-[10px] uppercase tracking-widest text-brand-navy/40">SHA-256 chained</span>
+            </div>
+            {events.length === 0 && <div className="p-6 text-brand-navy/40 text-sm" data-testid="spectator-no-events">No events yet.</div>}
+            <div className="max-h-80 overflow-auto">
+              {events.slice().reverse().map((e) => (
+                <div key={e.seq} className="p-3 border-b border-brand-navy/5 text-sm" data-testid={`spectator-event-${e.seq}`}>
+                  <div className="flex items-baseline gap-3">
+                    <span className="font-mono text-xs text-brand-navy/50 w-16">#{e.seq}</span>
+                    <span className="uppercase tracking-widest text-[10px] text-brand-navy/70 w-20">{e.kind}</span>
+                    <span className="font-mono text-xs text-brand-navy/50">{e.at?.slice(11, 19)}</span>
+                  </div>
+                  <div className="font-mono text-[10px] text-brand-navy/30 mt-1 truncate">{e.hash}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {state.status === "closed" && award && (
+          <div className="mt-6 p-6" style={{ border: `2px solid ${award.border}`, background: award.bg, color: award.tone }}
+               data-testid="spectator-closed">
+            <div className="pmc-label">{award.title}</div>
+            <div className="mt-2 text-sm">{award.body}</div>
+            <div className="mt-3 text-lg">
+              Final: <b data-testid="spectator-final-price">{money(state.currency, state.current_price)}</b>
               {savings && <span className="ml-2">({savings}% saved vs start)</span>}
             </div>
+            {state.award_status === "awarded_published" && state.winner && (
+              <div className="mt-2 text-lg" data-testid="spectator-winner">
+                Winner: <b>{state.winner.company_name}</b>
+              </div>
+            )}
           </div>
         )}
       </main>

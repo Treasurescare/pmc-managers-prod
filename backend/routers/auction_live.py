@@ -19,9 +19,14 @@ import asyncio
 import secrets
 from typing import Optional, List
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from bson import ObjectId
+import json
+import hashlib
+
+from pymongo.errors import DuplicateKeyError
 
 from db import db
 from models.base import BaseDocument, now_iso
@@ -37,7 +42,14 @@ router = APIRouter(prefix="/api/v1/reverse-auctions", tags=["reverse-auctions"])
 # ---------- Models ----------------------------------------------------
 
 class ReverseAuctionIn(BaseModel):
-    notice_ref: str
+    # v57e — notice_ref is now optional. Omit it to create a STANDALONE
+    # reverse auction (not backed by an existing published tender). A synthetic
+    # reference is generated and a backing procurement record is lazily created
+    # at award time so standalone winners still flow through the same
+    # EMD -> escrow -> legal -> accounting governance pipeline as tenders.
+    notice_ref: Optional[str] = None
+    category: Optional[str] = None
+    summary: Optional[str] = None
     title: str = Field(min_length=3, max_length=200)
     currency: str = "USD"
     starting_price: float = Field(gt=0)
@@ -139,10 +151,16 @@ async def _public_state(aid: str) -> dict:
     now = _now()
     end_at = _iso_to_dt(a["end_at"]) if a.get("end_at") else now
     remaining = max(0, int((end_at - now).total_seconds()))
+    aid_str = str(a["_id"])
+    public_winner, award_status = await _public_winner(a)
+    invite_count = await db.reverse_auction_invitations.count_documents({"auction_id": aid_str})
+    viewer_count = await _active_viewers(aid_str)
+    compliant = await _compliant_bidder_count(aid_str)
     return {
-        "id": str(a["_id"]),
+        "id": aid_str,
         "title": a["title"],
         "notice_ref": a["notice_ref"],
+        "is_standalone": bool(a.get("is_standalone")),
         "currency": a["currency"],
         "starting_price": a["starting_price"],
         "floor_price": a["floor_price"],
@@ -154,7 +172,14 @@ async def _public_state(aid: str) -> dict:
         "end_at": a.get("end_at"),
         "seconds_remaining": remaining if a["status"] == "live" else 0,
         "anti_snipe_seconds": a.get("anti_snipe_seconds", 0),
+        "anti_snipe_extended_count": int(a.get("anti_snipe_extended_count") or 0),
         "participant_count": len(aliases),
+        "invite_count": invite_count,
+        "viewer_count": viewer_count,
+        "compliant_bidder_count": compliant,
+        "award_status": award_status,
+        "award_published": award_status == "awarded_published",
+        "winner": public_winner,
         "bids": bids,
     }
 
@@ -191,15 +216,39 @@ async def _place_bid_inner(auction: dict, vendor_id: str, price: float,
         updates["anti_snipe_extended_count"] = int(
             auction.get("anti_snipe_extended_count") or 0) + 1
 
+    # Atomic duplicate-price guard: the (auction_id, price) unique index makes
+    # exactly one bid at a given price win under simultaneous bids. Insert
+    # FIRST so the price is reserved before the auction row is mutated.
+    try:
+        await db.reverse_auction_bids.insert_one({
+            "auction_id": aid,
+            "vendor_id": vendor_id,
+            "price": price,
+            "is_auto": is_auto,
+            "at": now.isoformat(),
+        })
+    except DuplicateKeyError:
+        cur_sym = auction.get("currency", "USD")
+        raise HTTPException(status_code=409,
+            detail=f"Another bidder already placed {cur_sym} {price:,.0f} in this "
+                   f"auction. Enter a different amount — each price can be used "
+                   f"only once.")
     await db.reverse_auctions.update_one(
         {"_id": auction["_id"]}, {"$set": updates})
-    await db.reverse_auction_bids.insert_one({
-        "auction_id": aid,
-        "vendor_id": vendor_id,
-        "price": price,
-        "is_auto": is_auto,
-        "at": now.isoformat(),
-    })
+    # Public hash-chained timeline event (masked alias only).
+    try:
+        p = await db.reverse_auction_participants.find_one(
+            {"auction_id": aid, "vendor_id": vendor_id}, {"alias": 1})
+        await _append_auction_event(aid, "bid", {
+            "alias": (p or {}).get("alias") or "Bidder ?",
+            "price": price, "auto": bool(is_auto),
+            "currency": auction.get("currency", "USD")})
+        if updates.get("end_at"):
+            await _append_auction_event(aid, "extension", {
+                "new_end_at": updates["end_at"],
+                "anti_snipe_seconds": anti_snipe})
+    except Exception:
+        pass
     return await db.reverse_auctions.find_one({"_id": auction["_id"]})
 
 
@@ -231,6 +280,228 @@ async def _run_autobid_cascade(aid: str, max_iterations: int = 30):
             return
 
 
+# ---------- Public reverse-auction helpers (v57e) ---------------------
+
+_RA_EVENT_LOCK = asyncio.Lock()
+
+
+def _ra_hash(payload: dict) -> str:
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, default=str).encode("utf-8")
+    ).hexdigest()
+
+
+async def _append_auction_event(aid: str, kind: str, data: dict) -> None:
+    """Append a SHA-256 hash-chained PUBLIC event for one auction (masked)."""
+    async with _RA_EVENT_LOCK:
+        last = await db.reverse_auction_events.find_one(
+            {"auction_id": aid}, sort=[("seq", -1)])
+        seq = int((last or {}).get("seq") or 0) + 1
+        prev = (last or {}).get("current_hash", "GENESIS")
+        body = {"auction_id": aid, "seq": seq, "kind": kind,
+                "data": data, "at": now_iso(), "previous_hash": prev}
+        body["current_hash"] = _ra_hash(body)
+        await db.reverse_auction_events.insert_one(body)
+
+
+async def _active_viewers(aid: str) -> int:
+    from datetime import timedelta
+    cutoff = (_now() - timedelta(seconds=20)).isoformat()
+    return await db.reverse_auction_viewers.count_documents(
+        {"auction_id": aid, "last_seen": {"$gte": cutoff}})
+
+
+async def _compliant_bidder_count(aid: str) -> int:
+    ids = await db.reverse_auction_bids.distinct("vendor_id", {"auction_id": aid})
+    return len(ids)
+
+
+async def _public_winner(a: dict):
+    """Reveal the winning COMPANY only after the award is PUBLISHED (the
+    awarded bid reached status=awarded through governance). Until then the
+    public sees only that the result 'has gone for approvals'."""
+    status = a.get("status") or "draft"
+    if status != "closed":
+        return None, status
+    bid_id = a.get("awarded_bid_id")
+    if not bid_id:
+        return None, "closed_unawarded"
+    try:
+        bid = await db.bids.find_one({"_id": ObjectId(bid_id)},
+                                     {"status": 1, "company_name": 1})
+    except Exception:
+        bid = None
+    if bid and bid.get("status") == "awarded":
+        return ({"company_name": bid.get("company_name"),
+                 "winning_price": a.get("current_price"),
+                 "currency": a.get("currency", "USD")}, "awarded_published")
+    return None, "in_approvals"
+
+
+async def _public_card(a: dict) -> dict:
+    aid = str(a["_id"])
+    start = float(a.get("starting_price") or 0)
+    final = float(a.get("current_price") or start)
+    saving = round(((start - final) / start * 100.0), 1) if start > 0 else 0.0
+    winner, award_status = await _public_winner(a)
+    return {
+        "id": aid,
+        "title": a.get("title"),
+        "notice_ref": a.get("notice_ref"),
+        "currency": a.get("currency", "USD"),
+        "status": a.get("status"),
+        "is_standalone": bool(a.get("is_standalone")),
+        "starting_price": start,
+        "current_price": final,
+        "floor_price": a.get("floor_price"),
+        "end_at": a.get("end_at"),
+        "start_at": a.get("start_at"),
+        "closed_at": a.get("closed_at"),
+        "participant_count": await db.reverse_auction_participants.count_documents({"auction_id": aid}),
+        "invite_count": await db.reverse_auction_invitations.count_documents({"auction_id": aid}),
+        "saving_pct": saving,
+        "award_status": award_status,
+        "winner": winner,
+    }
+
+
+async def _notify_duplicate_price(a: dict, vendor: dict, price: float) -> None:
+    """Duplicate-price rejection — in-app notification + email to the vendor
+    whose equal-price bid lost the atomic race. They keep watching and rebid."""
+    aid = str(a["_id"])
+    cur = a.get("currency", "USD")
+    title = a.get("title") or aid
+    subject = f"Your bid wasn't placed — {cur} {price:,.0f} is already taken"
+    body = (f"<p>Your bid of <strong>{cur} {price:,.0f}</strong> on "
+            f"<strong>{title}</strong> could not be placed because another "
+            f"bidder had already used that exact price.</p>"
+            f"<p>Each price can be used only once in a reverse auction. You are "
+            f"still in the round — enter a different (lower) amount to stay "
+            f"competitive.</p>")
+    try:
+        await db.notifications.insert_one({
+            "user_email": vendor.get("email"),
+            "user_ref": vendor.get("vendor_ref"),
+            "role": "vendor",
+            "subject": subject,
+            "body": body,
+            "related_type": "auction", "related_id": aid,
+            "read": False, "created_at": now_iso(),
+        })
+    except Exception:
+        pass
+    try:
+        if vendor.get("email"):
+            await send_email(vendor["email"], f"[PMC] {subject}",
+                             email_wrap(subject, body))
+    except Exception:
+        pass
+
+
+async def _close_auction_core(a: dict, closed_by: str) -> dict:
+    """Shared close logic used by the admin close endpoint and the cron-ready
+    reconciliation endpoint. Returns the (masked) winner dict or None."""
+    aid = str(a["_id"])
+    winner = None
+    if a.get("current_leader_id"):
+        p = await db.reverse_auction_participants.find_one({
+            "auction_id": aid, "vendor_id": a["current_leader_id"]})
+        winner = {
+            "vendor_id": a["current_leader_id"],
+            "company_name": p.get("company_name") if p else None,
+            "alias": p.get("alias") if p else None,
+            "vendor_email": p.get("vendor_email") if p else None,
+            "winning_price": a.get("current_price"),
+        }
+    compliant = await _compliant_bidder_count(aid)
+    await db.reverse_auctions.update_one(
+        {"_id": a["_id"]},
+        {"$set": {"status": "closed", "closed_at": now_iso(),
+                   "closed_by": closed_by, "winner": winner,
+                   "compliant_bidder_count": compliant}})
+    await audit_log("reverse_auction.close", {"email": closed_by}, "auction", aid,
+                    {"winning_price": a.get("current_price"),
+                     "winner_alias": winner["alias"] if winner else None,
+                     "compliant_bidder_count": compliant})
+    try:
+        await _append_auction_event(aid, "close", {
+            "final_price": a.get("current_price"),
+            "currency": a.get("currency", "USD"),
+            "compliant_bidder_count": compliant,
+            "winner_alias": winner.get("alias") if winner else None})
+    except Exception:
+        pass
+    # Close fan-out (winner / losers / invitees). Email failures never block.
+    try:
+        cur = a.get("currency", "USD")
+        money = (f"{cur} {a.get('current_price'):,.0f}"
+                 if a.get("current_price") else "—")
+        start_money = f"{cur} {a.get('starting_price', 0):,.0f}"
+        title = a.get("title") or aid
+        ref = a.get("notice_ref") or ""
+        if winner:
+            await notify_role(
+                "admin",
+                f"Reverse auction closed — {title}",
+                email_wrap("Reverse auction closed",
+                    f"<p><strong>{title}</strong> ({ref}) has closed.</p>"
+                    f"<p>Winner: <strong>{winner.get('company_name') or winner.get('alias')}</strong> "
+                    f"({winner.get('alias')}) at <strong>{money}</strong> "
+                    f"(started at {start_money}).</p>"
+                    f"<p><strong>Next step:</strong> open this auction in the admin "
+                    f"console (Reverse auctions) and click <strong>Award winner</strong> "
+                    f"— the winning bid enters the standard EMD &rarr; escrow &rarr; "
+                    f"legal &rarr; accounting pipeline before the award is final.</p>"),
+                related_type="auction", related_id=aid)
+            if winner.get("vendor_email"):
+                await send_email(
+                    winner["vendor_email"],
+                    f"You won the reverse auction — {title}",
+                    email_wrap("You won the reverse auction",
+                        f"<p>Congratulations — your bid of <strong>{money}</strong> was "
+                        f"the lowest in <strong>{title}</strong> ({ref}).</p>"
+                        f"<p>PMC will now confirm the award. Once confirmed, your bid "
+                        f"enters the standard pipeline (EMD verification &rarr; escrow "
+                        f"&rarr; legal &rarr; accounting) and you'll receive the purchase "
+                        f"order for e-signature. Track progress under "
+                        f"<em>My bids</em> in the supplier portal.</p>"))
+            async for lp in db.reverse_auction_participants.find(
+                    {"auction_id": aid, "vendor_id": {"$ne": winner["vendor_id"]}}):
+                if not lp.get("vendor_email"):
+                    continue
+                await send_email(
+                    lp["vendor_email"],
+                    f"Reverse auction closed — {title}",
+                    email_wrap("Reverse auction closed",
+                        f"<p><strong>{title}</strong> ({ref}) has closed. Your bid was "
+                        f"not the lowest on this round, so you have not been selected.</p>"
+                        f"<p>Thank you for participating — watch the supplier portal for "
+                        f"future rounds.</p>"))
+            participant_emails = set()
+            async for pp in db.reverse_auction_participants.find(
+                    {"auction_id": aid}, {"vendor_email": 1}):
+                if pp.get("vendor_email"):
+                    participant_emails.add(pp["vendor_email"].lower())
+            async for inv in db.reverse_auction_invitations.find(
+                    {"auction_id": aid}):
+                em = (inv.get("email") or "").lower()
+                if not em or em in participant_emails:
+                    continue
+                await send_email(
+                    em,
+                    f"Reverse auction closed — {title}",
+                    email_wrap("Reverse auction closed",
+                        f"<p>You were invited to participate in <strong>{title}</strong> "
+                        f"({ref}), but did not register for this round.</p>"
+                        f"<p>The auction has now closed and will be awarded to another "
+                        f"bidder. The invitation record stays visible under "
+                        f"<em>Reverse auctions</em> in your supplier portal for your "
+                        f"reference. Watch there for future rounds.</p>"))
+    except Exception:
+        pass
+    return winner
+
+
 # ---------- Admin endpoints -------------------------------------------
 
 @router.post("")
@@ -239,12 +510,23 @@ async def create_reverse_auction(payload: ReverseAuctionIn,
     if payload.floor_price >= payload.starting_price:
         raise HTTPException(status_code=400,
             detail="Floor price must be lower than starting price")
-    notice = await db.notices.find_one({"notice_ref": payload.notice_ref})
-    if not notice:
-        raise HTTPException(status_code=404, detail="Notice not found")
+    # v57e — notice_ref optional → STANDALONE auction. Tender-backed auctions
+    # still validate the notice exists; standalone auctions get a synthetic
+    # reference and a backing notice is lazily created at award time.
+    if payload.notice_ref:
+        notice = await db.notices.find_one({"notice_ref": payload.notice_ref})
+        if not notice:
+            raise HTTPException(status_code=404, detail="Notice not found")
+        notice_ref = payload.notice_ref
+        is_standalone = False
+    else:
+        notice_ref = f"RA-{secrets.token_hex(4).upper()}"
+        is_standalone = True
 
     doc = payload.model_dump()
     doc.update({
+        "notice_ref": notice_ref,
+        "is_standalone": is_standalone,
         "status": "draft",
         "current_price": payload.starting_price,
         "current_leader_id": None,
@@ -256,7 +538,7 @@ async def create_reverse_auction(payload: ReverseAuctionIn,
     r = await db.reverse_auctions.insert_one(doc)
     doc["_id"] = r.inserted_id
     await audit_log("reverse_auction.create", admin, "auction", str(r.inserted_id),
-                    {"notice": payload.notice_ref})
+                    {"notice": notice_ref, "standalone": is_standalone})
     return _out_auction(doc)
 
 
@@ -414,6 +696,10 @@ async def start_reverse_auction(aid: str, admin=Depends(require_role("admin"))):
                    "end_at": end, "started_by": admin.get("email")}})
     await audit_log("reverse_auction.start", admin, "auction", aid,
                     {"end_at": end, "participants": n})
+    try:
+        await _append_auction_event(aid, "start", {"end_at": end, "participants": n})
+    except Exception:
+        pass
     return {"ok": True, "status": "live", "end_at": end}
 
 
@@ -428,100 +714,7 @@ async def close_reverse_auction(aid: str, admin=Depends(require_role("admin"))):
     if a["status"] == "draft":
         raise HTTPException(status_code=400,
             detail="Cannot close a draft auction — it was never started.")
-    winner = None
-    if a.get("current_leader_id"):
-        p = await db.reverse_auction_participants.find_one({
-            "auction_id": aid, "vendor_id": a["current_leader_id"]})
-        winner = {
-            "vendor_id": a["current_leader_id"],
-            "company_name": p.get("company_name") if p else None,
-            "alias": p.get("alias") if p else None,
-            "vendor_email": p.get("vendor_email") if p else None,
-            "winning_price": a.get("current_price"),
-        }
-    await db.reverse_auctions.update_one(
-        {"_id": ObjectId(aid)},
-        {"$set": {"status": "closed", "closed_at": now_iso(),
-                   "closed_by": admin.get("email"), "winner": winner}})
-    await audit_log("reverse_auction.close", admin, "auction", aid,
-                    {"winning_price": a.get("current_price"),
-                     "winner_alias": winner["alias"] if winner else None})
-    # v53b — close fan-out. Today closing an auction was silent: nobody was
-    # told who won or what happens next. Now:
-    #   admin  → winner summary + "click Award winner" next step
-    #   winner → "you won" mail with the pipeline that follows
-    #   losers → polite not-selected mail
-    try:
-        cur = a.get("currency", "USD")
-        money = (f"{cur} {a.get('current_price'):,.0f}"
-                 if a.get("current_price") else "—")
-        start_money = f"{cur} {a.get('starting_price', 0):,.0f}"
-        title = a.get("title") or aid
-        ref = a.get("notice_ref") or ""
-        if winner:
-            await notify_role(
-                "admin",
-                f"Reverse auction closed — {title}",
-                email_wrap("Reverse auction closed",
-                    f"<p><strong>{title}</strong> ({ref}) has closed.</p>"
-                    f"<p>Winner: <strong>{winner.get('company_name') or winner.get('alias')}</strong> "
-                    f"({winner.get('alias')}) at <strong>{money}</strong> "
-                    f"(started at {start_money}).</p>"
-                    f"<p><strong>Next step:</strong> open this auction in the admin "
-                    f"console (Reverse auctions) and click <strong>Award winner</strong> "
-                    f"— the winning bid enters the standard EMD &rarr; escrow &rarr; "
-                    f"legal &rarr; accounting pipeline before the award is final.</p>"),
-                related_type="auction", related_id=aid)
-            if winner.get("vendor_email"):
-                await send_email(
-                    winner["vendor_email"],
-                    f"You won the reverse auction — {title}",
-                    email_wrap("You won the reverse auction",
-                        f"<p>Congratulations — your bid of <strong>{money}</strong> was "
-                        f"the lowest in <strong>{title}</strong> ({ref}).</p>"
-                        f"<p>PMC will now confirm the award. Once confirmed, your bid "
-                        f"enters the standard pipeline (EMD verification &rarr; escrow "
-                        f"&rarr; legal &rarr; accounting) and you'll receive the purchase "
-                        f"order for e-signature. Track progress under "
-                        f"<em>My bids</em> in the supplier portal.</p>"))
-            async for lp in db.reverse_auction_participants.find(
-                    {"auction_id": aid, "vendor_id": {"$ne": winner["vendor_id"]}}):
-                if not lp.get("vendor_email"):
-                    continue
-                await send_email(
-                    lp["vendor_email"],
-                    f"Reverse auction closed — {title}",
-                    email_wrap("Reverse auction closed",
-                        f"<p><strong>{title}</strong> ({ref}) has closed. Your bid was "
-                        f"not the lowest on this round, so you have not been selected.</p>"
-                        f"<p>Thank you for participating — watch the supplier portal for "
-                        f"future rounds.</p>"))
-            # v53i — invitees who never registered as participants were
-            # silently excluded from the close fan-out. Mail them too so an
-            # invited vendor who skipped the round still learns that the
-            # auction has concluded and was awarded to another bidder.
-            participant_emails = set()
-            async for pp in db.reverse_auction_participants.find(
-                    {"auction_id": aid}, {"vendor_email": 1}):
-                if pp.get("vendor_email"):
-                    participant_emails.add(pp["vendor_email"].lower())
-            async for inv in db.reverse_auction_invitations.find(
-                    {"auction_id": aid}):
-                em = (inv.get("email") or "").lower()
-                if not em or em in participant_emails:
-                    continue
-                await send_email(
-                    em,
-                    f"Reverse auction closed — {title}",
-                    email_wrap("Reverse auction closed",
-                        f"<p>You were invited to participate in <strong>{title}</strong> "
-                        f"({ref}), but did not register for this round.</p>"
-                        f"<p>The auction has now closed and will be awarded to another "
-                        f"bidder. The invitation record stays visible under "
-                        f"<em>Reverse auctions</em> in your supplier portal for your "
-                        f"reference. Watch there for future rounds.</p>"))
-    except Exception:
-        pass  # email failures must never block the close itself
+    winner = await _close_auction_core(a, admin.get("email"))
     return {"ok": True, "status": "closed", "winner": winner}
 
 
@@ -702,7 +895,12 @@ async def place_bid(aid: str, payload: BidIn, vendor=Depends(current_vendor)):
     if not p:
         raise HTTPException(status_code=403,
             detail="You must register for this auction before bidding")
-    await _place_bid_inner(a, vendor["id"], float(payload.price))
+    try:
+        await _place_bid_inner(a, vendor["id"], float(payload.price))
+    except HTTPException as e:
+        if e.status_code == 409:
+            await _notify_duplicate_price(a, vendor, float(payload.price))
+        raise
     await _run_autobid_cascade(aid)
     return await _public_state(aid)
 
@@ -776,6 +974,88 @@ async def get_state_mine(aid: str, vendor=Depends(current_vendor)):
     except Exception:
         pass
     return state
+
+
+# ---------- Public discovery / live transport (v57e) ------------------
+
+@router.get("/public/list")
+async def public_list_auctions(status: Optional[str] = None, limit: int = 100):
+    """PUBLIC — anonymized auction cards for landing-page discovery.
+    status: live | upcoming | closed | awarded (omit = live + upcoming + closed).
+    Winner company is only ever present when the award has been PUBLISHED."""
+    q: dict = {}
+    if status == "live":
+        q["status"] = "live"
+    elif status == "upcoming":
+        q["status"] = "draft"
+    elif status in ("closed", "awarded"):
+        q["status"] = "closed"
+    cards = []
+    async for a in db.reverse_auctions.find(q).sort("created_at", -1)\
+                     .limit(min(int(limit), 200)):
+        card = await _public_card(a)
+        if status == "awarded" and card["award_status"] != "awarded_published":
+            continue
+        if status == "closed" and card["award_status"] == "awarded_published":
+            continue
+        cards.append(card)
+    return {"items": cards, "count": len(cards)}
+
+
+@router.get("/{aid}/events")
+async def public_auction_events(aid: str, limit: int = 200):
+    """PUBLIC — SHA-256 hash-chained timeline of masked auction events."""
+    evs = []
+    async for e in db.reverse_auction_events.find({"auction_id": aid})\
+                     .sort("seq", 1).limit(min(int(limit), 500)):
+        evs.append({
+            "seq": e.get("seq"),
+            "kind": e.get("kind"),
+            "data": e.get("data"),
+            "at": e.get("at"),
+            "hash": e.get("current_hash"),
+            "previous_hash": e.get("previous_hash"),
+        })
+    return {"items": evs, "count": len(evs)}
+
+
+class HeartbeatIn(BaseModel):
+    viewer_id: str = Field(min_length=6, max_length=64)
+
+
+@router.post("/{aid}/heartbeat")
+async def auction_heartbeat(aid: str, payload: HeartbeatIn):
+    """PUBLIC — anonymous presence ping (no identity). Powers the viewer count."""
+    await db.reverse_auction_viewers.update_one(
+        {"auction_id": aid, "viewer_id": payload.viewer_id},
+        {"$set": {"last_seen": _now().isoformat()}}, upsert=True)
+    return {"ok": True, "viewer_count": await _active_viewers(aid)}
+
+
+@router.get("/{aid}/stream")
+async def stream_auction_state(aid: str, request: Request):
+    """PUBLIC — Server-Sent Events stream of masked live state. The frontend
+    falls back to polling /state if SSE is unavailable. Bounded per-connection
+    (NOT a perpetual server loop): ends on client disconnect, once the auction
+    is closed, or after a hard cap."""
+    async def gen():
+        for _ in range(900):  # ~30 min hard cap at 2s cadence
+            if await request.is_disconnected():
+                break
+            try:
+                s = await _public_state(aid)
+            except HTTPException:
+                yield f"event: gone\ndata: {json.dumps({'detail': 'Auction not found'})}\n\n"
+                break
+            yield f"data: {json.dumps(s, default=str)}\n\n"
+            if s.get("status") == "closed":
+                break
+            await asyncio.sleep(2)
+    return StreamingResponse(
+        gen(), media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache",
+                 "X-Accel-Buffering": "no",
+                 "Connection": "keep-alive"})
 
 
 @router.post("/{aid}/invite/{token}/resend")

@@ -5,6 +5,7 @@ import { usePublicNav } from "@/lib/pmcEPublicNav";
 import { api } from "@/lib/api";
 import { BUILD_VERSION } from "@/lib/buildStamp";
 import { HeroTaxonomySearch } from "@/apps/notice-board-e/HeroTaxonomySearch";
+import LiveAuctionsBand from "@/apps/notice-board-e/LiveAuctionsBand";
 
 export default function HomeE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
@@ -58,6 +59,8 @@ export default function HomeE({ legacy: Legacy }) {
     </div>
   </div>
 </section>
+
+<LiveAuctionsBand />
 
 <section className="pmc-stats pmc-wrap" aria-label="Platform in numbers">
   <div><div className="pmc-figure">—</div><div className="pmc-muted">notices open for bids</div></div>
