@@ -836,3 +836,19 @@ summary notes.
   orphaned disk/S3 files; app never reads files from disk, so masters-only state does NOT crash.
 - Validated on PREVIEW: purged 157 external users (vendor+buyer), kept 1 admin in users + 14 admin_users.
   Admin login 200, dashboard boots all-zero, public site OK, vendor login 404 (graceful). No crash.
+
+## v57a — 2026-06-28
+- Public "Completed & awarded" page (/tenders/completed, AwardsPublicE.jsx) is now FULLY DYNAMIC.
+  Previously it was hardcoded demo content ("Modular Operation Theatres" rows, fake KPIs). It now
+  reads real awarded notices via publicApi.listNotices and client-filters for awarded status.
+  Verified on empty PREVIEW: renders clean empty state ("No awards published yet.", KPIs 0/$0/—),
+  no fake demo rows. Screenshot-confirmed.
+- Template reset: user ran flush_templates.py against PRODUCTION — deleted 203 template docs
+  (boq_templates 12, tender_templates 160, sbd_templates 5, vendor_templates 1, rubrics 23,
+  rating_criteria_sets 2), backed up to ./template_flush_backup_20261026_045318.
+- User decision: KEEP organisation/setup collections (departments, orgs, tenants, companies,
+  taxonomy_nodes, legal_entity_types) + roles/permissions/settings so the app boots cleanly.
+  No further production cleanup pending.
+- Packaged v57a artifacts (agent-tested, HTTP 200): /downloads/pmc-backend-v57a.zip,
+  /downloads/pmc-frontend-v57a-prod-build.zip. Includes dynamic awards page + reset tooling.
+  NOTE: crons.yml disable + v57a frontend require user deployment to take effect in production.
