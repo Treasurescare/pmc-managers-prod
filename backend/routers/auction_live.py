@@ -134,7 +134,11 @@ async def _mask_participants(aid: str) -> dict:
 
 
 async def _public_state(aid: str) -> dict:
-    a = await db.reverse_auctions.find_one({"_id": ObjectId(aid)})
+    try:
+        oid = ObjectId(aid)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Auction not found")
+    a = await db.reverse_auctions.find_one({"_id": oid})
     if not a:
         raise HTTPException(status_code=404, detail="Auction not found")
     aliases = await _mask_participants(aid)
@@ -233,8 +237,22 @@ async def _place_bid_inner(auction: dict, vendor_id: str, price: float,
             detail=f"Another bidder already placed {cur_sym} {price:,.0f} in this "
                    f"auction. Enter a different amount — each price can be used "
                    f"only once.")
-    await db.reverse_auctions.update_one(
-        {"_id": auction["_id"]}, {"$set": updates})
+    # Atomic leader update, GUARDED on the price still being a valid improvement
+    # over the live current_price. Without this condition two concurrent bids at
+    # DIFFERENT prices both pass the stale-snapshot validation and the last $set
+    # wins — a higher bid could overwrite a lower leader and win wrongly.
+    res = await db.reverse_auctions.update_one(
+        {"_id": auction["_id"], "status": "live",
+         "current_price": {"$gte": price + decrement - 1e-9}},
+        {"$set": updates})
+    if res.matched_count == 0:
+        # Lost the race: a lower/equal bid already moved the price. Release the
+        # reserved price row so it can be reused and ask the bidder to retry.
+        await db.reverse_auction_bids.delete_one(
+            {"auction_id": aid, "price": price, "vendor_id": vendor_id})
+        raise HTTPException(status_code=409,
+            detail="The price moved while you were bidding — you've been outbid. "
+                   "Enter a new lower amount.")
     # Public hash-chained timeline event (masked alias only).
     try:
         p = await db.reverse_auction_participants.find_one(
@@ -306,7 +324,7 @@ async def _append_auction_event(aid: str, kind: str, data: dict) -> None:
 
 async def _active_viewers(aid: str) -> int:
     from datetime import timedelta
-    cutoff = (_now() - timedelta(seconds=20)).isoformat()
+    cutoff = _now() - timedelta(seconds=20)
     return await db.reverse_auction_viewers.count_documents(
         {"auction_id": aid, "last_seen": {"$gte": cutoff}})
 
@@ -1026,9 +1044,16 @@ class HeartbeatIn(BaseModel):
 @router.post("/{aid}/heartbeat")
 async def auction_heartbeat(aid: str, payload: HeartbeatIn):
     """PUBLIC — anonymous presence ping (no identity). Powers the viewer count."""
+    try:
+        oid = ObjectId(aid)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Auction not found")
+    if not await db.reverse_auctions.find_one({"_id": oid}, {"_id": 1}):
+        raise HTTPException(status_code=404, detail="Auction not found")
+    # Store a real datetime so the TTL index can expire stale viewer rows.
     await db.reverse_auction_viewers.update_one(
         {"auction_id": aid, "viewer_id": payload.viewer_id},
-        {"$set": {"last_seen": _now().isoformat()}}, upsert=True)
+        {"$set": {"last_seen": _now()}}, upsert=True)
     return {"ok": True, "viewer_count": await _active_viewers(aid)}
 
 

@@ -1,0 +1,46 @@
+{
+  "summary": "v57e public reverse-auction system tested end-to-end (backend pytest 19 tests + Playwright UI). Public list/filters, anonymous state, hash-chained events (SHA-256 recomputed and verified independently), heartbeat, SSE, duplicate-price guard, dup-price notification + email path, bid validation and governance-gated winner disclosure all PASS. I found NO identity leak in list/state/events/SSE/bid responses, either by recursive key scan or by searching for the real company/email strings. I found 1 HIGH-severity bug: when two bids at DIFFERENT prices arrive at the same time, current_price/leader can be overwritten with the HIGHER bid. That lets the wrong vendor lead and win. 1 minor bug: a malformed auction id returns 500.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/v1/reverse-auctions/{aid}/bid", "issue": "Race in _place_bid_inner (auction_live.py 197-237). Both concurrent bids are validated against the same stale current_price, both insert (different prices, so the unique index does not stop them), then reverse_auctions.update_one $set runs without a condition, so the last writer wins. Reproduced 3-4 times in 8 concurrent rounds: current_price=91000 while an accepted bid of 90000 exists. leader_alias/current_leader_id then point to the higher bidder, so _close_auction_core awards the WRONG vendor.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "GET /api/v1/reverse-auctions/{aid}/state (also /stream, and any ObjectId(aid) public path)", "issue": "A non-ObjectId aid (e.g. 'not-an-objectid') returns 500 (bson InvalidId is not caught). It should be 404 or 400. Public endpoints should not 500."},
+      {"endpoint": "POST /api/v1/reverse-auctions/{aid}/heartbeat", "issue": "There is no check that the auction exists. Anyone can upsert unlimited viewer rows for random aids (DB spam, with no TTL index on reverse_auction_viewers)."},
+      {"endpoint": "GET /api/v1/reverse-auctions/{aid}/events", "issue": "An unknown aid returns 200 with empty items instead of 404 (cosmetic)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PublicAuctionRoom SSE", "issue": "When the server ends the stream (auction closed, or the 30-minute cap), EventSource fires onerror. The code then permanently switches to polling every 2.5s, even for CLOSED auctions, and the indicator shows 'Auto-refresh'. SSE never reconnects after a transient error. Stop polling once status=closed, and retry SSE before falling back.", "selector": "[data-testid=spectator-transport]", "priority": "LOW"},
+      {"component": "PublicAuctionRoom countdown", "issue": "The mm:ss format has no hours, so auctions longer than 60 minutes show e.g. '120:00'.", "selector": "[data-testid=spectator-countdown]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/auctions and /auctions/:aid/live", "issues": ["Uses the TopBar (Notices/Completed/About us) header, which differs from the HomeE landing nav (Tenders/How it works/For suppliers). Navigating from the landing band to /auctions looks inconsistent.", "Mobile (390px): a dark 'PMC Managers' mobile bar is stacked above the TopBar brand row, so the header is doubled.", "No footer on the /auctions page or the room page."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v57e_public_reverse_auctions.py", "/app/test_reports/pytest/pytest_v57e.xml"],
+  "action_items": [
+    "HIGH: Make the bid update in _place_bid_inner conditional, e.g. update_one({'_id': ..., 'status':'live', 'current_price': {'$gte': price + min_decrement}}, {'$set': updates}). If matched_count==0, delete the just-inserted bid row and raise 409/400 'outbid, retry'. Or use find_one_and_update with that condition before inserting. Then rerun TestConcurrentDifferentPrices.",
+    "Catch bson InvalidId in the public endpoints (state/stream/heartbeat/events) and return 404.",
+    "Heartbeat: verify the auction exists, and add a TTL index on reverse_auction_viewers.last_seen (store a datetime).",
+    "PublicAuctionRoom: do not fall back to polling for closed auctions, and add an SSE retry/backoff.",
+    "Optional: show the hour in the countdown; align the /auctions header with the HomeE nav."
+  ],
+  "critical_code_review_comments": [
+    "auction_live.py is 1434 lines; it should be split (public/admin/vendor/invite modules).",
+    "_place_bid_inner: if the auction update or the event append fails after the bid insert, a price row is left without the auction state reflecting it (no compensation).",
+    "_RA_EVENT_LOCK is an in-process asyncio.Lock, so the hash chain is only serialised within one worker. With multiple uvicorn workers or instances, two events can get the same seq/previous_hash. Add a unique index on (auction_id, seq) to at least detect forks.",
+    "The public card also exposes floor_price. Check that the floor (the buyer's reserve) is meant to be public; this is a business decision.",
+    "The duplicate-price notification/email is awaited inline before the 409 response. A slow Resend call delays the response; consider a background task."
+  ],
+  "updated_files": ["/app/backend/tests/test_v57e_public_reverse_auctions.py"],
+  "success_rate": {"backend": "89% (17/19; 1 HIGH race bug, 1 minor 500)", "frontend": "100% of tested flows (discovery page, landing band + See all link, empty states via route mock, live room, in_approvals room, published room, unknown/bad id error)"},
+  "test_credentials": "Admin adminsupport@pmcmanagers.com / Admin@12345 works. Vendor manualvendor@pmcmanagers.com / Vendor@12345 does NOT exist in the preview DB (login 401). Tests seed their own TEST vendors directly in Mongo.",
+  "seed_data_creation": "Tests create TEST_RA57E* auctions and vendors test_ra57e_v1/v2@example.com, cleaned up in fixture teardown. UI seed /tmp/seed_ui.py (TEST_UI57E*) was cleaned up. The live TEST auction 6adf14da2e789255c9a9eb27 was left untouched (only heartbeat rows were added).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run with: cd /app/backend && python -m pytest tests/test_v57e_public_reverse_auctions.py -p no:xdist -o addopts='' -v. The file must run without xdist because module fixtures are shared. Concurrency of equal-price bids returns [200,409] or [200,400] depending on timing (both correct: exactly one success). The deterministic 409 is exercised by pre-inserting a competitor price row. The governance publish is simulated by setting bids.status='awarded' in Mongo.",
+  "rca of the issue": "Different-price race: validation reads auction.current_price from a snapshot taken at request start, and the final $set is unconditional. Two concurrent requests (e.g. 91000 and 90000 against current 92000) both pass validation and both insert. If the 90000 request's update lands first and the 91000 request's update lands second, current_price=91000 and leader=the 91000 bidder. Repro: TestConcurrentDifferentPrices (threading.Barrier, 8 rounds). Mitigation: a conditional atomic update guarded on current_price >= price + decrement, with rollback of the inserted bid on no-match."
+}

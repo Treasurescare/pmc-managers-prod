@@ -69,43 +69,59 @@ export default function PublicAuctionRoom() {
   const [transport, setTransport] = useState("connecting");
   const esRef = useRef(null);
   const pollRef = useRef(null);
+  const stateRef = useRef(null);
   const vid = useRef(viewerId());
 
-  const applyState = useCallback((s) => { setState(s); setError(null); }, []);
+  const applyState = useCallback((s) => { stateRef.current = s; setState(s); setError(null); }, []);
 
-  const pollOnce = useCallback(() => {
-    reverseAuctionApi.state(aid)
-      .then(applyState)
-      .catch((e) => setError(e?.response?.data?.detail || "Auction not found"));
-  }, [aid, applyState]);
-
-  // Live transport: SSE with polling fallback.
+  // Live transport: SSE with polling fallback. Stops entirely once closed.
   useEffect(() => {
     let cancelled = false;
+    let retried = false;
+    const stopPoll = () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
     const startPolling = () => {
-      if (pollRef.current) return;
+      if (pollRef.current || cancelled) return;
       setTransport("polling");
-      pollOnce();
-      pollRef.current = setInterval(pollOnce, 2500);
+      const tick = () => reverseAuctionApi.state(aid)
+        .then((s) => { if (cancelled) return; applyState(s); if (s.status === "closed") stopPoll(); })
+        .catch((e) => setError(e?.response?.data?.detail || "Auction not found"));
+      tick();
+      pollRef.current = setInterval(tick, 2500);
     };
-    try {
-      const es = new EventSource(reverseAuctionApi.streamUrl(aid));
-      esRef.current = es;
-      es.onmessage = (ev) => {
-        if (cancelled) return;
-        try { applyState(JSON.parse(ev.data)); setTransport("live"); } catch { /* ignore */ }
-      };
-      es.addEventListener("gone", () => { if (!cancelled) setError("Auction not found"); });
-      es.onerror = () => { try { es.close(); } catch { /* noop */ } esRef.current = null; startPolling(); };
-    } catch {
-      startPolling();
-    }
+    const connect = () => {
+      if (cancelled) return;
+      try {
+        const es = new EventSource(reverseAuctionApi.streamUrl(aid));
+        esRef.current = es;
+        es.onmessage = (ev) => {
+          if (cancelled) return;
+          try {
+            const s = JSON.parse(ev.data);
+            applyState(s);
+            setTransport("live");
+            if (s.status === "closed") { try { es.close(); } catch { /* noop */ } esRef.current = null; }
+          } catch { /* ignore */ }
+        };
+        es.addEventListener("gone", () => { if (!cancelled) setError("Auction not found"); });
+        es.onerror = () => {
+          try { es.close(); } catch { /* noop */ }
+          esRef.current = null;
+          if (cancelled) return;
+          if (stateRef.current?.status === "closed") return;  // done — no need to reconnect
+          if (!retried) { retried = true; setTimeout(connect, 1500); }  // one SSE retry
+          else startPolling();                                          // then fall back
+        };
+      } catch {
+        startPolling();
+      }
+    };
+    connect();
     return () => {
       cancelled = true;
       if (esRef.current) { try { esRef.current.close(); } catch { /* noop */ } }
-      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+      stopPoll();
     };
-  }, [aid, applyState, pollOnce]);
+  }, [aid, applyState]);
 
   // Anonymous presence heartbeat.
   useEffect(() => {
@@ -148,7 +164,8 @@ export default function PublicAuctionRoom() {
   const secondsLeft = state.status === "live"
     ? Math.max(0, Math.floor(((state.end_at ? new Date(state.end_at).getTime() : now) - now) / 1000))
     : 0;
-  const mm = String(Math.floor(secondsLeft / 60)).padStart(2, "0");
+  const hh = Math.floor(secondsLeft / 3600);
+  const mm = String(Math.floor((secondsLeft % 3600) / 60)).padStart(2, "0");
   const ss = String(secondsLeft % 60).padStart(2, "0");
   const cur = state.current_price ?? state.starting_price;
   const savings = state.status === "closed" && state.current_price
@@ -188,7 +205,7 @@ export default function PublicAuctionRoom() {
             </div>
             {state.status === "live" && (
               <div className="mt-2 font-mono text-2xl text-brand-navy tabular-nums" data-testid="spectator-countdown">
-                {mm}:{ss}
+                {hh > 0 ? `${hh}:` : ""}{mm}:{ss}
               </div>
             )}
           </div>

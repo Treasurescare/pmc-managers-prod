@@ -489,3 +489,38 @@ and backlog.
 - Vendor home Quick links given meaningful per-link icons (were all generic sparkles).
 - Screenshot-verified in preview; NOT yet packaged into a build artifact or deployed.
 - NOTE: All four portals (Admin, Staff, Escrow, Supplier) now share the same mobile nav model.
+
+## Status note — v57e (26 Oct 2026): PUBLIC reverse-auction system (preview, agent-verified)
+Extended the existing reverse-auction module with a full PUBLIC discovery + live
+spectator experience. NOT a separate subsystem; built on existing routes/data/UI.
+Shipped & agent-tested (testing_agent iteration_116: backend 19/19 pytest green,
+frontend flows pass; NOT yet user-confirmed):
+- **Public discovery**: `GET /api/v1/reverse-auctions/public/list?status=live|upcoming|closed|awarded`
+  returns anonymised cards. Landing band + full `/auctions` page
+  (`LiveAuctionsBand.jsx`) with honest empty state when no live auctions.
+- **Anonymous spectator room** `/auctions/:aid/live` (`PublicAuctionRoom.jsx`):
+  masked bid ladder (Bidder A/B/C), descending price chart, SHA-256 hash-chained
+  audit timeline, anonymous viewer count, live countdown. Transport = SSE
+  (`GET …/{aid}/stream`) with polling fallback to the public `GET …/{aid}/state`;
+  stops on close, retries SSE once before polling.
+- **Atomic duplicate-price protection**: Mongo unique index
+  `ra_bid_auction_price_unique` on `reverse_auction_bids(auction_id, price)` —
+  simultaneous equal-price bids → exactly one 200, other 409. Losing bidder gets
+  in-app notification + email (`_notify_duplicate_price`).
+- **HIGH race fix (v57e)**: `_place_bid_inner` leader update is now a CONDITIONAL
+  atomic `update_one` guarded on `current_price >= price + decrement`; on no-match
+  the reserved bid row is rolled back and the bidder gets a 409 "outbid" — prevents
+  a concurrent HIGHER bid from overwriting a lower leader (verified 12 rounds).
+- **Governance-gated award**: public `_public_winner` reveals the winning COMPANY
+  only once the awarded bid reaches `status=awarded` (award_status
+  `in_approvals` → `awarded_published`); winner=null before that. NO identity leak
+  (vendor_id/email/company) in list/state/events/SSE — confirmed by recursive scan.
+- **Hardening**: non-ObjectId public ids → 404 (was 500); heartbeat verifies the
+  auction exists + stores datetime `last_seen` with a 120s TTL index on
+  `reverse_auction_viewers`; unique `(auction_id, seq)` index on
+  `reverse_auction_events` to detect hash-chain forks.
+- Cron remains DISABLED (user decision) — manual close only; no timers/schedulers added.
+- All TEST seed data cleaned up; public board back to honest empty state.
+- OPEN / optional: align `/auctions` header+footer with the HomeE landing nav
+  (currently uses shared TopBar); background-task the dup-price email so a slow
+  provider can't delay the 409.
