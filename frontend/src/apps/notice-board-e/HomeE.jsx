@@ -45,7 +45,7 @@ export default function HomeE({ legacy: Legacy }) {
     <text className="st"><textPath href="#ring">SEALED · TIME-STAMPED · SHA-256 CHAINED · VERIFIABLE · SEALED · TIME-STAMPED · SHA-256 CHAINED · VERIFIABLE ·</textPath></text></svg>
   <div className="pmc-wrap pmc-hero__in">
     <div>
-      <a href="#" className="pmc-livechip"><span className="dot"></span>29 tenders open for bids now <svg className="pmc-ico" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+      <a href="#" className="pmc-livechip"><span className="dot"></span>Tenders open for bids <svg className="pmc-ico" aria-hidden="true"><use href="#i-arrow" /></svg></a>
       <h1 className="pmc-display pmc-hero__h">Tenders you<br />can <em>prove.</em></h1>
       <p className="pmc-hero__p">Publish, clarify, receive sealed bids, evaluate and award on one platform. Every action is time-stamped and chained to an audit ledger, so every decision can be shown.</p>
       <HeroTaxonomySearch />
@@ -53,17 +53,17 @@ export default function HomeE({ legacy: Legacy }) {
     </div>
     <div className="pmc-live">
       <div className="pmc-live__h"><span className="pmc-eyebrow">Live board · closing first</span><span className="pmc-livedot">Live</span></div>
-      <a href="#" className="pmc-live__row" style={{ display: "none" }}><div><div className="pmc-ref">PMC-NOT-2026-0055 · Kazakhstan</div><div className="pmc-live__t">Turnkey IVF Laboratory Setup — Embryology Lab, Cryopreservation & Cleanroom HVAC</div></div><span className="pmc-countdown" data-in="52">—</span></a><a href="#" className="pmc-live__row" style={{ display: "none" }}><div><div className="pmc-ref">PMC-NOT-2026-0054 · Kazakhstan</div><div className="pmc-live__t">Birth Suites — Linen, Consumables & Newborn Care Kits (Annual Rate Contract)</div></div><span className="pmc-countdown" data-in="57">—</span></a><a href="#" className="pmc-live__row" style={{ display: "none" }}><div><div className="pmc-ref">PMC-NOT-2026-0038 · India</div><div className="pmc-live__t">Supply & Installation of OPD Queue Management & Digital Signage System</div></div><span className="pmc-countdown" data-in="83">—</span></a><a href="#" className="pmc-live__row" style={{ display: "none" }}><div><div className="pmc-ref">PMC-NOT-2026-0037 · Kazakhstan</div><div className="pmc-live__t">Outpatient Department (OPD) Building Renovation & MEP Upgrade — Block C</div></div><span className="pmc-countdown" data-in="270">—</span></a>
-      <a href="#" className="pmc-live__all">See all 29 open notices <svg className="pmc-ico" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+      <a href="#" className="pmc-live__row" style={{ display: "none" }}><div><div className="pmc-ref"></div><div className="pmc-live__t"></div></div><span className="pmc-countdown" data-in="52">—</span></a><a href="#" className="pmc-live__row" style={{ display: "none" }}><div><div className="pmc-ref"></div><div className="pmc-live__t"></div></div><span className="pmc-countdown" data-in="57">—</span></a><a href="#" className="pmc-live__row" style={{ display: "none" }}><div><div className="pmc-ref"></div><div className="pmc-live__t"></div></div><span className="pmc-countdown" data-in="83">—</span></a><a href="#" className="pmc-live__row" style={{ display: "none" }}><div><div className="pmc-ref"></div><div className="pmc-live__t"></div></div><span className="pmc-countdown" data-in="270">—</span></a>
+      <a href="#" className="pmc-live__all">See all open notices <svg className="pmc-ico" aria-hidden="true"><use href="#i-arrow" /></svg></a>
     </div>
   </div>
 </section>
 
 <section className="pmc-stats pmc-wrap" aria-label="Platform in numbers">
-  <div><div className="pmc-figure">29</div><div className="pmc-muted">notices open for bids</div></div>
-  <div><div className="pmc-figure">76</div><div className="pmc-muted">approved suppliers</div></div>
-  <div><div className="pmc-figure">50</div><div className="pmc-muted">work packages in the Kazakhstan programme</div></div>
-  <div><div className="pmc-figure">1,905</div><div className="pmc-muted">actions on the audit ledger, none altered</div></div>
+  <div><div className="pmc-figure">—</div><div className="pmc-muted">notices open for bids</div></div>
+  <div><div className="pmc-figure">—</div><div className="pmc-muted">approved suppliers</div></div>
+  <div><div className="pmc-figure">—</div><div className="pmc-muted">work packages in the Kazakhstan programme</div></div>
+  <div><div className="pmc-figure">—</div><div className="pmc-muted">actions on the audit ledger, none altered</div></div>
 </section>
 
 <section className="pmc-wrap" style={{ padding: "72px 0 0" }}>
@@ -72,24 +72,24 @@ export default function HomeE({ legacy: Legacy }) {
     <div style={{ display: "flex", gap: "8px" }}><button className="pmc-chip" aria-pressed="true">All</button><button className="pmc-chip">Tender</button><button className="pmc-chip">RFP</button><button className="pmc-chip">RFQ</button><a href="#" className="pmc-btn pmc-btn--secondary" style={{ marginLeft: "8px" }}>Browse all notices <svg className="pmc-ico" aria-hidden="true"><use href="#i-arrow" /></svg></a></div>
   </div>
   <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "20px" }}><article className="pmc-tender" style={{ display: "none" }}>
-  <div className="pmc-tender__top"><span className="pmc-tag">TENDER</span><span className="pmc-ref">PMC-NOT-2026-0055</span><span style={{ marginLeft: "auto" }} className="pmc-countdown" data-in="52">—</span></div>
-  <h3 className="pmc-tender__title">Turnkey IVF Laboratory Setup — Embryology Lab, Cryopreservation & Cleanroom HVAC</h3>
-  <dl className="pmc-tender__meta" style={{ margin: "0" }}><div className="is-budget"><dt>Indicative budget</dt><dd>USD 2,100,000</dd></div><div><dt>EMD</dt><dd>—</dd></div><div><dt>Delivery</dt><dd>Kazakhstan</dd></div><div><dt>Category</dt><dd style={{ fontWeight: "500" }}>Civil Works & MEP</dd></div></dl>
-  <div className="pmc-tender__foot"><a href="#" className="pmc-btn pmc-btn--ghost pmc-btn--sm" style={{ paddingLeft: "0" }}>View notice <svg className="pmc-ico" aria-hidden="true"><use href="#i-arrow" /></svg></a><span className="pmc-pill pmc-pill--info">Corrigendum 1</span></div>
-</article><article className="pmc-tender" style={{ display: "none" }}>
-  <div className="pmc-tender__top"><span className="pmc-tag">RFQ</span><span className="pmc-ref">PMC-NOT-2026-0054</span><span style={{ marginLeft: "auto" }} className="pmc-countdown" data-in="57">—</span></div>
-  <h3 className="pmc-tender__title">Birth Suites — Linen, Consumables & Newborn Care Kits (Annual Rate Contract)</h3>
-  <dl className="pmc-tender__meta" style={{ margin: "0" }}><div className="is-budget"><dt>Indicative budget</dt><dd>KZT 88,000,000</dd></div><div><dt>EMD</dt><dd>—</dd></div><div><dt>Delivery</dt><dd>Kazakhstan</dd></div><div><dt>Category</dt><dd style={{ fontWeight: "500" }}>Consumables & Implants</dd></div></dl>
+  <div className="pmc-tender__top"><span className="pmc-tag">TENDER</span><span className="pmc-ref"></span><span style={{ marginLeft: "auto" }} className="pmc-countdown" data-in="52">—</span></div>
+  <h3 className="pmc-tender__title"></h3>
+  <dl className="pmc-tender__meta" style={{ margin: "0" }}><div className="is-budget"><dt>Indicative budget</dt><dd>—</dd></div><div><dt>EMD</dt><dd>—</dd></div><div><dt>Delivery</dt><dd>—</dd></div><div><dt>Category</dt><dd style={{ fontWeight: "500" }}>—</dd></div></dl>
   <div className="pmc-tender__foot"><a href="#" className="pmc-btn pmc-btn--ghost pmc-btn--sm" style={{ paddingLeft: "0" }}>View notice <svg className="pmc-ico" aria-hidden="true"><use href="#i-arrow" /></svg></a></div>
 </article><article className="pmc-tender" style={{ display: "none" }}>
-  <div className="pmc-tender__top"><span className="pmc-tag">RFP</span><span className="pmc-ref">PMC-NOT-2026-0038</span><span style={{ marginLeft: "auto" }} className="pmc-countdown" data-in="83">—</span></div>
-  <h3 className="pmc-tender__title">Supply & Installation of OPD Queue Management & Digital Signage System</h3>
-  <dl className="pmc-tender__meta" style={{ margin: "0" }}><div className="is-budget"><dt>Indicative budget</dt><dd>INR 62,000,000</dd></div><div><dt>EMD</dt><dd>—</dd></div><div><dt>Delivery</dt><dd>India</dd></div><div><dt>Category</dt><dd style={{ fontWeight: "500" }}>IT & Digital Health</dd></div></dl>
+  <div className="pmc-tender__top"><span className="pmc-tag">RFQ</span><span className="pmc-ref"></span><span style={{ marginLeft: "auto" }} className="pmc-countdown" data-in="57">—</span></div>
+  <h3 className="pmc-tender__title"></h3>
+  <dl className="pmc-tender__meta" style={{ margin: "0" }}><div className="is-budget"><dt>Indicative budget</dt><dd>—</dd></div><div><dt>EMD</dt><dd>—</dd></div><div><dt>Delivery</dt><dd>—</dd></div><div><dt>Category</dt><dd style={{ fontWeight: "500" }}>—</dd></div></dl>
   <div className="pmc-tender__foot"><a href="#" className="pmc-btn pmc-btn--ghost pmc-btn--sm" style={{ paddingLeft: "0" }}>View notice <svg className="pmc-ico" aria-hidden="true"><use href="#i-arrow" /></svg></a></div>
 </article><article className="pmc-tender" style={{ display: "none" }}>
-  <div className="pmc-tender__top"><span className="pmc-tag">TENDER</span><span className="pmc-ref">PMC-NOT-2026-0037</span><span style={{ marginLeft: "auto" }} className="pmc-countdown" data-in="270">—</span></div>
-  <h3 className="pmc-tender__title">Outpatient Department (OPD) Building Renovation & MEP Upgrade — Block C</h3>
-  <dl className="pmc-tender__meta" style={{ margin: "0" }}><div className="is-budget"><dt>Indicative budget</dt><dd>KZT 850,000,000</dd></div><div><dt>EMD</dt><dd>—</dd></div><div><dt>Delivery</dt><dd>Kazakhstan</dd></div><div><dt>Category</dt><dd style={{ fontWeight: "500" }}>Civil Works & MEP</dd></div></dl>
+  <div className="pmc-tender__top"><span className="pmc-tag">RFP</span><span className="pmc-ref"></span><span style={{ marginLeft: "auto" }} className="pmc-countdown" data-in="83">—</span></div>
+  <h3 className="pmc-tender__title"></h3>
+  <dl className="pmc-tender__meta" style={{ margin: "0" }}><div className="is-budget"><dt>Indicative budget</dt><dd>—</dd></div><div><dt>EMD</dt><dd>—</dd></div><div><dt>Delivery</dt><dd>—</dd></div><div><dt>Category</dt><dd style={{ fontWeight: "500" }}>—</dd></div></dl>
+  <div className="pmc-tender__foot"><a href="#" className="pmc-btn pmc-btn--ghost pmc-btn--sm" style={{ paddingLeft: "0" }}>View notice <svg className="pmc-ico" aria-hidden="true"><use href="#i-arrow" /></svg></a></div>
+</article><article className="pmc-tender" style={{ display: "none" }}>
+  <div className="pmc-tender__top"><span className="pmc-tag">TENDER</span><span className="pmc-ref"></span><span style={{ marginLeft: "auto" }} className="pmc-countdown" data-in="270">—</span></div>
+  <h3 className="pmc-tender__title"></h3>
+  <dl className="pmc-tender__meta" style={{ margin: "0" }}><div className="is-budget"><dt>Indicative budget</dt><dd>—</dd></div><div><dt>EMD</dt><dd>—</dd></div><div><dt>Delivery</dt><dd>—</dd></div><div><dt>Category</dt><dd style={{ fontWeight: "500" }}>—</dd></div></dl>
   <div className="pmc-tender__foot"><a href="#" className="pmc-btn pmc-btn--ghost pmc-btn--sm" style={{ paddingLeft: "0" }}>View notice <svg className="pmc-ico" aria-hidden="true"><use href="#i-arrow" /></svg></a></div>
 </article></div>
 </section>
@@ -138,7 +138,7 @@ export default function HomeE({ legacy: Legacy }) {
   <div className="pmc-proof"><svg className="pmc-ico" aria-hidden="true"><use href="#i-link" /></svg><span>Written to the ledger as</span><code className="pmc-ref" style={{ color: "var(--ink)" }}>contract.sign · #1905</code></div>
 </div></div>
     <div style={{ background: "var(--surface-sunken)", borderLeft: "1px solid var(--line)", padding: "32px", display: "flex", flexDirection: "column", justifyContent: "center", gap: "10px" }} aria-hidden="true">
-      <div className="pmc-eyebrow" style={{ color: "var(--ink-muted)" }}>Bid PMC-BID-2026-00020</div>
+      <div className="pmc-eyebrow" style={{ color: "var(--ink-muted)" }}>Bid reference</div>
       <div className="pmc-mini"><span className="d ok">✓</span>Eligibility <em>Done</em></div>
       <div className="pmc-mini"><span className="d ok">✓</span>Technical envelope sealed <em>Done</em></div>
       <div className="pmc-mini"><span className="d ok">✓</span>Commercial envelope sealed <em>Done</em></div>
@@ -172,8 +172,8 @@ export default function HomeE({ legacy: Legacy }) {
       </ul>
     </div>
     <div>
-      <div className="pmc-chain"><div className="pmc-block"><div className="pmc-ref">#1901</div><div style={{ fontWeight: "600", fontSize: "14px" }}>contract.create</div><div className="pmc-ref">contract:026-0015</div><div className="pmc-hash">a073daa591aa…</div></div><div className="pmc-chainlink" aria-hidden="true"></div><div className="pmc-block"><div className="pmc-ref">#1902</div><div style={{ fontWeight: "600", fontSize: "14px" }}>staff.login</div><div className="pmc-ref">admin_user:11774096</div><div className="pmc-hash">ffbc139cfc78…</div></div><div className="pmc-chainlink" aria-hidden="true"></div><div className="pmc-block"><div className="pmc-ref">#1903</div><div style={{ fontWeight: "600", fontSize: "14px" }}>vendor.login</div><div className="pmc-ref">vendor:64943c36</div><div className="pmc-hash">3e724c7a456a…</div></div><div className="pmc-chainlink" aria-hidden="true"></div><div className="pmc-block"><div className="pmc-ref">#1904</div><div style={{ fontWeight: "600", fontSize: "14px" }}>staff.login</div><div className="pmc-ref">admin_user:11774096</div><div className="pmc-hash">b082d43c664b…</div></div><div className="pmc-chainlink" aria-hidden="true"></div><div className="pmc-block"><div className="pmc-ref">#1905</div><div style={{ fontWeight: "600", fontSize: "14px" }}>staff.login</div><div className="pmc-ref">admin_user:11774096</div><div className="pmc-hash">98f1a4880023…</div></div></div>
-      <div style={{ display: "flex", alignItems: "center", gap: "16px", marginTop: "24px" }}><span className="pmc-verified"><svg className="pmc-ico" aria-hidden="true"><use href="#i-check" /></svg> Chain verified · 1,905 of 1,905 records intact</span><span className="pmc-ref">SHA-256 · append-only</span></div>
+      <div className="pmc-chain" style={{ display: "none" }}></div>
+      <div style={{ display: "flex", alignItems: "center", gap: "16px", marginTop: "24px" }}><span className="pmc-verified"><svg className="pmc-ico" aria-hidden="true"><use href="#i-check" /></svg> Audit ledger ready · records appear as actions happen</span><span className="pmc-ref">SHA-256 · append-only</span></div>
     </div>
   </div>
 </section>

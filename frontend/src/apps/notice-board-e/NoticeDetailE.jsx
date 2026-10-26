@@ -2,54 +2,85 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { useUiTheme } from "@/context/UiThemeContext";
-import { useNoticeDetailLive } from "@/lib/pmcELiveData";
 import useAuthSession from "@/lib/useAuthSession";
 import { adminApi, staffApi, vendorApi, corrigendaApi, publicApi, api } from "@/lib/api";
+
+// ── local formatters (no fabricated data — everything derives from the live notice) ──
+const fmtMoney = (amt, cur) => {
+  if (!amt || Number(amt) <= 0) return "—";
+  try {
+    return new Intl.NumberFormat("en-US", { style: "currency", currency: cur || "USD", maximumFractionDigits: 0 }).format(amt);
+  } catch { return `${cur || ""} ${Number(amt).toLocaleString()}`; }
+};
+const relTime = (iso) => {
+  if (!iso) return "—";
+  const secs = Math.max(0, Math.floor((new Date(iso) - new Date()) / 1000));
+  const d = Math.floor(secs / 86400), h = Math.floor((secs % 86400) / 3600), m = Math.floor((secs % 3600) / 60);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+};
+const shortDT = (iso) => {
+  if (!iso) return "";
+  try {
+    const d = new Date(iso);
+    return `${d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}, ${d.toISOString().slice(11, 16)} UTC`;
+  } catch { return ""; }
+};
+const shortDay = (iso) => {
+  if (!iso) return "";
+  try { return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }); } catch { return ""; }
+};
+const fmtSize = (b) => {
+  const n = Number(b) || 0;
+  if (n >= 1048576) return `${(n / 1048576).toFixed(1)} MB`;
+  if (n >= 1024) return `${Math.round(n / 1024)} KB`;
+  return `${n} B`;
+};
+const fmtKind = (ct, fn) => {
+  const ext = (fn || "").split(".").pop();
+  if (ext && ext.length <= 5 && ext !== fn) return ext.toUpperCase();
+  return String(ct || "FILE").split("/").pop().toUpperCase().slice(0, 8);
+};
+const docTypeLabel = (t) => {
+  const v = (t || "tender").toLowerCase();
+  return v === "rfp" ? "RFP" : v === "rfq" ? "RFQ" : "Tender";
+};
+const statusPill = (s, closed) => {
+  const v = (s || "").toLowerCase();
+  if (v === "awarded") return { t: "Awarded", c: "pmc-pill--info" };
+  if (closed || v === "closed") return { t: "Closed", c: "pmc-pill--warning" };
+  return { t: "Open for bids", c: "pmc-pill--success" };
+};
 
 export default function NoticeDetailE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
   const { noticeRef } = useParams();
-  useNoticeDetailLive({ enabled: isE, noticeRef });
-  // v52bk — detect current session so the hero chrome can switch from
-  // "Sign in / Register as supplier" to the authed avatar + dashboard chip.
   const { role, me, dashboardPath, loading } = useAuthSession();
   const authed = Boolean(role);
   const initial = (me?.name || me?.email || role || "?").slice(0, 1).toUpperCase();
-  // v52bn — live corrigenda for this notice, rendered as a React section with
-  // the full Field / Before / After / Reason diff table (bidders see exactly
-  // what changed and why; issuing admin emails stay internal).
+
   const [corrigenda, setCorrigenda] = useState([]);
+  const [notice, setNotice] = useState(null);
+  const [loaded, setLoaded] = useState(false);
+  const [packUrl, setPackUrl] = useState(null);
+  const [closed, setClosed] = useState(false);
+  const [packBusy, setPackBusy] = useState(false);
+
   useEffect(() => {
     if (!isE || !noticeRef) return;
     corrigendaApi.listPublic(noticeRef)
       .then((r) => setCorrigenda(r.items || []))
       .catch(() => setCorrigenda([]));
   }, [isE, noticeRef]);
-  // v52cv — resolve the Download pack URL from the live notice. The old
-  // template hard-wired the button to "#" (authed) / /register (anon), so
-  // it did nothing. Priority: composed Tender Builder ZIP (all annexures),
-  // then the primary uploaded document; "" means "no documents published".
-  const [packUrl, setPackUrl] = useState(null);
-  const [closed, setClosed] = useState(false);
-  const [notice, setNotice] = useState(null);
+
   useEffect(() => {
     if (!isE || !noticeRef) return;
+    let cancelled = false;
     publicApi.getNotice(noticeRef).then((n) => {
-      setNotice(n);
-      // v52cz — RELATIVE path only. The old `${REACT_APP_BACKEND_URL}` prefix
-      // baked the preview host into every production bundle, which turned
-      // the Download pack click into a cross-origin call from
-      // pmcmanagers.com → pmc-forest-green.preview.emergentagent.com. CORS
-      // then blocked the request and users saw a silent failure. The
-      // axios `api` instance already resolves same-origin on production
-      // and the preview URL on preview, so a plain `/api/...` path works
-      // in BOTH environments.
-      // Priority: composed Tender Builder ZIP (all annexures), then the
-      // generic notice pack built from primary doc + attachments. An empty
-      // string means "no documents published yet" so the UI can show an
-      // informative toast instead of 404.
-      // v56o — bug #36: a closed/awarded or past-deadline tender must not
-      // offer "Start bid". Derive closed state from the live notice.
+      if (cancelled) return;
+      setNotice(n || null);
+      setLoaded(true);
       const isClosed = n?.status === "closed" || n?.status === "awarded"
         || (!!n?.submission_deadline && new Date(n.submission_deadline).getTime() < Date.now());
       setClosed(isClosed);
@@ -60,14 +91,15 @@ export default function NoticeDetailE({ legacy: Legacy }) {
       } else {
         setPackUrl("");
       }
-    }).catch(() => setPackUrl(""));
+    }).catch(() => {
+      if (cancelled) return;
+      setNotice(null);
+      setLoaded(true);
+      setPackUrl("");
+    });
+    return () => { cancelled = true; };
   }, [isE, noticeRef]);
-  // v52cw — authenticated blob download. The pack URL can point at the
-  // protected /api/v1/uploads/files/* endpoint, which needs the admin Bearer
-  // token (localStorage) or vendor cookie. A plain <a href> navigation sends
-  // neither and the backend answers 401 {"detail":"Sign in to download…"}.
-  // Fetching through the axios `api` instance attaches the token.
-  const [packBusy, setPackBusy] = useState(false);
+
   const downloadPack = async (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -97,6 +129,7 @@ export default function NoticeDetailE({ legacy: Legacy }) {
       setPackBusy(false);
     }
   };
+
   const signOut = async () => {
     try { await adminApi.logout(); } catch { /* ignore */ }
     try { await staffApi.logout(); } catch { /* ignore */ }
@@ -104,20 +137,37 @@ export default function NoticeDetailE({ legacy: Legacy }) {
     toast.success("Signed out");
     window.location.href = "/login";
   };
-  useEffect(() => {
-    if (!isE) return;
-    const tick = () => {
-      document.querySelectorAll("[data-in]").forEach((el) => {
-        const secs = parseInt(el.getAttribute("data-in") || "0", 10);
-        if (!secs) return;
-        const d = Math.floor(secs/86400), h = Math.floor((secs%86400)/3600), m = Math.floor((secs%3600)/60);
-        el.textContent = d>0 ? `${d}d ${h}h` : h>0 ? `${h}h ${m}m` : `${m}m`;
-      });
-    };
-    tick();
-  }, [isE]);
+
   if (!isE && Legacy) return <Legacy />;
   if (!isE) return null;
+
+  // Derived live content (safe when notice is null)
+  const docs = [];
+  if (notice?.primary_document && notice.primary_document.url) docs.push(notice.primary_document);
+  (notice?.attachments || []).forEach((a) => { if (a && a.url) docs.push(a); });
+  const docHref = (a) => `/api/v1/uploads/public-files/${(a.url || "").replace("/api/v1/uploads/files/", "")}?download=1`;
+
+  const latestCorr = [...(corrigenda || [])]
+    .filter((c) => c && c.is_active !== false)
+    .sort((a, b) => (a.corrigendum_no || 0) - (b.corrigendum_no || 0))
+    .pop();
+
+  const emdText = (() => {
+    if (!notice) return "—";
+    const pct = notice.emd_percentage ?? notice.emd_config?.percentage;
+    const amt = notice.emd_amount ?? notice.emd_config?.fixed_amount;
+    const cur = notice.emd_currency || notice.emd_config?.currency || notice.budget_currency;
+    if (amt && Number(amt) > 0) return pct && Number(pct) > 0 ? `${fmtMoney(amt, cur)} (${pct}% of bid)` : fmtMoney(amt, cur);
+    if (pct && Number(pct) > 0) return `${pct}% of bid value`;
+    return "—";
+  })();
+
+  const requiredLicenses = Array.isArray(notice?.required_licenses) ? notice.required_licenses : [];
+  const sp = statusPill(notice?.status, closed);
+  const startBidTo = authed && role === "vendor"
+    ? `/vendor/workspace/new?notice=${noticeRef}`
+    : (authed ? dashboardPath : "/register");
+
   return (
     <div data-testid="notice-detail-e" data-pmc-e-page="notice-detail-e">
 <header className="pmc-chrome pmc-top"><div className="pmc-wrap pmc-top__in">
@@ -156,11 +206,33 @@ export default function NoticeDetailE({ legacy: Legacy }) {
     )}
   </div>
 </div></header>
+
+{!loaded ? (
+  <section className="pmc-chrome" style={{ padding: "64px 0" }} data-testid="notice-detail-loading"><div className="pmc-wrap">
+    <div className="pmc-muted" style={{ fontSize: "15px" }}>Loading tender notice…</div>
+  </div></section>
+) : !notice ? (
+  <section className="pmc-chrome" style={{ padding: "72px 0" }} data-testid="notice-detail-empty"><div className="pmc-wrap" style={{ textAlign: "center" }}>
+    <div className="pmc-eyebrow" style={{ justifyContent: "center" }}>Tender notice</div>
+    <h1 className="pmc-display" style={{ fontSize: "40px", lineHeight: "46px", margin: "10px 0 12px" }}>This notice isn't available</h1>
+    <p className="pmc-muted" style={{ fontSize: "15px", maxWidth: "520px", margin: "0 auto 24px" }}>
+      The reference you followed may have been withdrawn, closed or never published. Browse the live tender board for current notices.
+    </p>
+    <Link to="/tenders/live" className="pmc-btn pmc-btn--brass pmc-btn--lg" data-testid="notice-empty-browse">View open tenders</Link>
+  </div></section>
+) : (
+<>
 <section className="pmc-chrome" style={{ padding: "28px 0 32px" }}><div className="pmc-wrap">
-  <div className="pmc-crumb"><Link to="/tenders/live">Tender notices</Link>/<Link to="/tenders/live">Civil Works &amp; MEP</Link>/<span>PMC-NOT-2026-0055</span></div>
+  <div className="pmc-crumb"><Link to="/tenders/live">Tender notices</Link>/<Link to="/tenders/live">{notice.category || "General"}</Link>/<span>{notice.notice_ref}</span></div>
   <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "40px", alignItems: "end", margin: "16px 0 24px" }}>
-    <div><div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "12px" }}><span className="pmc-tag" style={{ borderColor: "var(--chrome-line)", color: "var(--on-chrome)" }}>Tender</span><span className="pmc-ref">PMC-NOT-2026-0055</span><span className="pmc-pill pmc-pill--info">Corrigendum 1 · 26 Sep</span><span className="pmc-pill pmc-pill--success">Open for bids</span></div>
-      <h1 className="pmc-display" style={{ fontSize: "48px", lineHeight: "52px", margin: "0", maxWidth: "900px" }}>Turnkey IVF Laboratory Setup — Embryology Lab, Cryopreservation &amp; Cleanroom HVAC</h1></div>
+    <div><div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "12px" }}><span className="pmc-tag" style={{ borderColor: "var(--chrome-line)", color: "var(--on-chrome)" }}>{docTypeLabel(notice.document_type)}</span><span className="pmc-ref">{notice.notice_ref}</span>{latestCorr && (<span className="pmc-pill pmc-pill--info">Corrigendum {latestCorr.corrigendum_no} · {shortDay(latestCorr.effective_from || latestCorr.published_at)}</span>)}<span className={`pmc-pill ${sp.c}`}>{sp.t}</span></div>
+      <h1 className="pmc-display" style={{ fontSize: "48px", lineHeight: "52px", margin: "0", maxWidth: "900px" }}>{notice.title || notice.notice_ref}</h1>
+      {(notice.published_at || notice.created_by_email) && (
+        <div data-testid="notice-e-posted-by" style={{ marginTop: "10px", fontSize: "13px", letterSpacing: "0.02em", color: "#C9C2AC" }}>
+          {[notice.published_at ? `Published ${String(notice.published_at).slice(0, 10)}` : null, notice.created_by_email ? `Posted by ${notice.created_by_email}` : null].filter(Boolean).join(" · ")}
+        </div>
+      )}
+    </div>
     <div style={{ display: "flex", gap: "8px" }}>
       <button className="pmc-btn pmc-btn--onchrome"><svg className="pmc-ico" aria-hidden="true"><use href="#i-bell" /></svg> Follow</button>
       {!authed ? (
@@ -180,36 +252,58 @@ export default function NoticeDetailE({ legacy: Legacy }) {
       {closed ? (
         <span className="pmc-btn pmc-btn--brass pmc-btn--lg" data-testid="notice-start-bid" aria-disabled="true" style={{ opacity: 0.55, cursor: "not-allowed", pointerEvents: "none" }}>Bidding closed</span>
       ) : (
-        <Link to={authed && role === "vendor" ? `/vendor/workspace/new?notice=${noticeRef}` : (authed ? dashboardPath : "/register")} className="pmc-btn pmc-btn--brass pmc-btn--lg" data-testid="notice-start-bid">Start bid</Link>
+        <Link to={startBidTo} className="pmc-btn pmc-btn--brass pmc-btn--lg" data-testid="notice-start-bid">Start bid</Link>
       )}
     </div>
   </div>
-  <dl className="pmc-facts" style={{ margin: "0" }}><div><dt>Indicative budget</dt><dd>USD 2,100,000</dd></div><div><dt>EMD</dt><dd>3% of bid value</dd></div><div><dt>Tender fee</dt><dd>None</dd></div><div><dt>Delivery</dt><dd>Kazakhstan</dd></div><div><dt>Form of contract</dt><dd>Turnkey · lump sum</dd></div><div><dt>Closes in</dt><dd><span className="pmc-countdown" data-in="52" style={{ color: "var(--brass-on-chrome)", fontSize: "15px" }}>—</span></dd></div></dl>
+  <dl className="pmc-facts" style={{ margin: "0" }}><div><dt>Indicative budget</dt><dd>{fmtMoney(notice.budget_amount, notice.budget_currency)}</dd></div><div><dt>EMD</dt><dd>{emdText}</dd></div><div><dt>Tender fee</dt><dd>{notice.tender_fee ? fmtMoney(notice.tender_fee, notice.budget_currency) : "None"}</dd></div><div><dt>Delivery</dt><dd>{notice.delivery_country || "—"}</dd></div><div><dt>Form of contract</dt><dd>{notice.form_of_contract || "Standard"}</dd></div><div><dt>Closes in</dt><dd><span style={{ color: "var(--brass-on-chrome)", fontSize: "15px" }}>{relTime(notice.submission_deadline)}</span></dd></div></dl>
 </div></section>
 <div className="pmc-wrap" style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 360px", gap: "32px", padding: "28px 0 72px", alignItems: "start" }}>
   <div>
-    <div className="pmc-tabs" role="tablist" style={{ marginBottom: "24px" }}><button className="pmc-tab" aria-selected="true">Overview</button><button className="pmc-tab">Eligibility</button><button className="pmc-tab">Documents<span className="n">5</span></button><button className="pmc-tab">Clarifications<span className="n">2</span></button><button className="pmc-tab" data-testid="notice-e-tab-corrigenda"
+    <div className="pmc-tabs" role="tablist" style={{ marginBottom: "24px" }}><button className="pmc-tab" aria-selected="true">Overview</button><button className="pmc-tab">Eligibility</button><button className="pmc-tab">Documents{docs.length > 0 && <span className="n">{docs.length}</span>}</button><button className="pmc-tab">Clarifications</button><button className="pmc-tab" data-testid="notice-e-tab-corrigenda"
       onClick={() => document.getElementById("notice-e-corrigenda")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Corrigenda{corrigenda.length > 0 && <span className="n">{corrigenda.length}</span>}</button></div>
-    <section className="dt-sec"><h2>Scope</h2><p>Turnkey design and build of an ISO Class 5/7 embryology laboratory for the Kazakhstan Medical Township, including cleanroom HVAC, cryopreservation storage and full embryology workstation fit-out. The contractor delivers design, supply, installation, validation and a 24-month defects liability period.</p>
-      <div className="dt-scope"><div><svg className="pmc-ico" aria-hidden="true"><use href="#i-box" /></svg><b>Embryology lab</b><span>IVF workstations, ISO Class 5 chambers, lab furniture</span></div><div><svg className="pmc-ico" aria-hidden="true"><use href="#i-layers" /></svg><b>Cleanroom HVAC</b><span>ISO 14644 validation, HEPA filtration, pressure cascades</span></div><div><svg className="pmc-ico" aria-hidden="true"><use href="#i-shield" /></svg><b>Cryopreservation</b><span>LN2 storage, monitoring and alarms</span></div><div><svg className="pmc-ico" aria-hidden="true"><use href="#i-check" /></svg><b>Commissioning</b><span>IQ/OQ/PQ validation, training, handover</span></div></div></section>
-    <section className="dt-sec"><h2>Who can bid</h2><ul className="dt-list"><li><svg className="pmc-ico" aria-hidden="true"><use href="#i-check" /></svg><span>Registered supplier with approved KYC on the PMC Tender Board</span></li><li><svg className="pmc-ico" aria-hidden="true"><use href="#i-check" /></svg><span>At least two completed cleanroom or laboratory projects of USD 1M+ in the last five years</span></li><li><svg className="pmc-ico" aria-hidden="true"><use href="#i-check" /></svg><span>Licences for the Kazakhstan work segments: <b>Electrical installation</b>, <b>Mechanical works</b>, <b>Plumbing &amp; firefighting</b> (or a licensed local partner)</span></li><li><svg className="pmc-ico" aria-hidden="true"><use href="#i-check" /></svg><span>ISO 9001 certification</span></li></ul>
+    <section className="dt-sec"><h2>Scope</h2>
+      {notice.description
+        ? <p style={{ whiteSpace: "pre-line" }}>{notice.description}</p>
+        : <p className="pmc-muted">No scope summary has been published for this tender yet.</p>}
+    </section>
+    <section className="dt-sec"><h2>Who can bid</h2><ul className="dt-list">
+      <li><svg className="pmc-ico" aria-hidden="true"><use href="#i-check" /></svg><span>Registered supplier with approved KYC on the PMC Tender Board</span></li>
+      {requiredLicenses.length > 0 && (
+        <li><svg className="pmc-ico" aria-hidden="true"><use href="#i-check" /></svg><span>Required licences: {requiredLicenses.map((l, i) => (<b key={i}>{i > 0 ? ", " : ""}{l}</b>))}</span></li>
+      )}
+      {notice.eligibility && (
+        <li><svg className="pmc-ico" aria-hidden="true"><use href="#i-check" /></svg><span style={{ whiteSpace: "pre-line" }}>{notice.eligibility}</span></li>
+      )}
+    </ul>
       {!authed && (
         <div className="pmc-callout pmc-callout--info" style={{ marginTop: "16px" }}><svg className="pmc-ico" aria-hidden="true"><use href="#i-help" /></svg><div>Registered suppliers see a <b>KYC match check</b> here before starting a bid. <Link to="/login">Sign in</Link> to check yours.</div></div>
       )}</section>
-    <section className="dt-sec"><h2>Documents</h2><div className="pmc-panel"><div className="pmc-docrow"><span className="i"><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg></span><div><b>Notice Inviting Tender (NIT)</b><span className="s">PDF · 1.2 MB · v2 after corrigendum 1</span></div><span></span><a href="#" className="pmc-btn pmc-btn--secondary pmc-btn--sm">Download</a></div><div className="pmc-docrow"><span className="i"><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg></span><div><b>Scope of work & technical specifications</b><span className="s">PDF · 4.8 MB</span></div><span></span><a href="#" className="pmc-btn pmc-btn--secondary pmc-btn--sm">Download</a></div><div className="pmc-docrow"><span className="i"><svg className="pmc-ico" aria-hidden="true"><use href="#i-layers" /></svg></span><div><b>Bill of quantities (BOQ)</b><span className="s">XLSX · 320 KB · fill and upload in the commercial envelope</span></div><span></span><a href="#" className="pmc-btn pmc-btn--secondary pmc-btn--sm">Download</a></div><div className="pmc-docrow"><span className="i"><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg></span><div><b>Drawings — embryology lab & cleanroom layout</b><span className="s">ZIP · 38 MB</span></div><span></span><a href="#" className="pmc-btn pmc-btn--secondary pmc-btn--sm">Download</a></div><div className="pmc-docrow"><span className="i"><svg className="pmc-ico" aria-hidden="true"><use href="#i-sign" /></svg></span><div><b>Draft contract & special conditions</b><span className="s">PDF · 900 KB</span></div><span></span><a href="#" className="pmc-btn pmc-btn--secondary pmc-btn--sm">Download</a></div></div></section>
-    <section className="dt-sec"><h2>Clarifications</h2><div className="dt-qa"><b><svg className="pmc-ico" aria-hidden="true"><use href="#i-chat" /></svg> Can the cleanroom HVAC be subcontracted to a specialist?</b><p>Yes. Name the subcontractor in the technical envelope and include their ISO 14644 references. The main bidder remains responsible.</p><span className="pmc-ref">Answered 25 Sep 2026 · sent to all bidders</span></div><div className="dt-qa"><b><svg className="pmc-ico" aria-hidden="true"><use href="#i-chat" /></svg> Is the ISO Class 5 requirement for the full embryology lab or only the workstations?</b><p>ISO Class 5 applies at the workstations and IVF chambers; the surrounding lab is ISO Class 7. See corrigendum 1, clause 4.2.</p><span className="pmc-ref">Answered 24 Sep 2026 · sent to all bidders</span></div><a href="#" className="pmc-btn pmc-btn--secondary" style={{ marginTop: "8px" }}><svg className="pmc-ico" aria-hidden="true"><use href="#i-chat" /></svg> Ask a question</a><span className="pmc-muted" style={{ fontSize: "13px", marginLeft: "12px" }}>Questions close 27 Sep 2026. Answers go to every bidder.</span></section>
+    <section className="dt-sec"><h2>Documents</h2><div className="pmc-panel">
+      {docs.length > 0 ? docs.map((a, i) => (
+        <div className="pmc-docrow" key={i} data-testid={`notice-doc-row-${i}`}><span className="i"><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg></span><div><b>{a.file_name || `Document ${i + 1}`}</b><span className="s">{fmtKind(a.content_type, a.file_name)} · {fmtSize(a.size_bytes)}</span></div><span></span><a href={docHref(a)} className="pmc-btn pmc-btn--secondary pmc-btn--sm" data-testid={`notice-doc-download-${i}`}>Download</a></div>
+      )) : (
+        <div className="pmc-muted" style={{ padding: "18px 4px", fontSize: "13px" }} data-testid="notice-docs-empty">No documents have been published for this tender yet.</div>
+      )}
+    </div></section>
+    <section className="dt-sec"><h2>Clarifications</h2>
+      <div className="pmc-muted" style={{ fontSize: "14px" }} data-testid="notice-clarifications-empty">No clarifications have been published for this tender yet. Answers to bidder questions appear here and are shared with all bidders.</div>
+      {!closed && (
+        <a href="#" className="pmc-btn pmc-btn--secondary" style={{ marginTop: "12px" }}><svg className="pmc-ico" aria-hidden="true"><use href="#i-chat" /></svg> Ask a question</a>
+      )}
+    </section>
   </div>
   <aside style={{ display: "grid", gap: "16px", position: "sticky", top: "96px" }}>
     <div className="pmc-card" style={{ padding: "22px" }}>
       <div className="pmc-eyebrow">Submission closes</div>
-      <div className="pmc-countdown" data-in="52" style={{ fontSize: "28px", lineHeight: "36px", margin: "6px 0 2px" }}>—</div>
-      <div className="pmc-muted" style={{ fontSize: "13px" }}>30 Sep 2026, 21:48 Almaty time</div>
+      <div style={{ fontSize: "28px", lineHeight: "36px", margin: "6px 0 2px" }}>{relTime(notice.submission_deadline)}</div>
+      <div className="pmc-muted" style={{ fontSize: "13px" }}>{shortDT(notice.submission_deadline) || "To be announced"}</div>
       <hr style={{ border: "0", borderTop: "1px solid var(--line)", margin: "16px 0" }} />
-      <dl className="pmc-kv"><dt>Covers</dt><dd>3 sealed envelopes</dd><dt>Withdrawal</dt><dd>Allowed before deadline</dd><dt>Multi-currency bids</dt><dd>No · USD only</dd><dt>Two-stage bidding</dt><dd>No</dd></dl>
+      <dl className="pmc-kv"><dt>Withdrawal</dt><dd>Allowed before deadline</dd><dt>Currency</dt><dd>{notice.budget_currency || "USD"}</dd></dl>
       {closed ? (
         <span className="pmc-btn pmc-btn--primary pmc-btn--lg" data-testid="notice-aside-start-bid" aria-disabled="true" style={{ width: "100%", marginTop: "18px", opacity: 0.55, cursor: "not-allowed", pointerEvents: "none", textAlign: "center" }}>Bidding closed</span>
       ) : (
-        <Link to={authed && role === "vendor" ? `/vendor/workspace/new?notice=${noticeRef}` : (authed ? dashboardPath : "/register")} className="pmc-btn pmc-btn--primary pmc-btn--lg" style={{ width: "100%", marginTop: "18px" }} data-testid="notice-aside-start-bid">Start bid</Link>
+        <Link to={startBidTo} className="pmc-btn pmc-btn--primary pmc-btn--lg" style={{ width: "100%", marginTop: "18px" }} data-testid="notice-aside-start-bid">Start bid</Link>
       )}
       {!authed && !closed && (
         <div className="pmc-muted" style={{ fontSize: "12px", textAlign: "center", marginTop: "8px" }}>New supplier? <Link to="/register">Register first</Link> — about 15 minutes</div>
@@ -217,22 +311,18 @@ export default function NoticeDetailE({ legacy: Legacy }) {
     </div>
     <div className="pmc-panel" style={{ padding: "20px" }}><b style={{ fontSize: "15px" }}>Key dates</b><div className="pmc-timeline" style={{ marginTop: "14px" }} data-testid="notice-e-key-dates">
       {(() => {
-        /* #40 — real, chronological key dates derived from the notice and its
-           published corrigenda. Previously this block was hardcoded mock
-           dates, so every tender showed the same fake timeline (and a phantom
-           "Corrigendum 1") regardless of what was entered at creation. */
         const fmtDay = (v) => v ? new Date(v).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : null;
         const fmtDT = (v) => v ? new Date(v).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }) : null;
         const now = Date.now();
         const rows = [];
-        if (notice?.published_at) rows.push({ t: new Date(notice.published_at).getTime(), label: "Published", val: fmtDay(notice.published_at) });
+        if (notice.published_at) rows.push({ t: new Date(notice.published_at).getTime(), label: "Published", val: fmtDay(notice.published_at) });
         (corrigenda || []).forEach((c) => {
           const d = c.effective_from || c.published_at;
           rows.push({ t: d ? new Date(d).getTime() : now, label: `Corrigendum ${c.corrigendum_no}`, val: [fmtDay(d), c.title].filter(Boolean).join(" · ") });
         });
-        if (notice?.pre_bid_meeting_date) rows.push({ t: new Date(notice.pre_bid_meeting_date).getTime(), label: "Pre-bid meeting", val: fmtDT(notice.pre_bid_meeting_date) });
-        if (notice?.clarification_deadline) rows.push({ t: new Date(notice.clarification_deadline).getTime(), label: "Clarifications close", val: fmtDT(notice.clarification_deadline) });
-        if (notice?.submission_deadline) rows.push({ t: new Date(notice.submission_deadline).getTime(), label: "Bid submission closes", val: fmtDT(notice.submission_deadline) });
+        if (notice.pre_bid_meeting_date) rows.push({ t: new Date(notice.pre_bid_meeting_date).getTime(), label: "Pre-bid meeting", val: fmtDT(notice.pre_bid_meeting_date) });
+        if (notice.clarification_deadline) rows.push({ t: new Date(notice.clarification_deadline).getTime(), label: "Clarifications close", val: fmtDT(notice.clarification_deadline) });
+        if (notice.submission_deadline) rows.push({ t: new Date(notice.submission_deadline).getTime(), label: "Bid submission closes", val: fmtDT(notice.submission_deadline) });
         rows.sort((a, b) => a.t - b.t);
         if (!rows.length) return <div className="pmc-muted" style={{ fontSize: "13px" }}>Key dates will appear once this notice is published.</div>;
         const firstFuture = rows.findIndex((r) => r.t >= now);
@@ -310,15 +400,13 @@ export default function NoticeDetailE({ legacy: Legacy }) {
                 ))}
               </div>
             )}
-            {/* v52bp — one-click public download of the auto-generated
-                one-page diff PDF (same artefact bidders receive by email). */}
             <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}
                  data-testid={`corr-e-pdf-row-${c.corrigendum_no}`}>
               <a href={`/api/v1/notices/${noticeRef}/corrigenda/${c.id}/pdf`}
                  target="_blank" rel="noreferrer"
                  data-testid={`corr-e-pdf-${c.corrigendum_no}`}
                  className="pmc-btn pmc-btn--brass pmc-btn--sm">
-                📄 Download diff PDF
+                Download diff PDF
               </a>
             </div>
           </article>
@@ -326,6 +414,8 @@ export default function NoticeDetailE({ legacy: Legacy }) {
       </div>
     </section>
   </div>
+)}
+</>
 )}
 <footer className="pmc-chrome" style={{ padding: "40px 0 28px", marginTop: "0" }}><div className="pmc-wrap" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px" }}>
   <div className="pmc-brand"><span className="pmc-brand__n" style={{ fontSize: "20px" }}>PMC Managers</span><span className="pmc-brand__s">Global Tender Board</span></div>
