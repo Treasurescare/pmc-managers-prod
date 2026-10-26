@@ -4,6 +4,7 @@ Runs on Cloud stack (MongoDB + FastAPI) but structured per Build Sheet v2
 API contract for zero-friction migration to AWS (RDS + Cognito + Fargate) in Phase 2.
 """
 import logging
+import os
 from datetime import datetime, timezone
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
@@ -719,9 +720,13 @@ async def on_start() -> None:
     await _seed_admin()
     await _seed_staff()
     await _seed_default_rubric()
-    await _seed_demo_notices()
-    await _seed_packages()
-    await _seed_product_catalog()
+    # Demo/sample content (notices, KZ work packages, product catalog) only
+    # seeds when SEED_DEMO_DATA=true. Production runs a clean slate, so after a
+    # flush a restart no longer re-creates the sample notices/packages/products.
+    if os.environ.get("SEED_DEMO_DATA", "false").lower() == "true":
+        await _seed_demo_notices()
+        await _seed_packages()
+        await _seed_product_catalog()
     await _seed_taxonomy()
     await _seed_categories()
     await _seed_sectors()
@@ -738,10 +743,11 @@ async def on_start() -> None:
         await _seed_legal_entity_types()
     except Exception as exc:
         logging.warning("legal_entity_types seed skipped: %s", exc)
-    from routers.tender_templates import seed_master_templates
-    seeded = await seed_master_templates()
-    if seeded:
-        logging.info(f"Seeded {seeded} tender template masters")
+    if os.environ.get("SEED_DEMO_DATA", "false").lower() == "true":
+        from routers.tender_templates import seed_master_templates
+        seeded = await seed_master_templates()
+        if seeded:
+            logging.info(f"Seeded {seeded} tender template masters")
     # Wave 35 — Auto-Snapshot On Change
     await _refresh_reports_snapshot()
 

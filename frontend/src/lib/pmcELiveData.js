@@ -389,6 +389,24 @@ export function usePublicLiveData({ enabled = true } = {}) {
           figs[3].textContent = (stats.ledger_events ?? 0).toLocaleString();
         }
 
+        // 2b) Homepage — audit-ledger trust panel. The template ships a demo
+        // chain (#1901–#1905) and "1,905 of 1,905 records intact". Drive the
+        // verified count from the real ledger, and hide the demo chain blocks
+        // on a clean/empty ledger so the public page never shows fake records.
+        const trust = document.querySelector('[data-pmc-e-page="home-e"] #trust');
+        if (trust) {
+          const events = Number(stats.ledger_events ?? 0);
+          const verified = trust.querySelector(".pmc-verified");
+          if (verified) {
+            const n = events.toLocaleString();
+            verified.innerHTML = events > 0
+              ? `<svg class="pmc-ico" aria-hidden="true"><use href="#i-check" /></svg> Chain verified · ${n} of ${n} records intact`
+              : `<svg class="pmc-ico" aria-hidden="true"><use href="#i-check" /></svg> Audit ledger ready · records appear as actions happen`;
+          }
+          const chain = trust.querySelector(".pmc-chain");
+          if (chain) chain.style.display = events > 0 ? "" : "none";
+        }
+
         // 3) Live board rows (Home + Vendor Home)
         document.querySelectorAll(".pmc-live").forEach((box) => {
           const rows = box.querySelectorAll(".pmc-live__row");
@@ -407,6 +425,22 @@ export function usePublicLiveData({ enabled = true } = {}) {
           if (seeAll && seeAll.firstChild) {
             seeAll.setAttribute("href", "/tenders/live");
             seeAll.firstChild.textContent = `See all ${openItems.length} open notices `;
+          }
+          // Empty state — no tenders currently open for bids
+          let liveEmpty = box.querySelector('[data-testid="live-empty"]');
+          if (openItems.length === 0) {
+            if (!liveEmpty) {
+              liveEmpty = document.createElement("div");
+              liveEmpty.setAttribute("data-testid", "live-empty");
+              liveEmpty.className = "pmc-muted";
+              liveEmpty.style.cssText = "padding:16px 2px;font-size:14px;line-height:22px";
+              liveEmpty.textContent = "No tenders are open for bids right now. New notices appear here the moment they publish.";
+              box.insertBefore(liveEmpty, seeAll || null);
+            }
+            if (seeAll) seeAll.style.display = "none";
+          } else {
+            if (liveEmpty) liveEmpty.remove();
+            if (seeAll) seeAll.style.display = "";
           }
         });
 
@@ -438,6 +472,20 @@ export function usePublicLiveData({ enabled = true } = {}) {
             if (link) link.setAttribute("href", `/notices/${n.notice_ref}`);
           });
           cards.forEach((c, i) => { if (i >= openItems.length) c.style.display = "none"; });
+          const grid = cards[0]?.parentElement;
+          let weekEmpty = grid?.querySelector('[data-testid="week-empty"]');
+          if (grid && openItems.length === 0) {
+            if (!weekEmpty) {
+              weekEmpty = document.createElement("div");
+              weekEmpty.setAttribute("data-testid", "week-empty");
+              weekEmpty.className = "pmc-muted";
+              weekEmpty.style.cssText = "padding:40px 0;font-size:15px;grid-column:1/-1;text-align:center";
+              weekEmpty.textContent = "No tenders are open for bids this week yet. Published notices will show up here.";
+              grid.appendChild(weekEmpty);
+            }
+          } else if (weekEmpty) {
+            weekEmpty.remove();
+          }
         }
 
         // 5) Tenders list page — full client-side filter engine

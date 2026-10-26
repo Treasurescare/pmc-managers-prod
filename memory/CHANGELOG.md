@@ -852,3 +852,24 @@ summary notes.
 - Packaged v57a artifacts (agent-tested, HTTP 200): /downloads/pmc-backend-v57a.zip,
   /downloads/pmc-frontend-v57a-prod-build.zip. Includes dynamic awards page + reset tooling.
   NOTE: crons.yml disable + v57a frontend require user deployment to take effect in production.
+
+## v57b (28 Jun 2026) — Clean-slate hardening + homepage real-data + backend recovery
+- ROOT CAUSE FIXED: backend startup seeders (_seed_demo_notices, _seed_packages,
+  _seed_product_catalog, tender-template masters) re-created demo data on every restart of an
+  empty DB. They are now gated behind SEED_DEMO_DATA (default "false"). Genuine master/reference
+  seeding (admin/staff/rubric, taxonomy, categories, sectors, contract_types, currencies,
+  legal_entity_types) still runs unconditionally so the app boots.
+- backend/.env: added SEED_DEMO_DATA="false" and LOCAL_DEV="true" (preview frictionless seed-pw).
+  NOTE: a prior .env overwrite had wiped JWT_SECRET + all integration keys (server wouldn't boot);
+  recovered full .env from /root/pmc-backend-v48c-stage backup, preserving protected MONGO_URL/DB_NAME.
+- server.py: added missing `import os` (fixed F821 blocker from the gating edit).
+- VERIFIED in preview: cleared notices/packages/products (3/30/55), restarted backend, all stayed 0
+  — no demo data returns. Admin login 200 (adminsupport@pmcmanagers.com / Admin@12345).
+- Homepage (pmcELiveData.js usePublicLiveData): real-data driven. Added empty states for the live
+  board (data-testid=live-empty) and the "Open for bids this week" grid (data-testid=week-empty),
+  and drove the audit-ledger trust panel from real ledger_events (hides demo chain when 0).
+  Screenshot-verified: 0 notices/0 suppliers/0 packages, clean empty states, no "Modular OT" rows.
+- Packaged v57b (HTTP 200, version-stamped): /downloads/pmc-backend-v57b.zip,
+  /downloads/pmc-frontend-v57b-prod-build.zip.
+- Post-deploy cleanup tool added: scripts/flush_reseeded_demo.py — clears ONLY the demo collections
+  v57a reseeded (notices, packages, products, *_templates, rubrics) with JSON backup + CONFIRM gate.
