@@ -1,0 +1,33 @@
+{
+  "summary": "Final frontend verification of public pages with empty DB (GET /api/v1/notices -> total 0). The HIGH bug from iteration_114 is FIXED. On '/' and '/notices', clicking All, Tender, RFP, RFQ and then All again left 0 visible article.pmc-tender cards each time. The chip's aria-pressed updated and the week-empty message stayed visible the whole time. Home: the live board shows its honest empty message with 0 visible rows. Stats show live values 0/0/0/7 (7 = real audit-ledger count from pmcELiveData). /tenders/all: '00 entries' with 'No tenders match this filter.' and, on the Live tab, 'No live tenders match this filter.'. /tenders/completed: header (brand, nav, Sign in, Register) and footer present, KPIs 0/$0/—/0, awards-empty shown. /notices/PMC-NOT-9999-0000: 'This notice isn't available' with header and footer, no IVF content. /m/e/public and /m/e/supplier keep the phone frames and show 0 tender cards. No page errors; only the expected anonymous 401s and 404s. Some minor leftover placeholder copy is listed below.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/tenders/all footer (components/PmcFooter.jsx lines 35-38)", "issues": ["Shows the unverified company claim 'Sovereign Tender Board — The Big-4 procurement authority for cross-border public works, operating since 2018 across 11 jurisdictions.' It doesn't match the 'Global Tender Board' brand and reads like placeholder copy. Not transaction data, but should be checked before go-live."]},
+      {"screen": "/tenders/all header", "issues": ["Uses a different header (legacy 'P' logo, 'PMC MANAGERS LIMITED', Notices/Completed/About us/Vision nav) from the header on Home, Awards and Notice detail (PMC Managers / Global Tender Board, Tenders/For suppliers/...). The brand is inconsistent across public pages."]},
+      {"screen": "/m/e/supplier mockup", "issues": ["The Supplier home frame claims 'Your company · KYC verified' as an implied identity/state.", "The Tender detail and Pay EMD frames are blank shells full of em-dashes (Budget/EMD/Delivery/Closes in/Reference/Amount).", "'Your bids' is empty with no empty-state message. Acceptable if these are labelled design mockups, but it is borderline under the 'no blank record shells' rule."]},
+      {"screen": "/m/e/public mockup", "issues": ["The 'Closing soon' section has nothing under it and no empty-state message."]},
+      {"screen": "Home 'How it works' stage panels", "issues": ["The static ledger refs '#1872/#1880/#1891/#1895/#1899/#1905' look like real ledger IDs. They are marketing copy (allowed), but consider wording them generically."]},
+      {"screen": "/tenders/completed and /notices/:ref (short pages)", "issues": ["The footer isn't pinned to the bottom, so a large empty beige area shows below it at 1920x1080."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "(Optional, before go-live) Replace or confirm the PmcFooter.jsx 'Sovereign Tender Board / Big-4 ... since 2018 across 11 jurisdictions' claim and align the /tenders/all header and footer with the Global Tender Board brand",
+    "(Optional) Add empty-state text to mobile mockup sections ('Closing soon', 'Your bids'), and remove the 'KYC verified' claim or em-dash shells if the mockups must also follow the no-placeholder rule",
+    "(Optional) Pin the footer to the bottom on short public pages (min-height flex layout)"
+  ],
+  "critical_code_review_comments": [
+    "PmcHomeFilters.jsx: the data-pmc-filled gate works. Cards without the flag are forced to display:none on every chip click.",
+    "pmcELiveData.js: sets pmcFilled only on live-populated cards and removes it from unused slots. The week-empty message is created only when openItems is empty.",
+    "HomeE.jsx: the templates ship hidden with data-in='0', so the countdown tick skips them. Correct."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100% of requested checks passed"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "DB has 0 notices. Visibility check for home cards: count article.pmc-tender where offsetParent !== null. The chips are button.pmc-chip inside the 'Open for bids this week' section. Expected console noise: anonymous 401s on /me endpoints and 404s on corrigenda and the non-existent notice."
+}

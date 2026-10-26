@@ -11,6 +11,13 @@ institution portals, AWS deployment bundles, and transactional notifications
 (Stripe, Resend, DocuSign, Emergent crons).
 
 
+## Public placeholder-data cleanup (26 Jun 2026)
+Go-live prep: public-facing pages must show real live API data or honest empty/loading/not-found states —
+NO fabricated tenders/awards/bids/refs/budgets/countdowns. Transaction-independent marketing copy may remain.
+Verified via /app/test_reports/iteration_115.json (empty DB): Home filter-chip ghost-card bug fixed; all
+public routes clean. Removed unverified "Big-4 / since 2018 / 11 jurisdictions" footer claim. Optional
+remaining polish: mobile mockup empty-state labels, /tenders/all header brand alignment, footer pinning.
+
 ## Current deployable: v56u (26 Jun 2026)
 Fix release: (1) contract-type/sector dropdowns no longer duplicate — shared uniqByCode() dedupes
 by code across board/homepage/notice forms, plus an admin "Remove duplicates" button (TaxonomyTab)

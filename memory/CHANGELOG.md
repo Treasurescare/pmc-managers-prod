@@ -1,5 +1,21 @@
 # PMC Managers — Changelog
 
+## Public placeholder-data cleanup — go-live readiness (26 Jun 2026)
+Final pass to ensure NO fake/demo transaction data on public pages (real data seeded before go-live).
+- FIXED (HIGH, iteration_114→115 verified): Home "Open for bids this week" filter chips could reveal
+  hidden empty .pmc-tender template cards (blank titles, "—" values, fake countdowns). PmcHomeFilters.jsx
+  filter() now keeps any card without data-pmc-filled="1" hidden; pmcELiveData.js sets that flag only on
+  cards populated by live notices. With empty DB, clicking All/Tender/RFP/RFQ shows 0 cards.
+- AwardsPublicE.jsx: added the public header (brand + nav + Sign in/Register) and footer; breadcrumb now
+  points to the live /tenders/all board instead of the static /tenders/live shell.
+- PmcFooter.jsx: removed the unverified corporate claim ("Big-4 procurement authority ... since 2018 across
+  11 jurisdictions"), aligned brand to "Global Tender Board" with honest descriptive copy.
+- Verified (iteration_115.json) all public routes render honest empty/not-found states: /, /notices,
+  /tenders/all, /tenders/completed, /notices/:ref (not-found), /m/e/public, /m/e/supplier.
+- Deferred (optional, not blockers): mobile mockup empty-state labels + "KYC verified" wording, /tenders/all
+  legacy header style mismatch, footer not pinned on short pages.
+
+
 ## v56s Open-Five closeout (25 Jun 2026)
 Reconciled the last 5 "open" items against the real client sheet:
 - #40 FIXED (real root cause): the public NoticeDetailE "Key dates" timeline + ledger hash-lines

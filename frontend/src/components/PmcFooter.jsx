@@ -32,10 +32,10 @@ export default function PmcFooter() {
       <div className="max-w-7xl mx-auto px-6 lg:px-10 py-14 grid gap-10 md:grid-cols-4">
         <div className="md:col-span-1">
           <div className="font-display text-2xl text-white">PMC Managers</div>
-          <div className="pmc-label text-brand-gold mt-1">Sovereign Tender Board</div>
+          <div className="pmc-label text-brand-gold mt-1">Global Tender Board</div>
           <p className="text-sm text-white/70 leading-relaxed mt-4">
-            The Big-4 procurement authority for cross-border public works,
-            operating since 2018 across 11 jurisdictions.
+            An e-tender platform for admins, staff and suppliers — publish,
+            clarify, receive sealed bids, evaluate and award on one auditable record.
           </p>
         </div>
 
