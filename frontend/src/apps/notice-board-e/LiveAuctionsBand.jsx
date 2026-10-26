@@ -189,7 +189,7 @@ export default function LiveAuctionsBand({ variant = "band" }) {
   if (variant === "page") {
     return (
       <PublicChrome active="auctions" testid="public-auctions-page">
-        <div className="min-h-screen bg-brand-pale">{body}</div>
+        {body}
       </PublicChrome>
     );
   }

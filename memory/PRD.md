@@ -521,6 +521,11 @@ frontend flows pass; NOT yet user-confirmed):
   `reverse_auction_events` to detect hash-chain forks.
 - Cron remains DISABLED (user decision) — manual close only; no timers/schedulers added.
 - All TEST seed data cleaned up; public board back to honest empty state.
-- OPEN / optional: align `/auctions` header+footer with the HomeE landing nav
-  (currently uses shared TopBar); background-task the dup-price email so a slow
-  provider can't delay the 409.
+- **DONE (2026-06): public `/auctions` header+footer aligned** with the public-site
+  chrome via new `frontend/src/apps/shared/PublicChrome.jsx` (brand, nav with active
+  Auctions link, Sign in/Register, dark footer). Replaces the old generic TopBar on
+  both the discovery page (`LiveAuctionsBand` page variant) and the spectator room
+  (`PublicAuctionRoom`, incl. error/loading states). Flex-column layout keeps the
+  footer at the bottom on short pages. testing_agent iteration_117 = 100% pass.
+- OPEN / optional: background-task the dup-price email so a slow provider can't
+  delay the 409.

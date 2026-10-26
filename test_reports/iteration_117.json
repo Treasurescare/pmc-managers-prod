@@ -1,0 +1,29 @@
+{
+  "summary": "Frontend-only verification of PublicChrome header/footer on /auctions and /auctions/doesnotexist/live. All requested checks passed: header brand + 6 nav links (Auctions marked is-on), Sign in/Register testids, dark footer (rgb(15,42,34)) with Open notices/Auctions/Help Centre/Trust & security/Privacy + '© 2026 PMC Managers Limited'. All 14 header/footer link navigations from /auctions went to the correct routes. Empty state 'No live auctions right now' shown with 0 auction cards. Invalid room renders public-auction-spectator-error (data-pmc-e-page=public-chrome) with spectator-error 'Auction unavailable / Auction not found' INSIDE the chrome; room Sign in -> /login and footer Privacy -> /privacy work. No pageerrors, no blank page. Mobile 390px: no horizontal overflow; global mobile topbar takes over as on other public pages.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/auctions and /auctions/:aid/live (PublicChrome)", "issues": [
+        "Body wrapper is 'min-h-screen' inside PublicChrome, so content area = 100vh plus the 73px header; the footer always sits below the fold with a big empty beige gap even when the page has only an empty-state card. Consider min-height: calc(100vh - header) or flex column layout.",
+        "Header 'EN' language button has no onClick and no data-testid (decorative; same as other public pages presumably)."
+      ]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional: reduce min-h-screen inside PublicChrome children so footer is not pushed far below short content.",
+    "Optional: add data-testid to PublicChrome nav links/footer links/brand for easier automation (currently only signin/register have testids)."
+  ],
+  "critical_code_review_comments": [
+    "PublicChrome nav/footer links lack data-testid attributes (only public-chrome-signin/register).",
+    "PublicChrome relies on the global PmcIconSprite for #i-globe (present, verified)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100%"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "PublicChrome verified on /auctions (testid public-auctions-page) and invalid room (public-auction-spectator-error). Selectors used: header.pmc-chrome .pmc-nav a, footer.pmc-chrome a, [data-testid=public-chrome-signin|register]. No auction data seeded; live-room happy path chrome (public-auction-spectator) not exercised visually."
+}

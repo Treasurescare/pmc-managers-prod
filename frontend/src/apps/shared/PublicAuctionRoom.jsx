@@ -147,20 +147,16 @@ export default function PublicAuctionRoom() {
 
   if (error) return (
     <PublicChrome active="auctions" testid="public-auction-spectator-error">
-      <div className="min-h-screen bg-brand-pale">
-        <div className="max-w-3xl mx-auto px-6 py-16 border-2 border-red-500 bg-red-50 mt-8" data-testid="spectator-error">
-          <div className="pmc-label mb-1">Auction unavailable</div>
-          <div className="text-sm text-red-900">{error}</div>
-        </div>
+      <div className="max-w-3xl mx-auto px-6 py-16 border-2 border-red-500 bg-red-50 mt-8" data-testid="spectator-error">
+        <div className="pmc-label mb-1">Auction unavailable</div>
+        <div className="text-sm text-red-900">{error}</div>
       </div>
     </PublicChrome>
   );
 
   if (!state) return (
     <PublicChrome active="auctions" testid="public-auction-spectator-loading">
-      <div className="min-h-screen bg-brand-pale">
-        <div className="p-16 text-center text-brand-navy/60" data-testid="spectator-loading">Loading auction…</div>
-      </div>
+      <div className="p-16 text-center text-brand-navy/60" data-testid="spectator-loading">Loading auction…</div>
     </PublicChrome>
   );
 
@@ -178,7 +174,6 @@ export default function PublicAuctionRoom() {
 
   return (
     <PublicChrome active="auctions" testid="public-auction-spectator">
-      <div className="min-h-screen bg-brand-pale">
       <main className="max-w-5xl mx-auto px-6 lg:px-10 py-8">
         <div className="mb-4 flex items-center justify-between" data-testid="spectator-back">
           <Link to="/auctions"
@@ -303,7 +298,6 @@ export default function PublicAuctionRoom() {
           </div>
         )}
       </main>
-      </div>
     </PublicChrome>
   );
 }
