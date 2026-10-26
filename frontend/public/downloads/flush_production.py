@@ -37,9 +37,6 @@ KEEP = {
     "masters_banks", "masters_banks_merge_log", "masters_cities",
     "masters_countries", "masters_country_formats", "masters_country_licenses",
     "masters_states", "masters_unspsc",
-    # reusable (blank) templates / scoring config
-    "auction_invite_templates", "boq_templates", "tender_templates",
-    "sbd_templates", "vendor_templates", "rubrics", "rating_criteria_sets",
 }
 
 async def main():
