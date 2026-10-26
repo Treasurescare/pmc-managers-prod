@@ -70,6 +70,17 @@ async def main():
         res = await db[n].delete_many({})
         total += res.deleted_count
         print(f"  cleared {res.deleted_count:>7}  {n}  (backed up {len(docs)})")
+
+    # Purge EXTERNAL logins (vendors + buyers) from `users`; keep internal PMC
+    # admin/staff. admin_users (the PMC team) is never touched.
+    ext = await db.users.find({"role": {"$in": ["vendor", "buyer"]}}).to_list(length=None)
+    with open(f"{bdir}/users_external.json", "w") as f:
+        f.write(json_util.dumps(ext))
+    ures = await db.users.delete_many({"role": {"$in": ["vendor", "buyer"]}})
+    total += ures.deleted_count
+    kept_users = await db.users.estimated_document_count()
+    print(f"  purged {ures.deleted_count:>7}  users (vendor/buyer)  -> kept {kept_users} internal login(s)")
+
     print(f"\nTOTAL DOCS DELETED: {total}")
     print(f"JSON BACKUP AT    : {bdir}")
 

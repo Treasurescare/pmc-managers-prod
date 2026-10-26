@@ -827,3 +827,12 @@ summary notes.
 - Verified: public home shows 0 tenders / 0 work packages; escrow institutions pipeline 0;
   logins (14 admins, 158 users) + masters (countries/contract_types/etc.) intact; app boots clean.
 - Note: audit ledger will re-accumulate login events by design (each sign-in is recorded).
+
+## Production flush prep + preview external-login purge (25 Jun 2026)
+- Finalized /app/scripts/flush_production.py (KEEP allow-list + purge users role IN vendor/buyer)
+  and /app/scripts/PROD_FLUSH_RUNBOOK.md. Copied both to frontend/public/downloads for the user.
+- Disabled all 3 scheduled jobs in .emergent/crons.yml (enabled:false) per user request.
+- Confirmed uploads are stored inline in Mongo (base64) in pilot -> clearing `uploads` leaves no
+  orphaned disk/S3 files; app never reads files from disk, so masters-only state does NOT crash.
+- Validated on PREVIEW: purged 157 external users (vendor+buyer), kept 1 admin in users + 14 admin_users.
+  Admin login 200, dashboard boots all-zero, public site OK, vendor login 404 (graceful). No crash.
