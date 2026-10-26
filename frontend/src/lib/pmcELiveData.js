@@ -419,6 +419,7 @@ export function usePublicLiveData({ enabled = true } = {}) {
             if (t) t.textContent = n.title || "";
             if (cd) cd.textContent = relTime(n.submission_deadline);
             r.setAttribute("href", `/notices/${n.notice_ref}`);
+            r.style.display = "";
           });
           rows.forEach((r, i) => { if (i >= openItems.length) r.style.display = "none"; });
           const seeAll = box.querySelector(".pmc-live__all");
@@ -470,6 +471,7 @@ export function usePublicLiveData({ enabled = true } = {}) {
             }
             const link = c.querySelector(".pmc-tender__foot a");
             if (link) link.setAttribute("href", `/notices/${n.notice_ref}`);
+            c.style.display = "";
           });
           cards.forEach((c, i) => { if (i >= openItems.length) c.style.display = "none"; });
           const grid = cards[0]?.parentElement;

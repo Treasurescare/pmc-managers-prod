@@ -873,3 +873,19 @@ summary notes.
   /downloads/pmc-frontend-v57b-prod-build.zip.
 - Post-deploy cleanup tool added: scripts/flush_reseeded_demo.py — clears ONLY the demo collections
   v57a reseeded (notices, packages, products, *_templates, rubrics) with JSON backup + CONFIRM gate.
+
+## v57c (28 Jun 2026) — Homepage demo cards bulletproofed + prod re-clean confirmed
+- Production re-clean CONFIRMED by user: flush_reseeded_demo.py removed 174 demo docs
+  (6 notices, 60 packages, 105 products, 1 tender_template, 2 rating_criteria_sets), backed up.
+  Verified: pmcmanagers.com on v57b, /api/v1/notices total=0.
+- Audit-ledger panel confirmed CORRECT (real data): public_stats.ledger_events counts the live
+  audit collection (audit_events/audit_ledger). Grows with real actions — NOT demo seeding.
+- FIX: the hardcoded "Open for bids this week" cards and hero live-board demo rows in HomeE.jsx
+  now default to display:none and are revealed ONLY when real live data fills them
+  (pmcELiveData.js sections 3 & 4 set display="" on fill). Guarantees no demo tenders ever flash
+  on a clean board regardless of fetch timing or client cache. Preview-verified: all 4 cards +
+  4 rows computed display:none, demo text (Turnkey IVF / Birth Suites) absent from DOM.
+- service-worker.js CACHE_VERSION bumped v56l -> pmc-shell-v57c so returning visitors get the
+  new bundle within one load.
+- Packaged v57c (HTTP 200, stamped): /downloads/pmc-backend-v57c.zip,
+  /downloads/pmc-frontend-v57c-prod-build.zip.
