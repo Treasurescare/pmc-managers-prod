@@ -129,6 +129,12 @@ export default function LiveAuctionsBand({ variant = "band" }) {
     </div>
   );
 
+  // On the landing page, show the band only when there is something live or
+  // upcoming — a clean homepage rather than an empty-state card.
+  if (variant === "band" && (loading || (liveItems.length === 0 && upcomingItems.length === 0))) {
+    return null;
+  }
+
   const body = (
     <section className="pmc-wrap" style={{ padding: variant === "page" ? "40px 0 88px" : "72px 0 0" }}
              data-testid="public-live-auctions">

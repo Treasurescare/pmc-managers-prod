@@ -527,5 +527,12 @@ frontend flows pass; NOT yet user-confirmed):
   both the discovery page (`LiveAuctionsBand` page variant) and the spectator room
   (`PublicAuctionRoom`, incl. error/loading states). Flex-column layout keeps the
   footer at the bottom on short pages. testing_agent iteration_117 = 100% pass.
+- **DONE (2026-06): homepage live-auctions band** — `LiveAuctionsBand` (band
+  variant) renders right under the hero on `HomeE`, showing live/upcoming auction
+  cards with LIVE badge, countdown, current lowest price, floor and a "Watch live"
+  link, plus a "See all auctions" CTA. It now **hides entirely when there are no
+  live/upcoming auctions** (and during load) so the homepage stays clean. Verified
+  by seeding a temporary DEMO live auction (shown at top), screenshotting, then
+  deleting it — board back to 0 auctions / honest empty state.
 - OPEN / optional: background-task the dup-price email so a slow provider can't
   delay the 409.
