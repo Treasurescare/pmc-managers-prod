@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { reverseAuctionApi } from "@/lib/api";
-import TopBar from "@/apps/shared/TopBar";
+import PublicChrome from "@/apps/shared/PublicChrome";
 
 const money = (cur, v) => `${cur || "USD"} ${Number(v || 0).toLocaleString()}`;
 
@@ -188,10 +188,9 @@ export default function LiveAuctionsBand({ variant = "band" }) {
 
   if (variant === "page") {
     return (
-      <div className="min-h-screen bg-brand-pale" data-testid="public-auctions-page">
-        <TopBar />
-        {body}
-      </div>
+      <PublicChrome active="auctions" testid="public-auctions-page">
+        <div className="min-h-screen bg-brand-pale">{body}</div>
+      </PublicChrome>
     );
   }
   return body;
