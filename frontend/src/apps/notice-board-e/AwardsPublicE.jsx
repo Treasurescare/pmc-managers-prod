@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { usePublicNav } from "@/lib/pmcEPublicNav";
 import { publicApi } from "@/lib/api";
@@ -47,8 +48,23 @@ export default function AwardsPublicE({ legacy: Legacy }) {
 
   return (
     <div data-testid="awards-public-e" data-pmc-e-page="awards-public-e">
+      <header className="pmc-chrome pmc-top"><div className="pmc-wrap pmc-top__in">
+        <Link to="/" className="pmc-brand"><span className="pmc-brand__n">PMC Managers</span><span className="pmc-brand__s">Global Tender Board</span></Link>
+        <nav className="pmc-nav">
+          <Link to="/tenders/all" className="is-on">Tenders</Link>
+          <Link to="/suppliers">For suppliers</Link>
+          <Link to="/buyers">For buyers</Link>
+          <Link to="/trust">Trust &amp; security</Link>
+          <Link to="/help">Help &amp; FAQs</Link>
+        </nav>
+        <div className="pmc-top__act">
+          <button className="pmc-btn pmc-btn--onchrome pmc-btn--sm"><svg className="pmc-ico" aria-hidden="true"><use href="#i-globe" /></svg> EN</button>
+          <Link to="/login" className="pmc-btn pmc-btn--onchrome" data-testid="awards-topbar-signin">Sign in</Link>
+          <Link to="/register" className="pmc-btn pmc-btn--brass" data-testid="awards-topbar-register">Register as supplier</Link>
+        </div>
+      </div></header>
       <section className="pmc-chrome" style={{ padding: "36px 0 40px" }}><div className="pmc-wrap">
-        <div className="pmc-crumb"><a href="/tenders/live">Tender notices</a>/<span>Completed &amp; awarded</span></div>
+        <div className="pmc-crumb"><Link to="/tenders/all">Tender notices</Link>/<span>Completed &amp; awarded</span></div>
         <h1 className="pmc-display" style={{ fontSize: "52px", lineHeight: "56px", margin: "10px 0 12px" }}>Completed &amp; awarded</h1>
         <p className="pmc-muted" style={{ fontSize: "18px", lineHeight: "30px", margin: 0, maxWidth: "720px" }}>Every award is published with the winning value, the number of bids and a verifiable ledger reference. Losing bidders see their own ranking in their portal.</p>
       </div></section>
@@ -89,6 +105,10 @@ export default function AwardsPublicE({ legacy: Legacy }) {
           )}
         </section>
       </div>
+      <footer className="pmc-chrome" style={{ padding: "40px 0 28px", marginTop: "0" }}><div className="pmc-wrap" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px" }}>
+        <div className="pmc-brand"><span className="pmc-brand__n" style={{ fontSize: "20px" }}>PMC Managers</span><span className="pmc-brand__s">Global Tender Board</span></div>
+        <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "20px" }} className="pmc-fcol"><Link to="/tenders/all">Open notices</Link><Link to="/help">Help Centre</Link><Link to="/trust">Trust &amp; security</Link><Link to="/privacy">Privacy</Link><span className="pmc-muted">© 2026 PMC Managers Limited</span></div>
+      </div></footer>
     </div>
   );
 }

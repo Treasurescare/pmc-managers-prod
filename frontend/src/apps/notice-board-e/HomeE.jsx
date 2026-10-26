@@ -53,7 +53,7 @@ export default function HomeE({ legacy: Legacy }) {
     </div>
     <div className="pmc-live">
       <div className="pmc-live__h"><span className="pmc-eyebrow">Live board · closing first</span><span className="pmc-livedot">Live</span></div>
-      <a href="#" className="pmc-live__row" style={{ display: "none" }}><div><div className="pmc-ref"></div><div className="pmc-live__t"></div></div><span className="pmc-countdown" data-in="52">—</span></a><a href="#" className="pmc-live__row" style={{ display: "none" }}><div><div className="pmc-ref"></div><div className="pmc-live__t"></div></div><span className="pmc-countdown" data-in="57">—</span></a><a href="#" className="pmc-live__row" style={{ display: "none" }}><div><div className="pmc-ref"></div><div className="pmc-live__t"></div></div><span className="pmc-countdown" data-in="83">—</span></a><a href="#" className="pmc-live__row" style={{ display: "none" }}><div><div className="pmc-ref"></div><div className="pmc-live__t"></div></div><span className="pmc-countdown" data-in="270">—</span></a>
+      <a href="#" className="pmc-live__row" style={{ display: "none" }}><div><div className="pmc-ref"></div><div className="pmc-live__t"></div></div><span className="pmc-countdown" data-in="0">—</span></a><a href="#" className="pmc-live__row" style={{ display: "none" }}><div><div className="pmc-ref"></div><div className="pmc-live__t"></div></div><span className="pmc-countdown" data-in="0">—</span></a><a href="#" className="pmc-live__row" style={{ display: "none" }}><div><div className="pmc-ref"></div><div className="pmc-live__t"></div></div><span className="pmc-countdown" data-in="0">—</span></a><a href="#" className="pmc-live__row" style={{ display: "none" }}><div><div className="pmc-ref"></div><div className="pmc-live__t"></div></div><span className="pmc-countdown" data-in="0">—</span></a>
       <a href="#" className="pmc-live__all">See all open notices <svg className="pmc-ico" aria-hidden="true"><use href="#i-arrow" /></svg></a>
     </div>
   </div>
@@ -72,22 +72,22 @@ export default function HomeE({ legacy: Legacy }) {
     <div style={{ display: "flex", gap: "8px" }}><button className="pmc-chip" aria-pressed="true">All</button><button className="pmc-chip">Tender</button><button className="pmc-chip">RFP</button><button className="pmc-chip">RFQ</button><a href="#" className="pmc-btn pmc-btn--secondary" style={{ marginLeft: "8px" }}>Browse all notices <svg className="pmc-ico" aria-hidden="true"><use href="#i-arrow" /></svg></a></div>
   </div>
   <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "20px" }}><article className="pmc-tender" style={{ display: "none" }}>
-  <div className="pmc-tender__top"><span className="pmc-tag">TENDER</span><span className="pmc-ref"></span><span style={{ marginLeft: "auto" }} className="pmc-countdown" data-in="52">—</span></div>
+  <div className="pmc-tender__top"><span className="pmc-tag">TENDER</span><span className="pmc-ref"></span><span style={{ marginLeft: "auto" }} className="pmc-countdown" data-in="0">—</span></div>
   <h3 className="pmc-tender__title"></h3>
   <dl className="pmc-tender__meta" style={{ margin: "0" }}><div className="is-budget"><dt>Indicative budget</dt><dd>—</dd></div><div><dt>EMD</dt><dd>—</dd></div><div><dt>Delivery</dt><dd>—</dd></div><div><dt>Category</dt><dd style={{ fontWeight: "500" }}>—</dd></div></dl>
   <div className="pmc-tender__foot"><a href="#" className="pmc-btn pmc-btn--ghost pmc-btn--sm" style={{ paddingLeft: "0" }}>View notice <svg className="pmc-ico" aria-hidden="true"><use href="#i-arrow" /></svg></a></div>
 </article><article className="pmc-tender" style={{ display: "none" }}>
-  <div className="pmc-tender__top"><span className="pmc-tag">RFQ</span><span className="pmc-ref"></span><span style={{ marginLeft: "auto" }} className="pmc-countdown" data-in="57">—</span></div>
+  <div className="pmc-tender__top"><span className="pmc-tag">RFQ</span><span className="pmc-ref"></span><span style={{ marginLeft: "auto" }} className="pmc-countdown" data-in="0">—</span></div>
   <h3 className="pmc-tender__title"></h3>
   <dl className="pmc-tender__meta" style={{ margin: "0" }}><div className="is-budget"><dt>Indicative budget</dt><dd>—</dd></div><div><dt>EMD</dt><dd>—</dd></div><div><dt>Delivery</dt><dd>—</dd></div><div><dt>Category</dt><dd style={{ fontWeight: "500" }}>—</dd></div></dl>
   <div className="pmc-tender__foot"><a href="#" className="pmc-btn pmc-btn--ghost pmc-btn--sm" style={{ paddingLeft: "0" }}>View notice <svg className="pmc-ico" aria-hidden="true"><use href="#i-arrow" /></svg></a></div>
 </article><article className="pmc-tender" style={{ display: "none" }}>
-  <div className="pmc-tender__top"><span className="pmc-tag">RFP</span><span className="pmc-ref"></span><span style={{ marginLeft: "auto" }} className="pmc-countdown" data-in="83">—</span></div>
+  <div className="pmc-tender__top"><span className="pmc-tag">RFP</span><span className="pmc-ref"></span><span style={{ marginLeft: "auto" }} className="pmc-countdown" data-in="0">—</span></div>
   <h3 className="pmc-tender__title"></h3>
   <dl className="pmc-tender__meta" style={{ margin: "0" }}><div className="is-budget"><dt>Indicative budget</dt><dd>—</dd></div><div><dt>EMD</dt><dd>—</dd></div><div><dt>Delivery</dt><dd>—</dd></div><div><dt>Category</dt><dd style={{ fontWeight: "500" }}>—</dd></div></dl>
   <div className="pmc-tender__foot"><a href="#" className="pmc-btn pmc-btn--ghost pmc-btn--sm" style={{ paddingLeft: "0" }}>View notice <svg className="pmc-ico" aria-hidden="true"><use href="#i-arrow" /></svg></a></div>
 </article><article className="pmc-tender" style={{ display: "none" }}>
-  <div className="pmc-tender__top"><span className="pmc-tag">TENDER</span><span className="pmc-ref"></span><span style={{ marginLeft: "auto" }} className="pmc-countdown" data-in="270">—</span></div>
+  <div className="pmc-tender__top"><span className="pmc-tag">TENDER</span><span className="pmc-ref"></span><span style={{ marginLeft: "auto" }} className="pmc-countdown" data-in="0">—</span></div>
   <h3 className="pmc-tender__title"></h3>
   <dl className="pmc-tender__meta" style={{ margin: "0" }}><div className="is-budget"><dt>Indicative budget</dt><dd>—</dd></div><div><dt>EMD</dt><dd>—</dd></div><div><dt>Delivery</dt><dd>—</dd></div><div><dt>Category</dt><dd style={{ fontWeight: "500" }}>—</dd></div></dl>
   <div className="pmc-tender__foot"><a href="#" className="pmc-btn pmc-btn--ghost pmc-btn--sm" style={{ paddingLeft: "0" }}>View notice <svg className="pmc-ico" aria-hidden="true"><use href="#i-arrow" /></svg></a></div>

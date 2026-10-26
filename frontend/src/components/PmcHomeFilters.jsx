@@ -40,6 +40,9 @@ export default function PmcHomeFilters() {
         const filter = (kind) => {
           const k = (kind || "all").toLowerCase();
           cards().forEach((card) => {
+            // Never reveal unpopulated template cards (empty DB / unused slots).
+            // pmcELiveData marks live-filled cards with data-pmc-filled="1".
+            if (card.dataset.pmcFilled !== "1") { card.style.display = "none"; return; }
             const tag = (card.querySelector(".pmc-tag")?.textContent || "").trim().toLowerCase();
             const hide = k !== "all" && tag !== k;
             card.style.display = hide ? "none" : "";

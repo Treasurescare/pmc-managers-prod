@@ -472,8 +472,9 @@ export function usePublicLiveData({ enabled = true } = {}) {
             const link = c.querySelector(".pmc-tender__foot a");
             if (link) link.setAttribute("href", `/notices/${n.notice_ref}`);
             c.style.display = "";
+            c.dataset.pmcFilled = "1";
           });
-          cards.forEach((c, i) => { if (i >= openItems.length) c.style.display = "none"; });
+          cards.forEach((c, i) => { if (i >= openItems.length) { c.style.display = "none"; delete c.dataset.pmcFilled; } });
           const grid = cards[0]?.parentElement;
           let weekEmpty = grid?.querySelector('[data-testid="week-empty"]');
           if (grid && openItems.length === 0) {

@@ -1,0 +1,32 @@
+{
+  "summary": "Frontend-only cleanup verification of public pages with empty DB (/api/v1/notices -> {items:[],total:0}). PASS on page load: Home (/ and /notices), /tenders/live, /tenders/all, /notices/PMC-NOT-9999-0000, /m/e/public, /m/e/supplier and /tenders/completed (AwardsPublicE) all render honest empty/not-found states. No fabricated titles, refs, budgets or awards appear on load, and there are no page errors. FAIL on one interaction: on the Home 'Open for bids this week' section, clicking the All/Tender/RFP/RFQ chips makes the 4 hidden placeholder .pmc-tender cards visible again. They show blank titles, '—' budget/EMD/delivery/category, and made-up countdowns (0m, 0m, 1m, 4m taken from hardcoded data-in=52/57/83/270). The week-empty message still shows beside them.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Home 'Open for bids this week' type chips (PmcHomeFilters.jsx lines 40-46)", "issue": "filter() sets card.style.display='' on every .pmc-tender whose tag matches, including the hidden, unfilled templates. With 0 notices, clicking All shows 4 ghost cards, Tender shows 2, RFP 1 and RFQ 1. Each has a blank title, '—' values and a made-up countdown (0m/1m/4m) from the hardcoded data-in attributes. Once notices exist, 'All' would also reveal any unused template slots beyond openItems.length.", "selector": "section button.pmc-chip (All/Tender/RFP/RFQ) -> article.pmc-tender", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/tenders/completed (AwardsPublicE)", "issues": ["No public top nav/header or footer is rendered (only a breadcrumb), unlike the other E public pages. The user has no header navigation back to Home or Sign in."]},
+      {"screen": "/m/e/public", "issues": ["React warning: the password input uses value='••••••••' without onChange/readOnly (MobilePublicE.jsx line 37). Use defaultValue or readOnly."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix PmcHomeFilters.jsx filter(): only show cards that live data has filled. For example, have pmcELiveData set data-pmc-filled='1' on populated cards (around line 474) and remove it on hidden ones (line 476). In filter(), always keep unfilled cards display:none, and hide or keep the week-empty state consistent.",
+    "Remove the hardcoded data-in countdown seconds (52/57/83/270) from the HomeE.jsx .pmc-tender and .pmc-live__row templates (use data-in='0'), so no made-up countdown can ever show.",
+    "Optional: add the public header/footer to AwardsPublicE; fix the read-only password input warning in MobilePublicE."
+  ],
+  "critical_code_review_comments": [
+    "Route /tenders/live renders apps/notice-board/TendersList.jsx (React-state, honest empty state 'No live tenders match this filter.', '00 entries'), NOT notice-board-e/TendersListE.jsx. TendersListE is not routed anywhere (dead code). The review request's '0 results' and Tender/RFP/RFQ chip expectations refer to the unmounted component. Either wire it up or delete it.",
+    "/awards and /mobile are not real routes; they fall through to the Home page. The real routes are /tenders/completed (awards) and /m/e/public and /m/e/supplier (mobile mockups).",
+    "Fake tender strings (IVF Laboratory, Birth Suites, PMC-NOT-2026-...) still exist in non-public files: vendor-portal-e/VendorAlertsE.jsx, VendorEmdE.jsx, admin-console-e/AdminEvaluationListE.jsx, and reference-e/DialogsE.jsx, EmailsE.jsx, PrintablesE.jsx. These are outside this request's public scope; consider cleaning them in the same way.",
+    "pmcELiveData.js is 2030 lines. It should be split into smaller modules."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "~90% (6 of 6 pages clean on load; 1 interaction bug on Home chips)"},
+  "seed_data_creation": "None",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "DB is empty by design. Verify: on / click the All/Tender/RFP/RFQ chips in 'Open for bids this week'. article.pmc-tender:visible must stay 0 and [data-testid=week-empty] must stay visible. Real routes: /tenders/live (legacy TendersList), /tenders/completed (AwardsPublicE: awards-empty, awards-kpi-count), /notices/:ref (notice-detail-empty, notice-empty-browse -> /tenders/live), /m/e/public, /m/e/supplier."
+}
