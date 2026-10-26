@@ -362,6 +362,12 @@ async def _public_card(a: dict) -> dict:
     final = float(a.get("current_price") or start)
     saving = round(((start - final) / start * 100.0), 1) if start > 0 else 0.0
     winner, award_status = await _public_winner(a)
+    ledger_ref = None
+    if a.get("status") == "closed":
+        head = await db.reverse_auction_events.find_one(
+            {"auction_id": aid}, sort=[("seq", -1)], projection={"current_hash": 1})
+        if head and head.get("current_hash"):
+            ledger_ref = head["current_hash"][:16]
     return {
         "id": aid,
         "title": a.get("title"),
@@ -378,6 +384,7 @@ async def _public_card(a: dict) -> dict:
         "participant_count": await db.reverse_auction_participants.count_documents({"auction_id": aid}),
         "invite_count": await db.reverse_auction_invitations.count_documents({"auction_id": aid}),
         "saving_pct": saving,
+        "ledger_ref": ledger_ref,
         "award_status": award_status,
         "winner": winner,
     }
@@ -917,7 +924,10 @@ async def place_bid(aid: str, payload: BidIn, vendor=Depends(current_vendor)):
         await _place_bid_inner(a, vendor["id"], float(payload.price))
     except HTTPException as e:
         if e.status_code == 409:
-            await _notify_duplicate_price(a, vendor, float(payload.price))
+            # Fire-and-forget: the in-app notice + email must never delay the
+            # 409 the bidder is waiting on. _notify_duplicate_price swallows its
+            # own errors, so a slow mail provider can't surface here.
+            asyncio.create_task(_notify_duplicate_price(a, vendor, float(payload.price)))
         raise
     await _run_autobid_cascade(aid)
     return await _public_state(aid)

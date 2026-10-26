@@ -534,5 +534,23 @@ frontend flows pass; NOT yet user-confirmed):
   live/upcoming auctions** (and during load) so the homepage stays clean. Verified
   by seeding a temporary DEMO live auction (shown at top), screenshotting, then
   deleting it — board back to 0 auctions / honest empty state.
-- OPEN / optional: background-task the dup-price email so a slow provider can't
-  delay the 409.
+- OPEN / optional: (none — see v57f additions below)
+
+### v57f — auction engagement polish (2026-06)
+- **Faster dup-price reject**: `place_bid` now fires `_notify_duplicate_price`
+  via `asyncio.create_task` (fire-and-forget) so the 409 returns immediately and a
+  slow mail provider can't delay it. (`backend/routers/auction_live.py`)
+- **Watcher share link**: public spectator room has a "Copy watch link" button
+  (testid `spectator-copy-link`) that copies the room URL and flashes "✓ Link
+  copied". (`frontend/src/apps/shared/PublicAuctionRoom.jsx`)
+- **Closed auction recap**: `_public_card` now returns `ledger_ref` (short head
+  hash of the SHA-256 event chain) for closed auctions; the `/auctions` closed
+  card renders an "Auction recap" panel with final price, saving % and ledger ref
+  (testids `public-auction-recap/final/saving/ledger-<id>`).
+  (`backend/routers/auction_live.py`, `frontend/.../LiveAuctionsBand.jsx`)
+- **Hero live ticker**: `HomeE` hero shows a "N auction(s) live now" pill (testid
+  `hero-live-auction-pill`) that smooth-scrolls to the live-auctions band, only
+  when at least one auction is live. (`frontend/.../HomeE.jsx`)
+- All verified in preview with temporary DEMO auctions, then fully cleaned up.
+  NOTE: the dup-price timing change is logic-verified (409 still raised identically);
+  it was not re-load-tested for concurrency.

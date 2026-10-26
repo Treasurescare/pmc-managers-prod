@@ -79,6 +79,26 @@ function AuctionCard({ a }) {
           Result gone for approvals — winner published after sign-off.
         </div>
       )}
+      {a.status === "closed" && (
+        <div style={{ marginTop: "12px", padding: "12px 14px", border: "1px solid var(--line)", background: "rgba(0,0,0,0.02)" }}
+             data-testid={`public-auction-recap-${a.id}`}>
+          <div className="pmc-eyebrow" style={{ marginBottom: "6px", color: "var(--ink-muted)" }}>Auction recap</div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
+            <span className="pmc-muted">Final price</span>
+            <b data-testid={`public-auction-final-${a.id}`}>{money(a.currency, a.current_price)}</b>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginTop: "4px" }}>
+            <span className="pmc-muted">Saving vs start</span>
+            <b data-testid={`public-auction-saving-${a.id}`}>−{a.saving_pct ?? 0}%</b>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", marginTop: "4px" }}>
+            <span className="pmc-muted">Ledger ref</span>
+            <code style={{ fontSize: "11px" }} data-testid={`public-auction-ledger-${a.id}`}>
+              {a.ledger_ref || a.notice_ref}
+            </code>
+          </div>
+        </div>
+      )}
       <div className="pmc-tender__foot">
         <span className="pmc-btn pmc-btn--ghost pmc-btn--sm" style={{ paddingLeft: "0" }}>
           {isLive ? "Watch live" : "View auction"} →

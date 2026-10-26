@@ -67,6 +67,7 @@ export default function PublicAuctionRoom() {
   const [error, setError] = useState(null);
   const [now, setNow] = useState(Date.now());
   const [transport, setTransport] = useState("connecting");
+  const [copied, setCopied] = useState(false);
   const esRef = useRef(null);
   const pollRef = useRef(null);
   const stateRef = useRef(null);
@@ -176,10 +177,22 @@ export default function PublicAuctionRoom() {
     <PublicChrome active="auctions" testid="public-auction-spectator">
       <main className="max-w-5xl mx-auto px-6 lg:px-10 py-8">
         <div className="mb-4 flex items-center justify-between" data-testid="spectator-back">
-          <Link to="/auctions"
-                className="text-[11px] uppercase tracking-widest text-brand-navy/70 hover:text-brand-navy border-b border-brand-navy/30">
-            ← All auctions
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link to="/auctions"
+                  className="text-[11px] uppercase tracking-widest text-brand-navy/70 hover:text-brand-navy border-b border-brand-navy/30">
+              ← All auctions
+            </Link>
+            <button type="button"
+                    onClick={async () => {
+                      try { await navigator.clipboard.writeText(window.location.href); } catch { /* noop */ }
+                      setCopied(true);
+                      setTimeout(() => setCopied(false), 2000);
+                    }}
+                    className="text-[11px] uppercase tracking-widest text-brand-navy/70 hover:text-brand-navy border-b border-brand-navy/30 cursor-pointer"
+                    data-testid="spectator-copy-link">
+              {copied ? "✓ Link copied" : "⎘ Copy watch link"}
+            </button>
+          </div>
           <span className="text-[11px] uppercase tracking-widest text-brand-navy/50 flex items-center gap-2"
                 data-testid="spectator-transport">
             <span className={`inline-block w-2 h-2 rounded-full ${transport === "live" ? "bg-emerald-500" : transport === "polling" ? "bg-amber-500" : "bg-slate-400"}`} />

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { usePublicLiveData } from "@/lib/pmcELiveData";
 import { usePublicNav } from "@/lib/pmcEPublicNav";
-import { api } from "@/lib/api";
+import { api, reverseAuctionApi } from "@/lib/api";
 import { BUILD_VERSION } from "@/lib/buildStamp";
 import { HeroTaxonomySearch } from "@/apps/notice-board-e/HeroTaxonomySearch";
 import LiveAuctionsBand from "@/apps/notice-board-e/LiveAuctionsBand";
@@ -12,8 +12,12 @@ export default function HomeE({ legacy: Legacy }) {
   usePublicLiveData({ enabled: isE });
   usePublicNav(isE);
   const [beVer, setBeVer] = useState(null);
+  const [liveAuctionCount, setLiveAuctionCount] = useState(0);
   useEffect(() => {
     api.get("/api/v1/_version").then((r) => setBeVer(r.data?.version)).catch(() => setBeVer("unreachable"));
+  }, []);
+  useEffect(() => {
+    reverseAuctionApi.publicList("live").then((r) => setLiveAuctionCount(r.count || 0)).catch(() => {});
   }, []);
   useEffect(() => {
     if (!isE) return;
@@ -47,6 +51,13 @@ export default function HomeE({ legacy: Legacy }) {
   <div className="pmc-wrap pmc-hero__in">
     <div>
       <a href="#" className="pmc-livechip"><span className="dot"></span>Tenders open for bids <svg className="pmc-ico" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+      {liveAuctionCount > 0 && (
+        <button type="button" className="pmc-livechip" data-testid="hero-live-auction-pill"
+                onClick={() => document.querySelector('[data-testid="public-live-auctions"]')?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                style={{ marginLeft: "8px", cursor: "pointer", border: "none" }}>
+          <span className="dot"></span>{liveAuctionCount} auction{liveAuctionCount === 1 ? "" : "s"} live now <svg className="pmc-ico" aria-hidden="true"><use href="#i-arrow" /></svg>
+        </button>
+      )}
       <h1 className="pmc-display pmc-hero__h">Tenders you<br />can <em>prove.</em></h1>
       <p className="pmc-hero__p">Publish, clarify, receive sealed bids, evaluate and award on one platform. Every action is time-stamped and chained to an audit ledger, so every decision can be shown.</p>
       <HeroTaxonomySearch />
