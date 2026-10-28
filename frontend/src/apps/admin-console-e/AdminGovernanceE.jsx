@@ -3,6 +3,7 @@ import { useUiTheme } from "@/context/UiThemeContext";
 import { toast } from "sonner";
 import { governanceApi } from "@/lib/api";
 import AdminShellE from "./AdminShellE";
+import AdminAvatarMenu from "./AdminAvatarMenu";
 
 const TABS = [
   ["exceptions", "Exceptions register"],
@@ -282,7 +283,15 @@ export default function AdminGovernanceE() {
   if (!isE) return null;
   return (
     <div data-testid="admin-governance-e" data-pmc-e-page="admin-governance-e">
-      <AdminShellE active="Governance & integrity" header={<div className="crumb">Money &amp; compliance / <b>Governance &amp; integrity</b></div>}>
+      <AdminShellE active="Governance & integrity" header={<>
+        <div className="crumb">Money &amp; compliance / <b>Governance &amp; integrity</b></div>
+        <label className="pmc-search"><svg className="pmc-ico" aria-hidden="true"><use href="#i-search" /></svg><input placeholder="Search tenders, bids, vendors, ledger events…" data-testid="gov-search-input" /><span className="pmc-kbd">Ctrl K</span></label>
+        <div className="pmc-atop__r">
+          <button className="pmc-btn pmc-btn--secondary" data-help-open="" data-testid="gov-help-btn"><svg className="pmc-ico" aria-hidden="true"><use href="#i-help" /></svg> Help</button>
+          <button className="pmc-ib pmc-bell" aria-label="Alerts" data-testid="gov-bell-btn"><svg className="pmc-ico" aria-hidden="true"><use href="#i-bell" /></svg><span className="pmc-bell__n">0</span></button>
+          <AdminAvatarMenu />
+        </div>
+      </>}>
         <h1 className="pmc-display" style={{ fontSize: "30px", margin: "0 0 4px" }}>Governance &amp; integrity</h1>
         <p className="pmc-muted" style={{ fontSize: "14px", marginBottom: "16px" }}>Due-diligence controls: exceptions register, buyer classification, integrity committee, fee waivers, legal register and incident disclosure.</p>
         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "18px", borderBottom: "1px solid var(--line)", paddingBottom: "8px" }}>
