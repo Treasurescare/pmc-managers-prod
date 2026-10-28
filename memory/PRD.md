@@ -10,6 +10,37 @@ reverse auctions, bid governance, EMD escrow workflows, vendor/staff/
 institution portals, AWS deployment bundles, and transactional notifications
 (Stripe, Resend, DocuSign, Emergent crons).
 
+## R9 — FULL vendor tender builder (SPEC — next build, not yet implemented)
+User requirement (28 Jun 2026): the vendor tender builder must be the COMPLETE
+staff experience, not the cut-down form shipped in R8.
+Architecture (discovered — reuse existing, do NOT duplicate):
+- **Reuse the real panel** `frontend/src/apps/admin-console/TenderBuilderPanel.jsx`
+  (+ `tender/DprGenerateModal, TenderHeaderForm, TenderSidebar, TenderSectionCard`)
+  in a NEW vendor-portal wrapper, in a "vendor mode" prop where the final action is
+  **Submit for PMC review** (reviewer-only approval, already built in R8), never Publish.
+- **Vendor-auth the DPR/AI engine**: `routers/tender_pro.py` endpoints are gated to
+  `require_role("admin","reviewer")`. Add a vendor-aware auth path (accept
+  `current_vendor`) with STRICT per-draft ownership scoping — a vendor may run DPR
+  analyze / AI drafting / section save only on their OWN draft notice.
+- **Subscription via the FEES MASTER (already exists)**: the fees master is
+  `emd_masters` with `kind="subscription"` (see `tender_pro.py` ~L709-803). Create a
+  `tender_builder` subscription entry there; `billing.py` (L332+, `fee_master_id` →
+  Stripe checkout, one-off or recurring) already does the checkout. REWIRE
+  `vendor_tenders._sub_config()` to read price from that fee-master entry instead of
+  the stop-gap `platform_config` doc, and use billing.py's checkout. Full AI builder
+  is unlocked ONLY when the vendor's subscription is active.
+- **Scope limiting**: a vendor may raise tenders only in their APPROVED categories.
+  Extra scope = vendor requests expansion → PMC approval (new approval flow) AND may
+  require a higher subscription tier. Enforce approved-category check on create/submit.
+- **Masters-driven fields**: delivery-country & currency are dropdowns limited to the
+  VENDOR'S OPERATING COUNTRIES (from the vendor's registered countries ∩
+  `/meta/countries` + `/masters/currencies`). Apply consistently on admin builder too.
+- Keep R8 conflict guard (can't bid on own tender) + author disclosure.
+Testing: end-to-end vendor flow (subscribe via fees master → DPR upload → AI draft →
+submit → reviewer approve → publish → originating vendor blocked from bidding).
+STATUS: fully specced + architecture discovered; implementation pending (large, to be
+built + tested in a dedicated pass).
+
 ## R8 — Vendor Tender Preparation (28 Jun 2026)
 Approved, KYC-verified vendors can prepare tenders with the same fields as staff,
 gated by an optional paid subscription; every vendor tender needs MANDATORY PMC
