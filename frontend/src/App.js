@@ -150,6 +150,7 @@ import AdminAuctionsE from "@/apps/admin-console-e/AdminAuctionsE";
 import AdminStakeholderReportsE from "@/apps/admin-console-e/AdminStakeholderReportsE";
 import AdminVendorRequestsE from "@/apps/admin-console-e/AdminVendorRequestsE";
 import AdminProfileChangesE from "@/apps/admin-console-e/AdminProfileChangesE";
+import AdminGovernanceE from "@/apps/admin-console-e/AdminGovernanceE";
 import DialogsE from "@/apps/reference-e/DialogsE";
 import StatesE from "@/apps/reference-e/StatesE";
 import EmailsE from "@/apps/reference-e/EmailsE";
@@ -278,6 +279,7 @@ export default function App() {
             <Route path="/admin/e/stakeholder-reports" element={<AdminStakeholderReportsE />} />
             <Route path="/admin/e/vendor-requests" element={<AdminVendorRequestsE />} />
             <Route path="/admin/e/profile-changes" element={<AdminProfileChangesE />} />
+            <Route path="/admin/e/governance" element={<AdminGovernanceE />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/*" element={<AdminDashboard />} />
             </Route>

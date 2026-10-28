@@ -298,6 +298,10 @@ app.include_router(_filter_presets.router)
 app.include_router(awards.router)
 # Wave 40 — Reverse Auction Live Room + UNSPSC-lite taxonomy
 app.include_router(auction_live.router)
+# R7 — Governance controls (exceptions register, buyer classification, integrity
+# committee + collusion indicators, fee waivers, legal register, incidents/SLA)
+from routers import governance_controls as _governance_controls  # noqa: E402
+app.include_router(_governance_controls.router)
 app.include_router(taxonomy.router)
 # Wave 41 — Meeting Scheduler + Jitsi + L1 Auto-Comparison
 app.include_router(meetings.router)

@@ -42,10 +42,12 @@ async def _fetch_bid_scope(ref: str) -> str:
         raise HTTPException(status_code=404, detail=f"Bid {ref} not found")
     notice_ref = b.get("notice_ref")
     n = await db.notices.find_one({"notice_ref": notice_ref}) if notice_ref else None
+    # R7 two-cover integrity: the AI technical comparison must NEVER receive the
+    # commercial (price) cover — price is withheld from the model entirely so the
+    # technical assessment cannot be influenced by, or leak, financial data.
     parts = [
         f"Bid ref: {b.get('bid_ref')}",
         f"Vendor: {b.get('company_name') or b.get('vendor_ref')}",
-        f"Price: {b.get('price_amount')} {b.get('price_currency')}",
         f"Delivery: {b.get('delivery_days') or '?'} days",
         f"Technical notes: {b.get('technical_notes') or '—'}",
         f"Scope of underlying notice: {(n or {}).get('description', '—')}",

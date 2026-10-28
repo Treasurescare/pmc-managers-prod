@@ -42,6 +42,7 @@ export default function AdminSideNavE({ active }) {
     ["Reverse auctions", "/admin/e/auctions", "i-gavel"],
     ["DocuSign", "/admin/e/docusign", "i-sign"],
     ["Permissions", "/admin/e/permissions", "i-lock"],
+    ["Governance & integrity", "/admin/e/governance", "i-shield"],
     ["Masters", "/admin/e/masters", "i-layers"],
     ["Suggested banks", "/admin/e/suggested-banks", "i-layers"],
     ["Events", null, null],

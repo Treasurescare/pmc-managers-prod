@@ -897,14 +897,36 @@ export const analyticsApi = {
 };
 
 // ---------- Wave 8: KYC ----------
-export const kycApi = {
-  start: (vendor_ref, level = "basic") =>
+export const kycApi = {  start: (vendor_ref, level = "basic") =>
     api.post("/api/v1/kyc/start", { vendor_ref, level }).then((r) => r.data),
   get: (case_id) => api.get(`/api/v1/kyc/${case_id}`).then((r) => r.data),
   listForVendor: (vendor_ref) =>
     api.get(`/api/v1/kyc/vendor/${vendor_ref}`).then((r) => r.data),
   manual: (vendor_ref, decision, notes = null) =>
     api.post("/api/v1/kyc/manual", { vendor_ref, decision, notes }).then((r) => r.data),
+};
+
+// ---------- R7: Governance controls ----------
+export const governanceApi = {
+  listExceptions: (kind) => api.get("/api/v1/governance-controls/exceptions", { params: kind ? { kind } : {} }).then((r) => r.data),
+  listBuyerClassifications: (status) => api.get("/api/v1/governance-controls/buyer-classifications", { params: status ? { status } : {} }).then((r) => r.data),
+  classifyBuyer: (payload) => api.post("/api/v1/governance-controls/buyer-classifications", payload).then((r) => r.data),
+  verifyBuyer: (payload) => api.post("/api/v1/governance-controls/buyer-classifications/verify", payload).then((r) => r.data),
+  listIntegrityCases: (status) => api.get("/api/v1/governance-controls/integrity-cases", { params: status ? { status } : {} }).then((r) => r.data),
+  raiseIntegrity: (payload) => api.post("/api/v1/governance-controls/integrity-cases", payload).then((r) => r.data),
+  reviewIntegrity: (payload) => api.post("/api/v1/governance-controls/integrity-cases/review", payload).then((r) => r.data),
+  resolveIntegrity: (payload) => api.post("/api/v1/governance-controls/integrity-cases/resolve", payload).then((r) => r.data),
+  overrideIntegrity: (payload) => api.post("/api/v1/governance-controls/integrity-cases/senior-override", payload).then((r) => r.data),
+  collusion: (noticeRef) => api.get(`/api/v1/governance-controls/collusion/${noticeRef}`).then((r) => r.data),
+  listFeeWaivers: (status) => api.get("/api/v1/governance-controls/fee-waivers", { params: status ? { status } : {} }).then((r) => r.data),
+  requestFeeWaiver: (payload) => api.post("/api/v1/governance-controls/fee-waivers", payload).then((r) => r.data),
+  decideFeeWaiver: (payload) => api.post("/api/v1/governance-controls/fee-waivers/decide", payload).then((r) => r.data),
+  listLegalRegister: () => api.get("/api/v1/governance-controls/legal-register").then((r) => r.data),
+  upsertLegalRegister: (payload) => api.post("/api/v1/governance-controls/legal-register", payload).then((r) => r.data),
+  listIncidents: () => api.get("/api/v1/governance-controls/incidents").then((r) => r.data),
+  createIncident: (payload) => api.post("/api/v1/governance-controls/incidents", payload).then((r) => r.data),
+  updateIncident: (payload) => api.post("/api/v1/governance-controls/incidents/update", payload).then((r) => r.data),
+  publicIncidents: () => api.get("/api/v1/governance-controls/public/incidents").then((r) => r.data),
 };
 
 // ---------- Wave 9: Admin vendor invite + Permissions Matrix ----------
