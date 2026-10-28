@@ -105,6 +105,10 @@ async def create_bid(payload: BidCreateIn, vendor=Depends(current_vendor)) -> di
     notice = await db.notices.find_one({"notice_ref": payload.notice_ref, "is_published": True})
     if not notice:
         raise HTTPException(status_code=404, detail="Notice not found or not published")
+    # R8 conflict-of-interest: a vendor who prepared a tender may not bid on it.
+    if notice.get("origin") == "vendor" and notice.get("prepared_by_vendor_id") == vendor["id"]:
+        raise HTTPException(status_code=403,
+            detail="You prepared this tender and cannot bid on it (conflict of interest).")
     # Deadline check
     deadline = notice.get("submission_deadline")
     if deadline and deadline < datetime.now(timezone.utc).isoformat():

@@ -43,6 +43,7 @@ export default function AdminSideNavE({ active }) {
     ["DocuSign", "/admin/e/docusign", "i-sign"],
     ["Permissions", "/admin/e/permissions", "i-lock"],
     ["Governance & integrity", "/admin/e/governance", "i-shield"],
+    ["Tender review", "/admin/e/tender-review", "i-gavel"],
     ["Masters", "/admin/e/masters", "i-layers"],
     ["Suggested banks", "/admin/e/suggested-banks", "i-layers"],
     ["Events", null, null],

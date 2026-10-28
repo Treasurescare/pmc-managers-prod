@@ -16,6 +16,23 @@ from audit import audit_log
 router = APIRouter(prefix="/api/v1/notices", tags=["notices"])
 
 
+async def _attach_engagement_counts(items: list) -> None:
+    """R8 — add live bid_count (distinct active bidders) to each notice item so
+    the public lists can show an interest counter."""
+    refs = [i.get("notice_ref") for i in items if i.get("notice_ref")]
+    if not refs:
+        return
+    counts = {}
+    pipeline = [
+        {"$match": {"notice_ref": {"$in": refs}, "status": {"$nin": ["withdrawn", "rejected"]}}},
+        {"$group": {"_id": "$notice_ref", "bidders": {"$addToSet": "$vendor_id"}}},
+    ]
+    async for row in db.bids.aggregate(pipeline):
+        counts[row["_id"]] = len([b for b in row.get("bidders", []) if b])
+    for i in items:
+        i["bid_count"] = counts.get(i.get("notice_ref"), 0)
+
+
 # ---- Magic-byte sniffing so uploads can't be plain text disguised as PDF ---
 _MIN_DOC_BYTES = 200  # anything smaller is almost certainly a placeholder
 
@@ -290,6 +307,7 @@ async def list_notices(
     cursor = db.notices.find(q).sort("published_at", -1).skip(offset).limit(limit)
     total = await db.notices.count_documents(q)
     items = [_out(t) async for t in cursor]
+    await _attach_engagement_counts(items)
     # v52cu — no-store so a notice appears on the landing page the moment the
     # admin hits Publish. Previously this route sent no cache headers, so
     # CloudFront / the browser could serve a briefly-stale list.
@@ -317,6 +335,8 @@ async def get_notice(notice_ref: str):
         corrigenda.append(c_out)
     out["corrigenda"] = corrigenda
     out["corrigenda_count"] = len(corrigenda)
+    _one = [out]
+    await _attach_engagement_counts(_one)
     return out
 
 

@@ -302,6 +302,9 @@ app.include_router(auction_live.router)
 # committee + collusion indicators, fee waivers, legal register, incidents/SLA)
 from routers import governance_controls as _governance_controls  # noqa: E402
 app.include_router(_governance_controls.router)
+# R8 — Vendor Tender Preparation (subscription-gated, reviewer-approved)
+from routers import vendor_tenders as _vendor_tenders  # noqa: E402
+app.include_router(_vendor_tenders.router)
 app.include_router(taxonomy.router)
 # Wave 41 — Meeting Scheduler + Jitsi + L1 Auto-Comparison
 app.include_router(meetings.router)

@@ -151,6 +151,8 @@ import AdminStakeholderReportsE from "@/apps/admin-console-e/AdminStakeholderRep
 import AdminVendorRequestsE from "@/apps/admin-console-e/AdminVendorRequestsE";
 import AdminProfileChangesE from "@/apps/admin-console-e/AdminProfileChangesE";
 import AdminGovernanceE from "@/apps/admin-console-e/AdminGovernanceE";
+import AdminTenderReviewE from "@/apps/admin-console-e/AdminTenderReviewE";
+import VendorTenderBuilderE from "@/apps/vendor-portal-e/VendorTenderBuilderE";
 import DialogsE from "@/apps/reference-e/DialogsE";
 import StatesE from "@/apps/reference-e/StatesE";
 import EmailsE from "@/apps/reference-e/EmailsE";
@@ -280,6 +282,7 @@ export default function App() {
             <Route path="/admin/e/vendor-requests" element={<AdminVendorRequestsE />} />
             <Route path="/admin/e/profile-changes" element={<AdminProfileChangesE />} />
             <Route path="/admin/e/governance" element={<AdminGovernanceE />} />
+            <Route path="/admin/e/tender-review" element={<AdminTenderReviewE />} />
             <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/admin/*" element={<AdminDashboard />} />
             </Route>
@@ -292,6 +295,7 @@ export default function App() {
             {/* Vendor Option-E multi-page routes */}
             <Route path="/vendor/mybids" element={<RequireVendor><VendorMyBidsE /></RequireVendor>} />
             <Route path="/vendor/tenders" element={<RequireVendor><VendorFindTendersE /></RequireVendor>} />
+            <Route path="/vendor/tender-builder" element={<RequireVendor><VendorTenderBuilderE /></RequireVendor>} />
             <Route path="/vendor/workspace/:bidId" element={<RequireVendor><VendorBidWorkspaceE /></RequireVendor>} />
             <Route path="/vendor/emd" element={<RequireVendor><VendorEmdE /></RequireVendor>} />
             <Route path="/vendor/signatures" element={<RequireVendor><VendorSignaturesE /></RequireVendor>} />

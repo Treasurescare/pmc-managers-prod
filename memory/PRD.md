@@ -10,6 +10,25 @@ reverse auctions, bid governance, EMD escrow workflows, vendor/staff/
 institution portals, AWS deployment bundles, and transactional notifications
 (Stripe, Resend, DocuSign, Emergent crons).
 
+## R8 — Vendor Tender Preparation (28 Jun 2026)
+Approved, KYC-verified vendors can prepare tenders with the same fields as staff,
+gated by an optional paid subscription; every vendor tender needs MANDATORY PMC
+review by the `reviewer` role ONLY before publishing. Backend: `routers/vendor_tenders.py`
+(prefix `/api/v1/vendor-tenders`). Frontend: vendor page `/vendor/tender-builder`
+(subscription gate + full-parity builder + my-tenders) and admin `/admin/e/tender-review`
+(reviewer-only queue: approve→publish / request-changes / reject).
+- Subscription price/period come from backend config (`platform_config` doc
+  `tender_builder_subscription`; default disabled=free). Stripe reuses the repo's
+  Flow-B pattern (`pmc_lib...StripeCheckout`, `STRIPE_API_KEY`), checkout+poll;
+  on paid the vendor's `tender_builder_sub` is activated.
+- Conflict of interest: a vendor who prepared a tender is blocked (403) from
+  bidding on it (guard in `bids.py`). Author disclosed on the tender + ledger.
+- Notices public list/detail now emit `bid_count` (distinct active bidders) for a
+  public interest counter. NEXT (deferred): render the counter + a live countdown
+  timer in the tender cards (public + portal).
+- Verified: backend auth-gating via curl (401/403), frontend build + render of
+  both pages. Reviewer approve path requires a reviewer-active session.
+
 ## R7 — Governance & integrity hardening (28 Jun 2026)
 Answered the PMC-portal due-diligence questionnaire against the real code, then
 built the governance gaps the user flagged as must-do. Admin console page:

@@ -906,6 +906,23 @@ export const kycApi = {  start: (vendor_ref, level = "basic") =>
     api.post("/api/v1/kyc/manual", { vendor_ref, decision, notes }).then((r) => r.data),
 };
 
+// ---------- R8: Vendor Tender Preparation ----------
+export const vendorTenderApi = {
+  subscription: () => api.get("/api/v1/vendor-tenders/subscription").then((r) => r.data),
+  subCheckout: (origin_url) => api.post("/api/v1/vendor-tenders/subscription/checkout", { origin_url }).then((r) => r.data),
+  subStatus: (sid) => api.get(`/api/v1/vendor-tenders/subscription/checkout/status/${sid}`).then((r) => r.data),
+  getSubConfig: () => api.get("/api/v1/vendor-tenders/subscription/config").then((r) => r.data),
+  setSubConfig: (payload) => api.post("/api/v1/vendor-tenders/subscription/config", payload).then((r) => r.data),
+  create: (payload) => api.post("/api/v1/vendor-tenders", payload).then((r) => r.data),
+  update: (ref, payload) => api.put(`/api/v1/vendor-tenders/${ref}`, payload).then((r) => r.data),
+  submit: (ref) => api.post(`/api/v1/vendor-tenders/${ref}/submit`).then((r) => r.data),
+  mine: () => api.get("/api/v1/vendor-tenders/mine").then((r) => r.data),
+  reviewQueue: (status) => api.get("/api/v1/vendor-tenders/review/queue", { params: status ? { status } : {} }).then((r) => r.data),
+  approve: (ref, note) => api.post(`/api/v1/vendor-tenders/${ref}/approve`, { note }).then((r) => r.data),
+  requestChanges: (ref, note) => api.post(`/api/v1/vendor-tenders/${ref}/request-changes`, { note }).then((r) => r.data),
+  reject: (ref, note) => api.post(`/api/v1/vendor-tenders/${ref}/reject`, { note }).then((r) => r.data),
+};
+
 // ---------- R7: Governance controls ----------
 export const governanceApi = {
   listExceptions: (kind) => api.get("/api/v1/governance-controls/exceptions", { params: kind ? { kind } : {} }).then((r) => r.data),
