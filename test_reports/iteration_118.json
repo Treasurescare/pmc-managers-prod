@@ -1,0 +1,46 @@
+{
+  "summary": "R7 governance/integrity hardening tested end-to-end. Backend: 17/17 core tests pass (auth gate, exceptions register, buyer classification + SoD 403 negative + positive verify by legal_counsel and by a second admin (owner) with override -> exception row, integrity raise/review/resolve/senior-override (422 short reason, 403 for committee_member, exception kind=integrity_override written, 409 review after override), collusion on empty/real notice, fee waiver maker-checker 403 + approve by owner -> exception kind=fee_waiver, reject path writes no exception, 409 on re-decide, legal register upsert by legal+admin (single row), 403 for committee, incidents create/resolve + public no-auth endpoint with SLA, private incident hidden). AI price-leak: the Price line is gone from _fetch_bid_scope (checked in source). Two loophole probes FAIL: (1) a committee member can resolve a case after a senior override, which silently replaces 'overridden'; (2) a verified buyer classification can be overwritten back to pending by anyone with admin/reviewer, which wipes the verifier record. Frontend: login -> sidebar 'Governance & integrity' -> all 6 tabs render; buyer classify form saves and the row appears; Verify by the same admin shows the SoD error toast; fee waiver self-approve shows the SoD error toast; collusion scan, raise case, legal save and incident log/resolve all work.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/v1/governance-controls/integrity-cases/resolve", "issue": "No status guard. After a senior override (status=overridden), a committee member can still call resolve, and it replaces status/resolution (overridden -> upheld). The UI then shows UPHELD next to the override text. The audited override can be undone without its own exception entry. Reproduced in tests/test_r7_governance_loopholes.py::test_resolve_after_override_should_be_blocked (returns 200, expected 409). Fix: reject resolve when status is not open/under_review. Consider requiring at least one review before resolving.", "priority": "HIGH"},
+      {"endpoint": "POST /api/v1/governance-controls/buyer-classifications", "issue": "Unconditional upsert by notice_ref. A VERIFIED classification is overwritten back to pending_verification, and verified_by/verified_at/verify_note are cleared, with no history and no exception logged. It also lets a second person become classified_by on another person's entry, so the original classifier can then verify their own buyer type: A classifies X, B reclassifies X, A verifies. That is an SoD bypass. Reproduced in test_reclassify_after_verify_by_other_user (returns 200). Fix: block reclassification of verified rows (409), or require a recorded exception, and keep a history array.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /buyer-classifications, POST /integrity-cases", "issue": "notice_ref is never checked against db.notices, so classifications/cases can be created for notices that do not exist."},
+      {"endpoint": "POST /integrity-cases/senior-override", "issue": "Can be applied repeatedly or to an already-resolved case. Each call adds another exception row; there is no status check."},
+      {"endpoint": "backend/routers/bids_ai_compare.py _fetch_bid_scope", "issue": "The docstring still says 'company_name + price + technical_notes'. The code is correct, but the docstring is misleading for auditors."},
+      {"endpoint": "POST /legal-register", "issue": "documents: List[dict] is not validated. approved_by is set even when legal_status is pending/blocked (it should be updated_by)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AdminGovernanceE route", "issue": "A hard reload or direct URL load of /admin/e/governance sends you to /login?expired=1 (the token is kept in memory). It works through client-side navigation. This appears to be existing app-wide behaviour, not new.", "selector": "[data-testid=admin-governance-e]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Governance > Incidents", "issues": ["The success toast after a status update shows the raw word 'resolved' in lowercase; use 'Incident resolved'."]},
+      {"screen": "Governance (all tabs)", "issues": ["Some buttons have no data-testid: buyer Reject, fee waiver Reject, incident Monitoring, integrity Vote uphold/dismiss and Resolve uphold/dismiss."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_r7_governance_controls.py", "/app/backend/tests/test_r7_governance_loopholes.py", "/app/test_reports/pytest/pytest_r7_governance.xml"],
+  "action_items": [
+    "Block /integrity-cases/resolve (and /review) when status is not open/under_review, so the senior override cannot be undone silently",
+    "Make /buyer-classifications reject reclassifying a verified row (409), or record it as an exception with history; stop the classifier-swap SoD bypass",
+    "Optionally validate that notice_ref exists; block repeat senior overrides",
+    "Add the missing data-testids for Reject/Monitoring/Vote/Resolve buttons; fix the bids_ai_compare docstring"
+  ],
+  "critical_code_review_comments": [
+    "SoD checks compare emails case-insensitively and are correct for verify/decide, but the classify upsert opens a bypass (see critical #2)",
+    "The integrity workflow has no state machine: resolve and override accept any status",
+    "record_exception writes to manual_exceptions and to audit_log, which is good; _out() strips _id (checked: no _id in responses)",
+    "The public incidents endpoint correctly exposes only safe fields (no created_by/impact)"
+  ],
+  "updated_files": ["/app/backend/tests/test_r7_governance_controls.py", "/app/backend/tests/test_r7_governance_loopholes.py"],
+  "success_rate": {"backend": "89% (17/19 incl. 2 loophole probes)", "frontend": "100%"},
+  "test_credentials": "adminsupport@pmcmanagers.com/Admin@12345 (admin), kannan@emeraldcorporates.com/Owner@123 (admin, used as 2nd approver), legal@pmcmanagers.com/Legal@123 (legal_counsel, verifier), committee@pmcmanagers.com/Bid@1234 logs in with role committee_member (NOT admin as the note says). accounts@pmcmanagers.com/Accts@123 returns 401 in preview.",
+  "seed_data_creation": "All TEST_R7* records were removed from buyer_classifications, integrity_cases, fee_waivers, legal_country_register, incidents and manual_exceptions after testing. Audit ledger entries remain (append-only).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_r7_governance_controls.py tests/test_r7_governance_loopholes.py. The loophole tests should pass once the fixes are in. UI login: /admin/login (admin-login-email/password/submit), then it redirects to /admin/e/dashboard; click the sidebar text 'Governance & integrity' (a page.goto reload loses the session).",
+  "rca of the issue": "resolve_integrity_case does an unconditional $set without checking rec.status. classify_buyer uses update_one(upsert=True) with a $set that resets status/verified_by on every call, regardless of the existing state."
+}

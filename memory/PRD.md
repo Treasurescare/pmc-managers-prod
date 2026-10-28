@@ -10,6 +10,35 @@ reverse auctions, bid governance, EMD escrow workflows, vendor/staff/
 institution portals, AWS deployment bundles, and transactional notifications
 (Stripe, Resend, DocuSign, Emergent crons).
 
+## R7 — Governance & integrity hardening (28 Jun 2026)
+Answered the PMC-portal due-diligence questionnaire against the real code, then
+built the governance gaps the user flagged as must-do. Admin console page:
+`/admin/e/governance` (AdminGovernanceE, 6 tabs). Backend: `routers/governance_controls.py`
+(prefix `/api/v1/governance-controls`). All actions audit-logged; SoD enforced.
+- **AI price-leak fixed**: `bids_ai_compare._fetch_bid_scope` no longer sends bid
+  price to the LLM (two-cover integrity).
+- **Manual-exceptions register**: `manual_exceptions` collection + `record_exception()`
+  helper (mirrors to audit ledger); GET /exceptions. Fed by KYC override, fee-waiver
+  approval, buyer-type override, integrity senior-override.
+- **Buyer public/private classification**: classify (admin/reviewer) → verify by a
+  DIFFERENT officer (SoD 403 if same person); verified rows are locked (409 on
+  reclassify); history kept.
+- **Integrity committee + collusion**: raise/review/resolve with a state machine
+  (resolve blocked once overridden/resolved → 409); audited+disclosed senior
+  override (admin, reason ≥10 chars, no repeat override); collusion indicators
+  endpoint (shared email-domain/phone/address/bank + repeat co-bidding).
+- **Fee-waiver maker-checker**: request then approve by a different person (SoD 403);
+  approval writes an exception.
+- **Per-country legal register**: board-visible; approved_by set only when approved.
+- **Incidents + public SLA**: admin logs incidents; `/public/incidents` (no auth)
+  returns disclosed incidents + published SLA statement.
+Verified: 19/19 pytest (incl. 2 loophole regressions) + testing_agent iteration_118
+(frontend 100%). STILL A STUB / NOT REAL: KYC/AML screening — user will supply
+Refinitiv World-Check One (LSEG) access to wire a real provider next.
+NEXT (user-approved order): real KYC (Refinitiv) → full accounting module →
+CRM (supplier + buyer + shared tasks).
+
+
 
 ## Public placeholder-data cleanup (26 Jun 2026)
 Go-live prep: public-facing pages must show real live API data or honest empty/loading/not-found states —

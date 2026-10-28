@@ -106,19 +106,31 @@ async def list_buyer_classifications(status: Optional[str] = None,
 @router.post("/buyer-classifications")
 async def classify_buyer(payload: BuyerClassifyIn,
                          admin=Depends(require_role("admin", "reviewer"))):
-    doc = {
+    rec = await db.buyer_classifications.find_one({"notice_ref": payload.notice_ref})
+    # A verified classification is locked — it cannot be silently reset to
+    # pending (which would wipe the verifier record and open an SoD bypass).
+    if rec and rec.get("status") == "verified":
+        raise HTTPException(status_code=409,
+            detail="This buyer classification is already verified and cannot be reclassified. Raise a new review instead.")
+    setd = {
         "notice_ref": payload.notice_ref,
         "buyer_name": payload.buyer_name.strip(),
         "buyer_type": payload.buyer_type,
         "basis": payload.basis.strip(),
         "status": "pending_verification",
-        "classified_by": admin["email"],
-        "classified_at": now_iso(),
         "verified_by": None,
         "verified_at": None,
+        "verify_note": None,
     }
+    # Preserve the ORIGINAL classifier of record so re-classifying a pending row
+    # can never swap classified_by and defeat the verify-time SoD check.
+    if not rec:
+        setd["classified_by"] = admin["email"]
+        setd["classified_at"] = now_iso()
+    hist = {"by": admin["email"], "buyer_type": payload.buyer_type, "at": now_iso()}
     await db.buyer_classifications.update_one(
-        {"notice_ref": payload.notice_ref}, {"$set": doc}, upsert=True)
+        {"notice_ref": payload.notice_ref},
+        {"$set": setd, "$push": {"history": hist}}, upsert=True)
     await audit_log("buyer.classify", admin, "notice", payload.notice_ref,
                     {"buyer_type": payload.buyer_type, "basis": payload.basis})
     return {"ok": True, "status": "pending_verification"}
@@ -232,6 +244,11 @@ async def resolve_integrity_case(payload: IntegrityResolveIn,
     rec = await db.integrity_cases.find_one({"case_ref": payload.case_ref})
     if not rec:
         raise HTTPException(status_code=404, detail="Integrity case not found")
+    # State machine: only an open/under-review case may be resolved. A case that
+    # was resolved or carries a senior override cannot be silently re-resolved.
+    if rec.get("status") not in ("open", "under_review"):
+        raise HTTPException(status_code=409,
+            detail=f"Case is {rec.get('status')} and can no longer be resolved. A senior override cannot be undone this way.")
     await db.integrity_cases.update_one(
         {"case_ref": payload.case_ref},
         {"$set": {"status": payload.resolution, "resolution": payload.resolution,
@@ -251,6 +268,9 @@ async def senior_override_integrity_case(payload: IntegrityOverrideIn,
     rec = await db.integrity_cases.find_one({"case_ref": payload.case_ref})
     if not rec:
         raise HTTPException(status_code=404, detail="Integrity case not found")
+    if rec.get("status") == "overridden":
+        raise HTTPException(status_code=409,
+            detail="This case already carries a senior override.")
     override = {"by": admin["email"], "decision": payload.decision,
                 "reason": payload.reason, "at": now_iso(), "disclosed": True}
     await db.integrity_cases.update_one(
@@ -429,7 +449,9 @@ async def upsert_legal_register(payload: LegalRegisterIn,
     doc = {
         "country": key, "legal_status": payload.legal_status,
         "counsel_note": payload.counsel_note, "documents": payload.documents or [],
-        "board_visible": True, "approved_by": admin["email"], "updated_at": now_iso(),
+        "board_visible": True, "updated_by": admin["email"],
+        "approved_by": admin["email"] if payload.legal_status == "approved" else None,
+        "updated_at": now_iso(),
     }
     await db.legal_country_register.update_one(
         {"country": key}, {"$set": doc}, upsert=True)

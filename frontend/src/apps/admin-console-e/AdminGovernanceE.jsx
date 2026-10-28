@@ -101,7 +101,7 @@ function BuyerTab() {
                 <td><span className="pmc-pill">{r.buyer_type === "public_sector" ? "Public" : "Private"}</span></td>
                 <td><span className={"pmc-pill " + (r.status === "verified" ? "pmc-pill--success" : r.status === "rejected" ? "pmc-pill--danger" : "pmc-pill--warning")}>{r.status}</span></td>
                 <td style={{ fontSize: "11px" }}>{r.classified_by}<br />{r.verified_by || "—"}</td>
-                <td>{r.status === "pending_verification" && (<span style={{ display: "flex", gap: "6px" }}><button className="pmc-btn pmc-btn--sm pmc-btn--primary" data-testid={`buyer-verify-${r.notice_ref}`} onClick={() => verify(r.notice_ref, true)}>Verify</button><button className="pmc-btn pmc-btn--sm pmc-btn--secondary" onClick={() => verify(r.notice_ref, false)}>Reject</button></span>)}</td>
+                <td>{r.status === "pending_verification" && (<span style={{ display: "flex", gap: "6px" }}><button className="pmc-btn pmc-btn--sm pmc-btn--primary" data-testid={`buyer-verify-${r.notice_ref}`} onClick={() => verify(r.notice_ref, true)}>Verify</button><button className="pmc-btn pmc-btn--sm pmc-btn--secondary" data-testid={`buyer-reject-${r.notice_ref}`} onClick={() => verify(r.notice_ref, false)}>Reject</button></span>)}</td>
               </tr>))}</tbody>
           </table>)}
       </Panel>
@@ -151,10 +151,10 @@ function IntegrityTab() {
             {r.senior_override && <div style={{ fontSize: "12px", color: "var(--danger, #b00)", marginTop: "4px" }}>Senior override by {r.senior_override.by}: {r.senior_override.reason} (disclosed)</div>}
             {["open", "under_review"].includes(r.status) && (
               <div style={{ display: "flex", gap: "6px", marginTop: "8px", flexWrap: "wrap" }}>
-                <button className="pmc-btn pmc-btn--sm pmc-btn--secondary" onClick={() => act(() => governanceApi.reviewIntegrity({ case_ref: r.case_ref, vote: "uphold" }), "Vote recorded")}>Vote uphold</button>
-                <button className="pmc-btn pmc-btn--sm pmc-btn--secondary" onClick={() => act(() => governanceApi.reviewIntegrity({ case_ref: r.case_ref, vote: "dismiss" }), "Vote recorded")}>Vote dismiss</button>
-                <button className="pmc-btn pmc-btn--sm pmc-btn--primary" onClick={() => act(() => governanceApi.resolveIntegrity({ case_ref: r.case_ref, resolution: "upheld" }), "Resolved")}>Resolve: uphold</button>
-                <button className="pmc-btn pmc-btn--sm pmc-btn--primary" onClick={() => act(() => governanceApi.resolveIntegrity({ case_ref: r.case_ref, resolution: "dismissed" }), "Resolved")}>Resolve: dismiss</button>
+                <button className="pmc-btn pmc-btn--sm pmc-btn--secondary" data-testid={`int-vote-uphold-${r.case_ref}`} onClick={() => act(() => governanceApi.reviewIntegrity({ case_ref: r.case_ref, vote: "uphold" }), "Vote recorded")}>Vote uphold</button>
+                <button className="pmc-btn pmc-btn--sm pmc-btn--secondary" data-testid={`int-vote-dismiss-${r.case_ref}`} onClick={() => act(() => governanceApi.reviewIntegrity({ case_ref: r.case_ref, vote: "dismiss" }), "Vote recorded")}>Vote dismiss</button>
+                <button className="pmc-btn pmc-btn--sm pmc-btn--primary" data-testid={`int-resolve-uphold-${r.case_ref}`} onClick={() => act(() => governanceApi.resolveIntegrity({ case_ref: r.case_ref, resolution: "upheld" }), "Resolved")}>Resolve: uphold</button>
+                <button className="pmc-btn pmc-btn--sm pmc-btn--primary" data-testid={`int-resolve-dismiss-${r.case_ref}`} onClick={() => act(() => governanceApi.resolveIntegrity({ case_ref: r.case_ref, resolution: "dismissed" }), "Resolved")}>Resolve: dismiss</button>
                 <button className="pmc-btn pmc-btn--sm pmc-btn--danger" data-testid={`int-override-${r.case_ref}`} onClick={() => { const reason = window.prompt("Senior override reason (recorded & disclosed):"); if (reason && reason.length >= 10) act(() => governanceApi.overrideIntegrity({ case_ref: r.case_ref, decision: "dismissed", reason }), "Override recorded"); else if (reason) toast.error("Reason must be at least 10 characters"); }}>Senior override</button>
               </div>)}
           </div>))}
@@ -197,7 +197,7 @@ function FeesTab() {
                 <td>{r.waiver_ref}</td><td>{r.subject_type}/{r.subject_ref}</td><td>{r.fee_type}</td><td>{r.currency} {r.amount}</td>
                 <td><span className={"pmc-pill " + (r.status === "approved" ? "pmc-pill--success" : r.status === "rejected" ? "pmc-pill--danger" : "pmc-pill--warning")}>{r.status}</span></td>
                 <td style={{ fontSize: "11px" }}>{r.requested_by}</td>
-                <td>{r.status === "pending" && (<span style={{ display: "flex", gap: "6px" }}><button className="pmc-btn pmc-btn--sm pmc-btn--primary" data-testid={`fw-approve-${r.waiver_ref}`} onClick={() => decide(r.waiver_ref, "approved")}>Approve</button><button className="pmc-btn pmc-btn--sm pmc-btn--secondary" onClick={() => decide(r.waiver_ref, "rejected")}>Reject</button></span>)}</td>
+                <td>{r.status === "pending" && (<span style={{ display: "flex", gap: "6px" }}><button className="pmc-btn pmc-btn--sm pmc-btn--primary" data-testid={`fw-approve-${r.waiver_ref}`} onClick={() => decide(r.waiver_ref, "approved")}>Approve</button><button className="pmc-btn pmc-btn--sm pmc-btn--secondary" data-testid={`fw-reject-${r.waiver_ref}`} onClick={() => decide(r.waiver_ref, "rejected")}>Reject</button></span>)}</td>
               </tr>))}</tbody>
           </table>)}
       </Panel>
@@ -232,7 +232,7 @@ function LegalTab() {
             <tbody>{rows.map((r) => (
               <tr key={r.id} style={{ borderBottom: "1px solid var(--line)" }}>
                 <td>{r.country}</td><td><span className={"pmc-pill " + (r.legal_status === "approved" ? "pmc-pill--success" : r.legal_status === "blocked" ? "pmc-pill--danger" : "pmc-pill--warning")}>{r.legal_status}</span></td>
-                <td style={{ fontSize: "11px" }}>{r.approved_by}</td><td style={{ maxWidth: "240px" }}>{r.counsel_note}</td><td>{(r.updated_at || "").slice(0, 10)}</td>
+                <td style={{ fontSize: "11px" }}>{r.approved_by || r.updated_by}</td><td style={{ maxWidth: "240px" }}>{r.counsel_note}</td><td>{(r.updated_at || "").slice(0, 10)}</td>
               </tr>))}</tbody>
           </table>)}
       </Panel>
@@ -250,7 +250,7 @@ function IncidentsTab() {
     try { await governanceApi.createIncident(form); toast.success("Incident logged"); setForm({ title: "", severity: "high", category: "bid_opening", impact: "", public_disclosure: true, public_statement: "" }); load(); }
     catch (e) { err(e, "Could not log incident"); }
   };
-  const update = async (incident_ref, status) => { try { await governanceApi.updateIncident({ incident_ref, status }); toast.success(status); load(); } catch (e) { err(e, "Could not update"); } };
+  const update = async (incident_ref, status) => { try { await governanceApi.updateIncident({ incident_ref, status }); toast.success(status === "resolved" ? "Incident resolved" : "Incident set to monitoring"); load(); } catch (e) { err(e, "Could not update"); } };
   return (
     <>
       <Panel title="Log an incident">
@@ -269,7 +269,7 @@ function IncidentsTab() {
           <div key={r.id} style={{ padding: "12px", border: "1px solid var(--line)", borderRadius: "6px", marginBottom: "8px" }} data-testid={`inc-row-${r.incident_ref}`}>
             <div style={{ display: "flex", justifyContent: "space-between" }}><b>{r.title}</b><span className={"pmc-pill " + (r.status === "resolved" ? "pmc-pill--success" : "pmc-pill--warning")}>{r.status}</span></div>
             <div className="pmc-muted" style={{ fontSize: "12px" }}>{r.incident_ref} · {r.severity} · {r.category} · {r.public_disclosure ? "public" : "internal"}</div>
-            {r.status !== "resolved" && (<div style={{ display: "flex", gap: "6px", marginTop: "8px" }}><button className="pmc-btn pmc-btn--sm pmc-btn--secondary" onClick={() => update(r.incident_ref, "monitoring")}>Monitoring</button><button className="pmc-btn pmc-btn--sm pmc-btn--primary" data-testid={`inc-resolve-${r.incident_ref}`} onClick={() => update(r.incident_ref, "resolved")}>Resolve</button></div>)}
+            {r.status !== "resolved" && (<div style={{ display: "flex", gap: "6px", marginTop: "8px" }}><button className="pmc-btn pmc-btn--sm pmc-btn--secondary" data-testid={`inc-monitoring-${r.incident_ref}`} onClick={() => update(r.incident_ref, "monitoring")}>Monitoring</button><button className="pmc-btn pmc-btn--sm pmc-btn--primary" data-testid={`inc-resolve-${r.incident_ref}`} onClick={() => update(r.incident_ref, "resolved")}>Resolve</button></div>)}
           </div>))}
       </Panel>
     </>

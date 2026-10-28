@@ -31,7 +31,8 @@ class RedlineIn(BaseModel):
 async def _fetch_bid_scope(ref: str) -> str:
     """Best-effort: pull the scope of a bid from the notice and the bid record.
     Bids don't always carry their own scope text, so we assemble from
-    company_name + price + technical_notes + linked notice description."""
+    company_name + technical_notes + delivery + linked notice description.
+    PRICE IS DELIBERATELY EXCLUDED (R7 two-cover integrity)."""
     b = await db.bids.find_one({"bid_ref": ref})
     if not b:
         try:
