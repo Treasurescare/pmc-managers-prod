@@ -11,7 +11,7 @@ import { tenderProApi, tenderTemplateApi, publicApi, showApiError } from "@/lib/
 const ASYNC_THRESHOLD_BYTES = 0; // every DPR runs as a background job — direct requests hit the ~60s gateway timeout
 const MAX_UPLOAD_MB = 100;
 const POLL_MS = 3000;
-export default function DprGenerateModal({ open, onClose, kind, masters, onCloned }) {
+export default function DprGenerateModal({ open, onClose, kind, masters, onCloned, creditId = null }) {
   const [files, setFiles] = useState([]);
   const [busy, setBusy] = useState(false);
   const [previews, setPreviews] = useState([]);
@@ -190,7 +190,7 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
           country: mergedHeader.country || country || undefined,
           header: { ...mergedHeader, dpr_warnings: p.preview.warnings || [] },
           sections: cleanSections,
-        });
+        }, created.length === 0 ? creditId : null);
         created.push(doc);
         // v46f — "Build a new master" must ACTUALLY persist a master:
         // POST /tender-templates always creates a draft (is_master=false,

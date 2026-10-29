@@ -14,6 +14,8 @@ import { InfoDot } from "@/components/InfoDot";
 import { tenderDateChainViolations } from "@/lib/dateRules";
 import { useNavigate } from "react-router-dom";
 import { TenderFeesPanel } from "@/apps/vendor-portal-e/TenderFeesPanel";
+import { StartTenderGate } from "@/apps/vendor-portal-e/StartTenderGate";
+import { vendorTenderApi } from "@/lib/api";
 
 /**
  * TenderBuilderPanel — Section-by-section tender/RFP/RFQ composer.
@@ -116,7 +118,19 @@ export default function TenderBuilderPanel({ vendorMode = false }) {
     catch (e) { showApiError(e); }
   };
 
-  const cloneMaster = async (master) => {
+  const [creditId, setCreditId] = useState(null);
+  const [startGate, setStartGate] = useState(null);
+  const withStart = async (next) => {
+    if (!vendorMode) { next(null); return; }
+    try {
+      const s = await vendorTenderApi.startCheck();
+      if (!s.required) { next(null); return; }
+      if (s.credit) { setCreditId(s.credit.id); next(s.credit.id); return; }
+      setStartGate(() => next);
+    } catch (e) { showApiError(e); }
+  };
+
+  const cloneMaster = async (master, cid = creditId) => {
     setBusy(true);
     try {
       // Bug #69/#70/#71 — strip fields that don't belong on a clone.
@@ -141,7 +155,8 @@ export default function TenderBuilderPanel({ vendorMode = false }) {
         header: { ...(master.header || {}), ...freshDateSchedule() },
         sections: cleanSections,
       };
-      const created = await tenderTemplateApi.create(payload);
+      const created = await tenderTemplateApi.create(payload, cid);
+      setCreditId(null);
       toast.success(`Draft created · ${created.name}`, {
         description: "Attachments were reset — re-upload any section files on the clone.",
       });
@@ -557,7 +572,7 @@ export default function TenderBuilderPanel({ vendorMode = false }) {
             </div>
           </div>
         )}
-        <button type="button" onClick={() => setShowDpr(true)}
+        <button type="button" onClick={() => withStart(() => setShowDpr(true))}
                 data-testid="tb-open-dpr"
                 className="w-full px-4 py-2.5 text-[11px] font-semibold uppercase tracking-widest bg-emerald-600 text-white hover:bg-emerald-700">
           ✨ AI Generate from DPR
@@ -567,7 +582,7 @@ export default function TenderBuilderPanel({ vendorMode = false }) {
           kind={kind} setKind={switchKind}
           masters={filteredMasters} drafts={filteredDrafts} busy={busy}
           selectedId={selectedId}
-          cloneMaster={cloneMaster} openTemplate={openTemplate}
+          cloneMaster={(m) => withStart((cid) => cloneMaster(m, cid))} openTemplate={openTemplate}
         />
       </div>
 
@@ -814,8 +829,13 @@ export default function TenderBuilderPanel({ vendorMode = false }) {
         onClose={() => setShowDpr(false)}
         kind={kind === "all" ? "tender" : kind}
         masters={masters}
-        onCloned={async (created) => { await load(); await openTemplate(created.id); }}
+        creditId={creditId}
+        onCloned={async (created) => { setCreditId(null); await load(); await openTemplate(created.id); }}
       />
+      {startGate && (
+        <StartTenderGate onClose={() => setStartGate(null)}
+          onReady={(cid) => { const next = startGate; setStartGate(null); setCreditId(cid); next(cid); }} />
+      )}
     </div>
   );
 }

@@ -18,7 +18,7 @@ import base64
 import html as _html
 import uuid
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from bson import ObjectId
@@ -30,9 +30,10 @@ from security import require_role
 from routers._tender_access import (
     tender_principal, write_principal, is_vendor, scope_filter,
     assert_can_read_doc, assert_can_edit_doc, actor, assert_vendor_can_submit,
+    vendor_country,
 )
 from audit import audit_log
-from routers._fees import assert_fees_paid
+from routers._fees import assert_fees_paid, credit_required
 
 router = APIRouter(prefix="/api/v1/tender-templates", tags=["tender-templates"])
 
@@ -198,6 +199,7 @@ async def get_template(tid: str, principal=Depends(tender_principal)):
 
 @router.post("")
 async def create_from_master(payload: TenderTemplateIn,
+                             credit_id: Optional[str] = Query(None),
                              principal=Depends(write_principal)):
     """Clone a master into a working draft (or accept a fully custom one)."""
     doc = payload.model_dump()
@@ -210,6 +212,22 @@ async def create_from_master(payload: TenderTemplateIn,
         doc["owner_vendor_ref"] = principal.get("vendor_ref")
         doc["owner_company_name"] = principal.get("company_name")
         doc["review_status"] = "draft"
+        v = await db.vendors.find_one({"_id": ObjectId(principal["id"])})
+        if await credit_required(vendor_country(v or {})):
+            q = {"vendor_id": principal["id"], "status": "paid"}
+            if credit_id and ObjectId.is_valid(credit_id):
+                q["_id"] = ObjectId(credit_id)
+            cr = await db.tender_credits.find_one_and_update(
+                q, {"$set": {"status": "used", "used_at": now_iso()}}, sort=[("created_at", 1)])
+            if not cr:
+                raise HTTPException(status_code=402,
+                    detail="Pay the tender start fee first — choose your category and tender value in the payment step.")
+            h = doc.setdefault("header", {})
+            h["product_category"] = cr["category"]
+            if not (h.get("tender_value") or h.get("budget_amount")) and cr.get("tender_value"):
+                h["tender_value"] = cr["tender_value"]
+            doc["fees_paid"] = cr.get("fees") or {}
+            doc["credit_id"] = str(cr["_id"])
     # Auto-assign section order if omitted (Bug #1 fix — clone-as-draft
     # was 500ing because the payload dropped 'order').
     # Bug #69/#70/#71 — server-side defence: even if the frontend forgets to
@@ -223,6 +241,9 @@ async def create_from_master(payload: TenderTemplateIn,
         sec.pop("id", None)
     res = await db.tender_templates.insert_one(doc)
     doc["_id"] = res.inserted_id
+    if doc.get("credit_id"):
+        await db.tender_credits.update_one({"_id": ObjectId(doc["credit_id"])},
+                                           {"$set": {"template_id": str(res.inserted_id)}})
     await audit_log("tender_template.create", actor(principal), "tender_template", str(res.inserted_id),
                     {"name": payload.name, "sections": len(payload.sections)})
     return _out(doc)

@@ -23,7 +23,7 @@ from db import db, next_sequence
 from models.base import BaseDocument, now_iso
 from security import require_role
 from audit import audit_log
-from routers._fees import assert_fees_paid, get_fee_type, validate_rule_against_type
+from routers._fees import assert_fees_paid, assert_start_allowed, get_fee_type, validate_rule_against_type
 from routers._tender_access import (
     tender_principal, write_principal, is_vendor, actor as _actor,
     assert_can_edit_doc,
@@ -402,6 +402,8 @@ async def analyze_dpr(file: UploadFile = File(...),
     if template:
         await _vendor_scope_template(principal, template)
         await assert_fees_paid(principal, template, "work")
+    else:
+        await assert_start_allowed(principal)
     return await _run_dpr_analyze(file.filename, body_bytes, kind, _actor(principal), template)
 
 
@@ -428,6 +430,8 @@ async def analyze_dpr_json(payload: DprAnalyzeJsonIn,
     if template:
         await _vendor_scope_template(principal, template)
         await assert_fees_paid(principal, template, "work")
+    else:
+        await assert_start_allowed(principal)
     return await _run_dpr_analyze(payload.filename, body_bytes, kind, _actor(principal), template)
 
 
@@ -493,6 +497,8 @@ async def analyze_dpr_async(payload: DprAnalyzeJsonIn,
     if template:
         await _vendor_scope_template(principal, template)
         await assert_fees_paid(principal, template, "work")
+    else:
+        await assert_start_allowed(principal)
     now = now_iso()
     job_doc = {
         "filename": payload.filename,

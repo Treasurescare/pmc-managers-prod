@@ -3,7 +3,8 @@ from typing import Optional
 from bson import ObjectId
 from fastapi import HTTPException
 
-from db import db
+from db import db, next_sequence
+from models.base import now_iso
 
 # Default fee types (editable in Masters → Fee types). Attributes only — no prices.
 DEFAULT_FEE_TYPES = [
@@ -124,6 +125,78 @@ async def tender_builder_fees(country: Optional[str], doc: dict) -> list:
                     "needs_value": amount is None,
                     "paid": amount is not None and outstanding <= 0.0})
     return out
+
+
+# ----------------------- start-of-tender gate ("tender credits") -----------------------
+
+async def upfront_quote(country: Optional[str], category: str, value: Optional[float]) -> list:
+    doc = {"header": {"product_category": category, "tender_value": value}}
+    return [f for f in await tender_builder_fees(country, doc) if f["timing"] == "upfront"]
+
+
+async def credit_required(country: Optional[str]) -> bool:
+    """True when the Fee rules define any upfront per-tender builder fee for this country."""
+    if not country:
+        return False
+    codes = [t["code"] async for t in db.fee_types.find(
+        {"used_in_tender_builder": True, "is_active": True, "billing": {"$ne": "yearly"}, "timing": "upfront"})]
+    if not codes:
+        return False
+    return bool(await db.emd_masters.find_one({"kind": {"$in": codes}, "country": country.upper(), "is_active": True}))
+
+
+async def paid_credit(vendor_id: str, credit_id: Optional[str] = None) -> Optional[dict]:
+    q = {"vendor_id": vendor_id, "status": "paid"}
+    if credit_id:
+        if not ObjectId.is_valid(credit_id):
+            return None
+        q["_id"] = ObjectId(credit_id)
+    return await db.tender_credits.find_one(q, sort=[("created_at", 1)])
+
+
+async def assert_start_allowed(principal: dict) -> None:
+    """A vendor may only start building (DPR / new draft) once the start fee is paid."""
+    if principal.get("kind") != "vendor":
+        return
+    from routers._tender_access import vendor_country
+    v = await db.vendors.find_one({"_id": ObjectId(principal["id"])})
+    if await credit_required(vendor_country(v or {})) and not await paid_credit(principal["id"]):
+        raise HTTPException(status_code=402,
+            detail="Pay the tender start fee first — choose your category and tender value in the payment step.")
+
+
+async def issue_receipt(vendor_id: str, purpose: str, lines: list, currency: str,
+                        session_id: str, ref: dict) -> dict:
+    """Store a receipt and email it to the vendor (fire-and-forget)."""
+    existing = await db.fee_receipts.find_one({"session_id": session_id})
+    if existing:
+        return existing
+    seq = await next_sequence("fee_receipt")
+    total = round(sum(float(x["amount"]) for x in lines), 2)
+    rec = {"receipt_no": f"PMC-RCPT-{seq:06d}", "vendor_id": vendor_id, "purpose": purpose,
+           "lines": lines, "total": total, "currency": currency.upper(), "session_id": session_id,
+           **ref, "paid_at": now_iso()}
+    await db.fee_receipts.insert_one(rec)
+    v = await db.vendors.find_one({"_id": ObjectId(vendor_id)}) or {}
+    if v.get("email"):
+        import config
+        from notify import vendor_confirm
+        rows = "".join(f"<tr><td style='padding:4px 12px 4px 0'>{x['name']}</td>"
+                       f"<td style='padding:4px 0;text-align:right'>{rec['currency']} {float(x['amount']):,.2f}</td></tr>"
+                       for x in lines)
+        extra = ""
+        if ref.get("tender_name"):
+            extra += f"<br><b>Tender:</b> {ref['tender_name']}"
+        if ref.get("category"):
+            extra += f"<br><b>Category:</b> {ref['category']}"
+        body = (f"<p>Thank you, {v.get('company_name') or 'Supplier'}. We received your payment.</p>"
+                f"<p><b>Receipt:</b> {rec['receipt_no']}<br><b>Date:</b> {rec['paid_at'][:10]}{extra}</p>"
+                f"<table>{rows}<tr><td style='padding:6px 12px 0 0'><b>Total</b></td>"
+                f"<td style='padding:6px 0 0;text-align:right'><b>{rec['currency']} {total:,.2f}</b></td></tr></table>"
+                f"<p style='color:#666;font-size:12px'>Payment reference: {session_id}</p>")
+        await vendor_confirm(v["email"], f"Payment receipt {rec['receipt_no']}", body,
+                             "View payments", f"{config.FRONTEND_URL.rstrip('/')}/vendor/emd")
+    return rec
 
 
 async def assert_fees_paid(principal: dict, doc: Optional[dict], stage: str) -> None:

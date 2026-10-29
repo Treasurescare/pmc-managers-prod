@@ -36,6 +36,14 @@ export default function VendorTenderBuilderFull() {
       toast("Subscription payment cancelled");
       window.history.replaceState({}, "", "/vendor/tender-builder");
     }
+    const csid = params.get("credit_session");
+    if (csid) {
+      vendorTenderApi.startStatus(csid).then((s) => {
+        if (s.payment_status === "paid") toast.success("Start fee paid — a receipt has been emailed. Click “AI Generate from DPR” or clone a master to begin.");
+        else toast("Payment is still processing — refresh in a moment.");
+        window.history.replaceState({}, "", "/vendor/tender-builder");
+      }).catch(() => {});
+    }
     const fsid = params.get("fee_session");
     if (fsid) {
       vendorTenderApi.feeStatus(fsid).then((s) => {

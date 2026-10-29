@@ -27,7 +27,8 @@ from routers._tender_access import (
     sub_config as _ta_sub_config, vendor_entitlement, vendor_country,
     scope_rules, vendor_scope_snapshot,
 )
-from routers._fees import tender_builder_fees
+from routers._fees import (tender_builder_fees, upfront_quote, credit_required,
+                           paid_credit, issue_receipt)
 from audit import audit_log
 
 router = APIRouter(prefix="/api/v1/vendor-tenders", tags=["vendor-tenders"])
@@ -281,6 +282,129 @@ async def apply_tender_fee_payment(session_id: str) -> None:
                   f"fees_paid.{tx['fee_code']}.paid_at": now_iso()}})
     await audit_log("tender_fee.paid", {"id": tx["vendor_id"], "role": "vendor"}, "tender_template",
                     tx["template_id"], {"fee": tx["fee_code"], "amount": tx["amount"]})
+    t = await db.tender_templates.find_one({"_id": ObjectId(tx["template_id"])}, {"name": 1, "header": 1}) or {}
+    ft = await db.fee_types.find_one({"code": tx["fee_code"]}) or {}
+    await issue_receipt(tx["vendor_id"], "tender_fee",
+                        [{"code": tx["fee_code"], "name": ft.get("name") or tx["fee_code"], "amount": tx["amount"]}],
+                        tx["currency"], session_id,
+                        {"template_id": tx["template_id"],
+                         "tender_name": (t.get("header") or {}).get("work_title") or t.get("name"),
+                         "category": (t.get("header") or {}).get("product_category")})
+
+
+# ----------------------- start-of-tender gate (upfront fees before any building) -----------------------
+
+class StartQuoteIn(BaseModel):
+    category: str = Field(min_length=1)
+    tender_value: Optional[float] = Field(default=None, ge=0)
+
+
+class StartCheckoutIn(StartQuoteIn):
+    origin_url: str
+
+
+@router.get("/start/check")
+async def start_check(vendor=Depends(current_vendor)):
+    vdoc = await _vendor_doc(vendor)
+    required = await credit_required(vendor_country(vdoc))
+    cr = await paid_credit(vendor["id"]) if required else None
+    return {"required": required,
+            "credit": {"id": str(cr["_id"]), "category": cr["category"],
+                       "tender_value": cr.get("tender_value")} if cr else None}
+
+
+async def _quote(vendor: dict, payload: StartQuoteIn) -> dict:
+    vdoc = await _vendor_doc(vendor)
+    snap = await vendor_scope_snapshot(vendor["id"])
+    if snap["rules"]["restrict_to_approved_categories"] and \
+            payload.category.strip().lower() not in {c.strip().lower() for c in snap["approved_categories"]}:
+        raise HTTPException(status_code=403, detail=f"You are not approved for '{payload.category}'.")
+    fees = await upfront_quote(vendor_country(vdoc), payload.category.strip(), payload.tender_value)
+    if any(f["needs_value"] for f in fees):
+        raise HTTPException(status_code=422, detail="Enter the estimated tender value to calculate the fee.")
+    currencies = {f["currency"] for f in fees}
+    if len(currencies) > 1:
+        raise HTTPException(status_code=422, detail="Fee rules for this category use different currencies — ask PMC to align them.")
+    total = round(sum(f["amount"] for f in fees), 2)
+    return {"fees": fees, "total": total, "currency": currencies.pop() if currencies else None}
+
+
+@router.post("/start/quote")
+async def start_quote(payload: StartQuoteIn, vendor=Depends(current_vendor)):
+    return await _quote(vendor, payload)
+
+
+@router.post("/start/checkout")
+async def start_checkout(payload: StartCheckoutIn, vendor=Depends(current_vendor)):
+    q = await _quote(vendor, payload)
+    credit = {"vendor_id": vendor["id"], "category": payload.category.strip(),
+              "tender_value": payload.tender_value,
+              "fees": {f["code"]: {"amount": f["amount"], "currency": f["currency"].lower()} for f in q["fees"]},
+              "lines": [{"code": f["code"], "name": f["name"], "amount": f["amount"]} for f in q["fees"]],
+              "total": q["total"], "currency": (q["currency"] or "usd").lower(),
+              "status": "pending", "created_at": now_iso()}
+    if q["total"] <= 0:
+        credit["status"] = "paid"
+        r = await db.tender_credits.insert_one(credit)
+        return {"free": True, "credit_id": str(r.inserted_id)}
+    r = await db.tender_credits.insert_one(credit)
+    from pmc_lib.payments.stripe.checkout import StripeCheckout, CheckoutSessionRequest
+    checkout = StripeCheckout(api_key=os.environ["STRIPE_API_KEY"], webhook_url="")
+    origin = payload.origin_url.rstrip("/")
+    session = await checkout.create_checkout_session(CheckoutSessionRequest(
+        amount=q["total"], currency=credit["currency"],
+        success_url=f"{origin}/vendor/tender-builder?credit_session={{CHECKOUT_SESSION_ID}}",
+        cancel_url=f"{origin}/vendor/tender-builder?fee_cancel=1",
+        metadata={"purpose": "tender_credit", "vendor_id": vendor["id"], "credit_id": str(r.inserted_id)}))
+    await db.tender_credits.update_one({"_id": r.inserted_id}, {"$set": {"session_id": session.session_id}})
+    await db.payment_transactions.insert_one({
+        "session_id": session.session_id, "purpose": "tender_credit", "vendor_id": vendor["id"],
+        "credit_id": str(r.inserted_id), "amount": q["total"], "currency": credit["currency"],
+        "status": "initiated", "payment_status": "pending",
+        "created_at": now_iso(), "updated_at": now_iso()})
+    return {"checkout_url": session.url, "session_id": session.session_id}
+
+
+async def apply_credit_payment(session_id: str) -> None:
+    tx = await db.payment_transactions.find_one_and_update(
+        {"session_id": session_id, "purpose": "tender_credit", "credited": {"$ne": True}},
+        {"$set": {"credited": True}})
+    if not tx:
+        return
+    from bson import ObjectId
+    cr = await db.tender_credits.find_one_and_update(
+        {"_id": ObjectId(tx["credit_id"]), "status": "pending"},
+        {"$set": {"status": "paid", "paid_at": now_iso()}})
+    if cr:
+        await issue_receipt(tx["vendor_id"], "tender_start", cr.get("lines") or [], cr["currency"],
+                            session_id, {"credit_id": tx["credit_id"], "category": cr["category"]})
+
+
+@router.get("/start/checkout/status/{session_id}")
+async def start_status(session_id: str, vendor=Depends(current_vendor)):
+    rec = await db.payment_transactions.find_one({"session_id": session_id, "purpose": "tender_credit"})
+    if not rec or rec.get("vendor_id") != vendor["id"]:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    if rec.get("payment_status") != "paid":
+        try:
+            from pmc_lib.payments.stripe.checkout import StripeCheckout
+            checkout = StripeCheckout(api_key=os.environ["STRIPE_API_KEY"], webhook_url="")
+            s = await checkout.get_checkout_status(session_id)
+            if s.payment_status == "paid":
+                await db.payment_transactions.update_one({"session_id": session_id},
+                    {"$set": {"status": "completed", "payment_status": "paid", "updated_at": now_iso()}})
+        except Exception:
+            pass
+    rec = await db.payment_transactions.find_one({"session_id": session_id})
+    if rec.get("payment_status") == "paid":
+        await apply_credit_payment(session_id)
+    return {"session_id": session_id, "payment_status": rec["payment_status"], "credit_id": rec.get("credit_id")}
+
+
+@router.get("/receipts")
+async def my_receipts(vendor=Depends(current_vendor)):
+    cur = db.fee_receipts.find({"vendor_id": vendor["id"]}).sort("paid_at", -1).limit(200)
+    return {"items": [_out(r) async for r in cur]}
 
 
 @router.get("/fees/checkout/status/{session_id}")

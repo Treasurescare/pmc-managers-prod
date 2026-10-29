@@ -909,6 +909,11 @@ export const kycApi = {  start: (vendor_ref, level = "basic") =>
 // ---------- R8: Vendor Tender Preparation ----------
 export const vendorTenderApi = {
   subscription: () => api.get("/api/v1/vendor-tenders/subscription").then((r) => r.data),
+  startCheck: () => api.get("/api/v1/vendor-tenders/start/check").then((r) => r.data),
+  startQuote: (p) => api.post("/api/v1/vendor-tenders/start/quote", p).then((r) => r.data),
+  startCheckout: (p) => api.post("/api/v1/vendor-tenders/start/checkout", p).then((r) => r.data),
+  startStatus: (sid) => api.get(`/api/v1/vendor-tenders/start/checkout/status/${sid}`).then((r) => r.data),
+  receipts: () => api.get("/api/v1/vendor-tenders/receipts").then((r) => r.data),
   fees: (tid) => api.get(`/api/v1/vendor-tenders/fees/${tid}`).then((r) => r.data),
   feeCheckout: (tid, fee_code, origin_url) => api.post(`/api/v1/vendor-tenders/fees/${tid}/checkout`, { fee_code, origin_url }).then((r) => r.data),
   feeStatus: (sid) => api.get(`/api/v1/vendor-tenders/fees/checkout/status/${sid}`).then((r) => r.data),
@@ -1062,7 +1067,7 @@ export const tenderTemplateApi = {
   list: (kind) =>
     api.get("/api/v1/tender-templates", { params: { ...(kind ? { kind } : {}), _: Date.now() } }).then((r) => r.data),
   get: (id) => api.get(`/api/v1/tender-templates/${id}`).then((r) => r.data),
-  create: (p) => api.post("/api/v1/tender-templates", p).then((r) => r.data),
+  create: (p, creditId) => api.post("/api/v1/tender-templates", p, creditId ? { params: { credit_id: creditId } } : undefined).then((r) => r.data),
   update: (id, p) => api.patch(`/api/v1/tender-templates/${id}`, p).then((r) => r.data),
   remove: (id) => api.delete(`/api/v1/tender-templates/${id}`).then((r) => r.data),
   reseed: () => api.post("/api/v1/tender-templates/seed").then((r) => r.data),

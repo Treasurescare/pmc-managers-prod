@@ -234,6 +234,9 @@ async def stripe_webhook(request: Request):
             elif (tx or {}).get("purpose") == "tender_fee":
                 from routers.vendor_tenders import apply_tender_fee_payment
                 await apply_tender_fee_payment(event.session_id)
+            elif (tx or {}).get("purpose") == "tender_credit":
+                from routers.vendor_tenders import apply_credit_payment
+                await apply_credit_payment(event.session_id)
     # v52ck — record every signature-verified event for the webhook-health
     # indicator on the admin Billing page.
     await db.webhook_events.insert_one({
