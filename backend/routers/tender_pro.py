@@ -23,7 +23,7 @@ from db import db, next_sequence
 from models.base import BaseDocument, now_iso
 from security import require_role
 from audit import audit_log
-from routers._fees import assert_fees_paid, assert_start_allowed, get_fee_type, validate_rule_against_type
+from routers._fees import assert_fees_paid, assert_start_allowed, country_q, get_fee_type, validate_rule_against_type
 from routers._tender_access import (
     tender_principal, write_principal, is_vendor, actor as _actor,
     assert_can_edit_doc,
@@ -885,7 +885,9 @@ class EmdSlabIn(BaseModel):
 
 class EmdMasterIn(BaseModel):
     name: str = Field(min_length=2, max_length=120)
-    country: str = Field(min_length=2, max_length=3)
+    country: str = Field(default="ALL", min_length=2, max_length=5)
+    countries: List[str] = Field(default_factory=list)
+    extend_type: bool = False
     industry: Optional[str] = None
     # v50h — optional procurement category (matches masters.categories.name).
     # When set, the picker auto-selects this master only for notices in the
@@ -905,6 +907,15 @@ async def _check_fee_type(body: dict) -> None:
         raise HTTPException(status_code=422, detail=f"Unknown fee type '{body['kind']}'. Add it under Masters → Fee types.")
     if body.get("category") and not body.get("categories"):
         body["categories"] = [body["category"]]
+    if body.pop("extend_type", False):
+        add = {}
+        if ft.get("country_scope") == "selected" and body.get("countries"):
+            add["countries"] = {"$each": [c.upper() for c in body["countries"]]}
+        if ft.get("category_scope") == "selected" and body.get("categories"):
+            add["categories"] = {"$each": list(body["categories"])}
+        if add:
+            await db.fee_types.update_one({"_id": ft["_id"]}, {"$addToSet": add})
+            ft = await get_fee_type(body["kind"])
     validate_rule_against_type(ft, body)
 
 
@@ -913,7 +924,7 @@ async def list_emd_masters(country: Optional[str] = None, kind: Optional[str] = 
                             category: Optional[str] = None,
                             admin=Depends(require_role("admin", "reviewer"))):
     q: dict = {}
-    if country: q["country"] = {"$in": [country.upper(), "ALL"]}
+    if country: q["$and"] = [country_q(country)]
     if kind:    q["kind"] = kind
     if category:
         # Return masters scoped to this category OR unscoped (apply-to-all).
@@ -932,7 +943,6 @@ async def create_emd_master(payload: EmdMasterIn,
                              admin=Depends(require_role("admin"))):
     doc = payload.model_dump()
     await _check_fee_type(doc)
-    doc["country"] = doc["country"].upper()
     doc["created_at"] = now_iso()
     doc["created_by"] = admin["id"]
     res = await db.emd_masters.insert_one(doc)
@@ -946,7 +956,6 @@ async def update_emd_master(eid: str, payload: EmdMasterIn,
                              admin=Depends(require_role("admin"))):
     body = payload.model_dump()
     await _check_fee_type(body)
-    body["country"] = body["country"].upper()
     body["updated_at"] = now_iso()
     r = await db.emd_masters.update_one({"_id": ObjectId(eid)}, {"$set": body})
     if not r.matched_count:

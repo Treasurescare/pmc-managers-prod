@@ -89,7 +89,7 @@ export default function FeeCharger() {
             <option value="">— pick a fee rule —</option>
             {masters.map((m) => (
               <option key={m.id} value={m.id}>
-                {m.name} · {kindLabels[m.kind] || m.kind} · {m.country} · {m.currency}
+                {m.name} · {kindLabels[m.kind] || m.kind} · {m.countries?.length ? m.countries.join(", ") : m.country} · {m.currency}
                 {!m.is_active ? " (inactive)" : ""}
               </option>
             ))}

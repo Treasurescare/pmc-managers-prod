@@ -26,6 +26,7 @@ class FeeTypeIn(BaseModel):
     used_in_tender_builder: bool = False
     country_scope: Literal["all", "selected"] = "all"
     countries: list[str] = Field(default_factory=list)
+    categories: list[str] = Field(default_factory=list)
     is_active: bool = True
     description: Optional[str] = Field(default=None, max_length=400)
 

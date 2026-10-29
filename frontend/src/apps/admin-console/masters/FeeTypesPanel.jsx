@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { feeTypesApi, publicApi, showApiError } from "@/lib/api";
+import { feeTypesApi, publicApi, mastersApi, showApiError } from "@/lib/api";
+import { CategoryPicker } from "./CategoryPicker";
 
 const EMPTY = { name: "", code: "", timing: "upfront", calc: "fixed", amount_mode: "single",
   category_scope: "all", billing: "one_time", used_in_tender_builder: false, is_active: true, description: "",
-  country_scope: "all", countries: [] };
+  country_scope: "all", countries: [], categories: [] };
 
 const OPTS = {
   timing: [["upfront", "At the beginning (before work starts)"], ["on_completion", "At the end (before submitting)"]],
@@ -34,6 +35,8 @@ export default function FeeTypesPanel() {
   const [form, setForm] = useState(EMPTY);
   const [allCountries, setAllCountries] = useState([]);
   useEffect(() => { publicApi.countries().then((c) => setAllCountries((c || []).map((x) => Array.isArray(x) ? { code: x[0], name: x[1] } : { code: x.code || x.iso || x.value, name: x.name || x.label || x.code }))).catch(() => {}); }, []);
+  const [cats, setCats] = useState([]);
+  useEffect(() => { mastersApi.listCategories({ limit: 500 }).then((c) => setCats(Array.isArray(c) ? c : (c.items || []))).catch(() => {}); }, []);
   const load = useCallback(() => feeTypesApi.list().then(setRows).catch(showApiError), []);
   useEffect(() => { load(); }, [load]);
 
@@ -69,6 +72,12 @@ export default function FeeTypesPanel() {
           <div className="grid gap-4 md:grid-cols-5">
             {["timing", "calc", "amount_mode", "category_scope", "billing"].map((k) => <Choice key={k} k={k} form={form} setForm={setForm} />)}
           </div>
+          {form.category_scope === "selected" && (
+            <div className="mt-4" data-testid="ft-categories">
+              <div className="pmc-label mb-1">Which categories (rules start with these ticked)</div>
+              <CategoryPicker categories={cats} value={form.categories || []} onChange={(v) => setForm({ ...form, categories: v })} />
+            </div>
+          )}
           <div className="mt-4" data-testid="ft-country-scope">
             <div className="pmc-label mb-1">Countries</div>
             <div className="flex gap-4 text-sm mb-2">
@@ -106,7 +115,7 @@ export default function FeeTypesPanel() {
                 {r.used_in_tender_builder && <span className="ml-2 text-[10px] uppercase tracking-widest bg-emerald-100 text-emerald-800 px-1.5 py-0.5">Tender Builder</span>}
                 {!r.is_active && <span className="ml-2 text-red-700 text-xs font-semibold">INACTIVE</span>}</div>
               <div className="text-xs text-brand-navy/60 mt-1">
-                {label("timing", r.timing)} · {label("calc", r.calc)} · {label("amount_mode", r.amount_mode)} · {label("category_scope", r.category_scope)} · {label("billing", r.billing)} · {r.country_scope === "selected" ? `Countries: ${(r.countries || []).join(", ") || "none"}` : "All countries"}
+                {label("timing", r.timing)} · {label("calc", r.calc)} · {label("amount_mode", r.amount_mode)} · {r.category_scope === "selected" && r.categories?.length ? `Categories: ${r.categories.join(", ")}` : label("category_scope", r.category_scope)} · {label("billing", r.billing)} · {r.country_scope === "selected" ? `Countries: ${(r.countries || []).join(", ") || "none"}` : "All countries"}
               </div>
             </div>
             <div className="flex gap-2 shrink-0">

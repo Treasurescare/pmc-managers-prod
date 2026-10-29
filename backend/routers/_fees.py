@@ -33,7 +33,8 @@ DEFAULT_FEE_TYPES = [
 
 def country_q(country: Optional[str]) -> dict:
     """Match rules for a country plus 'ALL' (all-countries) rules."""
-    return {"country": {"$in": [(country or "").upper(), "ALL"]}}
+    c = (country or "").upper()
+    return {"$or": [{"country": {"$in": [c, "ALL"]}}, {"countries": c}]}
 
 
 async def find_rule(kind: str, country: Optional[str], category: Optional[str] = None) -> Optional[dict]:
@@ -55,9 +56,10 @@ async def seed_fee_types() -> None:
     for ft in DEFAULT_FEE_TYPES:
         await db.fee_types.update_one({"code": ft["code"]},
             {"$setOnInsert": {**ft, "is_active": True, "is_system": True,
-                              "country_scope": "all", "countries": []}}, upsert=True)
+                              "country_scope": "all", "countries": [], "categories": []}}, upsert=True)
     await db.fee_types.update_many({"country_scope": {"$exists": False}},
                                    {"$set": {"country_scope": "all", "countries": []}})
+    await db.fee_types.update_many({"categories": {"$exists": False}}, {"$set": {"categories": []}})
 
 
 async def get_fee_type(code: str) -> Optional[dict]:
@@ -81,14 +83,24 @@ def validate_rule_against_type(ft: dict, body: dict) -> None:
         if s.get("fee_type") == "percentage" and not (s.get("percentage") or 0) > 0:
             raise HTTPException(status_code=422, detail="Percentages must be greater than 0.")
     cats = body.get("categories") or []
-    c = (body.get("country") or "").upper()
+    cs = sorted({x.upper() for x in (body.get("countries") or [])})
+    if not cs and (body.get("country") or "ALL").upper() != "ALL":
+        cs = [body["country"].upper()]
+    body["countries"] = cs
+    body["country"] = "ALL" if not cs else (cs[0] if len(cs) == 1 else "MULTI")
     if ft.get("country_scope") == "selected":
         allowed = [x.upper() for x in ft.get("countries") or []]
-        if c == "ALL" or c not in allowed:
+        bad = [x for x in cs if x not in allowed]
+        if not cs or bad:
             raise HTTPException(status_code=422,
                 detail=f"'{ft['name']}' is limited to: {', '.join(allowed) or 'no countries yet'}.")
     if ft.get("category_scope") == "selected" and not cats:
         raise HTTPException(status_code=422, detail=f"'{ft['name']}' applies to selected categories — tick at least one.")
+    allowed_cats = ft.get("categories") or []
+    if ft.get("category_scope") == "selected" and allowed_cats:
+        bad = [x for x in cats if x not in allowed_cats]
+        if bad:
+            raise HTTPException(status_code=422, detail=f"'{ft['name']}' does not include: {', '.join(bad)}.")
     if ft.get("category_scope") == "all":
         body["categories"] = []
     body["category"] = body["categories"][0] if len(body.get("categories") or []) == 1 else None

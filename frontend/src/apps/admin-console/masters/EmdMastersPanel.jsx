@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { tenderProApi, mastersApi, publicApi, feeTypesApi, showApiError } from "@/lib/api";
-import { CategoryPicker } from "./CategoryPicker";
+import { CategoryPicker, CheckPicker } from "./CategoryPicker";
 
 /**
  * v50q — EMD / Fee Master Editor (bug-tracker "EMD Master Editor UI").
@@ -15,7 +15,7 @@ const TIMING = { upfront: "paid at the beginning", on_completion: "paid at the e
 
 const EMPTY_SLAB = { tender_value_min: 0, tender_value_max: "", fee_type: "percentage",
                      fixed_amount: "", percentage: "", pct_min: "", pct_max: "" };
-const EMPTY = { name: "", country: "KZ", kind: "", categories: [], currency: "USD",
+const EMPTY = { name: "", country_mode: "all", countries: [], kind: "", categories: [], currency: "USD",
                 is_active: true, notes: "", slabs: [ { ...EMPTY_SLAB } ] };
 
 function slabLabel(s, currency) {
@@ -43,7 +43,10 @@ export default function EmdMastersPanel() {
   const pickType = (code) => {
     const t = feeTypes.find((x) => x.code === code);
     const fee_type = t?.calc === "percentage" ? "percentage" : "fixed";
-    setForm((f) => ({ ...f, kind: code, categories: t?.category_scope === "all" ? [] : f.categories,
+    const sel = t?.country_scope === "selected";
+    setForm((f) => ({ ...f, kind: code,
+      country_mode: sel ? "some" : "all", countries: sel ? [...(t.countries || [])] : [],
+      categories: t?.category_scope === "selected" ? [...(t.categories || [])] : [],
       slabs: t?.amount_mode === "single" ? [{ ...EMPTY_SLAB, fee_type }] : f.slabs.map((s) => ({ ...s, fee_type: t?.calc === "either" ? s.fee_type : fee_type })) }));
   };
 
@@ -67,7 +70,9 @@ export default function EmdMastersPanel() {
   const openNew = () => { setForm(EMPTY); setEditing("new"); };
   const openEdit = (m) => {
     setForm({
-      name: m.name, country: m.country, kind: m.kind,
+      name: m.name, kind: m.kind,
+      countries: m.countries?.length ? m.countries : (m.country && !["ALL", "MULTI"].includes(m.country) ? [m.country] : []),
+      country_mode: (m.countries?.length || (m.country && m.country !== "ALL")) ? "some" : "all",
       categories: m.categories?.length ? m.categories : (m.category ? [m.category] : []), currency: m.currency || "USD",
       is_active: m.is_active !== false, notes: m.notes || "",
       slabs: (m.slabs?.length ? m.slabs : [EMPTY_SLAB]).map((s) => ({
@@ -93,6 +98,7 @@ export default function EmdMastersPanel() {
     if (!form.name.trim()) return toast.error("Name is required.");
     if (!ft) return toast.error("Pick a fee type.");
     if (ft.category_scope === "selected" && !form.categories.length) return toast.error("Tick at least one category.");
+    if (form.country_mode === "some" && !form.countries.length) return toast.error("Tick at least one country.");
     if (!form.slabs.length) return toast.error("Add at least one slab.");
     for (const s of form.slabs) {
       if (s.fee_type === "fixed" && (s.fixed_amount === "" || s.fixed_amount == null))
@@ -101,7 +107,9 @@ export default function EmdMastersPanel() {
         return toast.error("Percentage slabs need a percentage.");
     }
     const payload = {
-      name: form.name.trim(), country: form.country, kind: form.kind,
+      name: form.name.trim(), kind: form.kind, extend_type: true,
+      country: form.country_mode === "some" ? (form.countries[0] || "ALL") : "ALL",
+      countries: form.country_mode === "some" ? form.countries : [],
       categories: ft.category_scope === "selected" ? form.categories : [], currency: form.currency,
       is_active: !!form.is_active, notes: form.notes || null,
       slabs: form.slabs.map((s) => ({
@@ -118,7 +126,8 @@ export default function EmdMastersPanel() {
     try {
       if (editing === "new") await tenderProApi.createEmdMaster(payload);
       else await tenderProApi.updateEmdMaster(editing, payload);
-      toast.success(editing === "new" ? "Fee rule created" : "Fee rule saved");
+      const added = newCountries.length + newCats.length;
+      toast.success((editing === "new" ? "Fee rule created" : "Fee rule saved") + (added ? ` · ${added} added to fee type "${ft.name}"` : ""));
       setEditing(null);
       load();
     } catch (e) { showApiError(e); }
@@ -142,6 +151,14 @@ export default function EmdMastersPanel() {
     } catch (e) { showApiError(e); setCalcOut(null); }
   };
 
+  const countryItems = countries.map((c) => {
+    const code = Array.isArray(c) ? c[0] : (c.code || c.iso || c.value);
+    return { value: String(code).toUpperCase(), name: Array.isArray(c) ? c[1] : (c.name || c.label || code) };
+  });
+  const newCountries = ft?.country_scope === "selected" && form.country_mode === "some"
+    ? form.countries.filter((c) => !(ft.countries || []).map((x) => x.toUpperCase()).includes(c)) : [];
+  const newCats = ft?.category_scope === "selected"
+    ? form.categories.filter((c) => !(ft.categories || []).includes(c)) : [];
   const countryName = (code) => {
     const c = countries.find((x) => {
       const cc = Array.isArray(x) ? x[0] : (x.code || x.iso || x.value);
@@ -170,21 +187,7 @@ export default function EmdMastersPanel() {
               <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="e.g. KZ EMD 2% capped"
                 data-testid="emd-name" className="mt-1 w-full px-3 py-2 border border-brand-navy/20" /></label>
-            <label><span className="pmc-label">Country *</span>
-              <select value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })}
-                data-testid="emd-country" className="mt-1 w-full px-3 py-2 border border-brand-navy/20 bg-white">
-                {ft?.country_scope !== "selected" && <option value="ALL">All countries</option>}
-                {countries.filter((c) => {
-                  const code = Array.isArray(c) ? c[0] : (c.code || c.iso || c.value);
-                  return ft?.country_scope !== "selected" || (ft.countries || []).includes(code);
-                }).map((c) => {
-                  const code = Array.isArray(c) ? c[0] : (c.code || c.iso || c.value);
-                  const name = Array.isArray(c) ? c[1] : (c.name || c.label || code);
-                  return <option key={code} value={code}>{name}</option>;
-                })}
-                {countries.length === 0 && ["KZ", "IN", "AE", "GB", "US"].map((c) => <option key={c}>{c}</option>)}
-              </select></label>
-            <label><span className="pmc-label">Fee type *</span>
+            <label className="md:col-span-2"><span className="pmc-label">Fee type *</span>
               <select value={form.kind} onChange={(e) => pickType(e.target.value)}
                 data-testid="emd-kind" className="mt-1 w-full px-3 py-2 border border-brand-navy/20 bg-white">
                 <option value="">— pick a fee type —</option>
@@ -195,11 +198,30 @@ export default function EmdMastersPanel() {
                 <b>{ft.name}</b>: {TIMING[ft.timing]} · {ft.calc === "either" ? "fixed or %" : ft.calc} · {ft.amount_mode === "single" ? "one amount" : "range by tender value"} · {ft.category_scope === "all" ? "all categories" : "selected categories"} · {ft.billing === "yearly" ? "yearly" : "one-time"}{ft.used_in_tender_builder ? " · charged in vendor Tender Builder" : ""}
               </div>
             )}
+            <div className="md:col-span-2" data-testid="emd-countries"><span className="pmc-label">Countries *</span>
+              {ft?.country_scope !== "selected" && (
+                <div className="flex gap-4 text-sm mt-1 mb-1">
+                  <label className="flex items-center gap-2"><input type="radio" checked={form.country_mode === "all"} onChange={() => setForm({ ...form, country_mode: "all", countries: [] })} data-testid="emd-country-mode-all" /> All countries</label>
+                  <label className="flex items-center gap-2"><input type="radio" checked={form.country_mode === "some"} onChange={() => setForm({ ...form, country_mode: "some" })} data-testid="emd-country-mode-some" /> Specific countries</label>
+                </div>
+              )}
+              {form.country_mode === "some" && (
+                <div className="mt-1"><CheckPicker items={countryItems} value={form.countries} extra={newCountries}
+                  onChange={(v) => setForm({ ...form, countries: v })} prefix="emd-country" placeholder="Search countries…" /></div>
+              )}
+              {ft?.country_scope === "selected" && <div className="text-xs text-brand-navy/60 mt-1">Pre-filled from the fee type. Untick to narrow; tick others to add them.</div>}
+            </div>
             <div className="md:col-span-2"><span className="pmc-label">Categories</span>
               {ft?.category_scope === "selected"
-                ? <div className="mt-1"><CategoryPicker categories={categories} value={form.categories} onChange={(v) => setForm({ ...form, categories: v })} /></div>
+                ? <div className="mt-1"><CategoryPicker categories={categories} value={form.categories} extra={newCats} onChange={(v) => setForm({ ...form, categories: v })} />
+                    <div className="text-xs text-brand-navy/60 mt-1">Pre-filled from the fee type. Untick to narrow; tick others to add them.</div></div>
                 : <div className="mt-1 text-sm text-brand-navy/60" data-testid="emd-category-all">Applies to all categories (set by the fee type)</div>}
             </div>
+            {(newCountries.length + newCats.length) > 0 && (
+              <div className="md:col-span-4 text-xs bg-amber-50 border border-amber-300 text-amber-900 px-3 py-2" data-testid="emd-extend-note">
+                Saving will also add {[...newCountries.map(countryName), ...newCats].join(", ")} to the fee type “{ft.name}”.
+              </div>
+            )}
             <label><span className="pmc-label">Currency</span>
               <select value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })}
                 data-testid="emd-currency" className="mt-1 w-full px-3 py-2 border border-brand-navy/20 bg-white">
@@ -296,7 +318,7 @@ export default function EmdMastersPanel() {
                   {m.name} <span className="font-normal text-brand-navy/50">· {ftName(m.kind)}</span>
                 </div>
                 <div className="text-xs text-brand-navy/60 mt-0.5">
-                  {countryName(m.country)}{m.categories?.length ? ` · ${m.categories.join(", ")}` : m.category ? ` · ${m.category}` : " · all categories"} · {m.currency}
+                  {m.countries?.length ? m.countries.map(countryName).join(", ") : countryName(m.country === "ALL" ? "All countries" : m.country)}{m.categories?.length ? ` · ${m.categories.join(", ")}` : m.category ? ` · ${m.category}` : " · all categories"} · {m.currency}
                   {!m.is_active && <span className="ml-2 text-red-700 font-semibold">INACTIVE</span>}
                 </div>
                 <div className="text-xs text-brand-navy/70 mt-1 font-mono">
