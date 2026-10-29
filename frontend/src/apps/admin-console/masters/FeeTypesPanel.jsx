@@ -22,7 +22,7 @@ const Choice = ({ k, form, setForm }) => (
     <div className="flex flex-col gap-1">
       {OPTS[k].map(([v, l]) => (
         <label key={v} className="text-sm flex items-center gap-2">
-          <input type="radio" name={k} checked={form[k] === v} onChange={() => setForm({ ...form, [k]: v })} data-testid={`ft-${k}-${v}`} /> {l}
+          <input type="radio" name={k} checked={form[k] === v} onChange={() => setForm({ ...form, [k]: v, ...(k === "category_scope" && v === "all" ? { categories: [] } : {}) })} data-testid={`ft-${k}-${v}`} /> {l}
         </label>
       ))}
     </div>

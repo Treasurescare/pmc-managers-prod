@@ -72,7 +72,7 @@ export default function EmdMastersPanel() {
     setForm({
       name: m.name, kind: m.kind,
       countries: m.countries?.length ? m.countries : (m.country && !["ALL", "MULTI"].includes(m.country) ? [m.country] : []),
-      country_mode: (m.countries?.length || (m.country && m.country !== "ALL")) ? "some" : "all",
+      country_mode: (m.countries?.length || (m.country && m.country !== "ALL") || feeTypes.find((t) => t.code === m.kind)?.country_scope === "selected") ? "some" : "all",
       categories: m.categories?.length ? m.categories : (m.category ? [m.category] : []), currency: m.currency || "USD",
       is_active: m.is_active !== false, notes: m.notes || "",
       slabs: (m.slabs?.length ? m.slabs : [EMPTY_SLAB]).map((s) => ({
@@ -157,7 +157,7 @@ export default function EmdMastersPanel() {
   });
   const newCountries = ft?.country_scope === "selected" && form.country_mode === "some"
     ? form.countries.filter((c) => !(ft.countries || []).map((x) => x.toUpperCase()).includes(c)) : [];
-  const newCats = ft?.category_scope === "selected"
+  const newCats = ft?.category_scope === "selected" && (ft.categories || []).length
     ? form.categories.filter((c) => !(ft.categories || []).includes(c)) : [];
   const countryName = (code) => {
     const c = countries.find((x) => {
@@ -343,7 +343,7 @@ export default function EmdMastersPanel() {
             <select value={calc.master_id} onChange={(e) => setCalc({ ...calc, master_id: e.target.value })}
               data-testid="emd-calc-master" className="mt-1 w-full px-3 py-2 border border-brand-navy/20 bg-white text-sm">
               <option value="">— pick a rule —</option>
-              {rows.map((m) => <option key={m.id} value={m.id}>{m.name} · {m.country}</option>)}
+              {rows.map((m) => <option key={m.id} value={m.id}>{m.name} · {m.countries?.length ? m.countries.join(", ") : m.country}</option>)}
             </select></label>
           <label><span className="text-[10px] uppercase text-slate-500">Tender value</span>
             <input type="number" value={calc.tender_value}

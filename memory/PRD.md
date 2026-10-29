@@ -775,3 +775,16 @@ frontend flows pass; NOT yet user-confirmed):
 - Tests: tests/test_r14_rfq_rfp_unread.py 12/12 (run with `-n 0`; parallel workers break its shared state).
 - Backlog: RFQ/RFP drafts still show the full tender "Basic Details" grid (3 covers, Open Tender) — kind-specific header defaults.
 
+## R17 — Fee rules auto-fill + multi-country rules — 2026-10-29 (agent-tested, preview)
+- Fee types have a `categories` list (picker when Categories = Selected; cleared when scope = all).
+- Fee rules: `countries[]` (one rule covers all ticked countries; stored country = code | MULTI | ALL);
+  picking a fee type pre-ticks its countries/categories; ticking extra ones shows "(new)" and, with
+  `extend_type`, adds them to the fee type only after the rule saves successfully. find_rule/country_q match `countries`.
+- Category-addition fee = Registration fee type rule (first category free).
+- Tests: tests/test_r15_fee_rule_scope.py 13/13, r12 14/14 (run -n 0).
+
+## Current deployable: v57i (2026-10-29)
+Artifacts in /frontend/public/downloads: pmc-backend-v57i.zip, pmc-frontend-v57i-prod-build.zip, DOWNLOAD_v57i.md
+(build script scripts/build_v57i.sh). AWS needs an EventBridge daily POST to /api/v1/cron/category-payment-reminders.
+
+

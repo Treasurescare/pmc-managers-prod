@@ -901,22 +901,33 @@ class EmdMasterIn(BaseModel):
     notes: Optional[str] = None
 
 
-async def _check_fee_type(body: dict) -> None:
+async def _check_fee_type(body: dict) -> Optional[tuple]:
+    """Validate the rule; returns (fee_type_id, $addToSet) to apply after the rule is saved."""
     ft = await get_fee_type(body["kind"])
     if not ft:
         raise HTTPException(status_code=422, detail=f"Unknown fee type '{body['kind']}'. Add it under Masters → Fee types.")
     if body.get("category") and not body.get("categories"):
         body["categories"] = [body["category"]]
+    bad = [c for c in body.get("countries") or [] if not re.fullmatch(r"[A-Za-z]{2}", str(c))]
+    if bad:
+        raise HTTPException(status_code=422, detail=f"Invalid country codes: {', '.join(map(str, bad))}")
+    add = {}
     if body.pop("extend_type", False):
-        add = {}
+        ft = dict(ft)
         if ft.get("country_scope") == "selected" and body.get("countries"):
-            add["countries"] = {"$each": [c.upper() for c in body["countries"]]}
-        if ft.get("category_scope") == "selected" and body.get("categories"):
+            cs = [c.upper() for c in body["countries"]]
+            add["countries"] = {"$each": cs}
+            ft["countries"] = list({*(ft.get("countries") or []), *cs})
+        if ft.get("category_scope") == "selected" and ft.get("categories") and body.get("categories"):
             add["categories"] = {"$each": list(body["categories"])}
-        if add:
-            await db.fee_types.update_one({"_id": ft["_id"]}, {"$addToSet": add})
-            ft = await get_fee_type(body["kind"])
+            ft["categories"] = list({*ft["categories"], *body["categories"]})
     validate_rule_against_type(ft, body)
+    return (ft["_id"], add) if add else None
+
+
+async def _apply_type_extend(ext: Optional[tuple]) -> None:
+    if ext:
+        await db.fee_types.update_one({"_id": ext[0]}, {"$addToSet": ext[1]})
 
 
 @router.get("/emd-masters")
@@ -942,10 +953,11 @@ async def list_emd_masters(country: Optional[str] = None, kind: Optional[str] = 
 async def create_emd_master(payload: EmdMasterIn,
                              admin=Depends(require_role("admin"))):
     doc = payload.model_dump()
-    await _check_fee_type(doc)
+    ext = await _check_fee_type(doc)
     doc["created_at"] = now_iso()
     doc["created_by"] = admin["id"]
     res = await db.emd_masters.insert_one(doc)
+    await _apply_type_extend(ext)
     await audit_log("tender_pro.emd_master_create", admin, "emd_master", str(res.inserted_id),
                     {"name": doc["name"], "country": doc["country"], "kind": doc["kind"]})
     return _out(await db.emd_masters.find_one({"_id": res.inserted_id}))
@@ -955,11 +967,12 @@ async def create_emd_master(payload: EmdMasterIn,
 async def update_emd_master(eid: str, payload: EmdMasterIn,
                              admin=Depends(require_role("admin"))):
     body = payload.model_dump()
-    await _check_fee_type(body)
+    ext = await _check_fee_type(body)
     body["updated_at"] = now_iso()
     r = await db.emd_masters.update_one({"_id": ObjectId(eid)}, {"$set": body})
     if not r.matched_count:
         raise HTTPException(status_code=404, detail="EMD master not found")
+    await _apply_type_extend(ext)
     return _out(await db.emd_masters.find_one({"_id": ObjectId(eid)}))
 
 

@@ -1,0 +1,38 @@
+{
+  "summary": "Tested Fee rules auto-populating from the fee type, including multi-country rules and extend_type. New file tests/test_r15_fee_rule_scope.py: 12 of 13 pass. (1) Every fee type has a categories list, and PATCH /fee-types/{id} saves categories (checked with GET). (2) Rule country: countries [kz, IN] saves as country=MULTI with countries=[IN,KZ]; one country saves as that code; no country saves as ALL; the old payload with only country=KZ still works. (3) GET /emd-masters?country=IN returns the MULTI and ALL rules and no KZ-only rule. (4) Fee type limited to KZ: a rule for [KZ,IN] returns 422 without extend_type and 200 with it, and IN is added to the fee type. Selected categories behave the same way, and PATCH with extend_type works too. (5) find_rule: a registration rule for [XT,XU] gives a fee of 77 to an XU vendor adding an extra category (via GET /vendor/categories/fee-quote). The country rule beats an ALL rule (11); after the multi rule is deleted, the quote falls back to 11. FAIL: if extend_type=true and the rule then fails validation (e.g. no slabs), the fee type is still changed. Regression: r10 33/33, r11 27/27, r12 14/14 and r13 17/17 pass when each file runs on its own with -n 0. Running r11 and r13 in one session fails 3 r13 tests; this is a problem in the tests' own event-loop setup, not in the app. UI (admin Masters): picking a fee type limited to KZ plus 1 category hides the All/Some radios and pre-ticks KZ and the category. Ticking India and a new category shows amber '(new)' chips and the emd-extend-note. Save shows the toast 'Fee rule created · 2 added to fee type ...', the fee type gets both, and the rule row lists 'India, Kazakhstan · cat1, cat2'. Edit reopens with the saved values. The EMD type (all countries) shows the radios with All checked, and 'Specific' shows the picker. Fee types: Categories=Selected shows the ft-categories picker; save works, the row shows 'Categories: ...' and edit pre-fills it. All TEST_ data was deleted. The 10 fee types and 2 original rules were left unchanged.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST/PATCH /api/v1/tender-pro/emd-masters (_check_fee_type)", "issue": "extend_type adds countries/categories to the fee type with $addToSet BEFORE validate_rule_against_type runs. If validation then fails (no slabs, wrong calc, amount <= 0) or PATCH targets a missing rule id (404), the fee type has still been changed. Fix: validate first using a copy of ft with the merged lists, and write the fee type only after the rule is saved."},
+      {"endpoint": "_check_fee_type extend for category_scope=selected with an empty categories list", "issue": "Fee types such as tender_management and premium_subscription are 'selected' with [] categories, which today means any category passes. The UI marks every ticked category as '(new)' and sends extend_type=true. The first rule saved therefore turns the type into a fixed list, and any later rule with a different category is rejected unless it extends the type again. This may be intended, but it quietly changes behaviour."},
+      {"endpoint": "EmdMasterIn.countries", "issue": "List items are not checked for length or format (country has max_length 5, countries does not). Junk codes can be stored and added to fee types."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Fee rules - Quick calculator", "issues": ["Multi-country rules appear as 'NAME · MULTI' in the rule dropdown; show the country names instead."]},
+      {"screen": "Fee types list row", "issues": ["Countries are shown as raw codes ('Countries: KZ, IN'), while Fee rules shows names."]},
+      {"screen": "Fee rules form (edit)", "issues": ["A legacy rule with country=ALL whose fee type is limited to selected countries opens in 'all' mode. The radios are hidden for selected-scope types and the picker only shows in 'some' mode, so no country can be ticked and save returns 422."]},
+      {"screen": "Fee types form", "issues": ["Switching Categories back to 'All' does not clear form.categories, so stale categories are saved on a type whose scope is all."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_r15_fee_rule_scope.py", "/app/test_reports/pytest/pytest_r15.xml"],
+  "action_items": [
+    "Move the fee-type $addToSet in _check_fee_type to after validation and after a successful insert/update, so a failed request does not change the fee type (test_failed_validation_does_not_extend encodes this).",
+    "Optional: in openEdit, if the fee type's country_scope is 'selected', force country_mode='some' (prefilled from ft.countries), so legacy ALL rules can still be edited.",
+    "Optional: show country names for MULTI in the calculator dropdown and in the Fee types row; clear categories when category_scope switches to all."
+  ],
+  "critical_code_review_comments": [
+    "_check_fee_type changes the fee type before validation: the write is not atomic and has side effects on failure.",
+    "extend_type is always true in the UI payload; the backend only extends selected-scope types, which is fine.",
+    "country_q uses $or on country/countries; legacy rules without a countries field still match through country. OK."
+  ],
+  "updated_files": ["/app/backend/tests/test_r15_fee_rule_scope.py"],
+  "success_rate": {"backend": "92% (12/13 new; 91/91 regression run per file)", "frontend": "100%"},
+  "seed_data_creation": "Temporary TEST_R15 fee types/rules (and test_r15ui fee types via Mongo for the UI); all deleted. The test vendor's country and business_categories were restored by the fixture.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest tests/test_r15_fee_rule_scope.py -n 0. The 1 failing test encodes the extend-before-validate bug. Run r10-r13 one file at a time: r11 + r13 in one session breaks r13's asyncio.new_event_loop find_rule test (motor loop binding). Admin UI login: /admin/login, wait about 4s before filling admin-login-email/password, then wait about 5s. Fee rules tab: masters-tab-emd_rules. Fee types tab: masters-tab-fee_types. The category picker inside Fee types reuses the emd-category-* testids."
+}

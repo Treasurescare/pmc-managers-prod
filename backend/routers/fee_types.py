@@ -56,6 +56,10 @@ async def create_fee_type(payload: FeeTypeIn, admin=Depends(require_role("admin"
 async def update_fee_type(fid: str, payload: FeeTypeIn, admin=Depends(require_role("admin"))):
     body = payload.model_dump()
     body.pop("code", None)
+    if body["category_scope"] == "all":
+        body["categories"] = []
+    if body["country_scope"] == "all":
+        body["countries"] = []
     r = await db.fee_types.update_one({"_id": ObjectId(fid)}, {"$set": body})
     if not r.matched_count:
         raise HTTPException(status_code=404, detail="Fee type not found")
