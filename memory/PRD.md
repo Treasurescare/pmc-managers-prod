@@ -788,3 +788,16 @@ Artifacts in /frontend/public/downloads: pmc-backend-v57i.zip, pmc-frontend-v57i
 (build script scripts/build_v57i.sh). AWS needs an EventBridge daily POST to /api/v1/cron/category-payment-reminders.
 
 
+
+## Stripe go-live status — 2026-10-29 (AWS prod, current deploy v57k)
+- DONE: live restricted key rk_live_…9pBE in SSM /pmc/prod/STRIPE_API_KEY; STRIPE_TAX_MODE=diy in SSM;
+  live webhook "PMC production webhook" → https://www.pmcmanagers.com/api/webhook/stripe (4 checkout.session.* events).
+  Charge Fee now produces cs_live_ links (confirmed by user screenshot).
+- v57j/v57k fixes: Quick calculator computeEmd; Charge Fee awaits send_email, returns email_sent, shows link box.
+- PENDING (resume here): user to pay USD 1 test link → check Stripe Event deliveries = 200 → Admin Billing paid → refund.
+- PENDING: prod Resend email fails ("Email NOT sent"). User to fetch EB log line "Resend failed <code>: …".
+  Likely: stale RESEND_API_KEY in EB env overriding SSM, rotated key, or domain not verified.
+- PENDING: confirm STRIPE_WEBHOOK_SECRET in SSM matches live destination secret; create /pmc/prod/WEBHOOK_CRON_SECRET;
+  EventBridge daily POST /api/v1/cron/category-payment-reminders (Authorization: Bearer <secret>).
+- Security advice given: rotate secrets exposed in EB screenshot (Mongo, JWT, admin/owner passwords, Resend, Zoom, DocuSign); DocuSign still sandbox.
+
