@@ -16,6 +16,36 @@ from security import require_role
 from routers.vendor_auth import current_vendor
 from audit import audit_log
 from routers._tender_access import scope_rules
+import os
+from typing import Literal  # noqa: F401
+
+FREE_CATEGORY_MSG = ("Registration is free for one category. Every additional category needs a "
+                     "payment before PMC can approve it.")
+OPEN = ["pending", "payment_pending"]
+
+
+async def _category_fee(v: dict, category_name: str) -> dict:
+    """Fee for one more category: first category free; extra ones priced by the
+    'registration' Fee rule for the vendor's country (category-specific wins)."""
+    from routers._tender_access import vendor_country
+    from routers._fees import compute_amount, _rule_matches_category
+    approved = list((v or {}).get("business_categories") or [])
+    open_paid = await db.vendor_category_requests.count_documents(
+        {"vendor_ref": v.get("vendor_ref"), "status": {"$in": OPEN}})
+    if not approved and not open_paid:
+        return {"amount": 0.0, "currency": None, "required": False, "reason": "first_free"}
+    country = vendor_country(v)
+    best, score = None, 0
+    if country:
+        async for r in db.emd_masters.find({"kind": "registration", "country": country, "is_active": True}):
+            s = _rule_matches_category(r, category_name)
+            if s > score:
+                best, score = r, s
+    amount = compute_amount(best, None) if best else None
+    if not amount:
+        return {"amount": 0.0, "currency": None, "required": False, "reason": "no_price"}
+    return {"amount": float(amount), "currency": (best.get("currency") or "USD").upper(),
+            "required": True, "rule_id": str(best["_id"])}
 
 router = APIRouter(tags=["vendor-categories"])
 
@@ -42,7 +72,7 @@ async def my_categories(vendor=Depends(current_vendor)):
     v = await db.vendors.find_one({"_id": ObjectId(vendor["id"])})
     approved = list((v or {}).get("business_categories") or [])
     pending = [_out(r) async for r in db.vendor_category_requests.find(
-        {"vendor_ref": vendor["vendor_ref"], "status": "pending"}
+        {"vendor_ref": vendor["vendor_ref"], "status": {"$in": OPEN}}
     ).sort("requested_at", -1)]
     recent = [_out(r) async for r in db.vendor_category_requests.find(
         {"vendor_ref": vendor["vendor_ref"], "status": {"$in": ["approved", "rejected"]}}
@@ -60,14 +90,14 @@ async def request_category(payload: CategoryRequestIn, vendor=Depends(current_ve
     dup = await db.vendor_category_requests.find_one({
         "vendor_ref": vendor["vendor_ref"],
         "category_code": payload.category_code,
-        "status": "pending",
+        "status": {"$in": OPEN},
     })
     if dup:
         raise HTTPException(status_code=409, detail="A pending request for this category already exists")
     cap = int((await scope_rules())["max_pending_category_requests"] or 0)
     if cap:
         n = await db.vendor_category_requests.count_documents(
-            {"vendor_ref": vendor["vendor_ref"], "status": "pending"})
+            {"vendor_ref": vendor["vendor_ref"], "status": {"$in": OPEN}})
         if n >= cap:
             raise HTTPException(status_code=429,
                 detail=f"You already have {n} category request(s) pending (limit {cap}). Wait for a decision first.")
@@ -75,7 +105,10 @@ async def request_category(payload: CategoryRequestIn, vendor=Depends(current_ve
     master = await db.categories.find_one({"code": payload.category_code, "is_active": True})
     if not master:
         raise HTTPException(status_code=400, detail="Unknown or inactive category")
+    fee = await _category_fee(v or {}, payload.category_name)
     doc = {
+        "fee_amount": fee["amount"], "fee_currency": fee["currency"],
+        "payment_status": "unpaid" if fee["required"] else "not_required",
         "vendor_ref": vendor["vendor_ref"],
         "vendor_email": vendor["email"],
         "vendor_company": v.get("company_name") if v else None,
@@ -91,7 +124,82 @@ async def request_category(payload: CategoryRequestIn, vendor=Depends(current_ve
     }
     res = await db.vendor_category_requests.insert_one(doc)
     doc["_id"] = res.inserted_id
-    return _out(doc)
+    return {**_out(doc), "fee_message": FREE_CATEGORY_MSG if fee["required"] else None}
+
+
+@router.get("/api/v1/vendor/categories/fee-quote")
+async def category_fee_quote(category_name: str, vendor=Depends(current_vendor)):
+    v = await db.vendors.find_one({"_id": ObjectId(vendor["id"])})
+    return {**(await _category_fee(v or {}, category_name)), "message": FREE_CATEGORY_MSG}
+
+
+async def _category_checkout(req: dict, origin: str) -> dict:
+    from pmc_lib.payments.stripe.checkout import StripeCheckout, CheckoutSessionRequest
+    checkout = StripeCheckout(api_key=os.environ["STRIPE_API_KEY"], webhook_url="")
+    session = await checkout.create_checkout_session(CheckoutSessionRequest(
+        amount=float(req["fee_amount"]), currency=req["fee_currency"].lower(),
+        success_url=f"{origin.rstrip('/')}/vendor/categories?cat_session={{CHECKOUT_SESSION_ID}}",
+        cancel_url=f"{origin.rstrip('/')}/vendor/categories",
+        metadata={"purpose": "category_fee", "request_id": str(req["_id"]), "vendor_ref": req["vendor_ref"]}))
+    v = await db.vendors.find_one({"vendor_ref": req["vendor_ref"]}, {"_id": 1})
+    await db.payment_transactions.insert_one({
+        "session_id": session.session_id, "purpose": "category_fee", "request_id": str(req["_id"]),
+        "vendor_id": str(v["_id"]) if v else None, "vendor_ref": req["vendor_ref"],
+        "amount": float(req["fee_amount"]), "currency": req["fee_currency"].lower(),
+        "status": "initiated", "payment_status": "pending", "created_at": now_iso(), "updated_at": now_iso()})
+    return {"checkout_url": session.url, "session_id": session.session_id}
+
+
+class CatCheckoutIn(BaseModel):
+    origin_url: str
+
+
+@router.post("/api/v1/vendor/categories/requests/{request_id}/checkout")
+async def category_checkout(request_id: str, payload: CatCheckoutIn, vendor=Depends(current_vendor)):
+    req = await db.vendor_category_requests.find_one({"_id": ObjectId(request_id), "vendor_ref": vendor["vendor_ref"]})
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+    if req.get("payment_status") != "unpaid" or req["status"] not in OPEN:
+        raise HTTPException(status_code=409, detail="No payment is due for this request")
+    return await _category_checkout(req, payload.origin_url)
+
+
+async def apply_category_payment(session_id: str) -> None:
+    tx = await db.payment_transactions.find_one_and_update(
+        {"session_id": session_id, "purpose": "category_fee", "credited": {"$ne": True}},
+        {"$set": {"credited": True}})
+    if not tx:
+        return
+    req = await db.vendor_category_requests.find_one_and_update(
+        {"_id": ObjectId(tx["request_id"])},
+        {"$set": {"payment_status": "paid", "paid_at": now_iso(), "payment_session": session_id,
+                  "status": "pending"}})
+    if req and tx.get("vendor_id"):
+        from routers._fees import issue_receipt
+        await issue_receipt(tx["vendor_id"], "category_fee",
+                            [{"code": "registration", "name": "Additional category", "amount": tx["amount"]}],
+                            tx["currency"], session_id, {"category": req.get("category_name"),
+                                                          "request_id": tx["request_id"]})
+
+
+@router.get("/api/v1/vendor/categories/checkout/status/{session_id}")
+async def category_checkout_status(session_id: str, vendor=Depends(current_vendor)):
+    rec = await db.payment_transactions.find_one({"session_id": session_id, "purpose": "category_fee"})
+    if not rec or rec.get("vendor_ref") != vendor["vendor_ref"]:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    if rec.get("payment_status") != "paid":
+        try:
+            from pmc_lib.payments.stripe.checkout import StripeCheckout
+            s = await StripeCheckout(api_key=os.environ["STRIPE_API_KEY"], webhook_url="").get_checkout_status(session_id)
+            if s.payment_status == "paid":
+                await db.payment_transactions.update_one({"session_id": session_id},
+                    {"$set": {"status": "completed", "payment_status": "paid", "updated_at": now_iso()}})
+        except Exception:
+            pass
+    rec = await db.payment_transactions.find_one({"session_id": session_id})
+    if rec.get("payment_status") == "paid":
+        await apply_category_payment(session_id)
+    return {"payment_status": rec["payment_status"]}
 
 
 # ---------- Admin side ----------
@@ -115,6 +223,9 @@ async def approve_category_request(request_id: str, payload: DecisionIn,
         raise HTTPException(status_code=404, detail="Request not found")
     if req["status"] != "pending":
         raise HTTPException(status_code=409, detail=f"Already {req['status']}")
+    if req.get("payment_status") == "unpaid":
+        raise HTTPException(status_code=409,
+            detail="Payment pending for this additional category — use 'Payment pending — send back' instead of approving.")
     now = now_iso()
     await db.vendor_category_requests.update_one(
         {"_id": req["_id"]},
@@ -129,6 +240,38 @@ async def approve_category_request(request_id: str, payload: DecisionIn,
     await audit_log("vendor.category_approve", admin, "vendor", req["vendor_ref"],
                      {"category": req["category_name"], "code": req["category_code"]})
     return {"ok": True}
+
+
+class SendBackIn(BaseModel):
+    origin_url: str
+    notes: Optional[str] = Field(default=None, max_length=400)
+
+
+@router.post("/api/v1/vendors/category-requests/{request_id}/payment-pending")
+async def send_back_payment_pending(request_id: str, payload: SendBackIn,
+                                    admin=Depends(require_role("admin", "reviewer"))):
+    req = await db.vendor_category_requests.find_one({"_id": ObjectId(request_id)})
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+    if req["status"] not in OPEN or req.get("payment_status") != "unpaid":
+        raise HTTPException(status_code=409, detail="No unpaid fee on this request")
+    chk = await _category_checkout(req, payload.origin_url)
+    await db.vendor_category_requests.update_one({"_id": req["_id"]},
+        {"$set": {"status": "payment_pending", "sent_back_at": now_iso(), "sent_back_by": admin["email"],
+                  "decision_notes": payload.notes}})
+    from notify import vendor_confirm
+    amt = f"{req['fee_currency']} {float(req['fee_amount']):,.2f}"
+    body = (f"<p>Your request to add the category <b>{req['category_name']}</b> has been reviewed, "
+            f"but the payment is still pending.</p><p>{FREE_CATEGORY_MSG}</p>"
+            f"<p><b>Amount due:</b> {amt}</p>"
+            f"{'<p><b>Note from PMC:</b> ' + payload.notes + '</p>' if payload.notes else ''}"
+            f"<p>Pay securely here (link valid 24 hours): <a href='{chk['checkout_url']}'>Pay {amt}</a></p>"
+            f"<p>After 24 hours, pay from <a href='{payload.origin_url.rstrip('/')}/vendor/categories'>My categories</a> in the supplier portal.</p>")
+    await vendor_confirm(req.get("vendor_email"), f"Payment pending — {req['category_name']}", body,
+                         f"Pay {amt}", chk["checkout_url"])
+    await audit_log("vendor.category_payment_pending", admin, "vendor", req["vendor_ref"],
+                    {"category": req["category_name"], "amount": req["fee_amount"]})
+    return {"ok": True, "status": "payment_pending", "checkout_url": chk["checkout_url"]}
 
 
 @router.post("/api/v1/vendors/category-requests/{request_id}/reject")

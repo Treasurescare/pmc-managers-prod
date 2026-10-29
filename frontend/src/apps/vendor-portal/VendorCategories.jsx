@@ -19,6 +19,26 @@ export default function VendorCategories() {
   const [draft, setDraft] = useState({ code: "", name: "", rationale: "", sector_code: "", sector_name: "", contract_type_code: "", contract_type_name: "" });
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
+  const [quote, setQuote] = useState(null);
+  useEffect(() => {
+    if (!draft.name) { setQuote(null); return; }
+    vendorApi.categoryFeeQuote(draft.name).then(setQuote).catch(() => setQuote(null));
+  }, [draft.name]);
+  useEffect(() => {
+    const sid = new URLSearchParams(window.location.search).get("cat_session");
+    if (sid) {
+      vendorApi.categoryCheckoutStatus(sid).then((s) => {
+        if (s.payment_status === "paid") toast.success("Payment received — your category request is back with PMC for approval. A receipt has been emailed.");
+        else toast("Payment is still processing — refresh in a moment.");
+        window.history.replaceState({}, "", "/vendor/categories");
+        refresh();
+      }).catch(() => {});
+    }
+  }, []);
+  const pay = async (id) => {
+    try { const r = await vendorApi.categoryCheckout(id, window.location.origin); window.location.href = r.checkout_url; }
+    catch (e) { showApiError(e); }
+  };
 
   const refresh = () => vendorApi.myCategories()
     .then(setState).catch(showApiError);
@@ -46,7 +66,7 @@ export default function VendorCategories() {
     }
     setBusy(true);
     try {
-      await vendorApi.requestCategory({
+      const created = await vendorApi.requestCategory({
         category_code: draft.code,
         category_name: draft.name,
         rationale: draft.rationale || null,
@@ -55,9 +75,13 @@ export default function VendorCategories() {
         contract_type_code: draft.contract_type_code || null,
         contract_type_name: draft.contract_type_name || null,
       });
-      toast.success(`Request submitted · ${draft.name}`, {
-        description: "An admin will review it shortly.",
-      });
+      if (created?.payment_status === "unpaid") {
+        toast.warning(created.fee_message || "Registration is free for one category — this additional category needs a payment.", {
+          description: `Pay ${created.fee_currency} ${Number(created.fee_amount).toLocaleString()} from the Pending list so PMC can approve it.`,
+        });
+      } else {
+        toast.success(`Request submitted · ${draft.name}`, { description: "An admin will review it shortly." });
+      }
       setDraft({ code: "", name: "", rationale: "", sector_code: "", sector_name: "", contract_type_code: "", contract_type_name: "" });
       refresh();
     } catch (e) { showApiError(e); }
@@ -100,8 +124,16 @@ export default function VendorCategories() {
               <div key={p.id} className="py-2 text-sm" data-testid={`pending-${p.category_code}`}>
                 <div className="flex justify-between flex-wrap gap-2">
                   <strong>{p.category_name}</strong>
-                  <span className="text-[10px] uppercase tracking-widest text-amber-800 bg-amber-50 border border-amber-300 px-2 py-0.5">pending</span>
+                  <span className="text-[10px] uppercase tracking-widest text-amber-800 bg-amber-50 border border-amber-300 px-2 py-0.5">{p.status === "payment_pending" ? "sent back — payment pending" : "pending"}</span>
                 </div>
+                {p.payment_status === "unpaid" && (
+                  <div className="flex items-center justify-between gap-2 mt-2 bg-red-50 border border-red-200 px-3 py-2" data-testid={`pending-fee-${p.category_code}`}>
+                    <span className="text-xs text-red-800">Additional category fee <b>{p.fee_currency} {Number(p.fee_amount || 0).toLocaleString()}</b> — unpaid. PMC can't approve until it's paid.</span>
+                    <button type="button" onClick={() => pay(p.id)} data-testid={`pending-pay-${p.category_code}`}
+                      className="px-3 py-1.5 text-[10px] uppercase tracking-widest bg-brand-navy text-white">Pay now</button>
+                  </div>
+                )}
+                {p.payment_status === "paid" && <div className="text-xs text-emerald-700 mt-1" data-testid={`pending-paid-${p.category_code}`}>✓ Fee paid — awaiting approval</div>}
                 {p.rationale && <div className="text-xs text-brand-navy/60 mt-1">"{p.rationale}"</div>}
                 <div className="text-[11px] text-brand-navy/50 mt-1">Requested {p.requested_at?.slice(0, 10)}</div>
               </div>
@@ -158,6 +190,13 @@ export default function VendorCategories() {
           rows={3} placeholder="Why are you qualified for this category? (optional, helps admin decide)"
           className="w-full px-3 py-2 border border-brand-navy/20 text-sm mb-3"
           data-testid="cat-rationale" />
+        {quote && (
+          <div data-testid="cat-fee-quote" className={"text-xs mb-3 px-3 py-2 border " + (quote.required ? "bg-amber-50 border-amber-300 text-amber-900" : "bg-emerald-50 border-emerald-200 text-emerald-900")}>
+            {quote.required
+              ? <>{quote.message} This category costs <b>{quote.currency} {Number(quote.amount).toLocaleString()}</b> — you'll get a payment link after you submit.</>
+              : quote.reason === "first_free" ? "Your first category is free." : "No fee is set for additional categories in your country right now."}
+          </div>
+        )}
         <button type="button" onClick={submit} disabled={busy || !draft.code}
           data-testid="cat-submit"
           className="px-5 py-2 text-[11px] uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep disabled:opacity-50">

@@ -441,6 +441,9 @@ export const vendorApi = {
     api.get(`/api/v1/vendor/profile/phone-verify/${token}`).then((r) => r.data),
   // v50l — vendor category interest (vendor side)
   myCategories: () => api.get("/api/v1/vendor/categories/mine").then((r) => r.data),
+  categoryFeeQuote: (category_name) => api.get("/api/v1/vendor/categories/fee-quote", { params: { category_name } }).then((r) => r.data),
+  categoryCheckout: (id, origin_url) => api.post(`/api/v1/vendor/categories/requests/${id}/checkout`, { origin_url }).then((r) => r.data),
+  categoryCheckoutStatus: (sid) => api.get(`/api/v1/vendor/categories/checkout/status/${sid}`).then((r) => r.data),
   requestCategory: (p) =>
     api.post("/api/v1/vendor/categories/request", p).then((r) => r.data),
   // v50n — licences & certificates (Company & KYC tab)
@@ -880,6 +883,8 @@ export const mastersApi = {
     api.post(`/api/v1/vendors/category-requests/${id}/approve`, { notes: notes || null }).then((r) => r.data),
   rejectCategoryRequest: (id, notes) =>
     api.post(`/api/v1/vendors/category-requests/${id}/reject`, { notes }).then((r) => r.data),
+  sendBackCategoryPayment: (id, notes) =>
+    api.post(`/api/v1/vendors/category-requests/${id}/payment-pending`, { notes: notes || null, origin_url: window.location.origin }).then((r) => r.data),
   // v50m — vendor profile change requests (admin side)
   listProfileChangeRequests: (status = "pending") =>
     api.get("/api/v1/vendors/profile-change-requests", { params: { status } }).then((r) => r.data),

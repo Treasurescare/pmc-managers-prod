@@ -55,8 +55,9 @@ export default function CategoryRequestsPanel() {
     setBusyId(id);
     try {
       if (action === "approve") await mastersApi.approveCategoryRequest(id, note);
+      else if (action === "sendback") await mastersApi.sendBackCategoryPayment(id, note);
       else await mastersApi.rejectCategoryRequest(id, note);
-      toast.success(`${action === "approve" ? "Approved" : "Rejected"} · supplier notified`);
+      toast.success(`${action === "approve" ? "Approved" : action === "sendback" ? "Sent back — payment link emailed" : "Rejected"} · supplier notified`);
       setNotes((n) => { const x = { ...n }; delete x[id]; return x; });
       load();
     } catch (e) { showApiError(e); }
@@ -68,7 +69,7 @@ export default function CategoryRequestsPanel() {
   return (
     <div data-testid="category-requests-panel">
       <div className="flex items-center gap-2 mb-3 flex-wrap">
-        {["pending", "approved", "rejected"].map((s) => (
+        {["pending", "payment_pending", "approved", "rejected"].map((s) => (
           <button key={s} onClick={() => setStatus(s)}
             data-testid={`cat-req-tab-${s}`}
             className={"px-3 py-1.5 text-[10px] uppercase tracking-widest border " +
@@ -154,6 +155,13 @@ export default function CategoryRequestsPanel() {
                 <div className="text-[11px] text-brand-navy/50 mt-1 font-mono">
                   code {r.category_code} · requested {r.requested_at?.slice(0, 16).replace("T", " ")}
                 </div>
+                {r.payment_status && r.payment_status !== "not_required" && (
+                  <div className={"text-xs mt-1 font-semibold " + (r.payment_status === "paid" ? "text-emerald-700" : "text-red-700")}
+                       data-testid={`cat-req-payment-${r.id}`}>
+                    Additional category fee {r.fee_currency} {Number(r.fee_amount || 0).toLocaleString()} · {r.payment_status === "paid" ? "PAID" : "PAYMENT PENDING"}
+                  </div>
+                )}
+                {r.payment_status === "not_required" && <div className="text-xs mt-1 text-brand-navy/50" data-testid={`cat-req-payment-${r.id}`}>No fee (first category free / no price set)</div>}
               </div>
               <span className={"text-[10px] uppercase tracking-widest px-2 py-0.5 shrink-0 " +
                 (r.status === "approved" ? "text-emerald-800 bg-emerald-50 border border-emerald-200"
@@ -169,11 +177,19 @@ export default function CategoryRequestsPanel() {
                   placeholder="Notes (required for reject)"
                   className="flex-1 min-w-[200px] px-3 py-1.5 border border-brand-navy/20 text-sm"
                   data-testid={`cat-req-notes-${r.id}`} />
-                <button type="button" onClick={() => decide(r.id, "approve")} disabled={busyId === r.id}
+                <button type="button" onClick={() => decide(r.id, "approve")} disabled={busyId === r.id || r.payment_status === "unpaid"}
+                  title={r.payment_status === "unpaid" ? "Payment pending — send it back for payment first" : undefined}
                   data-testid={`cat-req-approve-${r.id}`}
                   className="px-3 py-1.5 text-[10px] uppercase tracking-widest bg-emerald-700 text-white hover:bg-emerald-800 disabled:opacity-50">
                   Approve
                 </button>
+                {r.payment_status === "unpaid" && (
+                  <button type="button" onClick={() => decide(r.id, "sendback")} disabled={busyId === r.id}
+                    data-testid={`cat-req-sendback-${r.id}`}
+                    className="px-3 py-1.5 text-[10px] uppercase tracking-widest bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50">
+                    Payment pending — send back
+                  </button>
+                )}
                 <button type="button" onClick={() => decide(r.id, "reject")} disabled={busyId === r.id}
                   data-testid={`cat-req-reject-${r.id}`}
                   className="px-3 py-1.5 text-[10px] uppercase tracking-widest bg-red-700 text-white hover:bg-red-800 disabled:opacity-50">

@@ -376,6 +376,10 @@ async def submit_registration(registration_id: str,
     missing = [d for d in decls if not doc.get(d)]
     if missing:
         raise HTTPException(status_code=400, detail=f"Missing declarations: {', '.join(missing)}")
+    if len(doc.get("business_categories") or []) > 1:
+        raise HTTPException(status_code=400,
+            detail="Registration is free for one category. Keep one category now — after approval, add more "
+                   "from My categories (each additional category needs a payment).")
 
     # Validate signature block
     for f in ("signature_name", "signature_title", "signature_date"):

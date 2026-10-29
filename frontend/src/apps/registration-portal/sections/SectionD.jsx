@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Field, Input } from "./FormPrimitives";
 import { DocSlotsBlock } from "./DocSlot";
 import { useI18n } from "@/context/I18nContext";
@@ -107,10 +108,16 @@ export default function SectionD({ reg, update, kzMeta, regId, token, onDocChang
           search backend as Section C; works for every country including
           Bangladesh / Bosnia / etc. */}
       <Field label={t("section_d.business_categories")}
-             hint="Search the full UNSPSC codeset — biogas, solar plant, construction, CBG, STP, etc. Picks accumulate as chips you can remove.">
+             hint="Registration is free for ONE category. After approval you can add more from My categories — each additional category needs a payment.">
         <UnspscMultiPicker
           value={businessCategories}
-          onChange={(next) => update({ business_categories: next })}
+          onChange={(next) => {
+            if ((next || []).length > 1) {
+              toast.error("Registration is free for one category. For every additional category a payment needs to be made — add more after approval from My categories.");
+              return;
+            }
+            update({ business_categories: next });
+          }}
           testidPrefix="f-categories" />
       </Field>
 
