@@ -1,0 +1,37 @@
+{
+  "summary": "Paid additional categories (R12) tested end to end. Backend: new pytest file test_r12_category_fees.py passes 14/14. It covers fee-quote first_free / no_price / rule price, preferring the category-specific rule, request payment_status unpaid vs not_required, approve returning 409 when unpaid or payment_pending, vendor checkout, admin payment-pending send-back (status, list, email via Resend 200, checkout_url), the duplicate check including payment_pending, checkout/status applying the payment idempotently (1 receipt), checkout returning 409 after payment, approve after payment adding the category, send-back returning 409 when no fee is due, and registration submit returning 400 with >1 category. Regressions pass with -n 0: test_r9b_scope_fillall_dpr_sub.py 14/14 and test_r11_start_gate_receipts.py 27/27. UI (Playwright): vendor /vendor/categories shows 'Your first category is free' and then the USD 25 quote. Submitting shows the warning toast, pending-fee and Pay now. A real Stripe test checkout with card 4242 returned to ?cat_session= with the success toast and pending-paid marker; the receipt PMC-RCPT-000014 was stored and emailed. Admin Vendor requests: approve is disabled when unpaid, send-back works and the request moves to the payment_pending tab. After payment it is back in pending marked PAID and approved. Registration Section D: picking a 2nd category shows the error toast and keeps 1 chip. One real backend bug found: paying an old checkout link.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "apply_category_payment (vendor_categories.py) via webhook or /vendor/categories/checkout/status/{sid}", "issue": "Each Pay now click and each admin send-back creates a new Stripe session, and older sessions are never expired. If the vendor pays an old session (e.g. the emailed link after already paying via Pay now, or after approval), apply_category_payment credits that tx too. It unconditionally sets status='pending', so an APPROVED request goes back to pending and reappears in the admin queue. It also issues a 2nd receipt (double charge). Reproduced: after approval, marking the stale emailed-link session paid and calling checkout/status gave request status 'pending' and 2 receipts.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/v1/vendors/category-requests/{id}/reject", "issue": "Only allows status=='pending', so a payment_pending request can't be rejected or withdrawn (admin UI also shows no actions on the payment_pending tab). Requests can sit open forever and count against the pending cap."},
+      {"endpoint": "POST /payment-pending", "issue": "Admin notes are put into the email HTML without escaping."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Registration Section D", "issues": ["Field label still says 'Business categories (comma separated)' although only one category is allowed now"]},
+      {"screen": "Admin Vendor requests > payment_pending tab", "issues": ["No actions (resend link / reject) on rows; the existing filters use the browser's native date inputs"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_r12_category_fees.py", "/app/backend/tests/_r12_ui_setup.py", "/app/test_reports/pytest/r12.xml"],
+  "action_items": [
+    "In apply_category_payment: only change status if the request is still in OPEN and payment_status != 'paid'. If it is already paid, skip setting status/receipt (or flag the tx for a refund). Consider expiring or reusing the earlier open checkout session for the request when a new one is made.",
+    "Allow reject (and optionally re-send link) for payment_pending requests in the backend and in CategoryRequestsPanel",
+    "Escape notes in the payment-pending email; relabel the Section D categories field"
+  ],
+  "critical_code_review_comments": [
+    "vendor_categories.py _category_fee: open_paid counts all open requests, including the free first one. That is correct behaviour but the name is misleading.",
+    "A vendor with no country resolved gets reason no_price, so unlimited free categories. This matches the spec, but admins should know."
+  ],
+  "updated_files": ["/app/backend/tests/test_r12_category_fees.py", "/app/backend/tests/_r12_ui_setup.py"],
+  "success_rate": {"backend": "100% of tests (1 logic bug found via an extra scenario)", "frontend": "100%"},
+  "seed_data_creation": "Temporary TEST_R12 registration rules (country XT, USD), vendor country XT, category requests, payment_transactions, fee_receipts and a TEST_R12 registration were all cleaned. Vendor country/business_categories are back to None. The KZ Registration Fee rule is untouched.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Use `python tests/_r12_ui_setup.py seed|clean` (seed prints a registration magic token for /register/resume?token=). Stripe checkout: uncheck #enableStripePass (Link) or a phone number is required. Run r12 tests with -n 0.",
+  "rca of the issue": "apply_category_payment does find_one_and_update on the request with $set status:'pending' and no filter on the current status or payment_status. The credited flag is per transaction, not per request, so each extra paid session for the same request is applied again. Fix: add the filter {'status': {'$in': OPEN}, 'payment_status': {'$ne': 'paid'}} and skip the receipt when nothing matched."
+}

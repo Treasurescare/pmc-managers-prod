@@ -17,7 +17,6 @@ from routers.vendor_auth import current_vendor
 from audit import audit_log
 from routers._tender_access import scope_rules
 import os
-from typing import Literal  # noqa: F401
 
 FREE_CATEGORY_MSG = ("Registration is free for one category. Every additional category needs a "
                      "payment before PMC can approve it.")
@@ -171,9 +170,15 @@ async def apply_category_payment(session_id: str) -> None:
     if not tx:
         return
     req = await db.vendor_category_requests.find_one_and_update(
-        {"_id": ObjectId(tx["request_id"])},
+        {"_id": ObjectId(tx["request_id"]), "payment_status": "unpaid", "status": {"$in": OPEN}},
         {"$set": {"payment_status": "paid", "paid_at": now_iso(), "payment_session": session_id,
                   "status": "pending"}})
+    if not req:
+        await db.payment_transactions.update_one({"session_id": session_id},
+            {"$set": {"duplicate": True, "needs_refund": True, "updated_at": now_iso()}})
+        await audit_log("vendor.category_duplicate_payment", {"id": tx.get("vendor_id"), "role": "vendor"},
+                        "vendor", tx.get("vendor_ref"), {"session_id": session_id, "amount": tx["amount"]})
+        return
     if req and tx.get("vendor_id"):
         from routers._fees import issue_receipt
         await issue_receipt(tx["vendor_id"], "category_fee",
@@ -260,11 +265,13 @@ async def send_back_payment_pending(request_id: str, payload: SendBackIn,
         {"$set": {"status": "payment_pending", "sent_back_at": now_iso(), "sent_back_by": admin["email"],
                   "decision_notes": payload.notes}})
     from notify import vendor_confirm
+    from html import escape as _esc
+    notes = _esc(payload.notes) if payload.notes else None
     amt = f"{req['fee_currency']} {float(req['fee_amount']):,.2f}"
     body = (f"<p>Your request to add the category <b>{req['category_name']}</b> has been reviewed, "
             f"but the payment is still pending.</p><p>{FREE_CATEGORY_MSG}</p>"
             f"<p><b>Amount due:</b> {amt}</p>"
-            f"{'<p><b>Note from PMC:</b> ' + payload.notes + '</p>' if payload.notes else ''}"
+            f"{'<p><b>Note from PMC:</b> ' + notes + '</p>' if notes else ''}"
             f"<p>Pay securely here (link valid 24 hours): <a href='{chk['checkout_url']}'>Pay {amt}</a></p>"
             f"<p>After 24 hours, pay from <a href='{payload.origin_url.rstrip('/')}/vendor/categories'>My categories</a> in the supplier portal.</p>")
     await vendor_confirm(req.get("vendor_email"), f"Payment pending — {req['category_name']}", body,
@@ -280,7 +287,7 @@ async def reject_category_request(request_id: str, payload: DecisionIn,
     req = await db.vendor_category_requests.find_one({"_id": ObjectId(request_id)})
     if not req:
         raise HTTPException(status_code=404, detail="Request not found")
-    if req["status"] != "pending":
+    if req["status"] not in OPEN:
         raise HTTPException(status_code=409, detail=f"Already {req['status']}")
     if not (payload.notes or "").strip():
         raise HTTPException(status_code=400, detail="Rejection reason is required")

@@ -75,7 +75,7 @@ export default function CategoryRequestsPanel() {
             className={"px-3 py-1.5 text-[10px] uppercase tracking-widest border " +
               (status === s ? "bg-brand-navy text-white border-brand-navy"
                             : "bg-white text-brand-navy/70 border-brand-navy/20")}>
-            {s} ({status === s ? filtered.length : "…"})
+            {s === "payment_pending" ? "payment pending" : s} ({status === s ? filtered.length : "…"})
           </button>
         ))}
       </div>
@@ -170,7 +170,7 @@ export default function CategoryRequestsPanel() {
                 {r.status}
               </span>
             </div>
-            {status === "pending" && (
+            {(status === "pending" || status === "payment_pending") && (
               <div className="mt-3 flex items-center gap-2 flex-wrap">
                 <input value={notes[r.id] || ""}
                   onChange={(e) => setNotes({ ...notes, [r.id]: e.target.value })}

@@ -725,3 +725,14 @@ frontend flows pass; NOT yet user-confirmed):
   used_in_tender_builder + one_time = per-tender builder fee (upfront → start gate, on_completion → before submit);
   `emd` = notice EMD picker + DPR auto-EMD; other codes only usable via Masters → Charge Fee (manual) today.
 
+## R13 — Paid additional categories — 2026-10-29 (agent-tested, preview only)
+- Registration: only ONE business category allowed (Section D error toast + 400 on submit).
+- Additional categories: price from the 'registration' Fee rule for the vendor's country (category-specific wins);
+  first category free; no rule → free. Request stores fee_amount/fee_currency/payment_status (unpaid|not_required|paid).
+- Vendor /vendor/categories: fee quote before submit, Pay now (Stripe) on pending rows, ?cat_session= return, receipt
+  (fee_receipts purpose category_fee) emailed.
+- Admin Vendor requests: payment badge, Approve blocked (UI + 409) while unpaid, "Payment pending — send back" →
+  status payment_pending + email with prefilled Stripe link (24h) + portal link; new payment_pending tab; reject
+  allowed on payment_pending. Stale/duplicate payments never reopen a request — tx flagged needs_refund instead.
+- Tests: test_r12_category_fees.py 14/14; r9b 14/14; r11 27/27.
+
