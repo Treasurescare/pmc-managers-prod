@@ -25,17 +25,17 @@ from security import require_role
 from audit import audit_log
 from routers._tender_access import (
     tender_principal, write_principal, is_vendor, actor as _actor,
+    assert_can_edit_doc,
 )
 
 router = APIRouter(prefix="/api/v1/tender-pro", tags=["tender-pro"])
 
 
 async def _vendor_scope_template(principal: dict, doc: dict) -> None:
-    """A vendor may only read/mutate their OWN non-master draft template."""
-    if not is_vendor(principal):
-        return
-    if doc.get("is_master") or doc.get("owner_vendor_id") != principal["id"]:
-        raise HTTPException(status_code=404, detail="Template not found")
+    """A vendor may only mutate their OWN non-master draft template, and not once
+    it has been submitted/approved. Delegates to the shared edit guard so the
+    lock is enforced identically across every write path."""
+    assert_can_edit_doc(principal, doc)
 
 
 def _out(doc: dict) -> dict:
@@ -712,6 +712,13 @@ async def save_as_master(tid: str, payload: SaveAsMasterIn,
     clone.pop("versions", None)
     clone.pop("version", None)
     clone.pop("review_status", None)
+    clone.pop("submitted_at", None)
+    clone.pop("review_note", None)
+    clone.pop("reviewed_by", None)
+    clone.pop("reviewed_at", None)
+    clone.pop("published_notice_ref", None)
+    clone.pop("approved_by", None)
+    clone.pop("approved_at", None)
     for sec in clone.get("sections") or []:
         sec.pop("attachment", None)  # masters ship with no per-clone files
     if is_vendor(principal):

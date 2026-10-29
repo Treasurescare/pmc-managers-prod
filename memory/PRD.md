@@ -10,7 +10,43 @@ reverse auctions, bid governance, EMD escrow workflows, vendor/staff/
 institution portals, AWS deployment bundles, and transactional notifications
 (Stripe, Resend, DocuSign, Emergent crons).
 
-## R9 — FULL vendor tender builder (SPEC — next build, not yet implemented)
+## R9 — FULL vendor tender builder (IMPLEMENTED + tested, 29 Oct 2026)
+Vendors now use the COMPLETE staff Tender Builder (`TenderBuilderPanel` in `vendorMode`)
+at `/vendor/tender-builder` (`VendorTenderBuilderFull.jsx`), not the cut-down R8 form.
+Status: backend 21/21 pytest green (`backend/tests/test_r9_vendor_tender_builder.py`),
+reviewer + vendor UI screenshot-verified in preview. Shipped:
+- **Shared access layer** `routers/_tender_access.py`: resolves a staff OR vendor
+  principal (admin cookie first, then vendor_token); `write_principal` enforces CSRF for
+  staff sessions + entitlement for vendors; `scope_filter`/`assert_can_read_doc`/
+  `assert_can_edit_doc` give strict server-side tenant/ownership isolation (a vendor sees
+  only their own drafts + APPROVED shared masters; pending/rejected masters hidden &
+  blocked from public pdf/zip). The edit guard also LOCKS a tender once submitted/approved
+  across EVERY write path (patch, section save, restore, ai-fill, ai-draft, attachment,
+  bulk, delete, save-as-master).
+- **tender_templates.py / tender_pro.py** endpoints converted from `require_role` to the
+  principal model with ownership scoping; DPR analyze/async/jobs, AI Fill-All and section
+  AI-draft accept vendors on their OWN draft only. AI uses **Claude Sonnet 5.5 via the
+  Emergent LLM key** (`_llm_complete`).
+- **Submit-for-review (no vendor publish)**: `POST /tender-templates/{tid}/submit-review`;
+  active-reviewer-only queue + approve/request-changes/reject (`require_role("reviewer")`,
+  admins get 403). Approve publishes a `notices` doc (origin=vendor, author=vendor company,
+  `tender_template_id` linked) and preserves originator → the R8 bid conflict-guard blocks
+  the author from bidding. Mandatory fields (title/description/budget) validated before publish.
+- **Vendor template → shared library moderation**: `save-as-master` by a vendor stays
+  `moderation_status=pending`; reviewer `Pending library` tab approves/rejects
+  (`/masters/pending`, `/{tid}/master/{approve,reject}`).
+- **Pricing via Fee Master** (`emd_masters`, kind='subscription') per COUNTRY+currency:
+  no priced master for the vendor's country → FULL builder FREE for KYC-approved vendors;
+  a real price → subscribe gate (Stripe test-mode, `vendor-tenders/subscription*` rewired
+  to Fee Master). Entitlement re-checked at operation time; NO cron.
+- Frontend: vendor action bar shows "Submit for PMC review" (never "Create notice"),
+  entitlement banner (free/active/subscribe), review-status badge + locked controls once
+  submitted/approved, unique data-testids. `AdminTenderReviewE` keyed by template id.
+Deferred (non-blocking): ai-fill-all async job for very large (18-section) masters;
+malformed-ObjectId 500 hardening; `tender_templates.py` module split; vendor brute-force/CORS
+(pre-existing, out of R9 scope).
+
+## R9 — original SPEC (superseded by the IMPLEMENTED section above)
 User requirement (28 Jun 2026): the vendor tender builder must be the COMPLETE
 staff experience, not the cut-down form shipped in R8.
 Architecture (discovered — reuse existing, do NOT duplicate):

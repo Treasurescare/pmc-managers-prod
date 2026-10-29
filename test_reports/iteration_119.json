@@ -1,0 +1,57 @@
+{
+  "summary": "R9 Vendor Tender Builder E2E (backend pytest 21 tests + Playwright UI). Core happy path works: vendor free entitlement, full builder in vendorMode (Submit for PMC review shown, Create notice hidden), clone/save/section save, owner_vendor_id stamping, tenant isolation (2nd seeded vendor gets 404 on GET/PATCH/DELETE/versions/submit/ai-fill-all/DPR template, not listed), submit-review + lock on full PATCH, reviewer queue/approve/request-changes/reject (API + UI), notice publish (origin=vendor, author=Test Supplier Co, tender_template_id linked, approved + published_notice_ref), own-tender bid guard 403, admin 403 on review queue/approve, priced Fee Master country gate (402 writes, vendor-sub-gate UI with EUR 49), DPR async job ownership, Claude Sonnet 5.5 AI draft / fill-all / analyze-json all returned 200 on small drafts, admin builder regression (clone/save/history/PDF). FOUND 3 backend security/integrity bugs + several gaps (below).",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "DELETE /api/v1/tender-templates/{tid} (vendor)", "issue": "Vendor can DELETE their own tender after it was submitted or APPROVED/published. delete_template only checks is_master + ownership, not review_status. Reproduced: approved VT notice remained live but /public/pdf?notice_ref=... returned 404 afterwards, so the published notice was broken.", "priority": "CRITICAL"},
+      {"endpoint": "PATCH /api/v1/tender-pro/templates/{tid}/sections/{code}, POST /tender-templates/{tid}/versions/{i}/restore, POST /tender-pro/templates/{tid}/ai-fill-all, POST /tender-templates/{tid}/sections/{code}/ai-draft + attachment upload/remove", "issue": "The review lock (409 when review_status is submitted/approved) exists only in the full PATCH /tender-templates/{tid}. The other write paths skip it. Reproduced: the vendor's section PATCH on an APPROVED/published tender returned 200. That lets a vendor change the published tender content (public PDF renders live from the template) after the reviewer approved it.", "priority": "CRITICAL"},
+      {"endpoint": "GET /api/v1/tender-templates (vendor scope_filter) + assert_can_read_doc", "issue": "A vendor master rejected by the reviewer (moderation_status='rejected') leaks into the SHARED master library for every vendor. The filter uses moderation_status != 'pending' when it should require approved (or a missing status for staff/seed masters). Reproduced with the 2nd vendor. The same logic also lets the public /{tid}/public/pdf|zip serve pending/rejected vendor masters, because is_master=True.", "priority": "HIGH"},
+      {"endpoint": "All write_principal endpoints with an admin/staff session (POST/PATCH/DELETE /tender-templates, tender-pro section/ai-fill/save-as-master/dpr)", "issue": "CSRF regression: these routes used to depend on require_role('admin'), which enforces require_csrf. write_principal/tender_principal never call require_csrf (it is imported in _tender_access.py but unused). Reproduced: an admin cookie session created a template WITHOUT the X-CSRF-Token header and got 200.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /tender-templates/{tid}/review/request-changes & /review/reject", "issue": "No check that review_status=='submitted'. A reviewer can flip an already APPROVED/published tender to rejected/changes_requested while its notice stays published, which makes the state inconsistent."},
+      {"endpoint": "POST /tender-templates/{tid}/review/approve", "issue": "No validation of notice-mandatory fields. A tender with an empty category, description and budget was published (notice category=None, budget_amount=None)."},
+      {"endpoint": "POST /tender-pro/templates/{tid}/ai-fill-all", "issue": "Runs synchronously over every section. On the 18-section master clone it went past the ingress timeout and returned a Cloudflare 502 HTML page. Needs async/job mode like DPR analyze-async."},
+      {"endpoint": "_tender_access.vendor_country", "issue": "Reads only top-level country keys (not profile.country, which current_vendor does read) and slices to 3 chars ('India'->'IND'), so it may not match Fee Master ISO-2 'IN'. If the country is missing or mismatched the vendor silently gets the builder FREE (pricing bypass). testvendor has no country, so it is always free."},
+      {"endpoint": "GET /tender-templates/{tid} etc.", "issue": "Malformed ObjectId gives a 500 in get/patch/delete/submit-review (no try/except)."},
+      {"endpoint": "POST /api/v1/vendor/auth/login", "issue": "No brute-force lockout (6+ consecutive 401s, never 429). CORS preflight returns '*' for an arbitrary origin. Pre-existing, not R9-specific."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "TenderBuilderPanel vendorMode", "issue": "After submit (and after approval) the vendor UI shows no review-status badge. 'Submit for PMC review', Delete, AI Fill All, section Save and Save-as-master all stay enabled: re-submit gives 409 and delete actually succeeds. Show the status and disable the edit/submit/delete controls when submitted or approved.", "selector": "[data-testid='tb-submit-review'], [data-testid='tb-delete']", "priority": "HIGH"},
+      {"component": "TenderBuilderPanel vendorMode bulk upload", "issue": "The bulk section-attachment uploader is shown to vendors, but POST /tender-templates/{tid}/attachments/bulk is still require_role('admin'), so vendors get 401/403. Either convert it to write_principal with ownership checks or hide it in vendorMode.", "selector": "[data-testid='tb-bulk-upload']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Vendor master moderation", "issue": "tenderTemplateApi.pendingMasters/approveMaster/rejectMaster exist in api.js but no page uses them. AdminTenderReviewE has no 'Pending masters' tab, so vendor-saved masters can never be approved from the UI.", "affected_selectors": ["admin-tender-review"]},
+      {"flow": "Reviewer queue for a non-reviewer admin", "issue": "AdminTenderReviewE swallows the 403 (.catch(()=>{})) and shows 'Nothing here.' instead of telling the admin to switch to the reviewer role.", "affected_selectors": ["[data-testid='tr-empty']"]}
+    ],
+    "design_issues": [
+      {"screen": "/admin/e/tender-review", "issues": ["A reviewer cannot open or preview the full vendor tender (sections/PDF) before 'Approve & publish'. Only the header summary is shown. Add a View/PDF link per row.", "Row meta shows '— · — · INR —' when fields are blank."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_r9_vendor_tender_builder.py", "/app/test_reports/pytest/pytest_r9.xml"],
+  "action_items": [
+    "Block vendor DELETE (and every write path: section PATCH, restore, ai-fill-all, ai-draft, attachment upload/remove) when review_status in ('submitted','approved'). Centralise the check in assert_can_edit_doc.",
+    "scope_filter/assert_can_read_doc: show a vendor master only when moderation_status is approved (or missing for staff/seed masters). Exclude 'rejected'. Apply the same gate in /public/pdf and /public/zip.",
+    "Add require_csrf for admin principals in write_principal (e.g. call await require_csrf(request) when principal kind=='admin').",
+    "Guard review/request-changes and review/reject to status=='submitted'. Validate the mandatory fields (title, description, category, value, deadline) before approve publishes.",
+    "Vendor UI: show the review_status badge and disable edit/submit/delete when submitted/approved. Hide or enable the bulk upload in vendorMode.",
+    "Add a Pending masters tab to AdminTenderReviewE using pendingMasters/approveMaster/rejectMaster.",
+    "Make vendor_country also read profile.country and normalise to ISO-2 to match the Fee Master.",
+    "Consider an async job for ai-fill-all on large templates (ingress 502 on 18 sections)."
+  ],
+  "critical_code_review_comments": [
+    "tender_templates.py is 994 lines and should be split (review/moderation endpoints into their own module).",
+    "_tender_access.py imports require_csrf but never uses it, which is the root cause of the CSRF regression.",
+    "save_as_master clone copies every source field (published_notice_ref, owner_company_name missing, submitted_at, review_note). Whitelist the fields instead.",
+    "list_templates resolves created_by_email from db.admins while the users live in db.admin_users (likely always None, pre-existing)."
+  ],
+  "updated_files": ["/app/backend/tests/test_r9_vendor_tender_builder.py"],
+  "success_rate": {"backend": "86% (18/21 pytest; the 3 failures are real bugs)", "frontend": "~85% (vendor builder, submit, reviewer approve, sub gate and admin regression work; status/lock UX and master moderation UI missing)"},
+  "test_credentials": "From /app/memory/test_credentials.md: testvendor@pmcmanagers.com/Vendor@12345, reviewerqa@pmcmanagers.com/Reviewer@12345, adminsupport@pmcmanagers.com/Admin@12345. bcrypt $2b$ confirmed; vendor_token cookie is HttpOnly.",
+  "seed_data_creation": "The pytest seeds a 2nd vendor test_r9_vendorb@pmcmanagers.com (kyc verified) and a temporary emd_masters subscription for country ZZ, and removes both in teardown. All TEST_R9 templates and VT notices were cleaned up.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_r9_vendor_tender_builder.py -n 0 (it MUST run with -n 0 because of shared module state across xdist workers). The 3 expected failures map to the critical bugs above. Vendor UI login is easiest via page.request.post('/api/v1/vendor/auth/login') and then goto /vendor/tender-builder (filling the form via Playwright got reset). The LLM (claude-sonnet-5-5) works.",
+  "rca of the issue": "1) The review lock lives only in patch_template, not in a shared helper, so the other mutators and DELETE bypass it. 2) scope_filter uses $ne 'pending', which lets 'rejected' through. 3) Moving from require_role to principal deps dropped the require_csrf dependency for staff sessions."
+}

@@ -632,12 +632,13 @@ export default function TenderBuilderPanel({ vendorMode = false }) {
                   </button>
                   {!doc.is_master && (
                     <button onClick={removeDraft} data-testid="tb-delete"
-                      className="px-4 py-2 text-[12px] uppercase tracking-widest border border-red-500 text-red-600 hover:bg-red-50">
+                      disabled={vendorMode && ["submitted", "approved"].includes(doc.review_status)}
+                      className="px-4 py-2 text-[12px] uppercase tracking-widest border border-red-500 text-red-600 hover:bg-red-50 disabled:opacity-40">
                       {t("panels.tender_builder.delete")}
                     </button>
                   )}
                   {/* v45 — Phase A/B/C action buttons */}
-                  <button onClick={runAiFillAll} disabled={aiFillBusy}
+                  <button onClick={runAiFillAll} disabled={aiFillBusy || (vendorMode && ["submitted", "approved"].includes(doc.review_status))}
                           data-testid="tb-ai-fill-all"
                           className="px-4 py-2 text-[12px] uppercase tracking-widest bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40">
                     {aiFillBusy ? "AI drafting…" : "✨ AI Fill All"}
@@ -647,7 +648,7 @@ export default function TenderBuilderPanel({ vendorMode = false }) {
                     ↻ Auto Tender ID
                   </button>
                   {!doc.is_master && (
-                    <button onClick={saveAsMaster} disabled={saveMasterBusy}
+                    <button onClick={saveAsMaster} disabled={saveMasterBusy || (vendorMode && ["submitted", "approved"].includes(doc.review_status))}
                             data-testid="tb-save-master"
                             className="px-4 py-2 text-[12px] uppercase tracking-widest border border-amber-600 text-amber-700 hover:bg-amber-50 disabled:opacity-40">
                       {saveMasterBusy ? "Saving…" : "★ Save as master"}
@@ -660,7 +661,19 @@ export default function TenderBuilderPanel({ vendorMode = false }) {
                       <InfoDot tip="Turns this draft into a real Notice (Admin → Notices → New notice, pre-filled). Requires all starred (*) fields: Title, Work Description, Tender Value, Product Category and Bid Submission End Date. Attach the primary tender PDF there, then publish." />
                     </button>
                   )}
-                  {!doc.is_master && vendorMode && (
+                  {!doc.is_master && vendorMode && ["submitted", "approved"].includes(doc.review_status) && (
+                    <span data-testid="tb-review-status"
+                          className="px-3 py-2 text-[11px] uppercase tracking-widest border border-brand-navy/30 text-brand-navy bg-brand-pale/40">
+                      {doc.review_status === "approved" ? "✓ Approved & published — locked" : "⏳ Awaiting PMC review — locked"}
+                    </span>
+                  )}
+                  {!doc.is_master && vendorMode && doc.review_status === "changes_requested" && (
+                    <span data-testid="tb-review-status"
+                          className="px-3 py-2 text-[11px] uppercase tracking-widest border border-amber-500 text-amber-700 bg-amber-50">
+                      ✎ Changes requested — edit &amp; resubmit
+                    </span>
+                  )}
+                  {!doc.is_master && vendorMode && !["submitted", "approved"].includes(doc.review_status) && (
                     <button data-testid="tb-submit-review"
                             onClick={async () => {
                               try {

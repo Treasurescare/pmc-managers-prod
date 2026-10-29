@@ -577,6 +577,8 @@ async def public_export_tender_zip(tid: str, notice_ref: Optional[str] = None):
         raise HTTPException(status_code=404, detail="Template not found")
     if not notice_ref and not doc.get("is_master") and not doc.get("public"):
         raise HTTPException(status_code=403, detail="This template is not public")
+    if doc.get("is_master") and doc.get("moderation_status") in ("pending", "rejected"):
+        raise HTTPException(status_code=404, detail="Tender not available")
 
     from weasyprint import HTML
     import io
@@ -646,6 +648,8 @@ async def public_export_tender_pdf(tid: str, notice_ref: Optional[str] = None,
         raise HTTPException(status_code=404, detail="Template not found")
     if not notice_ref and not doc.get("is_master") and not doc.get("public"):
         raise HTTPException(status_code=403, detail="This template is not public")
+    if doc.get("is_master") and doc.get("moderation_status") in ("pending", "rejected"):
+        raise HTTPException(status_code=404, detail="Tender not available")
     from weasyprint import HTML
     pdf_bytes = HTML(string=_render_tender_html(doc, lang=lang)).write_pdf()
     safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in (doc.get("name") or "tender"))[:60]
@@ -780,7 +784,7 @@ def _match_section(sections: list, filename: str) -> Optional[int]:
 @router.post("/{tid}/attachments/bulk")
 async def bulk_upload_attachments(tid: str,
                                     files: List[UploadFile] = File(...),
-                                    admin=Depends(require_role("admin"))):
+                                    principal=Depends(write_principal)):
     """Match each uploaded file to a section by filename → section code/title, then
     attach. Returns a per-file report so the UI can show matched / unmatched."""
     try:
@@ -789,6 +793,7 @@ async def bulk_upload_attachments(tid: str,
         raise HTTPException(status_code=400, detail="Malformed template id")
     if not doc:
         raise HTTPException(status_code=404, detail="Template not found")
+    assert_can_edit_doc(principal, doc)
     sections = doc.get("sections", [])
     report = []
     for f in files:
@@ -811,14 +816,14 @@ async def bulk_upload_attachments(tid: str,
             "file_name": f.filename, "url": f"/api/v1/uploads/files/{key}",
             "content_type": f.content_type or "application/octet-stream",
             "size_bytes": len(body), "uploaded_at": now_iso(),
-            "uploaded_by": admin["email"],
+            "uploaded_by": principal["email"],
         }
         sections[idx]["attachment"] = meta
         report.append({"file_name": f.filename, "matched": True,
                         "section_code": sections[idx]["code"], "section_title": sections[idx]["title"]})
     await db.tender_templates.update_one({"_id": ObjectId(tid)},
                                           {"$set": {"sections": sections, "updated_at": now_iso()}})
-    await audit_log("tender_template.bulk_attachments", admin, "tender_template", tid,
+    await audit_log("tender_template.bulk_attachments", actor(principal), "tender_template", tid,
                     {"total": len(files), "matched": sum(1 for r in report if r["matched"])})
     return {"template": _out(await db.tender_templates.find_one({"_id": ObjectId(tid)})),
             "report": report}
@@ -900,6 +905,16 @@ async def approve_template(tid: str, payload: TplReviewIn = TplReviewIn(),
     if doc.get("review_status") != "submitted":
         raise HTTPException(status_code=409, detail=f"Tender is '{doc.get('review_status')}', not awaiting review.")
     header = doc.get("header") or {}
+    missing = []
+    if not (header.get("work_title") or doc.get("name")):
+        missing.append("title")
+    if not header.get("work_description"):
+        missing.append("description")
+    if not (header.get("budget_amount") or header.get("tender_value")):
+        missing.append("budget")
+    if missing:
+        raise HTTPException(status_code=422,
+            detail="Tender is missing required fields before it can be published: " + ", ".join(missing))
     ref = "VT-" + uuid.uuid4().hex[:8].upper()
     notice = {
         "notice_ref": ref,
@@ -939,6 +954,8 @@ async def request_changes_template(tid: str, payload: TplReviewIn = TplReviewIn(
     doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
     if not doc or not doc.get("owner_vendor_id"):
         raise HTTPException(status_code=404, detail="Vendor tender not found")
+    if doc.get("review_status") != "submitted":
+        raise HTTPException(status_code=409, detail=f"Tender is '{doc.get('review_status')}', not awaiting review.")
     await db.tender_templates.update_one({"_id": ObjectId(tid)},
         {"$set": {"review_status": "changes_requested", "reviewed_by": officer["email"],
                   "reviewed_at": now_iso(), "review_note": payload.note}})
@@ -952,6 +969,8 @@ async def reject_template(tid: str, payload: TplReviewIn = TplReviewIn(),
     doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
     if not doc or not doc.get("owner_vendor_id"):
         raise HTTPException(status_code=404, detail="Vendor tender not found")
+    if doc.get("review_status") != "submitted":
+        raise HTTPException(status_code=409, detail=f"Tender is '{doc.get('review_status')}', not awaiting review.")
     await db.tender_templates.update_one({"_id": ObjectId(tid)},
         {"$set": {"review_status": "rejected", "reviewed_by": officer["email"],
                   "reviewed_at": now_iso(), "review_note": payload.note}})

@@ -31,11 +31,14 @@ from security import require_csrf
 
 def vendor_country(vdoc: dict) -> Optional[str]:
     """Best-effort ISO country for a vendor (subscription price is per country)."""
-    for k in ("country", "primary_country", "incorporation_country", "home_country"):
-        v = (vdoc or {}).get(k)
+    vdoc = vdoc or {}
+    profile = vdoc.get("profile") or {}
+    for v in (vdoc.get("country"), profile.get("country"),
+              vdoc.get("primary_country"), vdoc.get("incorporation_country"),
+              vdoc.get("home_country")):
         if v:
             return str(v).upper()[:3]
-    ops = (vdoc or {}).get("operating_countries") or []
+    ops = vdoc.get("operating_countries") or []
     if ops:
         return str(ops[0]).upper()[:3]
     return None
@@ -208,6 +211,8 @@ def assert_write(p: dict) -> None:
 
 async def write_principal(request: Request) -> dict:
     p = await tender_principal(request)
+    if not is_vendor(p):
+        await require_csrf(request)
     assert_write(p)
     return p
 
@@ -218,7 +223,7 @@ def scope_filter(p: dict, base: Optional[dict] = None) -> dict:
     q = dict(base or {})
     if is_vendor(p):
         q["$or"] = [
-            {"is_master": True, "moderation_status": {"$ne": "pending"}},
+            {"is_master": True, "moderation_status": {"$nin": ["pending", "rejected"]}},
             {"owner_vendor_id": p["id"]},
         ]
     return q
@@ -233,12 +238,15 @@ def assert_can_edit_doc(p: dict, doc: dict) -> None:
         raise HTTPException(status_code=403, detail="Master templates are read-only.")
     if doc.get("owner_vendor_id") != p["id"]:
         raise HTTPException(status_code=404, detail="Template not found")
+    if doc.get("review_status") in ("submitted", "approved"):
+        raise HTTPException(status_code=409,
+            detail=f"This tender is '{doc.get('review_status')}' and can't be edited now.")
 
 
 def assert_can_read_doc(p: dict, doc: dict) -> None:
     if not is_vendor(p):
         return
-    if doc.get("is_master") and doc.get("moderation_status") != "pending":
+    if doc.get("is_master") and doc.get("moderation_status") not in ("pending", "rejected"):
         return
     if doc.get("owner_vendor_id") == p["id"]:
         return
