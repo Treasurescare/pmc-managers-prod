@@ -1,0 +1,30 @@
+{
+  "summary": "Frontend-only test of rewritten /vendor/emd (VendorEmdE.jsx) as testvendor@pmcmanagers.com. Empty state + seeded state (5 TEST bids: 2 due USD/INR, 1 paid, 1 refund pending, 1 refunded) verified. Header shows Test Supplier Co / VEN-TEST01, no Emerald Corporates / USD 61,380. KPIs: Due 'USD 1,000 · INR 50,000' (2 bids), Held 'USD 5,000' (2 deposits), Refund 'USD 3,000' (1 pending) - all correct, per-currency, no conversion. Empty state shows '—' and 0 counts + vemd-deposits-empty. Table rows/pills/detail correct; status and currency filters (incl. combined, empty result) work. Pay EMD (row) -> /api/v1/payments/emd/checkout 200 -> redirected to checkout.stripe.com with correct INR amount. Statement PDF downloads (PMC-EMD-Statement.pdf). Receipt PDF downloads when a paid payment_transaction exists; shows 'Receipt download failed.' toast when none exists. vendor-fee-receipts section present. Mobile 390px: no horizontal overflow, table collapses to stacked cards, buttons usable. All TEST data deleted.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Receipt (PDF) on a bid with emd_paid_amount but no paid payment_transactions record", "issue": "Backend 404 'No paid EMD transaction found for this bid' shows as generic 'Receipt download failed.' toast because responseType blob hides err.response.data.detail. Low priority; most real paid bids will have a tx.", "affected_selectors": ["[data-testid^='vemd-receipt-']"]}
+    ],
+    "design_issues": [
+      {"screen": "/vendor/emd desktop", "issues": ["KPI row (.sp-kpis) has 3 cards in a 4-column grid, leaving an empty slot on the right"]},
+      {"screen": "/vendor/emd mobile 390px", "issues": ["Header avatar shows initials 'TE' while desktop shows 'TS' (mobile chrome likely uses email instead of company name) - small inconsistency"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/seed_vemd.py"],
+  "action_items": [
+    "Optional: parse Blob error body in downloadAuthedFile/receiptPdf so the backend detail is shown in the toast",
+    "Optional: make .sp-kpis 3 columns on this page so the KPIs fill the row",
+    "Optional: align mobile avatar initials with desktop (company name)"
+  ],
+  "critical_code_review_comments": [
+    "VendorEmdE: if bidApi.mine() fails it silently shows the empty state (setBids([])) - no error message to the user",
+    "Refunded/refund-pending rows show Receipt (PDF); fine, but needs a paid tx to work"
+  ],
+  "updated_files": ["/app/backend/tests/seed_vemd.py (new helper: seed|clean|show TEST bids for test vendor)"],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100%"},
+  "seed_data_creation": "Temporary TEST bids PMC-BID-2026-9901..9905, notice TEST_NOTICE_EMD, a TEST payment_transaction and the Stripe checkout pending tx were all deleted afterwards. Test vendor has 0 bids again.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Test vendor _id 6ae1f245f1bb6cf576407a2a (bids.vendor_id uses this string). Use `python /app/backend/tests/seed_vemd.py seed|clean|show` to create/remove EMD test data. Receipt needs db.payment_transactions {bid_id: str(bid._id), vendor_id, purpose:'emd', payment_status:'paid'}."
+}

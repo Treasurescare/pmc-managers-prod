@@ -717,3 +717,11 @@ frontend flows pass; NOT yet user-confirmed):
 - Tests: test_r11_start_gate_receipts.py 27/27, test_r10 33/33, r9 21/21, r9b 14/14 (-n 0, one file at a time).
 - Known pre-existing: /vendor/emd stat cards + header chip are hard-coded mock data (not the logged-in vendor).
 
+## R12 — Real EMD & payments page — 2026-10-29 (agent-tested, preview only)
+- VendorEmdE.jsx rewritten: VendorPortalChrome (real vendor), KPIs from bidApi.mine() (Due now / Held in escrow /
+  Refunds in progress, totals per currency, no conversion), live deposits table with status/currency filters,
+  Pay EMD / Receipt (PDF) / Statement (PDF) via PmcLinkPatcher, tender fee receipts section. Mock markup removed.
+- Fee-type wiring (for reference): code `subscription` = yearly builder access; any type with
+  used_in_tender_builder + one_time = per-tender builder fee (upfront → start gate, on_completion → before submit);
+  `emd` = notice EMD picker + DPR auto-EMD; other codes only usable via Masters → Charge Fee (manual) today.
+
