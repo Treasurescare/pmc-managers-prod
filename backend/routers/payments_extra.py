@@ -129,13 +129,13 @@ async def my_messages(vendor=Depends(current_vendor)):
 
 @router.get("/api/v1/vendor/messages/unread-count")
 async def my_unread_count(vendor=Depends(current_vendor)):
-    n = await db.messages.count_documents({"to_vendor_ref": vendor.get("vendor_ref"), "read": False})
+    n = await db.messages.count_documents({"to_vendor_ref": vendor.get("vendor_ref"), "read": {"$ne": True}})
     return {"unread": n}
 
 
 @router.post("/api/v1/vendor/messages/read-all")
 async def mark_all_read(vendor=Depends(current_vendor)):
-    await db.messages.update_many({"to_vendor_ref": vendor.get("vendor_ref"), "read": False},
+    await db.messages.update_many({"to_vendor_ref": vendor.get("vendor_ref"), "read": {"$ne": True}},
                                   {"$set": {"read": True, "read_at": now_iso()}})
     return {"ok": True}
 

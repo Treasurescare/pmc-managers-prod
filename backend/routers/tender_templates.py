@@ -17,7 +17,7 @@ Wire:
 import base64
 import html as _html
 import uuid
-from typing import List, Optional
+from typing import List, Literal, Optional
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
@@ -56,7 +56,7 @@ class TenderTemplateIn(BaseModel):
     # placeholder name without blocking auto-save. The frontend still prompts
     # for a real name on explicit "Save as master".
     name: str = Field(default="Untitled draft", max_length=120)
-    kind: str = Field(default="tender", description="tender | rfp | rfq")
+    kind: Literal["tender", "rfp", "rfq"] = "tender"
     industry: Optional[str] = None
     is_master: bool = False
     header: dict = Field(default_factory=dict)  # work_title, budget, period, timeline

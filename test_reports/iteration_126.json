@@ -1,0 +1,34 @@
+{
+  "summary": "Tested the RFQ/RFP templates and the vendor Messages unread badge. Backend: 12 of 12 tests pass in the new file tests/test_r14_rfq_rfp_unread.py. (1) The masters are seeded: kind=rfq returns 'Standard Request for Quotation (RFQ)' with sections rfq-1..rfq-6, rfq-form-A and rfq-form-B in order; kind=rfp returns 'Standard Request for Proposal (RFP)' with 10 sections. The vendor can see the masters too. (2) Seeding is idempotent: after a backend restart, Mongo still has exactly 1 seeded master each for rfq, rfp and tender. (3) Cloning (as admin) keeps kind rfq/rfp, and GET confirms it. (4) AI draft uses the real LLM. RFQ section rfq-4 gave about 290 words on price basis, taxes, currency, validity and L1 award. RFP section rfp-6 gave about 273 words: QCBS 80:20, technical criteria with point weights, and an invitation to propose an approach and methodology. A bad section code returns 404. (5) GET /vendor/messages/unread-count returns 401 without auth and 401/403 for an admin session. It returns {unread:N} for the vendor, counts only that vendor's messages, and drops by 1 after POST /read. UI: admin /admin/e/tender-builder: the RFQ and RFP tabs each show their single master. 'Clone as draft' creates a draft listed as '8 sections · RFQ' or '10 sections · RFP' and shows a success toast. Vendor: with one TEST_ unread message, the left-nav Messages badge (vendor-nav-count-vendor-messages) shows 1 with the hot class. Opening /vendor/messages and clicking the message opens the body, and the badge disappears without a reload. Unread (0) is shown, there is still no badge after reload and on /vendor, and with 0 unread no badge renders. All TEST_ messages and the cloned drafts were deleted.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/v1/vendor/messages/unread-count", "issue": "It counts only {read: False}, but GET /vendor/messages counts `not m.get('read')`. A message inserted without a 'read' field would show in the inbox count but not in the badge. Use {'read': {'$ne': True}} for consistency."},
+      {"endpoint": "POST /api/v1/tender-templates (TenderTemplateIn.kind)", "issue": "kind is a free str (description 'tender | rfp | rfq') with no Literal validation, so any value is accepted. An unknown kind silently falls back to tender style in kind_style."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Tender Builder - RFQ/RFP draft editor", "issues": ["RFQ/RFP drafts still show the PSU e-tender 'Basic Details' grid: Tender Type 'Open Tender', 3 covers including 'Bid declaration for EMD', Form of Contract EOI and Tender Category Works. For a short RFQ this is heavy and not in RFQ style. Consider kind-specific header defaults, e.g. 1 cover for an RFQ and 2 envelopes for an RFP."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_r14_rfq_rfp_unread.py", "/app/test_reports/pytest/r14.xml"],
+  "action_items": [
+    "Optional: make unread-count use {'read': {'$ne': True}} to match the list endpoint.",
+    "Optional: validate TenderTemplateIn.kind as Literal['tender','rfp','rfq'].",
+    "Optional: give RFQ/RFP drafts kind-appropriate header defaults (covers, tender type) in the editor."
+  ],
+  "critical_code_review_comments": [
+    "seed_master_templates(force=True) (admin POST /tender-templates/seed) deletes all seed masters, including RFQ/RFP, and recreates them with new _ids. Existing drafts are unaffected, but any stored reference to a master id becomes stale. This is acceptable but worth noting.",
+    "TenderBuilderPanel.jsx is 842 lines and should be split further.",
+    "The VendorPortalChrome badge logic hides the Messages badge only when the count is 0. The other nav items still show 0, which is intended."
+  ],
+  "updated_files": ["/app/backend/tests/test_r14_rfq_rfp_unread.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Temporary TEST_ messages for VEN-TEST01, plus 2 TEST_R14 drafts and 2 UI-cloned drafts. All were deleted.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run with: pytest tests/test_r14_rfq_rfp_unread.py -n 0 (it uses the real LLM, about 20s). Vendor UI login works on /login (Supplier, the default) or /vendor/login; wait for hydration before filling. The admin Tender Builder is at /admin/e/tender-builder, with testids tb-kind-{rfq|rfp}, tb-master-{id}, tb-clone-{id} and tb-draft-meta-{id}. UI clones are named '<master name> — draft YYYY-MM-DD' (no TEST_ prefix), so delete them by name."
+}

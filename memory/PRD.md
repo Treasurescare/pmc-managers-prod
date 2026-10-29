@@ -764,3 +764,14 @@ frontend flows pass; NOT yet user-confirmed):
 - Messages written by `post_vendor_message` for: category upsell, extra-category fee needed, payment-pending
   send-back, 3-day reminders, category approved, payment received (every fee receipt), data intel quote/delivery.
 
+
+## R16 — RFQ/RFP starters + Messages unread badge — 2026-10-29 (agent-tested, preview only)
+- Seeded masters (always, idempotent, `_seed_extra_masters` on startup): "Standard Request for Quotation (RFQ)"
+  (8 sections) and "Standard Request for Proposal (RFP)" (10 sections). TenderTemplateIn.kind is Literal tender|rfp|rfq.
+- AI drafting is kind-aware (`kind_style`/`kind_label` in tender_pro.py): section draft, Fill All (sync + background),
+  DPR analysis. RFQ = short, price/spec focused; RFP = outcome, methodology, weighted evaluation.
+- Cloning a master keeps the master's kind.
+- GET /api/v1/vendor/messages/unread-count; supplier nav "Messages" badge (hot), hidden at 0, updates live on read.
+- Tests: tests/test_r14_rfq_rfp_unread.py 12/12 (run with `-n 0`; parallel workers break its shared state).
+- Backlog: RFQ/RFP drafts still show the full tender "Basic Details" grid (3 covers, Open Tender) — kind-specific header defaults.
+
