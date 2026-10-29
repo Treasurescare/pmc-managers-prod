@@ -119,6 +119,12 @@ async def request_category(payload: CategoryRequestIn, vendor=Depends(current_ve
     }
     res = await db.vendor_category_requests.insert_one(doc)
     doc["_id"] = res.inserted_id
+    if fee["required"]:
+        from routers.payments_extra import post_vendor_message
+        await post_vendor_message(vendor["vendor_ref"], "payment", f"Payment needed — {payload.category_name}",
+            f"<p>{FREE_CATEGORY_MSG}</p><p>The fee for <b>{payload.category_name}</b> is "
+            f"<b>{fee['currency']} {fee['amount']:,.2f}</b>. Pay it from My categories so PMC can approve it.</p>",
+            "/vendor/categories")
     return {**_out(doc), "fee_message": FREE_CATEGORY_MSG if fee["required"] else None}
 
 
@@ -228,6 +234,10 @@ async def approve_category_request(request_id: str, payload: DecisionIn,
         raise HTTPException(status_code=409,
             detail="Payment pending for this additional category — use 'Payment pending — send back' instead of approving.")
     now = now_iso()
+    from routers.payments_extra import post_vendor_message
+    await post_vendor_message(req["vendor_ref"], "category", f"Category approved — {req['category_name']}",
+        f"<p>PMC approved <b>{req['category_name']}</b>. You can now bid on tenders in this category.</p>",
+        "/vendor/categories")
     await db.vendors.update_one(
         {"vendor_ref": req["vendor_ref"]},
         [{"$set": {"business_categories": {"$setUnion": [
@@ -272,6 +282,11 @@ async def send_back_payment_pending(request_id: str, payload: SendBackIn,
             f"<p>After 24 hours, pay from <a href='{payload.origin_url.rstrip('/')}/vendor/categories'>My categories</a> in the supplier portal.</p>")
     await vendor_confirm(req.get("vendor_email"), f"Payment pending — {req['category_name']}", body,
                          f"Pay {amt}", chk["checkout_url"])
+    from routers.payments_extra import post_vendor_message
+    await post_vendor_message(req["vendor_ref"], "payment", f"Payment pending — {req['category_name']}",
+        f"<p>Your request to add <b>{req['category_name']}</b> was sent back: the payment of <b>{amt}</b> is pending.</p>"
+        f"<p>{FREE_CATEGORY_MSG}</p>{'<p><b>Note from PMC:</b> ' + notes + '</p>' if notes else ''}",
+        "/vendor/categories")
     await audit_log("vendor.category_payment_pending", admin, "vendor", req["vendor_ref"],
                     {"category": req["category_name"], "amount": req["fee_amount"]})
     return {"ok": True, "status": "payment_pending", "checkout_url": chk["checkout_url"]}

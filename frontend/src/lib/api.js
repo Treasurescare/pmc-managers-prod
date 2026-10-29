@@ -1116,6 +1116,12 @@ export const tenderTemplateApi = {
 };
 
 // v45 — Tender Pro: DPR upload, AI fill-all, per-section save, masters, ratings.
+export const vendorMessagesApi = {
+  list: () => api.get("/api/v1/vendor/messages").then((r) => r.data),
+  read: (id) => api.post(`/api/v1/vendor/messages/${id}/read`).then((r) => r.data),
+  readAll: () => api.post("/api/v1/vendor/messages/read-all").then((r) => r.data),
+};
+
 export const extraPayApi = {
   categoryInterest: (ref) => api.post(`/api/v1/notices/${ref}/category-interest`).then((r) => r.data),
   docFee: (ref) => api.get(`/api/v1/notices/${ref}/doc-fee`).then((r) => r.data),

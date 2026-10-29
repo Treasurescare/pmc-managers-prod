@@ -111,6 +111,38 @@ async def public_pay_status(session_id: str):
             "purpose": rec.get("purpose"), "amount": rec.get("amount"), "currency": rec.get("currency")}
 
 
+# ----------------------- vendor messages (inbox) -----------------------
+
+async def post_vendor_message(vendor_ref: Optional[str], kind: str, subject: str, body: str,
+                              link: Optional[str] = None) -> None:
+    if vendor_ref:
+        await db.messages.insert_one({"to_vendor_ref": vendor_ref, "from": "PMC Managers", "kind": kind,
+            "subject": subject, "body": body, "link": link, "created_at": now_iso(), "read": False})
+
+
+@router.get("/api/v1/vendor/messages")
+async def my_messages(vendor=Depends(current_vendor)):
+    q = {"to_vendor_ref": vendor.get("vendor_ref")}
+    items = [_out(m) async for m in db.messages.find(q).sort("created_at", -1).limit(300)]
+    return {"items": items, "unread": sum(1 for m in items if not m.get("read"))}
+
+
+@router.post("/api/v1/vendor/messages/read-all")
+async def mark_all_read(vendor=Depends(current_vendor)):
+    await db.messages.update_many({"to_vendor_ref": vendor.get("vendor_ref"), "read": False},
+                                  {"$set": {"read": True, "read_at": now_iso()}})
+    return {"ok": True}
+
+
+@router.post("/api/v1/vendor/messages/{mid}/read")
+async def mark_message_read(mid: str, vendor=Depends(current_vendor)):
+    r = await db.messages.update_one({"_id": ObjectId(_oid(mid)), "to_vendor_ref": vendor.get("vendor_ref")},
+                                     {"$set": {"read": True, "read_at": now_iso()}})
+    if not r.matched_count:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"ok": True}
+
+
 # ----------------------- category upsell notice -----------------------
 
 async def notify_category_upsell(vdoc: dict, notice: dict) -> None:
@@ -131,7 +163,8 @@ async def notify_category_upsell(vdoc: dict, notice: dict) -> None:
         "role": "vendor", "subject": f"Add '{cat}' to bid on {ref}", "body": body,
         "related_type": "notice", "related_id": ref, "read": False, "created_at": now_iso()})
     await db.messages.insert_one({"to_vendor_ref": vdoc.get("vendor_ref"), "from": "PMC Managers",
-        "subject": f"Category needed for {ref}", "body": body, "created_at": now_iso(), "read": False})
+        "kind": "category", "subject": f"Category needed for {ref}", "body": body, "link": link,
+        "created_at": now_iso(), "read": False})
     await vendor_confirm(vdoc["email"], f"Add the category '{cat}' to bid on {ref}", body,
                          "Add this category", link)
 
@@ -326,6 +359,9 @@ async def intel_quote(rid: str, payload: QuoteIn, admin=Depends(require_role("ad
         f"<p>Your request <b>{r['subject']}</b> has been quoted at <b>{amt}</b>.</p>"
         "<p>Pay with the button below (valid 24 hours) or from Data intel in the supplier portal.</p>",
         f"Pay {amt}", chk["checkout_url"])
+    await post_vendor_message(r.get("vendor_ref"), "payment", f"Quote for data intel — {r['subject']}",
+        f"<p>Your request <b>{r['subject']}</b> has been quoted at <b>{amt}</b>. Pay from Data intel.</p>",
+        "/vendor/data-intel")
     await audit_log("data_intel.quote", admin, "data_intel", rid, payload.model_dump())
     return {"ok": True}
 
@@ -344,6 +380,8 @@ async def intel_deliver(rid: str, payload: DeliverIn, admin=Depends(require_role
     await vendor_confirm(r.get("vendor_email"), f"Your data intel is ready \u2014 {r['subject']}",
         "<p>Your report is ready. Open Data intel in the supplier portal to view it.</p>",
         "View report", f"{_site()}/vendor/data-intel")
+    await post_vendor_message(r.get("vendor_ref"), "service", f"Your data intel is ready — {r['subject']}",
+        "<p>Your report is ready to view.</p>", "/vendor/data-intel")
     return {"ok": True}
 
 
@@ -409,6 +447,9 @@ async def _send_category_reminders():
             f"<p>Your additional category <b>{req['category_name']}</b> is still waiting for payment.</p>"
             f"<p>{FREE_CATEGORY_MSG}</p><p><b>Amount due:</b> {amt}. This fresh link is valid for 24 hours.</p>",
             f"Pay {amt}", chk["checkout_url"])
+        await post_vendor_message(req.get("vendor_ref"), "payment", f"Reminder: payment pending — {req['category_name']}",
+            f"<p>Your additional category <b>{req['category_name']}</b> is still waiting for payment ({amt}).</p>"
+            f"<p>{FREE_CATEGORY_MSG}</p>", "/vendor/categories")
         await db.vendor_category_requests.update_one({"_id": req["_id"]},
             {"$set": {"last_reminder_at": now_iso()}, "$inc": {"reminders_sent": 1}})
 

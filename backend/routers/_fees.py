@@ -215,6 +215,11 @@ async def issue_receipt(vendor_id: str, purpose: str, lines: list, currency: str
            **ref, "paid_at": now_iso()}
     await db.fee_receipts.insert_one(rec)
     v = await db.vendors.find_one({"_id": ObjectId(vendor_id)}) or {}
+    if v.get("vendor_ref"):
+        await db.messages.insert_one({"to_vendor_ref": v["vendor_ref"], "from": "PMC Managers", "kind": "payment",
+            "subject": f"Payment received \u2014 receipt {rec['receipt_no']}",
+            "body": f"<p>We received <b>{rec['currency']} {total:,.2f}</b> ({', '.join(x['name'] for x in lines)}).</p>",
+            "link": "/vendor/emd", "created_at": now_iso(), "read": False})
     if v.get("email"):
         import config
         from notify import vendor_confirm

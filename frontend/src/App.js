@@ -106,6 +106,7 @@ import VendorMyBidsE from "@/apps/vendor-portal-e/VendorMyBidsE";
 import VendorBidWorkspaceE from "@/apps/vendor-portal-e/VendorBidWorkspaceE";
 import VendorEmdE from "@/apps/vendor-portal-e/VendorEmdE";
 import VendorDataIntel from "@/apps/vendor-portal-e/VendorDataIntel";
+import VendorMessages from "@/apps/vendor-portal-e/VendorMessages";
 import PayComplete from "@/apps/PayComplete";
 import VendorSignaturesE from "@/apps/vendor-portal-e/VendorSignaturesE";
 import VendorCompanyKycE from "@/apps/vendor-portal-e/VendorCompanyKycE";
@@ -240,6 +241,7 @@ export default function App() {
             <Route path="/register" element={<RegistrationStart />} />
             <Route path="/pay/complete" element={<PayComplete />} />
             <Route path="/vendor/data-intel" element={<RequireVendor><VendorDataIntel /></RequireVendor>} />
+            <Route path="/vendor/messages" element={<RequireVendor><VendorMessages /></RequireVendor>} />
             <Route path="/register/resume" element={<RegistrationResume />} />
             <Route path="/register/status" element={<RegistrationStatus />} />
 

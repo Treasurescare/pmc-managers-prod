@@ -757,3 +757,10 @@ frontend flows pass; NOT yet user-confirmed):
 - Cron `category-pay-remind` daily 09:00 UTC → /api/v1/cron/category-payment-reminders (WEBHOOK_CRON_SECRET).
 - Tests: test_r13_payments_extra.py 17/17; r10/r11/r12 pass.
 
+## R15 — Vendor Messages inbox — 2026-10-29 (agent-tested via curl + screenshot, preview only)
+- /vendor/messages (VendorMessages.jsx, nav "Messages"): list, filters (all/unread/category/payment/service),
+  expand + DOMPurify body, mark read / mark all read, deep-link "Open".
+- API: GET /api/v1/vendor/messages, POST /api/v1/vendor/messages/{id}/read, POST /read-all (own vendor_ref only).
+- Messages written by `post_vendor_message` for: category upsell, extra-category fee needed, payment-pending
+  send-back, 3-day reminders, category approved, payment received (every fee receipt), data intel quote/delivery.
+
