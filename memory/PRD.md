@@ -669,3 +669,25 @@ frontend flows pass; NOT yet user-confirmed):
 - All verified in preview with temporary DEMO auctions, then fully cleaned up.
   NOTE: the dup-price timing change is logic-verified (409 still raised identically);
   it was not re-load-tested for concurrency.
+
+## R9b — 2026-10-29 (agent-tested, preview only)
+- **DPR "1 DPR(s) failed" fix**: root cause = DPRs <4 MB went through the synchronous
+  `/dpr/analyze-json`; real DPRs take >60s (30-page PDF = 53s) and hit the gateway timeout.
+  `DprGenerateModal` now always uses `/dpr/analyze-async` + polling, tolerates transient
+  poll errors, shows phase in errors, marks a failed row immediately. Scanned/image-only PDFs
+  return a clear message.
+- **AI Fill All background job**: `POST /tender-pro/templates/{tid}/ai-fill-all-async`,
+  `GET /tender-pro/ai-fill-jobs/{id}` (collection `ai_fill_jobs`); sections saved one by one;
+  stale (>5 min) jobs auto-failed; progress bar `tb-fill-progress`; editing + autosave locked while running.
+- **Reviewer inline preview**: `TenderPreviewModal` (DOMPurify-sanitised) with approve/changes/reject.
+- **Vendor scope rules** (`platform_config.vendor_scope_rules`, defaults: approved categories only,
+  max 3 tenders awaiting review, max 5 pending category requests; 0 = no limit). Enforced on
+  submit-review (also requires title/description/budget) and category requests. Editable on the
+  review page (`ScopeRulesCard`); vendor sees `VendorScopeStrip`.
+- **Stripe paid unlock**: verified end-to-end in test mode with a temporary KZ subscription Fee
+  Master (removed afterwards). Webhook now also activates `tender_builder_sub`; checkout status
+  endpoint checks ownership. No real per-country prices configured — awaiting user's price list.
+- Library lists hide pending/rejected masters.
+- Tests: `tests/test_r9_vendor_tender_builder.py` 21/21, `tests/test_r9b_scope_fillall_dpr_sub.py` 14/14 (run with `-n 0`).
+- Open (pre-existing, not changed): vendor login has no brute-force lockout; CORS_ORIGINS='*'.
+

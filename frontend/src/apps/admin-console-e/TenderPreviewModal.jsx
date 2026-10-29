@@ -22,7 +22,7 @@ export const TenderPreviewModal = ({ tpl, onClose, actions }) => {
         </div>
         <dl data-testid="tr-preview-header" style={{ display: "grid", gridTemplateColumns: "160px 1fr", gap: "6px 14px", fontSize: "13px", margin: "18px 0" }}>
           {FIELDS.filter(([k]) => h[k] !== undefined && h[k] !== null && h[k] !== "").map(([k, l]) => (
-            <div key={k} style={{ display: "contents" }}><dt className="pmc-muted">{l}</dt><dd style={{ margin: 0 }}>{String(h[k])}</dd></div>
+            <div key={k} style={{ display: "contents" }}><dt className="pmc-muted">{l}</dt><dd style={{ margin: 0 }}>{typeof h[k] === "number" ? h[k].toLocaleString() : String(h[k])}</dd></div>
           ))}
         </dl>
         <div data-testid="tr-preview-sections" style={{ display: "grid", gap: "14px" }}>

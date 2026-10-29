@@ -1,0 +1,54 @@
+{
+  "summary": "R9b verification (backend + frontend). P0 DPR fix VERIFIED: vendor and admin DPR modals now always use /dpr/analyze-async + polling; 25-page text PDF analysed in ~25-36s with live progress (queued -> mapped chunks -> drafting x/15 sections) and success; blank/image-only PDF fails with the clear scanned-PDF message ('[reading upload] Could not read any text ... scanned/image-only PDF'). The only '1 DPR(s) failed' toast seen was for the deliberately blank PDF. AI Fill All background job verified via API (total/resumed/404 cross-owner/409 on submitted/only_empty preserved existing body/immediate done when nothing to fill) and UI (tb-fill-progress, tb-fill-phase, tb-fill-count, tb-fill-bar 0->25->50->75%, then toast 'AI drafted 4 section(s)' and template reloaded with bodies). Reviewer inline preview verified (tr-preview-modal header + sanitized sections, DOMPurify stripped injected <script>/onerror, close, request-changes from modal, Pending library master reject from modal, approve button wired: it showed the backend 422 'missing required fields: description' for my test draft, so the call is made correctly). Scope rules: GET/PUT (CSRF + role enforced, validation 422 on negative), UI card save persisted across reload, vendor /scope snapshot + vendor-scope-strip, submit enforcement 422/403(case-insensitive match OK)/429, 0 = no limit, restrict off allows any category, category-request cap 429. Stripe paid unlock END-TO-END in test mode PASSED: KZ fee master -> vendor-sub-gate 'USD 10 / 365 days', write 402, Subscribe -> Stripe hosted checkout -> 4242 card -> redirected with ?sub_session= -> builder unlocked ('Subscription active - renews 2027-10-29'), payment_transactions marked paid. R9 regression 21/21 pass serially after adapting tests for scope rules. All test artifacts cleaned up; vendor back to free.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/v1/vendor-tenders/subscription/checkout/status/{session_id}", "issue": "Does not check that the payment_transaction belongs to the calling vendor (rec.vendor_id != vendor.id). Activation goes to the tx owner so impact is low, but any vendor can probe/trigger status of another vendor's session. Add an ownership check (404)."},
+      {"endpoint": "POST /api/v1/tender-templates/{tid}/submit-review", "issue": "Vendor can submit a draft missing work_description; it only fails at reviewer approve time with 422 'Tender is missing required fields before it can be published: description'. Validate publish-required fields at submit time so the reviewer doesn't receive unpublishable tenders."},
+      {"endpoint": "GET /api/v1/tender-templates (vendor + admin)", "issue": "A vendor's own REJECTED master still appears in that vendor's 'Master Library' (scope_filter allows owner_vendor_id match) with a 'Clone as draft' button and no rejected badge; admins also see rejected/pending vendor masters in Master Library and in the DPR modal master dropdown. Filter moderation_status rejected (or badge it) in library lists."},
+      {"endpoint": "POST /api/v1/vendor/auth/login", "issue": "Pre-existing / playbook: no brute-force lockout observed - 6 consecutive wrong passwords on an existing vendor, then correct password still returned 200. CORS responds Access-Control-Allow-Origin: * (no credentials) for any Origin incl. https://evil.example (config.CORS_ORIGINS='*'). Not part of this change set."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "TenderBuilderPanel AI Fill All", "issue": "While the background fill runs, Save (tb-save), section editors and per-section save are NOT disabled although the panel says 'Editing is paused until it finishes'. A manual Save during the run would PATCH the stale in-memory doc (empty bodies) and can overwrite sections the worker already saved. Disable editing/save while aiFillBusy (or merge server state).", "selector": "[data-testid='tb-save']", "priority": "MEDIUM"},
+      {"component": "DprGenerateModal multi-file", "issue": "Results are applied only after Promise.all; a file that fails fast (blank PDF) keeps showing 'reading upload - 0%' progress until the other files finish. Patch the row to error state as soon as its own job fails.", "selector": "[data-testid='dpr-progress-1']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Reviewer preview modal", "issues": ["Budget shows raw '500000' (no thousands separator / currency formatting)."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_r9b_scope_fillall_dpr_sub.py",
+    "/app/backend/tests/make_test_pdfs.py",
+    "/app/backend/tests/test_r9_vendor_tender_builder.py",
+    "/app/test_reports/pytest/r9b.xml"
+  ],
+  "action_items": [
+    "Disable tb-save / section editing while AI Fill All background job runs (or reload server state before any save) to avoid overwriting AI-filled sections.",
+    "Add vendor ownership check on /vendor-tenders/subscription/checkout/status/{session_id}.",
+    "Validate publish-required header fields (e.g. work_description) at submit-review time, not only at reviewer approve.",
+    "Hide or badge rejected vendor masters in Master Library / DPR master dropdown (owner vendor + admin).",
+    "Note: R9 suite shares state across classes (vendor_b fixture, state['a_tid']) and fails under the default pytest.ini '-n 2 --dist loadscope'; run with '-n 0' or refactor to module-level single-class flow.",
+    "(Pre-existing, optional) brute-force lockout on vendor login; restrict CORS origins."
+  ],
+  "critical_code_review_comments": [
+    "tender_pro.py: asyncio.create_task(...) results for _dpr_job_worker/_fill_worker are not retained - Python may GC un-referenced tasks; keep them in a module-level set and discard on done.",
+    "tender_pro.py _fill_worker: stale detection relies on updated_at which only refreshes between sections; with 300s threshold this is OK, but a single LLM call > 300s would let a second job start concurrently on the same template.",
+    "TenderBuilderPanel.runAiFillAll: after completion it calls openTemplate(tid) even if the user navigated to another draft meanwhile - jumps them back.",
+    "TenderBuilderPanel.jsx is 812 lines and DprGenerateModal.jsx ~495 lines - consider splitting."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_r9_vendor_tender_builder.py (vendor_a fixture now temporarily sets business_categories=['Works'] and restores it; _draft_payload adds header.product_category='Works' - required by new scope rules; enforcement not weakened)",
+    "/app/backend/tests/test_r9b_scope_fillall_dpr_sub.py (new)",
+    "/app/backend/tests/make_test_pdfs.py (new)"
+  ],
+  "success_rate": {"backend": "100% (R9 21/21 serial, R9b 14/14)", "frontend": "100% of requested flows (DPR vendor+admin, Fill All, reviewer preview, scope card/strip, Stripe paid unlock)"},
+  "seed_data_creation": "Temporary only, all removed: TEST_ sub KZ fee master, testvendor profile.country=KZ / business_categories=['Works'] / tender_builder_sub, TEST_ templates + one vendor master, dpr_jobs, ai_fill_jobs, 2 payment_transactions (1 paid Stripe test-mode $10), category requests, platform_config vendor_scope_rules. Also deleted a leftover admin draft 'WithCSRF-R9test' (created 01:41 by an earlier run). Verified afterwards: vendor subscription required=false/free=true, scope rules back to defaults, 0 subscription masters.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run backend suites serially: `pytest tests/test_r9_vendor_tender_builder.py tests/test_r9b_scope_fillall_dpr_sub.py -n 0`. R9b needs real LLM (fill ~11s for 3 sections, 25-page DPR ~36s). For UI login use page.request.post to /api/v1/vendor/auth/login or /api/v1/admin/auth/login then navigate (/vendor/login redirects to unified /login which races with fills). Stripe hosted checkout: fill #email, #cardNumber, #cardExpiry, #cardCvc, #billingName, #billingPostalCode, UNCHECK #enableStripePass (Link asks for phone otherwise), then click [data-testid=hosted-payment-submit-button]. DPR modal masters dropdown populates a few seconds after page load.",
+  "test_credentials": "From /app/memory/test_credentials.md: testvendor@pmcmanagers.com/Vendor@12345, reviewerqa@pmcmanagers.com/Reviewer@12345, adminsupport@pmcmanagers.com/Admin@12345 - all worked. bcrypt hashes start with $2b$; access_token cookie HttpOnly; Secure; SameSite=None.",
+  "rca of the issue": "P0 '1 DPR(s) failed': frontend used synchronous /dpr/analyze-json for files <4MB; real DPR analysis exceeds ~60s gateway timeout. Fix (ASYNC_THRESHOLD_BYTES=0, always analyze-async + polling) verified: 25-page PDF completes via background job with progress in both vendor and admin builders."
+}

@@ -98,8 +98,10 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
         }
         throw new Error("Analysis timed out after 30 minutes");
       } catch (e) {
-        return { file: f, status: "error", async: f.size >= ASYNC_THRESHOLD_BYTES,
+        const failed = { file: f, status: "error", async: f.size >= ASYNC_THRESHOLD_BYTES,
                  error: e?.response?.data?.detail || e.message || "Analyze failed" };
+        patchPreviewByIndex(idx, failed);
+        return failed;
       }
     };
 

@@ -184,7 +184,7 @@ async def subscribe_checkout(payload: SubCheckoutIn, vendor=Depends(current_vend
 @router.get("/subscription/checkout/status/{session_id}")
 async def subscribe_status(session_id: str, vendor=Depends(current_vendor)):
     rec = await db.payment_transactions.find_one({"session_id": session_id})
-    if not rec:
+    if not rec or rec.get("vendor_id") != vendor["id"]:
         raise HTTPException(status_code=404, detail="Transaction not found")
     if rec.get("payment_status") != "paid":
         try:

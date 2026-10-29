@@ -44,7 +44,11 @@ def _admin_login(email, pw):
 
 @pytest.fixture(scope="module")
 def vendor_a():
-    return _vendor_login(*VENDOR_A)
+    # scope rules (R9b): submit requires header.product_category in vendor.business_categories
+    before = (_mdb.vendors.find_one({"email": VENDOR_A[0]}) or {}).get("business_categories")
+    _mdb.vendors.update_one({"email": VENDOR_A[0]}, {"$set": {"business_categories": ["Works"]}})
+    yield _vendor_login(*VENDOR_A)
+    _mdb.vendors.update_one({"email": VENDOR_A[0]}, {"$set": {"business_categories": before}})
 
 
 @pytest.fixture(scope="module")
@@ -85,7 +89,8 @@ def state():
 def _draft_payload(name):
     return {"name": name, "kind": "tender",
             "header": {"work_title": f"{name} work", "work_description": "desc",
-                       "budget_currency": "USD", "budget_amount": 1000},
+                       "budget_currency": "USD", "budget_amount": 1000,
+                       "product_category": "Works"},
             "sections": [{"code": "sec-1", "kind": "section", "title": "NIB", "body": "<p>hi</p>"}]}
 
 

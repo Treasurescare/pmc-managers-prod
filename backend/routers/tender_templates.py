@@ -167,6 +167,7 @@ async def list_templates(kind: Optional[str] = None,
                          principal=Depends(tender_principal)):
     """List templates visible to the caller (staff: all; vendor: own + shared masters)."""
     q = scope_filter(principal, {})
+    q["$nor"] = [{"is_master": True, "moderation_status": {"$in": ["pending", "rejected"]}}]
     if kind:
         q["kind"] = kind
     docs = [d async for d in db.tender_templates.find(q).sort("created_at", -1)]
@@ -877,6 +878,13 @@ async def submit_template_for_review(tid: str, principal=Depends(write_principal
         raise HTTPException(status_code=400, detail="Only vendor drafts are submitted for review.")
     if doc.get("review_status") not in (None, "draft", "changes_requested"):
         raise HTTPException(status_code=409, detail=f"Already '{doc.get('review_status')}'.")
+    h = doc.get("header") or {}
+    missing = [n for n, ok in (("title", h.get("work_title") or doc.get("name")),
+                               ("description", h.get("work_description")),
+                               ("budget", h.get("budget_amount") or h.get("tender_value"))) if not ok]
+    if missing:
+        raise HTTPException(status_code=422,
+            detail="Fill in these fields before submitting: " + ", ".join(missing))
     await assert_vendor_can_submit(principal["id"], doc)
     await db.tender_templates.update_one({"_id": ObjectId(tid)},
         {"$set": {"review_status": "submitted", "submitted_at": now_iso()}})

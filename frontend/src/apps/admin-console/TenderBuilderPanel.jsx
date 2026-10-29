@@ -607,7 +607,7 @@ export default function TenderBuilderPanel({ vendorMode = false }) {
                     className="mt-1 w-full px-3 py-2 border border-brand-navy/20 text-lg font-serif text-brand-navy" />
                 </div>
                 <div className="flex gap-2 flex-wrap">
-                  <button onClick={save} disabled={busy || !dirty}
+                  <button onClick={save} disabled={busy || !dirty || aiFillBusy}
                     data-testid="tb-save"
                     className="px-5 py-2 text-[12px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep disabled:opacity-40">
                     {busy ? t("panels.tender_builder.saving") : dirty ? t("panels.tender_builder.save") : t("panels.tender_builder.saved")}
@@ -718,6 +718,7 @@ export default function TenderBuilderPanel({ vendorMode = false }) {
             )}
 
             {/* CPPP-style structured header */}
+            <div data-testid="tb-editor-area" aria-disabled={aiFillBusy} style={{ display: "contents", pointerEvents: aiFillBusy ? "none" : undefined }}>
             <TenderHeaderForm header={doc.header} patchHeader={patchHeader} />
 
             {/* Bulk section attachments — drag N files, auto-match by filename */}
@@ -780,6 +781,7 @@ export default function TenderBuilderPanel({ vendorMode = false }) {
                   + {KIND_LABEL[k]}
                 </button>
               ))}
+            </div>
             </div>
           </div>
         )}
