@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useUiTheme } from "@/context/UiThemeContext";
 import useAuthSession from "@/lib/useAuthSession";
 import { adminApi, staffApi, vendorApi, corrigendaApi, publicApi, api } from "@/lib/api";
+import { NoticeVendorPanel } from "./NoticeVendorPanel";
 
 // ── local formatters (no fabricated data — everything derives from the live notice) ──
 const fmtMoney = (amt, cur) => {
@@ -122,7 +123,8 @@ export default function NoticeDetailE({ legacy: Legacy }) {
       toast.success("Download started");
     } catch (err) {
       const s = err?.response?.status;
-      if (s === 401) toast.error("Your session has expired — sign in again, then retry.");
+      if (s === 401) toast.error("Sign in as a registered supplier, then retry.");
+      else if (s === 402) toast.error("A document download fee applies to this tender — use “Pay & unlock” above.");
       else if (s === 404) toast.error("The tender documents are no longer linked to this notice.");
       else toast.error("Couldn't download the pack. Try again.");
     } finally {
@@ -224,6 +226,7 @@ export default function NoticeDetailE({ legacy: Legacy }) {
 <>
 <section className="pmc-chrome" style={{ padding: "28px 0 32px" }}><div className="pmc-wrap">
   <div className="pmc-crumb"><Link to="/tenders/live">Tender notices</Link>/<Link to="/tenders/live">{notice.category || "General"}</Link>/<span>{notice.notice_ref}</span></div>
+  {authed && role === "vendor" && <NoticeVendorPanel noticeRef={notice.notice_ref} />}
   <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "40px", alignItems: "end", margin: "16px 0 24px" }}>
     <div><div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "12px" }}><span className="pmc-tag" style={{ borderColor: "var(--chrome-line)", color: "var(--on-chrome)" }}>{docTypeLabel(notice.document_type)}</span><span className="pmc-ref">{notice.notice_ref}</span>{latestCorr && (<span className="pmc-pill pmc-pill--info">Corrigendum {latestCorr.corrigendum_no} · {shortDay(latestCorr.effective_from || latestCorr.published_at)}</span>)}<span className={`pmc-pill ${sp.c}`}>{sp.t}</span></div>
       <h1 className="pmc-display" style={{ fontSize: "48px", lineHeight: "52px", margin: "0", maxWidth: "900px" }}>{notice.title || notice.notice_ref}</h1>

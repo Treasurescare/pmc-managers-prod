@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { tenderProApi, feeBillingApi, showApiError } from "@/lib/api";
+import { tenderProApi, feeBillingApi, feeTypesApi, showApiError } from "@/lib/api";
 import { CountrySelect } from "@/components/CountryPicker";
 
 /**
@@ -18,6 +18,8 @@ export default function FeeCharger() {
   const [contextRef, setContextRef]   = useState("");
   const [preview, setPreview]         = useState(null);
   const [busy, setBusy]           = useState(false);
+  const [feeTypes, setFeeTypes]   = useState([]);
+  useEffect(() => { feeTypesApi.list().then(setFeeTypes).catch(() => {}); }, []);
 
   const load = useCallback(async () => {
     try {
@@ -37,32 +39,24 @@ export default function FeeCharger() {
   };
 
   const charge = async () => {
-    if (!selectedId) return toast.error("Pick a fee master first");
+    if (!selectedId) return toast.error("Pick a fee rule first");
+    if (!/.+@.+\..+/.test(buyerEmail.trim())) return toast.error("Payer email (buyer or vendor) is required — the payment link is emailed to them.");
     setBusy(true);
     try {
       const r = await feeBillingApi.feeCheckout({
         fee_master_id: selectedId,
         tender_value: parseFloat(tenderValue) || 0,
         origin_url: window.location.origin,
-        buyer_email: buyerEmail.trim() || null,
+        buyer_email: buyerEmail.trim(),
         context_ref: contextRef.trim() || null,
       });
-      toast.success(`Checkout ready: ${r.currency.toUpperCase()} ${r.amount}`);
-      // Open Stripe checkout in new tab
-      const w = window.open(r.checkout_url, "_blank", "noopener,noreferrer");
-      if (!w) window.location.href = r.checkout_url;
+      toast.success(`Payment link for ${r.currency.toUpperCase()} ${r.amount} emailed to ${r.emailed_to}`);
+      navigator.clipboard?.writeText(r.checkout_url).catch(() => {});
     } catch (e) { showApiError(e); }
     finally { setBusy(false); }
   };
 
-  const kindLabels = {
-    tender_fee: "Tender fee", emd: "EMD (bid security)",
-    registration: "Vendor registration",
-    subscription: "Subscription (monthly)",
-    premium_subscription: "Premium subscription",
-    transaction: "Transaction fee",
-    data_intel: "Data / intelligence fee",
-  };
+  const kindLabels = Object.fromEntries(feeTypes.map((t) => [t.code, t.name]));
 
   return (
     <div className="bg-white border p-5" data-testid="fee-charger">
@@ -83,16 +77,16 @@ export default function FeeCharger() {
           <select value={kind} onChange={(e) => setKind(e.target.value)}
                   data-testid="fc-kind"
                   className="mt-1 w-full px-3 py-2 border normal-case tracking-normal">
-            <option value="">All kinds</option>
+            <option value="">All fee types</option>
             {Object.entries(kindLabels).map(([k, v]) => (<option key={k} value={k}>{v}</option>))}
           </select>
         </label>
         <label className="col-span-2 text-xs uppercase tracking-widest text-brand-navy/60">
-          Fee master ({masters.length} available)
+          Fee rule ({masters.length} available{masters.length === 0 ? " — add rules under Masters → Fee rules" : ""})
           <select value={selectedId} onChange={(e) => { setSelectedId(e.target.value); setPreview(null); }}
                   data-testid="fc-master"
                   className="mt-1 w-full px-3 py-2 border normal-case tracking-normal">
-            <option value="">— pick a master —</option>
+            <option value="">— pick a fee rule —</option>
             {masters.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.name} · {kindLabels[m.kind] || m.kind} · {m.country} · {m.currency}
@@ -112,8 +106,8 @@ export default function FeeCharger() {
                  className="mt-1 w-full px-3 py-2 border normal-case tracking-normal font-mono" />
         </label>
         <label className="text-xs uppercase tracking-widest text-brand-navy/60">
-          Buyer email (opt)
-          <input type="email" value={buyerEmail}
+          Payer email * (buyer or vendor)
+          <input type="email" required value={buyerEmail}
                  onChange={(e) => setBuyerEmail(e.target.value)}
                  data-testid="fc-buyer-email"
                  className="mt-1 w-full px-3 py-2 border normal-case tracking-normal" />
@@ -136,7 +130,7 @@ export default function FeeCharger() {
         <button type="button" onClick={charge} disabled={busy || !selectedId}
                 data-testid="fc-charge"
                 className="px-6 py-2 text-[11px] font-semibold uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep disabled:opacity-40">
-          {busy ? "Creating checkout…" : "Charge via Stripe"}
+          {busy ? "Creating link…" : "Email payment link"}
         </button>
       </div>
 

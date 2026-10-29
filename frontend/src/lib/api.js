@@ -1116,6 +1116,25 @@ export const tenderTemplateApi = {
 };
 
 // v45 — Tender Pro: DPR upload, AI fill-all, per-section save, masters, ratings.
+export const extraPayApi = {
+  categoryInterest: (ref) => api.post(`/api/v1/notices/${ref}/category-interest`).then((r) => r.data),
+  docFee: (ref) => api.get(`/api/v1/notices/${ref}/doc-fee`).then((r) => r.data),
+  docFeeCheckout: (ref) => api.post(`/api/v1/notices/${ref}/doc-fee/checkout`, { origin_url: window.location.origin }).then((r) => r.data),
+  docFeeStatus: (sid) => api.get(`/api/v1/notices/doc-fee/status/${sid}`).then((r) => r.data),
+  hostingQuote: (ref) => api.get(`/api/v1/notices/${ref}/hosting-fee`).then((r) => r.data),
+  hostingRequest: (ref, payer_email) => api.post(`/api/v1/notices/${ref}/hosting-fee/request`, { payer_email }).then((r) => r.data),
+  payStatus: (sid) => api.get(`/api/v1/pay/status/${sid}`).then((r) => r.data),
+  refundAlerts: () => api.get("/api/v1/billing/refund-alerts").then((r) => r.data),
+  refund: (sid) => api.post(`/api/v1/billing/refund-alerts/${sid}/refund`).then((r) => r.data),
+  intelCreate: (p) => api.post("/api/v1/data-intel/requests", p).then((r) => r.data),
+  intelMine: () => api.get("/api/v1/data-intel/requests/mine").then((r) => r.data),
+  intelPay: (id) => api.post(`/api/v1/data-intel/requests/${id}/checkout`, { origin_url: window.location.origin }).then((r) => r.data),
+  intelAdmin: () => api.get("/api/v1/data-intel/admin").then((r) => r.data),
+  intelQuote: (id, p) => api.post(`/api/v1/data-intel/admin/${id}/quote`, p).then((r) => r.data),
+  intelDeliver: (id, p) => api.post(`/api/v1/data-intel/admin/${id}/deliver`, p).then((r) => r.data),
+  intelDecline: (id, notes) => api.post(`/api/v1/data-intel/admin/${id}/decline`, { notes }).then((r) => r.data),
+};
+
 export const feeTypesApi = {
   list: () => api.get("/api/v1/fee-types").then((r) => r.data),
   create: (p) => api.post("/api/v1/fee-types", p).then((r) => r.data),

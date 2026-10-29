@@ -109,6 +109,17 @@ async def create_bid(payload: BidCreateIn, vendor=Depends(current_vendor)) -> di
     if notice.get("origin") == "vendor" and notice.get("prepared_by_vendor_id") == vendor["id"]:
         raise HTTPException(status_code=403,
             detail="You prepared this tender and cannot bid on it (conflict of interest).")
+    ncat = (notice.get("category") or "").strip()
+    if ncat:
+        vdoc = await db.vendors.find_one({"_id": ObjectId(vendor["id"])}) if ObjectId.is_valid(vendor["id"]) else None
+        mine = {str(c).strip().lower() for c in ((vdoc or {}).get("business_categories") or [])}
+        if ncat.lower() not in mine:
+            from routers.payments_extra import notify_category_upsell
+            await notify_category_upsell(vdoc or {}, notice)
+            raise HTTPException(status_code=403, detail={
+                "code": "category_not_registered", "category": ncat,
+                "message": f"This tender is in '{ncat}', which is not one of your registered categories. "
+                           "Add the category (a fee applies for each additional category) and bid once PMC approves it."})
     # Deadline check
     deadline = notice.get("submission_deadline")
     if deadline and deadline < datetime.now(timezone.utc).isoformat():
@@ -225,6 +236,7 @@ async def create_bid(payload: BidCreateIn, vendor=Depends(current_vendor)) -> di
         "emd_currency": emd_currency,
         "emd_paid_amount": 0.0,
         "emd_source": emd_source,
+        "emd_collector": notice.get("emd_collector") or {"type": "tender_caller"},
         "status": "emd_pending" if emd_due > 0 else "escrow_accepted",
         "tenant_id": config.DEFAULT_TENANT_ID,
         "workflow_history": ([

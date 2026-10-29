@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { feeTypesApi, showApiError } from "@/lib/api";
+import { feeTypesApi, publicApi, showApiError } from "@/lib/api";
 
 const EMPTY = { name: "", code: "", timing: "upfront", calc: "fixed", amount_mode: "single",
-  category_scope: "all", billing: "one_time", used_in_tender_builder: false, is_active: true, description: "" };
+  category_scope: "all", billing: "one_time", used_in_tender_builder: false, is_active: true, description: "",
+  country_scope: "all", countries: [] };
 
 const OPTS = {
   timing: [["upfront", "At the beginning (before work starts)"], ["on_completion", "At the end (before submitting)"]],
@@ -31,6 +32,8 @@ export default function FeeTypesPanel() {
   const [rows, setRows] = useState([]);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY);
+  const [allCountries, setAllCountries] = useState([]);
+  useEffect(() => { publicApi.countries().then((c) => setAllCountries((c || []).map((x) => Array.isArray(x) ? { code: x[0], name: x[1] } : { code: x.code || x.iso || x.value, name: x.name || x.label || x.code }))).catch(() => {}); }, []);
   const load = useCallback(() => feeTypesApi.list().then(setRows).catch(showApiError), []);
   useEffect(() => { load(); }, [load]);
 
@@ -66,6 +69,23 @@ export default function FeeTypesPanel() {
           <div className="grid gap-4 md:grid-cols-5">
             {["timing", "calc", "amount_mode", "category_scope", "billing"].map((k) => <Choice key={k} k={k} form={form} setForm={setForm} />)}
           </div>
+          <div className="mt-4" data-testid="ft-country-scope">
+            <div className="pmc-label mb-1">Countries</div>
+            <div className="flex gap-4 text-sm mb-2">
+              <label className="flex items-center gap-2"><input type="radio" checked={form.country_scope !== "selected"} onChange={() => setForm({ ...form, country_scope: "all", countries: [] })} data-testid="ft-country_scope-all" /> All countries</label>
+              <label className="flex items-center gap-2"><input type="radio" checked={form.country_scope === "selected"} onChange={() => setForm({ ...form, country_scope: "selected" })} data-testid="ft-country_scope-selected" /> Selected countries</label>
+            </div>
+            {form.country_scope === "selected" && (
+              <div className="max-h-40 overflow-y-auto border border-brand-navy/20 p-2 grid gap-1 md:grid-cols-4">
+                {allCountries.map((c) => (
+                  <label key={c.code} className="text-sm flex items-center gap-2">
+                    <input type="checkbox" checked={(form.countries || []).includes(c.code)} data-testid={`ft-country-${c.code}`}
+                      onChange={() => setForm({ ...form, countries: (form.countries || []).includes(c.code) ? form.countries.filter((x) => x !== c.code) : [...(form.countries || []), c.code] })} /> {c.name}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
           <div className="flex gap-6 mt-4 text-sm">
             <label className="flex items-center gap-2"><input type="checkbox" checked={form.used_in_tender_builder} data-testid="ft-tender-builder"
               onChange={(e) => setForm({ ...form, used_in_tender_builder: e.target.checked })} /> Charge this in the vendor Tender Builder</label>
@@ -86,7 +106,7 @@ export default function FeeTypesPanel() {
                 {r.used_in_tender_builder && <span className="ml-2 text-[10px] uppercase tracking-widest bg-emerald-100 text-emerald-800 px-1.5 py-0.5">Tender Builder</span>}
                 {!r.is_active && <span className="ml-2 text-red-700 text-xs font-semibold">INACTIVE</span>}</div>
               <div className="text-xs text-brand-navy/60 mt-1">
-                {label("timing", r.timing)} · {label("calc", r.calc)} · {label("amount_mode", r.amount_mode)} · {label("category_scope", r.category_scope)} · {label("billing", r.billing)}
+                {label("timing", r.timing)} · {label("calc", r.calc)} · {label("amount_mode", r.amount_mode)} · {label("category_scope", r.category_scope)} · {label("billing", r.billing)} · {r.country_scope === "selected" ? `Countries: ${(r.countries || []).join(", ") || "none"}` : "All countries"}
               </div>
             </div>
             <div className="flex gap-2 shrink-0">

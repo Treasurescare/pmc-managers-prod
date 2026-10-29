@@ -240,6 +240,9 @@ async def stripe_webhook(request: Request):
             elif (tx or {}).get("purpose") == "category_fee":
                 from routers.vendor_categories import apply_category_payment
                 await apply_category_payment(event.session_id)
+            elif (tx or {}).get("purpose") in ("doc_fee", "hosting_fee", "data_intel"):
+                from routers.payments_extra import apply_extra_payment
+                await apply_extra_payment(event.session_id)
     # v52ck — record every signature-verified event for the webhook-health
     # indicator on the admin Billing page.
     await db.webhook_events.insert_one({
@@ -378,6 +381,9 @@ async def create_fee_checkout(req: FeeCheckoutRequest, request: Request):
     if not buyer_email:
         buyer_email = req.buyer_email or "anonymous@pmcmanagers.com"
 
+    if buyer_role == "admin":
+        if not (req.buyer_email or "").strip() or "@" not in req.buyer_email:
+            raise HTTPException(status_code=422, detail="Payer email (buyer or vendor) is required — the payment link is emailed to them.")
     try:
         m = await db.emd_masters.find_one({"_id": ObjectId(req.fee_master_id)})
     except Exception:
@@ -459,8 +465,19 @@ async def create_fee_checkout(req: FeeCheckoutRequest, request: Request):
                     "fee_master", str(m["_id"]),
                     {"amount": amt, "currency": currency, "tender_value": v,
                      "context_ref": req.context_ref, "session_id": session.session_id})
+    payer = (req.buyer_email or "").strip() if buyer_role == "admin" else None
+    if payer:
+        from notify import vendor_confirm
+        ft = await db.fee_types.find_one({"code": m.get("kind")}) or {}
+        await vendor_confirm(payer, f"Payment request — {ft.get('name') or m.get('kind')}",
+            f"<p>PMC Managers has requested a payment of <b>{currency.upper()} {amt:,.2f}</b> for "
+            f"<b>{m.get('name')}</b>{' (ref ' + req.context_ref + ')' if req.context_ref else ''}.</p>"
+            f"<p>Pay securely with the button below. The link is valid for 24 hours.</p>",
+            f"Pay {currency.upper()} {amt:,.2f}", session.url)
+        await db.payment_transactions.update_one({"session_id": session.session_id},
+                                                 {"$set": {"payer_email": payer, "link_emailed": True}})
     return {"checkout_url": session.url, "session_id": session.session_id,
-             "amount": amt, "currency": currency,
+             "amount": amt, "currency": currency, "emailed_to": payer,
              "fee_kind": m.get("kind"), "slab": slab_used}
 
 

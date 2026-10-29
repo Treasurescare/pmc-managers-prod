@@ -50,7 +50,9 @@ const DepositsTable = ({ bids }) => {
                 <td className="num">{money(b.emd_currency, paid ? b.emd_paid_amount : b.emd_due_amount)}</td>
                 <td><span className={`pmc-pill pmc-pill--${tone}`}>{label}</span></td>
                 <td className="pmc-muted" style={{ fontSize: "12px" }}>{b.status === "emd_pending" && b.submission_deadline ? `Closes ${String(b.submission_deadline).slice(0, 10)}` : (b.emd_refund_due_at ? `Refund due ${String(b.emd_refund_due_at).slice(0, 10)}` : "—")}</td>
-                <td>{b.status === "emd_pending"
+                <td>{b.status === "emd_pending" && b.emd_collector && b.emd_collector.type && b.emd_collector.type !== "pmc"
+                  ? <span className="pmc-muted" style={{ fontSize: "12px" }} data-testid={`vemd-collector-${b.bid_ref}`}>Pay directly to {b.emd_collector.name || b.emd_collector.type.replace(/_/g, " ")}{b.emd_collector.instructions ? ` — ${b.emd_collector.instructions}` : ""}</span>
+                  : b.status === "emd_pending"
                   ? <a href="#" className="pmc-btn pmc-btn--primary pmc-btn--sm" data-testid={`vemd-pay-${b.bid_ref}`}>Pay EMD</a>
                   : paid && <a href="#" className="pmc-btn pmc-btn--secondary pmc-btn--sm" data-vemd-receipt-bid={b.id} data-vemd-receipt-ref={b.bid_ref} data-testid={`vemd-receipt-${b.bid_ref}`}>Receipt (PDF)</a>}</td>
               </tr>

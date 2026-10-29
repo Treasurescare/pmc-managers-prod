@@ -23,14 +23,41 @@ DEFAULT_FEE_TYPES = [
     {"code": "transaction", "name": "Transaction fee", "timing": "on_completion", "calc": "percentage",
      "amount_mode": "range", "category_scope": "all", "billing": "one_time", "used_in_tender_builder": False},
     {"code": "data_intel", "name": "Data intel", "timing": "upfront", "calc": "fixed",
-     "amount_mode": "single", "category_scope": "all", "billing": "yearly", "used_in_tender_builder": False},
+     "amount_mode": "single", "category_scope": "all", "billing": "one_time", "used_in_tender_builder": False},
+    {"code": "tender_hosting", "name": "Tender hosting fee", "timing": "on_completion", "calc": "either",
+     "amount_mode": "range", "category_scope": "all", "billing": "one_time", "used_in_tender_builder": True},
+    {"code": "tender_document_download", "name": "Tender document download", "timing": "upfront", "calc": "fixed",
+     "amount_mode": "range", "category_scope": "all", "billing": "one_time", "used_in_tender_builder": False},
 ]
+
+
+def country_q(country: Optional[str]) -> dict:
+    """Match rules for a country plus 'ALL' (all-countries) rules."""
+    return {"country": {"$in": [(country or "").upper(), "ALL"]}}
+
+
+async def find_rule(kind: str, country: Optional[str], category: Optional[str] = None) -> Optional[dict]:
+    """Best active rule: country-specific beats ALL, category-specific beats all-categories."""
+    if not country:
+        return None
+    best, score = None, 0
+    async for r in db.emd_masters.find({"kind": kind, "is_active": True, **country_q(country)}):
+        s = _rule_matches_category(r, category or "")
+        if not s:
+            continue
+        s = s * 2 + (1 if r.get("country") != "ALL" else 0)
+        if s > score:
+            best, score = r, s
+    return best
 
 
 async def seed_fee_types() -> None:
     for ft in DEFAULT_FEE_TYPES:
         await db.fee_types.update_one({"code": ft["code"]},
-            {"$setOnInsert": {**ft, "is_active": True, "is_system": True}}, upsert=True)
+            {"$setOnInsert": {**ft, "is_active": True, "is_system": True,
+                              "country_scope": "all", "countries": []}}, upsert=True)
+    await db.fee_types.update_many({"country_scope": {"$exists": False}},
+                                   {"$set": {"country_scope": "all", "countries": []}})
 
 
 async def get_fee_type(code: str) -> Optional[dict]:
@@ -54,6 +81,12 @@ def validate_rule_against_type(ft: dict, body: dict) -> None:
         if s.get("fee_type") == "percentage" and not (s.get("percentage") or 0) > 0:
             raise HTTPException(status_code=422, detail="Percentages must be greater than 0.")
     cats = body.get("categories") or []
+    c = (body.get("country") or "").upper()
+    if ft.get("country_scope") == "selected":
+        allowed = [x.upper() for x in ft.get("countries") or []]
+        if c == "ALL" or c not in allowed:
+            raise HTTPException(status_code=422,
+                detail=f"'{ft['name']}' is limited to: {', '.join(allowed) or 'no countries yet'}.")
     if ft.get("category_scope") == "selected" and not cats:
         raise HTTPException(status_code=422, detail=f"'{ft['name']}' applies to selected categories — tick at least one.")
     if ft.get("category_scope") == "all":
@@ -108,11 +141,7 @@ async def tender_builder_fees(country: Optional[str], doc: dict) -> list:
     paid = doc.get("fees_paid") or {}
     out = []
     for ft in types:
-        best, score = None, 0
-        async for r in db.emd_masters.find({"kind": ft["code"], "country": country.upper(), "is_active": True}):
-            s = _rule_matches_category(r, cat)
-            if s > score:
-                best, score = r, s
+        best = await find_rule(ft["code"], country, cat)
         if not best:
             continue
         amount = compute_amount(best, value)
@@ -142,7 +171,7 @@ async def credit_required(country: Optional[str]) -> bool:
         {"used_in_tender_builder": True, "is_active": True, "billing": {"$ne": "yearly"}, "timing": "upfront"})]
     if not codes:
         return False
-    return bool(await db.emd_masters.find_one({"kind": {"$in": codes}, "country": country.upper(), "is_active": True}))
+    return bool(await db.emd_masters.find_one({"kind": {"$in": codes}, "is_active": True, **country_q(country)}))
 
 
 async def paid_credit(vendor_id: str, credit_id: Optional[str] = None) -> Optional[dict]:

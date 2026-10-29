@@ -307,6 +307,8 @@ from routers import vendor_tenders as _vendor_tenders  # noqa: E402
 app.include_router(_vendor_tenders.router)
 from routers import fee_types as _fee_types  # noqa: E402
 app.include_router(_fee_types.router)
+from routers import payments_extra as _payments_extra  # noqa: E402
+app.include_router(_payments_extra.router)
 
 
 @app.on_event("startup")

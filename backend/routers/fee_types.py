@@ -24,6 +24,8 @@ class FeeTypeIn(BaseModel):
     category_scope: Literal["all", "selected"] = "all"
     billing: Literal["one_time", "yearly"] = "one_time"
     used_in_tender_builder: bool = False
+    country_scope: Literal["all", "selected"] = "all"
+    countries: list[str] = Field(default_factory=list)
     is_active: bool = True
     description: Optional[str] = Field(default=None, max_length=400)
 

@@ -27,19 +27,15 @@ async def _category_fee(v: dict, category_name: str) -> dict:
     """Fee for one more category: first category free; extra ones priced by the
     'registration' Fee rule for the vendor's country (category-specific wins)."""
     from routers._tender_access import vendor_country
-    from routers._fees import compute_amount, _rule_matches_category
+    from routers._fees import compute_amount
     approved = list((v or {}).get("business_categories") or [])
     open_paid = await db.vendor_category_requests.count_documents(
         {"vendor_ref": v.get("vendor_ref"), "status": {"$in": OPEN}})
     if not approved and not open_paid:
         return {"amount": 0.0, "currency": None, "required": False, "reason": "first_free"}
     country = vendor_country(v)
-    best, score = None, 0
-    if country:
-        async for r in db.emd_masters.find({"kind": "registration", "country": country, "is_active": True}):
-            s = _rule_matches_category(r, category_name)
-            if s > score:
-                best, score = r, s
+    from routers._fees import find_rule
+    best = await find_rule("registration", country, category_name)
     amount = compute_amount(best, None) if best else None
     if not amount:
         return {"amount": 0.0, "currency": None, "required": False, "reason": "no_price"}
@@ -232,15 +228,15 @@ async def approve_category_request(request_id: str, payload: DecisionIn,
         raise HTTPException(status_code=409,
             detail="Payment pending for this additional category — use 'Payment pending — send back' instead of approving.")
     now = now_iso()
+    await db.vendors.update_one(
+        {"vendor_ref": req["vendor_ref"]},
+        [{"$set": {"business_categories": {"$setUnion": [
+            {"$ifNull": ["$business_categories", []]}, [req["category_name"]]]}}}],
+    )
     await db.vendor_category_requests.update_one(
         {"_id": req["_id"]},
         {"$set": {"status": "approved", "decided_at": now,
                    "decided_by": admin["email"], "decision_notes": payload.notes}},
-    )
-    # Add to vendor's business_categories.
-    await db.vendors.update_one(
-        {"vendor_ref": req["vendor_ref"]},
-        {"$addToSet": {"business_categories": req["category_name"]}},
     )
     await audit_log("vendor.category_approve", admin, "vendor", req["vendor_ref"],
                      {"category": req["category_name"], "code": req["category_code"]})

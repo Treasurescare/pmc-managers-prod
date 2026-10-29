@@ -46,6 +46,8 @@ class NoticeIn(BaseModel):
     escrow_account_id: Optional[str] = None
     # EMD (Earnest Money Deposit) config — vendors pay this on bid submission
     emd_config: Optional[dict] = None
+    # Who collects the EMD: pmc | escrow | escrow_institution | tender_caller | authorised_party
+    emd_collector: Optional[dict] = None
     # Wave 7 — optional approval matrix for this tender (falls back to default pipeline)
     approval_matrix_id: Optional[str] = None
     # Wave 7 — tenant assignment (defaults to config.DEFAULT_TENANT_ID)
@@ -104,6 +106,8 @@ class NoticePatchIn(BaseModel):
     is_published: Optional[bool] = None
     escrow_account_id: Optional[str] = None
     emd_config: Optional[dict] = None
+    # Who collects the EMD: pmc | escrow | escrow_institution | tender_caller | authorised_party
+    emd_collector: Optional[dict] = None
     approval_matrix_id: Optional[str] = None
     tender_template_id: Optional[str] = None
 

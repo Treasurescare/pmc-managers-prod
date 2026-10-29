@@ -891,7 +891,7 @@ async def list_emd_masters(country: Optional[str] = None, kind: Optional[str] = 
                             category: Optional[str] = None,
                             admin=Depends(require_role("admin", "reviewer"))):
     q: dict = {}
-    if country: q["country"] = country.upper()
+    if country: q["country"] = {"$in": [country.upper(), "ALL"]}
     if kind:    q["kind"] = kind
     if category:
         # Return masters scoped to this category OR unscoped (apply-to-all).

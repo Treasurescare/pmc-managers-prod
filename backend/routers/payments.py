@@ -208,6 +208,11 @@ async def create_emd_checkout(payload: EMDCheckoutIn, request: Request,
     amount = float(bid.get("emd_due_amount") or 0.0)
     if amount <= 0:
         raise HTTPException(status_code=400, detail="No EMD due on this bid")
+    col = bid.get("emd_collector") or {}
+    if col and col.get("type") not in (None, "pmc"):
+        raise HTTPException(status_code=409, detail=(
+            f"This tender's EMD is collected by {col.get('name') or col.get('type').replace('_', ' ')}, not PMC. "
+            f"{col.get('instructions') or 'Pay it directly using the instructions on the tender notice.'}"))
 
     StripeCheckout, CheckoutSessionRequest, api_key = _stripe()
     host_url = str(request.base_url)

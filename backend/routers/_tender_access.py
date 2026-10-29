@@ -61,12 +61,8 @@ async def sub_config(country: Optional[str] = None) -> dict:
             "country": (country or None)}
     if not country:
         return free
-    m = await db.emd_masters.find_one({"kind": "subscription",
-                                       "country": country.upper(), "is_active": True,
-                                       "category": None})
-    if not m:
-        m = await db.emd_masters.find_one({"kind": "subscription",
-                                           "country": country.upper(), "is_active": True})
+    from routers._fees import find_rule
+    m = await find_rule("subscription", country, None)
     price = _master_price(m)
     if not m or price <= 0:
         return free

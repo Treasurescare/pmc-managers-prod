@@ -1,5 +1,5 @@
 from typing import Optional, List
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form, Request
 from fastapi.responses import JSONResponse, Response
 from bson import ObjectId
 import base64, uuid, io, zipfile
@@ -609,6 +609,9 @@ async def admin_get_notice(notice_ref: str, admin=Depends(require_role("admin", 
 
 @router.post("/{notice_ref}/publish")
 async def publish_notice(notice_ref: str, admin=Depends(require_role("admin"))):
+    n = await db.notices.find_one({"notice_ref": notice_ref}, {"hosting_fee": 1})
+    if n and (n.get("hosting_fee") or {}).get("status") == "unpaid":
+        raise HTTPException(status_code=409, detail="Hosting fee is unpaid — the notice publishes automatically once the buyer pays.")
     r = await db.notices.update_one(
         {"notice_ref": notice_ref, "is_published": False},
         {"$set": {"is_published": True, "published_at": now_iso()}},
@@ -625,10 +628,12 @@ async def publish_notice(notice_ref: str, admin=Depends(require_role("admin"))):
 # tender documents (the earlier flow tried `/api/v1/uploads/files/{key}`
 # which is protected and 401s for anonymous visitors).
 @router.get("/{notice_ref}/pack")
-async def download_notice_pack(notice_ref: str):
+async def download_notice_pack(notice_ref: str, request: Request):
     doc = await db.notices.find_one({"notice_ref": notice_ref, "is_published": True})
     if not doc:
         raise HTTPException(status_code=404, detail="Notice not found or not yet published")
+    from routers.payments_extra import assert_doc_fee_paid
+    await assert_doc_fee_paid(request, doc)
 
     files: list[tuple[str, bytes]] = []
     seen_names: set[str] = set()

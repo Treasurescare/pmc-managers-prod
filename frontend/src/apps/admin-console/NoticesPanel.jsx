@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { adminApi, mastersApi, publicApi, noticeDocsApi, tenderTemplateApi, formatApiError, showApiError} from "@/lib/api";
+import { adminApi, mastersApi, publicApi, noticeDocsApi, tenderTemplateApi, extraPayApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import { InfoDot } from "@/components/InfoDot";
 import UnspscPicker from "@/components/UnspscPicker";
@@ -544,6 +544,25 @@ export default function NoticesPanel() {
               onChange={(e) => setDraft({ ...draft, emd_config: { ...draft.emd_config, percentage: parseFloat(e.target.value) || 0, currency: draft.budget_currency } })}
               data-testid="notice-emd-percentage"
               className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
+          <label><span className="pmc-label">Who collects the EMD<InfoDot tip="By default the EMD is paid directly to the institution/vendor calling the tender. Choose PMC only if the tender explicitly says PMC collects it — then bidders pay through PMC's Stripe checkout." /></span>
+            <select value={draft.emd_collector?.type || "tender_caller"}
+              onChange={(e) => setDraft({ ...draft, emd_collector: { ...(draft.emd_collector || {}), type: e.target.value } })}
+              data-testid="notice-emd-collector" className="mt-1 w-full px-4 py-3 border border-brand-navy/20 bg-white">
+              <option value="tender_caller">The institution / vendor calling the tender</option>
+              <option value="escrow">An escrow</option>
+              <option value="escrow_institution">An escrow institution</option>
+              <option value="authorised_party">Someone authorised by the tender caller</option>
+              <option value="pmc">PMC (paid through PMC)</option>
+            </select></label>
+          {(draft.emd_collector?.type || "tender_caller") !== "pmc" && (
+            <label><span className="pmc-label">Collector name & payment instructions</span>
+              <input value={draft.emd_collector?.name || ""} placeholder="Collector name"
+                onChange={(e) => setDraft({ ...draft, emd_collector: { type: "tender_caller", ...(draft.emd_collector || {}), name: e.target.value } })}
+                data-testid="notice-emd-collector-name" className="mt-1 w-full px-4 py-2 border border-brand-navy/20" />
+              <input value={draft.emd_collector?.instructions || ""} placeholder="Bank / account / how to pay"
+                onChange={(e) => setDraft({ ...draft, emd_collector: { type: "tender_caller", ...(draft.emd_collector || {}), instructions: e.target.value } })}
+                data-testid="notice-emd-collector-instructions" className="mt-1 w-full px-4 py-2 border border-brand-navy/20" /></label>
+          )}
           <label className="md:col-span-2"><span className="pmc-label">Approval Matrix (Masters)<InfoDot tip="Named approval pipeline defined under Masters → Approval Matrices. Overrides the default Escrow → Admin → Certifier → Legal → Accounting → Committee chain." /></span>
             <select value={draft.approval_matrix_id || ""}
               onChange={(e) => setDraft({ ...draft, approval_matrix_id: e.target.value })}
@@ -748,6 +767,23 @@ export default function NoticesPanel() {
                 ⏱ {n.submission_deadline?.slice(0, 10) || "—"}
               </span>
               <div className="flex items-center gap-1 shrink-0">
+                {!n.is_published && isMasterAdmin && (
+                  <button type="button" data-testid={`notice-hosting-btn-${n.notice_ref}`}
+                    title="Email the buyer a hosting-fee payment link; publishes automatically once paid"
+                    onClick={async () => {
+                      try {
+                        const q = await extraPayApi.hostingQuote(n.notice_ref);
+                        if (!q.required) { toast("No hosting fee rule applies to this notice — you can publish it directly."); return; }
+                        const email = window.prompt(`Hosting fee ${q.currency} ${q.amount}. Buyer email to send the payment link to:`, q.hosting_fee?.payer_email || "");
+                        if (!email) return;
+                        await extraPayApi.hostingRequest(n.notice_ref, email.trim());
+                        toast.success(`Payment link emailed to ${email.trim()}`);
+                      } catch (e) { showApiError(e); }
+                    }}
+                    className="text-[10px] uppercase tracking-widest px-2 py-1 bg-amber-600 text-white hover:bg-amber-700">
+                    {n.hosting_fee?.status === "unpaid" ? "Hosting fee sent" : "Hosting fee"}
+                  </button>
+                )}
                 {!n.is_published && isMasterAdmin && (
                   <button type="button" onClick={() => publish(n.notice_ref)}
                     data-testid={`notice-publish-btn-${n.notice_ref}`}

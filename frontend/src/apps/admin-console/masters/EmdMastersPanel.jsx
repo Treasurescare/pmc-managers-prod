@@ -173,7 +173,11 @@ export default function EmdMastersPanel() {
             <label><span className="pmc-label">Country *</span>
               <select value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })}
                 data-testid="emd-country" className="mt-1 w-full px-3 py-2 border border-brand-navy/20 bg-white">
-                {countries.map((c) => {
+                {ft?.country_scope !== "selected" && <option value="ALL">All countries</option>}
+                {countries.filter((c) => {
+                  const code = Array.isArray(c) ? c[0] : (c.code || c.iso || c.value);
+                  return ft?.country_scope !== "selected" || (ft.countries || []).includes(code);
+                }).map((c) => {
                   const code = Array.isArray(c) ? c[0] : (c.code || c.iso || c.value);
                   const name = Array.isArray(c) ? c[1] : (c.name || c.label || code);
                   return <option key={code} value={code}>{name}</option>;
