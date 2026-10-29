@@ -150,7 +150,7 @@ async def _run_dpr_analyze(name: str, body_bytes: bytes, kind: str, admin: dict,
         raise HTTPException(status_code=413, detail="DPR exceeds 100 MB limit")
     text = _extract_text_from_upload(name, body_bytes)
     if len(text.strip()) < 60:
-        raise HTTPException(status_code=422, detail="Could not extract readable text from the uploaded DPR")
+        raise HTTPException(status_code=422, detail="Could not read any text from this DPR. It looks like a scanned/image-only PDF — upload a text-based PDF, DOCX or TXT.")
 
     total = len(text)
     warnings: list = []
@@ -572,6 +572,32 @@ async def _analyze_dpr_removed():
     raise HTTPException(status_code=410, detail="Use /dpr/analyze-json instead")
 
 
+_FILL_WORDS = {"short": 120, "medium": 240, "long": 420}
+
+
+async def _draft_section(sec: dict, header: dict, words: int) -> Optional[str]:
+    system_msg = (
+        "You are a public-procurement drafting copilot. Draft the body of ONE tender-document "
+        "section based on the section title, hint and tender header. Return valid HTML using "
+        "ONLY these tags: <p><br><b><i><ul><ol><li><h3>. Do not include the title. "
+        f"Aim for approximately {words} words. Do not invent numbers not present in the context."
+    )
+    ctx = {"section_title": sec.get("title"), "section_kind": sec.get("kind"),
+           "hint": sec.get("hint"),
+           "header": {k: header.get(k) for k in
+                      ("work_title", "budget_amount", "tender_value", "budget_currency",
+                       "period_days", "product_category", "location", "eligibility",
+                       "evaluation_method", "emd_amount", "sub_end", "country", "industry")
+                      if header.get(k)}}
+    try:
+        body_html = (await _llm_complete(system_msg, f"Draft the body. Context: {ctx}")).strip()
+    except HTTPException:
+        return None
+    if body_html.startswith("```"):
+        body_html = re.sub(r"^```(?:html)?", "", body_html).rstrip("`").strip()
+    return body_html or None
+
+
 class AiFillAllIn(BaseModel):
     tone: Optional[str] = "formal"
     length: Optional[str] = "medium"
@@ -590,33 +616,16 @@ async def ai_fill_all_sections(tid: str, payload: AiFillAllIn = AiFillAllIn(),
     await _vendor_scope_template(principal, doc)
     header = doc.get("header") or {}
     updated = 0
-    words = {"short": 120, "medium": 240, "long": 420}.get(payload.length or "medium", 240)
+    words = _FILL_WORDS.get(payload.length or "medium", 240)
 
     sections = list(doc.get("sections") or [])
     for i, sec in enumerate(sections):
         if payload.only_empty and (sec.get("body") or "").strip():
             continue
-        system_msg = (
-            "You are a public-procurement drafting copilot. Draft the body of ONE tender-document "
-            "section based on the section title, hint and tender header. Return valid HTML using "
-            "ONLY these tags: <p><br><b><i><ul><ol><li><h3>. Do not include the title. "
-            f"Aim for approximately {words} words. Do not invent numbers not present in the context."
-        )
-        ctx = {"section_title": sec.get("title"), "section_kind": sec.get("kind"),
-               "hint": sec.get("hint"),
-               "header": {k: header.get(k) for k in
-                          ("work_title", "budget_amount", "tender_value", "budget_currency",
-                           "period_days", "product_category", "location", "eligibility",
-                           "evaluation_method", "emd_amount", "sub_end", "country", "industry")
-                          if header.get(k)}}
-        try:
-            body_html = (await _llm_complete(system_msg, f"Draft the body. Context: {ctx}")).strip()
-            if body_html.startswith("```"):
-                body_html = re.sub(r"^```(?:html)?", "", body_html).rstrip("`").strip()
+        body_html = await _draft_section(sec, header, words)
+        if body_html:
             sections[i] = {**sec, "body": body_html}
             updated += 1
-        except HTTPException:
-            continue
 
     await db.tender_templates.update_one({"_id": ObjectId(tid)},
                                           {"$set": {"sections": sections,
@@ -625,6 +634,98 @@ async def ai_fill_all_sections(tid: str, payload: AiFillAllIn = AiFillAllIn(),
                     {"updated_sections": updated})
     fresh = await db.tender_templates.find_one({"_id": ObjectId(tid)})
     return {"updated": updated, "template": _out(fresh)}
+
+
+async def _fill_job_set(job_id, **fields):
+    await db.ai_fill_jobs.update_one({"_id": job_id},
+                                     {"$set": {**fields, "updated_at": now_iso()}})
+
+
+async def _fill_worker(job_id, tid: str, targets: list, header: dict, words: int, act: dict):
+    done = failed = 0
+    total = len(targets)
+    try:
+        await _fill_job_set(job_id, status="running", phase="Starting")
+        for n, i in enumerate(targets):
+            doc = await db.tender_templates.find_one({"_id": ObjectId(tid)}, {"sections": 1})
+            secs = (doc or {}).get("sections") or []
+            if i >= len(secs):
+                failed += 1
+                continue
+            sec = secs[i]
+            await _fill_job_set(job_id, phase=f"Drafting section {n + 1} of {total}: {sec.get('title') or sec.get('code')}",
+                                current_code=sec.get("code"))
+            body = await _draft_section(sec, header, words)
+            if body:
+                await db.tender_templates.update_one(
+                    {"_id": ObjectId(tid), f"sections.{i}.code": sec.get("code")},
+                    {"$set": {f"sections.{i}.body": body, "updated_at": now_iso()}})
+                done += 1
+            else:
+                failed += 1
+            await _fill_job_set(job_id, done=done, failed=failed,
+                                progress=int(((n + 1) / total) * 100) if total else 100)
+        await _fill_job_set(job_id, status="done", progress=100, phase="Complete",
+                            done=done, failed=failed)
+        await audit_log("tender_pro.ai_fill_all", act, "tender_template", tid,
+                        {"updated_sections": done, "failed_sections": failed, "mode": "background"})
+    except Exception as e:  # pragma: no cover — safety net
+        await _fill_job_set(job_id, status="failed", phase="Failed",
+                            error=f"{type(e).__name__}: {str(e)[:300]}", done=done, failed=failed)
+
+
+_FILL_STALE_SECONDS = 300
+
+
+@router.post("/templates/{tid}/ai-fill-all-async")
+async def ai_fill_all_async(tid: str, payload: AiFillAllIn = AiFillAllIn(),
+                            principal=Depends(write_principal)):
+    """Background Fill-All: returns a job_id immediately; poll
+    /ai-fill-jobs/{job_id}. Each section is saved as soon as it's drafted."""
+    import asyncio
+    doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Template not found")
+    await _vendor_scope_template(principal, doc)
+    running = await db.ai_fill_jobs.find_one(
+        {"template_id": tid, "status": {"$in": ["queued", "running"]}})
+    if running:
+        age = (datetime.now(timezone.utc) - datetime.fromisoformat(running["updated_at"])).total_seconds()
+        if age < _FILL_STALE_SECONDS:
+            return {"job_id": str(running["_id"]), "status": running["status"],
+                    "total": running.get("total", 0), "resumed": True}
+        await _fill_job_set(running["_id"], status="failed", phase="Failed",
+                            error="Job stopped responding (server restarted). Start Fill All again.")
+    sections = doc.get("sections") or []
+    targets = [i for i, s in enumerate(sections)
+               if not (payload.only_empty and (s.get("body") or "").strip())]
+    now = now_iso()
+    job = {"template_id": tid, "status": "queued", "phase": "Queued", "progress": 0,
+           "total": len(targets), "done": 0, "failed": 0, "error": None,
+           "owner_id": principal["id"], "owner_kind": principal.get("kind"),
+           "created_at": now, "updated_at": now}
+    if not targets:
+        job.update(status="done", phase="Nothing to draft — every section already has content",
+                   progress=100)
+    r = await db.ai_fill_jobs.insert_one(job)
+    if targets:
+        words = _FILL_WORDS.get(payload.length or "medium", 240)
+        asyncio.create_task(_fill_worker(r.inserted_id, tid, targets, doc.get("header") or {},
+                                         words, _actor(principal)))
+    return {"job_id": str(r.inserted_id), "status": job["status"], "total": len(targets)}
+
+
+@router.get("/ai-fill-jobs/{job_id}")
+async def ai_fill_job_status(job_id: str, principal=Depends(tender_principal)):
+    try:
+        oid = ObjectId(job_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid job_id")
+    doc = await db.ai_fill_jobs.find_one({"_id": oid})
+    if not doc or (is_vendor(principal) and doc.get("owner_id") != principal["id"]):
+        raise HTTPException(status_code=404, detail="Job not found")
+    return {k: doc.get(k) for k in ("template_id", "status", "phase", "progress", "total",
+                                    "done", "failed", "error", "created_at", "updated_at")} | {"job_id": job_id}
 
 
 # =============================================================================

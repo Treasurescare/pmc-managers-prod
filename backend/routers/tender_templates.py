@@ -29,7 +29,7 @@ from models.base import BaseDocument, now_iso
 from security import require_role
 from routers._tender_access import (
     tender_principal, write_principal, is_vendor, scope_filter,
-    assert_can_read_doc, assert_can_edit_doc, actor,
+    assert_can_read_doc, assert_can_edit_doc, actor, assert_vendor_can_submit,
 )
 from audit import audit_log
 
@@ -877,6 +877,7 @@ async def submit_template_for_review(tid: str, principal=Depends(write_principal
         raise HTTPException(status_code=400, detail="Only vendor drafts are submitted for review.")
     if doc.get("review_status") not in (None, "draft", "changes_requested"):
         raise HTTPException(status_code=409, detail=f"Already '{doc.get('review_status')}'.")
+    await assert_vendor_can_submit(principal["id"], doc)
     await db.tender_templates.update_one({"_id": ObjectId(tid)},
         {"$set": {"review_status": "submitted", "submitted_at": now_iso()}})
     await audit_log("tender_template.submit_review", actor(principal), "tender_template", tid, {})

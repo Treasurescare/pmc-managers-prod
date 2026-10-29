@@ -364,8 +364,9 @@ export default function TenderBuilderPanel({ vendorMode = false }) {
   // v45f · Autosave — every 30s if the open doc has unsaved edits.
   const [autosaveDirty, setAutosaveDirty] = useState(false);
   const [autoSaving, setAutoSaving] = useState(false);
+  const [fillJob, setFillJob] = useState(null);
   useEffect(() => {
-    if (!doc?.id || !autosaveDirty) return;
+    if (!doc?.id || !autosaveDirty || aiFillBusy) return;
     const t = setInterval(async () => {
       setAutoSaving(true);
       try {
@@ -376,20 +377,30 @@ export default function TenderBuilderPanel({ vendorMode = false }) {
       finally { setAutoSaving(false); }
     }, 30000);
     return () => clearInterval(t);
-  }, [autosaveDirty, doc]);
+  }, [autosaveDirty, doc, aiFillBusy]);
   useEffect(() => { if (doc?.id) setAutosaveDirty(true); }, [doc]);
   const [saveMasterBusy, setSaveMasterBusy] = useState(false);
 
   const runAiFillAll = async () => {
     if (!doc?.id) return;
-    if (!confirm("Draft every empty section with AI? This may take up to 60 seconds.")) return;
+    if (!confirm("Draft every empty section with AI? It runs in the background and saves each section as it goes — editing is paused until it finishes.")) return;
     setAiFillBusy(true);
+    const tid = doc.id;
     try {
-      const r = await tenderProApi.aiFillAll(doc.id, { only_empty: true, tone: "formal", length: "medium" });
-      setDoc(r.template);
-      toast.success(`AI drafted ${r.updated} section(s)`);
+      await tenderTemplateApi.update(tid, doc);
+      const start = await tenderProApi.aiFillAllAsync(tid, { only_empty: true, tone: "formal", length: "medium" });
+      let job = { status: start.status, progress: 0, total: start.total, done: 0, phase: "Queued" };
+      setFillJob(job);
+      while (job.status === "queued" || job.status === "running") {
+        await new Promise((r) => setTimeout(r, 2000));
+        try { job = await tenderProApi.aiFillJob(start.job_id); setFillJob(job); }
+        catch (e) { if (e?.response?.status === 404) throw e; }
+      }
+      if (job.status === "failed") toast.error(job.error || "AI Fill All failed");
+      else toast.success(`AI drafted ${job.done || 0} section(s)${job.failed ? ` · ${job.failed} could not be drafted` : ""}`);
+      await openTemplate(tid);
       await load();
-    } catch (e) { showApiError(e); } finally { setAiFillBusy(false); }
+    } catch (e) { showApiError(e); } finally { setAiFillBusy(false); setFillJob(null); }
   };
 
   const saveAsMaster = async () => {
@@ -691,6 +702,20 @@ export default function TenderBuilderPanel({ vendorMode = false }) {
                 </div>
               </div>
             </div>
+
+            {fillJob && (
+              <div data-testid="tb-fill-progress" className="border border-emerald-600/40 bg-emerald-50 p-4">
+                <div className="flex justify-between text-[12px] text-emerald-900 mb-2 gap-4">
+                  <span data-testid="tb-fill-phase">{fillJob.phase || "Working…"}</span>
+                  <span data-testid="tb-fill-count">{fillJob.done || 0} / {fillJob.total || 0} sections · {fillJob.progress || 0}%</span>
+                </div>
+                <div className="h-2 bg-emerald-100 overflow-hidden">
+                  <div data-testid="tb-fill-bar" className="h-full bg-emerald-600 transition-[width] duration-500"
+                       style={{ width: `${fillJob.progress || 0}%` }} />
+                </div>
+                <div className="text-[11px] text-emerald-800/80 mt-2">Running in the background — sections save as they're drafted. Editing is paused until it finishes.</div>
+              </div>
+            )}
 
             {/* CPPP-style structured header */}
             <TenderHeaderForm header={doc.header} patchHeader={patchHeader} />

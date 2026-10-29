@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { vendorTenderApi, showApiError } from "@/lib/api";
 import VendorPortalChrome from "./VendorPortalChrome";
 import TenderBuilderPanel from "@/apps/admin-console/TenderBuilderPanel";
+import { VendorScopeStrip } from "./VendorScopeStrip";
 
 /**
  * R9 — the FULL PMC tender builder for vendors.
@@ -94,6 +95,7 @@ export default function VendorTenderBuilderFull() {
             </div>
           ) : (
             <div data-testid="vendor-full-builder">
+              <VendorScopeStrip />
               <TenderBuilderPanel vendorMode />
             </div>
           )}

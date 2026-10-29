@@ -110,6 +110,51 @@ async def vendor_entitlement(vdoc: dict) -> dict:
     }
 
 
+# ----------------------- vendor scope rules -----------------------
+
+SCOPE_DEFAULTS = {"restrict_to_approved_categories": True,
+                  "max_pending_tenders": 3,
+                  "max_pending_category_requests": 5}
+
+
+async def scope_rules() -> dict:
+    cfg = await db.platform_config.find_one({"key": "vendor_scope_rules"}) or {}
+    return {k: cfg.get(k, v) for k, v in SCOPE_DEFAULTS.items()}
+
+
+async def vendor_scope_snapshot(vendor_id: str) -> dict:
+    v = await db.vendors.find_one({"_id": ObjectId(vendor_id)}) or {}
+    rules = await scope_rules()
+    pending_tenders = await db.tender_templates.count_documents(
+        {"owner_vendor_id": vendor_id, "review_status": "submitted"})
+    pending_cats = await db.vendor_category_requests.count_documents(
+        {"vendor_ref": v.get("vendor_ref"), "status": "pending"}) if v.get("vendor_ref") else 0
+    return {"rules": rules,
+            "approved_categories": list(v.get("business_categories") or []),
+            "pending_tenders": pending_tenders,
+            "pending_category_requests": pending_cats}
+
+
+async def assert_vendor_can_submit(vendor_id: str, doc: dict) -> None:
+    """Scope rules for submitting a tender for review: category must be one
+    the vendor is approved for, and the pending-review cap must not be hit."""
+    snap = await vendor_scope_snapshot(vendor_id)
+    rules = snap["rules"]
+    if rules["restrict_to_approved_categories"]:
+        cat = str(((doc.get("header") or {}).get("product_category") or "")).strip()
+        approved = {str(c).strip().lower() for c in snap["approved_categories"]}
+        if not cat:
+            raise HTTPException(status_code=422,
+                detail="Choose a Product Category you are approved for before submitting.")
+        if cat.lower() not in approved:
+            raise HTTPException(status_code=403,
+                detail=f"You are not approved for the category '{cat}'. Request it under My categories first.")
+    cap = int(rules["max_pending_tenders"] or 0)
+    if cap and snap["pending_tenders"] >= cap:
+        raise HTTPException(status_code=429,
+            detail=f"You already have {snap['pending_tenders']} tender(s) awaiting review (limit {cap}). Wait for a decision before submitting more.")
+
+
 # ----------------------- principal resolution -----------------------
 
 def _decode(token: str) -> Optional[dict]:

@@ -8,7 +8,7 @@ import { tenderProApi, tenderTemplateApi, publicApi, showApiError } from "@/lib/
  * job to /dpr/analyze-async and poll the job status so the browser never
  * hits the nginx/EB request timeout while a 500-page tender ingests.
  */
-const ASYNC_THRESHOLD_BYTES = 4 * 1024 * 1024; // 4 MB — anything larger uses async
+const ASYNC_THRESHOLD_BYTES = 0; // every DPR runs as a background job — direct requests hit the ~60s gateway timeout
 const MAX_UPLOAD_MB = 100;
 const POLL_MS = 3000;
 export default function DprGenerateModal({ open, onClose, kind, masters, onCloned }) {
@@ -85,14 +85,16 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
         const deadline = Date.now() + 30 * 60 * 1000;
         while (Date.now() <= deadline) {
           await new Promise((res) => setTimeout(res, POLL_MS));
-          const s = await tenderProApi.dprJobStatus(jobId);
+          let s;
+          try { s = await tenderProApi.dprJobStatus(jobId); }
+          catch (pe) { if (pe?.response?.status === 404) throw new Error("Analysis job was lost — please retry"); continue; }
           patchPreviewByIndex(idx, { progress: s.progress || 0, phase: s.phase || s.status });
           if (s.status === "done") {
             return { file: f, preview: s.result, masterId: batchMasterId || null, status: "ready",
                      async: true, progress: 100, phase: "complete", jobId,
                      name: s.result?.header?.work_title || f.name.replace(/\.[^.]+$/, "") || "AI Draft" };
           }
-          if (s.status === "failed") throw new Error(s.error || "Analysis failed");
+          if (s.status === "failed") throw new Error(`${s.phase ? `[${s.phase}] ` : ""}${s.error || "Analysis failed"}`);
         }
         throw new Error("Analysis timed out after 30 minutes");
       } catch (e) {

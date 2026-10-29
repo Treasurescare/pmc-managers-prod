@@ -4,6 +4,8 @@ import { toast } from "sonner";
 import { tenderTemplateApi, showApiError } from "@/lib/api";
 import AdminShellE from "./AdminShellE";
 import AdminAvatarMenu from "./AdminAvatarMenu";
+import { TenderPreviewModal } from "./TenderPreviewModal";
+import { ScopeRulesCard } from "./ScopeRulesCard";
 
 const TABS = [["submitted", "Awaiting review"], ["changes_requested", "Changes requested"], ["approved", "Published"], ["rejected", "Rejected"], ["masters", "Pending library"]];
 
@@ -14,6 +16,7 @@ export default function AdminTenderReviewE() {
   const [tab, setTab] = useState("submitted");
   const [rows, setRows] = useState([]);
   const [err, setErr] = useState("");
+  const [preview, setPreview] = useState(null);
 
   const load = useCallback(() => {
     setErr("");
@@ -28,7 +31,7 @@ export default function AdminTenderReviewE() {
 
   if (!isE) return null;
 
-  const act = async (fn, label) => { try { await fn(); toast.success(label); load(); } catch (e) { showApiError(e); } };
+  const act = async (fn, label) => { try { await fn(); toast.success(label); setPreview(null); load(); } catch (e) { showApiError(e); } };
   const approve = (id) => act(() => tenderTemplateApi.reviewApprove(id, ""), "Approved & published");
   const changes = (id) => { const n = window.prompt("What changes are needed?"); if (n) act(() => tenderTemplateApi.reviewRequestChanges(id, n), "Sent back for changes"); };
   const reject = (id) => { const n = window.prompt("Reason for rejection:"); if (n) act(() => tenderTemplateApi.reviewReject(id, n), "Rejected"); };
@@ -47,6 +50,7 @@ export default function AdminTenderReviewE() {
       </>}>
         <h1 className="pmc-display" style={{ fontSize: "28px", margin: "0 0 4px" }}>Vendor tender review</h1>
         <p className="pmc-muted" style={{ fontSize: "14px", marginBottom: "16px" }}>Full tenders prepared by vendors in the PMC builder. Only an active Reviewer can approve, send back, or reject. Approving publishes the tender for bidding and keeps the originating vendor as author. The "Pending library" tab moderates vendor-contributed master templates.</p>
+        <ScopeRulesCard />
         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "18px", borderBottom: "1px solid var(--line)", paddingBottom: "8px" }}>
           {TABS.map(([k, label]) => <button key={k} className={"pmc-btn pmc-btn--sm " + (tab === k ? "pmc-btn--primary" : "pmc-btn--ghost")} data-testid={`tr-tab-${k}`} onClick={() => setTab(k)}>{label}</button>)}
         </div>
@@ -61,6 +65,7 @@ export default function AdminTenderReviewE() {
                     <div className="pmc-muted" style={{ fontSize: "12px", marginTop: "2px" }}>Author: {t.owner_company_name || "Vendor"} · {tt(t).product_category || t.industry || "—"} · {t.country || tt(t).location || "—"} · {tt(t).budget_currency || ""} {tt(t).budget_amount ?? tt(t).tender_value ?? "—"}{tab !== "masters" ? ` · closes ${String(tt(t).sub_end || "").slice(0, 16).replace("T", " ") || "—"}` : ""}</div>
                     <div style={{ fontSize: "13px", marginTop: "6px", maxWidth: "640px" }}>{tt(t).work_description || `${(t.sections || []).length} sections`}</div>
                     {t.review_note && <div style={{ fontSize: "12px", color: "var(--ink-muted)", marginTop: "4px" }}>Last note: {t.review_note}</div>}
+                    <button className="pmc-link" style={{ fontSize: "12px", marginRight: "12px", background: "none", border: 0, padding: 0, cursor: "pointer" }} data-testid={`tr-preview-${t.id}`} onClick={() => setPreview(t)}>Preview inline</button>
                     {tab !== "masters" && t.id && <a className="pmc-link" style={{ fontSize: "12px" }} data-testid={`tr-pdf-${t.id}`} href={`${process.env.REACT_APP_BACKEND_URL}/api/v1/tender-templates/${t.id}/export/pdf`} target="_blank" rel="noreferrer">Preview full tender PDF →</a>}
                   </div>
                   {tab === "submitted" && (
@@ -82,6 +87,17 @@ export default function AdminTenderReviewE() {
           </div>
         )}
       </AdminShellE>
+      {preview && (
+        <TenderPreviewModal tpl={preview} onClose={() => setPreview(null)} actions={
+          tab === "submitted" ? <>
+            <button className="pmc-btn pmc-btn--sm pmc-btn--ghost" style={{ color: "var(--danger)" }} data-testid="tr-preview-reject" onClick={() => reject(preview.id)}>Reject</button>
+            <button className="pmc-btn pmc-btn--sm pmc-btn--secondary" data-testid="tr-preview-changes" onClick={() => changes(preview.id)}>Request changes</button>
+            <button className="pmc-btn pmc-btn--sm pmc-btn--primary" data-testid="tr-preview-approve" onClick={() => approve(preview.id)}>Approve &amp; publish</button>
+          </> : tab === "masters" ? <>
+            <button className="pmc-btn pmc-btn--sm pmc-btn--ghost" style={{ color: "var(--danger)" }} data-testid="tr-preview-master-reject" onClick={() => rejectMaster(preview.id)}>Reject</button>
+            <button className="pmc-btn pmc-btn--sm pmc-btn--primary" data-testid="tr-preview-master-approve" onClick={() => approveMaster(preview.id)}>Add to library</button>
+          </> : null} />
+      )}
     </div>
   );
 }

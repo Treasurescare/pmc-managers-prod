@@ -15,6 +15,7 @@ from models.base import BaseDocument, now_iso
 from security import require_role
 from routers.vendor_auth import current_vendor
 from audit import audit_log
+from routers._tender_access import scope_rules
 
 router = APIRouter(tags=["vendor-categories"])
 
@@ -63,6 +64,13 @@ async def request_category(payload: CategoryRequestIn, vendor=Depends(current_ve
     })
     if dup:
         raise HTTPException(status_code=409, detail="A pending request for this category already exists")
+    cap = int((await scope_rules())["max_pending_category_requests"] or 0)
+    if cap:
+        n = await db.vendor_category_requests.count_documents(
+            {"vendor_ref": vendor["vendor_ref"], "status": "pending"})
+        if n >= cap:
+            raise HTTPException(status_code=429,
+                detail=f"You already have {n} category request(s) pending (limit {cap}). Wait for a decision first.")
     # Verify the category exists in the master.
     master = await db.categories.find_one({"code": payload.category_code, "is_active": True})
     if not master:

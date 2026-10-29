@@ -909,6 +909,9 @@ export const kycApi = {  start: (vendor_ref, level = "basic") =>
 // ---------- R8: Vendor Tender Preparation ----------
 export const vendorTenderApi = {
   subscription: () => api.get("/api/v1/vendor-tenders/subscription").then((r) => r.data),
+  scope: () => api.get("/api/v1/vendor-tenders/scope").then((r) => r.data),
+  getScopeRules: () => api.get("/api/v1/vendor-tenders/scope-rules").then((r) => r.data),
+  setScopeRules: (payload) => api.put("/api/v1/vendor-tenders/scope-rules", payload).then((r) => r.data),
   subCheckout: (origin_url) => api.post("/api/v1/vendor-tenders/subscription/checkout", { origin_url }).then((r) => r.data),
   subStatus: (sid) => api.get(`/api/v1/vendor-tenders/subscription/checkout/status/${sid}`).then((r) => r.data),
   getSubConfig: () => api.get("/api/v1/vendor-tenders/subscription/config").then((r) => r.data),
@@ -1142,6 +1145,10 @@ export const tenderProApi = {
     api.get(`/api/v1/tender-pro/dpr/jobs/${encodeURIComponent(jobId)}`).then((r) => r.data),
   aiFillAll: (tid, opts) =>
     api.post(`/api/v1/tender-pro/templates/${tid}/ai-fill-all`, opts || {}).then((r) => r.data),
+  aiFillAllAsync: (tid, opts) =>
+    api.post(`/api/v1/tender-pro/templates/${tid}/ai-fill-all-async`, opts || {}).then((r) => r.data),
+  aiFillJob: (jobId) =>
+    api.get(`/api/v1/tender-pro/ai-fill-jobs/${encodeURIComponent(jobId)}`).then((r) => r.data),
   nextReference: (country, industry, kind) =>
     api.post(`/api/v1/tender-pro/next-reference`, null,
              { params: { country, industry, kind } }).then((r) => r.data),

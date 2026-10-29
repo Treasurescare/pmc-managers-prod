@@ -25,6 +25,7 @@ from security import require_role
 from routers.vendor_auth import current_vendor
 from routers._tender_access import (
     sub_config as _ta_sub_config, vendor_entitlement, vendor_country,
+    scope_rules, vendor_scope_snapshot,
 )
 from audit import audit_log
 
@@ -118,6 +119,34 @@ async def set_sub_config(payload: SubConfigIn, admin=Depends(require_role("admin
     return {"ok": True, **doc}
 
 
+# ----------------------- vendor scope rules -----------------------
+
+@router.get("/scope")
+async def my_scope(vendor=Depends(current_vendor)):
+    return await vendor_scope_snapshot(vendor["id"])
+
+
+@router.get("/scope-rules")
+async def get_scope_rules(admin=Depends(require_role("admin", "reviewer"))):
+    return await scope_rules()
+
+
+class ScopeRulesIn(BaseModel):
+    restrict_to_approved_categories: bool = True
+    max_pending_tenders: int = Field(ge=0, le=100)
+    max_pending_category_requests: int = Field(ge=0, le=100)
+
+
+@router.put("/scope-rules")
+async def set_scope_rules(payload: ScopeRulesIn, admin=Depends(require_role("admin", "reviewer"))):
+    body = payload.model_dump()
+    await db.platform_config.update_one({"key": "vendor_scope_rules"},
+        {"$set": {"key": "vendor_scope_rules", **body, "updated_at": now_iso(),
+                  "updated_by": admin["email"]}}, upsert=True)
+    await audit_log("vendor_scope.rules", admin, "platform_config", "vendor_scope_rules", body)
+    return body
+
+
 # ----------------------- Stripe subscription checkout (Flow B reuse) -----------------------
 
 class SubCheckoutIn(BaseModel):
@@ -171,6 +200,10 @@ async def subscribe_status(session_id: str, vendor=Depends(current_vendor)):
         except Exception:
             pass
     return {"session_id": session_id, "status": rec["status"], "payment_status": rec["payment_status"]}
+
+
+async def activate_subscription(vendor_id: Optional[str]):
+    await _activate_subscription(vendor_id)
 
 
 async def _activate_subscription(vendor_id: Optional[str]):
