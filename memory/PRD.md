@@ -736,3 +736,24 @@ frontend flows pass; NOT yet user-confirmed):
   allowed on payment_pending. Stale/duplicate payments never reopen a request — tx flagged needs_refund instead.
 - Tests: test_r12_category_fees.py 14/14; r9b 14/14; r11 27/27.
 
+## R14 — Full payments wiring — 2026-10-29 (agent-tested, preview only)
+- Fixed: category approve 500 when vendor.business_categories null (vendor updated first via $setUnion pipeline).
+- Fee types: country_scope all|selected + countries; rules may use country "ALL"; `find_rule` (country beats ALL,
+  category beats all-categories) used by subscription, extra category, builder fees, doc fee, hosting, data intel.
+- New fee types: tender_hosting (builder, at end), tender_document_download.
+- Charge Fee: lists fee types/rules, payer email mandatory, link emailed (`emailed_to`).
+- EMD collector on notices (pmc|escrow|escrow_institution|tender_caller|authorised_party; default tender_caller);
+  PMC Stripe EMD checkout 409 for non-PMC collectors; vendor sees pay-direct instructions.
+  NOTE: legacy notices without emd_collector now default to tender_caller (PMC checkout blocked) — confirm with user.
+- Category upsell: bid on non-registered category → 403 category_not_registered; notice page banner + notification
+  + db.messages + email (deduped). db.messages has no UI reader yet.
+- Doc download fee (once per tender): gates /notices/{ref}/pack, /uploads/public-files (notice docs), template public
+  zip/pdf with notice_ref; Pay & unlock on notice page; receipts.
+- Hosting fee for admin notices: "Hosting fee" button emails buyer link; publish (POST and PATCH) blocked while unpaid;
+  auto-publish on payment; public /pay/complete page.
+- Data intel service: vendor /vendor/data-intel requests (market insights / vendor report); admin Masters → Data intel
+  quote (prefilled from data_intel rule) → pay link → deliver.
+- Refund alerts + one-click Stripe refund on /admin/e/billing (needs_refund transactions).
+- Cron `category-pay-remind` daily 09:00 UTC → /api/v1/cron/category-payment-reminders (WEBHOOK_CRON_SECRET).
+- Tests: test_r13_payments_extra.py 17/17; r10/r11/r12 pass.
+

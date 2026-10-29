@@ -211,7 +211,7 @@ async def download_bundle(req: BundleRequest,
 # anonymous access ONLY for files uploaded against the "notice-attachments"
 # scope AND whose parent notice is published.
 @router.get("/public-files/{key:path}")
-async def get_public_file(key: str, download: bool = False):
+async def get_public_file(key: str, request: Request, download: bool = False):
     doc = await db.uploads.find_one({"key": key})
     if not doc:
         raise HTTPException(status_code=404, detail="File not found")
@@ -235,6 +235,9 @@ async def get_public_file(key: str, download: bool = False):
         if not notice or not notice.get("is_published"):
             raise HTTPException(status_code=403,
                 detail="Parent notice is not published")
+        if doc.get("scope") != "corrigendum-attachments":
+            from routers.payments_extra import assert_doc_fee_paid
+            await assert_doc_fee_paid(request, notice)
     return await _serve_file(key, download)
 
 

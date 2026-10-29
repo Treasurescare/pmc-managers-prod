@@ -5,6 +5,12 @@ from pydantic import BaseModel, Field, EmailStr, ConfigDict, model_validator, fi
 DocumentType = Literal["tender", "rfp", "rfq"]
 
 
+class EmdCollector(BaseModel):
+    type: Literal["pmc", "escrow", "escrow_institution", "tender_caller", "authorised_party"] = "tender_caller"
+    name: Optional[str] = Field(default=None, max_length=200)
+    instructions: Optional[str] = Field(default=None, max_length=1000)
+
+
 class NoticeIn(BaseModel):
     """Admin creates or publishes a tender notice."""
     model_config = ConfigDict(extra="allow")
@@ -47,7 +53,7 @@ class NoticeIn(BaseModel):
     # EMD (Earnest Money Deposit) config — vendors pay this on bid submission
     emd_config: Optional[dict] = None
     # Who collects the EMD: pmc | escrow | escrow_institution | tender_caller | authorised_party
-    emd_collector: Optional[dict] = None
+    emd_collector: Optional[EmdCollector] = None
     # Wave 7 — optional approval matrix for this tender (falls back to default pipeline)
     approval_matrix_id: Optional[str] = None
     # Wave 7 — tenant assignment (defaults to config.DEFAULT_TENANT_ID)
@@ -107,7 +113,7 @@ class NoticePatchIn(BaseModel):
     escrow_account_id: Optional[str] = None
     emd_config: Optional[dict] = None
     # Who collects the EMD: pmc | escrow | escrow_institution | tender_caller | authorised_party
-    emd_collector: Optional[dict] = None
+    emd_collector: Optional[EmdCollector] = None
     approval_matrix_id: Optional[str] = None
     tender_template_id: Optional[str] = None
 

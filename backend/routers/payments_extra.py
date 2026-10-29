@@ -25,6 +25,12 @@ def _out(d):
     return BaseDocument.out(d)
 
 
+def _oid(x: str) -> str:
+    if not ObjectId.is_valid(x):
+        raise HTTPException(status_code=404, detail="Not found")
+    return x
+
+
 def _site() -> str:
     return (config.FRONTEND_URL or "").rstrip("/")
 
@@ -283,7 +289,7 @@ async def intel_mine(vendor=Depends(current_vendor)):
 
 @router.post("/api/v1/data-intel/requests/{rid}/checkout")
 async def intel_checkout(rid: str, payload: OriginIn, vendor=Depends(current_vendor)):
-    r = await db.data_intel_requests.find_one({"_id": ObjectId(rid), "vendor_id": vendor["id"]})
+    r = await db.data_intel_requests.find_one({"_id": ObjectId(_oid(rid)), "vendor_id": vendor["id"]})
     if not r or r["status"] != "quoted":
         raise HTTPException(status_code=409, detail="This request has no open quote")
     return await _checkout(r["amount"], r["currency"], "data_intel", "/vendor/data-intel?paid=1", "/vendor/data-intel",
@@ -307,7 +313,7 @@ class QuoteIn(BaseModel):
 
 @router.post("/api/v1/data-intel/admin/{rid}/quote")
 async def intel_quote(rid: str, payload: QuoteIn, admin=Depends(require_role("admin"))):
-    r = await db.data_intel_requests.find_one({"_id": ObjectId(rid)})
+    r = await db.data_intel_requests.find_one({"_id": ObjectId(_oid(rid))})
     if not r or r["status"] not in ("requested", "quoted"):
         raise HTTPException(status_code=409, detail="Request can't be quoted now")
     await db.data_intel_requests.update_one({"_id": r["_id"]}, {"$set": {"status": "quoted",
@@ -331,7 +337,7 @@ class DeliverIn(BaseModel):
 
 @router.post("/api/v1/data-intel/admin/{rid}/deliver")
 async def intel_deliver(rid: str, payload: DeliverIn, admin=Depends(require_role("admin"))):
-    r = await db.data_intel_requests.find_one_and_update({"_id": ObjectId(rid), "status": "paid"},
+    r = await db.data_intel_requests.find_one_and_update({"_id": ObjectId(_oid(rid)), "status": "paid"},
         {"$set": {"status": "delivered", "delivery": payload.model_dump(), "delivered_at": now_iso()}})
     if not r:
         raise HTTPException(status_code=409, detail="Only paid requests can be delivered")
@@ -348,7 +354,7 @@ class DeclineIn(BaseModel):
 @router.post("/api/v1/data-intel/admin/{rid}/decline")
 async def intel_decline(rid: str, payload: DeclineIn, admin=Depends(require_role("admin"))):
     r = await db.data_intel_requests.find_one_and_update(
-        {"_id": ObjectId(rid), "status": {"$in": ["requested", "quoted"]}},
+        {"_id": ObjectId(_oid(rid)), "status": {"$in": ["requested", "quoted"]}},
         {"$set": {"status": "declined", "decision_notes": payload.notes}})
     if not r:
         raise HTTPException(status_code=409, detail="Request can't be declined now")
@@ -379,7 +385,7 @@ async def refund_payment(session_id: str, admin=Depends(require_role("admin"))):
     except Exception as e:
         msg = getattr(e, "user_message", None) or str(e)[:300]
         await db.payment_transactions.update_one({"session_id": session_id}, {"$set": {"refund_error": msg}})
-        raise HTTPException(status_code=502, detail=f"Stripe refund failed: {msg}")
+        raise HTTPException(status_code=424, detail=f"Stripe refund failed: {msg}")
     await db.payment_transactions.update_one({"session_id": session_id}, {"$set": {
         "refund_status": "refunded", "refund_id": ref.id, "needs_refund": False,
         "refunded_at": now_iso(), "refunded_by": admin["email"], "payment_status": "refunded"}})

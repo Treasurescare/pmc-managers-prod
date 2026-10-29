@@ -33,7 +33,7 @@ export const NoticeVendorPanel = ({ noticeRef }) => {
   return (
     <div style={{ display: "grid", gap: "10px", margin: "12px 0" }}>
       {showCat && (
-        <div className="pmc-panel" data-testid="notice-category-upsell" style={{ padding: "12px 16px", borderLeft: "4px solid var(--warning, #b7791f)" }}>
+        <div className="pmc-panel" data-testid="notice-category-upsell" style={{ padding: "12px 16px", borderLeft: "4px solid var(--warning, #b7791f)", color: "#1b2430", background: "#fff8e6" }}>
           <b>This tender is in “{cat.category}”, which is not one of your registered categories.</b>
           <div style={{ fontSize: "13px", marginTop: "4px" }}>
             Registration is free for one category; every additional category needs a payment. Add it, pay the fee, and you can bid once PMC approves it.
@@ -45,7 +45,7 @@ export const NoticeVendorPanel = ({ noticeRef }) => {
         </div>
       )}
       {showDoc && (
-        <div className="pmc-panel" data-testid="notice-doc-fee" style={{ padding: "12px 16px" }}>
+        <div className="pmc-panel" data-testid="notice-doc-fee" style={{ padding: "12px 16px", color: "#1b2430", background: "#ffffff" }}>
           {doc.paid
             ? <span data-testid="notice-doc-fee-paid">✓ Document fee paid — download the pack any number of times.</span>
             : <><b>Tender document download fee: {money(doc.currency, doc.amount)}</b> — pay once to download any number of times.

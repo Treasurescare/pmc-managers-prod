@@ -457,6 +457,9 @@ async def update_notice(notice_ref: str, payload: NoticePatchIn,
     await require_notice_permission(admin, "modify", notice.get("document_type", "*"))
 
     updates = payload.model_dump(exclude_unset=True)
+    if updates.get("is_published") and not notice.get("is_published") \
+            and (notice.get("hosting_fee") or {}).get("status") == "unpaid":
+        raise HTTPException(status_code=409, detail="Hosting fee is unpaid — the notice publishes automatically once the buyer pays.")
     # v52t — date-chain on edits: ordering only (legacy notices may
     # legitimately carry past dates, so no "must be ≥ today" here).
     if "submission_deadline" in updates or "pre_bid_meeting_date" in updates:

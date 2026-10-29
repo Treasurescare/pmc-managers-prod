@@ -18,7 +18,7 @@ import base64
 import html as _html
 import uuid
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from bson import ObjectId
@@ -586,7 +586,7 @@ def _render_tender_html(doc: dict, lang: Optional[str] = "en") -> str:
 # ---------- Public full-docs ZIP bundle ----------
 
 @router.get("/{tid}/public/zip")
-async def public_export_tender_zip(tid: str, notice_ref: Optional[str] = None):
+async def public_export_tender_zip(tid: str, request: Request, notice_ref: Optional[str] = None):
     """PUBLIC — bundle the composed PDF + every section attachment into one .zip
     so bidders can pull the whole packet in a single click. Gated by a
     published notice being linked, exactly like the /public/pdf endpoint."""
@@ -595,6 +595,9 @@ async def public_export_tender_zip(tid: str, notice_ref: Optional[str] = None):
                                          "tender_template_id": tid})
         if not n:
             raise HTTPException(status_code=404, detail="Tender not available")
+        from routers.payments_extra import assert_doc_fee_paid
+        await assert_doc_fee_paid(request, n)
+
     try:
         doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
     except Exception:
@@ -657,7 +660,7 @@ async def public_export_tender_zip(tid: str, notice_ref: Optional[str] = None):
 # ---------- Public notice-linked PDF export ----------
 
 @router.get("/{tid}/public/pdf")
-async def public_export_tender_pdf(tid: str, notice_ref: Optional[str] = None,
+async def public_export_tender_pdf(tid: str, request: Request, notice_ref: Optional[str] = None,
                                      lang: Optional[str] = "en"):
     """PUBLIC — bidders download the composed tender PDF from a Notice detail.
     Access is gated by the linked notice being published (or an admin session)."""
@@ -666,6 +669,8 @@ async def public_export_tender_pdf(tid: str, notice_ref: Optional[str] = None,
                                          "tender_template_id": tid})
         if not n:
             raise HTTPException(status_code=404, detail="Tender not available")
+        from routers.payments_extra import assert_doc_fee_paid
+        await assert_doc_fee_paid(request, n)
     try:
         doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
     except Exception:

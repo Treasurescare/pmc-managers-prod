@@ -82,7 +82,7 @@ export default function VendorEmdE({ legacy: Legacy }) {
         <div className="sp-head"><div><div className="pmc-eyebrow">EMD &amp; payments</div><h1>Deposits, fees and refunds</h1></div>
           <div style={{ display: "flex", gap: "8px" }}>
             <a href="#" className="pmc-btn pmc-btn--secondary" data-testid="vemd-statement"><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg> Statement (PDF)</a>
-            {k.due.length > 0 && <a href="#" className="pmc-btn pmc-btn--primary" data-testid="vemd-pay-top">Pay EMD</a>}
+            {k.due.some((b) => !b.emd_collector || !b.emd_collector.type || b.emd_collector.type === "pmc") && <a href="#" className="pmc-btn pmc-btn--primary" data-testid="vemd-pay-top">Pay EMD</a>}
           </div></div>
         {bids === null ? <div className="pmc-muted" data-testid="vemd-loading">Loading your payments…</div> : (<>
           <div className="sp-kpis" data-testid="vemd-kpis">

@@ -1,0 +1,55 @@
+{
+  "summary": "Tested the R13 payments wiring end to end. Backend: new tests/test_r13_payments_extra.py has 17 tests; 14 pass and 3 fail. The 3 failures are real bugs. Regressions run with -n 0: r10 33/33, r11 27/27, r12 14/14. Working: category approve when business_categories is null (200, category added); seeded tender_hosting and tender_document_download fee types; fee-type country_scope=selected (rule with country ALL or a country not in the list returns 422); find_rule (country-specific beats ALL); Charge Fee payer email (422 without it, emailed_to returned with it); EMD collector copied to the bid, and EMD checkout returns 409 with the instructions; bid outside the vendor's categories returns 403 category_not_registered; category-interest is deduped (1 notification, 1 message, 1 log); doc fee pack gate (401 anonymous, 402 unpaid vendor, 200 for admin and for a paid vendor, many downloads, 1 receipt, 409 on re-checkout); hosting fee (quote, request, 409 on publish while unpaid, public pay/status credits and publishes); data intel (409 before quote, quote, checkout, paid, deliver, decline, decline twice returns 409); refund alerts (list; a bad session returns 502 and stores refund_error; unknown session returns 404); cron (401 without or with a wrong Bearer, 200 with the secret, background job sets reminders_sent=1 and last_reminder_at). UI (Playwright plus real Stripe 4242): upsell banner and Add-category link; doc-fee Pay & unlock goes to Stripe and back to ?doc_paid=1, shows the paid state, and the pack fetch returns 200; Fee types tab (new rows, country_scope radios with 251 country checkboxes); Fee rules country dropdown has 'All countries'; Charge Fee kind filter, rule list and payer-email toast, then 'emailed to' toast; hosting button with prompt, then 'Payment link emailed' and 409 on publish; real Stripe payment on /pay/complete shows 'Thank you — we received USD 50' and the notice is published; vendor Data intel (nav, request, admin quote, vendor pays with Stripe, admin delivers, vendor sees intel-delivery); refund alert one-click refund on a real paid session gives 'Refund issued'; notice form EMD collector has 5 options; VendorEmdE shows 'Pay directly to TEST Caller — Wire to XYZ'.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/v1/uploads/public-files/{key}", "issue": "The doc download fee can be bypassed. Each tender document of a fee-gated notice downloads anonymously with 200. The notice Documents tab shows a 'Download' link to this URL even to unpaid vendors. Only /notices/{ref}/pack calls assert_doc_fee_paid. The tender-template zip (/tender-templates/{id}/public/zip) is not gated either.", "priority": "HIGH"},
+      {"endpoint": "PATCH /api/v1/notices/{ref}", "issue": "The hosting fee can be bypassed. PATCH {is_published:true} on a notice whose hosting_fee.status is unpaid returns 200 and publishes it. Only POST /publish checks the fee.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/v1/data-intel/requests/{rid}/checkout (and the admin quote/deliver/decline endpoints)", "issue": "An invalid ObjectId returns 500. Call ObjectId(rid) only after checking ObjectId.is_valid, and return 404."},
+      {"endpoint": "POST /api/v1/billing/refund-alerts/{sid}/refund", "issue": "The Stripe failure returns HTTP 502. Cloudflare replaces the 502 body, so the admin sees 'The origin web server returned an invalid or incomplete response to Cloudflare' instead of the Stripe message. Use 400, 409 or 424."},
+      {"endpoint": "db.messages (category upsell)", "issue": "Messages are written with to_vendor_ref, but no API or UI reads db.messages. The 'message' channel is invisible to vendors. The notification shows in the bell via user_ref/user_email, and the email is sent."},
+      {"endpoint": "POST /api/v1/notices emd_collector", "issue": "emd_collector is an unvalidated dict, so any type string is accepted. Use a Pydantic model with Literal[pmc, escrow, escrow_institution, tender_caller, authorised_party]. Also, bids on legacy notices without emd_collector now default to tender_caller, so all existing PMC-collected EMD checkouts return 409. This matches the stated rule, but confirm it with the user or backfill legacy notices to pmc."},
+      {"endpoint": "data intel quote / re-quote", "issue": "Each admin quote and each vendor checkout creates a new Stripe session, and earlier sessions stay payable at the earlier amount. A 2nd payment is flagged needs_refund, which is good, but a re-quote at a new price can still be paid at the old price."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "NoticeVendorPanel (rendered inside the dark notice hero)", "issue": "The upsell and doc-fee text is almost invisible. The text inherits the hero colour rgb(243,239,228) and sits on a white .pmc-panel background. Set an explicit dark text colour on both panels.", "selector": "[data-testid='notice-category-upsell'], [data-testid='notice-doc-fee']", "priority": "HIGH"},
+      {"component": "NoticesPanel hosting button", "issue": "After the request succeeds the list is not reloaded, so the label stays 'Hosting fee' instead of 'Hosting fee sent'. The Publish button stays enabled while the fee is unpaid and gives a 409 toast.", "selector": "[data-testid^='notice-hosting-btn-']", "priority": "LOW"},
+      {"component": "VendorEmdE", "issue": "For a bid whose EMD the tender caller collects, the header still shows the 'Pay EMD' button and 'Due now USD 500', as if it were due to PMC. The row correctly shows vemd-collector text. The receipt list shows a refunded receipt with no refunded marker.", "selector": "[data-testid^='vemd-collector-']", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Download pack on an unpaid notice", "issue": "The 'Preparing your download…' toast stays up next to the fee error toast.", "affected_selectors": ["button:has-text('Download pack')"]}
+    ],
+    "design_issues": [
+      {"screen": "/pay/complete", "issues": ["Bare card with no header, logo link or 'Back to PMC' link."]},
+      {"screen": "/vendor/data-intel", "issues": ["Inputs have placeholders only and no labels."]},
+      {"screen": "Admin Billing transactions table", "issues": ["doc_fee, hosting_fee and data_intel transactions show an empty Buyer and Product/Fee column."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_r13_payments_extra.py", "/app/backend/tests/_r13_ui_setup.py", "/app/test_reports/pytest/r13.xml"],
+  "action_items": [
+    "Gate /uploads/public-files for notice-docs and notice-attachments of a fee-gated notice (reuse assert_doc_fee_paid), and gate the tender-template public zip. Hide per-file Download links for unpaid vendors.",
+    "In PATCH /notices/{ref}, refuse is_published=true while hosting_fee.status == 'unpaid'.",
+    "Fix the NoticeVendorPanel text contrast (dark text colour on the white panels).",
+    "Validate ObjectIds in the data-intel endpoints (return 404 instead of 500).",
+    "Return a non-502 status for Stripe refund failures so the message reaches the admin.",
+    "Surface db.messages somewhere for vendors, or drop the collection and rely on notifications.",
+    "Validate the emd_collector schema, and decide on the legacy default (tender_caller vs pmc).",
+    "Minor UX: reload the notices list after a hosting request; hide or disable Publish while the hosting fee is unpaid; fix the VendorEmdE header Pay EMD and Due total for non-PMC collectors."
+  ],
+  "critical_code_review_comments": [
+    "routers/payments_extra.py: _sync_status swallows every Stripe exception silently. At least log it.",
+    "Public GET /api/v1/pay/status/{sid} credits any paid session for anyone who knows the session id. That is acceptable, but it also returns the amount and purpose without auth.",
+    "category-interest is a POST fired on every vendor notice-detail view. That works as intended because of the dedupe log, but the side effect happens on view.",
+    "The fee-checkout slab computation in billing.py duplicates _fees.compute_amount and ignores pct_min/pct_max (DRY)."
+  ],
+  "updated_files": ["/app/backend/tests/test_r13_payments_extra.py", "/app/backend/tests/_r13_ui_setup.py"],
+  "success_rate": {"backend": "82% (14/17 new; 74/74 regression)", "frontend": "90%"},
+  "test_credentials": "From /app/memory/test_credentials.md: admin adminsupport@pmcmanagers.com / Admin@12345, vendor testvendor@pmcmanagers.com / Vendor@12345.",
+  "seed_data_creation": "All TEST_R13 data was cleaned up: rules, fee types, notices, bids, uploads, doc_purchases, data_intel_requests, notifications, messages, category_upsell_log, payment_transactions and fee_receipts. The test vendor is restored to business_categories [HVAC] and country None. The real Stripe test doc-fee payment was refunded during testing.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run: pytest tests/test_r13_payments_extra.py -n 0. Its 3 failing tests encode the bugs above and should pass after the fixes. For UI work: python tests/_r13_ui_setup.py seed|clean. It seeds XT doc-fee ($5) and hosting ($50) rules, 2 published notices (HVAC and 'TEST_R13 Other Category'), 1 unpublished notice and a fake refund alert. Vendor login in Playwright needs about 4s of waiting before filling and about 3s after the /vendor redirect, otherwise the session is not ready. To use stripe in python, load_dotenv('.env', override=True); the shell has STRIPE_API_KEY=sk_test_emergent. Stripe checkout: uncheck #enableStripePass."
+}
