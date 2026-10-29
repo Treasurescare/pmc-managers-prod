@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { vendorApi, bidApi, publicApi, docusignApi, showApiError } from "@/lib/api";
+import { vendorApi, bidApi, publicApi, docusignApi, vendorMessagesApi, showApiError } from "@/lib/api";
 
 /**
  * Shared Supplier-portal chrome (top bar + left nav) for Option E pages.
@@ -45,10 +45,11 @@ export default function VendorPortalChrome({ active, counts = {}, children }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [tenders, mine, env] = await Promise.allSettled([
+      const [tenders, mine, env, msgs] = await Promise.allSettled([
         publicApi.listNotices({ limit: 1 }),
         bidApi.mine(),
         docusignApi.listMine().catch(() => ({ items: [] })),
+        vendorMessagesApi.unreadCount(),
       ]);
       if (cancelled) return;
       const next = {};
@@ -66,10 +67,18 @@ export default function VendorPortalChrome({ active, counts = {}, children }) {
         const pending = items.filter((e) => e.status === "sent" || e.status === "delivered").length;
         next["/vendor/signatures"] = pending;
       }
+      if (msgs.status === "fulfilled") {
+        next["/vendor/messages"] = msgs.value?.unread || 0;
+      }
       setLiveCounts(next);
     })();
     return () => { cancelled = true; };
   }, [location.pathname]);
+  useEffect(() => {
+    const onRead = (e) => setLiveCounts((c) => ({ ...c, "/vendor/messages": e.detail ?? 0 }));
+    window.addEventListener("pmc:messages-unread", onRead);
+    return () => { window.removeEventListener("pmc:messages-unread", onRead); };
+  }, []);
   // v50o — close the avatar dropdown on outside-click / Esc.
   useEffect(() => {
     if (!menuOpen) return;
@@ -116,7 +125,7 @@ export default function VendorPortalChrome({ active, counts = {}, children }) {
         data-testid={`vendor-nav-${item.to.replace(/\//g, "-").replace(/^-/, "")}`}>
         <svg className="pmc-ico" aria-hidden="true"><use href={`#${item.icon}`} /></svg>
         {item.label}
-        {count != null && <span className={"c" + (count > 0 && item.label === "My bids" ? " hot" : "")}>{count}</span>}
+        {count != null && !(item.to === "/vendor/messages" && !count) && <span data-testid={`vendor-nav-count-${item.to.replace(/\//g, "-").replace(/^-/, "")}`} className={"c" + (count > 0 && ["My bids", "Messages"].includes(item.label) ? " hot" : "")}>{count}</span>}
       </Link>
     );
   };

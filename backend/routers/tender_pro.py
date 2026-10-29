@@ -168,7 +168,7 @@ async def _run_dpr_analyze(name: str, body_bytes: bytes, kind: str, admin: dict,
                     for s in (template.get("sections") or [])]
         system_msg = (
             "You are a public-procurement copilot. Given a Detailed Project Report (DPR) excerpt, "
-            f"produce a JSON object suitable for a {kind.upper()} pack with EXACTLY these keys: "
+            f"produce a JSON object suitable for a {kind.upper()} pack with EXACTLY these keys. {kind_style(kind)} Keys: "
             f"{{\"header\": an object with EXACTLY these keys from the chosen template: {header_keys}. "
             f"\"section_bodies\": an object keyed by the EXACT section codes of the chosen template: "
             f"{[s['code'] for s in sec_spec]}. For each code, draft body text that matches its "
@@ -324,8 +324,8 @@ async def _run_dpr_analyze(name: str, body_bytes: bytes, kind: str, admin: dict,
     async def _draft_body(i: int, sec: dict) -> tuple[str, str]:
         passage = _best_chunk(sec, i)
         prompt = (
-            "You are a public-procurement drafting copilot. Draft the BODY of ONE tender-document "
-            "section using ONLY the DPR passage below as source. Return valid HTML using only these "
+            f"You are a public-procurement drafting copilot. Draft the BODY of ONE {kind_label(kind)} "
+            f"section using ONLY the DPR passage below as source. {kind_style(kind)} Return valid HTML using only these "
             "tags: <p><br><b><i><ul><ol><li><h3>. Do NOT include the section title. Do NOT invent "
             "numbers or facts absent from the passage. Aim for 280-360 words with real details, "
             "bullets for lists, bold for key figures. If the passage is short, still produce a "
@@ -557,6 +557,28 @@ def _llm_key() -> str:
     return key
 
 
+_KIND_LABEL = {"tender": "tender-document", "rfq": "Request for Quotation (RFQ)",
+               "rfp": "Request for Proposal (RFP)"}
+_KIND_STYLE = {
+    "tender": ("Write in formal tender style: mandatory 'shall' obligations, eligibility, "
+               "EMD/bid security, two-envelope submission and compliance-based evaluation."),
+    "rfq": ("Write as a short, price-focused RFQ: precise item specifications, quantities, "
+            "delivery and commercial terms, award to the lowest compliant quote. Keep it brief and "
+            "tabular where possible; avoid long legal or methodology text."),
+    "rfp": ("Write as an outcome-focused RFP: explain the need and objectives, invite proposers "
+            "to propose their approach, methodology, team and work plan, and state the scored "
+            "evaluation criteria with weights. Ask for solutions rather than prescribing them."),
+}
+
+
+def kind_label(kind: Optional[str]) -> str:
+    return _KIND_LABEL.get((kind or "tender").lower(), _KIND_LABEL["tender"])
+
+
+def kind_style(kind: Optional[str]) -> str:
+    return _KIND_STYLE.get((kind or "tender").lower(), _KIND_STYLE["tender"])
+
+
 async def _llm_complete(system: str, user: str) -> str:
     """Single-shot completion via Claude Sonnet 5.5 (Emergent LLM key).
     Used for DPR analysis, section drafting and Fill-All. Price data is never
@@ -585,10 +607,10 @@ async def _analyze_dpr_removed():
 _FILL_WORDS = {"short": 120, "medium": 240, "long": 420}
 
 
-async def _draft_section(sec: dict, header: dict, words: int) -> Optional[str]:
+async def _draft_section(sec: dict, header: dict, words: int, kind: Optional[str] = "tender") -> Optional[str]:
     system_msg = (
-        "You are a public-procurement drafting copilot. Draft the body of ONE tender-document "
-        "section based on the section title, hint and tender header. Return valid HTML using "
+        f"You are a public-procurement drafting copilot. Draft the body of ONE {kind_label(kind)} "
+        f"section based on the section title, hint and header. {kind_style(kind)} Return valid HTML using "
         "ONLY these tags: <p><br><b><i><ul><ol><li><h3>. Do not include the title. "
         f"Aim for approximately {words} words. Do not invent numbers not present in the context."
     )
@@ -633,7 +655,7 @@ async def ai_fill_all_sections(tid: str, payload: AiFillAllIn = AiFillAllIn(),
     for i, sec in enumerate(sections):
         if payload.only_empty and (sec.get("body") or "").strip():
             continue
-        body_html = await _draft_section(sec, header, words)
+        body_html = await _draft_section(sec, header, words, doc.get("kind"))
         if body_html:
             sections[i] = {**sec, "body": body_html}
             updated += 1
@@ -658,7 +680,7 @@ async def _fill_worker(job_id, tid: str, targets: list, header: dict, words: int
     try:
         await _fill_job_set(job_id, status="running", phase="Starting")
         for n, i in enumerate(targets):
-            doc = await db.tender_templates.find_one({"_id": ObjectId(tid)}, {"sections": 1})
+            doc = await db.tender_templates.find_one({"_id": ObjectId(tid)}, {"sections": 1, "kind": 1})
             secs = (doc or {}).get("sections") or []
             if i >= len(secs):
                 failed += 1
@@ -666,7 +688,7 @@ async def _fill_worker(job_id, tid: str, targets: list, header: dict, words: int
             sec = secs[i]
             await _fill_job_set(job_id, phase=f"Drafting section {n + 1} of {total}: {sec.get('title') or sec.get('code')}",
                                 current_code=sec.get("code"))
-            body = await _draft_section(sec, header, words)
+            body = await _draft_section(sec, header, words, (doc or {}).get("kind"))
             if body:
                 await db.tender_templates.update_one(
                     {"_id": ObjectId(tid), f"sections.{i}.code": sec.get("code")},

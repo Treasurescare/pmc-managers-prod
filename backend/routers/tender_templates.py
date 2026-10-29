@@ -132,13 +132,88 @@ PSU_SECTIONS: List[dict] = [
 ]
 
 
+def _secs(rows: list) -> List[dict]:
+    return [{"code": c, "kind": k, "title": t, "hint": h, "body": "", "order": (i + 1) * 10}
+            for i, (c, k, t, h) in enumerate(rows)]
+
+
+RFQ_SECTIONS = _secs([
+    ("rfq-1", "section", "1 · Request for Quotation Notice",
+     "Buyer, RFQ reference, short description of goods/works/services, quote due date, contact."),
+    ("rfq-2", "section", "2 · Item Schedule & Specifications",
+     "Line items with exact specification, unit, quantity, make/model or equivalent, standards."),
+    ("rfq-3", "section", "3 · Delivery Terms",
+     "Delivery location, lead time, Incoterms, packaging, partial deliveries, inspection on receipt."),
+    ("rfq-4", "section", "4 · Commercial Terms",
+     "Price basis (all-inclusive, taxes), currency, quote validity, payment terms, warranty."),
+    ("rfq-5", "section", "5 · Evaluation & Award",
+     "Lowest technically compliant quote; item-wise or total award; tie-break; right to reject."),
+    ("rfq-6", "section", "6 · How to Submit a Quote",
+     "Submission channel, required documents, clarifications deadline, late quotes."),
+    ("rfq-form-A", "form", "Form A · Price Schedule",
+     "Table: item no., description, unit, qty, unit rate, total, taxes, grand total."),
+    ("rfq-form-B", "form", "Form B · Compliance Statement",
+     "Bidder confirms each specification is met or lists deviations."),
+])
+
+RFP_SECTIONS = _secs([
+    ("rfp-1", "section", "1 · Invitation & Background",
+     "Who is issuing, the problem or need, project context and objectives."),
+    ("rfp-2", "section", "2 · Scope & Expected Outcomes",
+     "Outcomes required, scope boundaries, deliverables, milestones, constraints."),
+    ("rfp-3", "section", "3 · Instructions to Proposers",
+     "Timeline, pre-proposal meeting, questions process, submission format, page limits."),
+    ("rfp-4", "section", "4 · Technical Proposal Requirements",
+     "Approach & methodology, work plan, team and CVs, relevant experience, innovation."),
+    ("rfp-5", "section", "5 · Financial Proposal Requirements",
+     "Pricing structure, cost breakdown, payment milestones; submitted separately from technical."),
+    ("rfp-6", "section", "6 · Evaluation Criteria & Weighting",
+     "Scored criteria with weights, minimum technical score, presentations, final selection."),
+    ("rfp-7", "section", "7 · Contract Terms",
+     "Key terms of the resulting contract, IP, confidentiality, performance security."),
+    ("rfp-form-A", "form", "Form A · Technical Proposal Cover",
+     "Proposer details, authorised signatory, declaration of accuracy."),
+    ("rfp-form-B", "form", "Form B · Financial Proposal Format",
+     "Table of cost components, rates, totals, taxes."),
+    ("rfp-form-C", "form", "Form C · Team & Experience",
+     "Key personnel, role, qualifications, years of experience, similar assignments."),
+])
+
+EXTRA_MASTERS = [
+    {"name": "Standard Request for Quotation (RFQ)", "kind": "rfq",
+     "industry": "Goods / Supplies / Simple Services",
+     "header": {"work_title": "", "budget_amount": None, "period_days": 30,
+                "evaluation_method": "Lowest technically compliant quote (L1)", "bid_validity_days": 60},
+     "sections": RFQ_SECTIONS},
+    {"name": "Standard Request for Proposal (RFP)", "kind": "rfp",
+     "industry": "Consulting / Design / Solutions",
+     "header": {"work_title": "", "budget_amount": None, "period_days": 180,
+                "evaluation_method": "Quality and cost based — Technical 80 : Financial 20",
+                "minimum_technical_cutoff": 70, "bid_validity_days": 120},
+     "sections": RFP_SECTIONS},
+]
+
+
+async def _seed_extra_masters() -> int:
+    n = 0
+    for m in EXTRA_MASTERS:
+        if await db.tender_templates.find_one({"is_master": True, "seed": True, "kind": m["kind"]}):
+            continue
+        await db.tender_templates.insert_one({**m, "is_master": True, "seed": True,
+                                              "sections": [dict(s) for s in m["sections"]],
+                                              "created_at": now_iso()})
+        n += 1
+    return n
+
+
 async def seed_master_templates(force: bool = False) -> int:
     """Idempotent — creates the built-in master library on first boot."""
-    existing = await db.tender_templates.count_documents({"is_master": True})
-    if existing and not force:
-        return 0
     if force:
         await db.tender_templates.delete_many({"is_master": True, "seed": True})
+    extra = await _seed_extra_masters()
+    existing = await db.tender_templates.count_documents({"is_master": True, "kind": "tender"})
+    if existing:
+        return extra
     doc = {
         "name": "Standard PSU e-Tender (GFR 2017, QCBS 70/30)",
         "kind": "tender",
@@ -161,7 +236,7 @@ async def seed_master_templates(force: bool = False) -> int:
         "created_at": now_iso(),
     }
     await db.tender_templates.insert_one(doc)
-    return 1
+    return 1 + extra
 
 
 @router.get("")
@@ -727,7 +802,7 @@ async def ai_draft_section(tid: str, code: str,
     if not section:
         raise HTTPException(status_code=404, detail="Section not found")
     header = doc.get("header") or {}
-    from routers.tender_pro import _llm_complete
+    from routers.tender_pro import _llm_complete, kind_style, kind_label
     import re as _re
 
     words = {"short": 120, "medium": 240, "long": 420}.get(payload.length or "medium", 240)
@@ -739,7 +814,7 @@ async def ai_draft_section(tid: str, code: str,
 
     system_msg = (
         "You are a public-procurement drafting copilot. Draft ONLY the body of "
-        "one tender-document section based on the header context. "
+        f"one {kind_label(doc.get('kind'))} section based on the header context. {kind_style(doc.get('kind'))} "
         "Return valid HTML using ONLY these tags: <p> <br> <b> <i> <u> <ul> <ol> <li> "
         "<h3> <blockquote>. Do NOT include the section title — it is already on the page. "
         f"{tone_hint} Aim for approximately {words} words. Do not invent numbers not present in the context."

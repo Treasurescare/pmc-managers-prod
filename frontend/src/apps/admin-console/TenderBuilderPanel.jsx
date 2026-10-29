@@ -149,7 +149,7 @@ export default function TenderBuilderPanel({ vendorMode = false }) {
       }));
       const payload = {
         name: `${master.name} — draft ${new Date().toISOString().slice(0, 10)}`,
-        kind, industry: master.industry,
+        kind: master.kind || (kind === "all" ? "tender" : kind), industry: master.industry,
         // v52cc — fresh schedule anchored to today; the master's stored dates
         // are stale by definition and could even be out of order.
         header: { ...(master.header || {}), ...freshDateSchedule() },

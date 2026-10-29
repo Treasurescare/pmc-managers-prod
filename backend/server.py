@@ -760,6 +760,11 @@ async def on_start() -> None:
         await _seed_legal_entity_types()
     except Exception as exc:
         logging.warning("legal_entity_types seed skipped: %s", exc)
+    try:
+        from routers.tender_templates import _seed_extra_masters
+        await _seed_extra_masters()
+    except Exception as exc:
+        logging.warning("rfq/rfp starter seed skipped: %s", exc)
     if os.environ.get("SEED_DEMO_DATA", "false").lower() == "true":
         from routers.tender_templates import seed_master_templates
         seeded = await seed_master_templates()

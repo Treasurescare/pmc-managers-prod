@@ -19,6 +19,9 @@ export default function VendorMessages() {
   const readAll = async () => { try { await vendorMessagesApi.readAll(); load(); } catch (e) { showApiError(e); } };
   const shown = (rows || []).filter((m) => filter === "all" || (filter === "unread" ? !m.read : m.kind === filter));
   const unread = (rows || []).filter((m) => !m.read).length;
+  useEffect(() => {
+    if (rows) { window.dispatchEvent(new CustomEvent("pmc:messages-unread", { detail: unread })); }
+  }, [rows, unread]);
   return (
     <div data-testid="vendor-messages">
       <VendorPortalChrome active="/vendor/messages">
