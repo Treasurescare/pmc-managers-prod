@@ -23,8 +23,19 @@ from db import db, next_sequence
 from models.base import BaseDocument, now_iso
 from security import require_role
 from audit import audit_log
+from routers._tender_access import (
+    tender_principal, write_principal, is_vendor, actor as _actor,
+)
 
 router = APIRouter(prefix="/api/v1/tender-pro", tags=["tender-pro"])
+
+
+async def _vendor_scope_template(principal: dict, doc: dict) -> None:
+    """A vendor may only read/mutate their OWN non-master draft template."""
+    if not is_vendor(principal):
+        return
+    if doc.get("is_master") or doc.get("owner_vendor_id") != principal["id"]:
+        raise HTTPException(status_code=404, detail="Template not found")
 
 
 def _out(doc: dict) -> dict:
@@ -382,19 +393,21 @@ async def _load_template_opt(template_id: Optional[str]) -> Optional[dict]:
 async def analyze_dpr(file: UploadFile = File(...),
                        kind: str = Query("tender", regex="^(tender|rfp|rfq)$"),
                        template_id: Optional[str] = Query(None),
-                       admin=Depends(require_role("admin", "reviewer"))):
+                       principal=Depends(write_principal)):
     """Multipart DPR upload. Prefer /dpr/analyze-json on AWS deployments
     behind a WAF that blocks binary POST bodies."""
     body_bytes = await file.read()
     template = await _load_template_opt(template_id)
-    return await _run_dpr_analyze(file.filename, body_bytes, kind, admin, template)
+    if template:
+        await _vendor_scope_template(principal, template)
+    return await _run_dpr_analyze(file.filename, body_bytes, kind, _actor(principal), template)
 
 
 @router.post("/dpr/analyze-json")
 async def analyze_dpr_json(payload: DprAnalyzeJsonIn,
                             kind: str = Query("tender", regex="^(tender|rfp|rfq)$"),
                             template_id: Optional[str] = Query(None),
-                            admin=Depends(require_role("admin", "reviewer"))):
+                            principal=Depends(write_principal)):
     """v45c — WAF-safe DPR upload. Frontend base64-encodes the file and
     posts it as JSON so AWS WAF managed rules (which block binary bodies)
     let it through. Payload cap enforced BEFORE base64 decode.
@@ -410,7 +423,9 @@ async def analyze_dpr_json(payload: DprAnalyzeJsonIn,
     except Exception:
         raise HTTPException(status_code=400, detail="content_b64 is not valid base64")
     template = await _load_template_opt(template_id)
-    return await _run_dpr_analyze(payload.filename, body_bytes, kind, admin, template)
+    if template:
+        await _vendor_scope_template(principal, template)
+    return await _run_dpr_analyze(payload.filename, body_bytes, kind, _actor(principal), template)
 
 
 # =============================================================================
@@ -459,7 +474,7 @@ async def _dpr_job_worker(job_id: ObjectId, filename: str, body_bytes: bytes,
 async def analyze_dpr_async(payload: DprAnalyzeJsonIn,
                              kind: str = Query("tender", regex="^(tender|rfp|rfq)$"),
                              template_id: Optional[str] = Query(None),
-                             admin=Depends(require_role("admin", "reviewer"))):
+                             principal=Depends(write_principal)):
     """Kick off a background DPR analysis and return a job_id. Use this
     for very large DPRs (10 MB+ / 500+ pages) so the HTTP request doesn't
     time out. Poll /dpr/jobs/{job_id} for progress + result.
@@ -472,6 +487,8 @@ async def analyze_dpr_async(payload: DprAnalyzeJsonIn,
     except Exception:
         raise HTTPException(status_code=400, detail="content_b64 is not valid base64")
     template = await _load_template_opt(template_id)
+    if template:
+        await _vendor_scope_template(principal, template)
     now = now_iso()
     job_doc = {
         "filename": payload.filename,
@@ -482,19 +499,21 @@ async def analyze_dpr_async(payload: DprAnalyzeJsonIn,
         "result": None,
         "error": None,
         "size_bytes": len(body_bytes),
-        "admin_email": (admin or {}).get("email"),
+        "admin_email": (principal or {}).get("email"),
+        "owner_id": principal["id"],
+        "owner_kind": principal.get("kind"),
         "created_at": now,
         "updated_at": now,
     }
     r = await db.dpr_jobs.insert_one(job_doc)
     asyncio.create_task(_dpr_job_worker(r.inserted_id, payload.filename, body_bytes,
-                                          kind, admin, template))
+                                          kind, _actor(principal), template))
     return {"job_id": str(r.inserted_id), "status": "queued", "size_bytes": len(body_bytes)}
 
 
 @router.get("/dpr/jobs/{job_id}")
 async def dpr_job_status(job_id: str,
-                          admin=Depends(require_role("admin", "reviewer"))):
+                          principal=Depends(tender_principal)):
     """Poll the status of an async DPR analysis. Returns progress % and,
     once ``status == "done"``, the full analysis payload identical to what
     the synchronous /dpr/analyze-json endpoint returns."""
@@ -504,6 +523,8 @@ async def dpr_job_status(job_id: str,
         raise HTTPException(status_code=400, detail="Invalid job_id")
     doc = await db.dpr_jobs.find_one({"_id": oid})
     if not doc:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if is_vendor(principal) and doc.get("owner_id") != principal["id"]:
         raise HTTPException(status_code=404, detail="Job not found")
     return {
         "job_id": job_id,
@@ -520,41 +541,28 @@ async def dpr_job_status(job_id: str,
 
 
 def _llm_key() -> str:
-    key = os.environ.get("LLM_API_KEY") or os.environ.get("EMERGENT_LLM_KEY") or os.environ.get("LEGACY_LLM_KEY", "")
+    key = os.environ.get("EMERGENT_LLM_KEY") or os.environ.get("LLM_API_KEY") or os.environ.get("LEGACY_LLM_KEY", "")
     if not key:
-        raise HTTPException(status_code=503, detail="AI copilot is not configured (missing LLM_API_KEY)")
+        raise HTTPException(status_code=503, detail="AI copilot is not configured (missing EMERGENT_LLM_KEY)")
     return key
 
 
 async def _llm_complete(system: str, user: str) -> str:
-    """Single-shot LLM completion with correct proxy routing.
-
-    sk-managed-*  → white-label production proxy (INTEGRATION_PROXY_URL or
-                    https://api.pmcmanagers.com/llm) — same path the vendored
-                    pmc_lib uses on AWS.
-    sk-emergent-* → Emergent integrations proxy (preview / local dev).
-    anything else → direct OpenAI-compatible call.
-    """
-    import litellm
+    """Single-shot completion via Claude Sonnet 5.5 (Emergent LLM key).
+    Used for DPR analysis, section drafting and Fill-All. Price data is never
+    placed in these prompts (two-cover integrity)."""
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
     key = _llm_key()
-    params = {
-        "model": "gpt-4o-mini",
-        "messages": [{"role": "system", "content": system},
-                      {"role": "user", "content": user}],
-        "api_key": key,
-    }
-    if key.startswith("sk-managed-"):
-        proxy = os.environ.get("INTEGRATION_PROXY_URL") or "https://api.pmcmanagers.com"
-        params["api_base"] = proxy.rstrip("/") + "/llm"
-        params["custom_llm_provider"] = "openai"
-    elif key.startswith("sk-emergent-"):
-        params["api_base"] = "https://integrations.emergentagent.com/llm"
-        params["custom_llm_provider"] = "openai"
+    chat = LlmChat(
+        api_key=key,
+        session_id=f"tenderpro-{secrets.token_hex(8)}",
+        system_message=system,
+    ).with_model("anthropic", "claude-sonnet-5-5")
     try:
-        resp = await litellm.acompletion(**params)
+        resp = await chat.send_message(UserMessage(text=user))
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"LLM call failed: {type(e).__name__} {str(e)[:200]}")
-    return resp.choices[0].message.content or ""
+    return resp or ""
 
 
 @router.post("/dpr/analyze-legacy-multipart-removed")
@@ -572,13 +580,14 @@ class AiFillAllIn(BaseModel):
 
 @router.post("/templates/{tid}/ai-fill-all")
 async def ai_fill_all_sections(tid: str, payload: AiFillAllIn = AiFillAllIn(),
-                                admin=Depends(require_role("admin"))):
+                                principal=Depends(write_principal)):
     """Draft EVERY section body in one pass. Returns the updated template
     doc so the frontend can replace state atomically. Existing bodies are
     preserved when only_empty=True (default)."""
     doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
     if not doc:
         raise HTTPException(status_code=404, detail="Template not found")
+    await _vendor_scope_template(principal, doc)
     header = doc.get("header") or {}
     updated = 0
     words = {"short": 120, "medium": 240, "long": 420}.get(payload.length or "medium", 240)
@@ -612,7 +621,7 @@ async def ai_fill_all_sections(tid: str, payload: AiFillAllIn = AiFillAllIn(),
     await db.tender_templates.update_one({"_id": ObjectId(tid)},
                                           {"$set": {"sections": sections,
                                                     "updated_at": now_iso()}})
-    await audit_log("tender_pro.ai_fill_all", admin, "tender_template", tid,
+    await audit_log("tender_pro.ai_fill_all", _actor(principal), "tender_template", tid,
                     {"updated_sections": updated})
     fresh = await db.tender_templates.find_one({"_id": ObjectId(tid)})
     return {"updated": updated, "template": _out(fresh)}
@@ -626,7 +635,7 @@ async def ai_fill_all_sections(tid: str, payload: AiFillAllIn = AiFillAllIn(),
 async def next_tender_reference(country: str = Query(..., min_length=2, max_length=3),
                                  industry: str = Query("GEN"),
                                  kind: str = Query("tender", regex="^(tender|rfp|rfq)$"),
-                                 admin=Depends(require_role("admin"))):
+                                 principal=Depends(tender_principal)):
     """v45f — Guaranteed-unique tender reference:
     PMC-{COUNTRY}-{TYPE}-{YYMMDD-HHMMSS}-{RAND4}-{SEQ}
     Combines a Mongo sequence (monotonic per country+kind) with a random
@@ -649,13 +658,14 @@ class SectionPatchIn(BaseModel):
 
 @router.patch("/templates/{tid}/sections/{code}")
 async def patch_one_section(tid: str, code: str, payload: SectionPatchIn,
-                             admin=Depends(require_role("admin"))):
+                             principal=Depends(write_principal)):
     """v45 — Save a single section without rewriting the whole document.
     Bypasses the versions-array append that the full PATCH triggers, so users
     can hit "Save section" after every keystroke burst without polluting history."""
     doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
     if not doc:
         raise HTTPException(status_code=404, detail="Template not found")
+    await _vendor_scope_template(principal, doc)
     sections = doc.get("sections") or []
     idx = next((i for i, s in enumerate(sections) if s.get("code") == code), None)
     if idx is None:
@@ -665,7 +675,7 @@ async def patch_one_section(tid: str, code: str, payload: SectionPatchIn,
     await db.tender_templates.update_one({"_id": ObjectId(tid)},
                                           {"$set": {"sections": sections,
                                                     "updated_at": now_iso()}})
-    await audit_log("tender_pro.section_save", admin, "tender_template", tid,
+    await audit_log("tender_pro.section_save", _actor(principal), "tender_template", tid,
                     {"code": code, "keys": list(patch.keys())})
     return {"ok": True, "section": sections[idx]}
 
@@ -682,12 +692,15 @@ class SaveAsMasterIn(BaseModel):
 
 @router.post("/templates/{tid}/save-as-master")
 async def save_as_master(tid: str, payload: SaveAsMasterIn,
-                          admin=Depends(require_role("admin"))):
+                          principal=Depends(write_principal)):
     """Promote a working draft to the master library under a specific
-    (country, industry) so the same organisation can reuse it later."""
+    (country, industry). Staff masters are published immediately; vendor-
+    contributed masters stay `moderation_status=pending` and only enter the
+    SHARED library once an active reviewer approves them."""
     doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
     if not doc:
         raise HTTPException(status_code=404, detail="Template not found")
+    await _vendor_scope_template(principal, doc)
     clone = {k: v for k, v in doc.items() if k != "_id"}
     clone["is_master"] = True
     clone["seed"] = False
@@ -695,14 +708,22 @@ async def save_as_master(tid: str, payload: SaveAsMasterIn,
     clone["industry"] = payload.industry
     clone["name"] = payload.name or f"{doc.get('name', 'Untitled')} · {payload.country.upper()} master"
     clone["created_at"] = now_iso()
-    clone["created_by"] = admin["id"]
+    clone["created_by"] = principal["id"]
     clone.pop("versions", None)
     clone.pop("version", None)
+    clone.pop("review_status", None)
     for sec in clone.get("sections") or []:
         sec.pop("attachment", None)  # masters ship with no per-clone files
+    if is_vendor(principal):
+        clone["moderation_status"] = "pending"
+        clone["owner_vendor_id"] = principal["id"]
+        clone["owner_vendor_ref"] = principal.get("vendor_ref")
+    else:
+        clone["moderation_status"] = "approved"
     res = await db.tender_templates.insert_one(clone)
-    await audit_log("tender_pro.save_as_master", admin, "tender_template", str(res.inserted_id),
-                    {"source": tid, "country": clone["country"], "industry": clone["industry"]})
+    await audit_log("tender_pro.save_as_master", _actor(principal), "tender_template", str(res.inserted_id),
+                    {"source": tid, "country": clone["country"], "industry": clone["industry"],
+                     "moderation_status": clone["moderation_status"]})
     return _out(await db.tender_templates.find_one({"_id": res.inserted_id}))
 
 

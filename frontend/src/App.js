@@ -152,7 +152,7 @@ import AdminVendorRequestsE from "@/apps/admin-console-e/AdminVendorRequestsE";
 import AdminProfileChangesE from "@/apps/admin-console-e/AdminProfileChangesE";
 import AdminGovernanceE from "@/apps/admin-console-e/AdminGovernanceE";
 import AdminTenderReviewE from "@/apps/admin-console-e/AdminTenderReviewE";
-import VendorTenderBuilderE from "@/apps/vendor-portal-e/VendorTenderBuilderE";
+import VendorTenderBuilderFull from "@/apps/vendor-portal-e/VendorTenderBuilderFull";
 import DialogsE from "@/apps/reference-e/DialogsE";
 import StatesE from "@/apps/reference-e/StatesE";
 import EmailsE from "@/apps/reference-e/EmailsE";
@@ -295,7 +295,7 @@ export default function App() {
             {/* Vendor Option-E multi-page routes */}
             <Route path="/vendor/mybids" element={<RequireVendor><VendorMyBidsE /></RequireVendor>} />
             <Route path="/vendor/tenders" element={<RequireVendor><VendorFindTendersE /></RequireVendor>} />
-            <Route path="/vendor/tender-builder" element={<RequireVendor><VendorTenderBuilderE /></RequireVendor>} />
+            <Route path="/vendor/tender-builder" element={<RequireVendor><VendorTenderBuilderFull /></RequireVendor>} />
             <Route path="/vendor/workspace/:bidId" element={<RequireVendor><VendorBidWorkspaceE /></RequireVendor>} />
             <Route path="/vendor/emd" element={<RequireVendor><VendorEmdE /></RequireVendor>} />
             <Route path="/vendor/signatures" element={<RequireVendor><VendorSignaturesE /></RequireVendor>} />

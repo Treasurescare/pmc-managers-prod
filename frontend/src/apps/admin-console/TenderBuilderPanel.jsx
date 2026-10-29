@@ -71,7 +71,7 @@ const NOTICE_MANDATORY = [
   ["sub_end", "Bid Submission End Date (Critical Dates)"],
 ];
 
-export default function TenderBuilderPanel() {
+export default function TenderBuilderPanel({ vendorMode = false }) {
   const { t } = useI18n();
   const navigate = useNavigate();
   const [list, setList] = useState([]);
@@ -653,11 +653,26 @@ export default function TenderBuilderPanel() {
                       {saveMasterBusy ? "Saving…" : "★ Save as master"}
                     </button>
                   )}
-                  {!doc.is_master && (
+                  {!doc.is_master && !vendorMode && (
                     <button onClick={createNoticeFromDraft} data-testid="tb-create-notice"
                             className="px-4 py-2 text-[12px] uppercase tracking-widest bg-brand-navy-soft text-white hover:bg-brand-navy-soft/90">
                       ⇢ Create notice
                       <InfoDot tip="Turns this draft into a real Notice (Admin → Notices → New notice, pre-filled). Requires all starred (*) fields: Title, Work Description, Tender Value, Product Category and Bid Submission End Date. Attach the primary tender PDF there, then publish." />
+                    </button>
+                  )}
+                  {!doc.is_master && vendorMode && (
+                    <button data-testid="tb-submit-review"
+                            onClick={async () => {
+                              try {
+                                await tenderTemplateApi.submitReview(doc.id);
+                                toast.success("Submitted for PMC review");
+                                await load();
+                                await openTemplate(doc.id);
+                              } catch (e) { showApiError(e); }
+                            }}
+                            className="px-4 py-2 text-[12px] uppercase tracking-widest bg-brand-navy-soft text-white hover:bg-brand-navy-soft/90">
+                      ⇢ Submit for PMC review
+                      <InfoDot tip="Sends this tender to a PMC reviewer. You cannot publish directly — an active reviewer approves it before it goes live. You cannot bid on a tender you prepared." />
                     </button>
                   )}
                 </div>

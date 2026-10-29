@@ -23,6 +23,9 @@ from db import db
 from models.base import BaseDocument, now_iso
 from security import require_role
 from routers.vendor_auth import current_vendor
+from routers._tender_access import (
+    sub_config as _ta_sub_config, vendor_entitlement, vendor_country,
+)
 from audit import audit_log
 
 router = APIRouter(prefix="/api/v1/vendor-tenders", tags=["vendor-tenders"])
@@ -64,13 +67,14 @@ def _sub_active(vdoc: dict) -> bool:
 
 
 async def _require_build_access(vendor: dict) -> dict:
-    """Vendor must be KYC-verified and (if subscriptions are live) subscribed."""
+    """Vendor must be KYC-verified and entitled (free when the Fee Master has no
+    price for their country, otherwise an active subscription is required)."""
     if (vendor.get("kyc_status") or "verified") != "verified":
         raise HTTPException(status_code=403,
             detail="Your account must be approved and KYC-verified before preparing tenders.")
-    cfg = await _sub_config()
     vdoc = await _vendor_doc(vendor)
-    if cfg.get("enabled") and float(cfg.get("amount") or 0) > 0 and not _sub_active(vdoc):
+    ent = await vendor_entitlement(vdoc)
+    if not ent["entitled"]:
         raise HTTPException(status_code=402,
             detail="A tender-builder subscription is required. Please subscribe to continue.")
     return vdoc
@@ -78,14 +82,17 @@ async def _require_build_access(vendor: dict) -> dict:
 
 @router.get("/subscription")
 async def my_subscription(vendor=Depends(current_vendor)):
-    cfg = await _sub_config()
     vdoc = await _vendor_doc(vendor)
+    ent = await vendor_entitlement(vdoc)
     return {
-        "required": bool(cfg.get("enabled")) and float(cfg.get("amount") or 0) > 0,
-        "price": {"amount": cfg.get("amount"), "currency": cfg.get("currency"),
-                  "period_days": cfg.get("period_days")},
-        "active": _sub_active(vdoc),
-        "expires_at": (vdoc.get("tender_builder_sub") or {}).get("expires_at"),
+        "required": ent["sub_required"],
+        "free": ent["free"],
+        "price": ent["price"],
+        "active": ent["sub_active"],
+        "expires_at": ent["sub_expires_at"],
+        "entitled": ent["entitled"],
+        "read_only": ent["read_only"],
+        "country": ent["country"],
     }
 
 
@@ -119,10 +126,11 @@ class SubCheckoutIn(BaseModel):
 
 @router.post("/subscription/checkout")
 async def subscribe_checkout(payload: SubCheckoutIn, vendor=Depends(current_vendor)):
-    cfg = await _sub_config()
+    vdoc = await _vendor_doc(vendor)
+    cfg = await _ta_sub_config(vendor_country(vdoc))
     amount = float(cfg.get("amount") or 0)
     if not cfg.get("enabled") or amount <= 0:
-        raise HTTPException(status_code=400, detail="No paid subscription is active right now.")
+        raise HTTPException(status_code=400, detail="No paid subscription is active for your country right now.")
     currency = (cfg.get("currency") or "usd").lower()
     from pmc_lib.payments.stripe.checkout import StripeCheckout, CheckoutSessionRequest
     api_key = os.environ["STRIPE_API_KEY"]
@@ -169,7 +177,8 @@ async def _activate_subscription(vendor_id: Optional[str]):
     if not vendor_id:
         return
     from bson import ObjectId
-    cfg = await _sub_config()
+    v = await db.vendors.find_one({"_id": ObjectId(vendor_id)})
+    cfg = await _ta_sub_config(vendor_country(v or {}))
     days = int(cfg.get("period_days") or 365)
     expires = (datetime.now(timezone.utc) + timedelta(days=days)).isoformat()
     await db.vendors.update_one({"_id": ObjectId(vendor_id)},

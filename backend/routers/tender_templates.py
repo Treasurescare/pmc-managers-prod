@@ -27,6 +27,10 @@ import config
 from db import db
 from models.base import BaseDocument, now_iso
 from security import require_role
+from routers._tender_access import (
+    tender_principal, write_principal, is_vendor, scope_filter,
+    assert_can_read_doc, assert_can_edit_doc, actor,
+)
 from audit import audit_log
 
 router = APIRouter(prefix="/api/v1/tender-templates", tags=["tender-templates"])
@@ -160,9 +164,9 @@ async def seed_master_templates(force: bool = False) -> int:
 
 @router.get("")
 async def list_templates(kind: Optional[str] = None,
-                         admin=Depends(require_role("admin", "reviewer", "auditor"))):
-    """List every saved template (master + user-cloned)."""
-    q = {}
+                         principal=Depends(tender_principal)):
+    """List templates visible to the caller (staff: all; vendor: own + shared masters)."""
+    q = scope_filter(principal, {})
     if kind:
         q["kind"] = kind
     docs = [d async for d in db.tender_templates.find(q).sort("created_at", -1)]
@@ -182,22 +186,28 @@ async def list_templates(kind: Optional[str] = None,
 
 
 @router.get("/{tid}")
-async def get_template(tid: str, admin=Depends(require_role("admin", "reviewer", "auditor"))):
+async def get_template(tid: str, principal=Depends(tender_principal)):
     doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
     if not doc:
         raise HTTPException(status_code=404, detail="Template not found")
+    assert_can_read_doc(principal, doc)
     return _out(doc)
 
 
 @router.post("")
 async def create_from_master(payload: TenderTemplateIn,
-                             admin=Depends(require_role("admin"))):
+                             principal=Depends(write_principal)):
     """Clone a master into a working draft (or accept a fully custom one)."""
     doc = payload.model_dump()
     doc["is_master"] = False
     doc["seed"] = False
     doc["created_at"] = now_iso()
-    doc["created_by"] = admin["id"]
+    doc["created_by"] = principal["id"]
+    if is_vendor(principal):
+        doc["owner_vendor_id"] = principal["id"]
+        doc["owner_vendor_ref"] = principal.get("vendor_ref")
+        doc["owner_company_name"] = principal.get("company_name")
+        doc["review_status"] = "draft"
     # Auto-assign section order if omitted (Bug #1 fix — clone-as-draft
     # was 500ing because the payload dropped 'order').
     # Bug #69/#70/#71 — server-side defence: even if the frontend forgets to
@@ -211,26 +221,28 @@ async def create_from_master(payload: TenderTemplateIn,
         sec.pop("id", None)
     res = await db.tender_templates.insert_one(doc)
     doc["_id"] = res.inserted_id
-    await audit_log("tender_template.create", admin, "tender_template", str(res.inserted_id),
+    await audit_log("tender_template.create", actor(principal), "tender_template", str(res.inserted_id),
                     {"name": payload.name, "sections": len(payload.sections)})
     return _out(doc)
 
 
 @router.patch("/{tid}")
 async def patch_template(tid: str, payload: TenderTemplateIn,
-                         admin=Depends(require_role("admin"))):
+                         principal=Depends(write_principal)):
+    existing = await db.tender_templates.find_one({"_id": ObjectId(tid)})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Not found")
+    assert_can_edit_doc(principal, existing)
+    if is_vendor(principal) and existing.get("review_status") in ("submitted", "approved"):
+        raise HTTPException(status_code=409,
+            detail=f"This tender is '{existing.get('review_status')}' and can't be edited now.")
     body = payload.model_dump()
     # Never let a user flip is_master via PATCH
     body.pop("is_master", None)
     body["updated_at"] = now_iso()
-    # Snapshot the current state into a rolling versions[] before overwriting,
-    # so admins can revert to any of the last 20 saves.
-    existing = await db.tender_templates.find_one({"_id": ObjectId(tid)})
-    if not existing:
-        raise HTTPException(status_code=404, detail="Not found")
     snapshot = {
         "saved_at": now_iso(),
-        "saved_by": admin.get("email"),
+        "saved_by": (principal or {}).get("email"),
         "name": existing.get("name"),
         "header": existing.get("header") or {},
         "sections": existing.get("sections") or [],
@@ -240,22 +252,24 @@ async def patch_template(tid: str, payload: TenderTemplateIn,
     body["versions"] = versions
     body["version"] = len(versions) + 1
     await db.tender_templates.update_one({"_id": ObjectId(tid)}, {"$set": body})
-    await audit_log("tender_template.update", admin, "tender_template", tid,
+    await audit_log("tender_template.update", actor(principal), "tender_template", tid,
                     {"name": payload.name, "version": body["version"]})
     return _out(await db.tender_templates.find_one({"_id": ObjectId(tid)}))
 
 
 @router.get("/{tid}/versions")
-async def list_versions(tid: str,
-                         admin=Depends(require_role("admin", "reviewer", "auditor"))):
-    """List rolling snapshots so admins can revert."""
+async def list_versions(tid: str, principal=Depends(tender_principal)):
+    """List rolling snapshots so the owner can revert."""
     try:
-        doc = await db.tender_templates.find_one({"_id": ObjectId(tid)},
-                                                   {"versions": 1, "name": 1})
+        doc = await db.tender_templates.find_one(
+            {"_id": ObjectId(tid)},
+            {"versions": 1, "name": 1, "is_master": 1,
+             "owner_vendor_id": 1, "moderation_status": 1})
     except Exception:
         raise HTTPException(status_code=400, detail="Malformed template id")
     if not doc:
         raise HTTPException(status_code=404, detail="Not found")
+    assert_can_read_doc(principal, doc)
     out = []
     for i, v in enumerate(doc.get("versions") or []):
         out.append({
@@ -270,19 +284,20 @@ async def list_versions(tid: str,
 
 @router.post("/{tid}/versions/{index}/restore")
 async def restore_version(tid: str, index: int,
-                            admin=Depends(require_role("admin"))):
+                            principal=Depends(write_principal)):
     try:
         doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
     except Exception:
         raise HTTPException(status_code=400, detail="Malformed template id")
     if not doc:
         raise HTTPException(status_code=404, detail="Not found")
+    assert_can_edit_doc(principal, doc)
     versions = doc.get("versions") or []
     if not (0 <= index < len(versions)):
         raise HTTPException(status_code=404, detail="Version index out of range")
     v = versions[index]
     # Also snapshot the current state so the restore itself is undoable.
-    snap = {"saved_at": now_iso(), "saved_by": f"{admin.get('email')} (before restore)",
+    snap = {"saved_at": now_iso(), "saved_by": f"{(principal or {}).get('email')} (before restore)",
             "name": doc.get("name"), "header": doc.get("header") or {},
             "sections": doc.get("sections") or []}
     new_versions = (versions + [snap])[-20:]
@@ -294,25 +309,26 @@ async def restore_version(tid: str, index: int,
             "versions": new_versions, "version": len(new_versions) + 1,
         }},
     )
-    await audit_log("tender_template.restore", admin, "tender_template", tid,
+    await audit_log("tender_template.restore", actor(principal), "tender_template", tid,
                     {"restored_index": index, "restored_saved_at": v.get("saved_at")})
     return _out(await db.tender_templates.find_one({"_id": ObjectId(tid)}))
 
 
 @router.delete("/{tid}")
-async def delete_template(tid: str, admin=Depends(require_role("admin"))):
+async def delete_template(tid: str, principal=Depends(write_principal)):
     doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
     if not doc:
         raise HTTPException(status_code=404, detail="Not found")
     if doc.get("is_master"):
         raise HTTPException(status_code=403, detail="Master templates cannot be deleted")
+    assert_can_edit_doc(principal, doc)
     await db.tender_templates.delete_one({"_id": ObjectId(tid)})
-    await audit_log("tender_template.delete", admin, "tender_template", tid, {})
+    await audit_log("tender_template.delete", actor(principal), "tender_template", tid, {})
     return {"ok": True}
 
 
 @router.post("/seed")
-async def reseed(admin=Depends(require_role("admin"))):
+async def reseed(admin = Depends(require_role("admin"))):
     """Admin-triggered re-seed of the master template library."""
     n = await seed_master_templates(force=True)
     return {"ok": True, "created": n}
@@ -321,12 +337,13 @@ async def reseed(admin=Depends(require_role("admin"))):
 @router.post("/{tid}/sections/{code}/attachment")
 async def upload_section_attachment(tid: str, code: str,
                                      file: UploadFile = File(...),
-                                     admin=Depends(require_role("admin"))):
+                                     principal=Depends(write_principal)):
     """Attach a per-section template file (e.g. Annexure VIII bank cert layout).
     Bidders can download the exact required format from the Notice detail page."""
     doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
     if not doc:
         raise HTTPException(status_code=404, detail="Template not found")
+    assert_can_edit_doc(principal, doc)
     sections = doc.get("sections", [])
     idx = next((i for i, s in enumerate(sections) if s.get("code") == code), -1)
     if idx < 0:
@@ -344,22 +361,23 @@ async def upload_section_attachment(tid: str, code: str,
         "file_name": file.filename, "url": f"/api/v1/uploads/files/{key}",
         "content_type": file.content_type or "application/octet-stream",
         "size_bytes": len(body), "uploaded_at": now_iso(),
-        "uploaded_by": admin["email"],
+        "uploaded_by": principal["email"],
     }
     sections[idx]["attachment"] = meta
     await db.tender_templates.update_one({"_id": ObjectId(tid)},
                                           {"$set": {"sections": sections, "updated_at": now_iso()}})
-    await audit_log("tender_template.section_attachment", admin, "tender_template", tid,
+    await audit_log("tender_template.section_attachment", actor(principal), "tender_template", tid,
                     {"code": code, "file_name": file.filename})
     return _out(await db.tender_templates.find_one({"_id": ObjectId(tid)}))
 
 
 @router.delete("/{tid}/sections/{code}/attachment")
 async def remove_section_attachment(tid: str, code: str,
-                                     admin=Depends(require_role("admin"))):
+                                     principal=Depends(write_principal)):
     doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
     if not doc:
         raise HTTPException(status_code=404, detail="Template not found")
+    assert_can_edit_doc(principal, doc)
     sections = doc.get("sections", [])
     idx = next((i for i, s in enumerate(sections) if s.get("code") == code), -1)
     if idx < 0:
@@ -367,7 +385,7 @@ async def remove_section_attachment(tid: str, code: str,
     sections[idx].pop("attachment", None)
     await db.tender_templates.update_one({"_id": ObjectId(tid)},
                                           {"$set": {"sections": sections, "updated_at": now_iso()}})
-    await audit_log("tender_template.section_attachment_remove", admin, "tender_template", tid,
+    await audit_log("tender_template.section_attachment_remove", actor(principal), "tender_template", tid,
                     {"code": code})
     return _out(await db.tender_templates.find_one({"_id": ObjectId(tid)}))
 
@@ -652,7 +670,7 @@ class AiDraftIn(BaseModel):
 @router.post("/{tid}/sections/{code}/ai-draft")
 async def ai_draft_section(tid: str, code: str,
                             payload: AiDraftIn = AiDraftIn(),
-                            admin=Depends(require_role("admin", "reviewer"))):
+                            principal=Depends(write_principal)):
     """Fill a section body with an LLM draft — uses the same _llm_complete
     helper the DPR pipeline uses so the Emergent proxy routing is honoured.
     Reads the tender header as context so language stays consistent.
@@ -668,6 +686,7 @@ async def ai_draft_section(tid: str, code: str,
         raise HTTPException(status_code=400, detail="Malformed template id")
     if not doc:
         raise HTTPException(status_code=404, detail="Template not found")
+    assert_can_edit_doc(principal, doc)
     section = next((s for s in doc.get("sections", []) if s.get("code") == code), None)
     if not section:
         raise HTTPException(status_code=404, detail="Section not found")
@@ -707,7 +726,7 @@ async def ai_draft_section(tid: str, code: str,
     if raw.startswith("```"):
         raw = _re.sub(r"^```(?:html)?", "", raw).rstrip("`").strip()
     body = _sanitize_body(raw)
-    await audit_log("tender_template.ai_draft", admin, "tender_template", tid,
+    await audit_log("tender_template.ai_draft", actor(principal), "tender_template", tid,
                     {"code": code, "tone": payload.tone, "length": payload.length})
     return {"body": body}
 
@@ -807,7 +826,7 @@ async def bulk_upload_attachments(tid: str,
 
 @router.get("/{tid}/export/pdf")
 async def export_tender_pdf(tid: str, lang: Optional[str] = "en",
-                              admin=Depends(require_role("admin", "reviewer", "auditor"))):
+                              principal=Depends(tender_principal)):
     """Server-side HTML→PDF render of the composed tender via WeasyPrint —
     returns a real application/pdf response the browser downloads directly.
     `lang=en|ru|kk` swaps the static labels + watermark; user-authored bodies
@@ -818,6 +837,7 @@ async def export_tender_pdf(tid: str, lang: Optional[str] = "en",
         raise HTTPException(status_code=400, detail="Malformed template id")
     if not doc:
         raise HTTPException(status_code=404, detail="Template not found")
+    assert_can_read_doc(principal, doc)
     from weasyprint import HTML
     pdf_bytes = HTML(string=_render_tender_html(doc, lang=lang)).write_pdf()
     safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in (doc.get("name") or "tender"))[:60]
@@ -830,3 +850,145 @@ async def export_tender_pdf(tid: str, lang: Optional[str] = "en",
             "X-Content-Type-Options": "nosniff",
         },
     )
+
+
+# =============================================================================
+# R9 — vendor submit-for-review + active-reviewer moderation (tenders + masters)
+# =============================================================================
+
+class TplReviewIn(BaseModel):
+    note: Optional[str] = None
+
+
+@router.post("/{tid}/submit-review")
+async def submit_template_for_review(tid: str, principal=Depends(write_principal)):
+    """A vendor submits their own draft for mandatory PMC review. Vendors never
+    publish directly — an active reviewer must approve."""
+    doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Template not found")
+    assert_can_edit_doc(principal, doc)
+    if not is_vendor(principal):
+        raise HTTPException(status_code=400, detail="Only vendor drafts are submitted for review.")
+    if doc.get("review_status") not in (None, "draft", "changes_requested"):
+        raise HTTPException(status_code=409, detail=f"Already '{doc.get('review_status')}'.")
+    await db.tender_templates.update_one({"_id": ObjectId(tid)},
+        {"$set": {"review_status": "submitted", "submitted_at": now_iso()}})
+    await audit_log("tender_template.submit_review", actor(principal), "tender_template", tid, {})
+    return {"ok": True, "review_status": "submitted"}
+
+
+@router.get("/review/queue")
+async def template_review_queue(status: Optional[str] = "submitted",
+                                officer=Depends(require_role("reviewer"))):
+    """Active-reviewer-only queue of vendor-prepared tenders."""
+    q: dict = {"owner_vendor_id": {"$exists": True}, "is_master": {"$ne": True}}
+    if status:
+        q["review_status"] = status
+    cur = db.tender_templates.find(q).sort("submitted_at", -1)
+    return {"items": [_out(d) async for d in cur]}
+
+
+@router.post("/{tid}/review/approve")
+async def approve_template(tid: str, payload: TplReviewIn = TplReviewIn(),
+                           officer=Depends(require_role("reviewer"))):
+    """Active reviewer approves a vendor tender → publishes it as a notice with
+    the originating vendor preserved as author (bid conflict-guard uses this)."""
+    doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
+    if not doc or not doc.get("owner_vendor_id"):
+        raise HTTPException(status_code=404, detail="Vendor tender not found")
+    if doc.get("review_status") != "submitted":
+        raise HTTPException(status_code=409, detail=f"Tender is '{doc.get('review_status')}', not awaiting review.")
+    header = doc.get("header") or {}
+    ref = "VT-" + uuid.uuid4().hex[:8].upper()
+    notice = {
+        "notice_ref": ref,
+        "title": header.get("work_title") or doc.get("name") or "Vendor tender",
+        "description": header.get("work_description") or "",
+        "category": header.get("product_category") or header.get("tender_category"),
+        "submission_deadline": header.get("sub_end"),
+        "budget_currency": header.get("budget_currency") or "USD",
+        "budget_amount": header.get("budget_amount") or header.get("tender_value"),
+        "delivery_country": doc.get("country") or header.get("location"),
+        "origin": "vendor",
+        "review_status": "approved",
+        "is_published": True,
+        "published_at": now_iso(),
+        "prepared_by_vendor_id": doc.get("owner_vendor_id"),
+        "prepared_by_vendor_ref": doc.get("owner_vendor_ref"),
+        "author_name": doc.get("owner_company_name") or "Vendor",
+        "tender_template_id": tid,
+        "reviewed_by": officer["email"],
+        "reviewed_at": now_iso(),
+        "review_note": payload.note,
+        "created_at": now_iso(),
+    }
+    await db.notices.insert_one(notice)
+    await db.tender_templates.update_one({"_id": ObjectId(tid)},
+        {"$set": {"review_status": "approved", "published_notice_ref": ref,
+                  "reviewed_by": officer["email"], "reviewed_at": now_iso(),
+                  "review_note": payload.note}})
+    await audit_log("tender_template.approve", officer, "tender_template", tid,
+                    {"published_notice_ref": ref, "author": notice["author_name"]})
+    return {"ok": True, "review_status": "approved", "notice_ref": ref}
+
+
+@router.post("/{tid}/review/request-changes")
+async def request_changes_template(tid: str, payload: TplReviewIn = TplReviewIn(),
+                                   officer=Depends(require_role("reviewer"))):
+    doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
+    if not doc or not doc.get("owner_vendor_id"):
+        raise HTTPException(status_code=404, detail="Vendor tender not found")
+    await db.tender_templates.update_one({"_id": ObjectId(tid)},
+        {"$set": {"review_status": "changes_requested", "reviewed_by": officer["email"],
+                  "reviewed_at": now_iso(), "review_note": payload.note}})
+    await audit_log("tender_template.request_changes", officer, "tender_template", tid, {"note": payload.note})
+    return {"ok": True, "review_status": "changes_requested"}
+
+
+@router.post("/{tid}/review/reject")
+async def reject_template(tid: str, payload: TplReviewIn = TplReviewIn(),
+                          officer=Depends(require_role("reviewer"))):
+    doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
+    if not doc or not doc.get("owner_vendor_id"):
+        raise HTTPException(status_code=404, detail="Vendor tender not found")
+    await db.tender_templates.update_one({"_id": ObjectId(tid)},
+        {"$set": {"review_status": "rejected", "reviewed_by": officer["email"],
+                  "reviewed_at": now_iso(), "review_note": payload.note}})
+    await audit_log("tender_template.reject", officer, "tender_template", tid, {"note": payload.note})
+    return {"ok": True, "review_status": "rejected"}
+
+
+@router.get("/masters/pending")
+async def pending_master_queue(officer=Depends(require_role("reviewer"))):
+    """Active-reviewer-only queue of vendor-contributed templates awaiting entry
+    into the SHARED master library."""
+    cur = db.tender_templates.find(
+        {"is_master": True, "moderation_status": "pending"}).sort("created_at", -1)
+    return {"items": [_out(d) async for d in cur]}
+
+
+@router.post("/{tid}/master/approve")
+async def approve_master(tid: str, payload: TplReviewIn = TplReviewIn(),
+                         officer=Depends(require_role("reviewer"))):
+    doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
+    if not doc or not doc.get("is_master"):
+        raise HTTPException(status_code=404, detail="Master template not found")
+    await db.tender_templates.update_one({"_id": ObjectId(tid)},
+        {"$set": {"moderation_status": "approved", "approved_by": officer["email"],
+                  "approved_at": now_iso()}})
+    await audit_log("tender_template.master_approve", officer, "tender_template", tid, {})
+    return {"ok": True, "moderation_status": "approved"}
+
+
+@router.post("/{tid}/master/reject")
+async def reject_master(tid: str, payload: TplReviewIn = TplReviewIn(),
+                        officer=Depends(require_role("reviewer"))):
+    doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
+    if not doc or not doc.get("is_master"):
+        raise HTTPException(status_code=404, detail="Master template not found")
+    await db.tender_templates.update_one({"_id": ObjectId(tid)},
+        {"$set": {"moderation_status": "rejected", "reviewed_by": officer["email"],
+                  "reviewed_at": now_iso(), "review_note": payload.note}})
+    await audit_log("tender_template.master_reject", officer, "tender_template", tid, {"note": payload.note})
+    return {"ok": True, "moderation_status": "rejected"}

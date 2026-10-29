@@ -1080,6 +1080,23 @@ export const tenderTemplateApi = {
     api.get(`/api/v1/tender-templates/${id}/versions`).then((r) => r.data),
   restoreVersion: (id, index) =>
     api.post(`/api/v1/tender-templates/${id}/versions/${index}/restore`).then((r) => r.data),
+  // R9 — vendor submit-for-review + active-reviewer moderation
+  submitReview: (id) =>
+    api.post(`/api/v1/tender-templates/${id}/submit-review`).then((r) => r.data),
+  reviewQueue: (status) =>
+    api.get("/api/v1/tender-templates/review/queue", { params: status ? { status } : {} }).then((r) => r.data),
+  reviewApprove: (id, note) =>
+    api.post(`/api/v1/tender-templates/${id}/review/approve`, { note }).then((r) => r.data),
+  reviewRequestChanges: (id, note) =>
+    api.post(`/api/v1/tender-templates/${id}/review/request-changes`, { note }).then((r) => r.data),
+  reviewReject: (id, note) =>
+    api.post(`/api/v1/tender-templates/${id}/review/reject`, { note }).then((r) => r.data),
+  pendingMasters: () =>
+    api.get("/api/v1/tender-templates/masters/pending").then((r) => r.data),
+  approveMaster: (id) =>
+    api.post(`/api/v1/tender-templates/${id}/master/approve`).then((r) => r.data),
+  rejectMaster: (id, note) =>
+    api.post(`/api/v1/tender-templates/${id}/master/reject`, { note }).then((r) => r.data),
 };
 
 // v45 — Tender Pro: DPR upload, AI fill-all, per-section save, masters, ratings.
