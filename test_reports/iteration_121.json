@@ -1,0 +1,39 @@
+{
+  "summary": "Tested the Fee Type master, Fee rules (formerly EMD rules) and per-tender fees in the vendor Tender Builder, on both the backend and the UI. Backend: the new suite tests/test_r10_fee_types.py passed 33/33. Regression suites passed when run serially with -n 0: test_r9_vendor_tender_builder.py 21/21 and test_r9b_scope_fillall_dpr_sub.py 14/14. UI: the Fee types tab works (8 seeded types listed; create, edit and the delete-in-use 409 toast all work). The Fee rules tab works: the fee-type dropdown, the type summary, the single-amount layout with no range button, the 'all categories' hint, and the multi-select CategoryPicker (search, chips, count, a required tick for 'selected' types). Multi-range rules save, the list shows the fee type name and categories, and the 2 existing KZ rules open and save fine. Vendor builder: the fees panel shows 2 fees. An upfront fee that is unpaid blocks AI fill all with a 402 toast. An unpaid on-completion fee blocks submit with a 402 toast. A real Stripe test checkout (4242) returns to ?fee_session=..., shows the 'Payment received' toast, the fee shows '✓ Paid', and the transaction was marked credited. All test data has been cleaned up.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PATCH /api/v1/tender-templates/{tid}", "issue": "The upfront-fee gate can be bypassed. Section content can still be written through a full template PATCH, which sends the sections array, while an upfront fee is unpaid (verified: 200 and the body persisted, while PATCH /tender-pro/templates/{tid}/sections/{code} correctly returns 402). If 'upfront' is meant to stop all work before payment, this PATCH should keep header changes but reject section-body changes (or the bulk attachment upload) while upfront fees are unpaid. The builder's normal Save button probably uses this same PATCH, so manual typing plus Save is not blocked."},
+      {"endpoint": "POST /api/v1/tender-pro/dpr/analyze-* without template_id", "issue": "DPR analysis without a template_id skips assert_fees_paid entirely, so a vendor can still use the AI DPR analysis before paying an upfront fee. This may be acceptable by design."},
+      {"endpoint": "POST /api/v1/vendor-tenders/fees/{tid}/checkout", "issue": "success_url is /vendor/tender-builder?fee_session=... with no template id. After paying, the vendor lands on the builder with no tender open and has to find and reopen the draft to see '✓ Paid'. Suggest adding &tid= and auto-opening that tender."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Masters → Fee rules form", "issues": ["The 'Pct max (cap)' input still shows when the slab type is Fixed (it has no effect there)", "Success toasts still say 'EMD master created/updated' instead of 'Fee rule saved'", "The default slab type for a 'fixed or %' type is % even after switching from a fixed type; minor"]},
+      {"screen": "Vendor Tender Builder submit", "issues": ["When both an upfront and an on-completion fee are due, the submit-review 402 names the on-completion fee first. That is fine, but the panel could highlight which fee blocks which action."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_r10_fee_types.py", "/app/backend/tests/_r10_ui_setup.py", "/app/test_reports/pytest/r10_fee_types.xml"],
+  "action_items": [
+    "Decide on and enforce the upfront gate for section content in PATCH /tender-templates/{tid}: reject section-body changes while upfront fees are unpaid, and still allow header, category and value changes",
+    "Include the template id in the fee checkout success_url and auto-open that tender after returning from Stripe",
+    "Hide 'Pct max (cap)' for Fixed slabs; rename the 'EMD master' toasts to 'Fee rule'"
+  ],
+  "critical_code_review_comments": [
+    "tender_builder_fees: a rule scoped to selected categories never applies until header.product_category is set. Submit requires a category, so on-completion fees are safe, but upfront fees are not charged at all while the category is empty: a vendor can work freely with no category set, then set it later.",
+    "The tender value used for fees is declared by the vendor (header.tender_value / budget_amount). Raising it later makes the difference due (verified), but nothing stops a vendor declaring a low value; the reviewer should check this.",
+    "fee_types PATCH/DELETE use ObjectId(fid) without try/except, so a malformed id gives a 500 instead of a 400/404.",
+    "Changing a fee type's code is blocked (good), but deactivating a type has no effect on rules that already exist. The type's is_active only filters tender_builder_fees.",
+    "Webhook crediting is correctly idempotent (credited flag via find_one_and_update), and the status endpoint is owner-scoped (404 for another vendor, verified)."
+  ],
+  "updated_files": ["/app/backend/tests/test_r10_fee_types.py (new)", "/app/backend/tests/_r10_ui_setup.py (new UI setup/cleanup helper)"],
+  "success_rate": {"backend": "100% (33/33 new + 35/35 regression)", "frontend": "100% of tested flows"},
+  "test_credentials": "From /app/memory/test_credentials.md: admin adminsupport@pmcmanagers.com/Admin@12345, vendor testvendor@pmcmanagers.com/Vendor@12345",
+  "seed_data_creation": "None left behind. TEST_ fee types, rules, templates and payment_transactions were deleted; the vendor's profile ({}) and business_categories (None) were restored. The 8 seeded types and the 2 KZ rules are intact (they only received updated_at, plus categories=[] from the round-trip PATCH).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run serially: pytest tests/test_r10_fee_types.py -n 0 (it sets the vendor's KZ country and category and cleans up in teardown), then the r9 and r9b files one at a time. For the UI, log in via page.request.post to /api/v1/admin/auth/login or /api/v1/vendor/auth/login, then navigate. Open a vendor draft via [data-testid=tb-draft-{id}]. AI Fill All shows a confirm dialog, so accept dialogs. In Stripe hosted checkout: #email, #cardNumber, #cardExpiry, #cardCvc, #billingName, #billingPostalCode, uncheck #enableStripePass, then [data-testid=hosted-payment-submit-button]. Use python tests/_r10_ui_setup.py setup|cleanup for vendor fee UI data."
+}

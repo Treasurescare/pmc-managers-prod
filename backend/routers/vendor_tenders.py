@@ -250,7 +250,7 @@ async def tender_fee_checkout(tid: str, payload: FeeCheckoutIn, vendor=Depends(c
     origin = payload.origin_url.rstrip("/")
     req = CheckoutSessionRequest(
         amount=amount, currency=fee["currency"].lower(),
-        success_url=f"{origin}/vendor/tender-builder?fee_session={{CHECKOUT_SESSION_ID}}",
+        success_url=f"{origin}/vendor/tender-builder?fee_session={{CHECKOUT_SESSION_ID}}&tid={tid}",
         cancel_url=f"{origin}/vendor/tender-builder?fee_cancel=1",
         metadata={"purpose": "tender_fee", "vendor_id": vendor["id"], "template_id": tid,
                   "fee_code": fee["code"]},

@@ -239,7 +239,10 @@ async def patch_template(tid: str, payload: TenderTemplateIn,
         raise HTTPException(status_code=409,
             detail=f"This tender is '{existing.get('review_status')}' and can't be edited now.")
     body = payload.model_dump()
-    # Never let a user flip is_master via PATCH
+    if is_vendor(principal):
+        old = {s.get("code"): (s.get("body") or "") for s in existing.get("sections") or []}
+        if any((s.get("body") or "") != old.get(s.get("code"), "") for s in body.get("sections") or []):
+            await assert_fees_paid(principal, {**existing, "header": body.get("header") or {}}, "work")
     body.pop("is_master", None)
     body["updated_at"] = now_iso()
     snapshot = {

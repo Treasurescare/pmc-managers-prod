@@ -95,6 +95,11 @@ export default function TenderBuilderPanel({ vendorMode = false }) {
     } catch (e) { showApiError(e); }
   }, [kind]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const tid = vendorMode && new URLSearchParams(window.location.search).get("tid");
+    if (tid) { openTemplate(tid); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vendorMode]);
 
   const switchKind = (k) => {
     setKind(k);

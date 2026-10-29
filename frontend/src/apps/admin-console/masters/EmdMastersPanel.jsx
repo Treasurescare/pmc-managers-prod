@@ -118,7 +118,7 @@ export default function EmdMastersPanel() {
     try {
       if (editing === "new") await tenderProApi.createEmdMaster(payload);
       else await tenderProApi.updateEmdMaster(editing, payload);
-      toast.success(editing === "new" ? "EMD master created" : "EMD master updated");
+      toast.success(editing === "new" ? "Fee rule created" : "Fee rule saved");
       setEditing(null);
       load();
     } catch (e) { showApiError(e); }
@@ -249,10 +249,10 @@ export default function EmdMastersPanel() {
                         data-testid={`emd-slab-${i}-pctmin`} className="mt-1 w-full px-2 py-1.5 border border-brand-navy/20 text-sm" /></label>
                   </>
                 )}
-                <label><span className="text-[10px] uppercase text-slate-500">Pct max (cap)</span>
+                {s.fee_type !== "fixed" && <label><span className="text-[10px] uppercase text-slate-500">Pct max (cap)</span>
                   <input type="number" value={s.pct_max}
                     onChange={(e) => setSlab(i, "pct_max", e.target.value)}
-                    data-testid={`emd-slab-${i}-pctmax`} className="mt-1 w-full px-2 py-1.5 border border-brand-navy/20 text-sm" /></label>
+                    data-testid={`emd-slab-${i}-pctmax`} className="mt-1 w-full px-2 py-1.5 border border-brand-navy/20 text-sm" /></label>}
                 <button type="button" onClick={() => setForm((f) => ({ ...f, slabs: f.slabs.filter((_, j) => j !== i) }))}
                   data-testid={`emd-slab-${i}-remove`}
                   className="px-2 py-1.5 text-[10px] uppercase tracking-widest border border-red-300 text-red-700 hover:bg-red-50">

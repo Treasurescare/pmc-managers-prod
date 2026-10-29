@@ -691,3 +691,17 @@ frontend flows pass; NOT yet user-confirmed):
 - Tests: `tests/test_r9_vendor_tender_builder.py` 21/21, `tests/test_r9b_scope_fillall_dpr_sub.py` 14/14 (run with `-n 0`).
 - Open (pre-existing, not changed): vendor login has no brute-force lockout; CORS_ORIGINS='*'.
 
+## R10 — Fee Type master + per-tender fees — 2026-10-29 (agent-tested, preview only)
+- New `fee_types` collection + `/api/v1/fee-types` CRUD (router `fee_types.py`, seeded on startup, attributes only, no prices):
+  timing upfront|on_completion, calc fixed|percentage|either, amount_mode single|range, category_scope all|selected,
+  billing one_time|yearly, used_in_tender_builder. Seeded: subscription, premium_subscription, registration, emd,
+  tender_fee, tender_management (Tender Builder, at end, selected categories), transaction, data_intel.
+- Masters tabs: "Fee types" (FeeTypesPanel) + "Fee rules" (was EMD rules). Rule form adapts to the chosen type;
+  multi-category checkbox picker (CategoryPicker). Rules store `categories[]`; server validates against type (`_fees.py`).
+- Vendor Tender Builder: TenderFeesPanel shows per-tender fees (non-yearly, tender-builder types) for vendor country +
+  category, amount from tender value; Pay now → Stripe → back with `?fee_session=&tid=` (auto-opens tender).
+  Upfront unpaid → 402 on AI/DPR-with-template/section edits/PDF; any unpaid → 402 on submit. Raised value → difference due.
+  Webhook credits fee payments (idempotent `credited`). Yearly access still via kind=subscription.
+- Tests: tests/test_r10_fee_types.py 33/33; R9 21/21; R9b 14/14 (run -n 0, one file at a time).
+- No real prices entered — user to add Fee rules per country.
+
