@@ -89,6 +89,11 @@ export default function BillingTransactionsPanel() {
           <span className="font-semibold uppercase tracking-widest text-[11px]">
             Stripe webhook
           </span>
+          <span data-testid="stripe-mode-badge"
+                className={"px-2 py-0.5 text-[11px] font-semibold uppercase tracking-widest "
+                  + (whHealth.stripe_mode === "live" ? "bg-emerald-700 text-white" : "bg-amber-600 text-white")}>
+            Mode: {whHealth.stripe_mode || "unknown"}
+          </span>
           {!whHealth.secret_configured ? (
             <span data-testid="webhook-health-missing">
               Signing secret missing — webhook returns 503 and payments never advance to paid.

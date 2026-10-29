@@ -272,7 +272,12 @@ async def webhook_health(admin=Depends(require_role("admin", "accounting", "revi
                 events_24h += 1
         except Exception:
             continue
+    key = os.environ.get("STRIPE_API_KEY", "")
+    mode = ("live" if key.startswith(("sk_live_", "rk_live_")) else
+            "sandbox (Emergent test key)" if "sk_test_emergent" in key else
+            "test" if key.startswith(("sk_test_", "rk_test_")) else "not set")
     return {
+        "stripe_mode": mode,
         "secret_configured": bool(_config.STRIPE_WEBHOOK_SECRET),
         "last_event_at": (last or {}).get("received_at"),
         "last_session_id": (last or {}).get("session_id"),
