@@ -909,6 +909,9 @@ export const kycApi = {  start: (vendor_ref, level = "basic") =>
 // ---------- R8: Vendor Tender Preparation ----------
 export const vendorTenderApi = {
   subscription: () => api.get("/api/v1/vendor-tenders/subscription").then((r) => r.data),
+  fees: (tid) => api.get(`/api/v1/vendor-tenders/fees/${tid}`).then((r) => r.data),
+  feeCheckout: (tid, fee_code, origin_url) => api.post(`/api/v1/vendor-tenders/fees/${tid}/checkout`, { fee_code, origin_url }).then((r) => r.data),
+  feeStatus: (sid) => api.get(`/api/v1/vendor-tenders/fees/checkout/status/${sid}`).then((r) => r.data),
   scope: () => api.get("/api/v1/vendor-tenders/scope").then((r) => r.data),
   getScopeRules: () => api.get("/api/v1/vendor-tenders/scope-rules").then((r) => r.data),
   setScopeRules: (payload) => api.put("/api/v1/vendor-tenders/scope-rules", payload).then((r) => r.data),
@@ -1103,6 +1106,13 @@ export const tenderTemplateApi = {
 };
 
 // v45 — Tender Pro: DPR upload, AI fill-all, per-section save, masters, ratings.
+export const feeTypesApi = {
+  list: () => api.get("/api/v1/fee-types").then((r) => r.data),
+  create: (p) => api.post("/api/v1/fee-types", p).then((r) => r.data),
+  update: (id, p) => api.patch(`/api/v1/fee-types/${id}`, p).then((r) => r.data),
+  remove: (id) => api.delete(`/api/v1/fee-types/${id}`).then((r) => r.data),
+};
+
 export const tenderProApi = {
   analyzeDpr: (file, kind = "tender", templateId = null) =>
     new Promise((resolve, reject) => {

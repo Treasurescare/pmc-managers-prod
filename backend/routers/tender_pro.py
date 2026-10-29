@@ -23,6 +23,7 @@ from db import db, next_sequence
 from models.base import BaseDocument, now_iso
 from security import require_role
 from audit import audit_log
+from routers._fees import assert_fees_paid, get_fee_type, validate_rule_against_type
 from routers._tender_access import (
     tender_principal, write_principal, is_vendor, actor as _actor,
     assert_can_edit_doc,
@@ -400,6 +401,7 @@ async def analyze_dpr(file: UploadFile = File(...),
     template = await _load_template_opt(template_id)
     if template:
         await _vendor_scope_template(principal, template)
+        await assert_fees_paid(principal, template, "work")
     return await _run_dpr_analyze(file.filename, body_bytes, kind, _actor(principal), template)
 
 
@@ -425,6 +427,7 @@ async def analyze_dpr_json(payload: DprAnalyzeJsonIn,
     template = await _load_template_opt(template_id)
     if template:
         await _vendor_scope_template(principal, template)
+        await assert_fees_paid(principal, template, "work")
     return await _run_dpr_analyze(payload.filename, body_bytes, kind, _actor(principal), template)
 
 
@@ -489,6 +492,7 @@ async def analyze_dpr_async(payload: DprAnalyzeJsonIn,
     template = await _load_template_opt(template_id)
     if template:
         await _vendor_scope_template(principal, template)
+        await assert_fees_paid(principal, template, "work")
     now = now_iso()
     job_doc = {
         "filename": payload.filename,
@@ -614,6 +618,7 @@ async def ai_fill_all_sections(tid: str, payload: AiFillAllIn = AiFillAllIn(),
     if not doc:
         raise HTTPException(status_code=404, detail="Template not found")
     await _vendor_scope_template(principal, doc)
+    await assert_fees_paid(principal, doc, "work")
     header = doc.get("header") or {}
     updated = 0
     words = _FILL_WORDS.get(payload.length or "medium", 240)
@@ -687,6 +692,7 @@ async def ai_fill_all_async(tid: str, payload: AiFillAllIn = AiFillAllIn(),
     if not doc:
         raise HTTPException(status_code=404, detail="Template not found")
     await _vendor_scope_template(principal, doc)
+    await assert_fees_paid(principal, doc, "work")
     running = await db.ai_fill_jobs.find_one(
         {"template_id": tid, "status": {"$in": ["queued", "running"]}})
     if running:
@@ -767,6 +773,7 @@ async def patch_one_section(tid: str, code: str, payload: SectionPatchIn,
     if not doc:
         raise HTTPException(status_code=404, detail="Template not found")
     await _vendor_scope_template(principal, doc)
+    await assert_fees_paid(principal, doc, "work")
     sections = doc.get("sections") or []
     idx = next((i for i, s in enumerate(sections) if s.get("code") == code), None)
     if idx is None:
@@ -802,6 +809,7 @@ async def save_as_master(tid: str, payload: SaveAsMasterIn,
     if not doc:
         raise HTTPException(status_code=404, detail="Template not found")
     await _vendor_scope_template(principal, doc)
+    await assert_fees_paid(principal, doc, "work")
     clone = {k: v for k, v in doc.items() if k != "_id"}
     clone["is_master"] = True
     clone["seed"] = False
@@ -855,12 +863,21 @@ class EmdMasterIn(BaseModel):
     # When set, the picker auto-selects this master only for notices in the
     # same category + country. Leave null to apply to all categories.
     category: Optional[str] = None
-    kind: Literal["tender_fee", "emd", "registration", "subscription",
-                   "premium_subscription", "transaction", "data_intel"] = "emd"
+    kind: str = "emd"  # fee_types.code
+    categories: List[str] = Field(default_factory=list)
     currency: str = "USD"
     slabs: List[EmdSlabIn] = Field(default_factory=list)
     is_active: bool = True
     notes: Optional[str] = None
+
+
+async def _check_fee_type(body: dict) -> None:
+    ft = await get_fee_type(body["kind"])
+    if not ft:
+        raise HTTPException(status_code=422, detail=f"Unknown fee type '{body['kind']}'. Add it under Masters → Fee types.")
+    if body.get("category") and not body.get("categories"):
+        body["categories"] = [body["category"]]
+    validate_rule_against_type(ft, body)
 
 
 @router.get("/emd-masters")
@@ -874,6 +891,7 @@ async def list_emd_masters(country: Optional[str] = None, kind: Optional[str] = 
         # Return masters scoped to this category OR unscoped (apply-to-all).
         q["$or"] = [
             {"category": category},
+            {"categories": category},
             {"category": {"$exists": False}},
             {"category": None},
             {"category": ""},
@@ -885,6 +903,7 @@ async def list_emd_masters(country: Optional[str] = None, kind: Optional[str] = 
 async def create_emd_master(payload: EmdMasterIn,
                              admin=Depends(require_role("admin"))):
     doc = payload.model_dump()
+    await _check_fee_type(doc)
     doc["country"] = doc["country"].upper()
     doc["created_at"] = now_iso()
     doc["created_by"] = admin["id"]
@@ -898,6 +917,7 @@ async def create_emd_master(payload: EmdMasterIn,
 async def update_emd_master(eid: str, payload: EmdMasterIn,
                              admin=Depends(require_role("admin"))):
     body = payload.model_dump()
+    await _check_fee_type(body)
     body["country"] = body["country"].upper()
     body["updated_at"] = now_iso()
     r = await db.emd_masters.update_one({"_id": ObjectId(eid)}, {"$set": body})

@@ -36,6 +36,18 @@ export default function VendorTenderBuilderFull() {
       toast("Subscription payment cancelled");
       window.history.replaceState({}, "", "/vendor/tender-builder");
     }
+    const fsid = params.get("fee_session");
+    if (fsid) {
+      vendorTenderApi.feeStatus(fsid).then((s) => {
+        if (s.payment_status === "paid") toast.success("Payment received — the fee for this tender is paid.");
+        else toast("Payment is still processing — refresh in a moment.");
+        window.history.replaceState({}, "", "/vendor/tender-builder");
+      }).catch(() => {});
+    }
+    if (params.get("fee_cancel")) {
+      toast("Fee payment cancelled");
+      window.history.replaceState({}, "", "/vendor/tender-builder");
+    }
   }, [loadSub]);
 
   const subscribe = async () => {

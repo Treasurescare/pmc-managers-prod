@@ -32,6 +32,7 @@ from routers._tender_access import (
     assert_can_read_doc, assert_can_edit_doc, actor, assert_vendor_can_submit,
 )
 from audit import audit_log
+from routers._fees import assert_fees_paid
 
 router = APIRouter(prefix="/api/v1/tender-templates", tags=["tender-templates"])
 
@@ -692,6 +693,7 @@ async def ai_draft_section(tid: str, code: str,
     if not doc:
         raise HTTPException(status_code=404, detail="Template not found")
     assert_can_edit_doc(principal, doc)
+    await assert_fees_paid(principal, doc, "work")
     section = next((s for s in doc.get("sections", []) if s.get("code") == code), None)
     if not section:
         raise HTTPException(status_code=404, detail="Section not found")
@@ -844,6 +846,8 @@ async def export_tender_pdf(tid: str, lang: Optional[str] = "en",
     if not doc:
         raise HTTPException(status_code=404, detail="Template not found")
     assert_can_read_doc(principal, doc)
+    if doc.get("owner_vendor_id") == principal.get("id"):
+        await assert_fees_paid(principal, doc, "work")
     from weasyprint import HTML
     pdf_bytes = HTML(string=_render_tender_html(doc, lang=lang)).write_pdf()
     safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in (doc.get("name") or "tender"))[:60]
@@ -886,6 +890,7 @@ async def submit_template_for_review(tid: str, principal=Depends(write_principal
         raise HTTPException(status_code=422,
             detail="Fill in these fields before submitting: " + ", ".join(missing))
     await assert_vendor_can_submit(principal["id"], doc)
+    await assert_fees_paid(principal, doc, "submit")
     await db.tender_templates.update_one({"_id": ObjectId(tid)},
         {"$set": {"review_status": "submitted", "submitted_at": now_iso()}})
     await audit_log("tender_template.submit_review", actor(principal), "tender_template", tid, {})

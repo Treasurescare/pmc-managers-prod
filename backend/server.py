@@ -305,6 +305,14 @@ app.include_router(_governance_controls.router)
 # R8 — Vendor Tender Preparation (subscription-gated, reviewer-approved)
 from routers import vendor_tenders as _vendor_tenders  # noqa: E402
 app.include_router(_vendor_tenders.router)
+from routers import fee_types as _fee_types  # noqa: E402
+app.include_router(_fee_types.router)
+
+
+@app.on_event("startup")
+async def _seed_fee_types():
+    from routers._fees import seed_fee_types
+    await seed_fee_types()
 app.include_router(taxonomy.router)
 # Wave 41 — Meeting Scheduler + Jitsi + L1 Auto-Comparison
 app.include_router(meetings.router)

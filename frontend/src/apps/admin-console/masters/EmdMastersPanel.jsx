@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { tenderProApi, mastersApi, publicApi, showApiError } from "@/lib/api";
+import { tenderProApi, mastersApi, publicApi, feeTypesApi, showApiError } from "@/lib/api";
+import { CategoryPicker } from "./CategoryPicker";
 
 /**
  * v50q — EMD / Fee Master Editor (bug-tracker "EMD Master Editor UI").
@@ -9,13 +10,12 @@ import { tenderProApi, mastersApi, publicApi, showApiError } from "@/lib/api";
  * Backend: /api/v1/tender-pro/emd-masters (list/create/patch/delete/compute).
  */
 
-const KINDS = ["emd", "tender_fee", "registration", "subscription",
-               "premium_subscription", "transaction", "data_intel"];
 const CURRENCIES = ["USD", "EUR", "GBP", "INR", "KZT", "AED"];
+const TIMING = { upfront: "paid at the beginning", on_completion: "paid at the end" };
 
 const EMPTY_SLAB = { tender_value_min: 0, tender_value_max: "", fee_type: "percentage",
                      fixed_amount: "", percentage: "", pct_min: "", pct_max: "" };
-const EMPTY = { name: "", country: "KZ", kind: "emd", category: "", currency: "USD",
+const EMPTY = { name: "", country: "KZ", kind: "", categories: [], currency: "USD",
                 is_active: true, notes: "", slabs: [ { ...EMPTY_SLAB } ] };
 
 function slabLabel(s, currency) {
@@ -37,14 +37,25 @@ export default function EmdMastersPanel() {
   const [busy, setBusy] = useState(false);
   const [calc, setCalc] = useState({ master_id: "", tender_value: 100000 });
   const [calcOut, setCalcOut] = useState(null);
+  const [feeTypes, setFeeTypes] = useState([]);
+  const ft = feeTypes.find((t) => t.code === form.kind);
+  const ftName = (code) => feeTypes.find((t) => t.code === code)?.name || (code || "").replace(/_/g, " ");
+  const pickType = (code) => {
+    const t = feeTypes.find((x) => x.code === code);
+    const fee_type = t?.calc === "percentage" ? "percentage" : "fixed";
+    setForm((f) => ({ ...f, kind: code, categories: t?.category_scope === "all" ? [] : f.categories,
+      slabs: t?.amount_mode === "single" ? [{ ...EMPTY_SLAB, fee_type }] : f.slabs.map((s) => ({ ...s, fee_type: t?.calc === "either" ? s.fee_type : fee_type })) }));
+  };
 
   const load = useCallback(async () => {
     try {
-      const [m, c, cats] = await Promise.all([
+      const [m, c, cats, fts] = await Promise.all([
         tenderProApi.listEmdMasters({}),
         publicApi.countries().catch(() => []),
         mastersApi.listCategories({ limit: 500 }).catch(() => []),
+        feeTypesApi.list().catch(() => []),
       ]);
+      setFeeTypes(fts.filter((t) => t.is_active !== false));
       setRows(Array.isArray(m) ? m : (m.items || []));
       const cl = Array.isArray(c) ? c : (c?.countries || []);
       setCountries(cl);
@@ -57,7 +68,7 @@ export default function EmdMastersPanel() {
   const openEdit = (m) => {
     setForm({
       name: m.name, country: m.country, kind: m.kind,
-      category: m.category || "", currency: m.currency || "USD",
+      categories: m.categories?.length ? m.categories : (m.category ? [m.category] : []), currency: m.currency || "USD",
       is_active: m.is_active !== false, notes: m.notes || "",
       slabs: (m.slabs?.length ? m.slabs : [EMPTY_SLAB]).map((s) => ({
         tender_value_min: s.tender_value_min ?? 0,
@@ -80,6 +91,8 @@ export default function EmdMastersPanel() {
 
   const save = async () => {
     if (!form.name.trim()) return toast.error("Name is required.");
+    if (!ft) return toast.error("Pick a fee type.");
+    if (ft.category_scope === "selected" && !form.categories.length) return toast.error("Tick at least one category.");
     if (!form.slabs.length) return toast.error("Add at least one slab.");
     for (const s of form.slabs) {
       if (s.fee_type === "fixed" && (s.fixed_amount === "" || s.fixed_amount == null))
@@ -89,7 +102,7 @@ export default function EmdMastersPanel() {
     }
     const payload = {
       name: form.name.trim(), country: form.country, kind: form.kind,
-      category: form.category || null, currency: form.currency,
+      categories: ft.category_scope === "selected" ? form.categories : [], currency: form.currency,
       is_active: !!form.is_active, notes: form.notes || null,
       slabs: form.slabs.map((s) => ({
         tender_value_min: Number(s.tender_value_min) || 0,
@@ -146,7 +159,7 @@ export default function EmdMastersPanel() {
         </div>
         <button onClick={openNew} data-testid="emd-new-btn"
           className="px-4 py-2 text-[10px] uppercase tracking-widest bg-brand-navy text-white hover:bg-brand-navy-deep">
-          New EMD rule
+          New fee rule
         </button>
       </div>
 
@@ -167,17 +180,22 @@ export default function EmdMastersPanel() {
                 })}
                 {countries.length === 0 && ["KZ", "IN", "AE", "GB", "US"].map((c) => <option key={c}>{c}</option>)}
               </select></label>
-            <label><span className="pmc-label">Kind</span>
-              <select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}
+            <label><span className="pmc-label">Fee type *</span>
+              <select value={form.kind} onChange={(e) => pickType(e.target.value)}
                 data-testid="emd-kind" className="mt-1 w-full px-3 py-2 border border-brand-navy/20 bg-white">
-                {KINDS.map((k) => <option key={k} value={k}>{k.replace(/_/g, " ")}</option>)}
+                <option value="">— pick a fee type —</option>
+                {feeTypes.map((t) => <option key={t.code} value={t.code}>{t.name}</option>)}
               </select></label>
-            <label><span className="pmc-label">Category (optional — applies to all when empty)</span>
-              <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
-                data-testid="emd-category" className="mt-1 w-full px-3 py-2 border border-brand-navy/20 bg-white">
-                <option value="">— all categories —</option>
-                {categories.map((c) => <option key={c.id || c.code || c.name} value={c.name}>{c.name}</option>)}
-              </select></label>
+            {ft && (
+              <div className="md:col-span-4 text-xs bg-brand-pale/50 border border-brand-navy/10 px-3 py-2" data-testid="emd-type-summary">
+                <b>{ft.name}</b>: {TIMING[ft.timing]} · {ft.calc === "either" ? "fixed or %" : ft.calc} · {ft.amount_mode === "single" ? "one amount" : "range by tender value"} · {ft.category_scope === "all" ? "all categories" : "selected categories"} · {ft.billing === "yearly" ? "yearly" : "one-time"}{ft.used_in_tender_builder ? " · charged in vendor Tender Builder" : ""}
+              </div>
+            )}
+            <div className="md:col-span-2"><span className="pmc-label">Categories</span>
+              {ft?.category_scope === "selected"
+                ? <div className="mt-1"><CategoryPicker categories={categories} value={form.categories} onChange={(v) => setForm({ ...form, categories: v })} /></div>
+                : <div className="mt-1 text-sm text-brand-navy/60" data-testid="emd-category-all">Applies to all categories (set by the fee type)</div>}
+            </div>
             <label><span className="pmc-label">Currency</span>
               <select value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })}
                 data-testid="emd-currency" className="mt-1 w-full px-3 py-2 border border-brand-navy/20 bg-white">
@@ -195,10 +213,11 @@ export default function EmdMastersPanel() {
           </div>
 
           <div className="mt-4">
-            <div className="pmc-label mb-2">Slabs (tender value ranges → fee)</div>
+            <div className="pmc-label mb-2">{ft?.amount_mode === "single" ? "Amount" : "Ranges (tender value → fee)"}</div>
             {form.slabs.map((s, i) => (
               <div key={i} className="grid gap-2 md:grid-cols-8 items-end mb-2 border-b border-brand-navy/10 pb-2"
                    data-testid={`emd-slab-${i}`}>
+                {ft?.amount_mode !== "single" && <>
                 <label><span className="text-[10px] uppercase text-slate-500">Min value</span>
                   <input type="number" value={s.tender_value_min}
                     onChange={(e) => setSlab(i, "tender_value_min", e.target.value)}
@@ -207,8 +226,9 @@ export default function EmdMastersPanel() {
                   <input type="number" value={s.tender_value_max}
                     onChange={(e) => setSlab(i, "tender_value_max", e.target.value)}
                     data-testid={`emd-slab-${i}-max`} className="mt-1 w-full px-2 py-1.5 border border-brand-navy/20 text-sm" /></label>
+                </>}
                 <label><span className="text-[10px] uppercase text-slate-500">Type</span>
-                  <select value={s.fee_type} onChange={(e) => setSlab(i, "fee_type", e.target.value)}
+                  <select value={s.fee_type} onChange={(e) => setSlab(i, "fee_type", e.target.value)} disabled={ft && ft.calc !== "either"}
                     data-testid={`emd-slab-${i}-type`} className="mt-1 w-full px-2 py-1.5 border border-brand-navy/20 bg-white text-sm">
                     <option value="percentage">%</option><option value="fixed">Fixed</option>
                   </select></label>
@@ -240,11 +260,11 @@ export default function EmdMastersPanel() {
                 </button>
               </div>
             ))}
-            <button type="button" onClick={() => setForm((f) => ({ ...f, slabs: [...f.slabs, { ...EMPTY_SLAB }] }))}
+            {ft?.amount_mode !== "single" && <button type="button" onClick={() => setForm((f) => ({ ...f, slabs: [...f.slabs, { ...EMPTY_SLAB, fee_type: ft?.calc === "percentage" ? "percentage" : "fixed" }] }))}
               data-testid="emd-slab-add"
               className="px-3 py-1.5 text-[10px] uppercase tracking-widest border border-brand-navy/30 text-brand-navy hover:bg-brand-navy/5">
-              + Add slab
-            </button>
+              + Add range
+            </button>}
           </div>
 
           <div className="mt-4 flex justify-end gap-2">
@@ -269,10 +289,10 @@ export default function EmdMastersPanel() {
                  data-testid={`emd-row-${m.id}`}>
               <div className="min-w-0">
                 <div className="text-sm font-semibold text-brand-navy">
-                  {m.name} <span className="font-normal text-brand-navy/50">· {m.kind.replace(/_/g, " ")}</span>
+                  {m.name} <span className="font-normal text-brand-navy/50">· {ftName(m.kind)}</span>
                 </div>
                 <div className="text-xs text-brand-navy/60 mt-0.5">
-                  {countryName(m.country)}{m.category ? ` · ${m.category}` : " · all categories"} · {m.currency}
+                  {countryName(m.country)}{m.categories?.length ? ` · ${m.categories.join(", ")}` : m.category ? ` · ${m.category}` : " · all categories"} · {m.currency}
                   {!m.is_active && <span className="ml-2 text-red-700 font-semibold">INACTIVE</span>}
                 </div>
                 <div className="text-xs text-brand-navy/70 mt-1 font-mono">

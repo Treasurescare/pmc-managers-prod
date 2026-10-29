@@ -27,6 +27,7 @@ from routers._tender_access import (
     sub_config as _ta_sub_config, vendor_entitlement, vendor_country,
     scope_rules, vendor_scope_snapshot,
 )
+from routers._fees import tender_builder_fees
 from audit import audit_log
 
 router = APIRouter(prefix="/api/v1/vendor-tenders", tags=["vendor-tenders"])
@@ -204,6 +205,104 @@ async def subscribe_status(session_id: str, vendor=Depends(current_vendor)):
 
 async def activate_subscription(vendor_id: Optional[str]):
     await _activate_subscription(vendor_id)
+
+
+# ----------------------- per-tender fees (Fee Type master → Stripe) -----------------------
+
+async def _own_template(tid: str, vendor: dict) -> dict:
+    from bson import ObjectId
+    try:
+        doc = await db.tender_templates.find_one({"_id": ObjectId(tid)})
+    except Exception:
+        doc = None
+    if not doc or doc.get("owner_vendor_id") != vendor["id"]:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return doc
+
+
+@router.get("/fees/{tid}")
+async def tender_fees(tid: str, vendor=Depends(current_vendor)):
+    doc = await _own_template(tid, vendor)
+    vdoc = await _vendor_doc(vendor)
+    return {"fees": await tender_builder_fees(vendor_country(vdoc), doc)}
+
+
+class FeeCheckoutIn(BaseModel):
+    fee_code: str
+    origin_url: str
+
+
+@router.post("/fees/{tid}/checkout")
+async def tender_fee_checkout(tid: str, payload: FeeCheckoutIn, vendor=Depends(current_vendor)):
+    doc = await _own_template(tid, vendor)
+    vdoc = await _vendor_doc(vendor)
+    fee = next((f for f in await tender_builder_fees(vendor_country(vdoc), doc)
+                if f["code"] == payload.fee_code), None)
+    if not fee:
+        raise HTTPException(status_code=404, detail="This fee does not apply to this tender")
+    if fee["needs_value"]:
+        raise HTTPException(status_code=422, detail="Enter the tender value and save before paying this fee")
+    if fee["paid"]:
+        raise HTTPException(status_code=409, detail="Already paid")
+    amount = float(fee["outstanding"])
+    from pmc_lib.payments.stripe.checkout import StripeCheckout, CheckoutSessionRequest
+    checkout = StripeCheckout(api_key=os.environ["STRIPE_API_KEY"], webhook_url="")
+    origin = payload.origin_url.rstrip("/")
+    req = CheckoutSessionRequest(
+        amount=amount, currency=fee["currency"].lower(),
+        success_url=f"{origin}/vendor/tender-builder?fee_session={{CHECKOUT_SESSION_ID}}",
+        cancel_url=f"{origin}/vendor/tender-builder?fee_cancel=1",
+        metadata={"purpose": "tender_fee", "vendor_id": vendor["id"], "template_id": tid,
+                  "fee_code": fee["code"]},
+    )
+    session = await checkout.create_checkout_session(req)
+    await db.payment_transactions.insert_one({
+        "session_id": session.session_id, "purpose": "tender_fee", "vendor_id": vendor["id"],
+        "template_id": tid, "fee_code": fee["code"], "rule_id": fee["rule_id"],
+        "amount": amount, "currency": fee["currency"].lower(),
+        "status": "initiated", "payment_status": "pending",
+        "created_at": now_iso(), "updated_at": now_iso(),
+    })
+    return {"checkout_url": session.url, "session_id": session.session_id}
+
+
+async def apply_tender_fee_payment(session_id: str) -> None:
+    """Credit a paid tender-fee session onto its template exactly once."""
+    from bson import ObjectId
+    tx = await db.payment_transactions.find_one_and_update(
+        {"session_id": session_id, "purpose": "tender_fee", "credited": {"$ne": True}},
+        {"$set": {"credited": True}})
+    if not tx:
+        return
+    await db.tender_templates.update_one({"_id": ObjectId(tx["template_id"])},
+        {"$inc": {f"fees_paid.{tx['fee_code']}.amount": float(tx["amount"])},
+         "$set": {f"fees_paid.{tx['fee_code']}.currency": tx["currency"],
+                  f"fees_paid.{tx['fee_code']}.last_session": session_id,
+                  f"fees_paid.{tx['fee_code']}.paid_at": now_iso()}})
+    await audit_log("tender_fee.paid", {"id": tx["vendor_id"], "role": "vendor"}, "tender_template",
+                    tx["template_id"], {"fee": tx["fee_code"], "amount": tx["amount"]})
+
+
+@router.get("/fees/checkout/status/{session_id}")
+async def tender_fee_status(session_id: str, vendor=Depends(current_vendor)):
+    rec = await db.payment_transactions.find_one({"session_id": session_id, "purpose": "tender_fee"})
+    if not rec or rec.get("vendor_id") != vendor["id"]:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    if rec.get("payment_status") != "paid":
+        try:
+            from pmc_lib.payments.stripe.checkout import StripeCheckout
+            checkout = StripeCheckout(api_key=os.environ["STRIPE_API_KEY"], webhook_url="")
+            s = await checkout.get_checkout_status(session_id)
+            if s.payment_status == "paid":
+                await db.payment_transactions.update_one({"session_id": session_id},
+                    {"$set": {"status": "completed", "payment_status": "paid", "updated_at": now_iso()}})
+        except Exception:
+            pass
+    rec = await db.payment_transactions.find_one({"session_id": session_id})
+    if rec.get("payment_status") == "paid":
+        await apply_tender_fee_payment(session_id)
+    return {"session_id": session_id, "status": rec["status"], "payment_status": rec["payment_status"],
+            "template_id": rec.get("template_id"), "fee_code": rec.get("fee_code")}
 
 
 async def _activate_subscription(vendor_id: Optional[str]):

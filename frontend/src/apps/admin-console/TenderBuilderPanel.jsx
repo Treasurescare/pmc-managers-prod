@@ -13,6 +13,7 @@ import { exportTenderPdf } from "./tender/tenderPdf";
 import { InfoDot } from "@/components/InfoDot";
 import { tenderDateChainViolations } from "@/lib/dateRules";
 import { useNavigate } from "react-router-dom";
+import { TenderFeesPanel } from "@/apps/vendor-portal-e/TenderFeesPanel";
 
 /**
  * TenderBuilderPanel — Section-by-section tender/RFP/RFQ composer.
@@ -702,6 +703,8 @@ export default function TenderBuilderPanel({ vendorMode = false }) {
                 </div>
               </div>
             </div>
+
+            {vendorMode && !doc.is_master && doc.id && <TenderFeesPanel tid={doc.id} dirty={dirty} />}
 
             {fillJob && (
               <div data-testid="tb-fill-progress" className="border border-emerald-600/40 bg-emerald-50 p-4">
