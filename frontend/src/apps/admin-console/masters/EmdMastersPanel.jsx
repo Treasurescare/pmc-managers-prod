@@ -146,7 +146,7 @@ export default function EmdMastersPanel() {
   const runCalc = async () => {
     if (!calc.master_id) return toast.error("Pick a master first.");
     try {
-      const r = await tenderProApi.computeEmdMaster(calc.master_id, Number(calc.tender_value) || 0);
+      const r = await tenderProApi.computeEmd(calc.master_id, Number(calc.tender_value) || 0);
       setCalcOut(r);
     } catch (e) { showApiError(e); setCalcOut(null); }
   };
