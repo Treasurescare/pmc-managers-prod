@@ -59,6 +59,7 @@ export default function DprGenerateModal({ open, onClose, kind, masters, onClone
   const analyze = async () => {
     if (!files.length) return toast.error("Upload up to 3 DPRs (PDF/DOCX/TXT) first");
     if (files.length > 3) return toast.error("Max 3 DPRs per batch");
+    if (creditId && files.length > 1) return toast.error("Each tender needs its own start fee — analyse one DPR at a time.");
     if (!batchMasterId && !noMasterMode) return toast.error("Pick a master, borrow one from another country, or tick 'Build a new master from this DPR'");
     const oversize = files.find((f) => f.size > MAX_UPLOAD_MB * 1024 * 1024);
     if (oversize) return toast.error(`${oversize.name} exceeds the ${MAX_UPLOAD_MB} MB per-file limit`);

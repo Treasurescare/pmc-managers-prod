@@ -16,6 +16,8 @@ import { VendorScopeStrip } from "./VendorScopeStrip";
  */
 export default function VendorTenderBuilderFull() {
   const [sub, setSub] = useState(null);
+  const [startFee, setStartFee] = useState(false);
+  useEffect(() => { vendorTenderApi.startCheck().then((s) => setStartFee(!!s.required)).catch(() => {}); }, []);
   const loadSub = useCallback(
     () => vendorTenderApi.subscription().then(setSub).catch(() => {}), []);
 
@@ -81,7 +83,7 @@ export default function VendorTenderBuilderFull() {
                 <div className="pmc-eyebrow" style={{ marginBottom: "2px" }}>Tender builder access</div>
                 <div style={{ fontSize: "14px", fontWeight: 600 }} data-testid="vendor-tb-access-state">
                   {sub.free
-                    ? "Included free for approved vendors"
+                    ? (startFee ? "Builder access is free — a start fee is charged per tender before you build" : "Included free for approved vendors")
                     : sub.active
                       ? `Subscription active${sub.expires_at ? ` — renews ${String(sub.expires_at).slice(0, 10)}` : ""}`
                       : `Subscription required — ${sub.price?.currency?.toUpperCase()} ${sub.price?.amount} / ${sub.price?.period_days} days`}

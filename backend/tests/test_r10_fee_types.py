@@ -54,6 +54,7 @@ def vendor():
     vid = str(v["_id"])
     _mdb.tender_templates.delete_many({"owner_vendor_id": vid, "name": {"$regex": "^TEST_R10"}})
     _mdb.payment_transactions.delete_many({"vendor_id": vid, "purpose": "tender_fee"})
+    _mdb.fee_receipts.delete_many({"vendor_id": vid, "tender_name": {"$regex": "^TEST_R10"}})
     _mdb.emd_masters.delete_many({"name": {"$regex": "^TEST_"}})
     _mdb.fee_types.delete_many({"code": {"$regex": "^test_"}})
 
@@ -288,8 +289,14 @@ class TestUpfrontEnforcement:
                         "kind": st["up_code"], "slabs": [_slab(fixed=10)]})
         assert rr.status_code == 200, rr.text
         st["up_rule"] = rr.json()["id"]
-        t = vendor.post(f"{API}/tender-templates", json=_tpl("TEST_R10 UPT"))
-        st["utid"] = t.json()["id"]
+        # R11 — a vendor create now needs a paid start credit once an upfront builder rule
+        # exists (402 without one), so seed a pre-existing unpaid draft directly.
+        assert vendor.post(f"{API}/tender-templates", json=_tpl("TEST_R10 UPT")).status_code == 402
+        vid = str(_mdb.vendors.find_one({"email": VENDOR[0]})["_id"])
+        ins = _mdb.tender_templates.insert_one({**_tpl("TEST_R10 UPT"), "is_master": False, "seed": False,
+                                                "owner_vendor_id": vid, "review_status": "draft",
+                                                "created_by": vid, "created_at": "2026-01-01T00:00:00+00:00"})
+        st["utid"] = str(ins.inserted_id)
         f = _fee(vendor, st["utid"], st["up_code"])
         assert f and f["amount"] == 10 and f["timing"] == "upfront" and not f["paid"]
 

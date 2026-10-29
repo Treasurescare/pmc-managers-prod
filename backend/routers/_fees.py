@@ -154,13 +154,21 @@ async def paid_credit(vendor_id: str, credit_id: Optional[str] = None) -> Option
     return await db.tender_credits.find_one(q, sort=[("created_at", 1)])
 
 
+DPR_RUNS_PER_CREDIT = 3
+
+
 async def assert_start_allowed(principal: dict) -> None:
     """A vendor may only start building (DPR / new draft) once the start fee is paid."""
     if principal.get("kind") != "vendor":
         return
     from routers._tender_access import vendor_country
     v = await db.vendors.find_one({"_id": ObjectId(principal["id"])})
-    if await credit_required(vendor_country(v or {})) and not await paid_credit(principal["id"]):
+    if not await credit_required(vendor_country(v or {})):
+        return
+    cr = await db.tender_credits.find_one_and_update(
+        {"vendor_id": principal["id"], "status": "paid", "dpr_runs": {"$not": {"$gte": DPR_RUNS_PER_CREDIT}}},
+        {"$inc": {"dpr_runs": 1}}, sort=[("created_at", 1)])
+    if not cr:
         raise HTTPException(status_code=402,
             detail="Pay the tender start fee first — choose your category and tender value in the payment step.")
 

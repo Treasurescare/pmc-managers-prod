@@ -337,6 +337,8 @@ async def start_quote(payload: StartQuoteIn, vendor=Depends(current_vendor)):
 @router.post("/start/checkout")
 async def start_checkout(payload: StartCheckoutIn, vendor=Depends(current_vendor)):
     q = await _quote(vendor, payload)
+    if await paid_credit(vendor["id"]):
+        raise HTTPException(status_code=409, detail="You already have an unused start credit — start your tender with it first.")
     credit = {"vendor_id": vendor["id"], "category": payload.category.strip(),
               "tender_value": payload.tender_value,
               "fees": {f["code"]: {"amount": f["amount"], "currency": f["currency"].lower()} for f in q["fees"]},

@@ -1,0 +1,38 @@
+{
+  "summary": "R11 testing of the start-of-tender payment gate (tender credits) and fee receipts, on both the backend and the UI. Backend: the new suite tests/test_r11_start_gate_receipts.py passed 27/27. test_r10_fee_types.py passed 33/33 after adapting it (vendor create now returns 402, so a pre-existing unpaid draft is seeded in Mongo and the enforcement checks are kept; fee_receipts cleanup was added). test_r9_vendor_tender_builder.py passed 21/21 and test_r9b_scope_fillall_dpr_sub.py passed 14/14 (all run one at a time with -n 0). UI, end to end with real Stripe 4242 payments: clicking AI Generate from DPR opens start-gate. The category list holds only approved categories, and See fee is disabled until one is picked. The quote shows USD 25, Pay with Stripe goes through Stripe, and the return to ?credit_session= shows the 'Start fee paid' toast. The credit was marked paid and receipt PMC-RCPT-000005 was emailed (Resend returned 200). Clone as draft then used the credit with no modal: the new draft's category was set from the credit and the start fee showed ✓ Paid in tb-fees-panel. A second clone opened the gate again. Paying the on-completion fee through Stripe showed a 'Payment received' toast and created receipt PMC-RCPT-000006. /vendor/emd lists both receipt rows, newest first. A category with no fee shows 'No start fee applies' and the Start building button opens the DPR modal straight away. With no upfront rule, DPR and Clone open with no modal and the receipts section shows the empty state. Staff/admin are not gated. Receipts are issued once per session across repeated status polls plus the webhook function.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/v1/tender-pro/dpr/analyze-json | analyze-async (no template_id)", "issue": "The check only asks whether a paid credit exists; it does not use one up. A vendor who holds one paid or free credit (free credits can be made without limit for any category with no fee) can run unlimited AI DPR analyses, which cost LLM money, as long as they never create the draft."},
+      {"endpoint": "DprGenerateModal multi-file (up to 3 DPRs)", "issue": "Only the first created draft gets creditId. Drafts 2 and 3 fall back to the oldest paid credit or get a 402, and this only happens AFTER the AI analysis has run, so the user pays for analysis and then sees '<file>: Pay the tender start fee first'. When start/check says required, either limit the modal to 1 file or quote/charge per file."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/vendor/tender-builder", "issues": ["The 'TENDER BUILDER ACCESS — Included free for approved vendors' banner still shows when a start fee applies; this is misleading next to the 'Pay the tender start fee' modal."]},
+      {"screen": "/vendor/emd (existing, not new)", "issues": ["The header chip shows 'Emerald Corporates PMC-SUP-000017', and the stat cards (USD 61,380 due, 3 deposits, refund account) are hard-coded mock data in VendorEmdE.jsx instead of the logged-in vendor's data (Test Supplier Co)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_r11_start_gate_receipts.py", "/app/backend/tests/test_r10_fee_types.py", "/app/backend/tests/_r11_ui_setup.py", "/app/test_reports/pytest/r11_results.xml", "/app/test_reports/pytest/r10_results.xml"],
+  "action_items": [
+    "Optional: make the DPR analyze gate use up the credit, or rate-limit it per credit, and stop unlimited free-credit creation (for example, reuse an existing unused free credit for the same category).",
+    "Optional: when a start credit is required, limit DprGenerateModal to one DPR per credit, or warn before analysis.",
+    "Optional: hide or reword the 'Included free' banner when start/check.required is true.",
+    "Optional (existing): replace the mock vendor identity and stats on /vendor/emd."
+  ],
+  "critical_code_review_comments": [
+    "Credit consumption in create_from_master is atomic (find_one_and_update status paid→used), so it is race-safe. A bad credit_id is ignored and the oldest credit is used instead; that is acceptable.",
+    "issue_receipt does find-then-insert with no unique index on fee_receipts.session_id. It is safe today only because callers guard with the atomic 'credited' flag. Add a unique index as defence in depth.",
+    "Free credits (total 0) skip receipts (correct) but are stored as 'paid' and count toward start/check and assert_start_allowed (see the minor DPR issue).",
+    "start_status only treats s.payment_status=='paid' as paid; subscribe_status also accepts status=='complete'. This is consistent with tender_fee_status and is fine.",
+    "CORS_ORIGINS='*' with no allow-credentials (existing); auth cookies are HttpOnly+Secure and bcrypt hashes are $2b$."
+  ],
+  "updated_files": ["/app/backend/tests/test_r10_fee_types.py", "/app/backend/tests/test_r11_start_gate_receipts.py", "/app/backend/tests/_r11_ui_setup.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "None left behind. Cleanup verified: fee_types=8, emd_masters=2 (KZ EMD + Registration), tender_credits=0, fee_receipts=0, no vendor templates or payment_transactions, test vendor profile={} with business_categories=None and no subscription. Receipt counter (counters.fee_receipt) moved on to about 6, so the next real receipt number will be higher than PMC-RCPT-000001.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run these one at a time with -n 0: tests/test_r11_start_gate_receipts.py, test_r10_fee_types.py, test_r9_vendor_tender_builder.py, test_r9b_scope_fillall_dpr_sub.py. For the UI: `python tests/_r11_ui_setup.py setup` creates TEST R11 Start (upfront, Fire alarm category, USD 25) and TEST R11 Completion (on_completion, USD 40) rules for KZ and sets the vendor to KZ with 2 categories; `state` prints credits/receipts; `cleanup` resets everything (it deletes ALL of testvendor's templates and payment transactions). Stripe hosted checkout selectors: #email #cardNumber #cardExpiry #cardCvc #billingName #billingPostalCode, then [data-testid=hosted-payment-submit-button]."
+}

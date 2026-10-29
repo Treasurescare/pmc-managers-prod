@@ -705,3 +705,15 @@ frontend flows pass; NOT yet user-confirmed):
 - Tests: tests/test_r10_fee_types.py 33/33; R9 21/21; R9b 14/14 (run -n 0, one file at a time).
 - No real prices entered — user to add Fee rules per country.
 
+## R11 — Start-fee gate + fee receipts — 2026-10-29 (agent-tested, preview only)
+- If any active upfront Tender-Builder fee rule exists for the vendor's country, clicking "AI Generate from DPR" or
+  "Clone as draft" first opens StartTenderGate (approved category + estimated value → quote → Stripe). Payment creates a
+  `tender_credits` record; creating a draft consumes one credit (category/value/fees_paid copied onto the draft);
+  DPR analysis without a draft needs a paid credit (max 3 DPR runs per credit); one unused credit at a time;
+  vendor DPR batch limited to 1 file when a start fee applies. Staff never gated.
+- Receipts: `fee_receipts` (PMC-RCPT-xxxxxx), created once per Stripe session for start fees and per-tender fees,
+  emailed via existing Resend `send_email`, listed on /vendor/emd (VendorFeeReceipts). GET /vendor-tenders/receipts.
+- Removed the two Reengus DPR templates at user's request.
+- Tests: test_r11_start_gate_receipts.py 27/27, test_r10 33/33, r9 21/21, r9b 14/14 (-n 0, one file at a time).
+- Known pre-existing: /vendor/emd stat cards + header chip are hard-coded mock data (not the logged-in vendor).
+
