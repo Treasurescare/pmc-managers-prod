@@ -471,18 +471,21 @@ async def create_fee_checkout(req: FeeCheckoutRequest, request: Request):
                     {"amount": amt, "currency": currency, "tender_value": v,
                      "context_ref": req.context_ref, "session_id": session.session_id})
     payer = (req.buyer_email or "").strip() if buyer_role == "admin" else None
+    email_sent = False
     if payer:
-        from notify import vendor_confirm
+        from emails import send_email, wrap
         ft = await db.fee_types.find_one({"code": m.get("kind")}) or {}
-        await vendor_confirm(payer, f"Payment request — {ft.get('name') or m.get('kind')}",
+        subject = f"Payment request — {ft.get('name') or m.get('kind')}"
+        html = wrap(subject,
             f"<p>PMC Managers has requested a payment of <b>{currency.upper()} {amt:,.2f}</b> for "
             f"<b>{m.get('name')}</b>{' (ref ' + req.context_ref + ')' if req.context_ref else ''}.</p>"
             f"<p>Pay securely with the button below. The link is valid for 24 hours.</p>",
             f"Pay {currency.upper()} {amt:,.2f}", session.url)
+        email_sent = await send_email(payer, f"[PMC] {subject}", html)
         await db.payment_transactions.update_one({"session_id": session.session_id},
-                                                 {"$set": {"payer_email": payer, "link_emailed": True}})
+                                                 {"$set": {"payer_email": payer, "link_emailed": email_sent}})
     return {"checkout_url": session.url, "session_id": session.session_id,
-             "amount": amt, "currency": currency, "emailed_to": payer,
+             "amount": amt, "currency": currency, "emailed_to": payer, "email_sent": email_sent,
              "fee_kind": m.get("kind"), "slab": slab_used}
 
 

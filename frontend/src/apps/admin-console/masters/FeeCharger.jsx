@@ -18,6 +18,7 @@ export default function FeeCharger() {
   const [contextRef, setContextRef]   = useState("");
   const [preview, setPreview]         = useState(null);
   const [busy, setBusy]           = useState(false);
+  const [link, setLink]           = useState(null);
   const [feeTypes, setFeeTypes]   = useState([]);
   useEffect(() => { feeTypesApi.list().then(setFeeTypes).catch(() => {}); }, []);
 
@@ -50,7 +51,9 @@ export default function FeeCharger() {
         buyer_email: buyerEmail.trim(),
         context_ref: contextRef.trim() || null,
       });
-      toast.success(`Payment link for ${r.currency.toUpperCase()} ${r.amount} emailed to ${r.emailed_to}`);
+      setLink(r);
+      if (r.email_sent) toast.success(`Payment link for ${r.currency.toUpperCase()} ${r.amount} emailed to ${r.emailed_to}`);
+      else toast.error(`Link created but the email to ${r.emailed_to} could not be sent. Use the link below.`);
       navigator.clipboard?.writeText(r.checkout_url).catch(() => {});
     } catch (e) { showApiError(e); }
     finally { setBusy(false); }
@@ -133,6 +136,17 @@ export default function FeeCharger() {
           {busy ? "Creating link…" : "Email payment link"}
         </button>
       </div>
+
+      {link && (
+        <div className="mt-4 border border-brand-navy/30 bg-white p-4 text-sm" data-testid="fc-link-result">
+          <div className="pmc-label mb-1">Payment link · {link.currency?.toUpperCase()} {link.amount}</div>
+          <div className={"text-xs mb-2 " + (link.email_sent ? "text-emerald-700" : "text-red-700")} data-testid="fc-email-status">
+            {link.email_sent ? `Emailed to ${link.emailed_to}` : `Email NOT sent to ${link.emailed_to} — check the email key on the server, or send this link yourself.`}
+          </div>
+          <a href={link.checkout_url} target="_blank" rel="noreferrer" data-testid="fc-open-link"
+             className="break-all text-brand-navy underline">{link.checkout_url}</a>
+        </div>
+      )}
 
       {preview && (
         <div className="mt-4 border border-emerald-500/60 bg-emerald-50 p-4 text-sm text-emerald-900"
