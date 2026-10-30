@@ -1,0 +1,38 @@
+{
+  "summary": "Tested the website tender-alert sign-up (double opt-in) and the weekly tender digest end to end. Backend: 15/15 new tests passed (tests/test_marketing_v59_signup_digest.py). The v58 marketing regression suite also passed (17/17). The digest logic was tested inside the backend process with send_email patched, so no real emails went out. It covers: category matching, the 15-tender cap, the 7-day window, contacts with no categories getting all tenders, skipping unsubscribed and non-consented contacts, the unsubscribe link, deduping runs in the same week, no scheduled run unless enabled and mode=weekly, and instant alerts being suppressed in weekly mode. Frontend: the homepage sign-up works. Submit stays disabled until both email and consent are filled, the signup-done message shows, and the contact is stored with pending country/category. On mobile (390px) the fields stack with no horizontal overflow. In the admin Alerts tab, the weekly/instant radios save and survive a reload, 'Send this week's digest now' shows a toast and a log row, and the subscriber count displays.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/v1/marketing/subscribe", "issue": "The rate-limit IP is the FIRST entry of X-Forwarded-For, which the client controls. The test sent a fake XFF header and the 5/hour limit was applied to that fake IP, so a bot can get past the limit by changing the header each time. Use the last entry added by the ingress, or the real client IP."},
+      {"endpoint": "mkt_subscribe_hits", "issue": "There is no TTL index, so the collection grows forever. Add a TTL index on 'at' (store it as a datetime) of about 1 hour."},
+      {"endpoint": "run_weekly_digest", "issue": "Every platform vendor is included no matter its status (suspended or rejected vendors still get the digest). Vendors with empty business_categories get ALL tenders. Consider filtering by status."},
+      {"endpoint": "POST /api/v1/marketing/alerts/digest-now", "issue": "The forced run ignores enabled=false and mode=instant. This is acceptable as a manual action, but say so in the UI."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin Marketing > Weekly digests log", "issues": ["g.week.slice(0,8) drops the '-manual-HHMMSS' suffix, so manual and scheduled runs look identical. Show a 'manual' badge."]},
+      {"screen": "Homepage sign-up (desktop)", "issues": ["Long category names are cut off in the 3-column select row (e.g. 'Application implemen')."]},
+      {"screen": "Homepage mobile (existing, out of scope)", "issues": ["The 'How it works' heading shows 'contract,on' with no space after the comma at 390px."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_marketing_v59_signup_digest.py", "/app/test_reports/pytest/pytest_v59.xml"],
+  "action_items": [
+    "Use a trustworthy client IP for the subscribe rate limit (do not use the first XFF entry)",
+    "Add a TTL index for mkt_subscribe_hits",
+    "Optional: filter digest vendors by active status; label manual digest runs in the log"
+  ],
+  "critical_code_review_comments": [
+    "Spoofable XFF rate limit (see above)",
+    "The honeypot input has no data-testid (fine, it is intentionally hidden)",
+    "crons.yml marketing-digest entry is valid: '0 8 * * 1', Europe/London, POST, enabled:true"
+  ],
+  "updated_files": ["/app/backend/tests/test_marketing_v59_signup_digest.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "None left behind. Deleted: TEST_/test_ mkt_contacts (including the existing TEST_sub contact), the testvendor platform contact created by the digest upsert, all mkt_subscribe_hits, all mkt_digest_log entries (there were none before), TEST_ cron_runs (including TEST_run_1793329605), and TEST_ notices. Final tender_alerts setting: enabled=false, include_uploaded=true, mode=instant.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run with pytest -n 0. The in-process digest test monkeypatches send_email and asyncio.sleep and inserts TEST_ notices and contacts. The preview DB has only one vendor (testvendor@pmcmanagers.com, HVAC), so digest-now is safe to trigger."
+}

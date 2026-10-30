@@ -40,11 +40,12 @@ async def subscribe(body: SubscribeIn, request: Request):
         return {"ok": True}
     if not body.consent:
         raise HTTPException(status_code=422, detail="Please tick the box to agree to receive tender alerts.")
-    ip = (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "")).split(",")[0].strip()
-    since = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
-    if await db.mkt_subscribe_hits.count_documents({"ip": ip, "at": {"$gte": since}}) >= 5:
+    ip = ((request.headers.get("x-forwarded-for") or "").split(",")[-1].strip()
+          or (request.client.host if request.client else ""))
+    since = datetime.now(timezone.utc) - timedelta(hours=1)
+    if await db.mkt_subscribe_hits.count_documents({"ip": ip, "at_dt": {"$gte": since}}) >= 5:
         raise HTTPException(status_code=429, detail="Too many sign-ups from this connection. Try again later.")
-    await db.mkt_subscribe_hits.insert_one({"ip": ip, "at": now_iso()})
+    await db.mkt_subscribe_hits.insert_one({"ip": ip, "at_dt": datetime.now(timezone.utc)})
     email = body.email.lower()
     existing = await db.mkt_contacts.find_one({"email": email})
     if existing and existing.get("consent") and not existing.get("unsubscribed"):
@@ -104,7 +105,8 @@ async def run_weekly_digest(force: bool = False) -> int:
         await db.mkt_digest_log.update_one({"_id": log_id}, {"$set": {"note": "no new tenders"}})
         return 0
     people: dict = {}
-    async for v in db.vendors.find({"email": {"$exists": True}}, {"email": 1, "business_categories": 1, "company_name": 1}):
+    async for v in db.vendors.find({"email": {"$exists": True}, "status": {"$nin": ["suspended", "rejected", "blocked", "deleted"]}},
+                                   {"email": 1, "business_categories": 1, "company_name": 1}):
         e = v["email"].lower()
         await _upsert_contact(e, company=v.get("company_name", ""), audience="vendor", source="platform", consent=True)
         people[e] = set(v.get("business_categories") or [])

@@ -494,6 +494,7 @@ async def record_referral(code: Optional[str], email: str, company: Optional[str
 async def ensure_indexes() -> None:
     await db.mkt_alert_log.create_index("notice_ref", unique=True)
     await db.mkt_digest_log.create_index("week", unique=True)
+    await db.mkt_subscribe_hits.create_index("at_dt", expireAfterSeconds=3600)
     await db.mkt_contacts.create_index("confirm_token", sparse=True)
     await db.mkt_contacts.create_index("email", unique=True)
     await db.mkt_contacts.create_index("unsub_token")

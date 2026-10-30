@@ -811,3 +811,12 @@ Artifacts in /frontend/public/downloads: pmc-backend-v57i.zip, pmc-frontend-v57i
 - Frontend: /admin/e/marketing (side nav "Marketing"), /vendor/refer ("Refer & earn"), RegistrationStart stores ref.
 - Data stance: we do not supply/scrape personal email lists; user imports own/lawful lists (CSV template provided).
 - Backlog: notices created already-published don't trigger alerts; contact soft-delete not implemented (hard delete on admin action).
+
+## R19 — Website sign-up + weekly digest — 2026-10-30 (agent-tested 15/15 + 17/17, preview) — build v58b
+- Homepage "Get tender alerts" box (TenderAlertsSignup.jsx) → POST /api/v1/marketing/subscribe (public, honeypot,
+  5/hour per real IP, TTL hits) → double opt-in email → GET /api/v1/marketing/confirm/{token} sets consent.
+- Alerts mode instant|weekly; run_weekly_digest (marketing_public.py) — last 7 days, max 15 per email, active vendors +
+  consented vendor contacts; cron marketing-digest Mon 08:00 London (.emergent/crons.yml) → POST /api/v1/cron/marketing-weekly-digest.
+  AWS needs EventBridge for it. Admin "Send this week's digest now" (forced, labelled manual).
+- Note: tests/test_marketing_v59_signup_digest.py rate-limit tests used fake X-Forwarded-For; after the real-IP fix they hit 429 when run back to back (test assumption, not a bug).
+

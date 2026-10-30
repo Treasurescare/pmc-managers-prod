@@ -29,6 +29,7 @@ export const AlertsTab = () => {
         <div className="flex items-center gap-3 text-sm">
           <button className="pmc-btn border border-brand-navy/40 bg-white px-3 py-2 text-sm" data-testid="mkt-digest-now"
             onClick={async () => { try { await marketingApi.digestNow(); toast.success("Digest is being sent — refresh in a minute"); } catch (e) { showApiError(e); } }}>Send this week's digest now</button>
+          <span className="text-xs text-brand-navy/50">(sends even if alerts are off)</span>
           <span className="text-brand-navy/60" data-testid="mkt-website-subs">{d.website_subscribers} confirmed sign-ups from the website</span>
         </div>
         <div className="text-xs text-brand-navy/60">People who unsubscribed are always skipped.</div>
@@ -46,7 +47,7 @@ export const AlertsTab = () => {
         <div className="pmc-label p-3">Weekly digests</div>
         {(d.digests || []).map((g) => (
           <div key={g.id} className="border-t border-brand-navy/10 p-3 text-sm flex gap-3" data-testid={`mkt-digest-${g.id}`}>
-            <span className="font-semibold">{g.week.slice(0, 8)}</span><span className="flex-1">{g.tenders} new tenders{g.note ? ` · ${g.note}` : ""}</span>
+            <span className="font-semibold">{g.week.slice(0, 8)}{g.week.includes("manual") && <span className="ml-2 text-[10px] px-1.5 py-0.5 bg-amber-600 text-white uppercase">manual</span>}</span><span className="flex-1">{g.tenders} new tenders{g.note ? ` · ${g.note}` : ""}</span>
             <span>{g.recipients} emailed</span><span className="text-brand-navy/50">{g.at?.slice(0, 16).replace("T", " ")}</span>
           </div>))}
         {!(d.digests || []).length && <div className="p-4 text-sm text-brand-navy/60">No digests sent yet.</div>}
