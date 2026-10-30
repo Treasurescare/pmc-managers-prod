@@ -20,6 +20,8 @@ router = APIRouter(tags=["site"])
 DEFAULT_SOCIAL = {
     "linkedin": "https://www.linkedin.com/feed/update/urn:li:activity:7521796802216611840/",
     "facebook": "https://www.facebook.com/profile.php?id=61596254811635",
+    "instagram": "",
+    "whatsapp": "",
 }
 _URL = re.compile(r"^https://[^\s<>\"']+$")
 
@@ -27,6 +29,8 @@ _URL = re.compile(r"^https://[^\s<>\"']+$")
 class SocialIn(BaseModel):
     linkedin: Optional[str] = ""
     facebook: Optional[str] = ""
+    instagram: Optional[str] = ""
+    whatsapp: Optional[str] = ""
 
 
 async def _social() -> dict:
@@ -42,8 +46,13 @@ async def public_social():
 @router.put("/api/v1/marketing/site-social", dependencies=[Depends(require_csrf)])
 async def save_social(body: SocialIn, admin=Depends(require_role("admin"))):
     data = {k: (getattr(body, k) or "").strip() for k in DEFAULT_SOCIAL}
+    if data["whatsapp"]:
+        digits = re.sub(r"[\s+()-]", "", data["whatsapp"])
+        if not re.fullmatch(r"\d{8,15}", digits):
+            raise HTTPException(status_code=422, detail="WhatsApp number: country code + number, digits only, e.g. 447700900123")
+        data["whatsapp"] = digits
     for k, v in data.items():
-        if v and not _URL.match(v):
+        if k != "whatsapp" and v and not _URL.match(v):
             raise HTTPException(status_code=422, detail=f"{k.title()} link must start with https://")
     await db.site_settings.update_one({"_id": "social"}, {"$set": {**data, "updated_at": now_iso()}}, upsert=True)
     await audit_log("site.social_links_updated", admin, "site_settings", "social", data)

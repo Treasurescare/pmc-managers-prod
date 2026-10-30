@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import DOMPurify from "dompurify";
 import { vendorMessagesApi, showApiError } from "@/lib/api";
 import VendorPortalChrome from "./VendorPortalChrome";
+import { VendorWhatsAppOptIn } from "./VendorWhatsAppOptIn";
 
 const KIND = { category: "Category", payment: "Payment", service: "Service" };
 
@@ -27,6 +28,7 @@ export default function VendorMessages() {
       <VendorPortalChrome active="/vendor/messages">
         <div className="sp-head"><div><div className="pmc-eyebrow">Inbox</div><h1>Messages from PMC</h1></div>
           {unread > 0 && <button className="pmc-btn pmc-btn--secondary" onClick={readAll} data-testid="msg-read-all">Mark all read ({unread})</button>}</div>
+        <VendorWhatsAppOptIn />
         <div style={{ display: "flex", gap: "6px", marginBottom: "12px", flexWrap: "wrap" }}>
           {[["all", "All"], ["unread", `Unread (${unread})`], ["category", "Category"], ["payment", "Payment"], ["service", "Service"]].map(([k, l]) => (
             <button key={k} onClick={() => setFilter(k)} data-testid={`msg-filter-${k}`}

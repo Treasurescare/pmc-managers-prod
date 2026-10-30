@@ -263,6 +263,8 @@ async def issue_receipt(vendor_id: str, purpose: str, lines: list, currency: str
             att = None
         html = wrap(subject, body, "View payments", f"{config.FRONTEND_URL.rstrip('/')}/vendor/emd")
         asyncio.create_task(send_email(v["email"], f"[PMC] {subject}", html, attachments=att))
+    from routers.whatsapp import notify_receipt
+    asyncio.create_task(notify_receipt(vendor_id, rec))
     return rec
 
 

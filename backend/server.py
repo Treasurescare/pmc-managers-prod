@@ -317,6 +317,8 @@ from routers import marketing_share as _marketing_share  # noqa: E402
 app.include_router(_marketing_share.router)
 from routers import site_settings as _site_settings  # noqa: E402
 app.include_router(_site_settings.router)
+from routers import whatsapp as _whatsapp  # noqa: E402
+app.include_router(_whatsapp.router)
 from routers import google_auth as _google_auth  # noqa: E402
 app.include_router(_google_auth.router)
 from routers import linkedin as _linkedin  # noqa: E402
@@ -780,6 +782,7 @@ async def on_start() -> None:
         from routers.marketing import ensure_indexes as _mkt_idx
         await _mkt_idx()
         await _assistant.ensure_indexes()
+        await _whatsapp.ensure_indexes()
     except Exception as exc:
         logging.warning("rfq/rfp starter seed skipped: %s", exc)
     if os.environ.get("SEED_DEMO_DATA", "false").lower() == "true":

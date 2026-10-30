@@ -1121,6 +1121,17 @@ export const siteApi = {
   saveSocial: (p) => api.put("/api/v1/marketing/site-social", p).then((r) => r.data),
 };
 
+export const whatsappApi = {
+  status: () => api.get("/api/v1/admin/whatsapp/status").then((r) => r.data),
+  saveSettings: (p) => api.put("/api/v1/admin/whatsapp/settings", p).then((r) => r.data),
+  test: (number) => api.post("/api/v1/admin/whatsapp/test", { number }).then((r) => r.data),
+  threads: () => api.get("/api/v1/admin/whatsapp/threads").then((r) => r.data),
+  thread: (id) => api.get(`/api/v1/admin/whatsapp/threads/${id}`).then((r) => r.data),
+  reply: (id, text) => api.post(`/api/v1/admin/whatsapp/threads/${id}/reply`, { text }).then((r) => r.data),
+  mine: () => api.get("/api/v1/vendor/whatsapp").then((r) => r.data),
+  saveMine: (p) => api.put("/api/v1/vendor/whatsapp", p).then((r) => r.data),
+};
+
 export const marketingApi = {
   contacts: (params = {}) => api.get("/api/v1/marketing/contacts", { params }).then((r) => r.data),
   addContact: (p) => api.post("/api/v1/marketing/contacts", p).then((r) => r.data),

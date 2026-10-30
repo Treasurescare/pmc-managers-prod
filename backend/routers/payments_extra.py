@@ -459,6 +459,8 @@ async def _send_category_reminders():
         await post_vendor_message(req.get("vendor_ref"), "payment", f"Reminder: payment pending — {req['category_name']}",
             f"<p>Your additional category <b>{req['category_name']}</b> is still waiting for payment ({amt}).</p>"
             f"<p>{FREE_CATEGORY_MSG}</p>", "/vendor/categories")
+        from routers.whatsapp import notify_payment_reminder
+        await notify_payment_reminder(req.get("vendor_ref"), f"additional category {req['category_name']}", amt, chk["checkout_url"])
         await db.vendor_category_requests.update_one({"_id": req["_id"]},
             {"$set": {"last_reminder_at": now_iso()}, "$inc": {"reminders_sent": 1}})
 
