@@ -23,6 +23,7 @@ const NAV_SECONDARY = [
   { to: "/vendor/categories", label: "Categories",       icon: "i-tag" },
   { to: "/vendor/data-intel", label: "Data intel",       icon: "i-chart" },
   { to: "/vendor/messages",   label: "Messages",         icon: "i-mail" },
+  { to: "/vendor/refer",      label: "Refer & earn",     icon: "i-users" },
   { to: "/vendor/services",   label: "Services",         icon: "i-briefcase" },
   { to: "/vendor/reviews",    label: "Reviews",          icon: "i-users" },
   { to: "/vendor/account",    label: "Account & security", icon: "i-settings" },

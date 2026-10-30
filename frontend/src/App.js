@@ -107,6 +107,8 @@ import VendorBidWorkspaceE from "@/apps/vendor-portal-e/VendorBidWorkspaceE";
 import VendorEmdE from "@/apps/vendor-portal-e/VendorEmdE";
 import VendorDataIntel from "@/apps/vendor-portal-e/VendorDataIntel";
 import VendorMessages from "@/apps/vendor-portal-e/VendorMessages";
+import VendorReferral from "@/apps/vendor-portal-e/VendorReferral";
+import AdminMarketingE from "@/apps/admin-console-e/AdminMarketingE";
 import PayComplete from "@/apps/PayComplete";
 import VendorSignaturesE from "@/apps/vendor-portal-e/VendorSignaturesE";
 import VendorCompanyKycE from "@/apps/vendor-portal-e/VendorCompanyKycE";
@@ -242,6 +244,7 @@ export default function App() {
             <Route path="/pay/complete" element={<PayComplete />} />
             <Route path="/vendor/data-intel" element={<RequireVendor><VendorDataIntel /></RequireVendor>} />
             <Route path="/vendor/messages" element={<RequireVendor><VendorMessages /></RequireVendor>} />
+            <Route path="/vendor/refer" element={<RequireVendor><VendorReferral /></RequireVendor>} />
             <Route path="/register/resume" element={<RegistrationResume />} />
             <Route path="/register/status" element={<RegistrationStatus />} />
 
@@ -273,6 +276,7 @@ export default function App() {
             <Route path="/admin/e/escrow" element={<AdminEscrowE />} />
             <Route path="/admin/e/escrow-institutions" element={<AdminEscrowInstitutionsE />} />
             <Route path="/admin/e/billing" element={<AdminBillingE />} />
+            <Route path="/admin/e/marketing" element={<AdminMarketingE />} />
             <Route path="/admin/e/evaluations" element={<AdminEvaluationListE />} />
             <Route path="/admin/e/evaluation" element={<AdminEvaluationE />} />
             <Route path="/admin/e/l1-award" element={<AdminL1AwardE />} />

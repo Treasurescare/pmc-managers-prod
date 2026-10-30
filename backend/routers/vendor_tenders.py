@@ -552,6 +552,9 @@ async def approve_vendor_tender(ref: str, payload: ReviewDecisionIn,
                   "reviewed_at": now_iso(), "review_note": payload.note}})
     await audit_log("vendor_tender.approve", officer, "notice", ref,
                     {"author": n.get("author_name"), "published": True})
+    from routers.marketing import send_tender_alert
+    import asyncio as _aio
+    _aio.create_task(send_tender_alert(ref))
     return {"ok": True, "review_status": "approved", "is_published": True}
 
 

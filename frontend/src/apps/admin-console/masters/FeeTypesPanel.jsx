@@ -36,7 +36,7 @@ export default function FeeTypesPanel() {
   const [allCountries, setAllCountries] = useState([]);
   useEffect(() => { publicApi.countries().then((c) => setAllCountries((c || []).map((x) => Array.isArray(x) ? { code: x[0], name: x[1] } : { code: x.code || x.iso || x.value, name: x.name || x.label || x.code }))).catch(() => {}); }, []);
   const [cats, setCats] = useState([]);
-  useEffect(() => { mastersApi.listCategories({ limit: 500 }).then((c) => setCats(Array.isArray(c) ? c : (c.items || []))).catch(() => {}); }, []);
+  useEffect(() => { mastersApi.listCategories().then((c) => setCats(Array.isArray(c) ? c : (c.items || []))).catch(() => {}); }, []);
   const load = useCallback(() => feeTypesApi.list().then(setRows).catch(showApiError), []);
   useEffect(() => { load(); }, [load]);
 

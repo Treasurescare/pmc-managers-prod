@@ -1063,6 +1063,9 @@ async def approve_template(tid: str, payload: TplReviewIn = TplReviewIn(),
                   "review_note": payload.note}})
     await audit_log("tender_template.approve", officer, "tender_template", tid,
                     {"published_notice_ref": ref, "author": notice["author_name"]})
+    from routers.marketing import send_tender_alert
+    import asyncio as _aio
+    _aio.create_task(send_tender_alert(ref))
     return {"ok": True, "review_status": "approved", "notice_ref": ref}
 
 

@@ -1115,6 +1115,30 @@ export const tenderTemplateApi = {
     api.post(`/api/v1/tender-templates/${id}/master/reject`, { note }).then((r) => r.data),
 };
 
+export const marketingApi = {
+  contacts: (params = {}) => api.get("/api/v1/marketing/contacts", { params }).then((r) => r.data),
+  addContact: (p) => api.post("/api/v1/marketing/contacts", p).then((r) => r.data),
+  importCsv: (p) => api.post("/api/v1/marketing/contacts/import", p).then((r) => r.data),
+  syncPlatform: () => api.post("/api/v1/marketing/contacts/sync").then((r) => r.data),
+  deleteContact: (id) => api.delete(`/api/v1/marketing/contacts/${id}`).then((r) => r.data),
+  segments: () => api.get("/api/v1/marketing/segments").then((r) => r.data),
+  previewSegment: (p) => api.post("/api/v1/marketing/segments/preview", p).then((r) => r.data),
+  createSegment: (p) => api.post("/api/v1/marketing/segments", p).then((r) => r.data),
+  deleteSegment: (id) => api.delete(`/api/v1/marketing/segments/${id}`).then((r) => r.data),
+  aiCopy: (p) => api.post("/api/v1/marketing/ai-copy", p).then((r) => r.data),
+  campaigns: () => api.get("/api/v1/marketing/campaigns").then((r) => r.data),
+  createCampaign: (p) => api.post("/api/v1/marketing/campaigns", p).then((r) => r.data),
+  updateCampaign: (id, p) => api.put(`/api/v1/marketing/campaigns/${id}`, p).then((r) => r.data),
+  deleteCampaign: (id) => api.delete(`/api/v1/marketing/campaigns/${id}`).then((r) => r.data),
+  testCampaign: (id, email) => api.post(`/api/v1/marketing/campaigns/${id}/test`, { email }).then((r) => r.data),
+  sendCampaign: (id) => api.post(`/api/v1/marketing/campaigns/${id}/send`).then((r) => r.data),
+  alerts: () => api.get("/api/v1/marketing/alerts").then((r) => r.data),
+  saveAlerts: (p) => api.put("/api/v1/marketing/alerts", p).then((r) => r.data),
+  referrals: () => api.get("/api/v1/marketing/referrals").then((r) => r.data),
+  myReferral: () => api.get("/api/v1/marketing/referral/me").then((r) => r.data),
+};
+
+
 // v45 — Tender Pro: DPR upload, AI fill-all, per-section save, masters, ratings.
 export const vendorMessagesApi = {
   list: () => api.get("/api/v1/vendor/messages").then((r) => r.data),

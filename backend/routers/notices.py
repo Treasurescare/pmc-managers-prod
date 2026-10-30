@@ -2,7 +2,7 @@ from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form, Request
 from fastapi.responses import JSONResponse, Response
 from bson import ObjectId
-import base64, uuid, io, zipfile
+import base64, uuid, io, zipfile, asyncio
 
 import config
 from db import db, next_sequence
@@ -622,6 +622,8 @@ async def publish_notice(notice_ref: str, admin=Depends(require_role("admin"))):
     if r.matched_count == 0:
         raise HTTPException(status_code=404, detail="Notice not found or already published")
     await audit_log("notice.publish", admin, "notice", notice_ref, {})
+    from routers.marketing import send_tender_alert
+    asyncio.create_task(send_tender_alert(notice_ref))
     return {"ok": True}
 
 

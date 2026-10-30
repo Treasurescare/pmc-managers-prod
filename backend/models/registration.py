@@ -14,6 +14,7 @@ class RegistrationDraftIn(BaseModel):
     # Wave 7 — GDPR consent captured up-front
     data_processing_consent: bool = False
     marketing_consent: bool = False
+    ref: Optional[str] = Field(default=None, max_length=16)
 
 
 class RegistrationUpdateIn(BaseModel):

@@ -99,7 +99,8 @@ export default function RegistrationStart() {
     if (!email) return;
     setBusy(true);
     try {
-      const r = await registrationApi.createDraft({ email, company_name: companyName || undefined, country });
+      const ref = new URLSearchParams(window.location.search).get("ref") || localStorage.getItem("pmc_ref") || undefined;
+      const r = await registrationApi.createDraft({ email, company_name: companyName || undefined, country, ref });
       setSent(r);
       toast.success(t("register.start_success"));
       if (r.magic_token) {

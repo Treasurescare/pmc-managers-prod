@@ -30,6 +30,7 @@ export default function AdminSideNavE({ active }) {
     ["Engagements", "/admin/e/engagements", "i-chat"],
     ["Vendor requests", "/admin/e/vendor-requests", "i-tag"],
     ["Profile changes", "/admin/e/profile-changes", "i-settings"],
+    ["Marketing", "/admin/e/marketing", "i-mail"],
     ["Money & compliance", null, null],
     ["Bidding ops", "/admin/e/bidding", "i-gavel"],
     ["Escrow / EMD", "/admin/e/escrow", "i-coin"],
