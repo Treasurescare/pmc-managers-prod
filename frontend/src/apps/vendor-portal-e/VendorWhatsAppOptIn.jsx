@@ -20,6 +20,7 @@ export const VendorWhatsAppOptIn = () => {
       <div className="pmc-eyebrow" style={{ marginBottom: "6px" }}>WhatsApp alerts</div>
       <p className="pmc-muted" style={{ fontSize: "13px", margin: "0 0 10px" }}>
         Get new tenders in your categories, payment reminders and receipts on WhatsApp. Reply STOP anytime to switch off.
+        {!f.available && " PMC's WhatsApp line is launching soon — you can switch this on now and messages start once it's live."}
       </p>
       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
         <input className="pmc-input" style={{ maxWidth: "240px" }} placeholder="e.g. 447700900123" value={f.number || ""} disabled={f.opt_in}

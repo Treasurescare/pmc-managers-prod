@@ -1,0 +1,38 @@
+{
+  "summary": "v63 WhatsApp wiring (not-connected mode) + Instagram/WhatsApp website links + vendor opt-in. Backend: new tests/test_v63_whatsapp.py 26/26 pass (public social new keys, WA number normalisation '+44 7700 900123'->'447700900123', 422 for 7/16 digits, letters, wa.me text, http instagram; admin status configured=false + webhook_url; settings persist + 422 bad template_lang + CSRF required; test-send 422 bad number / 424 not connected; webhook GET 403 (missing/wrong/empty token), POST 401 (no/bad signature); doc 404; direct _process(): creates wa_threads+wa_messages, dedupes same wamid, unread/name/last_text set, admin threads list + detail (window_open true, unread reset, no _id), reply 424 when window open, 409 when window closed/nonexistent, 422 empty text; STOP sets vendors.wa_opt_in False + wa_opt_out_at, no outbound doc written; image msg -> '[image]'; notify_tender/notify_payment_reminder/notify_receipt/_send all no-op; vendor GET/PUT opt-in/out, 422 empty/invalid, anon 401, vendor blocked from admin WA). Regression v62 suite 19/19 pass (after updating stale expectations for the 2 new keys). UI: admin Marketing > Website links has instagram/whatsapp inputs, save normalises number + success toast, invalid number shows 422 toast; WhatsApp tab shows 'Not connected yet', webhook URL, Send test disabled, inbox empty state, all 3 toggles persist across reload; footer shows LinkedIn/Facebook/Instagram + WhatsApp (href https://wa.me/447700900123) and hides IG/WA when empty; vendor /vendor/messages opt-in card: button disabled on empty, 422 toast for '123', On after save (persisted after reload), Switch off -> Off.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PUT /api/v1/vendor/whatsapp", "issue": "No require_csrf dependency although vendor auth is cookie-based (vendor_token cookie). A cross-site request could opt a logged-in supplier in with an attacker-controlled number, which would then receive tender alerts and receipt PDF links. Add dependencies=[Depends(require_csrf)] (frontend api.js already sends X-CSRF-Token)."},
+      {"endpoint": "POST /api/v1/whatsapp/webhook (_inbound)", "issue": "Dedupe is find-then-insert and the wa_messages.wamid index is non-unique; Meta retries/concurrent deliveries can create duplicate inbound rows and double AI replies. Use a unique partial index on wamid (partialFilterExpression wamid: {$type: 'string'}) and catch DuplicateKeyError."},
+      {"endpoint": "_inbound AI auto-reply", "issue": "When configured() is False, _ai_reply still calls the LLM before _send no-ops (wasted spend). Short-circuit on configured() before generating the reply."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Vendor /vendor/messages WhatsApp card", "issues": ["Supplier can switch alerts On while WhatsApp is not connected (available=false) and gets 'switched on' toast; consider a 'coming soon' note so they don't expect messages yet"]},
+      {"screen": "Validation toasts (admin links, vendor opt-in)", "issues": ["422 messages are prefixed 'Something went wrong · HTTP 422' — reads like a server failure for a simple input mistake"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v63_whatsapp.py", "/app/backend/tests/test_v62_social_links_receipts.py", "/app/test_reports/pytest/pytest_v63.xml"],
+  "action_items": [
+    "Add require_csrf to PUT /api/v1/vendor/whatsapp",
+    "Make inbound wamid dedupe atomic (unique partial index + DuplicateKeyError handling)",
+    "Skip LLM call in _inbound when WhatsApp not configured",
+    "Optional: show 'not live yet' hint on vendor opt-in card when available=false"
+  ],
+  "critical_code_review_comments": [
+    "wa_reply tags the staff message via update_one({wa_id, kind:'staff', text}) — with repeated identical replies this tags the oldest match; have _send return the inserted _id instead",
+    "STOP detection is exact-match on lowercased text; 'Stop.' or 'STOP please' won't opt out — consider stripping punctuation / startswith",
+    "PUT /marketing/site-social is full-replace: any client omitting instagram/whatsapp wipes them (admin UI sends all 4, so fine today)",
+    "Tests must run with -n0 (pytest.ini enables xdist) — v62 and v63 suites both mutate site_settings.social and race in parallel"
+  ],
+  "updated_files": ["/app/backend/tests/test_v63_whatsapp.py", "/app/backend/tests/test_v62_social_links_receipts.py (DEFAULTS + save expectation now include instagram/whatsapp)"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "TEST wa_ids 999000111222/333/444 threads+messages created and deleted; mkt_settings whatsapp doc deleted; site_settings social restored to linkedin/facebook defaults with instagram='' whatsapp=''; testvendor reset to wa_opt_in False, wa_number None (opt-in timestamps unset).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest -n0 tests/test_v63_whatsapp.py tests/test_v62_social_links_receipts.py (self-cleaning; run serially). Inbound tests call routers.whatsapp._process with a fresh Motor client patched onto w.db. Admin UI login: /login, click signin-role-admin after ~2s hydration wait, then /admin/e/marketing tabs mkt-tab-links / mkt-tab-whatsapp. WA creds absent so configured()=False everywhere."
+}

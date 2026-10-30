@@ -862,5 +862,15 @@ Artifacts in /frontend/public/downloads: pmc-backend-v57i.zip, pmc-frontend-v57i
 - Fee receipt PDF: render_receipt_pdf (logo, PAID, lines, total); GET /api/v1/vendor-tenders/receipts/{no}.pdf (own only);
   PDF button in vendor /vendor/emd receipts table; issue_receipt (_fees.py) now attaches the PDF to the receipt email.
 
+
+## R25 — WhatsApp Cloud API wiring + Instagram/WhatsApp footer links — 2026-10-30 — build v58h (agent-tested iteration_133: 26/26 + 19/19, UI)
+- site_settings: instagram (https URL) + whatsapp (digits) keys; footer WhatsApp → https://wa.me/<digits>.
+- routers/whatsapp.py (env: WA_PHONE_NUMBER_ID, WA_ACCESS_TOKEN, WA_APP_SECRET, WA_VERIFY_TOKEN, optional WA_GRAPH_VERSION default v24.0, WA_WABA_ID).
+  Webhook GET/POST /api/v1/whatsapp/webhook (verify token + X-Hub-Signature-256), inbound → wa_threads/wa_messages (unique partial wamid index),
+  STOP → vendor opt-out, AI auto-reply via assistant (session wa:<id>, 20/h). Templates: pmc_new_tender(4 vars), pmc_payment_reminder(3),
+  pmc_payment_receipt(DOCUMENT header + 3) ; hooks in send_tender_alert, category reminders cron, issue_receipt (7-day public token PDF link).
+  Admin: Marketing → WhatsApp tab (status, toggles, test hello_world, inbox + 24h-window reply). Vendor opt-in card on /vendor/messages (CSRF).
+- PENDING: user to supply Meta credentials + get the 3 templates approved; set webhook in Meta.
+
 - LinkedIn "Feature not available — not enough connections": LinkedIn account-age/connections restriction on new profiles (user-side).
 

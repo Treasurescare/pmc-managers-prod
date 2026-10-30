@@ -19,6 +19,8 @@ DB = MongoClient(ENV["MONGO_URL"].strip('"'))[ENV["DB_NAME"].strip('"')]
 DEFAULTS = {
     "linkedin": "https://www.linkedin.com/feed/update/urn:li:activity:7521796802216611840/",
     "facebook": "https://www.facebook.com/profile.php?id=61596254811635",
+    "instagram": "",  # v63
+    "whatsapp": "",  # v63
 }
 SOC = f"{BASE_URL}/api/v1/marketing/site-social"
 PUB = f"{BASE_URL}/api/v1/site/social"
@@ -77,7 +79,8 @@ class TestSocial:
         assert r.json() == DEFAULTS
 
     def test_admin_save_and_persist(self, admin):
-        p = {"linkedin": "https://www.linkedin.com/company/TEST_pmc", "facebook": "https://www.facebook.com/TEST_pmc"}
+        p = {"linkedin": "https://www.linkedin.com/company/TEST_pmc", "facebook": "https://www.facebook.com/TEST_pmc",
+             "instagram": "", "whatsapp": ""}
         r = admin.put(SOC, json=p)
         assert r.status_code == 200, r.text
         assert r.json() == p

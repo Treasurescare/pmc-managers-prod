@@ -12,6 +12,7 @@ from typing import Optional
 
 import httpx
 from bson import ObjectId
+from pymongo.errors import DuplicateKeyError
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from fastapi.responses import PlainTextResponse, Response
 from pydantic import BaseModel, Field
@@ -209,14 +210,17 @@ async def _process(payload: dict) -> None:
 
 async def _inbound(m: dict, name: Optional[str]) -> None:
     wa_id, wamid = m.get("from"), m.get("id")
-    if not wa_id or not wamid or await db.wa_messages.find_one({"wamid": wamid}):
+    if not wa_id or not wamid:
         return
     text = ((m.get("text") or {}).get("body") or (m.get("button") or {}).get("text") or "").strip()
     if not text:
         text = f"[{m.get('type', 'message')}]"
     v = await db.vendors.find_one({"wa_number": wa_id})
-    await db.wa_messages.insert_one({"wa_id": wa_id, "direction": "in", "kind": m.get("type"), "text": text[:4000],
-                                     "wamid": wamid, "at": now_iso()})
+    try:
+        await db.wa_messages.insert_one({"wa_id": wa_id, "direction": "in", "kind": m.get("type"), "text": text[:4000],
+                                         "wamid": wamid, "at": now_iso()})
+    except DuplicateKeyError:
+        return
     await db.wa_threads.update_one({"wa_id": wa_id}, {
         "$set": {"last_at": now_iso(), "last_inbound_at": now_iso(), "last_text": text[:120], "name": name,
                  "vendor_ref": v.get("vendor_ref") if v else None, "company": v.get("company_name") if v else None},
@@ -226,7 +230,7 @@ async def _inbound(m: dict, name: Optional[str]) -> None:
         await _send(wa_id, {"type": "text", "text": {"body": "You won't get any more PMC WhatsApp alerts. You can switch them back on in your supplier portal."}},
                     "text", "Opt-out confirmed")
         return
-    if (await _settings())["ai_autoreply"] and not text.startswith("["):
+    if configured() and (await _settings())["ai_autoreply"] and not text.startswith("["):
         since = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
         if await db.wa_messages.count_documents({"wa_id": wa_id, "kind": "ai", "at": {"$gte": since}}) < 20:
             reply = await _ai_reply(wa_id, text, v)
@@ -352,7 +356,7 @@ async def vendor_wa(vendor=Depends(current_vendor)):
             "available": configured()}
 
 
-@router.put("/api/v1/vendor/whatsapp")
+@router.put("/api/v1/vendor/whatsapp", dependencies=CSRF)
 async def vendor_wa_save(body: VendorWaIn, vendor=Depends(current_vendor)):
     num = norm_number(body.number)
     if body.opt_in and not num:
@@ -365,7 +369,12 @@ async def vendor_wa_save(body: VendorWaIn, vendor=Depends(current_vendor)):
 
 
 async def ensure_indexes() -> None:
-    await db.wa_messages.create_index("wamid", sparse=True)
+    try:
+        await db.wa_messages.drop_index("wamid_1")
+    except Exception:
+        pass
+    await db.wa_messages.create_index("wamid", name="wamid_unique", unique=True,
+                                      partialFilterExpression={"wamid": {"$type": "string"}})
     await db.wa_messages.create_index([("wa_id", 1), ("at", 1)])
     await db.wa_threads.create_index("wa_id", unique=True)
     await db.wa_docs.create_index("at_dt", expireAfterSeconds=7 * 86400)
