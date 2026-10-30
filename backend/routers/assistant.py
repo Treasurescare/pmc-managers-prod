@@ -46,7 +46,8 @@ async def _vendor(request: Request):
 
 
 async def _context(v) -> str:
-    rows = await db.notices.find({"is_published": True}, {"notice_ref": 1, "title": 1, "category": 1,
+    rows = await db.notices.find({"is_published": True, "$or": [{"submission_deadline": {"$gte": now_iso()}},
+                                                              {"submission_deadline": {"$in": [None, ""]}}]}, {"notice_ref": 1, "title": 1, "category": 1,
                                                           "delivery_country": 1, "submission_deadline": 1}
                                  ).sort("published_at", -1).limit(12).to_list(12)
     t = "\n".join(f"- {r['notice_ref']}: {r.get('title')} | {r.get('category')} | {r.get('delivery_country')} | "
@@ -75,7 +76,7 @@ async def chat(body: ChatIn, request: Request):
     v = await _vendor(request)
     s = await db.assistant_sessions.find_one({"session_id": body.session_id}) or {}
     if s.get("vendor_id") and (not v or str(v["_id"]) != s["vendor_id"]):
-        s = {}
+        raise HTTPException(status_code=409, detail="Please refresh the page to start a new chat.")
     hist = (s.get("messages") or [])[-10:]
     convo = "\n".join(f"{m['role'].upper()}: {m['text']}" for m in hist)
     system = f"{RULES}\n\nABOUT PMC:\n{ABOUT}\n\n{await _context(v)}"

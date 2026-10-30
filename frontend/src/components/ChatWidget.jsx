@@ -7,8 +7,11 @@ const sid = () => {
     let s = localStorage.getItem("pmc_chat_sid");
     if (!s) { s = (crypto.randomUUID?.() || String(Date.now()) + Math.random()).replace(/[^a-zA-Z0-9-]/g, "").slice(0, 40); localStorage.setItem("pmc_chat_sid", s); }
     return s;
-  } catch { return "anon-" + Date.now(); }
+  } catch { return (window.__pmcSid = window.__pmcSid || "anon-" + Date.now()); }
 };
+const resetSid = () => { try { localStorage.removeItem("pmc_chat_sid"); } catch { window.__pmcSid = null; } };
+const linkify = (t) => t.split(/(\/(?:register|notices|buyers|login)\b)/g).map((p, i) =>
+  /^\/(register|notices|buyers|login)$/.test(p) ? <a key={i} href={p} style={{ textDecoration: "underline" }}>{p}</a> : p);
 const HELLO = { role: "assistant", text: "Hi, I'm PMC Assistant. Ask me about registering, fees, open tenders or how bidding works." };
 
 export default function ChatWidget() {
@@ -30,10 +33,11 @@ export default function ChatWidget() {
       setMsgs((x) => [...x, { role: "assistant", text: r.reply }]);
     } catch (err) {
       const d = err?.response?.data?.detail;
+      if (err?.response?.status === 409) { resetSid(); }
       setMsgs((x) => [...x, { role: "assistant", text: typeof d === "string" ? d : "Sorry, I couldn't answer just now. Please try again." }]);
     } finally { setBusy(false); }
   };
-  const panel = { position: "fixed", right: "16px", bottom: "84px", width: "min(380px, calc(100vw - 32px))", height: "min(520px, calc(100vh - 120px))",
+  const panel = { position: "fixed", right: "16px", bottom: "140px", width: "min(380px, calc(100vw - 32px))", height: "min(520px, calc(100vh - 120px))",
     background: "#fff", border: "1px solid rgba(15,59,46,.2)", boxShadow: "0 18px 50px rgba(0,0,0,.18)", zIndex: 60, display: "flex", flexDirection: "column" };
   return (
     <>
@@ -47,7 +51,7 @@ export default function ChatWidget() {
             {msgs.map((m, i) => (
               <div key={i} data-testid={`chat-msg-${m.role}`} style={{ justifySelf: m.role === "user" ? "end" : "start", maxWidth: "85%",
                 background: m.role === "user" ? "#0F3B2E" : "#F3EFE4", color: m.role === "user" ? "#fff" : "#1f3a2e",
-                padding: "8px 11px", fontSize: "14px", lineHeight: "20px", whiteSpace: "pre-wrap" }}>{m.text}</div>))}
+                padding: "8px 11px", fontSize: "14px", lineHeight: "20px", whiteSpace: "pre-wrap" }}>{m.role === "assistant" ? linkify(m.text) : m.text}</div>))}
             {busy && <div style={{ fontSize: "13px", opacity: 0.6 }} data-testid="chat-typing">Typing…</div>}
             <div ref={end} />
           </div>
@@ -60,7 +64,7 @@ export default function ChatWidget() {
         </div>
       )}
       <button onClick={() => setOpen((o) => !o)} data-testid="chat-toggle" aria-label="Chat with PMC Assistant"
-              style={{ position: "fixed", right: "16px", bottom: "16px", zIndex: 60, background: "#0F3B2E", color: "#F3EFE4",
+              style={{ position: "fixed", right: "16px", bottom: "76px", zIndex: 60, background: "#0F3B2E", color: "#F3EFE4",
                        padding: "12px 18px", borderRadius: "999px", boxShadow: "0 10px 30px rgba(0,0,0,.25)", fontWeight: 600 }}>
         {open ? "Close" : "Ask PMC"}
       </button>

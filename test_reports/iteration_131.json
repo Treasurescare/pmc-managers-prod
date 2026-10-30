@@ -1,0 +1,43 @@
+{
+  "summary": "I tested v61 end to end: the AI assistant chat, the LinkedIn social-post approval queue, LinkedIn sign-in while it is disabled, and the Google sign-in regression. The backend suite passed 18/18 (tests/test_v61_assistant_linkedin.py), including real Claude calls. Multi-turn context works. Vendor replies are personalised (company name VEN-TEST01, bid count). An anonymous caller reusing a vendor's session_id cannot see that vendor's history. Publishing a notice queues exactly one pending post. Edit works only on pending posts. Reject, mark-posted, approve (424 when LinkedIn is not connected) and approve on a handled post (409) all behave as specified. CSRF and non-admin requests are blocked. LinkedIn status/start/callback return the expected errors, and Google exchange still returns 401 and 422. In the UI the Social tab works: status message, share-card image, save/approve/manual/mark buttons and toasts. The chat widget works on desktop, on the 390px mobile vendor portal and with Enter-to-send. It is hidden on /admin, /staff and /escrow. /login shows the li_error toast, shows the Google button and hides the LinkedIn button. One real UI bug: the chat toggle sits exactly on top of the existing Help button (pmc-help-fab), so Help can no longer be clicked on public pages.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/v1/marketing/social-posts/{pid}/mark-posted", "issue": "No status filter, so a rejected post can be changed to 'posted'. An unknown id also returns 200 instead of 404."},
+      {"endpoint": "PUT /social-posts/{pid}, POST /reject", "issue": "Return {ok:true} even when the post is missing or not pending; nothing changes and there is no 404/409."},
+      {"endpoint": "GET /api/v1/marketing/linkedin/connect", "issue": "When the LinkedIn app keys are missing it returns 200 with url=/login?li_error=... instead of an error (424). The UI hides the button in that case, so this is not visible to users."},
+      {"endpoint": "POST /api/v1/assistant/chat", "issue": "If anyone posts with a vendor's session_id, the upsert replaces that vendor's stored history and sets vendor_id=null. The history is wiped, not leaked. _context lists published notices as 'LATEST OPEN TENDERS' without filtering out ones past their submission deadline."},
+      {"endpoint": "queue_social_post", "issue": "Deleting or unpublishing a notice leaves an orphan pending post; approving it would post a share URL that returns 404. The v60 test cleanup also does not delete mkt_social_posts for the notices it creates."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ChatWidget toggle vs Help FAB", "issue": "chat-toggle (fixed right 16 / bottom 16, z 60, box 1801,1016,103x48 at 1920 wide) sits exactly on top of pmc-help-fab (1805,1008,91x48) on public pages such as /, /login and /notices. Help is hidden and can't be clicked. Move one of them, for example put chat-toggle above the Help FAB and shift chat-panel's bottom offset to match, or merge the two.", "selector": "[data-testid='chat-toggle'], [data-testid='pmc-help-fab']", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin Marketing > LinkedIn posts", "issues": ["'Approve & post' is shown and enabled even though app_configured is false. Clicking it always gives a generic toast 'Something went wrong · HTTP 424'. Consider disabling it or showing a hint when LinkedIn is not connected."]},
+      {"screen": "ChatWidget", "issues": ["Paths such as /register and /notices in assistant replies are plain text, not clickable links.", "If localStorage is unavailable, sid() falls back to a new 'anon-'+Date.now() on every call, so context is lost each turn."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v61_assistant_linkedin.py", "/app/test_reports/pytest/pytest_v61.xml"],
+  "action_items": [
+    "HIGH: Fix the chat-toggle overlapping pmc-help-fab on public pages (reposition, then re-check the mobile layout too).",
+    "Add status/existence guards on mark-posted (pending only), edit and reject (404/409 when nothing matches).",
+    "Optional: disable 'Approve & post' when linkedin.app_configured or connected is false; return 424 from /linkedin/connect when keys are missing.",
+    "Optional: filter assistant context to tenders whose deadline is still in the future; remove or skip queued social posts when the notice is deleted or unpublished; add mkt_social_posts cleanup to the v60 test."
+  ],
+  "critical_code_review_comments": [
+    "assistant.py: the rate limit takes the last X-Forwarded-For entry. That is fine behind the ingress, and the code shows 429 at 40 hits per hour. I verified this by code review only and did not exhaust the limit.",
+    "assistant.py: vendor isolation logic is correct (verified live), but the session overwrite allows anyone who knows the session_id to wipe the vendor's history.",
+    "linkedin.py: the callback stores the org access token without checking that the email used to connect belongs to an admin. This is acceptable because state can only be created through the admin-only /connect endpoint.",
+    "The real LinkedIn OAuth and posting success paths could not be tested because no keys are configured."
+  ],
+  "updated_files": ["/app/backend/tests/test_v61_assistant_linkedin.py"],
+  "success_rate": {"backend": "100% (18/18)", "frontend": "~92% (all flows work; one HIGH overlap bug)"},
+  "test_credentials": "admin adminsupport@pmcmanagers.com / Admin@12345; vendor testvendor@pmcmanagers.com / Vendor@12345 (both worked)",
+  "seed_data_creation": "TEST_ notices, their mkt_social_posts and TEST_ assistant_sessions (including TEST_sess_12345) were all deleted. assistant_sessions=0, mkt_social_posts=0, tender_alerts.enabled=false.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && pytest -n 0 tests/test_v61_assistant_linkedin.py. It makes about 5 real LLM calls, about 15s, and counts toward the 40/hour per-IP chat limit. For UI: python tests/helpers_v60_notice.py create gives a pending social post for the TEST_UI notice; afterwards delete the notice and its mkt_social_posts. Retest the chat-toggle / pmc-help-fab overlap after the fix."
+}

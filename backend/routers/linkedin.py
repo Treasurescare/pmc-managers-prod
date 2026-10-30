@@ -58,6 +58,9 @@ async def li_start(portal: str = "supplier"):
 
 @router.get("/api/v1/marketing/linkedin/connect")
 async def li_connect(admin=ADMIN):
+    c = _cfg()
+    if not c["id"] or not c["secret"]:
+        raise HTTPException(status_code=424, detail="Add the LinkedIn app keys first.")
     return {"url": (await _start("post", "admin", "openid profile email w_organization_social")).headers["location"]}
 
 
@@ -133,24 +136,28 @@ class PostEditIn(BaseModel):
     text: str = Field(min_length=5, max_length=2900)
 
 
+async def _set_status(pid: str, frm: list, upd: dict) -> dict:
+    r = await db.mkt_social_posts.update_one({"_id": _oid(pid), "status": {"$in": frm}}, {"$set": upd})
+    if not r.matched_count:
+        exists = await db.mkt_social_posts.find_one({"_id": _oid(pid)}, {"_id": 1})
+        raise HTTPException(status_code=409 if exists else 404, detail="This post was already handled." if exists else "Post not found")
+    return {"ok": True}
+
+
 @router.put("/api/v1/marketing/social-posts/{pid}", dependencies=CSRF)
 async def edit_post(pid: str, body: PostEditIn, admin=ADMIN):
-    await db.mkt_social_posts.update_one({"_id": _oid(pid), "status": "pending"}, {"$set": {"text": body.text}})
-    return {"ok": True}
+    return await _set_status(pid, ["pending"], {"text": body.text})
 
 
 @router.post("/api/v1/marketing/social-posts/{pid}/reject", dependencies=CSRF)
 async def reject_post(pid: str, admin=ADMIN):
-    await db.mkt_social_posts.update_one({"_id": _oid(pid), "status": "pending"},
-                                         {"$set": {"status": "rejected", "decided_by": admin.get("email"), "decided_at": now_iso()}})
-    return {"ok": True}
+    return await _set_status(pid, ["pending"], {"status": "rejected", "decided_by": admin.get("email"), "decided_at": now_iso()})
 
 
 @router.post("/api/v1/marketing/social-posts/{pid}/mark-posted", dependencies=CSRF)
 async def mark_posted(pid: str, admin=ADMIN):
-    await db.mkt_social_posts.update_one({"_id": _oid(pid)}, {"$set": {"status": "posted", "posted_manually": True,
-                                                                      "decided_by": admin.get("email"), "decided_at": now_iso()}})
-    return {"ok": True}
+    return await _set_status(pid, ["pending"], {"status": "posted", "posted_manually": True,
+                                                "decided_by": admin.get("email"), "decided_at": now_iso()})
 
 
 @router.post("/api/v1/marketing/social-posts/{pid}/approve", dependencies=CSRF)
@@ -162,7 +169,10 @@ async def approve_post(pid: str, admin=ADMIN):
     s = await db.mkt_settings.find_one({"_id": "linkedin"}) or {}
     if not (c["org"] and s.get("access_token")):
         raise HTTPException(status_code=424, detail="Connect your LinkedIn company page first (button at the top of this tab).")
-    n = await db.notices.find_one({"notice_ref": p["notice_ref"]}) or {}
+    n = await db.notices.find_one({"notice_ref": p["notice_ref"], "is_published": True})
+    if not n:
+        await db.mkt_social_posts.update_one({"_id": p["_id"]}, {"$set": {"status": "rejected", "last_error": "tender no longer published"}})
+        raise HTTPException(status_code=409, detail="This tender is no longer published, so the post was skipped.")
     body = {"author": f"urn:li:organization:{c['org']}", "commentary": p["text"], "visibility": "PUBLIC",
             "distribution": {"feedDistribution": "MAIN_FEED", "targetEntities": [], "thirdPartyDistributionChannels": []},
             "content": {"article": {"source": f"{_api_base()}/api/v1/share/notice/{p['notice_ref']}",

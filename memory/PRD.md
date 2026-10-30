@@ -825,6 +825,15 @@ Artifacts in /frontend/public/downloads: pmc-backend-v57i.zip, pmc-frontend-v57i
 - google_auth.py: POST /api/v1/auth/google/exchange (Emergent-managed Google; existing vendor/admin_users only; MFA refused;
   high-risk-MFA gate); frontend /auth/google/:portal callback, "Continue with Google" on /login.
 - Pending: confirm Emergent Google sign-in works on AWS www.pmcmanagers.com; if not, own Google OAuth client (+ LinkedIn) needed.
+
+## R21 — AI assistant, LinkedIn posts queue + LinkedIn sign-in — 2026-10-30 (agent-tested 18/18, preview) — build v58d
+- assistant.py: POST /api/v1/assistant/chat (session_id, multi-turn, Claude Sonnet 5.5; vendor context via vendor_token;
+  40/hour per IP; vendor session can't be reused anonymously → 409). ChatWidget ("Ask PMC") global, hidden on admin/staff/escrow/auth.
+- linkedin.py: sign-in /api/v1/auth/linkedin/start|callback (OIDC, existing accounts via _social_signin.sign_in_existing);
+  page posting: connect (w_organization_social) stores token in mkt_settings.linkedin; mkt_social_posts queue created on publish
+  (via send_tender_alert); approve → Posts API (LinkedIn-Version env, default 202610). Needs env LINKEDIN_CLIENT_ID/SECRET/ORG_ID.
+- WhatsApp: not built — user chose Meta WhatsApp Cloud API; waiting for Meta Business + app credentials.
+
 - Buyers have no separate login; they sign in via staff/admin accounts.
 
 - Note: tests/test_marketing_v59_signup_digest.py rate-limit tests used fake X-Forwarded-For; after the real-IP fix they hit 429 when run back to back (test assumption, not a bug).

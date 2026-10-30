@@ -4,7 +4,7 @@ import { marketingApi, showApiError } from "@/lib/api";
 
 const btn = "pmc-btn border border-brand-navy/40 bg-white px-3 py-1.5 text-xs";
 
-function PostRow({ p, onChange }) {
+function PostRow({ p, onChange, connected }) {
   const [text, setText] = useState(p.text);
   const act = async (fn, ok) => { try { await fn(); toast.success(ok); onChange(); } catch (e) { showApiError(e); } };
   const manual = () => {
@@ -24,7 +24,8 @@ function PostRow({ p, onChange }) {
                   onChange={(e) => setText(e.target.value)} data-testid={`sp-text-${p.id}`} />
         {p.status === "pending" && (
           <div className="flex flex-wrap gap-2">
-            <button className="pmc-btn pmc-btn--primary px-3 py-1.5 text-xs" data-testid={`sp-approve-${p.id}`}
+            <button className="pmc-btn pmc-btn--primary px-3 py-1.5 text-xs" data-testid={`sp-approve-${p.id}`} disabled={!connected}
+              title={connected ? "" : "Connect your LinkedIn page first, or use Post manually"}
               onClick={() => act(async () => { if (text !== p.text) await marketingApi.editSocialPost(p.id, text); await marketingApi.approveSocialPost(p.id); }, "Posted to LinkedIn")}>Approve &amp; post</button>
             <button className={btn} onClick={() => act(() => marketingApi.editSocialPost(p.id, text), "Saved")} data-testid={`sp-save-${p.id}`}>Save text</button>
             <button className={btn} onClick={manual} data-testid={`sp-manual-${p.id}`}>Post manually</button>
@@ -54,7 +55,7 @@ export const SocialPostsTab = () => {
         {li.app_configured && <button className="pmc-btn pmc-btn--primary px-3 py-1.5 text-xs ml-auto" onClick={connect} data-testid="sp-connect">{li.connected ? "Reconnect" : "Connect LinkedIn page"}</button>}
       </div>
       <div className="text-xs text-brand-navy/60">Every newly published tender lands here for your approval. Nothing is posted until you approve it.</div>
-      {d.items.map((p) => <PostRow key={p.id} p={p} onChange={load} />)}
+      {d.items.map((p) => <PostRow key={p.id} p={p} onChange={load} connected={li.app_configured && li.org_configured && li.connected} />)}
       {!d.items.length && <div className="p-6 text-sm text-brand-navy/60 border border-dashed border-brand-navy/20">No posts waiting. New tenders appear here when they're published.</div>}
     </div>
   );
