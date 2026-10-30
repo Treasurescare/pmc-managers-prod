@@ -115,20 +115,19 @@ class InviteIn(BaseModel):
     note: str = Field(default="", max_length=1500)
 
 
-async def _status(inv: dict) -> str:
-    email = inv["email"]
-    if inv.get("joined_at") or await db.tenants.find_one({"primary_contact_email": email}, {"_id": 1}) \
-            or await db.admin_users.find_one({"email": email}, {"_id": 1}):
+def _status(inv: dict, joined: set) -> str:
+    if inv.get("joined_at") or inv["email"] in joined:
         return "joined"
     return "clicked" if inv.get("clicked_at") else inv.get("status", "sent")
 
 
 @router.get("/api/v1/marketing/buyer-invites")
 async def list_invites(admin=ADMIN):
-    out = []
-    async for i in db.mkt_buyer_invites.find({}, {"token": 0}).sort("created_at", -1).limit(300):
-        out.append({**_id(i), "status": await _status(i)})
-    return {"items": out}
+    rows = await db.mkt_buyer_invites.find({}, {"token": 0}).sort("created_at", -1).limit(300).to_list(300)
+    emails = [r["email"] for r in rows]
+    joined = {t["primary_contact_email"] async for t in db.tenants.find({"primary_contact_email": {"$in": emails}}, {"primary_contact_email": 1})}
+    joined |= {u["email"] async for u in db.admin_users.find({"email": {"$in": emails}, "is_active": {"$ne": False}}, {"email": 1})}
+    return {"items": [{**_id(i), "status": _status(i, joined), "clicked": bool(i.get("clicked_at"))} for i in rows]}
 
 
 @router.post("/api/v1/marketing/buyer-invites", dependencies=CSRF)

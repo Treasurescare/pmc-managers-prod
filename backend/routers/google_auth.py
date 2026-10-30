@@ -65,6 +65,8 @@ async def exchange(body: ExchangeIn, response: Response, request: Request):
         active = next((r for r in STAFF_ROLES if r in roles), None)
         if not active:
             raise HTTPException(status_code=403, detail="This account has no staff role. Use the Administrator option.")
+        if config.REQUIRE_HIGH_RISK_MFA and active in {"escrow_agent", "legal_counsel", "accounting"}:
+            raise HTTPException(status_code=403, detail="This role requires two-factor sign-in. Please use your password and code.")
     csrf = _set_session_cookies(response, create_admin_token(str(u["_id"]), u["email"], active), request)
     response.delete_cookie("vendor_token", path="/", domain=config.COOKIE_DOMAIN)
     await audit_log("staff.login", {"id": str(u["_id"]), "email": email}, "admin_user", str(u["_id"]),

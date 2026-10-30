@@ -20,7 +20,10 @@ export default function GoogleAuthCallback() {
         if (r.csrf_token) { cacheCsrf(r.csrf_token); }
         window.location.replace(r.next);
       })
-      .catch((e) => setErr(e?.response?.data?.detail || "Google sign-in failed. Please try again."));
+      .catch((e) => {
+        const d = e?.response?.data?.detail;
+        setErr(typeof d === "string" && d ? d : "Google sign-in failed. Please try again.");
+      });
   }, [location, portal, nav]);
   return (
     <div style={{ minHeight: "60vh", display: "grid", placeItems: "center", padding: "24px" }} data-testid="google-callback">

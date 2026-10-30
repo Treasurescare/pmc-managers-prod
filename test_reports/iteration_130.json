@@ -1,0 +1,39 @@
+{
+  "summary": "v60 testing of Social Share Cards, Buyer Invites and Google sign-in. Backend: 19/19 pytest pass (tests/test_marketing_v60_share_invites_google.py). Frontend: share bar (LinkedIn/WhatsApp/Download/Copy with toast+clipboard), OG share page meta-refresh to /notices/{ref}, 1200x630 PNG card render, /login Google button per role (hidden for escrow) + redirect URL to auth.emergentagent.com, /auth/google/:portal callback cancelled/invalid-session errors, Admin Marketing > Buyer invites send/list/mark-joined/summary all verified. One frontend crash bug found and fixed (GoogleAuthCallback rendering a 422 detail array).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/v1/auth/google/exchange (staff portal)", "issue": "Does not apply the config.REQUIRE_HIGH_RISK_MFA gate used by password login (escrow_agent/legal_counsel/accounting without MFA). Flag is currently false so there's no effect today, but turning it on would leave Google sign-in as a way around it. Copy the same check into google_auth.py."},
+      {"endpoint": "GET /api/v1/marketing/buyer-invites", "issue": "_status() makes 2 extra DB lookups per invite (up to 300 rows, so up to 600 queries per list call). Batch it with $in over the emails. It also counts disabled admin_users as 'joined'."},
+      {"endpoint": "GET /api/v1/marketing/buyer-invites", "issue": "The summary's 'clicked' count leaves out invites that are now 'joined', so the funnel shows 1 joined, 0 clicked. Consider counting clicked_at separately."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "GoogleAuthCallback", "issue": "FIXED: when the exchange returned 422 (unknown portal in the URL, e.g. /auth/google/escrow#session_id=..., or a short session_id), the Pydantic detail array was rendered as a React child. This crashed the screen into the ErrorBoundary. It now shows a generic message unless detail is a string.", "selector": "[data-testid='google-callback-error']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Share card PNG", "issues": ["Short (1-line) titles leave a large empty band between the title and the facts row. Consider vertically centring the block or adding the budget/description there."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_marketing_v60_share_invites_google.py", "/app/backend/tests/helpers_v60_notice.py", "/app/test_reports/pytest/pytest_v60.xml"],
+  "action_items": [
+    "Add the REQUIRE_HIGH_RISK_MFA high-risk role check to the google_auth.py staff portal path",
+    "Batch the buyer-invite status lookups (N+1) and decide whether disabled accounts count as joined",
+    "Optional: rebalance the share card layout for short titles"
+  ],
+  "critical_code_review_comments": [
+    "google_auth.py follows the spec: existing accounts only (404 'Register first'), disabled accounts get 403, MFA-enabled staff are refused, the admin portal requires the admin role, and the staff portal picks only from STAFF_ROLES (never 'admin'). It clears the other portal's cookie.",
+    "google_auth.py: SESSION_DATA_URL is hardcoded. It's the documented Emergent constant, so that's acceptable.",
+    "marketing_share.py: titles and descriptions are HTML-escaped (verified with <b>, quotes and apostrophes). The url in the meta refresh isn't escaped, but ref comes from the DB, so the risk is low.",
+    "Buyer invite emails were really sent through Resend (200) to @pmcmanagers.com TEST_ addresses."
+  ],
+  "updated_files": ["/app/frontend/src/apps/auth-e/GoogleAuthCallback.jsx", "/app/backend/tests/test_marketing_v60_share_invites_google.py", "/app/backend/tests/helpers_v60_notice.py"],
+  "success_rate": {"backend": "100%", "frontend": "95% (1 crash bug fixed)"},
+  "test_credentials": "adminsupport@pmcmanagers.com / Admin@12345 (admin); testvendor@pmcmanagers.com / Vendor@12345 (vendor 403 check)",
+  "seed_data_creation": "TEST_ notices were created and published through the API and then deleted (mkt_alert_log cleaned too). TEST_ buyer invites, mkt_contacts and the admin_users stub were deleted. Note: the notice_seq counter advanced (PMC-NOT-2026-0054 was used).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest -n 0 tests/test_marketing_v60_share_invites_google.py. For UI share bar testing, run 'python tests/helpers_v60_notice.py create' to get a published ref, then 'delete' afterwards. A real Google OAuth success path can't be automated; only error paths were tested."
+}

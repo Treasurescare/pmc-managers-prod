@@ -818,5 +818,14 @@ Artifacts in /frontend/public/downloads: pmc-backend-v57i.zip, pmc-frontend-v57i
 - Alerts mode instant|weekly; run_weekly_digest (marketing_public.py) — last 7 days, max 15 per email, active vendors +
   consented vendor contacts; cron marketing-digest Mon 08:00 London (.emergent/crons.yml) → POST /api/v1/cron/marketing-weekly-digest.
   AWS needs EventBridge for it. Admin "Send this week's digest now" (forced, labelled manual).
+
+## R20 — Share cards, buyer invites, Google sign-in — 2026-10-30 (agent-tested 19/19, preview) — build v58c
+- marketing_share.py: GET /api/v1/share/notice/{ref}.png (Pillow, bundled fonts backend/assets/fonts) + /share/notice/{ref}
+  (OG tags + redirect); NoticeShareBar on notice page. Buyer invites /api/v1/marketing/buyer-invites (sent→clicked→joined).
+- google_auth.py: POST /api/v1/auth/google/exchange (Emergent-managed Google; existing vendor/admin_users only; MFA refused;
+  high-risk-MFA gate); frontend /auth/google/:portal callback, "Continue with Google" on /login.
+- Pending: confirm Emergent Google sign-in works on AWS www.pmcmanagers.com; if not, own Google OAuth client (+ LinkedIn) needed.
+- Buyers have no separate login; they sign in via staff/admin accounts.
+
 - Note: tests/test_marketing_v59_signup_digest.py rate-limit tests used fake X-Forwarded-For; after the real-IP fix they hit 429 when run back to back (test assumption, not a bug).
 

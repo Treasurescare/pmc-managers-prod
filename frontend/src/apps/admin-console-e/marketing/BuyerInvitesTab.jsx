@@ -37,7 +37,7 @@ export const BuyerInvitesTab = () => {
       </form>
       <div className="space-y-3">
         <div className="flex gap-4 text-sm" data-testid="bi-summary">
-          <span>{rows.length} invited</span><span>{count("clicked")} clicked</span><span className="font-semibold">{count("joined")} joined</span>
+          <span>{rows.length} invited</span><span>{rows.filter((r) => r.clicked).length} clicked</span><span className="font-semibold">{count("joined")} joined</span>
         </div>
         <div className="border border-brand-navy/15 bg-white overflow-x-auto">
           <table className="w-full text-sm">
