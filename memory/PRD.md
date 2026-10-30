@@ -838,3 +838,12 @@ Artifacts in /frontend/public/downloads: pmc-backend-v57i.zip, pmc-frontend-v57i
 
 - Note: tests/test_marketing_v59_signup_digest.py rate-limit tests used fake X-Forwarded-For; after the real-IP fix they hit 429 when run back to back (test assumption, not a bug).
 
+
+## R22 — Brand logo + social kit — 2026-10-30 — build v58e (screenshot-verified, preview)
+- New logo (forest green + gold PMC monogram with checkmark). Downloads: /downloads/pmc-logo-pack.zip, /downloads/pmc-social-kit.zip
+  (LinkedIn page cover 1128x191, personal cover 1584x396, Facebook cover 1640x624, WhatsApp 640, LinkedIn page logo 400).
+- Site: .pmc-brand::before + mobile .pmc-mob-brand::before show src/pmc-logo-mark.png beside every wordmark; favicon/PWA public/pmc-logo.png replaced.
+- Emails: emails._wrap header shows {FRONTEND_URL}/pmc-logo-mark.png (FRONTEND_URL must be https://www.pmcmanagers.com in prod).
+- Share cards: marketing_share._render_card pastes backend/assets/pmc-logo-mark.png top-right.
+- LinkedIn "Feature not available — not enough connections": LinkedIn account-age/connections restriction on new profiles (user-side).
+

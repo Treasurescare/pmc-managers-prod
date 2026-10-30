@@ -19,6 +19,7 @@ from routers.marketing import ADMIN, CSRF, _api_base, _id, _oid
 
 router = APIRouter(tags=["marketing"])
 FONTS = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "fonts")
+LOGO = os.path.join(os.path.dirname(FONTS), "pmc-logo-mark.png")
 GREEN, CREAM, GOLD = (15, 59, 46), (243, 239, 228), (201, 162, 75)
 
 
@@ -58,6 +59,11 @@ def _render_card(n: dict) -> bytes:
     img = Image.new("RGB", (1200, 630), GREEN)
     d = ImageDraw.Draw(img)
     d.rectangle([0, 0, 1200, 10], fill=GOLD)
+    try:
+        mark = Image.open(LOGO).convert("RGB")
+        img.paste(mark, (1200 - 70 - mark.width, 44))
+    except OSError:
+        pass
     d.text((70, 60), "PMC MANAGERS · GLOBAL TENDER BOARD", font=_font(True, 26), fill=GOLD)
     kind = str(n.get("kind") or n.get("notice_type") or "Tender").upper()
     d.text((70, 112), f"{kind}  ·  {n.get('notice_ref')}", font=_font(False, 26), fill=CREAM)

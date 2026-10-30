@@ -22,6 +22,7 @@ def _wrap(title: str, body_html: str, cta_label: Optional[str] = None, cta_url: 
   <tr><td align="center">
     <table width="600" cellpadding="0" cellspacing="0" style="background:#FFFFFF;border:1px solid #B08E4A22">
       <tr><td style="background:#0B1A14;color:#FFFFFF;padding:22px 32px">
+        <img src="{config.FRONTEND_URL}/pmc-logo-mark.png" width="44" height="44" alt="PMC Managers" style="display:block;border-radius:8px;margin-bottom:10px">
         <div style="font:11px/16px 'Public Sans',Helvetica,Arial,sans-serif;color:#B08E4A;letter-spacing:0.22em;text-transform:uppercase">PMC Managers Limited</div>
         <div style="font:400 22px/28px Georgia,'Cormorant Garamond',serif;color:#FFFFFF;margin-top:6px">Global Tender Board</div>
       </td></tr>
