@@ -28,6 +28,12 @@ export const WhatsAppTab = () => {
             {st.configured ? "Connected" : "Not connected yet"}</span>
           <span className="text-sm">{st.opted_in} supplier(s) opted in to WhatsApp</span>
         </div>
+        <div className="flex flex-wrap gap-2 text-xs" data-testid="wa-keys">
+          {Object.entries(st.keys || {}).map(([k, ok]) => (
+            <span key={k} className={"px-2 py-0.5 border " + (ok ? "border-emerald-600 text-emerald-800" : "border-red-500 text-red-700")} data-testid={`wa-key-${k}`}>
+              {k} {ok ? "✓ found" : "✗ missing"}{k === "WA_VERIFY_TOKEN" && ok ? ` (${st.verify_token_length} characters)` : ""}
+            </span>))}
+        </div>
         <div className="text-xs text-brand-navy/70">Webhook URL for Meta: <code data-testid="wa-webhook-url">{st.webhook_url}</code></div>
         <div className="text-xs text-brand-navy/70">Approved templates needed: {st.templates.join(", ")} (language: {st.settings.template_lang})</div>
         <div className="space-y-2 pt-2">

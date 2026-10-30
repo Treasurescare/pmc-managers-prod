@@ -171,7 +171,11 @@ async def wa_doc(token: str):
 async def wa_verify(mode: str = Query("", alias="hub.mode"), token: str = Query("", alias="hub.verify_token"),
                     challenge: str = Query("", alias="hub.challenge")):
     vt = _env("WA_VERIFY_TOKEN")
-    if mode == "subscribe" and vt and hmac.compare_digest(token, vt):
+    if not vt:
+        log.warning("whatsapp webhook verify: WA_VERIFY_TOKEN is not set on this server")
+    elif token.strip() != vt:
+        log.warning("whatsapp webhook verify: token mismatch (got %d chars, expected %d)", len(token.strip()), len(vt))
+    if mode == "subscribe" and vt and hmac.compare_digest(token.strip(), vt):
         return PlainTextResponse(challenge)
     raise HTTPException(status_code=403, detail="Verification failed")
 
@@ -284,7 +288,9 @@ def _o(d: dict) -> dict:
 
 @router.get("/api/v1/admin/whatsapp/status")
 async def wa_status(admin=ADMIN):
-    return {"configured": configured(), "settings": await _settings(),
+    keys = {k: bool(_env(k)) for k in ("WA_PHONE_NUMBER_ID", "WA_ACCESS_TOKEN", "WA_APP_SECRET", "WA_VERIFY_TOKEN")}
+    return {"configured": configured(), "settings": await _settings(), "keys": keys,
+            "verify_token_length": len(_env("WA_VERIFY_TOKEN")),
             "webhook_url": f"{_api()}/api/v1/whatsapp/webhook",
             "opted_in": await db.vendors.count_documents({"wa_opt_in": True}),
             "templates": [TPL_TENDER, TPL_REMIND, TPL_RECEIPT]}
