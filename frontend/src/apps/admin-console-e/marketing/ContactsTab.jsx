@@ -9,12 +9,13 @@ function ImportBox({ onDone }) {
   const [text, setText] = useState("");
   const [aud, setAud] = useState("vendor");
   const [ok, setOk] = useState(false);
+  const [k, setK] = useState(0);
   const pick = (e) => { const f = e.target.files?.[0]; if (f) f.text().then(setText); };
   const run = async () => {
     try {
       const r = await marketingApi.importCsv({ csv_text: text, audience: aud, lawful_basis_confirmed: ok });
       toast.success(`Imported: ${r.created} new, ${r.updated} updated, ${r.skipped} skipped`);
-      setText(""); onDone();
+      setText(""); setOk(false); setK((x) => x + 1); onDone();
     } catch (e) { showApiError(e); }
   };
   const tpl = () => {
@@ -26,7 +27,7 @@ function ImportBox({ onDone }) {
     <div className="border border-brand-navy/20 bg-white p-4 space-y-3" data-testid="mkt-import">
       <div className="pmc-label">Upload a contact list (CSV)</div>
       <div className="flex flex-wrap gap-3 items-center text-sm">
-        <input type="file" accept=".csv,text/csv" onChange={pick} data-testid="mkt-import-file" />
+        <input key={k} type="file" accept=".csv,text/csv" onChange={pick} data-testid="mkt-import-file" />
         <select className={inp} value={aud} onChange={(e) => setAud(e.target.value)} data-testid="mkt-import-audience">
           <option value="vendor">Default: vendors</option><option value="buyer">Default: buyers</option></select>
         <button type="button" className="underline text-brand-navy" onClick={tpl} data-testid="mkt-import-template">Download template</button>
@@ -56,7 +57,7 @@ export const ContactsTab = () => {
           <option value="">Everyone</option><option value="vendor">Vendors</option><option value="buyer">Buyers</option></select>
         <input className={inp} placeholder="Country (GB)" maxLength={2} value={f.country} onChange={(e) => setF({ ...f, country: e.target.value.toUpperCase() })} data-testid="mkt-filter-country" />
         <input className={inp} placeholder="Search email or company" value={f.q} onChange={(e) => setF({ ...f, q: e.target.value })} data-testid="mkt-filter-q" />
-        <button className="pmc-btn" onClick={sync} data-testid="mkt-sync">Add platform vendors &amp; buyers</button>
+        <button className="pmc-btn border border-brand-navy/40 bg-white px-3 py-2 text-sm" onClick={sync} data-testid="mkt-sync">Add platform vendors &amp; buyers</button>
         <span className="text-sm text-brand-navy/70 ml-auto" data-testid="mkt-contacts-total">{data.total} contacts</span>
       </div>
       <ImportBox onDone={load} />

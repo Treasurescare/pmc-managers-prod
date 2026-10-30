@@ -765,6 +765,8 @@ async def on_start() -> None:
     try:
         from routers.tender_templates import _seed_extra_masters
         await _seed_extra_masters()
+        from routers.marketing import ensure_indexes as _mkt_idx
+        await _mkt_idx()
     except Exception as exc:
         logging.warning("rfq/rfp starter seed skipped: %s", exc)
     if os.environ.get("SEED_DEMO_DATA", "false").lower() == "true":

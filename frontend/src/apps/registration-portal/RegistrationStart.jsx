@@ -10,6 +10,10 @@ export default function RegistrationStart() {
   const { t, lang } = useI18n();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
+  useEffect(() => {
+    const r = new URLSearchParams(window.location.search).get("ref");
+    if (r) { try { localStorage.setItem("pmc_ref", r); } catch {} }
+  }, []);
   const [companyName, setCompanyName] = useState("");
   // v54h — default country is BLANK; after a successful send we remember
   // the vendor's choice in localStorage so re-opening /register prefills

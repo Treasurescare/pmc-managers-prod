@@ -4,6 +4,7 @@ import DOMPurify from "dompurify";
 import { marketingApi, showApiError } from "@/lib/api";
 
 const inp = "px-3 py-2 border border-brand-navy/20 bg-white text-sm w-full";
+const sec = "pmc-btn border border-brand-navy/40 bg-white px-3 py-2 text-sm whitespace-nowrap";
 const EMPTY = { name: "", subject: "", body_html: "", segment_id: "", cta_label: "", cta_url: "" };
 
 function AiWriter({ onDraft }) {
@@ -24,7 +25,7 @@ function AiWriter({ onDraft }) {
           <option value="vendor">To vendors</option><option value="buyer">To buyers</option></select>
         <select className={inp} value={b.tone} onChange={(e) => setB({ ...b, tone: e.target.value })} data-testid="mkt-ai-tone">
           <option value="professional">Professional</option><option value="friendly">Friendly</option><option value="urgent">Urgent</option></select>
-        <button className="pmc-btn whitespace-nowrap" onClick={go} disabled={busy} data-testid="mkt-ai-go">{busy ? "Writing…" : "Write draft"}</button>
+        <button className={sec} onClick={go} disabled={busy} data-testid="mkt-ai-go">{busy ? "Writing…" : "Write draft"}</button>
       </div>
     </div>
   );
@@ -65,9 +66,9 @@ function Editor({ segments, initial, onClose }) {
           <input className={inp} placeholder="Button link https://…" value={f.cta_url} onChange={(e) => setF({ ...f, cta_url: e.target.value })} data-testid="mkt-c-cta-url" />
         </div>
         <div className="flex flex-wrap gap-2 items-center">
-          <button className="pmc-btn" onClick={saveClose} data-testid="mkt-c-save">Save draft</button>
+          <button className={sec} onClick={saveClose} data-testid="mkt-c-save">Save draft</button>
           <input className={inp + " !w-56"} placeholder="your@email for a test" value={testTo} onChange={(e) => setTestTo(e.target.value)} data-testid="mkt-c-test-email" />
-          <button className="pmc-btn" disabled={!testTo} onClick={test} data-testid="mkt-c-test">Send test</button>
+          <button className={sec} disabled={!testTo} onClick={test} data-testid="mkt-c-test">Send test</button>
           <button className="pmc-btn pmc-btn--primary" disabled={!f.segment_id} onClick={send} data-testid="mkt-c-send">Send campaign</button>
           <button className="text-sm underline ml-auto" onClick={onClose} data-testid="mkt-c-cancel">Close</button>
         </div>
@@ -75,7 +76,7 @@ function Editor({ segments, initial, onClose }) {
       <div className="border border-brand-navy/15 bg-white p-5" data-testid="mkt-c-preview">
         <div className="text-xs uppercase tracking-widest text-brand-navy/50 mb-2">Preview</div>
         <div className="font-semibold mb-3">{f.subject || "Subject line"}</div>
-        <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(f.body_html || "<p>Your email text appears here.</p>") }} />
+        <div className="max-w-none text-sm leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_p]:mb-3 [&_a]:underline" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(f.body_html || "<p>Your email text appears here.</p>") }} />
         {f.cta_label && <div className="mt-4"><span className="inline-block px-4 py-2 bg-brand-navy text-white text-sm">{f.cta_label}</span></div>}
         <div className="mt-6 text-[11px] text-brand-navy/50">An unsubscribe link is added automatically.</div>
       </div>

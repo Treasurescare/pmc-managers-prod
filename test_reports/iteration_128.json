@@ -1,0 +1,48 @@
+{
+  "summary": "Tested the Marketing module end to end, backend and frontend. Backend: 17/17 pytest tests pass (tests/test_marketing_v58.py). Covered: auth gating (anonymous, vendor, missing CSRF), contacts list/filter, add, import (lawful_basis 422, missing email column 422, dedupe, consent=no, audience column, invalid row skipped), sync, delete, segment preview counts (consent, unsubscribe, audience, country, category, source), segment create/list/delete, a real Claude AI copy call, the full campaign flow (bad segment 422, draft update, test send email_sent=True, send then sending then sent, second send 409, edit after send 409, mkt_sends rows, open pixel, click redirect for link and CTA, unknown rid goes home, stats), unsubscribe HTML and segment exclusion, tender alerts (disabled sends nothing; enabled publish emails the vendor whose business_categories match plus the consented uploaded contact, skips the unsubscribed and non-consented contacts, recipients=2, one log entry, a second invocation sends 0), and referrals (stable code and link, ref with a lowercase code recorded, unknown code ignored, joined count, admin leaderboard). Frontend: admin login, side nav 'Marketing', all 5 tabs, CSV import via file plus consent checkbox (button disabled until both are present), country filter, segment live size and save, new campaign, AI writer filling subject/body plus preview, save draft, edit, send with confirm dialog, status turning sent, alerts toggle persisted then turned OFF, referrals tab, vendor /vendor/refer (link, copy toast, joined count), /register?ref=CODE sending ref in the createDraft POST. All the requested flows work. One critical latent bug was found in code review: sending a campaign whose segment was deleted emails every consented contact.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/v1/marketing/campaigns/{id}/send (_run_campaign)", "issue": "If the campaign's segment has been deleted, `seg = find_one(...) or {}` makes _segment_filter({}) return {consent:true, unsubscribed:{$ne:true}}, so the send goes to EVERY consented contact, vendors and buyers, in all countries. DELETE /segments/{id} does not check whether drafts use the segment. Found by code review; not executed, to avoid mass mail.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "_run_campaign", "issue": "There is no try/except. If an exception happens mid-send, the campaign stays in 'sending' forever and cannot be retried (send only works on drafts)."},
+      {"endpoint": "POST /api/v1/notices (create with is_published=true)", "issue": "New-tender alerts fire only from POST /notices/{ref}/publish. Notices created already published, or auto-published after the hosting fee is paid, never trigger send_tender_alert."},
+      {"endpoint": "POST /contacts/sync", "issue": "Consent logic: vendors with no registration record get consent=True by default, but vendors who registered get registrations.marketing_consent, which is always False because no UI collects it. Most real vendors therefore sync as 'No consent'. The rule is inconsistent and a GDPR concern either way."},
+      {"endpoint": "send_tender_alert", "issue": "Platform vendors get alerts without any consent check (only an mkt_contacts unsubscribe blocks them). Unsubscribe links appear only if the vendor already exists in mkt_contacts. notice.title is put into the HTML unescaped. The alert log is written after the loop, so two concurrent publishes could double-send."},
+      {"endpoint": "_upsert_contact", "issue": "Re-importing or syncing an existing contact overwrites source, audience and country (for example platform becomes upload), which skews source-based segments."},
+      {"endpoint": "POST /api/v1/registrations", "issue": "referred_by is saved on the registration even when the ref code is invalid (record_referral correctly ignores it)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ContactsTab ImportBox", "issue": "After a successful import the file input still shows the old file name and the consent checkbox stays ticked. Picking the same file again does not fire onChange.", "selector": "[data-testid='mkt-import-file']", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Referral persistence", "issue": "RegistrationStart reads localStorage 'pmc_ref', but nothing ever writes it. If a visitor lands on /register?ref=X and navigates away before submitting, the referral is lost.", "affected_selectors": ["[data-testid='reg-start-submit']"]}
+    ],
+    "design_issues": [
+      {"screen": "Admin Marketing", "issues": ["Secondary .pmc-btn buttons ('Add platform vendors & buyers', 'Write draft', 'Save draft', 'Send test') show as plain text with no border or background, so they don't look clickable", "The campaign preview pane does not show bullets for <ul>/<li> (the prose classes do not seem to apply)"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_marketing_v58.py", "/app/test_reports/pytest/pytest_marketing_v58.xml"],
+  "action_items": [
+    "In _run_campaign/send_campaign, refuse to send (409/422) when the segment is missing. Never fall back to {}. Block segment delete while draft campaigns reference it.",
+    "Wrap _run_campaign in try/except and set status to 'failed' (or back to 'draft') on error",
+    "Trigger send_tender_alert from create_notice when is_published=true and from the hosting-fee auto-publish path",
+    "Make the sync consent rule consistent (explicit consent field or the same default for all) and collect marketing_consent in the registration UI",
+    "Persist ?ref to localStorage('pmc_ref') on landing; reset the import file input and checkbox after import",
+    "Style the secondary pmc-btn buttons in the marketing screens; fix list bullets in the preview"
+  ],
+  "critical_code_review_comments": [
+    "Deleted segment → campaign sends to all consented contacts (marketing.py _run_campaign / send_campaign `or {}`)",
+    "Alerts HTML puts notice title and category in without escaping",
+    "track_click uses only stored campaign links, so it is not an open redirect. Good.",
+    "CORS_ORIGINS='*' returns ACAO '*' (pre-existing, not marketing specific). bcrypt $2b$ hash and httpOnly access_token confirmed."
+  ],
+  "updated_files": ["/app/backend/tests/test_marketing_v58.py"],
+  "success_rate": {"backend": "100% (17/17)", "frontend": "100% of requested flows"},
+  "seed_data_creation": "None left behind. All TEST_ contacts, segments, campaigns, sends, referrals, registrations, notices and alert logs were deleted, including the prior test_a@pmcmanagers.com contact and the testvendor contact created by sync. testvendor business_categories restored. Tender alerts left DISABLED. testvendor keeps referral_code 708A4CF7 (stable by design).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_marketing_v58.py -n 0. Self-cleaning; it temporarily adds TEST_CAT to testvendor and enables alerts, then restores both. Admin UI: /admin/login, wait 4s before filling, then go to /admin/e/marketing. Vendor: /vendor/login with the vendor-login-* testids. /register: wait about 5s before filling, otherwise the inputs get reset. Resend in preview delivered to @pmcmanagers.com (email_sent=True)."
+}

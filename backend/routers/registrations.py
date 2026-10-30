@@ -308,13 +308,12 @@ async def create_draft(payload: RegistrationDraftIn):
         "consent_at": now_iso() if payload.data_processing_consent else None,
         "created_at": now_iso(),
     }
-    if payload.ref:
-        doc["referred_by"] = payload.ref.strip().upper()
     res = await db.registrations.insert_one(doc)
     rid = str(res.inserted_id)
     if payload.ref:
         from routers.marketing import record_referral
-        await record_referral(payload.ref, payload.email, payload.company_name)
+        if await record_referral(payload.ref, payload.email, payload.company_name):
+            await db.registrations.update_one({"_id": res.inserted_id}, {"$set": {"referred_by": payload.ref.strip().upper()}})
     resume_url = f"{config.FRONTEND_URL}/register/resume?token={token}"
     asyncio.create_task(send_email(
         payload.email, "PMC Managers — Continue your registration",

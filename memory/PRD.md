@@ -800,3 +800,14 @@ Artifacts in /frontend/public/downloads: pmc-backend-v57i.zip, pmc-frontend-v57i
   EventBridge daily POST /api/v1/cron/category-payment-reminders (Authorization: Bearer <secret>).
 - Security advice given: rotate secrets exposed in EB screenshot (Mongo, JWT, admin/owner passwords, Resend, Zoom, DocuSign); DocuSign still sandbox.
 
+
+
+## R18 — Marketing module — 2026-10-30 (agent-tested 17/17 backend + frontend, preview) — build v58a
+- backend/routers/marketing.py (/api/v1/marketing): contacts (manual, CSV import w/ lawful-basis confirm, platform sync,
+  delete), segments (audience/countries/categories/sources; size = consent & not unsubscribed), AI copy (Claude Sonnet 5.5),
+  campaigns (draft/test/send in background, per-contact unsubscribe link, open pixel, click redirect, stats),
+  public unsubscribe page, new-tender alerts (toggle, OFF by default; hooked on publish, vendor-tender approve,
+  template approve, hosting-fee paid; once per notice via unique index), referrals (vendor code, /register?ref=CODE).
+- Frontend: /admin/e/marketing (side nav "Marketing"), /vendor/refer ("Refer & earn"), RegistrationStart stores ref.
+- Data stance: we do not supply/scrape personal email lists; user imports own/lawful lists (CSV template provided).
+- Backlog: notices created already-published don't trigger alerts; contact soft-delete not implemented (hard delete on admin action).

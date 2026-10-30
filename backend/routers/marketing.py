@@ -5,6 +5,7 @@ import io
 import logging
 import re
 import secrets
+from html import escape as html_escape
 from typing import List, Literal, Optional
 
 from bson import ObjectId
@@ -52,8 +53,9 @@ async def _upsert_contact(email: str, **fields) -> bool:
         return False
     existing = await db.mkt_contacts.find_one({"email": email})
     if existing:
-        upd = {k: v for k, v in fields.items() if v not in (None, "", [])}
-        upd.pop("consent", None) if existing.get("consent") else None
+        upd = {k: v for k, v in fields.items() if v not in (None, "", []) and k not in ("source", "audience")}
+        if existing.get("consent"):
+            upd.pop("consent", None)
         await db.mkt_contacts.update_one({"_id": existing["_id"]}, {"$set": {**upd, "updated_at": now_iso()}})
         return False
     await db.mkt_contacts.insert_one({"email": email, "name": "", "company": "", "audience": "vendor",
@@ -131,15 +133,13 @@ async def import_contacts(body: ImportIn, admin=ADMIN):
 
 @router.post("/contacts/sync", dependencies=CSRF)
 async def sync_platform(admin=ADMIN):
-    """Pull registered vendors and buyer organisations in as contacts."""
-    regs = {r["email"]: bool(r.get("marketing_consent")) async for r in
-            db.registrations.find({}, {"email": 1, "marketing_consent": 1})}
+    """Pull registered vendors and buyer organisations in as contacts (existing customers: opt-out via unsubscribe)."""
     n = 0
     async for v in db.vendors.find({"email": {"$exists": True}}, {"email": 1, "company_name": 1, "country": 1,
                                                                    "business_categories": 1}):
         n += await _upsert_contact(v["email"], company=v.get("company_name", ""), audience="vendor",
                                    country=(v.get("country") or "").upper(), categories=v.get("business_categories") or [],
-                                   source="platform", consent=regs.get(v["email"].lower(), True))
+                                   source="platform", consent=True)
     async for t in db.tenants.find({"primary_contact_email": {"$nin": [None, ""]}}):
         n += await _upsert_contact(t["primary_contact_email"], name=t.get("primary_contact_name", ""),
                                    company=t.get("name", ""), audience="buyer",
@@ -193,6 +193,8 @@ async def create_segment(body: SegmentIn, admin=ADMIN):
 
 @router.delete("/segments/{sid}", dependencies=CSRF)
 async def delete_segment(sid: str, admin=ADMIN):
+    if await db.mkt_campaigns.find_one({"segment_id": sid, "status": {"$in": ["draft", "sending"]}}):
+        raise HTTPException(status_code=409, detail="A draft campaign uses this list — change or delete that campaign first.")
     await db.mkt_segments.delete_one({"_id": _oid(sid)})
     return {"ok": True}
 
@@ -256,18 +258,26 @@ def _personalise(c: dict, contact: dict, rid: str) -> str:
 
 async def _run_campaign(cid: ObjectId) -> None:
     c = await db.mkt_campaigns.find_one({"_id": cid})
-    seg = await db.mkt_segments.find_one({"_id": _oid(c["segment_id"])}) or {}
+    seg = await db.mkt_segments.find_one({"_id": _oid(c["segment_id"])})
+    if not seg:
+        await db.mkt_campaigns.update_one({"_id": cid}, {"$set": {"status": "draft", "error": "Contact list no longer exists"}})
+        return
     sent = failed = 0
-    async for contact in db.mkt_contacts.find(_segment_filter(seg)):
-        if await db.mkt_sends.find_one({"campaign_id": str(cid), "email": contact["email"]}):
-            continue
-        rid = secrets.token_urlsafe(12)
-        ok = await send_email(contact["email"], c["subject"], _personalise(c, contact, rid))
-        await db.mkt_sends.insert_one({"campaign_id": str(cid), "rid": rid, "email": contact["email"],
-                                       "status": "sent" if ok else "failed", "sent_at": now_iso()})
-        sent += ok
-        failed += (not ok)
-        await asyncio.sleep(0.6)
+    try:
+        async for contact in db.mkt_contacts.find(_segment_filter(seg)):
+            if await db.mkt_sends.find_one({"campaign_id": str(cid), "email": contact["email"]}):
+                continue
+            rid = secrets.token_urlsafe(12)
+            ok = await send_email(contact["email"], c["subject"], _personalise(c, contact, rid))
+            await db.mkt_sends.insert_one({"campaign_id": str(cid), "rid": rid, "email": contact["email"],
+                                           "status": "sent" if ok else "failed", "sent_at": now_iso()})
+            sent += ok
+            failed += (not ok)
+            await asyncio.sleep(0.6)
+    except Exception as exc:
+        log.exception("campaign %s failed", cid)
+        await db.mkt_campaigns.update_one({"_id": cid}, {"$set": {"status": "draft", "error": str(exc)[:200]}})
+        return
     await db.mkt_campaigns.update_one({"_id": cid}, {"$set": {"status": "sent", "sent_at": now_iso(),
                                                               "sent_count": sent, "failed_count": failed}})
 
@@ -332,7 +342,10 @@ async def send_campaign(cid: str, bg: BackgroundTasks, admin=ADMIN):
     if not r.matched_count:
         raise HTTPException(status_code=409, detail="This campaign was already sent.")
     c = await db.mkt_campaigns.find_one({"_id": oid})
-    seg = await db.mkt_segments.find_one({"_id": _oid(c["segment_id"])}) or {}
+    seg = await db.mkt_segments.find_one({"_id": _oid(c["segment_id"])})
+    if not seg:
+        await db.mkt_campaigns.update_one({"_id": oid}, {"$set": {"status": "draft"}})
+        raise HTTPException(status_code=422, detail="This campaign's contact list was deleted — pick another list.")
     n = await db.mkt_contacts.count_documents(_segment_filter(seg))
     bg.add_task(_run_campaign, oid)
     await audit_log("marketing.campaign_send", admin, "mkt_campaign", cid, {"recipients": n})
@@ -391,32 +404,42 @@ async def save_alerts(body: AlertSettingsIn, admin=ADMIN):
 async def send_tender_alert(notice_ref: str) -> int:
     """Email vendors registered in (or interested in) the notice's category. Called after publish."""
     s = await db.mkt_settings.find_one({"_id": "tender_alerts"}) or {}
-    if not s.get("enabled") or await db.mkt_alert_log.find_one({"notice_ref": notice_ref}):
+    if not s.get("enabled"):
         return 0
     n = await db.notices.find_one({"notice_ref": notice_ref})
     if not n or not n.get("category"):
         return 0
+    try:
+        log_id = (await db.mkt_alert_log.insert_one({"notice_ref": notice_ref, "title": n.get("title"),
+                                                     "category": n["category"], "recipients": 0, "at": now_iso()})).inserted_id
+    except Exception:
+        return 0
     cat = n["category"]
-    emails = {v["email"].lower() async for v in db.vendors.find({"business_categories": cat, "email": {"$exists": True}}, {"email": 1})}
+    vendors = {v["email"].lower(): v async for v in db.vendors.find({"business_categories": cat, "email": {"$exists": True}},
+                                                                   {"email": 1, "company_name": 1, "country": 1})}
+    for e, v in vendors.items():
+        await _upsert_contact(e, company=v.get("company_name", ""), audience="vendor",
+                              country=(v.get("country") or "").upper(), source="platform", consent=True)
+    emails = set(vendors)
     if s.get("include_uploaded", True):
         emails |= {c["email"] async for c in db.mkt_contacts.find(
             {"audience": "vendor", "categories": cat, "consent": True, "unsubscribed": {"$ne": True}}, {"email": 1})}
     blocked = {c["email"] async for c in db.mkt_contacts.find({"unsubscribed": True}, {"email": 1})}
     url = f"{config.FRONTEND_URL}/notices/{notice_ref}"
+    title = html_escape(str(n.get("title") or ""))
     sent = 0
     for e in sorted(emails - blocked):
         contact = await db.mkt_contacts.find_one({"email": e}, {"unsub_token": 1})
         unsub = (f"<p style='font-size:11px;color:#888'><a href='{_api_base()}/api/v1/marketing/unsubscribe/{contact['unsub_token']}'>"
                  "Stop tender alerts</a></p>") if contact else ""
-        html = wrap(f"New tender: {n.get('title')}",
-                    f"<p>A new tender in <b>{cat}</b> has been published on PMC Managers.</p>"
-                    f"<p><b>{n.get('title')}</b><br>Country: {n.get('delivery_country', '')}"
+        html = wrap(f"New tender: {title}",
+                    f"<p>A new tender in <b>{html_escape(cat)}</b> has been published on PMC Managers.</p>"
+                    f"<p><b>{title}</b><br>Country: {html_escape(str(n.get('delivery_country') or ''))}"
                     f"{'<br>Closing: ' + str(n.get('submission_deadline'))[:10] if n.get('submission_deadline') else ''}</p>{unsub}",
                     "View tender", url)
         sent += await send_email(e, f"[PMC] New tender — {n.get('title')}"[:150], html)
         await asyncio.sleep(0.6)
-    await db.mkt_alert_log.insert_one({"notice_ref": notice_ref, "title": n.get("title"), "category": cat,
-                                       "recipients": sent, "at": now_iso()})
+    await db.mkt_alert_log.update_one({"_id": log_id}, {"$set": {"recipients": sent}})
     return sent
 
 
@@ -454,10 +477,19 @@ async def list_referrals(admin=ADMIN):
     return {"leaders": out, "recent": [{**_id(r), "email": r["email"]} for r in recent]}
 
 
-async def record_referral(code: Optional[str], email: str, company: Optional[str]) -> None:
+async def record_referral(code: Optional[str], email: str, company: Optional[str]) -> bool:
     code = (code or "").strip().upper()[:16]
     if not code or not await db.vendors.find_one({"referral_code": code}, {"_id": 1}):
-        return
+        return False
     await db.mkt_referrals.update_one({"email": email.lower()},
                                       {"$setOnInsert": {"code": code, "email": email.lower(), "company": company or "",
                                                         "status": "started", "at": now_iso()}}, upsert=True)
+    return True
+
+
+async def ensure_indexes() -> None:
+    await db.mkt_alert_log.create_index("notice_ref", unique=True)
+    await db.mkt_contacts.create_index("email", unique=True)
+    await db.mkt_contacts.create_index("unsub_token")
+    await db.mkt_sends.create_index("rid")
+    await db.mkt_sends.create_index([("campaign_id", 1), ("email", 1)])
