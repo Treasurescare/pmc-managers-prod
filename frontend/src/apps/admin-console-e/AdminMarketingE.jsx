@@ -6,9 +6,10 @@ import { SegmentsTab } from "./marketing/SegmentsTab";
 import { AlertsTab, ReferralsTab } from "./marketing/AlertsReferralsTabs";
 import { BuyerInvitesTab } from "./marketing/BuyerInvitesTab";
 import { SocialPostsTab } from "./marketing/SocialPostsTab";
+import { WebsiteLinksTab } from "./marketing/WebsiteLinksTab";
 
 const TABS = [["campaigns", "Email campaigns", CampaignsTab], ["contacts", "Contacts", ContactsTab],
-  ["segments", "Lists & segments", SegmentsTab], ["alerts", "New-tender alerts", AlertsTab], ["invites", "Buyer invites", BuyerInvitesTab], ["social", "LinkedIn posts", SocialPostsTab], ["referrals", "Referrals", ReferralsTab]];
+  ["segments", "Lists & segments", SegmentsTab], ["alerts", "New-tender alerts", AlertsTab], ["invites", "Buyer invites", BuyerInvitesTab], ["social", "LinkedIn posts", SocialPostsTab], ["referrals", "Referrals", ReferralsTab], ["links", "Website links", WebsiteLinksTab]];
 
 export default function AdminMarketingE() {
   const [tab, setTab] = useState(() => new URLSearchParams(window.location.search).get("tab") || "campaigns");

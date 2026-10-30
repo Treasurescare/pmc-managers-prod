@@ -1,4 +1,6 @@
 """Fee Type master + fee-rule computation shared by masters, tender builder and billing."""
+import asyncio
+import logging
 from typing import Optional
 from bson import ObjectId
 from fastapi import HTTPException
@@ -233,8 +235,10 @@ async def issue_receipt(vendor_id: str, purpose: str, lines: list, currency: str
             "body": f"<p>We received <b>{rec['currency']} {total:,.2f}</b> ({', '.join(x['name'] for x in lines)}).</p>",
             "link": "/vendor/emd", "created_at": now_iso(), "read": False})
     if v.get("email"):
+        import base64
         import config
-        from notify import vendor_confirm
+        from emails import send_email, wrap
+        from routers.site_settings import render_receipt_pdf
         rows = "".join(f"<tr><td style='padding:4px 12px 4px 0'>{x['name']}</td>"
                        f"<td style='padding:4px 0;text-align:right'>{rec['currency']} {float(x['amount']):,.2f}</td></tr>"
                        for x in lines)
@@ -247,9 +251,18 @@ async def issue_receipt(vendor_id: str, purpose: str, lines: list, currency: str
                 f"<p><b>Receipt:</b> {rec['receipt_no']}<br><b>Date:</b> {rec['paid_at'][:10]}{extra}</p>"
                 f"<table>{rows}<tr><td style='padding:6px 12px 0 0'><b>Total</b></td>"
                 f"<td style='padding:6px 0 0;text-align:right'><b>{rec['currency']} {total:,.2f}</b></td></tr></table>"
+                f"<p>Your PDF receipt is attached.</p>"
                 f"<p style='color:#666;font-size:12px'>Payment reference: {session_id}</p>")
-        await vendor_confirm(v["email"], f"Payment receipt {rec['receipt_no']}", body,
-                             "View payments", f"{config.FRONTEND_URL.rstrip('/')}/vendor/emd")
+        subject = f"Payment receipt {rec['receipt_no']}"
+        try:
+            pdf = await asyncio.to_thread(render_receipt_pdf, rec, v)
+            att = [{"filename": f"{rec['receipt_no']}.pdf", "content_b64": base64.b64encode(pdf).decode(),
+                    "content_type": "application/pdf"}]
+        except Exception as e:
+            logging.getLogger(__name__).warning("receipt pdf failed %s: %s", rec["receipt_no"], e)
+            att = None
+        html = wrap(subject, body, "View payments", f"{config.FRONTEND_URL.rstrip('/')}/vendor/emd")
+        asyncio.create_task(send_email(v["email"], f"[PMC] {subject}", html, attachments=att))
     return rec
 
 

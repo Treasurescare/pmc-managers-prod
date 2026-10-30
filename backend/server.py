@@ -315,6 +315,8 @@ from routers import marketing_public as _marketing_public  # noqa: E402
 app.include_router(_marketing_public.router)
 from routers import marketing_share as _marketing_share  # noqa: E402
 app.include_router(_marketing_share.router)
+from routers import site_settings as _site_settings  # noqa: E402
+app.include_router(_site_settings.router)
 from routers import google_auth as _google_auth  # noqa: E402
 app.include_router(_google_auth.router)
 from routers import linkedin as _linkedin  # noqa: E402

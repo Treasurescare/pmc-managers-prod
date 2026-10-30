@@ -919,6 +919,7 @@ export const vendorTenderApi = {
   startCheckout: (p) => api.post("/api/v1/vendor-tenders/start/checkout", p).then((r) => r.data),
   startStatus: (sid) => api.get(`/api/v1/vendor-tenders/start/checkout/status/${sid}`).then((r) => r.data),
   receipts: () => api.get("/api/v1/vendor-tenders/receipts").then((r) => r.data),
+  receiptPdf: (no) => downloadAuthedFile(`/api/v1/vendor-tenders/receipts/${encodeURIComponent(no)}.pdf`, `${no}.pdf`),
   fees: (tid) => api.get(`/api/v1/vendor-tenders/fees/${tid}`).then((r) => r.data),
   feeCheckout: (tid, fee_code, origin_url) => api.post(`/api/v1/vendor-tenders/fees/${tid}/checkout`, { fee_code, origin_url }).then((r) => r.data),
   feeStatus: (sid) => api.get(`/api/v1/vendor-tenders/fees/checkout/status/${sid}`).then((r) => r.data),
@@ -1113,6 +1114,11 @@ export const tenderTemplateApi = {
     api.post(`/api/v1/tender-templates/${id}/master/approve`).then((r) => r.data),
   rejectMaster: (id, note) =>
     api.post(`/api/v1/tender-templates/${id}/master/reject`, { note }).then((r) => r.data),
+};
+
+export const siteApi = {
+  social: () => api.get("/api/v1/site/social").then((r) => r.data),
+  saveSocial: (p) => api.put("/api/v1/marketing/site-social", p).then((r) => r.data),
 };
 
 export const marketingApi = {
