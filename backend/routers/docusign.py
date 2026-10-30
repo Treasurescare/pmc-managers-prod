@@ -40,6 +40,7 @@ import docusign_esign as ds
 from docusign_esign.client.api_exception import ApiException
 
 from db import db
+from pdf_brand import brand_html
 from security import current_admin, require_role
 from audit import audit_log
 import config
@@ -766,7 +767,7 @@ async def create_bid_ack_envelope(
         <p>The bidder confirms the terms of the tender documents and consents to the pipeline (Escrow → Admin → Certifier → Legal → Accounting → Committee).</p>
         <p class='sig'>Signature: <span style='color:#c00'>/sig_here/</span></p>
       </body></html>"""
-    pdf = _HTML(string=html).write_pdf()
+    pdf = _HTML(string=brand_html(html)).write_pdf()
     client = _client()
     client_user_id = f"pmc:bid:{bid_id}:{req.signer_email}"
     envelope_id, _ = _create_envelope(

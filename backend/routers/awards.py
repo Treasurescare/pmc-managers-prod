@@ -20,6 +20,7 @@ import base64
 import html as _html
 
 from db import db, next_sequence
+from pdf_brand import brand_html
 from models.base import BaseDocument, now_iso
 from security import require_role
 from routers.vendor_auth import current_vendor
@@ -204,7 +205,7 @@ def _render_contract_html(bid: dict, notice: dict, awarded_at: str, award_ref: s
 
 def _pdf_bytes(html: str) -> bytes:
     from weasyprint import HTML
-    return HTML(string=html).write_pdf()
+    return HTML(string=brand_html(html)).write_pdf()
 
 
 # ---------- Public generator (called from bids.decide_bid on award) ----

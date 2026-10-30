@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { usePublicNav } from "@/lib/pmcEPublicNav";
+import PmcSocialLinks from "@/components/PmcSocialLinks";
 
 export default function ForSuppliersE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
@@ -31,7 +32,7 @@ export default function ForSuppliersE({ legacy: Legacy }) {
 <div className="pmc-wrap lf-sec" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "48px", alignItems: "center" }}><div><h2 className="lf-h" style={{ marginTop: "0" }}>What do I need to register?</h2><ul style={{ margin: "0", paddingLeft: "20px", fontSize: "15px", lineHeight: "28px" }}><li>Certificate of incorporation and tax registration</li><li>Licences for the countries and categories you choose</li><li>ISO or equivalent certificates (if you have them)</li><li>An authorised signatory</li></ul><a href="#" data-help-open="" style={{ display: "inline-block", marginTop: "14px" }}>Read the KYC guide</a></div>
 <div className="pmc-card" style={{ padding: "32px", textAlign: "center" }}><div className="pmc-display" style={{ fontSize: "32px", lineHeight: "36px" }}>Ready when you are</div><p className="pmc-muted">29 tenders open for bids right now.</p><a href="#" className="pmc-btn pmc-btn--primary pmc-btn--lg">Register as supplier</a></div></div>
 <footer className="pmc-chrome" style={{ padding: "40px 0 28px", marginTop: "0" }}><div className="pmc-wrap" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px" }}>
-  <div className="pmc-brand"><span className="pmc-brand__n" style={{ fontSize: "20px" }}>PMC Managers</span><span className="pmc-brand__s">Global Tender Board</span></div>
+  <div className="pmc-brand"><span className="pmc-brand__n" style={{ fontSize: "20px" }}>PMC Managers</span><span className="pmc-brand__s">Global Tender Board</span></div><PmcSocialLinks />
   <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "20px" }} className="pmc-fcol"><a href="#">Open notices</a><a href="#">Help Centre</a><a href="#">Trust &amp; security</a><a href="#">Privacy</a><span className="pmc-muted">© 2026 PMC Managers Limited</span></div>
 </div></footer>
 <div className="pmc-drawer-scrim" data-help-close=""></div>

@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from bson import ObjectId
 
 from db import db, next_sequence
+from pdf_brand import brand_html
 from models.boq import (
     BOQTemplateIn, BOQVendorSubmissionIn,
     ContractIn, VariationOrderIn,
@@ -175,7 +176,7 @@ async def export_boq_template_pdf(template_id: str,
         <tfoot><tr><td colspan='5' class='r'>TOTAL</td><td class='r'>{total:,.2f} {doc.get('currency','USD')}</td></tr></tfoot>
       </table>
     </body></html>"""
-    pdf = HTML(string=html).write_pdf()
+    pdf = HTML(string=brand_html(html)).write_pdf()
     fname = f"BOQ-{doc.get('name', template_id).replace(' ', '-')}.pdf"
     await audit_log("boq_template.export_pdf", admin, "boq_template", template_id, {})
     return Response(content=pdf, media_type="application/pdf",

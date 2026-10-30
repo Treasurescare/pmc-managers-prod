@@ -28,6 +28,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, EmailStr, Field
 
 import config
+from pdf_brand import logo_flowable
 from audit import audit_log
 from db import db
 from models.base import now_iso
@@ -279,6 +280,7 @@ def _build_tx_pdf(tx: dict) -> bytes:
     doc = SimpleDocTemplate(buf, pagesize=A4, title="Escrow EMD Receipt — PMC Managers")
     styles = getSampleStyleSheet()
     story = [
+        logo_flowable(),
         Paragraph("<b>PMC Managers · Escrow EMD Receipt &amp; Release Mandate</b>", styles["Title"]),
         Spacer(1, 10),
         Paragraph(

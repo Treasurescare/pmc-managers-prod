@@ -17,6 +17,8 @@ from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable,
 )
 
+from pdf_brand import logo_flowable
+
 
 def _short(dt: Optional[str]) -> str:
     if not dt:
@@ -46,7 +48,7 @@ def build_corrigendum_pdf(notice: dict, corrigendum: dict) -> bytes:
     label = ParagraphStyle("label", parent=small, fontName="Helvetica-Bold",
                            textColor=colors.HexColor("#8a6a1f"))
 
-    story = []
+    story = [logo_flowable(), Spacer(1, 4)]
     story.append(Paragraph("PMC MANAGERS · GLOBAL TENDER BOARD", label))
     story.append(Paragraph(
         f"Corrigendum {corrigendum.get('corrigendum_no', '')} — {corrigendum.get('title', '')}",

@@ -845,5 +845,15 @@ Artifacts in /frontend/public/downloads: pmc-backend-v57i.zip, pmc-frontend-v57i
 - Site: .pmc-brand::before + mobile .pmc-mob-brand::before show src/pmc-logo-mark.png beside every wordmark; favicon/PWA public/pmc-logo.png replaced.
 - Emails: emails._wrap header shows {FRONTEND_URL}/pmc-logo-mark.png (FRONTEND_URL must be https://www.pmcmanagers.com in prod).
 - Share cards: marketing_share._render_card pastes backend/assets/pmc-logo-mark.png top-right.
+
+## R23 — Footer social links, branded PDFs, launch posts — 2026-10-30 — build v58f (self-checked: screenshot + rendered PDFs)
+- components/PmcSocialLinks.jsx (LinkedIn + Facebook icons, URLs exactly as user gave) added to footers of all 10 notice-board-e pages.
+  LinkedIn URL given is a single post (feed/update/...), not a profile — swap when user sends profile/page URL.
+- backend/pdf_brand.py: brand_html() inserts logo header after <body> (weasyprint) + logo_flowable() (reportlab).
+  Applied to: tender/RFQ/RFP PDFs (tender_templates), award letters (awards), BOQs, EMD receipt + statement (payments),
+  bid acknowledgement (docusign), corrigendum PDF, escrow statement (escrow_v52f), escrow EMD receipt (escrow_payment_entries).
+  Fee receipts are email-only (logo via emails._wrap). Internal reports/flowcharts not branded.
+- downloads/pmc-launch-posts.md: 3 LinkedIn/Facebook launch posts.
+
 - LinkedIn "Feature not available — not enough connections": LinkedIn account-age/connections restriction on new profiles (user-side).
 

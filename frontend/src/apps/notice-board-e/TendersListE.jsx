@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { usePublicLiveData } from "@/lib/pmcELiveData";
 import { usePublicNav } from "@/lib/pmcEPublicNav";
+import PmcSocialLinks from "@/components/PmcSocialLinks";
 
 export default function TendersListE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
@@ -62,7 +63,7 @@ export default function TendersListE({ legacy: Legacy }) {
   </section>
 </div>
 <footer className="pmc-chrome" style={{ padding: "40px 0 28px", marginTop: "0" }}><div className="pmc-wrap" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px" }}>
-  <div className="pmc-brand"><span className="pmc-brand__n" style={{ fontSize: "20px" }}>PMC Managers</span><span className="pmc-brand__s">Global Tender Board</span></div>
+  <div className="pmc-brand"><span className="pmc-brand__n" style={{ fontSize: "20px" }}>PMC Managers</span><span className="pmc-brand__s">Global Tender Board</span></div><PmcSocialLinks />
   <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "20px" }} className="pmc-fcol"><a href="#">Open notices</a><a href="#">Help Centre</a><a href="#">Trust &amp; security</a><a href="#">Privacy</a><span className="pmc-muted">© 2026 PMC Managers Limited</span></div>
 </div></footer>
 

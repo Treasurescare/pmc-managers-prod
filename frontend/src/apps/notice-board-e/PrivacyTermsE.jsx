@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { usePublicNav } from "@/lib/pmcEPublicNav";
+import PmcSocialLinks from "@/components/PmcSocialLinks";
 
 export default function PrivacyTermsE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
@@ -32,7 +33,7 @@ export default function PrivacyTermsE({ legacy: Legacy }) {
 <h2 style={{ fontSize: "22px", margin: "28px 0 8px" }}>1. What we collect</h2><p style={{ margin: "0", fontSize: "16px", lineHeight: "27px", color: "var(--ink-muted)" }}>Company details, contacts, KYC documents, bids, and sign-in and device records needed for security.</p><h2 style={{ fontSize: "22px", margin: "28px 0 8px" }}>2. Why we use it</h2><p style={{ margin: "0", fontSize: "16px", lineHeight: "27px", color: "var(--ink-muted)" }}>To verify suppliers, run tenders, evaluate bids, manage contracts, meet legal obligations and keep the audit ledger.</p><h2 style={{ fontSize: "22px", margin: "28px 0 8px" }}>3. Who can see it</h2><p style={{ margin: "0", fontSize: "16px", lineHeight: "27px", color: "var(--ink-muted)" }}>PMC compliance staff, and the evaluation committee of a tender you bid on. Every view is logged.</p><h2 style={{ fontSize: "22px", margin: "28px 0 8px" }}>4. How long we keep it</h2><p style={{ margin: "0", fontSize: "16px", lineHeight: "27px", color: "var(--ink-muted)" }}>For as long as your account is active, and afterwards only what law or the audit ledger requires, anonymised where possible.</p><h2 style={{ fontSize: "22px", margin: "28px 0 8px" }}>5. Your rights</h2><p style={{ margin: "0", fontSize: "16px", lineHeight: "27px", color: "var(--ink-muted)" }}>Access, correct, export or delete your data from Account &amp; security, or by contacting adminsupport@pmcmanagers.com.</p>
 <div className="pmc-panel" style={{ marginTop: "32px", padding: "16px 20px", fontSize: "13px" }}><b>Placeholder text.</b> <span className="pmc-muted">Final wording to be supplied by PMC's legal counsel.</span></div></article></div>
 <footer className="pmc-chrome" style={{ padding: "40px 0 28px", marginTop: "0" }}><div className="pmc-wrap" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px" }}>
-  <div className="pmc-brand"><span className="pmc-brand__n" style={{ fontSize: "20px" }}>PMC Managers</span><span className="pmc-brand__s">Global Tender Board</span></div>
+  <div className="pmc-brand"><span className="pmc-brand__n" style={{ fontSize: "20px" }}>PMC Managers</span><span className="pmc-brand__s">Global Tender Board</span></div><PmcSocialLinks />
   <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "20px" }} className="pmc-fcol"><a href="#">Open notices</a><a href="#">Help Centre</a><a href="#">Trust &amp; security</a><a href="#">Privacy</a><span className="pmc-muted">© 2026 PMC Managers Limited</span></div>
 </div></footer>
 <div className="pmc-drawer-scrim" data-help-close=""></div>

@@ -25,6 +25,7 @@ from bson import ObjectId
 
 import config
 from db import db
+from pdf_brand import brand_html
 from models.base import BaseDocument, now_iso
 from security import require_role
 from routers._tender_access import (
@@ -692,7 +693,7 @@ async def public_export_tender_zip(tid: str, request: Request, notice_ref: Optio
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in (doc.get("name") or "tender"))[:60]
         # 1. Composed PDF at the root
-        pdf_bytes = HTML(string=_render_tender_html(doc)).write_pdf()
+        pdf_bytes = HTML(string=brand_html(_render_tender_html(doc))).write_pdf()
         zf.writestr(f"{safe_name}.pdf", pdf_bytes)
         # 2. Each section attachment under attachments/
         for s in sorted(doc.get("sections") or [], key=lambda x: x.get("order", 0)):
@@ -757,7 +758,7 @@ async def public_export_tender_pdf(tid: str, request: Request, notice_ref: Optio
     if doc.get("is_master") and doc.get("moderation_status") in ("pending", "rejected"):
         raise HTTPException(status_code=404, detail="Tender not available")
     from weasyprint import HTML
-    pdf_bytes = HTML(string=_render_tender_html(doc, lang=lang)).write_pdf()
+    pdf_bytes = HTML(string=brand_html(_render_tender_html(doc, lang=lang))).write_pdf()
     safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in (doc.get("name") or "tender"))[:60]
     lang_tag = (lang or "en").lower()[:2]
     return Response(
@@ -953,7 +954,7 @@ async def export_tender_pdf(tid: str, lang: Optional[str] = "en",
     if doc.get("owner_vendor_id") == principal.get("id"):
         await assert_fees_paid(principal, doc, "work")
     from weasyprint import HTML
-    pdf_bytes = HTML(string=_render_tender_html(doc, lang=lang)).write_pdf()
+    pdf_bytes = HTML(string=brand_html(_render_tender_html(doc, lang=lang))).write_pdf()
     safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in (doc.get("name") or "tender"))[:60]
     lang_tag = (lang or "en").lower()[:2]
     return Response(

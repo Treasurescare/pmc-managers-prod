@@ -13,6 +13,7 @@ from fastapi import APIRouter, HTTPException, Request, Depends
 from bson import ObjectId
 
 from db import db
+from pdf_brand import brand_html
 from models.emd_payment import EMDCheckoutIn, EMDRefundIn
 from models.base import now_iso
 from security import require_role
@@ -116,7 +117,7 @@ async def emd_statement_pdf(vendor=Depends(current_vendor)):
       <div class="foot">Chained to the audit ledger · every entry is time-stamped and cannot be altered</div>
     </body></html>"""
 
-    pdf = HTML(string=html).write_pdf()
+    pdf = HTML(string=brand_html(html)).write_pdf()
     fname = f"PMC-EMD-Statement-{vendor_ref}-{datetime.now(timezone.utc).strftime('%Y%m%d')}.pdf"
     await audit_log("vendor.emd_statement_pdf", None, "vendor", vendor_id, {"rows": len(rows)})
     return Response(content=pdf, media_type="application/pdf",
@@ -190,7 +191,7 @@ async def emd_receipt_pdf(bid_id: str, vendor=Depends(current_vendor)):
       The deposit is refunded to your verified account if the bid is not awarded, or converted to a
       security deposit upon contract signature. Every entry is chained to the PMC audit ledger.</div>
     </body></html>"""
-    pdf = HTML(string=html).write_pdf()
+    pdf = HTML(string=brand_html(html)).write_pdf()
     fname = f"PMC-EMD-Receipt-{bid_ref}.pdf"
     await audit_log("vendor.emd_receipt_pdf", None, "bid", bid_ref, {"amount": amount, "currency": currency})
     return Response(content=pdf, media_type="application/pdf",

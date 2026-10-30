@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { usePublicNav } from "@/lib/pmcEPublicNav";
 import { api } from "@/lib/api";
+import PmcSocialLinks from "@/components/PmcSocialLinks";
 
 function ContactForm() {
   const [form, setForm] = useState({ topic: "A specific tender", tender_ref: "", name: "", email: "", message: "" });
@@ -72,7 +73,7 @@ export default function ContactE({ legacy: Legacy }) {
 <div style={{ display: "grid", gap: "12px" }}><div className="pmc-panel" style={{ padding: "20px", display: "grid", gridTemplateColumns: "40px 1fr", gap: "14px" }}><svg className="pmc-ico lf-i" aria-hidden="true"><use href="#i-gavel" /></svg><div><b style={{ fontSize: "16px" }}>Tenders &amp; bids</b><div className="pmc-muted" style={{ fontSize: "14px", margin: "2px 0 6px" }}>Questions on a notice, clarifications, deadlines</div><a href="mailto:tenders@pmcmanagers.com">tenders@pmcmanagers.com</a></div></div><div className="pmc-panel" style={{ padding: "20px", display: "grid", gridTemplateColumns: "40px 1fr", gap: "14px" }}><svg className="pmc-ico lf-i" aria-hidden="true"><use href="#i-lock" /></svg><div><b style={{ fontSize: "16px" }}>Account &amp; access</b><div className="pmc-muted" style={{ fontSize: "14px", margin: "2px 0 6px" }}>Sign-in, two-factor, locked accounts</div><a href="mailto:adminsupport@pmcmanagers.com">adminsupport@pmcmanagers.com</a></div></div><div className="pmc-panel" style={{ padding: "20px", display: "grid", gridTemplateColumns: "40px 1fr", gap: "14px" }}><svg className="pmc-ico lf-i" aria-hidden="true"><use href="#i-chat" /></svg><div><b style={{ fontSize: "16px" }}>Signed-in users</b><div className="pmc-muted" style={{ fontSize: "14px", margin: "2px 0 6px" }}>Tickets are tracked in your portal</div><a href="#">Raise a ticket</a></div></div><div className="pmc-panel" style={{ padding: "20px", display: "grid", gridTemplateColumns: "40px 1fr", gap: "14px" }}><svg className="pmc-ico lf-i" aria-hidden="true"><use href="#i-flag" /></svg><div><b style={{ fontSize: "16px" }}>Report a concern</b><div className="pmc-muted" style={{ fontSize: "14px", margin: "2px 0 6px" }}>Goes to an independent compliance desk</div><a href="#">Report a concern</a></div></div></div>
 <ContactForm /></div>
 <footer className="pmc-chrome" style={{ padding: "40px 0 28px", marginTop: "0" }}><div className="pmc-wrap" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px" }}>
-  <div className="pmc-brand"><span className="pmc-brand__n" style={{ fontSize: "20px" }}>PMC Managers</span><span className="pmc-brand__s">Global Tender Board</span></div>
+  <div className="pmc-brand"><span className="pmc-brand__n" style={{ fontSize: "20px" }}>PMC Managers</span><span className="pmc-brand__s">Global Tender Board</span></div><PmcSocialLinks />
   <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "20px" }} className="pmc-fcol"><a href="#">Open notices</a><a href="#">Help Centre</a><a href="#">Trust &amp; security</a><a href="#">Privacy</a><span className="pmc-muted">© 2026 PMC Managers Limited</span></div>
 </div></footer>
 <div className="pmc-drawer-scrim" data-help-close=""></div>

@@ -7,6 +7,7 @@ import { BUILD_VERSION } from "@/lib/buildStamp";
 import { HeroTaxonomySearch } from "@/apps/notice-board-e/HeroTaxonomySearch";
 import LiveAuctionsBand from "@/apps/notice-board-e/LiveAuctionsBand";
 import TenderAlertsSignup from "@/apps/notice-board-e/TenderAlertsSignup";
+import PmcSocialLinks from "@/components/PmcSocialLinks";
 
 export default function HomeE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
@@ -242,7 +243,7 @@ export default function HomeE({ legacy: Legacy }) {
 <footer className="pmc-chrome" style={{ padding: "56px 0 32px" }}>
   <div className="pmc-wrap">
     <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr 1fr 1fr", gap: "32px", paddingBottom: "40px", borderBottom: "1px solid var(--chrome-line)" }}>
-      <div><div className="pmc-brand"><span className="pmc-brand__n">PMC Managers</span><span className="pmc-brand__s">Global Tender Board</span></div><p className="pmc-muted" style={{ margin: "16px 0 0", fontSize: "14px", lineHeight: "22px", maxWidth: "300px" }}>e-Tender platform for admins, staff and suppliers. Bid, evaluate, award — from any device.</p></div>
+      <div><div className="pmc-brand"><span className="pmc-brand__n">PMC Managers</span><span className="pmc-brand__s">Global Tender Board</span></div><p className="pmc-muted" style={{ margin: "16px 0 0", fontSize: "14px", lineHeight: "22px", maxWidth: "300px" }}>e-Tender platform for admins, staff and suppliers. Bid, evaluate, award — from any device.</p><PmcSocialLinks /></div>
       <div className="pmc-fcol"><b>Tenders</b><a href="#">Open notices</a><a href="#">Completed</a><a href="#">Corrigenda</a><a href="#">Programme</a></div>
       <div className="pmc-fcol"><b>Suppliers</b><a href="#">Register</a><a href="#">Sign in</a><a href="#">KYC guide</a><a href="#">EMD &amp; escrow</a></div>
       <div className="pmc-fcol"><b>Company</b><a href="#">About us</a><a href="#">Vision</a><a href="#">Trust &amp; security</a><a href="#">Contact</a></div>

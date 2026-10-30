@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from pydantic import BaseModel, EmailStr, Field
 
 import config
+from pdf_brand import logo_flowable
 from audit import audit_log
 from db import db
 from emails import send_email, _wrap
@@ -247,6 +248,7 @@ def _render_statement_pdf(institution: dict, account: dict,
     meta = ParagraphStyle("m", parent=styles["Normal"], fontSize=9,
                            textColor=colors.HexColor("#5A5A57"))
     story = [
+        logo_flowable(),
         Paragraph("PMC Managers · Escrow statement", title),
         Spacer(1, 4 * mm),
         Paragraph(f"<b>{institution.get('legal_name','—')}</b>", styles["Normal"]),

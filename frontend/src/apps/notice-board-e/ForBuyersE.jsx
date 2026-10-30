@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { usePublicNav } from "@/lib/pmcEPublicNav";
+import PmcSocialLinks from "@/components/PmcSocialLinks";
 
 export default function ForBuyersE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
@@ -30,7 +31,7 @@ export default function ForBuyersE({ legacy: Legacy }) {
 <section className="pmc-chrome"><div className="pmc-wrap lf-sec" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "24px" }}><div><div className="pmc-figure" style={{ fontSize: "44px", lineHeight: "48px" }}>50</div><div className="pmc-muted" style={{ fontSize: "14px" }}>work packages under management</div></div><div><div className="pmc-figure" style={{ fontSize: "44px", lineHeight: "48px" }}>76</div><div className="pmc-muted" style={{ fontSize: "14px" }}>approved suppliers</div></div><div><div className="pmc-figure" style={{ fontSize: "44px", lineHeight: "48px" }}>4.7%</div><div className="pmc-muted" style={{ fontSize: "14px" }}>below estimate on awards to date</div></div><div><div className="pmc-figure" style={{ fontSize: "44px", lineHeight: "48px" }}>24 days</div><div className="pmc-muted" style={{ fontSize: "14px" }}>median publish to award</div></div><div className="pmc-muted" style={{ gridColumn: "1/-1", fontSize: "12px" }}>Sample figures — wire to live data before launch.</div></div></section>
 <div className="pmc-wrap lf-sec" style={{ textAlign: "center" }}><h2 className="lf-h">Bring your programme</h2><p className="pmc-muted" style={{ margin: "-8px 0 20px" }}>Tell us about your packages and timeline; we'll show you the platform on your own data.</p><a href="mailto:tenders@pmcmanagers.com" className="pmc-btn pmc-btn--primary pmc-btn--lg"><svg className="pmc-ico" aria-hidden="true"><use href="#i-mail" /></svg> tenders@pmcmanagers.com</a></div>
 <footer className="pmc-chrome" style={{ padding: "40px 0 28px", marginTop: "0" }}><div className="pmc-wrap" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px" }}>
-  <div className="pmc-brand"><span className="pmc-brand__n" style={{ fontSize: "20px" }}>PMC Managers</span><span className="pmc-brand__s">Global Tender Board</span></div>
+  <div className="pmc-brand"><span className="pmc-brand__n" style={{ fontSize: "20px" }}>PMC Managers</span><span className="pmc-brand__s">Global Tender Board</span></div><PmcSocialLinks />
   <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "20px" }} className="pmc-fcol"><a href="#">Open notices</a><a href="#">Help Centre</a><a href="#">Trust &amp; security</a><a href="#">Privacy</a><span className="pmc-muted">© 2026 PMC Managers Limited</span></div>
 </div></footer>
 <div className="pmc-drawer-scrim" data-help-close=""></div>
