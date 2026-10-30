@@ -6,6 +6,7 @@ import { api, reverseAuctionApi } from "@/lib/api";
 import { BUILD_VERSION } from "@/lib/buildStamp";
 import { HeroTaxonomySearch } from "@/apps/notice-board-e/HeroTaxonomySearch";
 import LiveAuctionsBand from "@/apps/notice-board-e/LiveAuctionsBand";
+import TenderAlertsSignup from "@/apps/notice-board-e/TenderAlertsSignup";
 
 export default function HomeE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
@@ -107,6 +108,8 @@ export default function HomeE({ legacy: Legacy }) {
   <div className="pmc-tender__foot"><a href="#" className="pmc-btn pmc-btn--ghost pmc-btn--sm" style={{ paddingLeft: "0" }}>View notice <svg className="pmc-ico" aria-hidden="true"><use href="#i-arrow" /></svg></a></div>
 </article></div>
 </section>
+
+<TenderAlertsSignup />
 
 <div id="how"><section className="pmc-wrap" style={{ padding: "88px 0 40px" }}>
   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "48px", alignItems: "end", marginBottom: "36px" }}>

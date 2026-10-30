@@ -7,7 +7,7 @@ export const AlertsTab = () => {
   const load = () => marketingApi.alerts().then(setD).catch(showApiError);
   useEffect(() => { load(); }, []);
   const save = async (patch) => {
-    const next = { enabled: d.enabled, include_uploaded: d.include_uploaded, ...patch };
+    const next = { enabled: d.enabled, include_uploaded: d.include_uploaded, mode: d.mode, ...patch };
     try { await marketingApi.saveAlerts(next); setD({ ...d, ...next }); toast.success("Saved"); } catch (e) { showApiError(e); }
   };
   if (!d) return null;
@@ -22,7 +22,16 @@ export const AlertsTab = () => {
           <input type="checkbox" checked={d.include_uploaded} onChange={(e) => save({ include_uploaded: e.target.checked })} data-testid="mkt-alerts-uploaded" />
           Also alert uploaded vendor contacts with that category (helps them sign up)
         </label>
-        <div className="text-xs text-brand-navy/60">Sent once per tender, when it goes live. People who unsubscribed are skipped.</div>
+        <div className="flex gap-6 text-sm" data-testid="mkt-alerts-mode">
+          {[["instant", "One email per new tender"], ["weekly", "One weekly digest (Mondays 08:00 London)"]].map(([m, l]) => (
+            <label key={m} className="flex gap-2 items-center"><input type="radio" checked={d.mode === m} onChange={() => save({ mode: m })} data-testid={`mkt-alerts-mode-${m}`} />{l}</label>))}
+        </div>
+        <div className="flex items-center gap-3 text-sm">
+          <button className="pmc-btn border border-brand-navy/40 bg-white px-3 py-2 text-sm" data-testid="mkt-digest-now"
+            onClick={async () => { try { await marketingApi.digestNow(); toast.success("Digest is being sent — refresh in a minute"); } catch (e) { showApiError(e); } }}>Send this week's digest now</button>
+          <span className="text-brand-navy/60" data-testid="mkt-website-subs">{d.website_subscribers} confirmed sign-ups from the website</span>
+        </div>
+        <div className="text-xs text-brand-navy/60">People who unsubscribed are always skipped.</div>
       </div>
       <div className="border border-brand-navy/15 bg-white">
         <div className="pmc-label p-3">Recent alerts</div>
@@ -32,6 +41,15 @@ export const AlertsTab = () => {
             <span>{a.recipients} emailed</span><span className="text-brand-navy/50">{a.at?.slice(0, 16).replace("T", " ")}</span>
           </div>))}
         {!d.items.length && <div className="p-4 text-sm text-brand-navy/60">No alerts sent yet.</div>}
+      </div>
+      <div className="border border-brand-navy/15 bg-white">
+        <div className="pmc-label p-3">Weekly digests</div>
+        {(d.digests || []).map((g) => (
+          <div key={g.id} className="border-t border-brand-navy/10 p-3 text-sm flex gap-3" data-testid={`mkt-digest-${g.id}`}>
+            <span className="font-semibold">{g.week.slice(0, 8)}</span><span className="flex-1">{g.tenders} new tenders{g.note ? ` · ${g.note}` : ""}</span>
+            <span>{g.recipients} emailed</span><span className="text-brand-navy/50">{g.at?.slice(0, 16).replace("T", " ")}</span>
+          </div>))}
+        {!(d.digests || []).length && <div className="p-4 text-sm text-brand-navy/60">No digests sent yet.</div>}
       </div>
     </div>
   );

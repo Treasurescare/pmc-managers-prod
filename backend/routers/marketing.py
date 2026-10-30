@@ -385,14 +385,18 @@ async def unsubscribe(token: str):
 class AlertSettingsIn(BaseModel):
     enabled: bool
     include_uploaded: bool = True
+    mode: Literal["instant", "weekly"] = "instant"
 
 
 @router.get("/alerts")
 async def alerts_overview(admin=ADMIN):
     s = await db.mkt_settings.find_one({"_id": "tender_alerts"}) or {}
     rows = await db.mkt_alert_log.find().sort("at", -1).limit(50).to_list(50)
+    digests = await db.mkt_digest_log.find().sort("at", -1).limit(12).to_list(12)
+    subs = await db.mkt_contacts.count_documents({"source": "website", "consent": True, "unsubscribed": {"$ne": True}})
     return {"enabled": bool(s.get("enabled")), "include_uploaded": s.get("include_uploaded", True),
-            "items": [_id(r) for r in rows]}
+            "mode": s.get("mode", "instant"), "website_subscribers": subs,
+            "items": [_id(r) for r in rows], "digests": [_id(d) for d in digests]}
 
 
 @router.put("/alerts", dependencies=CSRF)
@@ -404,7 +408,7 @@ async def save_alerts(body: AlertSettingsIn, admin=ADMIN):
 async def send_tender_alert(notice_ref: str) -> int:
     """Email vendors registered in (or interested in) the notice's category. Called after publish."""
     s = await db.mkt_settings.find_one({"_id": "tender_alerts"}) or {}
-    if not s.get("enabled"):
+    if not s.get("enabled") or s.get("mode", "instant") != "instant":
         return 0
     n = await db.notices.find_one({"notice_ref": notice_ref})
     if not n or not n.get("category"):
@@ -489,6 +493,8 @@ async def record_referral(code: Optional[str], email: str, company: Optional[str
 
 async def ensure_indexes() -> None:
     await db.mkt_alert_log.create_index("notice_ref", unique=True)
+    await db.mkt_digest_log.create_index("week", unique=True)
+    await db.mkt_contacts.create_index("confirm_token", sparse=True)
     await db.mkt_contacts.create_index("email", unique=True)
     await db.mkt_contacts.create_index("unsub_token")
     await db.mkt_sends.create_index("rid")

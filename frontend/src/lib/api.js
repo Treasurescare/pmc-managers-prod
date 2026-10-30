@@ -1136,6 +1136,8 @@ export const marketingApi = {
   saveAlerts: (p) => api.put("/api/v1/marketing/alerts", p).then((r) => r.data),
   referrals: () => api.get("/api/v1/marketing/referrals").then((r) => r.data),
   myReferral: () => api.get("/api/v1/marketing/referral/me").then((r) => r.data),
+  digestNow: () => api.post("/api/v1/marketing/alerts/digest-now").then((r) => r.data),
+  subscribe: (p) => api.post("/api/v1/marketing/subscribe", p).then((r) => r.data),
 };
 
 

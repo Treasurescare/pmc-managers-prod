@@ -311,6 +311,8 @@ from routers import payments_extra as _payments_extra  # noqa: E402
 app.include_router(_payments_extra.router)
 from routers import marketing as _marketing  # noqa: E402
 app.include_router(_marketing.router)
+from routers import marketing_public as _marketing_public  # noqa: E402
+app.include_router(_marketing_public.router)
 
 
 @app.on_event("startup")
