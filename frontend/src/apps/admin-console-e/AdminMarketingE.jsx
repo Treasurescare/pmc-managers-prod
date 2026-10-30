@@ -5,13 +5,14 @@ import { ContactsTab } from "./marketing/ContactsTab";
 import { SegmentsTab } from "./marketing/SegmentsTab";
 import { AlertsTab, ReferralsTab } from "./marketing/AlertsReferralsTabs";
 import { BuyerInvitesTab } from "./marketing/BuyerInvitesTab";
+import { SocialPostsTab } from "./marketing/SocialPostsTab";
 
 const TABS = [["campaigns", "Email campaigns", CampaignsTab], ["contacts", "Contacts", ContactsTab],
-  ["segments", "Lists & segments", SegmentsTab], ["alerts", "New-tender alerts", AlertsTab], ["invites", "Buyer invites", BuyerInvitesTab], ["referrals", "Referrals", ReferralsTab]];
+  ["segments", "Lists & segments", SegmentsTab], ["alerts", "New-tender alerts", AlertsTab], ["invites", "Buyer invites", BuyerInvitesTab], ["social", "LinkedIn posts", SocialPostsTab], ["referrals", "Referrals", ReferralsTab]];
 
 export default function AdminMarketingE() {
-  const [tab, setTab] = useState("campaigns");
-  const Body = TABS.find(([k]) => k === tab)[2];
+  const [tab, setTab] = useState(() => new URLSearchParams(window.location.search).get("tab") || "campaigns");
+  const Body = (TABS.find(([k]) => k === tab) || TABS[0])[2];
   return (
     <div className="min-h-screen" style={{ background: "var(--brand-pale, #F3EFE4)" }}>
       <AdminEShell crumb={<>Market / <b>Marketing</b></>}>

@@ -1142,6 +1142,14 @@ export const marketingApi = {
   sendBuyerInvite: (p) => api.post("/api/v1/marketing/buyer-invites", p).then((r) => r.data),
   markBuyerJoined: (id) => api.post(`/api/v1/marketing/buyer-invites/${id}/joined`).then((r) => r.data),
   googleExchange: (p) => api.post("/api/v1/auth/google/exchange", p).then((r) => r.data),
+  linkedinStatus: () => api.get("/api/v1/auth/linkedin/status").then((r) => r.data),
+  linkedinConnect: () => api.get("/api/v1/marketing/linkedin/connect").then((r) => r.data),
+  socialPosts: () => api.get("/api/v1/marketing/social-posts").then((r) => r.data),
+  editSocialPost: (id, text) => api.put(`/api/v1/marketing/social-posts/${id}`, { text }).then((r) => r.data),
+  approveSocialPost: (id) => api.post(`/api/v1/marketing/social-posts/${id}/approve`).then((r) => r.data),
+  rejectSocialPost: (id) => api.post(`/api/v1/marketing/social-posts/${id}/reject`).then((r) => r.data),
+  markSocialPosted: (id) => api.post(`/api/v1/marketing/social-posts/${id}/mark-posted`).then((r) => r.data),
+  assistantChat: (p) => api.post("/api/v1/assistant/chat", p).then((r) => r.data),
 };
 
 

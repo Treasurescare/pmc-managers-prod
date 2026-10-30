@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { adminApi, api, staffApi, vendorApi, showApiError, cacheCsrf } from "@/lib/api";
 import { startGoogleLogin } from "@/apps/auth-e/GoogleAuthCallback";
+import LinkedInSignIn from "@/apps/auth-e/LinkedInSignIn";
 
 // v50-login-fix (Feb 2026) — Made the Option E sign-in form fully functional.
 // Previously this was a pure static template (hardcoded password value, no
@@ -279,6 +280,7 @@ export default function SignInE({ legacy: Legacy }) {
                   Continue with Google
                 </button>
               )}
+              <LinkedInSignIn role={role} />
 
               <div style={{ display: "flex", alignItems: "center", gap: "12px", color: "var(--ink-muted, #5B6B63)", fontSize: "12px", textTransform: "uppercase", letterSpacing: "1.5px" }}>
                 <span style={{ flex: 1, height: "1px", background: "rgba(15,59,46,.15)" }} />

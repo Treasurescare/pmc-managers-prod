@@ -110,6 +110,7 @@ import VendorMessages from "@/apps/vendor-portal-e/VendorMessages";
 import VendorReferral from "@/apps/vendor-portal-e/VendorReferral";
 import AdminMarketingE from "@/apps/admin-console-e/AdminMarketingE";
 import GoogleAuthCallback from "@/apps/auth-e/GoogleAuthCallback";
+import ChatWidget from "@/components/ChatWidget";
 import PayComplete from "@/apps/PayComplete";
 import VendorSignaturesE from "@/apps/vendor-portal-e/VendorSignaturesE";
 import VendorCompanyKycE from "@/apps/vendor-portal-e/VendorCompanyKycE";
@@ -176,6 +177,7 @@ export default function App() {
       <I18nProvider>
         <BrowserRouter>
           <UiThemeApplier />
+          <ChatWidget />
           <Toaster
             richColors
             expand

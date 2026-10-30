@@ -407,6 +407,11 @@ async def save_alerts(body: AlertSettingsIn, admin=ADMIN):
 
 async def send_tender_alert(notice_ref: str) -> int:
     """Email vendors registered in (or interested in) the notice's category. Called after publish."""
+    try:
+        from routers.linkedin import queue_social_post
+        await queue_social_post(notice_ref)
+    except Exception:
+        log.exception("social post queue failed for %s", notice_ref)
     s = await db.mkt_settings.find_one({"_id": "tender_alerts"}) or {}
     if not s.get("enabled") or s.get("mode", "instant") != "instant":
         return 0
