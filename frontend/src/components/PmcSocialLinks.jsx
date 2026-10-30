@@ -4,6 +4,7 @@ import { siteApi } from "@/lib/api";
 
 const ICONS = [["linkedin", "LinkedIn", Linkedin], ["facebook", "Facebook", Facebook]];
 let cache = null;
+export const resetSocialLinksCache = () => { cache = null; };
 
 export default function PmcSocialLinks() {
   const [links, setLinks] = useState(cache || {});

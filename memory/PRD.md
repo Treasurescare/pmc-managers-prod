@@ -855,5 +855,12 @@ Artifacts in /frontend/public/downloads: pmc-backend-v57i.zip, pmc-frontend-v57i
   Fee receipts are email-only (logo via emails._wrap). Internal reports/flowcharts not branded.
 - downloads/pmc-launch-posts.md: 3 LinkedIn/Facebook launch posts.
 
+
+## R24 — Admin-editable footer links + branded fee receipt PDFs — 2026-10-30 — build v58g (agent-tested iteration_132: 19/19 backend + UI)
+- routers/site_settings.py: GET /api/v1/site/social (public, defaults = user's URLs), PUT /api/v1/marketing/site-social (admin+CSRF, https only, empty hides).
+  Admin UI: Marketing → "Website links" tab (WebsiteLinksTab.jsx). Footer PmcSocialLinks reads API.
+- Fee receipt PDF: render_receipt_pdf (logo, PAID, lines, total); GET /api/v1/vendor-tenders/receipts/{no}.pdf (own only);
+  PDF button in vendor /vendor/emd receipts table; issue_receipt (_fees.py) now attaches the PDF to the receipt email.
+
 - LinkedIn "Feature not available — not enough connections": LinkedIn account-age/connections restriction on new profiles (user-side).
 

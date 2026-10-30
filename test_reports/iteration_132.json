@@ -1,0 +1,24 @@
+{
+  "summary": "v62: Admin-editable footer social links + branded fee receipt PDFs. Backend 19/19 pytest pass (public defaults, admin save/persist, whitespace strip, empty hides, 422 for http/javascript/ftp/space/no-scheme, CSRF-missing/anon/vendor rejected, vendor receipt list, own PDF 200 %PDF w/ attachment header, other vendor's 404, missing 404, anon 401, direct render). issue_receipt unit check (send_email mocked): PDF attached (application/pdf, filename PMC-RCPT-xxxxx.pdf), idempotent on session_id, no exceptions. Rendered PDF visually verified: PMC logo header, PAID badge, meta, line table, total. UI: footer icons on / and /contact show API hrefs; admin /admin/e/marketing?tab=links form prefilled, save shows toast, clearing facebook hides icon on home, http:// shows 422 toast; vendor /vendor/emd receipts table shows TEST row and PDF button downloads a valid 51KB PDF.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Vendor EMD receipts table", "issues": ["Total renders 'GBP 49.5' — add minimumFractionDigits: 2 for currency formatting"]},
+      {"screen": "Public footer", "issues": ["PmcSocialLinks uses a module-level cache, so an admin who saves links then navigates (SPA) to a public page sees stale links until full reload — cosmetic"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v62_social_links_receipts.py", "/app/backend/tests/manual_issue_receipt_check.py", "/app/test_reports/pytest/pytest_v62.xml"],
+  "action_items": ["Optional: format receipt totals with 2 decimals in VendorFeeReceipts.jsx"],
+  "critical_code_review_comments": [
+    "Admin input type=url gives no browser-level https enforcement (http:// passes client validation); backend 422 covers it — fine",
+    "issue_receipt email body interpolates line names/tender_name unescaped in HTML (PDF path escapes properly) — low risk since values are server-generated"
+  ],
+  "updated_files": ["/app/backend/tests/test_v62_social_links_receipts.py", "/app/backend/tests/manual_issue_receipt_check.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Temporary TEST-RCPT-0001 / TEST-RCPT-OTHER fee_receipts and one issue_receipt test record (session TEST_issue_sess, consumed sequence PMC-RCPT-000058) — all deleted. Social links restored to defaults (db.site_settings _id 'social' holds the default URLs).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run pytest tests/test_v62_social_links_receipts.py (self-cleaning; deletes site_settings social doc => defaults). manual_issue_receipt_check.py mocks send_email and validates PDF attachment."
+}

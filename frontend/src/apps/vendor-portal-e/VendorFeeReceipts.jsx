@@ -21,7 +21,7 @@ export const VendorFeeReceipts = () => {
                 <td>{String(r.paid_at || "").slice(0, 10)}</td>
                 <td>{PURPOSE[r.purpose] || r.purpose}{r.tender_name ? ` · ${r.tender_name}` : ""}{r.category ? ` · ${r.category}` : ""}</td>
                 <td>{(r.lines || []).map((l) => l.name).join(", ")}</td>
-                <td style={{ textAlign: "right", fontWeight: 600 }}>{r.currency} {Number(r.total || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+                <td style={{ textAlign: "right", fontWeight: 600 }}>{r.currency} {Number(r.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 <td style={{ textAlign: "right", paddingLeft: "12px" }}>
                   <button type="button" className="pmc-btn pmc-btn--ghost" style={{ padding: "4px 10px", fontSize: "12px" }}
                           onClick={() => vendorTenderApi.receiptPdf(r.receipt_no).catch(() => toast.error("Could not download the receipt"))}

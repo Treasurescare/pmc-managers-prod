@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { siteApi, showApiError } from "@/lib/api";
+import { resetSocialLinksCache } from "@/components/PmcSocialLinks";
 
 const inp = "px-3 py-2 border border-brand-navy/20 bg-white text-sm w-full";
 const FIELDS = [["linkedin", "LinkedIn link", "https://www.linkedin.com/company/…"], ["facebook", "Facebook link", "https://www.facebook.com/…"]];
@@ -12,7 +13,7 @@ export const WebsiteLinksTab = () => {
   const save = async (e) => {
     e.preventDefault();
     setBusy(true);
-    try { setF(await siteApi.saveSocial(f)); toast.success("Footer links saved — live on the website now"); }
+    try { setF(await siteApi.saveSocial(f)); resetSocialLinksCache(); toast.success("Footer links saved — live on the website now"); }
     catch (err) { showApiError(err); } finally { setBusy(false); }
   };
   if (!f) return null;
