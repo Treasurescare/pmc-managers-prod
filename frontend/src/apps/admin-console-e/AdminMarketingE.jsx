@@ -4,9 +4,10 @@ import { CampaignsTab } from "./marketing/CampaignsTab";
 import { ContactsTab } from "./marketing/ContactsTab";
 import { SegmentsTab } from "./marketing/SegmentsTab";
 import { AlertsTab, ReferralsTab } from "./marketing/AlertsReferralsTabs";
+import { BuyerInvitesTab } from "./marketing/BuyerInvitesTab";
 
 const TABS = [["campaigns", "Email campaigns", CampaignsTab], ["contacts", "Contacts", ContactsTab],
-  ["segments", "Lists & segments", SegmentsTab], ["alerts", "New-tender alerts", AlertsTab], ["referrals", "Referrals", ReferralsTab]];
+  ["segments", "Lists & segments", SegmentsTab], ["alerts", "New-tender alerts", AlertsTab], ["invites", "Buyer invites", BuyerInvitesTab], ["referrals", "Referrals", ReferralsTab]];
 
 export default function AdminMarketingE() {
   const [tab, setTab] = useState("campaigns");

@@ -109,6 +109,7 @@ import VendorDataIntel from "@/apps/vendor-portal-e/VendorDataIntel";
 import VendorMessages from "@/apps/vendor-portal-e/VendorMessages";
 import VendorReferral from "@/apps/vendor-portal-e/VendorReferral";
 import AdminMarketingE from "@/apps/admin-console-e/AdminMarketingE";
+import GoogleAuthCallback from "@/apps/auth-e/GoogleAuthCallback";
 import PayComplete from "@/apps/PayComplete";
 import VendorSignaturesE from "@/apps/vendor-portal-e/VendorSignaturesE";
 import VendorCompanyKycE from "@/apps/vendor-portal-e/VendorCompanyKycE";
@@ -336,6 +337,7 @@ export default function App() {
 
             {/* Web — unified sign-in (parallel to /m) */}
             <Route path="/login" element={<SignInE legacy={UnifiedLogin} />} />
+            <Route path="/auth/google/:portal" element={<GoogleAuthCallback />} />
             {/* v50 — real forgot-password / reset flow (vendor + admin/staff) */}
             <Route path="/forgot-password" element={<ForgotPasswordE />} />
             <Route path="/reset-password" element={<ResetPasswordE />} />

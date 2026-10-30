@@ -313,6 +313,10 @@ from routers import marketing as _marketing  # noqa: E402
 app.include_router(_marketing.router)
 from routers import marketing_public as _marketing_public  # noqa: E402
 app.include_router(_marketing_public.router)
+from routers import marketing_share as _marketing_share  # noqa: E402
+app.include_router(_marketing_share.router)
+from routers import google_auth as _google_auth  # noqa: E402
+app.include_router(_google_auth.router)
 
 
 @app.on_event("startup")

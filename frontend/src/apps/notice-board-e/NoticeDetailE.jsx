@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
+import NoticeShareBar from "@/apps/notice-board-e/NoticeShareBar";
 import { useUiTheme } from "@/context/UiThemeContext";
 import useAuthSession from "@/lib/useAuthSession";
 import { adminApi, staffApi, vendorApi, corrigendaApi, publicApi, api } from "@/lib/api";
@@ -230,6 +231,7 @@ export default function NoticeDetailE({ legacy: Legacy }) {
   <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "40px", alignItems: "end", margin: "16px 0 24px" }}>
     <div><div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "12px" }}><span className="pmc-tag" style={{ borderColor: "var(--chrome-line)", color: "var(--on-chrome)" }}>{docTypeLabel(notice.document_type)}</span><span className="pmc-ref">{notice.notice_ref}</span>{latestCorr && (<span className="pmc-pill pmc-pill--info">Corrigendum {latestCorr.corrigendum_no} · {shortDay(latestCorr.effective_from || latestCorr.published_at)}</span>)}<span className={`pmc-pill ${sp.c}`}>{sp.t}</span></div>
       <h1 className="pmc-display" style={{ fontSize: "48px", lineHeight: "52px", margin: "0", maxWidth: "900px" }}>{notice.title || notice.notice_ref}</h1>
+      <NoticeShareBar noticeRef={notice.notice_ref} title={notice.title} />
       {(notice.published_at || notice.created_by_email) && (
         <div data-testid="notice-e-posted-by" style={{ marginTop: "10px", fontSize: "13px", letterSpacing: "0.02em", color: "#C9C2AC" }}>
           {[notice.published_at ? `Published ${String(notice.published_at).slice(0, 10)}` : null, notice.created_by_email ? `Posted by ${notice.created_by_email}` : null].filter(Boolean).join(" · ")}

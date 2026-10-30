@@ -1138,6 +1138,10 @@ export const marketingApi = {
   myReferral: () => api.get("/api/v1/marketing/referral/me").then((r) => r.data),
   digestNow: () => api.post("/api/v1/marketing/alerts/digest-now").then((r) => r.data),
   subscribe: (p) => api.post("/api/v1/marketing/subscribe", p).then((r) => r.data),
+  buyerInvites: () => api.get("/api/v1/marketing/buyer-invites").then((r) => r.data),
+  sendBuyerInvite: (p) => api.post("/api/v1/marketing/buyer-invites", p).then((r) => r.data),
+  markBuyerJoined: (id) => api.post(`/api/v1/marketing/buyer-invites/${id}/joined`).then((r) => r.data),
+  googleExchange: (p) => api.post("/api/v1/auth/google/exchange", p).then((r) => r.data),
 };
 
 
