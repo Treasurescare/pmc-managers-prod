@@ -1,0 +1,51 @@
+{
+  "summary": "v71 tested: admin invite/resend email_error, forgot-password role highlight, /login role persistence + partner field alignment, partner referral links (public lookup, tagged self-fill registrations, partner portal referral box, /register?partner banner + submit). Backend 14/14 new tests pass + test_v67 regression 33/33. Frontend: 4 of 5 features pass; partner sign-in field alignment still broken (inputs 486px vs cards 440px). Also found /register start form wipes user input typed in the first ~1-2s after load.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "emails.py legacy relay path", "issue": "When RESEND_API_KEY is set but fallback relay (EMAIL_KEY) path is used and fails, LAST_ERROR is never set -> email_error would be empty string. Only Resend path and 'no key' path populate it."},
+      {"endpoint": "emails.LAST_ERROR", "issue": "Module-level dict, unbounded growth and per-process; fine for same-request use but never pruned."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "SignInE (/login) partner + escrow roles", "issue": "NOT FIXED: with role=partner, signin-e-email/password/submit/register-btn are 486px wide vs role cards 440px (escrow: 489px). On mobile 390px viewport inputs are 486px and get clipped off-screen. RCA: inner fields container `<div style={{display:'grid', gap:'14px'}}>` has an implicit auto column which grows to min-content of the nowrap button text 'Register as a partner — onboard suppliers & earn commission' (and escrow equivalent). Fix: add gridTemplateColumns:'minmax(0,1fr)' to that grid (or allow white-space:normal on signin-register-btn).", "selector": "[data-testid=signin-e-email], [data-testid=signin-register-btn]", "priority": "HIGH"},
+      {"component": "RegistrationStart (/register?partner=CODE)", "issue": "Values typed into reg-start-email/company within ~1-2s of page load are wiped (page subtree re-mounts; public/partner is fetched twice). Then clicking submit silently does nothing because submit() does `if (!email) return;` without any toast. Reproduced 2/2 times; works if user waits ~1s. Same 'state reset race' previously noted on /login and /partner/join - looks app-wide (route remount after first paint). Also add a toast/required validation when email is empty.", "selector": "[data-testid=reg-start-email]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin Partners resend/invite toast", "issues": ["Toast shows raw provider JSON ({\"message\":...,\"name\":\"validation_error\",\"statusCode\":422}); consider parsing `message` from Resend response for a cleaner reason."]}
+    ]
+  },
+  "passed_tests": [
+    "POST /admin/agents/invite and /resend return email_error with Resend 422 reason for example.com; resend on approved -> 409",
+    "Admin UI Resend toast: 'Invitation email did not send. Email provider said (422): ...'",
+    "/forgot-password: admin click highlights only forgot-portal-admin; staff only staff; partner only partner",
+    "/login: clicking signin-role-partner immediately after load updates URL to ?role=partner; reload keeps Partner selected",
+    "GET /public/partner/{code} 200 {code,name} (case-insensitive), 404 unknown and non-approved",
+    "POST /registrations with partner_code -> partner_id/partner_code/partner_access=self_fill/partner_source=link/invited_by_partner_id; invalid/non-approved code -> untagged",
+    "Tagged registration appears in GET /agents/me/suppliers with partner_access self_fill; supplier resume works",
+    "Partner portal ps-referral, ps-referral-link = origin/register?partner=PT-0001, Copy -> 'Link copied' + clipboard correct, WhatsApp wa.me href correct",
+    "/register?partner=PT-0001 shows reg-partner-banner with name+code; submit creates tagged registration (self_fill, link) and resume page shows partner box",
+    "Invalid ?partner code shows no banner and clears localStorage",
+    "Regression test_v67_partner_suppliers.py 33/33 pass"
+  ],
+  "test_report_links": ["/app/backend/tests/test_v71_referral_links.py", "/app/backend/tests/ui_seed_v71.py", "/app/test_reports/pytest/pytest_v71.xml"],
+  "action_items": [
+    "Fix /login partner/escrow field width: add gridTemplateColumns:'minmax(0,1fr)' to the fields grid in SignInE.jsx (or let signin-register-btn wrap) so inputs equal 440px card width; verify at 390px mobile",
+    "Investigate route remount after first paint that wipes early-typed input on /register (and /login, /partner/join); add an empty-email toast in RegistrationStart submit",
+    "Optional: parse Resend JSON `message` for a cleaner email_error; set LAST_ERROR in legacy relay failure path"
+  ],
+  "critical_code_review_comments": [
+    "RegistrationStart persists pmc_partner in localStorage indefinitely: a supplier who once opened a partner link is tagged on any later /register visit (banner shown on plain /register). Confirm intended attribution window or add expiry.",
+    "create_draft referral path skips partner _dup_check (company-name claim by another partner) - only email-existing-draft dedupe applies.",
+    "_ago() in partner_suppliers.py actually returns a FUTURE timestamp (now + days); misleading name."
+  ],
+  "updated_files": ["/app/backend/tests/test_v71_referral_links.py", "/app/backend/tests/ui_seed_v71.py"],
+  "success_rate": {"backend": "100%", "frontend": "80%"},
+  "test_credentials": "Admin adminsupport@pmcmanagers.com / Admin@12345; partners created via test_v69 helper (PartnerPw@123) and deleted",
+  "seed_data_creation": "All test_*@example.com agents/registrations/agent_login_attempts created were cleaned; partner_code counter removed (no agents left in preview DB). sakina@gdihelite.com not present in preview DB and untouched.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "test_v71_referral_links.py imports test_v69 helpers (_partner, _admin, _cleanup) and overrides t.RID. ui_seed_v71.py seed|clean RID creates approved partner (PT-0001 on empty DB, password PartnerPw@123) + invited example.com partner. Partner login: POST /api/v1/agents/auth/login then /partner/me. Wait ~1.5s after /register and /login render before typing."
+}

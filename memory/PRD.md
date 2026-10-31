@@ -970,3 +970,12 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
   + API destinations + rules: partner statements (1st 07:00 UTC), marketing digest (Mon 08:00 UTC), category payment reminders (daily 09:00 UTC).
 - Known LOW: on first ~250ms after page load the /login role choice / join password fields can reset (app bootstrap remount) — pre-existing.
 
+
+## R34 — Email error visibility, sign-in fixes, partner referral links — 2026-10-31 — build v58r (agent-tested iteration_143; v71 14/14, v67 33/33)
+- emails.send_email records the provider's reason (emails.last_error); admin partner invite/resend toasts show it.
+- Forgot password: Administrator radio had value "staff" (both highlighted) → fixed. /login keeps chosen role in ?role=; fields grid
+  minmax(0,1fr) so Partner/Escrow boxes align (also on mobile). Register start: empty-email toast.
+- Partner referral link /register?partner=PT-XXXX (stored in localStorage; banner on start page) → registration tagged partner_access self_fill,
+  partner_source link, invited_by_partner_id. GET /api/v1/public/partner/{code}. Partner portal "Your personal sign-up link" (copy / WhatsApp).
+- Known: inputs typed in the first ~1s on preview can be wiped (seen in preview dev server; not reproduced as code cause) — verify on production.
+

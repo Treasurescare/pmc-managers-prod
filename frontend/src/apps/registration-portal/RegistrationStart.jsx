@@ -105,7 +105,7 @@ export default function RegistrationStart() {
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!email) return;
+    if (!email) { toast.error("Enter your email to continue."); return; }
     setBusy(true);
     try {
       const ref = new URLSearchParams(window.location.search).get("ref") || localStorage.getItem("pmc_ref") || undefined;

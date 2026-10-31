@@ -81,7 +81,11 @@ async def send_email(to_email: str, subject: str, html: str,
                                  json=payload)
             if r.status_code >= 400:
                 logging.error(f"Resend failed {r.status_code}: {r.text}")
-                LAST_ERROR[(to_email or "").lower()] = f"Email provider said ({r.status_code}): {r.text[:300]}"
+                try:
+                    msg = (r.json() or {}).get("message") or r.text
+                except Exception:
+                    msg = r.text
+                LAST_ERROR[(to_email or "").lower()] = f"Email provider said ({r.status_code}): {str(msg)[:300]}"
                 return False
             LAST_ERROR.pop((to_email or "").lower(), None)
             return True

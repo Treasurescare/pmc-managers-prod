@@ -247,7 +247,7 @@ export default function SignInE({ legacy: Legacy }) {
               <RoleRadio value="partner" label="Partner" sub="Onboard suppliers and earn commission" icon="i-flag" />
             </div>
 
-            <div style={{ display: "grid", gap: "14px" }}>
+            <div style={{ display: "grid", gap: "14px", gridTemplateColumns: "minmax(0,1fr)" }}>
               <div className="pmc-field">
                 <label>Work email</label>
                 <input
