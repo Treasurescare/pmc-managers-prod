@@ -937,3 +937,15 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - Sign-in: Partner role → "Register as a partner" → /partner/register; Google button hidden for partner.
 - NEXT: supplier mobile OTP (needs SMS/WhatsApp provider); admin reassign for disputed claims; WhatsApp/LinkedIn/Stripe live checks still pending.
 
+
+## R31 — Reassign supplier, partner leaderboard, supplier self-fill, partner code through lifecycle — 2026-10-31 — build v58o (agent-tested iteration_140; v67+v68 suites 44/44 after fixes)
+- Supplier invite choices: let partner fill / "I'll fill it myself" (self_fill: name + data-privacy tick, partner stays linked) / decline.
+  POST /api/v1/registrations/{rid}/partner-access/mode?token= switches self ↔ partner (partner needs typed name). Commission counts for both.
+- Partner code stamped on vendor doc (approval), bids, contracts (from bid), payment_transactions (emd, category, tender fees, billing).
+  Shown: admin vendor KPI, vendor account page, admin bid detail, contract detail, billing transactions. Partner tokens excluded from vendor.profile.
+- Admin reassign POST /api/v1/admin/partner-suppliers/{rid}/reassign {partner_id, note}: draft → supplier re-consents for new partner;
+  submitted → self_fill; approved (re-org) → vendor doc updated; partner_history kept on registration + vendor; old commission stays.
+  Blocked for declined/withdrawn/rejected and approved-with-revoked-access.
+- Leaderboard (partner tab + admin card): approved this month (credited to approving partner) then invites (credited to inviter);
+  admin toggle show names (default codes only).
+

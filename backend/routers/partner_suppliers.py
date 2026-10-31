@@ -164,7 +164,7 @@ async def invite_supplier(body: SupplierInviteIn, request: Request):
            "status": "draft", "tenant_id": config.DEFAULT_TENANT_ID, "magic_token": new_magic_token(), "created_at": now_iso(),
            "data_processing_consent": False, "marketing_consent": False, "consent_at": None,
            "partner_id": str(a["_id"]), "partner_code": a.get("partner_code"), "partner_name": a.get("legal_name") or a["name"],
-           "partner_access": "awaiting_consent", "partner_stage": "invited", "partner_invited_at": now_iso(),
+           "partner_access": "awaiting_consent", "partner_stage": "invited", "partner_invited_at": now_iso(), "invited_by_partner_id": str(a["_id"]),
            "partner_consent_token": secrets.token_urlsafe(32), "partner_consent_expires_at": _ago(7),
            "partner_claim_expires_at": _ago(CLAIM_DAYS), "partner_edits": [], "partner_fields": []}
     reg["_id"] = (await db.registrations.insert_one(reg)).inserted_id
@@ -405,6 +405,7 @@ async def on_supplier_approved(reg: dict, vendor_ref: Optional[str]) -> None:
     reg = await db.registrations.find_one({"_id": reg["_id"]}) or reg
     if not reg.get("partner_id") or reg.get("partner_access") not in LINKED:
         return
+    await db.registrations.update_one({"_id": reg["_id"]}, {"$set": {"approved_partner_id": reg["partner_id"]}})
     a = await db.agents.find_one({"_id": ObjectId(reg["partner_id"])})
     if not a:
         return
@@ -530,6 +531,10 @@ async def reassign_supplier(rid: str, body: ReassignIn, admin=ADMIN):
         raise HTTPException(status_code=422, detail="Choose an approved partner")
     if str(new["_id"]) == reg.get("partner_id"):
         raise HTTPException(status_code=409, detail="The supplier is already with this partner")
+    if reg.get("status") in ("withdrawn", "rejected") or reg.get("partner_access") == "declined":
+        raise HTTPException(status_code=409, detail="This supplier declined or withdrew — it can't be moved")
+    if reg.get("status") == "approved" and reg.get("partner_access") not in LINKED:
+        raise HTTPException(status_code=409, detail="This supplier removed partner access before approval — it has no partner to move")
     entry = {"at": now_iso(), "by": admin.get("email"), "note": body.note.strip(), "status": reg.get("status"),
              "from": {"id": reg.get("partner_id"), "code": reg.get("partner_code"), "name": reg.get("partner_name")},
              "to": {"id": str(new["_id"]), "code": new.get("partner_code"), "name": new.get("legal_name") or new["name"]}}
@@ -538,7 +543,9 @@ async def reassign_supplier(rid: str, body: ReassignIn, admin=ADMIN):
     reconsent = reg.get("status") in ("draft", "needs_clarification") and reg.get("partner_access") in ("granted", "awaiting_consent", "revoked")
     if reconsent:
         upd.update({"partner_access": "awaiting_consent", "partner_stage": "invited", "partner_consent_token": secrets.token_urlsafe(32),
-                    "partner_consent_expires_at": _ago(7), "partner_invited_at": now_iso()})
+                    "partner_consent_expires_at": _ago(7)})
+    elif reg.get("status") != "approved" and reg.get("partner_access") in ("granted", "revoked", "awaiting_consent"):
+        upd.update({"partner_access": "self_fill", "partner_stage": "self_fill"})
     await db.registrations.update_one({"_id": reg["_id"]}, {"$set": upd, "$push": {"partner_history": entry}})
     if reg.get("status") == "approved":
         await db.vendors.update_one({"email": reg["email"]}, {"$set": {k: upd[k] for k in ("partner_id", "partner_code", "partner_name")},
@@ -562,10 +569,11 @@ async def _board() -> list:
     start = _month_start()
     appr, inv = {}, {}
     async for r in db.registrations.aggregate([{"$match": {"partner_id": {"$exists": True}, "status": "approved", "reviewed_at": {"$gte": start},
-                                                          "partner_access": {"$in": list(LINKED)}}}, {"$group": {"_id": "$partner_id", "n": {"$sum": 1}}}]):
+                                                          "partner_access": {"$in": list(LINKED)}}},
+                                               {"$group": {"_id": {"$ifNull": ["$approved_partner_id", "$partner_id"]}, "n": {"$sum": 1}}}]):
         appr[r["_id"]] = r["n"]
     async for r in db.registrations.aggregate([{"$match": {"partner_id": {"$exists": True}, "partner_invited_at": {"$gte": start}}},
-                                               {"$group": {"_id": "$partner_id", "n": {"$sum": 1}}}]):
+                                               {"$group": {"_id": {"$ifNull": ["$invited_by_partner_id", "$partner_id"]}, "n": {"$sum": 1}}}]):
         inv[r["_id"]] = r["n"]
     rows = [{"id": str(a["_id"]), "code": a.get("partner_code"), "name": a.get("legal_name") or a.get("name"),
              "approved": appr.get(str(a["_id"]), 0), "invites": inv.get(str(a["_id"]), 0)}

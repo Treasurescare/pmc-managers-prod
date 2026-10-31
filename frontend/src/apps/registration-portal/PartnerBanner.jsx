@@ -30,7 +30,7 @@ export default function PartnerBanner({ reg, token, onRevoked, onMode }) {
   const open = ["draft", "needs_clarification"].includes(reg.status);
   return (
     <div className="mt-4 bg-white border border-brand-gold p-3 text-sm space-y-2" data-testid="partner-supplier-banner">
-      <div>Prepared with help from partner <b>{p.name}</b> ({p.code}) · access: <b data-testid="partner-access-state">{p.access}</b></div>
+      <div>Prepared with help from partner <b>{p.name}</b> ({p.code}) · access: <b data-testid="partner-access-state">{{ granted: "partner may fill your form", self_fill: "you are filling it yourself", revoked: "removed", awaiting_consent: "waiting for your consent" }[p.access] || p.access}</b></div>
       {fields.length > 0 && <div className="text-xs text-brand-navy/70" data-testid="partner-fields-list">Filled or changed by the partner — please check: {fields.join(", ")}</div>}
       <div className="text-xs text-brand-navy/70">Only you can tick the declarations, sign and submit. Partner code {p.code} stays on your supplier record, bids, contracts and fee payments.</div>
       <div className="flex gap-2 flex-wrap">

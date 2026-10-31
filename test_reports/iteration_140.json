@@ -1,0 +1,41 @@
+{
+  "summary": "v68 partner increment tested end-to-end. Backend: new suite test_v68_partner_reassign_board.py 11/11 PASS (self-fill consent, mode switch, self_fill approval commission + vendor partner fields, reassign validations/approved/draft re-consent, commission ownership after move, leaderboard partner/admin + show_names, vendor profile partner_code, bid partner stamping + admin bid detail). Regression test_v67_partner_suppliers.py 33/33 PASS (second consent now 409). Frontend: supplier-invite self-fill button gating + redirect to resume, partner banner mode switch both ways (window.prompt), admin leaderboard card + show-names toggle, admin Move supplier form + history line, partner portal leaderboard tab, vendor account vacc-partner-code, admin bid detail Partner field all working. Contracts/payment_transactions stamping verified by code review only.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/v1/admin/partner-suppliers/{rid}/reassign", "issue": "Re-consent only when status in draft/needs_clarification. A submitted/under_review registration with partner_access=granted keeps 'granted' under the NEW partner; if admin later returns it for clarification, the new partner can get an edit-link (edit-link allows needs_clarification) without the supplier ever consenting to that partner. Consider resetting granted->awaiting_consent (or self_fill) for any non-approved status, or re-checking consent partner_id on edit-link."},
+      {"endpoint": "POST /api/v1/admin/partner-suppliers/{rid}/reassign", "issue": "Approved supplier whose partner access was revoked (vendor doc has no partner fields) can be reassigned; vendor doc then gets the new partner's code although registration access stays 'revoked' and deal commission for new partner returns 422 — inconsistent. Also withdrawn/declined registrations can be reassigned (no status guard)."},
+      {"endpoint": "GET /api/v1/agents/me/leaderboard (_board)", "issue": "Counts follow the CURRENT partner_id, so after a reassign the new partner gets credit for the old partner's approval and invite this month (draft reassign also resets partner_invited_at). Verified: after moving A's approved supplier to B, A shows 0/0 and B 1 approved/1 invite. Confirm this is intended; otherwise count from partner_history / original inviter."},
+      {"endpoint": "registrations_helpers.approve_and_create_vendor", "issue": "vendor.profile copies all registration keys except a small exclude list, so partner_edit_token / partner_consent_token / partner_consent_used_token / partner_consent (IP, UA) / partner_edits end up inside vendors.profile. Add these to _EXCLUDE."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AdminLeaderboardCard", "issue": "Show-names checkbox is controlled by server state only (no optimistic update, not disabled while saving). A quick second click before the reload returns re-sends the same value; in testing two clicks left show_names=true while the user intended to toggle on then off.", "selector": "[data-testid='leaderboard-show-names']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Registration resume partner banner", "issues": ["Access state shows raw enum 'self_fill' / 'granted' to the supplier (partner-access-state) — map to friendly labels"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v68_partner_reassign_board.py", "/app/backend/tests/test_v67_partner_suppliers.py", "/app/test_reports/pytest/v68.xml", "/app/test_reports/pytest/v67_regress.xml"],
+  "action_items": [
+    "Reassign: reset partner_access for granted registrations in submitted/under_review too (or verify consent belongs to current partner on edit-link)",
+    "Reassign: guard against withdrawn/declined and revoked-access approved suppliers (or keep vendor partner fields consistent)",
+    "Confirm leaderboard attribution after reassign is intended",
+    "Exclude partner_* token/consent fields from vendors.profile copy",
+    "Disable leaderboard-show-names checkbox while saving / optimistic update",
+    "Friendly label for partner access state in supplier banner"
+  ],
+  "critical_code_review_comments": [
+    "partner_suppliers.py is 618 lines — near the 700-line split threshold; consider moving commission/wallet and leaderboard into separate modules",
+    "vendor_categories.py stamps partner_code/partner_id but not partner_name (others include name) — minor inconsistency",
+    "Supplier is not emailed when an admin moves a self_fill draft or approved supplier to a new partner (only partners are notified)"
+  ],
+  "updated_files": ["/app/backend/tests/test_v68_partner_reassign_board.py", "/app/backend/tests/seed_v68_ui.py", "/app/backend/tests/seed_v68_bid.py"],
+  "success_rate": {"backend": "100% (44/44 incl. regression)", "frontend": "100% of tested flows"},
+  "seed_data_creation": "seed_v68_ui.py (RID ui68) creates partners A/B, 1 awaiting-consent invite and 1 approved supplier; seed_v68_bid.py creates a TEST notice + partner-stamped bid for that vendor. All cleaned up (`python tests/seed_v68_ui.py cleanup`), vendor_seq restored to 0, bid_seq to 70, leaderboard setting removed, default commission settings untouched (none existed).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest with `-n 0` for test_v67 (pytest.ini adds xdist). test_v68 restores vendor_seq/bid_seq counters and partner_commission_settings keys default+leaderboard. Supplier-invite page: wait for networkidle + ~3s before filling, otherwise the automation tool's late navigation resets form state. Use data-testid supplier-consent-name for the signer name."
+}

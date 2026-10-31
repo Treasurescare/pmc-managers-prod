@@ -35,6 +35,8 @@ async def approve_and_create_vendor(doc: dict) -> dict:
     temp_password = secrets.token_urlsafe(9)
     _EXCLUDE = {
         "_id", "magic_token", "status",
+        "partner_edit_token", "partner_consent_token", "partner_consent_used_token", "partner_consent",
+        "partner_edits", "partner_fields", "partner_history",
         # Never copy file/document references — those live on the
         # registration doc and must never leak onto the vendor row.
         "documents", "document_slots", "attachments", "uploads",

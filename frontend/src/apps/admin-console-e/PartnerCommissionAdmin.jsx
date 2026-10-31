@@ -19,14 +19,15 @@ const num = (r) => ({ ...r, onboarding_amount: Number(r.onboarding_amount || 0),
 
 export const AdminLeaderboardCard = () => {
   const [b, setB] = useState(null);
+  const [saving, setSaving] = useState(false);
   const load = () => agentApi.adminLeaderboard().then(setB).catch(showApiError);
   useEffect(() => { load(); }, []);
   if (!b) return null;
-  const toggle = (v) => agentApi.setLeaderboard(v).then(() => { toast.success(v ? "Partners now see each other's names" : "Partners now see codes only"); load(); }).catch(showApiError);
+  const toggle = (v) => { setSaving(true); setB({ ...b, show_names: v }); agentApi.setLeaderboard(v).then(() => toast.success(v ? "Partners now see each other's names" : "Partners now see codes only")).catch(showApiError).finally(() => { setSaving(false); load(); }); };
   return (
     <details className="bg-white border border-brand-navy/15 p-4" data-testid="admin-leaderboard">
       <summary className="font-semibold cursor-pointer">Partner leaderboard · {b.month}</summary>
-      <label className="flex items-center gap-2 text-sm my-3"><input type="checkbox" checked={b.show_names} onChange={(e) => toggle(e.target.checked)} data-testid="leaderboard-show-names" />Show partner names to other partners (otherwise partner codes only)</label>
+      <label className="flex items-center gap-2 text-sm my-3"><input type="checkbox" checked={b.show_names} disabled={saving} onChange={(e) => toggle(e.target.checked)} data-testid="leaderboard-show-names" />Show partner names to other partners (otherwise partner codes only)</label>
       <BoardTable rows={b.rows} showId />
     </details>
   );
