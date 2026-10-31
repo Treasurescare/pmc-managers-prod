@@ -99,6 +99,12 @@ class DecisionIn(BaseModel):
     note: str = Field("", max_length=2000)
 
 
+def _oid(aid: str) -> ObjectId:
+    if not ObjectId.is_valid(aid):
+        raise HTTPException(status_code=404, detail="Agent not found")
+    return ObjectId(aid)
+
+
 async def _send_invite(a: dict) -> bool:
     link = f"{_site()}/agent/join/{a['invite_token']}"
     body = (f"<p>Hello {a['name']},</p><p>PMC Managers has invited you to join as an onboarding agent. Use the button below to create your "
@@ -123,7 +129,7 @@ async def invite_agent(body: InviteIn, admin=ADMIN):
 
 @router.post("/api/v1/admin/agents/{aid}/resend", dependencies=CSRF)
 async def resend_invite(aid: str, admin=ADMIN):
-    a = await db.agents.find_one({"_id": ObjectId(aid)})
+    a = await db.agents.find_one({"_id": _oid(aid)})
     if not a or a["status"] != "invited":
         raise HTTPException(status_code=409, detail="Only pending invitations can be resent")
     upd = {"invite_token": secrets.token_urlsafe(32), "invite_expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()}
@@ -139,7 +145,7 @@ async def list_agents(admin=ADMIN):
 
 @router.get("/api/v1/admin/agents/{aid}")
 async def get_agent(aid: str, admin=ADMIN):
-    a = await db.agents.find_one({"_id": ObjectId(aid)})
+    a = await db.agents.find_one({"_id": _oid(aid)})
     if not a:
         raise HTTPException(status_code=404, detail="Agent not found")
     return _public(a)
@@ -147,7 +153,7 @@ async def get_agent(aid: str, admin=ADMIN):
 
 @router.post("/api/v1/admin/agents/{aid}/decision", dependencies=CSRF)
 async def decide_agent(aid: str, body: DecisionIn, admin=ADMIN):
-    a = await db.agents.find_one({"_id": ObjectId(aid)})
+    a = await db.agents.find_one({"_id": _oid(aid)})
     if not a:
         raise HTTPException(status_code=404, detail="Agent not found")
     allowed = {"approve": {"submitted"}, "reject": {"submitted", "needs_clarification"}, "clarify": {"submitted"},
@@ -233,8 +239,7 @@ async def join(token: str, body: PasswordIn, response: Response):
 @router.post("/api/v1/agents/auth/login")
 async def agent_login(body: LoginIn, response: Response, request: Request):
     email = body.email.lower().strip()
-    ip = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip() or (request.client.host if request.client else "")
-    ident = f"{ip}:{email}"
+    ident = f"email:{email}"
     since = (datetime.now(timezone.utc) - timedelta(minutes=15)).isoformat()
     if await db.agent_login_attempts.count_documents({"identifier": ident, "at": {"$gte": since}}) >= 5:
         raise HTTPException(status_code=429, detail="Too many failed attempts. Try again in 15 minutes.")

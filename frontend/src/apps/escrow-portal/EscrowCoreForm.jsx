@@ -100,7 +100,7 @@ function ComboSelect({ testId, value, options, onPick, placeholder, disabled, in
   );
 }
 
-export default function EscrowCoreForm({ form, set, onNext, saving }) {
+export default function EscrowCoreForm({ form, set, onNext, saving, individual = false }) {
   const [countries, setCountries] = useState([]);
   const [states, setStates] = useState([]);
   const [cities, setCities] = useState([]);
@@ -127,7 +127,7 @@ export default function EscrowCoreForm({ form, set, onNext, saving }) {
   const zipRegex = country?.postal_code_regex;
   const zipFormat = country?.postal_code_format;
   const zipOk = regexValid(form.postal_code, zipRegex);
-  const regOk = regexValid(form.reg_number, fmt?.reg_number?.regex);
+  const regOk = individual || regexValid(form.reg_number, fmt?.reg_number?.regex);
   const taxOk = regexValid(form.tax_id, fmt?.tax_id?.regex);
   const vatOk = regexValid(form.gst_or_vat, fmt?.vat?.regex);
 
@@ -139,7 +139,7 @@ export default function EscrowCoreForm({ form, set, onNext, saving }) {
     if (!form.city) miss.push("City");
     if (!form.state_code) miss.push("State / Province");
     if (!form.postal_code) miss.push("Postal / ZIP code");
-    if (!form.reg_number) miss.push("Registration number");
+    if (!form.reg_number) miss.push(individual ? "Passport / national ID number" : "Registration number");
     if (!form.primary_contact_email) miss.push("Primary contact email");
     return miss;
   })();
@@ -190,12 +190,12 @@ export default function EscrowCoreForm({ form, set, onNext, saving }) {
                      }} />
       </Field>
 
-      <Field label={fmt?.reg_number?.label || "Registration number"} required
+      <Field label={individual ? "Passport / national ID number" : (fmt?.reg_number?.label || "Registration number")} required
              error={touched && form.reg_number && !regOk ? "Doesn't match the country format." : null}>
         <Input testId="escrow-f-reg-number" value={form.reg_number || ""}
                onChange={(e) => set("reg_number", e.target.value)}
                className={inputCls(touched ? !!form.reg_number && regOk : null)} />
-        <Hint fmt={fmt} field="reg_number" />
+        {!individual && <Hint fmt={fmt} field="reg_number" />}
       </Field>
 
       <div className="md:col-span-2 border-t border-brand-navy/10 pt-4 mt-1">
@@ -260,6 +260,7 @@ export default function EscrowCoreForm({ form, set, onNext, saving }) {
         <Hint fmt={fmt} field="vat" />
       </Field>
 
+      {!individual && <>
       <Field label="Regulator / licence authority">
         <Input testId="escrow-f-regulator" value={form.regulator || ""}
                onChange={(e) => set("regulator", e.target.value)} />
@@ -272,6 +273,7 @@ export default function EscrowCoreForm({ form, set, onNext, saving }) {
         <Input testId="escrow-f-licence-expiry" type="date" value={form.licence_expiry || ""}
                onChange={(e) => set("licence_expiry", e.target.value)} />
       </Field>
+      </>}
       <Field label="Website">
         <Input testId="escrow-f-website" value={form.website || ""}
                onChange={(e) => set("website", e.target.value)} />

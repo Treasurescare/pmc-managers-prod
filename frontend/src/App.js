@@ -255,6 +255,10 @@ export default function App() {
             <Route path="/register/status" element={<RegistrationStatus />} />
 
             <Route path="/admin/login" element={<AdminLogin />} />
+            {/* Onboarding-agent portal: public / agent-cookie routes, must sit OUTSIDE RequireAdmin. */}
+            <Route path="/agent/join/:token" element={<AgentJoin />} />
+            <Route path="/agent/login" element={<AgentLogin />} />
+            <Route path="/agent/me" element={<AgentPortal />} />
             {/* All admin-console routes require an admin/reviewer session.
                 Specialist roles (escrow_agent, certifier, …) are bounced to /staff. */}
             <Route element={<RequireAdmin />}>
@@ -284,9 +288,6 @@ export default function App() {
             <Route path="/admin/e/billing" element={<AdminBillingE />} />
             <Route path="/admin/e/marketing" element={<AdminMarketingE />} />
             <Route path="/admin/e/agents" element={<AdminAgentsE />} />
-            <Route path="/agent/join/:token" element={<AgentJoin />} />
-            <Route path="/agent/login" element={<AgentLogin />} />
-            <Route path="/agent/me" element={<AgentPortal />} />
             <Route path="/admin/e/evaluations" element={<AdminEvaluationListE />} />
             <Route path="/admin/e/evaluation" element={<AdminEvaluationE />} />
             <Route path="/admin/e/l1-award" element={<AdminL1AwardE />} />

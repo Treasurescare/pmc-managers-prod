@@ -181,6 +181,20 @@ class TestC_TechnicalSign:
     def test_member_signs_opens(self, mem):
         r = mem.post(f"{API}/bid-opening/{REF}/approve", json=_sig("technical", MEM_SIG))
         assert r.status_code == 200 and r.json()["opened"] is True and r.json()["bids_opened"] == 2, r.text
+        assert r.json().get("record_emailed") is True
+
+    def test_record_emailed_audit(self):
+        # v65: background task emails the signed record PDF to every committee member
+        import time
+        ev = None
+        for _ in range(30):
+            ev = DB.audit_events.find_one({"event_type": "bid_opening.record_emailed", "target_id": REF})
+            if ev:
+                break
+            time.sleep(1)
+        assert ev, "bid_opening.record_emailed audit event not written"
+        assert ev["payload"]["stage"] == "technical" and "sent" in ev["payload"]
+        print("record_emailed sent:", ev["payload"]["sent"])
 
 
 class TestD_RecordPdf:
@@ -265,13 +279,14 @@ class TestE_Verify:
     def test_tamper_audit_payload_only(self):
         """Changing the ledger event body (without current_hash) should invalidate."""
         seq = S["ledger1"]["seq"]
+        orig_actor = DB.audit_events.find_one({"seq": seq}).get("actor_email")
         DB.audit_events.update_one({"seq": seq}, {"$set": {"actor_email": "forged@example.com"}})
         try:
             d = requests.get(f"{API}/bid-opening/verify/{S['code1']}").json()
             print("ledger payload tamper ->", d["valid"])
             assert d["valid"] is False, "verify does not recompute ledger event hash"
         finally:
-            DB.audit_events.update_one({"seq": seq}, {"$set": {"actor_email": "adminsupport@pmcmanagers.com"}})
+            DB.audit_events.update_one({"seq": seq}, {"$set": {"actor_email": orig_actor}})
 
 
 class TestF_Commercial:

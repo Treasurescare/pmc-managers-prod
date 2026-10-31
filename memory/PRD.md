@@ -896,6 +896,18 @@ agents may fill in for supplier with consent pack (documents, safety, privacy, N
 email invite with escrow-style form (banking, master country→state→city→zip, country banks editable, KYC/company docs); commission wallet:
 onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays via Stripe, payouts to agents on schedule or on request.
 
+
+## R28 — Agent onboarding Phase 1 + opening record email — 2026-10-31 — build v58l (agent-tested iteration_137; agents suite 22/22, sealed 66/66)
+- Payouts: user will pay agents manually from own account — NO payment gateway for commissions (Phase 4 = wallet ledger + "mark paid").
+- routers/agents.py: admin invite (POST /api/v1/admin/agents/invite, resend, list, get, decision approve|clarify|reject|suspend with note),
+  agent join /api/v1/agents/join/{token} (set password → agent_token cookie + CSRF), login (5 fails/15 min by email → 429), logout, me,
+  PATCH me/profile (draft/needs_clarification only), agreement (version 2026-10-v1, 6 consents + typed signature + IP), submit (validates fields,
+  bank, KYC docs by entity type, agreement) → emails admins. Agreement text is a DRAFT template — owner's lawyer should review.
+- Frontend: /agent/join/:token, /agent/login, /agent/me (Profile via EscrowCoreForm `individual` prop, Banking via EscrowBankingStep, Documents,
+  Agreement); admin /admin/e/agents ("Onboarding agents" in side nav). agent-docs uploads owner-checked (owner_agent_id).
+- bid_opening: when last member approves a stage, background task issues the signed record and emails PDF to every committee member.
+- NEXT: Phase 2 (agent fills supplier registration + supplier consent pack), Phase 3 (AI guide + human hand-off), Phase 4 (commission rules + wallet, manual payouts).
+
 - PENDING: user to supply Meta credentials + get the 3 templates approved; set webhook in Meta.
 
 - LinkedIn "Feature not available — not enough connections": LinkedIn account-age/connections restriction on new profiles (user-side).

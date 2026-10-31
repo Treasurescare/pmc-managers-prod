@@ -1,0 +1,54 @@
+{
+  "summary": "Tested Phase 1 agent onboarding (backend + UI) and the opening-record email. New suite tests/test_v65_agents.py: 21 of 22 pass. The one failure is minor: an invalid ObjectId returns 500. Sealed regression suites (v64, v64b, v64c with the new record_emailed test) pass 66/66 with -n 0. UI: found and fixed one CRITICAL bug. The /agent/join/:token, /agent/login and /agent/me routes were nested inside <RequireAdmin> in App.js, so every agent who opened an invite link was sent to /login?expired=1. I moved the three routes outside RequireAdmin. After that fix the whole UI flow works: admin invite (including duplicate 409 and Resend), join (invalid-token page, password-mismatch toast, httpOnly agent_token cookie), agent login (401 toast on a wrong password, 403 toast when suspended), the 4-step portal (country IN -> state MH -> city datalist -> postcode, bank master shows HDFC, 3 doc uploads + View, 6 consents + sign, submit), admin detail (banking, docs, agreement with IP), clarify (422 without a note), the agent sees the note and resubmits, then approve and suspend. Remaining issues: individual agents are forced to enter a company Registration number (CIN format for India), the X-Forwarded-For header can be spoofed to bypass the lockout, plus several minor UX bugs.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET/POST /api/v1/admin/agents/{aid}, /resend, /decision", "issue": "An invalid ObjectId (e.g. 'not-an-objectid') raises bson InvalidId and returns 500. It should return 404/422."},
+      {"endpoint": "POST /api/v1/agents/auth/login", "issue": "The lockout key is ip:email, and the IP comes from the first X-Forwarded-For entry, which the client controls. Changing the X-Forwarded-For header on each request gives unlimited 401s and never reaches 429 (verified with 7 tries). Key the lockout on email only, or use the right-most trusted proxy IP."},
+      {"endpoint": "POST /api/v1/admin/agents/{id}/resend", "issue": "Returns email_sent:false when the email fails, but the UI ignores it and always shows 'Invitation resent'."},
+      {"endpoint": "_email_record / _issue_record", "issue": "The background task now usually issues the record first, so the record_issued ledger actor and issued_by are the last approving committee member, not the admin. There is also a possible race: an immediate GET record.pdf can run alongside the background _issue_record, and both can write a record_issued audit event before the DuplicateKeyError guard runs. This did not happen in my runs."},
+      {"endpoint": "uploads /files/{key}", "issue": "Any signed-in vendor or agent can read any agent-docs/ key if they know it. The key holds a UUID, so it is hard to guess. Still, the UI text 'Only PMC reviewers can open them' is not strictly true. Consider an owner check for agent-docs."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "App.js routes", "issue": "FIXED BY TESTER: the /agent/join/:token, /agent/login and /agent/me routes were inside <Route element={<RequireAdmin/>}>. RequireAdmin calls /admin/auth/me, gets a 401, and redirects to /login, so no agent could join. I moved the routes next to /admin/login.", "selector": "agent-join", "priority": "CRITICAL"},
+      {"component": "AgentPortal step 1 (EscrowCoreForm reuse)", "issue": "Individual agents are blocked: 'Registration number' is required and checked against the country company format (India = CIN, e.g. L17110MH1973PLC019786). An individual has no CIN. The form also shows escrow-only fields (Regulator, Licence number/expiry). It has no ID number or date-of-birth fields, although the backend PROFILE_FIELDS accepts id_number and date_of_birth.", "selector": "escrow-f-reg-number", "priority": "HIGH"},
+      {"component": "AgentPortal unauthenticated", "issue": "Opening /agent/me with no session hits the global axios 401 interceptor, which redirects to /login?expired=1&next=/agent/me (the unified login, which has no agent option) instead of /agent/login. Add an /agent prefix to the interceptor's onAuthPage check, or set _skipAuthRedirect on agentApi.me.", "selector": "agent-portal", "priority": "MEDIUM"},
+      {"component": "AdminAgentsE Detail toast", "issue": "The toast uses `Agent ${action}d`, giving 'Agent clarifyd', 'Agent suspendd' and 'Agent rejectd'.", "selector": "admin-agent-clarify/suspend/reject", "priority": "LOW"},
+      {"component": "AgentPortal persist", "issue": "EscrowCoreForm.submit calls set('registered_address', …) and then onNext(). persist() reads the stale form closure, so registered_address is never saved (it is None in the DB).", "selector": "escrow-reg-next-1", "priority": "LOW"},
+      {"component": "AgentLogin", "issue": "Values typed in the first ~1-2s after load were wiped by a remount/hydration. The email field came back empty and the form showed 'Please fill out this field'. It works after waiting.", "selector": "agent-login-email", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Admin suspend", "issue": "Admin has no reinstate/unsuspend action. A suspended agent stays suspended for good.", "affected_selectors": ["admin-agent-suspend"]}
+    ],
+    "design_issues": [
+      {"screen": "Agent profile step", "issues": ["Licence expiry uses the browser's native date picker instead of the shadcn calendar", "The step-0 button 'SAVE AND CONTINUE' (uppercase, inside the form) is styled differently from the 'Save & continue' buttons on steps 1-3"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v65_agents.py", "/app/backend/tests/test_v64c_opening_record.py", "/app/test_reports/pytest/pytest_v65_sealed.xml"],
+  "action_items": [
+    "Keep the App.js fix: agent routes must stay outside RequireAdmin",
+    "Make Registration number optional (and skip the CIN regex) when entity_type is individual. Hide or relabel the escrow-only fields for agents. Add ID number and DOB for individuals.",
+    "Redirect an unauthenticated /agent/me to /agent/login, not to /login?expired",
+    "Return 404 for invalid ObjectIds in the admin agent endpoints",
+    "Harden the agent login lockout against a spoofed X-Forwarded-For",
+    "Fix the toast verbs and use email_sent in the Resend toast",
+    "Fix the stale-closure registered_address save",
+    "Optional: add an unsuspend action and an owner check for agent-docs files"
+  ],
+  "critical_code_review_comments": [
+    "agents.py: ObjectId(aid) is called without validation in 4 endpoints",
+    "agents.py agent_login: the client-controlled XFF first hop is part of the lockout identifier",
+    "AgentPortal.persist sends the whole form (name, created_at, invited_by…). The server filters it with PROFILE_FIELDS, but an explicit payload would be cleaner",
+    "bid_opening._email_record: the fire-and-forget asyncio.create_task holds no reference, so the task can be garbage-collected. Keep a reference set (or use BackgroundTasks)",
+    "test_v64c: the actor_email restore in the tamper test was hardcoded to adminsupport. It broke once the background email task became the first record issuer, so the tester now restores the original actor"
+  ],
+  "updated_files": ["/app/frontend/src/App.js", "/app/backend/tests/test_v65_agents.py", "/app/backend/tests/test_v64c_opening_record.py"],
+  "success_rate": {"backend": "95% (21/22 agents + 66/66 sealed regression)", "frontend": "90% (all flows pass after the route fix; individual reg-number blocker remains)"},
+  "test_credentials": "admin adminsupport@pmcmanagers.com / Admin@12345; TEST agents were created on the fly and deleted",
+  "seed_data_creation": "None kept. All test_agent* agents, agent_login_attempts and agent-docs TEST uploads were deleted. The v64c fixture cleaned its own notice, bids and committee.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run: pytest tests/test_v65_agents.py -n 0, plus tests/test_v64_sealed_bids.py tests/test_v64b_sealed_fixes.py tests/test_v64c_opening_record.py -n 0. In Playwright, admin login works via page.request.post(ABSOLUTE_URL+'/api/v1/admin/auth/login'), then sessionStorage pmc.csrf. On /agent/login wait ~3s before filling. Agent profile for India: country opt escrow-f-country-opt-IN, state escrow-f-state-opt-MH, reg number L17110MH1973PLC019786. Bank country options have no testid: click 'button:has-text(\"(IN)\")' inside escrow-bank-row-0, then bank opt escrow-bank-0-name-opt-HDFCIN. Resend fails for example.com (Resend 422); record_emailed sent=1 = the committee@ chair only."
+}

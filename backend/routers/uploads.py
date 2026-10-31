@@ -129,6 +129,7 @@ async def upload_direct(request: Request, key: str = Form(...), file: UploadFile
         "data_b64": encoded,
         "sealed": sealed,
         "owner_vendor_id": owner,
+        "owner_agent_id": await _agent_id(request) if key.startswith("agent-docs/") else None,
         "created_at": now_iso(),
     })
     # Public URL to retrieve later (see /files/{key})
@@ -276,11 +277,22 @@ async def _may_open_sealed(doc: dict, who: Optional[dict]) -> bool:
     return bid_stage_visible(bid, {}, "commercial" if kind == "commercial" else "technical")
 
 
+async def _agent_id(request: Request) -> Optional[str]:
+    try:
+        from routers.agents import current_agent
+        return str((await current_agent(request))["_id"])
+    except Exception:
+        return None
+
+
 async def _serve_file(key: str, download: bool, who: Optional[dict] = None):
     doc = await db.uploads.find_one({"key": key})
     if not doc:
         raise HTTPException(status_code=404, detail="File not found")
     body = base64.b64decode(doc["data_b64"])
+    if key.startswith("agent-docs/") and who is not None and who.get("kind") != "admin" \
+            and not (who.get("kind") == "agent" and doc.get("owner_agent_id") == who.get("id")):
+        raise HTTPException(status_code=403, detail="Only PMC reviewers and the agent can open this document")
     if doc.get("sealed"):
         if not await _may_open_sealed(doc, who):
             raise HTTPException(status_code=403, detail="This bid file is sealed until the committee opens the envelope")

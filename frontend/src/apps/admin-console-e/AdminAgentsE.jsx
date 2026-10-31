@@ -12,7 +12,7 @@ const Detail = ({ id, onChanged }) => {
   useEffect(() => { load(); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!a) return null;
   const act = async (action) => {
-    try { await agentApi.decide(id, action, note); toast.success(`Agent ${action}d`); setNote(""); load(); onChanged(); } catch (e) { showApiError(e); }
+    try { await agentApi.decide(id, action, note); toast.success({ approve: "Agent approved", reject: "Agent rejected", clarify: "Changes requested", suspend: "Agent suspended" }[action]); setNote(""); load(); onChanged(); } catch (e) { showApiError(e); }
   };
   const F = ({ k, l }) => <div><div className="text-[10px] uppercase tracking-widest text-brand-navy/60">{l}</div><div className="text-sm">{a[k] || "—"}</div></div>;
   return (
@@ -68,7 +68,7 @@ export default function AdminAgentsE() {
                   <div className="font-semibold text-sm">{r.legal_name || r.name}</div><div className="text-xs text-brand-navy/60">{r.email}</div></button>
                 <div className="flex gap-2 items-center">
                   <span className="text-[10px] uppercase tracking-widest px-2 py-0.5 border" data-testid={`admin-agent-status-${r.id}`}>{r.status.replace("_", " ")}</span>
-                  {r.status === "invited" && <button className="pmc-btn pmc-btn--secondary" onClick={() => agentApi.resend(r.id).then(() => toast.success("Invitation resent")).catch(showApiError)} data-testid={`admin-agent-resend-${r.id}`}>Resend</button>}
+                  {r.status === "invited" && <button className="pmc-btn pmc-btn--secondary" onClick={() => agentApi.resend(r.id).then((x) => (x.email_sent ? toast.success("Invitation resent") : toast.error("Invitation email did not send"))).catch(showApiError)} data-testid={`admin-agent-resend-${r.id}`}>Resend</button>}
                 </div>
               </div>
               {open === r.id && <div className="p-3 pt-0"><Detail id={r.id} onChanged={load} /></div>}

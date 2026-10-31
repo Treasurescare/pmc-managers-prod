@@ -153,7 +153,7 @@ api.interceptors.response.use(
     const skipRedirect = err?.config?._skipAuthRedirect === true;
     if (status === 401 && !skipRedirect && (detail === "Not authenticated" || detail === "Token expired")) {
       const path = window.location.pathname;
-      const onAuthPage = path === "/login" || path.startsWith("/register") || path === "/";
+      const onAuthPage = path === "/login" || path.startsWith("/register") || path === "/" || path.startsWith("/agent/");
       if (!onAuthPage && !window.__pmcAuthRedirecting) {
         window.__pmcAuthRedirecting = true;
         window.location.href = `/login?expired=1&next=${encodeURIComponent(path)}`;

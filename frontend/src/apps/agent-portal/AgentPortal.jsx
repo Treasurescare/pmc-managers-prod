@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { agentApi, showApiError } from "@/lib/api";
@@ -20,6 +20,8 @@ export default function AgentPortal() {
   const [form, setForm] = useState(null);
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
+  const formRef = useRef(null);
+  formRef.current = form;
   useEffect(() => {
     agentApi.me().then((a) => setForm({ ...a, entity_type: a.entity_type || "individual", banking: a.banking?.length ? a.banking : [{ ...BANK }] }))
       .catch(() => nav("/agent/login"));
@@ -29,7 +31,7 @@ export default function AgentPortal() {
   const persist = async (advance) => {
     setSaving(true);
     try {
-      const { entity_type, banking, documents, history, agreement, id, email, status, ...rest } = form; // eslint-disable-line no-unused-vars
+      const { entity_type, banking, documents, history, agreement, id, email, status, ...rest } = formRef.current; // eslint-disable-line no-unused-vars
       await agentApi.saveProfile({ ...rest, entity_type, banking: banking.filter((b) => b.account_name || b.account_number || b.iban) });
       toast.success("Saved");
       if (advance) setStep((s) => Math.min(3, s + 1));
@@ -67,7 +69,7 @@ export default function AgentPortal() {
             {["individual", "company"].map((t) => (
               <label key={t} className="flex gap-2 items-center"><input type="radio" checked={form.entity_type === t} onChange={() => set("entity_type", t)} data-testid={`agent-entity-${t}`} />{t === "individual" ? "I'm an individual" : "We're a company"}</label>))}
           </div>
-          <EscrowCoreForm form={form} set={set} onNext={() => persist(true)} saving={saving} />
+          <EscrowCoreForm form={form} set={set} onNext={() => setTimeout(() => persist(true), 0)} saving={saving} individual={form.entity_type === "individual"} />
         </>}
         {step === 1 && <EscrowBankingStep banking={form.banking} onChange={(next) => set("banking", next)} />}
         {step === 2 && <AgentDocsStep form={form} setForm={setForm} />}
