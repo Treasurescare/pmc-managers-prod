@@ -1598,7 +1598,7 @@ export function useAdminBiddingOpsLive({ enabled = true, tick = 0 } = {}) {
               ? `<button type="button" class="pmc-btn pmc-btn--secondary pmc-btn--sm" data-bo-action="send" data-bid-id="${b.id || ""}">${b.emd_link_sent_at ? "Resend link" : "Send link"}</button>`
               : "") +
               `<button type="button" class="pmc-btn pmc-btn--primary pmc-btn--sm" data-bo-action="review" data-bid-id="${b.id || ""}">Review</button>`;
-          } else if (st === "escrow_accepted") {
+          } else if (st === "escrow_accepted" && b.envelope_state !== "sealed") {
             actionHtml = `<button type="button" class="pmc-btn pmc-btn--primary pmc-btn--sm" data-bo-action="flag" data-bid-id="${b.id || ""}">Flag to certifier</button>`;
           } else {
             actionHtml = `<button type="button" class="pmc-btn pmc-btn--primary pmc-btn--sm" data-bo-action="review" data-bid-id="${b.id || ""}">Review</button>`;

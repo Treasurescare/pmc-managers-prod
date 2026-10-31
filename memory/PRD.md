@@ -870,6 +870,20 @@ Artifacts in /frontend/public/downloads: pmc-backend-v57i.zip, pmc-frontend-v57i
   STOP → vendor opt-out, AI auto-reply via assistant (session wa:<id>, 20/h). Templates: pmc_new_tender(4 vars), pmc_payment_reminder(3),
   pmc_payment_receipt(DOCUMENT header + 3) ; hooks in send_tender_alert, category reminders cron, issue_receipt (7-day public token PDF link).
   Admin: Marketing → WhatsApp tab (status, toggles, test hello_world, inbox + 24h-window reply). Vendor opt-in card on /vendor/messages (CSRF).
+
+## R26 — Sealed bids: encryption + committee-only opening — 2026-10-31 — build v58j (agent-tested iteration_134 29/29, iteration_135 43/43 + UI)
+- Audit finding: staff (admin/reviewer/accounting/committee etc.) could see technical+commercial docs and price any time; one person could "open". Fixed.
+- backend/bid_seal.py: Fernet key derived from env BID_SEAL_KEY (20+ chars; MUST be in AWS SSM /pmc/prod/BID_SEAL_KEY; losing it = sealed bids unreadable).
+  New bids (seal_v=1, non-auction): price_amount/technical_notes/commercial_notes encrypted in `sealed`; bid-docs/ uploads encrypted (uploads.sealed, owner_vendor_id).
+  Vendor sees own plaintext; staff see name/time/status/EMD only (envelope_state sealed|technical_open|commercial_open). bid.viewed audited.
+- routers/bid_opening.py: GET /api/v1/bid-opening/{ref}; POST .../approve {stage}. ALL committee members (chair+member_ids of open committee) must approve,
+  after submission deadline and bid_opening_date. Technical opening unseals only EMD-confirmed bids (status escrow_accepted+). Commercial requires
+  technical opened + every tech-unsealed bid cleared/rejected + ≥1 cleared; unseals price for cleared bids.
+- Gates: technical-clear/decision(admin flag, certifier, legal)=412 until technical open; accounting/committee until commercial; financial-open 412 for sealed.
+  Files: /uploads/files + bundle enforce envelope state; create/PATCH require sealed owned bid-docs keys.
+- UI: AdminBidDetailPage sealed banner + BidOpeningPanel; /admin/e/bidding "Bid opening" rail panel; Flag hidden for sealed bids.
+- Legacy bids (no seal_v) and auction bids unchanged.
+
 - PENDING: user to supply Meta credentials + get the 3 templates approved; set webhook in Meta.
 
 - LinkedIn "Feature not available — not enough connections": LinkedIn account-age/connections restriction on new profiles (user-side).

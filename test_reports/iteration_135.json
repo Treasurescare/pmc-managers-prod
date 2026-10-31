@@ -1,0 +1,42 @@
+{
+  "summary": "Retest of the sealed-bid fixes. Backend: the new tests/test_v64b_sealed_fixes.py (14 tests) plus the existing test_v64_sealed_bids.py (29 tests) gave 43/43 PASS, with no changes needed to the old suite. FIX 1 verified: after technical opening with no bid cleared, GET shows 'No bid has passed technical evaluation yet' and 'Technical evaluation is still pending for 2 bid(s)', and approve(commercial) returns 412 without recording an approval or setting commercial_opened_at. After one bid is cleared, only 'pending for 1 bid(s)' remains (412). Rejecting the other bid via decision {action:reject, role:admin} clears all blockers; full approval then opens bids_opened=1, unseals the cleared bid's price and leaves the rejected bid's price None. FIX 2 verified: create returns 422 for a non-bid-docs key, a plaintext vendor-docs upload, a missing upload, an upload record with sealed=False, and another vendor's sealed upload; no bid is created. PATCH returns 422 for bad keys, keeps the documents unchanged, and accepts good keys. FIX 3 verified in the UI as committee@ (admin role): /admin/e/bidding shows bo-opening-section with the panel; the detail panel of a sealed bid shows bo-detail-sealed-note and Open bid, with no flag button in the detail. FIX 4 verified: 'Approved: Committee Chair · Waiting for: TEST UI Member' and 'Uploaded documents · 2 sealed'. The commercial approve button is disabled and shows both blockers in the UI. All TEST_ data was cleaned up.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "tests/test_v64_sealed_bids.py (test infra)", "issue": "The test inserts admin_users at module import time with a random RID. With the default pytest-xdist (-n auto), collection fails ('Different tests were collected between gw0 and gw1') and the import-time users are never cleaned up; I found 4 orphaned test_seal* admin users and deleted them. Run with -n 0, or move the inserts into the setup fixture."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AdminBiddingOpsE table row action (lib/pmcELiveData.js ~line 1602)", "issue": "The row-level 'Flag to certifier' button is still rendered for sealed bids (envelope_state=sealed). Clicking it gives the toast 'Something went wrong · HTTP 412 — The technical envelope of this bid is still sealed'. FIX 3 only changed the detail panel (AdminBiddingOpsE.jsx:186), not the table row action.", "selector": "[data-bo-action=flag] in table rows", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/admin/e/bidding right rail 'Bid opening' section", "issues": [
+        "BidOpeningPanel uses a two-column technical/commercial grid that is too wide for the narrow right rail at 1920px. The 'Approve opening of technical envelopes' button overflows its column and the card, and covers the commercial column's blocker text ('...must be opened first'). The commercial button is also clipped. Stack the stages in one column (or pass a compact prop) when the panel is shown in the rail.",
+        "The detail panel for a sealed bid says 'No envelope documents attached.' (AdminBiddingOpsE.jsx:177) even though 2 files are sealed. Use sealed_documents_count, e.g. '2 file(s) sealed'.",
+        "Once a stage is opened, its card shows only the 'OPENED <ts>' badge; who approved it is no longer shown. Consider keeping the 'Approved: names' line for the audit trail.",
+        "The panel's '2 sealed bid(s)' text uses bids_total even after the envelopes are opened."
+      ]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v64b_sealed_fixes.py", "/app/backend/tests/test_v64_sealed_bids.py", "/app/backend/tests/ui_seal_setup.py", "/app/test_reports/pytest/pytest_v64b.xml"],
+  "action_items": [
+    "Hide the row-level 'Flag to certifier' action in lib/pmcELiveData.js (~1602) when b.envelope_state === 'sealed' (show 'Sealed' / Open bid instead).",
+    "Fix the BidOpeningPanel layout in the /admin/e/bidding right rail: the buttons overflow and overlap the blocker text. Stack the stages vertically there.",
+    "Replace 'No envelope documents attached.' in the AdminBiddingOpsE detail with the sealed file count for sealed bids.",
+    "Optional: move the import-time admin_users inserts in test_v64_sealed_bids.py into a fixture, so xdist collection does not leave orphan users."
+  ],
+  "critical_code_review_comments": [
+    "bid_opening._blockers: the commercial checks are correct and use the same base query as _open, so a rejected, withdrawn or draft bid is excluded from 'pending'. Bids on_hold or admin_flagged after technical clearance count as cleared or pending by technical_cleared_at only, which is fine.",
+    "bids._assert_sealed_keys runs a DB lookup before the cheap prefix check. It is correct, but you could short-circuit on the prefix first. create_bid also calls it before the technical/commercial kind checks, so a missing-kind payload with bad keys gets the seal error first (harmless).",
+    "OpenCommitteesOpening fetches /api/v1/committees and renders one panel per open committee, and each panel makes its own GET. With many open committees this means N requests and a very tall rail; consider limiting it or collapsing the panels."
+  ],
+  "updated_files": ["/app/backend/tests/test_v64b_sealed_fixes.py", "/app/backend/tests/ui_seal_setup.py"],
+  "success_rate": {"backend": "100% (43/43)", "frontend": "85% (FIX 3 detail, FIX 4 and the commercial disabled state verified; the row-level flag action is still shown and the rail layout overflows)"},
+  "seed_data_creation": "TEST_SEALFX_* and TEST_SEALUI_1 notices, committees, bids, vendors, test_seal* staff and uploads were all deleted after testing. 4 orphaned test_seal* admin users from an earlier xdist collection were also deleted.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run the sealed suites with `-n 0` (xdist breaks on the random RID params). UI helper: `python tests/ui_seal_setup.py setup|techopen|cleanup` creates notice TEST_SEALUI_1 with 2 escrow_accepted sealed bids and a committee (committee@ + test_sealui_mem@example.com / TestStaff@12345). For UI login use page.request.post('/api/v1/staff/auth/login', {email:'committee@pmcmanagers.com', password:'Bid@1234', active_role:'admin'}), then go to /admin/e/bidding or /admin/bids/:id.",
+  "rca of the issue": "Row flag button: AdminBiddingOpsE renders table rows through lib/pmcELiveData.js, whose action HTML for escrow_accepted (line ~1602) has no envelope_state check. Only the selected-bid detail template in AdminBiddingOpsE.jsx:186 was updated. Rail overflow: BidOpeningPanel's 2-column grid with fixed-width primary buttons is placed inside the ~280px-wide right rail."
+}

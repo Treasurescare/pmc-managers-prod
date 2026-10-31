@@ -12,7 +12,7 @@ export const OpenCommitteesOpening = () => {
     <section className="pmc-panel" data-testid="bo-opening-section">
       <div className="pmc-panel__head"><h2 className="pmc-panel__title">Bid opening</h2></div>
       <div className="pmc-panel__body" style={{ display: "grid", gap: "10px" }}>
-        {refs.map((r) => <BidOpeningPanel key={r} noticeRef={r} />)}
+        {refs.map((r) => <BidOpeningPanel key={r} noticeRef={r} compact />)}
       </div>
     </section>
   );

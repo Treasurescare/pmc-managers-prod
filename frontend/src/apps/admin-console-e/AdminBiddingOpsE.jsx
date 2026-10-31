@@ -174,7 +174,7 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
                 style="display:flex;justify-content:space-between;gap:8px;padding:6px 8px;border:1px solid rgba(15,59,46,.15);font-size:13px;color:var(--ink);text-decoration:none">
                 <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.filename || d.file_name || d.key}</span>
                 <span class="pmc-muted" style="white-space:nowrap">${d.kind || "doc"}${d.size_bytes ? ` · ${Math.round(d.size_bytes/1024)} KB` : ""}</span></a>`).join("")
-          : `<div class="pmc-muted" style="font-size:12px">No envelope documents attached.</div>`;
+          : `<div class="pmc-muted" style="font-size:12px">${b.envelope_state === "sealed" ? `${b.sealed_documents_count || 0} file(s) sealed until committee opening.` : "No envelope documents attached."}</div>`;
       }
       const tl = root.querySelector('#d-tl');
       if (tl) tl.innerHTML = stageNames.map((s, i) => { const c = awarded || i < idx ? "done" : i === idx ? "now" : ""; return `<div class="${c}"><span class="dot"></span><div><b>${s}</b><span>${stageOwners[i]}${c === "now" ? " · waiting" : c === "done" ? " · cleared" : ""}</span></div></div>`; }).join("");
