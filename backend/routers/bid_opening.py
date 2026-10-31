@@ -35,7 +35,7 @@ def _members(c) -> list:
     return [m for m in dict.fromkeys([c.get("chairperson_id"), *(c.get("member_ids") or [])]) if m]
 
 
-def _blockers(n: dict, c, stage: str) -> list:
+async def _blockers(n: dict, c, stage: str) -> list:
     now = datetime.now(timezone.utc)
     out = []
     if not c:
@@ -48,6 +48,13 @@ def _blockers(n: dict, c, stage: str) -> list:
         out.append(f"Bid opening date is {oa.isoformat()[:16].replace('T', ' ')} UTC")
     if stage == "commercial" and not n.get("technical_opened_at"):
         out.append("The technical envelopes must be opened first")
+    if stage == "commercial" and n.get("technical_opened_at") and not n.get("commercial_opened_at"):
+        base = {"notice_ref": n["notice_ref"], "seal_v": 1, "auction_id": None, "technical_unsealed_at": {"$ne": None}}
+        if not await db.bids.count_documents({**base, "technical_cleared_at": {"$ne": None}, "status": LIVE}):
+            out.append("No bid has passed technical evaluation yet")
+        pending = await db.bids.count_documents({**base, "technical_cleared_at": None, "status": LIVE})
+        if pending:
+            out.append(f"Technical evaluation is still pending for {pending} bid(s) — clear or reject each one first")
     if n.get(f"{stage}_opened_at"):
         out.append(f"The {stage} envelopes are already open")
     return out
@@ -67,7 +74,7 @@ async def opening_state(notice_ref: str, admin=VIEW):
     for st in ("technical", "commercial"):
         appr = (n.get("opening_approvals") or {}).get(st) or []
         done = {a["by_id"] for a in appr}
-        stages[st] = {"opened_at": n.get(f"{st}_opened_at"), "blockers": _blockers(n, c, st),
+        stages[st] = {"opened_at": n.get(f"{st}_opened_at"), "blockers": await _blockers(n, c, st),
                       "approvals": appr, "pending": [{"id": m, "name": names.get(m, m)} for m in members if m not in done],
                       "i_can_approve": admin.get("id") in members and admin.get("id") not in done}
     return {"notice_ref": notice_ref, "opening_at": (opening_at(n) or None) and opening_at(n).isoformat(),
@@ -85,7 +92,7 @@ async def approve_opening(notice_ref: str, body: ApproveIn,
     members = _members(c)
     if admin.get("id") not in members:
         raise HTTPException(status_code=403, detail="Only members of this tender's committee can approve the opening")
-    blockers = _blockers(n, c, body.stage)
+    blockers = await _blockers(n, c, body.stage)
     if blockers:
         raise HTTPException(status_code=412, detail="; ".join(blockers))
     appr = (n.get("opening_approvals") or {}).get(body.stage) or []

@@ -4,7 +4,7 @@ import { api, showApiError } from "@/lib/api";
 
 const LABEL = { technical: "Technical envelopes", commercial: "Commercial envelopes" };
 
-const Stage = ({ st, s, onApprove, busy, refKey }) => (
+const Stage = ({ st, s, onApprove, busy, refKey, names }) => (
   <div className="border border-brand-navy/15 p-3 space-y-2" data-testid={`opening-${st}-${refKey}`}>
     <div className="flex items-center justify-between gap-2 flex-wrap">
       <div className="font-semibold text-sm">{LABEL[st]}</div>
@@ -13,7 +13,7 @@ const Stage = ({ st, s, onApprove, busy, refKey }) => (
     </div>
     {!s.opened_at && <>
       <div className="text-xs text-brand-navy/70">
-        Approved: {s.approvals.map((a) => a.by).join(", ") || "none yet"}
+        Approved: {s.approvals.map((a) => names[a.by_id] || a.by).join(", ") || "none yet"}
         {s.pending.length > 0 && <> · Waiting for: {s.pending.map((p) => p.name).join(", ")}</>}
       </div>
       {s.blockers.length > 0 && <ul className="text-xs text-amber-800 list-disc pl-4">{s.blockers.map((b) => <li key={b}>{b}</li>)}</ul>}
@@ -47,10 +47,11 @@ export const BidOpeningPanel = ({ noticeRef }) => {
         Opening date: {s.opening_at ? s.opening_at.slice(0, 16).replace("T", " ") + " UTC" : "not set"} ·
         {" "}{s.bids_total} sealed bid(s), {s.bids_emd_confirmed} with deposit confirmed by escrow ·
         {" "}Every committee member must approve ({s.committee.map((m) => m.name).join(", ") || "no committee yet"}).
-        Bids without escrow-confirmed deposit stay sealed.
+        Bids whose deposit is not escrow-confirmed at the moment of technical opening stay sealed and cannot be opened later.
       </div>
       <div className="grid gap-3 md:grid-cols-2">
-        {["technical", "commercial"].map((st) => <Stage key={st} st={st} s={s.stages[st]} onApprove={approve} busy={busy} refKey={noticeRef} />)}
+        {["technical", "commercial"].map((st) => <Stage key={st} st={st} s={s.stages[st]} onApprove={approve} busy={busy} refKey={noticeRef}
+          names={Object.fromEntries(s.committee.map((m) => [m.id, m.name]))} />)}
       </div>
     </section>
   );

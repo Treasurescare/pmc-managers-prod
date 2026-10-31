@@ -100,6 +100,14 @@ async def _enrich_docs(doc: dict) -> dict:
 
 # ---------- Vendor endpoints ----------
 
+async def _assert_sealed_keys(keys: list, vendor_id: str) -> None:
+    """Envelope files must be encrypted bid-docs uploads owned by this supplier."""
+    for k in keys:
+        u = await db.uploads.find_one({"key": k}, {"sealed": 1, "owner_vendor_id": 1})
+        if not k.startswith("bid-docs/") or not u or not u.get("sealed") or u.get("owner_vendor_id") != vendor_id:
+            raise HTTPException(status_code=422,
+                detail="Envelope files must be uploaded from the bid page so they are sealed — please re-upload them")
+
 @router.post("")
 async def create_bid(payload: BidCreateIn, vendor=Depends(current_vendor)) -> dict:
     """Vendor creates a bid draft against a published notice."""
@@ -138,6 +146,7 @@ async def create_bid(payload: BidCreateIn, vendor=Depends(current_vendor)) -> di
         raise HTTPException(status_code=422,
             detail="At least one envelope document is required to submit a bid")
     kinds = {d.kind for d in payload.documents}
+    await _assert_sealed_keys([d.key for d in payload.documents], vendor["id"])
     if "technical" not in kinds:
         raise HTTPException(status_code=422,
             detail="A technical envelope document is required to submit a bid")
@@ -380,6 +389,8 @@ async def update_bid(bid_id: str, payload: BidUpdateIn,
             if d.get("kind") not in ("technical", "commercial", "supporting") or not d.get("key"):
                 raise HTTPException(status_code=422,
                     detail="Each document needs kind (technical/commercial/supporting) and an upload key")
+        if b.get("seal_v"):
+            await _assert_sealed_keys([d["key"] for d in docs], vendor["id"])
         updates["documents"] = docs
     if payload.technical_notes is not None:
         updates["technical_notes"] = payload.technical_notes

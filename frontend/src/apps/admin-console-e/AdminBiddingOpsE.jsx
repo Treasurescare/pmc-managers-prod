@@ -8,6 +8,7 @@ import AdminAvatarMenu from "./AdminAvatarMenu";
 import AdminShellE from "./AdminShellE";
 import AssignSpecialistsModal from "../admin-console/bidding/AssignSpecialistsModal";
 import MoneyFilterBar from "@/components/MoneyFilterBar";
+import { OpenCommitteesOpening } from "./OpenCommitteesOpening";
 import "./bidding-ops.css";
 
 // Sidebar preserved from the existing admin console shell so nav stays
@@ -182,7 +183,7 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
         if (awarded) act.innerHTML = `<button class="pmc-btn pmc-btn--secondary" data-bo-action="view" data-bid-id="${b.id}">Open award</button>`;
         else if (supplier) act.innerHTML = (emdAmt > 0 ? `<button class="pmc-btn pmc-btn--primary" data-bo-action="send" data-bid-id="${b.id}">${b.emd_link_sent_at ? "Resend EMD link" : "Send EMD link"}</button>` : "") + `<button class="pmc-btn pmc-btn--secondary" data-bo-action="review" data-bid-id="${b.id}">Open bid</button>`;
         else if (st === "on_hold") act.innerHTML = `<div class="pmc-callout pmc-callout--warn" style="margin:0" data-testid="bo-detail-hold-note"><b>On hold.</b> ${b.hold_reason ? `Reason: ${b.hold_reason}. ` : ""}${b.held_by ? `Held by ${b.held_by}. ` : ""}The vendor cannot change anything until you resume.</div><button class="pmc-btn pmc-btn--primary" data-bo-action="resume" data-bid-id="${b.id}" data-testid="bo-resume-btn">Resume bid</button><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><button class="pmc-btn pmc-btn--secondary" data-bo-action="review" data-bid-id="${b.id}">Open bid</button><button class="pmc-btn pmc-btn--danger" data-bo-action="reject" data-bid-id="${b.id}">Reject…</button></div>`;
-        else act.innerHTML = (st === "escrow_accepted" ? `<button class="pmc-btn pmc-btn--primary" data-bo-action="flag" data-bid-id="${b.id}">Flag to certifier</button>` : `<button class="pmc-btn pmc-btn--primary" data-bo-action="review" data-bid-id="${b.id}">Open bid</button>`) + `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><button class="pmc-btn pmc-btn--secondary" data-bo-action="hold" data-bid-id="${b.id}">Hold…</button><button class="pmc-btn pmc-btn--danger" data-bo-action="reject" data-bid-id="${b.id}">Reject…</button></div>`;
+        else act.innerHTML = (st === "escrow_accepted" && b.envelope_state !== "sealed" ? `<button class="pmc-btn pmc-btn--primary" data-bo-action="flag" data-bid-id="${b.id}">Flag to certifier</button>` : (b.envelope_state === "sealed" ? `<div class="pmc-callout" style="margin:0" data-testid="bo-detail-sealed-note"><b>Sealed.</b> Opens only when every committee member approves on the bid opening date.</div>` : "") + `<button class="pmc-btn pmc-btn--primary" data-bo-action="review" data-bid-id="${b.id}">Open bid</button>`) + `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><button class="pmc-btn pmc-btn--secondary" data-bo-action="hold" data-bid-id="${b.id}">Hold…</button><button class="pmc-btn pmc-btn--danger" data-bo-action="reject" data-bid-id="${b.id}">Reject…</button></div>`;
       }
       // v56 — specialist assignment available on every non-terminal bid.
       if (act && !awarded) {
@@ -476,6 +477,7 @@ export default function AdminBiddingOpsE({ legacy: Legacy }) {
           </div>
         </div>
       </section>
+      <OpenCommitteesOpening />
     </aside>
   </div>
 </AdminShellE>

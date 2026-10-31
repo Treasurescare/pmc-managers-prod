@@ -339,7 +339,7 @@ export default function AdminBidDetailPage() {
 
             <section className="bg-white border p-6" data-testid="admin-bid-documents">
               <div className="pmc-label mb-3">
-                Uploaded documents · {(bid.documents || []).length}
+                Uploaded documents · {bid.envelope_state === "sealed" ? `${bid.sealed_documents_count || 0} sealed` : (bid.documents || []).length}
               </div>
               {(bid.documents || []).length === 0 ? (
                 <div className="text-sm text-slate-500">{bid.envelope_state === "sealed" ? `${bid.sealed_documents_count || 0} file(s) sealed until the committee opens the envelopes.` : "The vendor did not attach any documents to this bid."}</div>
