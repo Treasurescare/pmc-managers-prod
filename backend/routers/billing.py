@@ -240,6 +240,9 @@ async def stripe_webhook(request: Request):
             elif (tx or {}).get("purpose") == "category_fee":
                 from routers.vendor_categories import apply_category_payment
                 await apply_category_payment(event.session_id)
+            elif (tx or {}).get("purpose") == "partner_fee":
+                from routers.agents import apply_partner_payment
+                await apply_partner_payment(event.session_id)
             elif (tx or {}).get("purpose") in ("doc_fee", "hosting_fee", "data_intel"):
                 from routers.payments_extra import apply_extra_payment
                 await apply_extra_payment(event.session_id)

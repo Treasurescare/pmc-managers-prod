@@ -111,7 +111,7 @@ import VendorReferral from "@/apps/vendor-portal-e/VendorReferral";
 import AdminMarketingE from "@/apps/admin-console-e/AdminMarketingE";
 import AdminAgentsE from "@/apps/admin-console-e/AdminAgentsE";
 import AgentPortal from "@/apps/agent-portal/AgentPortal";
-import { AgentJoin, AgentLogin } from "@/apps/agent-portal/AgentAuth";
+import { AgentJoin, AgentLogin, PartnerRegister } from "@/apps/agent-portal/AgentAuth";
 import GoogleAuthCallback from "@/apps/auth-e/GoogleAuthCallback";
 import ChatWidget from "@/components/ChatWidget";
 import PayComplete from "@/apps/PayComplete";
@@ -288,6 +288,11 @@ export default function App() {
             <Route path="/admin/e/billing" element={<AdminBillingE />} />
             <Route path="/admin/e/marketing" element={<AdminMarketingE />} />
             <Route path="/admin/e/agents" element={<AdminAgentsE />} />
+            <Route path="/admin/e/partners" element={<AdminAgentsE />} />
+            <Route path="/partner/register" element={<PartnerRegister />} />
+            <Route path="/partner/join/:token" element={<AgentJoin />} />
+            <Route path="/partner/login" element={<AgentLogin />} />
+            <Route path="/partner/me" element={<AgentPortal />} />
             <Route path="/admin/e/evaluations" element={<AdminEvaluationListE />} />
             <Route path="/admin/e/evaluation" element={<AdminEvaluationE />} />
             <Route path="/admin/e/l1-award" element={<AdminL1AwardE />} />

@@ -30,6 +30,11 @@ export default function SignInE({ legacy: Legacy }) {
     }
     setBusy(true);
     try {
+      if (role === "partner") {
+        await api.post("/api/v1/agents/auth/login", { email, password });
+        toast.success("Signed in · partner");
+        return nav("/partner/me");
+      }
       if (role === "escrow") {
         try {
           const accRes = await api.post("/api/v1/escrow-accounts/auth/login", { email, password });
@@ -215,7 +220,9 @@ export default function SignInE({ legacy: Legacy }) {
           <form onSubmit={submit} style={{ width: "440px", maxWidth: "100%" }} data-testid="signin-e-form">
             <h2 style={{ fontSize: "28px", lineHeight: "34px", margin: "0 0 6px" }}>Sign in</h2>
             <p className="pmc-muted" style={{ margin: "0 0 24px" }}>
-              {role === "escrow" ? (
+              {role === "partner" ? (
+                <>New partner? <Link to="/partner/register" data-testid="signin-register-link">Apply to become a PMC partner</Link></>
+              ) : role === "escrow" ? (
                 <>New escrow institution? <Link to="/escrow/register" data-testid="signin-register-link">Register your bank or trustee firm</Link></>
               ) : (
                 <>New supplier? <Link to="/register" data-testid="signin-register-link">Register in about 15 minutes</Link></>
@@ -227,6 +234,7 @@ export default function SignInE({ legacy: Legacy }) {
               <RoleRadio value="staff" label="PMC staff" sub="Tender desk, evaluation, escrow" icon="i-file" />
               <RoleRadio value="admin" label="Administrator" sub="Configuration and audit" icon="i-shield" />
               <RoleRadio value="escrow" label="Escrow Institution" sub="Banks & trustees · dual-signature sign-off" icon="i-link" />
+              <RoleRadio value="partner" label="Partner" sub="Onboard suppliers and earn commission" icon="i-flag" />
             </div>
 
             <div style={{ display: "grid", gap: "14px" }}>

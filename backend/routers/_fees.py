@@ -10,6 +10,8 @@ from models.base import now_iso
 
 # Default fee types (editable in Masters → Fee types). Attributes only — no prices.
 DEFAULT_FEE_TYPES = [
+    {"code": "partner_registration", "name": "Partner registration", "timing": "upfront", "calc": "fixed",
+     "amount_mode": "single", "category_scope": "all", "billing": "one_time", "used_in_tender_builder": False},
     {"code": "subscription", "name": "Subscription", "timing": "upfront", "calc": "fixed",
      "amount_mode": "single", "category_scope": "all", "billing": "yearly", "used_in_tender_builder": True},
     {"code": "premium_subscription", "name": "Premium subscription", "timing": "upfront", "calc": "fixed",

@@ -95,8 +95,9 @@ class InviteIn(BaseModel):
 
 
 class DecisionIn(BaseModel):
-    action: Literal["approve", "reject", "clarify", "suspend"]
+    action: Literal["approve", "reject", "clarify", "suspend", "request_payment"]
     note: str = Field("", max_length=2000)
+    waive_fee: bool = False
 
 
 def _oid(aid: str) -> ObjectId:
@@ -106,11 +107,11 @@ def _oid(aid: str) -> ObjectId:
 
 
 async def _send_invite(a: dict) -> bool:
-    link = f"{_site()}/agent/join/{a['invite_token']}"
-    body = (f"<p>Hello {a['name']},</p><p>PMC Managers has invited you to join as an onboarding agent. Use the button below to create your "
-            f"password and complete your agent profile, banking details, identity documents and the agent agreement.</p>"
-            f"<p>This link expires in 7 days.</p>")
-    return await send_email(a["email"], "[PMC] Your onboarding agent invitation", wrap("Join PMC as an onboarding agent", body, "Accept invitation", link))
+    link = f"{_site()}/partner/join/{a['invite_token']}"
+    body = (f"<p>Hello {a['name']},</p><p>Please confirm your email to join PMC Managers as a partner. Use the button below to create your "
+            f"password and complete your partner profile, banking details, identity documents and the partner agreement.</p>"
+            f"<p>This link expires in 7 days. If you did not request this, ignore this email.</p>")
+    return await send_email(a["email"], "[PMC] Confirm your email to become a PMC partner", wrap("Join PMC as a partner", body, "Confirm email & continue", link))
 
 
 @router.post("/api/v1/admin/agents/invite", dependencies=CSRF)
@@ -156,25 +157,129 @@ async def decide_agent(aid: str, body: DecisionIn, admin=ADMIN):
     a = await db.agents.find_one({"_id": _oid(aid)})
     if not a:
         raise HTTPException(status_code=404, detail="Agent not found")
-    allowed = {"approve": {"submitted"}, "reject": {"submitted", "needs_clarification"}, "clarify": {"submitted"},
-               "suspend": {"approved"}}[body.action]
+    allowed = {"approve": {"submitted"}, "reject": {"submitted", "needs_clarification", "payment_pending"}, "clarify": {"submitted"},
+               "suspend": {"approved"}, "request_payment": {"submitted", "payment_pending"}}[body.action]
     if a["status"] not in allowed:
-        raise HTTPException(status_code=409, detail=f"Cannot {body.action} an agent whose status is {a['status']}")
+        raise HTTPException(status_code=409, detail=f"Cannot {body.action} a partner whose status is {a['status']}")
+    if body.action == "approve" and not body.waive_fee:
+        raise HTTPException(status_code=409, detail="Tick 'Waive registration fee' to approve now, or send a payment request")
+    if body.action == "request_payment":
+        return await _request_payment(a, admin)
     if body.action in ("reject", "clarify") and not body.note.strip():
         raise HTTPException(status_code=422, detail="Add a note explaining what the agent must fix or why")
     new = {"approve": "approved", "reject": "rejected", "clarify": "needs_clarification", "suspend": "suspended"}[body.action]
-    entry = {"action": body.action, "note": body.note.strip(), "by": admin.get("email"), "at": now_iso()}
-    await db.agents.update_one({"_id": a["_id"]}, {"$set": {"status": new, "reviewed_at": now_iso()}, "$push": {"history": entry},
+    entry = {"action": body.action, "note": body.note.strip(), "by": admin.get("email"), "at": now_iso(),
+             **({"fee_waived": True} if body.action == "approve" else {})}
+    extra = {"fee_waived": True, **(await _code_for(a))} if new == "approved" else {}
+    await db.agents.update_one({"_id": a["_id"]}, {"$set": {"status": new, "reviewed_at": now_iso(), **extra}, "$push": {"history": entry},
                                                   **({"$inc": {"token_generation": 1}} if new == "suspended" else {})})
     await audit_log(f"agent.{body.action}", admin, "agent", aid, {"note": body.note.strip()})
-    msg = {"approved": "Your PMC onboarding agent profile has been approved. You can now sign in to your agent portal.",
-           "rejected": "Your PMC onboarding agent application was not approved.",
-           "needs_clarification": "PMC needs a few changes to your onboarding agent profile. Please sign in and update it.",
-           "suspended": "Your PMC onboarding agent access has been suspended."}[new]
+    msg = {"approved": "Your PMC partner profile has been approved. You can now sign in to your partner portal.",
+           "rejected": "Your PMC partner application was not approved.",
+           "needs_clarification": "PMC needs a few changes to your partner profile. Please sign in and update it.",
+           "suspended": "Your PMC partner access has been suspended."}[new]
     note = f"<p><b>Note from PMC:</b> {body.note.strip()}</p>" if body.note.strip() else ""
-    await send_email(a["email"], f"[PMC] Agent application: {new.replace('_', ' ')}",
-                     wrap("Agent application update", f"<p>{msg}</p>{note}", "Open agent portal", f"{_site()}/agent/login"))
+    await send_email(a["email"], f"[PMC] Partner application: {new.replace('_', ' ')}",
+                     wrap("Partner application update", f"<p>{msg}</p>{note}", "Open partner portal", f"{_site()}/partner/login"))
     return {"status": new}
+
+
+async def _code_for(a: dict) -> dict:
+    from db import next_sequence
+    return {} if a.get("partner_code") else {"partner_code": f"PT-{await next_sequence('partner_code'):04d}"}
+
+
+async def _request_payment(a: dict, admin: dict) -> dict:
+    from routers._fees import compute_amount, find_rule
+    from routers.payments_extra import _checkout
+    rule = await find_rule("partner_registration", a.get("country"))
+    amount = compute_amount(rule, None) if rule else None
+    if not rule or not amount:
+        raise HTTPException(status_code=422, detail=f"No active 'Partner registration' fee rule covers {a.get('country') or 'this country'} — add one in Fee Rules, or waive the fee")
+    cur = (rule.get("currency") or "USD").upper()
+    chk = await _checkout(amount, cur, "partner_fee", "/partner/me?paid=1", "/partner/me", _site(),
+                          {"agent_id": str(a["_id"])}, {"agent_id": str(a["_id"]), "payer_email": a["email"], "rule_id": str(rule["_id"])})
+    pay = {"amount": float(amount), "currency": cur, "checkout_url": chk["checkout_url"], "session_id": chk["session_id"],
+           "rule_id": str(rule["_id"]), "requested_at": now_iso(), "requested_by": admin.get("email"), "status": "pending"}
+    await db.agents.update_one({"_id": a["_id"]}, {"$set": {"status": "payment_pending", "payment": pay},
+        "$push": {"history": {"action": "request_payment", "note": f"{cur} {amount:,.2f}", "by": admin.get("email"), "at": now_iso()}}})
+    await audit_log("agent.payment_requested", admin, "agent", str(a["_id"]), {"amount": amount, "currency": cur})
+    sent = await send_email(a["email"], "[PMC] Partner registration fee",
+        wrap("Your partner registration fee", f"<p>Your partner profile has been reviewed. Please pay the partner registration fee of "
+             f"<b>{cur} {amount:,.2f}</b> to activate your account. You can also pay from your partner portal.</p>", "Pay securely", chk["checkout_url"]))
+    return {"status": "payment_pending", "payment": pay, "email_sent": sent}
+
+
+async def apply_partner_payment(session_id: str) -> None:
+    a = await db.agents.find_one({"payment.session_id": session_id})
+    if not a or (a.get("payment") or {}).get("status") == "paid":
+        return
+    pay = a["payment"]
+    upd = {"status": "approved", "payment.status": "paid", "payment.paid_at": now_iso(), "reviewed_at": now_iso(), **(await _code_for(a))}
+    await db.agents.update_one({"_id": a["_id"], "payment.status": {"$ne": "paid"}}, {"$set": upd})
+    await audit_log("agent.payment_received", None, "agent", str(a["_id"]), {"session_id": session_id})
+    att = None
+    try:
+        import asyncio
+        import base64
+        from routers.site_settings import render_receipt_pdf
+        rec = {"receipt_no": f"PMC-PR-{session_id[-8:].upper()}", "purpose": "partner_registration", "currency": pay["currency"],
+               "lines": [{"name": "Partner registration fee", "amount": pay["amount"]}], "total": pay["amount"],
+               "session_id": session_id, "paid_at": now_iso()}
+        pdf = await asyncio.to_thread(render_receipt_pdf, rec, {"company_name": a.get("legal_name") or a["name"],
+                                                                "vendor_ref": upd.get("partner_code") or a.get("partner_code"), "email": a["email"]})
+        att = [{"filename": f"{rec['receipt_no']}.pdf", "content_b64": base64.b64encode(pdf).decode(), "content_type": "application/pdf"}]
+    except Exception:
+        pass
+    await send_email(a["email"], "[PMC] Payment received — your partner account is active",
+                     wrap("Welcome, PMC partner", f"<p>We received your partner registration fee. Your partner code is "
+                          f"<b>{upd.get('partner_code') or a.get('partner_code')}</b>. Your receipt is attached.</p>",
+                          "Open partner portal", f"{_site()}/partner/me"), attachments=att)
+
+
+@router.post("/api/v1/agents/me/payment/refresh")
+async def refresh_payment(request: Request):
+    a = await current_agent(request)
+    pay = a.get("payment") or {}
+    if a["status"] == "payment_pending" and pay.get("session_id"):
+        import os
+        from pmc_lib.payments.stripe.checkout import StripeCheckout
+        try:
+            st = await StripeCheckout(api_key=os.environ["STRIPE_API_KEY"], webhook_url="").get_checkout_status(pay["session_id"])
+            if st.payment_status == "paid":
+                await db.payment_transactions.update_one({"session_id": pay["session_id"]},
+                    {"$set": {"payment_status": "paid", "status": "completed", "updated_at": now_iso()}})
+                await apply_partner_payment(pay["session_id"])
+        except Exception:
+            pass
+    return _public(await db.agents.find_one({"_id": a["_id"]}))
+
+
+class RegisterIn(BaseModel):
+    email: EmailStr
+    name: str = Field(min_length=2, max_length=120)
+
+
+@router.post("/api/v1/agents/register")
+async def self_register(body: RegisterIn, request: Request):
+    ip = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip() or (request.client.host if request.client else "")
+    since = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+    if await db.agent_login_attempts.count_documents({"identifier": f"reg:{ip}", "at": {"$gte": since}}) >= 5:
+        raise HTTPException(status_code=429, detail="Too many sign-ups from this network. Try again later.")
+    await db.agent_login_attempts.insert_one({"identifier": f"reg:{ip}", "at": now_iso()})
+    email = body.email.lower().strip()
+    a = await db.agents.find_one({"email": email, "status": {"$ne": "rejected"}})
+    if a and a["status"] == "invited":
+        upd = {"invite_token": secrets.token_urlsafe(32), "invite_expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()}
+        await db.agents.update_one({"_id": a["_id"]}, {"$set": upd})
+        await _send_invite({**a, **upd})
+    elif not a:
+        a = {"email": email, "name": body.name.strip(), "status": "invited", "invite_token": secrets.token_urlsafe(32), "source": "self",
+             "invite_expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat(), "created_at": now_iso(),
+             "banking": [], "documents": {}, "history": []}
+        a["_id"] = (await db.agents.insert_one(a)).inserted_id
+        await _send_invite(a)
+    return {"ok": True, "message": "If this email can be used, we've sent a confirmation link to it."}
 
 
 # ---------- agent self-service ----------
@@ -326,7 +431,7 @@ async def agent_submit(request: Request):
     async for adm in db.admin_users.find({"role": "admin", "status": {"$ne": "disabled"}}, {"email": 1}).limit(5):
         await send_email(adm["email"], "[PMC] Onboarding agent submitted for review",
                          wrap("Agent ready for review", f"<p>{a.get('legal_name') or a['name']} ({a['email']}) submitted their agent profile.</p>",
-                              "Review agents", f"{_site()}/admin/e/agents"))
+                              "Review partners", f"{_site()}/admin/e/partners"))
     return {"status": "submitted"}
 
 

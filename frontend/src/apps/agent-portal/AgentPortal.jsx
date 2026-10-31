@@ -10,9 +10,25 @@ const STEPS = ["Profile", "Banking", "Documents", "Agreement"];
 const BANK = { account_name: "", account_number: "", iban: "", swift: "", currency: "USD", institution_name: "", branch: "",
   bank_country: "", bank_state: "", bank_city: "", bank_code: "", sort_code: "", routing_number: "" };
 const STATUS = {
-  submitted: ["Under review", "PMC is reviewing your agent profile. We'll email you when it's done."],
-  approved: ["Approved", "You're an approved PMC onboarding agent. Supplier onboarding tools arrive in the next release."],
+  submitted: ["Under review", "PMC is reviewing your partner profile. We'll email you when it's done."],
+  approved: ["Approved", "You're an approved PMC partner. Supplier onboarding tools arrive in the next release."],
   rejected: ["Not approved", "Your application was not approved."],
+};
+
+const PayCard = ({ form, setForm }) => {
+  const p = form.payment || {};
+  const refresh = () => agentApi.refreshPayment().then((a) => setForm((f) => ({ ...f, ...a }))).catch(showApiError);
+  return (
+    <div className="bg-white border border-brand-gold p-6 space-y-3" data-testid="partner-pay-card">
+      <h2 className="text-lg font-semibold">Registration fee due</h2>
+      <p className="text-sm text-brand-navy/70">Your profile is approved for activation once the partner registration fee is paid.</p>
+      <div className="text-2xl font-semibold" data-testid="partner-pay-amount">{p.currency} {Number(p.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+      <div className="flex gap-2 flex-wrap">
+        <a className="pmc-btn pmc-btn--primary" href={p.checkout_url} data-testid="partner-pay-now">Pay now</a>
+        <button type="button" className="pmc-btn pmc-btn--secondary" onClick={refresh} data-testid="partner-pay-refresh">I've paid — check again</button>
+      </div>
+    </div>
+  );
 };
 
 export default function AgentPortal() {
@@ -23,8 +39,12 @@ export default function AgentPortal() {
   const formRef = useRef(null);
   formRef.current = form;
   useEffect(() => {
-    agentApi.me().then((a) => setForm({ ...a, entity_type: a.entity_type || "individual", banking: a.banking?.length ? a.banking : [{ ...BANK }] }))
-      .catch(() => nav("/agent/login"));
+    agentApi.me().then((a) => {
+      setForm({ ...a, entity_type: a.entity_type || "individual", banking: a.banking?.length ? a.banking : [{ ...BANK }] });
+      if (a.status === "payment_pending" && window.location.search.includes("paid=1")) {
+        agentApi.refreshPayment().then((x) => setForm((f) => ({ ...f, ...x }))).catch(() => {});
+      }
+    }).catch(() => nav("/partner/login"));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   if (!form) return <div className="p-10 text-brand-navy/50">Loading…</div>;
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -40,19 +60,19 @@ export default function AgentPortal() {
   const submit = async () => {
     try { await agentApi.submit(); setForm((f) => ({ ...f, status: "submitted" })); toast.success("Submitted for PMC review"); } catch (e) { showApiError(e); }
   };
-  const logout = async () => { await agentApi.logout().catch(() => {}); nav("/agent/login"); };
+  const logout = async () => { await agentApi.logout().catch(() => {}); nav("/partner/login"); };
   const locked = !["draft", "needs_clarification"].includes(form.status);
   const lastNote = [...(form.history || [])].reverse().find((h) => h.note);
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-5" data-testid="agent-portal">
       <div className="flex justify-between items-start gap-3 flex-wrap">
-        <div><div className="text-[11px] uppercase tracking-widest text-brand-navy/60">PMC onboarding agent</div>
+        <div><div className="text-[11px] uppercase tracking-widest text-brand-navy/60">PMC partner{form.partner_code ? ` · ${form.partner_code}` : ""}</div>
           <h1 className="font-serif text-2xl text-brand-navy">{form.legal_name || form.name}</h1>
           <div className="text-sm text-brand-navy/70">{form.email} · status <b data-testid="agent-status">{form.status.replace("_", " ")}</b></div></div>
         <button className="pmc-btn pmc-btn--secondary" onClick={logout} data-testid="agent-logout">Sign out</button>
       </div>
       {form.status === "needs_clarification" && lastNote && <div className="bg-amber-50 border border-amber-300 p-3 text-sm" data-testid="agent-clarify-note"><b>PMC asked for changes:</b> {lastNote.note}</div>}
-      {locked ? (
+      {form.status === "payment_pending" ? <PayCard form={form} setForm={setForm} /> : locked ? (
         <div className="bg-white border border-brand-navy/15 p-6" data-testid="agent-status-card">
           <h2 className="text-lg font-semibold">{(STATUS[form.status] || [form.status])[0]}</h2>
           <p className="text-sm text-brand-navy/70 mt-1">{(STATUS[form.status] || ["", ""])[1]}</p>

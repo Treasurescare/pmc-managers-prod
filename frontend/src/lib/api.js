@@ -153,7 +153,7 @@ api.interceptors.response.use(
     const skipRedirect = err?.config?._skipAuthRedirect === true;
     if (status === 401 && !skipRedirect && (detail === "Not authenticated" || detail === "Token expired")) {
       const path = window.location.pathname;
-      const onAuthPage = path === "/login" || path.startsWith("/register") || path === "/" || path.startsWith("/agent/");
+      const onAuthPage = path === "/login" || path.startsWith("/register") || path === "/" || path.startsWith("/agent/") || path.startsWith("/partner/");
       if (!onAuthPage && !window.__pmcAuthRedirecting) {
         window.__pmcAuthRedirecting = true;
         window.location.href = `/login?expired=1&next=${encodeURIComponent(path)}`;
@@ -538,7 +538,9 @@ export const agentApi = {
   adminGet: (id) => api.get(`/api/v1/admin/agents/${id}`).then((r) => r.data),
   invite: (email, name) => api.post("/api/v1/admin/agents/invite", { email, name }).then((r) => r.data),
   resend: (id) => api.post(`/api/v1/admin/agents/${id}/resend`).then((r) => r.data),
-  decide: (id, action, note) => api.post(`/api/v1/admin/agents/${id}/decision`, { action, note }).then((r) => r.data),
+  register: (email, name) => api.post("/api/v1/agents/register", { email, name }).then((r) => r.data),
+  refreshPayment: () => api.post("/api/v1/agents/me/payment/refresh").then((r) => r.data),
+  decide: (id, action, note, waive_fee = false) => api.post(`/api/v1/admin/agents/${id}/decision`, { action, note, waive_fee }).then((r) => r.data),
 };
 
 export const uploadsApi = {
