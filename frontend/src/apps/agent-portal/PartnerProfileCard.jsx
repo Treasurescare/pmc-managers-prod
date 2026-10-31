@@ -21,7 +21,7 @@ export default function PartnerProfileCard() {
           {p.photo_url ? <img src={`${BASE}${p.photo_url}`} alt="Your profile" className="w-full h-full object-cover" /> : <span className="text-xs text-brand-navy/50">No photo</span>}
         </div>
         <div className="flex-1 min-w-[240px] space-y-2">
-          <label className="text-sm block">Photo (JPG, PNG or WebP, under 2 MB)<input type="file" accept="image/jpeg,image/png,image/webp" className="block mt-1 text-sm" disabled={busy} onChange={(e) => upload(e.target.files?.[0])} data-testid="partner-photo-input" /></label>
+          <label className="text-sm block">Photo (JPG, PNG or WebP, under 2 MB)<input type="file" accept="image/jpeg,image/png,image/webp" className="block mt-1 text-sm" disabled={busy} onChange={(e) => { upload(e.target.files?.[0]); e.target.value = ""; }} data-testid="partner-photo-input" /></label>
           <label className="text-sm block">Short bio ({280 - (p.bio || "").length} characters left)
             <textarea rows={3} maxLength={280} className="mt-1 block w-full px-3 py-2 border border-brand-navy/20 text-sm" value={p.bio || ""} onChange={(e) => setP({ ...p, bio: e.target.value })} data-testid="partner-bio-input" /></label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!p.show} onChange={(e) => setP({ ...p, show: e.target.checked })} data-testid="partner-show-public" />Show my photo, name and bio on the PMC homepage when I win a badge</label>

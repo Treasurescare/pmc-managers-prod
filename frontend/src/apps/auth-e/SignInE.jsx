@@ -222,7 +222,7 @@ export default function SignInE({ legacy: Legacy }) {
         </section>
 
         <section style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr)", placeItems: "center", padding: "48px" }}>
-          <form onSubmit={submit} style={{ width: "440px", maxWidth: "100%" }} data-testid="signin-e-form">
+          <form onSubmit={submit} style={{ width: "440px", maxWidth: "100%", minWidth: 0 }} data-testid="signin-e-form">
             <h2 style={{ fontSize: "28px", lineHeight: "34px", margin: "0 0 6px" }}>Sign in</h2>
             {next && (
               <div data-testid="signin-next-notice" style={{ background: "#FFF8E6", border: "1px solid #E8C873", padding: "10px 12px", fontSize: "13px", margin: "8px 0 12px" }}>

@@ -1,0 +1,39 @@
+{
+  "summary": "v70 Partner Profile Cards + partner join/password/unified login. Backend: new test_v70_partner_profile_cards.py 16/16 PASS (GET/PUT public-profile w/ CSRF + bio<=280, photo upload jpeg/png/webp only -> 422, >2MB -> 413, own photo GET, non-approved partner 403, unauth 401, public photo 404 unless show && !hidden, highlights: name+bio+photo_url for opted-in winner even with show_names=false, code only/no bio/photo when not opted-in, admin hide/unhide (admin+CSRF required, 404 bad id), partner re-save cannot clear admin hide, opt-out removes card, join password -> /agents/auth/login). Regression test_v69 14/14 PASS. UI: /login Partner role -> /partner/me; Leaderboard tab profile card upload (preview renders), bio, show toggle, save persists after reload, 413 toast for big file; homepage home-badge-photo-PT-0001 + home-badge-bio-PT-0001 shown with name; admin /admin/e/partners detail admin-agent-public-profile + admin-agent-hide-profile hides (homepage photo/bio gone) and restores; /partner/join/:token password+confirm, mismatch toast, join -> /partner/me, sign out, re-login via /login partner role -> /partner/me, wrong pw -> 401 toast. One minor UI race found (state reset shortly after first paint).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/v1/agents/me/public-photo", "issue": "Type check trusts client-declared content_type only (no magic-byte sniff); file read fully into memory before size check. Served with nosniff so low risk."},
+      {"endpoint": "GET /api/v1/public/partner-photo/{code}", "issue": "Serves photo for any approved opted-in partner, not just current badge winners (partner codes are sequential PT-0001.. so enumerable). Acceptable since partner opted in, but consider restricting to winners."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "SignInE (/login) and AgentJoin (/partner/join/:token)", "issue": "Component state is reset ~250ms after first paint (likely parent remount/re-suspense on app bootstrap). Reproduced: clicking signin-role-partner immediately after render shows 'on' then reverts to Supplier, so login goes to supplier endpoint; on join page, passwords typed immediately were cleared ('Please fill out this field'). Works fine after ~1s. SignInE itself has no effects, so the remount is from a parent (auth/i18n bootstrap or lazy route).", "selector": "[data-testid=signin-role-partner], [data-testid=agent-join-password]", "priority": "LOW-MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/login with Partner role selected", "issues": ["Email/password/Continue/register block becomes wider (~1393px right edge) than role cards (~1355px) — subheading 'New partner? Apply to become a PMC partner' widens the form; misaligned."]},
+      {"screen": "Partner portal Leaderboard", "issues": ["Monthly statement uses native <input type=month> picker rather than the design-system picker (pre-existing).", "Photo file input not reset after a failed (413) upload — still shows the rejected filename."]},
+      {"screen": "Admin partner detail", "issues": ["admin-agent-public-profile only renders when public_profile.show is true, so if admin hid a card and partner later opts out, admin cannot see/clear the hidden flag (minor)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v70_partner_profile_cards.py", "/app/backend/tests/ui_seed_v70.py", "/app/test_reports/pytest/v70.xml", "/app/backend/tests/test_v69_partner_statements_login.py"],
+  "action_items": [
+    "Investigate the post-first-paint remount that resets SignInE role / AgentJoin password state (find parent that re-keys or re-suspends routes on bootstrap).",
+    "Optional: align form width on /login when Partner role selected.",
+    "Optional: validate photo magic bytes; reset file input after failed upload; show admin hide control whenever public_profile exists."
+  ],
+  "critical_code_review_comments": [
+    "public_highlights correctly gates name/bio/photo via a Mongo filter (show=True, hidden!=True); save_public_profile spreads existing public_profile so partner cannot clear admin 'hidden' — verified.",
+    "upload_public_photo: check content_type before await file.read() and cap read size to avoid buffering large bodies."
+  ],
+  "updated_files": ["/app/backend/tests/test_v70_partner_profile_cards.py", "/app/backend/tests/ui_seed_v70.py"],
+  "success_rate": {"backend": "100% (16/16 v70 + 14/14 v69)", "frontend": "~95% (all flows work; minor load-time state reset race)"},
+  "test_credentials": "Admin adminsupport@pmcmanagers.com / Admin@12345 (from /app/memory/test_credentials.md). Test partners are created on the fly with PartnerPw@123.",
+  "seed_data_creation": "UI seed via `cd /app/backend/tests && python ui_seed_v70.py seed <RID>` (approved badge-winner partner + invited join partner); cleaned via `python ui_seed_v70.py clean <RID>`. All test agents, registrations, vendors, partner_photos, partner_statements, commissions, leaderboard setting and reg:* login attempts were removed; DB agents count back to 0.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Preview clock is 2026-10 so highlights use live current month. On /login and /partner/join wait ~1.5s after render before interacting (state reset race). Partner sign-out redirects to /partner/login. ui_seed_v70.py prints partner code (PT-0001 when DB has no agents) and the join invite token.",
+  "rca of the issue": "State reset: SignInE has no useEffect touching role, so the reset is a remount from an ancestor shortly after initial render. Repro: open /login, immediately click Partner, poll class of signin-role-partner -> 'pmc-radio on' then 'pmc-radio ' after 250ms."
+}

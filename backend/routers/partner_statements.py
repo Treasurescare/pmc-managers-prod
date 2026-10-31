@@ -262,7 +262,7 @@ PHOTO_TYPES = {"image/jpeg", "image/png", "image/webp"}
 async def upload_public_photo(request: Request, file: UploadFile = File(...)):
     a = await _approved_partner(request)
     data = await file.read()
-    if (file.content_type or "") not in PHOTO_TYPES:
+    if (file.content_type or "") not in PHOTO_TYPES or not (data[:3] == b"\xff\xd8\xff" or data[:8] == b"\x89PNG\r\n\x1a\n" or (data[:4] == b"RIFF" and data[8:12] == b"WEBP")):
         raise HTTPException(status_code=422, detail="Upload a JPG, PNG or WebP photo")
     if len(data) > 2 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="Photo must be under 2 MB")

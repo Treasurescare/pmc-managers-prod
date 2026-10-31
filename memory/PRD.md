@@ -961,3 +961,12 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - Badges per month: top_partner, most_invites, rising_star (first approval). Partner portal Leaderboard tab; homepage "Partners of the month"
   section (last month, else this month so far; codes unless admin shows names; hidden when empty).
 
+
+## R33 — Partner profile cards + AWS cron script — 2026-10-31 — build v58q (agent-tested iteration_142; v70 16/16, v69 14/14)
+- Partner opt-in homepage card: photo (jpg/png/webp ≤2MB, magic-byte checked, db.partner_photos) + bio ≤280; shown with name in
+  "Partners of the month" for badge winners; admin Hide/Show from homepage. Endpoints /api/v1/agents/me/public-profile|public-photo,
+  /api/v1/public/partner-photo/{code}, /api/v1/admin/agents/{aid}/public-profile/hide.
+- scripts/aws_eventbridge_crons.sh (also /downloads/): EventBridge connection (Bearer WEBHOOK_CRON_SECRET from SSM /pmc/prod/WEBHOOK_CRON_SECRET)
+  + API destinations + rules: partner statements (1st 07:00 UTC), marketing digest (Mon 08:00 UTC), category payment reminders (daily 09:00 UTC).
+- Known LOW: on first ~250ms after page load the /login role choice / join password fields can reset (app bootstrap remount) — pre-existing.
+
