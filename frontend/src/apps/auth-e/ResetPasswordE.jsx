@@ -111,7 +111,7 @@ export default function ResetPasswordE() {
                 <div className="pmc-eyebrow">All set</div>
                 <h2 style={{ fontSize: "24px", lineHeight: "30px", margin: "6px 0 12px" }}>Password updated</h2>
                 <p className="pmc-muted" style={{ margin: "0 0 20px" }}>Redirecting you to sign in…</p>
-                <Link to="/login" className="pmc-btn pmc-btn--primary" data-testid="reset-go-signin">
+                <Link to={`/login?role=${{ vendor: "supplier", admin: "admin", staff: "staff", partner: "partner" }[meta.portal] || "supplier"}`} className="pmc-btn pmc-btn--primary" data-testid="reset-go-signin">
                   Sign in now
                 </Link>
               </div>

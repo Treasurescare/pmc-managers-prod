@@ -148,7 +148,7 @@ async def send_statements(month: str, force: bool = False) -> dict:
     sent = skipped = failed = 0
     async for a in db.agents.find({"status": "approved"}):
         key = {"partner_id": str(a["_id"]), "month": month}
-        if not force and await db.partner_statements.find_one(key):
+        if not force and await db.partner_statements.find_one({**key, "email_ok": True}):
             skipped += 1
             continue
         try:
@@ -216,12 +216,12 @@ async def public_highlights():
         if b:
             start, end = _range(month)
             rows = {r["id"]: r for r in await _board(start, end)}
+            order = ["top_partner", "most_invites", "rising_star"]
             items = []
-            for key in ("top_partner", "most_invites", "rising_star"):
-                for pid, ks in b.items():
-                    if key in ks and pid in rows:
-                        r = rows[pid]
-                        items.append({"badge": key, "label": BADGES[key], "partner": r["name"] if names else r["code"],
-                                      "approved": r["approved"], "invites": r["invites"]})
+            for pid, ks in sorted(b.items(), key=lambda kv: min(order.index(k) for k in kv[1])):
+                if pid in rows:
+                    r, ks = rows[pid], sorted(ks, key=order.index)
+                    items.append({"badge": ks[0], "label": " · ".join(BADGES[k] for k in ks), "badges": ks,
+                                  "partner": r["name"] if names else r["code"], "approved": r["approved"], "invites": r["invites"]})
             return {"month": month, "live": live, "items": items[:6]}
     return {"month": _this_month(), "live": True, "items": []}

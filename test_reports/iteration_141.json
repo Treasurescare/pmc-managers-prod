@@ -1,0 +1,39 @@
+{
+  "summary": "v69 tested end-to-end (backend + UI). Unified /login with next and role preselect, legacy login redirects, escrow keepIf, partner forgot/reset (API + UI), partner statements (partner/admin PDF, bad month 422, admin send/resend, cron auth and idempotency), badges, public highlights (codes vs names, homepage section hidden when empty), partner Leaderboard tab, and admin leaderboard/statement controls all PASS. Regression v67 (33) and v68 (11) PASS when run serially. No functional bugs found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "send_statements (partner_statements.py)", "issue": "When an email fails, the row is still upserted (email_ok=false), so later non-resend runs (cron on the 1st, or a retry) skip it. Failed sends are never retried automatically. Skip only rows with email_ok=true."},
+      {"endpoint": "POST /api/v1/admin/partners/statements/send + cron", "issue": "Sends to every approved partner, including those with zero activity that month. Confirm this is intended."},
+      {"endpoint": "badges_for / public highlights", "issue": "One partner can hold all 3 badges, so the homepage shows 3 cards for the same partner code (seen in UI). Consider merging badges per partner."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/login?role=partner", "issues": ["With Partner selected, the email/password inputs and the Continue button are wider (~1393px right edge) than the role cards (~1355px), so the form looks misaligned."]},
+      {"screen": "Partner Leaderboard tab + admin leaderboard", "issues": ["statement-month and admin-statement-month use the browser's native <input type=month> instead of a shadcn-styled picker.", "Badge chips in partner-badges have no gap between them."]},
+      {"screen": "/reset-password done panel", "issues": ["reset-go-signin links to /login without ?role=<portal>. The auto-redirect does keep the role."]},
+      {"screen": "Statement download (agentApi.openStatement)", "issues": ["window.open is called after an await (blob fetch), so it is no longer a direct user gesture. Safari and iOS popup blockers may block it. Consider a download anchor, or opening the window first and then setting its location."]},
+      {"screen": "/login with next=/partner/...", "issues": ["nextRole maps /partner paths to 'supplier'. Add /partner -> 'partner' so partner email deep links preselect Partner."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v69_partner_statements_login.py", "/app/backend/tests/seed_v69_ui.py", "/app/test_reports/pytest/pytest_v69.xml"],
+  "action_items": [
+    "Optional: in send_statements, retry rows where email_ok=false (only skip when email_ok is true).",
+    "Optional: fix the partner-role form width on /login, add /partner to the nextRole mapping, add role to the reset-go-signin link, and make the PDF open popup-safe."
+  ],
+  "critical_code_review_comments": [
+    "Cron endpoint: Bearer check uses hmac.compare_digest, acks 2xx and runs the work in the background. Correct.",
+    "Badges/highlights call _board and run one find_one per partner on every public request. Fine at the current scale; cache the result if the number of partners grows.",
+    "Do not run v67, v68 and v69 together under xdist (pytest.ini adds -n --dist loadscope). The modules share global state (commission settings, reg:* rate-limit cleanup, statement sends to all approved partners), so 6 v68 tests failed in a combined parallel run. All pass when each file runs with -n 0. Not a product bug."
+  ],
+  "updated_files": ["/app/backend/tests/test_v69_partner_statements_login.py", "/app/backend/tests/seed_v69_ui.py"],
+  "success_rate": {"backend": "100% (14/14 v69 + 44/44 regression, serial)", "frontend": "100% of requested flows"},
+  "test_credentials": "Admin adminsupport@pmcmanagers.com / Admin@12345 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Temporary test_partner_*/test_sup_* @example.com data was created and fully cleaned up: agents, registrations, vendors, commissions, partner_statements, cron_runs test-cron-*, reg:* attempts. The leaderboard setting was restored (absent). vendor_seq was reset to 0 and the partner_code counter removed, since no agents remain. The 3 orphan partner_statements rows left by the parallel run were deleted.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run v69 with: cd /app/backend && python -m pytest tests/test_v69_partner_statements_login.py -n 0. For UI seeding: python tests/seed_v69_ui.py seed (prints RID; partner password PartnerPw@123), then python tests/seed_v69_ui.py clean <RID>. Partner tab testids: partner-tab-suppliers|wallet|leaderboard. Admin partner row: admin-agent-row-{id}. The browser tool may load page_url twice, which can consume one-time reset tokens; navigate with page.goto inside the script instead."
+}

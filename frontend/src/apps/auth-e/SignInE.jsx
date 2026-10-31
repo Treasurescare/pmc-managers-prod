@@ -17,7 +17,7 @@ export default function SignInE({ legacy: Legacy }) {
   const [params] = useSearchParams();
   const rawNext = params.get("next") || "";
   const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "";
-  const nextRole = next.startsWith("/admin") ? "admin" : next.startsWith("/staff") ? "staff" : next.startsWith("/vendor") ? "supplier" : next.startsWith("/escrow") ? "escrow" : "supplier";
+  const nextRole = next.startsWith("/admin") ? "admin" : next.startsWith("/staff") ? "staff" : next.startsWith("/vendor") ? "supplier" : next.startsWith("/escrow") ? "escrow" : next.startsWith("/partner") ? "partner" : "supplier";
   const qRole = params.get("role");
   const [role, setRole] = useState(["supplier", "staff", "admin", "escrow", "partner"].includes(qRole) ? qRole : nextRole); // supplier | staff | admin
   const [email, setEmail] = useState("");

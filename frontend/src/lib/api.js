@@ -559,8 +559,12 @@ export const agentApi = {
   badges: () => api.get("/api/v1/agents/me/badges").then((r) => r.data),
   sendStatements: (month, resend = false) => api.post("/api/v1/admin/partners/statements/send", { month, resend }).then((r) => r.data),
   openStatement: async (url) => {
-    const r = await api.get(url, { responseType: "blob" });
-    window.open(URL.createObjectURL(new Blob([r.data], { type: "application/pdf" })), "_blank");
+    const w = window.open("", "_blank");
+    try {
+      const r = await api.get(url, { responseType: "blob" });
+      const href = URL.createObjectURL(new Blob([r.data], { type: "application/pdf" }));
+      if (w) w.location.href = href; else window.location.href = href;
+    } catch (e) { if (w) w.close(); throw e; }
   },
   highlights: () => api.get("/api/v1/public/partner-highlights").then((r) => r.data),
   commissionSettings: () => api.get("/api/v1/admin/partner-commission/settings").then((r) => r.data),

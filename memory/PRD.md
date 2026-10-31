@@ -949,3 +949,15 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - Leaderboard (partner tab + admin card): approved this month (credited to approving partner) then invites (credited to inviter);
   admin toggle show names (default codes only).
 
+
+## R32 — Login return-path fix, legacy logins retired, partner password reset, partner statements + badges — 2026-10-31 — build v58p (agent-tested iteration_141; v69 14/14)
+- /login honours ?next= (preselects role from path incl. /partner, shows notice, returns there after sign-in) and ?role=. /admin/login,
+  /vendor/login, /staff/login, /escrow/login (without token/claim/reset) redirect to /login?role=…. Admin partner-review email explains sign-in.
+- Forgot/reset password supports Partner portal (db.agents, bumps token_generation); reset returns to /login?role=<portal>.
+- routers/partner_statements.py: statement PDF (suppliers, invites, commission earned, payouts, still due, badges) — partner
+  /api/v1/agents/me/statement.pdf?month=, admin /api/v1/admin/agents/{aid}/statement.pdf, admin "Email statements now",
+  cron 0 7 1 * * POST /api/v1/cron/partner-monthly-statements (db.partner_statements; retries rows whose email failed).
+  NOTE: crons.yml runs only on Emergent hosting — on AWS EB schedule the endpoint via EventBridge/cron with Bearer WEBHOOK_CRON_SECRET.
+- Badges per month: top_partner, most_invites, rising_star (first approval). Partner portal Leaderboard tab; homepage "Partners of the month"
+  section (last month, else this month so far; codes unless admin shows names; hidden when empty).
+
