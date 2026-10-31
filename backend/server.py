@@ -325,6 +325,8 @@ from routers import agents as _agents  # noqa: E402
 app.include_router(_agents.router)
 from routers import partner_suppliers as _partner_suppliers  # noqa: E402
 app.include_router(_partner_suppliers.router)
+from routers import partner_statements as _partner_statements  # noqa: E402
+app.include_router(_partner_statements.router)
 from routers import google_auth as _google_auth  # noqa: E402
 app.include_router(_google_auth.router)
 from routers import linkedin as _linkedin  # noqa: E402
@@ -792,6 +794,7 @@ async def on_start() -> None:
         await db.opening_records.create_index("code", unique=True)
         await _agents.ensure_indexes()
         await _partner_suppliers.ensure_indexes()
+        await db.partner_statements.create_index([("partner_id", 1), ("month", 1)], unique=True)
     except Exception as exc:
         logging.warning("rfq/rfp starter seed skipped: %s", exc)
     if os.environ.get("SEED_DEMO_DATA", "false").lower() == "true":

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { adminApi, api, staffApi, vendorApi, showApiError, cacheCsrf } from "@/lib/api";
@@ -14,7 +14,12 @@ import LinkedInSignIn from "@/apps/auth-e/LinkedInSignIn";
 export default function SignInE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
   const nav = useNavigate();
-  const [role, setRole] = useState("supplier"); // supplier | staff | admin
+  const [params] = useSearchParams();
+  const rawNext = params.get("next") || "";
+  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "";
+  const nextRole = next.startsWith("/admin") ? "admin" : next.startsWith("/staff") ? "staff" : next.startsWith("/vendor") ? "supplier" : next.startsWith("/escrow") ? "escrow" : "supplier";
+  const qRole = params.get("role");
+  const [role, setRole] = useState(["supplier", "staff", "admin", "escrow", "partner"].includes(qRole) ? qRole : nextRole); // supplier | staff | admin
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -79,7 +84,7 @@ export default function SignInE({ legacy: Legacy }) {
           const vr = await vendorApi.login(email, password);
           toast.success("Signed in · vendor");
           if (vr && vr.must_change_password) return nav("/vendor/change-password");
-          return nav("/vendor");
+          return nav(next.startsWith("/vendor") ? next : "/vendor");
         } catch (err) {
           console.warn("[SignIn] supplier login failed:", err?.response?.data || err?.message);
           toast.error(
@@ -109,8 +114,8 @@ export default function SignInE({ legacy: Legacy }) {
           const isLoginJson = r && typeof r === "object" && !Array.isArray(r);
           if (isLoginJson && r.active_role) {
             toast.success(`Signed in · ${r.active_role}`);
-            if (r.active_role === "admin") return nav("/admin");
-            return nav("/staff");
+            if (r.active_role === "admin") return nav(next.startsWith("/admin") ? next : "/admin");
+            return nav(next.startsWith("/staff") ? next : "/staff");
           }
           if (isLoginJson && r.mfa_required) {
             toast.info("MFA required — use the admin portal for 2FA.");
@@ -130,7 +135,7 @@ export default function SignInE({ legacy: Legacy }) {
         try {
           await adminApi.login(email, password);
           toast.success("Signed in · admin");
-          return nav("/admin");
+          return nav(next.startsWith("/admin") ? next : "/admin");
         } catch (err) {
           lastErr = err;
           // fall through to the generic error below
@@ -219,6 +224,11 @@ export default function SignInE({ legacy: Legacy }) {
         <section style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr)", placeItems: "center", padding: "48px" }}>
           <form onSubmit={submit} style={{ width: "440px", maxWidth: "100%" }} data-testid="signin-e-form">
             <h2 style={{ fontSize: "28px", lineHeight: "34px", margin: "0 0 6px" }}>Sign in</h2>
+            {next && (
+              <div data-testid="signin-next-notice" style={{ background: "#FFF8E6", border: "1px solid #E8C873", padding: "10px 12px", fontSize: "13px", margin: "8px 0 12px" }}>
+                The page you opened{next.startsWith("/admin") ? " (from a PMC admin email)" : ""} is private. Sign in{nextRole === "admin" ? " as Administrator" : ""} with your email and password and we'll take you straight there.
+              </div>
+            )}
             <p className="pmc-muted" style={{ margin: "0 0 24px" }}>
               {role === "partner" ? (
                 <>New partner? <Link to="/partner/register" data-testid="signin-register-link">Apply to become a PMC partner</Link></>

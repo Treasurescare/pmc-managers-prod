@@ -62,7 +62,7 @@ export function AgentLogin() {
         <label className="block text-sm">Password<input type="password" className={inp} required value={pw} onChange={(e) => setPw(e.target.value)} data-testid="agent-login-password" /></label>
         <button className="pmc-btn pmc-btn--primary w-full" disabled={busy} data-testid="agent-login-submit">{busy ? "Signing in…" : "Sign in"}</button>
       </form>
-      <p className="text-xs text-brand-navy/60">New partner? <Link to="/partner/register" className="underline" data-testid="agent-login-register">Apply here</Link> · <Link to="/" className="underline">Back to PMC Managers</Link></p>
+      <p className="text-xs text-brand-navy/60"><Link to="/forgot-password?portal=partner" className="underline" data-testid="agent-login-forgot">Forgot password?</Link> · New partner? <Link to="/partner/register" className="underline" data-testid="agent-login-register">Apply here</Link> · <Link to="/" className="underline">Back to PMC Managers</Link></p>
     </Shell>
   );
 }

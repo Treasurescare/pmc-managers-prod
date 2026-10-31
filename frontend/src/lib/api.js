@@ -556,6 +556,13 @@ export const agentApi = {
   leaderboard: () => api.get("/api/v1/agents/me/leaderboard").then((r) => r.data),
   adminLeaderboard: () => api.get("/api/v1/admin/partners/leaderboard").then((r) => r.data),
   setLeaderboard: (show_names) => api.put("/api/v1/admin/partners/leaderboard", { show_names }).then((r) => r.data),
+  badges: () => api.get("/api/v1/agents/me/badges").then((r) => r.data),
+  sendStatements: (month, resend = false) => api.post("/api/v1/admin/partners/statements/send", { month, resend }).then((r) => r.data),
+  openStatement: async (url) => {
+    const r = await api.get(url, { responseType: "blob" });
+    window.open(URL.createObjectURL(new Blob([r.data], { type: "application/pdf" })), "_blank");
+  },
+  highlights: () => api.get("/api/v1/public/partner-highlights").then((r) => r.data),
   commissionSettings: () => api.get("/api/v1/admin/partner-commission/settings").then((r) => r.data),
   saveCommissionSettings: (p) => api.put("/api/v1/admin/partner-commission/settings", p).then((r) => r.data),
   setPartnerRule: (id, rule) => api.put(`/api/v1/admin/agents/${id}/commission`, { rule }).then((r) => r.data),

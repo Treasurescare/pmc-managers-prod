@@ -26,11 +26,9 @@ import RegistrationResume from "@/apps/registration-portal/RegistrationResume";
 import RegistrationStatus from "@/apps/registration-portal/RegistrationStatus";
 
 // App 2 — Admin Console
-import AdminLogin from "@/apps/admin-console/AdminLogin";
 import AdminDashboard from "@/apps/admin-console/AdminDashboard";
 
 // Wave 1 — Vendor Portal
-import VendorLogin from "@/apps/vendor-portal/VendorLogin";
 import VendorChangePassword from "@/apps/vendor-portal/VendorChangePassword";
 import VendorCategories from "@/apps/vendor-portal/VendorCategories";
 import VendorDashboard from "@/apps/vendor-portal/VendorDashboard";
@@ -41,7 +39,6 @@ import SandboxCheckout from "@/apps/vendor-portal/SandboxCheckout";
 import VendorVerifyEmail from "@/apps/vendor-portal/VendorVerifyEmail";
 
 // Wave 1 — Staff Portal (multi-role: Escrow/Certifier/Legal/Accounting/Committee)
-import StaffLogin from "@/apps/staff-portal/StaffLogin";
 import StaffDashboard from "@/apps/staff-portal/StaffDashboard";
 
 // Wave 9 — External Committee Invite
@@ -113,6 +110,7 @@ import AdminAgentsE from "@/apps/admin-console-e/AdminAgentsE";
 import AgentPortal from "@/apps/agent-portal/AgentPortal";
 import { AgentJoin, AgentLogin, PartnerRegister } from "@/apps/agent-portal/AgentAuth";
 import SupplierInvite from "@/apps/agent-portal/SupplierInvite";
+import LegacyLoginRedirect from "@/apps/auth-e/LegacyLoginRedirect";
 import GoogleAuthCallback from "@/apps/auth-e/GoogleAuthCallback";
 import ChatWidget from "@/components/ChatWidget";
 import PayComplete from "@/apps/PayComplete";
@@ -255,7 +253,7 @@ export default function App() {
             <Route path="/register/resume" element={<RegistrationResume />} />
             <Route path="/register/status" element={<RegistrationStatus />} />
 
-            <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="/admin/login" element={<LegacyLoginRedirect role="admin" />} />
             {/* Onboarding-agent portal: public / agent-cookie routes, must sit OUTSIDE RequireAdmin. */}
             <Route path="/agent/join/:token" element={<AgentJoin />} />
             <Route path="/agent/login" element={<AgentLogin />} />
@@ -316,7 +314,7 @@ export default function App() {
             </Route>
 
             {/* Vendor Portal */}
-            <Route path="/vendor/login" element={<VendorLogin />} />
+            <Route path="/vendor/login" element={<LegacyLoginRedirect role="supplier" />} />
             <Route path="/vendor/change-password" element={<RequireVendor><VendorChangePassword /></RequireVendor>} />
             <Route path="/vendor" element={<RequireVendor><VendorHomeE legacy={VendorDashboard} /></RequireVendor>} />
             <Route path="/vendor/categories" element={<RequireVendor><VendorCategories /></RequireVendor>} />
@@ -342,7 +340,7 @@ export default function App() {
             <Route path="/vendor/auction/invite/:token" element={<AuctionInviteAccept />} />
 
             {/* Staff Portal */}
-            <Route path="/staff/login" element={<StaffLogin />} />
+            <Route path="/staff/login" element={<LegacyLoginRedirect role="staff" />} />
             <Route path="/staff" element={<StaffDashboard />} />
 
             {/* External Committee accept/decline */}
@@ -380,7 +378,7 @@ export default function App() {
             <Route path="/escrow/resume/:token" element={<EscrowInstitutionResume />} />
             <Route path="/escrow/dashboard/:iid" element={<EscrowInstitutionDashboardPage />} />
             {/* v51an — signatory password login + authed dashboard */}
-            <Route path="/escrow/login" element={<EscrowSignatoryLogin />} />
+            <Route path="/escrow/login" element={<LegacyLoginRedirect role="escrow" keepIf={["token", "claim", "reset"]}><EscrowSignatoryLogin /></LegacyLoginRedirect>} />
             <Route path="/escrow/me" element={<EscrowMePage />} />
 
             {/* Live public roadmap */}

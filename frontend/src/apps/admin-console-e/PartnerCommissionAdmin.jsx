@@ -20,6 +20,7 @@ const num = (r) => ({ ...r, onboarding_amount: Number(r.onboarding_amount || 0),
 export const AdminLeaderboardCard = () => {
   const [b, setB] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [month, setMonth] = useState(() => { const d = new Date(); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() - 1); return d.toISOString().slice(0, 7); });
   const load = () => agentApi.adminLeaderboard().then(setB).catch(showApiError);
   useEffect(() => { load(); }, []);
   if (!b) return null;
@@ -29,6 +30,9 @@ export const AdminLeaderboardCard = () => {
       <summary className="font-semibold cursor-pointer">Partner leaderboard · {b.month}</summary>
       <label className="flex items-center gap-2 text-sm my-3"><input type="checkbox" checked={b.show_names} disabled={saving} onChange={(e) => toggle(e.target.checked)} data-testid="leaderboard-show-names" />Show partner names to other partners (otherwise partner codes only)</label>
       <BoardTable rows={b.rows} showId />
+      <div className="flex gap-2 items-center flex-wrap text-sm mt-3" data-testid="admin-statements">Monthly statements (emailed automatically on the 1st)
+        <input type="month" className="px-2 py-1 border" value={month} onChange={(e) => setMonth(e.target.value)} data-testid="admin-statement-month" />
+        <button type="button" className="pmc-btn pmc-btn--secondary" onClick={() => agentApi.sendStatements(month, true).then(() => toast.success(`Statements for ${month} are being emailed`)).catch(showApiError)} data-testid="admin-statements-send">Email statements now</button></div>
     </details>
   );
 };
@@ -114,6 +118,7 @@ export const PartnerWalletAdmin = ({ id, partners = [] }) => {
       {ov ? <><RuleFields r={ov} setR={setOv} prefix="ov" /><div className="flex gap-2"><button className="pmc-btn pmc-btn--primary" onClick={() => saveOv(ov)} data-testid="ov-save">Save for this partner</button><button className="pmc-btn pmc-btn--secondary" onClick={() => saveOv(null)} data-testid="ov-clear">Use default</button></div></>
         : <button className="pmc-btn pmc-btn--secondary" onClick={() => setOv({ ...EMPTY, ...w.rule })} data-testid="ov-start">Set a special rate for this partner</button>}
       <div className="pmc-label">Wallet</div>
+      <button type="button" className="px-2 py-1 text-xs border" onClick={() => agentApi.openStatement(`/api/v1/admin/agents/${id}/statement.pdf`).catch(showApiError)} data-testid="admin-partner-statement">Last month's statement (PDF)</button>
       <WalletTotals totals={w.totals} />
       <DealForm id={id} suppliers={w.suppliers} onDone={load} />
       <WalletEntries items={w.items} actions={(e) => <Settle e={e} reload={load} />} />

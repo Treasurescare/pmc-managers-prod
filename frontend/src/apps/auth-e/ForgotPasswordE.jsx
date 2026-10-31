@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { authApi, api, showApiError } from "@/lib/api";
 
@@ -7,7 +7,8 @@ import { authApi, api, showApiError } from "@/lib/api";
 // Always confirms request was received (no user enumeration).
 export default function ForgotPasswordE() {
   const [email, setEmail] = useState("");
-  const [portal, setPortal] = useState("vendor");
+  const [qp] = useSearchParams();
+  const [portal, setPortal] = useState(["vendor", "admin", "staff", "escrow", "partner"].includes(qp.get("portal")) ? qp.get("portal") : "vendor");
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
 
@@ -115,6 +116,7 @@ export default function ForgotPasswordE() {
                   <Radio value="staff" label="Administrator" sub="Admin console (Owner, Master Admin, Support)" icon="i-shield" />
                   <Radio value="staff" label="PMC staff" sub="Tender desk, evaluation, escrow, committee" icon="i-briefcase" />
                   <Radio value="escrow" label="Escrow Institution" sub="Banks & trustees · owner accounts and signatories" icon="i-link" />
+                  <Radio value="partner" label="Partner" sub="Partner portal" icon="i-flag" />
                 </div>
 
                 <div className="pmc-field">

@@ -437,7 +437,8 @@ async def agent_submit(request: Request):
     await audit_log("agent.submitted", {"id": str(a["_id"]), "email": a["email"]}, "agent", str(a["_id"]), {})
     async for adm in db.admin_users.find({"role": "admin", "status": {"$ne": "disabled"}}, {"email": 1}).limit(5):
         await send_email(adm["email"], "[PMC] Onboarding agent submitted for review",
-                         wrap("Agent ready for review", f"<p>{a.get('legal_name') or a['name']} ({a['email']}) submitted their agent profile.</p>",
+                         wrap("Partner ready for review", f"<p>{a.get('legal_name') or a['name']} ({a['email']}) submitted their partner profile.</p>"
+                              "<p>The button opens the admin console — sign in as Administrator if asked, and you'll go straight to Partners.</p>",
                               "Review partners", f"{_site()}/admin/e/partners"))
     return {"status": "submitted"}
 

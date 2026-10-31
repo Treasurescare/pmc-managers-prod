@@ -8,6 +8,7 @@ import { HeroTaxonomySearch } from "@/apps/notice-board-e/HeroTaxonomySearch";
 import LiveAuctionsBand from "@/apps/notice-board-e/LiveAuctionsBand";
 import TenderAlertsSignup from "@/apps/notice-board-e/TenderAlertsSignup";
 import PmcSocialLinks from "@/components/PmcSocialLinks";
+import PartnerHighlights from "@/apps/notice-board-e/PartnerHighlights";
 
 export default function HomeE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
@@ -207,6 +208,8 @@ export default function HomeE({ legacy: Legacy }) {
     <div className="pmc-cats"><a href="#" className="pmc-cat"><svg className="pmc-ico" aria-hidden="true"><use href="#i-box" /></svg><div><h3>Modular medical</h3><p>Hospitals, OPD blocks, IVF and cleanroom labs, medical equipment and consumables.</p></div><svg className="pmc-ico pmc-cat__go" aria-hidden="true"><use href="#i-arrow" /></svg></a><a href="#" className="pmc-cat"><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg><div><h3>Education</h3><p>University academic packages, digital learning and campus fit-out.</p></div><svg className="pmc-ico pmc-cat__go" aria-hidden="true"><use href="#i-arrow" /></svg></a><a href="#" className="pmc-cat"><svg className="pmc-ico" aria-hidden="true"><use href="#i-home" /></svg><div><h3>Hostels & residential</h3><p>Student and staff hostels, modular residential blocks.</p></div><svg className="pmc-ico pmc-cat__go" aria-hidden="true"><use href="#i-arrow" /></svg></a><a href="#" className="pmc-cat"><svg className="pmc-ico" aria-hidden="true"><use href="#i-layers" /></svg><div><h3>Utilities & infrastructure</h3><p>Power, water, networks and site infrastructure.</p></div><svg className="pmc-ico pmc-cat__go" aria-hidden="true"><use href="#i-arrow" /></svg></a></div>
   </div>
 </section>
+
+<PartnerHighlights />
 
 <section className="pmc-start">
   <div className="pmc-wrap">

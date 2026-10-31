@@ -565,14 +565,15 @@ def _month_start() -> str:
     return datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
 
 
-async def _board() -> list:
-    start = _month_start()
+async def _board(start: Optional[str] = None, end: Optional[str] = None) -> list:
+    start = start or _month_start()
+    rng = {"$gte": start, **({"$lt": end} if end else {})}
     appr, inv = {}, {}
-    async for r in db.registrations.aggregate([{"$match": {"partner_id": {"$exists": True}, "status": "approved", "reviewed_at": {"$gte": start},
+    async for r in db.registrations.aggregate([{"$match": {"partner_id": {"$exists": True}, "status": "approved", "reviewed_at": rng,
                                                           "partner_access": {"$in": list(LINKED)}}},
                                                {"$group": {"_id": {"$ifNull": ["$approved_partner_id", "$partner_id"]}, "n": {"$sum": 1}}}]):
         appr[r["_id"]] = r["n"]
-    async for r in db.registrations.aggregate([{"$match": {"partner_id": {"$exists": True}, "partner_invited_at": {"$gte": start}}},
+    async for r in db.registrations.aggregate([{"$match": {"partner_id": {"$exists": True}, "partner_invited_at": rng}},
                                                {"$group": {"_id": {"$ifNull": ["$invited_by_partner_id", "$partner_id"]}, "n": {"$sum": 1}}}]):
         inv[r["_id"]] = r["n"]
     rows = [{"id": str(a["_id"]), "code": a.get("partner_code"), "name": a.get("legal_name") or a.get("name"),

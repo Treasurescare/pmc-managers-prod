@@ -78,7 +78,7 @@ def _rate_check(email: str, ip: str) -> Optional[str]:
 
 class RequestIn(BaseModel):
     email: EmailStr
-    portal: str = Field("vendor", pattern="^(vendor|admin|staff)$")
+    portal: str = Field("vendor", pattern="^(vendor|admin|staff|partner)$")
 
 
 class VerifyIn(BaseModel):
@@ -94,11 +94,15 @@ def _collection_for(portal: str):
     # admin + staff share admin_users in this codebase
     if portal == "vendor":
         return db.vendors
+    if portal == "partner":
+        return db.agents
     return db.admin_users
 
 
 async def _find_user(portal: str, email: str) -> Optional[dict]:
     col = _collection_for(portal)
+    if portal == "partner":
+        return await col.find_one({"email": email.lower(), "status": {"$nin": ["invited", "rejected", "suspended"]}})
     return await col.find_one({"email": email.lower()})
 
 
@@ -210,6 +214,7 @@ async def confirm_reset(payload: ConfirmIn):
         {"$set": {"password_hash": hash_password(payload.new_password),
                   "must_change_password": False,
                   "password_changed_at": datetime.now(timezone.utc).isoformat()},
+         **({"$inc": {"token_generation": 1}} if portal == "partner" else {}),
          "$unset": {"pwd_reset_jti": "", "pwd_reset_requested_at": ""}},
     )
     await audit_log("auth.reset_completed", None, "auth", data.get("email"),

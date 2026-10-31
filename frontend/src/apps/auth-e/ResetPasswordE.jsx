@@ -47,7 +47,7 @@ export default function ResetPasswordE() {
       await authApi.confirmPasswordReset(token, pw);
       setStatus("done");
       toast.success("Password updated. You can sign in with your new password.");
-      setTimeout(() => nav("/login"), 1500);
+      setTimeout(() => nav(`/login?role=${{ vendor: "supplier", admin: "admin", staff: "staff", partner: "partner" }[meta.portal] || "supplier"}`), 1500);
     } catch (err) {
       showApiError(err);
     } finally {
