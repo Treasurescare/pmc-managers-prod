@@ -1,0 +1,49 @@
+{
+  "summary": "v67 Partner-led supplier onboarding + Commission Wallet. Backend: new pytest suite test_v67_partner_suppliers.py (33 tests, 32 pass) covers invite/list/403 for non-approved, CSRF, all 4 duplicate cases, before-consent blocks, public consent info/validation/accept/decline, partner edit-link/resume (editor=partner, 404 without cookie or with another partner's cookie), PATCH stripping decl_*/signature_* + partner_fields logging, partner doc upload logging, partner token cannot submit, send-for-review, supplier revoke (token stops working, edit-link 403), commission settings GET/PUT/validation, per-partner override + clear, approval accrues exactly one onboarding commission (not on re-approve, not when revoked), deal commission % and fixed, wrong-partner vendor_ref rejected (422), settle paid/void + second settle 409, admin & partner wallets totals, request-payout 200/409. Only failure: second consent response returns 404 not 409. Frontend (Playwright, 1920x1080): partner login -> /partner/me tabs, invite form + duplicate 409 toast, resend, fill (popup opens resume in partner mode with partner-edit-banner, save logs 1 edit), send-for-review updates stage; public consent page (accept disabled until all ticks+name, accept navigates to resume with partner-supplier-banner); supplier revoke via confirm -> access revoked & button hidden; admin /admin/e/partners commission-settings card save, partner detail wallet: suppliers list, deal form adds 10% commission, mark paid / void via window.prompt, totals update. All passed.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/v1/supplier-invites/{token} (second response)", "issue": "Returns 404 'invitation link is invalid or has expired' instead of 409 'already responded'. Cause: invite_decide sets partner_consent_token=None on accept/decline, so _by_consent_token can't find the reg and the 409 branch is unreachable. Fix: keep token (or store a used flag / partner_consent_used_token) and return 409, or accept 404 and update spec."},
+      {"endpoint": "_dup_check (POST /api/v1/agents/me/suppliers)", "issue": "30-day claim has no practical effect: after another partner's claim expires (or is declined/revoked) the code still falls through to 409 'This supplier has already started a PMC registration' because the reg is still status=draft. A second partner can never take over an expired claim."},
+      {"endpoint": "POST /api/v1/admin/agents/{aid}/commissions", "issue": "Deal commission is accepted for a supplier who REVOKED the partner's access (verified: 200 for revoked supplier vendor_ref). on_supplier_approved correctly skips onboarding for revoked, but deal path only checks partner_id+approved. Decide business rule (probably require partner_access=='granted')."},
+      {"endpoint": "POST /api/v1/admin/partner-commissions/{cid}", "issue": "Concurrent double-settle race: update_one filters status=due but modified_count is not checked, so two parallel requests could both return 200 and send two 'paid' emails. Check result.modified_count and 409 if 0."},
+      {"endpoint": "Wrong-partner vendor_ref on deal commission", "issue": "Returns 422 (spec text said 'rejects' — fine, just noting status is 422 not 400/409)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PartnerSuppliers Row resend", "issue": "Resend uses run() which always calls toast.success, so 'Email did not send' appears as a green success toast. Use toast.warning/error when email_sent=false.", "selector": "[data-testid^='ps-resend-']", "priority": "LOW"},
+      {"component": "RegistrationResume SectionE in partner mode", "issue": "Declaration checkboxes and signature fields are still shown/editable to the partner (SectionE has no editor==='partner' handling). Backend silently strips them, so the partner thinks they ticked/signed. Hide or disable decl_*/signature_* inputs when reg.editor==='partner' (verified by code; could not reach Section E in UI due to Section A format gate with seeded test data).", "selector": "[data-testid^='f-decl_']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Partner clicks Fill form", "issue": "Row stage label stays 'Ready to fill' after clicking Fill form until page reload (open() does not call reload()). Cosmetic.", "affected_selectors": ["[data-testid^='ps-stage-']"]}
+    ],
+    "design_issues": [
+      {"screen": "Partner suppliers list", "issues": ["'1 edits logged' — pluralisation"]},
+      {"screen": "Registration resume Section A", "issues": ["Incorporation date uses native browser date picker (mm/dd/yyyy) rather than shadcn calendar (pre-existing)"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v67_partner_suppliers.py", "/app/backend/tests/seed_v67_ui.py", "/app/test_reports/pytest/pytest_v67.xml"],
+  "action_items": [
+    "Make second consent response return 409 (don't null partner_consent_token, or track used token) — or align spec",
+    "Hide/disable declarations + signature inputs in RegistrationResume Section E when editor==='partner'",
+    "Decide whether deal commissions are allowed for suppliers who revoked partner access; enforce in add_deal_commission",
+    "Fix claim-expiry logic in _dup_check so an expired/declined/revoked claim can be taken over (or document as permanent)",
+    "Check modified_count in settle_commission to prevent double settle race",
+    "Resend toast: show warning when email_sent=false"
+  ],
+  "critical_code_review_comments": [
+    "resolve_reg_token correctly ties partner_edit_token to partner cookie + partner_id + approved status; _out strips magic_token so partner never sees supplier's token — good.",
+    "update_draft public PATCH has no CSRF check but requires the partner_edit_token in the query, so cross-site forgery is not feasible; OK.",
+    "Partner can still overwrite document_slots dict via PATCH (pre-existing model allows it) — partner could point slots at arbitrary upload keys; consider stripping document_slots for editor=partner (uploads go via dedicated endpoint).",
+    "Test cleanup note: approvals increment counters.vendor_seq and partner_code; the new test restores vendor_seq and drops partner_code counter when no agents remain."
+  ],
+  "updated_files": ["/app/backend/tests/test_v67_partner_suppliers.py", "/app/backend/tests/seed_v67_ui.py"],
+  "success_rate": {"backend": "97% (32/33)", "frontend": "100% of tested flows"},
+  "test_credentials": "Admin adminsupport@pmcmanagers.com / Admin@12345 (from /app/memory/test_credentials.md). Test partners created on the fly with password PartnerPw@123.",
+  "seed_data_creation": "seed_v67_ui.py creates an approved TEST partner (test_partner_a_uiseed@example.com / PartnerPw@123) + one supplier invite; `python tests/seed_v67_ui.py cleanup` removes it. All test data cleaned up; partner_commission_settings default (was absent) restored to absent; vendor_seq restored to 0.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run `cd /app/backend && python -m pytest tests/test_v67_partner_suppliers.py -q`. Partner login API is /api/v1/agents/auth/login. In Playwright wait ~1.5s after login form appears before filling (hydration). Section E of resume is gated by Section A format checks (registration_number format per country) — set valid data if you need to reach it. Emails to @example.com fail at Resend (422) which is expected.",
+  "rca of the issue": "Second consent 409: invite_decide nulls partner_consent_token on both accept and decline; subsequent lookup by token returns None -> _by_consent_token raises 404 before the partner_access!='awaiting_consent' 409 check."
+}

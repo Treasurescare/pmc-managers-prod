@@ -13,6 +13,13 @@ const DECL_KEYS = [
 export default function SectionE({ reg, update }) {
   const { t } = useI18n();
   const missing = DECL_KEYS.filter((k) => !reg[k]).length;
+  if (reg.editor === "partner") {
+    return (
+      <div className="bg-amber-50 border border-amber-300 p-4 text-sm" data-testid="section-e-partner-locked">
+        Declarations and signature can only be completed by the supplier. Use <b>Send to supplier for review</b> in your partner portal when the other sections are done.
+      </div>
+    );
+  }
   return (
     <div className="grid gap-5" data-testid="section-e">
       <div>

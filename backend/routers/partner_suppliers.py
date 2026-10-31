@@ -83,7 +83,7 @@ async def resolve_reg_token(token: str, request: Request, extra: Optional[dict] 
 
 
 def strip_partner_fields(updates: dict) -> dict:
-    return {k: v for k, v in updates.items() if not k.startswith(PARTNER_BLOCKED_PREFIXES)}
+    return {k: v for k, v in updates.items() if not k.startswith(PARTNER_BLOCKED_PREFIXES) and k != "document_slots"}
 
 
 async def record_partner_edit(reg: dict, fields: list) -> None:
@@ -133,6 +133,11 @@ async def _dup_check(email: str, company: str, partner_id: str) -> None:
         raise HTTPException(status_code=409, detail="You have already invited this supplier — use Resend in your list")
     if reg.get("partner_id") and reg.get("partner_access") not in ("declined", "revoked") and reg.get("partner_claim_expires_at", "") > now_iso():
         raise HTTPException(status_code=409, detail="Another partner is already working with this supplier. Contact PMC if you think this is wrong.")
+    if reg.get("partner_id") and reg.get("status") == "draft" and reg.get("partner_access") in ("awaiting_consent", "declined", "revoked"):
+        await db.registrations.update_one({"_id": reg["_id"]}, {"$set": {"status": "withdrawn", "partner_stage": "claim_released",
+                                                                          "partner_consent_token": None, "partner_edit_token": None}})
+        await audit_log("partner.claim_released", None, "registration", str(reg["_id"]), {"new_partner_id": partner_id})
+        return
     raise HTTPException(status_code=409, detail="This supplier has already started a PMC registration. Contact PMC to be linked to it.")
 
 
@@ -217,7 +222,9 @@ class ConsentIn(BaseModel):
 
 
 async def _by_consent_token(token: str) -> dict:
-    reg = await db.registrations.find_one({"partner_consent_token": token})
+    reg = await db.registrations.find_one({"$or": [{"partner_consent_token": token}, {"partner_consent_used_token": token}]})
+    if reg and reg.get("partner_consent_used_token") == token:
+        raise HTTPException(status_code=409, detail="You have already responded to this invitation")
     if not reg or reg.get("partner_consent_expires_at", "") < now_iso():
         raise HTTPException(status_code=404, detail="This invitation link is invalid or has expired. Ask the partner to resend it.")
     return reg
@@ -239,7 +246,8 @@ async def invite_decide(token: str, body: ConsentIn, request: Request):
     ip = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip() or None
     if body.decision == "decline":
         await db.registrations.update_one({"_id": reg["_id"]}, {"$set": {"partner_access": "declined", "partner_stage": "declined",
-                                                                          "status": "withdrawn", "partner_consent_token": None}})
+                                                                          "status": "withdrawn", "partner_consent_token": None,
+                                                                          "partner_consent_used_token": token}})
         await audit_log("supplier.partner_declined", None, "registration", str(reg["_id"]), {"ip": ip})
         await _notify_partner(reg, "declined your invitation")
         return {"partner_access": "declined"}
@@ -249,7 +257,7 @@ async def invite_decide(token: str, body: ConsentIn, request: Request):
                "at": now_iso(), "ip": ip, "user_agent": (request.headers.get("user-agent") or "")[:200]}
     await db.registrations.update_one({"_id": reg["_id"]}, {"$set": {
         "partner_access": "granted", "partner_stage": "consented", "partner_consent": consent, "email_verified_at": now_iso(),
-        "data_processing_consent": True, "consent_at": now_iso(), "partner_consent_token": None}})
+        "data_processing_consent": True, "consent_at": now_iso(), "partner_consent_token": None, "partner_consent_used_token": token}})
     await audit_log("supplier.partner_consent", None, "registration", str(reg["_id"]),
                     {"signer_name": consent["signer_name"], "version": CONSENT_VERSION, "ip": ip})
     await _notify_partner(reg, "gave consent — you can now fill their registration")
@@ -363,7 +371,7 @@ async def add_deal_commission(aid: str, body: DealIn, admin=ADMIN):
     a = await db.agents.find_one({"_id": _oid(aid)})
     if not a:
         raise HTTPException(status_code=404, detail="Partner not found")
-    reg = await db.registrations.find_one({"partner_id": aid, "vendor_ref": body.vendor_ref.strip(), "status": "approved"})
+    reg = await db.registrations.find_one({"partner_id": aid, "vendor_ref": body.vendor_ref.strip(), "status": "approved", "partner_access": "granted"})
     if not reg:
         raise HTTPException(status_code=422, detail="That supplier reference is not an approved supplier onboarded by this partner")
     rule = await _rule_for(a)
@@ -396,7 +404,9 @@ async def settle_commission(cid: str, body: SettleIn, admin=ADMIN):
         raise HTTPException(status_code=409, detail=f"This commission is already {e['status']}")
     upd = {"status": body.action, "settled_at": now_iso(), "settled_by": admin.get("email"), "reference": body.reference.strip(),
            **({"paid_on": body.paid_on or now_iso()[:10]} if body.action == "paid" else {})}
-    await db.partner_commissions.update_one({"_id": e["_id"], "status": "due"}, {"$set": upd})
+    res = await db.partner_commissions.update_one({"_id": e["_id"], "status": "due"}, {"$set": upd})
+    if not res.modified_count:
+        raise HTTPException(status_code=409, detail="This commission was already settled")
     await audit_log(f"partner.commission_{body.action}", admin, "agent", e["partner_id"], {"commission_id": cid, "reference": upd["reference"]})
     if body.action == "paid":
         a = await db.agents.find_one({"_id": ObjectId(e["partner_id"])}, {"email": 1})

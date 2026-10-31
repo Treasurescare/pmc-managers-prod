@@ -924,3 +924,16 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 
 - LinkedIn "Feature not available — not enough connections": LinkedIn account-age/connections restriction on new profiles (user-side).
 
+
+## R30 — Partner-led supplier onboarding + Commission wallet — 2026-10-31 — build v58n (agent-tested iteration_139: 32/33 → all fixed; v66 suite 16/16 standalone)
+- routers/partner_suppliers.py: approved partner invites supplier (company, email, mobile) → registration draft with partner_id/code, 30-day claim,
+  duplicate checks (vendor email / company name / own invite / other partner claim / self-started). Unconsented expired/declined/revoked claims
+  released to a new partner. Consent page /supplier-invite/:token (6 consents, typed name, IP) = email verification; decline → withdrawn; 2nd reply 409.
+- Partner fills via /register/resume?token=<partner_edit_token>&from=partner (valid only with that partner's cookie). decl_*, signature_*,
+  document_slots stripped from partner PATCH; every edit logged. Section E locked for partner; partner cannot submit. Send-for-review emails
+  supplier. Supplier banner lists partner-filled fields + "Remove partner access".
+- Commission: default rule (currency, onboarding fixed, deal fixed or %) + per-partner override; onboarding auto-accrues on approval (access granted);
+  admin adds deal commissions; mark paid (reference, emails partner) / void, race-safe; partner wallet + Request payout. NO payout gateway.
+- Sign-in: Partner role → "Register as a partner" → /partner/register; Google button hidden for partner.
+- NEXT: supplier mobile OTP (needs SMS/WhatsApp provider); admin reassign for disputed claims; WhatsApp/LinkedIn/Stripe live checks still pending.
+

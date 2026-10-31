@@ -30,16 +30,17 @@ const InviteForm = ({ onDone }) => {
 };
 
 const Row = ({ r, reload }) => {
-  const run = (fn, ok) => fn().then((x) => { toast.success(typeof ok === "function" ? ok(x) : ok); reload(); }).catch(showApiError);
-  const open = () => agentApi.supplierEditLink(r.id).then((x) => window.open(x.path, "_blank")).catch(showApiError);
+  const run = (fn, ok) => fn().then(() => { toast.success(ok); reload(); }).catch(showApiError);
+  const resend = () => agentApi.resendSupplier(r.id).then((x) => (x.email_sent ? toast.success("Invitation resent") : toast.warning("Invitation email did not send"))).catch(showApiError);
+  const open = () => agentApi.supplierEditLink(r.id).then((x) => { window.open(x.path, "_blank"); reload(); }).catch(showApiError);
   const editable = r.partner_access === "granted" && ["draft", "needs_clarification"].includes(r.status);
   return (
     <div className="p-3 flex justify-between gap-3 flex-wrap items-center" data-testid={`ps-row-${r.id}`}>
       <div><div className="font-semibold text-sm">{r.company_name}</div>
         <div className="text-xs text-brand-navy/60">{r.email} · {r.mobile}{r.vendor_ref ? ` · ${r.vendor_ref}` : ""}</div>
-        <div className="text-xs mt-1"><span data-testid={`ps-access-${r.id}`}>{ACCESS[r.partner_access] || r.partner_access}</span> · <b data-testid={`ps-stage-${r.id}`}>{r.status === "approved" ? "Approved by PMC" : r.status === "rejected" ? "Rejected by PMC" : STAGE[r.partner_stage] || r.partner_stage}</b>{r.edits ? ` · ${r.edits} edits logged` : ""}</div></div>
+        <div className="text-xs mt-1"><span data-testid={`ps-access-${r.id}`}>{ACCESS[r.partner_access] || r.partner_access}</span> · <b data-testid={`ps-stage-${r.id}`}>{r.status === "approved" ? "Approved by PMC" : r.status === "rejected" ? "Rejected by PMC" : STAGE[r.partner_stage] || r.partner_stage}</b>{r.edits ? ` · ${r.edits} edit${r.edits === 1 ? "" : "s"} logged` : ""}</div></div>
       <div className="flex gap-2 flex-wrap">
-        {r.partner_access === "awaiting_consent" && <button className="pmc-btn pmc-btn--secondary" onClick={() => run(() => agentApi.resendSupplier(r.id), (x) => (x.email_sent ? "Invitation resent" : "Email did not send"))} data-testid={`ps-resend-${r.id}`}>Resend</button>}
+        {r.partner_access === "awaiting_consent" && <button className="pmc-btn pmc-btn--secondary" onClick={resend} data-testid={`ps-resend-${r.id}`}>Resend</button>}
         {editable && <button className="pmc-btn pmc-btn--secondary" onClick={open} data-testid={`ps-fill-${r.id}`}>Fill form</button>}
         {editable && <button className="pmc-btn pmc-btn--primary" onClick={() => run(() => agentApi.sendForReview(r.id), "Sent to the supplier for review")} data-testid={`ps-review-${r.id}`}>Send to supplier for review</button>}
       </div>
