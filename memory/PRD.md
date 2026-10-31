@@ -979,3 +979,8 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
   partner_source link, invited_by_partner_id. GET /api/v1/public/partner/{code}. Partner portal "Your personal sign-up link" (copy / WhatsApp).
 - Known: inputs typed in the first ~1s on preview can be wiped (seen in preview dev server; not reproduced as code cause) — verify on production.
 
+
+## R35 — Email health check — 2026-10-31 — build v58s (self-tested: curl + admin UI screenshot)
+- routers/email_health.py: GET /api/v1/admin/email/health (key set, key accepted, sender, Resend domain status; send-only keys handled),
+  POST /api/v1/admin/email/test {to} → real send, returns provider reason on failure. UI card under Admin → Marketing → Website links.
+

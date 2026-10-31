@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { siteApi, showApiError } from "@/lib/api";
 import { resetSocialLinksCache } from "@/components/PmcSocialLinks";
+import EmailHealthCard from "./EmailHealthCard";
 
 const inp = "px-3 py-2 border border-brand-navy/20 bg-white text-sm w-full";
 const FIELDS = [["linkedin", "LinkedIn link", "https://www.linkedin.com/company/…", "url"], ["facebook", "Facebook link", "https://www.facebook.com/…", "url"],
@@ -19,6 +20,7 @@ export const WebsiteLinksTab = () => {
   };
   if (!f) return null;
   return (
+    <div className="space-y-4 max-w-xl">
     <form onSubmit={save} className="border border-brand-navy/20 bg-white p-4 space-y-4 max-w-xl" data-testid="mkt-website-links">
       <div className="pmc-label">Social links in the website footer</div>
       {FIELDS.map(([k, label, ph, type]) => (
@@ -30,5 +32,7 @@ export const WebsiteLinksTab = () => {
       <button className="pmc-btn pmc-btn--primary" disabled={busy} data-testid="site-social-save">{busy ? "Saving…" : "Save links"}</button>
       <div className="text-xs text-brand-navy/60">Links must start with https://. For WhatsApp enter the number only — the footer button opens a chat with it. Leave a box empty to hide that icon.</div>
     </form>
+    <EmailHealthCard />
+    </div>
   );
 };
