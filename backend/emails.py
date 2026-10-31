@@ -3,6 +3,12 @@ import httpx
 from typing import Optional
 import config
 
+LAST_ERROR: dict = {}
+
+
+def last_error(to_email: str) -> str:
+    return LAST_ERROR.get((to_email or "").lower(), "")
+
 
 def _wrap(title: str, body_html: str, cta_label: Optional[str] = None, cta_url: Optional[str] = None) -> str:
     # PMC v50 — Option E email chrome (forest green + brass, cream background).
@@ -75,15 +81,19 @@ async def send_email(to_email: str, subject: str, html: str,
                                  json=payload)
             if r.status_code >= 400:
                 logging.error(f"Resend failed {r.status_code}: {r.text}")
+                LAST_ERROR[(to_email or "").lower()] = f"Email provider said ({r.status_code}): {r.text[:300]}"
                 return False
+            LAST_ERROR.pop((to_email or "").lower(), None)
             return True
         except Exception as e:
             logging.exception(f"Resend exception: {e}")
+            LAST_ERROR[(to_email or "").lower()] = f"Could not reach the email provider: {e}"
             return False
 
     # Legacy relay fallback (sender domain is managed by the relay provider).
     if not config.EMAIL_KEY:
         logging.warning("EMAIL_API_KEY not set — email skipped")
+        LAST_ERROR[(to_email or "").lower()] = "No email provider key is configured on the server (RESEND_API_KEY)"
         return False
     payload = {"to": [to_email], "subject": subject, "html": html, "from_name": config.EMAIL_FROM_NAME}
     try:

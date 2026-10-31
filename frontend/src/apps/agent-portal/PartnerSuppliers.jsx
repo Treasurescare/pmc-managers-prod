@@ -50,10 +50,20 @@ const Row = ({ r, reload }) => {
 
 export default function PartnerSuppliers() {
   const [rows, setRows] = useState(null);
+  const [code, setCode] = useState("");
   const load = () => agentApi.suppliers().then((r) => setRows(r.items || [])).catch(showApiError);
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); agentApi.me().then((a) => setCode(a.partner_code || "")).catch(() => {}); }, []);
+  const link = code ? `${window.location.origin}/register?partner=${code}` : "";
+  const copy = () => navigator.clipboard.writeText(link).then(() => toast.success("Link copied")).catch(() => toast.info(link));
   return (
     <div className="space-y-4" data-testid="partner-suppliers">
+      {link && <div className="bg-white border border-brand-gold p-4 space-y-2" data-testid="ps-referral">
+        <div className="font-semibold">Your personal sign-up link</div>
+        <p className="text-xs text-brand-navy/60">Share it on WhatsApp, email or social media. Suppliers who register through it fill the form themselves and are linked to your code {code} automatically.</p>
+        <div className="flex gap-2 flex-wrap"><input readOnly className="flex-1 min-w-[240px] px-3 py-2 border border-brand-navy/20 text-sm font-mono" value={link} data-testid="ps-referral-link" />
+          <button type="button" className="pmc-btn pmc-btn--secondary" onClick={copy} data-testid="ps-referral-copy">Copy link</button>
+          <a className="pmc-btn pmc-btn--secondary" href={`https://wa.me/?text=${encodeURIComponent(`Register as a supplier on PMC Managers: ${link}`)}`} target="_blank" rel="noreferrer" data-testid="ps-referral-whatsapp">Share on WhatsApp</a></div>
+      </div>}
       <InviteForm onDone={load} />
       <div className="bg-white border border-brand-navy/15 divide-y" data-testid="ps-list">
         {(rows || []).map((r) => <Row key={r.id} r={r} reload={load} />)}

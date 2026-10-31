@@ -76,6 +76,26 @@ def vendor_partner_fields(reg: dict) -> dict:
     return {"partner_id": reg["partner_id"], "partner_code": reg.get("partner_code"), "partner_name": reg.get("partner_name")}
 
 
+async def referral_fields(code: Optional[str]) -> dict:
+    """Registration fields for a supplier who signed up through a partner's personal link (supplier fills it themselves)."""
+    code = (code or "").strip().upper()
+    a = await db.agents.find_one({"partner_code": code, "status": "approved"}) if code else None
+    if not a:
+        return {}
+    return {"partner_id": str(a["_id"]), "partner_code": code, "partner_name": a.get("legal_name") or a["name"],
+            "invited_by_partner_id": str(a["_id"]), "partner_access": "self_fill", "partner_stage": "self_fill",
+            "partner_source": "link", "partner_invited_at": now_iso(), "partner_claim_expires_at": _ago(CLAIM_DAYS),
+            "partner_edits": [], "partner_fields": []}
+
+
+@router.get("/api/v1/public/partner/{code}")
+async def public_partner(code: str):
+    a = await db.agents.find_one({"partner_code": code.strip().upper(), "status": "approved"}, {"partner_code": 1, "legal_name": 1, "name": 1})
+    if not a:
+        raise HTTPException(status_code=404, detail="Partner link not recognised")
+    return {"code": a["partner_code"], "name": a.get("legal_name") or a.get("name")}
+
+
 # ---------- token resolution used by registrations.py ----------
 
 async def resolve_reg_token(token: str, request: Request, extra: Optional[dict] = None) -> tuple:

@@ -15,6 +15,7 @@ class RegistrationDraftIn(BaseModel):
     data_processing_consent: bool = False
     marketing_consent: bool = False
     ref: Optional[str] = Field(default=None, max_length=16)
+    partner_code: Optional[str] = Field(default=None, max_length=16)
 
 
 class RegistrationUpdateIn(BaseModel):

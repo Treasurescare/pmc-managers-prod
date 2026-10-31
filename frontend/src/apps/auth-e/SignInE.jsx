@@ -173,7 +173,7 @@ export default function SignInE({ legacy: Legacy }) {
       className={`pmc-radio ${role === value ? "on" : ""}`}
       style={{ padding: "14px 16px", cursor: "pointer" }}
       data-testid={`signin-role-${value}`}
-      onClick={() => setRole(value)}
+      onClick={() => { setRole(value); try { const u = new URL(window.location.href); u.searchParams.set("role", value); window.history.replaceState(window.history.state, "", u); } catch { /* ignore */ } }}
     >
       <svg className="pmc-ico" aria-hidden="true"><use href={`#${icon}`} /></svg>
       <div>

@@ -68,7 +68,7 @@ export default function AdminAgentsE() {
   useEffect(() => { load(); }, []);
   const invite = async (e) => {
     e.preventDefault();
-    try { const r = await agentApi.invite(f.email, f.name); toast[r.email_sent ? "success" : "error"](r.email_sent ? "Invitation emailed" : "Agent created but the email did not send — use Resend"); setF({ email: "", name: "" }); load(); }
+    try { const r = await agentApi.invite(f.email, f.name); r.email_sent ? toast.success("Invitation emailed") : toast.error(`Partner created but the email did not send. ${r.email_error || ""}`, { duration: 15000 }); setF({ email: "", name: "" }); load(); }
     catch (err) { showApiError(err); }
   };
   return (
@@ -89,7 +89,7 @@ export default function AdminAgentsE() {
                   <div className="font-semibold text-sm">{r.legal_name || r.name}</div><div className="text-xs text-brand-navy/60">{r.email}</div></button>
                 <div className="flex gap-2 items-center">
                   <span className="text-[10px] uppercase tracking-widest px-2 py-0.5 border" data-testid={`admin-agent-status-${r.id}`}>{r.status.replace("_", " ")}</span>
-                  {r.status === "invited" && <button className="pmc-btn pmc-btn--secondary" onClick={() => agentApi.resend(r.id).then((x) => (x.email_sent ? toast.success("Invitation resent") : toast.error("Invitation email did not send"))).catch(showApiError)} data-testid={`admin-agent-resend-${r.id}`}>Resend</button>}
+                  {r.status === "invited" && <button className="pmc-btn pmc-btn--secondary" onClick={() => agentApi.resend(r.id).then((x) => (x.email_sent ? toast.success("Invitation resent") : toast.error(`Invitation email did not send. ${x.email_error || ""}`, { duration: 15000 }))).catch(showApiError)} data-testid={`admin-agent-resend-${r.id}`}>Resend</button>}
                 </div>
               </div>
               {open === r.id && <div className="p-3 pt-0"><Detail id={r.id} onChanged={load} partners={rows} /></div>}

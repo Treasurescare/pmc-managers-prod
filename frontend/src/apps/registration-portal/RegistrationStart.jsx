@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { publicApi, registrationApi, vendorInviteApi, formatApiError, showApiError} from "@/lib/api";
+import { agentApi, publicApi, registrationApi, vendorInviteApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import TopBar from "@/apps/shared/TopBar";
 import Footer from "@/apps/shared/Footer";
@@ -13,7 +13,12 @@ export default function RegistrationStart() {
   useEffect(() => {
     const r = new URLSearchParams(window.location.search).get("ref");
     if (r) { try { localStorage.setItem("pmc_ref", r); } catch {} }
+    const pc = new URLSearchParams(window.location.search).get("partner");
+    if (pc) { try { localStorage.setItem("pmc_partner", pc.toUpperCase()); } catch {} }
+    const code = pc || (() => { try { return localStorage.getItem("pmc_partner"); } catch { return null; } })();
+    if (code) agentApi.publicPartner(code).then(setPartner).catch(() => { try { localStorage.removeItem("pmc_partner"); } catch {} });
   }, []);
+  const [partner, setPartner] = useState(null);
   const [companyName, setCompanyName] = useState("");
   // v54h — default country is BLANK; after a successful send we remember
   // the vendor's choice in localStorage so re-opening /register prefills
@@ -104,7 +109,7 @@ export default function RegistrationStart() {
     setBusy(true);
     try {
       const ref = new URLSearchParams(window.location.search).get("ref") || localStorage.getItem("pmc_ref") || undefined;
-      const r = await registrationApi.createDraft({ email, company_name: companyName || undefined, country, ref });
+      const r = await registrationApi.createDraft({ email, company_name: companyName || undefined, country, ref, partner_code: partner?.code || undefined });
       setSent(r);
       toast.success(t("register.start_success"));
       if (r.magic_token) {
@@ -162,6 +167,7 @@ export default function RegistrationStart() {
           </div>
         )}
 
+        {partner && <div className="mt-4 bg-white border border-brand-gold p-3 text-sm max-w-2xl" data-testid="reg-partner-banner">Introduced by PMC partner <b>{partner.name}</b> ({partner.code}). You fill the form yourself; the partner stays linked to your registration.</div>}
         <form onSubmit={submit} className="mt-10 bg-white border border-brand-navy/10 p-8 lg:p-10 grid gap-6 max-w-2xl" data-testid="registration-start-form">
           <div>
             <label className="pmc-label">{t("register.start_email_label")}</label>

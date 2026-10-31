@@ -316,8 +316,13 @@ async def create_draft(payload: RegistrationDraftIn):
         "consent_at": now_iso() if payload.data_processing_consent else None,
         "created_at": now_iso(),
     }
+    if payload.partner_code:
+        from routers.partner_suppliers import referral_fields
+        doc.update(await referral_fields(payload.partner_code))
     res = await db.registrations.insert_one(doc)
     rid = str(res.inserted_id)
+    if doc.get("partner_id"):
+        await audit_log("partner.referral_signup", None, "registration", rid, {"partner_code": doc["partner_code"]})
     if payload.ref:
         from routers.marketing import record_referral
         if await record_referral(payload.ref, payload.email, payload.company_name):

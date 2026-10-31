@@ -131,7 +131,8 @@ async def invite_agent(body: InviteIn, admin=ADMIN):
     a["_id"] = (await db.agents.insert_one(a)).inserted_id
     sent = await _send_invite(a)
     await audit_log("agent.invited", admin, "agent", str(a["_id"]), {"email": email})
-    return {**_public(a), "email_sent": sent}
+    from emails import last_error
+    return {**_public(a), "email_sent": sent, "email_error": "" if sent else last_error(email)}
 
 
 @router.post("/api/v1/admin/agents/{aid}/resend", dependencies=CSRF)
@@ -141,7 +142,9 @@ async def resend_invite(aid: str, admin=ADMIN):
         raise HTTPException(status_code=409, detail="Only pending invitations can be resent")
     upd = {"invite_token": secrets.token_urlsafe(32), "invite_expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()}
     await db.agents.update_one({"_id": a["_id"]}, {"$set": upd})
-    return {"email_sent": await _send_invite({**a, **upd})}
+    sent = await _send_invite({**a, **upd})
+    from emails import last_error
+    return {"email_sent": sent, "email_error": "" if sent else last_error(a["email"])}
 
 
 @router.get("/api/v1/admin/agents")
