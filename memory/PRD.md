@@ -984,3 +984,11 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - routers/email_health.py: GET /api/v1/admin/email/health (key set, key accepted, sender, Resend domain status; send-only keys handled),
   POST /api/v1/admin/email/test {to} → real send, returns provider reason on failure. UI card under Admin → Marketing → Website links.
 
+
+## R36 — Meta data-deletion page, demo showcase data, committee opening in staff portal — 2026-10-31 — build v58u (iteration_144 walkthrough → fixes; self-verified)
+- /data-deletion page (Meta app settings requirement). Video pack PDF: /downloads/pmc-video-pack.pdf (scripts/build_video_pack.py).
+- scripts/demo_showcase.py seed|clean (PREVIEW ONLY; demo_showcase=True, @demo.pmcmanagers.com, password in test_credentials.md):
+  partner PT-DEMO + wallet, 3 suppliers, consent-pending invite, 3 open tenders, DEMO-TND-OPEN with 2 sealed bids + committee, escrow institution/account/2 EMD txns.
+- FIX (real product gap): committee members had no UI to approve bid opening → Staff portal "Bid opening" tab (committee_member role).
+- Vendor My bids KPIs use bid currency; partner statement month defaults to current month; supplier row separator fix.
+

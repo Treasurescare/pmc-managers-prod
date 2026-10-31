@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { agentApi, showApiError } from "@/lib/api";
 import PartnerProfileCard from "./PartnerProfileCard";
 
-const prevMonth = () => { const d = new Date(); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() - 1); return d.toISOString().slice(0, 7); };
+const prevMonth = () => new Date().toISOString().slice(0, 7);
 
 export const BadgeChip = ({ label }) => (
   <span className="inline-flex items-center gap-1 mr-2 mb-1 px-2 py-0.5 text-[10px] uppercase tracking-widest bg-amber-100 text-amber-900 border border-amber-300" data-testid="partner-badge">★ {label}</span>

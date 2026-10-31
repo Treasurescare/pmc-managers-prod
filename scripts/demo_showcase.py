@@ -93,31 +93,33 @@ def seed():
     mids = []
     for i, nm in enumerate(["Priya Shah (Demo)", "Tom Ellis (Demo)"], 1):
         mids.append(str(D.admin_users.insert_one({**TAG, "email": f"committee{i}@{DOM}", "name": nm, "role": "committee_member",
-            "roles": ["committee_member", "certifier"], "password_hash": hp(PW), "is_active": True, "tenant_id": "PMC-KZ-01",
+            "roles": ["committee_member"], "is_escrow_signatory": i == 1, "password_hash": hp(PW), "is_active": True, "tenant_id": "PMC-KZ-01",
             "hierarchy_level": 5, "created_at": iso(-30)}).inserted_id))
     # tenders
     tenders = [("DEMO-TND-001", "Supply of hospital beds — NHS trust (Demo)", "Medical Equipment", 250000, 20),
                ("DEMO-TND-002", "Bridge maintenance works — county council (Demo)", "Civil Works", 1200000, 35),
                ("DEMO-TND-003", "Facilities management for council offices (Demo)", "Facilities Management", 480000, 15)]
     for ref, title, cat, budget, days in tenders:
-        D.notices.insert_one({**TAG, "notice_ref": ref, "title": title, "description": f"{title}. Demonstration tender for PMC Managers videos.",
+        D.notices.insert_one({**TAG, "tenant_id": "PMC-KZ-01", "notice_ref": ref, "title": title, "description": f"{title}. Demonstration tender for PMC Managers videos.",
             "category": cat, "delivery_country": "GB", "is_published": True, "status": "published", "kyc_bypass": True, "budget_amount": float(budget),
             "currency": "GBP", "emd_config": {"fixed_amount": 2500.0, "percentage": 0, "currency": "GBP"},
             "submission_deadline": iso(days), "bid_opening_date": iso(days, 2), "created_at": iso(-3)})
     # sealed bids on the opening-demo tender
     ref = "DEMO-TND-OPEN"
-    D.notices.insert_one({**TAG, "notice_ref": ref, "title": "Supply of school laptops — academy trust (Demo, ready to open)", "category": "",
+    D.notices.insert_one({**TAG, "tenant_id": "PMC-KZ-01", "notice_ref": ref, "title": "Supply of school laptops — academy trust (Demo, ready to open)", "category": "",
         "delivery_country": "GB", "is_published": True, "status": "published", "kyc_bypass": True, "budget_amount": 90000.0, "currency": "GBP",
         "emd_config": {"fixed_amount": 1000.0, "percentage": 0, "currency": "GBP"}, "submission_deadline": iso(2), "bid_opening_date": iso(2), "created_at": iso(-7)})
     bids = [bid(vendor_session(f"northfield@{DOM}"), ref, 84500.0, "300 laptops, 3-year warranty, delivery in 4 weeks", "Unit price £281.67 incl. delivery"),
             bid(vendor_session(f"brightwater@{DOM}"), ref, 79900.0, "300 laptops, on-site setup, 5-year warranty", "Unit price £266.33; 2% early-payment discount")]
-    D.bids.update_many({"notice_ref": ref}, {"$set": {**TAG, "status": "escrow_accepted", "emd_paid_amount": 1000.0, "emd_currency": "GBP"}})
+    D.bids.update_many({"notice_ref": ref}, {"$set": {**TAG, "status": "escrow_accepted", "emd_paid_amount": 1000.0, "emd_currency": "GBP",
+                                                  "title": "Supply of school laptops — academy trust (Demo)", "notice_title": "Supply of school laptops — academy trust (Demo)"}})
     D.committees.insert_one({**TAG, "notice_ref": ref, "chairperson_id": mids[0], "member_ids": [mids[1]], "status": "open", "quorum": 2,
                              "votes": [], "created_at": iso(-6)})
     D.notices.update_one({"notice_ref": ref}, {"$set": {"submission_deadline": iso(0, -3), "bid_opening_date": iso(0, -1)}})
     # escrow
     inst = str(D.escrow_institutions.insert_one({**TAG, "legal_name": "Thames Trust Bank plc (Demo)", "status": "approved", "country": "GB",
-        "primary_contact_email": f"escrow@{DOM}", "signatories": [], "bank_accounts": [], "created_at": iso(-40)}).inserted_id)
+        "primary_contact_email": f"escrow@{DOM}", "primary_contact_name": "James Okafor (Demo)",
+        "signatories": [{"name": "James Okafor (Demo)", "email": f"escrow@{DOM}", "designation": "Escrow officer"}], "bank_accounts": [], "created_at": iso(-40)}).inserted_id)
     pmc_off = {"name": "Priya Shah (Demo)", "email": f"committee1@{DOM}", "designation": "Tender officer", "role": "pmc"}
     esc_off = {"name": "James Okafor (Demo)", "email": f"escrow@{DOM}", "designation": "Escrow officer", "role": "escrow_institution"}
     acc = D.escrow_accounts.insert_one({**TAG, "name": "PMC Tender EMD Escrow #1 (Demo)", "institution": "Thames Trust Bank plc (Demo)", "institution_id": inst,

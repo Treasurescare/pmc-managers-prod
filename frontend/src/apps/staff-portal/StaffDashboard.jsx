@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { staffApi, bidApi, inspectionApi, uploadsApi, escrowApi, showApiError } from "@/lib/api";
+import { OpenCommitteesOpening } from "@/apps/admin-console-e/OpenCommitteesOpening";
 import PortalShellE from "@/apps/shared/PortalShellE";
 import PortalAvatarMenu from "@/apps/shared/PortalAvatarMenu";
 
@@ -191,6 +192,7 @@ export default function StaffDashboard() {
     { key: "escrow", label: "Escrow signatures", badge: pendingCount || null },
     { key: "queue", label: queueLabel.split(" — ")[0] || "Work queue", badge: bids.length || null },
     { key: "completed", label: "Completed", badge: processed.count || null },
+    ...(me?.active_role === "committee_member" ? [{ key: "opening", label: "Bid opening" }] : []),
   ];
   if (me.active_role === "certifier") navItems.push({ key: "inspections", label: "Site inspections", badge: inspections.length || null });
 
@@ -235,6 +237,13 @@ export default function StaffDashboard() {
               <StatCard label={queueLabel} value={bids.length} hint="In your work queue" onClick={() => setTab("queue")} />
               <StatCard label="Completed by you" value={processed.count} hint="Your decision history" onClick={() => setTab("completed")} />
               {me.active_role === "certifier" && <StatCard label="Site inspections" value={inspections.length} hint="Assigned to you" onClick={() => setTab("inspections")} />}
+            </section>
+          )}
+
+          {tab === "opening" && me.active_role === "committee_member" && (
+            <section data-testid="staff-bid-opening">
+              <Heading>Bid opening — your approval</Heading>
+              <OpenCommitteesOpening />
             </section>
           )}
 

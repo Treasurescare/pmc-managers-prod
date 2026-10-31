@@ -37,7 +37,7 @@ const Row = ({ r, reload }) => {
   return (
     <div className="p-3 flex justify-between gap-3 flex-wrap items-center" data-testid={`ps-row-${r.id}`}>
       <div><div className="font-semibold text-sm">{r.company_name}</div>
-        <div className="text-xs text-brand-navy/60">{r.email} · {r.mobile}{r.vendor_ref ? ` · ${r.vendor_ref}` : ""}</div>
+        <div className="text-xs text-brand-navy/60">{[r.email, r.mobile, r.vendor_ref].filter(Boolean).join(" · ")}</div>
         <div className="text-xs mt-1"><span data-testid={`ps-access-${r.id}`}>{ACCESS[r.partner_access] || r.partner_access}</span> · <b data-testid={`ps-stage-${r.id}`}>{r.status === "approved" ? "Approved by PMC" : r.status === "rejected" ? "Rejected by PMC" : STAGE[r.partner_stage] || r.partner_stage}</b>{r.edits ? ` · ${r.edits} edit${r.edits === 1 ? "" : "s"} logged` : ""}</div></div>
       <div className="flex gap-2 flex-wrap">
         {r.partner_access === "awaiting_consent" && <button className="pmc-btn pmc-btn--secondary" onClick={resend} data-testid={`ps-resend-${r.id}`}>Resend</button>}

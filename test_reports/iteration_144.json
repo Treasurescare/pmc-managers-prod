@@ -1,0 +1,61 @@
+{
+  "summary": "Frontend walkthrough of the 4 demo-video flows on PREVIEW (Partner, Supplier consent, Sealed bids/committee opening, Escrow EMD). Partner portal, supplier consent page, supplier portal, public homepage/tenders, admin sealed-bid view and escrow ledger all load with meaningful demo content. BLOCKER for video 3: committee members (committee1/2) have NO UI to approve the bid opening — /staff has no opening panel and /admin/* redirects them to /staff; admin sees the panel but is not a member so no approve buttons. Backend approve works (verified via API with both committee members -> technical envelopes OPENED 2026-10-31 07:34, 2 bids). Several demo-seed gaps make screens look empty/broken (admin Notices empty, escrow 'SIGNATORY REQUIRED' warning, empty escrow volume chart, untitled bids).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/v1/notices/admin/all", "issue": "Returns 0 items: the demo notices were seeded without tenant_id (query filters tenant_id=PMC-KZ-01). Result: Admin > Notices shows 'No published notices yet', Escrow institutions > Notice<->Escrow routing shows 'No published notices yet'. Fix seed: add tenant_id 'PMC-KZ-01' to all DEMO notices."},
+      {"endpoint": "GET /api/v1/escrow/admin/chart", "issue": "Escrow volume chart empty ('No transaction history') because seeded escrow_institutions.signatories=[] so _resolve_joint_account_ids finds 0 joint accounts (joint_account_count 0). Fix seed: signatories=[{name:'James Okafor (Demo)', email:'escrow@demo.pmcmanagers.com'}]."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Committee bid opening (staff portal)", "issue": "No reachable UI for committee_member to approve opening. StaffDashboard.jsx never renders BidOpeningPanel; staff-type accounts are redirected away from /admin/e/bidding and /admin/bids/:id. Admin can see the panel but i_can_approve=false (not a member). Video 3 cannot be recorded as specified.", "selector": "[data-testid^=opening-technical-approve-]", "priority": "HIGH"},
+      {"component": "Staff sign-in role", "issue": "committee1 signs in with active role 'Site Certifier' by default (role probe order); user must switch the ROLE dropdown to 'Bid Committee' manually.", "selector": "[data-testid=staff-role-switch-select]", "priority": "MEDIUM"},
+      {"component": "Vendor My bids KPIs", "issue": "'VALUE IN PLAY (USD) $0' although the active bid is £84,500 (sealed/GBP not counted) and 'EMD PAID $1,000' shows a $ sign for a GBP 1,000 deposit.", "selector": "/vendor/mybids", "priority": "MEDIUM"},
+      {"component": "Admin Escrow / EMD joint account", "issue": "Demo account shows red 'SIGNATORY REQUIRED' badge, 'PMC officer email is not in the escrow-signatory staff pool' and a red ✗ next to committee1 — looks broken on camera. Seed should give committee1 the escrow signatory role/pool entry or use a pool officer.", "selector": "/admin/e/escrow", "priority": "MEDIUM"},
+      {"component": "Admin Bidding ops list", "issue": "Both demo bids display '(Untitled bid)' and price '—'; better to show the tender title.", "selector": "/admin/e/bidding", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Partner statement PDF", "issue": "Works (200 application/pdf, opens in new tab via blob) but the month picker defaults to the previous month (2026-09) which produces an empty statement; presenter must pick October 2026 first. Also after 1 Nov all 'this month' leaderboard/badges/Partners of the month will reset — record before month end or re-seed.", "affected_selectors": ["[data-testid=statement-month]", "[data-testid=statement-download]"]}
+    ],
+    "design_issues": [
+      {"screen": "Partner portal / My suppliers", "issues": ["Rows without mobile show a dangling double separator 'email · · VEN-DEMO1'"]},
+      {"screen": "Partner statement PDF", "issues": ["'COMMISSIONS EARNED' BASIS column for the paid entry shows the payment reference 'BACS DEMO-001' instead of 'Supplier approved'"]},
+      {"screen": "Escrow / EMD ledger", "issues": ["Amounts shown as '1000 GBP' instead of 'GBP 1,000'"]},
+      {"screen": "Admin bid detail", "issues": ["Status shows raw 'escrow_accepted' snake_case; page uses legacy layout with no sidebar"]},
+      {"screen": "Admin Partners", "issues": ["Non-demo partner 'sakina@gdihelite.com' (INVITED) is visible next to the demo partner; 'Partners' sidebar item has no icon (misaligned)"]},
+      {"screen": "Public /tenders/live", "issues": ["Legacy header ('PMC MANAGERS LIMITED · Notices/Completed') differs from the homepage header; DEMO-TND-OPEN is not listed (closed) — only 3 entries"]},
+      {"screen": "/login (Partner)", "issues": ["'Register as a partner — onboard suppliers & earn commission' button text overflows its border at 1920px"]},
+      {"screen": "Supplier consent", "issues": ["Footer says 'Consent version 2026-11-v1' while current date is Oct 2026 (cosmetic)"]}
+    ]
+  },
+  "navigation_paths_for_recording": {
+    "1_partners": "/login -> pick 'Partner' card (or /login?role=partner) -> partner@demo.pmcmanagers.com / Demo@Pmc2026 -> /partner/me. Tabs: 'My suppliers' (Oakline 'Waiting for supplier consent · Invited', Northfield & Brightwater 'Consent given · Approved by PMC'), 'Commission wallet' (rule 'GBP 150.00 per approved supplier · deals: 2%', Due GBP 150.00 / Paid GBP 150.00, 2 entries PAID/DUE), 'Leaderboard' (3 badges, #1 of 1, Monthly statement -> set month to October 2026 -> 'Download PDF'). Public proof: homepage / scroll to 'Partners of the month · October 2026 so far'. Admin view: Admin console sidebar Market > Partners (/admin/e/partners).",
+    "2_partner_invites_supplier": "Partner portal 'My suppliers' tab shows the 'Invite a supplier' form + Oakline row with Resend. Supplier side: open /supplier-invite/DS8aNs7iJXoy8JeWtf8Jc6YSH4wVC9kuylCAsMTrqX4 (shows 'Register Oakline Construction (Demo) on PMC', 'Hart Procurement Advisory (Demo) (PMC partner code PT-DEMO)', 6 consent ticks, signature name, buttons 'Let the partner fill it & open my registration' (enabled after all ticks + name), 'I'll fill it myself', decline). NOT submitted. Then supplier login: /login -> 'Supplier' -> northfield@demo.pmcmanagers.com / Demo@Pmc2026 -> /vendor (Home) -> sidebar 'Account & security' (/vendor/account) shows 'Your PMC partner: Hart Procurement Advisory (Demo) (PT-DEMO)'.",
+    "3_sealed_bids": "Supplier: /vendor -> 'My bids' (/vendor/mybids) shows PMC-BID-2026-00073 'Supply of school laptops — academy trust (Demo, ready to open)' £84,500 IN PMC REVIEW. Admin: /login -> 'Administrator' -> admin creds -> sidebar Money & compliance > 'Bidding ops' (/admin/e/bidding): 2 bids + right rail 'Active committee' and 'Bid opening' panel (Technical/Commercial SEALED). Click 'Review' -> /admin/bids/<id>: 'SEALED BID' banner, 'Quoted price: Sealed until opening', 'Uploaded documents · 2 sealed'. Committee: /login -> 'PMC staff' -> committee1@demo.pmcmanagers.com -> /staff -> ROLE dropdown 'Bid Committee' — NO opening panel exists here (blocker).",
+    "4_escrow_emd": "Admin sidebar Money & compliance > 'Escrow / EMD' (/admin/e/escrow): Joint account 'PMC Tender EMD Escrow #1 (Demo)' · Thames Trust Bank plc (Demo) · DEMO-00001234 · GBP, PMC officer Priya Shah (Demo), Escrow officer James Okafor (Demo); EMD ledger 2 rows PMC-BID-2026-00073/00074 '1000 GBP RECEIVED' with both officers 'Awaiting signature'. 'Escrow institutions' (/admin/e/escrow-institutions): Thames Trust Bank plc (Demo) APPROVED (chart + routing empty, see issues)."
+  },
+  "test_report_links": ["/app/backend/tests/demo_opening_check.py"],
+  "action_items": [
+    "HIGH: Add a committee-member UI for bid opening (e.g. render <OpenCommitteesOpening/> / BidOpeningPanel on StaffDashboard when active_role=committee_member, or a /staff/opening tab) so committee1/committee2 can sign the opening on camera.",
+    "Make committee_member the default active role for committee accounts (or seed committee1/2 with roles ['committee_member'] only).",
+    "RE-SEED demo data: technical envelopes of DEMO-TND-OPEN were opened during this test (approved by committee1 'Priya Shah' + committee2 'Tom Ellis' via API at 2026-10-31 07:34).",
+    "Seed fixes: add tenant_id 'PMC-KZ-01' to DEMO notices (admin Notices + escrow routing empty); add signatories [{escrow@demo.pmcmanagers.com}] to the escrow institution (chart empty); put committee1 in escrow-signatory pool or choose a pool officer (removes 'SIGNATORY REQUIRED'); set bid title/notice_title so Bidding ops doesn't show '(Untitled bid)'.",
+    "Vendor My bids KPIs: handle non-USD currency (VALUE IN PLAY $0, EMD PAID shows $ for GBP).",
+    "Default partner statement month to current month (or warn) so 'Download PDF' isn't empty in demo; re-seed close to recording if month rolls over (leaderboard/badges are month-scoped).",
+    "Optional polish: format '1000 GBP' as 'GBP 1,000', humanise 'escrow_accepted', remove '· ·' when mobile missing, fix overflowing partner register button on /login, hide non-demo partner 'sakina' from Partners list while recording."
+  ],
+  "critical_code_review_comments": [
+    "BidOpeningPanel only imported in admin-console (OpenCommitteesOpening, CommitteeList, AdminBidDetailPage) while backend /api/v1/bid-opening/{ref}/approve requires the caller to be a committee member — the only users who can approve can't reach the UI unless they are admin-type accounts.",
+    "demo_showcase.py: notices missing tenant_id; escrow institution signatories empty; bids not given a title.",
+    "agentApi.openStatement opens window.open('') then sets blob URL — popup blockers / headless show about:blank; consider a download anchor with filename."
+  ],
+  "updated_files": ["/app/backend/tests/demo_opening_check.py"],
+  "success_rate": {"backend": "n/a (frontend only)", "frontend": "80% — 4/5 demo screens recordable; committee opening UI missing"},
+  "test_credentials": "Admin adminsupport@pmcmanagers.com / Admin@12345 worked. All demo accounts Demo@Pmc2026 worked (partner, northfield, committee1, committee2).",
+  "seed_data_creation": "None created. Demo data modified only by approving the technical opening of DEMO-TND-OPEN (both committee members) as permitted.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Demo data from /app/scripts/demo_showcase.py (do not clean). Login via /login?role=partner|supplier|staff|admin; wait ~1.5s before filling inputs (clicking a role card remounts the form). Technical envelopes of DEMO-TND-OPEN were opened in iteration_144 — expect main agent to re-seed. Retest: committee member opening UI in /staff, seed fixes (admin Notices, escrow chart/routing, signatory badge), vendor KPI currency.",
+  "rca of the issue": "Committee opening: StaffDashboard.jsx has no BidOpeningPanel; RBAC (v54o) redirects staff-type users away from /admin; admin sees panel but GET /bid-opening returns i_can_approve=false since admin is not in committee.chairperson_id/member_ids. Admin Notices empty: notices.list_notices_admin filters {tenant_id: admin.tenant_id} and seed omits tenant_id. Escrow chart empty: escrow_v52f._resolve_joint_account_ids matches escrow_account.escrow_officer.email against institution.signatories, which the seed leaves []."
+}

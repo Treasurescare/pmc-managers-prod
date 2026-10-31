@@ -127,12 +127,15 @@ export default function VendorMyBidsE({ legacy: Legacy }) {
     const decided = bids.filter((b) => b.status === "awarded" || b.status === "rejected");
     const won = decided.filter((b) => b.status === "awarded");
     const win = decided.length ? Math.round((won.length / decided.length) * 100) : 0;
+    const cur = (buckets.active[0]?.price_currency || bids[0]?.price_currency || "USD").toUpperCase();
+    const emdCur = (bids.find((b) => b.emd_paid_amount)?.emd_currency || cur).toUpperCase();
     const inPlay = buckets.active.reduce((s, b) => {
-      if ((b.price_currency || "USD").toUpperCase() === "USD") return s + (b.price_amount || 0);
+      if ((b.price_currency || "USD").toUpperCase() === cur) return s + (b.price_amount || 0);
       return s;
     }, 0);
-    const emdHeld = bids.reduce((s, b) => s + (b.emd_paid_amount || 0), 0);
+    const emdHeld = bids.reduce((s, b) => s + ((b.emd_currency || emdCur).toUpperCase() === emdCur ? (b.emd_paid_amount || 0) : 0), 0);
     return {
+      cur, emdCur,
       active: buckets.active.length,
       needsYou: buckets.active.filter((b) => b.status === "emd_pending").length,
       winRate: `${win}%`,
@@ -174,16 +177,16 @@ export default function VendorMyBidsE({ legacy: Legacy }) {
             <div className="s">{kpis.decidedCount} decided bid{kpis.decidedCount === 1 ? "" : "s"}</div>
           </div>
           <div>
-            <div className="l">Value in play (USD)</div>
+            <div className="l">Value in play ({kpis.cur})</div>
             <div className="pmc-figure" data-testid="vmb-kpi-value">
-              {fmtMoney(kpis.inPlay, "USD")}
+              {fmtMoney(kpis.inPlay, kpis.cur)}
             </div>
             <div className="s">across your active bids</div>
           </div>
           <div>
             <div className="l">EMD paid</div>
             <div className="pmc-figure" data-testid="vmb-kpi-emd">
-              {fmtMoney(kpis.emdHeld, "USD")}
+              {fmtMoney(kpis.emdHeld, kpis.emdCur)}
             </div>
             <div className="s">lifetime</div>
           </div>
