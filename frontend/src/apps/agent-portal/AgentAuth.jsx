@@ -76,7 +76,7 @@ export function PartnerRegister() {
     setBusy(true);
     try { await agentApi.register(f.email, f.name); setDone(true); } catch (e2) { showApiError(e2); } finally { setBusy(false); }
   };
-  if (done) return <Shell title="Check your email" testid="partner-register-done"><p className="text-sm">If this email can be used, we've sent a confirmation link to <b>{f.email}</b>. Open it to set your password and build your partner profile.</p></Shell>;
+  if (done) return <Shell title="Check your email" testid="partner-register-done"><p className="text-sm">If this email can be used, we've sent a confirmation link to <b>{f.email}</b>. Open it to set your password and build your partner profile.</p><p className="text-xs"><Link to="/partner/login" className="underline">Partner sign in</Link> · <Link to="/" className="underline">Home</Link></p></Shell>;
   return (
     <Shell title="Become a PMC partner" testid="partner-register">
       <p className="text-sm text-brand-navy/70">Introduce suppliers to PMC Managers and earn commission. Start with your email — we'll send a confirmation link.</p>

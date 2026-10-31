@@ -42,6 +42,12 @@ def _site() -> str:
     return config.FRONTEND_URL.rstrip("/")
 
 
+def _client_ip(request: Request) -> str:
+    """Rightmost X-Forwarded-For hop is the one appended by our ingress (not client-controlled)."""
+    xff = [p.strip() for p in (request.headers.get("x-forwarded-for") or "").split(",") if p.strip()]
+    return xff[-1] if xff else (request.client.host if request.client else "")
+
+
 def _public(a: dict) -> dict:
     a = dict(a)
     a["id"] = str(a.pop("_id"))
@@ -157,7 +163,7 @@ async def decide_agent(aid: str, body: DecisionIn, admin=ADMIN):
     a = await db.agents.find_one({"_id": _oid(aid)})
     if not a:
         raise HTTPException(status_code=404, detail="Agent not found")
-    allowed = {"approve": {"submitted"}, "reject": {"submitted", "needs_clarification", "payment_pending"}, "clarify": {"submitted"},
+    allowed = {"approve": {"submitted", "payment_pending"}, "reject": {"submitted", "needs_clarification", "payment_pending"}, "clarify": {"submitted"},
                "suspend": {"approved"}, "request_payment": {"submitted", "payment_pending"}}[body.action]
     if a["status"] not in allowed:
         raise HTTPException(status_code=409, detail=f"Cannot {body.action} a partner whose status is {a['status']}")
@@ -230,14 +236,15 @@ async def apply_partner_payment(session_id: str) -> None:
                                                                 "vendor_ref": upd.get("partner_code") or a.get("partner_code"), "email": a["email"]})
         att = [{"filename": f"{rec['receipt_no']}.pdf", "content_b64": base64.b64encode(pdf).decode(), "content_type": "application/pdf"}]
     except Exception:
-        pass
+        import logging
+        logging.getLogger(__name__).exception("partner receipt pdf failed for %s", session_id)
     await send_email(a["email"], "[PMC] Payment received — your partner account is active",
                      wrap("Welcome, PMC partner", f"<p>We received your partner registration fee. Your partner code is "
                           f"<b>{upd.get('partner_code') or a.get('partner_code')}</b>. Your receipt is attached.</p>",
                           "Open partner portal", f"{_site()}/partner/me"), attachments=att)
 
 
-@router.post("/api/v1/agents/me/payment/refresh")
+@router.post("/api/v1/agents/me/payment/refresh", dependencies=CSRF)
 async def refresh_payment(request: Request):
     a = await current_agent(request)
     pay = a.get("payment") or {}
@@ -262,7 +269,7 @@ class RegisterIn(BaseModel):
 
 @router.post("/api/v1/agents/register")
 async def self_register(body: RegisterIn, request: Request):
-    ip = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip() or (request.client.host if request.client else "")
+    ip = _client_ip(request)
     since = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
     if await db.agent_login_attempts.count_documents({"identifier": f"reg:{ip}", "at": {"$gte": since}}) >= 5:
         raise HTTPException(status_code=429, detail="Too many sign-ups from this network. Try again later.")

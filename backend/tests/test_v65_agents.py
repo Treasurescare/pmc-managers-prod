@@ -239,9 +239,11 @@ def test_clarify_needs_note_then_edit_again():
 def test_approve_only_submitted_and_reject_note():
     ad = S["admin"]
     assert ad.post(f"{API}/admin/agents/{S['aid']}/decision", json={"action": "suspend"}).status_code == 409
-    r = ad.post(f"{API}/admin/agents/{S['aid']}/decision", json={"action": "approve"})
-    assert r.status_code == 200 and r.json()["status"] == "approved"
+    # v66: approve now requires waive_fee true (otherwise send payment request)
     assert ad.post(f"{API}/admin/agents/{S['aid']}/decision", json={"action": "approve"}).status_code == 409
+    r = ad.post(f"{API}/admin/agents/{S['aid']}/decision", json={"action": "approve", "waive_fee": True})
+    assert r.status_code == 200 and r.json()["status"] == "approved"
+    assert ad.post(f"{API}/admin/agents/{S['aid']}/decision", json={"action": "approve", "waive_fee": True}).status_code == 409
 
 
 def test_suspend_revokes_session_and_blocks_login():

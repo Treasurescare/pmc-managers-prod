@@ -1,0 +1,44 @@
+{
+  "summary": "I tested v66 Partner Phase 2: partner self-registration, the partner_registration fee, waive/approve, the Stripe payment request and apply_partner_payment. Backend and UI. New suite tests/test_v66_partner_fee.py: 15 of 16 tests pass. The one failure is a known minor security issue: the X-Forwarded-For header can be spoofed to get around the self-register rate limit. The updated test_v65_agents.py passes 22 of 22. The sealed and opening suites (v64, v64b, v64c) pass 66 of 66 with -n 0. I found and fixed one CRITICAL UI bug, the same class of bug as in iteration 137: the new routes /partner/register, /partner/join/:token, /partner/login and /partner/me were nested inside <RequireAdmin> in App.js. I moved them outside. After the fix the whole UI flow works. Sign-in page: five role radios, including signin-role-partner. With Partner selected, the 'Apply to become a PMC partner' link goes to /partner/register. That form shows 'Check your email'. The footer-become-partner link also goes to /partner/register. Old /agent/login still works, and an invalid join token shows agent-join-invalid. In the admin console, the 'Partners' nav item goes to /admin/e/partners. Ticking the waive box shows 'Approve (fee waived)'; unticking it shows 'Send payment request'. Sending the request moved the TEST partner to PAYMENT PENDING and showed 'Registration fee USD 75.00 · pending' and a Resend payment link button. A partner signing in on /login goes to /partner/me. The pay card shows USD 75.00, and the Pay now link points to a checkout.stripe.com cs_test session. After simulating payment with apply_partner_payment, the partner portal shows Approved with code PT-0004, and admin shows the partner code and 'paid on'. The receipt PDF renders (about 50 KB).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/v1/agents/register", "issue": "The per-IP limit (5 per hour) uses the leftmost X-Forwarded-For value, which the client controls. Sending any X-Forwarded-For header gets around the 429 (I confirmed it returns 200 after the limit was hit). The agent login lockout has the same pattern. Use the rightmost or ingress-appended IP instead."},
+      {"endpoint": "POST /api/v1/admin/agents/{id}/decision", "issue": "Once a partner is payment_pending, the admin cannot waive and approve, because approve only accepts the 'submitted' status. The only options left are reject or resend. If that is intended, document it; otherwise allow approve with waive_fee from payment_pending."},
+      {"endpoint": "POST /api/v1/agents/me/payment/refresh", "issue": "This endpoint has no CSRF dependency, unlike the other agent POST endpoints. Low risk because it only reads Stripe status, but it is inconsistent."},
+      {"endpoint": "apply_partner_payment", "issue": "PDF and attachment errors are swallowed with a bare 'except Exception: pass' and nothing is logged, so a missing receipt would go unnoticed. Add logger.exception."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "App.js routes", "issue": "FIXED by testing agent: the /partner/register, /partner/join/:token, /partner/login and /partner/me routes were inside <RequireAdmin>, so every unauthenticated partner was bounced to the admin login.", "selector": "Route path=/partner/*", "priority": "CRITICAL"}
+    ],
+    "integration_issues": [
+      {"flow": "Admin send/resend payment request", "issue": "When the email fails, the toast 'Payment request created — email did not send' is shown in success (green) style. It should use toast.warning or toast.error.", "affected_selectors": ["admin-agent-request-payment", "admin-agent-resend-payment"]},
+      {"flow": "Partner 'I've paid — check again'", "issue": "If the payment is still unpaid, the button gives no feedback (no toast), so the user can't tell anything happened.", "affected_selectors": ["partner-pay-refresh"]}
+    ],
+    "design_issues": [
+      {"screen": "Admin Partners detail", "issues": ["The banking line shows stray separators ('· TEST · 123456789 ·') when the institution name or currency is empty.", "The note placeholder still says 'Note to the agent'. Rename it to 'partner'."]},
+      {"screen": "/partner/register done state", "issues": ["The 'Check your email' card has no link back to the home page or to sign in."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v66_partner_fee.py", "/app/backend/tests/test_v65_agents.py", "/app/backend/tests/ui_partner_setup.py", "/app/test_reports/pytest/pytest_v66_sealed.xml"],
+  "action_items": [
+    "Keep the /partner/* routes outside RequireAdmin in App.js (already fixed). Avoid adding public routes inside the RequireAdmin block in future.",
+    "Use a trusted client IP (rightmost or ingress-appended X-Forwarded-For) for the self-register and login rate limits.",
+    "Decide whether waive and approve should be allowed from payment_pending.",
+    "Show the 'email did not send' toast as a warning; give feedback when 'check again' finds the payment still unpaid.",
+    "Log exceptions in apply_partner_payment receipt generation."
+  ],
+  "critical_code_review_comments": [
+    "Public routes were added inside RequireAdmin again (the same regression as iteration 137). Consider grouping all public partner and agent routes in one block with a comment.",
+    "The partner_code sequence is never reset. TEST runs used PT-0001 to PT-0004. I deleted the counters doc {name: partner_code} because no agents remain, and test cleanup now resets it when the agents collection is empty.",
+    "There are no country-group fee rules beyond the 'countries' list. A KE+TZ group rule matched KE correctly."
+  ],
+  "updated_files": ["/app/frontend/src/App.js", "/app/backend/tests/test_v65_agents.py", "/app/backend/tests/test_v66_partner_fee.py", "/app/backend/tests/ui_partner_setup.py"],
+  "success_rate": {"backend": "94% (15/16 new; 22/22 v65; 66/66 sealed)", "frontend": "100% after routing fix"},
+  "seed_data_creation": "All TEST data was cleaned up: agents test_partner_*, emd_masters 'TEST*' partner_registration rules, payment_transactions for TEST agents, reg: rate-limit attempts, and the partner_code counter. The agents collection is now empty.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run pytest tests/test_v66_partner_fee.py tests/test_v65_agents.py -n 0. The xff spoof test fails by design until the IP fix lands. For UI: run `python tests/ui_partner_setup.py` to create a submitted KE partner (test_partner_ui_v66@example.com / PartnerPw@123) plus a USD 75 KE rule, and `python tests/ui_partner_setup.py cleanup` to remove them. Simulate payment with routers.agents.apply_partner_payment(session_id) (see the _apply helper in test_v66). Admin Playwright login: page.request.post to /api/v1/admin/auth/login, then sessionStorage pmc.csrf. Sending email to example.com always fails (email_sent false)."
+}

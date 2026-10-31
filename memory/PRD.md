@@ -906,6 +906,18 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - Frontend: /agent/join/:token, /agent/login, /agent/me (Profile via EscrowCoreForm `individual` prop, Banking via EscrowBankingStep, Documents,
   Agreement); admin /admin/e/agents ("Onboarding agents" in side nav). agent-docs uploads owner-checked (owner_agent_id).
 - bid_opening: when last member approves a stage, background task issues the signed record and emails PDF to every committee member.
+
+## R29 — Agent → "Partner": login, self-registration, registration fee — 2026-10-31 — build v58m (agent-tested iteration_138; suites 38/38 + sealed 66/66)
+- Main sign-in has 5th role "Partner" (signin-role-partner → /partner/me). Routes /partner/register|join/:token|login|me (old /agent/* kept);
+  admin nav "Partners" /admin/e/partners. Footer "Become a PMC partner" link (PmcSocialLinks).
+- POST /api/v1/agents/register (generic reply, 5/h per ingress IP = rightmost XFF). Login lockout per email.
+- Fee type partner_registration (fixed, country rules; one rule covers a group of countries). Admin: "Waive registration fee" tick → Approve;
+  else "Send payment request" → Stripe checkout (purpose partner_fee) → status payment_pending; webhook/refresh → apply_partner_payment →
+  approved + partner_code PT-NNNN + receipt PDF email. Waive+approve also allowed from payment_pending.
+- NEXT (approved by user): vendor onboarding by partner — invite with partner code, vendor verifies email + consent first, partner fills
+  6 sections (agent_token on registration draft, edits marked), vendor reviews & submits with final declaration, 30-day claim lock,
+  duplicate checks, revoke/report links, commission only on approval/payment. Mobile OTP waits for WhatsApp/SMS provider.
+
 - NEXT: Phase 2 (agent fills supplier registration + supplier consent pack), Phase 3 (AI guide + human hand-off), Phase 4 (commission rules + wallet, manual payouts).
 
 - PENDING: user to supply Meta credentials + get the 3 templates approved; set webhook in Meta.

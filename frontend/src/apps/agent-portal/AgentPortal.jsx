@@ -17,7 +17,10 @@ const STATUS = {
 
 const PayCard = ({ form, setForm }) => {
   const p = form.payment || {};
-  const refresh = () => agentApi.refreshPayment().then((a) => setForm((f) => ({ ...f, ...a }))).catch(showApiError);
+  const refresh = () => agentApi.refreshPayment().then((a) => {
+    setForm((f) => ({ ...f, ...a }));
+    a.status === "approved" ? toast.success("Payment received — your partner account is active") : toast.info("Payment not received yet. If you just paid, wait a minute and try again.");
+  }).catch(showApiError);
   return (
     <div className="bg-white border border-brand-gold p-6 space-y-3" data-testid="partner-pay-card">
       <h2 className="text-lg font-semibold">Registration fee due</h2>

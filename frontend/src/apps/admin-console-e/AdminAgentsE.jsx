@@ -15,8 +15,9 @@ const Detail = ({ id, onChanged }) => {
   const act = async (action) => {
     try {
       const r = await agentApi.decide(id, action, note, waive);
-      toast.success({ approve: "Partner approved", reject: "Partner rejected", clarify: "Changes requested", suspend: "Partner suspended",
-        request_payment: r.email_sent ? "Payment request emailed" : "Payment request created — email did not send" }[action]);
+      const msg = { approve: "Partner approved", reject: "Partner rejected", clarify: "Changes requested", suspend: "Partner suspended",
+        request_payment: r.email_sent ? "Payment request emailed" : "Payment request created — email did not send" }[action];
+      (action === "request_payment" && !r.email_sent ? toast.warning : toast.success)(msg);
       setNote(""); load(); onChanged();
     } catch (e) { showApiError(e); }
   };
@@ -27,7 +28,7 @@ const Detail = ({ id, onChanged }) => {
         <F k="entity_type" l="Type" /><F k="legal_name" l="Name" /><F k="email" l="Email" /><F k="primary_contact_phone" l="Phone" />
         <F k="country" l="Country" /><F k="city" l="City" /><F k="address_line1" l="Address" /><F k="postal_code" l="Postcode" /><F k="reg_number" l="Registration no." />
       </div>
-      <div><div className="pmc-label">Banking</div>{(a.banking || []).map((b, i) => <div key={i} className="text-sm">{b.institution_name} · {b.account_name} · {b.account_number || b.iban} {b.swift && `· ${b.swift}`} · {b.currency}</div>)}</div>
+      <div><div className="pmc-label">Banking</div>{(a.banking || []).map((b, i) => <div key={i} className="text-sm">{[b.institution_name, b.account_name, b.account_number || b.iban, b.swift, b.currency].filter(Boolean).join(" · ")}</div>)}</div>
       <div><div className="pmc-label">Documents</div><div className="flex gap-2 flex-wrap">
         {Object.entries(a.documents || {}).map(([slot, d]) => <button key={slot} type="button" className="px-2 py-1 text-xs border" onClick={() => uploadsApi.openFile(d.key).catch(showApiError)} data-testid={`admin-agent-doc-${slot}`}>{slot.replace(/_/g, " ")}</button>)}
       </div></div>
@@ -36,14 +37,17 @@ const Detail = ({ id, onChanged }) => {
       {a.payment && <div className="text-sm" data-testid="admin-agent-payment">Registration fee {a.payment.currency} {Number(a.payment.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })} · <b>{a.payment.status}</b>{a.payment.paid_at ? ` on ${a.payment.paid_at.slice(0, 10)}` : ""}</div>}
       {["submitted", "approved", "needs_clarification", "payment_pending"].includes(a.status) && (
         <div className="space-y-2">
-          <textarea className={inp + " w-full"} rows={2} placeholder="Note to the agent (required to reject or ask for changes)" value={note} onChange={(e) => setNote(e.target.value)} data-testid="admin-agent-note" />
+          <textarea className={inp + " w-full"} rows={2} placeholder="Note to the partner (required to reject or ask for changes)" value={note} onChange={(e) => setNote(e.target.value)} data-testid="admin-agent-note" />
           <div className="flex gap-2 flex-wrap">
             {a.status === "submitted" && <>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={waive} onChange={(e) => setWaive(e.target.checked)} data-testid="admin-agent-waive" />Waive registration fee</label>
               {waive ? <button className="pmc-btn pmc-btn--primary" onClick={() => act("approve")} data-testid="admin-agent-approve">Approve (fee waived)</button>
                 : <button className="pmc-btn pmc-btn--primary" onClick={() => act("request_payment")} data-testid="admin-agent-request-payment">Send payment request</button>}
               <button className="pmc-btn pmc-btn--secondary" onClick={() => act("clarify")} data-testid="admin-agent-clarify">Ask for changes</button></>}
-            {a.status === "payment_pending" && <button className="pmc-btn pmc-btn--secondary" onClick={() => act("request_payment")} data-testid="admin-agent-resend-payment">Resend payment link</button>}
+            {a.status === "payment_pending" && <>
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={waive} onChange={(e) => setWaive(e.target.checked)} data-testid="admin-agent-waive-pending" />Waive registration fee</label>
+              {waive ? <button className="pmc-btn pmc-btn--primary" onClick={() => act("approve")} data-testid="admin-agent-approve-pending">Approve (fee waived)</button>
+                : <button className="pmc-btn pmc-btn--secondary" onClick={() => act("request_payment")} data-testid="admin-agent-resend-payment">Resend payment link</button>}</>}
             {a.status !== "approved" && <button className="pmc-btn pmc-btn--secondary" onClick={() => act("reject")} data-testid="admin-agent-reject">Reject</button>}
             {a.status === "approved" && <button className="pmc-btn pmc-btn--secondary" onClick={() => act("suspend")} data-testid="admin-agent-suspend">Suspend</button>}
           </div>
