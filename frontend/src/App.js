@@ -111,6 +111,7 @@ import AgentPortal from "@/apps/agent-portal/AgentPortal";
 import { AgentJoin, AgentLogin, PartnerRegister } from "@/apps/agent-portal/AgentAuth";
 import SupplierInvite from "@/apps/agent-portal/SupplierInvite";
 import LegacyLoginRedirect from "@/apps/auth-e/LegacyLoginRedirect";
+import DataDeletionE from "@/apps/notice-board-e/DataDeletionE";
 import GoogleAuthCallback from "@/apps/auth-e/GoogleAuthCallback";
 import ChatWidget from "@/components/ChatWidget";
 import PayComplete from "@/apps/PayComplete";
@@ -229,6 +230,7 @@ export default function App() {
             <Route path="/contact" element={<ContactE />} />
             <Route path="/privacy" element={<PrivacyTermsE />} />
             <Route path="/terms" element={<PrivacyTermsE />} />
+            <Route path="/data-deletion" element={<DataDeletionE />} />
             {/* v49b — design reference showcases */}
             <Route path="/design/dialogs" element={<DialogsE />} />
             <Route path="/design/states" element={<StatesE />} />
