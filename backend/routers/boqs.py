@@ -297,6 +297,7 @@ async def create_contract(payload: ContractIn, admin=Depends(require_role("admin
         "status": "active",
         "created_at": now_iso(),
         "created_by": admin["id"],
+        **{k: bid[k] for k in ("partner_code", "partner_id", "partner_name") if bid.get(k)},
     })
     res = await db.contracts.insert_one(doc)
     doc["_id"] = res.inserted_id

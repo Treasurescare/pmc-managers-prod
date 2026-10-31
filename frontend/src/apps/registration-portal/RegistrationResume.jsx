@@ -244,7 +244,8 @@ export default function RegistrationResume() {
           Registering as <span className="font-mono font-semibold text-brand-navy">{reg.email}</span>
           {" · "}private draft link — do not share
         </div>
-        <PartnerBanner reg={reg} token={token} onRevoked={() => setReg((prev) => ({ ...prev, partner: { ...prev.partner, access: "revoked" } }))} />
+        <PartnerBanner reg={reg} token={token} onRevoked={() => setReg((prev) => ({ ...prev, partner: { ...prev.partner, access: "revoked" } }))}
+                       onMode={(access) => setReg((prev) => ({ ...prev, partner: { ...prev.partner, access } }))} />
 
         <ol className="mt-6 flex items-center gap-2 flex-wrap" data-testid="stepper">
           {STEPS.map((s, i) => {

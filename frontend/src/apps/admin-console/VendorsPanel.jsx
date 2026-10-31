@@ -250,6 +250,7 @@ export default function VendorsPanel() {
       <h3 className="font-display text-2xl text-brand-navy mt-1">{kpi.company_name || "(no name)"}</h3>
       <div className="text-sm font-mono text-brand-navy-soft mt-1">{kpi.vendor_ref}</div>
       <div className="text-xs text-brand-navy/50 mt-0.5">{kpi.email} · {kpi.country} · {kpi.primary_sector || "sector n/a"}</div>
+      {kpi.partner_code && <div className="text-xs mt-1" data-testid="vendor-partner-code">Introduced by partner <b>{kpi.partner_code}</b> · {kpi.partner_name}{kpi.partner_history?.length ? ` · moved ${kpi.partner_history.length}×` : ""}</div>}
       <div className="mt-6 grid gap-3 md:grid-cols-4">
         <KpiTile label={t("panels.vendors.kpi_days_approved")} value={kpi.approved_days_ago} />
         <KpiTile label={t("panels.vendors.kpi_review_hours")} value={kpi.time_to_decision_hours} />

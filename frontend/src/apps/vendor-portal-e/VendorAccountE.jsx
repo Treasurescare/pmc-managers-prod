@@ -234,6 +234,7 @@ export default function VendorAccountE({ legacy: Legacy }) {
             <span className="pmc-pill">Changes need admin approval</span>
           </div>
           <div className="pmc-panel__body" style={{ display: "grid", gap: 14, fontSize: 14 }}>
+            {profile?.partner_code && <div data-testid="vacc-partner-code">Your PMC partner: <b>{profile.partner_name}</b> ({profile.partner_code})</div>}
             {["company_name", "address", "office_phone", "mobile", "email"].map((field) => {
               const meta = FIELD_META[field];
               const current = profile?.[field];

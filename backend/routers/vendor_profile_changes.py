@@ -104,6 +104,8 @@ async def get_my_profile(vendor=Depends(current_vendor)):
         "address": _current_value(v, "address"),
         "office_phone": _current_value(v, "office_phone"),
         "mobile": _current_value(v, "mobile"),
+        "partner_code": v.get("partner_code"),
+        "partner_name": v.get("partner_name"),
     }
 
 

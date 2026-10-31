@@ -3,8 +3,8 @@ import { toast } from "sonner";
 import { agentApi, showApiError } from "@/lib/api";
 
 const inp = "mt-1 block w-full px-3 py-2 border border-brand-navy/20 bg-white text-sm";
-const ACCESS = { awaiting_consent: "Waiting for supplier consent", granted: "Consent given", declined: "Supplier declined", revoked: "Access removed by supplier" };
-const STAGE = { invited: "Invited", consented: "Ready to fill", filling: "Filling in", ready_for_review: "With supplier for review", submitted: "Submitted to PMC", declined: "Declined", revoked: "Revoked" };
+const ACCESS = { awaiting_consent: "Waiting for supplier consent", granted: "Consent given", self_fill: "Supplier filling it themselves — you stay linked", declined: "Supplier declined", revoked: "Access removed by supplier" };
+const STAGE = { invited: "Invited", consented: "Ready to fill", filling: "Filling in", self_fill: "Supplier completing", ready_for_review: "With supplier for review", submitted: "Submitted to PMC", declined: "Declined", revoked: "Revoked", claim_released: "Released" };
 
 const InviteForm = ({ onDone }) => {
   const [f, setF] = useState({ company_name: "", email: "", mobile: "" });

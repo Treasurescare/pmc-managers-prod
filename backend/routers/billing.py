@@ -139,7 +139,9 @@ async def create_checkout(req: CheckoutRequest, request: Request):
     session = await sc.create_checkout_session(ck_req)
 
     # Insert payment_transactions BEFORE returning the URL
+    from routers.partner_suppliers import partner_tag
     await db.payment_transactions.insert_one({
+        **(await partner_tag(email=buyer_email) if buyer_role == "vendor" else {}),
         "session_id": session.session_id,
         "product_code": product["code"],
         "buyer_email": buyer_email,
@@ -452,7 +454,9 @@ async def create_fee_checkout(req: FeeCheckoutRequest, request: Request):
     )
     session = await sc.create_checkout_session(ck_req)
 
+    from routers.partner_suppliers import partner_tag
     await db.payment_transactions.insert_one({
+        **(await partner_tag(email=buyer_email)),
         "session_id": session.session_id,
         "product_code": f"FEE:{m.get('kind')}",
         "fee_master_id": str(m["_id"]),

@@ -306,6 +306,7 @@ export default function AdminBidDetailPage() {
                 <F label="Submitted at" value={fmtTs(bid.submitted_at || bid.created_at)} />
                 <F label="Vendor" value={bid.company_name || "—"} />
                 <F label="Vendor ref" value={bid.vendor_ref || "—"} mono />
+                {bid.partner_code && <F label="Partner" value={`${bid.partner_code}${bid.partner_name ? ` · ${bid.partner_name}` : ""}`} mono />}
                 <F label="Vendor email" value={bid.vendor_email || "—"} mono />
               </div>
             </section>

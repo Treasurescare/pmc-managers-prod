@@ -146,6 +146,7 @@ async def _category_checkout(req: dict, origin: str) -> dict:
     await db.payment_transactions.insert_one({
         "session_id": session.session_id, "purpose": "category_fee", "request_id": str(req["_id"]),
         "vendor_id": str(v["_id"]) if v else None, "vendor_ref": req["vendor_ref"],
+        **{k: v[k] for k in ("partner_code", "partner_id") if v and v.get(k)},
         "amount": float(req["fee_amount"]), "currency": req["fee_currency"].lower(),
         "status": "initiated", "payment_status": "pending", "created_at": now_iso(), "updated_at": now_iso()})
     return {"checkout_url": session.url, "session_id": session.session_id}

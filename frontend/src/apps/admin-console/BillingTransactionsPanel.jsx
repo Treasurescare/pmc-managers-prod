@@ -182,6 +182,7 @@ export default function BillingTransactionsPanel() {
                   <td className="px-3 py-2 text-xs">
                     <div>{r.buyer_email}</div>
                     <div className="text-[10px] text-slate-500">{r.buyer_role}</div>
+                    {r.partner_code && <div className="text-[10px] text-slate-500" data-testid={`btp-partner-${r.session_id}`}>Partner {r.partner_code}</div>}
                   </td>
                   <td className="px-3 py-2 text-xs">
                     <div>{r.product_code}</div>

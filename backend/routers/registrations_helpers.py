@@ -16,6 +16,11 @@ from security import hash_password
 from emails import send_email, wrap
 
 
+def _partner_fields(doc: dict) -> dict:
+    from routers.partner_suppliers import vendor_partner_fields
+    return vendor_partner_fields(doc)
+
+
 async def approve_and_create_vendor(doc: dict) -> dict:
     """Assign a vendor_ref, insert the vendors row, email the new supplier.
 
@@ -44,6 +49,7 @@ async def approve_and_create_vendor(doc: dict) -> dict:
             "kz_licenses": doc.get("kz_licenses") or [],
             "profile": {k: doc.get(k) for k in doc.keys() if k not in _EXCLUDE},
             "registration_id": str(doc.get("_id")) if doc.get("_id") else None,
+            **_partner_fields(doc),
             "tenant_id": doc.get("tenant_id", config.DEFAULT_TENANT_ID),
             "password_hash": hash_password(temp_password),
             "must_change_password": True,

@@ -31,6 +31,12 @@ from routers._fees import (tender_builder_fees, upfront_quote, credit_required,
                            paid_credit, issue_receipt)
 from audit import audit_log
 
+
+async def _ptag(vendor: dict) -> dict:
+    from routers.partner_suppliers import partner_tag
+    return await partner_tag(vendor.get("id"))
+
+
 router = APIRouter(prefix="/api/v1/vendor-tenders", tags=["vendor-tenders"])
 
 CORE_FIELDS = {
@@ -176,7 +182,7 @@ async def subscribe_checkout(payload: SubCheckoutIn, vendor=Depends(current_vend
     session = await checkout.create_checkout_session(req)
     await db.payment_transactions.insert_one({
         "session_id": session.session_id, "purpose": "tender_builder_sub",
-        "vendor_id": vendor["id"], "amount": amount, "currency": currency,
+        "vendor_id": vendor["id"], "amount": amount, "currency": currency, **(await _ptag(vendor)),
         "status": "initiated", "payment_status": "pending",
         "created_at": now_iso(), "updated_at": now_iso(),
     })
@@ -258,7 +264,7 @@ async def tender_fee_checkout(tid: str, payload: FeeCheckoutIn, vendor=Depends(c
     )
     session = await checkout.create_checkout_session(req)
     await db.payment_transactions.insert_one({
-        "session_id": session.session_id, "purpose": "tender_fee", "vendor_id": vendor["id"],
+        "session_id": session.session_id, "purpose": "tender_fee", "vendor_id": vendor["id"], **(await _ptag(vendor)),
         "template_id": tid, "fee_code": fee["code"], "rule_id": fee["rule_id"],
         "amount": amount, "currency": fee["currency"].lower(),
         "status": "initiated", "payment_status": "pending",
@@ -360,7 +366,7 @@ async def start_checkout(payload: StartCheckoutIn, vendor=Depends(current_vendor
         metadata={"purpose": "tender_credit", "vendor_id": vendor["id"], "credit_id": str(r.inserted_id)}))
     await db.tender_credits.update_one({"_id": r.inserted_id}, {"$set": {"session_id": session.session_id}})
     await db.payment_transactions.insert_one({
-        "session_id": session.session_id, "purpose": "tender_credit", "vendor_id": vendor["id"],
+        "session_id": session.session_id, "purpose": "tender_credit", "vendor_id": vendor["id"], **(await _ptag(vendor)),
         "credit_id": str(r.inserted_id), "amount": q["total"], "currency": credit["currency"],
         "status": "initiated", "payment_status": "pending",
         "created_at": now_iso(), "updated_at": now_iso()})

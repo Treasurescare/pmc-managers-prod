@@ -20,6 +20,7 @@ router = APIRouter(tags=["partner-suppliers"])
 ADMIN = Depends(require_role("admin"))
 CSRF = [Depends(require_csrf)]
 CLAIM_DAYS = 30
+LINKED = ("granted", "self_fill")
 ACTIVE = ["draft", "submitted", "under_review", "needs_clarification"]
 PARTNER_BLOCKED_PREFIXES = ("decl_", "signature_")
 CONSENT_VERSION = "2026-11-v1"
@@ -60,6 +61,19 @@ def _supplier_row(r: dict) -> dict:
             "invited_at": r.get("partner_invited_at"), "consent_at": (r.get("partner_consent") or {}).get("at"),
             "vendor_ref": r.get("vendor_ref"), "claim_expires_at": r.get("partner_claim_expires_at"),
             "edits": len(r.get("partner_edits") or [])}
+
+
+async def partner_tag(vendor_id: Optional[str] = None, email: Optional[str] = None) -> dict:
+    """Partner code/name to stamp on bids, contracts and payments for a partner-introduced supplier."""
+    q = {"_id": ObjectId(vendor_id)} if vendor_id and ObjectId.is_valid(str(vendor_id)) else ({"email": email.lower()} if email else None)
+    v = await db.vendors.find_one(q, {"partner_code": 1, "partner_id": 1, "partner_name": 1}) if q else None
+    return {k: v[k] for k in ("partner_code", "partner_id", "partner_name") if v and v.get(k)}
+
+
+def vendor_partner_fields(reg: dict) -> dict:
+    if not reg.get("partner_id") or reg.get("partner_access") not in LINKED:
+        return {}
+    return {"partner_id": reg["partner_id"], "partner_code": reg.get("partner_code"), "partner_name": reg.get("partner_name")}
 
 
 # ---------- token resolution used by registrations.py ----------
@@ -216,7 +230,7 @@ async def send_for_review(rid: str, request: Request):
 # ---------- supplier: consent / decline / revoke ----------
 
 class ConsentIn(BaseModel):
-    decision: Literal["accept", "decline"]
+    decision: Literal["accept", "self", "decline"]
     signer_name: str = Field("", max_length=120)
     consents: Dict[str, bool] = {}
 
@@ -251,6 +265,17 @@ async def invite_decide(token: str, body: ConsentIn, request: Request):
         await audit_log("supplier.partner_declined", None, "registration", str(reg["_id"]), {"ip": ip})
         await _notify_partner(reg, "declined your invitation")
         return {"partner_access": "declined"}
+    if body.decision == "self":
+        if len(body.signer_name.strip()) < 3 or not body.consents.get("data_privacy"):
+            raise HTTPException(status_code=422, detail="Type your full name and accept the data-privacy statement")
+        consent = {"version": CONSENT_VERSION, "mode": "self", "signer_name": body.signer_name.strip(), "consents": {"data_privacy": True},
+                   "at": now_iso(), "ip": ip, "user_agent": (request.headers.get("user-agent") or "")[:200]}
+        await db.registrations.update_one({"_id": reg["_id"]}, {"$set": {
+            "partner_access": "self_fill", "partner_stage": "self_fill", "partner_consent": consent, "email_verified_at": now_iso(),
+            "data_processing_consent": True, "consent_at": now_iso(), "partner_consent_token": None, "partner_consent_used_token": token}})
+        await audit_log("supplier.partner_self_fill", None, "registration", str(reg["_id"]), {"signer_name": consent["signer_name"], "ip": ip})
+        await _notify_partner(reg, "will complete their registration themselves — you stay linked as their partner")
+        return {"partner_access": "self_fill", "resume_path": f"/register/resume?token={reg['magic_token']}"}
     if len(body.signer_name.strip()) < 3 or not all(body.consents.get(k) for k, _ in CONSENT):
         raise HTTPException(status_code=422, detail="Type your full name and tick every statement to give consent")
     consent = {"version": CONSENT_VERSION, "signer_name": body.signer_name.strip(), "consents": {k: True for k, _ in CONSENT},
@@ -269,6 +294,39 @@ async def _notify_partner(reg: dict, what: str) -> None:
     if a:
         await send_email(a["email"], f"[PMC] {reg['company_name']} {what.split(' —')[0]}",
                          wrap("Supplier update", f"<p>{reg['company_name']} ({reg['email']}) {what}.</p>", "Open partner portal", f"{_site()}/partner/me"))
+
+
+class ModeIn(BaseModel):
+    mode: Literal["self", "partner"]
+    signer_name: str = Field("", max_length=120)
+
+
+@router.post("/api/v1/registrations/{rid}/partner-access/mode")
+async def switch_mode(rid: str, token: str, body: ModeIn, request: Request):
+    reg = await db.registrations.find_one({"_id": _oid(rid), "magic_token": token})
+    if not reg or not reg.get("partner_id"):
+        raise HTTPException(status_code=404, detail="Registration not found")
+    if reg.get("status") not in ("draft", "needs_clarification"):
+        raise HTTPException(status_code=409, detail="This registration is already submitted")
+    want = "self_fill" if body.mode == "self" else "granted"
+    if reg.get("partner_access") not in LINKED:
+        raise HTTPException(status_code=409, detail="Your partner is no longer linked to this registration")
+    if reg["partner_access"] == want:
+        return {"partner_access": want}
+    upd = {"partner_access": want, "partner_stage": "self_fill" if want == "self_fill" else "consented"}
+    if want == "self_fill":
+        upd["partner_edit_token"] = None
+    else:
+        if len(body.signer_name.strip()) < 3:
+            raise HTTPException(status_code=422, detail="Type your full name to let the partner fill your form")
+        ip = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip() or None
+        upd["partner_consent"] = {"version": CONSENT_VERSION, "mode": "partner", "signer_name": body.signer_name.strip(),
+                                  "consents": {k: True for k, _ in CONSENT}, "at": now_iso(), "ip": ip}
+    await db.registrations.update_one({"_id": reg["_id"]}, {"$set": upd})
+    await audit_log("supplier.partner_mode", None, "registration", rid, {"mode": want})
+    await _notify_partner(reg, "will complete their registration themselves — you stay linked as their partner" if want == "self_fill"
+                          else "asked you to fill their registration — open it from your portal")
+    return {"partner_access": want}
 
 
 @router.post("/api/v1/registrations/{rid}/partner-access/revoke")
@@ -344,7 +402,8 @@ def _totals(rows: list) -> dict:
 
 async def on_supplier_approved(reg: dict, vendor_ref: Optional[str]) -> None:
     """Accrue the onboarding commission once a partner-assisted registration is approved."""
-    if not reg.get("partner_id") or reg.get("partner_access") != "granted":
+    reg = await db.registrations.find_one({"_id": reg["_id"]}) or reg
+    if not reg.get("partner_id") or reg.get("partner_access") not in LINKED:
         return
     a = await db.agents.find_one({"_id": ObjectId(reg["partner_id"])})
     if not a:
@@ -371,7 +430,7 @@ async def add_deal_commission(aid: str, body: DealIn, admin=ADMIN):
     a = await db.agents.find_one({"_id": _oid(aid)})
     if not a:
         raise HTTPException(status_code=404, detail="Partner not found")
-    reg = await db.registrations.find_one({"partner_id": aid, "vendor_ref": body.vendor_ref.strip(), "status": "approved", "partner_access": "granted"})
+    reg = await db.registrations.find_one({"partner_id": aid, "vendor_ref": body.vendor_ref.strip(), "status": "approved", "partner_access": {"$in": list(LINKED)}})
     if not reg:
         raise HTTPException(status_code=422, detail="That supplier reference is not an approved supplier onboarded by this partner")
     rule = await _rule_for(a)
@@ -425,7 +484,7 @@ async def admin_wallet(aid: str, admin=ADMIN):
     rows = await db.partner_commissions.find({"partner_id": aid}).sort("created_at", -1).to_list(1000)
     sups = await db.registrations.find({"partner_id": aid}).sort("partner_invited_at", -1).to_list(500)
     return {"items": [_entry(r) for r in rows], "totals": _totals(rows), "rule": await _rule_for(a),
-            "override": a.get("commission"), "suppliers": [_supplier_row(r) for r in sups]}
+            "override": a.get("commission"), "suppliers": [{**_supplier_row(r), "history": r.get("partner_history") or []} for r in sups]}
 
 
 @router.get("/api/v1/agents/me/wallet")
@@ -452,6 +511,104 @@ async def request_payout(request: Request):
                               "Open partners", f"{_site()}/admin/e/partners"))
     await audit_log("partner.payout_requested", {"id": str(a["_id"]), "email": a["email"]}, "agent", str(a["_id"]), {"due": summary})
     return {"payout_requested_at": now_iso(), "due": summary}
+
+
+# ---------- admin: reassign supplier to another partner ----------
+
+class ReassignIn(BaseModel):
+    partner_id: str
+    note: str = Field(min_length=5, max_length=1000)
+
+
+@router.post("/api/v1/admin/partner-suppliers/{rid}/reassign", dependencies=CSRF)
+async def reassign_supplier(rid: str, body: ReassignIn, admin=ADMIN):
+    reg = await db.registrations.find_one({"_id": _oid(rid), "partner_id": {"$exists": True}})
+    if not reg:
+        raise HTTPException(status_code=404, detail="Partner-linked supplier not found")
+    new = await db.agents.find_one({"_id": _oid(body.partner_id), "status": "approved"})
+    if not new:
+        raise HTTPException(status_code=422, detail="Choose an approved partner")
+    if str(new["_id"]) == reg.get("partner_id"):
+        raise HTTPException(status_code=409, detail="The supplier is already with this partner")
+    entry = {"at": now_iso(), "by": admin.get("email"), "note": body.note.strip(), "status": reg.get("status"),
+             "from": {"id": reg.get("partner_id"), "code": reg.get("partner_code"), "name": reg.get("partner_name")},
+             "to": {"id": str(new["_id"]), "code": new.get("partner_code"), "name": new.get("legal_name") or new["name"]}}
+    upd = {"partner_id": entry["to"]["id"], "partner_code": entry["to"]["code"], "partner_name": entry["to"]["name"],
+           "partner_edit_token": None, "partner_claim_expires_at": _ago(CLAIM_DAYS)}
+    reconsent = reg.get("status") in ("draft", "needs_clarification") and reg.get("partner_access") in ("granted", "awaiting_consent", "revoked")
+    if reconsent:
+        upd.update({"partner_access": "awaiting_consent", "partner_stage": "invited", "partner_consent_token": secrets.token_urlsafe(32),
+                    "partner_consent_expires_at": _ago(7), "partner_invited_at": now_iso()})
+    await db.registrations.update_one({"_id": reg["_id"]}, {"$set": upd, "$push": {"partner_history": entry}})
+    if reg.get("status") == "approved":
+        await db.vendors.update_one({"email": reg["email"]}, {"$set": {k: upd[k] for k in ("partner_id", "partner_code", "partner_name")},
+                                                                "$push": {"partner_history": entry}})
+    await audit_log("partner.supplier_reassigned", admin, "registration", rid, entry)
+    if reconsent:
+        await _send_supplier_invite({**reg, **upd})
+    old = {**reg}
+    await _notify_partner(old, f"has been moved to another partner by PMC. Note: {body.note.strip()}")
+    await _notify_partner({**reg, **upd}, f"has been assigned to you by PMC. Note: {body.note.strip()}")
+    return {"ok": True, "reconsent_sent": reconsent, "history": entry}
+
+
+# ---------- leaderboard ----------
+
+def _month_start() -> str:
+    return datetime.now(timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
+
+
+async def _board() -> list:
+    start = _month_start()
+    appr, inv = {}, {}
+    async for r in db.registrations.aggregate([{"$match": {"partner_id": {"$exists": True}, "status": "approved", "reviewed_at": {"$gte": start},
+                                                          "partner_access": {"$in": list(LINKED)}}}, {"$group": {"_id": "$partner_id", "n": {"$sum": 1}}}]):
+        appr[r["_id"]] = r["n"]
+    async for r in db.registrations.aggregate([{"$match": {"partner_id": {"$exists": True}, "partner_invited_at": {"$gte": start}}},
+                                               {"$group": {"_id": "$partner_id", "n": {"$sum": 1}}}]):
+        inv[r["_id"]] = r["n"]
+    rows = [{"id": str(a["_id"]), "code": a.get("partner_code"), "name": a.get("legal_name") or a.get("name"),
+             "approved": appr.get(str(a["_id"]), 0), "invites": inv.get(str(a["_id"]), 0)}
+            async for a in db.agents.find({"status": "approved"}, {"partner_code": 1, "legal_name": 1, "name": 1})]
+    rows.sort(key=lambda r: (-r["approved"], -r["invites"], r["code"] or ""))
+    rank, prev = 0, None
+    for i, r in enumerate(rows):
+        if (r["approved"], r["invites"]) != prev:
+            rank, prev = i + 1, (r["approved"], r["invites"])
+        r["rank"] = rank
+    return rows
+
+
+async def _show_names() -> bool:
+    s = await db.partner_commission_settings.find_one({"key": "leaderboard"})
+    return bool((s or {}).get("show_names"))
+
+
+@router.get("/api/v1/agents/me/leaderboard")
+async def my_leaderboard(request: Request):
+    a = await _approved_partner(request)
+    rows, names, me = await _board(), await _show_names(), str(a["_id"])
+    out = [{"rank": r["rank"], "label": (r["name"] if names or r["id"] == me else r["code"]), "code": r["code"], "approved": r["approved"],
+            "invites": r["invites"], "is_me": r["id"] == me} for r in rows]
+    mine = next((r for r in out if r["is_me"]), None)
+    top = out[:10] + ([mine] if mine and mine not in out[:10] else [])
+    return {"month": _month_start()[:7], "partners": len(out), "me": mine, "rows": top, "show_names": names}
+
+
+@router.get("/api/v1/admin/partners/leaderboard")
+async def admin_leaderboard(admin=ADMIN):
+    return {"month": _month_start()[:7], "rows": await _board(), "show_names": await _show_names()}
+
+
+class BoardIn(BaseModel):
+    show_names: bool
+
+
+@router.put("/api/v1/admin/partners/leaderboard", dependencies=CSRF)
+async def set_leaderboard(body: BoardIn, admin=ADMIN):
+    await db.partner_commission_settings.update_one({"key": "leaderboard"}, {"$set": {"show_names": body.show_names}}, upsert=True)
+    await audit_log("partner.leaderboard_settings", admin, "settings", "leaderboard", body.model_dump())
+    return body.model_dump()
 
 
 async def ensure_indexes() -> None:

@@ -7,6 +7,7 @@ import EscrowBankingStep from "@/apps/escrow-portal/EscrowBankingStep";
 import { AgentAgreementStep, AgentDocsStep } from "./AgentSteps";
 import PartnerSuppliers from "./PartnerSuppliers";
 import PartnerWallet from "./PartnerWallet";
+import PartnerLeaderboard from "./PartnerLeaderboard";
 
 const STEPS = ["Profile", "Banking", "Documents", "Agreement"];
 const BANK = { account_name: "", account_number: "", iban: "", swift: "", currency: "USD", institution_name: "", branch: "",
@@ -22,11 +23,11 @@ const ApprovedHome = () => {
   return (
     <div className="space-y-4" data-testid="partner-home">
       <div className="flex gap-2 text-[11px] uppercase tracking-widest">
-        {[["suppliers", "My suppliers"], ["wallet", "Commission wallet"]].map(([k, l]) => (
+        {[["suppliers", "My suppliers"], ["wallet", "Commission wallet"], ["leaderboard", "Leaderboard"]].map(([k, l]) => (
           <button key={k} type="button" onClick={() => setTab(k)} data-testid={`partner-tab-${k}`}
                   className={"px-3 py-1 border " + (tab === k ? "bg-brand-navy text-white border-brand-navy" : "bg-white text-brand-navy/60 border-brand-navy/15")}>{l}</button>))}
       </div>
-      {tab === "suppliers" ? <PartnerSuppliers /> : <PartnerWallet />}
+      {tab === "suppliers" ? <PartnerSuppliers /> : tab === "wallet" ? <PartnerWallet /> : <PartnerLeaderboard />}
     </div>
   );
 };

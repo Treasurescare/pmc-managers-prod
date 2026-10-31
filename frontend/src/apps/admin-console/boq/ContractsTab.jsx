@@ -132,6 +132,7 @@ export default function ContractsTab({
                   data-testid={`contract-detail-${c.contract_ref}`}>
                 <div><dt className="text-slate-500">Notice</dt><dd className="font-mono">{c.notice_ref || "—"}</dd></div>
                 <div><dt className="text-slate-500">Vendor</dt><dd className="font-mono">{c.vendor_id || "—"}</dd></div>
+                {c.partner_code && <div><dt className="text-slate-500">Partner</dt><dd className="font-mono" data-testid={`contract-partner-${c.contract_ref}`}>{c.partner_code}</dd></div>}
                 <div><dt className="text-slate-500">Start</dt><dd>{c.start_date ? new Date(c.start_date).toLocaleDateString() : "—"}</dd></div>
                 <div><dt className="text-slate-500">End</dt><dd>{c.end_date ? new Date(c.end_date).toLocaleDateString() : "—"}</dd></div>
                 <div className="col-span-2 mt-1"><dt className="text-slate-500">Obligations</dt>

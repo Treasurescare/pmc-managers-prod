@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import AdminEShell from "./AdminEShell";
 import { agentApi, uploadsApi, showApiError } from "@/lib/api";
-import { CommissionSettingsCard, PartnerWalletAdmin } from "./PartnerCommissionAdmin";
+import { AdminLeaderboardCard, CommissionSettingsCard, PartnerWalletAdmin } from "./PartnerCommissionAdmin";
 
 const inp = "px-3 py-2 border border-brand-navy/20 bg-white text-sm";
 
-const Detail = ({ id, onChanged }) => {
+const Detail = ({ id, onChanged, partners }) => {
   const [a, setA] = useState(null);
   const [note, setNote] = useState("");
   const [waive, setWaive] = useState(false);
@@ -53,7 +53,7 @@ const Detail = ({ id, onChanged }) => {
             {a.status === "approved" && <button className="pmc-btn pmc-btn--secondary" onClick={() => act("suspend")} data-testid="admin-agent-suspend">Suspend</button>}
           </div>
         </div>)}
-      {a.status === "approved" && <PartnerWalletAdmin id={id} />}
+      {a.status === "approved" && <PartnerWalletAdmin id={id} partners={partners} />}
     </div>
   );
 };
@@ -73,6 +73,7 @@ export default function AdminAgentsE() {
     <AdminEShell active="Partners" crumb={<>Market / <b>Partners</b></>}>
       <div className="p-6 space-y-5" data-testid="admin-agents-page">
         <CommissionSettingsCard />
+        <AdminLeaderboardCard />
         <form onSubmit={invite} className="flex gap-2 flex-wrap items-end bg-white border border-brand-navy/15 p-4" data-testid="admin-agent-invite-form">
           <label className="text-sm">Partner name<input className={inp + " block mt-1"} required value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} data-testid="admin-agent-invite-name" /></label>
           <label className="text-sm">Email<input type="email" className={inp + " block mt-1"} required value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} data-testid="admin-agent-invite-email" /></label>
@@ -89,7 +90,7 @@ export default function AdminAgentsE() {
                   {r.status === "invited" && <button className="pmc-btn pmc-btn--secondary" onClick={() => agentApi.resend(r.id).then((x) => (x.email_sent ? toast.success("Invitation resent") : toast.error("Invitation email did not send"))).catch(showApiError)} data-testid={`admin-agent-resend-${r.id}`}>Resend</button>}
                 </div>
               </div>
-              {open === r.id && <div className="p-3 pt-0"><Detail id={r.id} onChanged={load} /></div>}
+              {open === r.id && <div className="p-3 pt-0"><Detail id={r.id} onChanged={load} partners={rows} /></div>}
             </div>))}
           {!rows.length && <div className="p-6 text-sm text-center text-brand-navy/60" data-testid="admin-agents-empty">No partners yet — send the first invitation above.</div>}
         </div>

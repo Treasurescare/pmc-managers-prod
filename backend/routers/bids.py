@@ -265,6 +265,8 @@ async def create_bid(payload: BidCreateIn, vendor=Depends(current_vendor)) -> di
     if zero_emd:
         doc["escrow_auto_cleared"] = True
         doc["escrow_accepted_at"] = now_iso()
+    from routers.partner_suppliers import partner_tag
+    doc.update(await partner_tag(vendor["id"]))
     seal_fields(doc, dict(doc))
     res = await db.bids.insert_one(doc)
     doc["_id"] = res.inserted_id

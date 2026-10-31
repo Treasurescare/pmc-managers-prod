@@ -27,7 +27,7 @@ export default function SupplierInvite() {
     setBusy(true);
     try {
       const r = await agentApi.inviteDecide(token, { decision, signer_name: name, consents: ticks });
-      if (decision === "accept") { toast.success("Consent recorded — your email is confirmed"); nav(r.resume_path); } else setDone("declined");
+      if (decision === "accept" || decision === "self") { toast.success(decision === "self" ? "Email confirmed — you'll complete the form yourself" : "Consent recorded — your email is confirmed"); nav(r.resume_path); } else setDone("declined");
     } catch (e) { showApiError(e); } finally { setBusy(false); }
   };
   if (err) return <Box title="Invitation not valid" testid="supplier-invite-invalid"><p className="text-sm">{String(err)}</p><Link to="/" className="text-xs underline">Home</Link></Box>;
@@ -43,10 +43,11 @@ export default function SupplierInvite() {
       </div>
       <label className="block text-sm">Your full name (signature)<input className="mt-1 w-full px-3 py-2 border border-brand-navy/20" value={name} onChange={(e) => setName(e.target.value)} data-testid="supplier-consent-name" /></label>
       <div className="flex gap-2 flex-wrap">
-        <button className="pmc-btn pmc-btn--primary" disabled={busy || !all || name.trim().length < 3} onClick={() => decide("accept")} data-testid="supplier-consent-accept">Give consent & open my registration</button>
+        <button className="pmc-btn pmc-btn--primary" disabled={busy || !all || name.trim().length < 3} onClick={() => decide("accept")} data-testid="supplier-consent-accept">Let the partner fill it & open my registration</button>
+        <button className="pmc-btn pmc-btn--secondary" disabled={busy || !ticks.data_privacy || name.trim().length < 3} onClick={() => decide("self")} data-testid="supplier-consent-self">I'll fill it myself</button>
         <button className="pmc-btn pmc-btn--secondary" disabled={busy} onClick={() => decide("decline")} data-testid="supplier-consent-decline">I don't know this partner — decline</button>
       </div>
-      <p className="text-xs text-brand-navy/60">Consent version {info.version}. Your name, time and IP address are recorded.</p>
+      <p className="text-xs text-brand-navy/60">Filling it yourself needs only your name and the data-privacy tick; {info.partner_code} stays linked as your partner either way, and you can switch later. Consent version {info.version}. Your name, time and IP address are recorded.</p>
     </Box>
   );
 }
