@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import AdminEShell from "./AdminEShell";
 import { agentApi, uploadsApi, showApiError } from "@/lib/api";
+import { CommissionSettingsCard, PartnerWalletAdmin } from "./PartnerCommissionAdmin";
 
 const inp = "px-3 py-2 border border-brand-navy/20 bg-white text-sm";
 
@@ -52,6 +53,7 @@ const Detail = ({ id, onChanged }) => {
             {a.status === "approved" && <button className="pmc-btn pmc-btn--secondary" onClick={() => act("suspend")} data-testid="admin-agent-suspend">Suspend</button>}
           </div>
         </div>)}
+      {a.status === "approved" && <PartnerWalletAdmin id={id} />}
     </div>
   );
 };
@@ -70,6 +72,7 @@ export default function AdminAgentsE() {
   return (
     <AdminEShell active="Partners" crumb={<>Market / <b>Partners</b></>}>
       <div className="p-6 space-y-5" data-testid="admin-agents-page">
+        <CommissionSettingsCard />
         <form onSubmit={invite} className="flex gap-2 flex-wrap items-end bg-white border border-brand-navy/15 p-4" data-testid="admin-agent-invite-form">
           <label className="text-sm">Partner name<input className={inp + " block mt-1"} required value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} data-testid="admin-agent-invite-name" /></label>
           <label className="text-sm">Email<input type="email" className={inp + " block mt-1"} required value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} data-testid="admin-agent-invite-email" /></label>

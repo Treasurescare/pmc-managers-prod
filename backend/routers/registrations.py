@@ -2,7 +2,7 @@ import asyncio
 import base64
 import uuid
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Depends, Query, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, Depends, Query, UploadFile, File, Form, Request
 from bson import ObjectId
 
 import config
@@ -99,6 +99,7 @@ async def admin_resume_link(rid: str, admin=Depends(require_role("admin", "revie
 
 @router.post("/{registration_id}/documents/{slot}")
 async def upload_registration_doc(registration_id: str, slot: str,
+                                    request: Request,
                                     file: UploadFile = File(...),
                                     token: str = Form(...)):
     """PUBLIC (token-authed) — upload a document into a specific slot on this registration."""
@@ -112,7 +113,8 @@ async def upload_registration_doc(registration_id: str, slot: str,
         reg_obj_id = ObjectId(registration_id)
     except Exception:
         raise HTTPException(status_code=400, detail="Malformed registration id — save the draft first")
-    reg = await db.registrations.find_one({"_id": reg_obj_id, "magic_token": token})
+    from routers.partner_suppliers import record_partner_edit, resolve_reg_token
+    reg, editor = await resolve_reg_token(token, request, {"_id": reg_obj_id})
     if not reg:
         raise HTTPException(status_code=404, detail="Registration not found or token invalid")
     if reg["status"] not in ("draft", "needs_clarification"):
@@ -138,7 +140,9 @@ async def upload_registration_doc(registration_id: str, slot: str,
         {"$set": {f"document_slots.{slot}": meta, "updated_at": now_iso()}},
     )
     await audit_log("registration.document_upload", None, "registration", registration_id,
-                    {"slot": slot, "file_name": file.filename})
+                    {"slot": slot, "file_name": file.filename, "by": editor})
+    if editor == "partner":
+        await record_partner_edit(reg, [f"document:{slot}"])
     return meta
 
 
@@ -172,7 +176,7 @@ async def admin_update_registration(rid: str, payload: RegistrationUpdateIn,
 
 
 @router.get("/{registration_id}/documents/{slot}/file")
-async def download_registration_doc(registration_id: str, slot: str,
+async def download_registration_doc(registration_id: str, slot: str, request: Request,
                                      token: str = Query(..., min_length=1),
                                      download: bool = False):
     """View or download a registration document using the magic token.
@@ -186,7 +190,8 @@ async def download_registration_doc(registration_id: str, slot: str,
         reg_obj_id = ObjectId(registration_id)
     except Exception:
         raise HTTPException(status_code=400, detail="Malformed registration id")
-    reg = await db.registrations.find_one({"_id": reg_obj_id, "magic_token": token})
+    from routers.partner_suppliers import resolve_reg_token
+    reg, _ = await resolve_reg_token(token, request, {"_id": reg_obj_id})
     if not reg:
         raise HTTPException(status_code=404, detail="Registration not found or token invalid")
     slots = reg.get("document_slots") or {}
@@ -244,18 +249,21 @@ async def admin_download_registration_doc(registration_id: str, slot: str,
 
 
 @router.delete("/{registration_id}/documents/{slot}")
-async def delete_registration_doc(registration_id: str, slot: str,
+async def delete_registration_doc(registration_id: str, slot: str, request: Request,
                                     token: str = Query(...)):
     """PUBLIC (token-authed) — delete a slot's document."""
     try:
         reg_obj_id = ObjectId(registration_id)
     except Exception:
         raise HTTPException(status_code=400, detail="Malformed registration id")
-    reg = await db.registrations.find_one({"_id": reg_obj_id, "magic_token": token})
+    from routers.partner_suppliers import record_partner_edit, resolve_reg_token
+    reg, editor = await resolve_reg_token(token, request, {"_id": reg_obj_id})
     if not reg:
         raise HTTPException(status_code=404, detail="Registration not found or token invalid")
     if reg["status"] not in ("draft", "needs_clarification"):
         raise HTTPException(status_code=400, detail=f"Cannot edit — status is {reg['status']}")
+    if editor == "partner":
+        await record_partner_edit(reg, [f"document:{slot}:removed"])
     await db.registrations.update_one(
         {"_id": reg_obj_id},
         {"$unset": {f"document_slots.{slot}": ""}, "$set": {"updated_at": now_iso()}},
@@ -325,19 +333,26 @@ async def create_draft(payload: RegistrationDraftIn):
 
 
 @router.get("/resume/{token}")
-async def resume_by_token(token: str):
-    """PUBLIC — resolve a magic-link token to a draft."""
-    doc = await db.registrations.find_one({"magic_token": token})
+async def resume_by_token(token: str, request: Request):
+    """PUBLIC — resolve a magic-link (or partner edit) token to a draft."""
+    from routers.partner_suppliers import partner_view, resolve_reg_token
+    doc, editor = await resolve_reg_token(token, request)
     if not doc:
         raise HTTPException(status_code=404, detail="Invalid or expired token")
-    return _out(doc)
+    if doc.get("partner_id") and doc.get("partner_access") == "awaiting_consent" and editor == "supplier":
+        raise HTTPException(status_code=403, detail="Please open the invitation email from your PMC partner and give or refuse consent first.")
+    out = _out(doc)
+    for k in ("partner_edit_token", "partner_consent_token", "partner_edits", "partner_fields", "partner_consent", "partner_id"):
+        out.pop(k, None)
+    return {**out, "editor": editor, **partner_view(doc)}
 
 
 @router.patch("/{registration_id}")
-async def update_draft(registration_id: str, payload: RegistrationUpdateIn,
+async def update_draft(registration_id: str, payload: RegistrationUpdateIn, request: Request,
                        token: str = Query(..., description="Magic-link token")):
-    """PUBLIC — update draft. Requires magic-link token."""
-    doc = await db.registrations.find_one({"_id": ObjectId(registration_id), "magic_token": token})
+    """PUBLIC — update draft. Requires magic-link token (or partner edit token + partner session)."""
+    from routers.partner_suppliers import partner_view, record_partner_edit, resolve_reg_token, strip_partner_fields
+    doc, editor = await resolve_reg_token(token, request, {"_id": _oid_or_400(registration_id)})
     if not doc:
         raise HTTPException(status_code=404, detail="Registration not found or token invalid")
     if doc["status"] not in ("draft", "needs_clarification"):
@@ -351,10 +366,25 @@ async def update_draft(registration_id: str, payload: RegistrationUpdateIn,
                       "created_at", "submitted_at", "reviewed_at", "reviewer_notes",
                       "reviewed_by", "approved_at", "rejected_at"):
         updates.pop(protected, None)
+    if editor == "partner":
+        updates = strip_partner_fields(updates)
+        changed = [k for k, v in updates.items() if doc.get(k) != v]
+        if changed:
+            await record_partner_edit(doc, changed)
     updates["updated_at"] = now_iso()
     await db.registrations.update_one({"_id": ObjectId(registration_id)}, {"$set": updates})
     fresh = await db.registrations.find_one({"_id": ObjectId(registration_id)})
-    return _out(fresh)
+    out = _out(fresh)
+    for k in ("partner_edit_token", "partner_consent_token", "partner_edits", "partner_fields", "partner_consent", "partner_id"):
+        out.pop(k, None)
+    return {**out, "editor": editor, **partner_view(fresh)}
+
+
+def _oid_or_400(x: str) -> ObjectId:
+    try:
+        return ObjectId(x)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Malformed registration id")
 
 
 @router.post("/{registration_id}/submit")
@@ -373,6 +403,8 @@ async def submit_registration(registration_id: str,
     if doc.get("status") not in ("draft", "needs_clarification"):
         raise HTTPException(status_code=400,
                             detail=f"Cannot submit — status is {doc.get('status') or 'unknown'}")
+    if doc.get("partner_id") and doc.get("partner_access") == "awaiting_consent":
+        raise HTTPException(status_code=400, detail="Respond to your partner's consent request first.")
 
     # Validate all 6 declarations present & true
     decls = ["decl_conflict_of_interest", "decl_integrity", "decl_accuracy",
@@ -407,7 +439,8 @@ async def submit_registration(registration_id: str,
 
     await db.registrations.update_one(
         {"_id": oid},
-        {"$set": {"status": "submitted", "submitted_at": now_iso()}},
+        {"$set": {"status": "submitted", "submitted_at": now_iso(),
+                  **({"partner_stage": "submitted", "partner_edit_token": None} if doc.get("partner_id") else {})}},
     )
     await audit_log("registration.submit", None, "registration", registration_id,
                     {"email": email, "company_name": doc.get("company_name")})
@@ -600,6 +633,9 @@ async def admin_decide(registration_id: str, payload: RegistrationDecisionIn,
     await db.registrations.update_one({"_id": ObjectId(registration_id)}, {"$set": updates})
     await audit_log(f"registration.{payload.action}", admin, "registration", registration_id,
                     {"notes": payload.notes, "vendor_ref": updates.get("vendor_ref")})
+    if payload.action == "approve":
+        from routers.partner_suppliers import on_supplier_approved
+        await on_supplier_approved(doc, updates.get("vendor_ref"))
     return {"ok": True, "status": updates["status"]}
 
 

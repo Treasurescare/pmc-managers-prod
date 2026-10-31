@@ -112,6 +112,7 @@ import AdminMarketingE from "@/apps/admin-console-e/AdminMarketingE";
 import AdminAgentsE from "@/apps/admin-console-e/AdminAgentsE";
 import AgentPortal from "@/apps/agent-portal/AgentPortal";
 import { AgentJoin, AgentLogin, PartnerRegister } from "@/apps/agent-portal/AgentAuth";
+import SupplierInvite from "@/apps/agent-portal/SupplierInvite";
 import GoogleAuthCallback from "@/apps/auth-e/GoogleAuthCallback";
 import ChatWidget from "@/components/ChatWidget";
 import PayComplete from "@/apps/PayComplete";
@@ -263,6 +264,7 @@ export default function App() {
             <Route path="/partner/join/:token" element={<AgentJoin />} />
             <Route path="/partner/login" element={<AgentLogin />} />
             <Route path="/partner/me" element={<AgentPortal />} />
+            <Route path="/supplier-invite/:token" element={<SupplierInvite />} />
             {/* All admin-console routes require an admin/reviewer session.
                 Specialist roles (escrow_agent, certifier, …) are bounced to /staff. */}
             <Route element={<RequireAdmin />}>

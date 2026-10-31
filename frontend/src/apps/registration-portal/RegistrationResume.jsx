@@ -11,6 +11,7 @@ import SectionC from "./sections/SectionC";
 import SectionD from "./sections/SectionD";
 import SectionDirectors from "./sections/SectionDirectors";
 import SectionE from "./sections/SectionE";
+import PartnerBanner from "./PartnerBanner";
 
 // v44 — Directors & Beneficial Owners inserted between D (KZ Business Profile)
 // and E (Declarations & Signature). Legacy keys a/b/c/d/e untouched.
@@ -86,7 +87,7 @@ export default function RegistrationResume() {
         "submitted_at", "vendor_ref", "reviewed_at", "reviewer_notes",
         "reviewed_by", "approved_at", "rejected_at", "magic_token",
         "email", "data_processing_consent", "marketing_consent",
-        "consent_at", "document_slots",
+        "consent_at", "document_slots", "editor", "partner",
       ]) delete payload[k];
       // v54h — defence in depth: `registrationApi.update` already filters
       // via _stripRegExtras, but when some caller or future refactor
@@ -243,6 +244,7 @@ export default function RegistrationResume() {
           Registering as <span className="font-mono font-semibold text-brand-navy">{reg.email}</span>
           {" · "}private draft link — do not share
         </div>
+        <PartnerBanner reg={reg} token={token} onRevoked={() => setReg((prev) => ({ ...prev, partner: { ...prev.partner, access: "revoked" } }))} />
 
         <ol className="mt-6 flex items-center gap-2 flex-wrap" data-testid="stepper">
           {STEPS.map((s, i) => {
@@ -352,6 +354,8 @@ export default function RegistrationResume() {
                   </span>
                 )}
               </div>
+            ) : reg.editor === "partner" ? (
+              <a href="/partner/me" data-testid="btn-partner-back" className="px-6 py-3 text-[12px] font-semibold uppercase tracking-widest bg-brand-navy-soft text-white">Back to partner portal</a>
             ) : (
               <div className="flex flex-col items-end gap-1">
                 <button

@@ -5,14 +5,30 @@ import { agentApi, showApiError } from "@/lib/api";
 import EscrowCoreForm from "@/apps/escrow-portal/EscrowCoreForm";
 import EscrowBankingStep from "@/apps/escrow-portal/EscrowBankingStep";
 import { AgentAgreementStep, AgentDocsStep } from "./AgentSteps";
+import PartnerSuppliers from "./PartnerSuppliers";
+import PartnerWallet from "./PartnerWallet";
 
 const STEPS = ["Profile", "Banking", "Documents", "Agreement"];
 const BANK = { account_name: "", account_number: "", iban: "", swift: "", currency: "USD", institution_name: "", branch: "",
   bank_country: "", bank_state: "", bank_city: "", bank_code: "", sort_code: "", routing_number: "" };
 const STATUS = {
   submitted: ["Under review", "PMC is reviewing your partner profile. We'll email you when it's done."],
-  approved: ["Approved", "You're an approved PMC partner. Supplier onboarding tools arrive in the next release."],
+  approved: ["Approved", "You're an approved PMC partner."],
   rejected: ["Not approved", "Your application was not approved."],
+};
+
+const ApprovedHome = () => {
+  const [tab, setTab] = useState("suppliers");
+  return (
+    <div className="space-y-4" data-testid="partner-home">
+      <div className="flex gap-2 text-[11px] uppercase tracking-widest">
+        {[["suppliers", "My suppliers"], ["wallet", "Commission wallet"]].map(([k, l]) => (
+          <button key={k} type="button" onClick={() => setTab(k)} data-testid={`partner-tab-${k}`}
+                  className={"px-3 py-1 border " + (tab === k ? "bg-brand-navy text-white border-brand-navy" : "bg-white text-brand-navy/60 border-brand-navy/15")}>{l}</button>))}
+      </div>
+      {tab === "suppliers" ? <PartnerSuppliers /> : <PartnerWallet />}
+    </div>
+  );
 };
 
 const PayCard = ({ form, setForm }) => {
@@ -75,7 +91,7 @@ export default function AgentPortal() {
         <button className="pmc-btn pmc-btn--secondary" onClick={logout} data-testid="agent-logout">Sign out</button>
       </div>
       {form.status === "needs_clarification" && lastNote && <div className="bg-amber-50 border border-amber-300 p-3 text-sm" data-testid="agent-clarify-note"><b>PMC asked for changes:</b> {lastNote.note}</div>}
-      {form.status === "payment_pending" ? <PayCard form={form} setForm={setForm} /> : locked ? (
+      {form.status === "payment_pending" ? <PayCard form={form} setForm={setForm} /> : form.status === "approved" ? <ApprovedHome /> : locked ? (
         <div className="bg-white border border-brand-navy/15 p-6" data-testid="agent-status-card">
           <h2 className="text-lg font-semibold">{(STATUS[form.status] || [form.status])[0]}</h2>
           <p className="text-sm text-brand-navy/70 mt-1">{(STATUS[form.status] || ["", ""])[1]}</p>

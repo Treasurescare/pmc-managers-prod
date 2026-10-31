@@ -153,7 +153,7 @@ api.interceptors.response.use(
     const skipRedirect = err?.config?._skipAuthRedirect === true;
     if (status === 401 && !skipRedirect && (detail === "Not authenticated" || detail === "Token expired")) {
       const path = window.location.pathname;
-      const onAuthPage = path === "/login" || path.startsWith("/register") || path === "/" || path.startsWith("/agent/") || path.startsWith("/partner/");
+      const onAuthPage = path === "/login" || path.startsWith("/register") || path === "/" || path.startsWith("/agent/") || path.startsWith("/partner/") || path.startsWith("/supplier-invite/");
       if (!onAuthPage && !window.__pmcAuthRedirecting) {
         window.__pmcAuthRedirecting = true;
         window.location.href = `/login?expired=1&next=${encodeURIComponent(path)}`;
@@ -541,6 +541,22 @@ export const agentApi = {
   register: (email, name) => api.post("/api/v1/agents/register", { email, name }).then((r) => r.data),
   refreshPayment: () => api.post("/api/v1/agents/me/payment/refresh").then((r) => r.data),
   decide: (id, action, note, waive_fee = false) => api.post(`/api/v1/admin/agents/${id}/decision`, { action, note, waive_fee }).then((r) => r.data),
+  suppliers: () => api.get("/api/v1/agents/me/suppliers").then((r) => r.data),
+  inviteSupplier: (p) => api.post("/api/v1/agents/me/suppliers", p).then((r) => r.data),
+  resendSupplier: (rid) => api.post(`/api/v1/agents/me/suppliers/${rid}/resend`).then((r) => r.data),
+  supplierEditLink: (rid) => api.post(`/api/v1/agents/me/suppliers/${rid}/edit-link`).then((r) => r.data),
+  sendForReview: (rid) => api.post(`/api/v1/agents/me/suppliers/${rid}/send-for-review`).then((r) => r.data),
+  wallet: () => api.get("/api/v1/agents/me/wallet").then((r) => r.data),
+  requestPayout: () => api.post("/api/v1/agents/me/wallet/request-payout").then((r) => r.data),
+  inviteInfo: (t) => api.get(`/api/v1/supplier-invites/${t}`).then((r) => r.data),
+  inviteDecide: (t, p) => api.post(`/api/v1/supplier-invites/${t}`, p).then((r) => r.data),
+  revokePartner: (rid, token) => api.post(`/api/v1/registrations/${rid}/partner-access/revoke`, {}, { params: { token } }).then((r) => r.data),
+  commissionSettings: () => api.get("/api/v1/admin/partner-commission/settings").then((r) => r.data),
+  saveCommissionSettings: (p) => api.put("/api/v1/admin/partner-commission/settings", p).then((r) => r.data),
+  setPartnerRule: (id, rule) => api.put(`/api/v1/admin/agents/${id}/commission`, { rule }).then((r) => r.data),
+  adminWallet: (id) => api.get(`/api/v1/admin/agents/${id}/wallet`).then((r) => r.data),
+  addDeal: (id, p) => api.post(`/api/v1/admin/agents/${id}/commissions`, p).then((r) => r.data),
+  settle: (cid, action, reference, paid_on = "") => api.post(`/api/v1/admin/partner-commissions/${cid}`, { action, reference, paid_on }).then((r) => r.data),
 };
 
 export const uploadsApi = {
