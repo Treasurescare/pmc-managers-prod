@@ -785,6 +785,7 @@ async def on_start() -> None:
         await _mkt_idx()
         await _assistant.ensure_indexes()
         await _whatsapp.ensure_indexes()
+        await db.opening_records.create_index("code", unique=True)
     except Exception as exc:
         logging.warning("rfq/rfp starter seed skipped: %s", exc)
     if os.environ.get("SEED_DEMO_DATA", "false").lower() == "true":

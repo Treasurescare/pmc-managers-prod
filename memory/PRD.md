@@ -884,6 +884,18 @@ Artifacts in /frontend/public/downloads: pmc-backend-v57i.zip, pmc-frontend-v57i
 - UI: AdminBidDetailPage sealed banner + BidOpeningPanel; /admin/e/bidding "Bid opening" rail panel; Flag hidden for sealed bids.
 - Legacy bids (no seal_v) and auction bids unchanged.
 
+
+## R27 — Signed bid-opening record PDF — 2026-10-31 — build v58k (agent-tested iteration_136: 22/22 + 43/43 sealed suites, UI)
+- Approve now needs signer_name (typed e-signature, stripped ≥3) + consent; stores signature {name, ip (x-forwarded-for), user_agent, statement}.
+- GET /api/v1/bid-opening/{ref}/record.pdf (after technical opening): landscape PDF with signatures per stage, bids table (deposit/tech/commercial,
+  price only when commercially opened), audit-ledger stamp (record code, SHA-256, ledger seq+hash) + QR → public GET /api/v1/bid-opening/verify/{code}
+  (recomputes record hash + ledger event hash). db.opening_records (unique code). audit_log now returns {seq, current_hash}.
+
+## Agent onboarding — PLAN PROPOSED 2026-10-31 (awaiting approval; see finish summary). User choices: AI assistant + human agents + both;
+agents may fill in for supplier with consent pack (documents, safety, privacy, NDA/indemnity protecting PMC & agent); agent self-onboarding by
+email invite with escrow-style form (banking, master country→state→city→zip, country banks editable, KYC/company docs); commission wallet:
+onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays via Stripe, payouts to agents on schedule or on request.
+
 - PENDING: user to supply Meta credentials + get the 3 templates approved; set webhook in Meta.
 
 - LinkedIn "Feature not available — not enough connections": LinkedIn account-age/connections restriction on new profiles (user-side).

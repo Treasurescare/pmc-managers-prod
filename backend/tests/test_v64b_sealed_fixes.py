@@ -52,6 +52,7 @@ def _cleanup():
     DB.bids.delete_many({"notice_ref": REF})
     DB.notices.delete_many({"notice_ref": REF})
     DB.committees.delete_many({"notice_ref": REF})
+    DB.opening_records.delete_many({"notice_ref": REF})
     DB.vendors.delete_many({"email": VB_EMAIL})
     DB.admin_users.delete_many({"email": M_EMAIL})
 
@@ -176,8 +177,8 @@ class TestB_CommercialBlockers:
         DB.notices.update_one({"notice_ref": REF}, {"$set": {"submission_deadline": past, "bid_opening_date": past}})
         chair = _staff("committee@pmcmanagers.com", "Bid@1234", "committee_member")
         mem = _staff(M_EMAIL, STAFF_PW, "committee_member")
-        assert chair.post(f"{API}/bid-opening/{REF}/approve", json={"stage": "technical"}).status_code == 200
-        r = mem.post(f"{API}/bid-opening/{REF}/approve", json={"stage": "technical"})
+        assert chair.post(f"{API}/bid-opening/{REF}/approve", json={"stage": "technical", "signer_name": "TEST Signer", "consent": True}).status_code == 200
+        r = mem.post(f"{API}/bid-opening/{REF}/approve", json={"stage": "technical", "signer_name": "TEST Signer", "consent": True})
         assert r.status_code == 200 and r.json()["opened"] is True and r.json()["bids_opened"] == 2, r.text
 
     def test_no_cleared_blocks(self, admin):
@@ -185,7 +186,7 @@ class TestB_CommercialBlockers:
         assert "No bid has passed technical evaluation yet" in st
         assert any("Technical evaluation is still pending for 2 bid(s)" in b for b in st), st
         chair = _staff("committee@pmcmanagers.com", "Bid@1234", "committee_member")
-        r = chair.post(f"{API}/bid-opening/{REF}/approve", json={"stage": "commercial"})
+        r = chair.post(f"{API}/bid-opening/{REF}/approve", json={"stage": "commercial", "signer_name": "TEST Signer", "consent": True})
         assert r.status_code == 412 and "No bid has passed technical evaluation yet" in r.text
         n = DB.notices.find_one({"notice_ref": REF})
         assert not n.get("commercial_opened_at") and not (n.get("opening_approvals") or {}).get("commercial")
@@ -196,7 +197,7 @@ class TestB_CommercialBlockers:
         assert "No bid has passed technical evaluation yet" not in st
         assert any("still pending for 1 bid(s)" in b for b in st), st
         chair = _staff("committee@pmcmanagers.com", "Bid@1234", "committee_member")
-        r = chair.post(f"{API}/bid-opening/{REF}/approve", json={"stage": "commercial"})
+        r = chair.post(f"{API}/bid-opening/{REF}/approve", json={"stage": "commercial", "signer_name": "TEST Signer", "consent": True})
         assert r.status_code == 412 and "pending for 1 bid(s)" in r.text
 
     def test_reject_pending_unblocks(self, admin):
@@ -211,9 +212,9 @@ class TestB_CommercialBlockers:
     def test_commercial_opens_cleared_only(self, admin):
         chair = _staff("committee@pmcmanagers.com", "Bid@1234", "committee_member")
         mem = _staff(M_EMAIL, STAFF_PW, "committee_member")
-        r = chair.post(f"{API}/bid-opening/{REF}/approve", json={"stage": "commercial"})
+        r = chair.post(f"{API}/bid-opening/{REF}/approve", json={"stage": "commercial", "signer_name": "TEST Signer", "consent": True})
         assert r.status_code == 200 and r.json()["opened"] is False, r.text
-        r = mem.post(f"{API}/bid-opening/{REF}/approve", json={"stage": "commercial"})
+        r = mem.post(f"{API}/bid-opening/{REF}/approve", json={"stage": "commercial", "signer_name": "TEST Signer", "consent": True})
         assert r.status_code == 200 and r.json()["opened"] is True and r.json()["bids_opened"] == 1, r.text
         c = admin.get(f"{API}/bids/admin/{S['c']}").json()
         assert c["price_amount"] == 5000.0 and c["envelope_state"] == "commercial_open"

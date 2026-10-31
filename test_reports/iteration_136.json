@@ -1,0 +1,41 @@
+{
+  "summary": "Tested the signed bid-opening record (e-signatures, record.pdf with ledger stamp + QR, public verify). New suite tests/test_v64c_opening_record.py has 22 tests: 20 pass. The 2 failures are hardening tests beyond the stated spec. The older sealed suites were updated to send signer_name + consent and pass 43/43. One old test, test_vendor_patch_keeps_sealed, failed once in 4 runs (flaky, not reproduced). Every requested behaviour works. Approve returns 422 when consent is false or missing, or when signer_name is missing, under 3 characters or over 120. A non-member gets 403. Nothing is stored on a rejected call. The signature {name (trimmed), ip, user_agent, statement} is saved in opening_approvals[stage]. record.pdf returns 412 before the technical opening. After it, the PDF is valid, A4 landscape (842x595), and contains: notice ref, typed names, emails, signed times, IPs, a bids table with deposit/technical/commercial status, the record code (also in the filename), the SHA-256, the ledger hash and the QR image. Prices are hidden until the commercial opening, then shown only for the cleared bid. Repeat calls reuse the same code (1 opening_records doc, 1 record_issued event). After the commercial opening a new code is issued (2 docs, 2 events) and the old code still verifies. RBAC: chair, member and admin get 200; anonymous and vendor get 401/403. Verify: an unknown code gives valid:false. A valid code (case-insensitive) gives valid:true with notice_ref, signed_by, bids_opened=2 and ledger_seq. Tampering audit_events.current_hash or opening_records.sha256 gives valid:false, and both pass again after restore. UI on /admin/bids/:id as committee@ (admin role): the approve button is enabled only when the name is at least 3 characters (whitespace-only stays disabled) and consent is ticked. Signing shows the toast 'Approval recorded — 1 member(s) still to approve'. After the member signs, the stage shows OPENED, the sign form is hidden, and opening-record-pdf downloads a valid PDF. The record button also appears on the /admin/e/bidding rail. All TEST_ data was cleaned up (notices, bids, committees, opening_records, vendors, admin_users all 0). Audit-chain verify_chain() is ok:true over 2177 events.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/v1/bid-opening/verify/{code}", "issue": "Tamper check is shallow. (a) It never recomputes sha256 over opening_records.record, so editing the stored signer names (e.g. record.approvals.technical.0.name='FORGED NAME') still returns valid:true and shows the forged name in signed_by. (b) It never recomputes the audit event's own hash, so editing actor_email or other event fields without touching current_hash still returns valid:true. Fix: recompute hashlib.sha256(json.dumps(r['record'], sort_keys=True, default=str)) == r['sha256'], and recompute audit._hash(event body without _id/current_hash) == current_hash (or reuse audit.verify_record(seq)['ok'])."},
+      {"endpoint": "POST /api/v1/bid-opening/{ref}/approve", "issue": "signature.ip is request.client.host, which is the ingress pod IP (10.9.129.135/136), not the signer's IP. That makes the IP column in the PDF meaningless. Other routers (marketing_public.py:43, assistant.py:70) already read x-forwarded-for; do the same here."},
+      {"endpoint": "POST /api/v1/bid-opening/{ref}/approve", "issue": "signer_name='     ' (5 spaces) passes min_length=3 and is stored as an empty name after .strip(). The UI blocks this but the API does not. Strip before validating (a pydantic field_validator) or check len(strip()) >= 3."},
+      {"endpoint": "GET /api/v1/bid-opening/{ref}/record.pdf", "issue": "The PDF Supplier column shows the vendor email, because bids have no vendor_company/vendor_name field (only vendor_id/vendor_email/vendor_ref). Look up vendors.company_name by vendor_id. The UI shows 'Test Supplier Co'."},
+      {"endpoint": "GET /api/v1/bid-opening/{ref}/record.pdf", "issue": "No unique index on opening_records.code, so two concurrent first calls can each insert a doc and a record_issued audit event. Add a unique index and handle duplicate-key by re-reading."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "BidOpeningPanel / record PDF", "issues": ["The downloaded file is named bid-opening-{ref}.pdf because the frontend's fixed name overrides the server's Content-Disposition, which includes the record code. Add the code so files from different stages are told apart.", "The 'Approved:' line shows account names, not the typed signature names. Consider showing the typed name.", "The PDF header prints raw ISO timestamps with microseconds (2026-10-31T00:16:36.535606+00:00); format them like the signature rows."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v64c_opening_record.py", "/app/backend/tests/ui_setup_v64c.py", "/app/backend/tests/test_v64_sealed_bids.py", "/app/backend/tests/test_v64b_sealed_fixes.py", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "verify_record: recompute the record SHA-256 from the stored record body and recompute the ledger event hash (tests test_tamper_record_body_only and test_tamper_audit_payload_only currently fail)",
+    "Use the X-Forwarded-For client IP for signature.ip",
+    "Reject whitespace-only signer_name (validate after strip)",
+    "Show the supplier company name in the PDF (look up vendors by vendor_id)",
+    "Optional: unique index on opening_records.code; add the record code to the frontend download filename; format PDF header dates"
+  ],
+  "critical_code_review_comments": [
+    "verify_record trusts the stored sha256 and current_hash without recomputing either, so the 'tamper detection' only catches edits to those two exact fields",
+    "The typed signer_name is not compared with the account name, so any name is accepted. That may be intended, but the PDF shows the account email next to it, which limits the risk",
+    "The public verify endpoint discloses notice title and signer names with no auth. Acceptable for a public check, but note the PII exposure",
+    "_record bids query includes withdrawn/draft bids (no status filter). A draft or withdrawn bid would be listed as 'Not confirmed / Sealed'"
+  ],
+  "updated_files": ["/app/backend/tests/test_v64_sealed_bids.py (approve payloads now pass signer_name+consent; cleanup also deletes opening_records)", "/app/backend/tests/test_v64b_sealed_fixes.py (same)", "/app/backend/tests/test_v64c_opening_record.py (new)", "/app/backend/tests/ui_setup_v64c.py (new UI fixture helper)"],
+  "success_rate": {"backend": "95% (63/65 in combined run; the 2 failures are tamper-hardening tests)", "frontend": "100%"},
+  "flaky_tests": ["test_v64_sealed_bids.py::TestB_Create::test_vendor_patch_keeps_sealed failed 1 of 4 runs (25%), unrelated to this feature, not reproduced"],
+  "seed_data_creation": "Only TEST_SEALREC_* notices, bids, committee, member and vendor, all deleted afterwards. Audit events stay because the ledger is append-only.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run with -n 0: pytest tests/test_v64_sealed_bids.py tests/test_v64b_sealed_fixes.py tests/test_v64c_opening_record.py. UI helper: python tests/ui_setup_v64c.py setup (prints REF, bid_id, member email, member id), then member_sign REF member_email, then cleanup REF. For UI login use page.request.post('/api/v1/staff/auth/login', {email:'committee@pmcmanagers.com', password:'Bid@1234', active_role:'admin'}); /admin/login form submit did not navigate. The PDF image viewer tool could not open rendered PNG/JPG, so PDF content was checked via pymupdf text extraction."
+}

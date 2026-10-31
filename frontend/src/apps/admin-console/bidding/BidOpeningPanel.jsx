@@ -29,7 +29,7 @@ const Stage = ({ st, s, onApprove, busy, refKey, names }) => (
             data-testid={`opening-${st}-state-${refKey}`}>{s.opened_at ? `Opened ${s.opened_at.slice(0, 16).replace("T", " ")}` : "Sealed"}</span>
     </div>
     <div className="text-xs text-brand-navy/70">
-      Approved: {s.approvals.map((a) => names[a.by_id] || a.by).join(", ") || "none yet"}
+      Approved: {s.approvals.map((a) => a.signature?.name || names[a.by_id] || a.by).join(", ") || "none yet"}
       {!s.opened_at && s.pending.length > 0 && <> · Waiting for: {s.pending.map((p) => p.name).join(", ")}</>}
     </div>
     {!s.opened_at && <>

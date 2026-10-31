@@ -2,8 +2,9 @@
 from datetime import datetime, timezone
 
 from bson import ObjectId
+from pymongo.errors import DuplicateKeyError
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Literal
 
 from audit import audit_log
@@ -23,6 +24,14 @@ class ApproveIn(BaseModel):
     stage: Literal["technical", "commercial"]
     signer_name: str = Field(min_length=3, max_length=120)
     consent: bool
+
+    @field_validator("signer_name")
+    @classmethod
+    def _strip(cls, v: str) -> str:
+        v = v.strip()
+        if len(v) < 3:
+            raise ValueError("Type your full name (at least 3 characters)")
+        return v
 
 
 async def _ctx(notice_ref: str):
@@ -105,7 +114,8 @@ async def approve_opening(notice_ref: str, body: ApproveIn, request: Request,
     if any(a["by_id"] == admin["id"] for a in appr):
         raise HTTPException(status_code=409, detail="You have already approved this opening")
     appr.append({"by_id": admin["id"], "by": admin.get("email"), "at": now_iso(),
-                 "signature": {"name": body.signer_name.strip(), "ip": request.client.host if request.client else None,
+                 "signature": {"name": body.signer_name, "ip": (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
+                               or (request.client.host if request.client else None),
                                "user_agent": (request.headers.get("user-agent") or "")[:200],
                                "statement": SIGN_STATEMENT}})
     await db.notices.update_one({"_id": n["_id"]}, {"$set": {f"opening_approvals.{body.stage}": appr}})
@@ -147,6 +157,10 @@ def _esc(s) -> str:
     return escape(str(s if s is not None else "—"))
 
 
+def _ts(s) -> str:
+    return _esc((str(s)[:16].replace("T", " ") + " UTC") if s else None)
+
+
 def _qr_data_uri(text: str) -> str:
     import base64
     import io
@@ -158,8 +172,11 @@ def _qr_data_uri(text: str) -> str:
 
 async def _record(n: dict, c) -> dict:
     bids = []
+    vids = await db.bids.distinct("vendor_id", {"notice_ref": n["notice_ref"], "seal_v": 1})
+    vnames = {str(v["_id"]): v.get("company_name") async for v in db.vendors.find(
+        {"_id": {"$in": [ObjectId(x) for x in vids if x and ObjectId.is_valid(x)]}}, {"company_name": 1})}
     async for b in db.bids.find({"notice_ref": n["notice_ref"], "seal_v": 1, "auction_id": None}).sort("submitted_at", 1):
-        bids.append({"bid_ref": b.get("bid_ref"), "vendor": b.get("vendor_company") or b.get("vendor_name") or b.get("vendor_email"),
+        bids.append({"bid_ref": b.get("bid_ref"), "vendor": vnames.get(b.get("vendor_id")) or b.get("vendor_email"),
                      "submitted_at": b.get("submitted_at") or b.get("created_at"), "status": b.get("status"),
                      "emd_confirmed": b.get("status") in EMD_CONFIRMED or bool(b.get("technical_unsealed_at")),
                      "technical_opened": bool(b.get("technical_unsealed_at")), "technical_cleared": bool(b.get("technical_cleared_at")),
@@ -202,8 +219,8 @@ def _render_record(rec: dict, code: str, digest: str, ledger: dict, verify_url: 
     </style></head><body>
       <h1>Bid opening record</h1>
       <div>{_esc(rec['title'])} · <b>{_esc(rec['notice_ref'])}</b></div>
-      <div>Submission deadline: {_esc(rec['submission_deadline'])} · Bid opening date: {_esc(rec['opening_at'])}</div>
-      <div>Technical envelopes opened: {_esc(rec['technical_opened_at'])} · Commercial envelopes opened: {_esc(rec['commercial_opened_at'])}</div>
+      <div>Submission deadline: {_ts(rec['submission_deadline'])} · Bid opening date: {_ts(rec['opening_at'])}</div>
+      <div>Technical envelopes opened: {_ts(rec['technical_opened_at'])} · Commercial envelopes opened: {_ts(rec['commercial_opened_at'])}</div>
       <h2>Committee signatures — technical opening</h2>
       <table><tr><th>Member</th><th>Signed at</th><th>IP address</th><th>Method</th></tr>{sig_rows('technical')}</table>
       <h2>Committee signatures — commercial opening</h2>
@@ -241,8 +258,12 @@ async def opening_record_pdf(notice_ref: str, admin=VIEW):
         ledger = existing["ledger"]
     else:
         ledger = await audit_log("bid_opening.record_issued", admin, "notice", notice_ref, {"code": code, "sha256": digest}) or {}
-        await db.opening_records.insert_one({"code": code, "notice_ref": notice_ref, "sha256": digest, "record": rec,
-                                             "ledger": ledger, "issued_at": issued_at, "issued_by": issued_by})
+        try:
+            await db.opening_records.insert_one({"code": code, "notice_ref": notice_ref, "sha256": digest, "record": rec,
+                                                 "ledger": ledger, "issued_at": issued_at, "issued_by": issued_by})
+        except DuplicateKeyError:
+            existing = await db.opening_records.find_one({"code": code})
+            ledger, issued_at, issued_by = existing["ledger"], existing["issued_at"], existing["issued_by"]
     verify_url = f"{config.FRONTEND_URL.rstrip('/')}/api/v1/bid-opening/verify/{code}"
     pdf = await asyncio.to_thread(_render_record, rec, code, digest, ledger, verify_url, issued_by, issued_at)
     return Response(content=pdf, media_type="application/pdf",
@@ -254,9 +275,18 @@ async def verify_record(code: str):
     r = await db.opening_records.find_one({"code": code.upper()})
     if not r:
         return {"valid": False, "message": "No bid-opening record with this code exists. The document may be forged."}
+    import hashlib
+    import json
+    from audit import _hash
     ev = await db.audit_events.find_one({"seq": r["ledger"].get("seq")})
-    ok = bool(ev) and ev.get("current_hash") == r["ledger"].get("current_hash") and (ev.get("payload") or {}).get("sha256") == r["sha256"]
     rec = r["record"]
+    rec_ok = hashlib.sha256(json.dumps(rec, sort_keys=True, default=str).encode()).hexdigest() == r["sha256"]
+    ev_ok = False
+    if ev:
+        body = {k: v for k, v in ev.items() if k not in ("_id", "current_hash")}
+        ev_ok = _hash(body) == ev.get("current_hash") == r["ledger"].get("current_hash") \
+            and (ev.get("payload") or {}).get("sha256") == r["sha256"]
+    ok = rec_ok and ev_ok
     return {"valid": ok, "code": r["code"], "notice_ref": r["notice_ref"], "title": rec.get("title"), "issued_at": r["issued_at"],
             "sha256": r["sha256"], "ledger_seq": r["ledger"].get("seq"),
             "signed_by": {st: [a.get("name") for a in v] for st, v in rec["approvals"].items()},

@@ -62,6 +62,7 @@ def _cleanup():
     DB.bids.delete_many({"notice_ref": REF})
     DB.notices.delete_many({"notice_ref": REF})
     DB.committees.delete_many({"notice_ref": REF})
+    DB.opening_records.delete_many({"notice_ref": REF})
     DB.vendors.delete_many({"email": VB_EMAIL})
 
 
@@ -262,38 +263,38 @@ class TestF_Opening:
         t = d["stages"]["technical"]
         assert t["i_can_approve"] is True and len(t["pending"]) == 2
         assert any("still open" in b for b in t["blockers"])
-        r = chair.post(f"{API}/bid-opening/{REF}/approve", json={"stage": "technical"})
+        r = chair.post(f"{API}/bid-opening/{REF}/approve", json={"stage": "technical", "signer_name": "TEST Signer", "consent": True})
         assert r.status_code == 412
 
     def test_non_member_403(self, admin):
         past = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
         DB.notices.update_one({"notice_ref": REF}, {"$set": {"submission_deadline": past, "bid_opening_date": past}})
-        assert admin.post(f"{API}/bid-opening/{REF}/approve", json={"stage": "technical"}).status_code == 403
-        assert admin.post(f"{API}/bid-opening/{REF}/approve", json={"stage": "bogus"}).status_code == 422
+        assert admin.post(f"{API}/bid-opening/{REF}/approve", json={"stage": "technical", "signer_name": "TEST Signer", "consent": True}).status_code == 403
+        assert admin.post(f"{API}/bid-opening/{REF}/approve", json={"stage": "bogus", "signer_name": "TEST Signer", "consent": True}).status_code == 422
 
     def test_opening_date_future_412(self):
         DB.notices.update_one({"notice_ref": REF}, {"$set": {"bid_opening_date": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()}})
         chair = _staff("committee@pmcmanagers.com", "Bid@1234", "committee_member")
-        r = chair.post(f"{API}/bid-opening/{REF}/approve", json={"stage": "technical"})
+        r = chair.post(f"{API}/bid-opening/{REF}/approve", json={"stage": "technical", "signer_name": "TEST Signer", "consent": True})
         assert r.status_code == 412 and "opening date" in r.text
         DB.notices.update_one({"notice_ref": REF}, {"$set": {"bid_opening_date": (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()}})
 
     def test_commercial_before_technical_412(self):
         chair = _staff("committee@pmcmanagers.com", "Bid@1234", "committee_member")
-        assert chair.post(f"{API}/bid-opening/{REF}/approve", json={"stage": "commercial"}).status_code == 412
+        assert chair.post(f"{API}/bid-opening/{REF}/approve", json={"stage": "commercial", "signer_name": "TEST Signer", "consent": True}).status_code == 412
 
     def test_technical_partial_then_double_409(self, admin):
         chair = _staff("committee@pmcmanagers.com", "Bid@1234", "committee_member")
-        r = chair.post(f"{API}/bid-opening/{REF}/approve", json={"stage": "technical"})
+        r = chair.post(f"{API}/bid-opening/{REF}/approve", json={"stage": "technical", "signer_name": "TEST Signer", "consent": True})
         assert r.status_code == 200, r.text
         assert r.json()["opened"] is False and r.json()["remaining"] == 1
-        assert chair.post(f"{API}/bid-opening/{REF}/approve", json={"stage": "technical"}).status_code == 409
+        assert chair.post(f"{API}/bid-opening/{REF}/approve", json={"stage": "technical", "signer_name": "TEST Signer", "consent": True}).status_code == 409
         d = admin.get(f"{API}/bids/admin/{S['b']}").json()
         assert d["envelope_state"] == "sealed"
 
     def test_technical_all_approve_opens_only_emd_confirmed(self, admin):
         mem = _staff(M_EMAIL, STAFF_PW, "committee_member")
-        r = mem.post(f"{API}/bid-opening/{REF}/approve", json={"stage": "technical"})
+        r = mem.post(f"{API}/bid-opening/{REF}/approve", json={"stage": "technical", "signer_name": "TEST Signer", "consent": True})
         assert r.status_code == 200, r.text
         assert r.json()["opened"] is True and r.json()["bids_opened"] == 1
         n = DB.notices.find_one({"notice_ref": REF})
@@ -327,8 +328,8 @@ class TestF_Opening:
     def test_commercial_opening(self, admin):
         chair = _staff("committee@pmcmanagers.com", "Bid@1234", "committee_member")
         mem = _staff(M_EMAIL, STAFF_PW, "committee_member")
-        assert chair.post(f"{API}/bid-opening/{REF}/approve", json={"stage": "commercial"}).json()["opened"] is False
-        r = mem.post(f"{API}/bid-opening/{REF}/approve", json={"stage": "commercial"})
+        assert chair.post(f"{API}/bid-opening/{REF}/approve", json={"stage": "commercial", "signer_name": "TEST Signer", "consent": True}).json()["opened"] is False
+        r = mem.post(f"{API}/bid-opening/{REF}/approve", json={"stage": "commercial", "signer_name": "TEST Signer", "consent": True})
         assert r.status_code == 200 and r.json()["opened"] is True and r.json()["bids_opened"] == 1
         db_b = DB.bids.find_one({"_id": ObjectId(S["b"])})
         assert db_b["price_amount"] == 9999.0 and db_b["commercial_notes"] == "COMM NOTE B" and db_b["financial_opened_at"]
