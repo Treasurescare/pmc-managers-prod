@@ -19,6 +19,7 @@ import io
 import uuid
 import zipfile
 from typing import List, Optional
+from bid_seal import enc_bytes, dec_bytes, bid_stage_visible
 from fastapi import APIRouter, UploadFile, File, HTTPException, Form, Request, Depends
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
@@ -100,18 +101,28 @@ async def presign_upload(req: PresignRequest):
 
 
 @router.post("/direct")
-async def upload_direct(key: str = Form(...), file: UploadFile = File(...)):
+async def upload_direct(request: Request, key: str = Form(...), file: UploadFile = File(...)):
     """Pilot direct-upload — stores the file inline in Mongo as base64.
     Replace with S3 in Phase 2. Kept small (5 MB max)."""
     body = await file.read()
     if len(body) > config.MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="File exceeds pilot upload limit")
+    sealed = key.startswith("bid-docs/")
+    owner = None
+    if sealed:
+        try:
+            owner = (await current_vendor(request)).get("id")
+        except Exception:
+            raise HTTPException(status_code=401, detail="Sign in as a supplier to upload bid envelope files")
+        body = enc_bytes(body)
     encoded = base64.b64encode(body).decode("ascii")
     await db.uploads.insert_one({
         "key": key,
         "content_type": file.content_type,
         "size_bytes": len(body),
         "data_b64": encoded,
+        "sealed": sealed,
+        "owner_vendor_id": owner,
         "created_at": now_iso(),
     })
     # Public URL to retrieve later (see /files/{key})
@@ -121,7 +132,7 @@ async def upload_direct(key: str = Form(...), file: UploadFile = File(...)):
 @router.get("/files/{key:path}")
 async def get_file(key: str, download: bool = False,
                     _who: dict = Depends(_require_any_signed_in)):
-    return await _serve_file(key, download)
+    return await _serve_file(key, download, _who)
 
 
 # v52cz — "Download all" for a set of previously-uploaded files. Vendors use
@@ -166,7 +177,12 @@ async def download_bundle(req: BundleRequest,
         if not doc or not doc.get("data_b64"):
             missing.append(key)
             continue
+        if doc.get("sealed") and not await _may_open_sealed(doc, _who):
+            missing.append(key)
+            continue
         body = base64.b64decode(doc["data_b64"])
+        if doc.get("sealed"):
+            body = dec_bytes(body)
         display = key.rsplit("/", 1)[-1]
         if "_" in display:
             display = display.split("_", 1)[1]
@@ -241,11 +257,28 @@ async def get_public_file(key: str, request: Request, download: bool = False):
     return await _serve_file(key, download)
 
 
-async def _serve_file(key: str, download: bool):
+async def _may_open_sealed(doc: dict, who: Optional[dict]) -> bool:
+    """Sealed bid files: the supplier who owns them, or staff once that envelope is opened."""
+    if not who:
+        return False
+    bid = await db.bids.find_one({"documents.key": doc["key"]})
+    if who.get("kind") == "vendor":
+        return (bid or {}).get("vendor_id") == who.get("id") if bid else doc.get("owner_vendor_id") == who.get("id")
+    if who.get("kind") != "admin" or not bid:
+        return False
+    kind = next((d.get("kind") for d in bid.get("documents") or [] if d.get("key") == doc["key"]), "technical")
+    return bid_stage_visible(bid, {}, "commercial" if kind == "commercial" else "technical")
+
+
+async def _serve_file(key: str, download: bool, who: Optional[dict] = None):
     doc = await db.uploads.find_one({"key": key})
     if not doc:
         raise HTTPException(status_code=404, detail="File not found")
     body = base64.b64decode(doc["data_b64"])
+    if doc.get("sealed"):
+        if not await _may_open_sealed(doc, who):
+            raise HTTPException(status_code=403, detail="This bid file is sealed until the committee opens the envelope")
+        body = dec_bytes(body)
     display_name = key.rsplit("/", 1)[-1]
     if "_" in display_name:
         display_name = display_name.split("_", 1)[1]

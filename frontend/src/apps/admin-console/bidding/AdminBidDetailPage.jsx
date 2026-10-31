@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api, publicApi, showApiError, BACKEND_URL } from "@/lib/api";
+import { BidOpeningPanel } from "./BidOpeningPanel";
 
 /**
  * v51ba — full-page admin bid detail. Shows the ENTIRE vendor submission
@@ -16,7 +17,7 @@ export default function AdminBidDetailPage() {
   const [err, setErr] = useState("");
   const [deleting, setDeleting] = useState(false);
 
-  const isOrphan = bid && (
+  const isOrphan = bid && !bid.envelope_state && (
     (!bid.price_amount || Number(bid.price_amount) <= 0)
     && (!bid.documents || bid.documents.length === 0)
     && Number(bid.emd_paid_amount || 0) <= 0
@@ -129,6 +130,17 @@ export default function AdminBidDetailPage() {
 
       {bid && (
         <div className="space-y-6" data-testid="admin-bid-detail-wrap">
+            {bid.envelope_state && bid.envelope_state !== "commercial_open" && (
+              <section className="border border-brand-navy/30 bg-brand-navy/5 p-4 text-sm" data-testid="admin-bid-sealed-banner">
+                <div className="pmc-label">{bid.envelope_state === "sealed" ? "Sealed bid" : "Commercial envelope sealed"}</div>
+                <div className="text-brand-navy/80 mt-1">
+                  {bid.envelope_state === "sealed"
+                    ? `The technical and commercial envelopes (${bid.sealed_documents_count || 0} file(s)) and the price are encrypted. Nobody can see them until every committee member approves the opening on the bid opening date.`
+                    : "The price and commercial documents stay encrypted until every committee member approves the commercial opening."}
+                </div>
+              </section>
+            )}
+            {bid.envelope_state && <BidOpeningPanel noticeRef={bid.notice_ref} />}
             {isOrphan && (
               <section className="border border-red-300 bg-red-50 p-5" data-testid="admin-bid-orphan-banner">
                 <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -301,7 +313,7 @@ export default function AdminBidDetailPage() {
             <section className="bg-white border p-6" data-testid="admin-bid-commercial">
               <div className="pmc-label mb-3">Commercial</div>
               <div className="grid gap-4 md:grid-cols-4 text-sm">
-                <F label="Quoted price" value={`${bid.price_currency || ""} ${(bid.price_amount ?? 0).toLocaleString()}`} />
+                <F label="Quoted price" value={bid.commercial_redacted ? "Sealed until opening" : `${bid.price_currency || ""} ${(bid.price_amount ?? 0).toLocaleString()}`} />
                 <F label="EMD due" value={`${bid.emd_currency || ""} ${(bid.emd_due_amount ?? 0).toLocaleString()}`} />
                 <F label="EMD paid" value={`${bid.emd_currency || ""} ${(bid.emd_paid_amount ?? 0).toLocaleString()}`} />
                 <F label="EMD source" value={bid.emd_source || "—"} />
@@ -330,7 +342,7 @@ export default function AdminBidDetailPage() {
                 Uploaded documents · {(bid.documents || []).length}
               </div>
               {(bid.documents || []).length === 0 ? (
-                <div className="text-sm text-slate-500">The vendor did not attach any documents to this bid.</div>
+                <div className="text-sm text-slate-500">{bid.envelope_state === "sealed" ? `${bid.sealed_documents_count || 0} file(s) sealed until the committee opens the envelopes.` : "The vendor did not attach any documents to this bid."}</div>
               ) : (
                 <div className="grid gap-4">
                   {bid.documents.map((d, i) => {

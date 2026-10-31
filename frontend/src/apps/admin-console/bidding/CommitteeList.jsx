@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { api, formatApiError, showApiError } from "@/lib/api";
+import { BidOpeningPanel } from "./BidOpeningPanel";
 
 /**
  * CommitteeList v3 — dissolve + resend-invite via `api` axios helper.
@@ -87,6 +88,7 @@ export default function CommitteeList({ committees, onChange }) {
                   </button>
                 </div>
               )}
+              {c.status === "open" && <div className="mt-3"><BidOpeningPanel noticeRef={c.notice_ref} /></div>}
 
               {ext.length > 0 && (
                 <div className="mt-3 border-t border-brand-navy/10 pt-2"

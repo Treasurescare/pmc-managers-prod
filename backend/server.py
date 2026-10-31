@@ -319,6 +319,8 @@ from routers import site_settings as _site_settings  # noqa: E402
 app.include_router(_site_settings.router)
 from routers import whatsapp as _whatsapp  # noqa: E402
 app.include_router(_whatsapp.router)
+from routers import bid_opening as _bid_opening  # noqa: E402
+app.include_router(_bid_opening.router)
 from routers import google_auth as _google_auth  # noqa: E402
 app.include_router(_google_auth.router)
 from routers import linkedin as _linkedin  # noqa: E402

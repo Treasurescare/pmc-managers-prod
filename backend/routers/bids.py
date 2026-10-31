@@ -19,6 +19,7 @@ from models.base import BaseDocument, now_iso
 from security import require_role
 from routers.vendor_auth import current_vendor
 from audit import audit_log
+from bid_seal import seal_fields, unsealed_view, is_sealed_bid, redact_for_staff, bid_stage_visible
 
 router = APIRouter(prefix="/api/v1/bids", tags=["bids"])
 
@@ -255,10 +256,11 @@ async def create_bid(payload: BidCreateIn, vendor=Depends(current_vendor)) -> di
     if zero_emd:
         doc["escrow_auto_cleared"] = True
         doc["escrow_accepted_at"] = now_iso()
+    seal_fields(doc, dict(doc))
     res = await db.bids.insert_one(doc)
     doc["_id"] = res.inserted_id
     await audit_log("bid.submit", None, "bid", bid_ref,
-                    {"vendor": vendor["email"], "notice": payload.notice_ref, "price": payload.price_amount})
+                    {"vendor": vendor["email"], "notice": payload.notice_ref, "sealed": True})
     # v53g — zero-EMD bids land at escrow_accepted, which is the tender desk's
     # move (flag to certifier). Notify them; EMD-bearing bids notify the
     # escrow agent later, when the payment webhook flips them to emd_paid.
@@ -297,7 +299,7 @@ async def create_bid(payload: BidCreateIn, vendor=Depends(current_vendor)) -> di
                                           "notice_ref": payload.notice_ref})
     except Exception:
         pass
-    return _out(doc)
+    return _out(unsealed_view(doc))
 
 
 @router.get("/mine")
@@ -306,7 +308,7 @@ async def list_my_bids(vendor=Depends(current_vendor)) -> List[dict]:
     submission deadline so the vendor's "My bids" page can render a usable
     table without a second round-trip per row."""
     cursor = db.bids.find({"vendor_id": vendor["id"]}).sort("created_at", -1).limit(200)
-    rows = [_out(b) async for b in cursor]
+    rows = [_out(unsealed_view(b)) async for b in cursor]
     # v50s — join each bid with its notice (title + submission_deadline).
     refs = sorted({r.get("notice_ref") for r in rows if r.get("notice_ref")})
     if refs:
@@ -334,7 +336,7 @@ async def get_bid(bid_id: str, vendor=Depends(current_vendor)) -> dict:
     b = await db.bids.find_one({"_id": oid})
     if not b or b.get("vendor_id") != vendor["id"]:
         raise HTTPException(status_code=404, detail="Bid not found")
-    return _out(await _enrich_docs(b))
+    return _out(await _enrich_docs(unsealed_view(b)))
 
 
 @router.patch("/{bid_id}")
@@ -385,12 +387,16 @@ async def update_bid(bid_id: str, payload: BidUpdateIn,
         updates["commercial_notes"] = payload.commercial_notes
     if not updates:
         raise HTTPException(status_code=400, detail="Nothing to update")
+    if b.get("seal_v"):
+        sealed_upd = seal_fields({"sealed": b.get("sealed")}, updates)
+        updates = {k: v for k, v in updates.items() if k not in ("technical_notes", "commercial_notes")}
+        updates["sealed"] = sealed_upd["sealed"]
     updates["updated_at"] = now_iso()
     await db.bids.update_one({"_id": bid_oid}, {"$set": updates})
     await audit_log("bid.documents_update", None, "bid", b.get("bid_ref"),
                     {"vendor": vendor["email"],
                      "doc_count": len(updates.get("documents", []))})
-    return _out(await _enrich_docs(await db.bids.find_one({"_id": bid_oid})))
+    return _out(await _enrich_docs(unsealed_view(await db.bids.find_one({"_id": bid_oid}))))
 
 
 @router.get("/admin/{bid_id}")
@@ -405,7 +411,10 @@ async def admin_get_bid(bid_id: str,
     b = await db.bids.find_one({"_id": ObjectId(bid_id)})
     if not b:
         raise HTTPException(status_code=404, detail="Bid not found")
-    return _out(await _enrich_docs(b))
+    if is_sealed_bid(b):
+        await audit_log("bid.viewed", admin, "bid", b.get("bid_ref"),
+                        {"envelope_state": redact_for_staff(b, {})["envelope_state"]})
+    return _out(await _enrich_docs(redact_for_staff(b, {})))
 
 
 # v51al — Admin cleanup for orphan bids. Only deletes bids that have no
@@ -423,6 +432,7 @@ async def admin_delete_orphan_bid(bid_id: str,
         raise HTTPException(status_code=404, detail="Bid not found")
     is_orphan = (
         (not b.get("price_amount") or float(b.get("price_amount") or 0) <= 0)
+        and not (b.get("sealed") or {}).get("price_amount")
         and not (b.get("documents") or [])
         and float(b.get("emd_paid_amount") or 0) <= 0
         and b.get("status") in ("draft", "submitted", "emd_pending")
@@ -649,7 +659,7 @@ async def list_all_bids(
     for b in bdocs:
         if not _visible(b):
             continue
-        row = _out(_redact_commercial(b, viewer_roles))
+        row = _out(_redact_commercial(redact_for_staff(b, {}), viewer_roles))
         row["active_step"] = await active_step(b)
         rows.append(row)
     return rows
@@ -709,6 +719,9 @@ async def technical_clear(bid_id: str,
     if b.get("technical_cleared_at"):
         return {"ok": True, "already": True,
                 "technical_cleared_at": b.get("technical_cleared_at")}
+    if not bid_stage_visible(b, {}, "technical"):
+        raise HTTPException(status_code=412,
+            detail="The technical envelope is still sealed — it opens only when the whole committee approves on the bid opening date")
     await db.bids.update_one(
         {"_id": ObjectId(bid_id)},
         {"$set": {"technical_cleared_at": now_iso(),
@@ -731,6 +744,9 @@ async def financial_open(bid_id: str,
     if b.get("financial_opened_at"):
         return {"ok": True, "already": True,
                 "financial_opened_at": b.get("financial_opened_at")}
+    if is_sealed_bid(b):
+        raise HTTPException(status_code=412,
+            detail="Commercial envelopes open only through the committee opening, after every member approves")
     await db.bids.update_one(
         {"_id": ObjectId(bid_id)},
         {"$set": {"financial_opened_at": now_iso(),
@@ -764,6 +780,12 @@ async def decide_bid(bid_id: str, payload: BidDecisionIn,
     if not b:
         raise HTTPException(status_code=404, detail="Bid not found")
     check_role_match(admin.get("role"), payload.role)
+    if is_sealed_bid(b) and payload.action in ("accept", "clear", "flag", "award"):
+        need = {"admin": "technical", "certifier": "technical", "legal_counsel": "technical",
+                "accounting": "commercial", "committee": "commercial"}.get(payload.role)
+        if need and not bid_stage_visible(b, {}, need):
+            raise HTTPException(status_code=412,
+                detail=f"The {need} envelope of this bid is still sealed — the committee must open it first")
 
     prev_status = b.get("status")
 
