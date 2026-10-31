@@ -109,6 +109,9 @@ import VendorDataIntel from "@/apps/vendor-portal-e/VendorDataIntel";
 import VendorMessages from "@/apps/vendor-portal-e/VendorMessages";
 import VendorReferral from "@/apps/vendor-portal-e/VendorReferral";
 import AdminMarketingE from "@/apps/admin-console-e/AdminMarketingE";
+import AdminAgentsE from "@/apps/admin-console-e/AdminAgentsE";
+import AgentPortal from "@/apps/agent-portal/AgentPortal";
+import { AgentJoin, AgentLogin } from "@/apps/agent-portal/AgentAuth";
 import GoogleAuthCallback from "@/apps/auth-e/GoogleAuthCallback";
 import ChatWidget from "@/components/ChatWidget";
 import PayComplete from "@/apps/PayComplete";
@@ -280,6 +283,10 @@ export default function App() {
             <Route path="/admin/e/escrow-institutions" element={<AdminEscrowInstitutionsE />} />
             <Route path="/admin/e/billing" element={<AdminBillingE />} />
             <Route path="/admin/e/marketing" element={<AdminMarketingE />} />
+            <Route path="/admin/e/agents" element={<AdminAgentsE />} />
+            <Route path="/agent/join/:token" element={<AgentJoin />} />
+            <Route path="/agent/login" element={<AgentLogin />} />
+            <Route path="/agent/me" element={<AgentPortal />} />
             <Route path="/admin/e/evaluations" element={<AdminEvaluationListE />} />
             <Route path="/admin/e/evaluation" element={<AdminEvaluationE />} />
             <Route path="/admin/e/l1-award" element={<AdminL1AwardE />} />

@@ -65,6 +65,12 @@ async def _require_any_signed_in(request: Request) -> dict:
         pass
     # v52h — escrow signatory cookie (co-signers reviewing documents).
     try:
+        from routers.agents import current_agent
+        ag = await current_agent(request)
+        return {"kind": "agent", "id": str(ag["_id"]), "email": ag.get("email")}
+    except Exception:
+        pass
+    try:
         from routers.escrow_signatories import current_signatory
         sig = await current_signatory(request)
         if sig:

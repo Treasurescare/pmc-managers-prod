@@ -524,6 +524,23 @@ export const inspectionApi = {
 };
 
 // ---------- Wave 1: Uploads ----------
+export const agentApi = {
+  agreement: () => api.get("/api/v1/agents/agreement").then((r) => r.data),
+  joinInfo: (t) => api.get(`/api/v1/agents/join/${t}`).then((r) => r.data),
+  join: (t, password) => api.post(`/api/v1/agents/join/${t}`, { password }).then((r) => r.data),
+  login: (email, password) => api.post("/api/v1/agents/auth/login", { email, password }).then((r) => r.data),
+  logout: () => api.post("/api/v1/agents/auth/logout").then((r) => r.data),
+  me: () => api.get("/api/v1/agents/me").then((r) => r.data),
+  saveProfile: (p) => api.patch("/api/v1/agents/me/profile", p).then((r) => r.data),
+  sign: (signer_name, consents) => api.post("/api/v1/agents/me/agreement", { signer_name, consents }).then((r) => r.data),
+  submit: () => api.post("/api/v1/agents/me/submit").then((r) => r.data),
+  adminList: () => api.get("/api/v1/admin/agents").then((r) => r.data),
+  adminGet: (id) => api.get(`/api/v1/admin/agents/${id}`).then((r) => r.data),
+  invite: (email, name) => api.post("/api/v1/admin/agents/invite", { email, name }).then((r) => r.data),
+  resend: (id) => api.post(`/api/v1/admin/agents/${id}/resend`).then((r) => r.data),
+  decide: (id, action, note) => api.post(`/api/v1/admin/agents/${id}/decision`, { action, note }).then((r) => r.data),
+};
+
 export const uploadsApi = {
   presign: (file_name, content_type, scope, size_bytes) =>
     api.post("/api/v1/uploads/presign", { file_name, content_type, scope, size_bytes }).then((r) => r.data),

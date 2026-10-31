@@ -123,7 +123,9 @@ async def approve_opening(notice_ref: str, body: ApproveIn, request: Request,
                     {"approved": len(appr), "required": len(members)})
     if {a["by_id"] for a in appr} >= set(members):
         opened = await _open(n, body.stage, admin)
-        return {"opened": True, "bids_opened": opened, "approvals": appr}
+        import asyncio
+        asyncio.create_task(_email_record(notice_ref, body.stage, admin))
+        return {"opened": True, "bids_opened": opened, "approvals": appr, "record_emailed": True}
     return {"opened": False, "approvals": appr, "remaining": len(set(members) - {a["by_id"] for a in appr})}
 
 
@@ -238,13 +240,11 @@ def _render_record(rec: dict, code: str, digest: str, ledger: dict, verify_url: 
     return HTML(string=brand_html(html)).write_pdf()
 
 
-@router.get("/{notice_ref}/record.pdf")
-async def opening_record_pdf(notice_ref: str, admin=VIEW):
+async def _issue_record(notice_ref: str, admin: dict):
     import asyncio
     import hashlib
     import json
     import config
-    from fastapi.responses import Response
     n, c = await _ctx(notice_ref)
     if not n.get("technical_opened_at"):
         raise HTTPException(status_code=412, detail="The record is available once the technical envelopes are opened")
@@ -266,6 +266,35 @@ async def opening_record_pdf(notice_ref: str, admin=VIEW):
             ledger, issued_at, issued_by = existing["ledger"], existing["issued_at"], existing["issued_by"]
     verify_url = f"{config.FRONTEND_URL.rstrip('/')}/api/v1/bid-opening/verify/{code}"
     pdf = await asyncio.to_thread(_render_record, rec, code, digest, ledger, verify_url, issued_by, issued_at)
+    return pdf, code, c, n
+
+
+async def _email_record(notice_ref: str, stage: str, admin: dict) -> int:
+    import base64
+    import logging
+    from emails import send_email, wrap
+    try:
+        pdf, code, c, n = await _issue_record(notice_ref, admin)
+        ids = [ObjectId(m) for m in _members(c) if ObjectId.is_valid(m)]
+        att = [{"filename": f"bid-opening-{notice_ref}-{code}.pdf", "content_b64": base64.b64encode(pdf).decode(),
+                "content_type": "application/pdf"}]
+        sent = 0
+        async for u in db.admin_users.find({"_id": {"$in": ids}}, {"email": 1}):
+            body = (f"<p>The {stage} envelopes for <b>{n.get('title') or notice_ref}</b> ({notice_ref}) were opened after every "
+                    f"committee member signed. The signed opening record (code {code}) is attached.</p>")
+            sent += bool(await send_email(u["email"], f"[PMC] Signed bid-opening record · {notice_ref}",
+                                          wrap("Bid-opening record", body), attachments=att))
+        await audit_log("bid_opening.record_emailed", admin, "notice", notice_ref, {"code": code, "stage": stage, "sent": sent})
+        return sent
+    except Exception:
+        logging.getLogger(__name__).exception("opening record email failed for %s", notice_ref)
+        return 0
+
+
+@router.get("/{notice_ref}/record.pdf")
+async def opening_record_pdf(notice_ref: str, admin=VIEW):
+    from fastapi.responses import Response
+    pdf, code, _c, _n = await _issue_record(notice_ref, admin)
     return Response(content=pdf, media_type="application/pdf",
                     headers={"Content-Disposition": f'attachment; filename="bid-opening-{notice_ref}-{code}.pdf"'})
 
