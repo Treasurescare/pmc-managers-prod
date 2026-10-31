@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { agentApi, showApiError } from "@/lib/api";
+import PartnerProfileCard from "./PartnerProfileCard";
 
 const prevMonth = () => { const d = new Date(); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() - 1); return d.toISOString().slice(0, 7); };
 
@@ -44,6 +45,7 @@ export default function PartnerLeaderboard() {
   return (
     <div className="space-y-3" data-testid="partner-leaderboard">
       <MyBadges />
+      <PartnerProfileCard />
       <div className="bg-white border border-brand-gold p-4" data-testid="leaderboard-me">
         <div className="text-[10px] uppercase tracking-widest text-brand-navy/60">This month · {b.month}</div>
         <div className="text-2xl font-semibold">#{b.me?.rank} <span className="text-sm font-normal text-brand-navy/70">of {b.partners} partners</span></div>

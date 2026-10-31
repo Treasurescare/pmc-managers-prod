@@ -35,6 +35,8 @@ const Detail = ({ id, onChanged, partners }) => {
       </div></div>
       <div className="text-sm" data-testid="admin-agent-agreement">{a.agreement ? <>Agreement {a.agreement.version} signed by <b>{a.agreement.signer_name}</b> on {a.agreement.signed_at.slice(0, 16).replace("T", " ")} UTC (IP {a.agreement.ip || "—"})</> : "Agreement not signed"}</div>
       {a.partner_code && <div className="text-sm" data-testid="admin-agent-code">Partner code <b>{a.partner_code}</b>{a.fee_waived ? " · fee waived" : ""}</div>}
+      {a.public_profile?.show && <div className="text-sm flex gap-2 items-center flex-wrap" data-testid="admin-agent-public-profile">Homepage card: "{a.public_profile.bio || "no bio"}"{a.public_profile.hidden ? " · hidden by PMC" : ""}
+        <button type="button" className="px-2 py-0.5 text-xs border" onClick={() => agentApi.hidePublicProfile(id, !a.public_profile.hidden).then(() => { toast.success(a.public_profile.hidden ? "Card shown again" : "Card hidden from homepage"); load(); }).catch(showApiError)} data-testid="admin-agent-hide-profile">{a.public_profile.hidden ? "Show on homepage" : "Hide from homepage"}</button></div>}
       {a.payment && <div className="text-sm" data-testid="admin-agent-payment">Registration fee {a.payment.currency} {Number(a.payment.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })} · <b>{a.payment.status}</b>{a.payment.paid_at ? ` on ${a.payment.paid_at.slice(0, 10)}` : ""}</div>}
       {["submitted", "approved", "needs_clarification", "payment_pending"].includes(a.status) && (
         <div className="space-y-2">

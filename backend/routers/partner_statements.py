@@ -10,7 +10,7 @@ from html import escape as h
 from typing import Optional
 
 from bson import ObjectId
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Request, Response, UploadFile
 from pydantic import BaseModel, Field
 
 import config
@@ -218,10 +218,90 @@ async def public_highlights():
             rows = {r["id"]: r for r in await _board(start, end)}
             order = ["top_partner", "most_invites", "rising_star"]
             items = []
+            profiles = {str(p["_id"]): p async for p in db.agents.find(
+                {"_id": {"$in": [ObjectId(x) for x in b if ObjectId.is_valid(x)]}, "public_profile.show": True, "public_profile.hidden": {"$ne": True}},
+                {"public_profile": 1, "partner_code": 1, "legal_name": 1, "name": 1})}
             for pid, ks in sorted(b.items(), key=lambda kv: min(order.index(k) for k in kv[1])):
                 if pid in rows:
                     r, ks = rows[pid], sorted(ks, key=order.index)
+                    pp = (profiles.get(pid) or {}).get("public_profile") or {}
                     items.append({"badge": ks[0], "label": " · ".join(BADGES[k] for k in ks), "badges": ks,
-                                  "partner": r["name"] if names else r["code"], "approved": r["approved"], "invites": r["invites"]})
+                                  "partner": r["name"] if (names or pp) else r["code"], "code": r["code"], "approved": r["approved"], "invites": r["invites"],
+                                  **({"bio": pp.get("bio") or "", "photo_url": f"/api/v1/public/partner-photo/{r['code']}?v={pp.get('photo_at', '')[:19]}" if pp.get("photo_at") else None} if pp else {})})
             return {"month": month, "live": live, "items": items[:6]}
     return {"month": _this_month(), "live": True, "items": []}
+
+
+# ---------- partner public profile card (photo + bio, opt-in) ----------
+
+class PublicProfileIn(BaseModel):
+    bio: str = Field("", max_length=280)
+    show: bool = False
+
+
+@router.put("/api/v1/agents/me/public-profile", dependencies=[Depends(require_csrf)])
+async def save_public_profile(body: PublicProfileIn, request: Request):
+    a = await _approved_partner(request)
+    pp = {**(a.get("public_profile") or {}), "bio": body.bio.strip(), "show": body.show, "updated_at": now_iso()}
+    await db.agents.update_one({"_id": a["_id"]}, {"$set": {"public_profile": pp}})
+    await audit_log("partner.public_profile", {"id": str(a["_id"]), "email": a["email"]}, "agent", str(a["_id"]), {"show": body.show})
+    return pp
+
+
+@router.get("/api/v1/agents/me/public-profile")
+async def get_public_profile(request: Request):
+    a = await _approved_partner(request)
+    pp = a.get("public_profile") or {}
+    return {**pp, "photo_url": f"/api/v1/agents/me/public-photo?v={pp.get('photo_at', '')[:19]}" if pp.get("photo_at") else None}
+
+
+PHOTO_TYPES = {"image/jpeg", "image/png", "image/webp"}
+
+
+@router.post("/api/v1/agents/me/public-photo", dependencies=[Depends(require_csrf)])
+async def upload_public_photo(request: Request, file: UploadFile = File(...)):
+    a = await _approved_partner(request)
+    data = await file.read()
+    if (file.content_type or "") not in PHOTO_TYPES:
+        raise HTTPException(status_code=422, detail="Upload a JPG, PNG or WebP photo")
+    if len(data) > 2 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Photo must be under 2 MB")
+    await db.partner_photos.update_one({"partner_id": str(a["_id"])}, {"$set": {"partner_id": str(a["_id"]), "content_type": file.content_type,
+                                                                          "data_b64": base64.b64encode(data).decode(), "at": now_iso()}}, upsert=True)
+    await db.agents.update_one({"_id": a["_id"]}, {"$set": {"public_profile.photo_at": now_iso()}})
+    return {"ok": True}
+
+
+async def _photo(pid: str) -> Response:
+    p = await db.partner_photos.find_one({"partner_id": pid})
+    if not p:
+        raise HTTPException(status_code=404, detail="No photo")
+    return Response(base64.b64decode(p["data_b64"]), media_type=p["content_type"],
+                    headers={"Cache-Control": "public, max-age=3600", "X-Content-Type-Options": "nosniff"})
+
+
+@router.get("/api/v1/agents/me/public-photo")
+async def my_photo(request: Request):
+    a = await _approved_partner(request)
+    return await _photo(str(a["_id"]))
+
+
+@router.get("/api/v1/public/partner-photo/{code}")
+async def public_photo(code: str):
+    a = await db.agents.find_one({"partner_code": code, "status": "approved", "public_profile.show": True, "public_profile.hidden": {"$ne": True}})
+    if not a:
+        raise HTTPException(status_code=404, detail="No photo")
+    return await _photo(str(a["_id"]))
+
+
+class HideIn(BaseModel):
+    hidden: bool
+
+
+@router.post("/api/v1/admin/agents/{aid}/public-profile/hide", dependencies=[Depends(require_csrf)])
+async def hide_public_profile(aid: str, body: HideIn, admin=ADMIN):
+    if not ObjectId.is_valid(aid) or not await db.agents.find_one({"_id": ObjectId(aid)}):
+        raise HTTPException(status_code=404, detail="Partner not found")
+    await db.agents.update_one({"_id": ObjectId(aid)}, {"$set": {"public_profile.hidden": body.hidden}})
+    await audit_log("partner.public_profile_hidden", admin, "agent", aid, body.model_dump())
+    return body.model_dump()

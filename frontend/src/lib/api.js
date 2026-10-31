@@ -567,6 +567,10 @@ export const agentApi = {
     } catch (e) { if (w) w.close(); throw e; }
   },
   highlights: () => api.get("/api/v1/public/partner-highlights").then((r) => r.data),
+  publicProfile: () => api.get("/api/v1/agents/me/public-profile").then((r) => r.data),
+  savePublicProfile: (p) => api.put("/api/v1/agents/me/public-profile", p).then((r) => r.data),
+  uploadPublicPhoto: (file) => { const fd = new FormData(); fd.append("file", file); return api.post("/api/v1/agents/me/public-photo", fd, { headers: { "Content-Type": "multipart/form-data" } }).then((r) => r.data); },
+  hidePublicProfile: (id, hidden) => api.post(`/api/v1/admin/agents/${id}/public-profile/hide`, { hidden }).then((r) => r.data),
   commissionSettings: () => api.get("/api/v1/admin/partner-commission/settings").then((r) => r.data),
   saveCommissionSettings: (p) => api.put("/api/v1/admin/partner-commission/settings", p).then((r) => r.data),
   setPartnerRule: (id, rule) => api.put(`/api/v1/admin/agents/${id}/commission`, { rule }).then((r) => r.data),
