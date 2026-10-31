@@ -41,6 +41,7 @@ async def audit_log(event_type: str, actor: Optional[dict], target_type: str,
         current_hash = _hash(body)
         body["current_hash"] = current_hash
         await db.audit_events.insert_one(body)
+        return {"seq": seq, "current_hash": current_hash}
 
 
 async def verify_chain() -> dict:
