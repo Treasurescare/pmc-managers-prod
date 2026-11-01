@@ -5,6 +5,7 @@ import { useUiTheme } from "@/context/UiThemeContext";
 import { adminApi, api, staffApi, vendorApi, showApiError, cacheCsrf } from "@/lib/api";
 import { startGoogleLogin } from "@/apps/auth-e/GoogleAuthCallback";
 import LinkedInSignIn from "@/apps/auth-e/LinkedInSignIn";
+import PasswordInput from "@/components/PasswordInput";
 
 // v50-login-fix (Feb 2026) — Made the Option E sign-in form fully functional.
 // Previously this was a pure static template (hardcoded password value, no
@@ -279,7 +280,7 @@ export default function SignInE({ legacy: Legacy }) {
                     Forgot password?
                   </Link>
                 </div>
-                <input
+                <PasswordInput
                   className="pmc-input"
                   type="password"
                   required

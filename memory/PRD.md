@@ -1009,5 +1009,10 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - SwUpdateBanner: no longer reloads on first service-worker install (only on real updates) — typed text no longer wiped on first visit.
 
 
+## R40 — Show-password eye toggle + release bundle v58v — 2026-11-01 (self-tested: Playwright)
+- components/PasswordInput.jsx (eye/eye-off, data-testid `<input-testid>-toggle`) used by all 18 screens with password boxes.
+- Bundles: /downloads/pmc-backend-v58v.zip, /downloads/pmc-frontend-v58v-prod-build.zip (scripts/build_v58v.sh). Not yet deployed to AWS.
+
+
 
 

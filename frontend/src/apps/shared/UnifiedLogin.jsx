@@ -9,6 +9,7 @@ import { adminApi, staffApi, vendorApi, showApiError } from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import TopBar from "@/apps/shared/TopBar";
 import ForgotUsernameModal from "@/apps/shared/ForgotUsernameModal";
+import PasswordInput from "@/components/PasswordInput";
 
 /**
  * v46k — Five-Portal Sovereign Sign-in Gateway
@@ -309,7 +310,7 @@ function PortalCredentialForm({ portal, nav, t }) {
           <span className="text-[10px] font-mono uppercase tracking-[0.25em] text-white/60 inline-flex items-center gap-2">
             <KeyRound className="w-3 h-3" strokeWidth={2} /> Password
           </span>
-          <input type="password" required value={password}
+          <PasswordInput type="password" required value={password}
                  onChange={(e) => setPassword(e.target.value)}
                  data-testid={`portal-${portal.id}-password`}
                  autoComplete="current-password"

@@ -11,6 +11,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { api, showApiError, mastersApi } from "@/lib/api";
 import PhonePrefixInput from "./PhonePrefixInput";
+import PasswordInput from "@/components/PasswordInput";
 
 export default function EscrowAccountRegister() {
   const [form, setForm] = useState({
@@ -109,14 +110,14 @@ export default function EscrowAccountRegister() {
                             countries={countries} />
         </Field>
         <Field label="Password (min 8 characters)">
-          <input type="password" required minLength={8}
+          <PasswordInput type="password" required minLength={8}
                  data-testid="escrow-reg-password"
                  value={form.password}
                  onChange={(e) => set("password", e.target.value)}
                  className="w-full px-3 py-3 border border-brand-navy/20 focus:outline-none focus:border-brand-gold" />
         </Field>
         <Field label="Confirm password">
-          <input type="password" required minLength={8}
+          <PasswordInput type="password" required minLength={8}
                  data-testid="escrow-reg-confirm"
                  value={form.confirm}
                  onChange={(e) => set("confirm", e.target.value)}

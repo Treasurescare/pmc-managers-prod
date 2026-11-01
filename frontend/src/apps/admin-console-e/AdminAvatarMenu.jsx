@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { adminApi, showApiError } from "@/lib/api";
+import PasswordInput from "@/components/PasswordInput";
 
 const ROLE_DISPLAY = {
   admin: "Administrator",
@@ -161,9 +162,9 @@ export default function AdminAvatarMenu() {
           <button type="button" className="pmc-btn pmc-btn--ghost pmc-btn--sm" style={{ justifyContent: "flex-start" }} data-testid="avatar-change-password" onClick={() => { setShowPw((s) => !s); }}>Change password</button>
           {showPw && (
             <form onSubmit={onChangePw} data-testid="avatar-pw-form" style={{ display: "grid", gap: 6, padding: "8px 4px" }}>
-              <input type="password" required placeholder="Current password" value={cur} onChange={(e) => setCur(e.target.value)} data-testid="avatar-pw-current"
+              <PasswordInput type="password" required placeholder="Current password" value={cur} onChange={(e) => setCur(e.target.value)} data-testid="avatar-pw-current"
                 style={{ padding: "8px 10px", border: "1px solid var(--line-strong)", borderRadius: "var(--radius-sm)", fontSize: 13 }} />
-              <input type="password" required minLength={8} placeholder="New password (min 8)" value={next} onChange={(e) => setNext(e.target.value)} data-testid="avatar-pw-new"
+              <PasswordInput type="password" required minLength={8} placeholder="New password (min 8)" value={next} onChange={(e) => setNext(e.target.value)} data-testid="avatar-pw-new"
                 style={{ padding: "8px 10px", border: "1px solid var(--line-strong)", borderRadius: "var(--radius-sm)", fontSize: 13 }} />
               <button type="submit" className="pmc-btn pmc-btn--primary pmc-btn--sm" disabled={busy} data-testid="avatar-pw-save">{busy ? "Saving…" : "Save password"}</button>
             </form>

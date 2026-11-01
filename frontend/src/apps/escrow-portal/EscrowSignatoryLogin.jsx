@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { api, showApiError, cacheCsrf } from "@/lib/api";
+import PasswordInput from "@/components/PasswordInput";
 
 /**
  * EscrowSignatoryLogin + Claim — v51an.
@@ -162,7 +163,7 @@ export default function EscrowSignatoryLogin() {
               <span className="pmc-label text-[10px]">
                 {(isClaim || isReset) ? "Choose a password (min 8 chars)" : "Password"}
               </span>
-              <input type="password" required value={password}
+              <PasswordInput type="password" required value={password}
                      autoFocus={isReset}
                      onChange={(e) => setPassword(e.target.value)}
                      data-testid="escrow-login-password"
@@ -172,7 +173,7 @@ export default function EscrowSignatoryLogin() {
           {(isClaim || isReset) && (
             <label className="block">
               <span className="pmc-label text-[10px]">Confirm password</span>
-              <input type="password" required value={confirm}
+              <PasswordInput type="password" required value={confirm}
                      onChange={(e) => setConfirm(e.target.value)}
                      data-testid="escrow-login-confirm"
                      className="mt-1 w-full px-3 py-2 border border-brand-navy/20" />

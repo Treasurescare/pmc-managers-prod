@@ -15,6 +15,7 @@ import { useNavigate } from "react-router-dom";
 import { api, showApiError } from "@/lib/api";
 import { toast } from "sonner";
 import PortalAvatarMenu from "@/apps/shared/PortalAvatarMenu";
+import PasswordInput from "@/components/PasswordInput";
 
 export default function EscrowHeaderActions({ account, onProfileUpdated }) {
   const nav = useNavigate();
@@ -223,17 +224,17 @@ function PasswordModal({ onClose }) {
     <Modal title="Change password" onClose={onClose} testId="escrow-password-modal">
       <form onSubmit={save} className="space-y-4">
         <ModalField label="Current password">
-          <input type="password" className="w-full px-3 py-2 border border-brand-navy/20"
+          <PasswordInput type="password" className="w-full px-3 py-2 border border-brand-navy/20"
                  data-testid="escrow-pwd-current"
                  value={cur} onChange={(e) => setCur(e.target.value)} />
         </ModalField>
         <ModalField label="New password">
-          <input type="password" className="w-full px-3 py-2 border border-brand-navy/20"
+          <PasswordInput type="password" className="w-full px-3 py-2 border border-brand-navy/20"
                  data-testid="escrow-pwd-new"
                  value={np} onChange={(e) => setNp(e.target.value)} />
         </ModalField>
         <ModalField label="Confirm new password">
-          <input type="password" className="w-full px-3 py-2 border border-brand-navy/20"
+          <PasswordInput type="password" className="w-full px-3 py-2 border border-brand-navy/20"
                  data-testid="escrow-pwd-confirm"
                  value={c2} onChange={(e) => setC2(e.target.value)} />
         </ModalField>

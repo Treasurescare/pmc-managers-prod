@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { adminApi, vendorApi, formatApiError, showApiError} from "@/lib/api";
+import PasswordInput from "@/components/PasswordInput";
 
 /**
  * ProfileModal — unified self-service profile panel.
@@ -178,7 +179,7 @@ function PwdField({ label, value, onChange, testId }) {
   return (
     <label className="block text-sm">
       <span className="pmc-label">{label}</span>
-      <input type="password" required value={value}
+      <PasswordInput type="password" required value={value}
              onChange={(e) => onChange(e.target.value)}
              data-testid={testId}
              className="mt-1 w-full px-4 py-3 border border-brand-navy/20 focus:outline-none focus:border-brand-navy-soft text-brand-navy bg-white" />

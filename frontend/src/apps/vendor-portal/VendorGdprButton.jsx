@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { gdprApi, formatApiError, showApiError} from "@/lib/api";
+import PasswordInput from "@/components/PasswordInput";
 
 /**
  * GDPR self-service — vendor can anonymise their own profile after re-entering
@@ -47,7 +48,7 @@ export default function VendorGdprButton({ onSuccess }) {
             </p>
             <label className="block text-sm">
               <span className="text-slate-700">Confirm your password</span>
-              <input type="password" value={password}
+              <PasswordInput type="password" value={password}
                      onChange={(e) => setPassword(e.target.value)}
                      data-testid="vendor-gdpr-password"
                      className="mt-1 w-full px-3 py-2 border rounded text-sm" />

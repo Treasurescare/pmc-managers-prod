@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { authApi, showApiError } from "@/lib/api";
+import PasswordInput from "@/components/PasswordInput";
 
 // v50 — Option E "Set new password" screen. Consumed via the one-time link
 // emailed by /api/v1/auth/password-reset/request.
@@ -126,7 +127,7 @@ export default function ResetPasswordE() {
 
                 <div className="pmc-field">
                   <label>New password</label>
-                  <input
+                  <PasswordInput
                     className="pmc-input"
                     type="password"
                     required
@@ -146,7 +147,7 @@ export default function ResetPasswordE() {
 
                 <div className="pmc-field" style={{ marginTop: "14px" }}>
                   <label>Confirm new password</label>
-                  <input
+                  <PasswordInput
                     className="pmc-input"
                     type="password"
                     required

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
 import { vendorApi, formatApiError, showApiError} from "@/lib/api";
+import PasswordInput from "@/components/PasswordInput";
 
 export default function VendorLogin() {
   const nav = useNavigate();
@@ -52,7 +53,7 @@ export default function VendorLogin() {
           </label>
           <label className="block text-sm">
             <span style={{ color: "#334155", fontWeight: 600 }}>Password</span>
-            <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
+            <PasswordInput type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
               className="mt-1 w-full border rounded-md px-3 py-2 text-sm"
               style={{ color: "#0f172a", background: "#ffffff" }}
               data-testid="vendor-login-password" />

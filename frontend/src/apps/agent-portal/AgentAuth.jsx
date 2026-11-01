@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { toast } from "sonner";
 import { agentApi, publicApi, showApiError } from "@/lib/api";
+import PasswordInput from "@/components/PasswordInput";
 
 const inp = "mt-1 w-full px-3 py-2 border border-brand-navy/20 bg-white focus:outline-none focus:border-brand-gold";
 
@@ -37,8 +38,8 @@ export function AgentJoin() {
     <Shell title={`Welcome, ${info.name}`} testid="agent-join">
       <p className="text-sm text-brand-navy/70">Create a password for <b>{info.email}</b>. You'll then complete your profile, banking, documents and the partner agreement.</p>
       <form onSubmit={go} className="space-y-3">
-        <label className="block text-sm">Password (8+ characters)<input type="password" className={inp} minLength={8} required value={pw} onChange={(e) => setPw(e.target.value)} data-testid="agent-join-password" /></label>
-        <label className="block text-sm">Confirm password<input type="password" className={inp} minLength={8} required value={pw2} onChange={(e) => setPw2(e.target.value)} data-testid="agent-join-password2" /></label>
+        <label className="block text-sm">Password (8+ characters)<PasswordInput type="password" className={inp} minLength={8} required value={pw} onChange={(e) => setPw(e.target.value)} data-testid="agent-join-password" /></label>
+        <label className="block text-sm">Confirm password<PasswordInput type="password" className={inp} minLength={8} required value={pw2} onChange={(e) => setPw2(e.target.value)} data-testid="agent-join-password2" /></label>
         <button className="pmc-btn pmc-btn--primary w-full" disabled={busy} data-testid="agent-join-submit">{busy ? "Creating…" : "Create password & continue"}</button>
       </form>
     </Shell>
@@ -59,7 +60,7 @@ export function AgentLogin() {
     <Shell title="Partner sign in" testid="agent-login">
       <form onSubmit={go} className="space-y-3">
         <label className="block text-sm">Email<input type="email" className={inp} required value={email} onChange={(e) => setEmail(e.target.value)} data-testid="agent-login-email" /></label>
-        <label className="block text-sm">Password<input type="password" className={inp} required value={pw} onChange={(e) => setPw(e.target.value)} data-testid="agent-login-password" /></label>
+        <label className="block text-sm">Password<PasswordInput type="password" className={inp} required value={pw} onChange={(e) => setPw(e.target.value)} data-testid="agent-login-password" /></label>
         <button className="pmc-btn pmc-btn--primary w-full" disabled={busy} data-testid="agent-login-submit">{busy ? "Signing in…" : "Sign in"}</button>
       </form>
       <p className="text-xs text-brand-navy/60"><Link to="/forgot-password?portal=partner" className="underline" data-testid="agent-login-forgot">Forgot password?</Link> · New partner? <Link to="/partner/register" className="underline" data-testid="agent-login-register">Apply here</Link> · <Link to="/" className="underline">Back to PMC Managers</Link></p>

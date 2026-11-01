@@ -4,6 +4,7 @@ import { InfoDot } from "@/components/InfoDot";
 import { useListPager } from "@/components/ListPager";
 import CountryMultiSelect from "@/components/CountryMultiSelect";
 import { permissionsApi } from "@/lib/api";
+import PasswordInput from "@/components/PasswordInput";
 
 const ROLE_LABELS = {
   admin: "Admin", reviewer: "Reviewer", escrow_agent: "Escrow Agent",
@@ -312,7 +313,7 @@ export default function StaffTab({
                       <input value={editDraft.name}
                         onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })}
                         className="w-full px-2 py-1 border text-sm" data-testid={`staff-edit-name-${s.email}`} />
-                      <input type="password" placeholder="Reset password (leave blank to keep)"
+                      <PasswordInput type="password" placeholder="Reset password (leave blank to keep)"
                         value={editDraft.password}
                         onChange={(e) => setEditDraft({ ...editDraft, password: e.target.value })}
                         className="w-full px-2 py-1 border text-xs mt-1"

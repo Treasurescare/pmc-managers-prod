@@ -5,6 +5,7 @@ import { useI18n } from "@/context/I18nContext";
 import TopBar from "@/apps/shared/TopBar";
 import { toast } from "sonner";
 import useTenantSkin from "@/apps/shared/useTenantSkin";
+import PasswordInput from "@/components/PasswordInput";
 
 export default function AdminLogin() {
   const { t } = useI18n();
@@ -60,7 +61,7 @@ export default function AdminLogin() {
             </label>
             <label className="block mt-4">
               <span className="pmc-label">{t("admin.login_password")}</span>
-              <input
+              <PasswordInput
                 type="password"
                 required
                 value={password}

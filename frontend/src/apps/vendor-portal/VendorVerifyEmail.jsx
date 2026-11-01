@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { api, formatApiError, showApiError} from "@/lib/api";
+import PasswordInput from "@/components/PasswordInput";
 
 /**
  * Vendor email-verify + set-password landing page.
@@ -62,14 +63,14 @@ export default function VendorVerifyEmail() {
         <div className="text-xs bg-slate-100 rounded p-2 font-mono">Email: {meta.email}</div>
         <label className="block text-sm">
           <span>New password (min 8 chars)</span>
-          <input type="password" required value={password}
+          <PasswordInput type="password" required value={password}
                  onChange={(e) => setPassword(e.target.value)}
                  data-testid="verify-password"
                  className="mt-1 w-full px-3 py-2 border rounded" />
         </label>
         <label className="block text-sm">
           <span>Confirm password</span>
-          <input type="password" required value={confirm}
+          <PasswordInput type="password" required value={confirm}
                  onChange={(e) => setConfirm(e.target.value)}
                  data-testid="verify-confirm"
                  className="mt-1 w-full px-3 py-2 border rounded" />

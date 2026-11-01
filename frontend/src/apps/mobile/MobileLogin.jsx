@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { adminApi, staffApi, vendorApi, formatApiError, showApiError } from "@/lib/api";
 import { biometricAvailable, biometricAuthenticate, saveSecure, loadSecure, platform, registerPush } from "@/lib/mobileBridge";
+import PasswordInput from "@/components/PasswordInput";
 
 /**
  * Unified mobile login. Tries staff → admin → vendor in that order.
@@ -109,7 +110,7 @@ export default function MobileLogin() {
           </label>
           <label className="block text-sm">
             <span>Password</span>
-            <input type="password" required value={password}
+            <PasswordInput type="password" required value={password}
                    onChange={(e) => setPassword(e.target.value)}
                    data-testid="mobile-login-password"
                    autoComplete="current-password"

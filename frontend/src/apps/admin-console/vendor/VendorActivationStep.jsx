@@ -4,6 +4,8 @@
  * sending a verification email so the vendor sets their own password.
  * Split out from AdminVendorCreate.jsx for maintainability.
  */
+import PasswordInput from "@/components/PasswordInput";
+
 export default function VendorActivationStep({
   t, mode, setMode, password, setPassword, saving, onSubmit,
 }) {
@@ -58,7 +60,7 @@ export default function VendorActivationStep({
       {mode === "activate" && (
         <label className="block text-sm">
           <span className="pmc-label">{t("admin_vendor.initial_pwd")}</span>
-          <input
+          <PasswordInput
             type="password"
             required
             value={password}

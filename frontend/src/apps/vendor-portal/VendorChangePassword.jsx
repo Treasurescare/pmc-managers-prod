@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { vendorApi, showApiError } from "@/lib/api";
+import PasswordInput from "@/components/PasswordInput";
 
 // v50 — Option E "First sign-in / temporary password" screen.
 // Rewrote the old Navy Tailwind card into the Option E chrome so the
@@ -95,7 +96,7 @@ export default function VendorChangePassword() {
 
             <div className="pmc-field">
               <label>Current (temporary) password</label>
-              <input
+              <PasswordInput
                 className="pmc-input"
                 type="password"
                 required
@@ -111,7 +112,7 @@ export default function VendorChangePassword() {
 
             <div className="pmc-field" style={{ marginTop: "14px" }}>
               <label>New password</label>
-              <input
+              <PasswordInput
                 className="pmc-input"
                 type="password"
                 required
@@ -142,7 +143,7 @@ export default function VendorChangePassword() {
 
             <div className="pmc-field" style={{ marginTop: "14px" }}>
               <label>Confirm new password</label>
-              <input
+              <PasswordInput
                 className="pmc-input"
                 type="password"
                 required

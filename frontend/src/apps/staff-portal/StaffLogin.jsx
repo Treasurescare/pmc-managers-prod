@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
 import { staffApi, formatApiError, showApiError} from "@/lib/api";
+import PasswordInput from "@/components/PasswordInput";
 
 const ROLE_LABELS = {
   admin: "Administrator",
@@ -78,7 +79,7 @@ export default function StaffLogin() {
           </label>
           <label className="block text-sm">
             <span>Password</span>
-            <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
+            <PasswordInput type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
               className="mt-1 w-full border rounded-md px-3 py-2 text-sm" data-testid="staff-login-password" />
           </label>
           <label className="block text-sm">
