@@ -140,6 +140,13 @@ async def approve_opening(notice_ref: str, body: ApproveIn, request: Request,
             await send_result_notices(notice_ref, True)
         opened = await _open(n, body.stage, admin)
         import asyncio
+        if body.stage == "commercial":
+            try:
+                from routers.comparison import run_l1_comparison
+                await run_l1_comparison(notice_ref, admin)
+            except Exception as e:  # ranking can be re-run from L1 comparison
+                import logging
+                logging.warning(f"auto L1 failed for {notice_ref}: {e}")
         if body.stage == "technical" and n.get("tender_criteria"):
             from routers.proof_ai import review_proofs
             asyncio.create_task(send_result_notices(notice_ref, False))
@@ -166,7 +173,7 @@ async def _open(n: dict, stage: str, admin: dict) -> int:
                 import json as _json
                 from routers.tender_criteria import evaluate
                 ans = dec_text(s.get("criteria_answers_json"))
-                q = evaluate(crit, _json.loads(ans) if ans else [], b.get("documents") or [], b.get("consortium"), b.get("company_name") or "Lead")
+                q = evaluate(crit, _json.loads(ans) if ans else [], b.get("documents") or [], b.get("consortium"), b.get("company_name") or "Lead", n.get("criteria_min_optional"))
                 if q["system_status"] == "qualified":
                     from routers.proof_ai import init_reviews
                     init_reviews(q)

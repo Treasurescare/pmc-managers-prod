@@ -35,6 +35,7 @@ export default function BidSubmit() {
   // the set survives Remove / Re-upload.
   const [selectedKeys, setSelectedKeys] = useState(() => new Set());
   const [criteria, setCriteria] = useState([]);
+  const [minOptional, setMinOptional] = useState(null);
   const [answers, setAnswers] = useState({});
   const [prefilled, setPrefilled] = useState({});
   const setAnswer = (id, v) => setAnswers((a) => ({ ...a, [id]: v }));
@@ -72,6 +73,7 @@ export default function BidSubmit() {
         try {
           const cr = await criteriaApi.get(noticeRef);
           setCriteria(cr.criteria || []);
+          setMinOptional(cr.min_optional ?? null);
           setConsAllowed(!!cr.consortium_allowed);
           if (cr.consortium_allowed) loadCons();
           if ((cr.criteria || []).length) {
@@ -501,7 +503,7 @@ export default function BidSubmit() {
           </label>
 
           <BidCriteriaSection criteria={criteria} answers={answers} setAnswer={setAnswer} docs={docs} prefilled={prefilled}
-            members={teamMembers} memberAnswers={memberAnswers} setMemberAnswer={setMemberAnswer}
+            members={teamMembers} memberAnswers={memberAnswers} setMemberAnswer={setMemberAnswer} minOptional={minOptional}
             onUpload={(cid, file, el) => uploadFile("technical", file, el, cid)} />
 
           <div className="space-y-2">

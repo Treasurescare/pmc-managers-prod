@@ -1680,6 +1680,7 @@ export const meetingsApi = {
 // ---------- Wave 41: L1 Auto-Comparison ----------
 export const comparisonApi = {
   runL1: (notice_ref) => api.post(`/api/v1/comparison/l1/${notice_ref}`).then((r) => r.data),
+  latestL1: (notice_ref) => api.get(`/api/v1/comparison/l1/${notice_ref}/latest`).then((r) => r.data),
 };
 
 // ---------- Wave 43: DocuSign eSignature ----------

@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Literal, Optional
 
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from audit import audit_log
@@ -154,12 +154,92 @@ async def vote(ref: str, bid_id: str, cid: str, body: VoteIn, admin=COMMITTEE):
         status = "rejected" if rejected else "accepted"
         upd, extra = {f"{p}.status": status, f"{p}.decided_at": now_iso()}, {}
         if rejected:
-            title = next((x["title"] for x in q.get("results") or [] if x["criterion_id"] == cid), cid)
-            upd.update({"qualification.decision": "disqualified", "qualification.decided_at": now_iso(), "qualification.decided_by": "committee",
-                        "qualification.decision_note": f"Proof for \"{title}\" rejected by the committee: " + " | ".join(f"{v['by']}: {v['comment']}" for v in rejected)})
-            extra = {"$unset": {"technical_cleared_at": ""}}
+            idx, res = next(((i, x) for i, x in enumerate(q.get("results") or []) if x["criterion_id"] == cid), (None, {}))
+            title = res.get("title", cid)
+            note = f"Proof for \"{title}\" rejected by the committee: " + " | ".join(f"{v['by']}: {v['comment']}" for v in rejected)
+            if idx is not None:
+                upd.update({f"qualification.results.{idx}.result": "fail", f"qualification.results.{idx}.reason": note})
+            opt = q.get("optional_summary")
+            if res.get("mandatory", True) or not opt:
+                knock = True
+            else:
+                passed = opt["passed"] - (1 if res.get("result") == "pass" else 0)
+                upd["qualification.optional_summary.passed"] = passed
+                knock = passed < opt["required"]
+                if knock:
+                    note += f" — now meets {passed} of the {opt['required']} optional criteria required"
+            if knock:
+                upd.update({"qualification.decision": "disqualified", "qualification.decided_at": now_iso(), "qualification.decided_by": "committee",
+                            "qualification.decision_note": note})
+                extra = {"$unset": {"technical_cleared_at": ""}}
         done = await db.bids.update_one({"_id": oid, f"{p}.status": "pending"}, {"$set": upd, **extra})
         if not done.modified_count:
             status = (await db.bids.find_one({"_id": oid}))["qualification"]["proof_reviews"][cid]["status"]
     await audit_log(f"qualification.proof_{body.decision}", admin, "bid", b.get("bid_ref"), {"criterion": cid, "comment": body.comment, "final": status})
     return {"status": status, "votes": len(pr["votes"]), "needed": len(members)}
+
+
+
+def _report_pdf(n: dict, bids: list, names: dict) -> bytes:
+    import io
+    from xml.sax.saxutils import escape as x
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib.units import mm
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    from pdf_brand import logo_flowable
+    from routers.tender_criteria import final_status
+    ss = getSampleStyleSheet()
+    sm = ss["BodyText"].clone("sm", fontSize=7.5, leading=9.5)
+    P = lambda t: Paragraph(x(str(t if t is not None else "—")), sm)  # noqa: E731
+    out = [logo_flowable(), Paragraph(f"Proof check report — {x(n['notice_ref'])}", ss["Title"]),
+           Paragraph(x(n.get("title") or ""), ss["Heading3"]),
+           Paragraph(f"Generated {now_iso()[:16].replace('T', ' ')} UTC · Committee: {x(', '.join(names.values()) or '—')}", sm), Spacer(1, 4 * mm)]
+    for b in bids:
+        q = b.get("qualification") or {}
+        out.append(Paragraph(f"{x(b.get('company_name') or b.get('vendor_email') or '')} · {x(b.get('bid_ref') or '')} — <b>{x(final_status(q).replace('_', ' '))}</b>", ss["Heading4"]))
+        if q.get("decision_note"):
+            out.append(Paragraph(f"Committee decision: {x(q['decision_note'])}", sm))
+        if q.get("optional_summary"):
+            o = q["optional_summary"]
+            out.append(Paragraph(f"Optional criteria met: {o['passed']} of {o['total']} (at least {o['required']} required)", sm))
+        rows = [[P(h) for h in ("Criterion", "Declared", "System result", "Proof files", "AI finding", "Committee decisions")]]
+        files = {}
+        for d in b.get("documents") or []:
+            if d.get("criterion_id"):
+                files.setdefault(d["criterion_id"], []).append(d.get("filename") or d.get("key"))
+        for r in q.get("results") or []:
+            pr = (q.get("proof_reviews") or {}).get(r["criterion_id"]) or {}
+            ai = pr.get("ai") or {}
+            ai_txt = f"{ai.get('verdict', '—')}; shows: {ai.get('found_value') or '—'}. {ai.get('details') or ''}" if pr else "Not reviewed"
+            votes = "; ".join(f"{v['by']}: {v['decision']}{(' — ' + v['comment']) if v.get('comment') else ''}" for v in (pr.get("votes") or {}).values())
+            rows.append([P(f"{r['title']} ({'mandatory' if r.get('mandatory', True) else 'optional'}; {r.get('rule')})"),
+                         P(f"{r.get('value')} {r.get('unit') or ''}"), P(f"{r.get('result')}{(': ' + r['reason']) if r.get('reason') else ''}"),
+                         P(", ".join(files.get(r["criterion_id"], [])) or "none"), P(ai_txt),
+                         P(f"{pr.get('status', '—')}{(' · ' + votes) if votes else ''}")])
+        t = Table(rows, colWidths=[30 * mm, 18 * mm, 30 * mm, 26 * mm, 42 * mm, 36 * mm], repeatRows=1)
+        t.setStyle(TableStyle([("GRID", (0, 0), (-1, -1), 0.3, colors.grey), ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#EFE7D2")),
+                               ("VALIGN", (0, 0), (-1, -1), "TOP")]))
+        out += [t, Spacer(1, 5 * mm)]
+    if not bids:
+        out.append(Paragraph("No bids have been through technical opening yet.", sm))
+    buf = io.BytesIO()
+    SimpleDocTemplate(buf, pagesize=A4, leftMargin=12 * mm, rightMargin=12 * mm, topMargin=12 * mm, bottomMargin=12 * mm,
+                      title=f"Proof check report {n['notice_ref']}").build(out)
+    return buf.getvalue()
+
+
+@router.get("/{ref}/proof-report.pdf")
+async def proof_report(ref: str, admin=Depends(require_role("admin", "committee_member", "reviewer", "auditor"))):
+    n = await db.notices.find_one({"notice_ref": ref}, {"notice_ref": 1, "title": 1})
+    if not n:
+        raise HTTPException(status_code=404, detail="Tender not found")
+    bids = [b async for b in db.bids.find({"notice_ref": ref, "qualification": {"$exists": True}}).sort("submitted_at", 1)]
+    names = {}
+    ids = [ObjectId(m) for m in await _members(ref) if ObjectId.is_valid(m)]
+    async for u in db.admin_users.find({"_id": {"$in": ids}}, {"email": 1, "full_name": 1}):
+        names[str(u["_id"])] = u.get("full_name") or u.get("email")
+    pdf = _report_pdf(n, bids, names)
+    await audit_log("qualification.proof_report", admin, "notice", ref, {"bids": len(bids)})
+    return Response(content=pdf, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="proof-check-{ref}.pdf"'})

@@ -138,3 +138,9 @@ async def run_l1_comparison(notice_ref: str,
         "result": result,
     })
     return result
+
+
+@router.get("/l1/{notice_ref}/latest")
+async def latest_l1(notice_ref: str, _=Depends(require_role("admin", "committee_member", "reviewer", "auditor"))):
+    run = await db.comparison_runs.find_one({"notice_ref": notice_ref}, sort=[("run_at", -1)])
+    return {"result": (run or {}).get("result"), "run_at": (run or {}).get("run_at"), "run_by": (run or {}).get("run_by")}

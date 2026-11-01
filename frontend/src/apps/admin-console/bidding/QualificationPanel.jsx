@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { criteriaApi, showApiError } from "@/lib/api";
+import { criteriaApi, downloadAuthedFile, showApiError } from "@/lib/api";
 import { ProofReview } from "./ProofReview";
 
 const BADGE = {
@@ -13,7 +13,7 @@ const RES = { pass: "Pass", fail: "Fail", points: "Points", pending: "To be mark
 
 const ResultRow = ({ r, act, open }) => (
   <tr className="border-t border-brand-navy/10 align-top">
-    <td className="py-1 pr-2">{r.title}<div className="text-[10px] text-brand-navy/50">{r.kind === "must_pass" ? "must pass" : "scored"} · rule {r.rule}</div></td>
+    <td className="py-1 pr-2">{r.title}<div className="text-[10px] text-brand-navy/50">{r.mandatory === false ? "optional" : "mandatory"} · {r.kind === "must_pass" ? "pass/fail" : "scored"} · rule {r.rule}</div></td>
     <td className="py-1 pr-2">{r.value === true ? "Yes" : r.value === false ? "No" : typeof r.value === "number" ? r.value.toLocaleString() : r.value ?? "—"} {r.unit || ""}{r.applies_to && <div className="text-[10px] text-brand-navy/60">applies to {r.applies_to}</div>}{(r.member_values || []).map((m) => <div key={m.member} className="text-[10px]">{m.member}: {m.value === true ? "Yes" : m.value === false ? "No" : typeof m.value === "number" ? m.value.toLocaleString() : m.value ?? "—"}</div>)}<div className="text-[10px]">{r.proof_supplied ? "proof supplied" : "no proof"}</div></td>
     <td className={`py-1 pr-2 font-semibold ${r.result === "fail" ? "text-red-700" : r.result === "pass" ? "text-emerald-800" : ""}`}>
       {RES[r.result] || r.result}{r.points != null ? ` · ${r.points}/${r.max_points}` : ""}<div className="text-[10px] font-normal">{r.reason}</div></td>
@@ -63,6 +63,7 @@ const BidCard = ({ b, refKey, reload, open, me, member }) => {
         <button type="button" className="pmc-btn pmc-btn--secondary" onClick={() => resolve("uphold")} data-testid={`q-uphold-${b.bid_ref}`}>Keep system result</button>
         <button type="button" className="pmc-btn pmc-btn--secondary" onClick={() => resolve("disqualify")} data-testid={`q-disqualify-${b.bid_ref}`}>Disqualify</button>
       </div>}
+      {b.optional_summary && <div className="text-xs" data-testid={`q-optional-${b.bid_ref}`}>Optional criteria met: <b>{b.optional_summary.passed} of {b.optional_summary.total}</b> (at least {b.optional_summary.required} required)</div>}
       {b.decision_note && <div className="text-xs">Committee decision: {b.decision_note}</div>}
     </div>
   );
@@ -78,7 +79,8 @@ export const QualificationPanel = ({ noticeRef, commercialOpen, onChange }) => {
   const rerun = () => criteriaApi.proofAiRun(noticeRef).then(() => { toast.success("AI is reading the remaining proofs — refresh in a minute"); setTimeout(load, 20000); }).catch(showApiError);
   return (
     <div className="space-y-2" data-testid={`qualification-panel-${noticeRef}`}>
-      <div className="pmc-label">System qualification check · {q} of {d.bids.length} bid(s) qualified</div>
+      <div className="flex justify-between items-center gap-2 flex-wrap"><div className="pmc-label">System qualification check · {q} of {d.bids.length} bid(s) qualified</div>
+        <button type="button" className="pmc-btn pmc-btn--secondary" onClick={() => downloadAuthedFile(`/api/v1/tender-criteria/${encodeURIComponent(noticeRef)}/proof-report.pdf`, `proof-check-${noticeRef}.pdf`).catch(showApiError)} data-testid="proof-report-pdf">Download proof check report (PDF)</button></div>
       <p className="text-xs text-brand-navy/70">The system checked every bid against the tender criteria when the technical envelopes opened. Only qualified bids go to price opening.
         Committee members can't change a pass or fail; they can raise a logged doubt on a specific item and then decide. {commercialOpen ? "Price envelopes are open — results are final." : ""}</p>
       <p className="text-xs text-brand-navy/70" data-testid="proofreview-help">For qualified bids, the AI has read each must-pass proof and compared it with what the supplier declared. Every committee member ({d.committee_size}) must accept or reject each proof; one rejection disqualifies the bid. Price opening stays blocked until every proof is decided.

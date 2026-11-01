@@ -5,7 +5,7 @@ import { criteriaApi, criteriaLibApi, consortiumApi, showApiError } from "@/lib/
 const inp = "w-full px-2 py-1.5 border border-brand-navy/20 bg-white text-sm";
 const OPS = { gte: "at least", lte: "at most", eq: "exactly" };
 export const BLANK = { title: "", category: "other", answer_type: "number", operator: "gte", threshold: "", unit: "", period: "",
-  proof: "", proof_required: true, kind: "must_pass", max_points: "", scoring: "auto", full_points_at: "", consortium_rule: "each", prefill_field: "" };
+  proof: "", proof_required: true, kind: "must_pass", max_points: "", scoring: "auto", full_points_at: "", consortium_rule: "each", prefill_field: "", mandatory: true };
 
 const num = (v) => (v === "" || v === null || v === undefined ? null : Number(v));
 
@@ -36,6 +36,15 @@ const ConsortiumOptions = ({ cons, setCons, defMax, setDefMax, admin }) => {
         <input type="number" min={2} max={20} className={inp + " w-24"} value={defMax} onChange={(e) => setDefMax(e.target.value)} data-testid="consortium-default-max" /></label>
         <button type="button" className="pmc-btn pmc-btn--secondary" onClick={saveDef} data-testid="consortium-default-save">Save default</button></div>}
     </div>);
+};
+
+const MinOptional = ({ rows, minOpt, setMinOpt }) => {
+  const opt = rows.filter((c) => c.kind === "must_pass" && !(c.mandatory ?? true)).length;
+  if (!opt) return <p className="text-xs text-brand-navy/60" data-testid="criteria-min-optional-none">All pass/fail criteria are mandatory — bidders must meet every one. Untick "Mandatory" on a criterion to make it optional.</p>;
+  return (
+    <label className="block text-sm border border-brand-navy/15 p-3" data-testid="criteria-min-optional">Bidders must meet every mandatory criterion, plus at least
+      <input type="number" min={0} max={opt} className={inp + " w-20 mx-2 inline-block"} placeholder={String(opt)} value={minOpt} onChange={(e) => setMinOpt(e.target.value)} data-testid="criteria-min-optional-input" />
+      of the {opt} optional pass/fail criteria. <span className="text-xs text-brand-navy/60">Leave blank to require all of them.</span></label>);
 };
 
 export const CriterionRow = ({ c, i, onChange, onRemove, prefillFields }) => {
@@ -71,6 +80,8 @@ export const CriterionRow = ({ c, i, onChange, onRemove, prefillFields }) => {
       <div className="grid grid-cols-12 gap-2 items-center">
         <input className={`${inp} col-span-12 md:col-span-5`} placeholder="Proof required, e.g. Audited accounts for 3 years" value={c.proof || ""} onChange={(e) => set("proof", e.target.value)} data-testid={`crit-proof-${i}`} />
         <label className="col-span-6 md:col-span-2 text-xs flex gap-1 items-center"><input type="checkbox" checked={!!c.proof_required} onChange={(e) => set("proof_required", e.target.checked)} data-testid={`crit-proof-req-${i}`} />Proof mandatory</label>
+        <label className="col-span-6 md:col-span-2 text-xs flex gap-1 items-center font-semibold" title={c.kind === "must_pass" ? "Mandatory: every bidder must meet it. Optional: counts toward the minimum number of optional criteria." : "Mandatory: bidders must answer it"}>
+          <input type="checkbox" checked={c.mandatory ?? c.kind === "must_pass"} onChange={(e) => set("mandatory", e.target.checked)} data-testid={`crit-mandatory-${i}`} />Mandatory</label>
         <select className={`${inp} col-span-6 md:col-span-2`} value={c.consortium_rule || "each"} onChange={(e) => set("consortium_rule", e.target.value)} title="For consortium bids" data-testid={`crit-consortium-${i}`}>
           <option value="lead">Consortium: lead alone</option><option value="combined">Consortium: members together</option><option value="each">Consortium: every member</option>
         </select>
@@ -85,7 +96,7 @@ export const CriterionRow = ({ c, i, onChange, onRemove, prefillFields }) => {
 
 export const CriterionLine = ({ c }) => (
   <li className="text-sm border-b border-brand-navy/10 py-2">
-    <b>{c.title}</b> · {c.kind === "must_pass" ? "must pass" : `scored, up to ${c.max_points} pts`}
+    <b>{c.title}</b> · {(c.mandatory ?? c.kind === "must_pass") ? "mandatory" : "optional"} · {c.kind === "must_pass" ? "pass/fail" : `scored, up to ${c.max_points} pts`}
     {c.answer_type === "number" && <> · {OPS[c.operator]} {Number(c.threshold).toLocaleString()} {c.unit}{c.period ? ` (${c.period})` : ""}</>}
     {c.answer_type === "yes_no" && " · yes required"}
     {c.proof && <span className="text-brand-navy/60"> · proof: {c.proof}{c.proof_required ? "" : " (optional)"}</span>}
@@ -104,10 +115,11 @@ export default function CriteriaEditorModal({ noticeRef, title, onClose, onSaved
   const [fx, setFx] = useState("");
   const [cons, setCons] = useState({ allowed: false, max: "" });
   const [award, setAward] = useState("l1");
+  const [minOpt, setMinOpt] = useState("");
   const [defMax, setDefMax] = useState(5);
   const [busy, setBusy] = useState("");
   useEffect(() => {
-    API.get(noticeRef).then((d) => { setData(d); setRows(d.criteria); setFx(d.fx_rule || ""); setCheck(d.ai_check || null); setCons({ allowed: !!d.consortium_allowed, max: d.consortium_max_members || "" }); setAward(d.award_method || "l1"); }).catch(showApiError);
+    API.get(noticeRef).then((d) => { setData(d); setRows(d.criteria); setFx(d.fx_rule || ""); setCheck(d.ai_check || null); setCons({ allowed: !!d.consortium_allowed, max: d.consortium_max_members || "" }); setAward(d.award_method || "l1"); setMinOpt(d.min_optional ?? ""); }).catch(showApiError);
     criteriaApi.templates().then(setTpl).catch(() => {});
     consortiumApi.settings().then((s) => setDefMax(s.max_members_default)).catch(() => {});
   }, [noticeRef, mode]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -130,7 +142,7 @@ export default function CriteriaEditorModal({ noticeRef, title, onClose, onSaved
     setBusy("save");
     try {
       const criteria = rows.map(toPayload);
-      const d = await API.save(noticeRef, { criteria, fx_rule: fx || null, consortium_allowed: cons.allowed, consortium_max_members: cons.allowed && cons.max ? Number(cons.max) : null, award_method: award });
+      const d = await API.save(noticeRef, { criteria, fx_rule: fx || null, consortium_allowed: cons.allowed, consortium_max_members: cons.allowed && cons.max ? Number(cons.max) : null, award_method: award, min_optional: minOpt === "" ? null : Number(minOpt) });
       setCheck(null);
       setRows(d.criteria); toast.success("Criteria saved"); onSaved?.(d);
     } catch (e) { showApiError(e); } finally { setBusy(""); }
@@ -193,6 +205,7 @@ export default function CriteriaEditorModal({ noticeRef, title, onClose, onSaved
           <label className="block text-sm">Currency conversion rule (for amounts in other currencies)
             <input className={inp} placeholder="e.g. Central bank rate on the closing date" value={fx} onChange={(e) => setFx(e.target.value)} data-testid="criteria-fx" /></label>
           <ConsortiumOptions cons={cons} setCons={setCons} defMax={defMax} setDefMax={setDefMax} admin={!vendor} />
+          <MinOptional rows={rows} minOpt={minOpt} setMinOpt={setMinOpt} />
           <label className="block text-sm" data-testid="criteria-award-method">How the winner is picked among qualified bids
             <select className={inp} value={award} onChange={(e) => setAward(e.target.value)} data-testid="criteria-award-method-select">
               <option value="l1">Lowest price wins (L1)</option>
