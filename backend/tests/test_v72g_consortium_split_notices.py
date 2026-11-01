@@ -83,7 +83,9 @@ class TestSplitContractor:
         assert [x["amount"] for x in sp["lines"][1:]] == [333.30, 333.40]
         assert sp["lines"][0]["amount"] == 333.31  # remainder to lead
         for x in sp["lines"]:
-            assert x["status"] == "pending_payout" and x["currency"] == "USD" and "shared escrow" in x["route"]
+            # v72h: instructions start unsigned
+            assert x["status"] == "awaiting_signatures" and x["currency"] == "USD" and "shared escrow" in x["route"]
+            assert x["signatures"] == {} and x["instruction_ref"].startswith(S["b1"] + "-P")
             assert x["email"] and x["vendor_id"] and x["company"]
         assert any(e.get("event") == "consortium_split" for e in tx["audit_trail"])
 
@@ -98,17 +100,16 @@ class TestSplitContractor:
         assert sum(1 for e in tx["audit_trail"] if e.get("event") == "consortium_split") == 1
 
     def test_mark_paid(self, admin):
+        # v72h: mark-paid needs proof_key + both officer signatures (full flow in test_v72h)
         u = f"{API}/escrow/transactions/{S['t1']}/consortium-split"
-        assert admin.post(f"{u}/1/paid", json={"reference": "ab"}).status_code == 422
-        assert admin.post(f"{u}/9/paid", json={"reference": "WIRE-1"}).status_code == 404
-        assert admin.post(f"{u}/-1/paid", json={"reference": "WIRE-1"}).status_code == 404
-        r = admin.post(f"{u}/1/paid", json={"reference": "  WIRE-TEST-1 "})
-        assert r.status_code == 200, r.text
-        ln = r.json()["lines"][1]
-        assert ln["status"] == "paid" and ln["paid_ref"] == "WIRE-TEST-1" and ln["paid_by"]
-        assert admin.post(f"{u}/1/paid", json={"reference": "WIRE-TEST-2"}).status_code == 409
+        assert admin.post(f"{u}/1/paid", json={"reference": "ab", "proof_key": "k/xyz"}).status_code == 422
+        assert admin.post(f"{u}/1/paid", json={"reference": "WIRE-1"}).status_code == 422
+        P = {"reference": "WIRE-1", "proof_key": "k/xyz"}
+        assert admin.post(f"{u}/9/paid", json=P).status_code == 404
+        assert admin.post(f"{u}/-1/paid", json=P).status_code == 404
+        assert admin.post(f"{u}/1/paid", json=P).status_code == 409
         tx = DB.escrow_transactions.find_one({"_id": ObjectId(S["t1"])})
-        assert tx["consortium_split"]["lines"][1]["status"] == "paid" and tx["consortium_split"]["lines"][0]["status"] == "pending_payout"
+        assert tx["consortium_split"]["lines"][1]["status"] == "awaiting_signatures"
 
     def test_list_splits(self, admin):
         r = admin.get(f"{API}/escrow/consortium-splits")
@@ -146,24 +147,27 @@ class TestSplitModes:
         assert d == {"recorded": False, "applies": False}
         assert _rel(admin, t, "release_to_contractor").status_code == 200
         assert "consortium_split" not in DB.escrow_transactions.find_one({"_id": ObjectId(t)})
-        assert admin.post(f"{API}/escrow/transactions/{t}/consortium-split/0/paid", json={"reference": "WIRE-1"}).status_code == 404
+        assert admin.post(f"{API}/escrow/transactions/{t}/consortium-split/0/paid", json={"reference": "WIRE-1", "proof_key": "k/xyz"}).status_code == 404
 
     def test_bad_tid_and_rbac(self, admin, reviewer):
+        # own tx: xdist loadscope may run this class on a different worker than TestSplitContractor
+        S.setdefault("t1", _tx(_bid("RB", _cons()), 100))
         assert admin.get(f"{API}/escrow/transactions/{'0' * 24}/consortium-split").status_code == 404
         assert admin.get(f"{API}/escrow/transactions/bad/consortium-split").status_code == 404
         assert reviewer.get(f"{API}/escrow/transactions/{S['t1']}/consortium-split").status_code == 403
-        assert reviewer.post(f"{API}/escrow/transactions/{S['t1']}/consortium-split/2/paid", json={"reference": "WIRE-1"}).status_code == 403
+        assert reviewer.post(f"{API}/escrow/transactions/{S['t1']}/consortium-split/2/paid", json={"reference": "WIRE-1", "proof_key": "k/xyz"}).status_code == 403
 
     def test_leave_ui_fixture(self):
         # pending consortium tx for UI check (preview) — cleaned with notice_ref
         S["ui_bid"] = _bid("UI", _cons())
         S["ui_tx"] = _tx(S["ui_bid"], 900)
-        open("/tmp/v72g_ui.txt", "w").write(f"{S['ui_tx']} {S['t1']} {NREF}")
+        open("/tmp/v72g_ui.txt", "w").write(f"{S['ui_tx']} {S.get('t1', '')} {NREF}")
 
 
 # ---- Result notices admin ----
 class TestResultNotices:
     def test_seed_and_list(self, admin, reviewer):
+        S.setdefault("b1", _bid("NT", _cons()))  # xdist loadscope: class may run on its own worker
         b = DB.bids.find_one({"bid_ref": S["b1"]})
         S["nbid"] = str(b["_id"])
         DB.bids.update_one({"_id": b["_id"]}, {"$set": {"qualification_notices": [

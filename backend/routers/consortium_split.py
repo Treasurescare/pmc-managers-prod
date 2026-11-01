@@ -111,15 +111,14 @@ async def _line(tid: str, idx: int):
     return tx, split, split["lines"][idx]
 
 
-@router.post("/transactions/{tid}/consortium-split/{idx}/sign")
-async def sign_line(tid: str, idx: int, body: LineSignIn, user=Depends(require_role("admin", "accounting", "escrow_agent"))):
+async def _sign(tid: str, idx: int, email: str, comment: Optional[str], via: str) -> dict:
     tx, split, line = await _line(tid, idx)
     if line.get("status") not in ("awaiting_signatures", "pending_payout"):
         raise HTTPException(status_code=409, detail=f"This payment is already {line.get('status', '').replace('_', ' ')}")
     snap = tx.get("escrow_account_snapshot") or {}
     pmc_email = ((snap.get("pmc_officer") or {}).get("email") or "").lower()
     esc_email = ((snap.get("escrow_officer") or {}).get("email") or "").lower()
-    me = (user.get("email") or "").lower()
+    me = (email or "").lower()
     if pmc_email and pmc_email == esc_email:
         raise HTTPException(status_code=409, detail="Both officers on this escrow account have the same email — fix the account before signing payments.")
     side = "pmc" if me and me == pmc_email else "escrow_institution" if me and me == esc_email else None
@@ -129,16 +128,51 @@ async def sign_line(tid: str, idx: int, body: LineSignIn, user=Depends(require_r
         line["bank"] = await _bank(line.get("vendor_id"), line.get("email"))
         if not line["bank"].get("bank_account_number"):
             raise HTTPException(status_code=409, detail=f"{line.get('company')} has no bank account on file. Ask them to add it to their supplier profile.")
-    sigs = line.get("signatures") or {}
-    sigs[side] = {"email": user["email"], "at": now_iso(), "comment": body.comment,
-                  "amount": line["amount"], "account": line["bank"]["bank_account_number"]}
-    line["signatures"] = sigs
-    line["status"] = "approved" if {"pmc", "escrow_institution"} <= set(sigs) else "awaiting_signatures"
-    await db.escrow_transactions.update_one({"_id": tx["_id"]}, {"$set": {"consortium_split.lines": split["lines"]},
-                                                                 "$push": {"audit_trail": {"at": now_iso(), "by": user["email"],
-                                                                                           "event": f"split_{line['instruction_ref']}_signed_by_{side}"}}})
-    await audit_log(f"escrow.consortium_split_sign_{side}", user, "escrow_tx", tid, {"line": line["instruction_ref"], "amount": line["amount"]})
-    return {"recorded": True, **split}
+    p = f"consortium_split.lines.{idx}"
+    sig = {"email": me, "at": now_iso(), "comment": comment, "via": via,
+           "amount": line["amount"], "account": line["bank"]["bank_account_number"]}
+    r = await db.escrow_transactions.update_one(
+        {"_id": tx["_id"], f"{p}.status": {"$in": ["awaiting_signatures", "pending_payout"]}},
+        {"$set": {f"{p}.signatures.{side}": sig, f"{p}.bank": line["bank"], f"{p}.status": "awaiting_signatures"},
+         "$push": {"audit_trail": {"at": now_iso(), "by": me, "event": f"split_{line['instruction_ref']}_signed_by_{side}"}}})
+    if not r.matched_count:
+        raise HTTPException(status_code=409, detail="This payment changed while you were signing — reload and check it")
+    await db.escrow_transactions.update_one(
+        {"_id": tx["_id"], f"{p}.signatures.pmc": {"$exists": True}, f"{p}.signatures.escrow_institution": {"$exists": True},
+         f"{p}.status": "awaiting_signatures"}, {"$set": {f"{p}.status": "approved"}})
+    await audit_log(f"escrow.consortium_split_sign_{side}", {"email": me, "role": via}, "escrow_tx", tid,
+                    {"line": line["instruction_ref"], "amount": line["amount"]})
+    return {"recorded": True, **(await db.escrow_transactions.find_one({"_id": tx["_id"]}))["consortium_split"]}
+
+
+@router.post("/transactions/{tid}/consortium-split/{idx}/sign")
+async def sign_line(tid: str, idx: int, body: LineSignIn, user=Depends(require_role("admin", "accounting", "escrow_agent"))):
+    return await _sign(tid, idx, user.get("email"), body.comment, "staff")
+
+
+async def _magic(token: str) -> dict:
+    t = await db.escrow_magic_tokens.find_one({"token": token, "revoked": False})
+    if not t:
+        raise HTTPException(status_code=404, detail="Invalid or revoked magic token")
+    return t
+
+
+@router.get("/magic/{token}/consortium-splits")
+async def magic_splits(token: str):
+    t = await _magic(token)
+    out = []
+    async for x in db.escrow_transactions.find({"escrow_account_id": t["account_id"], "consortium_split": {"$exists": True}}).sort("released_at", -1).limit(100):
+        out.append({"tid": str(x["_id"]), "bid_ref": x.get("bid_ref"), "notice_ref": x.get("notice_ref"), **x["consortium_split"]})
+    return {"items": out, "officer_email": t["officer_email"]}
+
+
+@router.post("/magic/{token}/consortium-split/{tid}/{idx}/sign")
+async def magic_sign_line(token: str, tid: str, idx: int, body: LineSignIn):
+    t = await _magic(token)
+    tx, _ = await _tx_bid(tid)
+    if tx.get("escrow_account_id") != t["account_id"]:
+        raise HTTPException(status_code=403, detail="This payment is not on your escrow account")
+    return await _sign(tid, idx, t["officer_email"], body.comment, "magic_link")
 
 
 @router.post("/transactions/{tid}/consortium-split/{idx}/paid")
@@ -148,10 +182,20 @@ async def mark_paid(tid: str, idx: int, body: PaidIn, admin=Depends(require_role
         raise HTTPException(status_code=409, detail="Already marked paid")
     if line["status"] != "approved":
         raise HTTPException(status_code=409, detail="Both escrow officers must sign this payment instruction before it can be marked paid")
-    line.update(status="paid", paid_ref=body.reference.strip(), paid_at=now_iso(), paid_by=admin.get("email"), proof_key=body.proof_key)
-    await db.escrow_transactions.update_one({"_id": tx["_id"]}, {"$set": {"consortium_split.lines": split["lines"]}})
-    await audit_log("escrow.consortium_split_paid", admin, "escrow_tx", tid, {"member": line.get("company"), "amount": line["amount"], "ref": line["paid_ref"]})
-    return {"recorded": True, **split}
+    if not await db.uploads.find_one({"key": body.proof_key}):
+        raise HTTPException(status_code=422, detail="Attach the bank payment slip first")
+    acct = (line.get("bank") or {}).get("bank_account_number")
+    if any(s.get("account") != acct for s in (line.get("signatures") or {}).values()):
+        raise HTTPException(status_code=409, detail="The bank account changed after the officers signed — both must sign again")
+    p = f"consortium_split.lines.{idx}"
+    r = await db.escrow_transactions.update_one(
+        {"_id": tx["_id"], f"{p}.status": "approved"},
+        {"$set": {f"{p}.status": "paid", f"{p}.paid_ref": body.reference.strip(), f"{p}.paid_at": now_iso(),
+                  f"{p}.paid_by": admin.get("email"), f"{p}.proof_key": body.proof_key}})
+    if not r.matched_count:
+        raise HTTPException(status_code=409, detail="Already marked paid")
+    await audit_log("escrow.consortium_split_paid", admin, "escrow_tx", tid, {"member": line.get("company"), "amount": line["amount"], "ref": body.reference.strip()})
+    return {"recorded": True, **(await db.escrow_transactions.find_one({"_id": tx["_id"]}))["consortium_split"]}
 
 
 @router.get("/consortium-splits")

@@ -17,10 +17,11 @@ const Instruction = ({ x, i, tid, act }) => {
       <div className="text-brand-navy/70">{x.route}</div>
       <div data-testid={`split-bank-${tid}-${i}`}>{b.bank_account_number ? `Pay to: ${b.bank_name || ""} ${b.bank_branch || ""} · A/c ${b.bank_account_number} · SWIFT ${b.bank_swift || "—"}` : <span className="text-red-700">No bank account on file for this member</span>}</div>
       <div>{["pmc", "escrow_institution"].map((s) => <span key={s} className="mr-3">{SIDE[s]}: {sigs[s] ? `✓ ${sigs[s].email}` : "not signed"}</span>)}</div>
-      {x.status === "paid" ? <div className="text-emerald-800">Paid · ref {x.paid_ref} · {(x.paid_at || "").slice(0, 10)}</div> : (
+      {x.status === "paid" ? <div className="text-emerald-800">Paid · ref {x.paid_ref} · {(x.paid_at || "").slice(0, 10)}
+        {x.proof_key && <button type="button" className="ml-2 underline" onClick={() => uploadsApi.openFile(x.proof_key).catch(showApiError)} data-testid={`split-slip-${tid}-${i}`}>Open slip</button>}</div> : (
         <div className="flex gap-2">
           {x.status !== "approved" && <button type="button" className="pmc-btn pmc-btn--secondary" onClick={() => act("sign", i)} data-testid={`split-sign-${tid}-${i}`}>Sign payment instruction</button>}
-          {x.status === "approved" && <label className="pmc-btn pmc-btn--primary cursor-pointer" data-testid={`split-paid-${tid}-${i}`}>Record bank payment (attach slip)
+          {x.status === "approved" && act.canPay !== false && <label className="pmc-btn pmc-btn--primary cursor-pointer" data-testid={`split-paid-${tid}-${i}`}>Record bank payment (attach slip)
             <input type="file" hidden onChange={(e) => e.target.files?.[0] && act("paid", i, e.target.files[0])} data-testid={`split-proof-${tid}-${i}`} /></label>}
         </div>)}
     </div>);
@@ -31,13 +32,19 @@ const Preview = ({ s }) => (
     {s.lines.map((x, i) => <tr key={x.vendor_id || i} className="border-t"><td className="py-1 w-1/3">{x.company}{x.lead ? " (lead)" : ""}</td><td className="w-16">{x.share_pct}%</td><td className="font-semibold">{money(x)}</td></tr>)}
   </tbody></table>);
 
+export const Instructions = ({ s, tid, act }) => s.lines.map((x, i) => <Instruction key={x.instruction_ref || i} x={x} i={i} tid={tid} act={act} />);
+
 export default function ConsortiumSplitBox({ tid, status }) {
   const [s, setS] = useState(null);
   useEffect(() => { criteriaApi.consortiumSplit(tid).then(setS).catch(() => setS(null)); }, [tid, status]);
   if (!s || (!s.recorded && !s.applies)) return null;
   const act = async (kind, i, file) => {
     try {
-      if (kind === "sign") { setS(await criteriaApi.splitSign(tid, i, window.prompt("Comment (optional)") || null)); toast.success("Signed"); return; }
+      if (kind === "sign") {
+        const c = window.prompt("Comment (optional) — press OK to sign", "");
+        if (c === null) return;
+        setS(await criteriaApi.splitSign(tid, i, c || null)); toast.success("Signed"); return;
+      }
       const ref = window.prompt("Bank / wire reference for this payment");
       if (!ref) return;
       const p = await uploadsApi.presign(file.name, file.type || "application/pdf", "vendor-docs", file.size);
@@ -50,7 +57,7 @@ export default function ConsortiumSplitBox({ tid, status }) {
       {s.recorded ? <>
         <div className="text-xs font-semibold">Consortium payment instructions · {s.consortium} · {s.basis}</div>
         <div className="text-[11px] text-brand-navy/70">Each member's payment must be signed by both escrow officers before the bank payment can be recorded with its slip.</div>
-        {s.lines.map((x, i) => <Instruction key={x.instruction_ref || i} x={x} i={i} tid={tid} act={act} />)}
+        <Instructions s={s} tid={tid} act={act} />
       </> : <>
         <div className="text-xs font-semibold">Consortium bid — on release the money is split automatically:</div>
         <div className="text-[11px] mt-1">If released to the contractor</div><Preview s={s.preview.release_to_contractor} />

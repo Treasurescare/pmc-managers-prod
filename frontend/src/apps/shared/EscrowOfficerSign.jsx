@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import TopBar from "@/apps/shared/TopBar";
 import Footer from "@/apps/shared/Footer";
 import { escrowMagicApi, showApiError } from "@/lib/api";
+import MagicSplitSection from "./MagicSplitSection";
 
 const ACTIONS = [
   { v: "release_to_contractor", l: "Release → Contractor (winning vendor)" },
@@ -166,6 +167,7 @@ export default function EscrowOfficerSign() {
                                  onSign={sign}/>
               ))}
             </div>
+            <MagicSplitSection token={token} />
           </>
         )}
       </main>

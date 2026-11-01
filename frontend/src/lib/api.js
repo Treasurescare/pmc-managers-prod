@@ -1754,6 +1754,8 @@ export const engagementsApi = {
 export const escrowMagicApi = {
   get: (token) => api.get(`/api/v1/escrow/magic/${token}`).then((r) => r.data),
   sign: (token, payload) => api.post(`/api/v1/escrow/magic/${token}/sign`, payload).then((r) => r.data),
+  splits: (token) => api.get(`/api/v1/escrow/magic/${token}/consortium-splits`).then((r) => r.data),
+  signSplit: (token, tid, idx, comment) => api.post(`/api/v1/escrow/magic/${token}/consortium-split/${tid}/${idx}/sign`, { comment }).then((r) => r.data),
 };
 
 // ---------- Public Roadmap ----------

@@ -1,0 +1,47 @@
+{
+  "summary": "Tested v72h consortium payment instructions (backend + admin UI). Release creates per-member instructions with instruction_ref <bid_ref>-P<n>, bank snapshot from vendors doc / latest registrations doc by email, signatures {}, status awaiting_signatures. Sign endpoint: non-officer 403, reviewer 403, same-email officers 409, no-bank member 409 naming company, PMC+escrow sign -> approved, re-sign approved/paid 409, audit_trail events added, bank added later is re-snapshotted on sign. Paid endpoint: 422 without proof_key / short ref, 409 unless approved, escrow_agent 403, success stores paid_ref (trimmed)/proof_key/paid_by, second call 409. UI ConsortiumSplitBox verified end to end as admin (PMC officer): bank details, signature status, Sign -> APPROVED, attach slip -> reference prompt -> PAID with real uploaded key, no-bank sign shows 409 toast. One real bug found: a lost-update race when signatures arrive at the same time.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/v1/escrow/transactions/{tid}/consortium-split/{idx}/sign (and /paid)", "issue": "Lost-update race. sign_line/mark_paid read the tx, change one line in memory, then $set the WHOLE consortium_split.lines array. When signatures run at the same time (other lines, or the other officer on the same line), they overwrite each other. Every request returns 200 and the officer sees a 'Signed' toast, but the signature is silently lost. Reproduced in 2 of 3 runs of tests/test_v72h_split_race.py (6 parallel signs; results like [['pmc'],[],['pmc']]). A mark-paid running alongside a sign on another line can likewise wipe signatures or the paid state.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST .../{idx}/paid", "issue": "proof_key is only length-checked (any string >=3 is accepted). It is not checked against the db.uploads collection or scope, so a payment can be marked paid with a made-up slip key."},
+      {"endpoint": "POST .../{idx}/paid", "issue": "There is no check that the bank account the signatures approved (signatures.*.account) still matches line.bank at paid time. It cannot change today, but it is worth adding as a guard."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ConsortiumSplitBox sign", "issue": "Pressing Cancel on the 'Comment (optional)' prompt still signs, because a null comment is sent. Cancel should abort.", "selector": "[data-testid^=split-sign-]", "priority": "LOW"},
+      {"component": "ConsortiumSplitBox paid line", "issue": "Paid lines show the ref and date but give no way to open the attached slip (proof_key). Use uploadsApi.openFile.", "selector": "[data-testid^=split-line-]", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Escrow-side officer signing", "issue": "ConsortiumSplitBox is only rendered in the admin console (/admin/e/escrow via EscrowPanel). escrow_agent staff are redirected to /staff, and external escrow-institution officers use /escrow/officer/:token or /escrow/dashboard. None of these surfaces show the payment instructions, so in a real setup the escrow officer has NO UI to sign. I could only test the escrow-side signature through the API.", "affected_selectors": ["[data-testid^=split-sign-]"]}
+    ],
+    "design_issues": [
+      {"screen": "Admin Escrow / ConsortiumSplitBox", "issues": ["The 'Sign payment instruction' button stays enabled for members with no bank account on file. It could be disabled or show a hint.", "The sign button is shown to admins who are not one of the officers (the backend correctly returns 403). Consider hiding it or showing the same 'not an officer' banner the tx row uses."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v72h_consortium_split_signing.py", "/app/backend/tests/test_v72h_split_race.py", "/app/backend/tests/test_v72g_consortium_split_notices.py", "/app/backend/tests/v72h_ui_seed.py", "/app/test_reports/pytest/v72h.xml"],
+  "action_items": [
+    "Fix the lost-update race in consortium_split.sign_line and mark_paid. Use atomic per-line updates ($set consortium_split.lines.{idx}.signatures.{side}, with a filter on the current line status and an optimistic check), then re-read to compute approved. Do not $set the whole lines array.",
+    "Give the escrow-side officer a UI to sign payment instructions (staff portal for escrow_agent and/or the escrow officer/dashboard pages), or make sure escrow officers can reach ConsortiumSplitBox.",
+    "Validate proof_key against db.uploads (it must exist and be uploaded by the caller or in an allowed scope).",
+    "UI: abort signing when the comment prompt is cancelled; add a 'view slip' link on paid lines."
+  ],
+  "critical_code_review_comments": [
+    "consortium_split.py writes the full lines array on every sign or paid call, which causes the race above.",
+    "When a line has no bank, sign_line refreshes line['bank'] but only persists it on a successful sign. That is fine, but the 409 path never stores the refreshed (still empty) bank.",
+    "The legacy 'pending_payout' status can still be signed. Lines already marked paid under the old flow stay paid. OK."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_v72g_consortium_split_notices.py (expects awaiting_signatures and signatures {}; mark-paid now needs proof_key and returns 409 before approval; removed cross-class S[] dependencies that broke under xdist loadscope)",
+    "/app/backend/tests/test_v72h_consortium_split_signing.py (new)",
+    "/app/backend/tests/test_v72h_split_race.py (new; reproduces the race, fails intermittently until fixed)",
+    "/app/backend/tests/v72h_ui_seed.py (new; UI fixture seed|clean)"
+  ],
+  "success_rate": {"backend": "96% (25/25 functional tests pass; the race test fails 2 of 3 runs)", "frontend": "100% of tested admin-side flows; the escrow-officer UI surface is missing"},
+  "seed_data_creation": "Tests seed TEST-V72H-* bids/escrow_transactions, test_v72h* vendors/registrations, and clean them up. UI fixture: python tests/v72h_ui_seed.py seed|clean (already cleaned). Verified 0 leftover docs.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Officers: snapshot pmc_officer.email=adminsupport@pmcmanagers.com (Admin@12345, role admin), escrow_officer.email=escrow@pmcmanagers.com (Escrow@123, role escrow_agent). Non-officer: kannan@emeraldcorporates.com/Owner@123. accounts@ returns 401 in preview. pytest.ini forces -n 2 --dist loadscope, so classes do NOT share module-level state across workers. Use -n 0 for serial runs. After fixing the race, test_v72h_split_race.py should pass consistently (run it 5 or more times). Admin UI is at /admin/e/escrow, with testids consortium-split-<tid>, split-status/bank/sign/paid/proof-<tid>-<i>."
+}
