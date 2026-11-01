@@ -312,6 +312,7 @@ export default function NoticesPanel() {
         });
       }
       setShowNew(false);
+      setCritRef(ref);
       // Bug #22 — full form reset instead of only clearing title/description
       setDraft({
         title: "", description: "", document_type: "tender", category: "", category_code: "",
@@ -858,7 +859,7 @@ export default function NoticesPanel() {
                 Created by {n.created_by_email}
               </div>
             )}
-            {!n.is_published && <PublishChecklist n={n} onCriteria={() => setCritRef(n.notice_ref)} />}
+            {!n.is_published && <PublishChecklist n={n} onCriteria={() => setCritRef(n.notice_ref)} onPublish={isMasterAdmin ? () => publish(n.notice_ref) : null} />}
           </div>
         ))}
         {noticeControls}

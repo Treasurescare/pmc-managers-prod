@@ -479,6 +479,16 @@ export const criteriaApi = {
   splitSign: (tid, idx, comment) => api.post(`/api/v1/escrow/transactions/${tid}/consortium-split/${idx}/sign`, { comment }).then((r) => r.data),
 };
 
+export const criteriaLibApi = {
+  get: () => api.get("/api/v1/criteria-library").then((r) => r.data),
+  addItem: (b) => api.post("/api/v1/criteria-library/items", b).then((r) => r.data),
+  editItem: (id, b) => api.put(`/api/v1/criteria-library/items/${id}`, b).then((r) => r.data),
+  archiveItem: (id) => api.delete(`/api/v1/criteria-library/items/${id}`).then((r) => r.data),
+  addSet: (b) => api.post("/api/v1/criteria-library/sets", b).then((r) => r.data),
+  editSet: (id, b) => api.put(`/api/v1/criteria-library/sets/${id}`, b).then((r) => r.data),
+  archiveSet: (id) => api.delete(`/api/v1/criteria-library/sets/${id}`).then((r) => r.data),
+};
+
 export const consortiumApi = {
   settings: () => api.get("/api/v1/consortia/settings").then((r) => r.data),
   saveSettings: (body) => api.put("/api/v1/consortia/settings", body).then((r) => r.data),

@@ -1,13 +1,26 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { criteriaApi, consortiumApi, showApiError } from "@/lib/api";
+import { criteriaApi, criteriaLibApi, consortiumApi, showApiError } from "@/lib/api";
 
 const inp = "w-full px-2 py-1.5 border border-brand-navy/20 bg-white text-sm";
 const OPS = { gte: "at least", lte: "at most", eq: "exactly" };
-const BLANK = { title: "", category: "other", answer_type: "number", operator: "gte", threshold: "", unit: "", period: "",
+export const BLANK = { title: "", category: "other", answer_type: "number", operator: "gte", threshold: "", unit: "", period: "",
   proof: "", proof_required: true, kind: "must_pass", max_points: "", scoring: "auto", full_points_at: "", consortium_rule: "each", prefill_field: "" };
 
 const num = (v) => (v === "" || v === null || v === undefined ? null : Number(v));
+
+export const toPayload = ({ needs_review, ...c }) => ({ ...c, threshold: num(c.threshold), max_points: num(c.max_points), // eslint-disable-line no-unused-vars
+  full_points_at: num(c.full_points_at), prefill_field: c.prefill_field || null, operator: c.answer_type === "number" ? c.operator || "gte" : null });
+
+const SaveAsSet = ({ rows }) => {
+  const [name, setName] = useState("");
+  const go = () => criteriaLibApi.addSet({ name, criteria: rows.map(toPayload) }).then(() => { toast.success(`Saved as criteria set "${name}"`); setName(""); }).catch(showApiError);
+  return (
+    <div className="flex gap-2 items-center flex-wrap text-sm" data-testid="criteria-save-set">
+      <input className={inp + " w-64"} placeholder="Save these as a set, e.g. Standard construction" value={name} onChange={(e) => setName(e.target.value)} data-testid="criteria-save-set-name" />
+      <button type="button" className="pmc-btn pmc-btn--secondary" disabled={name.trim().length < 2} onClick={go} data-testid="criteria-save-set-btn">Save as set</button>
+    </div>);
+};
 
 const ConsortiumOptions = ({ cons, setCons, defMax, setDefMax, admin }) => {
   const saveDef = () => consortiumApi.saveSettings({ max_members_default: Number(defMax) }).then(() => toast.success("Platform default saved")).catch(showApiError);
@@ -25,7 +38,7 @@ const ConsortiumOptions = ({ cons, setCons, defMax, setDefMax, admin }) => {
     </div>);
 };
 
-const CriterionRow = ({ c, i, onChange, onRemove, prefillFields }) => {
+export const CriterionRow = ({ c, i, onChange, onRemove, prefillFields }) => {
   const set = (k, v) => onChange({ ...c, [k]: v });
   const isNum = c.answer_type === "number";
   return (
@@ -70,7 +83,7 @@ const CriterionRow = ({ c, i, onChange, onRemove, prefillFields }) => {
   );
 };
 
-const CriterionLine = ({ c }) => (
+export const CriterionLine = ({ c }) => (
   <li className="text-sm border-b border-brand-navy/10 py-2">
     <b>{c.title}</b> · {c.kind === "must_pass" ? "must pass" : `scored, up to ${c.max_points} pts`}
     {c.answer_type === "number" && <> · {OPS[c.operator]} {Number(c.threshold).toLocaleString()} {c.unit}{c.period ? ` (${c.period})` : ""}</>}
@@ -79,7 +92,7 @@ const CriterionLine = ({ c }) => (
   </li>
 );
 
-export default function CriteriaEditorModal({ noticeRef, title, onClose, onSaved, mode = "admin" }) {
+export default function CriteriaEditorModal({ noticeRef, title, onClose, onSaved, mode = "admin", canSaveSet = mode === "admin" }) {
   const vendor = mode !== "admin";
   const API = mode === "template" ? { get: criteriaApi.tplGet, save: criteriaApi.tplSave, ai: criteriaApi.tplAiSuggest }
     : vendor ? { get: criteriaApi.mineGet, save: criteriaApi.mineSave, ai: criteriaApi.mineAiSuggest }
@@ -87,7 +100,7 @@ export default function CriteriaEditorModal({ noticeRef, title, onClose, onSaved
   const [check, setCheck] = useState(null);
   const [data, setData] = useState(null);
   const [rows, setRows] = useState([]);
-  const [tpl, setTpl] = useState({ templates: [], prefill_fields: {} });
+  const [tpl, setTpl] = useState({ templates: [], sets: [], prefill_fields: {} });
   const [fx, setFx] = useState("");
   const [cons, setCons] = useState({ allowed: false, max: "" });
   const [defMax, setDefMax] = useState(5);
@@ -115,8 +128,7 @@ export default function CriteriaEditorModal({ noticeRef, title, onClose, onSaved
   const save = async () => {
     setBusy("save");
     try {
-      const criteria = rows.map(({ needs_review, ...c }) => ({ ...c, threshold: num(c.threshold), max_points: num(c.max_points), // eslint-disable-line no-unused-vars
-        full_points_at: num(c.full_points_at), prefill_field: c.prefill_field || null, operator: c.answer_type === "number" ? c.operator || "gte" : null }));
+      const criteria = rows.map(toPayload);
       const d = await API.save(noticeRef, { criteria, fx_rule: fx || null, consortium_allowed: cons.allowed, consortium_max_members: cons.allowed && cons.max ? Number(cons.max) : null });
       setCheck(null);
       setRows(d.criteria); toast.success("Criteria saved"); onSaved?.(d);
@@ -152,20 +164,29 @@ export default function CriteriaEditorModal({ noticeRef, title, onClose, onSaved
           </div>)}
         {!data ? <div className="text-sm">Loading…</div> : data.locked ? (
           <div data-testid="criteria-locked">
-            <div className="bg-amber-50 border border-amber-300 p-3 text-sm mb-3">This tender is live. Criteria can only change through a corrigendum sent to all suppliers.</div>
+            <div className="bg-amber-50 border border-amber-300 p-3 text-sm mb-3">This tender is live and bids have already been received, so its criteria are locked.</div>
             {rows.length ? <ul>{rows.map((c) => <CriterionLine key={c.id} c={c} />)}</ul> : <p className="text-sm">No criteria were set for this tender.</p>}
             <p className="text-sm mt-2" data-testid="criteria-locked-consortium">{cons.allowed ? `Accepts consortium bids · up to ${cons.max || defMax} members including the lead` : "Consortium bids are not accepted on this tender."}</p>
           </div>
         ) : <>
+          {data.live_no_bids && <div className="bg-sky-50 border border-sky-300 p-3 text-sm" data-testid="criteria-live-no-bids">This tender is live but has no bids yet, so you can still set its criteria. Changes apply straight away. Criteria lock once the first bid arrives.</div>}
           <div className="flex gap-2 flex-wrap items-center">
             <button type="button" className="pmc-btn pmc-btn--secondary" disabled={!!busy} onClick={ai} data-testid="criteria-ai">{busy === "ai" ? "Reading tender…" : "Read from tender document (AI)"}</button>
-            <select className={`${inp} w-auto`} value="" onChange={(e) => { const t = tpl.templates[Number(e.target.value)]; if (t) setRows((r) => [...r, { ...BLANK, ...t, id: undefined }]); }} data-testid="criteria-template">
-              <option value="">+ Add from template…</option>{tpl.templates.map((t, i) => <option key={t.title} value={i}>{t.title}</option>)}
+            <select className={`${inp} w-auto`} value="" onChange={(e) => {
+              const [k, i] = e.target.value.split(":");
+              const strip = ({ id, _id, status, created_at, created_by, updated_at, updated_by, ...t }) => ({ ...BLANK, ...t }); // eslint-disable-line no-unused-vars
+              if (k === "i" && tpl.templates[i]) setRows((r) => [...r, strip(tpl.templates[i])]);
+              if (k === "s" && tpl.sets[i]) { setRows((r) => [...r, ...tpl.sets[i].criteria.map(strip)]); toast.success(`Added ${tpl.sets[i].criteria.length} criteria from "${tpl.sets[i].name}"`); }
+            }} data-testid="criteria-template">
+              <option value="">+ Add from master…</option>
+              {(tpl.sets || []).length > 0 && <optgroup label="Criteria sets (adds all)">{tpl.sets.map((s, i) => <option key={s.id} value={`s:${i}`}>{s.name} ({s.criteria.length})</option>)}</optgroup>}
+              <optgroup label="Master criteria">{tpl.templates.map((t, i) => <option key={t.id || t.title} value={`i:${i}`}>{t.title}</option>)}</optgroup>
             </select>
             <button type="button" className="pmc-btn pmc-btn--secondary" onClick={() => setRows((r) => [...r, { ...BLANK }])} data-testid="criteria-add">+ Blank criterion</button>
           </div>
           <div className="space-y-2">{rows.map((c, i) => <CriterionRow key={c.id || `new-${i}`} c={c} i={i} prefillFields={tpl.prefill_fields} onChange={(x) => upd(i, x)} onRemove={() => setRows((r) => r.filter((_, j) => j !== i))} />)}</div>
-          {!rows.length && <p className="text-sm text-brand-navy/60" data-testid="criteria-empty">No criteria yet. Read them from the tender document, pick a template or add one.</p>}
+          {!rows.length && <p className="text-sm text-brand-navy/60" data-testid="criteria-empty">No criteria yet. Read them from the tender document, pick from the master or add one.</p>}
+          {canSaveSet && rows.length > 0 && <SaveAsSet rows={rows} />}
           <label className="block text-sm">Currency conversion rule (for amounts in other currencies)
             <input className={inp} placeholder="e.g. Central bank rate on the closing date" value={fx} onChange={(e) => setFx(e.target.value)} data-testid="criteria-fx" /></label>
           <ConsortiumOptions cons={cons} setCons={setCons} defMax={defMax} setDefMax={setDefMax} admin={!vendor} />

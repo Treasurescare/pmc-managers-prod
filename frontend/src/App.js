@@ -108,6 +108,7 @@ import VendorMessages from "@/apps/vendor-portal-e/VendorMessages";
 import VendorReferral from "@/apps/vendor-portal-e/VendorReferral";
 import AdminMarketingE from "@/apps/admin-console-e/AdminMarketingE";
 import AdminAgentsE from "@/apps/admin-console-e/AdminAgentsE";
+import AdminCriteriaMasterE from "@/apps/admin-console-e/AdminCriteriaMasterE";
 import AgentPortal from "@/apps/agent-portal/AgentPortal";
 import { AgentJoin, AgentLogin, PartnerRegister } from "@/apps/agent-portal/AgentAuth";
 import SupplierInvite from "@/apps/agent-portal/SupplierInvite";
@@ -296,6 +297,7 @@ export default function App() {
             <Route path="/admin/e/marketing" element={<AdminMarketingE />} />
             <Route path="/admin/e/agents" element={<AdminAgentsE />} />
             <Route path="/admin/e/partners" element={<AdminAgentsE />} />
+            <Route path="/admin/e/criteria-master" element={<AdminCriteriaMasterE />} />
             <Route path="/admin/e/evaluations" element={<AdminEvaluationListE />} />
             <Route path="/admin/e/evaluation" element={<AdminEvaluationE />} />
             <Route path="/admin/e/l1-award" element={<AdminL1AwardE />} />

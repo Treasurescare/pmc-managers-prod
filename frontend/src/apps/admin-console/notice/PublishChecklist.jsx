@@ -12,7 +12,7 @@ const checks = (n) => {
   ];
 };
 
-export const PublishChecklist = ({ n, onCriteria }) => {
+export const PublishChecklist = ({ n, onCriteria, onPublish }) => {
   const items = checks(n);
   const ready = items.every(([, ok]) => ok);
   return (
@@ -25,5 +25,8 @@ export const PublishChecklist = ({ n, onCriteria }) => {
           {ok ? "✓" : "○"} {label}
           {k === "criteria" && !ok && <button type="button" className="underline ml-1" onClick={onCriteria} data-testid={`publish-check-criteria-open-${n.notice_ref}`}>Add now</button>}
         </span>))}
+      {onPublish && <button type="button" disabled={!ready} onClick={onPublish} title={ready ? "Publish this notice now" : "Tick all three items first"}
+        className="ml-auto text-[10px] uppercase tracking-widest px-3 py-1 bg-emerald-700 text-white hover:bg-emerald-800 disabled:opacity-40 disabled:cursor-not-allowed"
+        data-testid={`publish-checklist-publish-${n.notice_ref}`}>Publish</button>}
     </div>);
 };

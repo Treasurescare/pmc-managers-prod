@@ -122,7 +122,13 @@ def has_must_pass(n: dict) -> bool:
 
 @router.get("/templates")
 async def templates():
-    return {"templates": TEMPLATES, "prefill_fields": PREFILL_FIELDS}
+    from routers.criteria_library import library
+    lib = await library()
+    return {"templates": lib["items"], "sets": lib["sets"], "prefill_fields": PREFILL_FIELDS}
+
+
+async def _live_bids(ref: str) -> int:
+    return await db.bids.count_documents({"notice_ref": ref, "status": {"$nin": ["withdrawn", "rejected"]}})
 
 
 @router.get("/{ref}")
@@ -135,15 +141,25 @@ async def public_criteria(ref: str):
 
 @router.get("/{ref}/admin")
 async def admin_criteria(ref: str, _=Depends(require_role("admin", "reviewer"))):
-    return _view(await _notice(ref))
+    n = await _notice(ref)
+    v = _view(n)
+    if v["locked"] and not await _live_bids(ref):
+        v.update(locked=False, live_no_bids=True)
+    return v
 
 
 @router.put("/{ref}")
 async def save_criteria(ref: str, body: CriteriaIn, admin=Depends(require_role("admin"))):
     n = await _notice(ref)
     if n.get("is_published"):
-        raise HTTPException(status_code=409, detail="This tender is live. Criteria can only change through a corrigendum sent to all suppliers.")
-    return await _store(n, body, admin)
+        if await _live_bids(ref):
+            raise HTTPException(status_code=409, detail="Bids have already been received on this live tender, so its criteria are locked.")
+        if not any(c.kind == "must_pass" for c in body.criteria):
+            raise HTTPException(status_code=422, detail="A live tender needs at least one must-pass criterion.")
+    v = await _store(n, body, admin)
+    if n.get("is_published"):
+        v.update(locked=False, live_no_bids=True)
+    return v
 
 
 async def _store(n: dict, body: "CriteriaIn", actor: dict) -> dict:

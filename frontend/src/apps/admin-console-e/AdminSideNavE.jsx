@@ -19,6 +19,7 @@ export default function AdminSideNavE({ active }) {
     ["Notices", "/admin/e/notices", "i-file"],
     ["Taxonomy backfill", "/admin/e/taxonomy-backfill", "i-tag"],
     ["Tender builder", "/admin/e/tender-builder", "i-spark"],
+    ["Criteria master", "/admin/e/criteria-master", "i-check"],
     ["Corrigenda", "/admin/e/corrigenda", "i-flag"],
     ["BOQ & contracts", "/admin/e/boq", "i-layers"],
     ["Work packages", "/admin/e/work-packages", "i-box"],
