@@ -135,9 +135,12 @@ class TestB_PublishGate:
         assert admin.post(f"{API}/notices/{DRAFT}/publish").status_code == 200
 
     def test_locked_after_publish(self, admin):
-        r = admin.put(f"{API}/tender-criteria/{DRAFT}", json={"criteria": [MUST]})
-        assert r.status_code == 409
-        assert admin.get(f"{API}/tender-criteria/{DRAFT}/admin").json()["locked"] is True
+        # v75: a live tender with no bids yet may still be edited (locked only once bids arrive)
+        g = admin.get(f"{API}/tender-criteria/{DRAFT}/admin").json()
+        assert g["locked"] is False and g.get("live_no_bids") is True
+        assert admin.put(f"{API}/tender-criteria/{DRAFT}", json={"criteria": [SCORED]}).status_code == 422  # live needs a must-pass
+        r = admin.put(f"{API}/tender-criteria/{DRAFT}", json={"criteria": [MUST, ISO, SCORED], "fx_rule": "CB rate"})
+        assert r.status_code == 200 and r.json()["live_no_bids"] is True
 
     def test_public_view_after_publish(self):
         r = requests.get(f"{API}/tender-criteria/{DRAFT}")

@@ -1,0 +1,44 @@
+{
+  "summary": "v77 mandatory/optional criteria end-to-end tested. Backend: new tests/test_v77_mandatory_optional_criteria.py (17 tests) covers mandatory defaults, min_optional round-trip and validation, clean_answers reporting only mandatory gaps, optional-answered-needs-proof, evaluate with min_optional (optional_summary, 'Not answered (optional criterion)'), preliminary and final result notices with the optional line, a real Gemini AI read of one PDF proof, rejecting an optional proof (bid stays qualified while enough optional passes remain, otherwise disqualified), rejecting a mandatory proof (disqualified), proof-report.pdf content and permissions, commercial opening gated by proof review, auto L1 stored and returned by /comparison/l1/{ref}/latest. All 17 pass, plus v76 (13) and the updated v72/v72c suites (50). UI (Playwright): vendor BidSubmit shows the Mandatory/Optional badges and the rule banner, and a bid was submitted with only the mandatory answer and proof. In the admin Notices criteria editor the crit-mandatory-{i} defaults are right, the min-optional box shows and hides, and the save persists min_optional=1. The Criteria master has the mandatory checkbox. Bidding ops shows auto-l1 card with L1 row, q-optional-{bid_ref} summaries, and the proof-report-pdf button downloads a PDF. Fixed 2 small frontend bugs.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/v1/bids (tender_criteria.clean_answers)", "issue": "An optional yes/no criterion with proof_required that the bidder answers 'No' still demands a proof upload (v is not None). The frontend criteriaReady behaves the same way. A 'No' answer fails the criterion anyway, so asking for proof makes no sense. The same applies to a mandatory 'No'. Suggest requiring proof only when the answer could pass (for example yes_no == True)."},
+      {"endpoint": "POST /tender-criteria/{ref}/bids/{id}/proofs/{cid}/vote (proof_ai.vote)", "issue": "There is a race on optional_summary.passed when two different optional proofs on the same bid are finalised at the same moment. Each request computes passed from the qualification it read earlier and $sets the value, so one decrement can be lost and the bid may not be disqualified. Use $inc with a conditional, or recompute from results after the write."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "BidCriteriaSection", "issue": "FIXED: teamItem() returned members.length (0) for non-consortium bids, so React rendered a stray '0' under every criterion answer box", "selector": "[data-testid^=crit-item-]", "priority": "MEDIUM"},
+      {"component": "CriteriaEditorModal MinOptional", "issue": "FIXED: the 'at least N' input took the full width because inp already includes w-full, which overrode w-20 and broke the sentence across lines", "selector": "[data-testid=criteria-min-optional-input]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "BidCriteriaSection rule banner", "issues": ["Shows the raw minOptional, uncapped. If min_optional is greater than the number of optional criteria, the text reads 'at least 5 of the 3 optional'; the backend caps the value. Use Math.min(minOptional, opt) or validate max on save."]},
+      {"screen": "Bidding ops > Bid opening (compact) AutoL1Card", "issues": ["The narrow sidebar card wraps the bid ref and company name over 3-4 lines; consider a stacked layout in compact mode."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v77_mandatory_optional_criteria.py", "/app/backend/tests/test_v76_proof_review.py", "/app/backend/tests/test_v72_tender_criteria.py", "/app/backend/tests/test_v72c_criteria_stage2.py", "/app/test_reports/pytest/pytest_v77.xml"],
+  "action_items": [
+    "Decide whether a 'No' answer on a proof_required criterion (optional or mandatory) should still require a proof. Change clean_answers and criteriaReady together.",
+    "Make the optional_summary.passed decrement in proof_ai.vote atomic.",
+    "Cap the min_optional shown in the bid-criteria-rule banner, or validate min_optional <= number of optional criteria on save."
+  ],
+  "critical_code_review_comments": [
+    "bid_opening._open reuses the variable name q for both the Mongo query and the evaluate() result. This is harmless now because the cursor was already created, but it is fragile; rename it.",
+    "Switching a row's kind from scored (saved mandatory=false) to must_pass keeps mandatory=false, so the criterion silently becomes optional. The checkbox shows it, but consider resetting mandatory when kind changes.",
+    "tender_criteria.py is 777 lines; consider splitting results/notices into their own module."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_v77_mandatory_optional_criteria.py",
+    "/app/backend/tests/test_v72_tender_criteria.py",
+    "/app/backend/tests/test_v72c_criteria_stage2.py",
+    "/app/frontend/src/apps/vendor-portal/BidCriteriaSection.jsx",
+    "/app/frontend/src/apps/admin-console/notice/CriteriaEditorModal.jsx"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100% (2 minor bugs fixed)"},
+  "seed_data_creation": "TEST_OPT-* notices, committees, bids, uploads, comparison_runs and notifications were seeded and then fully deleted (including TEST_OPT-UI01/02/03 and the UI-uploaded ui_*.pdf files). DEMO-* data was not touched.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_v77_mandatory_optional_criteria.py tests/test_v76_proof_review.py -n0 -q. Set OPT_TEST_KEEP=1 OPT_TEST_REF=TEST_OPT-UI01 to keep the seeded tender for UI checks at /admin/e/bidding (Bid opening sidebar), and delete it afterwards. Login is the unified page: fill input[type=email] and input[type=password], then click the 'Continue' button (the admin-login-* testids are not on that page). Vendor bid route: /vendor/bid/new/{ref}. The v72 TestB_PublishGate and v72c TestD_Stage2 tests were updated to the v75/v76 contracts and now pass."
+}

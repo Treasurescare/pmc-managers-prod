@@ -297,7 +297,7 @@ def clean_answers(criteria: list, answers: list, docs: list, members: Optional[l
         needed = mand
         if v is None and needed:
             missing.append(f"{c['title']} (answer)")
-        if c.get("proof_required") and c["id"] not in proof_for and (mand or v is not None):
+        if c.get("proof_required") and c["id"] not in proof_for and (mand or v is not None) and v is not False:
             missing.append(f"{c['title']} (proof)")
         row = {"criterion_id": c["id"], "value": v}
         if members and c.get("consortium_rule") in ("each", "combined") and c["answer_type"] != "text":

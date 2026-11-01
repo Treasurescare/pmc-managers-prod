@@ -929,3 +929,10 @@ summary notes.
 - Proof files were already encrypted/sealed until technical opening (bid-docs uploads).
 - Per-tender award method (L1 default / weighted) in the Criteria window; award report + L1 page honour it; weighted sort keeps qualified bids first.
 - Tested iteration_159 + tests/test_v76_proof_review.py 13/13.
+
+## 2026-11-01 — v59h Mandatory/optional criteria, auto L1, proof check report
+- Every criterion has a Mandatory flag (default on for pass/fail, off for scored) across notices, builder, master and sets. Tender setting min_optional: bidders must meet all mandatory + at least N optional pass/fail criteria (blank = all). Vendors may skip optional criteria; proof only needed when answered (not for a No answer).
+- Evaluation adds optional_summary; rejecting an optional proof only disqualifies if optional passes fall below the minimum (recomputed after write, race-safe).
+- L1 ranking runs automatically when price opening completes; card on the bid opening screen; GET /api/v1/comparison/l1/{ref}/latest.
+- Proof check report PDF: GET /api/v1/tender-criteria/{ref}/proof-report.pdf (button on qualification panel).
+- Result notices show the optional summary. Tested iteration_160 (+ v76/v77 suites 30/30).

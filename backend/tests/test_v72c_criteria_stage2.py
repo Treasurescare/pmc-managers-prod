@@ -377,6 +377,15 @@ class TestD_Stage2:
 
     def test_commercial_opens_only_qualified(self, c1, c2):
         st = c1.get(f"{API}/bid-opening/{E2E}").json()["stages"]["commercial"]["blockers"]
+        # v76: commercial opening is now also blocked until every proof on a qualified bid is accepted/rejected
+        if st:
+            assert all("Proof review" in x for x in st), st
+            prs = DB.bids.find_one({"_id": ObjectId(S["good"])})["qualification"].get("proof_reviews") or {}
+            for cid, pr in prs.items():
+                if pr.get("status") == "pending":
+                    for s in (c1, c2):
+                        s.post(f"{API}/tender-criteria/{E2E}/bids/{S['good']}/proofs/{cid}/vote", json={"decision": "accept"})
+            st = c1.get(f"{API}/bid-opening/{E2E}").json()["stages"]["commercial"]["blockers"]
         assert st == [], st
         c1.post(f"{API}/bid-opening/{E2E}/approve", json={"stage": "commercial", "signer_name": "Committee One", **SIG})
         r = c2.post(f"{API}/bid-opening/{E2E}/approve", json={"stage": "commercial", "signer_name": "Committee Two", **SIG})

@@ -43,7 +43,7 @@ const MinOptional = ({ rows, minOpt, setMinOpt }) => {
   if (!opt) return <p className="text-xs text-brand-navy/60" data-testid="criteria-min-optional-none">All pass/fail criteria are mandatory — bidders must meet every one. Untick "Mandatory" on a criterion to make it optional.</p>;
   return (
     <label className="block text-sm border border-brand-navy/15 p-3" data-testid="criteria-min-optional">Bidders must meet every mandatory criterion, plus at least
-      <input type="number" min={0} max={opt} className={inp + " w-20 mx-2 inline-block"} placeholder={String(opt)} value={minOpt} onChange={(e) => setMinOpt(e.target.value)} data-testid="criteria-min-optional-input" />
+      <input type="number" min={0} max={opt} className={inp.replace("w-full", "w-20") + " mx-2 inline-block"} placeholder={String(opt)} value={minOpt} onChange={(e) => setMinOpt(e.target.value)} data-testid="criteria-min-optional-input" />
       of the {opt} optional pass/fail criteria. <span className="text-xs text-brand-navy/60">Leave blank to require all of them.</span></label>);
 };
 

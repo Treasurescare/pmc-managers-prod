@@ -1,6 +1,6 @@
 const OPS = { gte: "at least", lte: "at most", eq: "exactly" };
 const RULE = { lead: "the lead member alone", combined: "all members combined", each: "every member" };
-const teamItem = (c, members) => members?.length && c.answer_type !== "text" && ["each", "combined"].includes(c.consortium_rule || "each");
+const teamItem = (c, members) => !!members?.length && c.answer_type !== "text" && ["each", "combined"].includes(c.consortium_rule || "each");
 
 const isMand = (c) => c.mandatory ?? c.kind === "must_pass";
 
@@ -8,7 +8,7 @@ export const criteriaReady = (criteria, answers, docs, members, memberAnswers = 
   const v = answers[c.id];
   const needsAnswer = isMand(c);
   const filled = (x) => x !== undefined && x !== null && x !== "";
-  const proofOk = !c.proof_required || docs.some((d) => d.criterion_id === c.id) || (!needsAnswer && !filled(v));
+  const proofOk = !c.proof_required || docs.some((d) => d.criterion_id === c.id) || (!needsAnswer && !filled(v)) || v === false;
   const teamOk = !(teamItem(c, members) && needsAnswer && (c.consortium_rule || "each") === "each")
     || members.every((m) => filled((memberAnswers[c.id] || {})[m.vendor_id]));
   return (!needsAnswer || filled(v)) && proofOk && teamOk;
@@ -35,7 +35,7 @@ export default function BidCriteriaSection({ criteria, answers, setAnswer, docs,
     <div className="space-y-3" data-testid="bid-criteria">
       <div className="text-sm font-semibold text-slate-900">Tender criteria <span className="text-red-600">*</span></div>
       <div className="text-xs text-slate-600">Answer each item and attach the proof asked for. Your answers and proofs are sealed with your bid and checked automatically when bids are opened.</div>
-      {opt > 0 && <div className="text-xs bg-amber-50 border border-amber-300 rounded p-2" data-testid="bid-criteria-rule">To qualify you must meet <b>every mandatory</b> criterion and <b>at least {minOptional ?? opt} of the {opt} optional</b> pass/fail criteria.</div>}
+      {opt > 0 && <div className="text-xs bg-amber-50 border border-amber-300 rounded p-2" data-testid="bid-criteria-rule">To qualify you must meet <b>every mandatory</b> criterion and <b>at least {Math.min(minOptional ?? opt, opt)} of the {opt} optional</b> pass/fail criteria.</div>}
       {criteria.map((c) => {
         const proofs = docs.filter((d) => d.criterion_id === c.id);
         return (

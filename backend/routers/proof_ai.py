@@ -160,14 +160,7 @@ async def vote(ref: str, bid_id: str, cid: str, body: VoteIn, admin=COMMITTEE):
             if idx is not None:
                 upd.update({f"qualification.results.{idx}.result": "fail", f"qualification.results.{idx}.reason": note})
             opt = q.get("optional_summary")
-            if res.get("mandatory", True) or not opt:
-                knock = True
-            else:
-                passed = opt["passed"] - (1 if res.get("result") == "pass" else 0)
-                upd["qualification.optional_summary.passed"] = passed
-                knock = passed < opt["required"]
-                if knock:
-                    note += f" — now meets {passed} of the {opt['required']} optional criteria required"
+            knock = bool(res.get("mandatory", True) or not opt)
             if knock:
                 upd.update({"qualification.decision": "disqualified", "qualification.decided_at": now_iso(), "qualification.decided_by": "committee",
                             "qualification.decision_note": note})
@@ -175,6 +168,16 @@ async def vote(ref: str, bid_id: str, cid: str, body: VoteIn, admin=COMMITTEE):
         done = await db.bids.update_one({"_id": oid, f"{p}.status": "pending"}, {"$set": upd, **extra})
         if not done.modified_count:
             status = (await db.bids.find_one({"_id": oid}))["qualification"]["proof_reviews"][cid]["status"]
+        elif rejected and not knock:
+            fresh = (await db.bids.find_one({"_id": oid}))["qualification"]
+            passed = sum(1 for x in fresh["results"] if x["kind"] == "must_pass" and not x.get("mandatory", True) and x["result"] == "pass")
+            need = fresh["optional_summary"]["required"]
+            await db.bids.update_one({"_id": oid}, {"$set": {"qualification.optional_summary.passed": passed}})
+            if passed < need:
+                await db.bids.update_one({"_id": oid, "qualification.decision": {"$exists": False}},
+                                         {"$set": {"qualification.decision": "disqualified", "qualification.decided_at": now_iso(), "qualification.decided_by": "committee",
+                                                   "qualification.decision_note": f"{note} — now meets {passed} of the {need} optional criteria required"},
+                                          "$unset": {"technical_cleared_at": ""}})
     await audit_log(f"qualification.proof_{body.decision}", admin, "bid", b.get("bid_ref"), {"criterion": cid, "comment": body.comment, "final": status})
     return {"status": status, "votes": len(pr["votes"]), "needed": len(members)}
 
