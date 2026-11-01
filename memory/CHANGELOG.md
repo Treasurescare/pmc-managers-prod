@@ -910,3 +910,8 @@ summary notes.
 - Progress bar "N of 4 sections complete" (Profile, Banking, Documents, Agreement) on the partner form and on draft/needs-changes partner rows in Admin > Partners (ProgressBar/profileProgress in AgentSteps.jsx).
 - Daily cron partner-reminders (09:00 London) -> POST /api/v1/cron/partner-profile-reminders: emails draft partners 3 and 7 days after joining, listing what is still missing; tracked in agents.auto_reminders, retried next day if email fails. Verified in preview (401 without auth, reminder recorded, no duplicate on rerun).
 - Bundles: /downloads/pmc-backend-v59d.zip, /downloads/pmc-frontend-v59d-prod-build.zip
+
+## 2026-11-01 — v59e Criteria in admin builder + publish checklist
+- Admin Tender builder: Criteria button on non-master drafts (same editor as notices); criteria/consortium settings copy into the notice created via "Create notice" (notices.create_notice).
+- Admin Notices: each draft row shows a "Ready to publish?" checklist (main document, future deadline / pre-bid order, at least one must-pass criterion) with "Add now" opening the criteria editor. Tested iteration_157 (100%).
+- Bundles: /downloads/pmc-backend-v59e.zip, /downloads/pmc-frontend-v59e-prod-build.zip

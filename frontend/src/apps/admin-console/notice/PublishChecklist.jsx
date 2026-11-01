@@ -8,7 +8,7 @@ const checks = (n) => {
   return [
     ["document", !!n.primary_document?.url, n.primary_document?.url ? "Tender document attached" : "Attach the main tender document (Edit)"],
     ["dates", datesOk, datesMsg],
-    ["criteria", mustPass > 0, mustPass ? `${mustPass} must-pass criterion${mustPass > 1 ? "s" : ""}` : "Add at least one must-pass criterion"],
+    ["criteria", mustPass > 0, mustPass ? `${mustPass} must-pass ${mustPass > 1 ? "criteria" : "criterion"}` : "Add at least one must-pass criterion"],
   ];
 };
 

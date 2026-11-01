@@ -1,0 +1,24 @@
+{
+  "summary": "Tested (1) the Criteria button in the admin Tender Builder and (2) the publish checklist on draft notices, from end to end in the backend and the UI. Everything passed. Backend pytest: 9/9. Builder: on a non-master draft, the tb-criteria button sits next to tb-create-notice. It opens criteria-modal, and adding a blank must-pass criterion and saving shows the 'Criteria saved' toast. The label changes to 'CRITERIA (1)' and is still there after reopening the draft. Carry-over: clicking '⇢ Create notice' opened /admin/e/notices?from=tender-builder pre-filled; after setting a deadline and clicking Create, the new draft row showed CRITERIA (1). The criteria were confirmed in Mongo. Checklist: shown on every draft and on no live DEMO notice. A draft with doc + future deadline + must-pass shows 'Ready to publish' with all data-ok=true. A bare draft shows 'Ready to publish?' with document=false and criteria=false. A pre-bid date after the deadline gives dates=false with the right message. 'Add now' opens the modal, and after saving, the item turns ok, the button reads CRITERIA (1) and 'Add now' disappears. Regression: notice-criteria-{ref} on live rows still opens the modal. Vendor builder shows tb-criteria on a draft and hides it on a submitted tender (where the locked badge shows). The master check was by code review only, because the admin UI has no way to open a master in the editor (only Clone).",
+  "backend_issues": {"critical": [], "minor": [
+    {"endpoint": "POST /api/v1/notices", "issue": "Consortium settings are copied from the template only when the template has criteria. A template with consortium_allowed=true and no criteria does not pass that setting on. This is an edge case."}
+  ]},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PublishChecklist", "issue": "The plural is wrong: with 2 or more must-pass items the label reads 'N must-pass criterions'. It should be 'criteria'.", "selector": "[data-testid^=publish-check-criteria-]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin > Notices", "issues": ["Right after Create from the builder flow, the list briefly showed 'No published notices yet' (for about 3s) before the reload filled it in. This is cosmetic.", "The panel heading says 'Published notices — visible on the public board' while the list also includes drafts. This was already the case before this change."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v74_builder_criteria_publish_checklist.py", "/app/backend/tests/seed_v74_ui.py", "/app/test_reports/pytest/pytest_v74.xml"],
+  "action_items": ["Fix the plural in PublishChecklist.jsx: use 'criteria' for more than one, not 'criterions'.", "Optional: in create_notice, copy consortium_allowed/max from the template even when it has no criteria."],
+  "critical_code_review_comments": ["notices.py create_notice: the copy only runs when the payload's tender_criteria is falsy, so criteria sent in the payload take priority (verified). An invalid ObjectId is safely ignored (verified). There is no ownership check on which template a notice links to, which is acceptable because the endpoint is staff-only.", "TenderBuilderPanel: the tb-criteria condition is correct for admin, vendor draft and vendor submitted/approved. The onSaved callback updates doc.tender_criteria locally, and a later PATCH of the template does not wipe the criteria because it only $sets the model fields."],
+  "updated_files": ["/app/backend/tests/test_v74_builder_criteria_publish_checklist.py", "/app/backend/tests/seed_v74_ui.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "TEST_ templates and notices, plus 2 vendor TEST_V_ templates for testvendor, were created and then all deleted (seed_v74_ui.py clean). The final count of TEST_ templates and notices is 0.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Admin login: /login?role=admin, then signin-e-email / signin-e-password / signin-e-submit. Vendor login: /vendor/login uses the same signin-e fields (Supplier is selected by default). Run pytest with -n0, because pytest.ini adds xdist args. In the builder, type the draft name into tb-filter-q, then click tb-result-main-{id}. Template criteria endpoints: GET/PUT /api/v1/tender-criteria/template/{tid}/mine. A number criterion needs operator + threshold + unit."
+}
