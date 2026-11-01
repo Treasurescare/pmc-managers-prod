@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from audit import audit_log
 from db import db
 from models.base import now_iso
+from routers.vendor_auth import current_vendor
 from security import require_role
 
 router = APIRouter(prefix="/api/v1/escrow", tags=["escrow-consortium"])
@@ -205,3 +206,48 @@ async def list_splits(_=Depends(VIEW)):
     async for t in db.escrow_transactions.find({"consortium_split": {"$exists": True}}).sort("released_at", -1).limit(200):
         out.append({"tid": str(t["_id"]), "bid_ref": t.get("bid_ref"), "notice_ref": t.get("notice_ref"), **t["consortium_split"]})
     return {"items": out}
+
+
+SIDE_NAME = {"pmc": "PMC officer", "escrow_institution": "Escrow officer"}
+
+
+@router.get("/consortium-payouts/mine")
+async def my_payouts(vendor=Depends(current_vendor)):
+    out = []
+    async for t in db.escrow_transactions.find({"consortium_split.lines.vendor_id": vendor["id"]}).sort("released_at", -1).limit(200):
+        s = t["consortium_split"]
+        for x in s["lines"]:
+            if x.get("vendor_id") != vendor["id"]:
+                continue
+            acct = (x.get("bank") or {}).get("bank_account_number") or ""
+            out.append({"instruction_ref": x.get("instruction_ref"), "bid_ref": t.get("bid_ref"), "notice_ref": t.get("notice_ref"),
+                        "consortium": s.get("consortium"), "basis": s.get("basis"), "share_pct": x.get("share_pct"),
+                        "amount": x.get("amount"), "currency": x.get("currency"), "route": x.get("route"), "status": x.get("status"),
+                        "bank": {"bank_name": (x.get("bank") or {}).get("bank_name"), "account_last4": acct[-4:] if acct else None},
+                        "signatures": [{"side": SIDE_NAME.get(k, k), "at": v.get("at")} for k, v in (x.get("signatures") or {}).items()],
+                        "paid_ref": x.get("paid_ref"), "paid_at": x.get("paid_at"), "released_at": s.get("at")})
+    return {"items": out}
+
+
+@router.get("/consortium-splits.csv")
+async def splits_csv(user=Depends(require_role("admin", "accounting", "auditor"))):
+    import csv
+    import io
+    from fastapi.responses import Response
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["instruction_ref", "bid_ref", "notice_ref", "consortium", "action", "escrow_mode", "released_at", "member", "lead",
+                "share_pct", "amount", "currency", "bank_name", "bank_account", "bank_swift", "route", "status",
+                "pmc_signed_by", "pmc_signed_at", "escrow_signed_by", "escrow_signed_at", "paid_ref", "paid_at", "paid_by", "slip_key"])
+    async for t in db.escrow_transactions.find({"consortium_split": {"$exists": True}}).sort("released_at", -1):
+        s = t["consortium_split"]
+        for x in s["lines"]:
+            b, sg = x.get("bank") or {}, x.get("signatures") or {}
+            p, e = sg.get("pmc") or {}, sg.get("escrow_institution") or {}
+            w.writerow([x.get("instruction_ref"), t.get("bid_ref"), t.get("notice_ref"), s.get("consortium"), s.get("action"), s.get("escrow_mode"),
+                        s.get("at"), x.get("company"), "yes" if x.get("lead") else "no", x.get("share_pct"), x.get("amount"), x.get("currency"),
+                        b.get("bank_name"), b.get("bank_account_number"), b.get("bank_swift"), x.get("route"), x.get("status"),
+                        p.get("email"), p.get("at"), e.get("email"), e.get("at"), x.get("paid_ref"), x.get("paid_at"), x.get("paid_by"), x.get("proof_key")])
+    await audit_log("escrow.consortium_splits_csv", user, "escrow", "consortium_splits", {})
+    return Response(buf.getvalue(), media_type="text/csv",
+                    headers={"Content-Disposition": 'attachment; filename="consortium-payments.csv"'})

@@ -492,6 +492,7 @@ export const consortiumApi = {
   sign: (id, body) => api.post(`/api/v1/consortia/${id}/agreement/sign`, body).then((r) => r.data),
   withdraw: (id) => api.post(`/api/v1/consortia/${id}/withdraw`).then((r) => r.data),
   leave: (id) => api.post(`/api/v1/consortia/${id}/leave`).then((r) => r.data),
+  myPayouts: () => api.get("/api/v1/escrow/consortium-payouts/mine").then((r) => r.data),
 };
 
 // ---------- Wave 1: Bids ----------

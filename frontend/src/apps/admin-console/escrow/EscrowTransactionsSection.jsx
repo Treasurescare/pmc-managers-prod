@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { PUBLIC_SITE } from "@/lib/site";
 import { toast } from "sonner";
-import { adminApi, bidApi, escrowApi, showApiError } from "@/lib/api";
+import { adminApi, bidApi, escrowApi, showApiError, downloadAuthedFile } from "@/lib/api";
 import { InfoDot } from "@/components/InfoDot";
 import { useListPager } from "@/components/ListPager";
 import ConsortiumSplitBox from "./ConsortiumSplitBox";
@@ -487,6 +487,11 @@ export default function EscrowTransactionsSection({ accounts, txs, onReload }) {
            className="px-3 py-2 text-[11px] uppercase tracking-widest border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white">
           Export releases · CSV
         </a>
+        <button type="button" onClick={() => downloadAuthedFile("/api/v1/escrow/consortium-splits.csv", "consortium-payments.csv").catch(showApiError)}
+           data-testid="escrow-export-consortium-csv"
+           className="px-3 py-2 text-[11px] uppercase tracking-widest border border-brand-navy/30 text-brand-navy hover:bg-brand-navy hover:text-white">
+          Consortium payments · CSV
+        </button>
       </div>
       {dupes.total > 0 && (
         <div className="mb-3 p-3 bg-red-50 border border-red-300 text-xs text-red-900"

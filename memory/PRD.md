@@ -1055,6 +1055,12 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - User chose manual bank transfers, but tighter (no automatic payouts). Each split line = payment instruction (<bid_ref>-P<n>) with member bank snapshot (vendors/registrations bank_* fields). Both escrow officers (PMC + institution, per tx account snapshot) must sign (staff endpoint or magic-link portal /escrow/officer/:token) → approved; then admin/accounting records payment with reference + uploaded slip (vendor-docs key, unowned, unsealed). Atomic per-line updates (no lost signatures); bank-account change after signing blocks payment.
 - Bundles: /downloads/pmc-backend-v58z.zip, /downloads/pmc-frontend-v58z-prod-build.zip (scripts/build_v58z.sh).
 
+## R47 — Member payout view + consortium payments CSV + life-cycle guide + bundle v59a — 2026-11-01 (self-tested via API + screenshots)
+- GET /api/v1/escrow/consortium-payouts/mine (vendor: own lines only, bank last-4, officer sides/dates, paid ref). UI: Consortia → "My consortium payments" (MyConsortiumPayouts.jsx).
+- GET /api/v1/escrow/consortium-splits.csv (admin/accounting/auditor; audit-logged). Button "Consortium payments · CSV" on admin escrow ledger.
+- scripts/capture_consortium_guide.py run|shot1|clean — seeds DEMO-CONSORTIUM-2026 (tenant PMC-KZ-01), drives full life cycle with real APIs, screenshots 11 steps, builds /downloads/pmc-consortium-guide.pdf + pmc-consortium-guide-screens.zip; demo data cleaned afterwards.
+- Bundles: /downloads/pmc-backend-v59a.zip, /downloads/pmc-frontend-v59a-prod-build.zip.
+
 
 
 

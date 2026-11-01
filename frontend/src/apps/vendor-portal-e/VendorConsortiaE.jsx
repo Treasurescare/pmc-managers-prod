@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { consortiumApi, vendorApi, showApiError } from "@/lib/api";
 import VendorPortalChrome from "./VendorPortalChrome";
 import ConsortiumCard from "@/apps/vendor-portal/ConsortiumCard";
+import MyConsortiumPayouts from "./MyConsortiumPayouts";
 
 export default function VendorConsortiaE() {
   const [items, setItems] = useState(null);
@@ -17,6 +18,7 @@ export default function VendorConsortiaE() {
         {(items || []).map((c) => <ConsortiumCard key={c.id} c={c} me={me} onChange={load} />)}
         {items && !items.length && <div className="text-sm text-slate-600" data-testid="consortia-empty">You are not in any consortium yet.</div>}
       </div>
+      <MyConsortiumPayouts />
       </div>
     </VendorPortalChrome>
   );
