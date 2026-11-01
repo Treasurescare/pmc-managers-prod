@@ -53,7 +53,7 @@ const BidCard = ({ b, refKey, reload, open }) => {
         <div className="text-sm"><b>{b.supplier}</b> · {b.bid_ref}{b.max_points ? ` · ${b.auto_points}/${b.max_points} pts` : ""}</div>
         <span className={`text-[11px] px-2 py-0.5 ${cls}`} data-testid={`q-status-${b.bid_ref}`}>{label}</span>
       </div>
-      <table className="w-full text-xs"><tbody>{(b.results || []).map((r) => <ResultRow key={r.criterion_id} r={r} act={act} open={open} />)}</tbody></table>
+      <table className="w-full text-xs"><tbody>{(b.results || []).map((r) => <ResultRow key={r.criterion_id} r={r} act={act} open={open && !b.decision} />)}</tbody></table>
       {openDoubts.map((d) => <div key={d.at} className="text-xs bg-amber-50 border border-amber-300 p-2">Doubt by {d.by}: {d.reason}</div>)}
       {open && openDoubts.length > 0 && <div className="flex gap-2">
         <button type="button" className="pmc-btn pmc-btn--secondary" onClick={() => resolve("uphold")} data-testid={`q-uphold-${b.bid_ref}`}>Keep system result</button>

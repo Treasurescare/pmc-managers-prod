@@ -83,7 +83,12 @@ export default function CriteriaEditorModal({ noticeRef, onClose, onSaved, mode 
     setBusy("ai");
     try {
       const r = await API.ai(noticeRef);
-      if (r.criteria.length) { setRows((x) => [...x, ...r.criteria]); toast.success(`${r.criteria.length} criteria read from the tender — check each one before saving`); }
+      if (r.criteria.length) {
+        const have = new Set(rows.map((x) => (x.title || "").trim().toLowerCase()));
+        const fresh = r.criteria.filter((x) => !have.has((x.title || "").trim().toLowerCase()));
+        setRows((x) => [...x, ...fresh]);
+        toast.success(`${fresh.length} new criteria read from the tender — check each one before saving`);
+      }
       else toast.info(r.note);
     } catch (e) { showApiError(e); } finally { setBusy(""); }
   };
@@ -94,7 +99,7 @@ export default function CriteriaEditorModal({ noticeRef, onClose, onSaved, mode 
         full_points_at: num(c.full_points_at), prefill_field: c.prefill_field || null, operator: c.answer_type === "number" ? c.operator || "gte" : null }));
       const d = await API.save(noticeRef, { criteria, fx_rule: fx || null });
       setCheck(null);
-      setRows(d.criteria); toast.success("Criteria saved"); onSaved?.();
+      setRows(d.criteria); toast.success("Criteria saved"); onSaved?.(d);
     } catch (e) { showApiError(e); } finally { setBusy(""); }
   };
   const runCheck = async () => {

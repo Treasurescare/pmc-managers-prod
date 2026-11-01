@@ -713,7 +713,7 @@ export default function TenderBuilderPanel({ vendorMode = false }) {
                       Criteria{doc.tender_criteria?.length ? ` (${doc.tender_criteria.length})` : ""}
                     </button>
                   )}
-                  {critOpen && <CriteriaEditorModal mode="template" noticeRef={doc.id} onClose={() => setCritOpen(false)} onSaved={() => openTemplate(doc.id)} />}
+                  {critOpen && <CriteriaEditorModal mode="template" noticeRef={doc.id} onClose={() => setCritOpen(false)} onSaved={(saved) => setDoc((d) => ({ ...d, tender_criteria: saved?.criteria || [] }))} />}
                   {!doc.is_master && vendorMode && !["submitted", "approved"].includes(doc.review_status) && (
                     <button data-testid="tb-submit-review"
                             onClick={async () => {

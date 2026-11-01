@@ -323,6 +323,16 @@ class TestD_Stage2:
         r = admin.post(f"{API}/tender-criteria/{E2E}/bids/{S['bad']}/resolve", json={"decision": "uphold", "note": "fine ok"})
         assert r.status_code == 403
 
+    def test_declared_value_formatted(self):
+        bad = DB.bids.find_one({"_id": ObjectId(S["bad"])})
+        reasons = " ".join(str(r.get("reason") or "") for r in bad["qualification"].get("results") or [])
+        assert "Declared 400,000 USD" in reasons, reasons
+
+    def test_doubt_unknown_criterion_422(self, c1):
+        r = c1.post(f"{API}/tender-criteria/{E2E}/bids/{S['good']}/doubt",
+                    json={"criterion_id": "nosuchcrit", "reason": "Accounts look inconsistent"})
+        assert r.status_code == 422, r.text
+
     def test_resolve_without_doubt_409(self, c1):
         r = c1.post(f"{API}/tender-criteria/{E2E}/bids/{S['bad']}/resolve", json={"decision": "uphold", "note": "fine ok"})
         assert r.status_code == 409

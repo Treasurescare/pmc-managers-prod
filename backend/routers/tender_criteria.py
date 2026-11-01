@@ -503,13 +503,13 @@ async def evaluator_score(ref: str, bid_id: str, body: ScoreIn, admin=Depends(re
 
 # ---------- supplier tenders built from templates (Tender Builder) ----------
 
-async def _own_template(tid: str, request: Request) -> tuple:
-    from routers._tender_access import assert_can_edit_doc, write_principal
-    p = await write_principal(request)
+async def _own_template(tid: str, request: Request, read: bool = False) -> tuple:
+    from routers._tender_access import assert_can_edit_doc, assert_can_read_doc, tender_principal, write_principal
+    p = await (tender_principal(request) if read else write_principal(request))
     doc = await db.tender_templates.find_one({"_id": ObjectId(tid)}) if ObjectId.is_valid(tid) else None
     if not doc:
         raise HTTPException(status_code=404, detail="Tender not found")
-    assert_can_edit_doc(p, doc)
+    (assert_can_read_doc if read else assert_can_edit_doc)(p, doc)
     return doc, p
 
 
@@ -520,7 +520,7 @@ def _tpl_view(doc: dict) -> dict:
 
 @router.get("/template/{tid}/mine")
 async def template_get(tid: str, request: Request):
-    doc, _ = await _own_template(tid, request)
+    doc, _ = await _own_template(tid, request, read=True)
     return _tpl_view(doc)
 
 
@@ -530,6 +530,8 @@ async def template_save(tid: str, body: CriteriaIn, request: Request):
     if doc.get("review_status") in ("submitted", "approved"):
         raise HTTPException(status_code=409, detail="Criteria can only be changed while the tender is a draft or returned for changes.")
     crit = [c.model_dump() for c in body.criteria]
+    if len({c["id"] for c in crit}) != len(crit):
+        raise HTTPException(status_code=422, detail="Two criteria share the same id")
     await db.tender_templates.update_one({"_id": doc["_id"]}, {"$set": {"tender_criteria": crit, "criteria_fx_rule": body.fx_rule}})
     await audit_log("tender_template.criteria_saved", p, "tender_template", tid, {"count": len(crit)})
     doc.update(tender_criteria=crit, criteria_fx_rule=body.fx_rule)

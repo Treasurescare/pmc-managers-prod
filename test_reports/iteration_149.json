@@ -1,0 +1,57 @@
+{
+  "summary": "Retest of iteration_148 fixes for Tender Criteria Stage 1/2. All fixes verified. Backend: new test_v72d_template_criteria.py passes 14/14, and the v72/v72b/v72c regression passes 64/64 (2 new tests added to v72c: 'Declared 400,000 USD' formatting and doubt on an unknown criterion_id -> 422). UI was tested end to end: the testvendor Tender Builder now shows the Criteria button (tb-criteria) next to tb-submit-review. Submit without criteria shows the 409 toast. CriteriaEditorModal (template mode) loads empty, 'Add from template' works, save works, and the button label updates to 'Criteria (1)'. 'Read from tender document (AI)' returned 4 criteria. Submit then succeeds and the builder shows 'Awaiting PMC review — locked' with the Criteria and Submit buttons hidden. A reviewer approved at /admin/e/tender-review, and the new VT notice has is_published=true with tender_criteria copied. In QualificationPanel, Raise doubt immediately adds the 'committee has raised a doubt' blocker to BidOpeningPanel without a page reload, and Keep system result clears it. One new medium bug: saving criteria reloads the template and throws away any unsaved builder edits.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/v1/tender-criteria/template/{tid}/mine", "issue": "_own_template uses assert_can_edit_doc, which returns 409 for submitted/approved templates. A vendor therefore can't view their criteria after submitting, and _tpl_view's locked=true branch can never be reached. Use a read check (assert_can_read_doc) for GET."},
+      {"endpoint": "PUT /api/v1/tender-criteria/template/{tid}/mine", "issue": "There is no duplicate criterion-id check here, unlike _store for notices. Duplicate ids would carry into the approved notice."},
+      {"endpoint": "payments_extra hosting_fee (known, not done)", "issue": "The payer email wording is unchanged when the tender isn't auto-published."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "TenderBuilderPanel -> CriteriaEditorModal onSaved", "issue": "onSaved={() => openTemplate(doc.id)} reloads the template from the server and calls setDirty(false). Unsaved builder edits are lost. Repro: change Tender Name, open Criteria, Save, close: the name is back to the old value. The DB confirmed the edit was never saved. Autosave only runs every 30s. Fix: only merge tender_criteria into the doc state (setDoc(d => ({...d, tender_criteria: saved.criteria}))) instead of reloading.", "selector": "[data-testid='tb-criteria'] / [data-testid='criteria-save']", "priority": "MEDIUM"},
+      {"component": "QualificationPanel BidCard", "issue": "Still open from iteration 148: 'Raise doubt' shows on bids the committee has already decided (the backend returns 409). Hide it when b.decision is set.", "selector": "q-doubt-<cid>", "priority": "LOW"},
+      {"component": "CriteriaEditorModal AI read (all modes)", "issue": "AI suggestions are added without removing duplicates of existing rows: 'Average annual turnover' appeared twice. Some suggested scored items have no max points (Methodology), so saving returns 422 until the user fixes them.", "selector": "[data-testid='criteria-ai']", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Reviewer approve (/admin/e/tender-review)", "issue": "The toast is still hardcoded to 'Approved & published' and ignores is_published=false and the note. This is now only reachable for legacy templates submitted without criteria.", "affected_selectors": ["tr-approve-*"]},
+      {"flow": "Vendor builder after submit", "issue": "The 'Awaiting review: 0 of 3 allowed' scope panel doesn't refresh after a successful submit.", "affected_selectors": ["tb-submit-review"]}
+    ],
+    "design_issues": [
+      {"screen": "QualificationPanel", "issues": ["Still shows raw rule codes ('rule gte 1000000 USD'). Use 'at least 1,000,000 USD'.", "Declared values are not thousands-separated ('2500000 USD'). The failure reason text is now formatted correctly."]},
+      {"screen": "CriteriaEditorModal (template mode)", "issues": ["The header shows a raw Mongo ObjectId ('TENDER CRITERIA · 6AE6C6BD…'). Show the tender name instead.", "The error toast prefix 'Something went wrong · HTTP 409' is shown before the helpful message."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_v72d_template_criteria.py",
+    "/app/backend/tests/test_v72c_criteria_stage2.py",
+    "/app/backend/tests/ui_tplc_setup.py",
+    "/app/backend/tests/ui_qual_setup.py",
+    "/app/test_reports/pytest/v72d.xml",
+    "/app/test_reports/pytest/v72_regress_149.xml"
+  ],
+  "action_items": [
+    "Change CriteriaEditorModal onSaved in TenderBuilderPanel so it doesn't reload the template and lose unsaved builder edits (merge tender_criteria into doc state instead)",
+    "Allow GET /tender-criteria/template/{tid}/mine for submitted/approved templates (read-only, locked=true)",
+    "Add a duplicate-id check to template_save",
+    "Hide Raise doubt on decided bids; show rules and values in human-readable form in QualificationPanel",
+    "Make the reviewer approve toast use is_published/note"
+  ],
+  "critical_code_review_comments": [
+    "template_suggest builds a fake notice and calls _suggest, which writes an audit log with entity 'notice' and the template id as ref. Use entity 'tender_template'.",
+    "submit_template_for_review checks criteria before scope/fees, which is a good order. The category scope check (422 'Choose a Product Category you are approved for') comes after it, so testing needed an approved product_category on the template.",
+    "TenderBuilderPanel.jsx is 851 lines; consider splitting the toolbar/review actions into their own component."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_v72d_template_criteria.py",
+    "/app/backend/tests/test_v72c_criteria_stage2.py",
+    "/app/backend/tests/ui_tplc_setup.py"
+  ],
+  "success_rate": {"backend": "100% (78/78 incl. regression)", "frontend": "90% (all requested fixes work; 1 new medium bug: unsaved edits lost on criteria save)"},
+  "test_credentials": "testvendor@pmcmanagers.com/Vendor@12345 (vendor, unified /login Supplier card), reviewerqa@pmcmanagers.com/Reviewer@12345 (PMC staff card), committee1/2@demo.pmcmanagers.com/Demo@Pmc2026",
+  "seed_data_creation": "TEST-TPLC-* tender_templates and VT-* notices approved from them, plus TEST-QUI-1 (ui_qual_setup). All deleted after the run (counts verified 0). Audit entries remain. A reviewer UI approval may have triggered a tender alert email for the temporary VT notice.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: pytest tests/test_v72d_template_criteria.py tests/test_v72c_criteria_stage2.py -n0. Templates must use product_category 'Heating, ventilation & air-conditioning (HVAC)' (testvendor's approved category) or submit returns 422. testvendor has no country, so there's no start-fee or credit gate. UI: python tests/ui_tplc_setup.py setup prints a tid; open /vendor/tender-builder?tid=<tid>. Login pages redirect to the unified /login with role cards. Use input[type=email]/[type=password] and the 'Continue' button; for staff/reviewer, click the 'PMC staff' card first. Committee UI: /staff -> 'Bid opening' nav after ui_qual_setup.py setup plus tenant_id PMC-KZ-01."
+}
