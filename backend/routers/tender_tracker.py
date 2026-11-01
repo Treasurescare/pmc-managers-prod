@@ -56,6 +56,17 @@ async def _track(n: dict) -> dict:
     return {"stages": stages, "current": current, "done": sum(done.values())}
 
 
+@router.get("/live")
+async def live(_=Depends(current_admin)):
+    rows = []
+    async for n in db.notices.find({"is_published": True, "deleted_at": None}, {"notice_ref": 1, "title": 1, "tender_criteria": 1, "is_published": 1, "submission_deadline": 1,
+                                                                             "technical_opened_at": 1, "commercial_opened_at": 1}).sort("submission_deadline", 1).limit(40):
+        t = await _track(n)
+        if t["current"]:
+            rows.append({"notice_ref": n["notice_ref"], "title": n.get("title"), "deadline": n.get("submission_deadline"), **t})
+    return {"tenders": rows}
+
+
 @router.get("")
 async def tracker(refs: str = Query(..., max_length=4000), _=Depends(current_admin)):
     out = {}

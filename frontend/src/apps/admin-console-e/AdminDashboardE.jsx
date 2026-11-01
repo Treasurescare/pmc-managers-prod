@@ -3,6 +3,7 @@ import { useAdminDashboardLive } from "@/lib/pmcELiveData";
 import AdminAvatarMenu from "./AdminAvatarMenu";
 import AdminShellE from "./AdminShellE";
 import EscrowOnboardingKPI from "./EscrowOnboardingKPI";
+import { DashTenderTracker } from "./DashTenderTracker";
 import "./admin-dashboard.css";
 
 const STAGES = [
@@ -52,6 +53,8 @@ export default function AdminDashboardE({ legacy: Legacy }) {
     <a href="/admin/e/bidding" data-testid="dash-attn-emd"><span><span className="n" data-attn="emd">0</span> bids awaiting EMD</span><span className="arr" aria-hidden="true">→</span></a>
     <EscrowOnboardingKPI />
   </section>
+
+  <DashTenderTracker />
 
   <section className="pmc-panel" style={{ overflow: "hidden" }} data-testid="dash-pipeline-panel">
     <div className="pmc-panel__head"><h2 className="pmc-panel__title">Tender pipeline</h2><span className="pmc-muted" style={{ fontSize: "12px" }}><span data-dash-active>0</span> active · live counts by stage</span></div>

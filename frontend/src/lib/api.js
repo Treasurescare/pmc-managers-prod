@@ -1681,6 +1681,7 @@ export const meetingsApi = {
 export const comparisonApi = {
   runL1: (notice_ref) => api.post(`/api/v1/comparison/l1/${notice_ref}`).then((r) => r.data),
   latestL1: (notice_ref) => api.get(`/api/v1/comparison/l1/${notice_ref}/latest`).then((r) => r.data),
+  awardL1: (notice_ref, body) => api.post(`/api/v1/comparison/l1/${notice_ref}/award`, body).then((r) => r.data),
 };
 
 // ---------- Wave 43: DocuSign eSignature ----------

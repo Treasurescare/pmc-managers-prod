@@ -9,6 +9,7 @@ Endpoints:
 """
 from typing import Optional, List
 from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel, Field
 from bson import ObjectId
 
 from db import db
@@ -144,3 +145,35 @@ async def run_l1_comparison(notice_ref: str,
 async def latest_l1(notice_ref: str, _=Depends(require_role("admin", "committee_member", "reviewer", "auditor"))):
     run = await db.comparison_runs.find_one({"notice_ref": notice_ref}, sort=[("run_at", -1)])
     return {"result": (run or {}).get("result"), "run_at": (run or {}).get("run_at"), "run_by": (run or {}).get("run_by")}
+
+
+class AwardL1In(BaseModel):
+    notes: Optional[str] = Field(default=None, max_length=1000)
+
+
+@router.post("/l1/{notice_ref}/award")
+async def award_l1(notice_ref: str, body: AwardL1In, admin=Depends(require_role("admin", "committee_member"))):
+    from models.bid import BidDecisionIn
+    from routers.bids import decide_bid
+    from routers.proof_ai import _members
+    notice = await db.notices.find_one({"notice_ref": notice_ref}, {"award_method": 1, "commercial_opened_at": 1})
+    if not notice:
+        raise HTTPException(status_code=404, detail="Notice not found")
+    if admin.get("id") not in await _members(notice_ref):
+        raise HTTPException(status_code=403, detail="Only a member of this tender's evaluation committee can award")
+    if (notice.get("award_method") or "l1") != "l1":
+        raise HTTPException(status_code=409, detail="This tender is awarded on weighted marks — use the Award recommendation report")
+    if not notice.get("commercial_opened_at"):
+        raise HTTPException(status_code=409, detail="Price envelopes are not open yet")
+    if await db.bids.find_one({"notice_ref": notice_ref, "status": "awarded"}, {"_id": 1}):
+        raise HTTPException(status_code=409, detail="This tender has already been awarded")
+    result = await run_l1_comparison(notice_ref, admin)
+    win = result.get("l1_winner")
+    if not win:
+        raise HTTPException(status_code=409, detail="No compliant L1 bid to award")
+    if win["status"] != "accounting_cleared":
+        raise HTTPException(status_code=409, detail=f"The L1 bid ({win['bid_ref']}) is at stage '{win['status']}'. Certifier, legal and accounting clearances must be completed before award.")
+    note = f"Awarded to L1 (lowest compliant price) from the automatic ranking.{(' ' + body.notes.strip()) if body.notes else ''}"
+    await decide_bid(win["bid_id"], BidDecisionIn(action="award", role="committee", notes=note), admin={**admin, "role": "committee_member"})
+    await audit_log("comparison.l1_award", admin, "notice", notice_ref, {"bid": win["bid_ref"], "price": win.get("price_amount")})
+    return {"awarded": win["bid_ref"], "company_name": win.get("company_name")}
