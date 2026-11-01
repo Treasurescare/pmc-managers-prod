@@ -951,3 +951,8 @@ summary notes.
 - PMC_v4_Master_Training_Manual.pdf (93 pages, hyperlinked contents + PDF bookmarks): overview/architecture, roles, security, screen tours of all 5 portals (59 screens), deep dives (DPR AI, criteria/opening/proof review, L1/award/escrow, partners/tracker), AWS deployment runbook, troubleshooting, sample workflow, API index (737 endpoints from OpenAPI), data model, release history, glossary. Build: scripts/build_manual_v4.py (+ capture_manual.py with manual_screens*.json).
 - Help drawer (every portal) shows "Read the manual for this screen" linking to the matching page (downloads/manual/sections.json). Frontend prod ZIP now includes the v4 manual + sections.json so the link works on AWS.
 - Award emails: already sent on every award incl. Award to L1 (winner congratulations; other bidders told it went to another supplier, with EMD refund date).
+
+## 2026-11-01 — v59l Secret leak cleanup, loser email reasons, v4 policy chapters
+- SECURITY: real Resend API key + VAPID private key found in committed docs frontend/build-v54a/downloads/EB_ENV_FIX_missing_RESEND_key.md and NEXT_STEPS_v46x_and_push.md (since 2026-09-25). Files deleted; .gitignore adds frontend/build-v*/, *.pem, *.key. User must revoke/rotate keys (still in Git history).
+- Losing-bidder award email now explains why: criteria failed (list), disqualified (committee note), or L-rank + own price vs awarded L1 price (bids._loss_reason).
+- v4 manual: added chapters 19-28 (criteria/qualification policy, proof review policy, evaluation & award policy, ethics/COI, data protection & secrets, incident response, complaints & appeals, RACI, templates, SLAs); 104 pages.

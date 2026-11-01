@@ -132,3 +132,8 @@ backend/data/unspsc_v26.sqlite
 frontend/build/downloads/pmc-frontend-v54a-prod-build.zip
 frontend/public/downloads/pmc-frontend-v54a-prod-build.zip
 frontend/node_modules/.cache/default-development/21.pack
+
+# Old build folders and generated download notes (may contain secrets)
+frontend/build-v*/
+*.pem
+*.key

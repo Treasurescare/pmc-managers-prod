@@ -155,7 +155,7 @@ def c10():
 def c11():
     return [steps(["Price opening is blocked until every proof is decided; only qualified bids' prices open.", "L1 ranking runs automatically and shows on the opening card.",
                    "Award to L1 (committee member, one click + note) requires certifier, legal and accounting clearance on the L1 bid. Weighted tenders use the Award recommendation report.",
-                   "On award: award letter and contract are generated; the winner is emailed 'Congratulations \u2014 your bid is awarded'; every other bidder is emailed that the tender went to another supplier, with their EMD refund date.",
+                   "On award: award letter and contract are generated; the winner is emailed 'Congratulations \u2014 your bid is awarded'; every other bidder is emailed that the tender went to another supplier, why (criteria failed, disqualified with the committee's note, or their L-rank and the awarded price) and their EMD refund date.",
                    "Escrow releases need two signatures; consortium awards create per-member payment instructions with bank references and a downloadable payout report."])]
 
 
@@ -219,7 +219,116 @@ def c18():
     return [P("Most recent releases first."), Paragraph("<br/>".join(f"\u2022 {e}" for e in reversed(entries)), SM)]
 
 
-@chapter("19 \u00b7 Glossary")
+def _policy(title, purpose, rows, notes=None):
+    out = [P(f"<b>Purpose.</b> {purpose}"), Spacer(1, 2 * mm), tbl(rows, [45 * mm, 135 * mm] if len(rows[0]) == 2 else [40 * mm, 70 * mm, 70 * mm])]
+    if notes:
+        out += [Paragraph(notes, TIP)]
+    return out
+
+
+@chapter("19 \u00b7 Procurement policy: criteria & qualification")
+def p19():
+    return _policy("", "Make sure every tender is judged by clear, published criteria applied the same way to every bidder.", [
+        ["Rule", "What it means"], ["Published criteria only", "Bids are judged only on the criteria shown in the tender. Criteria come from the Criteria master or are added by the tender author and saved before publishing."],
+        ["Mandatory vs optional", "The tender author marks each pass/fail criterion Mandatory (must be met) or optional and sets the minimum number of optional criteria a bidder must meet (blank = all)."],
+        ["At least one must-pass", "A tender cannot be published without at least one must-pass criterion (publish checklist)."],
+        ["Changing criteria", "Allowed on a live tender only while it has no bids; once a bid arrives criteria lock. Any other change is a corrigendum sent to all bidders."],
+        ["System decides pass/fail", "At technical opening the system compares every answer with the rule. Nobody can override a pass/fail directly; the committee can only raise a logged doubt and decide it."],
+        ["Consortium rules", "Each criterion says whether the lead, the combined members or every member must meet it."]])
+
+
+@chapter("20 \u00b7 Proof review policy (AI + committee)")
+def p20():
+    return _policy("", "Check that the documents bidders attach actually support what they declared.", [
+        ["Rule", "What it means"], ["Sealed until opening", "Proof files are encrypted on upload and cannot be opened by anyone before the committee signs the technical opening."],
+        ["AI reads, people decide", "For qualified bids the AI reads each must-pass proof and records Matches / Does not match / Unclear with the figure found. The AI never passes or fails a bid."],
+        ["Unanimous acceptance", "Every committee member must accept a proof for it to stand. One rejection (with a written comment) fails that proof."],
+        ["Effect of a rejection", "Mandatory proof rejected \u2192 bid disqualified. Optional proof rejected \u2192 disqualified only if the bid falls below the minimum optional criteria."],
+        ["Unreadable files", "Word/Excel or unreadable scans are marked 'check by hand'; the committee must still open and decide them."],
+        ["Price opening gate", "Price envelopes cannot be opened until every proof on every qualified bid is decided and every doubt resolved."],
+        ["Record", "The proof check report (PDF) is downloaded and kept on the tender file."]])
+
+
+@chapter("21 \u00b7 Evaluation & award policy (L1 / weighted)")
+def p21():
+    return _policy("", "Award fairly and transparently to the right bidder.", [
+        ["Rule", "What it means"], ["Method set in advance", "Each tender states before publishing whether the winner is the lowest compliant price (L1) or weighted technical + price marks."],
+        ["Only qualified bids ranked", "Only bids that passed criteria and proof review have prices opened and are ranked."],
+        ["Automatic L1", "L1 ranking runs automatically at price opening; compliance flags (e.g. suspiciously low, above budget) are shown for the committee."],
+        ["Clearances before award", "The winning bid must have certifier, legal and accounting clearance before award."],
+        ["Award to L1", "A committee member awards with one click and a note; the action is recorded in the audit ledger."],
+        ["Notices to bidders", "The winner is congratulated; every other bidder is told why they were not selected (criteria failed, disqualified with the committee's note, or their L-rank and the awarded price) and their EMD refund date."]])
+
+
+@chapter("22 \u00b7 Code of ethics & conflict of interest")
+def p22():
+    return _policy("", "Protect the integrity of every tender.", [
+        ["Rule", "What it means"], ["Declare conflicts", "Committee members declare any interest in a bidder before signing an opening; a conflicted member steps aside."],
+        ["No contact during evaluation", "Committee members do not discuss a live tender with bidders; clarifications go through the platform's messages."],
+        ["Gifts", "No gifts or hospitality from bidders during a tender."], ["Confidentiality", "Bid contents, scores and committee comments are confidential until the award notice."],
+        ["Reporting", "Concerns are raised to the PMC integrity officer; retaliation is prohibited."]])
+
+
+@chapter("23 \u00b7 Data protection, retention & deletion")
+def p23():
+    return _policy("", "Handle personal and commercial data lawfully and securely.", [
+        ["Rule", "What it means"], ["Minimum data", "Collect only what tendering, KYC and payments need."],
+        ["Encryption", "Bid answers, prices and bid files are encrypted at rest; access is by role."],
+        ["Soft deletion", "Records are archived, not erased, to keep the audit trail. Narrow, explicit deletion only on a verified request."],
+        ["AI processing", "Only proof files of qualified bids are sent to the AI, after technical opening, to read the figures."],
+        ["Secrets", "API keys and passwords live only in the server's secret settings \u2014 never in documents, chat, email or Git. If one leaks, revoke and replace it immediately."],
+        ["Retention", "Tender records and audit ledger kept for the period required by the buyer's regulations (typically 7 years)."]])
+
+
+@chapter("24 \u00b7 Incident response")
+def p24():
+    return _policy("", "Act quickly and consistently when something goes wrong.", [
+        ["Step", "Owner", "Action"], ["1 Detect", "Anyone", "Report via the help desk or integrity email; note time and screen."],
+        ["2 Contain", "PMC admin", "Suspend affected accounts or tender; revoke leaked keys at the provider and replace them in AWS."],
+        ["3 Assess", "PMC admin + IT", "Use the audit ledger to see what happened and who was affected."],
+        ["4 Notify", "PMC lead", "Tell affected buyers/suppliers; regulators where required (e.g. 72 hours for personal data breaches)."],
+        ["5 Recover", "IT", "Redeploy clean bundles, verify chain, re-open the tender if needed."], ["6 Learn", "PMC lead", "Write a short review and update this manual."]])
+
+
+@chapter("25 \u00b7 Complaints, appeals & escalation")
+def p25():
+    return _policy("", "Give bidders a clear route to question a decision.", [
+        ["Stage", "Who", "Time"], ["Clarification", "Bidder asks via messages; PMC replies", "3 working days"],
+        ["Complaint", "Bidder writes to PMC within 5 days of the result notice", "Acknowledged in 2 days"],
+        ["Review", "PMC officer not involved in the tender reviews the record (proof check report, audit ledger)", "10 working days"],
+        ["Appeal", "Buyer's appeal body or vendor-intel appeal process", "As per buyer rules"]])
+
+
+@chapter("26 \u00b7 RACI matrix")
+def p26():
+    rows = [["Activity", "Responsible / Accountable", "Consulted / Informed"], ["Build tender & criteria", "Admin (R), Buyer (A)", "Reviewer (C)"], ["Publish", "Admin (R/A)", "Suppliers (I)"],
+            ["Technical opening", "Committee (R), Chair (A)", "Suppliers (I)"], ["Proof review", "Every committee member (R), Chair (A)", "AI (C)"],
+            ["Price opening & L1", "Committee (R/A)", "Accounting (I)"], ["Clearances", "Certifier, Legal, Accounting (R)", "Committee (I)"],
+            ["Award", "Committee member (R), Chair (A)", "All bidders (I)"], ["Escrow release", "Two escrow signatories (R/A)", "Accounts (I)"]]
+    return _policy("", "Who does what in each tender step.", rows)
+
+
+@chapter("27 \u00b7 Templates")
+def p27():
+    def t(name, lines):
+        return [Paragraph(name, SEC), Paragraph("<br/>".join(lines), MONO), Spacer(1, 3 * mm)]
+    return (t("Committee minutes \u2014 technical opening", ["Tender: ______  Date/time: ______  Chair: ______", "Members present and conflict declarations: ______",
+              "Bids received: __  Qualified by system: __  Not qualified: __", "Proof review decisions (attach proof check report): ______", "Doubts raised and resolution: ______", "Signatures: ______"])
+            + t("Proof rejection comment", ["Criterion: ______  Bid: ______", "What the document shows: ______  What was declared: ______", "Reason for rejection: ______"])
+            + t("Award notice (L1)", ["Tender ______ has been awarded to ______ at ______ (lowest compliant price).", "Ranking of qualified bids: L1 ______, L2 ______, L3 ______",
+                "Bids not qualified and reasons: ______", "EMD refunds due by: ______"])
+            + t("Corrigendum", ["Tender: ______  Corrigendum no.: ______  Date: ______", "What changes: ______  New deadline (if any): ______", "Reason: ______"])
+            + t("Clarification reply", ["Question received: ______  From: (kept anonymous)", "Answer (shared with all bidders): ______"]))
+
+
+@chapter("28 \u00b7 Service levels")
+def p28():
+    return _policy("", "Target response times.", [["Item", "Target"], ["Supplier KYC review", "2 working days"], ["Tender review (supplier-prepared)", "3 working days"],
+                                                    ["Clarification answer", "3 working days"], ["Proof review after technical opening", "5 working days"],
+                                                    ["Award after price opening", "10 working days"], ["EMD refund to losing bidders", "14 days after award"], ["Partner approval", "3 working days"]])
+
+
+@chapter("29 \u00b7 Glossary")
 def c19():
     g = [("DPR", "Detailed project report used to draft a tender"), ("EMD", "Earnest money deposit held in escrow with a bid"), ("L1", "Lowest compliant price among qualified bids"),
          ("Mandatory criterion", "Must be met by every bidder"), ("Optional criterion", "Counts toward the minimum number the tender sets"), ("Proof review", "AI finding + unanimous committee decision on each proof"),

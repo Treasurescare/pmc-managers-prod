@@ -917,6 +917,34 @@ async def decide_bid(bid_id: str, payload: BidDecisionIn,
     return {"ok": True, "status": next_status}
 
 
+def _loss_reason(b: dict, ranked: list, winner: Optional[dict]) -> str:
+    from html import escape
+    q = b.get("qualification") or {}
+    if q.get("decision") == "disqualified":
+        why = escape(q.get("decision_note") or "the committee did not accept your proofs")
+        return f"<p><b>Why your bid was not selected:</b> it was disqualified at the qualification stage. {why}</p>"
+    if q.get("system_status") == "not_qualified":
+        fails = [f"{escape(r['title'])}: {escape(r.get('reason') or 'not met')}" for r in q.get("results") or []
+                 if r.get("result") == "fail" and r.get("mandatory", True)]
+        o = q.get("optional_summary")
+        if o and o["passed"] < o["required"]:
+            fails.append(f"Optional criteria met: {o['passed']} of {o['total']} (at least {o['required']} required)")
+        items = "".join(f"<li>{f}</li>" for f in fails) or "<li>One or more tender criteria were not met</li>"
+        return f"<p><b>Why your bid was not selected:</b> it did not meet the tender criteria:</p><ul>{items}</ul>"
+    mine = next((r for r in ranked if r.get("bid_id") == str(b["_id"])), None)
+    if mine:
+        n = len(ranked)
+        txt = f"<p><b>Your ranking:</b> L{mine['rank']} of {n} qualified bid(s), at {mine.get('price_currency') or ''} {(mine.get('price_amount') or 0):,.2f}."
+        if winner:
+            txt += f" The tender was awarded to the lowest compliant price, {winner.get('price_currency') or ''} {(winner.get('price_amount') or 0):,.2f}."
+        if mine.get("compliance_flags"):
+            txt += f" Compliance notes on your bid: {escape(', '.join(mine['compliance_flags']))}."
+        return txt + "</p>"
+    if b.get("technical_cleared_at"):
+        return "<p><b>Why your bid was not selected:</b> another qualified bid scored higher in the committee's evaluation.</p>"
+    return "<p><b>Why your bid was not selected:</b> your bid did not progress past the earlier review stages.</p>"
+
+
 async def _flag_losing_emds_for_refund(notice_ref: str, winner_bid_id: str,
                                          decided_by: str) -> int:
     """v52bj — mark every active bid on `notice_ref` except the winner as
@@ -929,6 +957,9 @@ async def _flag_losing_emds_for_refund(notice_ref: str, winner_bid_id: str,
     release_days = int(os.environ.get("EMD_LOSER_RELEASE_DAYS", "14"))
     release_by = (datetime.now(timezone.utc) + timedelta(days=release_days)).isoformat()
     count = 0
+    run = await db.comparison_runs.find_one({"notice_ref": notice_ref}, sort=[("run_at", -1)])
+    ranked = ((run or {}).get("result") or {}).get("ranked") or []
+    winner = next((r for r in ranked if r.get("bid_id") == winner_bid_id), None)
     async for b in db.bids.find({
         "notice_ref": notice_ref,
         "_id": {"$ne": winner_oid},
@@ -954,6 +985,7 @@ async def _flag_losing_emds_for_refund(notice_ref: str, winner_bid_id: str,
             from notify import vendor_confirm
             msg = (f"<p>Thank you for bidding on <code>{notice_ref}</code>. "
                      f"The tender has been awarded to another supplier.</p>")
+            msg += _loss_reason(b, ranked, winner)
             if has_emd:
                 msg += (f"<p>Your Earnest Money Deposit of "
                           f"<b>{b.get('emd_currency') or ''} "
