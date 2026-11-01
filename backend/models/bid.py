@@ -27,6 +27,7 @@ class BidCreateIn(BaseModel):
     commercial_notes: Optional[str] = None
     documents: List[BidDocument] = []
     criteria_answers: List[dict] = []
+    consortium_id: Optional[str] = None
 
 
 class BidUpdateIn(BaseModel):

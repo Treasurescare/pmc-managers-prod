@@ -471,6 +471,21 @@ export const criteriaApi = {
   doubt: (ref, bidId, body) => api.post(`/api/v1/tender-criteria/${ref}/bids/${bidId}/doubt`, body).then((r) => r.data),
   resolve: (ref, bidId, body) => api.post(`/api/v1/tender-criteria/${ref}/bids/${bidId}/resolve`, body).then((r) => r.data),
   score: (ref, bidId, body) => api.post(`/api/v1/tender-criteria/${ref}/bids/${bidId}/score`, body).then((r) => r.data),
+  myResults: () => api.get("/api/v1/tender-criteria/results/vendor/mine").then((r) => r.data),
+};
+
+export const consortiumApi = {
+  settings: () => api.get("/api/v1/consortia/settings").then((r) => r.data),
+  saveSettings: (body) => api.put("/api/v1/consortia/settings", body).then((r) => r.data),
+  mine: (noticeRef) => api.get("/api/v1/consortia/mine", { params: noticeRef ? { notice_ref: noticeRef } : {} }).then((r) => r.data),
+  create: (body) => api.post("/api/v1/consortia", body).then((r) => r.data),
+  addMember: (id, body) => api.post(`/api/v1/consortia/${id}/members`, body).then((r) => r.data),
+  removeMember: (id, vid) => api.delete(`/api/v1/consortia/${id}/members/${vid}`).then((r) => r.data),
+  respond: (id, accept) => api.post(`/api/v1/consortia/${id}/respond`, { accept }).then((r) => r.data),
+  terms: (id, body) => api.put(`/api/v1/consortia/${id}/terms`, body).then((r) => r.data),
+  uploadAgreement: (id, body) => api.post(`/api/v1/consortia/${id}/agreement/upload`, body).then((r) => r.data),
+  sign: (id, body) => api.post(`/api/v1/consortia/${id}/agreement/sign`, body).then((r) => r.data),
+  withdraw: (id) => api.post(`/api/v1/consortia/${id}/withdraw`).then((r) => r.data),
 };
 
 // ---------- Wave 1: Bids ----------
@@ -558,6 +573,7 @@ export const agentApi = {
   adminGet: (id) => api.get(`/api/v1/admin/agents/${id}`).then((r) => r.data),
   invite: (email, name) => api.post("/api/v1/admin/agents/invite", { email, name }).then((r) => r.data),
   resend: (id) => api.post(`/api/v1/admin/agents/${id}/resend`).then((r) => r.data),
+  adminEdit: (id, body) => api.patch(`/api/v1/admin/agents/${id}/profile`, body).then((r) => r.data),
   register: (email, name, country) => api.post("/api/v1/agents/register", { email, name, country }).then((r) => r.data),
   refreshPayment: () => api.post("/api/v1/agents/me/payment/refresh").then((r) => r.data),
   decide: (id, action, note, waive_fee = false) => api.post(`/api/v1/admin/agents/${id}/decision`, { action, note, waive_fee }).then((r) => r.data),

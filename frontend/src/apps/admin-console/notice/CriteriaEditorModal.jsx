@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { criteriaApi, showApiError } from "@/lib/api";
+import { criteriaApi, consortiumApi, showApiError } from "@/lib/api";
 
 const inp = "w-full px-2 py-1.5 border border-brand-navy/20 bg-white text-sm";
 const OPS = { gte: "at least", lte: "at most", eq: "exactly" };
@@ -8,6 +8,22 @@ const BLANK = { title: "", category: "other", answer_type: "number", operator: "
   proof: "", proof_required: true, kind: "must_pass", max_points: "", scoring: "auto", full_points_at: "", consortium_rule: "each", prefill_field: "" };
 
 const num = (v) => (v === "" || v === null || v === undefined ? null : Number(v));
+
+const ConsortiumOptions = ({ cons, setCons, defMax, setDefMax, admin }) => {
+  const saveDef = () => consortiumApi.saveSettings({ max_members_default: Number(defMax) }).then(() => toast.success("Platform default saved")).catch(showApiError);
+  return (
+    <div className="border border-brand-navy/15 p-3 space-y-2" data-testid="criteria-consortium">
+      <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={cons.allowed} onChange={(e) => setCons({ ...cons, allowed: e.target.checked })} data-testid="criteria-consortium-allowed" />Accept consortium bids (registered suppliers bidding together)</label>
+      {cons.allowed && <div className="flex gap-3 items-end flex-wrap text-sm">
+        <label>Maximum members, including the lead
+          <input type="number" min={2} max={20} className={inp + " w-40"} placeholder={`Default ${defMax}`} value={cons.max} onChange={(e) => setCons({ ...cons, max: e.target.value })} data-testid="criteria-consortium-max" /></label>
+        <span className="text-xs text-brand-navy/60">Leave blank to use the platform default ({defMax}). Choose lead / combined / every member on each criterion.</span>
+      </div>}
+      {admin && <div className="flex gap-2 items-end text-xs flex-wrap"><label>Platform default for all tenders
+        <input type="number" min={2} max={20} className={inp + " w-24"} value={defMax} onChange={(e) => setDefMax(e.target.value)} data-testid="consortium-default-max" /></label>
+        <button type="button" className="pmc-btn pmc-btn--secondary" onClick={saveDef} data-testid="consortium-default-save">Save default</button></div>}
+    </div>);
+};
 
 const CriterionRow = ({ c, i, onChange, onRemove, prefillFields }) => {
   const set = (k, v) => onChange({ ...c, [k]: v });
@@ -73,10 +89,13 @@ export default function CriteriaEditorModal({ noticeRef, title, onClose, onSaved
   const [rows, setRows] = useState([]);
   const [tpl, setTpl] = useState({ templates: [], prefill_fields: {} });
   const [fx, setFx] = useState("");
+  const [cons, setCons] = useState({ allowed: false, max: "" });
+  const [defMax, setDefMax] = useState(5);
   const [busy, setBusy] = useState("");
   useEffect(() => {
-    API.get(noticeRef).then((d) => { setData(d); setRows(d.criteria); setFx(d.fx_rule || ""); setCheck(d.ai_check || null); }).catch(showApiError);
+    API.get(noticeRef).then((d) => { setData(d); setRows(d.criteria); setFx(d.fx_rule || ""); setCheck(d.ai_check || null); setCons({ allowed: !!d.consortium_allowed, max: d.consortium_max_members || "" }); }).catch(showApiError);
     criteriaApi.templates().then(setTpl).catch(() => {});
+    consortiumApi.settings().then((s) => setDefMax(s.max_members_default)).catch(() => {});
   }, [noticeRef, mode]); // eslint-disable-line react-hooks/exhaustive-deps
   const upd = (i, c) => setRows((r) => r.map((x, j) => (j === i ? c : x)));
   const ai = async () => {
@@ -98,7 +117,7 @@ export default function CriteriaEditorModal({ noticeRef, title, onClose, onSaved
     try {
       const criteria = rows.map(({ needs_review, ...c }) => ({ ...c, threshold: num(c.threshold), max_points: num(c.max_points), // eslint-disable-line no-unused-vars
         full_points_at: num(c.full_points_at), prefill_field: c.prefill_field || null, operator: c.answer_type === "number" ? c.operator || "gte" : null }));
-      const d = await API.save(noticeRef, { criteria, fx_rule: fx || null });
+      const d = await API.save(noticeRef, { criteria, fx_rule: fx || null, consortium_allowed: cons.allowed, consortium_max_members: cons.allowed && cons.max ? Number(cons.max) : null });
       setCheck(null);
       setRows(d.criteria); toast.success("Criteria saved"); onSaved?.(d);
     } catch (e) { showApiError(e); } finally { setBusy(""); }
@@ -148,6 +167,7 @@ export default function CriteriaEditorModal({ noticeRef, title, onClose, onSaved
           {!rows.length && <p className="text-sm text-brand-navy/60" data-testid="criteria-empty">No criteria yet. Read them from the tender document, pick a template or add one.</p>}
           <label className="block text-sm">Currency conversion rule (for amounts in other currencies)
             <input className={inp} placeholder="e.g. Central bank rate on the closing date" value={fx} onChange={(e) => setFx(e.target.value)} data-testid="criteria-fx" /></label>
+          <ConsortiumOptions cons={cons} setCons={setCons} defMax={defMax} setDefMax={setDefMax} admin={!vendor} />
           <div className="flex justify-between items-center gap-2 flex-wrap">
             <span className={`text-sm ${mustPass ? "text-emerald-800" : "text-amber-800"}`} data-testid="criteria-summary">{rows.length} criteria · {mustPass} must-pass{mustPass ? "" : " — add at least one to publish"}</span>
             <button type="button" className="pmc-btn pmc-btn--primary" disabled={!!busy} onClick={save} data-testid="criteria-save">{busy === "save" ? "Saving…" : "Save criteria"}</button>

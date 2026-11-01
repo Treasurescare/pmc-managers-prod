@@ -100,6 +100,7 @@ import HelpCentreE from "@/apps/help-centre/HelpCentreE";
 import HelpArticleE from "@/apps/help-centre/HelpArticleE";
 import VendorHomeE from "@/apps/vendor-portal-e/VendorHomeE";
 import VendorMyBidsE from "@/apps/vendor-portal-e/VendorMyBidsE";
+import VendorConsortiaE from "@/apps/vendor-portal-e/VendorConsortiaE";
 import VendorBidWorkspaceE from "@/apps/vendor-portal-e/VendorBidWorkspaceE";
 import VendorEmdE from "@/apps/vendor-portal-e/VendorEmdE";
 import VendorDataIntel from "@/apps/vendor-portal-e/VendorDataIntel";
@@ -322,6 +323,7 @@ export default function App() {
             <Route path="/vendor/categories" element={<RequireVendor><VendorCategories /></RequireVendor>} />
             {/* Vendor Option-E multi-page routes */}
             <Route path="/vendor/mybids" element={<RequireVendor><VendorMyBidsE /></RequireVendor>} />
+            <Route path="/vendor/consortia" element={<RequireVendor><VendorConsortiaE /></RequireVendor>} />
             <Route path="/vendor/tenders" element={<RequireVendor><VendorFindTendersE /></RequireVendor>} />
             <Route path="/vendor/tender-builder" element={<RequireVendor><VendorTenderBuilderFull /></RequireVendor>} />
             <Route path="/vendor/workspace/:bidId" element={<RequireVendor><VendorBidWorkspaceE /></RequireVendor>} />

@@ -13,7 +13,7 @@ const RES = { pass: "Pass", fail: "Fail", points: "Points", pending: "To be mark
 const ResultRow = ({ r, act, open }) => (
   <tr className="border-t border-brand-navy/10 align-top">
     <td className="py-1 pr-2">{r.title}<div className="text-[10px] text-brand-navy/50">{r.kind === "must_pass" ? "must pass" : "scored"} · rule {r.rule}</div></td>
-    <td className="py-1 pr-2">{r.value === true ? "Yes" : r.value === false ? "No" : typeof r.value === "number" ? r.value.toLocaleString() : r.value ?? "—"} {r.unit || ""}<div className="text-[10px]">{r.proof_supplied ? "proof supplied" : "no proof"}</div></td>
+    <td className="py-1 pr-2">{r.value === true ? "Yes" : r.value === false ? "No" : typeof r.value === "number" ? r.value.toLocaleString() : r.value ?? "—"} {r.unit || ""}{r.applies_to && <div className="text-[10px] text-brand-navy/60">applies to {r.applies_to}</div>}{(r.member_values || []).map((m) => <div key={m.member} className="text-[10px]">{m.member}: {m.value === true ? "Yes" : m.value === false ? "No" : typeof m.value === "number" ? m.value.toLocaleString() : m.value ?? "—"}</div>)}<div className="text-[10px]">{r.proof_supplied ? "proof supplied" : "no proof"}</div></td>
     <td className={`py-1 pr-2 font-semibold ${r.result === "fail" ? "text-red-700" : r.result === "pass" ? "text-emerald-800" : ""}`}>
       {RES[r.result] || r.result}{r.points != null ? ` · ${r.points}/${r.max_points}` : ""}<div className="text-[10px] font-normal">{r.reason}</div></td>
     <td className="py-1 text-right whitespace-nowrap">{open && <>

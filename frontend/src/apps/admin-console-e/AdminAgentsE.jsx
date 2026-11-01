@@ -6,8 +6,32 @@ import { AdminLeaderboardCard, CommissionSettingsCard, PartnerWalletAdmin } from
 
 const inp = "px-3 py-2 border border-brand-navy/20 bg-white text-sm";
 
+const EDIT_FIELDS = [["legal_name", "Name"], ["entity_type", "Type (individual / company)"], ["primary_contact_phone", "Phone"], ["country", "Country code (e.g. MY)"],
+  ["city", "City"], ["address_line1", "Address"], ["postal_code", "Postcode"], ["reg_number", "Registration no."]];
+
+const EditPartner = ({ a, onSaved }) => {
+  const [f, setF] = useState(() => Object.fromEntries(EDIT_FIELDS.map(([k]) => [k, a[k] || ""])));
+  const save = async () => {
+    try {
+      const body = Object.fromEntries(Object.entries(f).filter(([k, v]) => (v || "") !== (a[k] || "")).map(([k, v]) => [k, v || null]));
+      if (!Object.keys(body).length) return toast.info("Nothing changed");
+      await agentApi.adminEdit(a.id, body); toast.success("Partner details saved"); onSaved();
+    } catch (e) { showApiError(e); }
+  };
+  return (
+    <div className="border border-brand-navy/15 p-3 space-y-2" data-testid="admin-agent-edit">
+      <div className="grid md:grid-cols-4 gap-2">{EDIT_FIELDS.map(([k, l]) => (
+        <label key={k} className="text-xs">{l}<input className={inp + " block w-full mt-1"} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} data-testid={`admin-agent-edit-${k}`} /></label>))}</div>
+      <button type="button" className="pmc-btn pmc-btn--primary" onClick={save} data-testid="admin-agent-edit-save">Save details</button>
+    </div>);
+};
+
+const resendMsg = (x) => (x.email_sent ? toast.success(x.kind === "reminder" ? "Reminder emailed — they can sign in and finish their profile" : "Invitation link emailed")
+  : toast.error(`Email did not send. ${x.email_error || ""}`, { duration: 15000 }));
+
 const Detail = ({ id, onChanged, partners }) => {
   const [a, setA] = useState(null);
+  const [editing, setEditing] = useState(false);
   const [note, setNote] = useState("");
   const [waive, setWaive] = useState(false);
   const load = () => agentApi.adminGet(id).then(setA).catch(showApiError);
@@ -25,6 +49,13 @@ const Detail = ({ id, onChanged, partners }) => {
   const F = ({ k, l }) => <div><div className="text-[10px] uppercase tracking-widest text-brand-navy/60">{l}</div><div className="text-sm">{a[k] || "—"}</div></div>;
   return (
     <div className="bg-white border border-brand-navy/15 p-4 space-y-4" data-testid={`admin-agent-detail-${id}`}>
+      {["draft", "needs_clarification", "invited"].includes(a.status) && <div className="text-sm bg-amber-50 border border-amber-200 p-2" data-testid="admin-agent-status-note">
+        {a.status === "invited" ? "Invitation sent — the partner hasn't confirmed their email and set a password yet." : "The partner has signed in but hasn't finished and submitted their profile yet. Send a reminder, or fill in the details you have."}</div>}
+      {a.status !== "rejected" && <div className="flex gap-2 flex-wrap">
+        <button type="button" className="pmc-btn pmc-btn--secondary" onClick={() => setEditing(!editing)} data-testid="admin-agent-edit-toggle">{editing ? "Close editing" : "Edit details"}</button>
+        {["draft", "needs_clarification", "invited"].includes(a.status) && <button type="button" className="pmc-btn pmc-btn--secondary" onClick={() => agentApi.resend(id).then(resendMsg).catch(showApiError)} data-testid="admin-agent-detail-resend">{a.status === "invited" ? "Resend invitation link" : "Send reminder to finish profile"}</button>}
+      </div>}
+      {editing && <EditPartner a={a} onSaved={() => { setEditing(false); load(); onChanged(); }} />}
       <div className="grid md:grid-cols-3 gap-3">
         <F k="entity_type" l="Type" /><F k="legal_name" l="Name" /><F k="email" l="Email" /><F k="primary_contact_phone" l="Phone" />
         <F k="country" l="Country" /><F k="city" l="City" /><F k="address_line1" l="Address" /><F k="postal_code" l="Postcode" /><F k="reg_number" l="Registration no." />
@@ -68,7 +99,13 @@ export default function AdminAgentsE() {
   useEffect(() => { load(); }, []);
   const invite = async (e) => {
     e.preventDefault();
-    try { const r = await agentApi.invite(f.email, f.name); r.email_sent ? toast.success("Invitation emailed") : toast.error(`Partner created but the email did not send. ${r.email_error || ""}`, { duration: 15000 }); setF({ email: "", name: "" }); load(); }
+    try {
+      const r = await agentApi.invite(f.email, f.name);
+      if (r.existing) resendMsg(r);
+      else if (r.email_sent) toast.success("Invitation emailed");
+      else toast.error(`Partner created but the email did not send. ${r.email_error || ""}`, { duration: 15000 });
+      setF({ email: "", name: "" }); load();
+    }
     catch (err) { showApiError(err); }
   };
   return (
@@ -89,7 +126,7 @@ export default function AdminAgentsE() {
                   <div className="font-semibold text-sm">{r.legal_name || r.name}</div><div className="text-xs text-brand-navy/60">{r.email}</div></button>
                 <div className="flex gap-2 items-center">
                   <span className="text-[10px] uppercase tracking-widest px-2 py-0.5 border" data-testid={`admin-agent-status-${r.id}`}>{r.status.replace("_", " ")}</span>
-                  {r.status === "invited" && <button className="pmc-btn pmc-btn--secondary" onClick={() => agentApi.resend(r.id).then((x) => (x.email_sent ? toast.success("Invitation resent") : toast.error(`Invitation email did not send. ${x.email_error || ""}`, { duration: 15000 }))).catch(showApiError)} data-testid={`admin-agent-resend-${r.id}`}>Resend</button>}
+                  {["invited", "draft", "needs_clarification"].includes(r.status) && <button className="pmc-btn pmc-btn--secondary" onClick={() => agentApi.resend(r.id).then(resendMsg).catch(showApiError)} data-testid={`admin-agent-resend-${r.id}`}>{r.status === "invited" ? "Resend link" : "Send reminder"}</button>}
                 </div>
               </div>
               {open === r.id && <div className="p-3 pt-0"><Detail id={r.id} onChanged={load} partners={rows} /></div>}

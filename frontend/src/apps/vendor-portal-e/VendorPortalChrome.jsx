@@ -14,6 +14,7 @@ const NAV = [
   { to: "/vendor/tenders",    label: "Find tenders",     icon: "i-search" },
   { to: "/vendor/tender-builder", label: "Prepare tender", icon: "i-file" },
   { to: "/vendor/mybids",     label: "My bids",          icon: "i-gavel" },
+  { to: "/vendor/consortia",  label: "Consortia",        icon: "i-users" },
   { to: "/vendor/auctions",   label: "Reverse auctions", icon: "i-gavel" },
   { to: "/vendor/emd",        label: "EMD & payments",   icon: "i-coin" },
   { to: "/vendor/signatures", label: "Signatures",       icon: "i-sign" },

@@ -157,9 +157,18 @@ async def create_bid(payload: BidCreateIn, vendor=Depends(current_vendor)) -> di
     if "commercial" not in kinds:
         raise HTTPException(status_code=422,
             detail="A commercial envelope document is required to submit a bid")
+    from routers.consortia import busy_on_notice, for_bid, mark_submitted
+    cons = None
+    if payload.consortium_id:
+        if not notice.get("consortium_allowed"):
+            raise HTTPException(status_code=409, detail="This tender does not accept consortium bids")
+        cons = await for_bid(payload.consortium_id, vendor, payload.notice_ref)
+    elif await busy_on_notice(vendor["id"], payload.notice_ref):
+        raise HTTPException(status_code=409, detail="You are part of a consortium for this tender. Bid through the consortium, or withdraw from it before bidding alone.")
     from routers.tender_criteria import clean_answers
     crit = notice.get("tender_criteria") or []
-    crit_answers = clean_answers(crit, payload.criteria_answers, [d.model_dump() for d in payload.documents]) if crit else []
+    crit_answers = clean_answers(crit, payload.criteria_answers, [d.model_dump() for d in payload.documents],
+                                 cons["members"] if cons else None) if crit else []
 
     # v51al — Corrigenda gate. Vendor cannot submit a bid on a notice that
     # has unacknowledged active corrigenda (carried over from v51ad).
@@ -247,6 +256,7 @@ async def create_bid(payload: BidCreateIn, vendor=Depends(current_vendor)) -> di
         "commercial_notes": payload.commercial_notes,
         "documents": [d.model_dump() for d in payload.documents],
         "criteria_answers_json": json.dumps(crit_answers) if crit_answers else None,
+        "consortium": cons,
         "emd_due_amount": emd_due,
         "emd_currency": emd_currency,
         "emd_paid_amount": 0.0,
@@ -275,6 +285,8 @@ async def create_bid(payload: BidCreateIn, vendor=Depends(current_vendor)) -> di
     seal_fields(doc, dict(doc))
     res = await db.bids.insert_one(doc)
     doc["_id"] = res.inserted_id
+    if cons:
+        await mark_submitted(cons["id"], str(res.inserted_id))
     await audit_log("bid.submit", None, "bid", bid_ref,
                     {"vendor": vendor["email"], "notice": payload.notice_ref, "sealed": True})
     # v53g — zero-EMD bids land at escrow_accepted, which is the tender desk's

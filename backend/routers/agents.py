@@ -120,11 +120,36 @@ async def _send_invite(a: dict) -> bool:
     return await send_email(a["email"], "[PMC] Confirm your email to become a PMC partner", wrap("Join PMC as a partner", body, "Confirm email & continue", link))
 
 
+async def _send_reminder(a: dict) -> bool:
+    body = (f"<p>Hello {a.get('legal_name') or a['name']},</p><p>Your PMC partner account is set up but your profile is not finished yet. "
+            f"Sign in with this email and the password you created to add your details, banking, identity documents and sign the partner agreement, "
+            f"then submit it for review.</p><p>Forgotten your password? Use <b>Forgot password</b> on the sign-in page.</p>")
+    return await send_email(a["email"], "[PMC] Please complete your PMC partner profile", wrap("Finish your partner profile", body, "Sign in", f"{_site()}/login"))
+
+
+async def _nudge(a: dict, admin: dict) -> dict:
+    """Re-send whatever the partner needs next: a fresh invite link, or a finish-your-profile reminder."""
+    from emails import last_error
+    if a["status"] == "invited":
+        upd = {"invite_token": secrets.token_urlsafe(32), "invite_expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()}
+        await db.agents.update_one({"_id": a["_id"]}, {"$set": upd})
+        sent, kind = await _send_invite({**a, **upd}), "invitation"
+    elif a["status"] in EDITABLE:
+        sent, kind = await _send_reminder(a), "reminder"
+    else:
+        raise HTTPException(status_code=409, detail=f"This partner is already {a['status'].replace('_', ' ')} — nothing to resend")
+    await audit_log(f"agent.{kind}_resent", admin, "agent", str(a["_id"]), {"email": a["email"]})
+    return {"email_sent": sent, "kind": kind, "email_error": "" if sent else last_error(a["email"])}
+
+
 @router.post("/api/v1/admin/agents/invite", dependencies=CSRF)
 async def invite_agent(body: InviteIn, admin=ADMIN):
     email = body.email.lower().strip()
-    if await db.agents.find_one({"email": email, "status": {"$ne": "rejected"}}):
-        raise HTTPException(status_code=409, detail="An agent with this email already exists")
+    existing = await db.agents.find_one({"email": email, "status": {"$ne": "rejected"}})
+    if existing:
+        if existing["status"] == "invited" or existing["status"] in EDITABLE:
+            return {**_public(existing), **(await _nudge(existing, admin)), "existing": True}
+        raise HTTPException(status_code=409, detail=f"{email} is already a partner (status: {existing['status'].replace('_', ' ')}). Open their card below.")
     a = {"email": email, "name": body.name.strip(), "status": "invited", "invite_token": secrets.token_urlsafe(32),
          "invite_expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat(), "invited_by": admin.get("email"),
          "created_at": now_iso(), "banking": [], "documents": {}, "history": []}
@@ -138,13 +163,33 @@ async def invite_agent(body: InviteIn, admin=ADMIN):
 @router.post("/api/v1/admin/agents/{aid}/resend", dependencies=CSRF)
 async def resend_invite(aid: str, admin=ADMIN):
     a = await db.agents.find_one({"_id": _oid(aid)})
-    if not a or a["status"] != "invited":
-        raise HTTPException(status_code=409, detail="Only pending invitations can be resent")
-    upd = {"invite_token": secrets.token_urlsafe(32), "invite_expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()}
-    await db.agents.update_one({"_id": a["_id"]}, {"$set": upd})
-    sent = await _send_invite({**a, **upd})
-    from emails import last_error
-    return {"email_sent": sent, "email_error": "" if sent else last_error(a["email"])}
+    if not a:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    return await _nudge(a, admin)
+
+
+ADMIN_EDITABLE = {"name", "legal_name", "trading_name", "entity_type", "primary_contact_phone", "country", "city",
+                  "address_line1", "address_line2", "postal_code", "reg_number", "tax_id", "website"}
+
+
+@router.patch("/api/v1/admin/agents/{aid}/profile", dependencies=CSRF)
+async def admin_edit_agent(aid: str, body: Dict[str, Optional[str]], admin=ADMIN):
+    a = await db.agents.find_one({"_id": _oid(aid)})
+    if not a:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    if a["status"] == "rejected":
+        raise HTTPException(status_code=409, detail="A rejected partner can't be edited")
+    data = {k: (str(v).strip()[:200] if v is not None else None) for k, v in body.items() if k in ADMIN_EDITABLE}
+    if data.get("entity_type") not in (None, "individual", "company"):
+        raise HTTPException(status_code=422, detail="Type must be individual or company")
+    if data.get("country"):
+        data["country"] = data["country"].upper()
+    if not data:
+        raise HTTPException(status_code=422, detail="Nothing to update")
+    await db.agents.update_one({"_id": a["_id"]}, {"$set": {**data, "updated_at": now_iso()},
+                                                  "$push": {"history": {"action": "admin_edit", "fields": sorted(data), "by": admin.get("email"), "at": now_iso()}}})
+    await audit_log("agent.admin_edit", admin, "agent", aid, {"fields": sorted(data)})
+    return _public(await db.agents.find_one({"_id": a["_id"]}))
 
 
 @router.get("/api/v1/admin/agents")

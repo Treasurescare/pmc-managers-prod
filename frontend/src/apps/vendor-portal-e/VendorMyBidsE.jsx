@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { bidApi, showApiError } from "@/lib/api";
 import VendorPortalChrome from "./VendorPortalChrome";
+import CriteriaResultNotices from "./CriteriaResultNotices";
 
 /**
  * v50s — Vendor "My bids" rewritten from the static Option-E mockup to a
@@ -191,6 +192,8 @@ export default function VendorMyBidsE({ legacy: Legacy }) {
             <div className="s">lifetime</div>
           </div>
         </div>
+
+        <CriteriaResultNotices />
 
         <div className="pmc-tabs" style={{ marginBottom: 16 }} role="tablist"
              data-testid="vmb-tabs">

@@ -1,11 +1,15 @@
 const OPS = { gte: "at least", lte: "at most", eq: "exactly" };
+const RULE = { lead: "the lead member alone", combined: "all members combined", each: "every member" };
+const teamItem = (c, members) => members?.length && c.answer_type !== "text" && ["each", "combined"].includes(c.consortium_rule || "each");
 
-export const criteriaReady = (criteria, answers, docs) => criteria.every((c) => {
+export const criteriaReady = (criteria, answers, docs, members, memberAnswers = {}) => criteria.every((c) => {
   const v = answers[c.id];
   const needsAnswer = c.kind === "must_pass" || c.scoring === "auto";
-  const answered = v !== undefined && v !== null && v !== "";
+  const filled = (x) => x !== undefined && x !== null && x !== "";
   const proofOk = !c.proof_required || docs.some((d) => d.criterion_id === c.id);
-  return (!needsAnswer || answered) && proofOk;
+  const teamOk = !(teamItem(c, members) && needsAnswer && (c.consortium_rule || "each") === "each")
+    || members.every((m) => filled((memberAnswers[c.id] || {})[m.vendor_id]));
+  return (!needsAnswer || filled(v)) && proofOk && teamOk;
 });
 
 const AnswerInput = ({ c, value, onChange }) => {
@@ -21,9 +25,9 @@ const AnswerInput = ({ c, value, onChange }) => {
   return <input type="number" className={cls} value={value ?? ""} onChange={(e) => onChange(e.target.value)} placeholder={c.unit ? `In ${c.unit}` : ""} data-testid={`crit-ans-${c.id}`} />;
 };
 
-export default function BidCriteriaSection({ criteria, answers, setAnswer, docs, onUpload, prefilled }) {
+export default function BidCriteriaSection({ criteria, answers, setAnswer, docs, onUpload, prefilled, members, memberAnswers = {}, setMemberAnswer }) {
   if (!criteria.length) return null;
-  const ready = criteriaReady(criteria, answers, docs);
+  const ready = criteriaReady(criteria, answers, docs, members, memberAnswers);
   return (
     <div className="space-y-3" data-testid="bid-criteria">
       <div className="text-sm font-semibold text-slate-900">Tender criteria <span className="text-red-600">*</span></div>
@@ -40,6 +44,12 @@ export default function BidCriteriaSection({ criteria, answers, setAnswer, docs,
               {c.answer_type === "text" && "Written answer, marked by evaluators"}
             </div>
             <AnswerInput c={c} value={answers[c.id]} onChange={(v) => setAnswer(c.id, v)} />
+            {members?.length > 0 && c.answer_type !== "text" && <div className="text-[11px] text-slate-600 mt-1" data-testid={`crit-rule-${c.id}`}>For this consortium, this must be met by {RULE[c.consortium_rule || "each"]}.{teamItem(c, members) ? " The box above is your company's (lead) figure; enter each member's figure below." : ""}</div>}
+            {teamItem(c, members) && members.map((m) => (
+              <div key={m.vendor_id} className="mt-1 pl-3 border-l" data-testid={`crit-member-${c.id}-${m.vendor_id}`}>
+                <div className="text-xs font-medium">{m.company_name}</div>
+                <AnswerInput c={{ ...c, id: `${c.id}-${m.vendor_id}` }} value={(memberAnswers[c.id] || {})[m.vendor_id]} onChange={(v) => setMemberAnswer(c.id, m.vendor_id, v)} />
+              </div>))}
             {prefilled[c.id] !== undefined && <div className="text-[11px] text-emerald-700 mt-1">Filled from your PMC profile — check it's still correct.</div>}
             {(c.proof || c.proof_required) && (
               <div className="mt-2 flex items-center gap-2 flex-wrap text-xs">

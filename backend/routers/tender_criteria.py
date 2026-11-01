@@ -93,6 +93,8 @@ class CriterionIn(BaseModel):
 class CriteriaIn(BaseModel):
     criteria: List[CriterionIn] = Field(max_length=60)
     fx_rule: Optional[str] = Field(default=None, max_length=300)
+    consortium_allowed: bool = False
+    consortium_max_members: Optional[int] = Field(default=None, ge=2, le=20)
 
 
 async def _notice(ref: str) -> dict:
@@ -100,7 +102,8 @@ async def _notice(ref: str) -> dict:
                                                         "criteria_fx_rule": 1, "title": 1, "description": 1,
                                                         "primary_document": 1, "budget_currency": 1, "origin": 1,
                                                         "prepared_by_vendor_id": 1, "review_status": 1,
-                                                        "criteria_ai_check": 1})
+                                                        "criteria_ai_check": 1, "consortium_allowed": 1,
+                                                        "consortium_max_members": 1})
     if not n:
         raise HTTPException(status_code=404, detail="Tender not found")
     return n
@@ -109,7 +112,8 @@ async def _notice(ref: str) -> dict:
 def _view(n: dict) -> dict:
     return {"notice_ref": n["notice_ref"], "criteria": n.get("tender_criteria") or [],
             "fx_rule": n.get("criteria_fx_rule"), "locked": bool(n.get("is_published")),
-            "ai_check": n.get("criteria_ai_check")}
+            "ai_check": n.get("criteria_ai_check"), "consortium_allowed": bool(n.get("consortium_allowed")),
+            "consortium_max_members": n.get("consortium_max_members")}
 
 
 def has_must_pass(n: dict) -> bool:
@@ -148,12 +152,13 @@ async def _store(n: dict, body: "CriteriaIn", actor: dict) -> dict:
     ids = [c["id"] for c in crit]
     if len(ids) != len(set(ids)):
         raise HTTPException(status_code=422, detail="Two criteria share the same id")
+    cons = {"consortium_allowed": body.consortium_allowed, "consortium_max_members": body.consortium_max_members if body.consortium_allowed else None}
     await db.notices.update_one({"_id": n["_id"]}, {"$set": {"tender_criteria": crit, "criteria_fx_rule": body.fx_rule,
-                                                             "criteria_updated_at": now_iso()},
+                                                             "criteria_updated_at": now_iso(), **cons},
                                                     "$unset": {"criteria_ai_check": ""}})
     await audit_log("tender.criteria_saved", actor, "notice", ref, {"count": len(crit),
                     "must_pass": sum(1 for c in crit if c["kind"] == "must_pass")})
-    n.update({"tender_criteria": crit, "criteria_fx_rule": body.fx_rule})
+    n.update({"tender_criteria": crit, "criteria_fx_rule": body.fx_rule, **cons})
     n.pop("criteria_ai_check", None)
     return _view(n)
 
@@ -244,26 +249,37 @@ def _num(v) -> Optional[float]:
         return None
 
 
-def clean_answers(criteria: list, answers: list, docs: list) -> list:
+def _parse(c: dict, v):
+    if c["answer_type"] == "number":
+        return _num(v)
+    if c["answer_type"] == "yes_no":
+        return v if isinstance(v, bool) else (str(v).lower() in ("yes", "true", "1") if v not in (None, "") else None)
+    return (str(v).strip()[:4000] or None) if v is not None else None
+
+
+def clean_answers(criteria: list, answers: list, docs: list, members: Optional[list] = None) -> list:
     """Validate supplier answers against the tender's criteria. Raises 422 listing what's missing."""
     by_id = {a.get("criterion_id"): a for a in answers or [] if isinstance(a, dict)}
     proof_for = {d.get("criterion_id") for d in docs or [] if d.get("criterion_id")}
     out, missing = [], []
     for c in criteria:
         a = by_id.get(c["id"]) or {}
-        v = a.get("value")
-        if c["answer_type"] == "number":
-            v = _num(v)
-        elif c["answer_type"] == "yes_no":
-            v = v if isinstance(v, bool) else (str(v).lower() in ("yes", "true", "1") if v not in (None, "") else None)
-        else:
-            v = (str(v).strip()[:4000] or None) if v is not None else None
-        if v is None:
-            if c["kind"] == "must_pass" or c.get("scoring") == "auto":
-                missing.append(f"{c['title']} (answer)")
+        v = _parse(c, a.get("value"))
+        needed = c["kind"] == "must_pass" or c.get("scoring") == "auto"
+        if v is None and needed:
+            missing.append(f"{c['title']} (answer)")
         if c.get("proof_required") and c["id"] not in proof_for:
             missing.append(f"{c['title']} (proof)")
-        out.append({"criterion_id": c["id"], "value": v})
+        row = {"criterion_id": c["id"], "value": v}
+        if members and c.get("consortium_rule") in ("each", "combined") and c["answer_type"] != "text":
+            given = a.get("members") if isinstance(a.get("members"), dict) else {}
+            row["members"] = {}
+            for m in members:
+                mv = _parse(c, given.get(m["vendor_id"]))
+                if mv is None and needed and c["consortium_rule"] == "each":
+                    missing.append(f"{c['title']} ({m.get('company_name')})")
+                row["members"][m["vendor_id"]] = mv
+        out.append(row)
     if missing:
         raise HTTPException(status_code=422, detail="Please answer every tender criterion: " + "; ".join(missing))
     return out
@@ -341,26 +357,63 @@ def _meets(op: str, v: float, t: float) -> bool:
     return v >= t if op == "gte" else v <= t if op == "lte" else abs(v - t) < 1e-9
 
 
-def evaluate(criteria: list, answers: list, docs: list) -> dict:
-    by_id = {a.get("criterion_id"): a.get("value") for a in answers or []}
+def _fmt(v) -> str:
+    return f"{float(v):,.0f}" if v is not None else "nothing"
+
+
+def _team_value(c: dict, v, row: dict, consortium: Optional[dict], lead_name: str):
+    """Apply the consortium rule. Returns (value used, per-member values, failing member names or None)."""
+    rule = c.get("consortium_rule") or "each"
+    if not consortium or rule == "lead" or c["answer_type"] == "text":
+        return v, None, None
+    given = row.get("members") or {}
+    vals = [(lead_name, v)] + [(m.get("company_name"), given.get(m["vendor_id"])) for m in consortium.get("members") or []]
+    shown = [{"member": n, "value": x} for n, x in vals]
+    if c["answer_type"] == "yes_no":
+        if rule == "combined":
+            return any(x is True for _, x in vals), shown, None
+        bad = [n for n, x in vals if x is not True]
+        return not bad, shown, bad
+    nums = [float(x) for _, x in vals if x is not None]
+    if rule == "combined":
+        return (sum(nums) if nums else None), shown, None
+    bad = [f"{n} (declared {_fmt(x)})" for n, x in vals
+           if x is None or (c.get("operator") and not _meets(c["operator"], float(x), float(c["threshold"])))]
+    return (min(nums) if len(nums) == len(vals) else None), shown, bad
+
+
+def evaluate(criteria: list, answers: list, docs: list, consortium: Optional[dict] = None, lead_name: str = "Lead") -> dict:
+    rows = {a.get("criterion_id"): a for a in answers or []}
     proofs = {d.get("criterion_id") for d in docs or [] if d.get("criterion_id")}
     results, failed, auto_pts, max_pts = [], False, 0.0, 0.0
     for c in criteria:
-        v = by_id.get(c["id"])
+        row = rows.get(c["id"]) or {}
+        v, shown, bad = _team_value(c, row.get("value"), row, consortium, lead_name)
+        rule_word = {"lead": "lead member", "combined": "all members combined", "each": "every member"}.get(c.get("consortium_rule") or "each")
         r = {"criterion_id": c["id"], "title": c["title"], "kind": c["kind"], "value": v, "unit": c.get("unit"),
              "rule": f"{ {'gte': 'at least', 'lte': 'at most', 'eq': 'exactly'}.get(c.get('operator'), c.get('operator'))} {float(c.get('threshold') or 0):,.0f} {c.get('unit') or ''}".strip() if c["answer_type"] == "number" else
                      ("yes" if c["answer_type"] == "yes_no" else "written"),
              "proof_supplied": c["id"] in proofs}
+        if consortium and c["answer_type"] != "text":
+            r["applies_to"] = rule_word
+            if shown:
+                r["member_values"] = shown
         if c.get("proof_required") and c["id"] not in proofs:
             r.update(result="fail" if c["kind"] == "must_pass" else "points", points=0.0, reason="Required proof was not supplied")
+        elif c["kind"] == "must_pass" and bad is not None:
+            ok = not bad
+            need = f"{dict(gte='at least', lte='at most', eq='exactly')[c['operator']]} {c['threshold']:,} {c.get('unit') or ''}".strip() if c["answer_type"] == "number" else "Yes"
+            r.update(result="pass" if ok else "fail", reason=None if ok else f"Every member must meet this ({need}). Not met by: {', '.join(bad)}")
         elif c["kind"] == "must_pass":
             if c["answer_type"] == "number":
                 ok = v is not None and _meets(c["operator"], float(v), float(c["threshold"]))
+                label = "Combined total" if shown and c.get("consortium_rule") == "combined" else "Declared"
                 r.update(result="pass" if ok else "fail", reason=None if ok else
-                         f"Declared {f'{float(v):,.0f}' if v is not None else 'nothing'} {c.get('unit') or ''}; needs {dict(gte='at least', lte='at most', eq='exactly')[c['operator']]} {c['threshold']:,} {c.get('unit') or ''}".strip())
+                         f"{label} {f'{float(v):,.0f}' if v is not None else 'nothing'} {c.get('unit') or ''}; needs {dict(gte='at least', lte='at most', eq='exactly')[c['operator']]} {c['threshold']:,} {c.get('unit') or ''}".strip())
             else:
                 ok = v is True
-                r.update(result="pass" if ok else "fail", reason=None if ok else "Answered No or did not answer")
+                r.update(result="pass" if ok else "fail", reason=None if ok else
+                         ("No member answered Yes" if shown else "Answered No or did not answer"))
         elif c.get("scoring") == "auto":
             mp = float(c["max_points"])
             t, f = float(c["threshold"]), float(c["full_points_at"])
@@ -515,7 +568,8 @@ async def _own_template(tid: str, request: Request, read: bool = False) -> tuple
 
 def _tpl_view(doc: dict) -> dict:
     return {"notice_ref": str(doc["_id"]), "criteria": doc.get("tender_criteria") or [], "fx_rule": doc.get("criteria_fx_rule"),
-            "locked": doc.get("review_status") in ("submitted", "approved"), "ai_check": None}
+            "locked": doc.get("review_status") in ("submitted", "approved"), "ai_check": None,
+            "consortium_allowed": bool(doc.get("consortium_allowed")), "consortium_max_members": doc.get("consortium_max_members")}
 
 
 @router.get("/template/{tid}/mine")
@@ -532,9 +586,10 @@ async def template_save(tid: str, body: CriteriaIn, request: Request):
     crit = [c.model_dump() for c in body.criteria]
     if len({c["id"] for c in crit}) != len(crit):
         raise HTTPException(status_code=422, detail="Two criteria share the same id")
-    await db.tender_templates.update_one({"_id": doc["_id"]}, {"$set": {"tender_criteria": crit, "criteria_fx_rule": body.fx_rule}})
+    cons = {"consortium_allowed": body.consortium_allowed, "consortium_max_members": body.consortium_max_members if body.consortium_allowed else None}
+    await db.tender_templates.update_one({"_id": doc["_id"]}, {"$set": {"tender_criteria": crit, "criteria_fx_rule": body.fx_rule, **cons}})
     await audit_log("tender_template.criteria_saved", p, "tender_template", tid, {"count": len(crit)})
-    doc.update(tender_criteria=crit, criteria_fx_rule=body.fx_rule)
+    doc.update(tender_criteria=crit, criteria_fx_rule=body.fx_rule, **cons)
     return _tpl_view(doc)
 
 
@@ -546,3 +601,70 @@ async def template_suggest(tid: str, request: Request):
     fake = {"notice_ref": tid, "title": h.get("work_title") or doc.get("name"), "description": f"{h.get('work_description') or ''}\n{body}"}
     return await _suggest(fake, p)
 
+
+
+# ---------- bidder result notices ----------
+
+STATUS_WORDS = {"qualified": "Qualified", "not_qualified": "Not qualified", "doubt_raised": "Under committee review",
+                "disqualified": "Disqualified by the committee"}
+
+
+def _res_word(r: dict) -> str:
+    if r["result"] in ("pass", "fail"):
+        return "Passed" if r["result"] == "pass" else "Failed"
+    if r.get("points") is not None:
+        return f"{r['points']:g} / {r.get('max_points') or 0:g} points"
+    return "To be marked by evaluators"
+
+
+async def send_result_notices(ref: str, final: bool) -> int:
+    from html import escape
+    import config
+    from emails import send_email, wrap
+    n = await db.notices.find_one({"notice_ref": ref}, {"title": 1}) or {}
+    bids = [b async for b in db.bids.find({"notice_ref": ref, "qualification": {"$exists": True}})]
+    qualified = sum(1 for b in bids if final_status(b["qualification"]) == "qualified")
+    kind = "final" if final else "preliminary"
+    sent = 0
+    for b in bids:
+        q = b["qualification"]
+        st = final_status(q)
+        snap = {"kind": kind, "at": now_iso(), "status": st, "qualified_count": qualified, "bids_total": len(bids),
+                "decision_note": q.get("decision_note"),
+                "results": [{"title": r["title"], "kind": r["kind"], "outcome": _res_word(r), "reason": r.get("reason")} for r in q["results"]]}
+        rows = "".join(f"<tr><td style='padding:4px 8px;border:1px solid #ddd'>{escape(r['title'])}</td>"
+                       f"<td style='padding:4px 8px;border:1px solid #ddd'>{escape(r['outcome'])}</td>"
+                       f"<td style='padding:4px 8px;border:1px solid #ddd'>{escape(r['reason'] or '')}</td></tr>" for r in snap["results"])
+        lead = ("<p>This is the system's first result. The committee may still review documents; you will receive the final result before price opening.</p>"
+                if not final else ("<p>This is the final result. Your price envelope will now be opened.</p>" if st == "qualified"
+                                   else "<p>This is the final result. Your price envelope will not be opened.</p>"))
+        note = f"<p><b>Committee note:</b> {escape(q['decision_note'])}</p>" if st == "disqualified" and q.get("decision_note") else ""
+        body = (f"<p>Tender <code>{escape(ref)}</code> — {escape(n.get('title') or '')}<br/>Your bid <b>{escape(b.get('bid_ref') or '')}</b>: "
+                f"<b>{STATUS_WORDS.get(st, st)}</b></p>{lead}{note}"
+                f"<table style='border-collapse:collapse;font-size:13px'><tr><th align='left'>Criterion</th><th align='left'>Result</th><th align='left'>Reason</th></tr>{rows}</table>"
+                f"<p>{qualified} of {len(bids)} bids qualified.</p>")
+        subject = f"[PMC] {'Final' if final else 'Preliminary'} criteria result · {b.get('bid_ref')}"
+        recipients = [(b.get("vendor_email"), b.get("vendor_ref"))] + [(m.get("email"), m.get("vendor_ref")) for m in (b.get("consortium") or {}).get("members") or []]
+        for em, vref in recipients:
+            if not em:
+                continue
+            await send_email(em, subject, wrap("Criteria result", body, "View result", f"{config.FRONTEND_URL.rstrip('/')}/vendor/mybids"))
+            await db.notifications.insert_one({"user_email": em, "user_ref": vref, "role": "vendor", "subject": subject, "body": body,
+                                               "related_type": "criteria_result", "related_id": str(b["_id"]), "related_url": "/vendor/mybids",
+                                               "related_notice_ref": ref, "read": False, "created_at": now_iso()})
+            sent += 1
+        await db.bids.update_one({"_id": b["_id"]}, {"$push": {"qualification_notices": snap}})
+    await audit_log(f"qualification.notices_{kind}", None, "notice", ref, {"bids": len(bids), "qualified": qualified})
+    return sent
+
+
+@router.get("/results/vendor/mine")
+async def my_results(vendor=Depends(current_vendor)):
+    q = {"qualification_notices.0": {"$exists": True},
+         "$or": [{"vendor_id": vendor["id"]}, {"consortium.members.vendor_id": vendor["id"]}]}
+    out = []
+    async for b in db.bids.find(q, {"bid_ref": 1, "notice_ref": 1, "qualification_notices": 1, "consortium.name": 1}).sort("submitted_at", -1):
+        out.append({"bid_id": str(b["_id"]), "bid_ref": b.get("bid_ref"), "notice_ref": b["notice_ref"],
+                    "consortium": (b.get("consortium") or {}).get("name"), "notice": b["qualification_notices"][-1],
+                    "history": [x["kind"] for x in b["qualification_notices"]]})
+    return {"items": out}

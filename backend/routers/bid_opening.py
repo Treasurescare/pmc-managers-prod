@@ -129,8 +129,13 @@ async def approve_opening(notice_ref: str, body: ApproveIn, request: Request,
     await audit_log(f"bid_opening.{body.stage}_approved", admin, "notice", notice_ref,
                     {"approved": len(appr), "required": len(members)})
     if {a["by_id"] for a in appr} >= set(members):
+        from routers.tender_criteria import send_result_notices
+        if body.stage == "commercial" and n.get("tender_criteria"):
+            await send_result_notices(notice_ref, True)
         opened = await _open(n, body.stage, admin)
         import asyncio
+        if body.stage == "technical" and n.get("tender_criteria"):
+            asyncio.create_task(send_result_notices(notice_ref, False))
         asyncio.create_task(_email_record(notice_ref, body.stage, admin))
         return {"opened": True, "bids_opened": opened, "approvals": appr, "record_emailed": True}
     return {"opened": False, "approvals": appr, "remaining": len(set(members) - {a["by_id"] for a in appr})}
@@ -153,7 +158,7 @@ async def _open(n: dict, stage: str, admin: dict) -> int:
                 import json as _json
                 from routers.tender_criteria import evaluate
                 ans = dec_text(s.get("criteria_answers_json"))
-                q = evaluate(crit, _json.loads(ans) if ans else [], b.get("documents") or [])
+                q = evaluate(crit, _json.loads(ans) if ans else [], b.get("documents") or [], b.get("consortium"), b.get("company_name") or "Lead")
                 upd.update(criteria_answers_json=ans, qualification=q)
                 if q["system_status"] == "qualified":
                     upd["technical_cleared_at"] = now

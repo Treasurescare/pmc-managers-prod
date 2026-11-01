@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
-import { publicApi, vendorApi, bidApi, paymentApi, uploadsApi, corrigendaApi, sandboxPayApi, criteriaApi, formatApiError, showApiError, BACKEND_URL } from "@/lib/api";
+import { publicApi, vendorApi, bidApi, paymentApi, uploadsApi, corrigendaApi, sandboxPayApi, criteriaApi, consortiumApi, formatApiError, showApiError, BACKEND_URL } from "@/lib/api";
 import BidCriteriaSection, { criteriaReady } from "./BidCriteriaSection";
+import BidConsortiumBox from "./BidConsortiumBox";
 
 const GATEWAYS = [
   { id: "stripe", label: "Stripe", note: "Card · Live sandbox" },
@@ -37,6 +38,18 @@ export default function BidSubmit() {
   const [answers, setAnswers] = useState({});
   const [prefilled, setPrefilled] = useState({});
   const setAnswer = (id, v) => setAnswers((a) => ({ ...a, [id]: v }));
+  const [consAllowed, setConsAllowed] = useState(false);
+  const [consItems, setConsItems] = useState([]);
+  const [bidAs, setBidAs] = useState("alone");
+  const [memberAnswers, setMemberAnswers] = useState({});
+  const setMemberAnswer = (cid, vid, v) => setMemberAnswers((a) => ({ ...a, [cid]: { ...(a[cid] || {}), [vid]: v } }));
+  const loadCons = () => consortiumApi.mine(noticeRef).then((r) => {
+    const items = (r.items || []).filter((c) => c.status !== "withdrawn");
+    setConsItems(items);
+    if (items.some((c) => c.is_lead)) setBidAs("consortium");
+  }).catch(() => {});
+  const leadCons = consItems.find((c) => c.is_lead);
+  const teamMembers = bidAs === "consortium" && leadCons ? (leadCons.members || []).filter((m) => m.status === "accepted") : [];
 
   // v51bd — local draft so vendors can save work and come back later.
   // (persisted BOTH to localStorage AND to the backend via bidApi.saveDraft
@@ -59,6 +72,8 @@ export default function BidSubmit() {
         try {
           const cr = await criteriaApi.get(noticeRef);
           setCriteria(cr.criteria || []);
+          setConsAllowed(!!cr.consortium_allowed);
+          if (cr.consortium_allowed) loadCons();
           if ((cr.criteria || []).length) {
             const pf = await criteriaApi.prefill(noticeRef).catch(() => ({ values: {} }));
             setPrefilled(pf.values || {});
@@ -159,9 +174,13 @@ export default function BidSubmit() {
       setFormError("Both the Technical and Commercial envelope documents are required before you can submit (PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX, JPG/PNG or DWG). You can keep working on this bid with Save draft.");
       return toast.error("Upload Technical and Commercial documents before submitting");
     }
-    if (!criteriaReady(criteria, answers, cleanDocs)) {
+    if (!criteriaReady(criteria, answers, cleanDocs, teamMembers, memberAnswers)) {
       setFormError("Please answer every tender criterion and attach the required proofs.");
       return toast.error("Answer every tender criterion first");
+    }
+    if (bidAs === "consortium" && !leadCons?.ready) {
+      setFormError("Your consortium isn't ready yet — see the checklist in the consortium box.");
+      return toast.error("Finish setting up the consortium first");
     }
     setBusy(true);
     try {
@@ -171,7 +190,8 @@ export default function BidSubmit() {
         price_currency: notice.budget_currency || "USD",
         technical_notes: technical, commercial_notes: commercial,
         documents: cleanDocs,
-        criteria_answers: criteria.map((c) => ({ criterion_id: c.id, value: answers[c.id] ?? null })),
+        criteria_answers: criteria.map((c) => ({ criterion_id: c.id, value: answers[c.id] ?? null, ...(teamMembers.length ? { members: memberAnswers[c.id] || {} } : {}) })),
+        ...(bidAs === "consortium" && leadCons ? { consortium_id: leadCons.id } : {}),
       });
       toast.success(`Bid ${bid.bid_ref} submitted`);
       // Clear local + server draft now that the server has the real bid.
@@ -246,7 +266,8 @@ export default function BidSubmit() {
   const hasTech = uploadedKinds.has("technical");
   const hasComm = uploadedKinds.has("commercial");
   const docsOk = hasTech && hasComm;
-  const critOk = criteriaReady(criteria, answers, docs);
+  const critOk = criteriaReady(criteria, answers, docs, teamMembers, memberAnswers) && (bidAs !== "consortium" || !!leadCons?.ready)
+    && !consItems.some((c) => !c.is_lead && (c.members || []).some((m) => m.vendor_id === vendor?.id && m.status !== "declined"));
 
   // Corrigenda acknowledgement state (v52bh)
   const myVendorId = vendor?.id;
@@ -455,6 +476,7 @@ export default function BidSubmit() {
               ))}
             </div>
           )}
+          {consAllowed && <BidConsortiumBox noticeRef={noticeRef} me={vendor?.id} items={consItems} reload={loadCons} bidAs={bidAs} setBidAs={setBidAs} />}
           <label className="block text-sm">
             <span>Your bid price ({notice.budget_currency})</span>
             <input type="number" required min="1" step="0.01" value={price}
@@ -479,6 +501,7 @@ export default function BidSubmit() {
           </label>
 
           <BidCriteriaSection criteria={criteria} answers={answers} setAnswer={setAnswer} docs={docs} prefilled={prefilled}
+            members={teamMembers} memberAnswers={memberAnswers} setMemberAnswer={setMemberAnswer}
             onUpload={(cid, file, el) => uploadFile("technical", file, el, cid)} />
 
           <div className="space-y-2">
