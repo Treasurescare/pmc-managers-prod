@@ -7,7 +7,7 @@ const VERDICT = { match: ["AI: matches", "text-emerald-800 bg-emerald-50 border-
 const STATUS = { pending: "Awaiting committee", accepted: "Accepted by all members", rejected: "Rejected — bid disqualified" };
 
 const AiFinding = ({ pr }) => {
-  if (pr.ai_status === "pending") return <div className="text-[11px] text-brand-navy/60" data-testid="proof-ai-pending">AI is reading the proof…</div>;
+  if (pr.ai_status === "pending" || pr.ai_status === "running") return <div className="text-[11px] text-brand-navy/60" data-testid="proof-ai-pending">AI is reading the proof…</div>;
   const [label, cls] = VERDICT[pr.ai?.verdict] || VERDICT.unclear;
   return (
     <div className={`border px-2 py-1 text-[11px] ${cls}`} data-testid="proof-ai-finding">
@@ -21,6 +21,7 @@ export const ProofReview = ({ refKey, b, r, me, member, open, reload }) => {
   if (!pr) return null;
   const mine = pr.votes?.[me];
   const votes = Object.values(pr.votes || {});
+  const label = pr.status === "pending" && b.decision ? "Not needed — bid disqualified" : STATUS[pr.status];
   const cast = (decision) => criteriaApi.proofVote(refKey, b.bid_id, r.criterion_id, { decision, comment: comment || null })
     .then((x) => { toast.success(x.status === "pending" ? `Recorded (${x.votes} of ${x.needed} members)` : `Proof ${x.status}`); setComment(""); reload(); }).catch(showApiError);
   return (
@@ -29,7 +30,7 @@ export const ProofReview = ({ refKey, b, r, me, member, open, reload }) => {
         <div className="flex flex-wrap gap-2 items-center text-[11px]">
           <b>Proof check</b>
           {(b.proof_files?.[r.criterion_id] || []).map((f) => <button key={f.key} type="button" className="underline" onClick={() => uploadsApi.openFile(f.key)} data-testid={`proof-file-${f.key}`}>{f.filename}</button>)}
-          <span className={`px-1.5 ${pr.status === "rejected" ? "bg-red-100 text-red-900" : pr.status === "accepted" ? "bg-emerald-100 text-emerald-900" : "bg-amber-100 text-amber-900"}`} data-testid={`proof-status-${b.bid_ref}-${r.criterion_id}`}>{STATUS[pr.status]}</span>
+          <span className={`px-1.5 ${pr.status === "rejected" ? "bg-red-100 text-red-900" : pr.status === "accepted" ? "bg-emerald-100 text-emerald-900" : "bg-amber-100 text-amber-900"}`} data-testid={`proof-status-${b.bid_ref}-${r.criterion_id}`}>{label}</span>
         </div>
         <AiFinding pr={pr} />
         {votes.map((v) => <div key={v.by} className="text-[11px]">{v.by}: <b>{v.decision === "accept" ? "Accepted" : "Rejected"}</b>{v.comment ? ` — ${v.comment}` : ""}</div>)}

@@ -1,0 +1,39 @@
+{
+  "summary": "v76 tested end to end: AI proof reading at technical opening, committee votes on each proof (every member must agree), price-opening blocker, AI retry, award method (L1 / weighted). Backend: new pytest suite tests/test_v76_proof_review.py, 13/13 passed, run twice with real Gemini calls. It seeds a TEST_PROOF-* notice, a 2-member committee (demo committee1+2), 3 sealed bids and opens both stages. Gemini results: the PDF showing GBP 400,000 against a declared 750,000 came back 'mismatch' (found 'GBP 400,000'); the matching PDF came back 'match' (found 'GBP 800,000'); the .docx proof came back 'unreadable'. Frontend checked with Playwright as admin added as a 3rd committee member (/admin/bids/{id} -> BidOpeningPanel -> QualificationPanel): proof rows, file links, AI findings, statuses, comment box and Accept/Reject buttons all work. Reject without a comment shows the 422 toast. 'Recorded (1 of 3 members)' toast and 'Accepted by all members' / 'Rejected — bid disqualified' states shown. Buttons are hidden once a proof or bid is decided. The commercial blocker text updates (2 -> 1 -> gone). The criteria modal award-method select saves 'weighted' (confirmed through GET /admin), and the l1-method-weighted banner shows on the L1 comparison page. One logic issue found in the weighted award report, plus a race condition found in code review. All TEST data was cleaned up.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/v1/evaluations/award-report/{ref} (award_method=weighted)", "issue": "Rows are sorted only by (-combined, price). Bids that do not qualify (disqualified by the committee, not cleared, or below the tech cutoff) are not pushed below qualified ones. recommendation = rows[0] only if rows[0].qualifies, so a disqualified bid with a higher combined score makes recommendation None even when a qualified bid exists. Seen in the run: qualified bids may fall behind unqualified ones because a None price is sorted as 0. Fix: sort key (not r['qualifies'], -r['combined'], r.get('price') or 0), same as the l1 branch."},
+      {"endpoint": "POST /tender-criteria/{ref}/bids/{bid_id}/proofs/{cid}/vote (and doubt/resolve/score)", "issue": "Race condition: the handler reads the bid, changes q in memory and then $sets the whole 'qualification' through _sync_clear. Two cases: (a) if review_proofs finishes the AI reading between that read and write, the vote's write puts back the old ai_status='pending' and the AI result is lost; (b) two members voting at the same moment can overwrite each other's vote. Fix: use targeted $set on qualification.proof_reviews.{cid}.votes.{uid}, then re-read before deciding the final status, or use find_one_and_update with a version check."},
+      {"endpoint": "POST /tender-criteria/{ref}/proof-ai/run", "issue": "Runs the Gemini calls inside the request, one after another (about 5s per proof). With many proofs it can hit the ingress timeout. It can also run at the same time as the background review_proofs started at opening and read the same 'pending' proofs twice (double LLM cost). Consider an in-progress flag or setting ai_status='running' before calling the AI."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Bid opening > QualificationPanel", "issues": ["On a bid already disqualified by another proof's rejection, its remaining proofs still show the amber 'Awaiting committee' label (no buttons). Consider showing 'Not needed — bid disqualified'.", "The help paragraph's testid 'proof-review-help' shares the 'proof-review-' prefix used by the per-row testids, so [data-testid^='proof-review-'] also matches the help text. Consider renaming it, e.g. 'proofreview-help'."]},
+      {"screen": "L1 comparison (/admin/e/l1-award)", "issues": ["Date filters use the browser's native mm/dd/yyyy date picker instead of the shadcn calendar (existing issue).", "The dark block at the bottom of the page has text that is barely readable (low contrast; existing issue)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v76_proof_review.py", "/app/test_reports/pytest/pytest_v76_proof.xml"],
+  "action_items": [
+    "Weighted award_report: sort qualifying bids first (not r['qualifies'], -combined, price) so a disqualified bid with a high score can't hide the recommendation",
+    "Make proof votes atomic (targeted $set per vote; don't $set the whole qualification) so a background AI result or another member's vote is not overwritten",
+    "Optional: guard proof-ai/run against running at the same time as the background review_proofs, and move it to a background job",
+    "Optional UX: show 'Not needed — bid disqualified' on leftover pending proofs of disqualified bids"
+  ],
+  "critical_code_review_comments": [
+    "proof_ai.vote: read-modify-write of the whole qualification document (see race condition above)",
+    "evaluations.award_report weighted branch: sort ignores 'qualifies'",
+    "review_proofs only skips bids where commercial_unsealed_at is set; bids disqualified earlier are still sent to the AI (wasted LLM calls). Could also filter on technical_cleared_at",
+    "_files decodes and decrypts the whole upload in memory for every proof; fine for small PDFs, but large scans will use a lot of memory"
+  ],
+  "updated_files": ["/app/backend/tests/test_v76_proof_review.py"],
+  "success_rate": {"backend": "100% (13/13); 1 logic issue found outside the asserted paths (weighted sort)", "frontend": "100% of the requested flows"},
+  "seed_data_creation": "The suite seeds and deletes TEST_PROOF-<hex> notice, committee, bids and TESTPROOF uploads on its own. Set PROOF_TEST_KEEP=1 and PROOF_TEST_REF=<ref> to keep the data for UI work. The UI-only refs TEST_PROOF-UI1 and TEST_PROOF-UI2 were deleted manually. DEMO-* records were not touched. The committee for UI1 temporarily included adminsupport (record deleted).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_v76_proof_review.py -p no:xdist -o addopts='' -s (Gemini takes about 5-10s per proof). Committee logins: committee1/2@demo.pmcmanagers.com / Demo@Pmc2026, active_role committee_member, via /api/v1/staff/auth/login. For UI with buttons, add the adminsupport id to committee.member_ids, then open /admin/bids/{bid_id}. Bid docs with criterion_id act as proofs; .docx -> unreadable.",
+  "test_credentials": "adminsupport@pmcmanagers.com / Admin@12345; committee1@demo.pmcmanagers.com & committee2@demo.pmcmanagers.com / Demo@Pmc2026; vendors testvendor@pmcmanagers.com / Vendor@12345, northfield@ & brightwater@demo.pmcmanagers.com / Demo@Pmc2026"
+}

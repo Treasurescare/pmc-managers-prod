@@ -294,7 +294,7 @@ async def award_report(notice_ref: str,
     if method == "l1":
         rows.sort(key=lambda r: (not r["qualifies"], r.get("price") is None, r.get("price") or 0))
     else:
-        rows.sort(key=lambda r: (-r["combined"], r.get("price") or 0))
+        rows.sort(key=lambda r: (not r["qualifies"], -r["combined"], r.get("price") is None, r.get("price") or 0))
     return {
         "notice_ref":     notice_ref,
         "award_method":   method,

@@ -1,10 +1,12 @@
 """AI proof reading at technical opening + unanimous committee accept/reject per must-pass proof."""
+import asyncio
+import base64
 import json
 import os
 import re
 import secrets
 import tempfile
-import base64
+from datetime import datetime, timedelta, timezone
 from typing import Literal, Optional
 
 from bson import ObjectId
@@ -91,11 +93,18 @@ async def _ask_ai(r: dict, crit: dict, files: list) -> dict:
 async def review_proofs(ref: str) -> int:
     n = await db.notices.find_one({"notice_ref": ref}, {"tender_criteria": 1})
     crit = {c["id"]: c for c in (n or {}).get("tender_criteria") or []}
+    stale = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
     done = 0
     async for b in db.bids.find({"notice_ref": ref, "qualification.proof_reviews": {"$exists": True}, "commercial_unsealed_at": None}):
         for r in b["qualification"].get("results") or []:
-            pr = b["qualification"]["proof_reviews"].get(r["criterion_id"])
-            if not pr or pr.get("ai_status") not in ("pending", "failed"):
+            if r["criterion_id"] not in b["qualification"]["proof_reviews"]:
+                continue
+            p = f"qualification.proof_reviews.{r['criterion_id']}"
+            claimed = await db.bids.update_one(
+                {"_id": b["_id"], "$or": [{f"{p}.ai_status": {"$in": ["pending", "failed"]}},
+                                         {f"{p}.ai_status": "running", f"{p}.ai_started_at": {"$lt": stale}}]},
+                {"$set": {f"{p}.ai_status": "running", f"{p}.ai_started_at": now_iso()}})
+            if not claimed.modified_count:
                 continue
             try:
                 upd = await _ask_ai(r, crit.get(r["criterion_id"], {}), await _files(b, r["criterion_id"]))
@@ -110,9 +119,9 @@ async def review_proofs(ref: str) -> int:
 async def rerun_ai(ref: str, admin=COMMITTEE):
     if admin.get("id") not in await _members(ref) and admin.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Only this tender's committee can do this")
-    count = await review_proofs(ref)
-    await audit_log("qualification.proof_ai_run", admin, "notice", ref, {"read": count})
-    return {"read": count}
+    asyncio.create_task(review_proofs(ref))
+    await audit_log("qualification.proof_ai_run", admin, "notice", ref, {})
+    return {"started": True}
 
 
 class VoteIn(BaseModel):
@@ -122,27 +131,35 @@ class VoteIn(BaseModel):
 
 @router.post("/{ref}/bids/{bid_id}/proofs/{cid}/vote")
 async def vote(ref: str, bid_id: str, cid: str, body: VoteIn, admin=COMMITTEE):
-    from routers.tender_criteria import _sync_clear
     members = await _members(ref)
     if admin.get("id") not in members:
         raise HTTPException(status_code=403, detail="Only members of this tender's committee can decide on proofs")
     if body.decision == "reject" and len((body.comment or "").strip()) < 5:
         raise HTTPException(status_code=422, detail="Add a comment (at least 5 characters) explaining why the proof is rejected")
-    b = await db.bids.find_one({"_id": ObjectId(bid_id), "notice_ref": ref}) if ObjectId.is_valid(bid_id) else None
-    q = (b or {}).get("qualification") or {}
-    pr = (q.get("proof_reviews") or {}).get(cid)
-    if not pr:
+    oid = ObjectId(bid_id) if ObjectId.is_valid(bid_id) else None
+    p = f"qualification.proof_reviews.{cid}"
+    if not oid or not await db.bids.find_one({"_id": oid, "notice_ref": ref, p: {"$exists": True}}, {"_id": 1}):
         raise HTTPException(status_code=404, detail="No proof review for this criterion")
-    if b.get("commercial_unsealed_at") or pr["status"] != "pending" or q.get("decision"):
+    entry = {"by": admin.get("email"), "decision": body.decision, "comment": (body.comment or "").strip() or None, "at": now_iso()}
+    res = await db.bids.update_one({"_id": oid, f"{p}.status": "pending", "commercial_unsealed_at": None, "qualification.decision": {"$exists": False}},
+                                   {"$set": {f"{p}.votes.{admin['id']}": entry}})
+    if not res.matched_count:
         raise HTTPException(status_code=409, detail="This proof has already been decided")
-    pr["votes"][admin["id"]] = {"by": admin.get("email"), "decision": body.decision, "comment": (body.comment or "").strip() or None, "at": now_iso()}
-    title = next((r["title"] for r in q.get("results") or [] if r["criterion_id"] == cid), cid)
+    b = await db.bids.find_one({"_id": oid})
+    q = b["qualification"]
+    pr = q["proof_reviews"][cid]
+    status = "pending"
     if set(pr["votes"]) >= set(members):
         rejected = [v for v in pr["votes"].values() if v["decision"] == "reject"]
-        pr.update(status="rejected" if rejected else "accepted", decided_at=now_iso())
+        status = "rejected" if rejected else "accepted"
+        upd, extra = {f"{p}.status": status, f"{p}.decided_at": now_iso()}, {}
         if rejected:
-            q.update(decision="disqualified", decided_at=now_iso(), decided_by="committee",
-                     decision_note=f"Proof for \"{title}\" rejected by the committee: " + " | ".join(f"{v['by']}: {v['comment']}" for v in rejected))
-    await _sync_clear(b, q)
-    await audit_log(f"qualification.proof_{body.decision}", admin, "bid", b.get("bid_ref"), {"criterion": cid, "comment": body.comment, "final": pr["status"]})
-    return {"status": pr["status"], "votes": len(pr["votes"]), "needed": len(members)}
+            title = next((x["title"] for x in q.get("results") or [] if x["criterion_id"] == cid), cid)
+            upd.update({"qualification.decision": "disqualified", "qualification.decided_at": now_iso(), "qualification.decided_by": "committee",
+                        "qualification.decision_note": f"Proof for \"{title}\" rejected by the committee: " + " | ".join(f"{v['by']}: {v['comment']}" for v in rejected)})
+            extra = {"$unset": {"technical_cleared_at": ""}}
+        done = await db.bids.update_one({"_id": oid, f"{p}.status": "pending"}, {"$set": upd, **extra})
+        if not done.modified_count:
+            status = (await db.bids.find_one({"_id": oid}))["qualification"]["proof_reviews"][cid]["status"]
+    await audit_log(f"qualification.proof_{body.decision}", admin, "bid", b.get("bid_ref"), {"criterion": cid, "comment": body.comment, "final": status})
+    return {"status": status, "votes": len(pr["votes"]), "needed": len(members)}

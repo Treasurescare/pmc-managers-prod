@@ -519,9 +519,13 @@ async def _qual_bid(ref: str, bid_id: str) -> dict:
     return b
 
 
+def _qset(q: dict) -> dict:
+    return {f"qualification.{k}": v for k, v in q.items() if k != "proof_reviews"}
+
+
 async def _sync_clear(b: dict, q: dict) -> None:
     st = final_status(q)
-    upd = {"qualification": q}
+    upd = _qset(q)
     if st == "qualified":
         upd["technical_cleared_at"] = b.get("technical_cleared_at") or now_iso()
         await db.bids.update_one({"_id": b["_id"]}, {"$set": upd})
@@ -578,7 +582,7 @@ async def evaluator_score(ref: str, bid_id: str, body: ScoreIn, admin=Depends(re
     pts = [s["points"] for s in scores.values()]
     r.update(result="scored_by_evaluators", points=round(sum(pts) / len(pts), 2), reason=f"Average of {len(pts)} evaluator mark(s)")
     q["auto_points"] = round(sum((x.get("points") or 0) for x in q["results"] if x["kind"] == "scored"), 2)
-    await db.bids.update_one({"_id": b["_id"]}, {"$set": {"qualification": q}})
+    await db.bids.update_one({"_id": b["_id"]}, {"$set": _qset(q)})
     await audit_log("qualification.evaluator_score", admin, "bid", b.get("bid_ref"), {"criterion": body.criterion_id, "points": body.points})
     return {"points": r["points"]}
 

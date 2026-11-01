@@ -922,3 +922,10 @@ summary notes.
 - Live tenders: criteria editable directly while no bids exist (must keep 1+ must-pass); locked once a bid arrives.
 - New notice: Criteria window opens automatically after Create. Checklist has Publish button enabled only when all 3 checks pass (old row Publish button removed).
 - /api/v1/tender-criteria/templates now requires login. Tested iteration_158 (100%).
+
+## 2026-11-01 — v59g AI proof review + unanimous committee decision + per-tender award method
+- At technical opening, qualified bids get a proof review per must-pass proof; Gemini (gemini-3.1-pro-preview) reads PDF/image proofs and records verdict match/mismatch/unclear, value found and details (non-PDF/image = unreadable). Retry endpoint runs in background with atomic claim (no double reads).
+- Every committee member must Accept/Reject each proof (comment required to reject); all accept = accepted, any reject = bid disqualified. Price opening blocked until all proofs decided. Votes use targeted atomic updates.
+- Proof files were already encrypted/sealed until technical opening (bid-docs uploads).
+- Per-tender award method (L1 default / weighted) in the Criteria window; award report + L1 page honour it; weighted sort keeps qualified bids first.
+- Tested iteration_159 + tests/test_v76_proof_review.py 13/13.

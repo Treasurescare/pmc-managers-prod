@@ -74,14 +74,14 @@ export const QualificationPanel = ({ noticeRef, commercialOpen, onChange }) => {
   useEffect(() => { criteriaApi.qualification(noticeRef).then(setD).catch(() => setD(null)); }, [noticeRef]);
   if (!d || !d.criteria_count || !d.bids.length) return null;
   const q = d.bids.filter((b) => b.status === "qualified").length;
-  const aiPending = d.bids.some((b) => Object.values(b.proof_reviews || {}).some((p) => ["pending", "failed"].includes(p.ai_status)));
-  const rerun = () => criteriaApi.proofAiRun(noticeRef).then((x) => { toast.success(`AI read ${x.read} proof(s)`); load(); }).catch(showApiError);
+  const aiPending = d.bids.some((b) => Object.values(b.proof_reviews || {}).some((p) => ["pending", "failed", "running"].includes(p.ai_status)));
+  const rerun = () => criteriaApi.proofAiRun(noticeRef).then(() => { toast.success("AI is reading the remaining proofs — refresh in a minute"); setTimeout(load, 20000); }).catch(showApiError);
   return (
     <div className="space-y-2" data-testid={`qualification-panel-${noticeRef}`}>
       <div className="pmc-label">System qualification check · {q} of {d.bids.length} bid(s) qualified</div>
       <p className="text-xs text-brand-navy/70">The system checked every bid against the tender criteria when the technical envelopes opened. Only qualified bids go to price opening.
         Committee members can't change a pass or fail; they can raise a logged doubt on a specific item and then decide. {commercialOpen ? "Price envelopes are open — results are final." : ""}</p>
-      <p className="text-xs text-brand-navy/70" data-testid="proof-review-help">For qualified bids, the AI has read each must-pass proof and compared it with what the supplier declared. Every committee member ({d.committee_size}) must accept or reject each proof; one rejection disqualifies the bid. Price opening stays blocked until every proof is decided.
+      <p className="text-xs text-brand-navy/70" data-testid="proofreview-help">For qualified bids, the AI has read each must-pass proof and compared it with what the supplier declared. Every committee member ({d.committee_size}) must accept or reject each proof; one rejection disqualifies the bid. Price opening stays blocked until every proof is decided.
         {!commercialOpen && aiPending && <button type="button" className="underline ml-2" onClick={rerun} data-testid="proof-ai-rerun">Run / retry AI reading</button>}</p>
       {d.bids.map((b) => <BidCard key={b.bid_id} b={b} refKey={noticeRef} reload={load} open={!commercialOpen} me={d.me} member={d.i_am_member} />)}
     </div>
