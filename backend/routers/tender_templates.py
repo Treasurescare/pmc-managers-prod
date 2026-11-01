@@ -35,6 +35,7 @@ from routers._tender_access import (
 )
 from audit import audit_log
 from routers._fees import assert_fees_paid, credit_required
+from routers.tender_criteria import has_must_pass
 
 router = APIRouter(prefix="/api/v1/tender-templates", tags=["tender-templates"])
 
@@ -1046,8 +1047,9 @@ async def approve_template(tid: str, payload: TplReviewIn = TplReviewIn(),
         "delivery_country": doc.get("country") or header.get("location"),
         "origin": "vendor",
         "review_status": "approved",
-        "is_published": True,
-        "published_at": now_iso(),
+        "is_published": has_must_pass(doc),
+        "published_at": now_iso() if has_must_pass(doc) else None,
+        "tender_criteria": doc.get("tender_criteria") or [],
         "prepared_by_vendor_id": doc.get("owner_vendor_id"),
         "prepared_by_vendor_ref": doc.get("owner_vendor_ref"),
         "author_name": doc.get("owner_company_name") or "Vendor",
@@ -1066,8 +1068,10 @@ async def approve_template(tid: str, payload: TplReviewIn = TplReviewIn(),
                     {"published_notice_ref": ref, "author": notice["author_name"]})
     from routers.marketing import send_tender_alert
     import asyncio as _aio
-    _aio.create_task(send_tender_alert(ref))
-    return {"ok": True, "review_status": "approved", "notice_ref": ref}
+    if notice["is_published"]:
+        _aio.create_task(send_tender_alert(ref))
+    return {"ok": True, "review_status": "approved", "notice_ref": ref, "is_published": notice["is_published"],
+            "note": None if notice["is_published"] else "Saved as a draft notice — add its criteria, then publish."}
 
 
 @router.post("/{tid}/review/request-changes")

@@ -85,14 +85,18 @@ async def apply_extra_payment(session_id: str) -> None:
         await issue_receipt(tx["vendor_id"], "doc_fee", lines, tx["currency"], session_id,
                             {"notice_ref": tx["notice_ref"], "tender_name": tx.get("notice_title")})
     elif p == "hosting_fee":
+        hn = await db.notices.find_one({"notice_ref": tx["notice_ref"]}, {"tender_criteria": 1})
+        from routers.tender_criteria import has_must_pass
+        live = has_must_pass(hn or {})
         await db.notices.update_one({"notice_ref": tx["notice_ref"]},
             {"$set": {"hosting_fee.status": "paid", "hosting_fee.paid_at": now_iso(),
-                      "is_published": True, "published_at": now_iso()}})
+                      **({"is_published": True, "published_at": now_iso()} if live else {})}})
         await audit_log("notice.hosting_fee_paid", {"email": tx.get("payer_email"), "role": "payer"},
-                        "notice", tx["notice_ref"], {"amount": tx["amount"]})
+                        "notice", tx["notice_ref"], {"amount": tx["amount"], "published": live})
         from routers.marketing import send_tender_alert
         import asyncio as _aio
-        _aio.create_task(send_tender_alert(tx["notice_ref"]))
+        if live:
+            _aio.create_task(send_tender_alert(tx["notice_ref"]))
         await vendor_confirm(tx.get("payer_email"), f"Receipt \u2014 hosting fee {tx['notice_ref']}",
             f"<p>We received {tx['currency'].upper()} {tx['amount']:,.2f} for hosting tender "
             f"<b>{tx['notice_ref']}</b>. It is now published on PMC Managers.</p>"

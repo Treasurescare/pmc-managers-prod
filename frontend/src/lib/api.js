@@ -460,6 +460,14 @@ export const criteriaApi = {
   save: (ref, body) => api.put(`/api/v1/tender-criteria/${ref}`, body).then((r) => r.data),
   aiSuggest: (ref) => api.post(`/api/v1/tender-criteria/${ref}/ai-suggest`, {}, { timeout: 120000 }).then((r) => r.data),
   prefill: (ref) => api.get(`/api/v1/tender-criteria/${ref}/prefill`).then((r) => r.data),
+  aiCheck: (ref) => api.post(`/api/v1/tender-criteria/${ref}/ai-check`, {}, { timeout: 120000 }).then((r) => r.data),
+  mineGet: (ref) => api.get(`/api/v1/tender-criteria/${ref}/mine`).then((r) => r.data),
+  mineSave: (ref, body) => api.put(`/api/v1/tender-criteria/${ref}/mine`, body).then((r) => r.data),
+  mineAiSuggest: (ref) => api.post(`/api/v1/tender-criteria/${ref}/mine/ai-suggest`, {}, { timeout: 120000 }).then((r) => r.data),
+  qualification: (ref) => api.get(`/api/v1/tender-criteria/${ref}/qualification`).then((r) => r.data),
+  doubt: (ref, bidId, body) => api.post(`/api/v1/tender-criteria/${ref}/bids/${bidId}/doubt`, body).then((r) => r.data),
+  resolve: (ref, bidId, body) => api.post(`/api/v1/tender-criteria/${ref}/bids/${bidId}/resolve`, body).then((r) => r.data),
+  score: (ref, bidId, body) => api.post(`/api/v1/tender-criteria/${ref}/bids/${bidId}/score`, body).then((r) => r.data),
 };
 
 // ---------- Wave 1: Bids ----------

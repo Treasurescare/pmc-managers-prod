@@ -516,6 +516,9 @@ async def submit_vendor_tender(ref: str, vendor=Depends(current_vendor)):
     n = await _owned_draft(ref, vendor)
     if n.get("review_status") not in ("draft", "changes_requested"):
         raise HTTPException(status_code=409, detail=f"Already {n.get('review_status')}.")
+    from routers.tender_criteria import has_must_pass
+    if not has_must_pass(n):
+        raise HTTPException(status_code=409, detail="Add the tender criteria first — at least one pass/fail criterion is needed before submitting (Criteria button).")
     await db.notices.update_one({"notice_ref": ref},
         {"$set": {"review_status": "submitted", "submitted_at": now_iso()}})
     await audit_log("vendor_tender.submit", vendor, "notice", ref, {})
@@ -552,6 +555,9 @@ async def approve_vendor_tender(ref: str, payload: ReviewDecisionIn,
         raise HTTPException(status_code=404, detail="Tender not found")
     if n.get("review_status") != "submitted":
         raise HTTPException(status_code=409, detail=f"Tender is '{n.get('review_status')}', not awaiting review.")
+    from routers.tender_criteria import has_must_pass
+    if not has_must_pass(n):
+        raise HTTPException(status_code=409, detail="This tender has no pass/fail criteria. Send it back for changes so the supplier adds them.")
     await db.notices.update_one({"notice_ref": ref},
         {"$set": {"review_status": "approved", "is_published": True,
                   "published_at": now_iso(), "reviewed_by": officer["email"],

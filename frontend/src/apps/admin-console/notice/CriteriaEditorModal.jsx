@@ -63,21 +63,23 @@ const CriterionLine = ({ c }) => (
   </li>
 );
 
-export default function CriteriaEditorModal({ noticeRef, onClose, onSaved }) {
+export default function CriteriaEditorModal({ noticeRef, onClose, onSaved, mode = "admin" }) {
+  const vendor = mode === "vendor";
+  const [check, setCheck] = useState(null);
   const [data, setData] = useState(null);
   const [rows, setRows] = useState([]);
   const [tpl, setTpl] = useState({ templates: [], prefill_fields: {} });
   const [fx, setFx] = useState("");
   const [busy, setBusy] = useState("");
   useEffect(() => {
-    criteriaApi.adminGet(noticeRef).then((d) => { setData(d); setRows(d.criteria); setFx(d.fx_rule || ""); }).catch(showApiError);
+    (vendor ? criteriaApi.mineGet : criteriaApi.adminGet)(noticeRef).then((d) => { setData(d); setRows(d.criteria); setFx(d.fx_rule || ""); setCheck(d.ai_check || null); }).catch(showApiError);
     criteriaApi.templates().then(setTpl).catch(() => {});
-  }, [noticeRef]);
+  }, [noticeRef, vendor]);
   const upd = (i, c) => setRows((r) => r.map((x, j) => (j === i ? c : x)));
   const ai = async () => {
     setBusy("ai");
     try {
-      const r = await criteriaApi.aiSuggest(noticeRef);
+      const r = await (vendor ? criteriaApi.mineAiSuggest : criteriaApi.aiSuggest)(noticeRef);
       if (r.criteria.length) { setRows((x) => [...x, ...r.criteria]); toast.success(`${r.criteria.length} criteria read from the tender — check each one before saving`); }
       else toast.info(r.note);
     } catch (e) { showApiError(e); } finally { setBusy(""); }
@@ -87,9 +89,14 @@ export default function CriteriaEditorModal({ noticeRef, onClose, onSaved }) {
     try {
       const criteria = rows.map(({ needs_review, ...c }) => ({ ...c, threshold: num(c.threshold), max_points: num(c.max_points), // eslint-disable-line no-unused-vars
         full_points_at: num(c.full_points_at), prefill_field: c.prefill_field || null, operator: c.answer_type === "number" ? c.operator || "gte" : null }));
-      const d = await criteriaApi.save(noticeRef, { criteria, fx_rule: fx || null });
+      const d = await (vendor ? criteriaApi.mineSave : criteriaApi.save)(noticeRef, { criteria, fx_rule: fx || null });
+      setCheck(null);
       setRows(d.criteria); toast.success("Criteria saved"); onSaved?.();
     } catch (e) { showApiError(e); } finally { setBusy(""); }
+  };
+  const runCheck = async () => {
+    setBusy("check");
+    try { setCheck(await criteriaApi.aiCheck(noticeRef)); } catch (e) { showApiError(e); } finally { setBusy(""); }
   };
   const mustPass = rows.filter((c) => c.kind === "must_pass").length;
   return (
@@ -101,6 +108,20 @@ export default function CriteriaEditorModal({ noticeRef, onClose, onSaved }) {
             <p className="text-xs text-brand-navy/70">Must-pass items are checked by the system at opening. Scored items add points. At least one must-pass item is needed to publish.</p></div>
           <button type="button" className="pmc-btn pmc-btn--secondary" onClick={onClose} data-testid="criteria-close">Close</button>
         </div>
+        {!vendor && data && rows.length > 0 && (
+          <div className="bg-white border border-brand-navy/15 p-3 space-y-2" data-testid="criteria-ai-check">
+            <div className="flex justify-between items-center gap-2 flex-wrap">
+              <b className="text-sm">Do these criteria match the tender document?</b>
+              <button type="button" className="pmc-btn pmc-btn--secondary" disabled={!!busy} onClick={runCheck} data-testid="criteria-ai-check-run">{busy === "check" ? "Checking…" : "Check against tender document (AI)"}</button>
+            </div>
+            {!check && <p className="text-xs text-brand-navy/60">Run the check before publishing. Save any changes first.</p>}
+            {check && check.verdict === "match" && <p className="text-sm text-emerald-800" data-testid="criteria-ai-check-ok">No differences found ({check.checked_at?.slice(0, 16).replace("T", " ")} UTC).</p>}
+            {check && check.verdict === "issues" && (
+              <ul className="text-sm text-amber-900 list-disc pl-5" data-testid="criteria-ai-check-issues">
+                {check.issues.map((x, i) => <li key={`iss-${i}`}>{x.criterion ? <b>{x.criterion}: </b> : null}{x.problem}{x.document_says ? <i> — document says: {x.document_says}</i> : null}</li>)}
+                {check.missing_from_criteria.map((x) => <li key={x}>In the document but not in the criteria: {x}</li>)}
+              </ul>)}
+          </div>)}
         {!data ? <div className="text-sm">Loading…</div> : data.locked ? (
           <div data-testid="criteria-locked">
             <div className="bg-amber-50 border border-amber-300 p-3 text-sm mb-3">This tender is live. Criteria can only change through a corrigendum sent to all suppliers.</div>

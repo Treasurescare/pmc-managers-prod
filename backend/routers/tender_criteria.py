@@ -98,7 +98,9 @@ class CriteriaIn(BaseModel):
 async def _notice(ref: str) -> dict:
     n = await db.notices.find_one({"notice_ref": ref}, {"notice_ref": 1, "is_published": 1, "tender_criteria": 1,
                                                         "criteria_fx_rule": 1, "title": 1, "description": 1,
-                                                        "primary_document": 1, "budget_currency": 1})
+                                                        "primary_document": 1, "budget_currency": 1, "origin": 1,
+                                                        "prepared_by_vendor_id": 1, "review_status": 1,
+                                                        "criteria_ai_check": 1})
     if not n:
         raise HTTPException(status_code=404, detail="Tender not found")
     return n
@@ -106,7 +108,8 @@ async def _notice(ref: str) -> dict:
 
 def _view(n: dict) -> dict:
     return {"notice_ref": n["notice_ref"], "criteria": n.get("tender_criteria") or [],
-            "fx_rule": n.get("criteria_fx_rule"), "locked": bool(n.get("is_published"))}
+            "fx_rule": n.get("criteria_fx_rule"), "locked": bool(n.get("is_published")),
+            "ai_check": n.get("criteria_ai_check")}
 
 
 def has_must_pass(n: dict) -> bool:
@@ -114,7 +117,7 @@ def has_must_pass(n: dict) -> bool:
 
 
 @router.get("/templates")
-async def templates(_=Depends(require_role("admin", "reviewer"))):
+async def templates():
     return {"templates": TEMPLATES, "prefill_fields": PREFILL_FIELDS}
 
 
@@ -136,13 +139,19 @@ async def save_criteria(ref: str, body: CriteriaIn, admin=Depends(require_role("
     n = await _notice(ref)
     if n.get("is_published"):
         raise HTTPException(status_code=409, detail="This tender is live. Criteria can only change through a corrigendum sent to all suppliers.")
+    return await _store(n, body, admin)
+
+
+async def _store(n: dict, body: "CriteriaIn", actor: dict) -> dict:
+    ref = n["notice_ref"]
     crit = [c.model_dump() for c in body.criteria]
     ids = [c["id"] for c in crit]
     if len(ids) != len(set(ids)):
         raise HTTPException(status_code=422, detail="Two criteria share the same id")
     await db.notices.update_one({"_id": n["_id"]}, {"$set": {"tender_criteria": crit, "criteria_fx_rule": body.fx_rule,
-                                                             "criteria_updated_at": now_iso()}})
-    await audit_log("tender.criteria_saved", admin, "notice", ref, {"count": len(crit),
+                                                             "criteria_updated_at": now_iso()},
+                                                    "$unset": {"criteria_ai_check": ""}})
+    await audit_log("tender.criteria_saved", actor, "notice", ref, {"count": len(crit),
                     "must_pass": sum(1 for c in crit if c["kind"] == "must_pass")})
     n.update({"tender_criteria": crit, "criteria_fx_rule": body.fx_rule})
     return _view(n)
@@ -177,7 +186,11 @@ _AI_SYSTEM = (
 
 @router.post("/{ref}/ai-suggest")
 async def ai_suggest(ref: str, admin=Depends(require_role("admin"))):
-    n = await _notice(ref)
+    return await _suggest(await _notice(ref), admin)
+
+
+async def _suggest(n: dict, actor: dict) -> dict:
+    ref = n["notice_ref"]
     text = await _tender_text(n)
     if len(text.strip()) < 80:
         return {"criteria": [], "note": "There isn't enough tender text to read criteria from. Add them below."}
@@ -200,7 +213,7 @@ async def ai_suggest(ref: str, admin=Depends(require_role("admin"))):
                 it["scoring"] = "evaluator"
         it["needs_review"] = it.get("answer_type") == "number" and (it.get("threshold") is None or not it.get("unit"))
         out.append(it)
-    await audit_log("tender.criteria_ai_suggest", admin, "notice", ref, {"found": len(out)})
+    await audit_log("tender.criteria_ai_suggest", actor, "notice", ref, {"found": len(out)})
     return {"criteria": out, "note": None if out else "No clear criteria were found in the tender document. Add them below."}
 
 
@@ -253,3 +266,231 @@ def clean_answers(criteria: list, answers: list, docs: list) -> list:
     if missing:
         raise HTTPException(status_code=422, detail="Please answer every tender criterion: " + "; ".join(missing))
     return out
+
+
+
+# ---------- supplier-prepared tenders: the preparing supplier enters criteria before review ----------
+
+async def _own_vendor_tender(ref: str, vendor: dict) -> dict:
+    n = await _notice(ref)
+    if n.get("origin") != "vendor" or n.get("prepared_by_vendor_id") != vendor["id"]:
+        raise HTTPException(status_code=403, detail="This is not your tender.")
+    return n
+
+
+@router.get("/{ref}/mine")
+async def vendor_get(ref: str, vendor=Depends(current_vendor)):
+    return _view(await _own_vendor_tender(ref, vendor))
+
+
+@router.put("/{ref}/mine")
+async def vendor_save(ref: str, body: CriteriaIn, vendor=Depends(current_vendor)):
+    n = await _own_vendor_tender(ref, vendor)
+    if n.get("review_status") not in ("draft", "changes_requested") or n.get("is_published"):
+        raise HTTPException(status_code=409, detail="Criteria can only be changed while the tender is a draft or returned for changes.")
+    return await _store(n, body, vendor)
+
+
+@router.post("/{ref}/mine/ai-suggest")
+async def vendor_suggest(ref: str, vendor=Depends(current_vendor)):
+    return await _suggest(await _own_vendor_tender(ref, vendor), vendor)
+
+
+# ---------- AI consistency check: do the criteria match the tender document? ----------
+
+_CHECK_SYSTEM = (
+    "You compare a tender document with the structured bidder criteria entered for it. Return ONLY JSON: "
+    '{"verdict":"match|issues","issues":[{"criterion":str|null,"problem":str,"document_says":str|null}],'
+    '"missing_from_criteria":[str]}. Report: thresholds, units, currencies or periods that differ from the document; '
+    "criteria not supported by the document; requirements stated in the document but missing from the criteria. "
+    "Be specific and short. Do not invent requirements."
+)
+
+
+@router.post("/{ref}/ai-check")
+async def ai_check(ref: str, admin=Depends(require_role("admin", "reviewer"))):
+    n = await _notice(ref)
+    crit = n.get("tender_criteria") or []
+    if not crit:
+        raise HTTPException(status_code=409, detail="No criteria have been entered for this tender yet.")
+    text = await _tender_text(n)
+    if len(text.strip()) < 80:
+        raise HTTPException(status_code=409, detail="There isn't enough tender text to check the criteria against.")
+    from routers.tender_pro import _llm_complete
+    slim = [{k: c.get(k) for k in ("title", "kind", "answer_type", "operator", "threshold", "unit", "period", "proof")} for c in crit]
+    raw = await _llm_complete(_CHECK_SYSTEM, f"TENDER DOCUMENT:\n{text}\n\nCRITERIA ENTERED:\n{json.dumps(slim)}")
+    m = re.search(r"\{.*\}", raw or "", re.S)
+    try:
+        res = json.loads(m.group(0)) if m else {}
+    except ValueError:
+        res = {}
+    out = {"verdict": "issues" if (res.get("issues") or res.get("missing_from_criteria")) else "match",
+           "issues": (res.get("issues") or [])[:30], "missing_from_criteria": (res.get("missing_from_criteria") or [])[:30],
+           "checked_at": now_iso(), "checked_by": admin.get("email")}
+    await db.notices.update_one({"_id": n["_id"]}, {"$set": {"criteria_ai_check": out}})
+    await audit_log("tender.criteria_ai_check", admin, "notice", ref, {"verdict": out["verdict"], "issues": len(out["issues"])})
+    return out
+
+
+# ---------- Stage 2: automatic qualification at technical opening ----------
+
+def _meets(op: str, v: float, t: float) -> bool:
+    return v >= t if op == "gte" else v <= t if op == "lte" else abs(v - t) < 1e-9
+
+
+def evaluate(criteria: list, answers: list, docs: list) -> dict:
+    by_id = {a.get("criterion_id"): a.get("value") for a in answers or []}
+    proofs = {d.get("criterion_id") for d in docs or [] if d.get("criterion_id")}
+    results, failed, auto_pts, max_pts = [], False, 0.0, 0.0
+    for c in criteria:
+        v = by_id.get(c["id"])
+        r = {"criterion_id": c["id"], "title": c["title"], "kind": c["kind"], "value": v, "unit": c.get("unit"),
+             "rule": f"{c.get('operator')} {c.get('threshold')} {c.get('unit') or ''}".strip() if c["answer_type"] == "number" else
+                     ("yes" if c["answer_type"] == "yes_no" else "written"),
+             "proof_supplied": c["id"] in proofs}
+        if c.get("proof_required") and c["id"] not in proofs:
+            r.update(result="fail" if c["kind"] == "must_pass" else "points", points=0.0, reason="Required proof was not supplied")
+        elif c["kind"] == "must_pass":
+            if c["answer_type"] == "number":
+                ok = v is not None and _meets(c["operator"], float(v), float(c["threshold"]))
+                r.update(result="pass" if ok else "fail", reason=None if ok else
+                         f"Declared {v if v is not None else 'nothing'} {c.get('unit') or ''}; needs {dict(gte='at least', lte='at most', eq='exactly')[c['operator']]} {c['threshold']:,} {c.get('unit') or ''}".strip())
+            else:
+                ok = v is True
+                r.update(result="pass" if ok else "fail", reason=None if ok else "Answered No or did not answer")
+        elif c.get("scoring") == "auto":
+            mp = float(c["max_points"])
+            t, f = float(c["threshold"]), float(c["full_points_at"])
+            x = float(v) if v is not None else None
+            if x is None:
+                frac = 0.0
+            elif f == t:
+                frac = 1.0 if _meets(c["operator"], x, t) else 0.0
+            else:
+                frac = max(0.0, min(1.0, (x - t) / (f - t)))
+            r.update(result="points", points=round(mp * frac, 2), max_points=mp)
+        else:
+            r.update(result="pending", points=None, max_points=float(c["max_points"]), reason="To be marked by evaluators")
+        if c["kind"] == "scored":
+            max_pts += float(c["max_points"])
+            auto_pts += r.get("points") or 0.0
+        failed = failed or r["result"] == "fail"
+        results.append(r)
+    return {"system_status": "not_qualified" if failed else "qualified", "results": results,
+            "auto_points": round(auto_pts, 2), "max_points": round(max_pts, 2), "evaluated_at": now_iso()}
+
+
+def final_status(q: dict) -> str:
+    if q.get("decision"):
+        return q["decision"]
+    return "doubt_raised" if any(not d.get("resolved") for d in q.get("doubts") or []) else q["system_status"]
+
+
+QUAL_ROLES = ("admin", "committee_member", "reviewer", "auditor")
+
+
+async def _committee_member(ref: str, admin: dict) -> None:
+    c = await db.committees.find_one({"notice_ref": ref, "status": "open"})
+    members = {x for x in [(c or {}).get("chairperson_id"), *((c or {}).get("member_ids") or [])] if x}
+    if admin.get("id") not in members:
+        raise HTTPException(status_code=403, detail="Only members of this tender's committee can do this")
+
+
+@router.get("/{ref}/qualification")
+async def qualification(ref: str, _=Depends(require_role(*QUAL_ROLES))):
+    n = await _notice(ref)
+    rows = []
+    async for b in db.bids.find({"notice_ref": ref, "qualification": {"$exists": True}}).sort("submitted_at", 1):
+        q = b["qualification"]
+        rows.append({"bid_id": str(b["_id"]), "bid_ref": b.get("bid_ref"), "supplier": b.get("company_name") or b.get("vendor_email"),
+                     "status": final_status(q), **{k: q.get(k) for k in ("system_status", "results", "auto_points", "max_points",
+                                                                           "evaluated_at", "doubts", "decision", "decision_note",
+                                                                           "evaluator_scores")}})
+    return {"notice_ref": ref, "criteria_count": len(n.get("tender_criteria") or []), "bids": rows}
+
+
+class DoubtIn(BaseModel):
+    criterion_id: str
+    reason: str = Field(min_length=10, max_length=1000)
+
+
+class ResolveIn(BaseModel):
+    decision: Literal["uphold", "disqualify"]
+    note: str = Field(min_length=5, max_length=1000)
+
+
+class ScoreIn(BaseModel):
+    criterion_id: str
+    points: float = Field(ge=0)
+    note: Optional[str] = Field(default=None, max_length=500)
+
+
+async def _qual_bid(ref: str, bid_id: str) -> dict:
+    b = await db.bids.find_one({"_id": ObjectId(bid_id), "notice_ref": ref}) if ObjectId.is_valid(bid_id) else None
+    if not b or not b.get("qualification"):
+        raise HTTPException(status_code=404, detail="No qualification result for this bid yet")
+    if b.get("commercial_unsealed_at"):
+        raise HTTPException(status_code=409, detail="Price envelopes are already open; qualification is final")
+    return b
+
+
+async def _sync_clear(b: dict, q: dict) -> None:
+    st = final_status(q)
+    upd = {"qualification": q}
+    if st == "qualified":
+        upd["technical_cleared_at"] = b.get("technical_cleared_at") or now_iso()
+        await db.bids.update_one({"_id": b["_id"]}, {"$set": upd})
+    else:
+        await db.bids.update_one({"_id": b["_id"]}, {"$set": upd, "$unset": {"technical_cleared_at": ""}})
+
+
+@router.post("/{ref}/bids/{bid_id}/doubt")
+async def raise_doubt(ref: str, bid_id: str, body: DoubtIn, admin=Depends(require_role("admin", "committee_member", "reviewer"))):
+    await _committee_member(ref, admin)
+    b = await _qual_bid(ref, bid_id)
+    q = b["qualification"]
+    if q.get("decision"):
+        raise HTTPException(status_code=409, detail="The committee has already decided on this bid")
+    q.setdefault("doubts", []).append({"criterion_id": body.criterion_id, "reason": body.reason, "by": admin.get("email"),
+                                       "at": now_iso(), "resolved": False})
+    await _sync_clear(b, q)
+    await audit_log("qualification.doubt_raised", admin, "bid", b.get("bid_ref"), {"criterion": body.criterion_id, "reason": body.reason})
+    return {"status": final_status(q)}
+
+
+@router.post("/{ref}/bids/{bid_id}/resolve")
+async def resolve_doubt(ref: str, bid_id: str, body: ResolveIn, admin=Depends(require_role("admin", "committee_member", "reviewer"))):
+    await _committee_member(ref, admin)
+    b = await _qual_bid(ref, bid_id)
+    q = b["qualification"]
+    if not any(not d.get("resolved") for d in q.get("doubts") or []):
+        raise HTTPException(status_code=409, detail="There is no open doubt on this bid. The system result can't be changed directly.")
+    for d in q["doubts"]:
+        d.update(resolved=True, resolved_by=admin.get("email"), resolved_at=now_iso())
+    if body.decision == "disqualify":
+        q.update(decision="disqualified", decision_note=body.note, decided_by=admin.get("email"), decided_at=now_iso())
+    else:
+        q["upheld_note"] = body.note
+    await _sync_clear(b, q)
+    await audit_log(f"qualification.doubt_{body.decision}", admin, "bid", b.get("bid_ref"), {"note": body.note})
+    return {"status": final_status(q)}
+
+
+@router.post("/{ref}/bids/{bid_id}/score")
+async def evaluator_score(ref: str, bid_id: str, body: ScoreIn, admin=Depends(require_role("admin", "committee_member", "reviewer"))):
+    await _committee_member(ref, admin)
+    b = await _qual_bid(ref, bid_id)
+    q = b["qualification"]
+    r = next((x for x in q["results"] if x["criterion_id"] == body.criterion_id), None)
+    if not r or r["result"] not in ("pending", "scored_by_evaluators"):
+        raise HTTPException(status_code=422, detail="This criterion is not marked by evaluators")
+    if body.points > (r.get("max_points") or 0):
+        raise HTTPException(status_code=422, detail=f"Maximum is {r.get('max_points')} points")
+    scores = q.setdefault("evaluator_scores", {}).setdefault(body.criterion_id, {})
+    scores[admin["id"]] = {"by": admin.get("email"), "points": body.points, "note": body.note, "at": now_iso()}
+    pts = [s["points"] for s in scores.values()]
+    r.update(result="scored_by_evaluators", points=round(sum(pts) / len(pts), 2), reason=f"Average of {len(pts)} evaluator mark(s)")
+    q["auto_points"] = round(sum((x.get("points") or 0) for x in q["results"] if x["kind"] == "scored"), 2)
+    await db.bids.update_one({"_id": b["_id"]}, {"$set": {"qualification": q}})
+    await audit_log("qualification.evaluator_score", admin, "bid", b.get("bid_ref"), {"criterion": body.criterion_id, "points": body.points})
+    return {"points": r["points"]}

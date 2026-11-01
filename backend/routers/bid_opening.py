@@ -65,7 +65,14 @@ async def _blockers(n: dict, c, stage: str) -> list:
         base = {"notice_ref": n["notice_ref"], "seal_v": 1, "auction_id": None, "technical_unsealed_at": {"$ne": None}}
         if not await db.bids.count_documents({**base, "technical_cleared_at": {"$ne": None}, "status": LIVE}):
             out.append("No bid has passed technical evaluation yet")
-        pending = await db.bids.count_documents({**base, "technical_cleared_at": None, "status": LIVE})
+        if n.get("tender_criteria"):
+            pending = await db.bids.count_documents({**base, "status": LIVE, "qualification.doubts": {"$elemMatch": {"resolved": False}},
+                                                     "qualification.decision": {"$exists": False}})
+            if pending:
+                out.append(f"The committee has raised a doubt on {pending} bid(s) — resolve it first")
+            pending = 0
+        else:
+            pending = await db.bids.count_documents({**base, "technical_cleared_at": None, "status": LIVE})
         if pending:
             out.append(f"Technical evaluation is still pending for {pending} bid(s) — clear or reject each one first")
     if n.get(f"{stage}_opened_at"):
@@ -141,6 +148,15 @@ async def _open(n: dict, stage: str, admin: dict) -> int:
         s = b.get("sealed") or {}
         if stage == "technical":
             upd = {"technical_notes": dec_text(s.get("technical_notes")), "technical_unsealed_at": now}
+            crit = n.get("tender_criteria") or []
+            if crit:
+                import json as _json
+                from routers.tender_criteria import evaluate
+                ans = dec_text(s.get("criteria_answers_json"))
+                q = evaluate(crit, _json.loads(ans) if ans else [], b.get("documents") or [])
+                upd.update(criteria_answers_json=ans, qualification=q)
+                if q["system_status"] == "qualified":
+                    upd["technical_cleared_at"] = now
         else:
             price = dec_text(s.get("price_amount"))
             upd = {"price_amount": float(price) if price else None, "commercial_notes": dec_text(s.get("commercial_notes")),
@@ -172,6 +188,18 @@ def _qr_data_uri(text: str) -> str:
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
 
 
+def _qual_text(q) -> str:
+    if not q:
+        return None
+    from routers.tender_criteria import final_status
+    st = final_status(q)
+    label = {"qualified": "Qualified", "not_qualified": "Not qualified", "disqualified": "Disqualified by committee",
+             "doubt_raised": "Doubt raised"}.get(st, st)
+    fails = [f"{r['title']}: {r.get('reason')}" for r in q.get("results") or [] if r.get("result") == "fail"]
+    pts = f" · {q.get('auto_points')}/{q.get('max_points')} pts" if q.get("max_points") else ""
+    return label + pts + (" — " + "; ".join(fails) if fails else "") + (f" — {q.get('decision_note')}" if q.get("decision_note") else "")
+
+
 async def _record(n: dict, c) -> dict:
     bids = []
     vids = await db.bids.distinct("vendor_id", {"notice_ref": n["notice_ref"], "seal_v": 1})
@@ -183,6 +211,7 @@ async def _record(n: dict, c) -> dict:
                      "emd_confirmed": b.get("status") in EMD_CONFIRMED or bool(b.get("technical_unsealed_at")),
                      "technical_opened": bool(b.get("technical_unsealed_at")), "technical_cleared": bool(b.get("technical_cleared_at")),
                      "commercial_opened": bool(b.get("commercial_unsealed_at")),
+                     "qualification": _qual_text(b.get("qualification")),
                      "price": f"{b.get('price_currency') or ''} {float(b['price_amount']):,.2f}" if b.get("commercial_unsealed_at") and b.get("price_amount") is not None else None})
     appr = n.get("opening_approvals") or {}
     return {"notice_ref": n["notice_ref"], "title": n.get("title"), "opening_at": (opening_at(n) or None) and opening_at(n).isoformat(),
@@ -207,6 +236,7 @@ def _render_record(rec: dict, code: str, digest: str, ledger: dict, verify_url: 
         f"<tr><td>{_esc(b['bid_ref'])}</td><td>{_esc(b['vendor'])}</td><td>{_esc((b['submitted_at'] or '')[:16].replace('T', ' '))}</td>"
         f"<td>{'Confirmed' if b['emd_confirmed'] else 'Not confirmed'}</td>"
         f"<td>{'Opened' if b['technical_opened'] else 'Sealed'}{' · cleared' if b['technical_cleared'] else ''}</td>"
+        f"<td>{_esc(b.get('qualification') or '—')}</td>"
         f"<td>{'Opened' if b['commercial_opened'] else 'Sealed'}</td><td>{_esc(b['price']) if b['price'] else '—'}</td></tr>"
         for b in rec["bids"]) or "<tr><td colspan='7'>No sealed bids</td></tr>"
     html = f"""<html><head><style>
@@ -229,7 +259,7 @@ def _render_record(rec: dict, code: str, digest: str, ledger: dict, verify_url: 
       <table><tr><th>Member</th><th>Signed at</th><th>IP address</th><th>Method</th></tr>{sig_rows('commercial')}</table>
       <p style="font-size:9px;color:#555">Each member signed: “{_esc(SIGN_STATEMENT)}”</p>
       <h2>Bids</h2>
-      <table><tr><th>Bid</th><th>Supplier</th><th>Submitted</th><th>Deposit (escrow)</th><th>Technical</th><th>Commercial</th><th>Quoted price</th></tr>{bid_rows}</table>
+      <table><tr><th>Bid</th><th>Supplier</th><th>Submitted</th><th>Deposit (escrow)</th><th>Technical</th><th>Qualification (system check)</th><th>Commercial</th><th>Quoted price</th></tr>{bid_rows}</table>
       <div class="stamp"><img src="{_qr_data_uri(verify_url)}" style="width:86px;height:86px"/>
         <div><b>Audit-ledger stamp</b> · Record code <b>{code}</b> · Ledger entry #{ledger.get('seq')}<br>
           Issued {issued_at[:19].replace('T', ' ')} UTC by {_esc(issued_by)}<br>

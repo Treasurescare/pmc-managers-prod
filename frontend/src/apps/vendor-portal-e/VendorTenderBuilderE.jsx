@@ -3,6 +3,7 @@ import { useUiTheme } from "@/context/UiThemeContext";
 import { toast } from "sonner";
 import { vendorTenderApi, showApiError } from "@/lib/api";
 import VendorPortalChrome from "./VendorPortalChrome";
+import CriteriaEditorModal from "@/apps/admin-console/notice/CriteriaEditorModal";
 
 const EMPTY = {
   title: "", description: "", category: "", document_type: "tender",
@@ -21,6 +22,7 @@ export default function VendorTenderBuilderE() {
   const [tenders, setTenders] = useState([]);
   const [form, setForm] = useState(EMPTY);
   const [editingRef, setEditingRef] = useState(null);
+  const [critRef, setCritRef] = useState(null);
   const [busy, setBusy] = useState(false);
 
   const loadMine = useCallback(() => vendorTenderApi.mine().then((r) => setTenders(r.items || [])).catch(() => {}), []);
@@ -123,11 +125,14 @@ export default function VendorTenderBuilderE() {
                         <div style={{ fontWeight: 600 }}>{t.title}</div>
                         <div className="pmc-muted" style={{ fontSize: "12px" }}>{t.notice_ref} · {STATUS_LABEL[t.review_status] || t.review_status}{t.review_note ? ` · note: ${t.review_note}` : ""}</div>
                       </div>
-                      {["draft", "changes_requested"].includes(t.review_status) && <button className="pmc-btn pmc-btn--sm pmc-btn--secondary" data-testid={`vt-edit-${t.notice_ref}`} onClick={() => edit(t)}>Edit</button>}
+                      {["draft", "changes_requested"].includes(t.review_status) && <span style={{ display: "flex", gap: "6px" }}>
+                        <button className="pmc-btn pmc-btn--sm pmc-btn--secondary" data-testid={`vt-criteria-${t.notice_ref}`} onClick={() => setCritRef(t.notice_ref)}>Criteria{t.tender_criteria?.length ? ` (${t.tender_criteria.length})` : ""}</button>
+                        <button className="pmc-btn pmc-btn--sm pmc-btn--secondary" data-testid={`vt-edit-${t.notice_ref}`} onClick={() => edit(t)}>Edit</button></span>}
                     </div>
                   ))}
                 </div>
               )}
+              {critRef && <CriteriaEditorModal mode="vendor" noticeRef={critRef} onClose={() => setCritRef(null)} onSaved={loadMine} />}
             </>
           )}
         </div>
