@@ -172,11 +172,13 @@ export default function CriteriaEditorModal({ noticeRef, title, onClose, onSaved
           {data.live_no_bids && <div className="bg-sky-50 border border-sky-300 p-3 text-sm" data-testid="criteria-live-no-bids">This tender is live but has no bids yet, so you can still set its criteria. Changes apply straight away. Criteria lock once the first bid arrives.</div>}
           <div className="flex gap-2 flex-wrap items-center">
             <button type="button" className="pmc-btn pmc-btn--secondary" disabled={!!busy} onClick={ai} data-testid="criteria-ai">{busy === "ai" ? "Reading tender…" : "Read from tender document (AI)"}</button>
-            <select className={`${inp} w-auto`} value="" onChange={(e) => {
+            <select className="px-2 py-1.5 border border-brand-navy/20 bg-white text-sm w-auto max-w-xs" value="" onChange={(e) => {
               const [k, i] = e.target.value.split(":");
               const strip = ({ id, _id, status, created_at, created_by, updated_at, updated_by, ...t }) => ({ ...BLANK, ...t }); // eslint-disable-line no-unused-vars
-              if (k === "i" && tpl.templates[i]) setRows((r) => [...r, strip(tpl.templates[i])]);
-              if (k === "s" && tpl.sets[i]) { setRows((r) => [...r, ...tpl.sets[i].criteria.map(strip)]); toast.success(`Added ${tpl.sets[i].criteria.length} criteria from "${tpl.sets[i].name}"`); }
+              const norm = (s) => (s || "").trim().toLowerCase();
+              const add = (list) => setRows((r) => { const have = r.map((x) => norm(x.title)); const fresh = list.filter((x) => !have.includes(norm(x.title))); if (fresh.length < list.length) toast.info(`${list.length - fresh.length} already in this tender — skipped`); return [...r, ...fresh.map(strip)]; });
+              if (k === "i" && tpl.templates[i]) add([tpl.templates[i]]);
+              if (k === "s" && tpl.sets[i]) add(tpl.sets[i].criteria);
             }} data-testid="criteria-template">
               <option value="">+ Add from master…</option>
               {(tpl.sets || []).length > 0 && <optgroup label="Criteria sets (adds all)">{tpl.sets.map((s, i) => <option key={s.id} value={`s:${i}`}>{s.name} ({s.criteria.length})</option>)}</optgroup>}

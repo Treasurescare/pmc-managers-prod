@@ -11,7 +11,7 @@ const ItemEditor = ({ item, i, prefill, onDone }) => {
   const [c, setC] = useState(() => ({ ...BLANK, ...strip(item) }));
   const save = () => (item.id ? criteriaLibApi.editItem(item.id, toPayload(c)) : criteriaLibApi.addItem(toPayload(c)))
     .then(() => { toast.success("Master criterion saved"); onDone(); }).catch(showApiError);
-  const archive = () => (item.id ? criteriaLibApi.archiveItem(item.id).then(() => { toast.success("Removed from master"); onDone(); }).catch(showApiError) : onDone());
+  const archive = () => (item.id ? (window.confirm(`Remove "${item.title}" from the master? Tenders already using it keep it.`) && criteriaLibApi.archiveItem(item.id).then(() => { toast.success("Removed from master"); onDone(); }).catch(showApiError)) : onDone());
   return (
     <div className="space-y-2" data-testid={`master-item-${i}`}>
       <CriterionRow c={c} i={i} prefillFields={prefill} onChange={setC} onRemove={archive} />
@@ -39,7 +39,7 @@ const NewSet = ({ items, onDone }) => {
 const SetCard = ({ s, onDone }) => (
   <div className="bg-white border border-brand-navy/15 p-4" data-testid={`master-set-${s.id}`}>
     <div className="flex justify-between items-center gap-2"><b>{s.name}</b><span className="text-xs text-brand-navy/60">{s.criteria.length} criteria</span>
-      <button type="button" className="text-xs text-red-700 underline" onClick={() => criteriaLibApi.archiveSet(s.id).then(() => { toast.success("Set removed"); onDone(); }).catch(showApiError)} data-testid={`master-set-remove-${s.id}`}>Remove</button></div>
+      <button type="button" className="text-xs text-red-700 underline" onClick={() => window.confirm(`Remove the set "${s.name}"?`) && criteriaLibApi.archiveSet(s.id).then(() => { toast.success("Set removed"); onDone(); }).catch(showApiError)} data-testid={`master-set-remove-${s.id}`}>Remove</button></div>
     <ul>{s.criteria.map((c, i) => <CriterionLine key={`${s.id}-${i}`} c={c} />)}</ul>
   </div>);
 

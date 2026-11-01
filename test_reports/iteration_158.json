@@ -1,0 +1,39 @@
+{
+  "summary": "v75 testing: Criteria master library (items/sets), live-tender criteria editing (no bids editable / bids locked), modal 'Add from master' (sets + items), Save as set, New notice auto-opening Criteria modal, Publish checklist Publish button, RBAC/CSRF, builder regressions. Backend 20/20 pytest pass (run with -n 0; the module fixture is not xdist-safe). All 7 requested features pass in the UI. No critical bugs. A few minor security/UX notes below.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/v1/tender-criteria/templates", "issue": "Anonymous request returns 200 with the full master library, sets included. GET /api/v1/criteria-library correctly returns 401 for the same data, so the auth rule is inconsistent and admin-built sets leak to the public. The anonymous call also triggers _seed()."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Criteria modal toolbar", "issues": ["The '+ Add from master…' select uses inp (w-full) plus w-auto, and w-full wins. So 'Read from tender document (AI)', the dropdown and '+ Blank criterion' each sit on their own row instead of one toolbar row."]},
+      {"screen": "Criteria master page", "issues": ["The 'Remove' link on master rows and set cards archives straight away, with no confirmation. One misclick removes a master criterion.", "Rows are sorted by title, so a newly added criterion moves to a different position after saving."]},
+      {"screen": "Notices list (draft row)", "issues": ["Draft rows show two Publish buttons. The row-level PUBLISH is always enabled; the checklist Publish is disabled until all three checks pass. If a check fails, the row button gives a backend 409. Consider hiding or disabling the row button with the same rule.", "The section heading 'Published notices — visible on the public board' also appears above draft rows (existing issue)."]},
+      {"screen": "Criteria modal", "issues": ["Adding the same set or master item twice silently creates duplicate rows (no dedupe or warning)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v75_criteria_library_live_edit.py", "/app/test_reports/pytest/pytest_v75.xml"],
+  "action_items": [
+    "Require login on GET /api/v1/tender-criteria/templates (it is used only inside logged-in builders and modals), or strip sets from the anonymous response, to match criteria-library's 401.",
+    "Fix the criteria-template select width (drop w-full or use a separate class) so the toolbar stays on one row.",
+    "Add a confirm step before archiving a master criterion or set.",
+    "Optional: disable or hide the row-level PUBLISH on drafts when the checklist is not ready; dedupe rows when adding from master."
+  ],
+  "critical_code_review_comments": [
+    "tender_criteria.templates() has no auth dependency, while criteria_library.get_library calls tender_principal (401). Same data, different gates.",
+    "save_criteria on a live tender has a race: _live_bids is checked and then _store runs, so a bid arriving in between could see criteria change mid-submission. Low risk.",
+    "Changing criteria on a live tender with no bids sends no corrigendum or notification to watchers. Product decision to confirm.",
+    "_live_bids excludes only 'withdrawn' and 'rejected'. If draft or in-progress bid states are added later, they will lock criteria."
+  ],
+  "updated_files": ["/app/backend/tests/test_v75_criteria_library_live_edit.py"],
+  "success_rate": {"backend": "100% (20/20)", "frontend": "100% of requested flows"},
+  "seed_data_creation": "None kept. Created and then deleted: TEST_ master item, TEST_ sets (UI + API), notice PMC-NOT-2026-0082 'TEST_ UI checklist notice' (published via checklist, then deleted), and 2 cloned tender_templates (admin + vendor, 'Standard PSU ... draft 2026-11-01'). DEMO-TND-001 tender_criteria restored to [] (verified).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run the v75 test with `pytest -n 0` because pytest.ini enables xdist and the module teardown deletes TEST_ sets across workers. DEMO-TND-001/002/003 have no bids (editable while live); DEMO-TND-OPEN (2 bids) and DEMO-TND-AWD (1 bid) are locked (409). Creating a notice in the UI: fill the deadline last (a stale-state setDraft from an earlier field wipes it otherwise), and the primary upload rejects files under a few KB. For checklist testing the primary_document was set via mongo.",
+  "test_credentials": "admin adminsupport@pmcmanagers.com/Admin@12345, reviewer reviewerqa@pmcmanagers.com/Reviewer@12345, vendor testvendor@pmcmanagers.com/Vendor@12345 all worked."
+}

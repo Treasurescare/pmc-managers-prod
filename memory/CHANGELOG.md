@@ -915,3 +915,10 @@ summary notes.
 - Admin Tender builder: Criteria button on non-master drafts (same editor as notices); criteria/consortium settings copy into the notice created via "Create notice" (notices.create_notice).
 - Admin Notices: each draft row shows a "Ready to publish?" checklist (main document, future deadline / pre-bid order, at least one must-pass criterion) with "Add now" opening the criteria editor. Tested iteration_157 (100%).
 - Bundles: /downloads/pmc-backend-v59e.zip, /downloads/pmc-frontend-v59e-prod-build.zip
+
+## 2026-11-01 — v59f Criteria master, sets, live-no-bid editing, checklist Publish
+- New Admin › Criteria master (/admin/e/criteria-master): admin/reviewer manage master criteria (seeded from old built-in templates) and named criteria sets; soft-delete (archive) with confirm. API /api/v1/criteria-library (auth required; writes admin/reviewer + CSRF).
+- Criteria window: "+ Add from master" lists sets (adds all, skips duplicates) and master items; custom criteria still allowed; "Save as set" for admin.
+- Live tenders: criteria editable directly while no bids exist (must keep 1+ must-pass); locked once a bid arrives.
+- New notice: Criteria window opens automatically after Create. Checklist has Publish button enabled only when all 3 checks pass (old row Publish button removed).
+- /api/v1/tender-criteria/templates now requires login. Tested iteration_158 (100%).

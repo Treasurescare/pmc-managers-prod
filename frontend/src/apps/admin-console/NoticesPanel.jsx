@@ -781,14 +781,6 @@ export default function NoticesPanel() {
                     {n.hosting_fee?.status === "unpaid" ? "Hosting fee sent" : "Hosting fee"}
                   </button>
                 )}
-                {!n.is_published && isMasterAdmin && (
-                  <button type="button" onClick={() => publish(n.notice_ref)}
-                    data-testid={`notice-publish-btn-${n.notice_ref}`}
-                    title="Publish this draft to the public Notice Board"
-                    className="text-[10px] uppercase tracking-widest px-2 py-1 bg-emerald-700 text-white hover:bg-emerald-800">
-                    Publish
-                  </button>
-                )}
                 <button type="button" onClick={() => setCritRef(n.notice_ref)}
                   data-testid={`notice-criteria-${n.notice_ref}`}
                   title="Pass/fail and scored criteria bidders must meet"

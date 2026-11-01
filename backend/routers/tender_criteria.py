@@ -121,7 +121,9 @@ def has_must_pass(n: dict) -> bool:
 
 
 @router.get("/templates")
-async def templates():
+async def templates(request: Request):
+    from routers._tender_access import tender_principal
+    await tender_principal(request)
     from routers.criteria_library import library
     lib = await library()
     return {"templates": lib["items"], "sets": lib["sets"], "prefill_fields": PREFILL_FIELDS}
