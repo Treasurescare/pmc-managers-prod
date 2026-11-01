@@ -905,3 +905,8 @@ summary notes.
   new bundle within one load.
 - Packaged v57c (HTTP 200, stamped): /downloads/pmc-backend-v57c.zip,
   /downloads/pmc-frontend-v57c-prod-build.zip.
+
+## 2026-11-01 — v59d Partner progress bar + auto reminders
+- Progress bar "N of 4 sections complete" (Profile, Banking, Documents, Agreement) on the partner form and on draft/needs-changes partner rows in Admin > Partners (ProgressBar/profileProgress in AgentSteps.jsx).
+- Daily cron partner-reminders (09:00 London) -> POST /api/v1/cron/partner-profile-reminders: emails draft partners 3 and 7 days after joining, listing what is still missing; tracked in agents.auto_reminders, retried next day if email fails. Verified in preview (401 without auth, reminder recorded, no duplicate on rerun).
+- Bundles: /downloads/pmc-backend-v59d.zip, /downloads/pmc-frontend-v59d-prod-build.zip

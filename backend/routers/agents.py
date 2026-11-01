@@ -1,11 +1,13 @@
 """Onboarding agents: admin invite → agent sets password → escrow-style KYC wizard → agreement → admin review."""
+import hmac
+import os
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Literal, Optional
 
 import jwt
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 import config
@@ -479,11 +481,7 @@ def required_docs(entity_type: str) -> list:
     return base + (["incorporation_certificate", "tax_registration", "authority_letter"] if entity_type == "company" else [])
 
 
-@router.post("/api/v1/agents/me/submit", dependencies=CSRF)
-async def agent_submit(request: Request):
-    a = await current_agent(request)
-    if a["status"] not in EDITABLE:
-        raise HTTPException(status_code=409, detail="Already submitted")
+def _missing(a: dict) -> list:
     et = a.get("entity_type") or "individual"
     missing = [label for k, label in (("legal_name", "name"), ("country", "country"), ("address_line1", "address"), ("city", "city"),
                                       ("primary_contact_phone", "phone")) if not a.get(k)]
@@ -495,6 +493,15 @@ async def agent_submit(request: Request):
     missing += [f"document: {d.replace('_', ' ')}" for d in required_docs(et) if not (docs.get(d) or {}).get("key")]
     if not (a.get("agreement") or {}).get("version") == AGREEMENT_VERSION:
         missing.append("signed agent agreement")
+    return missing
+
+
+@router.post("/api/v1/agents/me/submit", dependencies=CSRF)
+async def agent_submit(request: Request):
+    a = await current_agent(request)
+    if a["status"] not in EDITABLE:
+        raise HTTPException(status_code=409, detail="Already submitted")
+    missing = _missing(a)
     if missing:
         raise HTTPException(status_code=422, detail="Still missing: " + ", ".join(missing))
     await db.agents.update_one({"_id": a["_id"]}, {"$set": {"status": "submitted", "submitted_at": now_iso()}})
@@ -505,6 +512,43 @@ async def agent_submit(request: Request):
                               "<p>The button opens the admin console — sign in as Administrator if asked, and you'll go straight to Partners.</p>",
                               "Review partners", f"{_site()}/admin/e/partners"))
     return {"status": "submitted"}
+
+
+REMINDER_DAYS = (3, 7)
+
+
+async def send_profile_reminders() -> dict:
+    now, sent = datetime.now(timezone.utc), 0
+    async for a in db.agents.find({"status": "draft", "joined_at": {"$ne": None}}):
+        days = (now - datetime.fromisoformat(a["joined_at"])).days
+        done = set(a.get("auto_reminders") or [])
+        due = [d for d in REMINDER_DAYS if days >= d and d not in done]
+        if not due:
+            continue
+        todo = "".join(f"<li>{m}</li>" for m in _missing(a))
+        body = (f"<p>Hello {a.get('legal_name') or a['name']},</p><p>You started your PMC partner profile {days} days ago but haven't submitted it yet. "
+                f"Still to do:</p><ul>{todo}</ul><p>Sign in with this email and your password — the form opens where you left off.</p>")
+        ok = await send_email(a["email"], "[PMC] Reminder: finish your PMC partner profile", wrap("Finish your partner profile", body, "Sign in", f"{_site()}/login?role=partner"))
+        await db.agents.update_one({"_id": a["_id"]}, {**({"$addToSet": {"auto_reminders": {"$each": due}}} if ok else {}),
+                                                      "$push": {"history": {"action": "auto_reminder", "day": max(due), "email_sent": ok, "at": now_iso()}}})
+        sent += 1
+    return {"sent": sent}
+
+
+@router.post("/api/v1/cron/partner-profile-reminders")
+async def cron_profile_reminders(request: Request, bg: BackgroundTasks):
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    secret = os.environ.get("WEBHOOK_CRON_SECRET", "")
+    auth = request.headers.get("Authorization", "")
+    if not secret or not auth.startswith("Bearer ") or not hmac.compare_digest(auth[7:], secret):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    run_id = request.headers.get("X-Webhook-Id") or ""
+    if run_id:
+        if await db.cron_runs.find_one({"run_id": run_id}):
+            return {"ok": True, "duplicate": True}
+        await db.cron_runs.insert_one({"run_id": run_id, "job": "partner-profile-reminders", "at": now_iso()})
+    bg.add_task(send_profile_reminders)
+    return {"ok": True}
 
 
 async def ensure_indexes() -> None:

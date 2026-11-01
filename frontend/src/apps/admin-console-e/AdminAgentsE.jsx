@@ -4,6 +4,7 @@ import AdminEShell from "./AdminEShell";
 import { agentApi, uploadsApi, showApiError } from "@/lib/api";
 import { AdminLeaderboardCard, CommissionSettingsCard, PartnerWalletAdmin } from "./PartnerCommissionAdmin";
 import AdminPartnerEditor from "./AdminPartnerEditor";
+import { ProgressBar } from "@/apps/agent-portal/AgentSteps";
 
 const inp = "px-3 py-2 border border-brand-navy/20 bg-white text-sm";
 
@@ -105,7 +106,8 @@ export default function AdminAgentsE() {
               <div className="flex justify-between items-center p-3 gap-2 flex-wrap">
                 <button type="button" className="text-left" onClick={() => setOpen(open === r.id ? null : r.id)} data-testid={`admin-agent-row-${r.id}`}>
                   <div className="font-semibold text-sm">{r.legal_name || r.name}</div><div className="text-xs text-brand-navy/60">{r.email}</div></button>
-                <div className="flex gap-2 items-center">
+                <div className="flex gap-3 items-center">
+                  {["draft", "needs_clarification"].includes(r.status) && <ProgressBar f={r} testid={`admin-agent-progress-${r.id}`} />}
                   <span className="text-[10px] uppercase tracking-widest px-2 py-0.5 border" data-testid={`admin-agent-status-${r.id}`}>{r.status.replace("_", " ")}</span>
                   {["invited", "draft", "needs_clarification"].includes(r.status) && <button className="pmc-btn pmc-btn--secondary" onClick={() => agentApi.resend(r.id).then(resendMsg).catch(showApiError)} data-testid={`admin-agent-resend-${r.id}`}>{r.status === "invited" ? "Resend link" : "Send reminder"}</button>}
                 </div>

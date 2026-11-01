@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { agentApi, showApiError } from "@/lib/api";
 import EscrowCoreForm from "@/apps/escrow-portal/EscrowCoreForm";
 import EscrowBankingStep from "@/apps/escrow-portal/EscrowBankingStep";
-import { AgentAgreementStep, AgentDocsStep, missingItems } from "./AgentSteps";
+import { AgentAgreementStep, AgentDocsStep, ProgressBar, missingItems } from "./AgentSteps";
 import PartnerSuppliers from "./PartnerSuppliers";
 import PartnerWallet from "./PartnerWallet";
 import PartnerLeaderboard from "./PartnerLeaderboard";
@@ -125,6 +125,7 @@ export default function AgentPortal() {
           {form.status === "rejected" && lastNote && <p className="text-sm mt-2">Reason: {lastNote.note}</p>}
         </div>
       ) : <>
+        <ProgressBar f={form} testid="agent-progress" />
         <div className="flex gap-2 text-[11px] uppercase tracking-widest flex-wrap">
           {STEPS.map((s, i) => (
             <button key={s} type="button" onClick={() => setStep(i)} data-testid={`agent-step-${i}`}

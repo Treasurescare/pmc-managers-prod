@@ -23,6 +23,20 @@ export const missingItems = (f) => {
   return out;
 };
 
+export const profileProgress = (f) => {
+  const gaps = new Set(missingItems({ ...f, entity_type: f.entity_type || "individual" }).map(([s]) => s));
+  return [0, 1, 2].filter((s) => !gaps.has(s)).length + (f.agreement?.version ? 1 : 0);
+};
+
+export const ProgressBar = ({ f, testid }) => {
+  const done = profileProgress(f);
+  return (
+    <div className="space-y-1 min-w-[140px]" data-testid={testid}>
+      <div className="text-xs text-brand-navy/70" data-testid={`${testid}-label`}>{done} of 4 sections complete</div>
+      <div className="h-1.5 bg-brand-navy/10"><div className="h-full bg-brand-gold transition-[width] duration-500" style={{ width: `${done * 25}%` }} /></div>
+    </div>);
+};
+
 export const AgentDocsStep = ({ form, setForm, onSave }) => {
   const [busy, setBusy] = useState("");
   const slots = DOCS[form.entity_type || "individual"];
