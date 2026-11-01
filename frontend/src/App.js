@@ -100,6 +100,7 @@ import HelpCentreE from "@/apps/help-centre/HelpCentreE";
 import HelpArticleE from "@/apps/help-centre/HelpArticleE";
 import VendorHomeE from "@/apps/vendor-portal-e/VendorHomeE";
 import VendorMyBidsE from "@/apps/vendor-portal-e/VendorMyBidsE";
+import VendorBidDebriefE from "@/apps/vendor-portal-e/VendorBidDebriefE";
 import VendorConsortiaE from "@/apps/vendor-portal-e/VendorConsortiaE";
 import VendorBidWorkspaceE from "@/apps/vendor-portal-e/VendorBidWorkspaceE";
 import VendorEmdE from "@/apps/vendor-portal-e/VendorEmdE";
@@ -337,6 +338,7 @@ export default function App() {
             <Route path="/vendor/account" element={<RequireVendor><VendorAccountE /></RequireVendor>} />
             <Route path="/vendor/bid/new/:noticeRef" element={<RequireVendor><BidSubmit /></RequireVendor>} />
             <Route path="/vendor/bids/:bidId/pay" element={<RequireVendor><BidPayRedirect /></RequireVendor>} />
+            <Route path="/vendor/bids/:bidId/debrief" element={<RequireVendor><VendorBidDebriefE /></RequireVendor>} />
             <Route path="/vendor/payment/success" element={<PaymentResult outcome="success" />} />
             <Route path="/vendor/payment/cancel" element={<PaymentResult outcome="cancel" />} />
             <Route path="/vendor/payment/sandbox" element={<SandboxCheckout />} />

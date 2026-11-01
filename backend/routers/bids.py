@@ -353,6 +353,42 @@ async def list_my_bids(vendor=Depends(current_vendor)) -> List[dict]:
     return rows
 
 
+DEBRIEF_STATUSES = ("non_winner", "rejected", "closed", "awarded")
+
+
+@router.get("/{bid_id}/debrief")
+async def bid_debrief(bid_id: str, vendor=Depends(current_vendor)) -> dict:
+    if not ObjectId.is_valid(bid_id):
+        raise HTTPException(status_code=404, detail="Bid not found")
+    b = await db.bids.find_one({"_id": ObjectId(bid_id), "vendor_id": vendor["id"]})
+    if not b:
+        raise HTTPException(status_code=404, detail="Bid not found")
+    q = b.get("qualification") or {}
+    if b.get("status") not in DEBRIEF_STATUSES and q.get("system_status") != "not_qualified" and q.get("decision") != "disqualified":
+        raise HTTPException(status_code=409, detail="The debrief is available once the tender decision has been made")
+    n = await db.notices.find_one({"notice_ref": b.get("notice_ref")}, {"title": 1, "award_method": 1}) or {}
+    run = await db.comparison_runs.find_one({"notice_ref": b.get("notice_ref")}, sort=[("run_at", -1)])
+    ranked = ((run or {}).get("result") or {}).get("ranked") or []
+    winner = next((r for r in ranked if r.get("status") == "awarded"), None) or ((run or {}).get("result") or {}).get("l1_winner")
+    mine = next((r for r in ranked if r.get("bid_id") == bid_id), None)
+    criteria = []
+    for r in q.get("results") or []:
+        pr = (q.get("proof_reviews") or {}).get(r["criterion_id"]) or {}
+        votes = list((pr.get("votes") or {}).values())
+        criteria.append({"title": r["title"], "rule": r.get("rule"), "mandatory": r.get("mandatory", True), "kind": r.get("kind"),
+                         "declared": r.get("value"), "unit": r.get("unit"), "result": r.get("result"), "reason": r.get("reason"), "points": r.get("points"),
+                         "proof_review": {"status": pr["status"], "accepted": sum(v["decision"] == "accept" for v in votes),
+                                          "rejected_comments": [v["comment"] for v in votes if v["decision"] == "reject" and v.get("comment")]} if pr else None})
+    return {"bid_ref": b.get("bid_ref"), "notice_ref": b.get("notice_ref"), "notice_title": n.get("title"), "status": b.get("status"),
+            "award_method": n.get("award_method") or "l1", "qualification_status": q.get("system_status"), "decision": q.get("decision"),
+            "decision_note": q.get("decision_note"), "optional_summary": q.get("optional_summary"), "criteria": criteria,
+            "rank": {"position": mine["rank"], "of": len(ranked), "your_price": mine.get("price_amount"), "currency": mine.get("price_currency"),
+                     "compliance_flags": mine.get("compliance_flags")} if mine else None,
+            "awarded_price": (winner or {}).get("price_amount") if b.get("status") != "awarded" else None,
+            "summary_html": _loss_reason(b, ranked, winner) if b.get("status") != "awarded" else "<p>Your bid was awarded.</p>",
+            "emd_refund_due_at": b.get("emd_refund_due_at")}
+
+
 @router.get("/{bid_id}")
 async def get_bid(bid_id: str, vendor=Depends(current_vendor)) -> dict:
     # v52bi — malformed ids (e.g. a shadowed "/mine" slipping through) must
@@ -998,8 +1034,8 @@ async def _flag_losing_emds_for_refund(notice_ref: str, winner_bid_id: str,
                          "needed from you.</p>")
             await vendor_confirm(b.get("vendor_email"),
                                    f"Tender decision — {notice_ref}", msg,
-                                   "View my bids",
-                                   f"{config.FRONTEND_URL}/vendor/mybids")
+                                   "Open your full debrief",
+                                   f"{config.FRONTEND_URL}/vendor/bids/{b['_id']}/debrief")
         except Exception:
             pass
     # Admin heads-up to the accounting role to release the funds.

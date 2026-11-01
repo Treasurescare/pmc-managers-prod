@@ -509,6 +509,7 @@ export const consortiumApi = {
 
 // ---------- Wave 1: Bids ----------
 export const bidApi = {
+  debrief: (id) => api.get(`/api/v1/bids/${id}/debrief`).then((r) => r.data),
   create: (p) => api.post("/api/v1/bids", p).then((r) => r.data),
   mine: () => api.get("/api/v1/bids/mine").then((r) => r.data),
   get: (id) => api.get(`/api/v1/bids/${id}`).then((r) => r.data),

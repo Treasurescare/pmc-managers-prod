@@ -14,6 +14,7 @@ import CriteriaResultNotices from "./CriteriaResultNotices";
 
 const STATUS_PILL = {
   draft:         ["", "Draft"],
+  non_winner:    ["", "Not selected"],
   submitted:     ["pmc-pill--info", "Submitted"],
   emd_pending:   ["pmc-pill--warning", "Awaiting your EMD"],
   emd_paid:      ["pmc-pill--info", "EMD paid"],
@@ -55,7 +56,7 @@ const ACTIVE_STATUSES = new Set(["submitted","emd_pending","emd_paid","under_rev
                                   "legal_cleared","accounting_cleared","under_evaluation",
                                   "commercial_open"]);
 const DRAFT_STATUSES  = new Set(["draft"]);
-const CLOSED_STATUSES = new Set(["awarded","rejected","closed"]);
+const CLOSED_STATUSES = new Set(["awarded","rejected","closed","non_winner"]);
 const WITHDRAWN_STATUSES = new Set(["withdrawn"]);
 
 function BidRow({ b }) {
@@ -64,6 +65,7 @@ function BidRow({ b }) {
     if (b.status === "emd_pending") return { to: `/vendor/bids/${b.id}/pay`, text: "Pay EMD", primary: true };
     if (b.status === "draft")       return { to: `/vendor/workspace/${b.id}`, text: "Continue", primary: false };
     if (b.status === "awarded")     return { to: `/vendor/signatures`, text: "Sign LOA", primary: true };
+    if (["non_winner", "rejected", "closed"].includes(b.status)) return { to: `/vendor/bids/${b.id}/debrief`, text: "Debrief", primary: true };
     // v50u fix — /vendor/bids/:id is not a route (fell through to the notices
     // catch-all); the live bid detail page is the bid workspace.
     return { to: `/vendor/workspace/${b.id}`, text: "View", primary: false };
