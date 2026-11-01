@@ -279,7 +279,7 @@ async def webhook_health(admin=Depends(require_role("admin", "accounting", "revi
             continue
     key = os.environ.get("STRIPE_API_KEY", "")
     mode = ("live" if key.startswith(("sk_live_", "rk_live_")) else
-            "sandbox (Emergent test key)" if "sk_test_emergent" in key else
+            "sandbox (test key)" if "sk_test_emergent" in key else
             "test" if key.startswith(("sk_test_", "rk_test_")) else "not set")
     return {
         "stripe_mode": mode,

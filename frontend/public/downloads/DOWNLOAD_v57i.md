@@ -17,7 +17,7 @@ Production bundles (upload to your AWS stack):
 7. Vendor Messages inbox with unread badge.
 
 ## Before / after deploy (AWS)
-- Env vars on Elastic Beanstalk: keep EMERGENT_LLM_KEY, Stripe key, WEBHOOK_CRON_SECRET set.
+- Env vars on Elastic Beanstalk: keep the AI key, Stripe key, WEBHOOK_CRON_SECRET set.
 - Daily reminder: create an EventBridge schedule (09:00 UTC) that POSTs to
   `/api/v1/cron/category-payment-reminders` with the cron secret header (same as your other cron jobs).
 - No prices are charged until you add Fee rules in production (Masters → Fee rules).

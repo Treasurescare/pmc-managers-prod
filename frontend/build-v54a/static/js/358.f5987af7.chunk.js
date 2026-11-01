@@ -1,2 +1,0 @@
-"use strict";(self.webpackChunkfrontend=self.webpackChunkfrontend||[]).push([[358],{358(e,n,r){r.d(n,{Preferences:()=>s});const s=(0,r(403).F3)("Preferences",{web:()=>r.e(828).then(r.bind(r,828)).then(e=>new e.PreferencesWeb)})}}]);
-//# sourceMappingURL=358.f5987af7.chunk.js.map

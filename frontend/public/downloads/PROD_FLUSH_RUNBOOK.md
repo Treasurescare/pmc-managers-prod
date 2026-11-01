@@ -36,7 +36,7 @@ It backs up every deleted collection + the purged external users to
 `./prod_flush_backup_<ts>/` before deleting, then prints per-collection counts.
 
 ## 3. Scheduled jobs
-Already disabled in `.emergent/crons.yml` (all three set `enabled: false`).
+Already disabled in the scheduler config (all three set `enabled: false`).
 They deploy as "off" with the next frontend/backend release. No code change
 needed; endpoints remain but are never scheduled. Re-enable later by flipping
 `enabled: true`.

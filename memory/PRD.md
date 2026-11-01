@@ -1076,3 +1076,9 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 
 
 
+
+## 2026-11-01 — Brand scrub
+- Deleted old manuals mentioning the platform (Master v2/v3/v4, User v44, v46m), old deploy READMEs v43–v46c, frontend/build-v54a.
+- Email template logo now points to pmcmanagers.com; runbook/download notes and billing "sandbox" label de-branded.
+- Verified: current manuals, frontend source/public, v59m prod build and live pmcmanagers.com JS contain no "emergent" text.
+
