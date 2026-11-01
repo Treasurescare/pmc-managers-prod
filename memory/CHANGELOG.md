@@ -936,3 +936,7 @@ summary notes.
 - L1 ranking runs automatically when price opening completes; card on the bid opening screen; GET /api/v1/comparison/l1/{ref}/latest.
 - Proof check report PDF: GET /api/v1/tender-criteria/{ref}/proof-report.pdf (button on qualification panel).
 - Result notices show the optional summary. Tested iteration_160 (+ v76/v77 suites 30/30).
+
+## 2026-11-01 — v59i DPR upload 413 fix + Tender process tracker
+- Production 413 on AI tender builder DPR upload (1.37 MB) caused by Elastic Beanstalk nginx default 1 MB body limit; added backend/.platform/nginx/conf.d/upload_size.conf (client_max_body_size 200M, 300s proxy timeouts). Needs redeploy of backend bundle to AWS; not verifiable from preview.
+- Tender process tracker on every notice row (Criteria, Bids, Opening, Proof review, Price, L1, Award) with current stage detail; stages not used by legacy tenders shown as skipped. API GET /api/v1/tender-tracker?refs=... (admin login).

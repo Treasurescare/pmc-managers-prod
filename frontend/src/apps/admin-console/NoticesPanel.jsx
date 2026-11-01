@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { adminApi, mastersApi, publicApi, noticeDocsApi, tenderTemplateApi, extraPayApi, formatApiError, showApiError} from "@/lib/api";
+import { api, adminApi, mastersApi, publicApi, noticeDocsApi, tenderTemplateApi, extraPayApi, formatApiError, showApiError} from "@/lib/api";
+import { TenderTracker } from "./notice/TenderTracker";
 import { useI18n } from "@/context/I18nContext";
 import { InfoDot } from "@/components/InfoDot";
 import UnspscPicker from "@/components/UnspscPicker";
@@ -248,6 +249,12 @@ export default function NoticesPanel() {
   });
   const { paged: pagedNotices, controls: noticeControls } =
     useListPager(filteredNotices, { testid: "notice-pager" });
+  const [trackers, setTrackers] = useState({});
+  const trackRefs = pagedNotices.map((n) => n.notice_ref).join(",");
+  useEffect(() => {
+    if (!trackRefs) { return; }
+    api.get("/api/v1/tender-tracker", { params: { refs: trackRefs } }).then((r) => setTrackers(r.data)).catch(() => {});
+  }, [trackRefs, items]);
 
   const create = async () => {
     // Bug #31 — spell out which field failed AND the exact minimum, so testers
@@ -851,6 +858,7 @@ export default function NoticesPanel() {
                 Created by {n.created_by_email}
               </div>
             )}
+            <TenderTracker refKey={n.notice_ref} t={trackers[n.notice_ref]} />
             {!n.is_published && <PublishChecklist n={n} onCriteria={() => setCritRef(n.notice_ref)} onPublish={isMasterAdmin ? () => publish(n.notice_ref) : null} />}
           </div>
         ))}
