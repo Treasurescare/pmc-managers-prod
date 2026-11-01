@@ -67,8 +67,10 @@ def test_invite_creates_invited_agent():
 
 
 def test_invite_duplicate_409():
+    # v72e: re-inviting an invited partner resends to the existing record instead of 409
     r = S["admin"].post(f"{API}/admin/agents/invite", json={"email": EMAIL.upper(), "name": "TEST Dup"})
-    assert r.status_code == 409
+    assert r.status_code == 200 and r.json()["existing"] is True and r.json()["id"] == S["aid"]
+    assert DB.agents.count_documents({"email": EMAIL}) == 1
 
 
 def test_invite_requires_admin_csrf():

@@ -1,0 +1,30 @@
+{
+  "summary": "Retested the iteration_151 fixes. Backend: added test_v72f_consortium_fixes.py with 11 tests, all passing. Combined with the v72e regression that is 48/48. The partner regression (v72b + v65) passes 36/36 after one outdated v65 assertion was updated. HIGH fix confirmed: when the lead withdraws a consortium bid, the consortium goes back to 'forming' and bid_id is unset. The lead can re-bid through the consortium. After the lead withdraws the consortium, a member can bid alone and so can the lead. Also confirmed: _team_value 'each'+'lte' now uses the max. No signature 'token' appears in admin/by-notice or in /consortia/mine. DELETE of a non-member returns 404. PUT /terms with an unknown share id returns 422. The KYC gate returns 409 for a supplier whose KYC is pending, and a notice with kyc_bypass still allows them. send_result_notices stores emails[{to,sent}], and /results/vendor/mine strips 'emails'. Frontend checks on the E theme: the BidSubmit consortium box is light (#F8FAFC) with dark text, and the /vendor/consortia text is dark on a light page. The terms selects start at 'Choose…'. Save terms is blocked until both choices are made and then saves. The AdminAgentsE entity_type field is a SELECT and saves. The CriteriaEditorModal locked view shows 'Accepts consortium bids · up to 4 members including the lead'.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/v1/bids/{id} (consortium bid)", "issue": "The bid's consortium snapshot (from for_bid, which copies c['agreement'] raw) still includes signature 'token' values in agreement.signatures. The lead's bid view returned '\"token\"'. Strip the tokens in for_bid the same way _out does. Admin bid views probably expose them too."},
+      {"endpoint": "consortia (design)", "issue": "A member who has accepted has no 'leave' action while the consortium is forming. respond only works on an 'invited' status. Only the lead can remove them or withdraw the whole consortium, so an accepted member who wants to bid alone depends on the lead."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_v72f_consortium_fixes.py", "/app/backend/tests/test_v72e_partner_consortium_notices.py", "/app/test_reports/pytest/pytest_v72f_all.xml"],
+  "action_items": [
+    "Minor: strip agreement.signatures[].token from the bid.consortium snapshot in consortia.for_bid, or when bids are serialised.",
+    "Optional: add a 'leave consortium' action for accepted members while the status is forming."
+  ],
+  "critical_code_review_comments": [
+    "for_bid copies c['agreement'] (with tokens) into the bid. Bid responses are the remaining place where tokens leak.",
+    "The v72e/v72f suites depend on test order. Run them with -n0, because pytest.ini enables xdist and parallel runs break the ordered flow."
+  ],
+  "updated_files": ["/app/backend/tests/test_v72f_consortium_fixes.py (new)", "/app/backend/tests/test_v65_agents.py (test_invite_duplicate_409 now matches the v72e 'existing' resend behaviour)"],
+  "success_rate": {"backend": "100% (48/48 consortium suites + 36/36 partner regression)", "frontend": "100% of the requested checks"},
+  "seed_data_creation": "Temporary data only, all removed: TEST-V72F-* notices/bids/consortia, TEST-UICONS-1 (seed_ui_consortium.py), the TEST_UI Draft agent (test_ui_draft@example.com, removed by the clean script), and a temporary consortium_allowed flag on DEMO-TND-001 (reverted). Kestrel's kyc_status was set to pending during the test and restored to verified.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run with: cd /app/backend/tests && pytest test_v72e_partner_consortium_notices.py test_v72f_consortium_fixes.py -n0. Vendor UI login is the unified E login at /vendor/login (input[type=email], input[type=password], 'Continue' button). Demo vendors: northfield/brightwater/kestrel@demo.pmcmanagers.com with password Demo@Pmc2026. The admin notices list hides raw seeded notices (TEST-UICONS-1 not listed), so use DEMO-TND-001 with ?q= to test the criteria modal."
+}

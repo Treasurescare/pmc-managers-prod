@@ -1038,6 +1038,14 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - Open: hosting-fee confirmation email wording when tender stays draft not adjusted; AI title dedupe is fuzzy (contains match) only.
 - NEXT: consortium bidding on top of criteria; Google OAuth keys still needed.
 
+## R44 — Partner draft fix + Consortium bidding + Bidder result notices — 2026-11-01 (agent-tested iteration_151/152)
+- Partners: resend works for invited (new link) and draft/needs_clarification (finish-profile reminder); re-inviting an existing invited/draft email re-sends instead of "exists"; admin can edit partner details (PATCH /api/v1/admin/agents/{id}/profile). UI in AdminAgentsE (Edit details, Send reminder).
+- Consortium (routers/consortia.py, db.consortia, db.platform_settings{_id:"consortium"}): admin default max members (default 5) + per-tender override (consortium_allowed / consortium_max_members saved with criteria). Lead forms team of registered, KYC-passed suppliers; invite/accept/decline/leave/remove; shares must total 100; escrow shared|separate; deposit lead_pays|each_pays_share; agreement = uploaded signed file OR every member signs standard agreement. Bid with consortium_id stores snapshot; members can't bid alone; bid withdraw returns consortium to forming.
+- Criteria rules for consortium: lead / combined (sum, any-yes) / each (every member, failing names in reason). Per-member answers in bid form.
+- Result notices: preliminary after technical opening, final before price opening; email + vendor bell + My bids "Criteria results"; own results + qualified count only; per-recipient email status stored.
+- UI: vendor /vendor/consortia, BidConsortiumBox + ConsortiumCard on bid page, CriteriaResultNotices.
+- Not built: actual escrow payment splitting after award (terms stored only).
+
 
 
 

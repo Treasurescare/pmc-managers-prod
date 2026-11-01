@@ -100,6 +100,7 @@ export default function ConsortiumCard({ c, me, onChange }) {
       {c.is_lead && live && <><AddMember c={c} onChange={onChange} /><Terms key={JSON.stringify(c.members?.map((m) => m.vendor_id))} c={c} onChange={onChange} /></>}
       {(c.is_lead || mine?.status === "accepted") && <Agreement c={c} me={me} onChange={onChange} />}
       {live && c.issues?.length > 0 && <ul className="text-xs text-amber-800 list-disc ml-5" data-testid={`cons-issues-${c.id}`}>{c.issues.map((i) => <li key={i}>{i}</li>)}</ul>}
+      {!c.is_lead && mine?.status === "accepted" && live && <button type="button" className="text-xs underline text-red-700" onClick={() => consortiumApi.leave(c.id).then(() => { toast.success("You left the consortium"); onChange(null); }).catch(showApiError)} data-testid="cons-leave">Leave this consortium</button>}
       {c.is_lead && live && <button type="button" className="text-xs underline text-red-700" onClick={() => consortiumApi.withdraw(c.id).then(() => onChange(null)).catch(showApiError)} data-testid="cons-withdraw">Withdraw this consortium</button>}
     </div>);
 }

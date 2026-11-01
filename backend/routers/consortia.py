@@ -271,6 +271,24 @@ async def respond(cid: str, body: RespondIn, vendor=Depends(current_vendor)):
     return await view(c, vendor["id"])
 
 
+@router.post("/{cid}/leave")
+async def leave(cid: str, vendor=Depends(current_vendor)):
+    c = await _mine(cid, vendor)
+    _editable(c)
+    if c["lead_vendor_id"] == vendor["id"]:
+        raise HTTPException(status_code=409, detail="The lead can't leave — withdraw the consortium instead")
+    m = next((x for x in c["members"] if x["vendor_id"] == vendor["id"]), None)
+    if not m or m["status"] != "accepted":
+        raise HTTPException(status_code=409, detail="You are not an active member of this consortium")
+    m.update(status="declined", left_at=now_iso())
+    await db.consortia.update_one({"_id": c["_id"]}, {"$set": {"members": c["members"], "agreement.signatures": [], "updated_at": now_iso()}})
+    await audit_log("consortium.member_left", vendor, "consortium", cid, {})
+    await send_email(c["lead_email"], f"[PMC] {vendor.get('company_name')} left your consortium",
+                     wrap("Consortium update", f"<p>{vendor.get('company_name')} has left {c['name']} for tender <code>{c['notice_ref']}</code>. "
+                          "Signatures have been reset.</p>", "Open consortium", f"{config.FRONTEND_URL.rstrip('/')}/vendor/consortia"))
+    return {"ok": True}
+
+
 @router.put("/{cid}/terms")
 async def set_terms(cid: str, body: TermsIn, vendor=Depends(current_vendor)):
     c = await _mine(cid, vendor, lead_only=True)
@@ -345,7 +363,7 @@ async def for_bid(cid: str, vendor: dict, notice_ref: str) -> dict:
         if await db.bids.find_one({"notice_ref": notice_ref, "vendor_id": m["vendor_id"], "status": {"$nin": ["withdrawn", "rejected"]}}):
             raise HTTPException(status_code=409, detail=f"{m['company_name']} has its own bid on this tender")
     return {"id": str(c["_id"]), "name": c["name"], "lead_share_pct": c["lead_share_pct"], "escrow_mode": c["escrow_mode"],
-            "deposit_mode": c["deposit_mode"], "agreement": c["agreement"],
+            "deposit_mode": c["deposit_mode"], "agreement": _out(c)["agreement"],
             "members": [{k: m.get(k) for k in ("vendor_id", "company_name", "email", "vendor_ref", "capability", "share_pct")} for m in accepted]}
 
 
