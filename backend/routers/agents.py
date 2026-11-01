@@ -182,6 +182,10 @@ async def admin_edit_agent(aid: str, body: Dict[str, Any], admin=ADMIN):
     raw = dict(body)
     data = {k: (str(v).strip()[:500] if v is not None else None) for k, v in raw.items()
             if (k in ADMIN_EDITABLE or k in PROFILE_FIELDS) and k not in ("banking", "documents", "primary_contact_email")}
+    if raw.get("banking") is not None and not isinstance(raw["banking"], list):
+        raise HTTPException(status_code=422, detail="Banking must be a list of accounts")
+    if raw.get("documents") is not None and not isinstance(raw["documents"], dict):
+        raise HTTPException(status_code=422, detail="Documents must be an object")
     if raw.get("banking") is not None:
         data["banking"] = [{k: (str(v).strip()[:200] if v is not None else None) for k, v in b.items()}
                            for b in raw["banking"] if isinstance(b, dict)][:5]

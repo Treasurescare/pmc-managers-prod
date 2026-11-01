@@ -1061,6 +1061,11 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - scripts/capture_consortium_guide.py run|shot1|clean — seeds DEMO-CONSORTIUM-2026 (tenant PMC-KZ-01), drives full life cycle with real APIs, screenshots 11 steps, builds /downloads/pmc-consortium-guide.pdf + pmc-consortium-guide-screens.zip; demo data cleaned afterwards.
 - Bundles: /downloads/pmc-backend-v59a.zip, /downloads/pmc-frontend-v59a-prod-build.zip.
 
+## R48 — Admin full partner editor + bundle v59b — 2026-11-01 (agent-tested iteration_156)
+- Admin "Edit details" on a partner now opens AdminPartnerEditor (same 5 steps as /partner/me: Type, Profile via EscrowCoreForm, Banking via EscrowBankingStep, Documents via AgentDocsStep, Agreement status read-only — only the partner can sign).
+- PATCH /api/v1/admin/agents/{id}/profile accepts all PROFILE_FIELDS + banking (≤5) + documents (agent-docs/ keys; upload records get owner_agent_id so the partner sees them); 422 on bad shapes.
+- Bundles: /downloads/pmc-backend-v59b.zip, /downloads/pmc-frontend-v59b-prod-build.zip.
+
 
 
 

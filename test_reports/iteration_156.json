@@ -1,0 +1,29 @@
+{
+  "summary": "Tested the admin full partner editor (AdminPartnerEditor) end to end in the UI, and the PATCH /api/v1/admin/agents/{id}/profile endpoint with pytest. Created a TEST_ draft partner (invite + join) and deleted it afterwards. Admin flow works: Edit details opens the 5-step editor (Type, Profile, Banking, Documents, Agreement). The entity radio persists. The EscrowCoreForm profile (country GB, state England, +44 dial code, phone) saves and moves on to Banking. Banking saves and is still there after a reload. A document upload saves an agent-docs/ key and sets owner_agent_id to the partner id. View and Remove work. The Agreement step shows 'not signed' and the missing items, with 'Go to Documents' links. The partner then signed in at /login (Partner role) and saw the admin-entered values in /partner/me (company radio, legal name, GB, England, London, postcode, address, reg no). The partner can also open the document the admin uploaded (200). One minor backend bug: a 500 when documents is not a dict.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PATCH /api/v1/admin/agents/{id}/profile", "issue": "Body {\"documents\": [..]} (a list or any non-dict) gives a 500: AttributeError: 'list' object has no attribute 'items' at agents.py:189. It should return 422. Fix: check isinstance(raw['documents'], dict), otherwise raise HTTPException(422)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_v73_admin_partner_full_editor.py", "/app/test_reports/pytest/pytest_v73.xml"],
+  "action_items": [
+    "agents.py admin_edit_agent: validate that 'documents' is a dict (422 if not), so a malformed body cannot cause a 500."
+  ],
+  "critical_code_review_comments": [
+    "admin_edit_agent: str() is applied to every scalar field. If a future PROFILE_FIELD is non-string (bool or number), it will be saved as a string. Acceptable for now.",
+    "The persist() payload sends the whole form, including 'name' and unrelated keys. The backend whitelist filters these, so it is safe, but every save writes all profile fields to the history 'fields' entry (noisy audit).",
+    "Banking values are sanitised but the keys are not whitelisted, so the admin can store any keys inside a banking dict. Low risk, since this is admin-only."
+  ],
+  "updated_files": ["/app/backend/tests/test_v73_admin_partner_full_editor.py"],
+  "success_rate": {"backend": "92% (11/12)", "frontend": "100%"},
+  "seed_data_creation": "Temporary TEST draft partners test_fulledit_<rid>@example.com and test_ui_fulledit@example.com, plus their uploads. All deleted. Real partners were not touched.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Admin UI sign-in: open /admin/e/partners, which redirects to the sign-in page; click the 'Administrator' role card, then fill signin-e-email / signin-e-password / signin-e-submit. Partner sign-in: /login, click the 'Partner' card. In EscrowCoreForm you must pick a state (escrow-f-state-input, then escrow-f-state-opt-*) before escrow-f-city is enabled. Audit entries are in the audit_events collection (event_type, target_id)."
+}
