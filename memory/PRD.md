@@ -1046,6 +1046,11 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - UI: vendor /vendor/consortia, BidConsortiumBox + ConsortiumCard on bid page, CriteriaResultNotices.
 - Not built: actual escrow payment splitting after award (terms stored only).
 
+## R45 — Consortium escrow split + result-notice delivery admin + bundle v58y — 2026-11-01 (agent-tested iteration_153)
+- routers/consortium_split.py: on dual-signed escrow release of a consortium bid, tx.consortium_split recorded (contractor: by shares, remainder to lead; refund: lead_pays → 100% lead, each_pays_share → by shares; forfeit none; route text shared vs separate escrow); members emailed; preview GET before release; Mark paid per line with reference; list /api/v1/escrow/consortium-splits. UI ConsortiumSplitBox in escrow transactions.
+- Result notices admin: GET /tender-criteria/{ref}/result-notices, POST .../resend (admin; returns ok:false + error instead of 5xx). UI ResultNoticesPanel in BidOpeningPanel.
+- Bundles: /downloads/pmc-backend-v58y.zip, /downloads/pmc-frontend-v58y-prod-build.zip (scripts/build_v58y.sh).
+
 
 
 

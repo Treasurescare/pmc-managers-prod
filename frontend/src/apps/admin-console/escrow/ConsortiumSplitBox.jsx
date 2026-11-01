@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { criteriaApi, showApiError } from "@/lib/api";
 
 const Lines = ({ s, tid, onPaid }) => (
-  <table className="w-full text-xs mt-1"><tbody>
+  <table className="w-full text-xs mt-1 table-fixed"><colgroup><col className="w-1/4" /><col className="w-16" /><col className="w-1/6" /><col /><col className="w-32" /></colgroup><tbody>
     {s.lines.map((x, i) => (
       <tr key={x.vendor_id || i} className="border-t" data-testid={`split-line-${tid}-${i}`}>
         <td className="py-1">{x.company}{x.lead ? " (lead)" : ""}</td><td>{x.share_pct}%</td>

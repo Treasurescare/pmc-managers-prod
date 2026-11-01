@@ -820,7 +820,11 @@ async def release(tid: str, payload: ReleaseIn,
                      {"amount": tx.get("amount"), "currency": tx.get("currency"),
                       "beneficiary": payload.beneficiary_account})
     from routers.consortium_split import apply_split
-    await apply_split(tid, payload.action, admin)
+    try:
+        await apply_split(tid, payload.action, admin)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception("consortium split failed for %s", tid)
     # v56l — email the signed release confirmation (+ signed PDF if available)
     # to both officers and the beneficiary. Best-effort; never blocks release.
     try:

@@ -1,0 +1,39 @@
+{
+  "summary": "Tested v72g: consortium escrow split on dual-signed release (contractor/refund lead_pays/each_pays_share/forfeit/separate/non-consortium), split preview GET, mark-paid, list splits, RBAC; admin result-notices list + resend (422/404/409/403/ok-or-fail), vendor /results/vendor/mine stripping. UI: ConsortiumSplitBox on /admin/e/escrow (preview + recorded + Mark paid via prompt) and ResultNoticesPanel on /admin/bids/:id (rows, status, header count, re-send). Backend 16/16 new tests pass (+11 v72f regression pass). One real bug: failed re-send returns HTTP 502 which Cloudflare ingress replaces with an HTML page, so the UI toast shows 'HTTP 502 origin web server returned invalid response to Cloudflare' instead of the provider error.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/v1/tender-criteria/{ref}/result-notices/resend", "issue": "When email still fails it raises HTTPException(502). Through the preview/prod Cloudflare ingress the JSON body is replaced by an HTML error page (verified: content-type text/html), so the client never sees 'Email still did not send: <reason>'. DB update (resend_count, resent_at, last_error) IS persisted correctly. Use a non-5xx code (e.g. 200 {ok:false,email,error} or 409/424) instead."},
+      {"endpoint": "routers/escrow.py release() -> apply_split", "issue": "apply_split runs after status is already set to released and is not wrapped in try/except; any exception (e.g. send_email raising, malformed share data) would make the release return 500 even though money was released and leave no split recorded. Wrap in try/except + log, or record split before emailing."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ResultNoticesPanel resend", "issue": "On a failed re-send the toast shows Cloudflare 'HTTP 502 The origin web server returned an invalid or incomplete response' (root cause: backend 502). The row does refresh and shows 'Not delivered · re-sent 1×' + provider error, so data is correct.", "selector": "[data-testid^='rn-resend-']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "ResultNoticesPanel", "issues": ["Re-send button is shown to reviewer/auditor who get 403 (admin-only endpoint) - hide for non-admin", "Panel is keyed only on commercial_opened_at, so after QualificationPanel sends preliminary/final notices it won't appear/refresh until page reload", "Button shown for legacy notices without stored body which always 409"]},
+      {"screen": "ConsortiumSplitBox preview", "issues": ["The two preview tables (contractor/refund) auto-size independently so columns are misaligned; use table-fixed / shared col widths"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v72g_consortium_split_notices.py", "/app/test_reports/pytest/pytest_v72g.xml"],
+  "action_items": [
+    "Change resend failure response from 502 to non-5xx (200 ok:false or 409/424) so the detail reaches the UI through Cloudflare",
+    "Wrap apply_split call in release() in try/except so a split/email failure can't 500 a completed release",
+    "Hide rn-resend buttons for non-admin roles; refresh ResultNoticesPanel after notices are sent (pass onChange/key)"
+  ],
+  "critical_code_review_comments": [
+    "compute_split rounding: remainder goes to lead (lines[0]); verified sum == total for 1000.01 with 33.33/33.33/33.34",
+    "Split-once guard relies on tx.consortium_split check + release 409 on already-released status - OK",
+    "VIEW role for split excludes 'reviewer' while escrow tx list includes reviewer; box silently hidden for reviewer (acceptable but intentional?)",
+    "escrow.py is 1020 lines (>700 guideline)"
+  ],
+  "updated_files": ["/app/backend/tests/test_v72g_consortium_split_notices.py"],
+  "success_rate": {"backend": "100% (16/16 new; resend-fail path passes on DB state but response body lost via ingress)", "frontend": "90%"},
+  "seed_data_creation": "All TEST-V72G* bids/escrow_transactions/notices/notifications created by tests and UI seed were deleted (verified 0 remaining).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run tests with -n 0 (module-level state S shared across tests; xdist breaks it). Escrow split tests insert bids (status awarded) + escrow_transactions with both signatures set directly in Mongo. Resend is limited by Resend daily quota (429) in preview, so resend usually fails -> 502. UI: /admin/e/escrow shows consortium-split-<tid>; /admin/bids/<id> shows result-notices-<ref> when notice.technical_opened_at set.",
+  "rca of the issue": "Resend 502: Cloudflare (ingress) intercepts origin 5xx (502) responses and substitutes its own HTML page; axios then shows generic HTML error. Repro: make send fail (quota/example.com), click Re-send. Mitigation: return non-5xx status."
+}

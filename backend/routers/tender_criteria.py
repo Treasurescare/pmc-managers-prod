@@ -675,15 +675,17 @@ async def my_results(vendor=Depends(current_vendor)):
 
 
 @router.get("/{ref}/result-notices")
-async def result_notices(ref: str, _=Depends(require_role("admin", "reviewer", "auditor"))):
+async def result_notices(ref: str, user=Depends(require_role("admin", "reviewer", "auditor"))):
     out = []
     async for b in db.bids.find({"notice_ref": ref, "qualification_notices.0": {"$exists": True}},
                                 {"bid_ref": 1, "company_name": 1, "qualification_notices": 1, "consortium.name": 1}):
         out.append({"bid_id": str(b["_id"]), "bid_ref": b.get("bid_ref"), "company": b.get("company_name"),
                     "consortium": (b.get("consortium") or {}).get("name"),
-                    "notices": [{"idx": i, "kind": x["kind"], "at": x["at"], "status": x.get("status"), "emails": x.get("emails") or []}
+                    "notices": [{"idx": i, "kind": x["kind"], "at": x["at"], "status": x.get("status"), "emails": x.get("emails") or [],
+                                 "can_resend": bool(x.get("body"))}
                                 for i, x in enumerate(b["qualification_notices"])]})
-    return {"items": out}
+    roles = set(user.get("roles") or []) | {user.get("role")}
+    return {"items": out, "can_resend": "admin" in roles}
 
 
 class ResendIn(BaseModel):
@@ -713,6 +715,6 @@ async def resend_result_notice(ref: str, body: ResendIn, admin=Depends(require_r
     await db.bids.update_one({"_id": b["_id"]}, {"$set": {"qualification_notices": notes}})
     await audit_log("qualification.notice_resent", admin, "bid", b.get("bid_ref"), {"to": row["to"], "ok": ok})
     if not ok:
-        raise HTTPException(status_code=502, detail=f"Email still did not send: {row['last_error'] or 'unknown error'}")
+        return {"ok": False, "email": row, "error": f"Email still did not send: {row['last_error'] or 'unknown error'}"}
     return {"ok": True, "email": row}
 

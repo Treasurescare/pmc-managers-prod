@@ -1,4 +1,6 @@
 """Consortium award-payment split: when escrow releases money on a consortium bid, it is divided by the agreed shares."""
+import logging
+
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -9,6 +11,7 @@ from models.base import now_iso
 from security import require_role
 
 router = APIRouter(prefix="/api/v1/escrow", tags=["escrow-consortium"])
+logger = logging.getLogger(__name__)
 VIEW = require_role("admin", "accounting", "auditor", "escrow_agent")
 
 
@@ -58,11 +61,15 @@ async def apply_split(tid: str, action: str, admin: dict) -> None:
     await audit_log("escrow.consortium_split", admin, "escrow_tx", tid, {"lines": len(split["lines"]), "total": split["total"]})
     from emails import send_email, wrap
     for x in split["lines"]:
-        if x.get("email"):
+        if not x.get("email"):
+            continue
+        try:
             await send_email(x["email"], f"[PMC] Your consortium share · {tx.get('bid_ref')}",
                              wrap("Consortium payment share", f"<p>Escrow released <b>{tx.get('currency')} {split['total']:,.2f}</b> for bid "
                                   f"<b>{tx.get('bid_ref')}</b> ({split['consortium']}).</p><p>Your share: <b>{x['share_pct']:g}% = {x['currency']} {x['amount']:,.2f}</b><br/>"
                                   f"{x['route']}.</p><p>{split['basis']}.</p>"))
+        except Exception:
+            logger.exception("consortium split email failed")
 
 
 @router.get("/transactions/{tid}/consortium-split")

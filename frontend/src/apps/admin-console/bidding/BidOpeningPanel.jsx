@@ -76,7 +76,7 @@ export const BidOpeningPanel = ({ noticeRef, compact = false }) => {
           names={Object.fromEntries(s.committee.map((m) => [m.id, m.name]))} />)}
       </div>
       {s.stages.technical.opened_at && <QualificationPanel noticeRef={noticeRef} commercialOpen={!!s.stages.commercial.opened_at} onChange={load} />}
-      {s.stages.technical.opened_at && <ResultNoticesPanel key={s.stages.commercial.opened_at || "t"} noticeRef={noticeRef} />}
+      {s.stages.technical.opened_at && <ResultNoticesPanel key={`${s.stages.technical.opened_at}-${s.stages.commercial.opened_at || "t"}`} noticeRef={noticeRef} />}
     </section>
   );
 };
