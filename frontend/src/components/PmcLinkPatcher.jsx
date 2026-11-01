@@ -697,9 +697,9 @@ function filterMyBidsRows(tabEl) {
     const pill = (tr.querySelector(".pmc-pill")?.textContent || "").toLowerCase();
     let show = true;
     if (key === "drafts") show = pill.includes("draft");
-    else if (key === "closed") show = /award|closed|decid|lost/.test(pill);
+    else if (key === "closed") show = /award|closed|decid|lost|selected|reject/.test(pill);
     else if (key === "withdrawn") show = pill.includes("withdraw");
-    else show = !/(draft|withdraw|award|closed|lost|decid)/.test(pill); // active
+    else show = !/(draft|withdraw|award|closed|lost|decid|selected|reject)/.test(pill); // active
     tr.style.display = show ? "" : "none";
     if (show) visible += 1;
   });

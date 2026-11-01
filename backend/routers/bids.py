@@ -373,17 +373,18 @@ async def bid_debrief(bid_id: str, vendor=Depends(current_vendor)) -> dict:
     mine = next((r for r in ranked if r.get("bid_id") == bid_id), None)
     criteria = []
     for r in q.get("results") or []:
-        pr = (q.get("proof_reviews") or {}).get(r["criterion_id"]) or {}
+        pr = (q.get("proof_reviews") or {}).get(r.get("criterion_id")) or {}
         votes = list((pr.get("votes") or {}).values())
-        criteria.append({"title": r["title"], "rule": r.get("rule"), "mandatory": r.get("mandatory", True), "kind": r.get("kind"),
+        criteria.append({"title": r.get("title"), "rule": r.get("rule"), "mandatory": r.get("mandatory", True), "kind": r.get("kind"),
                          "declared": r.get("value"), "unit": r.get("unit"), "result": r.get("result"), "reason": r.get("reason"), "points": r.get("points"),
-                         "proof_review": {"status": pr["status"], "accepted": sum(v["decision"] == "accept" for v in votes),
-                                          "rejected_comments": [v["comment"] for v in votes if v["decision"] == "reject" and v.get("comment")]} if pr else None})
+                         "proof_review": {"status": pr.get("status"), "accepted": sum(v.get("decision") == "accept" for v in votes),
+                                          "rejected_comments": [v["comment"] for v in votes if v.get("decision") == "reject" and v.get("comment")]} if pr else None})
     return {"bid_ref": b.get("bid_ref"), "notice_ref": b.get("notice_ref"), "notice_title": n.get("title"), "status": b.get("status"),
             "award_method": n.get("award_method") or "l1", "qualification_status": q.get("system_status"), "decision": q.get("decision"),
             "decision_note": q.get("decision_note"), "optional_summary": q.get("optional_summary"), "criteria": criteria,
-            "rank": {"position": mine["rank"], "of": len(ranked), "your_price": mine.get("price_amount"), "currency": mine.get("price_currency"),
+            "rank": {"position": mine.get("rank"), "of": len(ranked), "your_price": mine.get("price_amount"), "currency": mine.get("price_currency"),
                      "compliance_flags": mine.get("compliance_flags")} if mine else None,
+            "currency": (mine or winner or {}).get("price_currency"),
             "awarded_price": (winner or {}).get("price_amount") if b.get("status") != "awarded" else None,
             "summary_html": _loss_reason(b, ranked, winner) if b.get("status") != "awarded" else "<p>Your bid was awarded.</p>",
             "emd_refund_due_at": b.get("emd_refund_due_at")}
@@ -960,17 +961,17 @@ def _loss_reason(b: dict, ranked: list, winner: Optional[dict]) -> str:
         why = escape(q.get("decision_note") or "the committee did not accept your proofs")
         return f"<p><b>Why your bid was not selected:</b> it was disqualified at the qualification stage. {why}</p>"
     if q.get("system_status") == "not_qualified":
-        fails = [f"{escape(r['title'])}: {escape(r.get('reason') or 'not met')}" for r in q.get("results") or []
+        fails = [f"{escape(r.get('title') or 'Criterion')}: {escape(r.get('reason') or 'not met')}" for r in q.get("results") or []
                  if r.get("result") == "fail" and r.get("mandatory", True)]
         o = q.get("optional_summary")
-        if o and o["passed"] < o["required"]:
-            fails.append(f"Optional criteria met: {o['passed']} of {o['total']} (at least {o['required']} required)")
+        if o and o.get("passed", 0) < o.get("required", 0):
+            fails.append(f"Optional criteria met: {o.get('passed')} of {o.get('total')} (at least {o.get('required')} required)")
         items = "".join(f"<li>{f}</li>" for f in fails) or "<li>One or more tender criteria were not met</li>"
         return f"<p><b>Why your bid was not selected:</b> it did not meet the tender criteria:</p><ul>{items}</ul>"
     mine = next((r for r in ranked if r.get("bid_id") == str(b["_id"])), None)
     if mine:
         n = len(ranked)
-        txt = f"<p><b>Your ranking:</b> L{mine['rank']} of {n} qualified bid(s), at {mine.get('price_currency') or ''} {(mine.get('price_amount') or 0):,.2f}."
+        txt = f"<p><b>Your ranking:</b> L{mine.get('rank')} of {n} ranked bid(s), at {mine.get('price_currency') or ''} {(mine.get('price_amount') or 0):,.2f}."
         if winner:
             txt += f" The tender was awarded to the lowest compliant price, {winner.get('price_currency') or ''} {(winner.get('price_amount') or 0):,.2f}."
         if mine.get("compliance_flags"):

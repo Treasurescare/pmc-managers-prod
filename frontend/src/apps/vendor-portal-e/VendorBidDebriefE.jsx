@@ -9,9 +9,9 @@ const money = (c, v) => (v === null || v === undefined ? "—" : `${c || ""} ${N
 const RankBox = ({ d }) => (
   <div className="grid grid-cols-1 md:grid-cols-3 gap-3" data-testid="debrief-rank">
     {[["Your ranking", d.rank ? `L${d.rank.position} of ${d.rank.of}` : "Not ranked"], ["Your price", d.rank ? money(d.rank.currency, d.rank.your_price) : "Not opened"],
-      ["Awarded price", d.awarded_price != null ? money(d.rank?.currency, d.awarded_price) : "—"]].map(([k, v]) => (
+      ["Awarded price", d.awarded_price != null ? money(d.currency, d.awarded_price) : "—"]].map(([k, v], i) => (
       <div key={k} className="border border-brand-navy/15 p-4 bg-white"><div className="text-[11px] uppercase tracking-widest text-brand-navy/60">{k}</div>
-        <div className="text-2xl font-serif mt-1" data-testid={`debrief-${k.split(" ")[1].toLowerCase()}`}>{v}</div></div>))}
+        <div className="text-2xl font-serif mt-1" data-testid={["debrief-ranking", "debrief-your-price", "debrief-awarded-price"][i]}>{v}</div></div>))}
   </div>);
 
 const CriteriaTable = ({ rows }) => (
@@ -46,8 +46,8 @@ export default function VendorBidDebriefE() {
           <div><div className="text-[11px] uppercase tracking-widest text-brand-gold">Bid debrief · {d.bid_ref}</div>
             <h1 className="font-serif text-3xl text-brand-navy">{d.notice_title || d.notice_ref}</h1>
             <div className="text-xs text-brand-navy/60 font-mono">{d.notice_ref} · winner picked by {d.award_method === "weighted" ? "weighted marks" : "lowest compliant price (L1)"}</div></div>
-          <div className="border-l-4 border-brand-gold bg-white p-4 text-sm" data-testid="debrief-summary" dangerouslySetInnerHTML={{ __html: d.summary_html }} />
-          {d.optional_summary && <div className="text-sm" data-testid="debrief-optional">Optional criteria met: <b>{d.optional_summary.passed} of {d.optional_summary.total}</b> (at least {d.optional_summary.required} required)</div>}
+          <div className="border-l-4 border-brand-gold bg-white p-4 text-sm [&_ul]:list-disc [&_ul]:pl-5" data-testid="debrief-summary" dangerouslySetInnerHTML={{ __html: d.summary_html }} />
+          {d.optional_summary && d.qualification_status !== "not_qualified" && <div className="text-sm" data-testid="debrief-optional">Optional criteria met: <b>{d.optional_summary.passed} of {d.optional_summary.total}</b> (at least {d.optional_summary.required} required)</div>}
           <RankBox d={d} />
           {d.criteria.length > 0 && <CriteriaTable rows={d.criteria} />}
           {d.emd_refund_due_at && <div className="text-sm" data-testid="debrief-emd">Your EMD will be refunded by <b>{d.emd_refund_due_at.slice(0, 10)}</b>.</div>}

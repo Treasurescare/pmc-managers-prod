@@ -956,3 +956,7 @@ summary notes.
 - SECURITY: real Resend API key + VAPID private key found in committed docs frontend/build-v54a/downloads/EB_ENV_FIX_missing_RESEND_key.md and NEXT_STEPS_v46x_and_push.md (since 2026-09-25). Files deleted; .gitignore adds frontend/build-v*/, *.pem, *.key. User must revoke/rotate keys (still in Git history).
 - Losing-bidder award email now explains why: criteria failed (list), disqualified (committee note), or L-rank + own price vs awarded L1 price (bids._loss_reason).
 - v4 manual: added chapters 19-28 (criteria/qualification policy, proof review policy, evaluation & award policy, ethics/COI, data protection & secrets, incident response, complaints & appeals, RACI, templates, SLAs); 104 pages.
+
+## 2026-11-01 — v59m Key leak guard + bidder debrief page
+- scripts/secret_scan.py blocks bundles containing API keys (Resend, Stripe, sk-, AWS, Google, GOCSPX, GitHub, Slack), private key blocks, DB URLs with passwords, quoted secret assignments (value must contain a digit) and .env/.env.*/.pem/.key files; prints file + kind only. build_v59m.sh runs it and deletes bundles on failure.
+- GET /api/v1/bids/{id}/debrief + /vendor/bids/:id/debrief page (summary, rank, own vs awarded price, criteria with mandatory/optional, results, proof review outcome + rejection comments, EMD refund date). My bids: non_winner = "Not selected" with Debrief action; legacy patcher tab filter fixed. Loser email button opens the debrief. Tested iteration_162 + test_v79 26/26.

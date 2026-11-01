@@ -14,10 +14,10 @@ PATTERNS = {
     "Slack token": r"\bxox[abposr]-[A-Za-z0-9-]{10,}",
     "Private key block": r"-----BEGIN (RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----",
     "Database URL with password": r"mongodb(\+srv)?://[^:/\s\"']+:[^@\s\"']{3,}@",
-    "Secret assignment": r"(?i)\b(api[_-]?key|secret[_-]?key|password|passwd|private[_-]?key|client[_-]?secret|auth[_-]?token)\b[\"']?\s*[:=]\s*[\"'](?!\$|\{|<|your|xxx|changeme|placeholder|example)[A-Za-z0-9+/_\-!@#%^&*.]{12,}[\"']",
+    "Secret assignment": r"(?i)(api[_-]?key|secret[_-]?key|secret|password|passwd|private[_-]?key|client[_-]?secret|auth[_-]?token|access[_-]?token)[\"']?\s*[:=]\s*[\"'](?!\$|\{|<|your|xxx|changeme|placeholder|example)(?=[^\"'\s]*\d)[A-Za-z0-9+/_\-!@#%^&*.]{8,}[\"']",
 }
 SKIP_EXT = (".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".woff", ".woff2", ".ttf", ".pdf", ".zip", ".mp4", ".svg", ".map")
-SKIP_PARTS = ("node_modules/", "/tests/", "secret_scan.py", "generate_vapid_keys.py")
+SKIP_PARTS = ("node_modules/", "secret_scan.py", "generate_vapid_keys.py")
 RX = {k: re.compile(v) for k, v in PATTERNS.items()}
 
 
@@ -31,7 +31,7 @@ def scan(path):
         with zipfile.ZipFile(path) as z:
             for n in z.namelist():
                 base = n.rsplit("/", 1)[-1]
-                if base in (".env",) or base.endswith((".pem", ".key")):
+                if base == ".env" or base.startswith(".env.") or base.endswith((".env", ".pem", ".key")):
                     hits.append((n, "secret file"))
                     continue
                 if n.endswith("/") or n.lower().endswith(SKIP_EXT) or any(s in n for s in SKIP_PARTS):

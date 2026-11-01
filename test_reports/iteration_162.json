@@ -1,0 +1,43 @@
+{
+  "summary": "Tested the bidder debrief API and UI, the losing-bidder email and the secret scanner. Test file: test_v79_debrief_secret_scan.py, 26 tests, 24 passed. The 2 failures are scanner gaps that I wrote tests for on purpose. All core backend behaviour works: debrief returns 404/409/200, has all the fields, leaks no committee emails, and escapes the decision note. _flag_losing_emds_for_refund sends the email with the loss reason (L-rank and both prices) and the 'Open your full debrief' link to /vendor/bids/{id}/debrief. The scanner catches all the listed kinds without printing secret values, and both v59l bundles pass. The debrief page renders correctly. CRITICAL UI bug: the legacy DOM patcher hides 'Not selected' rows on the My bids Closed tab, so in normal use the Debrief action cannot be seen.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "scripts/secret_scan.py", "issue": "'Secret assignment' regex has \\b before the keyword. Upper-case names with a prefix (ADMIN_PASSWORD=\"...\", RESEND_API_KEY=\"...\", STRIPE_SECRET_KEY=...) are not matched because '_' counts as a word character. Verified: such a file passes the scan."},
+      {"endpoint": "scripts/secret_scan.py", "issue": "In zips only a file named exactly '.env' is blocked. .env.production, .env.local and backend.env pass. Verified with a zip containing backend/.env.production."},
+      {"endpoint": "scripts/secret_scan.py", "issue": "Assigned values must be at least 12 characters, so short passwords are missed (e.g. password=\"Admin@12345\", 11 chars). SKIP_PARTS '/tests/' also lets test folders through unscanned when a bundle includes them."},
+      {"endpoint": "GET /api/v1/bids/{id}/debrief", "issue": "Can raise KeyError → 500 on legacy or partial data: mine['rank'], pr['status'], v['decision'], r['criterion_id']/r['title'], o['passed'] in _loss_reason. Use .get()."},
+      {"endpoint": "_loss_reason", "issue": "Says 'L{n} of {len(ranked)} qualified bid(s)', but ranked holds every bid in the comparison run, including non-compliant ones, so the count can overstate the qualified bids."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PmcLinkPatcher.jsx (around line 700) tab filter on /vendor/mybids", "issue": "On the Closed tab the patcher hides any row whose pill does not match /award|closed|decid|lost/. 'Not selected' (non_winner) rows get display:none, so the 'Debrief' action never shows in normal use. Confirmed by DOM inspection: the B2/B3 rows had style.display='none' after clicking Closed. ('Not awarded' rows only survive because the text contains 'award'.) The patcher can also add a stale 'No closed bids right now.' note above a populated table. Fix: add 'selected|not awarded|rejected' to the closed regex and to the active-exclusion regex, or better, skip the patcher on [data-pmc-e-page=vendor-mybids-e] since React already buckets the rows.", "selector": "[data-testid='vmb-row-*'] / [data-testid='vmb-act-*']", "priority": "HIGH"},
+      {"component": "VendorBidDebriefE RankBox", "issue": "When rank is null (not_qualified), 'Awarded price' shows '400,000' with no currency because it uses d.rank?.currency. 'Your price' shows 'Not opened' even though the vendor knows their own bid price.", "selector": "[data-testid='debrief-rank']", "priority": "LOW"},
+      {"component": "VendorBidDebriefE RankBox", "issue": "The data-testid is built from k.split(' ')[1], so 'Your price' and 'Awarded price' both get data-testid='debrief-price' (duplicate). Use debrief-your-price / debrief-awarded-price.", "selector": "[data-testid='debrief-price']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Debrief (not_qualified)", "issues": ["'Optional criteria met: X of Y' appears twice: in summary_html and again in debrief-optional.", "The <ul> in summary_html shows no bullets (Tailwind preflight); add list-disc pl-5 to the summary container."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v79_debrief_secret_scan.py", "/app/test_reports/pytest/pytest_v79.xml"],
+  "action_items": [
+    "HIGH: Fix PmcLinkPatcher's tab filter so 'Not selected' (non_winner) rows stay visible on the Closed tab of My bids (and drop the stale empty note), or exclude vendor-mybids-e from the patcher.",
+    "Secret scanner: change the assignment regex to allow prefixes, e.g. (?i)[A-Za-z0-9_]*(api[_-]?key|secret|password|passwd|private[_-]?key|client[_-]?secret|auth[_-]?token)[A-Za-z0-9_]*[\"']?\\s*[:=]\\s*[\"'].... Block .env.* and *.env files in zips. Consider a lower minimum length (8).",
+    "Debrief/_loss_reason: replace direct dict indexing with .get() so legacy data cannot cause a 500.",
+    "Debrief UI: give the duplicate debrief-price testids unique names, fall back to the bid's own currency/price when rank is null, and avoid showing the optional-criteria line twice."
+  ],
+  "critical_code_review_comments": [
+    "The debrief winner lookup looks for ranked status=='awarded', but comparison_runs store status at run time (e.g. accounting_cleared), so it almost always falls back to l1_winner. Fine for L1; for weighted awards the awarded price may be wrong. Prefer the awards collection or the actual awarded bid.",
+    "summary_html goes through dangerouslySetInnerHTML. The backend escapes decision_note, titles and reasons (verified: a <script> payload comes back escaped), so this is fine now; keep all future interpolations escaped.",
+    "The build script runs the scan after 'ALL DONE' and deletes the bundles on failure. Logic is fine; I did not run the full build."
+  ],
+  "updated_files": ["/app/backend/tests/test_v79_debrief_secret_scan.py"],
+  "success_rate": {"backend": "100% of core functions (24/24); 2 extra scanner-gap tests fail as expected", "frontend": "Debrief page 100%; My bids Debrief entry point broken by the patcher"},
+  "test_credentials": "northfield@demo.pmcmanagers.com / Demo@Pmc2026 (vendor login via /api/v1/vendor/auth/login)",
+  "seed_data_creation": "TEST_DBRF-*/TEST_DBRF2-* notices, bids and comparison_runs were seeded for the northfield vendor and all deleted afterwards (counts confirmed 0). No DEMO records were changed.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_v79_debrief_secret_scan.py -n 0. DBRF_KEEP=1 keeps the seed for UI checks; call module cleanup() afterwards. The last 2 tests (scan gaps) should pass once the scanner is fixed. For the UI check: log in via page.request.post to /api/v1/vendor/auth/login, open /vendor/mybids, click vmb-tab-closed, wait about 1.5s, then confirm the vmb-row-* rows for non_winner bids have no display:none."
+}
