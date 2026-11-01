@@ -21,7 +21,7 @@ NOW = datetime.now(timezone.utc)
 iso = lambda d=0, h=0: (NOW + timedelta(days=d, hours=h)).isoformat()  # noqa: E731
 hp = lambda p: bcrypt.hashpw(p.encode(), bcrypt.gensalt()).decode()  # noqa: E731
 COLS = ["agents", "vendors", "registrations", "notices", "bids", "committees", "admin_users", "escrow_institutions",
-        "escrow_accounts", "escrow_transactions", "partner_commissions", "uploads", "payment_transactions"]
+        "escrow_accounts", "escrow_transactions", "partner_commissions", "uploads", "payment_transactions", "awards"]
 
 
 def clean():
@@ -70,7 +70,7 @@ def seed():
             ("Kestrel Facilities Services (Demo)", "kestrel", "VEN-DEMO3", False)]
     for name, slug, ref, via_partner in sups:
         pf = {"partner_id": pid, "partner_code": "PT-DEMO", "partner_name": "Hart Procurement Advisory (Demo)"} if via_partner else {}
-        D.vendors.insert_one({**TAG, **pf, "email": f"{slug}@{DOM}", "company_name": name, "status": "active", "is_active": True,
+        D.vendors.insert_one({**TAG, **pf, "tenant_id": "PMC-KZ-01", "email": f"{slug}@{DOM}", "company_name": name, "status": "active", "is_active": True,
                               "kyc_status": "verified", "vendor_ref": ref, "country": "GB", "password_hash": hp(PW), "created_at": iso(-10)})
         if via_partner:
             D.registrations.insert_one({**TAG, **pf, "email": f"{slug}@{DOM}", "company_name": name, "status": "approved", "vendor_ref": ref,
@@ -137,4 +137,5 @@ def seed():
                       "supplier_consent_page": f"/supplier-invite/{consent_tok}", "sealed_tender": ref}, indent=1))
 
 
-{"seed": seed, "clean": clean}[sys.argv[1]]()
+if __name__ == "__main__" and sys.argv[1] in ("seed", "clean"):
+    {"seed": seed, "clean": clean}[sys.argv[1]]()

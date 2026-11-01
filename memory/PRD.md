@@ -992,3 +992,11 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - FIX (real product gap): committee members had no UI to approve bid opening → Staff portal "Bid opening" tab (committee_member role).
 - Vendor My bids KPIs use bid currency; partner statement month defaults to current month; supplier row separator fix.
 
+## R37 — Video shots v2 (cleaned + missing) — 2026-11-01
+- scripts/demo_showcase_extra.py (run after demo_showcase.py seed): partner join/submitted demo agents, partner-filled supplier draft,
+  DEMO-TND-AWD opened by both committee members (tech+commercial) and awarded with award docs.
+- scripts/capture_video_shots_v2.py → /downloads/pmc-video-shots-v2.zip (screens masked: non-demo emails → officer@demo…, preview host →
+  www.pmcmanagers.com, Stripe test warnings and 'sakina' rows hidden). Not captured: escrow institution dashboard (needs escrow login),
+  DocuSign two-officer signing screen (no demo signing envelope).
+
+
