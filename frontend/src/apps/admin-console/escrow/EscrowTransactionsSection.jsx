@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { adminApi, bidApi, escrowApi, showApiError } from "@/lib/api";
 import { InfoDot } from "@/components/InfoDot";
 import { useListPager } from "@/components/ListPager";
+import ConsortiumSplitBox from "./ConsortiumSplitBox";
 
 const ACTIONS = ["release_to_contractor", "release_to_vendor", "forfeit"];
 const CLOSED = new Set(["released_to_contractor", "released_to_vendor", "forfeited", "cancelled"]);
@@ -187,6 +188,7 @@ function TransactionRow({ t, onSign, onRelease, onCancel, onSendSignLink, onSend
           ({(t.audit_trail || []).length} event{(t.audit_trail || []).length === 1 ? "" : "s"})
         </button>
       </div>
+      <ConsortiumSplitBox tid={t.id} status={t.status} />
       {showTrail && (
         <ol className="mt-2 space-y-1 text-xs border-l-2 border-brand-navy/15 pl-3"
             data-testid={`escrow-tx-trail-${t.id}`}>

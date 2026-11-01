@@ -819,6 +819,8 @@ async def release(tid: str, payload: ReleaseIn,
     await audit_log(f"escrow.{final_status}", admin, "escrow_tx", tid,
                      {"amount": tx.get("amount"), "currency": tx.get("currency"),
                       "beneficiary": payload.beneficiary_account})
+    from routers.consortium_split import apply_split
+    await apply_split(tid, payload.action, admin)
     # v56l — email the signed release confirmation (+ signed PDF if available)
     # to both officers and the beneficiary. Best-effort; never blocks release.
     try:

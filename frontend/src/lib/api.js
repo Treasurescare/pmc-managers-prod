@@ -472,6 +472,10 @@ export const criteriaApi = {
   resolve: (ref, bidId, body) => api.post(`/api/v1/tender-criteria/${ref}/bids/${bidId}/resolve`, body).then((r) => r.data),
   score: (ref, bidId, body) => api.post(`/api/v1/tender-criteria/${ref}/bids/${bidId}/score`, body).then((r) => r.data),
   myResults: () => api.get("/api/v1/tender-criteria/results/vendor/mine").then((r) => r.data),
+  resultNotices: (ref) => api.get(`/api/v1/tender-criteria/${ref}/result-notices`).then((r) => r.data),
+  resendNotice: (ref, body) => api.post(`/api/v1/tender-criteria/${ref}/result-notices/resend`, body).then((r) => r.data),
+  consortiumSplit: (tid) => api.get(`/api/v1/escrow/transactions/${tid}/consortium-split`).then((r) => r.data),
+  splitPaid: (tid, idx, reference) => api.post(`/api/v1/escrow/transactions/${tid}/consortium-split/${idx}/paid`, { reference }).then((r) => r.data),
 };
 
 export const consortiumApi = {

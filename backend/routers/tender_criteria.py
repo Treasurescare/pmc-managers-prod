@@ -644,6 +644,7 @@ async def send_result_notices(ref: str, final: bool) -> int:
                 f"<table style='border-collapse:collapse;font-size:13px'><tr><th align='left'>Criterion</th><th align='left'>Result</th><th align='left'>Reason</th></tr>{rows}</table>"
                 f"<p>{qualified} of {len(bids)} bids qualified.</p>")
         subject = f"[PMC] {'Final' if final else 'Preliminary'} criteria result · {b.get('bid_ref')}"
+        snap.update(subject=subject, body=body)
         recipients = [(b.get("vendor_email"), b.get("vendor_ref"))] + [(m.get("email"), m.get("vendor_ref")) for m in (b.get("consortium") or {}).get("members") or []]
         snap["emails"] = []
         for em, vref in recipients:
@@ -668,6 +669,50 @@ async def my_results(vendor=Depends(current_vendor)):
     async for b in db.bids.find(q, {"bid_ref": 1, "notice_ref": 1, "qualification_notices": 1, "consortium.name": 1}).sort("submitted_at", -1):
         out.append({"bid_id": str(b["_id"]), "bid_ref": b.get("bid_ref"), "notice_ref": b["notice_ref"],
                     "consortium": (b.get("consortium") or {}).get("name"),
-                    "notice": {k: v for k, v in b["qualification_notices"][-1].items() if k != "emails"},
+                    "notice": {k: v for k, v in b["qualification_notices"][-1].items() if k not in ("emails", "body", "subject")},
                     "history": [x["kind"] for x in b["qualification_notices"]]})
     return {"items": out}
+
+
+@router.get("/{ref}/result-notices")
+async def result_notices(ref: str, _=Depends(require_role("admin", "reviewer", "auditor"))):
+    out = []
+    async for b in db.bids.find({"notice_ref": ref, "qualification_notices.0": {"$exists": True}},
+                                {"bid_ref": 1, "company_name": 1, "qualification_notices": 1, "consortium.name": 1}):
+        out.append({"bid_id": str(b["_id"]), "bid_ref": b.get("bid_ref"), "company": b.get("company_name"),
+                    "consortium": (b.get("consortium") or {}).get("name"),
+                    "notices": [{"idx": i, "kind": x["kind"], "at": x["at"], "status": x.get("status"), "emails": x.get("emails") or []}
+                                for i, x in enumerate(b["qualification_notices"])]})
+    return {"items": out}
+
+
+class ResendIn(BaseModel):
+    bid_id: str
+    idx: int = Field(ge=0)
+    email: str
+
+
+@router.post("/{ref}/result-notices/resend")
+async def resend_result_notice(ref: str, body: ResendIn, admin=Depends(require_role("admin"))):
+    import config
+    from emails import last_error, send_email, wrap
+    b = await db.bids.find_one({"_id": ObjectId(body.bid_id), "notice_ref": ref}) if ObjectId.is_valid(body.bid_id) else None
+    notes = (b or {}).get("qualification_notices") or []
+    if body.idx >= len(notes):
+        raise HTTPException(status_code=404, detail="Notice not found")
+    snap = notes[body.idx]
+    row = next((e for e in snap.get("emails") or [] if e["to"].lower() == body.email.lower()), None)
+    if not row:
+        raise HTTPException(status_code=422, detail="That email was not a recipient of this notice")
+    if not snap.get("body"):
+        raise HTTPException(status_code=409, detail="This notice was sent before re-sending was available")
+    ok = bool(await send_email(row["to"], snap["subject"], wrap("Criteria result", snap["body"], "View result",
+                                                                 f"{config.FRONTEND_URL.rstrip('/')}/vendor/mybids")))
+    row.update(sent=ok or row["sent"], resent_at=now_iso(), resent_by=admin.get("email"),
+               resend_count=int(row.get("resend_count") or 0) + 1, last_error=None if ok else last_error(row["to"]))
+    await db.bids.update_one({"_id": b["_id"]}, {"$set": {"qualification_notices": notes}})
+    await audit_log("qualification.notice_resent", admin, "bid", b.get("bid_ref"), {"to": row["to"], "ok": ok})
+    if not ok:
+        raise HTTPException(status_code=502, detail=f"Email still did not send: {row['last_error'] or 'unknown error'}")
+    return {"ok": True, "email": row}
+

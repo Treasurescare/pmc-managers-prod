@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { api, showApiError, downloadAuthedFile } from "@/lib/api";
 import { QualificationPanel } from "./QualificationPanel";
+import { ResultNoticesPanel } from "./ResultNoticesPanel";
 
 const LABEL = { technical: "Technical envelopes", commercial: "Commercial envelopes" };
 
@@ -75,6 +76,7 @@ export const BidOpeningPanel = ({ noticeRef, compact = false }) => {
           names={Object.fromEntries(s.committee.map((m) => [m.id, m.name]))} />)}
       </div>
       {s.stages.technical.opened_at && <QualificationPanel noticeRef={noticeRef} commercialOpen={!!s.stages.commercial.opened_at} onChange={load} />}
+      {s.stages.technical.opened_at && <ResultNoticesPanel key={s.stages.commercial.opened_at || "t"} noticeRef={noticeRef} />}
     </section>
   );
 };
