@@ -18,7 +18,7 @@
  *   countries         – list of {code, name, emoji, phone_code} from masters
  *   testId            – test id prefix
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 function parseE164(v, dialCodes) {
   const s = String(v || "").trim();
@@ -48,6 +48,20 @@ export default function PhonePrefixInput({ value, onChange, defaultCountry,
   const [local, setLocal] = useState(parsed.local || "");
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
+  const boxRef = useRef(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const close = (e) => { if (boxRef.current && !boxRef.current.contains(e.target)) { setOpen(false); setQ(""); } };
+    const esc = (e) => { if (e.key === "Escape") { setOpen(false); setQ(""); } };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("touchstart", close);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("touchstart", close);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [open]);
 
   // Keep the local-state dial in sync with external pre-select changes.
   useEffect(() => {
@@ -82,7 +96,7 @@ export default function PhonePrefixInput({ value, onChange, defaultCountry,
 
   return (
     <div data-testid={testId}>
-      <div className="flex gap-2 relative">
+      <div className="flex gap-2 relative" ref={boxRef}>
         <button type="button" disabled={disabled}
                 onClick={() => setOpen((o) => !o)}
                 data-testid={`${testId}-dial-btn`}

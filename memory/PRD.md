@@ -1019,6 +1019,18 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - Bundles: pmc-backend-v58w.zip, pmc-frontend-v58w-prod-build.zip (scripts/build_v58w.sh).
 - NEXT (approved): Tender Criteria Builder Stage 1 for every tender — buyer criteria (measure, rule, unit/currency/period, proof, must-pass/scored, consortium applies-to), AI pre-fill from tender doc where possible else blank, supplier answers sealed in bid; then auto-qualification at opening; then consortium.
 
+## R42 — Tender Criteria Builder Stage 1 + own Google OAuth + partner CSRF + phone dropdown — 2026-11-01 (agent-tested iteration_146/147)
+- backend/routers/tender_criteria.py: criteria per notice (tender_criteria on notices; measure, gte/lte/eq + value + unit, period, proof, must_pass/scored, auto/evaluator scoring, consortium_rule lead/combined/each, prefill_field), templates, AI read from tender text (Claude via tender_pro._llm_complete), vendor prefill, clean_answers().
+- Publish needs >=1 must-pass criterion (POST /publish and PATCH is_published); create-with-publish removed (draft first). Criteria locked once live.
+- Bids: criteria_answers sealed in criteria_answers_json (SEALED_FIELDS_TECH), proofs as documents with criterion_id. Drafts keep criteria_answers.
+- UI: NoticesPanel "Criteria" button → notice/CriteriaEditorModal.jsx; vendor BidSubmit → BidCriteriaSection.jsx.
+- Google sign-in: routers/google_auth.py own OAuth code flow (/config, /start, /exchange; oauth_states). Needs GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET (not yet provided) — button hidden until set. Redirect URI: <site>/auth/google/callback.
+- Partner CSRF: session-bound HMAC for agent:<id> (security._agent_sub); agent login/join/me return + cache csrf_token.
+- PhonePrefixInput closes on outside click / Escape.
+- Bundles: pmc-backend-v58x.zip, pmc-frontend-v58x-prod-build.zip.
+- Not gated yet: hosting-fee auto-publish, vendor-tender approve, template publish paths. NEXT: Stage 2 auto-qualification at opening, then consortium.
+
+
 
 
 

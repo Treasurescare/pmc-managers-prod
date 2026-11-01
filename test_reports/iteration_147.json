@@ -1,0 +1,33 @@
+{
+  "summary": "Retest of Fix B (partner CSRF bound to the session) and Fixes A1/A2/A3 (Tender Criteria). Backend: 34/35 pass across the new test_v72b and the existing test_v72; all 22 test_v72 tests pass, including TestC (the PATCH bypass), which used to fail. UI checks: (1) A TEST_ partner signed in from /login with the csrf_token cookie deleted. 'Save and continue' on Profile and on Banking gave PATCH 200 both times. After clearing sessionStorage, deleting the cookie and doing a full reload, me() cached the token again and the save still gave 200. (2) The admin NoticesPanel create form has no 'Publish immediately' checkbox and shows notice-publish-note. Row Publish without criteria shows a 409 toast. Saving one blank must-pass criterion (proof mandatory, empty proof text) succeeded; it was stored as 'Supporting document' and row Publish then made the notice Live. (3) The prefill select is now 153px wide and shows 'No auto-fill' in full. (4) On the vendor bid page the criterion shows 'Proof: Supporting document *' with an upload control; the upload worked and the docs list shows 'criterion proof · Safety policy · proof.pdf'. (5) Admin, vendor (northfield) and demo partner logins all work. One minor edge case was found in _session_sub (below).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "security._session_sub (partner CSRF fallback)", "issue": "The access_token cookie or Bearer header is checked before agent_token. If the browser still holds a staff/admin access_token cookie (another tab, or a Partitioned preview cookie that agent _set_cookies' plain delete_cookie cannot clear) and the csrf cookie has been dropped, the partner's X-CSRF-Token (HMAC for 'agent:<id>') is checked against the staff sub. The partner PATCH then returns 403 'CSRF token missing or invalid'. Reproduced by test_v72b::test_stale_access_token_cookie_with_agent. Suggested fix: accept the header if it matches the HMAC for ANY valid session sub present (access token sub OR agent:<id>). Alternatively, on /agents/ routes, prefer agent_token."},
+      {"endpoint": "422 validation detail", "issue": "The backend still sends 'Value error, ...' in msg. The frontend (api.js line 171) strips it, so users no longer see it. The 'Something went wrong · HTTP 422' heading is unchanged. This is cosmetic only."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Partner CSRF 403 recovery", "issue": "The axios 403-CSRF auto-recovery calls /api/v1/staff/auth/csrf, which needs a staff access_token. For partners it always returns 401, so it never helps. Not a problem now because the sessionStorage token comes from agent login/join/me. Consider calling agentApi.me() to recover on /partner routes.", "affected_selectors": []}
+    ],
+    "design_issues": [
+      {"screen": "CriteriaEditorModal", "issues": ["When proof is mandatory and the proof field is empty, the field still only shows the placeholder 'Proof required, e.g. ...'. The admin is not told it will be saved as 'Supporting document'. Low priority."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v72b_partner_csrf_criteria_fixes.py", "/app/backend/tests/test_v72_tender_criteria.py", "/app/test_reports/pytest/pytest_v72b.xml"],
+  "action_items": [
+    "Optional hardening: in security._session_sub / require_csrf, also check the agent_token sub when an access_token is present, so a leftover staff cookie can't break the partner CSRF fallback when the csrf cookie is dropped."
+  ],
+  "critical_code_review_comments": [
+    "agents._set_cookies uses set_csrf_cookie(cross_site=True) unconditionally (SameSite=None; Partitioned), even on first-party production. Other portals use is_preview_request(request). This may be why the csrf cookie gets dropped behind CloudFront. The session-bound fallback now covers it, but staying consistent would help.",
+    "agents._set_cookies clears other portals' cookies with response.delete_cookie (SameSite=Lax, no Partitioned). In preview, staff cookies are Partitioned and will not be cleared. Use security.clear_session_cookie instead."
+  ],
+  "updated_files": ["/app/backend/tests/test_v72b_partner_csrf_criteria_fixes.py"],
+  "success_rate": {"backend": "97% (34/35; 1 failure = stale staff cookie edge case)", "frontend": "100% (all requested flows pass)"},
+  "seed_data_creation": "Created a TEST_ partner via register+join (pytest) and test_ui_partner@example.com (DB seed) for the UI run, plus notices TEST-CRITC-*, TEST-CRITB-* and TEST-CRITUI-01 (tenant PMC-KZ-01), and one northfield proof upload. All of it was deleted afterwards: agents test_* = 0, notices TEST-CRIT* = 0, uploads removed. No DEMO-* records and not sakina@gdihelite.com were modified.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_v72b_partner_csrf_criteria_fixes.py tests/test_v72_tender_criteria.py -n0 -v. /agents/register is rate limited to 5 per hour per IP; the test falls back to a DB insert on 429. To test the partner UI, seed a draft agent with address_line1/city/state_code/postal_code/reg_number so EscrowCoreForm validation passes. Then use page.context.clear_cookies(name='csrf_token'). A 'text' answer type cannot be must_pass (422)."
+}

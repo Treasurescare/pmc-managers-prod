@@ -58,19 +58,23 @@ def _session_sub(request) -> Optional[str]:
         if h.startswith("Bearer "):
             token = h[7:]
     if not token:
-        at = request.cookies.get("agent_token")
-        if at:
-            try:
-                p = jwt.decode(at, config.JWT_SECRET, algorithms=[config.JWT_ALGORITHM])
-                return f"agent:{p['sub']}" if p.get("type") == "agent_access" else None
-            except Exception:
-                return None
-        return None
+        return _agent_sub(request)
     try:
         payload = jwt.decode(token, config.JWT_SECRET, algorithms=[config.JWT_ALGORITHM])
         if payload.get("type") != "access":
             return None
         return payload.get("sub")
+    except Exception:
+        return None
+
+
+def _agent_sub(request) -> Optional[str]:
+    at = request.cookies.get("agent_token")
+    if not at:
+        return None
+    try:
+        p = jwt.decode(at, config.JWT_SECRET, algorithms=[config.JWT_ALGORITHM])
+        return f"agent:{p['sub']}" if p.get("type") == "agent_access" else None
     except Exception:
         return None
 
@@ -184,6 +188,9 @@ async def require_csrf(request: Request) -> None:
         return
     sub = _session_sub(request)
     if sub and secrets.compare_digest(header_val, csrf_for_session(sub)):
+        return
+    asub = _agent_sub(request)
+    if asub and secrets.compare_digest(header_val, csrf_for_session(asub)):
         return
     raise HTTPException(status_code=403, detail="CSRF token missing or invalid")
 
