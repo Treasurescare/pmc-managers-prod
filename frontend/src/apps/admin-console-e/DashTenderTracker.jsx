@@ -4,6 +4,7 @@ import { TenderTracker } from "@/apps/admin-console/notice/TenderTracker";
 
 export const DashTenderTracker = () => {
   const [rows, setRows] = useState(null);
+  const [all, setAll] = useState(false);
   useEffect(() => { api.get("/api/v1/tender-tracker/live").then((r) => setRows(r.data.tenders)).catch(() => setRows([])); }, []);
   return (
     <section className="pmc-panel" style={{ overflow: "hidden" }} data-testid="dash-tracker-panel">
@@ -11,12 +12,13 @@ export const DashTenderTracker = () => {
         <span className="pmc-muted" style={{ fontSize: "12px" }}>{rows ? `${rows.length} live tender(s) · gold dot = current step` : "Loading…"}</span></div>
       <div className="px-4 pb-3">
         {rows && !rows.length && <div className="text-sm py-3 text-brand-navy/60" data-testid="dash-tracker-empty">No live tenders in progress.</div>}
-        {(rows || []).map((t) => (
+        {(rows || []).slice(0, all ? 40 : 8).map((t) => (
           <a key={t.notice_ref} href={`/admin/e/notices?q=${encodeURIComponent(t.notice_ref)}`} className="block py-2 border-t border-brand-navy/10 hover:bg-brand-navy/[0.03] transition-colors" data-testid={`dash-tracker-row-${t.notice_ref}`}>
             <div className="text-xs flex gap-3 flex-wrap"><span className="font-mono">{t.notice_ref}</span><b className="truncate max-w-[480px]">{t.title}</b>
               {t.deadline && <span className="text-brand-navy/50">closes {String(t.deadline).slice(0, 10)}</span>}</div>
             <TenderTracker refKey={`dash-${t.notice_ref}`} t={t} />
           </a>))}
+        {rows && rows.length > 8 && <button type="button" className="text-xs underline mt-2" onClick={() => setAll((v) => !v)} data-testid="dash-tracker-toggle">{all ? "Show fewer" : `Show all ${rows.length}`}</button>}
       </div>
     </section>);
 };

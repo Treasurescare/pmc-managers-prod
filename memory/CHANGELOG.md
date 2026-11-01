@@ -940,3 +940,9 @@ summary notes.
 ## 2026-11-01 — v59i DPR upload 413 fix + Tender process tracker
 - Production 413 on AI tender builder DPR upload (1.37 MB) caused by Elastic Beanstalk nginx default 1 MB body limit; added backend/.platform/nginx/conf.d/upload_size.conf (client_max_body_size 200M, 300s proxy timeouts). Needs redeploy of backend bundle to AWS; not verifiable from preview.
 - Tender process tracker on every notice row (Criteria, Bids, Opening, Proof review, Price, L1, Award) with current stage detail; stages not used by legacy tenders shown as skipped. API GET /api/v1/tender-tracker?refs=... (admin login).
+
+## 2026-11-01 — v59j Award to L1, dashboard tracker, manuals
+- POST /api/v1/comparison/l1/{ref}/award: committee member one-click award of L1 (guards: membership, L1 method, price opened, not awarded, L1 at accounting_cleared); uses decide_bid; re-runs L1. Button on AutoL1Card with confirm + notes.
+- Dashboard "Live tender progress" panel (GET /api/v1/tender-tracker/live), 8 rows + show all.
+- Manuals in /downloads/manual/: pmc-user-manual.pdf (44 pages, every screen), pmc-master-training-manual.pdf (12 modules), pmc-process-flow.pdf/png, pmc-data-flow.pdf/png, pmc-manual-pack.zip. Rebuild: scripts/capture_manual.py then scripts/build_manuals.py (screens list in scripts/manual_screens.json). Tested iteration_161 + test_v78 15/15.
+- NOTE: frontend build script excludes downloads/ from the prod ZIP, so manuals are served from the preview link.

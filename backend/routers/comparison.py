@@ -175,5 +175,6 @@ async def award_l1(notice_ref: str, body: AwardL1In, admin=Depends(require_role(
         raise HTTPException(status_code=409, detail=f"The L1 bid ({win['bid_ref']}) is at stage '{win['status']}'. Certifier, legal and accounting clearances must be completed before award.")
     note = f"Awarded to L1 (lowest compliant price) from the automatic ranking.{(' ' + body.notes.strip()) if body.notes else ''}"
     await decide_bid(win["bid_id"], BidDecisionIn(action="award", role="committee", notes=note), admin={**admin, "role": "committee_member"})
+    await run_l1_comparison(notice_ref, admin)
     await audit_log("comparison.l1_award", admin, "notice", notice_ref, {"bid": win["bid_ref"], "price": win.get("price_amount")})
     return {"awarded": win["bid_ref"], "company_name": win.get("company_name")}

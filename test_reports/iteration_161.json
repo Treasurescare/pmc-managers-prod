@@ -1,0 +1,37 @@
+{
+  "summary": "Tested Award-to-L1 (backend + AutoL1Card UI on /admin/e/bidding), tender tracker APIs (/tender-tracker, /tender-tracker/live), dashboard Live tender progress panel and Admin > Notices row trackers. All award guard checks pass (403 non-member, 404, 409 weighted / commercial not open / no compliant L1 / L1 at legal_cleared with stage named / already awarded, 422 notes>1000). The award itself works: bid becomes awarded, workflow_history entry role=committee, audit comparison.l1_award written, award docs generated, toast shown. ONE BUG: L1 is NOT run again after the award, so the latest comparison run still shows the L1 bid as accounting_cleared. Because of that the UI never shows award-l1-done and the 'Award to L1' button comes back after a successful award (clicking it again gives a 409 toast saying it is already awarded). The tracker works end to end: 7 stages, skipped state, current/todo, live list leaves out fully-done tenders, 401 for anonymous users, dashboard row links to /admin/e/notices?q=REF and that row shows the same states.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/v1/comparison/l1/{ref}/award", "issue": "Spec says L1 is run again after the award. It is only run before decide_bid (comparison.py line 170), never after line 177. GET /comparison/l1/{ref}/latest therefore still shows the winner as 'accounting_cleared'. Fix: add `await run_l1_comparison(notice_ref, admin)` after decide_bid and before returning.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "GET /api/v1/tender-tracker/live", "issue": ".limit(40) is applied BEFORE filtering out fully-done (awarded) notices, sorted by oldest deadline first. Once there are many awarded or old notices, live tenders with later deadlines will silently drop out of the dashboard. Filter first, or loop until you have 40 in-progress rows."},
+      {"endpoint": "GET /api/v1/tender-tracker/live", "issue": "N+1 queries: each notice runs its own bids query and comparison_runs query. Fine at 40 rows, but consider aggregating."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AutoL1Card", "issue": "After a successful award, onDone reloads latestL1, but the latest run has no 'awarded' row (backend bug above). award-l1-done-{ref} never appears and award-l1-btn-{ref} shows again. A second click gives the 409 toast 'This tender has already been awarded'.", "selector": "[data-testid=award-l1-done-{ref}]", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/admin/e/bidding right-column Bid opening card", "issues": ["The AutoL1Card ranking table is cramped in the narrow side column: company name and bid ref wrap onto 2-3 lines", "The floating 'Help' button partly covers the Cancel button in the award confirm box"]},
+      {"screen": "/admin/e dashboard Live tender progress", "issues": ["No row cap or 'view all': up to 40 rows push the rest of the dashboard far down", "The tracker only uses about 40% of the panel width on desktop"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v78_award_l1_tracker.py", "/app/test_reports/pytest/pytest_v78.xml"],
+  "action_items": [
+    "comparison.py award_l1: call run_l1_comparison(notice_ref, admin) again after decide_bid so the latest run shows status 'awarded'. This also fixes award-l1-done never showing in the UI.",
+    "tender_tracker.live: apply the 40 limit after removing completed notices (or page through them)."
+  ],
+  "critical_code_review_comments": [
+    "award_l1 has no race protection: two committee members clicking at the same moment can both pass the 'already awarded' check before decide_bid runs. Use a conditional update or a lock.",
+    "Award notifications and emails embed notice refs in title/body. The test cleanup removes notifications by regex on title/body as well as related_notice_ref."
+  ],
+  "updated_files": ["/app/backend/tests/test_v78_award_l1_tracker.py"],
+  "success_rate": {"backend": "93% (14/15)", "frontend": "~85% (award button/confirm/cancel/notes/toast OK; done state fails; dashboard + notices tracker all OK)"},
+  "seed_data_creation": "TEST_AWL1*-{TAG} notices, bids, committees (admin user as member), comparison_runs, award_documents and notifications are seeded and removed by the test module. All are cleaned up now. audit_events entries were left in place on purpose (hash chain).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run `pytest tests/test_v78_award_l1_tracker.py -n 0` (the module fixture is not xdist-safe). AWL1_KEEP=1 keeps the seed. For the UI, run TestA with KEEP, then POST /comparison/l1/TEST_AWL1-{TAG} so the AutoL1Card renders on /admin/e/bidding (Bid opening side column). Only test_latest_l1_shows_awarded fails now. It should pass once award_l1 runs L1 again after the award."
+}
