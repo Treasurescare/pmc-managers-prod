@@ -1,5 +1,6 @@
 """Consortium award-payment split: when escrow releases money on a consortium bid, it is divided by the agreed shares."""
 import logging
+from typing import Optional
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
@@ -49,6 +50,14 @@ async def _tx_bid(tid: str):
     return tx, bid
 
 
+async def _bank(vendor_id, email) -> dict:
+    keys = ("bank_name", "bank_branch", "bank_account_number", "bank_swift", "bank_address")
+    v = await db.vendors.find_one({"_id": ObjectId(vendor_id)}) if vendor_id and ObjectId.is_valid(vendor_id) else None
+    src = v if v and v.get("bank_account_number") else await db.registrations.find_one(
+        {"email": (email or "").lower(), "bank_account_number": {"$nin": [None, ""]}}, sort=[("created_at", -1)])
+    return {k: (src or {}).get(k) for k in keys} if src else {}
+
+
 async def apply_split(tid: str, action: str, admin: dict) -> None:
     """Called right after a release. Records the split and tells each member their amount."""
     tx, bid = await _tx_bid(tid)
@@ -56,6 +65,9 @@ async def apply_split(tid: str, action: str, admin: dict) -> None:
         return
     split = compute_split(tx, bid, action)
     split.update(at=now_iso(), by=admin.get("email"))
+    for i, x in enumerate(split["lines"]):
+        x.update(instruction_ref=f"{tx.get('bid_ref')}-P{i + 1}", bank=await _bank(x.get("vendor_id"), x.get("email")),
+                 signatures={}, status="awaiting_signatures")
     await db.escrow_transactions.update_one({"_id": tx["_id"]}, {"$set": {"consortium_split": split},
                                                                  "$push": {"audit_trail": {"at": now_iso(), "by": admin.get("email"), "event": "consortium_split"}}})
     await audit_log("escrow.consortium_split", admin, "escrow_tx", tid, {"lines": len(split["lines"]), "total": split["total"]})
@@ -84,18 +96,59 @@ async def get_split(tid: str, _=Depends(VIEW)):
 
 class PaidIn(BaseModel):
     reference: str = Field(min_length=3, max_length=120)
+    proof_key: str = Field(min_length=3, max_length=300)
 
 
-@router.post("/transactions/{tid}/consortium-split/{idx}/paid")
-async def mark_paid(tid: str, idx: int, body: PaidIn, admin=Depends(require_role("admin", "accounting"))):
+class LineSignIn(BaseModel):
+    comment: Optional[str] = Field(default=None, max_length=500)
+
+
+async def _line(tid: str, idx: int):
     tx, _ = await _tx_bid(tid)
     split = tx.get("consortium_split")
     if not split or idx < 0 or idx >= len(split["lines"]):
         raise HTTPException(status_code=404, detail="Split line not found")
-    line = split["lines"][idx]
+    return tx, split, split["lines"][idx]
+
+
+@router.post("/transactions/{tid}/consortium-split/{idx}/sign")
+async def sign_line(tid: str, idx: int, body: LineSignIn, user=Depends(require_role("admin", "accounting", "escrow_agent"))):
+    tx, split, line = await _line(tid, idx)
+    if line.get("status") not in ("awaiting_signatures", "pending_payout"):
+        raise HTTPException(status_code=409, detail=f"This payment is already {line.get('status', '').replace('_', ' ')}")
+    snap = tx.get("escrow_account_snapshot") or {}
+    pmc_email = ((snap.get("pmc_officer") or {}).get("email") or "").lower()
+    esc_email = ((snap.get("escrow_officer") or {}).get("email") or "").lower()
+    me = (user.get("email") or "").lower()
+    if pmc_email and pmc_email == esc_email:
+        raise HTTPException(status_code=409, detail="Both officers on this escrow account have the same email — fix the account before signing payments.")
+    side = "pmc" if me and me == pmc_email else "escrow_institution" if me and me == esc_email else None
+    if not side:
+        raise HTTPException(status_code=403, detail="Only the two officers named on this escrow account can sign payments")
+    if not (line.get("bank") or {}).get("bank_account_number"):
+        line["bank"] = await _bank(line.get("vendor_id"), line.get("email"))
+        if not line["bank"].get("bank_account_number"):
+            raise HTTPException(status_code=409, detail=f"{line.get('company')} has no bank account on file. Ask them to add it to their supplier profile.")
+    sigs = line.get("signatures") or {}
+    sigs[side] = {"email": user["email"], "at": now_iso(), "comment": body.comment,
+                  "amount": line["amount"], "account": line["bank"]["bank_account_number"]}
+    line["signatures"] = sigs
+    line["status"] = "approved" if {"pmc", "escrow_institution"} <= set(sigs) else "awaiting_signatures"
+    await db.escrow_transactions.update_one({"_id": tx["_id"]}, {"$set": {"consortium_split.lines": split["lines"]},
+                                                                 "$push": {"audit_trail": {"at": now_iso(), "by": user["email"],
+                                                                                           "event": f"split_{line['instruction_ref']}_signed_by_{side}"}}})
+    await audit_log(f"escrow.consortium_split_sign_{side}", user, "escrow_tx", tid, {"line": line["instruction_ref"], "amount": line["amount"]})
+    return {"recorded": True, **split}
+
+
+@router.post("/transactions/{tid}/consortium-split/{idx}/paid")
+async def mark_paid(tid: str, idx: int, body: PaidIn, admin=Depends(require_role("admin", "accounting"))):
+    tx, split, line = await _line(tid, idx)
     if line["status"] == "paid":
         raise HTTPException(status_code=409, detail="Already marked paid")
-    line.update(status="paid", paid_ref=body.reference.strip(), paid_at=now_iso(), paid_by=admin.get("email"))
+    if line["status"] != "approved":
+        raise HTTPException(status_code=409, detail="Both escrow officers must sign this payment instruction before it can be marked paid")
+    line.update(status="paid", paid_ref=body.reference.strip(), paid_at=now_iso(), paid_by=admin.get("email"), proof_key=body.proof_key)
     await db.escrow_transactions.update_one({"_id": tx["_id"]}, {"$set": {"consortium_split.lines": split["lines"]}})
     await audit_log("escrow.consortium_split_paid", admin, "escrow_tx", tid, {"member": line.get("company"), "amount": line["amount"], "ref": line["paid_ref"]})
     return {"recorded": True, **split}

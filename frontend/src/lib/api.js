@@ -475,7 +475,8 @@ export const criteriaApi = {
   resultNotices: (ref) => api.get(`/api/v1/tender-criteria/${ref}/result-notices`).then((r) => r.data),
   resendNotice: (ref, body) => api.post(`/api/v1/tender-criteria/${ref}/result-notices/resend`, body).then((r) => r.data),
   consortiumSplit: (tid) => api.get(`/api/v1/escrow/transactions/${tid}/consortium-split`).then((r) => r.data),
-  splitPaid: (tid, idx, reference) => api.post(`/api/v1/escrow/transactions/${tid}/consortium-split/${idx}/paid`, { reference }).then((r) => r.data),
+  splitPaid: (tid, idx, reference, proof_key) => api.post(`/api/v1/escrow/transactions/${tid}/consortium-split/${idx}/paid`, { reference, proof_key }).then((r) => r.data),
+  splitSign: (tid, idx, comment) => api.post(`/api/v1/escrow/transactions/${tid}/consortium-split/${idx}/sign`, { comment }).then((r) => r.data),
 };
 
 export const consortiumApi = {
