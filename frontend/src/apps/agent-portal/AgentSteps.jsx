@@ -23,13 +23,13 @@ export const missingItems = (f) => {
   return out;
 };
 
-export const AgentDocsStep = ({ form, setForm }) => {
+export const AgentDocsStep = ({ form, setForm, onSave }) => {
   const [busy, setBusy] = useState("");
   const slots = DOCS[form.entity_type || "individual"];
   const req = REQUIRED_DOCS(form.entity_type);
   const save = async (documents) => {
     setForm((f) => ({ ...f, documents }));
-    try { await agentApi.saveProfile({ documents }); } catch (e) { showApiError(e); }
+    try { await (onSave || agentApi.saveProfile)({ documents }); } catch (e) { showApiError(e); }
   };
   const upload = async (slot, file) => {
     setBusy(slot);

@@ -1,7 +1,7 @@
 """Onboarding agents: admin invite → agent sets password → escrow-style KYC wizard → agreement → admin review."""
 import secrets
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 import jwt
 from bson import ObjectId
@@ -173,13 +173,22 @@ ADMIN_EDITABLE = {"name", "legal_name", "trading_name", "entity_type", "primary_
 
 
 @router.patch("/api/v1/admin/agents/{aid}/profile", dependencies=CSRF)
-async def admin_edit_agent(aid: str, body: Dict[str, Optional[str]], admin=ADMIN):
+async def admin_edit_agent(aid: str, body: Dict[str, Any], admin=ADMIN):
     a = await db.agents.find_one({"_id": _oid(aid)})
     if not a:
         raise HTTPException(status_code=404, detail="Agent not found")
     if a["status"] == "rejected":
         raise HTTPException(status_code=409, detail="A rejected partner can't be edited")
-    data = {k: (str(v).strip()[:200] if v is not None else None) for k, v in body.items() if k in ADMIN_EDITABLE}
+    raw = dict(body)
+    data = {k: (str(v).strip()[:500] if v is not None else None) for k, v in raw.items()
+            if (k in ADMIN_EDITABLE or k in PROFILE_FIELDS) and k not in ("banking", "documents", "primary_contact_email")}
+    if raw.get("banking") is not None:
+        data["banking"] = [{k: (str(v).strip()[:200] if v is not None else None) for k, v in b.items()}
+                           for b in raw["banking"] if isinstance(b, dict)][:5]
+    if raw.get("documents") is not None:
+        data["documents"] = {k: v for k, v in raw["documents"].items() if isinstance(v, dict) and str(v.get("key", "")).startswith("agent-docs/")}
+        keys = [v["key"] for v in data["documents"].values()]
+        await db.uploads.update_many({"key": {"$in": keys}, "owner_agent_id": None}, {"$set": {"owner_agent_id": str(a["_id"])}})
     if data.get("entity_type") not in (None, "individual", "company"):
         raise HTTPException(status_code=422, detail="Type must be individual or company")
     if data.get("country"):

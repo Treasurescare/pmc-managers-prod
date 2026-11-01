@@ -3,30 +3,9 @@ import { toast } from "sonner";
 import AdminEShell from "./AdminEShell";
 import { agentApi, uploadsApi, showApiError } from "@/lib/api";
 import { AdminLeaderboardCard, CommissionSettingsCard, PartnerWalletAdmin } from "./PartnerCommissionAdmin";
+import AdminPartnerEditor from "./AdminPartnerEditor";
 
 const inp = "px-3 py-2 border border-brand-navy/20 bg-white text-sm";
-
-const EDIT_FIELDS = [["legal_name", "Name"], ["entity_type", "Type (individual / company)"], ["primary_contact_phone", "Phone"], ["country", "Country code (e.g. MY)"],
-  ["city", "City"], ["address_line1", "Address"], ["postal_code", "Postcode"], ["reg_number", "Registration no."]];
-
-const EditPartner = ({ a, onSaved }) => {
-  const [f, setF] = useState(() => Object.fromEntries(EDIT_FIELDS.map(([k]) => [k, a[k] || ""])));
-  const save = async () => {
-    try {
-      const body = Object.fromEntries(Object.entries(f).filter(([k, v]) => (v || "") !== (a[k] || "")).map(([k, v]) => [k, v || null]));
-      if (!Object.keys(body).length) return toast.info("Nothing changed");
-      await agentApi.adminEdit(a.id, body); toast.success("Partner details saved"); onSaved();
-    } catch (e) { showApiError(e); }
-  };
-  return (
-    <div className="border border-brand-navy/15 p-3 space-y-2" data-testid="admin-agent-edit">
-      <div className="grid md:grid-cols-4 gap-2">{EDIT_FIELDS.map(([k, l]) => (
-        <label key={k} className="text-xs">{l}{k === "entity_type"
-          ? <select className={inp + " block w-full mt-1"} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} data-testid={`admin-agent-edit-${k}`}><option value="">—</option><option value="individual">Individual</option><option value="company">Company</option></select>
-          : <input className={inp + " block w-full mt-1"} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} data-testid={`admin-agent-edit-${k}`} />}</label>))}</div>
-      <button type="button" className="pmc-btn pmc-btn--primary" onClick={save} data-testid="admin-agent-edit-save">Save details</button>
-    </div>);
-};
 
 const resendMsg = (x) => (x.email_sent ? toast.success(x.kind === "reminder" ? "Reminder emailed — they can sign in and finish their profile" : "Invitation link emailed")
   : toast.error(`Email did not send. ${x.email_error || ""}`, { duration: 15000 }));
@@ -57,7 +36,7 @@ const Detail = ({ id, onChanged, partners }) => {
         <button type="button" className="pmc-btn pmc-btn--secondary" onClick={() => setEditing(!editing)} data-testid="admin-agent-edit-toggle">{editing ? "Close editing" : "Edit details"}</button>
         {["draft", "needs_clarification", "invited"].includes(a.status) && <button type="button" className="pmc-btn pmc-btn--secondary" onClick={() => agentApi.resend(id).then(resendMsg).catch(showApiError)} data-testid="admin-agent-detail-resend">{a.status === "invited" ? "Resend invitation link" : "Send reminder to finish profile"}</button>}
       </div>}
-      {editing && <EditPartner a={a} onSaved={() => { setEditing(false); load(); onChanged(); }} />}
+      {editing && <AdminPartnerEditor a={a} onSaved={() => { load(); onChanged(); }} onClose={() => setEditing(false)} />}
       <div className="grid md:grid-cols-3 gap-3">
         <F k="entity_type" l="Type" /><F k="legal_name" l="Name" /><F k="email" l="Email" /><F k="primary_contact_phone" l="Phone" />
         <F k="country" l="Country" /><F k="city" l="City" /><F k="address_line1" l="Address" /><F k="postal_code" l="Postcode" /><F k="reg_number" l="Registration no." />
