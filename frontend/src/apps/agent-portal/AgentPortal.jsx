@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { agentApi, showApiError } from "@/lib/api";
 import EscrowCoreForm from "@/apps/escrow-portal/EscrowCoreForm";
@@ -51,6 +51,23 @@ const PayCard = ({ form, setForm }) => {
   );
 };
 
+const PartnerHeader = ({ form, onLogout }) => {
+  const name = form.legal_name || form.name || form.email;
+  const initials = name.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
+  return (
+    <header className="bg-brand-navy text-white" data-testid="partner-header">
+      <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
+        <Link to="/" className="font-serif text-lg" data-testid="partner-header-home">PMC Managers <span className="text-[10px] uppercase tracking-widest text-brand-gold ml-1">Partner portal</span></Link>
+        <nav className="flex items-center gap-4 text-sm">
+          <Link to="/partner/me" className="hover:underline" data-testid="partner-header-dashboard">My profile</Link>
+          <Link to="/tenders" className="hover:underline hidden sm:inline" data-testid="partner-header-tenders">Tenders</Link>
+          <span className="w-8 h-8 rounded-full bg-brand-gold text-brand-navy flex items-center justify-center text-xs font-semibold" title={name} data-testid="partner-header-avatar">{initials}</span>
+          <button type="button" className="text-xs border border-white/40 px-3 py-1 hover:bg-white hover:text-brand-navy" onClick={onLogout} data-testid="agent-logout">Sign out</button>
+        </nav>
+      </div>
+    </header>);
+};
+
 export default function AgentPortal() {
   const nav = useNavigate();
   const [form, setForm] = useState(null);
@@ -61,6 +78,8 @@ export default function AgentPortal() {
   useEffect(() => {
     agentApi.me().then((a) => {
       setForm({ ...a, entity_type: a.entity_type || "individual", banking: a.banking?.length ? a.banking : [{ ...BANK }] });
+      const gap = missingItems({ ...a, entity_type: a.entity_type || "individual" });
+      setStep(gap.length ? gap[0][0] : 3);
       if (a.status === "payment_pending" && window.location.search.includes("paid=1")) {
         agentApi.refreshPayment().then((x) => setForm((f) => ({ ...f, ...x }))).catch(() => {});
       }
@@ -89,12 +108,14 @@ export default function AgentPortal() {
   const locked = !["draft", "needs_clarification"].includes(form.status);
   const lastNote = [...(form.history || [])].reverse().find((h) => h.note);
   return (
+    <div className="min-h-screen bg-brand-pale/30">
+    <PartnerHeader form={form} onLogout={logout} />
     <div className="max-w-4xl mx-auto p-6 space-y-5" data-testid="agent-portal">
+      <button type="button" className="text-xs underline text-brand-navy/70" onClick={() => (window.history.length > 1 ? nav(-1) : nav("/"))} data-testid="agent-back-link">← Back</button>
       <div className="flex justify-between items-start gap-3 flex-wrap">
         <div><div className="text-[11px] uppercase tracking-widest text-brand-navy/60">PMC partner{form.partner_code ? ` · ${form.partner_code}` : ""}</div>
           <h1 className="font-serif text-2xl text-brand-navy">{form.legal_name || form.name}</h1>
           <div className="text-sm text-brand-navy/70">{form.email} · status <b data-testid="agent-status">{form.status.replace("_", " ")}</b></div></div>
-        <button className="pmc-btn pmc-btn--secondary" onClick={logout} data-testid="agent-logout">Sign out</button>
       </div>
       {form.status === "needs_clarification" && lastNote && <div className="bg-amber-50 border border-amber-300 p-3 text-sm" data-testid="agent-clarify-note"><b>PMC asked for changes:</b> {lastNote.note}</div>}
       {form.status === "payment_pending" ? <PayCard form={form} setForm={setForm} /> : form.status === "approved" ? <ApprovedHome /> : locked ? (
@@ -135,6 +156,7 @@ export default function AgentPortal() {
           </div>
         </div>}
       </>}
+    </div>
     </div>
   );
 }

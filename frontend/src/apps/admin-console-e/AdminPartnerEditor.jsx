@@ -17,7 +17,10 @@ const AgreementStatus = ({ a }) => (
 
 export default function AdminPartnerEditor({ a, onSaved, onClose }) {
   const [form, setForm] = useState(() => ({ ...a, entity_type: a.entity_type || "individual", banking: a.banking?.length ? a.banking : [{ ...BANK }] }));
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(() => {
+    const gap = missingItems({ ...a, entity_type: a.entity_type || "individual" });
+    return a.entity_type ? (gap.length ? gap[0][0] + 1 : 4) : 0;
+  });
   const [saving, setSaving] = useState(false);
   const ref = useRef(form);
   ref.current = form;

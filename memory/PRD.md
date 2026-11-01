@@ -1066,6 +1066,11 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - PATCH /api/v1/admin/agents/{id}/profile accepts all PROFILE_FIELDS + banking (≤5) + documents (agent-docs/ keys; upload records get owner_agent_id so the partner sees them); 422 on bad shapes.
 - Bundles: /downloads/pmc-backend-v59b.zip, /downloads/pmc-frontend-v59b-prod-build.zip.
 
+## R49 — Partner portal header + resume where left + bundle v59c — 2026-11-01 (self-tested via screenshot)
+- /partner/me now has a PartnerHeader (PMC Managers logo → home, My profile, Tenders, initials avatar, Sign out) and a ← Back link.
+- Partner portal and admin AdminPartnerEditor open at the first unfinished section (missingItems), Agreement when everything else is complete.
+- Bundles: /downloads/pmc-backend-v59c.zip, /downloads/pmc-frontend-v59c-prod-build.zip.
+
 
 
 
