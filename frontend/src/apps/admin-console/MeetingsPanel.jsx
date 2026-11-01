@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { PUBLIC_SITE } from "@/lib/site";
 import { toast } from "sonner";
 import { meetingsApi, publicApi, formatApiError, showApiError} from "@/lib/api";
 import { InfoDot } from "@/components/InfoDot";
@@ -82,7 +83,7 @@ export default function MeetingsPanel() {
   };
 
   const copyLink = (url) => {
-    const full = `${window.location.origin}${url}`;
+    const full = `${PUBLIC_SITE}${url}`;
     navigator.clipboard?.writeText(full);
     toast.success("Invite link copied");
   };
@@ -226,7 +227,7 @@ function InviteeLinks({ mid, onCopy }) {
           <div key={l.email} className="flex items-center gap-3 text-xs">
             <span className="w-56 truncate">{l.name} · <span className="text-brand-navy/60">{l.email}</span></span>
             <span className="text-[10px] uppercase tracking-widest text-brand-navy/50">{l.role}</span>
-            <input readOnly value={`${window.location.origin}${l.url}`}
+            <input readOnly value={`${PUBLIC_SITE}${l.url}`}
                    className="flex-1 px-2 py-1 border border-brand-navy/15 font-mono text-[11px] bg-white" />
             <button type="button" onClick={() => onCopy(l.url)}
                     className="text-[10px] uppercase tracking-widest px-2 py-1 border border-brand-navy/30 hover:bg-brand-navy hover:text-white">

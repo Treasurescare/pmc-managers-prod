@@ -1013,6 +1013,13 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - components/PasswordInput.jsx (eye/eye-off, data-testid `<input-testid>-toggle`) used by all 18 screens with password boxes.
 - Bundles: /downloads/pmc-backend-v58v.zip, /downloads/pmc-frontend-v58v-prod-build.zip (scripts/build_v58v.sh). Not yet deployed to AWS.
 
+## R41 — Public links always pmcmanagers.com — 2026-11-01 (self-tested: Playwright)
+- frontend/.env REACT_APP_PUBLIC_SITE_URL=https://www.pmcmanagers.com; lib/site.js PUBLIC_SITE used for partner sign-up link, auction invite/live links, meeting links, escrow signing link.
+- Payment return URLs still use the current site (needed so checkout returns to where the user is).
+- Bundles: pmc-backend-v58w.zip, pmc-frontend-v58w-prod-build.zip (scripts/build_v58w.sh).
+- NEXT (approved): Tender Criteria Builder Stage 1 for every tender — buyer criteria (measure, rule, unit/currency/period, proof, must-pass/scored, consortium applies-to), AI pre-fill from tender doc where possible else blank, supplier answers sealed in bid; then auto-qualification at opening; then consortium.
+
+
 
 
 

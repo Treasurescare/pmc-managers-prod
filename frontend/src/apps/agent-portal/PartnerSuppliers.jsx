@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PUBLIC_SITE } from "@/lib/site";
 import { toast } from "sonner";
 import { agentApi, showApiError } from "@/lib/api";
 
@@ -53,7 +54,7 @@ export default function PartnerSuppliers() {
   const [code, setCode] = useState("");
   const load = () => agentApi.suppliers().then((r) => setRows(r.items || [])).catch(showApiError);
   useEffect(() => { load(); agentApi.me().then((a) => setCode(a.partner_code || "")).catch(() => {}); }, []);
-  const link = code ? `${window.location.origin}/register?partner=${code}` : "";
+  const link = code ? `${PUBLIC_SITE}/register?partner=${code}` : "";
   const copy = () => navigator.clipboard.writeText(link).then(() => toast.success("Link copied")).catch(() => toast.info(link));
   return (
     <div className="space-y-4" data-testid="partner-suppliers">

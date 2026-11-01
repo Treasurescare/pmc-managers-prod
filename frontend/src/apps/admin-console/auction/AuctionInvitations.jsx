@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { PUBLIC_SITE } from "@/lib/site";
 import { toast } from "sonner";
 import { reverseAuctionApi, showApiError } from "@/lib/api";
 /**
@@ -61,7 +62,7 @@ export default function AuctionInvitations({ auctionId }) {
   };
 
   const inviteUrl = (token) =>
-    `${window.location.origin}/vendor/auction/invite/${token}`;
+    `${PUBLIC_SITE}/vendor/auction/invite/${token}`;
 
   const copy = async (token) => {
     try {

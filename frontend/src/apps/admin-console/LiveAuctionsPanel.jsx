@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { PUBLIC_SITE } from "@/lib/site";
 import { toast } from "sonner";
 import { reverseAuctionApi, publicApi, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
@@ -196,7 +197,7 @@ export default function LiveAuctionsPanel() {
             {items.length === 0 ? t("panels.live_auctions.empty") : "No matches"}
           </div>
         ) : paged.map((a) => {
-          const url = `${window.location.origin}/vendor/auction/${a.id}`;
+          const url = `${PUBLIC_SITE}/vendor/auction/${a.id}`;
           return (
             <div key={a.id} className="p-4 border-b border-brand-navy/10" data-testid={`ra-row-${a.id}`}>
               <div className="flex items-baseline gap-4 flex-wrap">

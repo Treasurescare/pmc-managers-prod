@@ -4,6 +4,7 @@
  * the final release button. Kept pure UI + calls into escrowApi.
  */
 import { useEffect, useMemo, useState } from "react";
+import { PUBLIC_SITE } from "@/lib/site";
 import { toast } from "sonner";
 import { adminApi, bidApi, escrowApi, showApiError } from "@/lib/api";
 import { InfoDot } from "@/components/InfoDot";
@@ -380,7 +381,7 @@ export default function EscrowTransactionsSection({ accounts, txs, onReload }) {
       `transaction on this joint account, not just this one.`)) return;
     try {
       const r = await escrowApi.magicIssue(t.escrow_account_id, officerEmail);
-      const url = `${window.location.origin}${r.portal_url}`;
+      const url = `${PUBLIC_SITE}${r.portal_url}`;
       if (r.emailed) {
         toast.success(`Signing link emailed to ${r.officer_email}`, {
           description: "Officer can also sign from the direct link below (click to copy).",

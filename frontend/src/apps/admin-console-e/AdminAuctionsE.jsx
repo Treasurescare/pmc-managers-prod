@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { PUBLIC_SITE } from "@/lib/site";
 import { toast } from "sonner";
 import { reverseAuctionApi, adminApi, showApiError } from "@/lib/api";
 import AdminEShell from "./AdminEShell";
@@ -543,7 +544,7 @@ export default function AdminAuctionsE() {
                           <ul className="mt-1 text-[11px] font-mono space-y-1 max-h-40 overflow-y-auto"
                               data-testid={`auction-invite-pending-list-${a.id}`}>
                             {part.invitations.map((inv) => {
-                              const url = `${window.location.origin}/vendor/auction/invite/${inv.token}`;
+                              const url = `${PUBLIC_SITE}/vendor/auction/invite/${inv.token}`;
                               const declined = inv.status === "declined";
                               return (
                                 <li key={inv.token}
