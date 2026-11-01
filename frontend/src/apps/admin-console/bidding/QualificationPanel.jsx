@@ -64,10 +64,10 @@ const BidCard = ({ b, refKey, reload, open }) => {
   );
 };
 
-export const QualificationPanel = ({ noticeRef, commercialOpen }) => {
+export const QualificationPanel = ({ noticeRef, commercialOpen, onChange }) => {
   const [d, setD] = useState(null);
-  const load = () => criteriaApi.qualification(noticeRef).then(setD).catch(() => setD(null));
-  useEffect(() => { load(); }, [noticeRef]); // eslint-disable-line react-hooks/exhaustive-deps
+  const load = () => criteriaApi.qualification(noticeRef).then((x) => { setD(x); onChange?.(); }).catch(() => setD(null));
+  useEffect(() => { criteriaApi.qualification(noticeRef).then(setD).catch(() => setD(null)); }, [noticeRef]);
   if (!d || !d.criteria_count || !d.bids.length) return null;
   const q = d.bids.filter((b) => b.status === "qualified").length;
   return (

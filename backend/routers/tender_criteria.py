@@ -5,7 +5,7 @@ import secrets
 from typing import List, Literal, Optional
 
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field, model_validator
 
 from audit import audit_log
@@ -154,6 +154,7 @@ async def _store(n: dict, body: "CriteriaIn", actor: dict) -> dict:
     await audit_log("tender.criteria_saved", actor, "notice", ref, {"count": len(crit),
                     "must_pass": sum(1 for c in crit if c["kind"] == "must_pass")})
     n.update({"tender_criteria": crit, "criteria_fx_rule": body.fx_rule})
+    n.pop("criteria_ai_check", None)
     return _view(n)
 
 
@@ -321,9 +322,11 @@ async def ai_check(ref: str, admin=Depends(require_role("admin", "reviewer"))):
     raw = await _llm_complete(_CHECK_SYSTEM, f"TENDER DOCUMENT:\n{text}\n\nCRITERIA ENTERED:\n{json.dumps(slim)}")
     m = re.search(r"\{.*\}", raw or "", re.S)
     try:
-        res = json.loads(m.group(0)) if m else {}
+        res = json.loads(m.group(0)) if m else None
     except ValueError:
-        res = {}
+        res = None
+    if not isinstance(res, dict) or "verdict" not in res:
+        raise HTTPException(status_code=502, detail="The AI check didn't return a clear answer. Please run it again.")
     out = {"verdict": "issues" if (res.get("issues") or res.get("missing_from_criteria")) else "match",
            "issues": (res.get("issues") or [])[:30], "missing_from_criteria": (res.get("missing_from_criteria") or [])[:30],
            "checked_at": now_iso(), "checked_by": admin.get("email")}
@@ -354,7 +357,7 @@ def evaluate(criteria: list, answers: list, docs: list) -> dict:
             if c["answer_type"] == "number":
                 ok = v is not None and _meets(c["operator"], float(v), float(c["threshold"]))
                 r.update(result="pass" if ok else "fail", reason=None if ok else
-                         f"Declared {v if v is not None else 'nothing'} {c.get('unit') or ''}; needs {dict(gte='at least', lte='at most', eq='exactly')[c['operator']]} {c['threshold']:,} {c.get('unit') or ''}".strip())
+                         f"Declared {f'{float(v):,.0f}' if v is not None else 'nothing'} {c.get('unit') or ''}; needs {dict(gte='at least', lte='at most', eq='exactly')[c['operator']]} {c['threshold']:,} {c.get('unit') or ''}".strip())
             else:
                 ok = v is True
                 r.update(result="pass" if ok else "fail", reason=None if ok else "Answered No or did not answer")
@@ -449,6 +452,8 @@ async def raise_doubt(ref: str, bid_id: str, body: DoubtIn, admin=Depends(requir
     await _committee_member(ref, admin)
     b = await _qual_bid(ref, bid_id)
     q = b["qualification"]
+    if not any(r["criterion_id"] == body.criterion_id for r in q.get("results") or []):
+        raise HTTPException(status_code=422, detail="That criterion is not part of this tender")
     if q.get("decision"):
         raise HTTPException(status_code=409, detail="The committee has already decided on this bid")
     q.setdefault("doubts", []).append({"criterion_id": body.criterion_id, "reason": body.reason, "by": admin.get("email"),
@@ -494,3 +499,48 @@ async def evaluator_score(ref: str, bid_id: str, body: ScoreIn, admin=Depends(re
     await db.bids.update_one({"_id": b["_id"]}, {"$set": {"qualification": q}})
     await audit_log("qualification.evaluator_score", admin, "bid", b.get("bid_ref"), {"criterion": body.criterion_id, "points": body.points})
     return {"points": r["points"]}
+
+
+# ---------- supplier tenders built from templates (Tender Builder) ----------
+
+async def _own_template(tid: str, request: Request) -> tuple:
+    from routers._tender_access import assert_can_edit_doc, write_principal
+    p = await write_principal(request)
+    doc = await db.tender_templates.find_one({"_id": ObjectId(tid)}) if ObjectId.is_valid(tid) else None
+    if not doc:
+        raise HTTPException(status_code=404, detail="Tender not found")
+    assert_can_edit_doc(p, doc)
+    return doc, p
+
+
+def _tpl_view(doc: dict) -> dict:
+    return {"notice_ref": str(doc["_id"]), "criteria": doc.get("tender_criteria") or [], "fx_rule": doc.get("criteria_fx_rule"),
+            "locked": doc.get("review_status") in ("submitted", "approved"), "ai_check": None}
+
+
+@router.get("/template/{tid}/mine")
+async def template_get(tid: str, request: Request):
+    doc, _ = await _own_template(tid, request)
+    return _tpl_view(doc)
+
+
+@router.put("/template/{tid}/mine")
+async def template_save(tid: str, body: CriteriaIn, request: Request):
+    doc, p = await _own_template(tid, request)
+    if doc.get("review_status") in ("submitted", "approved"):
+        raise HTTPException(status_code=409, detail="Criteria can only be changed while the tender is a draft or returned for changes.")
+    crit = [c.model_dump() for c in body.criteria]
+    await db.tender_templates.update_one({"_id": doc["_id"]}, {"$set": {"tender_criteria": crit, "criteria_fx_rule": body.fx_rule}})
+    await audit_log("tender_template.criteria_saved", p, "tender_template", tid, {"count": len(crit)})
+    doc.update(tender_criteria=crit, criteria_fx_rule=body.fx_rule)
+    return _tpl_view(doc)
+
+
+@router.post("/template/{tid}/mine/ai-suggest")
+async def template_suggest(tid: str, request: Request):
+    doc, p = await _own_template(tid, request)
+    h = doc.get("header") or {}
+    body = " ".join(re.sub(r"<[^>]+>", " ", str(s.get("body") or s.get("html") or "")) for s in doc.get("sections") or [] if isinstance(s, dict))
+    fake = {"notice_ref": tid, "title": h.get("work_title") or doc.get("name"), "description": f"{h.get('work_description') or ''}\n{body}"}
+    return await _suggest(fake, p)
+

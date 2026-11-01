@@ -16,6 +16,7 @@ import { useNavigate } from "react-router-dom";
 import { TenderFeesPanel } from "@/apps/vendor-portal-e/TenderFeesPanel";
 import { StartTenderGate } from "@/apps/vendor-portal-e/StartTenderGate";
 import { vendorTenderApi } from "@/lib/api";
+import CriteriaEditorModal from "@/apps/admin-console/notice/CriteriaEditorModal";
 
 /**
  * TenderBuilderPanel — Section-by-section tender/RFP/RFQ composer.
@@ -80,6 +81,7 @@ export default function TenderBuilderPanel({ vendorMode = false }) {
   const [list, setList] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [doc, setDoc] = useState(null);
+  const [critOpen, setCritOpen] = useState(false);
   const [kind, setKind] = useState("tender");
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -705,6 +707,13 @@ export default function TenderBuilderPanel({ vendorMode = false }) {
                       ✎ Changes requested — edit &amp; resubmit
                     </span>
                   )}
+                  {!doc.is_master && vendorMode && !["submitted", "approved"].includes(doc.review_status) && (
+                    <button type="button" data-testid="tb-criteria" onClick={() => setCritOpen(true)}
+                            className="px-4 py-2 text-[12px] uppercase tracking-widest border border-brand-gold text-brand-navy hover:bg-brand-gold/20">
+                      Criteria{doc.tender_criteria?.length ? ` (${doc.tender_criteria.length})` : ""}
+                    </button>
+                  )}
+                  {critOpen && <CriteriaEditorModal mode="template" noticeRef={doc.id} onClose={() => setCritOpen(false)} onSaved={() => openTemplate(doc.id)} />}
                   {!doc.is_master && vendorMode && !["submitted", "approved"].includes(doc.review_status) && (
                     <button data-testid="tb-submit-review"
                             onClick={async () => {

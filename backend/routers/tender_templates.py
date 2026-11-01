@@ -995,6 +995,8 @@ async def submit_template_for_review(tid: str, principal=Depends(write_principal
     if missing:
         raise HTTPException(status_code=422,
             detail="Fill in these fields before submitting: " + ", ".join(missing))
+    if not has_must_pass(doc):
+        raise HTTPException(status_code=409, detail="Add the tender criteria first — at least one pass/fail criterion is needed before submitting (Criteria button).")
     await assert_vendor_can_submit(principal["id"], doc)
     await assert_fees_paid(principal, doc, "submit")
     await db.tender_templates.update_one({"_id": ObjectId(tid)},

@@ -64,7 +64,10 @@ const CriterionLine = ({ c }) => (
 );
 
 export default function CriteriaEditorModal({ noticeRef, onClose, onSaved, mode = "admin" }) {
-  const vendor = mode === "vendor";
+  const vendor = mode !== "admin";
+  const API = mode === "template" ? { get: criteriaApi.tplGet, save: criteriaApi.tplSave, ai: criteriaApi.tplAiSuggest }
+    : vendor ? { get: criteriaApi.mineGet, save: criteriaApi.mineSave, ai: criteriaApi.mineAiSuggest }
+      : { get: criteriaApi.adminGet, save: criteriaApi.save, ai: criteriaApi.aiSuggest };
   const [check, setCheck] = useState(null);
   const [data, setData] = useState(null);
   const [rows, setRows] = useState([]);
@@ -72,14 +75,14 @@ export default function CriteriaEditorModal({ noticeRef, onClose, onSaved, mode 
   const [fx, setFx] = useState("");
   const [busy, setBusy] = useState("");
   useEffect(() => {
-    (vendor ? criteriaApi.mineGet : criteriaApi.adminGet)(noticeRef).then((d) => { setData(d); setRows(d.criteria); setFx(d.fx_rule || ""); setCheck(d.ai_check || null); }).catch(showApiError);
+    API.get(noticeRef).then((d) => { setData(d); setRows(d.criteria); setFx(d.fx_rule || ""); setCheck(d.ai_check || null); }).catch(showApiError);
     criteriaApi.templates().then(setTpl).catch(() => {});
-  }, [noticeRef, vendor]);
+  }, [noticeRef, mode]); // eslint-disable-line react-hooks/exhaustive-deps
   const upd = (i, c) => setRows((r) => r.map((x, j) => (j === i ? c : x)));
   const ai = async () => {
     setBusy("ai");
     try {
-      const r = await (vendor ? criteriaApi.mineAiSuggest : criteriaApi.aiSuggest)(noticeRef);
+      const r = await API.ai(noticeRef);
       if (r.criteria.length) { setRows((x) => [...x, ...r.criteria]); toast.success(`${r.criteria.length} criteria read from the tender — check each one before saving`); }
       else toast.info(r.note);
     } catch (e) { showApiError(e); } finally { setBusy(""); }
@@ -89,7 +92,7 @@ export default function CriteriaEditorModal({ noticeRef, onClose, onSaved, mode 
     try {
       const criteria = rows.map(({ needs_review, ...c }) => ({ ...c, threshold: num(c.threshold), max_points: num(c.max_points), // eslint-disable-line no-unused-vars
         full_points_at: num(c.full_points_at), prefill_field: c.prefill_field || null, operator: c.answer_type === "number" ? c.operator || "gte" : null }));
-      const d = await (vendor ? criteriaApi.mineSave : criteriaApi.save)(noticeRef, { criteria, fx_rule: fx || null });
+      const d = await API.save(noticeRef, { criteria, fx_rule: fx || null });
       setCheck(null);
       setRows(d.criteria); toast.success("Criteria saved"); onSaved?.();
     } catch (e) { showApiError(e); } finally { setBusy(""); }

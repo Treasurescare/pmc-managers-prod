@@ -1,0 +1,48 @@
+{
+  "summary": "Stage 2 testing of tender criteria: publish gates, vendor criteria endpoints, AI check, and auto-qualification at technical opening through to commercial opening and the opening-record PDF. Backend: 26 of 27 new pytest tests pass, plus 35 of 35 v72/v72b regression tests. The full end-to-end flow works: zero-EMD bids, 2 committee members sign, qualified/not_qualified with reasons, auto points (5->15 rule), evaluator marks averaged, doubt blocks commercial opening, uphold/disqualify, only the qualified bid's price is opened, the PDF has a 'Qualification (system check)' column, and doubt/score return 409 after commercial opening. The hosting-fee gate was tested in-process by calling apply_extra_payment directly. The AI check works against the real LLM and correctly flagged a wrong threshold and a missing ISO criterion. UI: QualificationPanel on /staff -> Bid opening as committee1 (badges, per-criterion rows, Give marks, Raise doubt, Keep/Disqualify via window.prompt) works. The admin CriteriaEditorModal AI check (run, issues list, result still there after reopening) works. CRITICAL: the vendor 'Criteria' button can't be reached in the UI because VendorTenderBuilderE is not routed anywhere.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PUT /api/v1/tender-criteria/{ref} and PUT /{ref}/mine (_store)", "issue": "The database clears criteria_ai_check correctly, but the response still contains the old ai_check because n.update() never removes the key. The frontend hides this by calling setCheck(null). Fix: n.pop('criteria_ai_check', None) in _store."},
+      {"endpoint": "POST /api/v1/tender-criteria/{ref}/ai-check", "issue": "If the LLM returns text that isn't valid JSON (or JSON without issues), verdict defaults to 'match'. A parse failure should return 502 or 'unknown', not a clean pass."},
+      {"endpoint": "evaluate() failure reason", "issue": "The declared value is printed as a raw float, e.g. 'Declared 400000.0 USD; needs at least 1,000,000 USD'. Format it like the threshold. This text also appears in the signed PDF."},
+      {"endpoint": "POST /tender-criteria/{ref}/bids/{id}/doubt", "issue": "criterion_id is not checked against the tender's criteria, so a doubt can be logged on a criterion that doesn't exist."},
+      {"endpoint": "payments_extra hosting_fee", "issue": "The payer email still says 'It is now published on PMC Managers' even when live=False because no criteria have been entered."},
+      {"endpoint": "Commercial opening with evaluator-scored items", "issue": "Price opening is not blocked while evaluator items are still 'pending' (unmarked). Confirm this is intended."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "VendorTenderBuilderE (Criteria button vt-criteria-<ref>)", "issue": "This component is not imported or routed anywhere. /vendor/tender-builder renders VendorTenderBuilderFull, a template-based builder with no criteria entry. Suppliers therefore can't enter criteria in the UI as the spec requires. The template flow (tender_templates submit-review) has no criteria gate, and no endpoint ever sets tender_criteria on a template, so the has_must_pass(doc) check at template approve is always False and every approved supplier tender becomes an unpublished draft.", "selector": "[data-testid^='vt-criteria-']", "priority": "CRITICAL"},
+      {"component": "BidOpeningPanel + QualificationPanel", "issue": "After a doubt/uphold/disqualify in QualificationPanel, the commercial-stage blockers are not refreshed. Only QualificationPanel reloads, so the 'committee has raised a doubt' blocker appears only after a page reload. Pass a reload callback up to BidOpeningPanel.", "selector": "[data-testid='opening-commercial-<ref>']", "priority": "MEDIUM"},
+      {"component": "QualificationPanel BidCard", "issue": "'Raise doubt' still shows on bids the committee has already decided (disqualified); clicking it returns a 409 error. Hide it when b.decision is set.", "selector": "q-doubt-<cid>", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Reviewer template approve (/admin/e/tender-review)", "issue": "The toast always says 'Approved & published' and ignores is_published=false and the backend note 'Saved as a draft notice — add its criteria, then publish.'", "affected_selectors": ["tr-approve-*"]}
+    ],
+    "design_issues": [
+      {"screen": "QualificationPanel", "issues": ["The rule shows raw operator codes ('rule gte 1000000 USD'). Use 'at least 1,000,000 USD' as CriteriaEditorModal does.", "Declared values are not thousands-separated ('2500000 USD', '400000.0')."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v72c_criteria_stage2.py", "/app/backend/tests/ui_qual_setup.py", "/app/test_reports/pytest/v72c.xml"],
+  "action_items": [
+    "CRITICAL: Give suppliers a working place to enter criteria in the UI. Either route VendorTenderBuilderE or add criteria entry to VendorTenderBuilderFull or the template flow: store tender_criteria on the template, gate /tender-templates/{tid}/submit-review on has_must_pass, and show criteria to the reviewer in AdminTenderReviewE.",
+    "Refresh BidOpeningPanel state (blockers) after QualificationPanel actions.",
+    "Fix the stale ai_check in the _store response.",
+    "Don't default the AI check to 'match' when the LLM output can't be parsed.",
+    "Format numbers in qualification reasons and the UI rule text; hide Raise doubt on decided bids.",
+    "Make the template-approve toast reflect the draft/unpublished outcome; fix the hosting-fee email wording when the tender isn't published."
+  ],
+  "critical_code_review_comments": [
+    "bid_opening._open reuses the variable q, first as the Mongo query and then as the evaluate() result inside the loop. It works only because the cursor is already built. Rename it.",
+    "_qual_bid only checks commercial_unsealed_at on the bid. That's fine, but a not_qualified bid never gets unsealed, so scoring/doubts on it stay possible after commercial opening (no 409). Consider checking notice.commercial_opened_at instead.",
+    "The AI check is still offered on live (locked) tenders, where the criteria can no longer be changed."
+  ],
+  "updated_files": ["/app/backend/tests/test_v72c_criteria_stage2.py", "/app/backend/tests/ui_qual_setup.py"],
+  "success_rate": {"backend": "96% (26/27 new + 35/35 regression)", "frontend": "75% (committee qualification UI and admin AI check work; vendor criteria UI can't be reached)"},
+  "seed_data_creation": "All TEST-VTC*/TEST-HOST*/TEST-Q2*/TEST-QUI* notices, bids, committees, opening_records, uploads and payment_transactions were deleted after the run (verified count 0). Audit ledger entries remain (append-only).",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run with -n0 (pytest.ini enables xdist and the classes depend on order): pytest tests/test_v72c_criteria_stage2.py -n0. UI setup: python /app/backend/tests/ui_qual_setup.py setup|cleanup. It creates TEST-QUI-1 with technical already opened; add tenant_id PMC-KZ-01 and status published for it to appear in /admin/e/notices. Committee UI is at /staff/login -> 'Bid opening' nav (committee1/committee2@demo, Demo@Pmc2026). The vendor Criteria button was only testable via API because VendorTenderBuilderE is unrouted.",
+  "test_credentials": "From /app/memory/test_credentials.md: adminsupport@pmcmanagers.com/Admin@12345, reviewerqa@pmcmanagers.com/Reviewer@12345, testvendor@pmcmanagers.com/Vendor@12345, northfield/brightwater/committee1/committee2@demo.pmcmanagers.com/Demo@Pmc2026"
+}
