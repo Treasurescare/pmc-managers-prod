@@ -346,7 +346,7 @@ async def create_notice(payload: NoticeIn, admin=Depends(require_role(
     """Create + optionally publish a notice. Permissions Matrix enforced."""
     await require_notice_permission(admin, "create", payload.document_type)
     if payload.is_published:
-        await require_notice_permission(admin, "publish", payload.document_type)
+        raise HTTPException(status_code=409, detail="Save the notice as a draft first, add its criteria (Criteria button), then publish.")
     # v52bl — refuse notices with no indicative value. Budget must be > 0.
     if not payload.budget_amount or float(payload.budget_amount) <= 0:
         raise HTTPException(status_code=422,
@@ -460,6 +460,10 @@ async def update_notice(notice_ref: str, payload: NoticePatchIn,
     if updates.get("is_published") and not notice.get("is_published") \
             and (notice.get("hosting_fee") or {}).get("status") == "unpaid":
         raise HTTPException(status_code=409, detail="Hosting fee is unpaid — the notice publishes automatically once the buyer pays.")
+    if updates.get("is_published") and not notice.get("is_published"):
+        from routers.tender_criteria import has_must_pass
+        if not has_must_pass(notice):
+            raise HTTPException(status_code=409, detail="Add the tender criteria first — at least one pass/fail criterion is needed before publishing (Criteria button).")
     # v52t — date-chain on edits: ordering only (legacy notices may
     # legitimately carry past dates, so no "must be ≥ today" here).
     if "submission_deadline" in updates or "pre_bid_meeting_date" in updates:

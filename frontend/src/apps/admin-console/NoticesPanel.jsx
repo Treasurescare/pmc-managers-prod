@@ -580,16 +580,9 @@ export default function NoticesPanel() {
                 The real picker now renders at the top of the form (above Title). */}
             <input data-testid="notice-tender-template-sentinel" type="hidden" value={draft.tender_template_id || ""} />
           </div>
-          <label className="col-span-2 flex items-center gap-2 text-sm">
-            <input type="checkbox"
-                   checked={draft.is_published}
-                   disabled={!isMasterAdmin}
-                   onChange={(e) => setDraft({ ...draft, is_published: e.target.checked })}
-                   data-testid="notice-publish" />
-            {isMasterAdmin
-              ? "Publish immediately (visible on public board)"
-              : "Publish immediately — reserved for Master Admin (this saves as draft)"}
-          </label>
+          <p className="col-span-2 text-xs text-brand-navy/70" data-testid="notice-publish-note">
+            Saved as a draft. Add the tender criteria (Criteria button on the row), then press Publish.
+          </p>
 
           <div className="col-span-2 border-t border-brand-navy/10 pt-4 mt-2">
             <div className="pmc-label mb-2">

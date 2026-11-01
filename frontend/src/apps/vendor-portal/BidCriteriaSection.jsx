@@ -41,9 +41,9 @@ export default function BidCriteriaSection({ criteria, answers, setAnswer, docs,
             </div>
             <AnswerInput c={c} value={answers[c.id]} onChange={(v) => setAnswer(c.id, v)} />
             {prefilled[c.id] !== undefined && <div className="text-[11px] text-emerald-700 mt-1">Filled from your PMC profile — check it's still correct.</div>}
-            {c.proof && (
+            {(c.proof || c.proof_required) && (
               <div className="mt-2 flex items-center gap-2 flex-wrap text-xs">
-                <span>Proof: {c.proof}{c.proof_required ? <span className="text-red-600"> *</span> : " (optional)"}</span>
+                <span>Proof: {c.proof || "Supporting document"}{c.proof_required ? <span className="text-red-600"> *</span> : " (optional)"}</span>
                 <label className="px-2 py-1 border border-amber-500 bg-amber-50 rounded cursor-pointer" data-testid={`crit-proof-upload-${c.id}`}>
                   + Upload<input type="file" hidden onChange={(e) => e.target.files?.[0] && onUpload(c.id, e.target.files[0], e.target)} data-testid={`crit-proof-input-${c.id}`} />
                 </label>

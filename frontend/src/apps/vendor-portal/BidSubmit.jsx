@@ -569,7 +569,7 @@ export default function BidSubmit() {
                         data-testid={`bid-doc-pick-${d.kind}-${i}`}
                         className="w-4 h-4 accent-slate-900 shrink-0" />
                       <span className="text-xs text-slate-900 font-medium break-all min-w-0">
-                        <span className="uppercase text-slate-500 font-semibold">{d.kind}</span>
+                        <span className="uppercase text-slate-500 font-semibold">{d.criterion_id ? `criterion proof · ${(criteria.find((c) => c.id === d.criterion_id) || {}).title || ""}` : d.kind}</span>
                         {" · "}{d.filename}
                         <span className="text-slate-500"> ({Math.round((d.size_bytes || 0) / 1024)} KB)</span>
                       </span>

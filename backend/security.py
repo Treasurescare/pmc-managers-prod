@@ -58,6 +58,13 @@ def _session_sub(request) -> Optional[str]:
         if h.startswith("Bearer "):
             token = h[7:]
     if not token:
+        at = request.cookies.get("agent_token")
+        if at:
+            try:
+                p = jwt.decode(at, config.JWT_SECRET, algorithms=[config.JWT_ALGORITHM])
+                return f"agent:{p['sub']}" if p.get("type") == "agent_access" else None
+            except Exception:
+                return None
         return None
     try:
         payload = jwt.decode(token, config.JWT_SECRET, algorithms=[config.JWT_ALGORITHM])

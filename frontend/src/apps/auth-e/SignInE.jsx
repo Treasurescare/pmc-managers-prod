@@ -40,7 +40,8 @@ export default function SignInE({ legacy: Legacy }) {
     try {
       if (role === "partner") {
         try {
-          await api.post("/api/v1/agents/auth/login", { email, password });
+          const pr = await api.post("/api/v1/agents/auth/login", { email, password });
+          cacheCsrf(pr?.data?.csrf_token);
         } catch (err) {
           if (err?.response?.status !== 401) throw err;
           toast.error("That email and password don't match a Partner account.", {

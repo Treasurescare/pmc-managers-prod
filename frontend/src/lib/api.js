@@ -168,7 +168,7 @@ export function formatApiError(err) {
   if (d == null) return err?.message || "Something went wrong. Please try again.";
   if (typeof d === "string") return d;
   if (Array.isArray(d))
-    return d.map((e) => (e && typeof e.msg === "string" ? e.msg : JSON.stringify(e))).filter(Boolean).join(" ");
+    return d.map((e) => (e && typeof e.msg === "string" ? e.msg.replace(/^Value error, /, "") : JSON.stringify(e))).filter(Boolean).join(" ");
   if (d && typeof d.msg === "string") return d.msg;
   // v52bh — structured details (e.g. 412 {code, message, corrigenda:[…]})
   // must render as readable text, never "[object Object]".
@@ -536,10 +536,10 @@ export const inspectionApi = {
 export const agentApi = {
   agreement: () => api.get("/api/v1/agents/agreement").then((r) => r.data),
   joinInfo: (t) => api.get(`/api/v1/agents/join/${t}`).then((r) => r.data),
-  join: (t, password) => api.post(`/api/v1/agents/join/${t}`, { password }).then((r) => r.data),
-  login: (email, password) => api.post("/api/v1/agents/auth/login", { email, password }).then((r) => r.data),
+  join: (t, password) => api.post(`/api/v1/agents/join/${t}`, { password }).then((r) => { cacheCsrf(r.data?.csrf_token); return r.data; }),
+  login: (email, password) => api.post("/api/v1/agents/auth/login", { email, password }).then((r) => { cacheCsrf(r.data?.csrf_token); return r.data; }),
   logout: () => api.post("/api/v1/agents/auth/logout").then((r) => r.data),
-  me: () => api.get("/api/v1/agents/me").then((r) => r.data),
+  me: () => api.get("/api/v1/agents/me").then((r) => { cacheCsrf(r.data?.csrf_token); return r.data; }),
   saveProfile: (p) => api.patch("/api/v1/agents/me/profile", p).then((r) => r.data),
   sign: (signer_name, consents) => api.post("/api/v1/agents/me/agreement", { signer_name, consents }).then((r) => r.data),
   submit: () => api.post("/api/v1/agents/me/submit").then((r) => r.data),

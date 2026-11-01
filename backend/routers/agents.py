@@ -13,7 +13,7 @@ from audit import audit_log
 from db import db
 from emails import send_email, wrap
 from models.base import now_iso
-from security import hash_password, new_csrf_token, require_csrf, require_role, set_csrf_cookie, verify_password
+from security import csrf_for_session, hash_password, require_csrf, require_role, set_csrf_cookie, verify_password
 
 router = APIRouter(tags=["agents"])
 ADMIN = Depends(require_role("admin"))
@@ -70,7 +70,7 @@ def _set_cookies(response: Response, a: dict) -> str:
     response.set_cookie(COOKIE, _jwt(a), **ck)
     for other in ("access_token", "vendor_token", "escrow_account_token", "escrow_sig_token"):
         response.delete_cookie(other, path="/", domain=config.COOKIE_DOMAIN)
-    csrf = new_csrf_token()
+    csrf = csrf_for_session(f"agent:{a['_id']}")
     set_csrf_cookie(response, csrf, max_age)
     return csrf
 
@@ -379,7 +379,8 @@ async def agent_logout(response: Response):
 
 @router.get("/api/v1/agents/me")
 async def agent_me(request: Request):
-    return _public(await current_agent(request))
+    a = await current_agent(request)
+    return {**_public(a), "csrf_token": csrf_for_session(f"agent:{a['_id']}")}
 
 
 @router.patch("/api/v1/agents/me/profile", dependencies=CSRF)

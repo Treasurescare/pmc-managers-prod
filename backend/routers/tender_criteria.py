@@ -84,6 +84,8 @@ class CriterionIn(BaseModel):
                     raise ValueError(f"'{t}': automatic scoring needs a number answer and the value that earns full points")
         if self.prefill_field and self.prefill_field not in PREFILL_FIELDS:
             self.prefill_field = None
+        if self.proof_required and not (self.proof or "").strip():
+            self.proof = "Supporting document"
         self.id = self.id or secrets.token_hex(6)
         return self
 
@@ -192,6 +194,10 @@ async def ai_suggest(ref: str, admin=Depends(require_role("admin"))):
             continue
         it = {k: (None if v in ("null", "") else v) for k, v in it.items()}
         it["id"] = secrets.token_hex(6)
+        if it.get("answer_type") != "number":
+            it.update({"operator": None, "threshold": None, "full_points_at": None})
+            if it.get("kind") == "scored":
+                it["scoring"] = "evaluator"
         it["needs_review"] = it.get("answer_type") == "number" and (it.get("threshold") is None or not it.get("unit"))
         out.append(it)
     await audit_log("tender.criteria_ai_suggest", admin, "notice", ref, {"found": len(out)})

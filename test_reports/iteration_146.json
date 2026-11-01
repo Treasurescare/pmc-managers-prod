@@ -1,0 +1,45 @@
+{
+  "summary": "Tested Tender Criteria Builder stage 1 end to end (backend pytest plus admin and vendor UI) and the Google OAuth gating. What works: save, validation and lock; the publish 409 gate on POST /publish; the public view is 404 for drafts; AI read (6 criteria in about 6s); templates and blank rows; the locked read-only modal; the vendor bid-criteria section with answers and proof uploads; the submit label gating; the 422 for missing answers; answers sealed in the DB and redacted for admin. Google button hidden, config {enabled:false}, start returns 503. Found 2 real bugs: (1) the must-pass publish gate can be bypassed through PATCH /notices/{ref} with is_published:true and through POST /notices with is_published:true (the 'Publish immediately' checkbox); (2) a criterion with 'Proof mandatory' ticked but empty proof text (the default for '+ Blank criterion') shows no upload control on the bid page, so suppliers can never submit.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "PATCH /api/v1/notices/{ref} (is_published:true)", "issue": "Publishes a draft with no criteria at all. Got 200 and is_published=True. Only POST /{ref}/publish checks has_must_pass. Reproduced by test_v72 TestC.", "priority": "HIGH"},
+      {"endpoint": "POST /api/v1/notices (is_published:true)", "issue": "A new notice created with 'Publish immediately' goes live with tender_criteria=None (got 200, published True). This is the NoticesPanel checkbox data-testid=notice-publish. It breaks the rule that every new tender needs at least one must-pass criterion.", "priority": "HIGH"},
+      {"endpoint": "PUT /api/v1/tender-criteria/{ref}", "issue": "Accepts proof_required=true with an empty proof text. BidCriteriaSection only shows the upload control when c.proof is set, while criteriaReady and clean_answers still require a proof. Suppliers are blocked forever ('Answer all tender criteria to submit'). Reproduced in the UI on TEST-CRIT-001 (the 'Methodology' blank row). The BLANK template defaults to proof_required:true with proof:'', and the AI can return the same combination.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "payments_extra hosting_fee paid / vendor_tenders approve / tender_templates publish", "issue": "These also set is_published=True without the must-pass check. Decide whether the 'every new tender' rule applies to them."},
+      {"endpoint": "GET /api/v1/tender-criteria/{ref}/prefill", "issue": "Does not check is_published (the vendor endpoint works on drafts). Low risk."},
+      {"endpoint": "422 validation messages", "issue": "Pydantic detail reaches the UI as 'Something went wrong · HTTP 422 / Value error, ...'. Strip the 'Value error, ' prefix and use a friendlier heading."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "BidCriteriaSection", "issue": "No upload control when proof_required is set but the proof text is empty, so the supplier is stuck", "selector": "[data-testid^=crit-proof-upload-]", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "NoticesPanel create with 'Publish immediately'", "issue": "Goes live without criteria (backend does not gate it). Either gate it in the backend or disable the checkbox until criteria exist.", "affected_selectors": ["[data-testid=notice-publish]"]}
+    ],
+    "design_issues": [
+      {"screen": "CriteriaEditorModal", "issues": ["The auto-fill select (crit-prefill-i) is col-span-1, so labels are cut to 'Annu'/'No au'", "The locked view does not show that proof is mandatory when the proof text is empty", "Validation errors do not point to the row (only the title in the toast)"]},
+      {"screen": "BidSubmit docs list", "issues": ["Criterion proof files are listed as 'TECHNICAL · proofX.pdf', looking like envelope documents, with no label for the criterion they belong to"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v72_tender_criteria.py", "/app/test_reports/pytest/pytest_v72.xml"],
+  "action_items": [
+    "Apply the has_must_pass check in update_notice (PATCH) and create_notice when is_published is true. Return 409 with the same message.",
+    "Either require non-empty proof text when proof_required is true (CriterionIn validator, with BLANK defaulting proof_required:false), or always render the upload control when proof_required is true. Also normalise AI output the same way.",
+    "Optional: widen crit-prefill select; label criterion proofs in the bid docs list; clean the 422 message prefix."
+  ],
+  "critical_code_review_comments": [
+    "notices.py update_notice and create_notice skip the criteria gate (only publish_notice has it).",
+    "tender_criteria.CriterionIn: no check that proof_required implies proof text, and BLANK on the frontend creates exactly this invalid state.",
+    "Criteria lock depends only on is_published. An admin can PATCH is_published:false to unlock and edit the criteria of a live tender without a corrigendum.",
+    "clean_answers accepts a 'No' for must-pass yes/no (fine for stage 1; stage 2 must fail it)."
+  ],
+  "updated_files": ["/app/backend/tests/test_v72_tender_criteria.py"],
+  "success_rate": {"backend": "95% (20/21; 1 failure = PATCH publish bypass)", "frontend": "85% (all requested flows pass; empty-proof blocking bug)"},
+  "seed_data_creation": "TEST-CRIT-001 (seeded by main agent) was missing tenant_id, so it was not listed in /admin/e/notices. Set tenant_id=PMC-KZ-01, kyc_bypass, emd 0 to test it. Published it via UI, submitted bid PMC-BID-2026-00090 as northfield. Everything was deleted afterwards (notice, bid, 12 uploads). No DEMO records touched.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_v72_tender_criteria.py -n0 -v. It must run with -n0 because the classes share module state. TestC fails until the PATCH gate is added. Admin UI login: /login, then signin-role-admin. Notices list filters by tenant_id, so seeded notices need tenant_id PMC-KZ-01. Do not remove sonner toasts via DOM in Playwright (it crashes React)."
+}

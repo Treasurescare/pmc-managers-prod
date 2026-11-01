@@ -40,12 +40,12 @@ const CriterionRow = ({ c, i, onChange, onRemove, prefillFields }) => {
         {isNum && (c.scoring || "auto") === "auto" && <input className={`${inp} col-span-12 md:col-span-6`} type="number" placeholder="Value that earns full points" value={c.full_points_at ?? ""} onChange={(e) => set("full_points_at", e.target.value)} data-testid={`crit-full-${i}`} />}
       </div>}
       <div className="grid grid-cols-12 gap-2 items-center">
-        <input className={`${inp} col-span-12 md:col-span-6`} placeholder="Proof required, e.g. Audited accounts for 3 years" value={c.proof || ""} onChange={(e) => set("proof", e.target.value)} data-testid={`crit-proof-${i}`} />
+        <input className={`${inp} col-span-12 md:col-span-5`} placeholder="Proof required, e.g. Audited accounts for 3 years" value={c.proof || ""} onChange={(e) => set("proof", e.target.value)} data-testid={`crit-proof-${i}`} />
         <label className="col-span-6 md:col-span-2 text-xs flex gap-1 items-center"><input type="checkbox" checked={!!c.proof_required} onChange={(e) => set("proof_required", e.target.checked)} data-testid={`crit-proof-req-${i}`} />Proof mandatory</label>
         <select className={`${inp} col-span-6 md:col-span-2`} value={c.consortium_rule || "each"} onChange={(e) => set("consortium_rule", e.target.value)} title="For consortium bids" data-testid={`crit-consortium-${i}`}>
           <option value="lead">Consortium: lead alone</option><option value="combined">Consortium: members together</option><option value="each">Consortium: every member</option>
         </select>
-        <select className={`${inp} col-span-10 md:col-span-1`} value={c.prefill_field || ""} onChange={(e) => set("prefill_field", e.target.value)} title="Fill from supplier's PMC profile" data-testid={`crit-prefill-${i}`}>
+        <select className={`${inp} col-span-10 md:col-span-2`} value={c.prefill_field || ""} onChange={(e) => set("prefill_field", e.target.value)} title="Fill from supplier's PMC profile" data-testid={`crit-prefill-${i}`}>
           <option value="">No auto-fill</option>{Object.entries(prefillFields).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
         </select>
         <button type="button" className="col-span-2 md:col-span-1 text-xs text-red-700" onClick={onRemove} data-testid={`crit-remove-${i}`}>Remove</button>
