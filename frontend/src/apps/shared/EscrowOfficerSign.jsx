@@ -157,7 +157,7 @@ export default function EscrowOfficerSign() {
             <div className="mt-8 grid gap-5">
               {ctx.transactions.length === 0 && (
                 <div className="text-brand-navy/60 py-12 text-center border border-dashed border-brand-navy/20 bg-white">
-                  No pending transactions on this account.
+                  No escrow transactions waiting for your release signature. Any consortium payment instructions are listed below.
                 </div>
               )}
               {ctx.transactions.map((tx) => (

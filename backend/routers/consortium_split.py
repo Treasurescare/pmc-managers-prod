@@ -182,7 +182,8 @@ async def mark_paid(tid: str, idx: int, body: PaidIn, admin=Depends(require_role
         raise HTTPException(status_code=409, detail="Already marked paid")
     if line["status"] != "approved":
         raise HTTPException(status_code=409, detail="Both escrow officers must sign this payment instruction before it can be marked paid")
-    if not await db.uploads.find_one({"key": body.proof_key}):
+    up = await db.uploads.find_one({"key": body.proof_key})
+    if not up or not body.proof_key.startswith("vendor-docs/") or up.get("sealed") or up.get("owner_vendor_id") or up.get("owner_agent_id"):
         raise HTTPException(status_code=422, detail="Attach the bank payment slip first")
     acct = (line.get("bank") or {}).get("bank_account_number")
     if any(s.get("account") != acct for s in (line.get("signatures") or {}).values()):

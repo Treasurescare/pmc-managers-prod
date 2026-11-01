@@ -15,6 +15,7 @@ LEAD_VID = ObjectId()
 M0_EMAIL = f"test_v72h_m0_{RID.lower()}@example.com"
 M1_EMAIL = f"test_v72h_m1_{RID.lower()}@example.com"
 S = {}
+PROOF = f"vendor-docs/TEST_v72h_{RID}.pdf"  # real db.uploads doc (paid now validates proof_key)
 
 
 def _bank(tag):
@@ -41,10 +42,13 @@ def _mk(tag, pmc=PMC_EMAIL, esc=ESC_EMAIL):
 
 @pytest.fixture(scope="module", autouse=True)
 def setup():
-    DB.vendors.insert_one({"_id": LEAD_VID, "email": f"test_v72h_lead_{RID.lower()}@example.com", "company_name": "TEST Lead Co", **_bank("LEAD")})
+    DB.vendors.update_one({"_id": LEAD_VID}, {"$set": {"email": f"test_v72h_lead_{RID.lower()}@example.com", "vendor_ref": f"TEST-V72H-{RID}",
+                                                       "company_name": "TEST Lead Co", **_bank("LEAD")}}, upsert=True)
     DB.registrations.insert_one({"email": M0_EMAIL, "created_at": "2020-01-01T00:00:00", **_bank("OLD")})
     DB.registrations.insert_one({"email": M0_EMAIL, "created_at": _now(), **_bank("M0")})
+    DB.uploads.delete_many({"key": PROOF}); DB.uploads.insert_one({"key": PROOF, "content_type": "application/pdf", "size_bytes": 1, "data_b64": "eA==", "created_at": _now()})
     yield
+    DB.uploads.delete_many({"key": PROOF})
     DB.bids.delete_many({"notice_ref": NREF})
     DB.escrow_transactions.delete_many({"notice_ref": NREF})
     DB.vendors.delete_many({"_id": LEAD_VID})
@@ -123,10 +127,10 @@ class TestSigningFlow:
     def test_mark_paid(self, pmc):
         assert pmc.post(_u(S["tid"], 0, "paid"), json={"reference": "WIRE-1"}).status_code == 422
         assert pmc.post(_u(S["tid"], 0, "paid"), json={"reference": "WI", "proof_key": "vendor-docs/x.pdf"}).status_code == 422
-        r = pmc.post(_u(S["tid"], 0, "paid"), json={"reference": " WIRE-TEST-1 ", "proof_key": "vendor-docs/x.pdf"})
+        r = pmc.post(_u(S["tid"], 0, "paid"), json={"reference": " WIRE-TEST-1 ", "proof_key": PROOF})
         assert r.status_code == 200, r.text
         ln = r.json()["lines"][0]
-        assert ln["status"] == "paid" and ln["paid_ref"] == "WIRE-TEST-1" and ln["proof_key"] == "vendor-docs/x.pdf" and ln["paid_by"] == PMC_EMAIL
+        assert ln["status"] == "paid" and ln["paid_ref"] == "WIRE-TEST-1" and ln["proof_key"] == PROOF and ln["paid_by"] == PMC_EMAIL
         assert pmc.post(_u(S["tid"], 0, "paid"), json={"reference": "WIRE-2", "proof_key": "vendor-docs/x.pdf"}).status_code == 409
         assert pmc.post(_u(S["tid"], 0, "sign"), json={}).status_code == 409
         db_ln = DB.escrow_transactions.find_one({"_id": ObjectId(S["tid"])})["consortium_split"]["lines"]

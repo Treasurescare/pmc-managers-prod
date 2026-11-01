@@ -17,6 +17,7 @@ export default function MagicSplitSection({ token }) {
       catch (e) { showApiError(e); }
     };
     act.canPay = false;
+    act.canViewSlip = false;
     return act;
   };
   return (

@@ -18,7 +18,7 @@ const Instruction = ({ x, i, tid, act }) => {
       <div data-testid={`split-bank-${tid}-${i}`}>{b.bank_account_number ? `Pay to: ${b.bank_name || ""} ${b.bank_branch || ""} · A/c ${b.bank_account_number} · SWIFT ${b.bank_swift || "—"}` : <span className="text-red-700">No bank account on file for this member</span>}</div>
       <div>{["pmc", "escrow_institution"].map((s) => <span key={s} className="mr-3">{SIDE[s]}: {sigs[s] ? `✓ ${sigs[s].email}` : "not signed"}</span>)}</div>
       {x.status === "paid" ? <div className="text-emerald-800">Paid · ref {x.paid_ref} · {(x.paid_at || "").slice(0, 10)}
-        {x.proof_key && <button type="button" className="ml-2 underline" onClick={() => uploadsApi.openFile(x.proof_key).catch(showApiError)} data-testid={`split-slip-${tid}-${i}`}>Open slip</button>}</div> : (
+        {x.proof_key && act.canViewSlip !== false && <button type="button" className="ml-2 underline" onClick={() => uploadsApi.openFile(x.proof_key).catch(showApiError)} data-testid={`split-slip-${tid}-${i}`}>Open slip</button>}</div> : (
         <div className="flex gap-2">
           {x.status !== "approved" && <button type="button" className="pmc-btn pmc-btn--secondary" onClick={() => act("sign", i)} data-testid={`split-sign-${tid}-${i}`}>Sign payment instruction</button>}
           {x.status === "approved" && act.canPay !== false && <label className="pmc-btn pmc-btn--primary cursor-pointer" data-testid={`split-paid-${tid}-${i}`}>Record bank payment (attach slip)

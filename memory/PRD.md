@@ -1051,6 +1051,10 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - Result notices admin: GET /tender-criteria/{ref}/result-notices, POST .../resend (admin; returns ok:false + error instead of 5xx). UI ResultNoticesPanel in BidOpeningPanel.
 - Bundles: /downloads/pmc-backend-v58y.zip, /downloads/pmc-frontend-v58y-prod-build.zip (scripts/build_v58y.sh).
 
+## R46 — Consortium payment instructions with dual officer signatures + bundle v58z — 2026-11-01 (agent-tested iteration_154/155)
+- User chose manual bank transfers, but tighter (no automatic payouts). Each split line = payment instruction (<bid_ref>-P<n>) with member bank snapshot (vendors/registrations bank_* fields). Both escrow officers (PMC + institution, per tx account snapshot) must sign (staff endpoint or magic-link portal /escrow/officer/:token) → approved; then admin/accounting records payment with reference + uploaded slip (vendor-docs key, unowned, unsealed). Atomic per-line updates (no lost signatures); bank-account change after signing blocks payment.
+- Bundles: /downloads/pmc-backend-v58z.zip, /downloads/pmc-frontend-v58z-prod-build.zip (scripts/build_v58z.sh).
+
 
 
 

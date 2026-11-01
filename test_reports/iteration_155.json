@@ -1,0 +1,39 @@
+{
+  "summary": "Retested the v72h/v72i consortium payment-instruction fixes. (1) Race fixed: test_v72h_split_race.py passed 9 of 9 runs. The new same-line race test (both officers sign the same line at once, 6 parallel requests, 4 runs) always kept both signatures and ended APPROVED. One-side-only signing never approves. (2) Paid: a proof_key that is not in db.uploads gets 422 'Attach the bank payment slip first'. A bank account changed after signing gets 409. With 4 concurrent paid calls, exactly one gets 200 and three get 409. (3) Magic link: GET /magic/{token}/consortium-splits lists only splits on the token's account (another account's tx is excluded) and has no _id. POST .../sign signs as escrow_institution with via=magic_link and the comment, then approves after the PMC sign. Re-sign gets 409, a tx on another account gets 403, bad or revoked tokens get 404, a bad idx or tid gets 404. UI at /escrow/officer/:token shows magic-split-section, magic-split-<tid> and split-sign-<tid>-<i>, with no split-paid button (also none after APPROVED). Cancel on the prompt sent no request; OK signed it, showed a toast and the status changed to APPROVED. (4) Admin ConsortiumSplitBox: Cancel aborts (no request), the paid line shows split-slip and Open slip returns 200 and opens a new tab. One new bug: Open slip on the magic-link portal returns 401.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST .../consortium-split/{idx}/paid", "issue": "proof_key is only checked for existence in db.uploads, with no check on scope or owner. /api/v1/uploads/direct accepts uploads without auth, and any existing key passes (for example another vendor's doc or a bid-docs key). Consider requiring scope 'vendor-docs/' or a dedicated 'escrow-slips/' scope and recording the uploader."},
+      {"endpoint": "GET /api/v1/uploads/files/{key}", "issue": "Requires a signed-in user, so magic-link officers cannot view slips (see the frontend issue)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "MagicSplitSection (shared Instructions) on /escrow/officer/:token", "issue": "The 'Open slip' button (split-slip-<tid>-<i>) is shown to the external magic-link officer. Clicking it calls /api/v1/uploads/files/<key>, which returns 401, and the toast says 'Something went wrong · HTTP 401'. Either add a token-scoped endpoint (for example GET /api/v1/escrow/magic/{token}/consortium-split/{tid}/{idx}/slip, checking that the tx is on the token's account) or hide the button on the magic portal (for example act.canViewSlip=false).", "selector": "[data-testid^=split-slip-]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/escrow/officer/:token", "issues": ["For a released tx the top block shows 'No pending transactions on this account.' right above pending payment instructions. The wording is slightly confusing; consider 'No pending EMD releases'."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v72i_split_magic_paid.py", "/app/backend/tests/test_v72h_split_race.py", "/app/backend/tests/test_v72h_consortium_split_signing.py", "/app/backend/tests/test_v72g_consortium_split_notices.py", "/app/backend/tests/v72i_ui_seed.py", "/app/test_reports/pytest/v72i.xml"],
+  "action_items": [
+    "Fix 'Open slip' on the magic-link officer portal (401). Add a token-scoped slip endpoint or hide the button there.",
+    "Optional: tighten the proof_key check (scope prefix / uploader) for paid."
+  ],
+  "critical_code_review_comments": [
+    "_sign and mark_paid now use positional $set with status filters, and approval is a separate conditional update that requires both signature keys. This is correct, and an approval can no longer be lost because whichever sign finishes second performs it.",
+    "_magic only checks revoked. Magic tokens never expire (this was already the case for /magic/{token}). Consider adding expires_at.",
+    "The magic-split list returns every member's bank details to the token holder. This is intended for the officer, but the token is a bearer secret with no expiry."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_v72h_consortium_split_signing.py (paid now uses a real db.uploads key PROOF because fake keys get 422; the vendor is upserted with a unique vendor_ref so the vendor_ref_1 unique index does not collide with null under xdist)",
+    "/app/backend/tests/test_v72i_split_magic_paid.py (new: same-line race, paid guards, concurrent paid, magic-link list/sign/403/404)",
+    "/app/backend/tests/v72i_ui_seed.py (new UI fixture: seed|clean)"
+  ],
+  "success_rate": {"backend": "100% (36/36 across v72g/v72h/v72i, repeated runs stable)", "frontend": "90% (all requested flows pass; Open slip on the magic portal returns 401)"},
+  "seed_data_creation": "Tests seed TEST-V72I-* / TEST-V72H-* bids, txs, vendors, registrations, uploads, escrow_accounts and TEST_ magic tokens, and clean them up. UI fixture: python tests/v72i_ui_seed.py seed|clean (cleaned; 0 leftovers verified).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login now uses the unified page (/admin/login renders role cards and the email input placeholder name@company.com, Continue button). The admin-login-* testids are not present. Magic portal: /escrow/officer/TEST_v72i_ui_token after running v72i_ui_seed.py seed. The pytest.ini default is -n 2 loadscope. Vendors need a unique vendor_ref (unique index) or parallel inserts collide."
+}
