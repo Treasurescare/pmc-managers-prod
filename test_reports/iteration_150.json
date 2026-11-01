@@ -1,0 +1,34 @@
+{
+  "summary": "Retest of the 5 fixes from iteration 149. All 5 pass. Backend: test_v72d_template_criteria.py extended to 17 tests, 17/17 pass. New tests: duplicate ids return 422 and nothing is persisted; the owner can GET after submit (200, locked=true); another vendor still gets 404 after submit; owner and admin can GET after approve; PUT after approve returns 409. Regression v72/v72b/v72c: 63/64 under the default xdist config and 29/29 for v72c run serially (-n 0). The one failure is a test-ordering flake, not a product bug. The template submit gate (409 without a must-pass criterion, 200 after adding one) and the reviewer approve publish gate still hold. UI checks: (1) Vendor Tender Builder: changed Tender Name without saving, opened Criteria, added one from template and saved. The modal stayed open, the button updated to 'CRITERIA (1)' immediately, and the unsaved name 'TEST-TPLC-UI-EDITED' was still there after closing the modal. (5) AI read run twice: no exact-title duplicates (turnover from the template was skipped). Toasts said '3 new' and then '1 new'. (4) QualificationPanel (committee1, staff portal): the bid disqualified by the committee shows no q-doubt/q-score buttons, and the undecided bid still shows them.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "tests/test_v72c_criteria_stage2.py (test infra)", "issue": "pytest.ini uses '-n 2 --dist loadscope', which spreads test CLASSES across workers. TestC_AICheck::test_reviewer_runs_check depends on TestA saving criteria on VT1, so it can run first and fail with 409 'No criteria have been entered'. Passes with -n 0. Fix: make TestC seed its own criteria, or put the module in one xdist_group (--dist loadgroup)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CriteriaEditorModal AI dedupe", "issue": "Dedupe only matches exact titles. On the second AI run the LLM returned 'Methodology submission' next to the existing 'Methodology', so a near-duplicate was added. Optional: fuzzy match (e.g. one title contains the other). The AI-suggested 'Methodology' row still has no max points, so it has to be filled in before saving.", "selector": "[data-testid='criteria-ai']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "QualificationPanel", "issues": ["Still open from earlier: raw 'rule gte 1000000 USD' and unformatted declared values ('2500000 USD') in the value column."]},
+      {"screen": "CriteriaEditorModal (template mode)", "issues": ["Still open from earlier: the header shows a raw ObjectId ('TENDER CRITERIA · 6AE6C933…') instead of the tender name."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v72d_template_criteria.py", "/app/backend/tests/ui_qual_decide.py", "/app/test_reports/pytest/v72d_150.xml", "/app/test_reports/pytest/v72_regress_150.xml"],
+  "action_items": [
+    "Optional: make test_v72c TestC independent of TestA ordering (xdist loadscope flake)",
+    "Optional (low): fuzzy title dedupe for AI suggestions; humanise rule/declared values in QualificationPanel; show the tender name in the criteria modal header"
+  ],
+  "critical_code_review_comments": [
+    "In QualificationPanel, open && !b.decision also hides 'Give marks' on decided bids. That is fine because a decision is only ever 'disqualified'.",
+    "A committee 'uphold' doesn't set decision, so doubts can be raised again after an uphold. This looks intended."
+  ],
+  "updated_files": ["/app/backend/tests/test_v72d_template_criteria.py", "/app/backend/tests/ui_qual_decide.py"],
+  "success_rate": {"backend": "100% (17/17 v72d; regression 64/64 when v72c is run serially)", "frontend": "100% (3/3 retested UI fixes)"},
+  "seed_data_creation": "TEST-TPLC-UI template and TEST-QUI-1/TEST-QUIVT-1 notices with bids. All cleaned up (verified 0 left).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run v72c with -n 0 (cross-class ordering dependency). For the UI: python tests/ui_qual_setup.py setup, then python tests/ui_qual_decide.py <good bid_ref> (sets tenant_id PMC-KZ-01 and disqualifies the bid via committee1). Log in as committee1 at /staff/login, go to Bid opening and click 'TEST UI stage2 tender'. Template UI: python tests/ui_tplc_setup.py setup, then /vendor/tender-builder?tid=<tid>. Clean up both helpers afterwards."
+}

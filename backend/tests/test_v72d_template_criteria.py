@@ -98,6 +98,11 @@ def reviewer():
     return _login_staff("reviewerqa@pmcmanagers.com", "Reviewer@12345", "reviewer")
 
 
+@pytest.fixture(scope="module")
+def admin():
+    return _login_staff("adminsupport@pmcmanagers.com", "Admin@12345", "admin")
+
+
 def _url(tid, suffix=""):
     return f"{API}/tender-criteria/template/{tid}/mine{suffix}"
 
@@ -118,6 +123,11 @@ class TestA_TemplateCriteria:
     def test_bad_criterion_422(self, tv):
         bad = {**MUST, "unit": None}
         assert tv.put(_url(S["tid"]), json={"criteria": [bad]}).status_code == 422
+
+    def test_duplicate_ids_422(self, tv):
+        r = tv.put(_url(S["tid"]), json={"criteria": [MUST, {**STAFF, "id": MUST["id"]}]})
+        assert r.status_code == 422, r.text
+        assert tv.get(_url(S["tid"])).json()["criteria"] == []
 
     def test_submit_without_criteria_409(self, tv):
         r = tv.post(f"{API}/tender-templates/{S['tid']}/submit-review")
@@ -167,7 +177,12 @@ class TestA_TemplateCriteria:
 
     def test_locked_after_submit(self, tv):
         assert tv.put(_url(S["tid"]), json={"criteria": [MUST]}).status_code == 409
-        S["get_after_submit"] = tv.get(_url(S["tid"])).status_code
+        g = tv.get(_url(S["tid"]))
+        assert g.status_code == 200, g.text
+        assert g.json()["locked"] is True and len(g.json()["criteria"]) == 2
+
+    def test_other_vendor_still_404_after_submit(self, nf):
+        assert nf.get(_url(S["tid"])).status_code == 404
 
     def test_reviewer_approve_publishes_with_criteria(self, reviewer):
         r = reviewer.post(f"{API}/tender-templates/{S['tid']}/review/approve", json={"note": "ok"})
@@ -179,6 +194,14 @@ class TestA_TemplateCriteria:
         assert [c["id"] for c in n["tender_criteria"]] == ["mpturn01", "scstaff1"]
         pub = requests.get(f"{API}/tender-criteria/{d['notice_ref']}")
         assert pub.status_code == 200 and len(pub.json()["criteria"]) == 2
+
+    def test_get_after_approve_owner_and_admin(self, tv, admin):
+        g = tv.get(_url(S["tid"]))
+        assert g.status_code == 200 and g.json()["locked"] is True
+        a = admin.get(_url(S["tid"]))
+        assert a.status_code == 200, a.text
+        assert len(a.json()["criteria"]) == 2
+        assert tv.put(_url(S["tid"]), json={"criteria": [MUST]}).status_code == 409
 
     def test_legacy_without_criteria_saved_as_draft(self, reviewer):
         r = reviewer.post(f"{API}/tender-templates/{S['tid_nocrit']}/review/approve", json={})

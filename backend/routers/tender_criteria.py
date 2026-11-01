@@ -348,7 +348,7 @@ def evaluate(criteria: list, answers: list, docs: list) -> dict:
     for c in criteria:
         v = by_id.get(c["id"])
         r = {"criterion_id": c["id"], "title": c["title"], "kind": c["kind"], "value": v, "unit": c.get("unit"),
-             "rule": f"{c.get('operator')} {c.get('threshold')} {c.get('unit') or ''}".strip() if c["answer_type"] == "number" else
+             "rule": f"{ {'gte': 'at least', 'lte': 'at most', 'eq': 'exactly'}.get(c.get('operator'), c.get('operator'))} {float(c.get('threshold') or 0):,.0f} {c.get('unit') or ''}".strip() if c["answer_type"] == "number" else
                      ("yes" if c["answer_type"] == "yes_no" else "written"),
              "proof_supplied": c["id"] in proofs}
         if c.get("proof_required") and c["id"] not in proofs:

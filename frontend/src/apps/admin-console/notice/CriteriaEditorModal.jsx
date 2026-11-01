@@ -63,7 +63,7 @@ const CriterionLine = ({ c }) => (
   </li>
 );
 
-export default function CriteriaEditorModal({ noticeRef, onClose, onSaved, mode = "admin" }) {
+export default function CriteriaEditorModal({ noticeRef, title, onClose, onSaved, mode = "admin" }) {
   const vendor = mode !== "admin";
   const API = mode === "template" ? { get: criteriaApi.tplGet, save: criteriaApi.tplSave, ai: criteriaApi.tplAiSuggest }
     : vendor ? { get: criteriaApi.mineGet, save: criteriaApi.mineSave, ai: criteriaApi.mineAiSuggest }
@@ -84,8 +84,9 @@ export default function CriteriaEditorModal({ noticeRef, onClose, onSaved, mode 
     try {
       const r = await API.ai(noticeRef);
       if (r.criteria.length) {
-        const have = new Set(rows.map((x) => (x.title || "").trim().toLowerCase()));
-        const fresh = r.criteria.filter((x) => !have.has((x.title || "").trim().toLowerCase()));
+        const norm = (s) => (s || "").trim().toLowerCase();
+        const have = rows.map((x) => norm(x.title)).filter(Boolean);
+        const fresh = r.criteria.filter((x) => { const t = norm(x.title); return t && !have.some((h) => h.includes(t) || t.includes(h)); });
         setRows((x) => [...x, ...fresh]);
         toast.success(`${fresh.length} new criteria read from the tender — check each one before saving`);
       }
@@ -111,7 +112,7 @@ export default function CriteriaEditorModal({ noticeRef, onClose, onSaved, mode 
     <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center p-4 overflow-y-auto" data-testid="criteria-modal">
       <div className="bg-brand-pale w-full max-w-5xl p-5 space-y-4 my-6">
         <div className="flex justify-between items-start gap-3">
-          <div><div className="text-[11px] uppercase tracking-widest text-brand-navy/60">Tender criteria · {noticeRef}</div>
+          <div><div className="text-[11px] uppercase tracking-widest text-brand-navy/60">Tender criteria{mode === "template" ? (title ? ` · ${title}` : "") : ` · ${noticeRef}`}</div>
             <h2 className="font-serif text-2xl text-brand-navy">What bidders must meet</h2>
             <p className="text-xs text-brand-navy/70">Must-pass items are checked by the system at opening. Scored items add points. At least one must-pass item is needed to publish.</p></div>
           <button type="button" className="pmc-btn pmc-btn--secondary" onClick={onClose} data-testid="criteria-close">Close</button>

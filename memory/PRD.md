@@ -1030,6 +1030,14 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - Bundles: pmc-backend-v58x.zip, pmc-frontend-v58x-prod-build.zip.
 - Not gated yet: hosting-fee auto-publish, vendor-tender approve, template publish paths. NEXT: Stage 2 auto-qualification at opening, then consortium.
 
+## R43 — Criteria on every publish path + AI document check + Stage 2 auto-qualification — 2026-11-01 (agent-tested iteration_148/149/150)
+- Publish gate on all paths: hosting-fee paid publishes only if must-pass criteria exist (else stays draft for admin); vendor-tender submit + admin approve need must-pass; template submit-review needs must-pass; template approve creates live notice only with criteria, else draft.
+- Supplier criteria: /tender-criteria/{ref}/mine (GET/PUT/ai-suggest) for vendor tenders; /tender-criteria/template/{tid}/mine for Tender Builder (read for owner/admin anytime, edit while draft). UI: CriteriaEditorModal mode=vendor|template|admin; buttons in VendorTenderBuilderE + TenderBuilderPanel (tb-criteria).
+- AI check (admin/reviewer): POST /tender-criteria/{ref}/ai-check compares tender document with entered criteria → mismatches/missing stored as criteria_ai_check, shown in modal; cleared on criteria save. AI never edits criteria.
+- Stage 2: at technical opening, sealed answers decrypted and evaluate() gives pass/fail + reasons per must-pass, auto points for scored, pending for evaluator items → bid.qualification; qualified bids auto technical_cleared. Commercial opening only for qualified; blockers count open doubts only. Committee: GET qualification, raise doubt (logged reason, per criterion), decide (uphold/disqualify), evaluator score. Opening record has "Qualification (system check)" column. UI: bidding/QualificationPanel.jsx in BidOpeningPanel.
+- Open: hosting-fee confirmation email wording when tender stays draft not adjusted; AI title dedupe is fuzzy (contains match) only.
+- NEXT: consortium bidding on top of criteria; Google OAuth keys still needed.
+
 
 
 
