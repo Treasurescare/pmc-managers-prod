@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
-import { publicApi, vendorApi, bidApi, paymentApi, uploadsApi, corrigendaApi, sandboxPayApi, formatApiError, showApiError, BACKEND_URL } from "@/lib/api";
+import { publicApi, vendorApi, bidApi, paymentApi, uploadsApi, corrigendaApi, sandboxPayApi, criteriaApi, formatApiError, showApiError, BACKEND_URL } from "@/lib/api";
+import BidCriteriaSection, { criteriaReady } from "./BidCriteriaSection";
 
 const GATEWAYS = [
   { id: "stripe", label: "Stripe", note: "Card · Live sandbox" },
@@ -32,6 +33,10 @@ export default function BidSubmit() {
   // the natural click flow matches "Download all". Keyed by upload key so
   // the set survives Remove / Re-upload.
   const [selectedKeys, setSelectedKeys] = useState(() => new Set());
+  const [criteria, setCriteria] = useState([]);
+  const [answers, setAnswers] = useState({});
+  const [prefilled, setPrefilled] = useState({});
+  const setAnswer = (id, v) => setAnswers((a) => ({ ...a, [id]: v }));
 
   // v51bd — local draft so vendors can save work and come back later.
   // (persisted BOTH to localStorage AND to the backend via bidApi.saveDraft
@@ -50,6 +55,16 @@ export default function BidSubmit() {
           const cs = await corrigendaApi.listPublic(noticeRef);
           setCorrigenda(Array.isArray(cs) ? cs : (cs?.items || []));
         } catch { /* corrigenda are optional */ }
+        let startAnswers = {};
+        try {
+          const cr = await criteriaApi.get(noticeRef);
+          setCriteria(cr.criteria || []);
+          if ((cr.criteria || []).length) {
+            const pf = await criteriaApi.prefill(noticeRef).catch(() => ({ values: {} }));
+            setPrefilled(pf.values || {});
+            startAnswers = { ...(pf.values || {}) };
+          }
+        } catch { /* tender may have no criteria */ }
         // Prefer the server-side draft (cross-device) and fall back to local.
         let restored = null;
         try {
@@ -71,14 +86,16 @@ export default function BidSubmit() {
           else if (restored.commercial) setCommercial(restored.commercial);
           if (Array.isArray(restored.documents)) setDocs(restored.documents);
           else if (Array.isArray(restored.docs)) setDocs(restored.docs);
+          if (restored.criteria_answers && typeof restored.criteria_answers === "object") startAnswers = { ...startAnswers, ...restored.criteria_answers };
         }
+        setAnswers(startAnswers);
       } catch {
         nav("/vendor/login");
       }
     })();
   }, [noticeRef, nav, draftKey]);
 
-  const uploadFile = async (kind, file, inputEl) => {
+  const uploadFile = async (kind, file, inputEl, criterionId) => {
     try {
       // v52cy — enforce allowed file-type list on client. Backend already
       // caps size + sniffs magic bytes; this prevents a misleading UX where
@@ -102,6 +119,7 @@ export default function BidSubmit() {
       setDocs((d) => [...d, {
         kind, key, filename: file.name,
         size_bytes, uploaded_at: new Date().toISOString(),
+        ...(criterionId ? { criterion_id: criterionId } : {}),
       }]);
       // v52cz rev2 — auto-tick the new doc so the Download picker always
       // reflects "everything so far" by default.
@@ -136,10 +154,14 @@ export default function BidSubmit() {
       (d) => d && d.kind && d.key && d.filename && typeof d.size_bytes === "number" && d.uploaded_at
     );
     // v51bc — both envelope documents are mandatory on submit.
-    const kinds = new Set(cleanDocs.map((d) => d.kind));
+    const kinds = new Set(cleanDocs.filter((d) => !d.criterion_id).map((d) => d.kind));
     if (!kinds.has("technical") || !kinds.has("commercial")) {
       setFormError("Both the Technical and Commercial envelope documents are required before you can submit (PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX, JPG/PNG or DWG). You can keep working on this bid with Save draft.");
       return toast.error("Upload Technical and Commercial documents before submitting");
+    }
+    if (!criteriaReady(criteria, answers, cleanDocs)) {
+      setFormError("Please answer every tender criterion and attach the required proofs.");
+      return toast.error("Answer every tender criterion first");
     }
     setBusy(true);
     try {
@@ -149,6 +171,7 @@ export default function BidSubmit() {
         price_currency: notice.budget_currency || "USD",
         technical_notes: technical, commercial_notes: commercial,
         documents: cleanDocs,
+        criteria_answers: criteria.map((c) => ({ criterion_id: c.id, value: answers[c.id] ?? null })),
       });
       toast.success(`Bid ${bid.bid_ref} submitted`);
       // Clear local + server draft now that the server has the real bid.
@@ -219,10 +242,11 @@ export default function BidSubmit() {
   const deadlinePassed = !!subEnd && new Date(subEnd) < now;
   const windowClosed = notYetOpen || deadlinePassed;
   // v52bc — gate submit on both envelope kinds being uploaded.
-  const uploadedKinds = new Set(docs.map((d) => d.kind));
+  const uploadedKinds = new Set(docs.filter((d) => !d.criterion_id).map((d) => d.kind));
   const hasTech = uploadedKinds.has("technical");
   const hasComm = uploadedKinds.has("commercial");
   const docsOk = hasTech && hasComm;
+  const critOk = criteriaReady(criteria, answers, docs);
 
   // Corrigenda acknowledgement state (v52bh)
   const myVendorId = vendor?.id;
@@ -260,6 +284,7 @@ export default function BidSubmit() {
         price_currency: notice?.budget_currency || "USD",
         technical_notes: technical, commercial_notes: commercial,
         documents: docs,
+        criteria_answers: answers,
       };
       // Always persist locally for offline resilience.
       try {
@@ -453,6 +478,9 @@ export default function BidSubmit() {
               data-testid="bid-commercial" />
           </label>
 
+          <BidCriteriaSection criteria={criteria} answers={answers} setAnswer={setAnswer} docs={docs} prefilled={prefilled}
+            onUpload={(cid, file, el) => uploadFile("technical", file, el, cid)} />
+
           <div className="space-y-2">
             <div className="text-sm font-semibold text-slate-900">Supporting documents <span className="text-red-600">*</span></div>
             <div className="text-xs text-slate-600">
@@ -587,11 +615,11 @@ export default function BidSubmit() {
               data-testid="bid-save-draft-btn">
               Save draft
             </button>
-            <button type="submit" disabled={busy || deadlinePassed || !docsOk || !allAcked}
+            <button type="submit" disabled={busy || deadlinePassed || !docsOk || !allAcked || !critOk}
               className="flex-[2] bg-slate-900 text-white rounded-md py-4 text-sm font-semibold hover:bg-slate-800 disabled:opacity-60 disabled:cursor-not-allowed"
               data-testid="bid-submit-btn"
               title={!allAcked ? "Acknowledge every corrigendum above first" : !docsOk ? "Upload Technical AND Commercial documents first" : ""}>
-              {busy ? "Submitting…" : deadlinePassed ? "Deadline passed" : !allAcked ? `Acknowledge ${pendingCorr.length} corrigend${pendingCorr.length === 1 ? "um" : "a"} to submit` : !docsOk ? "Upload both envelopes to submit" : (emdDue > 0 ? `Submit & pay EMD (${emdConfig.currency} ${emdDue.toLocaleString()})` : "Submit bid")}
+              {busy ? "Submitting…" : deadlinePassed ? "Deadline passed" : !allAcked ? `Acknowledge ${pendingCorr.length} corrigend${pendingCorr.length === 1 ? "um" : "a"} to submit` : !docsOk ? "Upload both envelopes to submit" : !critOk ? "Answer all tender criteria to submit" : (emdDue > 0 ? `Submit & pay EMD (${emdConfig.currency} ${emdDue.toLocaleString()})` : "Submit bid")}
             </button>
           </div>
         </form>

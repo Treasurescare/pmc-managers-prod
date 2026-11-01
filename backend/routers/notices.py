@@ -612,9 +612,12 @@ async def admin_get_notice(notice_ref: str, admin=Depends(require_role("admin", 
 
 @router.post("/{notice_ref}/publish")
 async def publish_notice(notice_ref: str, admin=Depends(require_role("admin"))):
-    n = await db.notices.find_one({"notice_ref": notice_ref}, {"hosting_fee": 1})
+    n = await db.notices.find_one({"notice_ref": notice_ref}, {"hosting_fee": 1, "tender_criteria": 1})
     if n and (n.get("hosting_fee") or {}).get("status") == "unpaid":
         raise HTTPException(status_code=409, detail="Hosting fee is unpaid — the notice publishes automatically once the buyer pays.")
+    from routers.tender_criteria import has_must_pass
+    if n and not has_must_pass(n):
+        raise HTTPException(status_code=409, detail="Add the tender criteria first — at least one pass/fail criterion is needed before publishing (Criteria button).")
     r = await db.notices.update_one(
         {"notice_ref": notice_ref, "is_published": False},
         {"$set": {"is_published": True, "published_at": now_iso()}},

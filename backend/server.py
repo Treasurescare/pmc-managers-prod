@@ -329,6 +329,8 @@ from routers import partner_statements as _partner_statements  # noqa: E402
 app.include_router(_partner_statements.router)
 from routers import email_health as _email_health  # noqa: E402
 app.include_router(_email_health.router)
+from routers import tender_criteria as _tender_criteria  # noqa: E402
+app.include_router(_tender_criteria.router)
 from routers import google_auth as _google_auth  # noqa: E402
 app.include_router(_google_auth.router)
 from routers import linkedin as _linkedin  # noqa: E402

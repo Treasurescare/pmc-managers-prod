@@ -7,6 +7,7 @@ approval pipeline: emd_paid → escrow_accepted → admin_flagged → certifier_
 from typing import Optional, List
 from datetime import datetime, timezone, timedelta
 import os
+import json
 from fastapi import APIRouter, HTTPException, Depends
 from bson import ObjectId
 from pydantic import BaseModel
@@ -145,7 +146,7 @@ async def create_bid(payload: BidCreateIn, vendor=Depends(current_vendor)) -> di
     if not payload.documents:
         raise HTTPException(status_code=422,
             detail="At least one envelope document is required to submit a bid")
-    kinds = {d.kind for d in payload.documents}
+    kinds = {d.kind for d in payload.documents if not d.criterion_id}
     await _assert_sealed_keys([d.key for d in payload.documents], vendor["id"])
     if "technical" not in kinds:
         raise HTTPException(status_code=422,
@@ -156,6 +157,9 @@ async def create_bid(payload: BidCreateIn, vendor=Depends(current_vendor)) -> di
     if "commercial" not in kinds:
         raise HTTPException(status_code=422,
             detail="A commercial envelope document is required to submit a bid")
+    from routers.tender_criteria import clean_answers
+    crit = notice.get("tender_criteria") or []
+    crit_answers = clean_answers(crit, payload.criteria_answers, [d.model_dump() for d in payload.documents]) if crit else []
 
     # v51al — Corrigenda gate. Vendor cannot submit a bid on a notice that
     # has unacknowledged active corrigenda (carried over from v51ad).
@@ -242,6 +246,7 @@ async def create_bid(payload: BidCreateIn, vendor=Depends(current_vendor)) -> di
         "technical_notes": payload.technical_notes,
         "commercial_notes": payload.commercial_notes,
         "documents": [d.model_dump() for d in payload.documents],
+        "criteria_answers_json": json.dumps(crit_answers) if crit_answers else None,
         "emd_due_amount": emd_due,
         "emd_currency": emd_currency,
         "emd_paid_amount": 0.0,

@@ -8,7 +8,7 @@ from typing import Optional
 from cryptography.fernet import Fernet, InvalidToken
 from fastapi import HTTPException
 
-SEALED_FIELDS_TECH = ("technical_notes",)
+SEALED_FIELDS_TECH = ("technical_notes", "criteria_answers_json")
 SEALED_FIELDS_COMM = ("price_amount", "commercial_notes")
 EMD_CONFIRMED = {"escrow_accepted", "admin_flagged", "certifier_cleared", "legal_cleared",
                  "accounting_cleared", "committee_review", "awarded"}
@@ -109,6 +109,7 @@ def redact_for_staff(b: dict, notice: dict) -> dict:
     if not tech:
         b["documents"] = []
         b["technical_notes"] = None
+        b["criteria_answers_json"] = None
         b["sealed_documents_count"] = len(docs)
     elif not comm:
         b["documents"] = [d for d in docs if d.get("kind") != "commercial"]

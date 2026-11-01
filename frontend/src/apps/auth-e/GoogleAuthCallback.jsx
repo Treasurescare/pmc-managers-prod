@@ -1,21 +1,21 @@
 import { useEffect, useRef, useState } from "react";
-import { useLocation, useNavigate, useParams, Link } from "react-router-dom";
-import { marketingApi, cacheCsrf } from "@/lib/api";
+import { useLocation, Link } from "react-router-dom";
+import { marketingApi, cacheCsrf, showApiError } from "@/lib/api";
 
-// Google returns here with #session_id=…; we swap it for a PMC session (existing accounts only).
+// Google returns here with ?code=…&state=…; we swap it for a PMC session (existing accounts only).
 export default function GoogleAuthCallback() {
-  const { portal } = useParams();
   const location = useLocation();
-  const nav = useNavigate();
   const done = useRef(false);
   const [err, setErr] = useState(null);
   useEffect(() => {
     if (done.current) return;
     done.current = true;
-    const sid = new URLSearchParams((location.hash || "").replace(/^#/, "")).get("session_id");
+    const q = new URLSearchParams(location.search);
+    const code = q.get("code");
+    const state = q.get("state");
     window.history.replaceState(null, "", location.pathname);
-    if (!sid) { setErr("Google sign-in was cancelled."); return; }
-    marketingApi.googleExchange({ session_id: sid, portal })
+    if (!code || !state) { setErr("Google sign-in was cancelled."); return; }
+    marketingApi.googleExchange({ code, state })
       .then((r) => {
         if (r.csrf_token) { cacheCsrf(r.csrf_token); }
         window.location.replace(r.next);
@@ -24,7 +24,7 @@ export default function GoogleAuthCallback() {
         const d = e?.response?.data?.detail;
         setErr(typeof d === "string" && d ? d : "Google sign-in failed. Please try again.");
       });
-  }, [location, portal, nav]);
+  }, [location]);
   return (
     <div style={{ minHeight: "60vh", display: "grid", placeItems: "center", padding: "24px" }} data-testid="google-callback">
       {err ? (
@@ -38,8 +38,11 @@ export default function GoogleAuthCallback() {
   );
 }
 
-export const startGoogleLogin = (portal) => {
+export const startGoogleLogin = async (portal) => {
   // REMINDER: DO NOT HARDCODE THE URL, OR ADD ANY FALLBACKS OR REDIRECT URLS, THIS BREAKS THE AUTH
-  const redirectUrl = window.location.origin + `/auth/google/${portal}`;
-  window.location.href = `https://auth.emergentagent.com/?redirect=${encodeURIComponent(redirectUrl)}`;
+  const redirectUri = window.location.origin + "/auth/google/callback";
+  try {
+    const r = await marketingApi.googleStart({ portal, redirect_uri: redirectUri });
+    window.location.href = r.url;
+  } catch (e) { showApiError(e); }
 };

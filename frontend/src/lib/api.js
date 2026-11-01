@@ -453,6 +453,15 @@ export const vendorApi = {
   deleteLicense: (id) => api.delete(`/api/v1/vendor/licenses/${id}`).then((r) => r.data),
 };
 
+export const criteriaApi = {
+  templates: () => api.get("/api/v1/tender-criteria/templates").then((r) => r.data),
+  adminGet: (ref) => api.get(`/api/v1/tender-criteria/${ref}/admin`).then((r) => r.data),
+  get: (ref) => api.get(`/api/v1/tender-criteria/${ref}`).then((r) => r.data),
+  save: (ref, body) => api.put(`/api/v1/tender-criteria/${ref}`, body).then((r) => r.data),
+  aiSuggest: (ref) => api.post(`/api/v1/tender-criteria/${ref}/ai-suggest`, {}, { timeout: 120000 }).then((r) => r.data),
+  prefill: (ref) => api.get(`/api/v1/tender-criteria/${ref}/prefill`).then((r) => r.data),
+};
+
 // ---------- Wave 1: Bids ----------
 export const bidApi = {
   create: (p) => api.post("/api/v1/bids", p).then((r) => r.data),
@@ -1217,6 +1226,8 @@ export const marketingApi = {
   sendBuyerInvite: (p) => api.post("/api/v1/marketing/buyer-invites", p).then((r) => r.data),
   markBuyerJoined: (id) => api.post(`/api/v1/marketing/buyer-invites/${id}/joined`).then((r) => r.data),
   googleExchange: (p) => api.post("/api/v1/auth/google/exchange", p).then((r) => r.data),
+  googleStart: (p) => api.post("/api/v1/auth/google/start", p).then((r) => r.data),
+  googleConfig: () => api.get("/api/v1/auth/google/config").then((r) => r.data),
   linkedinStatus: () => api.get("/api/v1/auth/linkedin/status").then((r) => r.data),
   linkedinConnect: () => api.get("/api/v1/marketing/linkedin/connect").then((r) => r.data),
   socialPosts: () => api.get("/api/v1/marketing/social-posts").then((r) => r.data),

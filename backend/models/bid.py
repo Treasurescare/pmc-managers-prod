@@ -16,6 +16,7 @@ class BidDocument(BaseModel):
     filename: str
     size_bytes: int
     uploaded_at: str
+    criterion_id: Optional[str] = None
 
 
 class BidCreateIn(BaseModel):
@@ -25,6 +26,7 @@ class BidCreateIn(BaseModel):
     technical_notes: Optional[str] = None
     commercial_notes: Optional[str] = None
     documents: List[BidDocument] = []
+    criteria_answers: List[dict] = []
 
 
 class BidUpdateIn(BaseModel):

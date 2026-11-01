@@ -26,6 +26,7 @@ class DraftDocIn(BaseModel):
     size_bytes: int = 0
     uploaded_at: Optional[str] = None
     content_type: Optional[str] = None
+    criterion_id: Optional[str] = None
 
 
 class BidDraftIn(BaseModel):
@@ -34,6 +35,7 @@ class BidDraftIn(BaseModel):
     technical_notes: Optional[str] = None
     commercial_notes: Optional[str] = None
     documents: List[DraftDocIn] = []
+    criteria_answers: Optional[dict] = None
 
 
 def _out(doc: dict) -> dict:
@@ -44,6 +46,7 @@ def _out(doc: dict) -> dict:
         "technical_notes": doc.get("technical_notes"),
         "commercial_notes": doc.get("commercial_notes"),
         "documents": doc.get("documents") or [],
+        "criteria_answers": doc.get("criteria_answers") or {},
         "updated_at": doc.get("updated_at"),
     }
 

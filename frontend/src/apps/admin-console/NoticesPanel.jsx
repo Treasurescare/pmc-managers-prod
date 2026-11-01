@@ -9,6 +9,7 @@ import { CurrencySelect } from "@/components/CurrencySelect";
 import EmdMasterPicker from "./notice/EmdMasterPicker";
 import NoticeViewModal from "./notice/NoticeViewModal";
 import NoticeEditModal from "./notice/NoticeEditModal";
+import CriteriaEditorModal from "./notice/CriteriaEditorModal";
 import { useListPager } from "@/components/ListPager";
 
 export default function NoticesPanel() {
@@ -18,6 +19,7 @@ export default function NoticesPanel() {
   const [showNew, setShowNew] = useState(false);
   const [viewRef, setViewRef] = useState(null);
   const [editRef, setEditRef] = useState(null);
+  const [critRef, setCritRef] = useState(null);
   const [matrices, setMatrices] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -792,6 +794,12 @@ export default function NoticesPanel() {
                     Publish
                   </button>
                 )}
+                <button type="button" onClick={() => setCritRef(n.notice_ref)}
+                  data-testid={`notice-criteria-${n.notice_ref}`}
+                  title="Pass/fail and scored criteria bidders must meet"
+                  className="text-[10px] uppercase tracking-widest px-2 py-1 border border-brand-gold text-brand-navy hover:bg-brand-gold/20">
+                  Criteria{n.tender_criteria?.length ? ` (${n.tender_criteria.length})` : ""}
+                </button>
                 <button type="button" onClick={() => setViewRef(n.notice_ref)}
                   data-testid={`notice-view-${n.notice_ref}`}
                   title="Open complete notice document and uploaded files"
@@ -869,6 +877,7 @@ export default function NoticesPanel() {
           onChanged={load}
         />
       )}
+      {critRef && <CriteriaEditorModal noticeRef={critRef} onClose={() => setCritRef(null)} onSaved={load} />}
       {/* v50i — Edit modal: edit any field + append documents */}
       {editRef && (
         <NoticeEditModal
