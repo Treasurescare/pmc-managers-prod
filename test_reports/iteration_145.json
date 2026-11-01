@@ -1,0 +1,29 @@
+{
+  "summary": "Tested partner self-register Country field + clearer submit flow. Backend: 8/8 pytest pass (register stores uppercased country, optional for back-compat, 1-char country 422, re-register of invited keeps existing country / fills missing one, join keeps country, submit 422 lists 'document: bank proof' etc., submit 200 once complete). Frontend E2E: /partner/register shows Country select (251 options), HTML-required blocks submit without country, name+email+country -> partner-register-done; DB agent.country=AE. Join -> /partner/me Profile country pre-filled 'United Arab Emirates (AE)'. Docs step shows * + Required badges only on id_proof/address_proof/bank_proof; badge disappears after upload. Agreement step shows amber agent-missing-list with correct items; Go-to buttons (0/1/2) jump to right step; agent-submit disabled while missing or unsigned, enabled after signing, submit -> status submitted + Under review card. All requested features working.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Global versionGuard / SW controllerchange (lib/versionGuard.js, SwUpdateBanner.jsx)", "issue": "On a fresh browser session the page hard-reloads ~0.5-2s after load, wiping anything typed on /partner/register (observed repeatedly in Playwright). Pre-existing, not part of this change; likely preview build-version mismatch or SW first install.", "selector": "[data-testid=partner-register-name]", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Agreement step missing list vs backend", "issue": "missingItems() reads local form state. Unsaved Profile/Banking edits (user clicks step tab 4 directly without Save) make the list empty and enable Submit, but backend still returns 422 'Still missing: ...'. Consider persisting before submit or computing from server state.", "affected_selectors": ["agent-submit", "agent-missing-list"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_v71_partner_register_country.py", "/app/test_reports/pytest/pytest_v71.xml"],
+  "action_items": [
+    "Optional: in AgentPortal.submit(), call persist(false) (save profile+banking) before agentApi.submit() so unsaved local edits don't trigger a 422",
+    "Optional: signed check in AgentPortal uses !!form.agreement?.version; match against current agreement version (as AgentAgreementStep does) so outdated signatures don't enable Submit",
+    "Low: look into first-load auto reload wiping form input (versionGuard/SW)"
+  ],
+  "critical_code_review_comments": [
+    "AgentPortal.jsx L85 signed = !!form.agreement?.version doesn't check version == current AGREEMENT_VERSION; backend does",
+    "Register page uses /api/v1/meta/countries while profile uses masters countries; both ISO-2 so pre-fill works"
+  ],
+  "updated_files": ["/app/backend/tests/test_v71_partner_register_country.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "None persisted. Deleted test_ctry_* agents, test_ui_ctry_x1@example.com, and test_ctry_partner@example.com; cleared reg: rate-limit attempts.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Self-register is rate limited 5/hour/IP via agent_login_attempts identifier 'reg:<ip>' - clear it in Mongo before tests. Join token = db.agents.invite_token. In Playwright wait ~3s after page load before typing (page auto-reloads once on fresh session)."
+}

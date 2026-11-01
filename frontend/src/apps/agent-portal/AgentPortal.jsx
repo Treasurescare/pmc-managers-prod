@@ -68,17 +68,20 @@ export default function AgentPortal() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   if (!form) return <div className="p-10 text-brand-navy/50">Loading…</div>;
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const saveNow = () => {
+    const { entity_type, banking, documents, history, agreement, id, email, status, ...rest } = formRef.current; // eslint-disable-line no-unused-vars
+    return agentApi.saveProfile({ ...rest, entity_type, banking: banking.filter((b) => b.account_name || b.account_number || b.iban) });
+  };
   const persist = async (advance) => {
     setSaving(true);
     try {
-      const { entity_type, banking, documents, history, agreement, id, email, status, ...rest } = formRef.current; // eslint-disable-line no-unused-vars
-      await agentApi.saveProfile({ ...rest, entity_type, banking: banking.filter((b) => b.account_name || b.account_number || b.iban) });
+      await saveNow();
       toast.success("Saved");
       if (advance) setStep((s) => Math.min(3, s + 1));
     } catch (e) { showApiError(e); } finally { setSaving(false); }
   };
   const submit = async () => {
-    try { await agentApi.submit(); setForm((f) => ({ ...f, status: "submitted" })); toast.success("Submitted for PMC review"); } catch (e) { showApiError(e); }
+    try { await saveNow(); await agentApi.submit(); setForm((f) => ({ ...f, status: "submitted" })); toast.success("Submitted for PMC review"); } catch (e) { showApiError(e); }
   };
   const logout = async () => { await agentApi.logout().catch(() => {}); nav("/partner/login"); };
   const missing = missingItems(form);

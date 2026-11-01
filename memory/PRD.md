@@ -999,4 +999,10 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
   www.pmcmanagers.com, Stripe test warnings and 'sakina' rows hidden). Not captured: escrow institution dashboard (needs escrow login),
   DocuSign two-officer signing screen (no demo signing envelope).
 
+## R38 — Partner sign-up country + clear submit checklist — 2026-11-01 (agent-tested iteration_145, 8/8 backend + E2E)
+- /partner/register asks Country (stored on agent, pre-fills Profile). API field optional for older callers.
+- Documents step marks required docs (* + Required). Agreement step lists missing items with Go-to buttons; Submit disabled until complete; submit saves profile first.
+- Known (pre-existing, LOW): fresh sessions may auto-reload once after load (version guard), wiping typed text.
+
+
 
