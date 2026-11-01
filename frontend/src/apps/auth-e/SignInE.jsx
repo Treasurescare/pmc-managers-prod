@@ -36,7 +36,16 @@ export default function SignInE({ legacy: Legacy }) {
     setBusy(true);
     try {
       if (role === "partner") {
-        await api.post("/api/v1/agents/auth/login", { email, password });
+        try {
+          await api.post("/api/v1/agents/auth/login", { email, password });
+        } catch (err) {
+          if (err?.response?.status !== 401) throw err;
+          toast.error("That email and password don't match a Partner account.", {
+            description: "Use the password you created after confirming your email (your browser may have filled a different saved one). Supplier accounts sign in under Supplier. Forgot it? Use “Forgot password?” and pick Partner.",
+            duration: 12000, closeButton: true,
+          });
+          return;
+        }
         toast.success("Signed in · partner");
         return nav("/partner/me");
       }

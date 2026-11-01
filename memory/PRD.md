@@ -1004,5 +1004,10 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - Documents step marks required docs (* + Required). Agreement step lists missing items with Go-to buttons; Submit disabled until complete; submit saves profile first.
 - Known (pre-existing, LOW): fresh sessions may auto-reload once after load (version guard), wiping typed text.
 
+## R39 — Partner login message + first-visit reload fix — 2026-11-01 (self-tested: curl + Playwright)
+- Partner login verified working from main /login (register→join→login 200). Wrong password now shows a clear partner-specific message (autofill / Supplier role / Forgot password hints).
+- SwUpdateBanner: no longer reloads on first service-worker install (only on real updates) — typed text no longer wiped on first visit.
+
+
 
 

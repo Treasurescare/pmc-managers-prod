@@ -26,8 +26,9 @@ export default function SwUpdateBanner() {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
     let reloaded = false;
+    const hadController = !!navigator.serviceWorker.controller;
     const handler = () => {
-      if (reloaded) return;
+      if (reloaded || !hadController) return;
       reloaded = true;
       window.location.reload();
     };
