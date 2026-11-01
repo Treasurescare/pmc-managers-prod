@@ -154,6 +154,7 @@ export default function CriteriaEditorModal({ noticeRef, title, onClose, onSaved
           <div data-testid="criteria-locked">
             <div className="bg-amber-50 border border-amber-300 p-3 text-sm mb-3">This tender is live. Criteria can only change through a corrigendum sent to all suppliers.</div>
             {rows.length ? <ul>{rows.map((c) => <CriterionLine key={c.id} c={c} />)}</ul> : <p className="text-sm">No criteria were set for this tender.</p>}
+            <p className="text-sm mt-2" data-testid="criteria-locked-consortium">{cons.allowed ? `Accepts consortium bids · up to ${cons.max || defMax} members including the lead` : "Consortium bids are not accepted on this tender."}</p>
           </div>
         ) : <>
           <div className="flex gap-2 flex-wrap items-center">

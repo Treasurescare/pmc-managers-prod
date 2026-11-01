@@ -379,7 +379,7 @@ def _team_value(c: dict, v, row: dict, consortium: Optional[dict], lead_name: st
         return (sum(nums) if nums else None), shown, None
     bad = [f"{n} (declared {_fmt(x)})" for n, x in vals
            if x is None or (c.get("operator") and not _meets(c["operator"], float(x), float(c["threshold"])))]
-    return (min(nums) if len(nums) == len(vals) else None), shown, bad
+    return ((max(nums) if c.get("operator") == "lte" else min(nums)) if len(nums) == len(vals) else None), shown, bad
 
 
 def evaluate(criteria: list, answers: list, docs: list, consortium: Optional[dict] = None, lead_name: str = "Lead") -> dict:
@@ -645,10 +645,12 @@ async def send_result_notices(ref: str, final: bool) -> int:
                 f"<p>{qualified} of {len(bids)} bids qualified.</p>")
         subject = f"[PMC] {'Final' if final else 'Preliminary'} criteria result · {b.get('bid_ref')}"
         recipients = [(b.get("vendor_email"), b.get("vendor_ref"))] + [(m.get("email"), m.get("vendor_ref")) for m in (b.get("consortium") or {}).get("members") or []]
+        snap["emails"] = []
         for em, vref in recipients:
             if not em:
                 continue
-            await send_email(em, subject, wrap("Criteria result", body, "View result", f"{config.FRONTEND_URL.rstrip('/')}/vendor/mybids"))
+            ok = await send_email(em, subject, wrap("Criteria result", body, "View result", f"{config.FRONTEND_URL.rstrip('/')}/vendor/mybids"))
+            snap["emails"].append({"to": em, "sent": bool(ok)})
             await db.notifications.insert_one({"user_email": em, "user_ref": vref, "role": "vendor", "subject": subject, "body": body,
                                                "related_type": "criteria_result", "related_id": str(b["_id"]), "related_url": "/vendor/mybids",
                                                "related_notice_ref": ref, "read": False, "created_at": now_iso()})
@@ -665,6 +667,7 @@ async def my_results(vendor=Depends(current_vendor)):
     out = []
     async for b in db.bids.find(q, {"bid_ref": 1, "notice_ref": 1, "qualification_notices": 1, "consortium.name": 1}).sort("submitted_at", -1):
         out.append({"bid_id": str(b["_id"]), "bid_ref": b.get("bid_ref"), "notice_ref": b["notice_ref"],
-                    "consortium": (b.get("consortium") or {}).get("name"), "notice": b["qualification_notices"][-1],
+                    "consortium": (b.get("consortium") or {}).get("name"),
+                    "notice": {k: v for k, v in b["qualification_notices"][-1].items() if k != "emails"},
                     "history": [x["kind"] for x in b["qualification_notices"]]})
     return {"items": out}

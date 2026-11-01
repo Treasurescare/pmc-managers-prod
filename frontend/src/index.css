@@ -730,6 +730,13 @@
 [data-ui="e"] [data-testid="admin-bid-page"] .bg-white { background: #FFFFFF !important; }
 [data-ui="e"] [data-testid="admin-bid-page"] .pmc-label,
 [data-ui="e"] [data-testid="admin-bid-page"] .pmc-kicker { color: #334155 !important; }
+[data-ui="e"] [data-testid="bid-consortium"] { background: #F8FAFC !important; color: #0F172A !important; }
+[data-ui="e"] [data-testid="consortia-page"] .text-slate-900,
+[data-ui="e"] [data-testid="bid-consortium"] .text-slate-900 { color: #0F172A !important; }
+[data-ui="e"] [data-testid="consortia-page"] .text-slate-600,
+[data-ui="e"] [data-testid="consortia-page"] .text-slate-500,
+[data-ui="e"] [data-testid="bid-consortium"] .text-slate-600 { color: #475569 !important; }
+[data-ui="e"] [data-testid="consortia-page"] [data-testid^="cons-card-"] { color: #0F172A !important; }
 
 /* v51bf — Vendor Intel (triage table + manage modal + evidence manager)
    readabilility. Same cream-on-cream failure mode as the admin bid page:

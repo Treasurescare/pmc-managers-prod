@@ -21,7 +21,9 @@ const EditPartner = ({ a, onSaved }) => {
   return (
     <div className="border border-brand-navy/15 p-3 space-y-2" data-testid="admin-agent-edit">
       <div className="grid md:grid-cols-4 gap-2">{EDIT_FIELDS.map(([k, l]) => (
-        <label key={k} className="text-xs">{l}<input className={inp + " block w-full mt-1"} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} data-testid={`admin-agent-edit-${k}`} /></label>))}</div>
+        <label key={k} className="text-xs">{l}{k === "entity_type"
+          ? <select className={inp + " block w-full mt-1"} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} data-testid={`admin-agent-edit-${k}`}><option value="">—</option><option value="individual">Individual</option><option value="company">Company</option></select>
+          : <input className={inp + " block w-full mt-1"} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} data-testid={`admin-agent-edit-${k}`} />}</label>))}</div>
       <button type="button" className="pmc-btn pmc-btn--primary" onClick={save} data-testid="admin-agent-edit-save">Save details</button>
     </div>);
 };

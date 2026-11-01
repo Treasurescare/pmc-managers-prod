@@ -21,9 +21,10 @@ const AddMember = ({ c, onChange }) => {
 };
 
 const Terms = ({ c, onChange }) => {
-  const [t, setT] = useState({ lead_share_pct: c.lead_share_pct ?? 100, escrow_mode: c.escrow_mode || "shared", deposit_mode: c.deposit_mode || "lead_pays",
+  const [t, setT] = useState({ lead_share_pct: c.lead_share_pct ?? 100, escrow_mode: c.escrow_mode || "", deposit_mode: c.deposit_mode || "",
     shares: Object.fromEntries((c.members || []).map((m) => [m.vendor_id, m.share_pct])) });
   const save = async () => {
+    if (!t.escrow_mode || !t.deposit_mode) return toast.error("Choose the escrow and deposit options first");
     try { onChange(await consortiumApi.terms(c.id, { ...t, lead_share_pct: Number(t.lead_share_pct) })); toast.success("Terms saved — members need to sign again"); }
     catch (e) { showApiError(e); }
   };
@@ -36,9 +37,9 @@ const Terms = ({ c, onChange }) => {
       </div>
       <div className="flex gap-3 flex-wrap">
         <label>Escrow<select className={inp + " block"} value={t.escrow_mode} onChange={(e) => setT({ ...t, escrow_mode: e.target.value })} data-testid="cons-escrow-mode">
-          <option value="shared">One shared escrow, split by shares</option><option value="separate">Separate escrow for each member</option></select></label>
+          <option value="" disabled>Choose…</option><option value="shared">One shared escrow, split by shares</option><option value="separate">Separate escrow for each member</option></select></label>
         <label>Bid deposit (EMD)<select className={inp + " block"} value={t.deposit_mode} onChange={(e) => setT({ ...t, deposit_mode: e.target.value })} data-testid="cons-deposit-mode">
-          <option value="lead_pays">Lead pays the whole deposit</option><option value="each_pays_share">Each member pays their share</option></select></label>
+          <option value="" disabled>Choose…</option><option value="lead_pays">Lead pays the whole deposit</option><option value="each_pays_share">Each member pays their share</option></select></label>
       </div>
       <button type="button" className="px-3 py-1.5 border rounded-md" onClick={save} data-testid="cons-terms-save">Save terms</button>
     </div>);

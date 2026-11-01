@@ -40,7 +40,16 @@ async def notice_limit(n: dict) -> int:
 def _out(c: dict) -> dict:
     c = dict(c)
     c["id"] = str(c.pop("_id"))
+    ag = dict(c.get("agreement") or {})
+    ag["signatures"] = [{k: v for k, v in s.items() if k != "token"} for s in ag.get("signatures") or []]
+    c["agreement"] = ag
     return c
+
+
+async def _kyc_ok(v: dict) -> bool:
+    if (v.get("kyc") or {}).get("status") in ("verified", "cleared", "passed") or v.get("kyc_status") in ("verified", "cleared", "passed"):
+        return True
+    return bool(await db.kyc_cases.find_one({"vendor_id": str(v["_id"]), "status": "passed"}))
 
 
 def _ready_issues(c: dict, limit: int) -> List[str]:
@@ -193,9 +202,11 @@ async def add_member(cid: str, body: MemberIn, vendor=Depends(current_vendor)):
     if not v:
         raise HTTPException(status_code=404, detail="No registered PMC supplier found with that email or supplier ID. Members must be registered suppliers.")
     vid = str(v["_id"])
+    n = await db.notices.find_one({"notice_ref": c["notice_ref"]}) or {}
+    if not n.get("kyc_bypass") and not await _kyc_ok(v):
+        raise HTTPException(status_code=409, detail="This supplier hasn't completed KYC verification yet, so it can't join a consortium.")
     if vid == c["lead_vendor_id"] or any(m["vendor_id"] == vid and m["status"] != "declined" for m in c["members"]):
         raise HTTPException(status_code=409, detail="This supplier is already in the consortium")
-    n = await db.notices.find_one({"notice_ref": c["notice_ref"]}) or {}
     limit = await notice_limit(n)
     live = [m for m in c["members"] if m["status"] in ("invited", "accepted")]
     if 1 + len(live) >= limit:
@@ -226,10 +237,16 @@ async def add_member(cid: str, body: MemberIn, vendor=Depends(current_vendor)):
 async def remove_member(cid: str, vid: str, vendor=Depends(current_vendor)):
     c = await _mine(cid, vendor, lead_only=True)
     _editable(c)
+    gone = next((m for m in c["members"] if m["vendor_id"] == vid), None)
+    if not gone:
+        raise HTTPException(status_code=404, detail="That supplier is not in this consortium")
     c["members"] = [m for m in c["members"] if m["vendor_id"] != vid]
     await db.consortia.update_one({"_id": c["_id"]}, {"$set": {"members": c["members"], "agreement.signatures": [], "updated_at": now_iso()}})
     c["agreement"]["signatures"] = []
     await audit_log("consortium.member_removed", vendor, "consortium", cid, {"member": vid})
+    await send_email(gone["email"], f"[PMC] You were removed from the consortium {c['name']}",
+                     wrap("Consortium update", f"<p>{c.get('lead_company')} removed your company from the consortium <b>{c['name']}</b> "
+                          f"for tender <code>{c['notice_ref']}</code>.</p>"))
     return await view(c, vendor["id"])
 
 
@@ -258,6 +275,9 @@ async def respond(cid: str, body: RespondIn, vendor=Depends(current_vendor)):
 async def set_terms(cid: str, body: TermsIn, vendor=Depends(current_vendor)):
     c = await _mine(cid, vendor, lead_only=True)
     _editable(c)
+    known = {m["vendor_id"] for m in c["members"]}
+    if set(body.shares) - known:
+        raise HTTPException(status_code=422, detail="Shares can only be set for members of this consortium")
     for m in c["members"]:
         if m["vendor_id"] in body.shares:
             m["share_pct"] = max(0.0, min(100.0, float(body.shares[m["vendor_id"]] or 0)))

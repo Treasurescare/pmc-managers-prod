@@ -529,6 +529,9 @@ async def withdraw_bid(bid_id: str, vendor=Depends(current_vendor)) -> dict:
         raise HTTPException(status_code=400, detail="Cannot withdraw at this stage")
     await db.bids.update_one({"_id": ObjectId(bid_id)},
                              {"$set": {"status": "withdrawn", "withdrawn_at": now_iso()}})
+    if (b.get("consortium") or {}).get("id"):
+        await db.consortia.update_one({"_id": ObjectId(b["consortium"]["id"])},
+                                      {"$set": {"status": "forming", "updated_at": now_iso()}, "$unset": {"bid_id": ""}})
     await audit_log("bid.withdraw", None, "bid", b.get("bid_ref"), {})
     # v47c — confirmatory email to the bidder
     try:
