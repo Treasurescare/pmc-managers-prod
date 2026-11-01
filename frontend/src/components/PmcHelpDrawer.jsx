@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useUiTheme } from "@/context/UiThemeContext";
+import { ManualLink } from "./ManualLink";
 
 /**
  * PMC v49a — Global floating help FAB + slide-in help drawer.
@@ -15,6 +16,7 @@ const FAQS = [
   { q: "What is the L1 comparison?", a: "The lowest technically compliant priced bid; committee sign-off is mandatory before award.", cat: "awards" },
   { q: "How does DocuSign work here?", a: "Awards and contracts are signed via DocuSign; envelope hash is logged to the audit chain.", cat: "sign" },
 ];
+
 
 export default function PmcHelpDrawer() {
   const { isE } = useUiTheme();
@@ -170,6 +172,7 @@ export default function PmcHelpDrawer() {
               data-testid="pmc-help-search"
             />
           </label>
+          <ManualLink pathname={pathname} />
           <div>
             {filtered.length === 0 && guideHits.length === 0 && (
               <p className="pmc-muted">No answer matches yet. Contact the PMC desk below.</p>

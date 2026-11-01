@@ -946,3 +946,8 @@ summary notes.
 - Dashboard "Live tender progress" panel (GET /api/v1/tender-tracker/live), 8 rows + show all.
 - Manuals in /downloads/manual/: pmc-user-manual.pdf (44 pages, every screen), pmc-master-training-manual.pdf (12 modules), pmc-process-flow.pdf/png, pmc-data-flow.pdf/png, pmc-manual-pack.zip. Rebuild: scripts/capture_manual.py then scripts/build_manuals.py (screens list in scripts/manual_screens.json). Tested iteration_161 + test_v78 15/15.
 - NOTE: frontend build script excludes downloads/ from the prod ZIP, so manuals are served from the preview link.
+
+## 2026-11-01 — v59k Whole-site v4 Master Training Manual + help-drawer manual links
+- PMC_v4_Master_Training_Manual.pdf (93 pages, hyperlinked contents + PDF bookmarks): overview/architecture, roles, security, screen tours of all 5 portals (59 screens), deep dives (DPR AI, criteria/opening/proof review, L1/award/escrow, partners/tracker), AWS deployment runbook, troubleshooting, sample workflow, API index (737 endpoints from OpenAPI), data model, release history, glossary. Build: scripts/build_manual_v4.py (+ capture_manual.py with manual_screens*.json).
+- Help drawer (every portal) shows "Read the manual for this screen" linking to the matching page (downloads/manual/sections.json). Frontend prod ZIP now includes the v4 manual + sections.json so the link works on AWS.
+- Award emails: already sent on every award incl. Award to L1 (winner congratulations; other bidders told it went to another supplier, with EMD refund date).
