@@ -707,7 +707,7 @@ export default function TenderBuilderPanel({ vendorMode = false }) {
                       ✎ Changes requested — edit &amp; resubmit
                     </span>
                   )}
-                  {!doc.is_master && vendorMode && !["submitted", "approved"].includes(doc.review_status) && (
+                  {!doc.is_master && !(vendorMode && ["submitted", "approved"].includes(doc.review_status)) && (
                     <button type="button" data-testid="tb-criteria" onClick={() => setCritOpen(true)}
                             className="px-4 py-2 text-[12px] uppercase tracking-widest border border-brand-gold text-brand-navy hover:bg-brand-gold/20">
                       Criteria{doc.tender_criteria?.length ? ` (${doc.tender_criteria.length})` : ""}

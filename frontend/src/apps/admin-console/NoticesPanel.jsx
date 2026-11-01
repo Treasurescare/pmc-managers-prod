@@ -10,6 +10,7 @@ import EmdMasterPicker from "./notice/EmdMasterPicker";
 import NoticeViewModal from "./notice/NoticeViewModal";
 import NoticeEditModal from "./notice/NoticeEditModal";
 import CriteriaEditorModal from "./notice/CriteriaEditorModal";
+import { PublishChecklist } from "./notice/PublishChecklist";
 import { useListPager } from "@/components/ListPager";
 
 export default function NoticesPanel() {
@@ -857,6 +858,7 @@ export default function NoticesPanel() {
                 Created by {n.created_by_email}
               </div>
             )}
+            {!n.is_published && <PublishChecklist n={n} onCriteria={() => setCritRef(n.notice_ref)} />}
           </div>
         ))}
         {noticeControls}
