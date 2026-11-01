@@ -468,6 +468,8 @@ export const criteriaApi = {
   tplSave: (tid, body) => api.put(`/api/v1/tender-criteria/template/${tid}/mine`, body).then((r) => r.data),
   tplAiSuggest: (tid) => api.post(`/api/v1/tender-criteria/template/${tid}/mine/ai-suggest`, {}, { timeout: 120000 }).then((r) => r.data),
   qualification: (ref) => api.get(`/api/v1/tender-criteria/${ref}/qualification`).then((r) => r.data),
+  proofVote: (ref, bidId, cid, body) => api.post(`/api/v1/tender-criteria/${ref}/bids/${bidId}/proofs/${cid}/vote`, body).then((r) => r.data),
+  proofAiRun: (ref) => api.post(`/api/v1/tender-criteria/${ref}/proof-ai/run`).then((r) => r.data),
   doubt: (ref, bidId, body) => api.post(`/api/v1/tender-criteria/${ref}/bids/${bidId}/doubt`, body).then((r) => r.data),
   resolve: (ref, bidId, body) => api.post(`/api/v1/tender-criteria/${ref}/bids/${bidId}/resolve`, body).then((r) => r.data),
   score: (ref, bidId, body) => api.post(`/api/v1/tender-criteria/${ref}/bids/${bidId}/score`, body).then((r) => r.data),

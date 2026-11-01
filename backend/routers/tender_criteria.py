@@ -95,6 +95,7 @@ class CriteriaIn(BaseModel):
     fx_rule: Optional[str] = Field(default=None, max_length=300)
     consortium_allowed: bool = False
     consortium_max_members: Optional[int] = Field(default=None, ge=2, le=20)
+    award_method: Literal["l1", "weighted"] = "l1"
 
 
 async def _notice(ref: str) -> dict:
@@ -103,7 +104,7 @@ async def _notice(ref: str) -> dict:
                                                         "primary_document": 1, "budget_currency": 1, "origin": 1,
                                                         "prepared_by_vendor_id": 1, "review_status": 1,
                                                         "criteria_ai_check": 1, "consortium_allowed": 1,
-                                                        "consortium_max_members": 1})
+                                                        "consortium_max_members": 1, "award_method": 1})
     if not n:
         raise HTTPException(status_code=404, detail="Tender not found")
     return n
@@ -113,7 +114,7 @@ def _view(n: dict) -> dict:
     return {"notice_ref": n["notice_ref"], "criteria": n.get("tender_criteria") or [],
             "fx_rule": n.get("criteria_fx_rule"), "locked": bool(n.get("is_published")),
             "ai_check": n.get("criteria_ai_check"), "consortium_allowed": bool(n.get("consortium_allowed")),
-            "consortium_max_members": n.get("consortium_max_members")}
+            "consortium_max_members": n.get("consortium_max_members"), "award_method": n.get("award_method") or "l1"}
 
 
 def has_must_pass(n: dict) -> bool:
@@ -170,7 +171,8 @@ async def _store(n: dict, body: "CriteriaIn", actor: dict) -> dict:
     ids = [c["id"] for c in crit]
     if len(ids) != len(set(ids)):
         raise HTTPException(status_code=422, detail="Two criteria share the same id")
-    cons = {"consortium_allowed": body.consortium_allowed, "consortium_max_members": body.consortium_max_members if body.consortium_allowed else None}
+    cons = {"consortium_allowed": body.consortium_allowed, "consortium_max_members": body.consortium_max_members if body.consortium_allowed else None,
+            "award_method": body.award_method}
     await db.notices.update_one({"_id": n["_id"]}, {"$set": {"tender_criteria": crit, "criteria_fx_rule": body.fx_rule,
                                                              "criteria_updated_at": now_iso(), **cons},
                                                     "$unset": {"criteria_ai_check": ""}})
@@ -471,16 +473,25 @@ async def _committee_member(ref: str, admin: dict) -> None:
 
 
 @router.get("/{ref}/qualification")
-async def qualification(ref: str, _=Depends(require_role(*QUAL_ROLES))):
+async def qualification(ref: str, admin=Depends(require_role(*QUAL_ROLES))):
     n = await _notice(ref)
+    from routers.proof_ai import _members
+    members = await _members(ref)
     rows = []
     async for b in db.bids.find({"notice_ref": ref, "qualification": {"$exists": True}}).sort("submitted_at", 1):
         q = b["qualification"]
+        proofs = {}
+        for d in b.get("documents") or []:
+            if d.get("criterion_id"):
+                proofs.setdefault(d["criterion_id"], []).append({"key": d.get("key"), "filename": d.get("filename")})
         rows.append({"bid_id": str(b["_id"]), "bid_ref": b.get("bid_ref"), "supplier": b.get("company_name") or b.get("vendor_email"),
+                     "proof_files": proofs,
                      "status": final_status(q), **{k: q.get(k) for k in ("system_status", "results", "auto_points", "max_points",
                                                                            "evaluated_at", "doubts", "decision", "decision_note",
-                                                                           "evaluator_scores")}})
-    return {"notice_ref": ref, "criteria_count": len(n.get("tender_criteria") or []), "bids": rows}
+                                                                           "evaluator_scores", "proof_reviews")}})
+    return {"notice_ref": ref, "criteria_count": len(n.get("tender_criteria") or []), "bids": rows,
+            "committee_size": len(members), "me": admin.get("id"), "i_am_member": admin.get("id") in members,
+            "award_method": n.get("award_method") or "l1"}
 
 
 class DoubtIn(BaseModel):
@@ -587,7 +598,8 @@ async def _own_template(tid: str, request: Request, read: bool = False) -> tuple
 def _tpl_view(doc: dict) -> dict:
     return {"notice_ref": str(doc["_id"]), "criteria": doc.get("tender_criteria") or [], "fx_rule": doc.get("criteria_fx_rule"),
             "locked": doc.get("review_status") in ("submitted", "approved"), "ai_check": None,
-            "consortium_allowed": bool(doc.get("consortium_allowed")), "consortium_max_members": doc.get("consortium_max_members")}
+            "consortium_allowed": bool(doc.get("consortium_allowed")), "consortium_max_members": doc.get("consortium_max_members"),
+            "award_method": doc.get("award_method") or "l1"}
 
 
 @router.get("/template/{tid}/mine")
@@ -604,7 +616,8 @@ async def template_save(tid: str, body: CriteriaIn, request: Request):
     crit = [c.model_dump() for c in body.criteria]
     if len({c["id"] for c in crit}) != len(crit):
         raise HTTPException(status_code=422, detail="Two criteria share the same id")
-    cons = {"consortium_allowed": body.consortium_allowed, "consortium_max_members": body.consortium_max_members if body.consortium_allowed else None}
+    cons = {"consortium_allowed": body.consortium_allowed, "consortium_max_members": body.consortium_max_members if body.consortium_allowed else None,
+            "award_method": body.award_method}
     await db.tender_templates.update_one({"_id": doc["_id"]}, {"$set": {"tender_criteria": crit, "criteria_fx_rule": body.fx_rule, **cons}})
     await audit_log("tender_template.criteria_saved", p, "tender_template", tid, {"count": len(crit)})
     doc.update(tender_criteria=crit, criteria_fx_rule=body.fx_rule, **cons)

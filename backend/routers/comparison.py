@@ -109,6 +109,7 @@ async def run_l1_comparison(notice_ref: str,
     result = {
         "notice_ref": notice_ref,
         "notice_title": notice.get("title"),
+        "award_method": notice.get("award_method") or "l1",
         "budget_amount": notice.get("budget_amount"),
         "budget_currency": notice.get("budget_currency"),
         "total_bids": len(all_bids),

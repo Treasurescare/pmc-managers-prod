@@ -333,6 +333,8 @@ from routers import tender_criteria as _tender_criteria  # noqa: E402
 app.include_router(_tender_criteria.router)
 from routers import criteria_library as _criteria_library  # noqa: E402
 app.include_router(_criteria_library.router)
+from routers import proof_ai as _proof_ai  # noqa: E402
+app.include_router(_proof_ai.router)
 from routers import consortia as _consortia  # noqa: E402
 app.include_router(_consortia.router)
 from routers import consortium_split as _consortium_split  # noqa: E402

@@ -70,6 +70,12 @@ async def _blockers(n: dict, c, stage: str) -> list:
                                                      "qualification.decision": {"$exists": False}})
             if pending:
                 out.append(f"The committee has raised a doubt on {pending} bid(s) — resolve it first")
+            from routers.proof_ai import pending_reviews
+            pending = 0
+            async for qb in db.bids.find({**base, "status": LIVE, "technical_cleared_at": {"$ne": None}}, {"qualification": 1}):
+                pending += 1 if pending_reviews(qb.get("qualification") or {}) else 0
+            if pending:
+                out.append(f"Proof review is still pending on {pending} qualified bid(s) — every committee member must accept or reject each proof")
             pending = 0
         else:
             pending = await db.bids.count_documents({**base, "technical_cleared_at": None, "status": LIVE})
@@ -135,7 +141,9 @@ async def approve_opening(notice_ref: str, body: ApproveIn, request: Request,
         opened = await _open(n, body.stage, admin)
         import asyncio
         if body.stage == "technical" and n.get("tender_criteria"):
+            from routers.proof_ai import review_proofs
             asyncio.create_task(send_result_notices(notice_ref, False))
+            asyncio.create_task(review_proofs(notice_ref))
         asyncio.create_task(_email_record(notice_ref, body.stage, admin))
         return {"opened": True, "bids_opened": opened, "approvals": appr, "record_emailed": True}
     return {"opened": False, "approvals": appr, "remaining": len(set(members) - {a["by_id"] for a in appr})}
@@ -159,6 +167,9 @@ async def _open(n: dict, stage: str, admin: dict) -> int:
                 from routers.tender_criteria import evaluate
                 ans = dec_text(s.get("criteria_answers_json"))
                 q = evaluate(crit, _json.loads(ans) if ans else [], b.get("documents") or [], b.get("consortium"), b.get("company_name") or "Lead")
+                if q["system_status"] == "qualified":
+                    from routers.proof_ai import init_reviews
+                    init_reviews(q)
                 upd.update(criteria_answers_json=ans, qualification=q)
                 if q["system_status"] == "qualified":
                     upd["technical_cleared_at"] = now

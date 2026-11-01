@@ -285,9 +285,19 @@ async def award_report(notice_ref: str,
     all_scores = [s async for s in db.scores.find({"notice_ref": notice_ref})]
     per_bid = _group_scores_by_bid(all_scores, cfg["tech_criteria"])
     rows = [_bid_row(b, per_bid, cfg) for b in bids]
-    rows.sort(key=lambda r: (-r["combined"], r.get("price") or 0))
+    notice = await db.notices.find_one({"notice_ref": notice_ref}, {"award_method": 1, "tender_criteria": 1}) or {}
+    method = notice.get("award_method") or "l1"
+    if notice.get("tender_criteria"):
+        cleared = {str(b["_id"]) for b in bids if b.get("technical_cleared_at") and (b.get("qualification") or {}).get("decision") != "disqualified"}
+        for r in rows:
+            r["qualifies"] = r["bid_id"] in cleared and (method == "l1" or r["qualifies"])
+    if method == "l1":
+        rows.sort(key=lambda r: (not r["qualifies"], r.get("price") is None, r.get("price") or 0))
+    else:
+        rows.sort(key=lambda r: (-r["combined"], r.get("price") or 0))
     return {
         "notice_ref":     notice_ref,
+        "award_method":   method,
         "rubric":         {"technical_weight": cfg["tech_weight"],
                             "commercial_weight": cfg["commercial_weight"],
                             "minimum_technical": cfg["min_tech"],

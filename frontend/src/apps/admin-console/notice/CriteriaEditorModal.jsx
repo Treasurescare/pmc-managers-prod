@@ -103,10 +103,11 @@ export default function CriteriaEditorModal({ noticeRef, title, onClose, onSaved
   const [tpl, setTpl] = useState({ templates: [], sets: [], prefill_fields: {} });
   const [fx, setFx] = useState("");
   const [cons, setCons] = useState({ allowed: false, max: "" });
+  const [award, setAward] = useState("l1");
   const [defMax, setDefMax] = useState(5);
   const [busy, setBusy] = useState("");
   useEffect(() => {
-    API.get(noticeRef).then((d) => { setData(d); setRows(d.criteria); setFx(d.fx_rule || ""); setCheck(d.ai_check || null); setCons({ allowed: !!d.consortium_allowed, max: d.consortium_max_members || "" }); }).catch(showApiError);
+    API.get(noticeRef).then((d) => { setData(d); setRows(d.criteria); setFx(d.fx_rule || ""); setCheck(d.ai_check || null); setCons({ allowed: !!d.consortium_allowed, max: d.consortium_max_members || "" }); setAward(d.award_method || "l1"); }).catch(showApiError);
     criteriaApi.templates().then(setTpl).catch(() => {});
     consortiumApi.settings().then((s) => setDefMax(s.max_members_default)).catch(() => {});
   }, [noticeRef, mode]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -129,7 +130,7 @@ export default function CriteriaEditorModal({ noticeRef, title, onClose, onSaved
     setBusy("save");
     try {
       const criteria = rows.map(toPayload);
-      const d = await API.save(noticeRef, { criteria, fx_rule: fx || null, consortium_allowed: cons.allowed, consortium_max_members: cons.allowed && cons.max ? Number(cons.max) : null });
+      const d = await API.save(noticeRef, { criteria, fx_rule: fx || null, consortium_allowed: cons.allowed, consortium_max_members: cons.allowed && cons.max ? Number(cons.max) : null, award_method: award });
       setCheck(null);
       setRows(d.criteria); toast.success("Criteria saved"); onSaved?.(d);
     } catch (e) { showApiError(e); } finally { setBusy(""); }
@@ -192,6 +193,11 @@ export default function CriteriaEditorModal({ noticeRef, title, onClose, onSaved
           <label className="block text-sm">Currency conversion rule (for amounts in other currencies)
             <input className={inp} placeholder="e.g. Central bank rate on the closing date" value={fx} onChange={(e) => setFx(e.target.value)} data-testid="criteria-fx" /></label>
           <ConsortiumOptions cons={cons} setCons={setCons} defMax={defMax} setDefMax={setDefMax} admin={!vendor} />
+          <label className="block text-sm" data-testid="criteria-award-method">How the winner is picked among qualified bids
+            <select className={inp} value={award} onChange={(e) => setAward(e.target.value)} data-testid="criteria-award-method-select">
+              <option value="l1">Lowest price wins (L1)</option>
+              <option value="weighted">Weighted technical and price marks</option>
+            </select></label>
           <div className="flex justify-between items-center gap-2 flex-wrap">
             <span className={`text-sm ${mustPass ? "text-emerald-800" : "text-amber-800"}`} data-testid="criteria-summary">{rows.length} criteria · {mustPass} must-pass{mustPass ? "" : " — add at least one to publish"}</span>
             <button type="button" className="pmc-btn pmc-btn--primary" disabled={!!busy} onClick={save} data-testid="criteria-save">{busy === "save" ? "Saving…" : "Save criteria"}</button>

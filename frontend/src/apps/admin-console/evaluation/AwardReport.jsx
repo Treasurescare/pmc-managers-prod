@@ -11,6 +11,7 @@ export default function AwardReport({ report }) {
   return (
     <div className="bg-white border p-4" data-testid="award-report">
       <div className="text-lg font-serif mb-2">Award Recommendation Report — {report.notice_ref}</div>
+      <div className="text-xs mb-2" data-testid="award-report-method">Ranking rule for this tender: <b>{report.award_method === "weighted" ? "Weighted technical and price marks" : "Lowest price wins (L1) among qualified bids"}</b></div>
       {report.recommendation ? (
         <div className="bg-emerald-50 border border-emerald-200 p-3 mb-3">
           <strong>Recommended for award:</strong> {report.recommendation.vendor} ·
@@ -19,7 +20,7 @@ export default function AwardReport({ report }) {
         </div>
       ) : (
         <div className="bg-amber-50 border border-amber-200 p-3 mb-3">
-          No bid qualifies (all below the {minTech}% technical cutoff).
+          No bid qualifies{report.award_method === "weighted" ? ` (all below the ${minTech}% technical cutoff)` : " (no bid passed the tender criteria and proof review)"}.
         </div>
       )}
       <table className="w-full text-sm">

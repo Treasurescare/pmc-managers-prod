@@ -83,6 +83,7 @@ export default function L1ComparisonPanel() {
 
       {result && (
         <>
+          {result.award_method === "weighted" && <div className="mb-4 bg-amber-50 border border-amber-300 p-3 text-sm" data-testid="l1-method-weighted">This tender is set to pick the winner by <b>weighted technical and price marks</b>. Use the Award recommendation report in Evaluation; this L1 list is for reference only.</div>}
           <div className="grid gap-4 md:grid-cols-3 mb-6">
             {["l1_winner", "l2", "l3"].map((k, i) => {
               const r = result[k];

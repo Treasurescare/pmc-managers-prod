@@ -362,9 +362,9 @@ async def create_notice(payload: NoticeIn, admin=Depends(require_role(
     doc = payload.model_dump()
     tid = doc.get("tender_template_id")
     if tid and not doc.get("tender_criteria") and ObjectId.is_valid(str(tid)):
-        tpl = await db.tender_templates.find_one({"_id": ObjectId(str(tid))}, {"tender_criteria": 1, "criteria_fx_rule": 1, "consortium_allowed": 1, "consortium_max_members": 1})
+        tpl = await db.tender_templates.find_one({"_id": ObjectId(str(tid))}, {"tender_criteria": 1, "criteria_fx_rule": 1, "consortium_allowed": 1, "consortium_max_members": 1, "award_method": 1})
         if tpl and (tpl.get("tender_criteria") or tpl.get("consortium_allowed")):
-            doc.update(tender_criteria=tpl["tender_criteria"], criteria_fx_rule=tpl.get("criteria_fx_rule"),
+            doc.update(tender_criteria=tpl.get("tender_criteria") or [], criteria_fx_rule=tpl.get("criteria_fx_rule"), award_method=tpl.get("award_method") or "l1",
                        consortium_allowed=bool(tpl.get("consortium_allowed")), consortium_max_members=tpl.get("consortium_max_members"))
 
     # v56s — Go-live gate (checked BEFORE reserving a notice ref so a rejected

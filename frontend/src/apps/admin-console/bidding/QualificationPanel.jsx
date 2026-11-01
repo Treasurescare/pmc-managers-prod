@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { criteriaApi, showApiError } from "@/lib/api";
+import { ProofReview } from "./ProofReview";
 
 const BADGE = {
   qualified: ["Qualified", "bg-emerald-100 text-emerald-900"],
@@ -23,7 +24,7 @@ const ResultRow = ({ r, act, open }) => (
   </tr>
 );
 
-const BidCard = ({ b, refKey, reload, open }) => {
+const BidCard = ({ b, refKey, reload, open, me, member }) => {
   const [label, cls] = BADGE[b.status] || [b.status, ""];
   const act = async (kind, r) => {
     try {
@@ -53,7 +54,10 @@ const BidCard = ({ b, refKey, reload, open }) => {
         <div className="text-sm"><b>{b.supplier}</b> · {b.bid_ref}{b.max_points ? ` · ${b.auto_points}/${b.max_points} pts` : ""}</div>
         <span className={`text-[11px] px-2 py-0.5 ${cls}`} data-testid={`q-status-${b.bid_ref}`}>{label}</span>
       </div>
-      <table className="w-full text-xs"><tbody>{(b.results || []).map((r) => <ResultRow key={r.criterion_id} r={r} act={act} open={open && !b.decision} />)}</tbody></table>
+      <table className="w-full text-xs"><tbody>{(b.results || []).map((r) => <Fragment key={r.criterion_id}>
+        <ResultRow r={r} act={act} open={open && !b.decision} />
+        <ProofReview refKey={refKey} b={b} r={r} me={me} member={member} open={open && !b.decision} reload={reload} />
+      </Fragment>)}</tbody></table>
       {openDoubts.map((d) => <div key={d.at} className="text-xs bg-amber-50 border border-amber-300 p-2">Doubt by {d.by}: {d.reason}</div>)}
       {open && openDoubts.length > 0 && <div className="flex gap-2">
         <button type="button" className="pmc-btn pmc-btn--secondary" onClick={() => resolve("uphold")} data-testid={`q-uphold-${b.bid_ref}`}>Keep system result</button>
@@ -70,12 +74,16 @@ export const QualificationPanel = ({ noticeRef, commercialOpen, onChange }) => {
   useEffect(() => { criteriaApi.qualification(noticeRef).then(setD).catch(() => setD(null)); }, [noticeRef]);
   if (!d || !d.criteria_count || !d.bids.length) return null;
   const q = d.bids.filter((b) => b.status === "qualified").length;
+  const aiPending = d.bids.some((b) => Object.values(b.proof_reviews || {}).some((p) => ["pending", "failed"].includes(p.ai_status)));
+  const rerun = () => criteriaApi.proofAiRun(noticeRef).then((x) => { toast.success(`AI read ${x.read} proof(s)`); load(); }).catch(showApiError);
   return (
     <div className="space-y-2" data-testid={`qualification-panel-${noticeRef}`}>
       <div className="pmc-label">System qualification check · {q} of {d.bids.length} bid(s) qualified</div>
       <p className="text-xs text-brand-navy/70">The system checked every bid against the tender criteria when the technical envelopes opened. Only qualified bids go to price opening.
         Committee members can't change a pass or fail; they can raise a logged doubt on a specific item and then decide. {commercialOpen ? "Price envelopes are open — results are final." : ""}</p>
-      {d.bids.map((b) => <BidCard key={b.bid_id} b={b} refKey={noticeRef} reload={load} open={!commercialOpen} />)}
+      <p className="text-xs text-brand-navy/70" data-testid="proof-review-help">For qualified bids, the AI has read each must-pass proof and compared it with what the supplier declared. Every committee member ({d.committee_size}) must accept or reject each proof; one rejection disqualifies the bid. Price opening stays blocked until every proof is decided.
+        {!commercialOpen && aiPending && <button type="button" className="underline ml-2" onClick={rerun} data-testid="proof-ai-rerun">Run / retry AI reading</button>}</p>
+      {d.bids.map((b) => <BidCard key={b.bid_id} b={b} refKey={noticeRef} reload={load} open={!commercialOpen} me={d.me} member={d.i_am_member} />)}
     </div>
   );
 };
