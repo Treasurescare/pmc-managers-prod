@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { toast } from "sonner";
-import { agentApi, showApiError } from "@/lib/api";
+import { agentApi, publicApi, showApiError } from "@/lib/api";
 
 const inp = "mt-1 w-full px-3 py-2 border border-brand-navy/20 bg-white focus:outline-none focus:border-brand-gold";
 
@@ -68,13 +68,15 @@ export function AgentLogin() {
 }
 
 export function PartnerRegister() {
-  const [f, setF] = useState({ name: "", email: "" });
+  const [f, setF] = useState({ name: "", email: "", country: "" });
+  const [countries, setCountries] = useState([]);
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
+  useEffect(() => { publicApi.countries().then(setCountries).catch(() => {}); }, []);
   const go = async (e) => {
     e.preventDefault();
     setBusy(true);
-    try { await agentApi.register(f.email, f.name); setDone(true); } catch (e2) { showApiError(e2); } finally { setBusy(false); }
+    try { await agentApi.register(f.email, f.name, f.country); setDone(true); } catch (e2) { showApiError(e2); } finally { setBusy(false); }
   };
   if (done) return <Shell title="Check your email" testid="partner-register-done"><p className="text-sm">If this email can be used, we've sent a confirmation link to <b>{f.email}</b>. Open it to set your password and build your partner profile.</p><p className="text-xs"><Link to="/partner/login" className="underline">Partner sign in</Link> · <Link to="/" className="underline">Home</Link></p></Shell>;
   return (
@@ -83,6 +85,10 @@ export function PartnerRegister() {
       <form onSubmit={go} className="space-y-3">
         <label className="block text-sm">Your name or company<input className={inp} required minLength={2} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} data-testid="partner-register-name" /></label>
         <label className="block text-sm">Email<input type="email" className={inp} required value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} data-testid="partner-register-email" /></label>
+        <label className="block text-sm">Country<select className={inp} required value={f.country} onChange={(e) => setF({ ...f, country: e.target.value })} data-testid="partner-register-country">
+          <option value="">Select your country</option>
+          {countries.map((c) => <option key={c.code} value={c.code}>{c.name_en || c.name}</option>)}
+        </select></label>
         <button className="pmc-btn pmc-btn--primary w-full" disabled={busy} data-testid="partner-register-submit">{busy ? "Sending…" : "Send confirmation link"}</button>
       </form>
       <p className="text-xs text-brand-navy/60">Already a partner? <Link to="/partner/login" className="underline">Sign in</Link></p>

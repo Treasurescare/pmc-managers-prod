@@ -10,9 +10,23 @@ const DOCS = {
     ["address_proof", "Company proof of address"], ["bank_proof", "Bank letter or cancelled cheque"], ["other", "Other supporting document (optional)"]],
 };
 
+export const REQUIRED_DOCS = (et) => ["id_proof", "address_proof", "bank_proof", ...(et === "company" ? ["incorporation_certificate", "tax_registration", "authority_letter"] : [])];
+
+export const missingItems = (f) => {
+  const out = [];
+  [["legal_name", "Legal name"], ["country", "Country"], ["address_line1", "Address"], ["city", "City"], ["primary_contact_phone", "Mobile number"]]
+    .forEach(([k, l]) => { if (!f[k]) out.push([0, l]); });
+  if (f.entity_type === "company" && !f.reg_number) out.push([0, "Company registration number"]);
+  if (!(f.banking || []).some((b) => b.account_name && (b.account_number || b.iban))) out.push([1, "Bank account (name and number or IBAN)"]);
+  const labels = Object.fromEntries(DOCS[f.entity_type || "individual"]);
+  REQUIRED_DOCS(f.entity_type).forEach((d) => { if (!f.documents?.[d]?.key) out.push([2, labels[d] || d]); });
+  return out;
+};
+
 export const AgentDocsStep = ({ form, setForm }) => {
   const [busy, setBusy] = useState("");
   const slots = DOCS[form.entity_type || "individual"];
+  const req = REQUIRED_DOCS(form.entity_type);
   const save = async (documents) => {
     setForm((f) => ({ ...f, documents }));
     try { await agentApi.saveProfile({ documents }); } catch (e) { showApiError(e); }
@@ -32,7 +46,7 @@ export const AgentDocsStep = ({ form, setForm }) => {
         const cur = form.documents?.[slot];
         return (
           <div key={slot} className="flex items-center justify-between bg-white p-3 border border-brand-navy/15" data-testid={`agent-doc-${slot}`}>
-            <div className="min-w-0"><div className="text-sm truncate">{label}</div>{cur?.filename && <div className="text-[11px] text-brand-navy/50 truncate">{cur.filename}</div>}</div>
+            <div className="min-w-0"><div className="text-sm truncate">{label}{req.includes(slot) && <span className="text-red-700"> *</span>}{req.includes(slot) && !cur?.key && <span className="ml-2 text-[10px] uppercase tracking-widest text-red-700" data-testid={`agent-doc-required-${slot}`}>Required</span>}</div>{cur?.filename && <div className="text-[11px] text-brand-navy/50 truncate">{cur.filename}</div>}</div>
             <div className="flex gap-2 shrink-0 ml-2">
               {cur?.key && <button type="button" className="px-3 py-1 text-[11px] uppercase border border-brand-navy/40" onClick={() => uploadsApi.openFile(cur.key).catch(showApiError)}>View</button>}
               <label className="px-3 py-1 text-[11px] uppercase border border-brand-navy/40 cursor-pointer">

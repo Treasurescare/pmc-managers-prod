@@ -538,7 +538,7 @@ export const agentApi = {
   adminGet: (id) => api.get(`/api/v1/admin/agents/${id}`).then((r) => r.data),
   invite: (email, name) => api.post("/api/v1/admin/agents/invite", { email, name }).then((r) => r.data),
   resend: (id) => api.post(`/api/v1/admin/agents/${id}/resend`).then((r) => r.data),
-  register: (email, name) => api.post("/api/v1/agents/register", { email, name }).then((r) => r.data),
+  register: (email, name, country) => api.post("/api/v1/agents/register", { email, name, country }).then((r) => r.data),
   refreshPayment: () => api.post("/api/v1/agents/me/payment/refresh").then((r) => r.data),
   decide: (id, action, note, waive_fee = false) => api.post(`/api/v1/admin/agents/${id}/decision`, { action, note, waive_fee }).then((r) => r.data),
   suppliers: () => api.get("/api/v1/agents/me/suppliers").then((r) => r.data),

@@ -268,6 +268,7 @@ async def refresh_payment(request: Request):
 class RegisterIn(BaseModel):
     email: EmailStr
     name: str = Field(min_length=2, max_length=120)
+    country: Optional[str] = Field(default=None, min_length=2, max_length=3)
 
 
 @router.post("/api/v1/agents/register")
@@ -278,13 +279,14 @@ async def self_register(body: RegisterIn, request: Request):
         raise HTTPException(status_code=429, detail="Too many sign-ups from this network. Try again later.")
     await db.agent_login_attempts.insert_one({"identifier": f"reg:{ip}", "at": now_iso()})
     email = body.email.lower().strip()
+    country = (body.country or "").upper().strip() or None
     a = await db.agents.find_one({"email": email, "status": {"$ne": "rejected"}})
     if a and a["status"] == "invited":
-        upd = {"invite_token": secrets.token_urlsafe(32), "invite_expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()}
+        upd = {"country": a.get("country") or country, "invite_token": secrets.token_urlsafe(32), "invite_expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()}
         await db.agents.update_one({"_id": a["_id"]}, {"$set": upd})
         await _send_invite({**a, **upd})
     elif not a:
-        a = {"email": email, "name": body.name.strip(), "status": "invited", "invite_token": secrets.token_urlsafe(32), "source": "self",
+        a = {"email": email, "name": body.name.strip(), "country": country, "status": "invited", "invite_token": secrets.token_urlsafe(32), "source": "self",
              "invite_expires_at": (datetime.now(timezone.utc) + timedelta(days=7)).isoformat(), "created_at": now_iso(),
              "banking": [], "documents": {}, "history": []}
         a["_id"] = (await db.agents.insert_one(a)).inserted_id

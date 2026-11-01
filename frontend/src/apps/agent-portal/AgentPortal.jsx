@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { agentApi, showApiError } from "@/lib/api";
 import EscrowCoreForm from "@/apps/escrow-portal/EscrowCoreForm";
 import EscrowBankingStep from "@/apps/escrow-portal/EscrowBankingStep";
-import { AgentAgreementStep, AgentDocsStep } from "./AgentSteps";
+import { AgentAgreementStep, AgentDocsStep, missingItems } from "./AgentSteps";
 import PartnerSuppliers from "./PartnerSuppliers";
 import PartnerWallet from "./PartnerWallet";
 import PartnerLeaderboard from "./PartnerLeaderboard";
@@ -81,6 +81,8 @@ export default function AgentPortal() {
     try { await agentApi.submit(); setForm((f) => ({ ...f, status: "submitted" })); toast.success("Submitted for PMC review"); } catch (e) { showApiError(e); }
   };
   const logout = async () => { await agentApi.logout().catch(() => {}); nav("/partner/login"); };
+  const missing = missingItems(form);
+  const signed = !!form.agreement?.version;
   const locked = !["draft", "needs_clarification"].includes(form.status);
   const lastNote = [...(form.history || [])].reverse().find((h) => h.note);
   return (
@@ -114,12 +116,19 @@ export default function AgentPortal() {
         {step === 1 && <EscrowBankingStep banking={form.banking} onChange={(next) => set("banking", next)} />}
         {step === 2 && <AgentDocsStep form={form} setForm={setForm} />}
         {step === 3 && <AgentAgreementStep form={form} setForm={setForm} />}
+        {step === 3 && missing.length > 0 && (
+          <div className="bg-amber-50 border border-amber-300 p-3 text-sm space-y-1" data-testid="agent-missing-list">
+            <b>Before you can submit, please complete:</b>
+            {missing.map(([s, l]) => (
+              <div key={l} className="flex justify-between gap-2"><span>• {l}</span>
+                <button type="button" className="underline text-xs" onClick={() => setStep(s)} data-testid={`agent-missing-go-${s}`}>Go to {STEPS[s]}</button></div>))}
+          </div>)}
         {step > 0 && <div className="flex justify-between gap-2 flex-wrap">
           <button type="button" className="pmc-btn pmc-btn--secondary" disabled={step === 0} onClick={() => setStep(step - 1)} data-testid="agent-back">Back</button>
           <div className="flex gap-2">
             {step < 2 && <button type="button" className="pmc-btn pmc-btn--secondary" disabled={saving} onClick={() => persist(false)} data-testid="agent-save-draft">Save draft</button>}
             {step < 3 ? <button type="button" className="pmc-btn pmc-btn--primary" disabled={saving} onClick={() => (step < 2 ? persist(true) : setStep(3))} data-testid="agent-next">Save & continue</button>
-              : <button type="button" className="pmc-btn pmc-btn--primary" onClick={submit} data-testid="agent-submit">Submit for PMC review</button>}
+              : <button type="button" className="pmc-btn pmc-btn--primary" disabled={missing.length > 0 || !signed} onClick={submit} data-testid="agent-submit">Submit for PMC review</button>}
           </div>
         </div>}
       </>}
