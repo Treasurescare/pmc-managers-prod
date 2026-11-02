@@ -1088,3 +1088,12 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - Screens captured via `scripts/capture_manual.py` with `SCREENS_FILE=scripts/reply_screens.json OUT_DIR=/tmp/reply` (added `loser` = kestrel demo account).
 - Open gaps flagged: no pen test/cert, MFA not compulsory by default, no formal bid-challenge module, no ERP connectors, World-Check not live, pricing tier figures unknown.
 
+
+## 2026-11-02 — Public pricing page + Bid challenge module
+- Fee types: `show_on_pricing` tick; public `GET /api/v1/fee-types/public/pricing`; page `/pricing` (PublicPricingE).
+- `routers/bid_challenges.py`: standstill (default 10 days, change via `PUT /notice/{ref}/standstill` publishes a corrigendum + bidder emails); contract signing blocked (boqs create_contract, DocuSign award envelopes admin+vendor) during standstill / open challenge / 5-day appeal window / suspension.
+- Bidders on the tender lodge a challenge from the debrief page (one open at a time); committee members vote (majority, tie=uphold); upheld → award suspended → resolution meeting (committee + issuer + all bidders invited) → admin records outcome (confirm_award / re_evaluate → bid back to accounting_cleared). Dismissed → one appeal within 5 days to an admin not on the committee (final).
+- UI: `/admin/e/challenges` (nav "Bid challenges"), staff portal "Bid challenges" tab for committee members, VendorChallengePanel on debrief.
+- Tested iteration_163 (14/14 backend); fixed vendor-view email leak, committee-scoped list, meeting permission, staff outcome form, async emails.
+- Known: demo notices have no `created_by`, so issuer isn't auto-invited for them.
+

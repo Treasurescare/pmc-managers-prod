@@ -54,7 +54,7 @@ export const VendorChallengePanel = ({ bidId }) => {
     <div className={box} data-testid="challenge-panel">
       <div className="text-[11px] uppercase tracking-widest text-brand-gold">Bid challenge</div>
       <p className="text-sm" data-testid="challenge-standstill">{st.running
-        ? <>The standstill period ({st.days} days) runs until <b>{fmt(st.ends_at)}</b>. No contract can be signed before then, and you can lodge one formal challenge during this time.</>
+        ? <>The standstill period ({st.days} days) runs until <b>{fmt(st.ends_at)}</b>. No contract can be signed before then. You can lodge a formal challenge during this time (one open challenge at a time).</>
         : st.awarded ? <>The {st.days}-day standstill period ended on {fmt(st.ends_at)}.</> : <>The standstill period starts when the tender is awarded.</>}</p>
       {s.can_lodge ? <LodgeForm bidId={bidId} onDone={load} /> : s.why_not && !s.challenges.length && <p className="text-xs text-brand-navy/60" data-testid="challenge-why-not">{s.why_not}</p>}
       {s.challenges.map((c) => <MyChallenge key={c.id} c={c} onDone={load} />)}

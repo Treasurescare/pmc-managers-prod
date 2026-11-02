@@ -45,7 +45,7 @@ const Meeting = ({ c, onDone }) => {
     .then(() => { toast.success("Meeting scheduled — invitations sent"); onDone(); }).catch(showApiError);
   return (
     <div className="flex flex-wrap gap-2" data-testid={`meeting-form-${c.id}`}>
-      <input type="datetime-local" className={inp} value={at} onChange={(e) => setAt(e.target.value)} data-testid="meeting-at" />
+      <input type="datetime-local" className={inp} value={at} onChange={(e) => setAt(e.target.value)} data-testid="meeting-at" title="Your local time" />
       <input className={inp + " flex-1 min-w-[220px]"} placeholder="Place or video link" value={loc} onChange={(e) => setLoc(e.target.value)} data-testid="meeting-location" />
       <button type="button" className="pmc-btn pmc-btn--primary" disabled={!at || loc.trim().length < 2} onClick={go} data-testid="meeting-save">Schedule resolution meeting</button>
     </div>);
@@ -64,7 +64,7 @@ const Outcome = ({ c, onDone, appeal }) => {
     </div>);
 };
 
-const Card = ({ c, onDone }) => (
+const Card = ({ c, onDone, staff }) => (
   <div className="bg-white border border-brand-navy/15 p-4 space-y-2 text-sm" data-testid={`challenge-${c.id}`}>
     <div className="flex justify-between flex-wrap gap-2"><b>{c.challenge_ref} · {c.company_name || c.vendor_email}</b>
       <span className="text-xs px-2 py-0.5 bg-brand-navy/5" data-testid="challenge-status">{STATUS[c.status] || c.status}</span></div>
@@ -75,7 +75,7 @@ const Card = ({ c, onDone }) => (
     {c.i_can_vote && <Vote c={c} onDone={onDone} />}
     {c.status === "upheld" && <Meeting c={c} onDone={onDone} />}
     {c.meeting && <div className="text-xs">Meeting {fmt(c.meeting.scheduled_at)} · {c.meeting.location} · {c.meeting.attendees.length} invited (committee, issuer, bidding teams)</div>}
-    {c.status === "meeting_scheduled" && new Date(c.meeting.scheduled_at) <= new Date() && <Outcome c={c} onDone={onDone} />}
+    {!staff && c.status === "meeting_scheduled" && new Date(c.meeting.scheduled_at) <= new Date() && <Outcome c={c} onDone={onDone} />}
     {c.appeal_reason && <div className="text-xs">Appeal: “{c.appeal_reason}”{c.appeal_decision && <> → <b>{c.appeal_decision}</b> by {c.appeal_decided_by}</>}</div>}
     {c.i_can_decide_appeal && <Outcome c={c} onDone={onDone} appeal />}
     {c.resolution && <div className="text-xs">Outcome: <b>{c.resolution.outcome}</b> — {c.resolution.minutes}</div>}
@@ -87,13 +87,13 @@ export function ChallengesBody({ staff = false }) {
   useEffect(() => { load(); }, [load]);
   return (
       <div className={staff ? "space-y-6" : "p-6 space-y-6"} data-testid="challenges-page">
-        <p className="text-sm text-brand-navy/70 max-w-3xl">After an award, a standstill period (10 days unless changed by corrigendum) blocks contract signing. Bidders on the tender can lodge one challenge; the committee votes, an upheld challenge suspends the award until a resolution meeting with the committee, issuer and bidding teams, and a dismissed one can be appealed once to a senior officer who is not on the committee.</p>
+        <p className="text-sm text-brand-navy/70 max-w-3xl">After an award, a standstill period (10 days unless changed by corrigendum) blocks contract signing. Bidders on the tender can lodge a challenge (one open at a time); the committee votes, an upheld challenge suspends the award until a resolution meeting with the committee, issuer and bidding teams, and a dismissed one can be appealed once to a senior officer who is not on the committee.</p>
         {!d ? <div className="text-sm">Loading…</div> : <>
           <section className="space-y-3"><h2 className="font-serif text-xl text-brand-navy">Standstill on awarded tenders</h2>
             {d.tenders.map((t) => staff ? <div key={t.notice_ref} className="text-sm">{t.notice_ref}: {t.contract_block || "Contract may be signed"}</div> : <Standstill key={t.notice_ref} t={t} onDone={load} />)}
             {!d.tenders.length && <p className="text-sm text-brand-navy/60">No awarded tenders yet.</p>}</section>
           <section className="space-y-3"><h2 className="font-serif text-xl text-brand-navy">Challenges ({d.challenges.length})</h2>
-            {d.challenges.map((c) => <Card key={c.id} c={c} onDone={load} />)}
+            {d.challenges.map((c) => <Card key={c.id} c={c} onDone={load} staff={staff} />)}
             {!d.challenges.length && <p className="text-sm text-brand-navy/60" data-testid="challenges-empty">No challenges lodged.</p>}</section>
         </>}
       </div>

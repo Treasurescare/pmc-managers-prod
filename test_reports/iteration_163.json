@@ -1,0 +1,45 @@
+{
+  "summary": "v80 public pricing page (fee types show_on_pricing) and Bid Challenge module tested end to end: backend pytest (14/14 pass, run serially with -n 0) plus Playwright UI for admin Fee types, /pricing logged out and at mobile width, vendor debrief challenge panel (lodge + appeal), staff committee voting tab, and admin /admin/e/challenges (standstill corrigendum, meeting with past/future date, resolution confirm_award, appeal dismiss). All requested flows work. One privacy bug: the vendor view of a challenge leaks committee member emails and other bidders' emails through meeting.attendees and meeting.scheduled_by. Demo data was restored afterwards.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/v1/bid-challenges/mine/{bid_id} (and POST lodge/appeal responses)", "issue": "_out(vendor_view=True) only removes votes and appeal_decided_by. Once a meeting is scheduled, the vendor response includes meeting.attendees, which lists committee1/committee2 emails plus every other bidder's email (e.g. northfield, the awarded competitor), and meeting.scheduled_by, a committee email. resolution.by (admin email) is also exposed. This breaks the 'vendor view must not expose committee member emails' requirement and leaks competitor contacts. Fix: in vendor view keep only meeting.scheduled_at/location (maybe attendee count) and strip resolution.by.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/v1/bid-challenges/{cid}/meeting", "issue": "The issuer is never invited for demo tenders because the notices have no created_by or created_by_email (0 of 5 notices in the preview DB have them). DEMO-TND-AWD attendees = 2 committee + 2 bidders only. Vendor-built tenders may store the issuer under a different field, so check that."},
+      {"endpoint": "POST /api/v1/bid-challenges/{cid}/meeting", "issue": "Any committee_member can schedule a meeting, even one not on this tender's committee (no _members check, unlike vote)."},
+      {"endpoint": "GET /api/v1/bid-challenges", "issue": "A committee_member sees every tender's challenges and vendor emails, not only the tenders whose committee they sit on."},
+      {"endpoint": "POST /meeting, /resolution, /standstill", "issue": "Emails are sent one after another inside the request. The resolution POST took more than 2.5s with 4 attendees, so the UI refresh was late. Consider BackgroundTasks."},
+      {"endpoint": "POST /api/v1/bid-challenges/mine/{bid_id}", "issue": "After a challenge is closed or resolved, the same bidder can lodge another one during the standstill (only one open at a time is enforced), but the vendor copy says 'you can lodge one formal challenge'. Align the copy or the rule."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ChallengesBody Card (staff portal)", "issue": "The Outcome/resolution form (resolution-confirm_award / resolution-re_evaluate) shows for any viewer once meeting_scheduled and the meeting time has passed, including committee_member staff in /staff. The backend returns 403 for them (admin only). Hide it when staff=true.", "selector": "[data-testid^='resolution-form-']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/pricing mobile", "issues": ["The global mobile app header and the page's own 'PMC Managers' header both show, so the brand appears twice", "No footer on the pricing page", "Gold uppercase subtitle (brand-gold on cream) has low contrast"]},
+      {"screen": "/admin/e/challenges", "issues": ["meeting-at uses the native datetime-local picker, not a shadcn date/time picker; the value is read in browser local time but shown as UTC", "The intro text hardcodes '10 days' even when the tender's standstill was changed"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v80_bid_challenges_pricing.py", "/app/test_reports/pytest/pytest_v80.xml"],
+  "action_items": [
+    "Strip meeting.attendees, meeting.scheduled_by and resolution.by from the vendor view in bid_challenges._out(vendor_view=True)",
+    "Hide the resolution Outcome form in ChallengesBody when staff=true (or when the user is not admin)",
+    "Include the tender issuer in the meeting attendees: check which field holds the issuer on demo and vendor-built notices",
+    "Restrict schedule_meeting and the list endpoint to the tender's committee members (or admin)",
+    "Optional: send challenge emails in the background; align the 'one formal challenge' copy with the backend rule"
+  ],
+  "critical_code_review_comments": [
+    "bid_challenges._out vendor_view leaks PII (see backend critical)",
+    "standstill() uses find_one for the awarded bid; multi-lot tenders with several awarded bids would pick an arbitrary one",
+    "lodge_challenge builds challenge_ref from count_documents, so two simultaneous lodges can get the same ref (no unique index)",
+    "public_pricing filters emd_masters on is_active True; rules missing the is_active field are silently hidden (all current rules have it)"
+  ],
+  "updated_files": ["/app/backend/tests/test_v80_bid_challenges_pricing.py", "/app/backend/tests/_v80_inspect.py", "/app/backend/tests/_v80_restore.py"],
+  "success_rate": {"backend": "100% (14/14), plus 1 HIGH privacy bug found by a leak probe", "frontend": "~95% (all flows work; 1 staff UI role bug)"},
+  "seed_data_creation": "None kept. All bid_challenges and standstill corrigenda on DEMO-TND-AWD were deleted. The notice's standstill_days, award_suspended and re_evaluation_required were unset. The northfield bid was restored to status awarded with awarded_at 2026-11-01T02:21:14.711079+00:00. The registration fee type's show_on_pricing was set back to false.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run with: cd /app/backend && python -m pytest tests/test_v80_bid_challenges_pricing.py -n 0 (must be serial because the tests share state on the demo tender). The module teardown restores the demo data; tests/_v80_restore.py restores it manually and tests/_v80_inspect.py prints the state. Unified login is /login?next=... with signin-role-{admin|staff|supplier}, signin-e-email, signin-e-password, signin-e-submit. Committee staff log in with active_role committee_member. Preview clock is about 2026-11-02, so the DEMO-TND-AWD standstill is running until 2026-11-11. test_04_vendor_view_leak prints the leak but does not assert; turn it into an assert once fixed."
+}

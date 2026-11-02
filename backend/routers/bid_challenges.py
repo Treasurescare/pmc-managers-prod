@@ -110,17 +110,26 @@ def _out(c: dict, vendor_view: bool = False) -> dict:
         o["committee_votes"] = {"uphold": sum(v["decision"] == "uphold" for v in votes.values()),
                                 "dismiss": sum(v["decision"] == "dismiss" for v in votes.values())}
         o.pop("appeal_decided_by", None)
+        if o.get("meeting"):
+            m = o["meeting"]
+            o["meeting"] = {"scheduled_at": m.get("scheduled_at"), "location": m.get("location"), "invited": len(m.get("attendees") or [])}
+        if o.get("resolution"):
+            o["resolution"] = {k: o["resolution"].get(k) for k in ("outcome", "at")}
     return o
 
 
 async def _mail(to: Optional[str], subject: str, body: str) -> None:
     if not to:
         return
-    try:
-        from emails import send_email
-        await send_email(to, subject, f"<p>{body}</p>")
-    except Exception:
-        pass
+    import asyncio
+    from emails import send_email
+
+    async def go():
+        try:
+            await send_email(to, subject, f"<p>{body}</p>")
+        except Exception:
+            pass
+    asyncio.create_task(go())
 
 
 async def _get(cid: str) -> dict:
@@ -198,8 +207,13 @@ async def appeal(cid: str, body: AppealIn, vendor=Depends(current_vendor)) -> di
 async def list_challenges(admin=STAFF) -> dict:
     rows = [_out(c) async for c in db.bid_challenges.find({}).sort("created_at", -1).limit(300)]
     me = admin.get("id")
+    is_admin = admin.get("role") in ("admin", "reviewer", "auditor")
+    kept = []
     for r in rows:
         mem = await _members(r["notice_ref"])
+        if not is_admin and me not in mem:
+            continue
+        kept.append(r)
         r["committee_size"] = len(mem)
         r["i_can_vote"] = me in mem and me not in (r.get("votes") or {}) and r["status"] in ("lodged", "under_review")
         r["i_can_decide_appeal"] = admin.get("role") == "admin" and me not in mem and r["status"] == "appealed"
@@ -207,7 +221,7 @@ async def list_challenges(admin=STAFF) -> dict:
     async for b in db.bids.find({"status": "awarded"}, {"notice_ref": 1}).sort("awarded_at", -1).limit(50):
         s = await standstill(b["notice_ref"])
         tenders.append({"notice_ref": b["notice_ref"], **s, "contract_block": await contract_block_reason(b["notice_ref"])})
-    return {"challenges": rows, "tenders": tenders}
+    return {"challenges": kept, "tenders": tenders}
 
 
 @router.post("/{cid}/vote")
@@ -244,6 +258,8 @@ async def schedule_meeting(cid: str, body: MeetingIn, admin=Depends(require_role
     c = await _get(cid)
     if c["status"] not in ("upheld", "meeting_scheduled"):
         raise HTTPException(status_code=409, detail="A resolution meeting is scheduled only after a challenge is upheld")
+    if admin.get("role") != "admin" and admin.get("id") not in await _members(c["notice_ref"]):
+        raise HTTPException(status_code=403, detail="Only an admin or a member of this tender's committee can schedule the meeting")
     when = _dt(body.scheduled_at)
     if not when or when < datetime.now(timezone.utc):
         raise HTTPException(status_code=422, detail="Choose a future date and time for the meeting")
