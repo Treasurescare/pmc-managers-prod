@@ -1126,6 +1126,6 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - Google Play developer account REMOVED (Oct 14 2026). Advised: appeal from the same account; do NOT open a new account (related-account termination).
 - Capacitor config now loads live https://pmcmanagers.com (allowNavigation *.pmcmanagers.com); iOS Info.plist WKAppBoundDomains added.
 - android/app/build.gradle signing reads PMC_KEYSTORE_FILE / PMC_KEYSTORE_PASSWORD / PMC_KEY_ALIAS env (hard-coded password removed). New release keystore (/root/pmc-signing, cert SHA-256 67f1b682…9975) given to owner as one-time download `downloads/pmc-signing-ca7aa95f847481a7.zip` — delete after owner confirms.
-- Build env: Android SDK /opt/android-sdk, JDK 21 /opt/jdk21, aarch64 aapt2 override. APK: downloads/PMC-Tenders-1.0.1.apk (signed, verified). Not tested on a physical device.
+- Build env: Android SDK /opt/android-sdk, JDK 21 /opt/jdk21, aarch64 aapt2 override. APK: downloads/PMC-Tenders-1.0.2.apk (signed, verified; PMC green logo icon + splash since 1.0.2). Not tested on a physical device.
 - iOS: downloads/PMC-Tenders-iOS-project.zip + PMC-Tenders-iPhone-TestFlight-Guide.md (needs Apple Developer account + Mac).
 
