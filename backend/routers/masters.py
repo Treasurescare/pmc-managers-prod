@@ -135,7 +135,11 @@ async def unspsc_suggestions(admin=Depends(require_role("admin"))) -> list:
     out = []
     async for c in db.categories.find({"is_active": {"$ne": False}, "$or": [
             {"unspsc_code": None}, {"unspsc_code": ""}, {"unspsc_code": {"$exists": False}}]}).sort("name", 1):
-        out.append({"id": str(c["_id"]), "name": c["name"], "code": c.get("code"), "suggestions": await _suggest_unspsc(c["name"])})
+        sug = c.get("unspsc_suggestions")
+        if sug is None:
+            sug = await _suggest_unspsc(c["name"])
+            await db.categories.update_one({"_id": c["_id"]}, {"$set": {"unspsc_suggestions": sug}})
+        out.append({"id": str(c["_id"]), "name": c["name"], "code": c.get("code"), "suggestions": sug})
     return out
 
 
@@ -145,6 +149,8 @@ class UnspscApproveIn(BaseModel):
 
 @router.post("/categories/{category_id}/approve-unspsc")
 async def approve_unspsc(category_id: str, body: UnspscApproveIn, admin=Depends(require_role("admin"))) -> dict:
+    if not ObjectId.is_valid(category_id):
+        raise HTTPException(status_code=404, detail="Not found")
     u = await db.masters_unspsc.find_one({"code": body.unspsc_code}, {"title_en": 1})
     if not u:
         raise HTTPException(status_code=422, detail="Unknown UNSPSC code")

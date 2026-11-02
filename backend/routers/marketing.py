@@ -426,7 +426,9 @@ async def send_tender_alert(notice_ref: str) -> int:
     except Exception:
         return 0
     cat = n["category"]
-    vendors = {v["email"].lower(): v async for v in db.vendors.find({"business_categories": cat, "email": {"$exists": True}},
+    from routers._fees import category_aliases
+    cats = await category_aliases(cat)
+    vendors = {v["email"].lower(): v async for v in db.vendors.find({"$or": [{"business_categories": {"$in": cats}}, {"business_categories.title": {"$in": cats}}], "email": {"$exists": True}},
                                                                    {"email": 1, "company_name": 1, "country": 1})}
     for e, v in vendors.items():
         await _upsert_contact(e, company=v.get("company_name", ""), audience="vendor",
@@ -434,7 +436,7 @@ async def send_tender_alert(notice_ref: str) -> int:
     emails = set(vendors)
     if s.get("include_uploaded", True):
         emails |= {c["email"] async for c in db.mkt_contacts.find(
-            {"audience": "vendor", "categories": cat, "consent": True, "unsubscribed": {"$ne": True}}, {"email": 1})}
+            {"audience": "vendor", "categories": {"$in": cats}, "consent": True, "unsubscribed": {"$ne": True}}, {"email": 1})}
     blocked = {c["email"] async for c in db.mkt_contacts.find({"unsubscribed": True}, {"email": 1})}
     url = f"{config.FRONTEND_URL}/notices/{notice_ref}"
     title = html_escape(str(n.get("title") or ""))

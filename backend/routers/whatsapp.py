@@ -110,7 +110,9 @@ async def notify_tender(notice_ref: str) -> int:
         sent = 0
         closes = str(n.get("submission_deadline") or "")[:10] or "see tender"
         link = f"{_site()}/notices/{notice_ref}"
-        async for v in db.vendors.find({"business_categories": n["category"], "wa_opt_in": True, "wa_number": {"$nin": [None, ""]}}):
+        from routers._fees import category_aliases
+        cats = await category_aliases(n["category"])
+        async for v in db.vendors.find({"$or": [{"business_categories": {"$in": cats}}, {"business_categories.title": {"$in": cats}}], "wa_opt_in": True, "wa_number": {"$nin": [None, ""]}}):
             sent += await _template(v["wa_number"], TPL_TENDER, [n["category"], n.get("title") or notice_ref, closes, link],
                                     f"New tender: {n.get('title')}", v.get("vendor_ref"))
             await asyncio.sleep(0.2)

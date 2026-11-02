@@ -6,7 +6,7 @@ import UnspscPicker from "@/components/UnspscPicker";
 const Row = ({ c, onDone }) => {
   const [manual, setManual] = useState(null);
   const approve = (code) => mastersApi.approveCategoryUnspsc(c.id, code)
-    .then(() => { toast.success(`${c.name} linked to UNSPSC ${code}`); onDone(); }).catch(showApiError);
+    .then(() => { toast.success(`${c.name} linked to UNSPSC ${code}`); onDone(c.id); }).catch(showApiError);
   return (
     <div className="border-t border-amber-200 py-2 space-y-1" data-testid={`unspsc-suggest-${c.code}`}>
       <div className="text-sm font-semibold">{c.name}</div>
@@ -30,7 +30,7 @@ export default function UnspscSuggestions({ onChanged }) {
   const load = useCallback(() => mastersApi.categoryUnspscSuggestions().then(setRows).catch(() => setRows([])), []);
   useEffect(() => { load(); }, [load]);
   if (!rows || !rows.length) return null;
-  const done = () => { load(); onChanged?.(); };
+  const done = (id) => { setRows((r) => r.filter((x) => x.id !== id)); onChanged?.(); };
   return (
     <details className="bg-amber-50 border border-amber-300 p-3 mb-4" data-testid="unspsc-suggestions">
       <summary className="text-sm cursor-pointer"><b>{rows.length} categories have no UNSPSC code.</b> Suggested codes are ready for your approval — nothing changes until you approve.</summary>

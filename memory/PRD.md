@@ -1111,3 +1111,13 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - Root cause: frontend sends `primary_unspsc_code` / `primary_unspsc_title` (Primary UNSPSC commodity, Section C) but `RegistrationUpdateIn` (extra="forbid") lacked them → every save after picking a commodity failed. Added both fields. Verified by curl PATCH (422 → 200). Frontend whitelists now match the model.
 - Bundles v59o: downloads/pmc-backend-v59o.zip, downloads/pmc-frontend-v59o-prod-build.zip (secret scan passed).
 
+
+## 2026-11-02 — Full UNSPSC category search everywhere
+- Root cause of "no solar/wind/biomass": UNSPSC search was a plain substring scan, commodity-only, first 30 in storage order ("wind" swamped by "winding"/"windows"; UNSPSC wording differs, e.g. biofuels). Fixed in masters_v2: word-start matching, synonym expansion (solar, wind, biomass, renewable, hydro, energy storage…), commodity+class levels, ranking (starts-with, energy segment 26).
+- Category dropdowns switched to UNSPSC search: Tender Builder header (CategoryMultiPicker), Notice edit, homepage hero, tender-alerts signup, marketing segments. Categories master kept for fee rules + paid supplier categories; Sectors kept.
+- Bridge `_fees.category_aliases()` maps UNSPSC titles ↔ master names (via approved unspsc_code/unspsc_title) for fee rules, new-tender email alerts, WhatsApp alerts.
+- 18 legacy categories: suggestions panel in Masters → Categories (cached in `categories.unspsc_suggestions`), admin approves (`POST /masters/categories/{id}/approve-unspsc`). None approved yet.
+- Tested iteration_165 (18/19 backend, all UI flows); fixed invalid-id 500, slow suggestions, duplicate segment chips.
+- Note: preview Resend key returns 401 (invalid) — emails not sending in preview.
+- Bundles v59p.
+

@@ -41,13 +41,30 @@ def country_q(country: Optional[str]) -> dict:
     return {"$or": [{"country": {"$in": [c, "ALL"]}}, {"countries": c}]}
 
 
+async def category_aliases(cat: Optional[str]) -> list:
+    """A notice category (UNSPSC title or master name) plus the linked master names / UNSPSC titles."""
+    if not cat:
+        return []
+    out = {cat}
+    async for c in db.categories.find({"$or": [{"name": cat}, {"unspsc_title": cat}]}, {"name": 1, "unspsc_title": 1, "unspsc_code": 1}):
+        out.add(c["name"])
+        if c.get("unspsc_title"):
+            out.add(c["unspsc_title"])
+    u = await db.masters_unspsc.find_one({"title_en": cat}, {"code": 1})
+    if u:
+        async for c in db.categories.find({"unspsc_code": u["code"]}, {"name": 1}):
+            out.add(c["name"])
+    return sorted(out)
+
+
 async def find_rule(kind: str, country: Optional[str], category: Optional[str] = None) -> Optional[dict]:
     """Best active rule: country-specific beats ALL, category-specific beats all-categories."""
     if not country:
         return None
+    names = await category_aliases(category) or [""]
     best, score = None, 0
     async for r in db.emd_masters.find({"kind": kind, "is_active": True, **country_q(country)}):
-        s = _rule_matches_category(r, category or "")
+        s = max(_rule_matches_category(r, c) for c in names)
         if not s:
             continue
         s = s * 2 + (1 if r.get("country") != "ALL" else 0)

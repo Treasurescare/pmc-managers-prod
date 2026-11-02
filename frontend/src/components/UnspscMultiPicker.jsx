@@ -78,7 +78,7 @@ export default function UnspscMultiPicker({ value = [], onChange, testidPrefix =
               <button type="button" key={code} onClick={() => remove(code)}
                       data-testid={`${testidPrefix}-chip-${code}`}
                       className="text-[11px] px-2 py-1 bg-emerald-100 text-emerald-900 hover:bg-red-100 hover:text-red-700 border border-emerald-200">
-                <span className="font-mono mr-1 text-[9px] opacity-70">{code}</span>
+                {code !== title && <span className="font-mono mr-1 text-[9px] opacity-70">{code}</span>}
                 {title} ×
               </button>
             );

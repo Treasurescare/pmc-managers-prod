@@ -1,0 +1,50 @@
+{
+  "summary": "Tested the UNSPSC search fix and every picker that uses it. Backend: 19 pytest cases, 18 pass. Public and admin UNSPSC search match whole words and expand synonyms. q=wind returns Wind generators, Wind power plants and the offshore/onshore turbines, with no Winding/Windows results. solar returns Solar power plants and Photovoltaic module. biomass returns Biomass production services and biofuels. renewable and renewable energy return solar, wind, hydro and geothermal power plants. hydro returns Hydro power plants. concrete, cement and medical still give sensible results, numeric q searches by code prefix, and responses take 0.15-0.45s. Category UNSPSC suggestions: 18 rows, admin-only (401/403 for others). Approve sets the code and title, writes an audit_events row and removes the row; an unknown code gives 422. The one failure: an invalid ObjectId gives 500. Registration Section C/D save with UNSPSC dicts returns 200 and the data persists (the earlier 422 fix is confirmed). Frontend, all working: hero search (solar pick, then /tenders/all?category=Solar+power+plants with the filter prefilled); tender alerts signup (biomass pick, subscribe 200, contact stores categories ['Biomass production services']); Segments multi-picker (chips, save 200, categories stored as titles; preview size checked by API: 1 with Solar, 0 with Wind); Masters Categories amber panel (manual search approve and suggested-chip approve both work); Notice edit modal (existing 'Civil Works' shows, pick Solar power plants, PATCH 200); Tender Builder CategoryMultiPicker (first pick is primary chip and input clears, second UNSPSC chip added, typed free-text chip added); registration Section C and D pickers. Fee rules form unchanged (no UNSPSC picker). All TEST data cleaned and every category approval reverted (18 still missing, no stale unspsc_title).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/v1/masters/categories/{id}/approve-unspsc", "issue": "A malformed category_id (e.g. 'not-an-id') raises bson InvalidId and returns 500. It should return 400 or 404. Fix: wrap ObjectId() in try/except, like _oid_or_400 in registrations.py."},
+      {"endpoint": "GET /api/v1/masters/categories/unspsc-suggestions", "issue": "Slow: about 6.4s for each call, because it runs up to 5 unindexed regex scans over 158k rows for each of the 18 categories. The panel takes about 7s to appear, and after each Approve it reloads the whole list (another 6s), during which the buttons are not disabled. Fix: cache the suggestions, or remove the approved row on the client without refetching."},
+      {"endpoint": "GET /api/v1/masters/unspsc/search", "issue": "The admin search has no auth dependency (returns 200 without a session), although the module docstring says admin GETs are authed. This may predate this change."},
+      {"endpoint": "GET /api/v1/masters/unspsc/public/search?q=hydro", "issue": "Terms longer than 4 characters match as word prefixes, so hydro also returns hydrostatic drives (ranked 1st), hydrokinetic, hydrogen h and hydroxyzine. Hydro power plants is 2nd. Acceptable, but consider favouring alias hits (segment 26) over a bare prefix hit."},
+      {"endpoint": "_suggest_unspsc", "issue": "Some suggestions are poor: Elevators -> 'Dental elevators' and 'Aircraft elevators'; Hospital civil works -> 'Hospital ship' and 'Hospital robes'; STP and WTP -> 'Gas power plants' and 'Wind power plants' (the word 'plant' combined with the segment-26 bias); 'Hotel superstructure works' gets no suggestions. The owner approves each one manually, so this is low risk."},
+      {"endpoint": "test timing", "issue": "q=wind exceeded 1.5s once in 4 runs, on the first call under parallel load. All other calls took under 0.5s."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "SegmentsTab UnspscMultiPicker chips", "issue": "Each chip shows the title twice ('Solar power plants Solar power plants ×'). SegmentsTab maps the stored titles to {code: title, title: title}, so the chip's code label shows the title. The UNSPSC code is also lost when saving.", "selector": "[data-testid^='seg-cats-chip-']", "priority": "LOW"},
+      {"component": "SegmentsTab preview", "issue": "The preview sends name: f.name || 'preview'. A 1-character list name fails the backend min_length=2 check with 422, and the size silently stays at its last value.", "selector": "[data-testid='seg-size']", "priority": "LOW"},
+      {"component": "NoticeEditModal category", "issue": "Typing text into the UNSPSC field without picking an option does not change draft.category. Saving keeps the old category and gives no feedback.", "selector": "[data-testid='edit-category-unspsc-input']", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Notice category vs the Categories master (fee rules, vendor matching, alerts)", "issue": "Notice and tender categories are now UNSPSC titles (e.g. 'Solar power plants'). Several parts still match notice.category by exact string against Categories-master names: category-scoped fee rules (tender_pro EmdMasterIn.category 'matches masters.categories.name'), new-tender alerts (marketing.py db.vendors.find({business_categories: cat})), WhatsApp alerts (whatsapp.py), and vendor paid categories. Notices with UNSPSC titles will therefore not match category-scoped fee rules or alert vendors whose paid categories are master names. The approved masters.categories.unspsc_code/unspsc_title mapping should be used to bridge the two.", "affected_selectors": ["edit-category-unspsc-input", "th-prod-cat-unspsc-input"]}
+    ],
+    "design_issues": [
+      {"screen": "Tender Builder > Product category", "issues": ["The UNSPSC search input is narrow (about 180px), so its placeholder '+ Search UNSPSC category (e.g. solar...' is cut off and the dropdown is cramped."]},
+      {"screen": "Registration Section D", "issues": ["The label still reads 'Business categories (comma separated)' even though the field is now an UNSPSC chip picker."]},
+      {"screen": "Notice edit modal / Tender builder dates", "issues": ["Native browser datetime-local pickers are used instead of the shadcn calendar. This predates the change."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v165_unspsc_search.py", "/app/test_reports/pytest/pytest_v165.xml"],
+  "action_items": [
+    "Return 400/404 instead of 500 for a malformed category_id in approve-unspsc.",
+    "Speed up GET /masters/categories/unspsc-suggestions (about 6.4s): cache it, or remove approved rows on the client; disable the Approve buttons while a request is in flight.",
+    "Decide how UNSPSC-titled notice categories map to Categories-master names for category-scoped fee rules, vendor paid-category matching, and the email/WhatsApp tender alerts (use categories.unspsc_code/unspsc_title).",
+    "SegmentsTab: show each chip title once (pass a real code or hide the code label).",
+    "Optionally require auth on the admin /masters/unspsc/search endpoint."
+  ],
+  "critical_code_review_comments": [
+    "masters.py approve_unspsc and unspsc_suggestions: ObjectId(category_id) is unguarded, causing a 500.",
+    "_title_match_regex: the end-boundary rule `(t != own or len(t) <= 4) and not t.endswith('t')` is opaque. User terms longer than 4 characters become prefix matches, which causes the hydro -> hydroxyzine results.",
+    "The suggestions endpoint runs unindexed $regex queries in a loop (18 categories × up to 5 terms × limit 300). Consider precomputing.",
+    "NoticeEditModal deletes category_unspsc_code before PATCH, so only the title is stored on the notice. The code would be useful for matching later."
+  ],
+  "updated_files": ["/app/backend/tests/test_v165_unspsc_search.py"],
+  "success_rate": {"backend": "95% (18/19)", "frontend": "100% of requested flows working (minor UI issues listed)"},
+  "seed_data_creation": "Temporary only, all deleted: a TEST_V165 registration (twice), a mkt_contacts row test_v165_alert@example.com and a test_v165_seg contact, mkt_segment 'TEST_V165 Solar list', draft notice PMC-NOT-2026-0083 (TEST_V165 Draft notice), and a cloned tender_templates draft. Categories 'hotel-superstructure-works', 'fire-alarm-and-safety-systems' and one other approved during the pytest run were reverted (unspsc_code null, unspsc_title unset). 18 categories are still awaiting the owner's approval.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && REACT_APP_BACKEND_URL=... pytest tests/test_v165_unspsc_search.py -n 0 (pytest.ini adds xdist; use -n 0 to see prints). The approve test reverts itself in a finally block. Admin UI login: /admin/login unified page, input[placeholder='name@company.com'], input[type=password], Continue button. Registration stepper testids are lowercase (step-c, step-d); Section A must be filled first (PATCH registered_address, registration_number 060140000385, legal_entity_type, incorporation_date for KZ). Section D allows only 1 free category (a toast blocks the 2nd). There is no draft notice in preview; create one via POST /api/v1/notices (budget_amount required). The Tender builder needs 'Clone as draft' (tb-clone-<masterId>); delete the clone from tender_templates afterwards. mkt_contacts is empty in preview, so segment size is 0 unless you seed a contact.",
+  "rca of the issue": "approve-unspsc 500: bson.errors.InvalidId raised by ObjectId('not-an-id') in masters.py:151 (seen in backend.err.log)."
+}
