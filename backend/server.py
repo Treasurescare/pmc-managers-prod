@@ -309,6 +309,8 @@ from routers import fee_types as _fee_types  # noqa: E402
 app.include_router(_fee_types.router)
 from routers import bid_challenges as _bid_challenges  # noqa: E402
 app.include_router(_bid_challenges.router)
+from routers import notice_terms as _notice_terms  # noqa: E402
+app.include_router(_notice_terms.router)
 from routers import payments_extra as _payments_extra  # noqa: E402
 app.include_router(_payments_extra.router)
 from routers import marketing as _marketing  # noqa: E402

@@ -42,7 +42,8 @@ def main():
     d.add_page_break()
     w.h("Part 1 \u2014 Resolving the five inconsistencies", 16, GOLD)
     w.table(["#", "Topic", "Binding position", "Status"], [
-        ("1", "Screening provider", "Refinitiv World-Check One (LSEG). Not yet live.", "IN PROGRESS"),
+        ("1", "Screening provider", "Vindex (our own screening platform) with a direct API to Refinitiv World-Check One (LSEG). "
+         "PMC Manager → Vindex link not yet live.", "IN PROGRESS"),
         ("2", "Escrow / who holds money", "PMC never holds funds. Banks hold and move money; the platform enforces "
          "dual-signed instructions and records the bank reference.", "ENFORCED"),
         ("3", "Fee from the winning supplier", "None on public tenders. Optional 0.30% only on private tenders, "
@@ -53,14 +54,18 @@ def main():
     ], widths=[0.3, 1.5, 3.7, 1.1], tag_col=3)
 
     w.h("1. Screening provider: \u201cVindex\u201d, \u201cWindex\u201d or Dow Jones?", 13)
-    w.b("The correct provider is Refinitiv World-Check One, now operated by LSEG (London Stock Exchange Group; "
-        "Refinitiv was formerly part of Thomson Reuters). \u201cVindex\u201d and \u201cWindex\u201d were drafting "
-        "errors, and Dow Jones is not a provider we use. All three references will be removed.", "TO CONFIRM")
-    w.b("Status: the World-Check One connection is not built yet; it will be added once the LSEG subscription "
-        "is signed. Until then, sanctions and adverse-media checks are carried out manually by PMC compliance during "
-        "supplier verification, and the verification decision is recorded in the audit ledger.", "IN PROGRESS")
-    w.b("For the data room: we will add the LSEG/Refinitiv order form once signed. We have no Dow Jones contract "
-        "and will not claim one.", "TO CONFIRM")
+    w.b("Vindex is our own screening platform. It connects directly, by API, to Refinitiv World-Check One, now "
+        "operated by LSEG (London Stock Exchange Group; Refinitiv was formerly part of Thomson Reuters). The chain "
+        "is: PMC Manager sends supplier and director details to Vindex; Vindex screens them against World-Check One "
+        "and returns the result to PMC Manager.", "TO CONFIRM")
+    w.b("\u201cWindex\u201d was a spelling error, and Dow Jones is not part of the chain. Both references will be "
+        "removed from all documents.", "TO CONFIRM")
+    w.b("Status: the link from PMC Manager to Vindex is not built yet. Until it is live, sanctions and adverse-media "
+        "checks are carried out manually by PMC compliance during supplier verification, and the verification "
+        "decision is recorded in the audit ledger.", "IN PROGRESS")
+    w.b("For the data room: Vindex's agreement with LSEG/Refinitiv for World-Check One API access, and the "
+        "PMC Manager\u2013Vindex data-sharing agreement. We have no Dow Jones contract and will not claim one.",
+        "TO CONFIRM")
 
     w.h("2. Escrow: \u201cdual-signature EMD escrow\u201d versus \u201cPMC does not hold money\u201d", 13)
     w.p("Both statements are true; the earlier wording was imprecise. The position is:")

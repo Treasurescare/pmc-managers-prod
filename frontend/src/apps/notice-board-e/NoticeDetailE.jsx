@@ -6,6 +6,7 @@ import { useUiTheme } from "@/context/UiThemeContext";
 import useAuthSession from "@/lib/useAuthSession";
 import { adminApi, staffApi, vendorApi, corrigendaApi, publicApi, api } from "@/lib/api";
 import { NoticeVendorPanel } from "./NoticeVendorPanel";
+import { NoticeTermsBanner } from "./NoticeTermsBanner";
 import PmcSocialLinks from "@/components/PmcSocialLinks";
 
 // ── local formatters (no fabricated data — everything derives from the live notice) ──
@@ -262,6 +263,7 @@ export default function NoticeDetailE({ legacy: Legacy }) {
       )}
     </div>
   </div>
+  <NoticeTermsBanner noticeRef={notice.notice_ref} />
   <dl className="pmc-facts" style={{ margin: "0" }}><div><dt>Indicative budget</dt><dd>{fmtMoney(notice.budget_amount, notice.budget_currency)}</dd></div><div><dt>EMD</dt><dd>{emdText}</dd></div><div><dt>Tender fee</dt><dd>{notice.tender_fee ? fmtMoney(notice.tender_fee, notice.budget_currency) : "None"}</dd></div><div><dt>Delivery</dt><dd>{notice.delivery_country || "—"}</dd></div><div><dt>Form of contract</dt><dd>{notice.form_of_contract || "Standard"}</dd></div><div><dt>Closes in</dt><dd><span style={{ color: "var(--brass-on-chrome)", fontSize: "15px" }}>{relTime(notice.submission_deadline)}</span></dd></div></dl>
 </div></section>
 <div className="pmc-wrap" style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 360px", gap: "32px", padding: "28px 0 72px", alignItems: "start" }}>

@@ -120,10 +120,12 @@ async def create_bid(payload: BidCreateIn, vendor=Depends(current_vendor)) -> di
         raise HTTPException(status_code=403,
             detail="You prepared this tender and cannot bid on it (conflict of interest).")
     ncat = (notice.get("category") or "").strip()
-    if ncat:
+    from routers.notice_terms import is_public_tender
+    if ncat and not await is_public_tender(notice):
         vdoc = await db.vendors.find_one({"_id": ObjectId(vendor["id"])}) if ObjectId.is_valid(vendor["id"]) else None
-        mine = {str(c).strip().lower() for c in ((vdoc or {}).get("business_categories") or [])}
-        if ncat.lower() not in mine:
+        from routers._fees import category_aliases
+        mine = {str(c.get("title") if isinstance(c, dict) else c).strip().lower() for c in ((vdoc or {}).get("business_categories") or [])}
+        if not mine & {a.lower() for a in await category_aliases(ncat)}:
             from routers.payments_extra import notify_category_upsell
             await notify_category_upsell(vdoc or {}, notice)
             raise HTTPException(status_code=403, detail={
@@ -366,7 +368,7 @@ async def bid_debrief(bid_id: str, vendor=Depends(current_vendor)) -> dict:
     q = b.get("qualification") or {}
     if b.get("status") not in DEBRIEF_STATUSES and q.get("system_status") != "not_qualified" and q.get("decision") != "disqualified":
         raise HTTPException(status_code=409, detail="The debrief is available once the tender decision has been made")
-    n = await db.notices.find_one({"notice_ref": b.get("notice_ref")}, {"title": 1, "award_method": 1}) or {}
+    n = await db.notices.find_one({"notice_ref": b.get("notice_ref")}, {"title": 1, "award_method": 1, "winner_fee_enabled": 1}) or {}
     run = await db.comparison_runs.find_one({"notice_ref": b.get("notice_ref")}, sort=[("run_at", -1)])
     ranked = ((run or {}).get("result") or {}).get("ranked") or []
     winner = next((r for r in ranked if r.get("status") == "awarded"), None) or ((run or {}).get("result") or {}).get("l1_winner")
@@ -387,7 +389,14 @@ async def bid_debrief(bid_id: str, vendor=Depends(current_vendor)) -> dict:
             "currency": (mine or winner or {}).get("price_currency"),
             "awarded_price": (winner or {}).get("price_amount") if b.get("status") != "awarded" else None,
             "summary_html": _loss_reason(b, ranked, winner) if b.get("status") != "awarded" else "<p>Your bid was awarded.</p>",
+            "winner_service_charge": _winner_fee(n, b) if b.get("status") == "awarded" else None,
             "emd_refund_due_at": b.get("emd_refund_due_at")}
+
+
+def _winner_fee(n: dict, b: dict):
+    from routers.notice_terms import WINNER_FEE_PCT, winner_charge
+    amt = winner_charge(n, b.get("price_amount"))
+    return {"pct": WINNER_FEE_PCT, "amount": amt, "currency": b.get("price_currency")} if amt else None
 
 
 @router.get("/{bid_id}")

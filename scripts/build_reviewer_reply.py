@@ -366,8 +366,9 @@ def build_reply():
         "proof-review reports (PDF). These import directly into most ERP and accounting systems.", "ENFORCED")
     w.b("Live connections already in use: card and bank payments (Stripe), e-signature (DocuSign), email "
         "notifications and WhatsApp alerts.", "ENFORCED")
-    w.b("Sanctions screening through Refinitiv World-Check One (LSEG) is planned and will be connected once the "
-        "subscription is signed; until then checks are made manually during supplier verification.", "IN PROGRESS")
+    w.b("Sanctions screening: PMC Manager will send supplier and director details to Vindex, our own screening "
+        "platform, which screens them by direct API against Refinitiv World-Check One (LSEG). The PMC Manager to "
+        "Vindex link is not built yet; until then checks are made manually during supplier verification.", "IN PROGRESS")
     w.b("The platform is built on a documented web interface (REST/JSON), so direct connectors can be added for a "
         "buyer's ERP (for example SAP, Oracle, Microsoft Dynamics) or project management tools. These are scoped "
         "per buyer during implementation.", "IN PROGRESS")
@@ -592,8 +593,8 @@ def build_internal():
         "5-day Messages window, integrity holds and appeals. A dedicated module can be built.",
         "No ready-made ERP connectors (SAP / Oracle / Dynamics). Exports and the web interface exist; connectors "
         "are per-buyer work.",
-        "Sanctions screening (World-Check One) is not built or subscribed yet; until it is, screening is manual "
-        "only.",
+        "Sanctions screening: the PMC Manager → Vindex → World-Check One link is not built yet; until it is, "
+        "screening is manual only.",
         "Backups: confirm the AWS database backup schedule and that a test restore has been done before quoting "
         "RPO/RTO.",
         "Insurance and liability are entirely contractual; nothing in the software covers them.",

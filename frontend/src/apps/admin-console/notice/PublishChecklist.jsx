@@ -1,3 +1,23 @@
+import { useState } from "react";
+import { toast } from "sonner";
+import { api, showApiError } from "@/lib/api";
+import { useNoticeTerms } from "@/apps/notice-board-e/NoticeTermsBanner";
+
+const WinnerFee = ({ n }) => {
+  const t = useNoticeTerms(n.notice_ref);
+  const [on, setOn] = useState(null);
+  if (!t) return null;
+  if (t.public_tender) return <span className="text-emerald-800" data-testid={`winner-fee-public-${n.notice_ref}`}>Public tender: no winner charge</span>;
+  const val = on ?? t.winner_fee_enabled;
+  const save = (v) => api.put(`/api/v1/notice-terms/${n.notice_ref}/winner-fee`, { enabled: v })
+    .then(() => { setOn(v); toast.success(v ? "0.30% winner charge added; bidders will see it" : "Winner charge removed"); }).catch(showApiError);
+  return (
+    <label className="flex items-center gap-1" data-testid={`winner-fee-${n.notice_ref}`}>
+      <input type="checkbox" checked={val} onChange={(e) => save(e.target.checked)} data-testid={`winner-fee-toggle-${n.notice_ref}`} />
+      Private tender: charge the winning bidder 0.30% of the awarded value (shown to all bidders)
+    </label>);
+};
+
 const checks = (n) => {
   const dl = n.submission_deadline ? new Date(n.submission_deadline) : null;
   const pre = n.pre_bid_meeting_date ? new Date(n.pre_bid_meeting_date) : null;
@@ -25,6 +45,7 @@ export const PublishChecklist = ({ n, onCriteria, onPublish }) => {
           {ok ? "✓" : "○"} {label}
           {k === "criteria" && !ok && <button type="button" className="underline ml-1" onClick={onCriteria} data-testid={`publish-check-criteria-open-${n.notice_ref}`}>Add now</button>}
         </span>))}
+      {!n.is_published && <WinnerFee n={n} />}
       {onPublish && <button type="button" disabled={!ready} onClick={onPublish} title={ready ? "Publish this notice now" : "Tick all three items first"}
         className="ml-auto text-[10px] uppercase tracking-widest px-3 py-1 bg-emerald-700 text-white hover:bg-emerald-800 disabled:opacity-40 disabled:cursor-not-allowed"
         data-testid={`publish-checklist-publish-${n.notice_ref}`}>Publish</button>}
