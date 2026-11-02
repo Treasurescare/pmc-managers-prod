@@ -1,0 +1,37 @@
+{
+  "summary": "Tested open public tenders and the private-tender 0.30% winner fee, backend and frontend. Backend: 19 pytest cases, 18 pass. notice-terms GET returns the right values (private default / public via the notice.buyer_type field / public via buyer_classifications / unknown ref gives 404). Bid category gate: a private tender gives 403 category_not_registered; a private_sector classification is still gated; a public tender (field or classification) lets a vendor outside the category bid (200). {code,title} dict categories are accepted, and the UNSPSC title <-> master name aliases match both ways. PUT winner-fee: a published notice gives 409; enabling on a public draft gives 409; no auth or vendor gives 401/403; on a private draft enable sets winner_fee_enabled with pct 0.30 and writes the notice.winner_fee audit, and disabling works. Debrief: the winner gets {pct 0.3, amount 370.37 for 123456, USD}; non_winner and fee-off notices get null. The one failure: the debrief still charges the winner after the tender becomes public. Frontend: all working. Admin /admin/e/notices draft checklist toggle: PUT 200, toast, checkbox state updates, toggling off works. The public draft shows winner-fee-public; published notices show no toggle. /notices/{ref} shows the notice-terms-winner-fee banner (private with fee) and the notice-terms-public banner (classified public); a demo notice shows neither. The vendor debrief shows debrief-winner-charge 'USD 750' for a 250000 award. All TEST data cleaned; demo notices untouched (0 winner_fee_enabled, 0 buyer_classifications).",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/v1/bids/{id}/debrief", "issue": "The public-tender rule can be broken: winner_service_charge uses winner_charge(), which only checks notice.winner_fee_enabled and never checks is_public_tender. If a private draft has the fee switched on and the tender is later classified public_sector (Governance > Buyer classification, which is allowed at any time), notice-terms reports winner_fee_enabled=false but the debrief still charges the winner 0.30%. Reproduced in test_debrief_fee_after_reclassified_public. Fix: in bid_debrief/_winner_fee, return None when await is_public_tender(n) (project notice_ref/buyer_type too), or clear winner_fee_enabled when a notice is classified public.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "notice_terms.is_public_tender", "issue": "Ignores buyer_classifications.status. A pending_verification or even REJECTED public_sector classification makes the tender public: it removes the category gate and blocks the winner fee. Verified: a rejected classification gives public_tender=true. Consider counting only status=='verified', or at least excluding 'rejected'."},
+      {"endpoint": "POST /api/v1/bids (category gate)", "issue": "Dict categories only read c['title']. A {code,name} dict would become 'none' and fail the match. The demo suppliers (kestrel, northfield) have no business_categories at all, so they still get 403 on the private demo tenders that have a category (DEMO-TND-001/002/003). This was the same before this change, not a regression, but worth knowing for demos."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "NoticeTermsBanner / VendorBidDebriefE", "issues": ["The percentage shows as '0.3%' (from the JS number 0.30), while the admin checkbox and toast say '0.30%'. Use toFixed(2) so the wording matches."]},
+      {"screen": "Admin Notices filter bar", "issues": ["The 'Created from/to' filters use the browser's native mm/dd/yyyy date picker instead of the shadcn calendar (not part of this change)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v166_public_tenders_winner_fee.py", "/app/backend/tests/seed_v166_ui.py", "/app/test_reports/pytest/pytest_v166.xml"],
+  "action_items": [
+    "In the debrief, suppress winner_service_charge when the notice is a public tender (check is_public_tender), or clear winner_fee_enabled when a notice is classified public_sector",
+    "Decide whether is_public_tender should only honour verified (or at least not rejected) buyer classifications",
+    "Optional: format the pct as 0.30% in the banner and debrief; accept a 'name' key in dict business_categories"
+  ],
+  "critical_code_review_comments": [
+    "winner_charge(notice, price) and terms() disagree on public tenders: there is no single source of truth for whether a fee applies.",
+    "is_public_tender runs an extra DB query on every bid creation and terms call; fine, but it projects only buyer_type and so cannot check status."
+  ],
+  "updated_files": ["/app/backend/tests/test_v166_public_tenders_winner_fee.py", "/app/backend/tests/seed_v166_ui.py"],
+  "success_rate": {"backend": "95% (18/19)", "frontend": "100%"},
+  "seed_data_creation": "All TEST_V166 / TEST_V166UI notices, bids, classifications, sealed uploads and the temporary category are removed (fixture teardown + seed_v166_ui.py clean). The testvendor business_categories are restored to [HVAC].",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && pytest tests/test_v166_public_tenders_winner_fee.py -n 0. POST /notices with is_published=true gives 409 (criteria needed), so the tests create drafts and flip is_published in Mongo. Bids need sealed uploads: the tests insert bid-docs/TEST_V166_* uploads with sealed=True and owner_vendor_id. The classification route is /api/v1/governance-controls/buyer-classifications. Audit events live in audit_events (event_type/target_id). UI: python tests/seed_v166_ui.py seed|clean creates 2 drafts (private, public), 1 published notice with the fee, 1 published public notice and an awarded testvendor bid. The debrief route is /vendor/bids/{id}/debrief; vendor login at /vendor/login uses the Continue button.",
+  "rca of the issue": "bids._winner_fee -> notice_terms.winner_charge only reads notice.winner_fee_enabled. set_winner_fee blocks enabling on a public tender, but nothing clears the flag when a public_sector classification is added later, so the debrief charges the winner of a public tender. Repro: draft private notice -> PUT winner-fee enabled -> insert buyer_classifications public_sector -> awarded bid -> GET debrief returns {pct:0.3, amount}. Mitigation: gate _winner_fee on not await is_public_tender(n)."
+}

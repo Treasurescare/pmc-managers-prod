@@ -124,7 +124,7 @@ async def create_bid(payload: BidCreateIn, vendor=Depends(current_vendor)) -> di
     if ncat and not await is_public_tender(notice):
         vdoc = await db.vendors.find_one({"_id": ObjectId(vendor["id"])}) if ObjectId.is_valid(vendor["id"]) else None
         from routers._fees import category_aliases
-        mine = {str(c.get("title") if isinstance(c, dict) else c).strip().lower() for c in ((vdoc or {}).get("business_categories") or [])}
+        mine = {str(c.get("title") or c.get("name") if isinstance(c, dict) else c).strip().lower() for c in ((vdoc or {}).get("business_categories") or [])}
         if not mine & {a.lower() for a in await category_aliases(ncat)}:
             from routers.payments_extra import notify_category_upsell
             await notify_category_upsell(vdoc or {}, notice)
@@ -368,7 +368,10 @@ async def bid_debrief(bid_id: str, vendor=Depends(current_vendor)) -> dict:
     q = b.get("qualification") or {}
     if b.get("status") not in DEBRIEF_STATUSES and q.get("system_status") != "not_qualified" and q.get("decision") != "disqualified":
         raise HTTPException(status_code=409, detail="The debrief is available once the tender decision has been made")
-    n = await db.notices.find_one({"notice_ref": b.get("notice_ref")}, {"title": 1, "award_method": 1, "winner_fee_enabled": 1}) or {}
+    n = await db.notices.find_one({"notice_ref": b.get("notice_ref")}, {"title": 1, "award_method": 1, "winner_fee_enabled": 1, "notice_ref": 1, "buyer_type": 1}) or {}
+    from routers.notice_terms import is_public_tender
+    if n and await is_public_tender(n):
+        n["winner_fee_enabled"] = False
     run = await db.comparison_runs.find_one({"notice_ref": b.get("notice_ref")}, sort=[("run_at", -1)])
     ranked = ((run or {}).get("result") or {}).get("ranked") or []
     winner = next((r for r in ranked if r.get("status") == "awarded"), None) or ((run or {}).get("result") or {}).get("l1_winner")

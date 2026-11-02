@@ -14,7 +14,7 @@ WINNER_FEE_PCT = 0.30
 async def is_public_tender(notice: dict) -> bool:
     if notice.get("buyer_type") == "public_sector":
         return True
-    c = await db.buyer_classifications.find_one({"notice_ref": notice.get("notice_ref")}, {"buyer_type": 1})
+    c = await db.buyer_classifications.find_one({"notice_ref": notice.get("notice_ref"), "status": {"$ne": "rejected"}}, {"buyer_type": 1})
     return bool(c and c.get("buyer_type") == "public_sector")
 
 

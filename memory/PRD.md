@@ -1137,3 +1137,12 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - Corrected earlier Response doc: World-Check was wrongly described as "being connected" — no integration code exists. Response doc rebuilt (30 pages, 30 screenshots).
 - Open: supplier paid categories may restrict access to public tenders — to review.
 
+
+## 2026-11-02 — Open public tenders + private-tender winner charge + Vindex chain (v59q)
+- Screening chain (owner): PMC Manager → Vindex (PMC's own screening platform) → Refinitiv World-Check One (LSEG) by direct API. PMC→Vindex link NOT built yet. Both reply docs corrected.
+- `routers/notice_terms.py`: is_public_tender (notice.buyer_type or non-rejected buyer_classifications public_sector); GET /api/v1/notice-terms/{ref}; PUT /{ref}/winner-fee (admin, drafts only, private only, 0.30%).
+- bids.create_bid: category gate skipped on public tenders; dict categories + UNSPSC aliases matched. Debrief returns winner_service_charge (0 if public).
+- UI: winner-fee toggle in draft Publish checklist; NoticeTermsBanner on public notice page; debrief charge line.
+- No demo notice is classified public yet → classify via Governance > Buyer classification.
+- Tested iteration_166 (backend 19/19 after fix, frontend 100%). Bundles v59q.
+

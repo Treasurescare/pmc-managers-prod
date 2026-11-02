@@ -16,5 +16,5 @@ export const NoticeTermsBanner = ({ noticeRef }) => {
   }
   if (!t.winner_fee_enabled) return null;
   return (<div className="text-sm px-4 py-2 border border-amber-300 bg-amber-50 text-amber-900" data-testid="notice-terms-winner-fee">
-    Private tender: the buyer has chosen a {t.winner_fee_pct}% service charge on the awarded value, payable by the winning bidder. Please include it in your price.</div>);
+    Private tender: the buyer has chosen a {Number(t.winner_fee_pct).toFixed(2)}% service charge on the awarded value, payable by the winning bidder. Please include it in your price.</div>);
 };

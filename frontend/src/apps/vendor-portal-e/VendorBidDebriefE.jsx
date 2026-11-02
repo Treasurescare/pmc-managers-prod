@@ -49,7 +49,7 @@ export default function VendorBidDebriefE() {
             <div className="text-xs text-brand-navy/60 font-mono">{d.notice_ref} · winner picked by {d.award_method === "weighted" ? "weighted marks" : "lowest compliant price (L1)"}</div></div>
           <div className="border-l-4 border-brand-gold bg-white p-4 text-sm [&_ul]:list-disc [&_ul]:pl-5" data-testid="debrief-summary" dangerouslySetInnerHTML={{ __html: d.summary_html }} />
           {d.winner_service_charge && <div className="border border-amber-300 bg-amber-50 p-3 text-sm" data-testid="debrief-winner-charge">
-            As stated in the tender, a {d.winner_service_charge.pct}% service charge applies to the awarded value: <b>{d.winner_service_charge.currency} {Number(d.winner_service_charge.amount).toLocaleString()}</b>.</div>}
+            As stated in the tender, a {Number(d.winner_service_charge.pct).toFixed(2)}% service charge applies to the awarded value: <b>{d.winner_service_charge.currency} {Number(d.winner_service_charge.amount).toLocaleString()}</b>.</div>}
           {d.optional_summary && d.qualification_status !== "not_qualified" && <div className="text-sm" data-testid="debrief-optional">Optional criteria met: <b>{d.optional_summary.passed} of {d.optional_summary.total}</b> (at least {d.optional_summary.required} required)</div>}
           <RankBox d={d} />
           {d.criteria.length > 0 && <CriteriaTable rows={d.criteria} />}
