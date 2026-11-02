@@ -1,0 +1,30 @@
+Google Play appeal — The PMC Managers Limited
+(Fill in the [brackets] before sending. Send it from Play Console → Policy status → Appeal, signed in as the account owner.)
+
+Subject: Appeal — termination of developer account "The PMC Managers Limited" (14 October 2026)
+
+Hello Google Play Team,
+
+Our developer account "The PMC Managers Limited" (account ID [developer account ID]) was terminated on 14 October 2026 for a violation of section 11.4 of the Developer Distribution Agreement and the Play Console Requirements. The notice referred to information on the account not being current, true, accurate and complete.
+
+We believe this was caused by inconsistencies between our Play Console profile and our Dun & Bradstreet record, not by any intent to mislead. We have now reviewed and corrected every item listed in the notice:
+
+1. Legal name: "[exact legal name as on the D-U-N-S record / company registration]" — company number [registration number], registered in [country].
+2. Registered address: [address exactly as on the D-U-N-S record].
+3. D-U-N-S number: [D-U-N-S number]. The D&B profile was updated on [date] so that the name, address and phone match the details above.
+4. Contact email and phone: [email on a company domain, e.g. ...@pmcmanagers.com] / [phone number with country code], both verified.
+5. Developer email and phone shown on Google Play: [same as above].
+6. Payment method and Google payments profile: now in the company's name, "[legal name]", with the same registered address.
+7. Website: https://pmcmanagers.com — owned and operated by [legal name].
+
+[Only if true: We do not operate, and have never operated, any other Google Play developer account.]
+[If another account exists or existed: The related account [name/ID] belongs to [explain the relationship] and is [closed/in good standing].]
+
+Our app "PMC Tenders" (com.pmcmanagers.tenders) is a procurement and tender management platform for buyers and registered suppliers. It contains no malware, does not collect data beyond what is described in our privacy policy at [privacy policy URL], and does not harm users or devices.
+
+We have attached [certificate of incorporation, D-U-N-S confirmation, utility bill or bank letter showing the registered address, ID of the authorised director]. We respectfully ask you to review the decision and reinstate the account. We are happy to provide any further verification.
+
+Kind regards,
+[Name]
+[Title], The PMC Managers Limited
+[Phone] · [Email]

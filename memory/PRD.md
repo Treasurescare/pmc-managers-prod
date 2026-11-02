@@ -1129,3 +1129,5 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - Build env: Android SDK /opt/android-sdk, JDK 21 /opt/jdk21, aarch64 aapt2 override. APK: downloads/PMC-Tenders-1.0.2.apk (signed, verified; PMC green logo icon + splash since 1.0.2). Not tested on a physical device.
 - iOS: downloads/PMC-Tenders-iOS-project.zip + PMC-Tenders-iPhone-TestFlight-Guide.md (needs Apple Developer account + Mac).
 
+- 2026-11-02: iOS AppIcon (1024, no alpha) + splash replaced with PMC logo on #1A4A34; iOS project zip rebuilt. Google termination reason = DDA 11.4 (inaccurate/inconsistent account info vs D-U-N-S) or related previously-terminated account; appeal template at downloads/PMC-Google-Play-Appeal.txt (placeholders).
+
