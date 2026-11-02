@@ -1,20 +1,18 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { marketingApi, mastersApi, showApiError } from "@/lib/api";
-import { CategoryPicker } from "@/apps/admin-console/masters/CategoryPicker";
+import { marketingApi, showApiError } from "@/lib/api";
+import UnspscMultiPicker from "@/components/UnspscMultiPicker";
 
 const inp = "px-3 py-2 border border-brand-navy/20 bg-white text-sm";
 const EMPTY = { name: "", audience: "vendor", countries: "", categories: [], sources: [] };
 
 export const SegmentsTab = () => {
   const [rows, setRows] = useState([]);
-  const [cats, setCats] = useState([]);
   const [f, setF] = useState(EMPTY);
   const [size, setSize] = useState(null);
   const load = () => marketingApi.segments().then((r) => setRows(r.items || [])).catch(showApiError);
   useEffect(() => {
     load();
-    mastersApi.listCategories().then((c) => setCats(Array.isArray(c) ? c : (c.items || []))).catch(() => {});
   }, []);
   const payload = () => ({ ...f, countries: f.countries.split(/[ ,]+/).filter(Boolean).map((c) => c.toUpperCase()) });
   useEffect(() => {
@@ -35,8 +33,9 @@ export const SegmentsTab = () => {
         <select className={inp + " w-full"} value={f.audience} onChange={(e) => setF({ ...f, audience: e.target.value })} data-testid="seg-audience">
           <option value="vendor">Vendors</option><option value="buyer">Buyers</option><option value="all">Vendors and buyers</option></select>
         <input className={inp + " w-full"} placeholder="Countries (blank = all), e.g. GB KZ IN" value={f.countries} onChange={(e) => setF({ ...f, countries: e.target.value })} data-testid="seg-countries" />
-        <div className="text-xs text-brand-navy/60">Categories (none ticked = all)</div>
-        <CategoryPicker categories={cats} value={f.categories} onChange={(v) => setF({ ...f, categories: v })} />
+        <div className="text-xs text-brand-navy/60">Categories — UNSPSC (none = all)</div>
+        <UnspscMultiPicker testidPrefix="seg-cats" value={f.categories.map((t) => ({ code: t, title: t }))}
+          onChange={(v) => setF({ ...f, categories: v.map((x) => x.title) })} />
         <div className="flex gap-4 text-sm">
           {[["platform", "Platform users"], ["upload", "Uploaded"], ["manual", "Added by hand"]].map(([s, l]) => (
             <label key={s} className="flex gap-2 items-center"><input type="checkbox" checked={f.sources.includes(s)} onChange={() => toggleSrc(s)} data-testid={`seg-src-${s}`} />{l}</label>))}

@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { taxonomyApi } from "@/lib/api";
 
-export default function UnspscPicker({ value, title, onChange, testidPrefix = "unspsc" }) {
+export default function UnspscPicker({ value, title, onChange, testidPrefix = "unspsc", placeholder, inputClassName, hideValue = false }) {
   const [q, setQ] = useState(title || "");
   const [rows, setRows] = useState([]);
   const [open, setOpen] = useState(false);
@@ -65,9 +65,9 @@ export default function UnspscPicker({ value, title, onChange, testidPrefix = "u
         <input value={q}
                onChange={(e) => onInput(e.target.value)}
                onFocus={() => q.length >= 2 && setOpen(true)}
-               placeholder="Search UNSPSC (e.g. 'concrete', 'medical')…"
+               placeholder={placeholder || "Search UNSPSC (e.g. 'solar', 'wind', 'concrete')…"}
                data-testid={`${testidPrefix}-input`}
-               className="flex-1 border border-brand-navy/20 px-3 py-2 text-sm" />
+               className={inputClassName || "flex-1 border border-brand-navy/20 px-3 py-2 text-sm"} />
         {value && (
           <button type="button" onClick={clear}
                   data-testid={`${testidPrefix}-clear`}
@@ -76,7 +76,7 @@ export default function UnspscPicker({ value, title, onChange, testidPrefix = "u
           </button>
         )}
       </div>
-      {value && (
+      {value && !hideValue && (
         <div className="text-[10px] mt-1 text-brand-navy/60 font-mono" data-testid={`${testidPrefix}-value`}>
           UNSPSC: {value} · {title}
         </div>
@@ -85,7 +85,7 @@ export default function UnspscPicker({ value, title, onChange, testidPrefix = "u
         <div className="absolute z-30 mt-1 left-0 right-0 bg-white border border-brand-navy/20 shadow-lg max-h-64 overflow-y-auto"
              data-testid={`${testidPrefix}-dropdown`}>
           {rows.map((r) => (
-            <button type="button" key={r.code} onClick={() => pick(r)}
+            <button type="button" key={r.code} onMouseDown={(e) => { e.preventDefault(); pick(r); }}
                     data-testid={`${testidPrefix}-option-${r.code}`}
                     className="block w-full text-left px-3 py-2 text-sm hover:bg-brand-navy/5 border-b border-brand-navy/5 last:border-0">
               <div className="flex items-baseline justify-between gap-3">

@@ -924,6 +924,8 @@ export const mastersApi = {
       params: { country: country || undefined },
     }).then((r) => r.data),
   createCategory: (p) => api.post("/api/v1/masters/categories", p).then((r) => r.data),
+  categoryUnspscSuggestions: () => api.get("/api/v1/masters/categories/unspsc-suggestions").then((r) => r.data),
+  approveCategoryUnspsc: (id, unspsc_code) => api.post(`/api/v1/masters/categories/${id}/approve-unspsc`, { unspsc_code }).then((r) => r.data),
   updateCategory: (id, p) => api.patch(`/api/v1/masters/categories/${id}`, p).then((r) => r.data),
   deactivateCategory: (id) => api.delete(`/api/v1/masters/categories/${id}`).then((r) => r.data),
   // v56q — Sector & Contract-type taxonomy masters
@@ -1640,7 +1642,7 @@ export const taxonomyApi = {
       });
       const rows = Array.isArray(r.data) ? r.data : [];
       if (rows.length) {
-        return { items: rows.map((x) => ({ code: x.code, title: x.title_en, level: "commodity" })) };
+        return { items: rows.map((x) => ({ code: x.code, title: x.title_en, level: x.level || "commodity" })) };
       }
     } catch { /* fall through */ }
     try {

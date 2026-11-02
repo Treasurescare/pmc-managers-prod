@@ -105,6 +105,58 @@ async def update_category(
     return _out(doc)
 
 
+_STOP = {"and", "or", "for", "of", "the", "&", "works", "work", "procurement", "installation", "system", "systems",
+         "amc", "blocks", "main", "external", "ht/lt", "(wtp)", "(stp)", "(ots)", "(hydrants)", "hostel", "hotel", "academic"}
+
+
+async def _suggest_unspsc(name: str) -> list:
+    from routers.masters_v2 import _rank, _title_match_regex
+    words = [w.strip("()/,").lower() for w in name.replace("&", " ").split()]
+    words = [w for w in words if len(w) > 2 and w not in _STOP]
+    seen, rows = set(), []
+    for term in [" ".join(words)] + words:
+        if not term:
+            continue
+        q = {"is_active": True, "level": {"$in": ["commodity", "class"]},
+             "title_en": {"$regex": _title_match_regex(term), "$options": "i"}}
+        async for d in db.masters_unspsc.find(q, {"_id": 0, "code": 1, "title_en": 1, "level": 1, "segment": 1}).limit(300):
+            if d["code"] not in seen:
+                seen.add(d["code"])
+                hits = sum(w in d["title_en"].lower() for w in words)
+                rows.append({**d, "_hits": hits})
+    rows.sort(key=lambda d: -d["_hits"])
+    top = [r for r in rows if r["_hits"] == (rows[0]["_hits"] if rows else 0)]
+    best = _rank(top, words[0] if words else name, 3) + _rank([r for r in rows if r not in top], name, 3)
+    return [{"code": r["code"], "title": r["title_en"], "level": r.get("level")} for r in best[:3]]
+
+
+@router.get("/categories/unspsc-suggestions")
+async def unspsc_suggestions(admin=Depends(require_role("admin"))) -> list:
+    out = []
+    async for c in db.categories.find({"is_active": {"$ne": False}, "$or": [
+            {"unspsc_code": None}, {"unspsc_code": ""}, {"unspsc_code": {"$exists": False}}]}).sort("name", 1):
+        out.append({"id": str(c["_id"]), "name": c["name"], "code": c.get("code"), "suggestions": await _suggest_unspsc(c["name"])})
+    return out
+
+
+class UnspscApproveIn(BaseModel):
+    unspsc_code: str = Field(..., min_length=2, max_length=12)
+
+
+@router.post("/categories/{category_id}/approve-unspsc")
+async def approve_unspsc(category_id: str, body: UnspscApproveIn, admin=Depends(require_role("admin"))) -> dict:
+    u = await db.masters_unspsc.find_one({"code": body.unspsc_code}, {"title_en": 1})
+    if not u:
+        raise HTTPException(status_code=422, detail="Unknown UNSPSC code")
+    r = await db.categories.update_one({"_id": ObjectId(category_id)},
+                                       {"$set": {"unspsc_code": body.unspsc_code, "unspsc_title": u["title_en"], "updated_at": now_iso()}})
+    if r.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Not found")
+    await audit_log("category.unspsc_approved", admin, "category", category_id, {"unspsc_code": body.unspsc_code})
+    return _out(await db.categories.find_one({"_id": ObjectId(category_id)}))
+
+
+
 @router.delete("/categories/{category_id}")
 async def delete_category(
     category_id: str,

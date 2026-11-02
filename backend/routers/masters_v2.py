@@ -23,6 +23,16 @@ router = APIRouter(prefix="/api/v1/masters", tags=["masters-v2"])
 # synonyms so the search feels natural.
 _UNSPSC_ALIASES = {
     "biogas":          ["methane", "digester", "anaerobic"],
+    "biomass":         ["biomass", "biofuel", "biofuels", "plant based liquid fuels", "methane", "digester"],
+    "bioenergy":       ["biomass", "biofuel", "biofuels"],
+    "waste to energy": ["biomass", "incinerat", "methane"],
+    "renewable":       ["renewable", "solar", "photovoltaic", "wind power", "wind farm", "wind turbine",
+                        "geothermal", "hydro power", "biofuel", "battery energy storage"],
+    "solar":           ["solar", "photovoltaic"],
+    "wind":            ["wind power", "wind farm", "wind turbine", "wind generator"],
+    "hydro":           ["hydro power", "hydroelectric", "hydraulic turbine"],
+    "hydropower":      ["hydro power", "hydroelectric"],
+    "energy storage":  ["battery energy storage"],
     "solar farm":      ["solar power", "photovoltaic"],
     "solar plant":     ["solar power", "photovoltaic"],
     "pv":              ["photovoltaic"],
@@ -34,16 +44,38 @@ _UNSPSC_ALIASES = {
 }
 
 
-def _title_match_regex(term: str) -> str:
-    """Expand user search with aliases, return a case-insensitive OR regex."""
-    terms = {term}
+def _terms(term: str) -> list:
     low = term.lower().strip()
+    terms = {low}
     for key, alts in _UNSPSC_ALIASES.items():
-        if key in low or low in key:
+        if key == low or (len(low) >= 4 and key.startswith(low)) or key in low:
             terms.update(alts)
+    return [t for t in terms if t]
+
+
+def _title_match_regex(term: str) -> str:
+    """Expand with aliases; match at the start of a word so 'wind' doesn't hit 'winding'."""
     import re as _re
-    parts = [_re.escape(t) for t in terms if t]
+    parts = []
+    own = term.lower().strip()
+    for t in _terms(term):
+        words = t.split()
+        end = r"\b" if (t != own or len(t) <= 4) and not t.endswith("t") else ""
+        parts.append(r"\b" + r"\s+".join(_re.escape(w) for w in words) + end)
     return "|".join(parts) if parts else _re.escape(term)
+
+
+def _rank(rows: list, term: str, limit: int) -> list:
+    import re as _re
+    low = term.lower().strip()
+    exact = _re.compile(r"\b" + _re.escape(low), _re.I)
+    lvl = {"commodity": 0, "class": 1, "family": 2, "segment": 3}
+
+    def score(d):
+        t = d.get("title_en") or ""
+        return (0 if t.lower().startswith(low) else 1 if exact.search(t) else 2,
+                26 != int(str(d.get("segment") or 0) or 0), lvl.get(d.get("level"), 4), len(t))
+    return sorted(rows, key=score)[:limit]
 
 
 # ---------- UNSPSC ----------
@@ -67,6 +99,8 @@ async def unspsc_search(
             query["code"] = {"$regex": f"^0*{s}"}
         else:
             query["title_en"] = {"$regex": _title_match_regex(s), "$options": "i"}
+            rows = [doc async for doc in db.masters_unspsc.find(query, {"_id": 0}).limit(600)]
+            return _rank(rows, s, limit)
     cursor = db.masters_unspsc.find(query, {"_id": 0}).limit(limit)
     return [doc async for doc in cursor]
 
@@ -77,15 +111,17 @@ async def unspsc_public_search(
     limit: int = Query(30, le=100),
 ):
     """Public read for the registration portal — codes-only, lighter payload."""
-    query: dict = {"is_active": True, "level": "commodity"}
+    query: dict = {"is_active": True, "level": {"$in": ["commodity", "class"]}}
     if q.strip():
         s = q.strip()
         if s.isdigit():
             query["code"] = {"$regex": f"^0*{s}"}
         else:
             query["title_en"] = {"$regex": _title_match_regex(s), "$options": "i"}
+            rows = [d async for d in db.masters_unspsc.find(query, {"_id": 0, "code": 1, "title_en": 1, "level": 1, "segment": 1}).limit(600)]
+            return [{"code": d["code"], "title_en": d["title_en"], "level": d.get("level")} for d in _rank(rows, s, limit)]
     cursor = db.masters_unspsc.find(
-        query, {"_id": 0, "code": 1, "title_en": 1}
+        query, {"_id": 0, "code": 1, "title_en": 1, "level": 1}
     ).limit(limit)
     return [doc async for doc in cursor]
 

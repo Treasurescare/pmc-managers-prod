@@ -11,8 +11,8 @@
  *   • Full list is written back to `product_categories` for anything that
  *     wants the complete tagging.
  */
-import { useEffect, useMemo, useState } from "react";
-import { mastersApi } from "@/lib/api";
+import { useMemo, useState } from "react";
+import UnspscPicker from "@/components/UnspscPicker";
 
 const splitPrimary = (primary, list) => {
   const raw = Array.isArray(list) && list.length
@@ -31,18 +31,8 @@ const splitPrimary = (primary, list) => {
 
 export default function CategoryMultiPicker({ primary, list, onChange, testid = "th-prod-cat-multi" }) {
   const chips = useMemo(() => splitPrimary(primary, list), [primary, list]);
-  const [master, setMaster] = useState([]);
   const [typed, setTyped] = useState("");
-
-  useEffect(() => {
-    mastersApi.listCategoriesPublic()
-      .then((rows) => setMaster(
-        (Array.isArray(rows) ? rows : [])
-          .map((c) => String(c.name || c.title || c.code || ""))
-          .filter(Boolean)
-          .sort((a, b) => a.localeCompare(b))))
-      .catch(() => setMaster([]));
-  }, []);
+  const [pickKey, setPickKey] = useState(0);
 
   const emit = (next) => {
     onChange({
@@ -69,11 +59,6 @@ export default function CategoryMultiPicker({ primary, list, onChange, testid = 
     const next = [chips[idx], ...chips.filter((_, i) => i !== idx)];
     emit(next);
   };
-
-  const unused = useMemo(
-    () => master.filter((m) => !chips.some((c) => c.toLowerCase() === m.toLowerCase())),
-    [master, chips],
-  );
 
   return (
     <div data-testid={testid} className="space-y-2">
@@ -111,13 +96,11 @@ export default function CategoryMultiPicker({ primary, list, onChange, testid = 
       </div>
       {/* Add from master OR type */}
       <div className="flex flex-wrap gap-2">
-        <select value=""
-          data-testid="th-prod-cat-select"
-          onChange={(e) => { if (e.target.value) add(e.target.value); e.target.value = ""; }}
-          className="px-2 py-1.5 border border-brand-navy/20 bg-white text-sm">
-          <option value="">+ From category master…</option>
-          {unused.map((m) => <option key={m} value={m}>{m}</option>)}
-        </select>
+        <div className="flex-1 min-w-[220px]" data-testid="th-prod-cat-select">
+          <UnspscPicker key={pickKey} testidPrefix="th-prod-cat-unspsc" hideValue
+            placeholder="+ Search UNSPSC category (e.g. solar, wind, biomass)…"
+            onChange={(r) => { if (r.title) { add(r.title); setPickKey((k) => k + 1); } }} />
+        </div>
         <input value={typed}
           data-testid="th-prod-cat-typed"
           onChange={(e) => setTyped(e.target.value)}

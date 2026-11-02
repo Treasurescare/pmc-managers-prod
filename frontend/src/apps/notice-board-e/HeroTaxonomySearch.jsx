@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { publicApi } from "@/lib/api";
 import { contractTypeOptions, uniqByCode } from "@/components/taxonomy";
+import UnspscPicker from "@/components/UnspscPicker";
 
 const arr = (r) => (Array.isArray(r) ? r : []);
 
@@ -15,7 +16,6 @@ export const HeroTaxonomySearch = () => {
   const navigate = useNavigate();
   const [sectors, setSectors] = useState([]);
   const [contractTypes, setContractTypes] = useState([]);
-  const [categories, setCategories] = useState([]);
   const [countries, setCountries] = useState([]);
   const [kw, setKw] = useState("");
   const [sector, setSector] = useState("");
@@ -26,7 +26,6 @@ export const HeroTaxonomySearch = () => {
   useEffect(() => {
     publicApi.listSectorsPublic().then((r) => setSectors(arr(r))).catch(() => setSectors([]));
     publicApi.listContractTypesPublic().then((r) => setContractTypes(arr(r))).catch(() => setContractTypes([]));
-    publicApi.listCategoriesPublic().then((r) => setCategories(arr(r))).catch(() => setCategories([]));
     publicApi.countries().then((r) => setCountries(arr(r))).catch(() => setCountries([]));
   }, []);
 
@@ -85,17 +84,11 @@ export const HeroTaxonomySearch = () => {
         <option value="">All contract types</option>
         {contractTypeOptions(contractTypes)}
       </select>
-      <select
-        className="pmc-input"
-        style={{ ...sel, flex: "1 1 180px" }}
-        aria-label="Category"
-        value={category}
-        onChange={(e) => setCategory(e.target.value)}
-        data-testid="home-hero-category"
-      >
-        <option value="">All categories</option>
-        {uniqByCode(categories).map((c) => <option key={c.code} value={c.name}>{c.name}</option>)}
-      </select>
+      <div style={{ flex: "1 1 220px" }} data-testid="home-hero-category">
+        <UnspscPicker testidPrefix="home-hero-category-unspsc" value={category ? " " : ""} title={category} hideValue
+          inputClassName="pmc-input flex-1" placeholder="Category (e.g. solar, wind)"
+          onChange={(r) => setCategory(r.title)} />
+      </div>
       <select
         className="pmc-input"
         style={{ ...sel, flex: "1 1 150px" }}

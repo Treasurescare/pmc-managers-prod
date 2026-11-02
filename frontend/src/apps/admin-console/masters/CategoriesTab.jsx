@@ -4,6 +4,7 @@ import { mastersApi, showApiError } from "@/lib/api";
 import { InfoDot } from "@/components/InfoDot";
 import { CountryMultiSelect } from "@/components/CountryPicker";
 import { useListPager } from "@/components/ListPager";
+import UnspscSuggestions from "./UnspscSuggestions";
 
 // v50g — Categories master (Masters → Categories).
 // Backed by /api/v1/masters/categories, pre-seeded from UNSPSC taxonomy.
@@ -98,6 +99,7 @@ export default function CategoriesTab() {
 
   return (
     <div data-testid="categories-tab">
+      <UnspscSuggestions />
       <div className="flex items-center gap-3 mb-3 flex-wrap">
         <strong className="text-sm">{activeCount} active · {total} total</strong>
         <span className="text-xs text-slate-500">({unspsc} UNSPSC-seeded)</span>

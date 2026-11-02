@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { adminApi, mastersApi, publicApi, noticeDocsApi, tenderTemplateApi, formatApiError, showApiError } from "@/lib/api";
 import { InfoDot } from "@/components/InfoDot";
 import EmdMasterPicker from "./EmdMasterPicker";
+import UnspscPicker from "@/components/UnspscPicker";
 import { CurrencySelect } from "@/components/CurrencySelect";
 
 /**
@@ -130,6 +131,7 @@ export default function NoticeEditModal({ noticeRef, onClose, onSaved, isMasterA
       // ("must have an @-sign"), which blocked submit-for-approval when the
       // field was left empty.
       const payload = { ...draft };
+      delete payload.category_unspsc_code;
       if (!payload.contact_email || !payload.contact_email.trim()) delete payload.contact_email;
       if (!payload.contact_name  || !payload.contact_name.trim())  delete payload.contact_name;
       await adminApi.updateNotice(noticeRef, payload);
@@ -175,16 +177,11 @@ export default function NoticeEditModal({ noticeRef, onClose, onSaved, isMasterA
               <textarea rows={5} value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })}
                 data-testid="edit-description" className="mt-1 w-full px-4 py-3 border border-brand-navy/20" /></label>
 
-            <label><span className="pmc-label">Category</span>
-              <select value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })}
-                data-testid="edit-category" className="mt-1 w-full px-4 py-3 border border-brand-navy/20 bg-white">
-                <option value="">— Select a category —</option>
-                {categories.map((c) => (
-                  <option key={c.id || c.code} value={c.name}>
-                    {c.unspsc_code ? `${c.unspsc_code} · ` : ""}{c.name}
-                  </option>
-                ))}
-              </select></label>
+            <div><span className="pmc-label">Category (UNSPSC)</span>
+              <div className="mt-1" data-testid="edit-category">
+                <UnspscPicker testidPrefix="edit-category-unspsc" value={draft.category_unspsc_code || (draft.category ? " " : "")} title={draft.category}
+                  hideValue onChange={(r) => setDraft({ ...draft, category: r.title, category_unspsc_code: r.code })} />
+              </div></div>
 
             <label><span className="pmc-label">Sector<InfoDot tip="Industry/domain for this tender. Optional now; becomes mandatory at go-live." /></span>
               <select value={draft.sector_code || ""} onChange={(e) => setDraft({ ...draft, sector_code: e.target.value })}

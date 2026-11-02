@@ -1,16 +1,13 @@
 import { useEffect, useState } from "react";
 import { marketingApi, publicApi, showApiError } from "@/lib/api";
+import UnspscPicker from "@/components/UnspscPicker";
 
 export default function TenderAlertsSignup() {
   const [f, setF] = useState({ email: "", audience: "vendor", country: "", category: "", consent: false, website: "" });
   const [countries, setCountries] = useState([]);
-  const [cats, setCats] = useState([]);
   const [done, setDone] = useState(false);
   const [busy, setBusy] = useState(false);
   useEffect(() => { publicApi.countries().then((c) => setCountries(Array.isArray(c) ? c : (c.items || []))).catch(() => {}); }, []);
-  useEffect(() => {
-    publicApi.listCategoriesPublic(f.country).then((c) => setCats(Array.isArray(c) ? c : (c.items || []))).catch(() => setCats([]));
-  }, [f.country]);
   const submit = async (e) => {
     e.preventDefault();
     setBusy(true);
@@ -41,12 +38,13 @@ export default function TenderAlertsSignup() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: "12px" }}>
               <select className="pmc-input" value={f.audience} onChange={(e) => setF({ ...f, audience: e.target.value })} data-testid="signup-audience">
                 <option value="vendor">I'm a supplier</option><option value="buyer">I issue tenders</option></select>
-              <select className="pmc-input" value={f.country} onChange={(e) => setF({ ...f, country: e.target.value, category: "" })} data-testid="signup-country">
+              <select className="pmc-input" value={f.country} onChange={(e) => setF({ ...f, country: e.target.value })} data-testid="signup-country">
                 <option value="">Any country</option>
                 {countries.map((c) => <option key={code(c)} value={code(c)}>{name(c)}</option>)}</select>
-              <select className="pmc-input" value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} data-testid="signup-category">
-                <option value="">All categories</option>
-                {cats.map((c) => <option key={c.id || c.name} value={c.name}>{c.name}</option>)}</select>
+            </div>
+            <div data-testid="signup-category">
+              <UnspscPicker testidPrefix="signup-category-unspsc" value={f.category ? " " : ""} title={f.category} hideValue inputClassName="pmc-input flex-1"
+                placeholder="What do you supply? e.g. solar, wind, cement (blank = all)" onChange={(r) => setF({ ...f, category: r.title })} />
             </div>
             <label style={{ display: "flex", gap: "10px", fontSize: "13px", lineHeight: "20px", alignItems: "flex-start" }}>
               <input type="checkbox" checked={f.consent} onChange={(e) => setF({ ...f, consent: e.target.checked })} data-testid="signup-consent" />
