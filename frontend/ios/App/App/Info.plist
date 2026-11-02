@@ -66,5 +66,10 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>WKAppBoundDomains</key>
+	<array>
+		<string>pmcmanagers.com</string>
+		<string>www.pmcmanagers.com</string>
+	</array>
 </dict>
 </plist>

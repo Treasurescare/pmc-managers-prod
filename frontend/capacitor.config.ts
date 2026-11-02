@@ -28,10 +28,10 @@ const config: CapacitorConfig = {
     captureInput: true,
   },
   server: {
-    // For production leave this out — the app serves /build directly.
-    // For dev, uncomment and point at your preview URL:
-    // url: 'https://pmc-forest-green.preview.emergentagent.com',
-    // cleartext: false,
+    // The app opens the live site, so every website release reaches the app without a new install.
+    url: 'https://pmcmanagers.com',
+    allowNavigation: ['pmcmanagers.com', '*.pmcmanagers.com'],
+    cleartext: false,
     androidScheme: 'https',
   },
   plugins: {

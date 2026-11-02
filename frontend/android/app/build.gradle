@@ -22,10 +22,10 @@ android {
     }
     signingConfigs {
         release {
-            storeFile file('pmc-upload-key.keystore')
-            storePassword 'PmcUpload2026!'
-            keyAlias 'pmc-upload'
-            keyPassword 'PmcUpload2026!'
+            storeFile file(System.getenv('PMC_KEYSTORE_FILE') ?: 'pmc-upload-key.keystore')
+            storePassword System.getenv('PMC_KEYSTORE_PASSWORD')
+            keyAlias System.getenv('PMC_KEY_ALIAS') ?: 'pmc-upload'
+            keyPassword System.getenv('PMC_KEYSTORE_PASSWORD')
         }
     }
     buildTypes {
