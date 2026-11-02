@@ -74,6 +74,8 @@ class RegistrationUpdateIn(BaseModel):
     contract_type_name: Optional[str] = None
     operating_regions: List[Any] = []  # v52ci — accepts legacy strings OR structured office dicts
     business_categories: List[Any] = []  # v52co — accepts legacy strings OR {code,title} dicts
+    primary_unspsc_code: Optional[str] = None
+    primary_unspsc_title: Optional[str] = None
     previous_projects: List[dict] = []
     references: List[dict] = []
     iso_certifications: Optional[str] = None

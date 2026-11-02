@@ -1106,3 +1106,8 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - Secret scanner Resend regex now requires a digit (false positive on `re_evaluation_required`).
 - Bundles: downloads/pmc-backend-v59n.zip, downloads/pmc-frontend-v59n-prod-build.zip (scan passed). Tested iteration_164 (25/25).
 
+
+## 2026-11-02 — Fix: supplier registration "Extra inputs are not permitted" (HTTP 422)
+- Root cause: frontend sends `primary_unspsc_code` / `primary_unspsc_title` (Primary UNSPSC commodity, Section C) but `RegistrationUpdateIn` (extra="forbid") lacked them → every save after picking a commodity failed. Added both fields. Verified by curl PATCH (422 → 200). Frontend whitelists now match the model.
+- Bundles v59o: downloads/pmc-backend-v59o.zip, downloads/pmc-frontend-v59o-prod-build.zip (secret scan passed).
+
