@@ -125,7 +125,7 @@ class W:
         return t
 
 
-def legend(w):
+def legend(w, shots=True):
     w.h("How to read this reply", 12)
     w.p("You asked us to distinguish what the platform enforces automatically, what can be independently "
         "verified, and what remains the buyer's responsibility. Every answer below is labelled accordingly:")
@@ -135,7 +135,8 @@ def legend(w):
     w.b("partly built, or being connected; we state plainly what is not yet live.", "IN PROGRESS")
     w.b("a contractual or commercial commitment PMC Managers will confirm in writing; not a software feature.",
         "TO CONFIRM")
-    w.p("All screenshots were taken from the PMC Managers platform on " + TODAY + " using clearly marked "
+    if shots:
+        w.p("All screenshots were taken from the PMC Managers platform on " + TODAY + " using clearly marked "
         "demonstration records (shown as \u201cDemo\u201d). No live buyer or supplier data is shown.",
         italic=True, color=GREY, size=9.5)
 
@@ -364,8 +365,9 @@ def build_reply():
         "payment instructions (CSV), contracts list (CSV), bills of quantities (Excel/PDF), tender documents and "
         "proof-review reports (PDF). These import directly into most ERP and accounting systems.", "ENFORCED")
     w.b("Live connections already in use: card and bank payments (Stripe), e-signature (DocuSign), email "
-        "notifications, WhatsApp alerts, and sanctions screening (Refinitiv World-Check One, being connected).",
-        "ENFORCED")
+        "notifications and WhatsApp alerts.", "ENFORCED")
+    w.b("Sanctions screening through Refinitiv World-Check One (LSEG) is planned and will be connected once the "
+        "subscription is signed; until then checks are made manually during supplier verification.", "IN PROGRESS")
     w.b("The platform is built on a documented web interface (REST/JSON), so direct connectors can be added for a "
         "buyer's ERP (for example SAP, Oracle, Microsoft Dynamics) or project management tools. These are scoped "
         "per buyer during implementation.", "IN PROGRESS")
@@ -590,8 +592,8 @@ def build_internal():
         "5-day Messages window, integrity holds and appeals. A dedicated module can be built.",
         "No ready-made ERP connectors (SAP / Oracle / Dynamics). Exports and the web interface exist; connectors "
         "are per-buyer work.",
-        "Sanctions screening (World-Check One) is still being connected; until switched on, live screening is "
-        "not performed.",
+        "Sanctions screening (World-Check One) is not built or subscribed yet; until it is, screening is manual "
+        "only.",
         "Backups: confirm the AWS database backup schedule and that a test restore has been done before quoting "
         "RPO/RTO.",
         "Insurance and liability are entirely contractual; nothing in the software covers them.",

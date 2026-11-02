@@ -1131,3 +1131,9 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 
 - 2026-11-02: iOS AppIcon (1024, no alpha) + splash replaced with PMC logo on #1A4A34; iOS project zip rebuilt. Google termination reason = DDA 11.4 (inaccurate/inconsistent account info vs D-U-N-S) or related previously-terminated account; appeal template at downloads/PMC-Google-Play-Appeal.txt (placeholders).
 
+
+## 2026-11-02 — Reply to data-room inconsistencies + "global framework" comment
+- `scripts/build_inconsistency_reply.py` → downloads/PMC_Reply_Inconsistencies_and_Framework.docx (5 pages). Owner positions: screening = Refinitiv World-Check One (LSEG), NOT built/subscribed yet (manual checks); PMC never holds money (dual-signed instructions, bank moves funds); no winner fee on public tenders, optional 0.30% only on private tenders declared before publication; paid visibility kept but firewalled (ranking code reads no package data); India ₹15L retainer optional, licence band only.
+- Corrected earlier Response doc: World-Check was wrongly described as "being connected" — no integration code exists. Response doc rebuilt (30 pages, 30 screenshots).
+- Open: supplier paid categories may restrict access to public tenders — to review.
+
