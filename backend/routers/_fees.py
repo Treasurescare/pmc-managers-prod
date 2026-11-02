@@ -64,6 +64,35 @@ async def seed_fee_types() -> None:
     await db.fee_types.update_many({"country_scope": {"$exists": False}},
                                    {"$set": {"country_scope": "all", "countries": []}})
     await db.fee_types.update_many({"categories": {"$exists": False}}, {"$set": {"categories": []}})
+    await _seed_first_prices()
+
+
+FIRST_PRICES = [("IN", "INR", 1000), ("GB", "GBP", 500), ("US", "USD", 500), ("MY", "MYR", 500)]
+
+
+def _slab(lo, hi, kind, val):
+    return {"tender_value_min": lo, "tender_value_max": hi, "fee_type": kind, "fixed_amount": val if kind == "fixed" else None,
+            "percentage": val if kind == "percentage" else None, "pct_min": None, "pct_max": None}
+
+
+async def _seed_first_prices() -> None:
+    """One-time publish of the owner's first prices; later edits in Masters are never overwritten."""
+    if await db.system_flags.find_one({"key": "first_prices_v1"}):
+        return
+    from models.base import now_iso
+    for c, cur, flat in FIRST_PRICES:
+        for kind, name, slabs, prog in [
+                ("tender_fee", f"{c} Tender fee", [_slab(0, None, "fixed", flat)], False),
+                ("tender_management", f"{c} Tender management fee",
+                 [_slab(0, 5_000_000.0, "percentage", 3.0), _slab(5_000_000.0, None, "percentage", 2.0)], True)]:
+            if not await db.emd_masters.find_one({"kind": kind, "countries": c}):
+                await db.emd_masters.insert_one({"name": name, "kind": kind, "country": c, "countries": [c], "currency": cur,
+                                                 "slabs": slabs, "categories": [], "category": None, "industry": None,
+                                                 "is_active": True, "progressive": prog, "extend_type": True,
+                                                 "notes": "Published price", "created_at": now_iso()})
+    await db.fee_types.update_many({"code": {"$in": ["tender_fee", "tender_management"]}}, {"$set": {"show_on_pricing": True}})
+    await db.fee_types.update_one({"code": "tender_management"}, {"$set": {"category_scope": "all", "categories": []}})
+    await db.system_flags.insert_one({"key": "first_prices_v1", "at": now_iso()})
 
 
 async def get_fee_type(code: str) -> Optional[dict]:
@@ -119,6 +148,14 @@ def compute_amount(rule: dict, value: Optional[float]) -> Optional[float]:
     if value is None:
         return None
     v = float(value)
+    if rule.get("progressive"):
+        total = 0.0
+        for s in slabs:
+            lo, hi = s.get("tender_value_min") or 0, s.get("tender_value_max")
+            part = max(0.0, (v if hi is None else min(v, hi)) - lo)
+            if part > 0:
+                total += float(s.get("fixed_amount") or 0) if s.get("fee_type") == "fixed" else part * float(s.get("percentage") or 0) / 100.0
+        return round(total, 2)
     for s in slabs:
         lo, hi = s.get("tender_value_min") or 0, s.get("tender_value_max")
         if v >= lo and (hi is None or v < hi):

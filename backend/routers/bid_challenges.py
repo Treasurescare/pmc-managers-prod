@@ -351,3 +351,88 @@ async def change_standstill(notice_ref: str, body: StandstillIn, admin=Depends(r
         await _mail(b.get("vendor_email"), f"Corrigendum {no} · tender {notice_ref}",
                     f"The standstill period before contract signing changed from {old} to {body.days} days. Reason: {_html.escape(body.reason.strip())}")
     return {"corrigendum_no": no, **await standstill(notice_ref)}
+
+
+
+# ---------- challenge register PDF (tender file / auditors / lenders) ----------
+
+def _e(v) -> str:
+    return _html.escape(str(v)) if v not in (None, "") else "—"
+
+
+def _t(s) -> str:
+    return (str(s)[:16].replace("T", " ") + " UTC") if s else "—"
+
+
+def _kv(rows: list) -> str:
+    return "<table class='kv'>" + "".join(f"<tr><td class='k'>{k}</td><td>{v}</td></tr>" for k, v in rows) + "</table>"
+
+
+def _challenge_html(c: dict) -> str:
+    votes = "".join(f"<tr><td>{_e(v.get('by'))}</td><td>{_e(v.get('decision'))}</td><td>{_e(v.get('comment'))}</td><td>{_t(v.get('at'))}</td></tr>"
+                    for v in (c.get("votes") or {}).values()) or "<tr><td colspan='4'>No votes recorded.</td></tr>"
+    m = c.get("meeting") or {}
+    r = c.get("resolution") or {}
+    parts = [f"<h2>{_e(c['challenge_ref'])} · {_e(STATUS_LABEL.get(c['status'], c['status']))}</h2>",
+             _kv([("Bidder", f"{_e(c.get('company_name'))} ({_e(c.get('vendor_email'))})"), ("Bid", _e(c.get("bid_ref"))),
+                  ("Grounds", _e(c.get("grounds"))), ("Lodged", _t(c.get("created_at")))]),
+             f"<p class='q'>{_e(c.get('details'))}</p>",
+             "<h3>Committee votes</h3><table class='li'><tr><th>Member</th><th>Decision</th><th>Reason</th><th>When</th></tr>" + votes + "</table>"]
+    if c.get("upheld_at") or c.get("decided_at"):
+        parts.append(_kv([("Committee outcome", "Upheld — award suspended" if c.get("upheld_at") else "Dismissed"),
+                          ("Decided", _t(c.get("upheld_at") or c.get("decided_at"))), ("Appeal deadline", _t(c.get("appeal_deadline")))]))
+    if m:
+        parts.append("<h3>Resolution meeting</h3>" + _kv([("Date", _t(m.get("scheduled_at"))), ("Place", _e(m.get("location"))),
+                     ("Scheduled by", _e(m.get("scheduled_by"))), ("Invited", _e(", ".join(m.get("attendees") or [])))]))
+    if r:
+        parts.append("<h3>Resolution</h3>" + _kv([("Outcome", "Award confirmed" if r.get("outcome") == "confirm_award" else "Award withdrawn — re-evaluation"),
+                     ("Recorded by", _e(r.get("by"))), ("When", _t(r.get("at"))), ("Minutes", _e(r.get("minutes")))]))
+    if c.get("appealed_at"):
+        parts.append("<h3>Appeal to senior officer</h3>" + _kv([("Lodged", _t(c.get("appealed_at"))), ("Reason", _e(c.get("appeal_reason"))),
+                     ("Decision", _e(c.get("appeal_decision") or "Pending")), ("Decided by", _e(c.get("appeal_decided_by"))),
+                     ("When", _t(c.get("appeal_decided_at"))), ("Decision reason", _e(c.get("appeal_decision_reason")))]))
+    return "<div class='ch'>" + "".join(parts) + "</div>"
+
+
+STATUS_LABEL = {"lodged": "Lodged", "under_review": "Under committee review", "upheld": "Upheld — award suspended",
+                "meeting_scheduled": "Resolution meeting scheduled", "resolved": "Resolved", "dismissed": "Dismissed",
+                "appealed": "Appeal pending", "closed": "Closed — final"}
+
+_CSS = """<style>@page{size:A4;margin:18mm 16mm;@bottom-right{content:"Page " counter(page) " / " counter(pages);font-size:8pt;color:#64748b}}
+body{font-family:Helvetica,sans-serif;font-size:9.5pt;color:#0f172a}h1{font-size:18pt;color:#0F3B2E;margin:0 0 4pt}
+h2{font-size:12pt;color:#0F3B2E;border-bottom:1pt solid #0F3B2E;padding-bottom:2pt;margin-top:16pt}h3{font-size:10pt;margin:10pt 0 4pt}
+table{width:100%;border-collapse:collapse;margin:4pt 0}td,th{border:.5pt solid #cbd5e1;padding:4pt;vertical-align:top;text-align:left}
+th{background:#0F3B2E;color:#fff}td.k{background:#f1f5f9;width:28%;font-weight:600}.q{font-style:italic;color:#334155}
+.ch{page-break-inside:auto}.small{font-size:8pt;color:#64748b}</style>"""
+
+
+@router.get("/notice/{notice_ref}/register.pdf")
+async def challenge_register_pdf(notice_ref: str, admin=Depends(require_role("admin", "reviewer", "auditor", "committee_member"))):
+    from fastapi.responses import Response
+    from pdf_brand import brand_html
+    from weasyprint import HTML
+    n = await db.notices.find_one({"notice_ref": notice_ref}, {"title": 1, "standstill_days": 1})
+    if not n:
+        raise HTTPException(status_code=404, detail="Notice not found")
+    if admin.get("role") == "committee_member" and admin.get("id") not in await _members(notice_ref):
+        raise HTTPException(status_code=403, detail="Only this tender's committee can download its challenge register")
+    s = await standstill(notice_ref)
+    rows = [c async for c in db.bid_challenges.find({"notice_ref": notice_ref}).sort("created_at", 1)]
+    corr = [c async for c in db.corrigenda.find({"notice_ref": notice_ref, "field_amendments.field_key": "standstill_days"}).sort("corrigendum_no", 1)]
+    ledger = [e async for e in db.audit_events.find({"target_id": notice_ref, "event_type": {"$regex": "^bid_challenge\\."}}).sort("seq", 1)]
+    head = _kv([("Tender", f"{_e(notice_ref)} — {_e(n.get('title'))}"), ("Standstill", f"{s['days']} days · {_t(s['started_at'])} to {_t(s['ends_at'])}"),
+                ("Contract signing", _e(await contract_block_reason(notice_ref) or "Allowed — no standstill, open challenge or suspension")),
+                ("Challenges", str(len(rows))), ("Generated", f"{_t(now_iso())} by {_e(admin.get('email'))}")])
+    corr_html = "".join(f"<tr><td>{c.get('corrigendum_no')}</td><td>{_e(c.get('title'))}</td><td>{_e(c.get('summary'))}</td><td>{_t(c.get('published_at'))}</td></tr>" for c in corr)
+    led = "".join(f"<tr><td>{e.get('seq')}</td><td>{_t(e.get('at'))}</td><td>{_e(e.get('event_type'))}</td><td>{_e(e.get('actor_email'))}</td>"
+                  f"<td style='font-family:monospace;font-size:7pt'>{_e((e.get('current_hash') or '')[:16])}…</td></tr>" for e in ledger)
+    html = (f"<html><head>{_CSS}</head><body><h1>Bid challenge register</h1>{head}"
+            + ("<h2>Standstill changes (corrigenda)</h2><table class='li'><tr><th>No.</th><th>Change</th><th>Reason</th><th>Published</th></tr>" + corr_html + "</table>" if corr else "")
+            + ("".join(_challenge_html(c) for c in rows) or "<h2>Challenges</h2><p>No challenges were lodged on this tender.</p>")
+            + "<h2>Audit ledger entries</h2><table class='li'><tr><th>Seq</th><th>When</th><th>Event</th><th>By</th><th>Hash</th></tr>"
+            + (led or "<tr><td colspan='5'>No ledger entries.</td></tr>") + "</table>"
+            + "<p class='small'>Each ledger entry is SHA-256 chained to the previous one; verify any entry on the public Trust &amp; security page.</p></body></html>")
+    pdf = HTML(string=brand_html(html)).write_pdf()
+    await audit_log("bid_challenge.register_downloaded", admin, "notice", notice_ref, {"challenges": len(rows)})
+    return Response(content=pdf, media_type="application/pdf",
+                    headers={"Content-Disposition": f'attachment; filename="{notice_ref}-challenge-register.pdf"'})

@@ -16,7 +16,7 @@ const TIMING = { upfront: "paid at the beginning", on_completion: "paid at the e
 const EMPTY_SLAB = { tender_value_min: 0, tender_value_max: "", fee_type: "percentage",
                      fixed_amount: "", percentage: "", pct_min: "", pct_max: "" };
 const EMPTY = { name: "", country_mode: "all", countries: [], kind: "", categories: [], currency: "USD",
-                is_active: true, notes: "", slabs: [ { ...EMPTY_SLAB } ] };
+    is_active: true, notes: "", progressive: false, slabs: [ { ...EMPTY_SLAB } ] };
 
 function slabLabel(s, currency) {
   const lo = Number(s.tender_value_min || 0).toLocaleString();
@@ -74,7 +74,7 @@ export default function EmdMastersPanel() {
       countries: m.countries?.length ? m.countries : (m.country && !["ALL", "MULTI"].includes(m.country) ? [m.country] : []),
       country_mode: (m.countries?.length || (m.country && m.country !== "ALL") || feeTypes.find((t) => t.code === m.kind)?.country_scope === "selected") ? "some" : "all",
       categories: m.categories?.length ? m.categories : (m.category ? [m.category] : []), currency: m.currency || "USD",
-      is_active: m.is_active !== false, notes: m.notes || "",
+      is_active: m.is_active !== false, notes: m.notes || "", progressive: !!m.progressive,
       slabs: (m.slabs?.length ? m.slabs : [EMPTY_SLAB]).map((s) => ({
         tender_value_min: s.tender_value_min ?? 0,
         tender_value_max: s.tender_value_max ?? "",
@@ -111,7 +111,7 @@ export default function EmdMastersPanel() {
       country: form.country_mode === "some" ? (form.countries[0] || "ALL") : "ALL",
       countries: form.country_mode === "some" ? form.countries : [],
       categories: ft.category_scope === "selected" ? form.categories : [], currency: form.currency,
-      is_active: !!form.is_active, notes: form.notes || null,
+      is_active: !!form.is_active, notes: form.notes || null, progressive: !!form.progressive,
       slabs: form.slabs.map((s) => ({
         tender_value_min: Number(s.tender_value_min) || 0,
         tender_value_max: s.tender_value_max === "" ? null : Number(s.tender_value_max),
@@ -232,6 +232,12 @@ export default function EmdMastersPanel() {
                 onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
                 data-testid="emd-active" />
               <span className="text-sm">Active</span>
+            </label>
+            <label className="flex items-end gap-2 pb-2 md:col-span-2">
+              <input type="checkbox" checked={!!form.progressive}
+                onChange={(e) => setForm({ ...form, progressive: e.target.checked })}
+                data-testid="emd-progressive" />
+              <span className="text-sm">Stepped: each % applies only to the part of the value inside its range</span>
             </label>
             <label className="md:col-span-4"><span className="pmc-label">Notes</span>
               <input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })}

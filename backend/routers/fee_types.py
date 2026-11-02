@@ -46,7 +46,8 @@ async def public_pricing():
     out = []
     async for ft in db.fee_types.find({"show_on_pricing": True, "is_active": True}).sort("name", 1):
         rules = [{"name": r.get("name"), "countries": r.get("countries") or ([r["country"]] if r.get("country") else []),
-                  "categories": r.get("categories") or [], "currency": r.get("currency"), "slabs": r.get("slabs") or []}
+                  "categories": r.get("categories") or [], "currency": r.get("currency"), "slabs": r.get("slabs") or [],
+                  "progressive": bool(r.get("progressive"))}
                  async for r in db.emd_masters.find({"kind": ft["code"], "is_active": True}).sort("name", 1)]
         out.append({"code": ft["code"], "name": ft["name"], "description": ft.get("description"), "timing": ft.get("timing"),
                     "billing": ft.get("billing"), "calc": ft.get("calc"), "rules": rules})

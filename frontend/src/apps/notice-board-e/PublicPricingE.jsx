@@ -4,6 +4,8 @@ import { feeTypesApi } from "@/lib/api";
 const n = (v) => Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
 const WHEN = { upfront: "Paid before work starts", on_completion: "Paid on completion" };
 const BILL = { one_time: "per tender / event", yearly: "per year" };
+const COUNTRY = { IN: "India", GB: "United Kingdom", US: "United States", MY: "Malaysia" };
+const cname = (c) => COUNTRY[c] || c;
 
 const band = (s, cur) => {
   const lo = s.tender_value_min || 0;
@@ -17,7 +19,8 @@ const price = (s, cur) => (s.fee_type === "percentage"
 
 const Rule = ({ r }) => (
   <div className="py-3 border-t border-brand-navy/10" data-testid="pricing-rule">
-    <div className="text-xs text-brand-navy/60">{r.countries.length ? r.countries.join(", ") : "All countries"}{r.categories.length ? ` · ${r.categories.join(", ")}` : ""}</div>
+    <div className="text-xs text-brand-navy/60">{r.countries.length ? r.countries.map(cname).join(", ") : "All countries"}{r.categories.length ? ` · ${r.categories.join(", ")}` : ""}</div>
+    {r.progressive && <div className="text-[11px] text-brand-navy/60" data-testid="pricing-stepped">Stepped: each rate applies only to the part of the tender value inside its band.</div>}
     <table className="w-full text-sm mt-1"><tbody>{r.slabs.map((s, i) => (
       <tr key={i}><td className="py-1 pr-4 text-brand-navy/70">{band(s, r.currency)}</td><td className="py-1 font-semibold text-right">{price(s, r.currency)}</td></tr>))}</tbody></table>
   </div>);

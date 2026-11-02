@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import AdminEShell from "./AdminEShell";
-import { challengeApi, showApiError } from "@/lib/api";
+import { challengeApi, showApiError, BACKEND_URL } from "@/lib/api";
 import { STATUS } from "@/apps/vendor-portal-e/VendorChallengePanel";
 
 const inp = "px-3 py-2 border border-brand-navy/20 bg-white text-sm";
@@ -15,6 +15,7 @@ const Standstill = ({ t, onDone }) => {
   return (
     <div className="bg-white border border-brand-navy/15 p-4 space-y-2" data-testid={`standstill-${t.notice_ref}`}>
       <div className="flex justify-between flex-wrap gap-2"><b className="font-mono text-sm">{t.notice_ref}</b>
+        <a href={`${BACKEND_URL}/api/v1/bid-challenges/notice/${t.notice_ref}/register.pdf`} className="text-xs underline" data-testid={`register-pdf-${t.notice_ref}`}>Download challenge register (PDF)</a>
         <span className={`text-xs px-2 py-0.5 ${t.contract_block ? "bg-amber-100 text-amber-900" : "bg-emerald-100 text-emerald-900"}`} data-testid="standstill-signing">
           {t.contract_block ? "Contract signing blocked" : "Contract may be signed"}</span></div>
       <div className="text-sm">{t.days}-day standstill · awarded {fmt(t.started_at)} · ends {fmt(t.ends_at)}</div>
