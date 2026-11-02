@@ -1097,3 +1097,12 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - Tested iteration_163 (14/14 backend); fixed vendor-view email leak, committee-scoped list, meeting permission, staff outcome form, async emails.
 - Known: demo notices have no `created_by`, so issuer isn't auto-invited for them.
 
+
+## 2026-11-02 — Challenge register PDF + first prices + v59n bundles
+- `GET /api/v1/bid-challenges/notice/{ref}/register.pdf` (admin/reviewer/auditor/that tender's committee): standstill, corrigenda, every challenge, votes, meeting, resolution, appeal, ledger rows; download is audited. Link on /admin/e/challenges.
+- First prices seeded once at startup (`_fees._seed_first_prices`, flag `system_flags.first_prices_v1`): Tender fee flat IN INR 1000 / GB GBP 500 / US USD 500 / MY MYR 500; Tender management fee stepped 3% to 5M + 2% above (local currency). Both ticked for /pricing. Transaction fee not published (no figures given).
+- New "stepped" (progressive) fee rule option: `compute_amount`, `/emd-masters/compute`, Fee rules checkbox.
+- tender_management fee type changed to all categories. tender_fee has used_in_tender_builder=false (not auto-charged in vendor Tender Builder) — owner to confirm.
+- Secret scanner Resend regex now requires a digit (false positive on `re_evaluation_required`).
+- Bundles: downloads/pmc-backend-v59n.zip, downloads/pmc-frontend-v59n-prod-build.zip (scan passed). Tested iteration_164 (25/25).
+

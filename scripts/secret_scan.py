@@ -4,7 +4,7 @@ import sys
 import zipfile
 
 PATTERNS = {
-    "Resend key": r"\bre_[A-Za-z0-9]{8,}_[A-Za-z0-9_]{8,}",
+    "Resend key": r"\bre_(?=[A-Za-z0-9_]*\d)[A-Za-z0-9]{8,}_[A-Za-z0-9_]{8,}",
     "Stripe live/test key": r"\b(sk|rk)_(live|test)_[A-Za-z0-9]{16,}",
     "OpenAI/Emergent key": r"\bsk-(proj-|emergent-)?[A-Za-z0-9]{20,}",
     "AWS access key": r"\bAKIA[0-9A-Z]{16}\b",

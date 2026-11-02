@@ -1,0 +1,46 @@
+{
+  "summary": "Tested the Challenge Register PDF and the first published prices (backend and UI), plus a regression run of the iteration_163 bid-challenge suite. Result: 25 of 25 pytest pass (11 new v81 + 14 v80), but only after I fixed one CRITICAL regression. The latest checkpoint had removed `slabs: List[EmdSlabIn]` from EmdMasterIn in routers/tender_pro.py while adding `progressive`. Because of this, every create or edit of a fee rule in Masters failed with 422 'Add an amount.' I reproduced the error, restored the line and re-tested: admin edits of the management fee rule now keep progressive=true and both slabs. Register PDF: access rules are correct (anon/vendor 401/403, a committee_member not on this tender 403, the tender's committee 200, unknown notice 404). The PDF contains every required item, checked by text extraction, and each download writes a bid_challenge.register_downloaded ledger row with a hash. Admin /admin/e/challenges link register-pdf-DEMO-TND-AWD downloads the PDF (88 KB, DEMO-TND-AWD-challenge-register.pdf). Public pricing API and /pricing (desktop + mobile) show the correct prices with no transaction fee. compute_amount stepped mode is correct (4M=>120,000, 12M=>290,000) and non-stepped mode is unchanged. tender_builder_fees/upfront_quote use it. Seeding runs only once: an admin edit survived a backend restart. New bug: the admin fee calculator (POST /tender-pro/emd-masters/compute) ignores the Stepped setting and shows INR 240,000 for 12M instead of 290,000.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST/PATCH /api/v1/tender-pro/emd-masters", "issue": "FIXED BY TESTER. EmdMasterIn had lost its `slabs` field in the last checkpoint (it was replaced by `progressive`). Pydantic dropped slabs, so validate_rule_against_type raised 422 'Add an amount.' on every fee rule create or edit, and admins could not edit any price. I restored `slabs: List[EmdSlabIn] = Field(default_factory=list)`.", "priority": "CRITICAL"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/v1/tender-pro/emd-masters/compute", "issue": "Has its own band lookup and ignores rule.progressive: a 12,000,000 value on a stepped rule returns 240,000 instead of 290,000. Seen in the Fee rules calculator (emd-calc-result 'INR 240,000 · 5,000,000 – ∞ → 2%') and in EmdMasterPicker. It should call _fees.compute_amount."},
+      {"endpoint": "fee_types tender_fee", "issue": "The tender_fee fee type has used_in_tender_builder=false. tender_builder_fees, upfront_quote and credit_required therefore never charge the published INR 1000 / GBP 500 / USD 500 / MYR 500 fee. The pricing page says 'the price here is the price charged'. Please confirm where the tender fee is meant to be billed."},
+      {"endpoint": "GET /bid-challenges/notice/{ref}/register.pdf", "issue": "The PDF shows raw codes instead of labels for grounds ('evaluation', 'price'), vote decisions ('uphold'/'dismiss') and appeal decision ('dismiss'). The ledger section also lists ledger rows from challenges that were later deleted (expected for test data, but auditors may find it confusing)."},
+      {"endpoint": "_fees.compute_amount (progressive)", "issue": "The stepped branch ignores pct_min and pct_max on slabs. This is harmless for the current rules, which have no min/max."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Masters > Fee rules calculator", "issue": "Stepped rule calculated as flat (240,000 instead of 290,000 for 12M) because the backend /emd-masters/compute ignores progressive.", "affected_selectors": ["[data-testid='emd-calc-run']", "[data-testid='emd-calc-result']"]}
+    ],
+    "design_issues": [
+      {"screen": "/pricing mobile (390px)", "issues": ["Two headers: the mobile app shell bar and the page's own 'PMC Managers' header both show", "The floating 'Ask PMC' button sits on top of the price column (it covers 'INR 1,000')", "'Above INR 5,000,000 — 2% of tender value' can read as 2% of the whole value; consider 'on the part above 5,000,000'"]},
+      {"screen": "Admin Masters > Fee rules edit form", "issues": ["The floating 'Help' button partly covers the 'Save changes' button at the bottom right"]},
+      {"screen": "/admin/e/challenges", "issues": ["The 'Download challenge register (PDF)' link floats in the middle of the header row; it would read better aligned with the status badge or styled as a button"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v81_register_pdf_first_prices.py", "/app/backend/tests/test_v80_bid_challenges_pricing.py", "/app/test_reports/pytest/pytest_v81.xml", "/app/test_reports/pytest/register_pdf_text.txt"],
+  "action_items": [
+    "Keep the restored `slabs` field in EmdMasterIn (routers/tender_pro.py) and add a regression check for it",
+    "Make POST /tender-pro/emd-masters/compute use _fees.compute_amount so stepped rules calculate correctly in the admin calculator and EmdMasterPicker",
+    "Decide how the published Tender fee (tender_fee) is actually charged. used_in_tender_builder is false, so no builder or upfront gate bills it",
+    "Show human-readable labels in the register PDF for grounds, vote decisions and appeal decision",
+    "Mobile /pricing: remove the duplicate header and stop the Ask PMC button covering prices. Move the floating Help button off the Fee rules Save button"
+  ],
+  "critical_code_review_comments": [
+    "routers/tender_pro.py: removing `slabs` from EmdMasterIn broke fee rule create and edit (now fixed). Add a pytest that PATCHes a rule.",
+    "Two separate fee calculations exist: compute_emd in tender_pro.py and compute_amount in _fees.py. Keep one.",
+    "challenge_register_pdf queries the ledger by target_id=notice_ref only. This works because every bid_challenge.* event uses notice as the target. Keep that convention, or add challenge_ref to the query.",
+    "Run pytest with -n 0 for the v80/v81 suites. Their module fixtures change and restore DEMO-TND-AWD, and running them in parallel with xdist breaks them."
+  ],
+  "updated_files": ["/app/backend/routers/tender_pro.py", "/app/backend/tests/test_v81_register_pdf_first_prices.py"],
+  "success_rate": {"backend": "100% after fix (25/25); 1 critical regression found and fixed, 1 minor calc bug open", "frontend": "95%"},
+  "seed_data_creation": "None kept. Test challenges, corrigenda and notice flags on DEMO-TND-AWD were removed and the awarded bid restored. The price rule edited in the UI was saved with unchanged values (progressive true, 3%/2%). The GB tender fee was temporarily set to 777 and restored to 500. Ledger rows remain (append-only).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && pytest tests/test_v81_register_pdf_first_prices.py tests/test_v80_bid_challenges_pricing.py -n 0. The v81 seed test restarts the backend via supervisorctl. Use legal@pmcmanagers.com / Legal@123 (active_role committee_member) as a committee_member who is not on DEMO-TND-AWD. certifier@pmcmanagers.com / Certify@123 does not work in preview. The admin login UI is the unified page: use input[placeholder='name@company.com'], input[type=password] and the Continue button. Committee of DEMO-TND-AWD = committee1 (chair) and committee2.",
+  "rca of the issue": "Fee rule save 422: in checkpoint d5b0530 the line `slabs: List[EmdSlabIn] = Field(default_factory=list)` was replaced by `progressive: bool = False` in EmdMasterIn. payload.model_dump() then had no slabs, so validate_rule_against_type raised 'Add an amount.' Repro: PATCH /api/v1/tender-pro/emd-masters/{id} with a full body including slabs returned 422. Fix: re-add the field; the PATCH then returned 200 with progressive and slabs kept (verified by API and UI)."
+}

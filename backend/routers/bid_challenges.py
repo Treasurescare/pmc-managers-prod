@@ -369,13 +369,13 @@ def _kv(rows: list) -> str:
 
 
 def _challenge_html(c: dict) -> str:
-    votes = "".join(f"<tr><td>{_e(v.get('by'))}</td><td>{_e(v.get('decision'))}</td><td>{_e(v.get('comment'))}</td><td>{_t(v.get('at'))}</td></tr>"
+    votes = "".join(f"<tr><td>{_e(v.get('by'))}</td><td>{_e(DECISION.get(v.get('decision'), v.get('decision')))}</td><td>{_e(v.get('comment'))}</td><td>{_t(v.get('at'))}</td></tr>"
                     for v in (c.get("votes") or {}).values()) or "<tr><td colspan='4'>No votes recorded.</td></tr>"
     m = c.get("meeting") or {}
     r = c.get("resolution") or {}
     parts = [f"<h2>{_e(c['challenge_ref'])} · {_e(STATUS_LABEL.get(c['status'], c['status']))}</h2>",
              _kv([("Bidder", f"{_e(c.get('company_name'))} ({_e(c.get('vendor_email'))})"), ("Bid", _e(c.get("bid_ref"))),
-                  ("Grounds", _e(c.get("grounds"))), ("Lodged", _t(c.get("created_at")))]),
+                  ("Grounds", _e(GROUND_LABEL.get(c.get("grounds"), c.get("grounds")))), ("Lodged", _t(c.get("created_at")))]),
              f"<p class='q'>{_e(c.get('details'))}</p>",
              "<h3>Committee votes</h3><table class='li'><tr><th>Member</th><th>Decision</th><th>Reason</th><th>When</th></tr>" + votes + "</table>"]
     if c.get("upheld_at") or c.get("decided_at"):
@@ -389,11 +389,14 @@ def _challenge_html(c: dict) -> str:
                      ("Recorded by", _e(r.get("by"))), ("When", _t(r.get("at"))), ("Minutes", _e(r.get("minutes")))]))
     if c.get("appealed_at"):
         parts.append("<h3>Appeal to senior officer</h3>" + _kv([("Lodged", _t(c.get("appealed_at"))), ("Reason", _e(c.get("appeal_reason"))),
-                     ("Decision", _e(c.get("appeal_decision") or "Pending")), ("Decided by", _e(c.get("appeal_decided_by"))),
+                     ("Decision", _e(DECISION.get(c.get("appeal_decision"), "Pending"))), ("Decided by", _e(c.get("appeal_decided_by"))),
                      ("When", _t(c.get("appeal_decided_at"))), ("Decision reason", _e(c.get("appeal_decision_reason")))]))
     return "<div class='ch'>" + "".join(parts) + "</div>"
 
 
+DECISION = {"uphold": "Uphold", "dismiss": "Dismiss"}
+GROUND_LABEL = {"criteria": "Unfair or unclear criteria", "evaluation": "Evaluation of the bid", "proof_review": "Proof review decision",
+                "price": "Price comparison / ranking", "process": "Tender process or timing", "other": "Other"}
 STATUS_LABEL = {"lodged": "Lodged", "under_review": "Under committee review", "upheld": "Upheld — award suspended",
                 "meeting_scheduled": "Resolution meeting scheduled", "resolved": "Resolved", "dismissed": "Dismissed",
                 "appealed": "Appeal pending", "closed": "Closed — final"}

@@ -103,8 +103,8 @@ export default function EmdMasterPicker({ country, category, tenderValue, emdCon
           <strong>{computed.amount.toLocaleString()} {computed.currency}</strong> ·
           {computed.type === "percentage"
             ? ` ${computed.percentage}% of ${(tenderValue || 0).toLocaleString()}`
-            : " fixed slab"}
-          {" "}(slab {computed.slab?.tender_value_min?.toLocaleString()} — {(computed.slab?.tender_value_max ?? "∞")})
+            : computed.type === "stepped" ? " stepped across value bands" : " fixed slab"}
+          {computed.slab && <>{" "}(slab {computed.slab.tender_value_min?.toLocaleString()} — {(computed.slab.tender_value_max ?? "∞")})</>}
         </div>
       )}
     </div>

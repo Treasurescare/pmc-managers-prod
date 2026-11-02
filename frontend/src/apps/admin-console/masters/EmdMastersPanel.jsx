@@ -362,6 +362,7 @@ export default function EmdMastersPanel() {
           {calcOut && (
             <div className="w-full mt-2 text-sm" data-testid="emd-calc-result">
               Fee: <b className="font-mono">{calcOut.currency} {Number(calcOut.amount).toLocaleString()}</b>
+              {calcOut.type === "stepped" && <span className="text-brand-navy/60"> · stepped across value bands</span>}
               {calcOut.slab && <span className="text-brand-navy/60"> · {slabLabel(calcOut.slab, calcOut.currency)}</span>}
             </div>
           )}

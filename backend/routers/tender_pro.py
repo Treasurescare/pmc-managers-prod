@@ -896,6 +896,7 @@ class EmdMasterIn(BaseModel):
     kind: str = "emd"  # fee_types.code
     categories: List[str] = Field(default_factory=list)
     currency: str = "USD"
+    slabs: List[EmdSlabIn] = Field(default_factory=list)
     is_active: bool = True
     progressive: bool = False
     notes: Optional[str] = None
@@ -995,6 +996,9 @@ async def compute_emd(payload: EmdComputeIn,
     if not m:
         raise HTTPException(status_code=404, detail="EMD master not found")
     v = payload.tender_value
+    if m.get("progressive"):
+        from routers._fees import compute_amount
+        return {"amount": compute_amount(m, v), "type": "stepped", "slab": None, "currency": m.get("currency", "USD")}
     for slab in (m.get("slabs") or []):
         lo = slab.get("tender_value_min") or 0
         hi = slab.get("tender_value_max")
