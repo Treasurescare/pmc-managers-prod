@@ -1082,3 +1082,9 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - Email template logo now points to pmcmanagers.com; runbook/download notes and billing "sandbox" label de-branded.
 - Verified: current manuals, frontend source/public, v59m prod build and live pmcmanagers.com JS contain no "emergent" text.
 
+
+## 2026-11-02 — Reply to Chairman's reviewer (12 points + A/B/C)
+- Built `scripts/build_reviewer_reply.py` → `downloads/PMC_Response_to_Commercial_Review.docx` (customer-facing, 27 live screenshots, ENFORCED/VERIFIABLE/BUYER/IN PROGRESS/TO CONFIRM labels, end-to-end flow, responsibility matrix) and `downloads/PMC_Internal_Note_on_Review_Response.docx` (placeholders + honest gaps).
+- Screens captured via `scripts/capture_manual.py` with `SCREENS_FILE=scripts/reply_screens.json OUT_DIR=/tmp/reply` (added `loser` = kestrel demo account).
+- Open gaps flagged: no pen test/cert, MFA not compulsory by default, no formal bid-challenge module, no ERP connectors, World-Check not live, pricing tier figures unknown.
+

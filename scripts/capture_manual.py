@@ -6,7 +6,7 @@ import os
 from playwright.async_api import async_playwright
 
 BASE = [l.split("=", 1)[1].strip() for l in open("/app/frontend/.env") if l.startswith("REACT_APP_BACKEND_URL=")][0].rstrip("/")
-OUT = "/app/frontend/public/downloads/manual/screens"
+OUT = os.environ.get("OUT_DIR", "/app/frontend/public/downloads/manual/screens")
 CHROME = "/pw-browsers/chromium_headless_shell-1248/chrome-headless-shell-linux-arm64/chrome-headless-shell"
 DEMO_PW = "Demo@Pmc2026"
 ACCOUNTS = {
@@ -15,6 +15,7 @@ ACCOUNTS = {
     "supplier": ("supplier", "northfield@demo.pmcmanagers.com", DEMO_PW),
     "partner": ("partner", "partner@demo.pmcmanagers.com", DEMO_PW),
     "staff": ("staff", "committee1@demo.pmcmanagers.com", DEMO_PW),
+    "loser": ("supplier", "kestrel@demo.pmcmanagers.com", DEMO_PW),
 }
 SCREENS = json.load(open(os.environ.get("SCREENS_FILE", "/app/scripts/manual_screens.json")))
 
