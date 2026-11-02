@@ -287,6 +287,8 @@ async def create_contract(payload: ContractIn, admin=Depends(require_role("admin
     bid = await db.bids.find_one({"_id": ObjectId(payload.bid_id)})
     if not bid or bid.get("status") != "awarded":
         raise HTTPException(status_code=400, detail="Contract can only be created for an awarded bid")
+    from routers.bid_challenges import assert_contract_allowed
+    await assert_contract_allowed(payload.bid_id)
 
     doc = payload.model_dump()
     doc.update({

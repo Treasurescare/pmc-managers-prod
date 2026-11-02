@@ -28,6 +28,7 @@ class FeeTypeIn(BaseModel):
     countries: list[str] = Field(default_factory=list)
     categories: list[str] = Field(default_factory=list)
     is_active: bool = True
+    show_on_pricing: bool = False
     description: Optional[str] = Field(default=None, max_length=400)
 
 
@@ -38,6 +39,18 @@ def _out(d):
 @router.get("")
 async def list_fee_types(admin=Depends(require_role("admin", "reviewer"))):
     return [_out(d) async for d in db.fee_types.find({}).sort("name", 1)]
+
+
+@router.get("/public/pricing")
+async def public_pricing():
+    out = []
+    async for ft in db.fee_types.find({"show_on_pricing": True, "is_active": True}).sort("name", 1):
+        rules = [{"name": r.get("name"), "countries": r.get("countries") or ([r["country"]] if r.get("country") else []),
+                  "categories": r.get("categories") or [], "currency": r.get("currency"), "slabs": r.get("slabs") or []}
+                 async for r in db.emd_masters.find({"kind": ft["code"], "is_active": True}).sort("name", 1)]
+        out.append({"code": ft["code"], "name": ft["name"], "description": ft.get("description"), "timing": ft.get("timing"),
+                    "billing": ft.get("billing"), "calc": ft.get("calc"), "rules": rules})
+    return {"fees": out}
 
 
 @router.post("")

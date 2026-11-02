@@ -307,6 +307,8 @@ from routers import vendor_tenders as _vendor_tenders  # noqa: E402
 app.include_router(_vendor_tenders.router)
 from routers import fee_types as _fee_types  # noqa: E402
 app.include_router(_fee_types.router)
+from routers import bid_challenges as _bid_challenges  # noqa: E402
+app.include_router(_bid_challenges.router)
 from routers import payments_extra as _payments_extra  # noqa: E402
 app.include_router(_payments_extra.router)
 from routers import marketing as _marketing  # noqa: E402

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { bidApi, formatApiError } from "@/lib/api";
 import VendorPortalChrome from "./VendorPortalChrome";
+import { VendorChallengePanel } from "./VendorChallengePanel";
 
 const RES = { pass: ["Met", "text-emerald-800 bg-emerald-50"], fail: ["Not met", "text-red-800 bg-red-50"] };
 const money = (c, v) => (v === null || v === undefined ? "—" : `${c || ""} ${Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 })}`);
@@ -51,7 +52,8 @@ export default function VendorBidDebriefE() {
           <RankBox d={d} />
           {d.criteria.length > 0 && <CriteriaTable rows={d.criteria} />}
           {d.emd_refund_due_at && <div className="text-sm" data-testid="debrief-emd">Your EMD will be refunded by <b>{d.emd_refund_due_at.slice(0, 10)}</b>.</div>}
-          <p className="text-xs text-brand-navy/60">Questions about this decision? Use Messages within 5 days of the result to raise a clarification or complaint.</p>
+          <VendorChallengePanel bidId={bidId} />
+          <p className="text-xs text-brand-navy/60">For a simple question about this decision, use Messages.</p>
         </>}
       </div>
     </VendorPortalChrome>);

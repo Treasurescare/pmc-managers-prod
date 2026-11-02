@@ -702,6 +702,8 @@ async def create_award_envelope(
 ):
     if kind not in ("po", "sla", "contract"):
         raise HTTPException(400, "kind must be po|sla|contract")
+    from routers.bid_challenges import assert_contract_allowed
+    await assert_contract_allowed(bid_id)
     pdf, fname, award_ref = await _load_award_pdf(bid_id, kind)
     client = _client()
     delivery = (req.delivery or "embedded").lower()
@@ -1103,6 +1105,8 @@ async def vendor_request_award_envelope(
     Server-side guard: the bid must be awarded AND owned by the calling vendor."""
     if kind not in ("po", "sla", "contract"):
         raise HTTPException(400, "kind must be po|sla|contract")
+    from routers.bid_challenges import assert_contract_allowed
+    await assert_contract_allowed(bid_id)
     ve = vendor.get("email")
     bid = await _load_bid(bid_id)
     if bid.get("vendor_email") != ve:

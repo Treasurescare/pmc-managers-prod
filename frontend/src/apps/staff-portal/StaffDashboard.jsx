@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { staffApi, bidApi, inspectionApi, uploadsApi, escrowApi, showApiError } from "@/lib/api";
 import { OpenCommitteesOpening } from "@/apps/admin-console-e/OpenCommitteesOpening";
+import { ChallengesBody } from "@/apps/admin-console-e/AdminChallengesE";
 import PortalShellE from "@/apps/shared/PortalShellE";
 import PortalAvatarMenu from "@/apps/shared/PortalAvatarMenu";
 
@@ -192,7 +193,7 @@ export default function StaffDashboard() {
     { key: "escrow", label: "Escrow signatures", badge: pendingCount || null },
     { key: "queue", label: queueLabel.split(" — ")[0] || "Work queue", badge: bids.length || null },
     { key: "completed", label: "Completed", badge: processed.count || null },
-    ...(me?.active_role === "committee_member" ? [{ key: "opening", label: "Bid opening" }] : []),
+    ...(me?.active_role === "committee_member" ? [{ key: "opening", label: "Bid opening" }, { key: "challenges", label: "Bid challenges" }] : []),
   ];
   if (me.active_role === "certifier") navItems.push({ key: "inspections", label: "Site inspections", badge: inspections.length || null });
 
@@ -244,6 +245,13 @@ export default function StaffDashboard() {
             <section data-testid="staff-bid-opening">
               <Heading>Bid opening — your approval</Heading>
               <OpenCommitteesOpening />
+            </section>
+          )}
+
+          {tab === "challenges" && me.active_role === "committee_member" && (
+            <section data-testid="staff-bid-challenges">
+              <Heading>Bid challenges — your vote</Heading>
+              <ChallengesBody staff />
             </section>
           )}
 

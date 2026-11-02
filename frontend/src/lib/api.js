@@ -1318,6 +1318,19 @@ export const feeTypesApi = {
   create: (p) => api.post("/api/v1/fee-types", p).then((r) => r.data),
   update: (id, p) => api.patch(`/api/v1/fee-types/${id}`, p).then((r) => r.data),
   remove: (id) => api.delete(`/api/v1/fee-types/${id}`).then((r) => r.data),
+  publicPricing: () => api.get("/api/v1/fee-types/public/pricing").then((r) => r.data),
+};
+
+export const challengeApi = {
+  mine: (bidId) => api.get(`/api/v1/bid-challenges/mine/${bidId}`).then((r) => r.data),
+  lodge: (bidId, p) => api.post(`/api/v1/bid-challenges/mine/${bidId}`, p).then((r) => r.data),
+  appeal: (cid, reason) => api.post(`/api/v1/bid-challenges/mine/challenge/${cid}/appeal`, { reason }).then((r) => r.data),
+  list: () => api.get("/api/v1/bid-challenges").then((r) => r.data),
+  vote: (cid, p) => api.post(`/api/v1/bid-challenges/${cid}/vote`, p).then((r) => r.data),
+  meeting: (cid, p) => api.post(`/api/v1/bid-challenges/${cid}/meeting`, p).then((r) => r.data),
+  resolve: (cid, p) => api.post(`/api/v1/bid-challenges/${cid}/resolution`, p).then((r) => r.data),
+  appealDecision: (cid, p) => api.post(`/api/v1/bid-challenges/${cid}/appeal-decision`, p).then((r) => r.data),
+  standstill: (ref, p) => api.put(`/api/v1/bid-challenges/notice/${ref}/standstill`, p).then((r) => r.data),
 };
 
 export const tenderProApi = {

@@ -4,7 +4,7 @@ import { feeTypesApi, publicApi, mastersApi, showApiError } from "@/lib/api";
 import { CategoryPicker } from "./CategoryPicker";
 
 const EMPTY = { name: "", code: "", timing: "upfront", calc: "fixed", amount_mode: "single",
-  category_scope: "all", billing: "one_time", used_in_tender_builder: false, is_active: true, description: "",
+  category_scope: "all", billing: "one_time", used_in_tender_builder: false, is_active: true, show_on_pricing: false, description: "",
   country_scope: "all", countries: [], categories: [] };
 
 const OPTS = {
@@ -100,6 +100,8 @@ export default function FeeTypesPanel() {
               onChange={(e) => setForm({ ...form, used_in_tender_builder: e.target.checked })} /> Charge this in the vendor Tender Builder</label>
             <label className="flex items-center gap-2"><input type="checkbox" checked={form.is_active} data-testid="ft-active"
               onChange={(e) => setForm({ ...form, is_active: e.target.checked })} /> Active</label>
+            <label className="flex items-center gap-2"><input type="checkbox" checked={!!form.show_on_pricing} data-testid="ft-show-on-pricing"
+              onChange={(e) => setForm({ ...form, show_on_pricing: e.target.checked })} /> Show on the public pricing page</label>
           </div>
           <div className="mt-4 flex justify-end gap-2">
             <button onClick={() => setEditing(null)} data-testid="ft-cancel" className="px-4 py-2 text-[10px] uppercase tracking-widest border border-brand-navy/30">Cancel</button>
@@ -113,6 +115,7 @@ export default function FeeTypesPanel() {
             <div>
               <div className="text-sm font-semibold text-brand-navy">{r.name} <span className="font-mono font-normal text-brand-navy/40 text-xs">{r.code}</span>
                 {r.used_in_tender_builder && <span className="ml-2 text-[10px] uppercase tracking-widest bg-emerald-100 text-emerald-800 px-1.5 py-0.5">Tender Builder</span>}
+                {r.show_on_pricing && <span className="ml-2 text-[10px] uppercase tracking-widest bg-amber-100 text-amber-900 px-1.5 py-0.5" data-testid={`ft-public-${r.code}`}>On pricing page</span>}
                 {!r.is_active && <span className="ml-2 text-red-700 text-xs font-semibold">INACTIVE</span>}</div>
               <div className="text-xs text-brand-navy/60 mt-1">
                 {label("timing", r.timing)} · {label("calc", r.calc)} · {label("amount_mode", r.amount_mode)} · {r.category_scope === "selected" && r.categories?.length ? `Categories: ${r.categories.join(", ")}` : label("category_scope", r.category_scope)} · {label("billing", r.billing)} · {r.country_scope === "selected" ? `Countries: ${(r.countries || []).join(", ") || "none"}` : "All countries"}

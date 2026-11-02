@@ -21,6 +21,7 @@ export default function AdminSideNavE({ active }) {
     ["Tender builder", "/admin/e/tender-builder", "i-spark"],
     ["Criteria master", "/admin/e/criteria-master", "i-check"],
     ["Corrigenda", "/admin/e/corrigenda", "i-flag"],
+    ["Bid challenges", "/admin/e/challenges", "i-flag"],
     ["BOQ & contracts", "/admin/e/boq", "i-layers"],
     ["Work packages", "/admin/e/work-packages", "i-box"],
     ["Catalog", "/admin/e/catalog", "i-layers"],

@@ -110,6 +110,8 @@ import VendorReferral from "@/apps/vendor-portal-e/VendorReferral";
 import AdminMarketingE from "@/apps/admin-console-e/AdminMarketingE";
 import AdminAgentsE from "@/apps/admin-console-e/AdminAgentsE";
 import AdminCriteriaMasterE from "@/apps/admin-console-e/AdminCriteriaMasterE";
+import AdminChallengesE from "@/apps/admin-console-e/AdminChallengesE";
+import PublicPricingE from "@/apps/notice-board-e/PublicPricingE";
 import AgentPortal from "@/apps/agent-portal/AgentPortal";
 import { AgentJoin, AgentLogin, PartnerRegister } from "@/apps/agent-portal/AgentAuth";
 import SupplierInvite from "@/apps/agent-portal/SupplierInvite";
@@ -225,6 +227,7 @@ export default function App() {
             <Route path="/tenders/completed" element={<AwardsPublicE legacy={TendersList} />} />
             <Route path="/tenders/:mode" element={<TendersList />} />
             <Route path="/trust" element={<TrustSecurityE />} />
+            <Route path="/pricing" element={<PublicPricingE />} />
             <Route path="/help" element={<HelpCentreE />} />
             <Route path="/help/:slug" element={<HelpArticleE />} />
             {/* v49b — new public Option-E pages */}
@@ -299,6 +302,7 @@ export default function App() {
             <Route path="/admin/e/agents" element={<AdminAgentsE />} />
             <Route path="/admin/e/partners" element={<AdminAgentsE />} />
             <Route path="/admin/e/criteria-master" element={<AdminCriteriaMasterE />} />
+            <Route path="/admin/e/challenges" element={<AdminChallengesE />} />
             <Route path="/admin/e/evaluations" element={<AdminEvaluationListE />} />
             <Route path="/admin/e/evaluation" element={<AdminEvaluationE />} />
             <Route path="/admin/e/l1-award" element={<AdminL1AwardE />} />
