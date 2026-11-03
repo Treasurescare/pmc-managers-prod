@@ -1,0 +1,317 @@
+{
+ "admin-criteria-master": {
+  "file": "/help-videos/admin-criteria-master.mp4",
+  "title": "Criteria Master",
+  "hash": "fa5c7f6fd39562d9",
+  "seconds": 49,
+  "updated": "2026-11-03"
+ },
+ "admin-dashboard": {
+  "file": "/help-videos/admin-dashboard.mp4",
+  "title": "Dashboard \u2014 Analytics",
+  "hash": "4b95d727862e3629",
+  "seconds": 61,
+  "updated": "2026-11-03"
+ },
+ "admin-notices": {
+  "file": "/help-videos/admin-notices.mp4",
+  "title": "Notices",
+  "hash": "e31a4630e9b12bec",
+  "seconds": 69,
+  "updated": "2026-11-03"
+ },
+ "admin-registrations": {
+  "file": "/help-videos/admin-registrations.mp4",
+  "title": "Registrations",
+  "hash": "f88a906a632687e8",
+  "seconds": 71,
+  "updated": "2026-11-03"
+ },
+ "admin-vendors": {
+  "file": "/help-videos/admin-vendors.mp4",
+  "title": "Vendors",
+  "hash": "bea32b95ae6535dd",
+  "seconds": 44,
+  "updated": "2026-11-03"
+ },
+ "admin-bidding": {
+  "file": "/help-videos/admin-bidding.mp4",
+  "title": "Bidding Ops",
+  "hash": "2a893b56fa93fcc8",
+  "seconds": 43,
+  "updated": "2026-11-03"
+ },
+ "admin-evaluation": {
+  "file": "/help-videos/admin-evaluation.mp4",
+  "title": "Evaluation",
+  "hash": "81ad82a1c4fb7997",
+  "seconds": 48,
+  "updated": "2026-11-03"
+ },
+ "admin-corrigenda": {
+  "file": "/help-videos/admin-corrigenda.mp4",
+  "title": "Corrigenda",
+  "hash": "08b4827bcb59a1f9",
+  "seconds": 40,
+  "updated": "2026-11-03"
+ },
+ "admin-docusign": {
+  "file": "/help-videos/admin-docusign.mp4",
+  "title": "DocuSign",
+  "hash": "b46796a928df01fc",
+  "seconds": 37,
+  "updated": "2026-11-03"
+ },
+ "admin-tender-builder": {
+  "file": "/help-videos/admin-tender-builder.mp4",
+  "title": "Tender Builder",
+  "hash": "8c20cdd4d2c695d5",
+  "seconds": 41,
+  "updated": "2026-11-03"
+ },
+ "admin-l1": {
+  "file": "/help-videos/admin-l1.mp4",
+  "title": "L1 Comparison",
+  "hash": "660890041620bc98",
+  "seconds": 38,
+  "updated": "2026-11-03"
+ },
+ "admin-meetings": {
+  "file": "/help-videos/admin-meetings.mp4",
+  "title": "Meetings",
+  "hash": "63e32b15873ac34e",
+  "seconds": 39,
+  "updated": "2026-11-03"
+ },
+ "admin-auctions": {
+  "file": "/help-videos/admin-auctions.mp4",
+  "title": "Reverse Auctions",
+  "hash": "c6191ff80cb6dbe3",
+  "seconds": 43,
+  "updated": "2026-11-03"
+ },
+ "admin-masters": {
+  "file": "/help-videos/admin-masters.mp4",
+  "title": "Masters",
+  "hash": "61b702db4aafbc20",
+  "seconds": 33,
+  "updated": "2026-11-03"
+ },
+ "admin-permissions": {
+  "file": "/help-videos/admin-permissions.mp4",
+  "title": "Permissions",
+  "hash": "4254dddfb71b06f1",
+  "seconds": 34,
+  "updated": "2026-11-03"
+ },
+ "admin-packages": {
+  "file": "/help-videos/admin-packages.mp4",
+  "title": "Packages",
+  "hash": "64ab637a1fc5db61",
+  "seconds": 38,
+  "updated": "2026-11-03"
+ },
+ "admin-vintel": {
+  "file": "/help-videos/admin-vintel.mp4",
+  "title": "Vendor Intel",
+  "hash": "1c77a22de2b0df30",
+  "seconds": 39,
+  "updated": "2026-11-03"
+ },
+ "admin-catalog": {
+  "file": "/help-videos/admin-catalog.mp4",
+  "title": "Product Catalog",
+  "hash": "b4bc3602acca8c52",
+  "seconds": 40,
+  "updated": "2026-11-03"
+ },
+ "admin-audit": {
+  "file": "/help-videos/admin-audit.mp4",
+  "title": "Audit",
+  "hash": "44b507b6c229d893",
+  "seconds": 37,
+  "updated": "2026-11-03"
+ },
+ "admin-engagements": {
+  "file": "/help-videos/admin-engagements.mp4",
+  "title": "Engagements",
+  "hash": "55368190e189200f",
+  "seconds": 43,
+  "updated": "2026-11-03"
+ },
+ "vendor-portal": {
+  "file": "/help-videos/vendor-portal.mp4",
+  "title": "Vendor Portal",
+  "hash": "15522637cd3e8738",
+  "seconds": 50,
+  "updated": "2026-11-03"
+ },
+ "staff-portal": {
+  "file": "/help-videos/staff-portal.mp4",
+  "title": "Staff Portal",
+  "hash": "b50f2f268aa441e8",
+  "seconds": 37,
+  "updated": "2026-11-03"
+ },
+ "registration-portal": {
+  "file": "/help-videos/registration-portal.mp4",
+  "title": "Registration Portal",
+  "hash": "01ef2896718e6313",
+  "seconds": 47,
+  "updated": "2026-11-03"
+ },
+ "committee-magic": {
+  "file": "/help-videos/committee-magic.mp4",
+  "title": "Committee Accept Portal",
+  "hash": "1114f9fbb142dd50",
+  "seconds": 41,
+  "updated": "2026-11-03"
+ },
+ "escrow-magic": {
+  "file": "/help-videos/escrow-magic.mp4",
+  "title": "Escrow Officer Portal",
+  "hash": "e394414023561ecd",
+  "seconds": 37,
+  "updated": "2026-11-03"
+ },
+ "admin-partners": {
+  "file": "/help-videos/admin-partners.mp4",
+  "title": "Partners & Agents",
+  "hash": "6e77add63fa07f5a",
+  "seconds": 64,
+  "updated": "2026-11-03"
+ },
+ "admin-billing": {
+  "file": "/help-videos/admin-billing.mp4",
+  "title": "Billing & Payments",
+  "hash": "2ecc18013680f9d2",
+  "seconds": 57,
+  "updated": "2026-11-03"
+ },
+ "admin-challenges": {
+  "file": "/help-videos/admin-challenges.mp4",
+  "title": "Bid Challenges",
+  "hash": "26de92917291ad61",
+  "seconds": 71,
+  "updated": "2026-11-03"
+ },
+ "admin-marketing": {
+  "file": "/help-videos/admin-marketing.mp4",
+  "title": "Marketing",
+  "hash": "d812e357fbc7318e",
+  "seconds": 54,
+  "updated": "2026-11-03"
+ },
+ "admin-escrow-institutions": {
+  "file": "/help-videos/admin-escrow-institutions.mp4",
+  "title": "Escrow Institutions",
+  "hash": "3f314c8cd50f2797",
+  "seconds": 56,
+  "updated": "2026-11-03"
+ },
+ "admin-governance": {
+  "file": "/help-videos/admin-governance.mp4",
+  "title": "Governance & Integrity",
+  "hash": "e19af0fd5c67a925",
+  "seconds": 54,
+  "updated": "2026-11-03"
+ },
+ "admin-programme": {
+  "file": "/help-videos/admin-programme.mp4",
+  "title": "Programme Overview",
+  "hash": "b7aa8c4ec1e7de44",
+  "seconds": 38,
+  "updated": "2026-11-03"
+ },
+ "admin-profile-changes": {
+  "file": "/help-videos/admin-profile-changes.mp4",
+  "title": "Vendor Profile Changes",
+  "hash": "e454027dd5af4188",
+  "seconds": 43,
+  "updated": "2026-11-03"
+ },
+ "admin-vendor-requests": {
+  "file": "/help-videos/admin-vendor-requests.mp4",
+  "title": "Vendor Category Requests",
+  "hash": "93bb7a6b811e8dab",
+  "seconds": 41,
+  "updated": "2026-11-03"
+ },
+ "admin-stakeholder-reports": {
+  "file": "/help-videos/admin-stakeholder-reports.mp4",
+  "title": "Stakeholder Reports",
+  "hash": "900beb9e4b7b3eaa",
+  "seconds": 39,
+  "updated": "2026-11-03"
+ },
+ "admin-tender-review": {
+  "file": "/help-videos/admin-tender-review.mp4",
+  "title": "Vendor Tender Review",
+  "hash": "a4a375c8c767919a",
+  "seconds": 43,
+  "updated": "2026-11-03"
+ },
+ "admin-vendor-kyc": {
+  "file": "/help-videos/admin-vendor-kyc.mp4",
+  "title": "Vendor KYC Review",
+  "hash": "d0f372cd63090ba8",
+  "seconds": 44,
+  "updated": "2026-11-03"
+ },
+ "admin-work-packages": {
+  "file": "/help-videos/admin-work-packages.mp4",
+  "title": "Work Packages",
+  "hash": "867674fcff3e6ff4",
+  "seconds": 38,
+  "updated": "2026-11-03"
+ },
+ "admin-suggested-banks": {
+  "file": "/help-videos/admin-suggested-banks.mp4",
+  "title": "Suggested Banks",
+  "hash": "3455ffb464b1401f",
+  "seconds": 34,
+  "updated": "2026-11-03"
+ },
+ "admin-boq": {
+  "file": "/help-videos/admin-boq.mp4",
+  "title": "BOQ & Contracts",
+  "hash": "04af9d4921873c50",
+  "seconds": 45,
+  "updated": "2026-11-03"
+ },
+ "admin-awards": {
+  "file": "/help-videos/admin-awards.mp4",
+  "title": "Awards & POs",
+  "hash": "2d1a70ea7122a1f9",
+  "seconds": 45,
+  "updated": "2026-11-03"
+ },
+ "admin-taxonomy-backfill": {
+  "file": "/help-videos/admin-taxonomy-backfill.mp4",
+  "title": "Taxonomy Backfill",
+  "hash": "690f0b510bbdfbb4",
+  "seconds": 46,
+  "updated": "2026-11-03"
+ },
+ "admin-events": {
+  "file": "/help-videos/admin-events.mp4",
+  "title": "Events & Alerts",
+  "hash": "edfc1689dc2e46b9",
+  "seconds": 39,
+  "updated": "2026-11-03"
+ },
+ "public-board": {
+  "file": "/help-videos/public-board.mp4",
+  "title": "Public Notice Board",
+  "hash": "3d810873617745dd",
+  "seconds": 42,
+  "updated": "2026-11-03"
+ },
+ "admin-escrow": {
+  "file": "/help-videos/admin-escrow.mp4",
+  "title": "Escrow (EMD)",
+  "hash": "6e9218e8f4f17e7c",
+  "seconds": 45,
+  "updated": "2026-11-03"
+ }
+}

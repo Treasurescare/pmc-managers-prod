@@ -1000,6 +1000,10 @@ MODULES = {
     },
 }
 
+from pmc_lib.help_content_extra import EXTRA_MODULES  # noqa: E402
+
+MODULES.update(EXTRA_MODULES)
+
 
 def list_modules() -> list:
     return list(MODULES.keys())

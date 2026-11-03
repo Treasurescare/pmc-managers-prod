@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useUiTheme } from "@/context/UiThemeContext";
+import HelpVideo from "@/apps/help-centre/HelpVideo";
 
 // v51l — was a static mockup that ignored the :slug. Now renders the real
 // guide from /api/v1/meta/help, so deep links like /help/admin-docusign work.
@@ -59,6 +60,7 @@ export default function HelpArticleE({ legacy: Legacy }) {
             <div className="pmc-crumb"><Link to="/help">Help Centre</Link> / {mod.title}</div>
             <h1 className="pmc-display" style={{ fontSize: 42, lineHeight: "48px", margin: "12px 0 10px" }}>{mod.title}</h1>
             {mod.purpose && <p className="lead">{mod.purpose}</p>}
+            <HelpVideo slug={slug} />
             {(mod.prerequisites || []).length > 0 && (
               <div className="pmc-callout pmc-callout--info">
                 <svg className="pmc-ico" aria-hidden="true"><use href="#i-help" /></svg>

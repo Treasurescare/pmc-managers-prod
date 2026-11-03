@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
+import HelpVideo from "@/apps/help-centre/HelpVideo";
 
 /**
  * HelpPanel — in-app comprehensive manual for the admin console.
@@ -111,6 +112,7 @@ export default function HelpPanel() {
             <h2 className="font-display text-2xl text-brand-navy mt-1">{selected.title}</h2>
             <div className="text-xs font-mono text-brand-navy-soft mt-1">{selected.url_path}</div>
             <p className="text-sm text-brand-navy/80 leading-relaxed mt-4">{selected.purpose}</p>
+            <HelpVideo slug={active} />
 
             {selected.prerequisites?.length > 0 && (
               <div className="mt-5">

@@ -1187,3 +1187,13 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 
 
 
+## 2026-11-03 — Help videos for every help page + new admin help pages (v59x)
+- 17 new admin help modules (pmc_lib/help_content_extra.py, merged into MODULES) → 45 modules total, every admin-bar section covered.
+- scripts/help_videos/make_videos.py: Playwright records each page on preview demo data with caption bar + gold highlight of the step's button, OpenAI TTS (tts-1-hd, nova, EMERGENT_LLM_KEY) voice-over, ffmpeg → frontend/public/help-videos/<slug>.mp4 (+ manifest.json with hash cache). 45 videos, ~35 MB.
+- HelpVideo.jsx shown on /help/<slug> (HelpArticleE) and in the admin HelpPanel.
+- scripts/help_videos/manual_appendix.py appends "Module guide & video index" to PMC_v4_Master_Training_Manual.pdf (base kept in scripts/help_videos/manual_base.pdf) → 122 pages.
+- Standing rule: /app/memory/RELEASE_CHECKLIST.md — on every feature addition update help module, regenerate videos, rebuild manual appendix.
+- Avatar presenter videos NOT built: needs a third-party avatar service account (e.g. HeyGen/Synthesia).
+- Note: admin Programme page shows sample figures (Kazakhstan, USD 12.4M) — not yet live data.
+
+
