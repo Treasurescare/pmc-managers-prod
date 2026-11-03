@@ -12,6 +12,7 @@ import PartnerHighlights from "@/apps/notice-board-e/PartnerHighlights";
 import FeaturedProgramme, { useFeaturedProgramme } from "@/apps/notice-board-e/FeaturedProgramme";
 import { useSeo } from "@/lib/useSeo";
 import GlobalPresence from "@/apps/notice-board-e/GlobalPresence";
+import LaunchBanner from "@/apps/notice-board-e/LaunchBanner";
 
 const ORG_LD = { "@context": "https://schema.org", "@graph": [
   { "@type": "Organization", name: "PMC Managers Limited", url: "https://www.pmcmanagers.com", logo: "https://www.pmcmanagers.com/pmc-logo.png", email: "tenders@pmcmanagers.com" },
@@ -57,6 +58,7 @@ export default function HomeE({ legacy: Legacy }) {
   </div>
 </header>
 
+<LaunchBanner />
 <section className="pmc-chrome pmc-hero">
   <svg className="pmc-seal" viewBox="0 0 400 400" aria-hidden="true"><defs><path id="ring" d="M200,200 m-160,0 a160,160 0 1,1 320,0 a160,160 0 1,1 -320,0" /></defs>
     <circle cx="200" cy="200" r="188" className="s1" /><circle cx="200" cy="200" r="132" className="s1" />
