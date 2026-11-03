@@ -1180,4 +1180,10 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - Build note: prerender needs python playwright chromium-1134 in /pw-browsers (`python3 -m playwright install chromium` if missing).
 
 
+## 2026-11-03 — Launch banner + prod 502 diagnosis (v59w)
+- LaunchBanner.jsx above home hero: "Now open for registrations", Register as supplier (/register), Issue your first tender (/contact), dismiss stored in localStorage.
+- Prod 502 after v59u deploy was a restart gap: EB logs show container healthy & serving 200s, exited cleanly (code 0) on a second EB config deploy, new container booting. Backend back up by 14:25 UTC. Docker files were present in every bundle.
+- v59w bundles = v59u + v59v + banner. Prod sitemap still listed /pricing at 14:25 → prod backend not yet on v59u+.
+
+
 
