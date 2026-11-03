@@ -167,8 +167,8 @@ export default function PmcMobileNav() {
               <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 6 9 12 15 18" /></svg>
             </button>
           ) : null}
-          <Link to="/vendor" className="pmc-mob-brand" data-testid="pmc-mobile-brand">
-            <b>PMC Managers</b><span>Supplier portal</span>
+          <Link to="/vendor" className="pmc-mob-brand pmc-mob-brand--wm" data-testid="pmc-mobile-brand">
+            <img src="/pmc-wordmark-gold.png" alt="PMC Managers · Global Tender Grid" /><span>Supplier portal</span>
           </Link>
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
             <Link to="/vendor/alerts" className="pmc-mob-bell"
@@ -261,9 +261,9 @@ export default function PmcMobileNav() {
                 aria-label="Go back" data-testid="pmc-mobile-back">
           <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="15 6 9 12 15 18" /></svg>
         </button>
-        <Link to={isAdmin ? "/admin" : "/staff"} className="pmc-mob-brand"
+        <Link to={isAdmin ? "/admin" : "/staff"} className="pmc-mob-brand pmc-mob-brand--wm"
               data-testid="pmc-mobile-brand">
-          <b>PMC Managers</b><span>{isAdmin ? "Admin console" : "Staff"}</span>
+          <img src="/pmc-wordmark-gold.png" alt="PMC Managers · Global Tender Grid" /><span>{isAdmin ? "Admin console" : "Staff"}</span>
         </Link>
         <button type="button" onClick={doSignOut}
                 data-testid="pmc-mobile-signout"
@@ -309,11 +309,10 @@ export default function PmcMobileNav() {
         ) : null}
         <Link
           to="/"
-          className="pmc-mob-brand"
+          className="pmc-mob-brand pmc-mob-brand--wm"
           data-testid="pmc-mobile-brand"
         >
-          <b>PMC Managers</b>
-          <span>Global Tender Grid</span>
+          <img src="/pmc-wordmark-gold.png" alt="PMC Managers · Global Tender Grid" />
         </Link>
         <button
           type="button"

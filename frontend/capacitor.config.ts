@@ -20,10 +20,10 @@ const config: CapacitorConfig = {
     contentInset: 'always',
     scheme: 'PMC Tenders',
     limitsNavigationsToAppBoundDomains: true,
-    backgroundColor: '#0b1e3fff',
+    backgroundColor: '#162921ff',
   },
   android: {
-    backgroundColor: '#0b1e3fff',
+    backgroundColor: '#162921ff',
     allowMixedContent: false,
     captureInput: true,
   },
@@ -38,9 +38,9 @@ const config: CapacitorConfig = {
     SplashScreen: {
       launchShowDuration: 1500,
       launchAutoHide: true,
-      backgroundColor: '#0b1e3fff',
+      backgroundColor: '#162921ff',
       showSpinner: true,
-      spinnerColor: '#ffcf76',
+      spinnerColor: '#d9bd72',
     },
     PushNotifications: {
       presentationOptions: ['badge', 'sound', 'alert'],

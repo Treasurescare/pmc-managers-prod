@@ -1153,3 +1153,11 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - NOT updated: Android APK / iOS app icons (need rebuild); training manuals/old design HTML still say "Board".
 
 
+## 2026-11-03 — Logo overlap fix, unified header, mobile wordmark, APK 1.0.3 (v59s)
+- `.pmc-brand` fixed width (flex 0 0 232px, 180px ≤1280px, 172px ≤640px) → no overlap with nav/footer links.
+- Legacy TopBar (/tenders/live, /about, /vision, registration pages) now dark green with gold wordmark; hidden on mobile (mobile topbar used instead).
+- Mobile topbars (public/vendor/admin) show the gold wordmark (`.pmc-mob-brand--wm`).
+- Android 1.0.3 (versionCode 4): new PMC monogram icons + wordmark splash, signed with same key (SHA-256 67f1b682…9975). iOS project zip refreshed (AppIcon + splash).
+- Build env rebuilt: /opt/jdk21, /opt/android-sdk, aarch64 aapt2 at /opt/aapt2/aapt2 (lzhiyong 35.0.2), gradle -Pandroid.aapt2FromMavenOverride=/opt/aapt2/aapt2.
+
+

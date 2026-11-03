@@ -15,7 +15,7 @@ import EnablePushButton from "@/components/EnablePushButton";
  * The drawer lists every nav destination + the sign-out action so nothing is
  * hidden behind horizontal scroll on small screens.
  */
-export default function TopBar({ dark = false, rightExtras = null }) {
+export default function TopBar({ dark = true, rightExtras = null }) {
   const { t } = useI18n();
   const nav = useNavigate();
   const location = useLocation();
@@ -25,7 +25,7 @@ export default function TopBar({ dark = false, rightExtras = null }) {
   useEffect(() => { setOpenDrawer(false); }, [location.pathname]);
 
   const base = dark
-    ? "bg-brand-navy text-white border-white/10"
+    ? "bg-[#0f2a22] text-white border-white/10"
     : "bg-white text-brand-navy border-brand-navy/10";
 
   const path = location.pathname;
@@ -91,18 +91,15 @@ export default function TopBar({ dark = false, rightExtras = null }) {
 
   return (
     <>
-      <header className={`w-full border-b ${base} pmc-safe-top`}>
+      <header className={`w-full border-b ${base} pmc-safe-top hidden md:block`} data-testid="topbar-header">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-3 sm:py-4 flex items-center justify-between gap-3 pmc-safe-x">
           <Link to="/" className="flex items-center gap-3 min-w-0" data-testid="topbar-brand">
-            <PmcLogo size={36} inverse={dark} src={tenant?.logo_data_url} />
-            <div className="min-w-0">
-              <div className="pmc-label truncate" style={{ color: dark ? "rgba(255,255,255,0.6)" : undefined }}>
-                {tenant?.name || t("brand.name")}
-              </div>
-              <div className={`font-display text-base sm:text-lg leading-none tracking-tight truncate ${dark ? "text-white" : "text-brand-navy"}`}>
-                {t("brand.tagline")}
-              </div>
-            </div>
+            {tenant?.logo_data_url ? (
+              <PmcLogo size={36} src={tenant.logo_data_url} />
+            ) : (
+              <img src={dark ? "/pmc-wordmark-gold.png" : "/pmc-wordmark-green.png"}
+                   alt="PMC Managers · Global Tender Grid" className="h-7 sm:h-8 w-auto shrink-0" />
+            )}
           </Link>
 
           {/* Desktop nav */}
@@ -176,8 +173,7 @@ export default function TopBar({ dark = false, rightExtras = null }) {
           <aside className="absolute right-0 top-0 bottom-0 w-[85%] max-w-sm bg-white shadow-2xl flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-brand-navy/10 pmc-safe-top">
               <div className="flex items-center gap-2">
-                <PmcLogo size={28} />
-                <div className="font-display text-brand-navy text-lg leading-none">{t("brand.tagline")}</div>
+                <img src="/pmc-wordmark-green.png" alt="PMC Managers · Global Tender Grid" className="h-6 w-auto" />
               </div>
               <button onClick={() => setOpenDrawer(false)}
                 aria-label="Close menu"
