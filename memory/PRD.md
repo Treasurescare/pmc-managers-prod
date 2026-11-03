@@ -1174,4 +1174,10 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - FAQ doc (scripts/build_pmc_faq.py → downloads/PMC_Managers_FAQ.docx): pricing replaced with "not yet finalised — contact tenders@"; UK-only wording replaced with global offices.
 
 
+## 2026-11-03 — UK registered office shown (v59v)
+- UK_ADDRESS in GlobalPresence.jsx ("The PMC Managers Limited, Chiswick Park, 566 Chiswick High Road, London W4 5YG, United Kingdom" — from the customer's D-U-N-S/Apple enrolment record); shown in Global presence (Home/About) and a "Registered office" card on Contact.
+- FAQ doc: registered office in header + Q2; Q10 now states PMC is a new company (no invented track record); placeholders removed.
+- Build note: prerender needs python playwright chromium-1134 in /pw-browsers (`python3 -m playwright install chromium` if missing).
+
+
 

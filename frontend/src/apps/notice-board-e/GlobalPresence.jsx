@@ -1,5 +1,6 @@
 export const OFFICES_OPEN = ["United Kingdom", "Malaysia"];
 export const OFFICES_OPENING = ["India", "United States", "Kazakhstan"];
+export const UK_ADDRESS = "The PMC Managers Limited, Chiswick Park, 566 Chiswick High Road, London W4 5YG, United Kingdom";
 
 export default function GlobalPresence() {
   const Pill = ({ name, open }) => (
@@ -17,6 +18,7 @@ export default function GlobalPresence() {
           <div className="pmc-eyebrow">Global presence</div>
           <h2 className="pmc-display" style={{ fontSize: "44px", lineHeight: "48px", margin: "10px 0 16px" }}>A global grid, with people on the ground</h2>
           <p className="pmc-muted" style={{ fontSize: "16px", lineHeight: "26px", margin: 0 }}>The Global Tender Grid serves buyers and suppliers in every country. Our teams work from offices in the United Kingdom and Malaysia, and we are opening offices in India, the United States and Kazakhstan.</p>
+          <p style={{ fontSize: "14px", lineHeight: "22px", margin: "16px 0 0" }} data-testid="uk-address"><b>Registered office</b><br />{UK_ADDRESS}</p>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
           {OFFICES_OPEN.map((n) => <Pill key={n} name={n} open />)}

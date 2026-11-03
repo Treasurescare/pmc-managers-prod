@@ -15,10 +15,10 @@ QA = [
         ["registration and supplier checks (KYC)", "sealed technical and price bids", "committee evaluation",
          "price comparison and award", "e-signed contracts and milestones"]]),
     ("2) Where does it come from?", [
-        "PMC Managers is a global organisation, with offices open in the United Kingdom and Malaysia and offices in the "
-        "process of opening in India, the United States and Kazakhstan. The platform was built to run procurement for large "
-        "multi-package programmes, starting with the "
-        "[placeholder: confirm, e.g. Kazakhstan Integrated Development Programme], and is open to buyers and suppliers in every country."]),
+        "PMC Managers is a newly established global organisation. Its registered office is The PMC Managers Limited, "
+        "Chiswick Park, 566 Chiswick High Road, London W4 5YG, United Kingdom. Offices are open in the United Kingdom "
+        "and Malaysia, and offices are in the process of opening in India, the United States and Kazakhstan. "
+        "The platform is open to buyers and suppliers in every country."]),
     ("3) How does PMC compare to Google, Amazon, Shopee or Alibaba?", [
         "It is a different kind of service:",
         ["Google helps you find things. PMC runs the formal tender itself, from notice to signed contract.",
@@ -66,10 +66,10 @@ QA = [
         "output is recorded. \u201cSynthetic intelligence\u201d is not a separate category PMC claims, so the accurate "
         "description is AI-assisted procurement."]),
     ("10) What is PMC Managers\u2019 track record?", [
-        "[placeholder: to be completed by PMC Managers]",
-        ["years in operation", "programmes managed (names, countries, total value)",
-         "number of tenders run and suppliers registered", "notable clients or partners (with their permission)",
-         "awards, certifications or references"]]),
+        "PMC Managers is a new company. Our first programmes are being onboarded now, and verified results (tenders run, "
+        "suppliers registered, programmes managed) will be published here as they are completed. What we offer from day one "
+        "is a process that can be checked: every tender, bid, evaluation and award is recorded on a tamper-evident audit "
+        "ledger that buyers, auditors and lenders can verify."]),
 ]
 
 
@@ -96,6 +96,7 @@ def main():
     doc.paragraphs[-1].alignment = WD_ALIGN_PARAGRAPH.LEFT
     para(doc, "Frequently asked questions", 22, True, GREEN)
     para(doc, "PMC Managers Limited \u00b7 Global Tender Grid \u00b7 www.pmcmanagers.com \u00b7 tenders@pmcmanagers.com", 10, color=GOLD)
+    para(doc, "Registered office: Chiswick Park, 566 Chiswick High Road, London W4 5YG, United Kingdom", 10, color=GOLD)
     for q, body in QA:
         h = para(doc, q, 14, True, GREEN)
         h.paragraph_format.space_before = Pt(12)
@@ -106,7 +107,6 @@ def main():
                     p.paragraph_format.space_after = Pt(2)
             else:
                 para(doc, item)
-    para(doc, "Text in [placeholder] brackets is to be completed by PMC Managers before sharing.", 9, italic=True, color=GOLD)
     doc.save(OUT)
     print(OUT)
 
