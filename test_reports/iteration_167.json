@@ -1,0 +1,33 @@
+{
+  "summary": "Tested the SEO work and the Featured Programme master, backend and frontend. Backend: 16 of 16 pytest cases pass. Public GET featured-programme returns the 8 keys with the Kazakhstan defaults. Admin PUT saves and the change persists. A blank or missing title gives 422. Bad links (javascript:, http://, ftp://, relative without a leading /) give 422. Blank highlight rows are dropped. Requests with no auth, no CSRF token, or a vendor login give 401/403. The sitemap is valid XML with 12 static <loc> entries; every preview notice has 'Demo' in its title, so all are left out, as expected. The robots.txt API returns a Sitemap line, and the static /robots.txt file is served. Frontend: the home H1, both CTAs, the two-path cards and the featured programme section (title from the master, 4 items) all render. useSeo sets the title, meta description, og:title, canonical and JSON-LD. All 11 public pages have distinct titles ending '| PMC Managers · Global Tender Grid'; the notice detail title contains the notice title and ref. /buyers: 'Sample figures' is gone, buyers-how and 'Who it is for' are present, and buyers-pricing-link points to /pricing. /suppliers has no '29 tenders'. /about has no 'Kazakhstan'. /pricing shows public-chrome-signin and public-chrome-register. Admin flow at /admin/e/marketing?tab=programme: all fields are present; adding a highlight, changing the title and saving updates the home page (5 items); a bad brief URL shows a 422 toast; disabling removes the section from the home page. Restored to the defaults afterwards and confirmed through the API. Mobile 390px: grids stack to one column with no horizontal overflow. One minor design issue: on mobile, sections that use .lf-sec lose their vertical padding.",
+  "backend_issues": {"critical": [], "minor": [
+    {"endpoint": "/api/v1/seo/sitemap.xml", "issue": "The test-title regex r'\\btest|demo\\b|sample\\b|dummy' is uneven. 'Samples' and 'Demonstration' are not excluded, while 'dummy' matches anywhere in a word (and 'test' anywhere a word starts with it, e.g. 'testimonial'). It filters on title only; there is no flag for private or hidden notices. Consider an explicit is_test/exclude_from_sitemap flag, or \\b(test|demo|sample|dummy)s?\\b."}
+  ]},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/buyers (and any page using .pmc-wrap.lf-sec) on mobile ≤767px", "issues": ["Vertical padding drops to 0. RCA: the mobile rule '[data-ui=\"e\"] .pmc-wrap{padding:0 20px}' in pmc-theme-e.css has higher specificity and overrides '.lf-sec{padding:64px 0}'. As a result, the 'Who it is for' eyebrow sits flush against the dark buyers-how band, and 'The platform' sits flush under the hero. Fix: add '@media (max-width:767px){[data-ui=\"e\"] .pmc-wrap.lf-sec{padding:40px 20px}}'."]},
+      {"screen": "Home header (HomeE.jsx line 54)", "issues": ["On the home page the 'For suppliers' nav item has class is-on (already there before this change). Since the home page now speaks to buyers and suppliers equally, no item should be highlighted."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v82_seo_featured_programme.py", "/app/test_reports/pytest/pytest_v82.xml"],
+  "action_items": [
+    "Restore the vertical padding of .lf-sec on mobile (CSS specificity fix above).",
+    "Optional: tighten the sitemap test-title regex, or use an explicit exclusion flag.",
+    "Optional: remove is-on from 'For suppliers' in the HomeE header."
+  ],
+  "critical_code_review_comments": [
+    "FeaturedProgramme.jsx uses key={x.title}. Two highlights with the same title trigger React key warnings; use the index or title+index.",
+    "Backend save_programme does not cap string lengths (title, summary, highlight text) and only caps highlights at 8 after filtering. Consider Pydantic max_length.",
+    "The FRONTEND_URL fallback in config.py is 'http://localhost:3000'. If the env var is missing in prod, the sitemap and robots would point to localhost. Fail fast instead.",
+    "The static public/robots.txt hard-codes https://www.pmcmanagers.com, so it differs from the API robots on preview. This is acceptable for prod."
+  ],
+  "updated_files": ["/app/backend/tests/test_v82_seo_featured_programme.py"],
+  "success_rate": {"backend": "100%", "frontend": "97% (one mobile padding design issue)"},
+  "test_credentials": "adminsupport@pmcmanagers.com / Admin@12345 worked (admin login page uses placeholder-based inputs, Continue button)",
+  "seed_data_creation": "None. Featured programme edited and restored to the defaults; the test fixture restores the original site_settings doc.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "test_v82 covers the SEO and featured programme APIs. The admin login at /admin/login has no admin-login-email testid; use placeholder 'name@company.com' / 'Enter your password' and the 'Continue' button. The preview DB has only Demo notices, so the sitemap has 12 locs."
+}

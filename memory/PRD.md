@@ -1160,4 +1160,12 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - Android 1.0.3 (versionCode 4): new PMC monogram icons + wordmark splash, signed with same key (SHA-256 67f1b682…9975). iOS project zip refreshed (AppIcon + splash).
 - Build env rebuilt: /opt/jdk21, /opt/android-sdk, aarch64 aapt2 at /opt/aapt2/aapt2 (lzhiyong 35.0.2), gradle -Pandroid.aapt2FromMavenOverride=/opt/aapt2/aapt2.
 
+## 2026-11-03 — SEO + public page refresh + Featured programme master (v59t)
+- `routers/seo.py`: GET/PUT featured programme (site_settings `featured_programme`, admin+CSRF), GET /api/v1/seo/sitemap.xml (static routes + published notices, excludes test/demo/dummy/TestRaj titles), GET /api/v1/seo/robots.txt. Base URL = FRONTEND_URL.
+- `lib/useSeo.js` (SEO_PAGES copy map) on all public pages + notice detail (JSON-LD). index.html: OG/Twitter/Organization JSON-LD + real noscript content. public/robots.txt → https://www.pmcmanagers.com/api/v1/seo/sitemap.xml.
+- Home: new H1/copy, two CTAs, "One grid, two sides" section, FeaturedProgramme from master (Marketing → Featured programme tab). Buyers: removed fake sample figures; added how-it-runs + who-it's-for. Suppliers/About de-Kazakhstan'd. Pricing uses PublicChrome.
+- Build-time prerender `scripts/prerender.py` (API blocked → no preview data baked; route guard clears root on mismatch) writes build/<route>/index.html. Needs CloudFront Function `scripts/cloudfront_prerender_function.js` on viewer request.
+- Tested iteration_167 (backend 16/16, frontend 97% → mobile padding fixed).
+
+
 

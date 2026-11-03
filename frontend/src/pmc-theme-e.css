@@ -3062,5 +3062,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .pmc-social-link:hover{color:var(--brass-on-chrome)!important;border-color:var(--brass-on-chrome);transform:translateY(-2px)}
 @media (max-width:900px){.pmc-split-2,[data-testid="buyers-how"] .lf-sec > div[style*="grid"],[data-testid="for-buyers-e"] .lf-sec > div[style*="grid"]{grid-template-columns:1fr!important;gap:16px!important}
 [data-testid="home-two-paths"] h2,[data-testid="featured-programme"] h2{font-size:32px!important;line-height:38px!important}}
+@media (max-width:767px){[data-ui="e"] .pmc-wrap.lf-sec{padding-top:48px;padding-bottom:48px}}
 
 

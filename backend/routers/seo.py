@@ -18,7 +18,7 @@ STATIC_ROUTES = [("/", "daily", "1.0"), ("/tenders/live", "hourly", "0.9"), ("/t
                  ("/buyers", "weekly", "0.8"), ("/suppliers", "weekly", "0.8"), ("/pricing", "weekly", "0.7"),
                  ("/trust", "monthly", "0.6"), ("/about", "monthly", "0.6"), ("/vision", "monthly", "0.5"),
                  ("/contact", "monthly", "0.5"), ("/help", "monthly", "0.4"), ("/register", "monthly", "0.6")]
-TEST_TITLE = re.compile(r"\btest|demo\b|sample\b|dummy", re.I)
+TEST_TITLE = re.compile(r"\b(test|demo|dummy)\b|testraj", re.I)
 _URL = re.compile(r"^(https://[^\s<>\"']+|/[^\s<>\"']*)?$")
 
 DEFAULT_PROGRAMME = {
