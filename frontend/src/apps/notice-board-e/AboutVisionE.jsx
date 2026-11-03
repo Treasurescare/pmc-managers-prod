@@ -1,11 +1,13 @@
 import { useEffect } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { usePublicNav } from "@/lib/pmcEPublicNav";
+import { useSeo } from "@/lib/useSeo";
 import PmcSocialLinks from "@/components/PmcSocialLinks";
 
 export default function AboutVisionE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
   usePublicNav(isE);
+  useSeo({ page: window.location.pathname.startsWith("/vision") ? "vision" : "about" });
   useEffect(() => {
     if (!isE) return;
     const tick = () => {
@@ -29,7 +31,7 @@ export default function AboutVisionE({ legacy: Legacy }) {
 </div></header>
 <section className="pmc-chrome" style={{ padding: "72px 0 88px", position: "relative", overflow: "hidden" }}><div className="pmc-wrap" style={{ display: "grid", gridTemplateColumns: "1.1fr .9fr", gap: "64px", alignItems: "end" }}>
   <div><div className="pmc-eyebrow">About PMC Managers</div><h1 className="pmc-display" style={{ fontSize: "80px", lineHeight: "80px", margin: "14px 0 20px", color: "var(--on-chrome)" }}>Procurement people can <em style={{ color: "var(--brass-on-chrome)" }}>trust.</em></h1>
-  <p className="pmc-muted" style={{ fontSize: "18px", lineHeight: "30px", margin: "0", maxWidth: "600px" }}>PMC Managers Limited runs project management and procurement for large public and institutional programmes, starting with the Kazakhstan Integrated Development Programme. The Global Tender Grid is how we buy: in the open, on the record.</p></div>
+  <p className="pmc-muted" style={{ fontSize: "18px", lineHeight: "30px", margin: "0", maxWidth: "600px" }}>PMC Managers Limited runs project management and procurement for large public, institutional and private programmes worldwide. The Global Tender Grid is how those programmes buy: in the open, on the record.</p></div>
   <div className="pmc-panel" style={{ background: "var(--chrome-raised)", borderColor: "var(--chrome-line)", padding: "28px", color: "var(--on-chrome)" }}><div className="pmc-eyebrow">Our vision</div><p className="pmc-display" style={{ fontSize: "30px", lineHeight: "38px", margin: "10px 0 0" }}>“Every public tender, anywhere, run so that anyone can check how it was decided.”</p></div>
 </div></section>
 <div className="pmc-wrap" style={{ padding: "72px 0" }}>
@@ -39,7 +41,7 @@ export default function AboutVisionE({ legacy: Legacy }) {
 <section style={{ background: "var(--surface-sunken)", borderTop: "1px solid var(--line)", borderBottom: "1px solid var(--line)", padding: "72px 0" }}><div className="pmc-wrap" style={{ display: "grid", gridTemplateColumns: ".8fr 1.2fr", gap: "56px" }}>
   <div><div className="pmc-eyebrow">What we do</div><h2 className="pmc-display" style={{ fontSize: "44px", lineHeight: "48px", margin: "10px 0 16px" }}>From project report to signed contract</h2><p className="pmc-muted" style={{ fontSize: "16px", lineHeight: "26px" }}>We act as project management consultant for the programme owner: packaging the work, running the tenders, evaluating fairly and managing contracts to completion.</p></div>
   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-    <div className="pmc-panel" style={{ padding: "22px" }}><b>Programme packaging</b><p className="pmc-muted" style={{ fontSize: "14px", lineHeight: "22px", margin: "6px 0 0" }}>50 work packages across medical, education, hostels and utilities.</p></div>
+    <div className="pmc-panel" style={{ padding: "22px" }}><b>Programme packaging</b><p className="pmc-muted" style={{ fontSize: "14px", lineHeight: "22px", margin: "6px 0 0" }}>Breaking each programme into clear work packages that suppliers can price and deliver.</p></div>
     <div className="pmc-panel" style={{ padding: "22px" }}><b>Tendering</b><p className="pmc-muted" style={{ fontSize: "14px", lineHeight: "22px", margin: "6px 0 0" }}>Notices, clarifications, corrigenda and sealed bidding.</p></div>
     <div className="pmc-panel" style={{ padding: "22px" }}><b>Evaluation</b><p className="pmc-muted" style={{ fontSize: "14px", lineHeight: "22px", margin: "6px 0 0" }}>Committees with quorum and independent external advisers.</p></div>
     <div className="pmc-panel" style={{ padding: "22px" }}><b>Contract management</b><p className="pmc-muted" style={{ fontSize: "14px", lineHeight: "22px", margin: "6px 0 0" }}>Awards, e-signature, milestones and payments.</p></div>

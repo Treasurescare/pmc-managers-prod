@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
+import { useSeo } from "@/lib/useSeo";
 import { toast } from "sonner";
 
 // v51l — the Help Centre was a static mockup: every card, tour, the search
@@ -98,6 +99,7 @@ function TicketModal({ onClose }) {
 }
 
 export default function HelpCentreE({ legacy: Legacy }) {
+  useSeo({ page: "help" });
   const { isE } = useUiTheme();
   const [modules, setModules] = useState({});
   const [loading, setLoading] = useState(true);

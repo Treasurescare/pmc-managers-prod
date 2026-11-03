@@ -8,6 +8,21 @@ import { adminApi, staffApi, vendorApi, corrigendaApi, publicApi, api } from "@/
 import { NoticeVendorPanel } from "./NoticeVendorPanel";
 import { NoticeTermsBanner } from "./NoticeTermsBanner";
 import PmcSocialLinks from "@/components/PmcSocialLinks";
+import { useSeo } from "@/lib/useSeo";
+
+const noticeSeo = (n, ref) => {
+  if (!n) return { title: `Tender ${ref || ""}`.trim() };
+  const close = n.submission_deadline ? String(n.submission_deadline).slice(0, 10) : "";
+  const budget = n.budget_amount ? ` Budget ${n.budget_currency || ""} ${Number(n.budget_amount).toLocaleString()}.` : "";
+  const desc = `${(n.document_type || "tender").toUpperCase()} ${n.notice_ref} · ${n.category || ""} · delivery ${n.delivery_country || ""}.${budget}${close ? ` Bids close ${close}.` : ""} ${n.description || ""}`;
+  return {
+    title: `${n.title} — ${(n.document_type || "tender").toUpperCase()} ${n.notice_ref}`,
+    description: desc.replace(/\s+/g, " ").slice(0, 300),
+    jsonLd: { "@context": "https://schema.org", "@type": "WebPage", name: n.title, description: (n.description || "").slice(0, 500),
+      datePublished: n.published_at || undefined, expires: n.submission_deadline || undefined,
+      publisher: { "@type": "Organization", name: "PMC Managers Limited", url: "https://www.pmcmanagers.com" } },
+  };
+};
 
 // ── local formatters (no fabricated data — everything derives from the live notice) ──
 const fmtMoney = (amt, cur) => {
@@ -66,6 +81,7 @@ export default function NoticeDetailE({ legacy: Legacy }) {
 
   const [corrigenda, setCorrigenda] = useState([]);
   const [notice, setNotice] = useState(null);
+  useSeo(noticeSeo(notice, noticeRef));
   const [loaded, setLoaded] = useState(false);
   const [packUrl, setPackUrl] = useState(null);
   const [closed, setClosed] = useState(false);

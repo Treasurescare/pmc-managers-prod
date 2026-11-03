@@ -1233,6 +1233,8 @@ export const tenderTemplateApi = {
 export const siteApi = {
   social: () => api.get("/api/v1/site/social").then((r) => r.data),
   saveSocial: (p) => api.put("/api/v1/marketing/site-social", p).then((r) => r.data),
+  programme: () => api.get("/api/v1/site/featured-programme").then((r) => r.data),
+  saveProgramme: (p) => api.put("/api/v1/marketing/featured-programme", p).then((r) => r.data),
   emailHealth: () => api.get("/api/v1/admin/email/health").then((r) => r.data),
   emailTest: (to) => api.post("/api/v1/admin/email/test", { to }).then((r) => r.data),
 };

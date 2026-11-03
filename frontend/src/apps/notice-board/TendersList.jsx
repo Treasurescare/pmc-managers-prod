@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { publicApi, formatApiError } from "@/lib/api";
 import { contractTypeOptions, uniqByCode } from "@/components/taxonomy";
 import { useUiTheme } from "@/context/UiThemeContext";
+import { useSeo } from "@/lib/useSeo";
 import TopBar from "@/apps/shared/TopBar";
 import PmcFooter from "@/components/PmcFooter";
 
@@ -11,6 +12,7 @@ import PmcFooter from "@/components/PmcFooter";
  *  mode = "completed"  → publish=true AND (deadline <= now OR award_status=='awarded')
  *  mode = "all"        → any published */
 export default function TendersList() {
+  useSeo({ page: "live" });
   const { mode = "live" } = useParams();
   const { isE } = useUiTheme();
   // v56s — deep-linkable filters: Sector / Contract type / UNSPSC-category /

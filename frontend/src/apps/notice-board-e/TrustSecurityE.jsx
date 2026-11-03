@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { usePublicNav } from "@/lib/pmcEPublicNav";
+import { useSeo } from "@/lib/useSeo";
 import { api } from "@/lib/api";
 import PmcSocialLinks from "@/components/PmcSocialLinks";
 
@@ -61,6 +62,7 @@ hash   ${shortHash(res.current_hash)}   ${res.ok ? "✓" : "✗"} sha256(prev + 
 }
 
 export default function TrustSecurityE({ legacy: Legacy }) {
+  useSeo({ page: "trust" });
   const { isE } = useUiTheme();
   usePublicNav(isE);
   useEffect(() => {

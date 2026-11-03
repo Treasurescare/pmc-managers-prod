@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /staff
+Disallow: /vendor
+Disallow: /api/
+Allow: /api/v1/seo/sitemap.xml
+
+Sitemap: https://www.pmcmanagers.com/api/v1/seo/sitemap.xml

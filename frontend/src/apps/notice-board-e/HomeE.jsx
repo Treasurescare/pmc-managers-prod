@@ -9,11 +9,20 @@ import LiveAuctionsBand from "@/apps/notice-board-e/LiveAuctionsBand";
 import TenderAlertsSignup from "@/apps/notice-board-e/TenderAlertsSignup";
 import PmcSocialLinks from "@/components/PmcSocialLinks";
 import PartnerHighlights from "@/apps/notice-board-e/PartnerHighlights";
+import FeaturedProgramme, { useFeaturedProgramme } from "@/apps/notice-board-e/FeaturedProgramme";
+import { useSeo } from "@/lib/useSeo";
+
+const ORG_LD = { "@context": "https://schema.org", "@graph": [
+  { "@type": "Organization", name: "PMC Managers Limited", url: "https://www.pmcmanagers.com", logo: "https://www.pmcmanagers.com/pmc-logo.png", email: "tenders@pmcmanagers.com" },
+  { "@type": "WebSite", name: "Global Tender Grid", url: "https://www.pmcmanagers.com",
+    potentialAction: { "@type": "SearchAction", target: "https://www.pmcmanagers.com/tenders/live?q={query}", "query-input": "required name=query" } }] };
 
 export default function HomeE({ legacy: Legacy }) {
   const { isE } = useUiTheme();
   usePublicLiveData({ enabled: isE });
   usePublicNav(isE);
+  useSeo({ page: "home", jsonLd: ORG_LD });
+  const programme = useFeaturedProgramme();
   const [beVer, setBeVer] = useState(null);
   const [liveAuctionCount, setLiveAuctionCount] = useState(0);
   useEffect(() => {
@@ -61,8 +70,12 @@ export default function HomeE({ legacy: Legacy }) {
           <span className="dot"></span>{liveAuctionCount} auction{liveAuctionCount === 1 ? "" : "s"} live now <svg className="pmc-ico" aria-hidden="true"><use href="#i-arrow" /></svg>
         </button>
       )}
-      <h1 className="pmc-display pmc-hero__h">Tenders you<br />can <em>prove.</em></h1>
-      <p className="pmc-hero__p">Publish, clarify, receive sealed bids, evaluate and award on one platform. Every action is time-stamped and chained to an audit ledger, so every decision can be shown.</p>
+      <h1 className="pmc-display pmc-hero__h" data-testid="home-hero-title">Global tenders,<br />sealed and <em>proven.</em></h1>
+      <p className="pmc-hero__p">The Global Tender Grid connects project owners with qualified suppliers in every country. Buyers publish tenders and award them on one audited record. Suppliers register once, get matched to tenders and bid sealed, from anywhere.</p>
+      <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", margin: "0 0 22px" }}>
+        <a href="/tenders/live" className="pmc-btn pmc-btn--brass pmc-btn--lg" data-testid="home-cta-find">Find tenders to bid</a>
+        <a href="/buyers" className="pmc-btn pmc-btn--onchrome pmc-btn--lg" data-testid="home-cta-issue">Issue a tender</a>
+      </div>
       <HeroTaxonomySearch />
       <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap", marginTop: "14px" }}><span className="pmc-muted" style={{ fontSize: "13px" }}>Popular:</span><a className="pmc-chip" href="#">Closing this week</a><a className="pmc-chip" href="#">Civil works &amp; MEP</a><a className="pmc-chip" href="#">Medical equipment</a><a className="pmc-chip" href="#">IT &amp; digital health</a></div>
     </div>
@@ -79,7 +92,7 @@ export default function HomeE({ legacy: Legacy }) {
 <section className="pmc-stats pmc-wrap" aria-label="Platform in numbers">
   <div><div className="pmc-figure">—</div><div className="pmc-muted">notices open for bids</div></div>
   <div><div className="pmc-figure">—</div><div className="pmc-muted">approved suppliers</div></div>
-  <div><div className="pmc-figure">—</div><div className="pmc-muted">work packages in the Kazakhstan programme</div></div>
+  <div><div className="pmc-figure">—</div><div className="pmc-muted">{programme?.enabled && programme?.stat_label ? programme.stat_label : "work packages under management"}</div></div>
   <div><div className="pmc-figure">—</div><div className="pmc-muted">actions on the audit ledger, none altered</div></div>
 </section>
 
@@ -112,6 +125,25 @@ export default function HomeE({ legacy: Legacy }) {
 </section>
 
 <TenderAlertsSignup />
+
+<section className="pmc-wrap" style={{ padding: "72px 0 8px" }} data-testid="home-two-paths">
+  <div className="pmc-eyebrow">One grid, two sides</div>
+  <h2 className="pmc-display" style={{ fontSize: "44px", lineHeight: "50px", margin: "10px 0 28px", maxWidth: "820px" }}>Whether you buy or bid, every step is on the record.</h2>
+  <div className="pmc-split-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+    <div className="pmc-card" style={{ padding: "32px" }}>
+      <div className="pmc-eyebrow">For buyers &amp; programme owners</div>
+      <h3 style={{ fontSize: "24px", margin: "8px 0 12px" }}>Run tenders you can defend</h3>
+      <ul className="pmc-trust" style={{ margin: "0 0 20px" }}><li>Draft a notice from your project report with the AI tender builder</li><li>Sealed two-envelope bids, committees with quorum, L1 ranking</li><li>Award, e-sign and track milestones on one audited record</li></ul>
+      <a href="/buyers" className="pmc-btn pmc-btn--primary" data-testid="home-path-buyers">How buyers use it</a>
+    </div>
+    <div className="pmc-card" style={{ padding: "32px" }}>
+      <div className="pmc-eyebrow">For suppliers &amp; contractors</div>
+      <h3 style={{ fontSize: "24px", margin: "8px 0 12px" }}>Win work across borders</h3>
+      <ul className="pmc-trust" style={{ margin: "0 0 20px" }}><li>Register and complete KYC once, reuse it on every bid</li><li>Any verified supplier can bid on public tenders</li><li>Alerts for your categories, live bid tracker to signature</li></ul>
+      <a href="/suppliers" className="pmc-btn pmc-btn--primary" data-testid="home-path-suppliers">How suppliers use it</a>
+    </div>
+  </div>
+</section>
 
 <div id="how"><section className="pmc-wrap" style={{ padding: "88px 0 40px" }}>
   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "48px", alignItems: "end", marginBottom: "36px" }}>
@@ -197,17 +229,7 @@ export default function HomeE({ legacy: Legacy }) {
   </div>
 </section>
 
-<section className="pmc-wrap" style={{ padding: "88px 0" }}>
-  <div style={{ display: "grid", gridTemplateColumns: ".9fr 1.1fr", gap: "56px", alignItems: "start" }}>
-    <div>
-      <div className="pmc-eyebrow">Programme spotlight</div>
-      <h2 className="pmc-display" style={{ fontSize: "48px", lineHeight: "52px", margin: "10px 0 16px" }}>Kazakhstan Integrated Development Programme</h2>
-      <p className="pmc-muted" style={{ fontSize: "17px", lineHeight: "28px", margin: "0 0 24px" }}>Modular medical, education, hostel and utilities packages, published for global supply. Suppliers from any country can register, qualify and bid.</p>
-      <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}><a href="#" className="pmc-btn pmc-btn--primary pmc-btn--lg">See programme tenders</a><a href="#" className="pmc-btn pmc-btn--secondary pmc-btn--lg">Download the brief</a></div>
-    </div>
-    <div className="pmc-cats"><a href="#" className="pmc-cat"><svg className="pmc-ico" aria-hidden="true"><use href="#i-box" /></svg><div><h3>Modular medical</h3><p>Hospitals, OPD blocks, IVF and cleanroom labs, medical equipment and consumables.</p></div><svg className="pmc-ico pmc-cat__go" aria-hidden="true"><use href="#i-arrow" /></svg></a><a href="#" className="pmc-cat"><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg><div><h3>Education</h3><p>University academic packages, digital learning and campus fit-out.</p></div><svg className="pmc-ico pmc-cat__go" aria-hidden="true"><use href="#i-arrow" /></svg></a><a href="#" className="pmc-cat"><svg className="pmc-ico" aria-hidden="true"><use href="#i-home" /></svg><div><h3>Hostels & residential</h3><p>Student and staff hostels, modular residential blocks.</p></div><svg className="pmc-ico pmc-cat__go" aria-hidden="true"><use href="#i-arrow" /></svg></a><a href="#" className="pmc-cat"><svg className="pmc-ico" aria-hidden="true"><use href="#i-layers" /></svg><div><h3>Utilities & infrastructure</h3><p>Power, water, networks and site infrastructure.</p></div><svg className="pmc-ico pmc-cat__go" aria-hidden="true"><use href="#i-arrow" /></svg></a></div>
-  </div>
-</section>
+<FeaturedProgramme p={programme} />
 
 <PartnerHighlights />
 
@@ -237,7 +259,7 @@ export default function HomeE({ legacy: Legacy }) {
     </div>
     <div>
       <label className="pmc-search" style={{ height: "52px", marginBottom: "8px" }}><svg className="pmc-ico" aria-hidden="true"><use href="#i-search" /></svg><input data-faq-q="homefaq" placeholder="Type a question, e.g. “withdraw my bid”" /></label>
-      <div id="homefaq"><details className="pmc-faq" data-cat="registration" open><summary>How do I register as a supplier?</summary><p>Choose <b>Register as supplier</b>, enter your company details, then upload the KYC documents the form lists for your country and category. You can save and resume at any point. PMC reviews the file and you are notified when your KYC is approved.</p></details><details className="pmc-faq" data-cat="registration"><summary>Which documents does KYC need?</summary><p>The document list depends on your country and the licences your work category requires (for example, electrical or plumbing licences for Kazakhstan works packages). The registration form shows exactly which slots apply to you.</p></details><details className="pmc-faq" data-cat="bidding"><summary>How are sealed bids kept confidential?</summary><p>Bids are submitted in separate technical and commercial envelopes. Envelopes open only after the submission deadline, and only for the evaluation committee. Every open, view and decision is written to a SHA-256 hash-chained audit ledger.</p></details><details className="pmc-faq" data-cat="bidding"><summary>Can I change or withdraw my bid?</summary><p>If the tender allows withdrawal, you can withdraw or resubmit before the submission deadline from <b>My bids</b>. The tender page states whether withdrawal is allowed.</p></details><details className="pmc-faq" data-cat="bidding"><summary>How will I hear about a corrigendum?</summary><p>When a tender you follow or have bid on is amended, you get an alert in the portal and by email, and the change is shown on the tender page with its effective date.</p></details><details className="pmc-faq" data-cat="emd"><summary>What is EMD and how do I pay it?</summary><p>The Earnest Money Deposit secures your bid. Each tender sets it as a fixed amount or a percentage. Pay it from the bid tracker by transfer to escrow or by uploading a bank guarantee. Escrow confirms receipt before your bid moves on.</p></details></div>
+      <div id="homefaq"><details className="pmc-faq" data-cat="registration" open><summary>How do I register as a supplier?</summary><p>Choose <b>Register as supplier</b>, enter your company details, then upload the KYC documents the form lists for your country and category. You can save and resume at any point. PMC reviews the file and you are notified when your KYC is approved.</p></details><details className="pmc-faq" data-cat="registration"><summary>Which documents does KYC need?</summary><p>The document list depends on your country and the licences your work category requires (for example, electrical or plumbing licences for works packages). The registration form shows exactly which slots apply to you.</p></details><details className="pmc-faq" data-cat="bidding"><summary>How are sealed bids kept confidential?</summary><p>Bids are submitted in separate technical and commercial envelopes. Envelopes open only after the submission deadline, and only for the evaluation committee. Every open, view and decision is written to a SHA-256 hash-chained audit ledger.</p></details><details className="pmc-faq" data-cat="bidding"><summary>Can I change or withdraw my bid?</summary><p>If the tender allows withdrawal, you can withdraw or resubmit before the submission deadline from <b>My bids</b>. The tender page states whether withdrawal is allowed.</p></details><details className="pmc-faq" data-cat="bidding"><summary>How will I hear about a corrigendum?</summary><p>When a tender you follow or have bid on is amended, you get an alert in the portal and by email, and the change is shown on the tender page with its effective date.</p></details><details className="pmc-faq" data-cat="emd"><summary>What is EMD and how do I pay it?</summary><p>The Earnest Money Deposit secures your bid. Each tender sets it as a fixed amount or a percentage. Pay it from the bid tracker by transfer to escrow or by uploading a bank guarantee. Escrow confirms receipt before your bid moves on.</p></details></div>
       <p id="homefaq-empty" hidden className="pmc-muted">Nothing matches yet. Try the Help Centre or raise a ticket.</p>
     </div>
   </div>
@@ -246,7 +268,7 @@ export default function HomeE({ legacy: Legacy }) {
 <footer className="pmc-chrome" style={{ padding: "56px 0 32px" }}>
   <div className="pmc-wrap">
     <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr 1fr 1fr", gap: "32px", paddingBottom: "40px", borderBottom: "1px solid var(--chrome-line)" }}>
-      <div><div className="pmc-brand"><span className="pmc-brand__n">PMC Managers</span><span className="pmc-brand__s">Global Tender Grid</span></div><p className="pmc-muted" style={{ margin: "16px 0 0", fontSize: "14px", lineHeight: "22px", maxWidth: "300px" }}>e-Tender platform for admins, staff and suppliers. Bid, evaluate, award — from any device.</p><PmcSocialLinks /></div>
+      <div><div className="pmc-brand"><span className="pmc-brand__n">PMC Managers</span><span className="pmc-brand__s">Global Tender Grid</span></div><p className="pmc-muted" style={{ margin: "16px 0 0", fontSize: "14px", lineHeight: "22px", maxWidth: "300px" }}>e-tendering for buyers and suppliers worldwide. Publish, bid sealed, evaluate and award on one audited record.</p><PmcSocialLinks /></div>
       <div className="pmc-fcol"><b>Tenders</b><a href="#">Open notices</a><a href="#">Completed</a><a href="#">Corrigenda</a><a href="#">Programme</a></div>
       <div className="pmc-fcol"><b>Suppliers</b><a href="#">Register</a><a href="#">Sign in</a><a href="#">KYC guide</a><a href="#">EMD &amp; escrow</a></div>
       <div className="pmc-fcol"><b>Company</b><a href="#">About us</a><a href="#">Vision</a><a href="#">Trust &amp; security</a><a href="#">Contact</a></div>
@@ -270,7 +292,7 @@ export default function HomeE({ legacy: Legacy }) {
     <div className="pmc-eyebrow" style={{ margin: "4px 0 10px", color: "var(--ink-muted)" }}>On this page · Homepage</div>
     <div style={{ display: "grid", gap: "8px", marginBottom: "20px" }}><div className="pmc-tip"><svg className="pmc-ico" aria-hidden="true"><use href="#i-spark" /></svg><div><b>Find a tender fast</b>Search by keyword or reference number, or pick a popular category under the search bar.</div></div><div className="pmc-tip"><svg className="pmc-ico" aria-hidden="true"><use href="#i-spark" /></svg><div><b>New supplier?</b>Register once; your KYC is reused on every bid.</div></div></div>
     <div className="pmc-eyebrow" style={{ marginBottom: "2px", color: "var(--ink-muted)" }}>Frequently asked</div>
-    <div data-help-list=""><details className="pmc-faq" data-cat="registration"><summary>How do I register as a supplier?</summary><p>Choose <b>Register as supplier</b>, enter your company details, then upload the KYC documents the form lists for your country and category. You can save and resume at any point. PMC reviews the file and you are notified when your KYC is approved.</p></details><details className="pmc-faq" data-cat="registration"><summary>Which documents does KYC need?</summary><p>The document list depends on your country and the licences your work category requires (for example, electrical or plumbing licences for Kazakhstan works packages). The registration form shows exactly which slots apply to you.</p></details><details className="pmc-faq" data-cat="bidding"><summary>How are sealed bids kept confidential?</summary><p>Bids are submitted in separate technical and commercial envelopes. Envelopes open only after the submission deadline, and only for the evaluation committee. Every open, view and decision is written to a SHA-256 hash-chained audit ledger.</p></details><details className="pmc-faq" data-cat="bidding"><summary>Can I change or withdraw my bid?</summary><p>If the tender allows withdrawal, you can withdraw or resubmit before the submission deadline from <b>My bids</b>. The tender page states whether withdrawal is allowed.</p></details><details className="pmc-faq" data-cat="bidding"><summary>How will I hear about a corrigendum?</summary><p>When a tender you follow or have bid on is amended, you get an alert in the portal and by email, and the change is shown on the tender page with its effective date.</p></details><details className="pmc-faq" data-cat="emd"><summary>What is EMD and how do I pay it?</summary><p>The Earnest Money Deposit secures your bid. Each tender sets it as a fixed amount or a percentage. Pay it from the bid tracker by transfer to escrow or by uploading a bank guarantee. Escrow confirms receipt before your bid moves on.</p></details></div>
+    <div data-help-list=""><details className="pmc-faq" data-cat="registration"><summary>How do I register as a supplier?</summary><p>Choose <b>Register as supplier</b>, enter your company details, then upload the KYC documents the form lists for your country and category. You can save and resume at any point. PMC reviews the file and you are notified when your KYC is approved.</p></details><details className="pmc-faq" data-cat="registration"><summary>Which documents does KYC need?</summary><p>The document list depends on your country and the licences your work category requires (for example, electrical or plumbing licences for works packages). The registration form shows exactly which slots apply to you.</p></details><details className="pmc-faq" data-cat="bidding"><summary>How are sealed bids kept confidential?</summary><p>Bids are submitted in separate technical and commercial envelopes. Envelopes open only after the submission deadline, and only for the evaluation committee. Every open, view and decision is written to a SHA-256 hash-chained audit ledger.</p></details><details className="pmc-faq" data-cat="bidding"><summary>Can I change or withdraw my bid?</summary><p>If the tender allows withdrawal, you can withdraw or resubmit before the submission deadline from <b>My bids</b>. The tender page states whether withdrawal is allowed.</p></details><details className="pmc-faq" data-cat="bidding"><summary>How will I hear about a corrigendum?</summary><p>When a tender you follow or have bid on is amended, you get an alert in the portal and by email, and the change is shown on the tender page with its effective date.</p></details><details className="pmc-faq" data-cat="emd"><summary>What is EMD and how do I pay it?</summary><p>The Earnest Money Deposit secures your bid. Each tender sets it as a fixed amount or a percentage. Pay it from the bid tracker by transfer to escrow or by uploading a bank guarantee. Escrow confirms receipt before your bid moves on.</p></details></div>
     <p data-help-empty="" hidden style={{ color: "var(--ink-muted)", fontSize: "14px" }}>No answer matches yet. Raise a ticket below and the PMC desk will reply.</p>
     <a href="/help" className="pmc-btn pmc-btn--secondary" style={{ width: "100%", marginTop: "16px" }}><svg className="pmc-ico" aria-hidden="true"><use href="#i-file" /></svg> Open the full Help Centre</a>
   </div>

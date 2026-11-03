@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { usePublicNav } from "@/lib/pmcEPublicNav";
+import { useSeo } from "@/lib/useSeo";
 import { publicApi } from "@/lib/api";
 import PmcSocialLinks from "@/components/PmcSocialLinks";
 
@@ -18,6 +19,7 @@ function fmtDate(iso) {
 }
 
 export default function AwardsPublicE({ legacy: Legacy }) {
+  useSeo({ page: "awards" });
   const { isE } = useUiTheme();
   usePublicNav(isE);
   const [items, setItems] = useState([]);

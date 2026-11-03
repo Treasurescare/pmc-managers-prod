@@ -3060,5 +3060,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .pmc-mobile-topbar .pmc-mob-brand::before{content:"";position:absolute;left:0;top:50%;width:32px;height:32px;transform:translateY(-50%);background:url("./pmc-logo-mark.png") center/cover no-repeat;border-radius:7px}
 .pmc-social-link{width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--chrome-line);border-radius:8px;color:var(--on-chrome)!important;transition:color .2s,border-color .2s,transform .2s}
 .pmc-social-link:hover{color:var(--brass-on-chrome)!important;border-color:var(--brass-on-chrome);transform:translateY(-2px)}
+@media (max-width:900px){.pmc-split-2,[data-testid="buyers-how"] .lf-sec > div[style*="grid"],[data-testid="for-buyers-e"] .lf-sec > div[style*="grid"]{grid-template-columns:1fr!important;gap:16px!important}
+[data-testid="home-two-paths"] h2,[data-testid="featured-programme"] h2{font-size:32px!important;line-height:38px!important}}
 
 

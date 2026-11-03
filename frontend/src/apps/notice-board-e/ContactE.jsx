@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { usePublicNav } from "@/lib/pmcEPublicNav";
+import { useSeo } from "@/lib/useSeo";
 import { api } from "@/lib/api";
 import PmcSocialLinks from "@/components/PmcSocialLinks";
 
@@ -46,6 +47,7 @@ function ContactForm() {
 }
 
 export default function ContactE({ legacy: Legacy }) {
+  useSeo({ page: "contact" });
   const { isE } = useUiTheme();
   usePublicNav(isE);
   useEffect(() => {

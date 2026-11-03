@@ -3,8 +3,15 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-        <meta name="theme-color" content="#0b1e3f" />
-        <meta name="description" content="PMC Managers — Global Tender Grid with role-based dashboards for admins, staff and vendors." />
+        <meta name="theme-color" content="#162921" />
+        <meta name="description" content="Global Tender Grid by PMC Managers: e-tendering for buyers and suppliers worldwide. Publish tenders, receive sealed two-envelope bids, evaluate with committees and award with e-signature on one audited record." />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="PMC Managers · Global Tender Grid" />
+        <meta property="og:title" content="Global Tender Grid — e-tendering for buyers and suppliers worldwide" />
+        <meta property="og:description" content="Publish tenders, bid sealed, evaluate and award on one audited record. Any verified supplier can bid on public tenders." />
+        <meta property="og:image" content="https://www.pmcmanagers.com/downloads/pmc-logo-full.png" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"PMC Managers Limited","alternateName":"Global Tender Grid","url":"https://www.pmcmanagers.com","logo":"https://www.pmcmanagers.com/pmc-logo.png","email":"tenders@pmcmanagers.com"}</script>
         <meta name="google-site-verification" content="t7scPgT9ZxpjYxkyRAyB8cCvfrCh04IAO6XcvAvS4r0" />
         <!-- PWA manifest -->
         <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
@@ -18,11 +25,25 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet" />
-        <title>PMC Managers | Global Tender Grid</title>
+        <title>Global Tender Grid — e-tendering for buyers and suppliers | PMC Managers</title>
         <script>window.addEventListener("error",function(e){if(e.error instanceof DOMException&&e.error.name==="DataCloneError"&&e.message&&e.message.includes("PerformanceServerTiming")){e.stopImmediatePropagation();e.preventDefault()}},true);</script>
     </head>
     <body>
-        <noscript>You need to enable JavaScript to run this app.</noscript>
+        <noscript>
+          <h1>PMC Managers · Global Tender Grid</h1>
+          <p>e-Tendering for buyers and suppliers worldwide. Buyers publish tenders, receive sealed two-envelope bids, evaluate with committees and award with e-signature on one hash-chained audit record. Any verified supplier, from any country, can bid on public tenders.</p>
+          <ul>
+            <li><a href="/tenders/live">Live tenders open for bids</a></li>
+            <li><a href="/tenders/completed">Completed tenders and awards</a></li>
+            <li><a href="/buyers">For buyers</a></li>
+            <li><a href="/suppliers">For suppliers</a></li>
+            <li><a href="/pricing">Pricing</a></li>
+            <li><a href="/trust">Trust &amp; security</a></li>
+            <li><a href="/about">About PMC Managers</a></li>
+            <li><a href="/contact">Contact</a> · tenders@pmcmanagers.com</li>
+          </ul>
+          <p>Enable JavaScript to use the full platform.</p>
+        </noscript>
         <div id="root"></div>
     </body>
 </html>

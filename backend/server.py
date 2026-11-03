@@ -321,6 +321,8 @@ from routers import marketing_share as _marketing_share  # noqa: E402
 app.include_router(_marketing_share.router)
 from routers import site_settings as _site_settings  # noqa: E402
 app.include_router(_site_settings.router)
+from routers import seo as _seo  # noqa: E402
+app.include_router(_seo.router)
 from routers import whatsapp as _whatsapp  # noqa: E402
 app.include_router(_whatsapp.router)
 from routers import bid_opening as _bid_opening  # noqa: E402

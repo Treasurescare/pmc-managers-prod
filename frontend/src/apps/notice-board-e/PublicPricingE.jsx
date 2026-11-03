@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { feeTypesApi } from "@/lib/api";
+import PublicChrome from "@/apps/shared/PublicChrome";
+import { useSeo } from "@/lib/useSeo";
 
 const n = (v) => Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
 const WHEN = { upfront: "Paid before work starts", on_completion: "Paid on completion" };
@@ -35,14 +37,11 @@ const Fee = ({ f }) => (
 
 export default function PublicPricingE() {
   const [d, setD] = useState(null);
+  useSeo({ page: "pricing" });
   useEffect(() => { feeTypesApi.publicPricing().then(setD).catch(() => setD({ fees: [] })); }, []);
   return (
-    <div className="min-h-screen bg-[#F3EFE4]" data-testid="pricing-page">
-      <header className="bg-[#0F3B2E] text-[#F3EFE4]"><div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center flex-wrap gap-3">
-        <a href="/" className="font-serif text-xl" data-testid="pricing-home">PMC Managers</a>
-        <nav className="flex gap-5 text-sm"><a href="/">Tenders</a><a href="/trust">Trust &amp; security</a><a href="/help">Help</a><a href="/vendor/login">Sign in</a></nav>
-      </div></header>
-      <main className="max-w-6xl mx-auto px-6 py-14 pb-28 space-y-8">
+    <PublicChrome testid="pricing-page">
+      <main className="max-w-6xl mx-auto px-6 py-14 pb-28 space-y-8 bg-[#F3EFE4]">
         <div><div className="text-xs uppercase tracking-widest text-brand-gold">Pricing</div>
           <h1 className="font-serif text-4xl sm:text-5xl text-brand-navy mt-2">What you pay, and when</h1>
           <p className="text-base text-brand-navy/70 mt-3 max-w-2xl">These figures come straight from the fee settings used to bill you, so the price here is the price charged. Taxes are added at the rate that applies in your country.</p></div>
@@ -50,5 +49,5 @@ export default function PublicPricingE() {
           ? <div className="grid md:grid-cols-2 gap-5">{d.fees.map((f) => <Fee key={f.code} f={f} />)}</div>
           : <p className="text-sm text-brand-navy/70" data-testid="pricing-empty">Prices are being finalised. Contact tenders@pmcmanagers.com for a quote.</p>}
       </main>
-    </div>);
+    </PublicChrome>);
 }
