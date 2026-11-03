@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { usePublicNav } from "@/lib/pmcEPublicNav";
 import { useSeo } from "@/lib/useSeo";
+import GlobalPresence from "@/apps/notice-board-e/GlobalPresence";
 import PmcSocialLinks from "@/components/PmcSocialLinks";
 
 export default function AboutVisionE({ legacy: Legacy }) {
@@ -31,7 +32,7 @@ export default function AboutVisionE({ legacy: Legacy }) {
 </div></header>
 <section className="pmc-chrome" style={{ padding: "72px 0 88px", position: "relative", overflow: "hidden" }}><div className="pmc-wrap" style={{ display: "grid", gridTemplateColumns: "1.1fr .9fr", gap: "64px", alignItems: "end" }}>
   <div><div className="pmc-eyebrow">About PMC Managers</div><h1 className="pmc-display" style={{ fontSize: "80px", lineHeight: "80px", margin: "14px 0 20px", color: "var(--on-chrome)" }}>Procurement people can <em style={{ color: "var(--brass-on-chrome)" }}>trust.</em></h1>
-  <p className="pmc-muted" style={{ fontSize: "18px", lineHeight: "30px", margin: "0", maxWidth: "600px" }}>PMC Managers Limited runs project management and procurement for large public, institutional and private programmes worldwide. The Global Tender Grid is how those programmes buy: in the open, on the record.</p></div>
+  <p className="pmc-muted" style={{ fontSize: "18px", lineHeight: "30px", margin: "0", maxWidth: "600px" }}>PMC Managers runs project management and procurement for large public, institutional and private programmes around the world, with offices in the United Kingdom and Malaysia and new offices opening in India, the United States and Kazakhstan. The Global Tender Grid is how those programmes buy: in the open, on the record.</p></div>
   <div className="pmc-panel" style={{ background: "var(--chrome-raised)", borderColor: "var(--chrome-line)", padding: "28px", color: "var(--on-chrome)" }}><div className="pmc-eyebrow">Our vision</div><p className="pmc-display" style={{ fontSize: "30px", lineHeight: "38px", margin: "10px 0 0" }}>“Every public tender, anywhere, run so that anyone can check how it was decided.”</p></div>
 </div></section>
 <div className="pmc-wrap" style={{ padding: "72px 0" }}>
@@ -46,6 +47,7 @@ export default function AboutVisionE({ legacy: Legacy }) {
     <div className="pmc-panel" style={{ padding: "22px" }}><b>Evaluation</b><p className="pmc-muted" style={{ fontSize: "14px", lineHeight: "22px", margin: "6px 0 0" }}>Committees with quorum and independent external advisers.</p></div>
     <div className="pmc-panel" style={{ padding: "22px" }}><b>Contract management</b><p className="pmc-muted" style={{ fontSize: "14px", lineHeight: "22px", margin: "6px 0 0" }}>Awards, e-signature, milestones and payments.</p></div>
   </div></div></section>
+<GlobalPresence />
 <div className="pmc-wrap" style={{ padding: "72px 0", display: "grid", gridTemplateColumns: "1fr auto", gap: "32px", alignItems: "center" }}>
   <div><h2 className="pmc-display" style={{ fontSize: "40px", lineHeight: "44px", margin: "0 0 8px" }}>Work with us</h2><p className="pmc-muted" style={{ margin: "0", fontSize: "16px" }}>Suppliers: register and get matched tenders. Programme owners: talk to us about running your procurement.</p></div>
   <div style={{ display: "flex", gap: "8px" }}><a href="#" className="pmc-btn pmc-btn--primary pmc-btn--lg">Register as supplier</a><a href="mailto:tenders@pmcmanagers.com" className="pmc-btn pmc-btn--secondary pmc-btn--lg"><svg className="pmc-ico" aria-hidden="true"><use href="#i-mail" /></svg> Contact PMC</a></div>

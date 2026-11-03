@@ -11,9 +11,10 @@ import threading
 
 from playwright.sync_api import sync_playwright
 
-ROUTES = ["/", "/buyers", "/suppliers", "/pricing", "/trust", "/about", "/vision", "/contact", "/help",
+ROUTES = ["/", "/buyers", "/suppliers", "/trust", "/about", "/vision", "/contact", "/help",
           "/tenders/live", "/tenders/completed"]
 PORT = 5055
+REDIRECTS = {"/pricing": "/contact"}
 
 
 def serve(build):
@@ -63,6 +64,13 @@ def main(build, site):
         d = build if route == "/" else os.path.join(build, route.strip("/"))
         os.makedirs(d, exist_ok=True)
         open(os.path.join(d, "index.html"), "w", encoding="utf-8").write(html)
+    for old, to in REDIRECTS.items():
+        d = os.path.join(build, old.strip("/"))
+        os.makedirs(d, exist_ok=True)
+        open(os.path.join(d, "index.html"), "w", encoding="utf-8").write(
+            f'<!doctype html><meta charset="utf-8"><meta name="robots" content="noindex">'
+            f'<link rel="canonical" href="{site}{to}"><meta http-equiv="refresh" content="0;url={to}">'
+            f'<script>location.replace("{to}")</script>')
 
 
 if __name__ == "__main__":

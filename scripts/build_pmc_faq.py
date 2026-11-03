@@ -9,15 +9,16 @@ LOGO = "/app/frontend/public/downloads/pmc-logo-full-ivory.png"
 
 QA = [
     ("1) What is PMC?", [
-        "PMC Managers Limited is a UK-registered project management consultancy (PMC = Project Management Consultant). "
+        "PMC Managers is a project management consultancy (PMC = Project Management Consultant) operating globally. "
         "Its platform, the Global Tender Grid, is an online e-tendering system where project owners publish tenders and "
         "suppliers anywhere in the world bid on them. Every step is recorded on a tamper-evident audit ledger:",
         ["registration and supplier checks (KYC)", "sealed technical and price bids", "committee evaluation",
          "price comparison and award", "e-signed contracts and milestones"]]),
     ("2) Where does it come from?", [
-        "PMC Managers Limited is registered in England and Wales, with its office at Chiswick Park, London. The platform "
-        "was built to run procurement for large multi-package programmes, starting with the "
-        "[placeholder: confirm, e.g. Kazakhstan Integrated Development Programme]. It is now open to any buyer worldwide."]),
+        "PMC Managers is a global organisation, with offices open in the United Kingdom and Malaysia and offices in the "
+        "process of opening in India, the United States and Kazakhstan. The platform was built to run procurement for large "
+        "multi-package programmes, starting with the "
+        "[placeholder: confirm, e.g. Kazakhstan Integrated Development Programme], and is open to buyers and suppliers in every country."]),
     ("3) How does PMC compare to Google, Amazon, Shopee or Alibaba?", [
         "It is a different kind of service:",
         ["Google helps you find things. PMC runs the formal tender itself, from notice to signed contract.",
@@ -50,12 +51,10 @@ QA = [
         "For buyers:",
         ["an AI tender builder", "committees with quorum rules", "price comparison and anomaly checks",
          "escrowed deposits", "a full audit trail"],
-        "Prices are published at pmcmanagers.com/pricing:",
-        ["Tender fee: a flat fee, which varies by country.",
-         "Management fee: 3% up to 5 million, then 2% on each further 5 million.",
-         "Winner charge: an optional 0.30% on private tenders, shown to bidders before they bid."]]),
+        "Pricing: subscription and fee pricing is not yet finalised. Please contact tenders@pmcmanagers.com for current terms."]),
     ("7) What area does PMC cover?", [
-        ["Geography: global. Suppliers can register from any country, and fees are set per country (currently UK, India, Malaysia and USA).",
+        ["Geography: global. Buyers and suppliers can join from any country. Offices are open in the United Kingdom and "
+         "Malaysia, with India, the United States and Kazakhstan opening.",
          "Sectors: all goods, works and services, classified with the full UNSPSC product and service code list. Examples "
          "include construction and civil works, medical, education, energy (solar, wind, biomass), IT and utilities."]]),
     ("8) Is auction available on PMC?", [

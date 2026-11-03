@@ -11,6 +11,7 @@ import PmcSocialLinks from "@/components/PmcSocialLinks";
 import PartnerHighlights from "@/apps/notice-board-e/PartnerHighlights";
 import FeaturedProgramme, { useFeaturedProgramme } from "@/apps/notice-board-e/FeaturedProgramme";
 import { useSeo } from "@/lib/useSeo";
+import GlobalPresence from "@/apps/notice-board-e/GlobalPresence";
 
 const ORG_LD = { "@context": "https://schema.org", "@graph": [
   { "@type": "Organization", name: "PMC Managers Limited", url: "https://www.pmcmanagers.com", logo: "https://www.pmcmanagers.com/pmc-logo.png", email: "tenders@pmcmanagers.com" },
@@ -231,6 +232,8 @@ export default function HomeE({ legacy: Legacy }) {
 
 <FeaturedProgramme p={programme} />
 
+<GlobalPresence />
+
 <PartnerHighlights />
 
 <section className="pmc-start">
@@ -268,7 +271,7 @@ export default function HomeE({ legacy: Legacy }) {
 <footer className="pmc-chrome" style={{ padding: "56px 0 32px" }}>
   <div className="pmc-wrap">
     <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr 1fr 1fr", gap: "32px", paddingBottom: "40px", borderBottom: "1px solid var(--chrome-line)" }}>
-      <div><div className="pmc-brand"><span className="pmc-brand__n">PMC Managers</span><span className="pmc-brand__s">Global Tender Grid</span></div><p className="pmc-muted" style={{ margin: "16px 0 0", fontSize: "14px", lineHeight: "22px", maxWidth: "300px" }}>e-tendering for buyers and suppliers worldwide. Publish, bid sealed, evaluate and award on one audited record.</p><PmcSocialLinks /></div>
+      <div><div className="pmc-brand"><span className="pmc-brand__n">PMC Managers</span><span className="pmc-brand__s">Global Tender Grid</span></div><p className="pmc-muted" style={{ margin: "16px 0 0", fontSize: "14px", lineHeight: "22px", maxWidth: "300px" }}>e-tendering for buyers and suppliers worldwide. Offices in the United Kingdom and Malaysia; opening in India, the United States and Kazakhstan.</p><PmcSocialLinks /></div>
       <div className="pmc-fcol"><b>Tenders</b><a href="#">Open notices</a><a href="#">Completed</a><a href="#">Corrigenda</a><a href="#">Programme</a></div>
       <div className="pmc-fcol"><b>Suppliers</b><a href="#">Register</a><a href="#">Sign in</a><a href="#">KYC guide</a><a href="#">EMD &amp; escrow</a></div>
       <div className="pmc-fcol"><b>Company</b><a href="#">About us</a><a href="#">Vision</a><a href="#">Trust &amp; security</a><a href="#">Contact</a></div>

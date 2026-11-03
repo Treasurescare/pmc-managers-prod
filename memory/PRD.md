@@ -1168,4 +1168,10 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - Tested iteration_167 (backend 16/16, frontend 97% → mobile padding fixed).
 
 
+## 2026-11-03 — Pricing removed from public site + global presence (v59u)
+- Prices not finalised: /pricing route → redirect to /contact (build writes pricing/index.html redirect, noindex); removed from sitemap, prerender, SEO map, noscript, Buyers page link; winner-charge mention removed from Buyers copy. PublicPricingE.jsx kept in repo, unused. Admin fee masters untouched.
+- GlobalPresence.jsx (offices open: UK, Malaysia; opening: India, USA, Kazakhstan) on Home + About; About hero + SEO + home footer copy updated.
+- FAQ doc (scripts/build_pmc_faq.py → downloads/PMC_Managers_FAQ.docx): pricing replaced with "not yet finalised — contact tenders@"; UK-only wording replaced with global offices.
+
+
 
