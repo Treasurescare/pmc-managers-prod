@@ -176,7 +176,7 @@ export default function NoticeDetailE({ legacy: Legacy }) {
   return (
     <div data-testid="notice-detail-e" data-pmc-e-page="notice-detail-e">
 <header className="pmc-chrome pmc-top"><div className="pmc-wrap pmc-top__in">
-  <Link to="/" className="pmc-brand"><span className="pmc-brand__n">PMC Managers</span><span className="pmc-brand__s">Global Tender Board</span></Link>
+  <Link to="/" className="pmc-brand"><span className="pmc-brand__n">PMC Managers</span><span className="pmc-brand__s">Global Tender Grid</span></Link>
   <nav className="pmc-nav">
     <Link to="/tenders/live" className="is-on">Tenders</Link>
     <Link to="/suppliers">For suppliers</Link>
@@ -276,7 +276,7 @@ export default function NoticeDetailE({ legacy: Legacy }) {
         : <p className="pmc-muted">No scope summary has been published for this tender yet.</p>}
     </section>
     <section className="dt-sec"><h2>Who can bid</h2><ul className="dt-list">
-      <li><svg className="pmc-ico" aria-hidden="true"><use href="#i-check" /></svg><span>Registered supplier with approved KYC on the PMC Tender Board</span></li>
+      <li><svg className="pmc-ico" aria-hidden="true"><use href="#i-check" /></svg><span>Registered supplier with approved KYC on the PMC Global Tender Grid</span></li>
       {requiredLicenses.length > 0 && (
         <li><svg className="pmc-ico" aria-hidden="true"><use href="#i-check" /></svg><span>Required licences: {requiredLicenses.map((l, i) => (<b key={i}>{i > 0 ? ", " : ""}{l}</b>))}</span></li>
       )}
@@ -426,7 +426,7 @@ export default function NoticeDetailE({ legacy: Legacy }) {
 </>
 )}
 <footer className="pmc-chrome" style={{ padding: "40px 0 28px", marginTop: "0" }}><div className="pmc-wrap" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px" }}>
-  <div className="pmc-brand"><span className="pmc-brand__n" style={{ fontSize: "20px" }}>PMC Managers</span><span className="pmc-brand__s">Global Tender Board</span></div><PmcSocialLinks />
+  <div className="pmc-brand"><span className="pmc-brand__n" style={{ fontSize: "20px" }}>PMC Managers</span><span className="pmc-brand__s">Global Tender Grid</span></div><PmcSocialLinks />
   <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "20px" }} className="pmc-fcol"><Link to="/tenders/live">Open notices</Link><Link to="/help">Help Centre</Link><Link to="/trust">Trust &amp; security</Link><Link to="/privacy">Privacy</Link><span className="pmc-muted">© 2026 PMC Managers Limited</span></div>
 </div></footer>
 

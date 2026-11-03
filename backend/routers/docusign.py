@@ -307,7 +307,7 @@ def _create_envelope(client: ds.ApiClient, pdf_bytes: bytes, filename: str,
     signer = ds.Signer(**signer_kwargs)
     envelope = ds.EnvelopeDefinition(
         email_subject=subject,
-        email_blurb="Please review and sign — PMC Managers Global Tender Board.",
+        email_blurb="Please review and sign — PMC Managers Global Tender Grid.",
         documents=[document],
         recipients=ds.Recipients(signers=[signer]),
         status="sent",
@@ -678,7 +678,7 @@ async def _email_signer(signer_email: str, signer_name: str, subject: str, ref: 
             f"<p>Please sign in to your PMC supplier portal to review and sign:<br>"
             f"<a href=\"{portal}\">{portal}</a></p>"
             f"<p style=\"color:#5B6B63;font-size:13px\">Reference: {ref} · "
-            f"PMC Managers Global Tender Board</p>"
+            f"PMC Managers Global Tender Grid</p>"
         )
         await send_email(str(signer_email), f"[PMC] {subject}", html)
     except Exception:

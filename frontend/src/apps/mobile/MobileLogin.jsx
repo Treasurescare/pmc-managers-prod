@@ -97,7 +97,7 @@ export default function MobileLogin() {
         <form onSubmit={submit} className="w-full max-w-sm bg-white rounded-2xl p-6 space-y-4 shadow-lg">
           <div className="text-center">
             <div className="text-[10px] tracking-[0.35em] uppercase text-amber-600">PMC Managers</div>
-            <h1 className="font-serif text-3xl mt-1">Global Tender Board</h1>
+            <h1 className="font-serif text-3xl mt-1">Global Tender Grid</h1>
             <p className="text-xs text-slate-500 mt-2">Platform · {platform()}</p>
           </div>
           <label className="block text-sm">

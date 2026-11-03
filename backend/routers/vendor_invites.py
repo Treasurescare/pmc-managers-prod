@@ -87,7 +87,7 @@ async def invite_vendor(payload: VendorInviteIn, admin=Depends(require_role("adm
         wrap(f"Welcome to PMC · {vendor_ref}",
              f"<p>The PMC Managers procurement team has pre-registered your company "
              f"<strong>{payload.company_name or payload.email}</strong> as a vendor "
-             f"on the Global Tender Board.</p>"
+             f"on the Global Tender Grid.</p>"
              f"<p>To activate your account, please verify your email and set a password:</p>",
              "Verify email & set password", verify_url))
     await audit_log("vendor.invite", admin, "vendor", vendor_ref,
@@ -586,13 +586,13 @@ def _build_registration_form_pdf() -> bytes:
         c.setFillColor(HexColor("#F3EFE4")); c.setFont("Helvetica-Bold", 20)
         c.drawString(50, h - 45, "PMC Managers Limited")
         c.setFont("Helvetica", 10)
-        c.drawString(50, h - 62, "Global Tender Board  |  Vendor Registration Form")
+        c.drawString(50, h - 62, "Global Tender Grid  |  Vendor Registration Form")
         c.setFillColor(GOLD); c.setFont("Helvetica-Bold", 8)
         c.drawString(50, h - 78, "BLANK FORM  ·  PRINT · COMPLETE · SIGN · UPLOAD")
 
     def footer_line():
         c.setFillColor(GOLD); c.setFont("Helvetica", 7)
-        c.drawString(50, 30, "PMC Managers Limited  ·  Global Tender Board  ·  Auto-generated from the live registration schema")
+        c.drawString(50, 30, "PMC Managers Limited  ·  Global Tender Grid  ·  Auto-generated from the live registration schema")
 
     def new_page():
         c.showPage(); header_band(); footer_line()
@@ -652,7 +652,7 @@ def _build_registration_form_pdf() -> bytes:
         "3. I authorise PMC Managers Limited to verify these details with any third party.",
         "4. I have no conflict of interest with the procurement or evaluation team.",
         "5. I accept the data-processing terms published on the PMC Managers portal.",
-        "6. I accept the Global Tender Board Bidder Terms of Use.",
+        "6. I accept the Global Tender Grid Bidder Terms of Use.",
     ):
         if y < 60: y = new_page()
         c.drawString(50, y, line); y -= 15

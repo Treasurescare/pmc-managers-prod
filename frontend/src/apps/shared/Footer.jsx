@@ -32,7 +32,7 @@ export default function Footer() {
           </div>
         </div>
         <div className="text-xs text-white/40 md:text-right md:self-end" data-testid="build-stamp">
-          © {new Date().getFullYear()} PMC Managers Limited · Global Tender Board
+          © {new Date().getFullYear()} PMC Managers Limited · Global Tender Grid
           <div className="mt-1 font-mono">
             Frontend <b className="text-white/70">{BUILD_VERSION}</b> · {BUILD_DATE}
             {" · "}

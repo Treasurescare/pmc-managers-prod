@@ -1,6 +1,6 @@
 {
   "short_name": "PMC Tenders",
-  "name": "PMC Managers · Global Tender Board",
+  "name": "PMC Managers · Global Tender Grid",
   "description": "e-Tender platform for admins, staff and vendors. Bid, evaluate, award — from any device.",
   "icons": [
     { "src": "pmc-logo.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },

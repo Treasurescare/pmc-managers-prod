@@ -15,7 +15,7 @@ router = APIRouter(prefix="/api/v1/assistant", tags=["assistant"])
 ABOUT = (
     "PMC Managers (pmcmanagers.com) is a global e-tendering and procurement platform run by THE PMC MANAGERS LTD (UK). "
     "Buyers publish tender notices (tenders, RFQs, RFPs). Suppliers register (registration + KYC review by PMC), choose business "
-    "categories (the first category is free, each extra category has a fee), browse the Global Tender Board, download tender "
+    "categories (the first category is free, each extra category has a fee), browse the Global Tender Grid, download tender "
     "documents, pay EMD (bid security) where a tender requires it, and submit sealed bids online. Bids are opened and evaluated by "
     "the buyer's committee; awards create purchase orders and contracts. Every step is recorded on a tamper-evident audit ledger. "
     "Fees (registration, extra categories, document downloads, tender hosting, subscriptions) are set per country and category and "

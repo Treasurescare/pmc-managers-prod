@@ -9,7 +9,7 @@
 const EN = {
   brand: {
     name: "PMC Managers Limited",
-    tagline: "Global Tender Board",
+    tagline: "Global Tender Grid",
     subtitle: "Procurement that travels borders.",
   },
   nav: {

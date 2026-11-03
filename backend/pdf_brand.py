@@ -11,7 +11,7 @@ _HEADER = (
     "border-bottom:1px solid #D2B46A'>"
     f"<img src='data:image/png;base64,{_LOGO_B64}' style='width:40px;height:40px;border-radius:7px' alt='PMC Managers'/>"
     "<div style='font-family:Helvetica,Arial,sans-serif'><div style='font-size:13px;font-weight:700;color:#0F3B2E'>PMC Managers</div>"
-    "<div style='font-size:8px;letter-spacing:2px;text-transform:uppercase;color:#8A6A1F'>Global Tender Board</div></div></div>"
+    "<div style='font-size:8px;letter-spacing:2px;text-transform:uppercase;color:#8A6A1F'>Global Tender Grid</div></div></div>"
 )
 
 

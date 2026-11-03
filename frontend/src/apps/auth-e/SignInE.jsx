@@ -202,7 +202,7 @@ export default function SignInE({ legacy: Legacy }) {
         <section className="pmc-chrome" style={{ position: "relative", overflow: "hidden", padding: "48px 64px", display: "flex", flexDirection: "column" }}>
           <Link to="/" className="pmc-brand">
             <span className="pmc-brand__n">PMC Managers</span>
-            <span className="pmc-brand__s">Global Tender Board</span>
+            <span className="pmc-brand__s">Global Tender Grid</span>
           </Link>
           <svg viewBox="0 0 400 400" style={{ position: "absolute", right: "-140px", top: "120px", width: "560px", height: "560px", opacity: ".55" }} aria-hidden="true">
             <circle cx="200" cy="200" r="188" fill="none" stroke="var(--chrome-line)" />

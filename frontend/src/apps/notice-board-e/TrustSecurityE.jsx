@@ -80,7 +80,7 @@ export default function TrustSecurityE({ legacy: Legacy }) {
   return (
     <div data-testid="trust-security-e" data-pmc-e-page="trust-security-e">
 <header className="pmc-chrome pmc-top"><div className="pmc-wrap pmc-top__in">
-  <a href="#" className="pmc-brand"><span className="pmc-brand__n">PMC Managers</span><span className="pmc-brand__s">Global Tender Board</span></a>
+  <a href="#" className="pmc-brand"><span className="pmc-brand__n">PMC Managers</span><span className="pmc-brand__s">Global Tender Grid</span></a>
   <nav className="pmc-nav"><a href="#">Tenders</a><a href="#">How it works</a><a href="#">For suppliers</a><a href="#">For buyers</a><a href="#" className="is-on">Trust &amp; security</a><a href="#" data-help-open="">Help &amp; FAQs</a></nav>
   <div className="pmc-top__act"><button className="pmc-btn pmc-btn--onchrome pmc-btn--sm"><svg className="pmc-ico" aria-hidden="true"><use href="#i-globe" /></svg> EN</button><a href="#" className="pmc-btn pmc-btn--onchrome">Sign in</a><a href="#" className="pmc-btn pmc-btn--brass">Register as supplier</a></div>
 </div></header>
@@ -102,7 +102,7 @@ export default function TrustSecurityE({ legacy: Legacy }) {
   <section><h2 style={{ fontSize: "22px", margin: "0 0 12px" }}>Report a concern</h2><p className="pmc-muted" style={{ margin: "0 0 16px", maxWidth: "720px" }}>If you believe a tender has been compromised, tell us. Reports go to an independent compliance desk, not to the tender team.</p><a href="#" className="pmc-btn pmc-btn--secondary"><svg className="pmc-ico" aria-hidden="true"><use href="#i-flag" /></svg> Report a concern</a></section>
 </div>
 <footer className="pmc-chrome" style={{ padding: "40px 0 28px", marginTop: "0" }}><div className="pmc-wrap" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px" }}>
-  <div className="pmc-brand"><span className="pmc-brand__n" style={{ fontSize: "20px" }}>PMC Managers</span><span className="pmc-brand__s">Global Tender Board</span></div><PmcSocialLinks />
+  <div className="pmc-brand"><span className="pmc-brand__n" style={{ fontSize: "20px" }}>PMC Managers</span><span className="pmc-brand__s">Global Tender Grid</span></div><PmcSocialLinks />
   <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "20px" }} className="pmc-fcol"><a href="#">Open notices</a><a href="#">Help Centre</a><a href="#">Trust &amp; security</a><a href="#">Privacy</a><span className="pmc-muted">© 2026 PMC Managers Limited</span></div>
 </div></footer>
 

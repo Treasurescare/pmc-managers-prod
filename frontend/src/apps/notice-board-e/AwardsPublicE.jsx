@@ -50,7 +50,7 @@ export default function AwardsPublicE({ legacy: Legacy }) {
   return (
     <div data-testid="awards-public-e" data-pmc-e-page="awards-public-e">
       <header className="pmc-chrome pmc-top"><div className="pmc-wrap pmc-top__in">
-        <Link to="/" className="pmc-brand"><span className="pmc-brand__n">PMC Managers</span><span className="pmc-brand__s">Global Tender Board</span></Link>
+        <Link to="/" className="pmc-brand"><span className="pmc-brand__n">PMC Managers</span><span className="pmc-brand__s">Global Tender Grid</span></Link>
         <nav className="pmc-nav">
           <Link to="/tenders/all" className="is-on">Tenders</Link>
           <Link to="/suppliers">For suppliers</Link>
@@ -107,7 +107,7 @@ export default function AwardsPublicE({ legacy: Legacy }) {
         </section>
       </div>
       <footer className="pmc-chrome" style={{ padding: "40px 0 28px", marginTop: "0" }}><div className="pmc-wrap" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px" }}>
-        <div className="pmc-brand"><span className="pmc-brand__n" style={{ fontSize: "20px" }}>PMC Managers</span><span className="pmc-brand__s">Global Tender Board</span></div><PmcSocialLinks />
+        <div className="pmc-brand"><span className="pmc-brand__n" style={{ fontSize: "20px" }}>PMC Managers</span><span className="pmc-brand__s">Global Tender Grid</span></div><PmcSocialLinks />
         <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "20px" }} className="pmc-fcol"><Link to="/tenders/all">Open notices</Link><Link to="/help">Help Centre</Link><Link to="/trust">Trust &amp; security</Link><Link to="/privacy">Privacy</Link><span className="pmc-muted">© 2026 PMC Managers Limited</span></div>
       </div></footer>
     </div>

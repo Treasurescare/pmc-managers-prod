@@ -41,7 +41,7 @@ export default function HomeE({ legacy: Legacy }) {
 <div className="pmc-site">
 <header className="pmc-chrome pmc-top">
   <div className="pmc-wrap pmc-top__in">
-    <a href="#" className="pmc-brand"><span className="pmc-brand__n">PMC Managers</span><span className="pmc-brand__s">Global Tender Board</span></a>
+    <a href="#" className="pmc-brand"><span className="pmc-brand__n">PMC Managers</span><span className="pmc-brand__s">Global Tender Grid</span></a>
     <nav className="pmc-nav"><a href="#">Tenders</a><a href="#how">How it works</a><a href="#" className="is-on">For suppliers</a><a href="#">For buyers</a><a href="#trust">Trust &amp; security</a><a href="#help" data-help-open="">Help &amp; FAQs</a></nav>
     <div className="pmc-top__act"><button className="pmc-btn pmc-btn--onchrome pmc-btn--sm"><svg className="pmc-ico" aria-hidden="true"><use href="#i-globe" /></svg> EN</button><a href="#" className="pmc-btn pmc-btn--onchrome">Sign in</a><a href="#" className="pmc-btn pmc-btn--brass">Register as supplier</a></div>
   </div>
@@ -246,7 +246,7 @@ export default function HomeE({ legacy: Legacy }) {
 <footer className="pmc-chrome" style={{ padding: "56px 0 32px" }}>
   <div className="pmc-wrap">
     <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr 1fr 1fr", gap: "32px", paddingBottom: "40px", borderBottom: "1px solid var(--chrome-line)" }}>
-      <div><div className="pmc-brand"><span className="pmc-brand__n">PMC Managers</span><span className="pmc-brand__s">Global Tender Board</span></div><p className="pmc-muted" style={{ margin: "16px 0 0", fontSize: "14px", lineHeight: "22px", maxWidth: "300px" }}>e-Tender platform for admins, staff and suppliers. Bid, evaluate, award — from any device.</p><PmcSocialLinks /></div>
+      <div><div className="pmc-brand"><span className="pmc-brand__n">PMC Managers</span><span className="pmc-brand__s">Global Tender Grid</span></div><p className="pmc-muted" style={{ margin: "16px 0 0", fontSize: "14px", lineHeight: "22px", maxWidth: "300px" }}>e-Tender platform for admins, staff and suppliers. Bid, evaluate, award — from any device.</p><PmcSocialLinks /></div>
       <div className="pmc-fcol"><b>Tenders</b><a href="#">Open notices</a><a href="#">Completed</a><a href="#">Corrigenda</a><a href="#">Programme</a></div>
       <div className="pmc-fcol"><b>Suppliers</b><a href="#">Register</a><a href="#">Sign in</a><a href="#">KYC guide</a><a href="#">EMD &amp; escrow</a></div>
       <div className="pmc-fcol"><b>Company</b><a href="#">About us</a><a href="#">Vision</a><a href="#">Trust &amp; security</a><a href="#">Contact</a></div>

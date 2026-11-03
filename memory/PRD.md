@@ -1146,3 +1146,10 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - No demo notice is classified public yet → classify via Governance > Buyer classification.
 - Tested iteration_166 (backend 19/19 after fix, frontend 100%). Bundles v59q.
 
+## 2026-11-03 — Rebrand to "Global Tender Grid" + new wordmark (v59r)
+- All "Global Tender Board" → "Global Tender Grid" (site, emails, PDFs, manifest, title). "PMC Tender Board" in email footers → "PMC Tender Grid".
+- New wordmark (from customer PDFs) in gold for dark headers via `.pmc-brand::before` (pmc-wordmark-gold.png); spans kept for screen readers.
+- Square icon/favicon/email/PDF mark regenerated as gold "PMC" on green (from the new logo). Logo pack zip refreshed.
+- NOT updated: Android APK / iOS app icons (need rebuild); training manuals/old design HTML still say "Board".
+
+

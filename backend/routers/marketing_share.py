@@ -64,7 +64,7 @@ def _render_card(n: dict) -> bytes:
         img.paste(mark, (1200 - 70 - mark.width, 44))
     except OSError:
         pass
-    d.text((70, 60), "PMC MANAGERS · GLOBAL TENDER BOARD", font=_font(True, 26), fill=GOLD)
+    d.text((70, 60), "PMC MANAGERS · GLOBAL TENDER GRID", font=_font(True, 26), fill=GOLD)
     kind = str(n.get("kind") or n.get("notice_type") or "Tender").upper()
     d.text((70, 112), f"{kind}  ·  {n.get('notice_ref')}", font=_font(False, 26), fill=CREAM)
     y = 175

@@ -30,7 +30,7 @@ def _wrap(title: str, body_html: str, cta_label: Optional[str] = None, cta_url: 
       <tr><td style="background:#0B1A14;color:#FFFFFF;padding:22px 32px">
         <img src="{config.FRONTEND_URL}/pmc-logo-mark.png" width="44" height="44" alt="PMC Managers" style="display:block;border-radius:8px;margin-bottom:10px">
         <div style="font:11px/16px 'Public Sans',Helvetica,Arial,sans-serif;color:#B08E4A;letter-spacing:0.22em;text-transform:uppercase">PMC Managers Limited</div>
-        <div style="font:400 22px/28px Georgia,'Cormorant Garamond',serif;color:#FFFFFF;margin-top:6px">Global Tender Board</div>
+        <div style="font:400 22px/28px Georgia,'Cormorant Garamond',serif;color:#FFFFFF;margin-top:6px">Global Tender Grid</div>
       </td></tr>
       <tr><td style="padding:36px 32px 28px">
         <h1 style="margin:0 0 12px;font:400 26px/32px Georgia,'Cormorant Garamond',serif;color:#0F3B2E">{title}</h1>
@@ -38,7 +38,7 @@ def _wrap(title: str, body_html: str, cta_label: Optional[str] = None, cta_url: 
         {cta}
       </td></tr>
       <tr><td style="border-top:1px solid #B08E4A44;padding:18px 32px;background:#FAFAF7;color:#5A5A57;font:11px/16px 'Public Sans',Helvetica,Arial,sans-serif">
-        Sent by PMC Managers Limited &middot; Global Tender Board &middot; This message is time-stamped and hash-chained to the audit ledger.
+        Sent by PMC Managers Limited &middot; Global Tender Grid &middot; This message is time-stamped and hash-chained to the audit ledger.
       </td></tr>
     </table>
   </td></tr>

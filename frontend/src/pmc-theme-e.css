@@ -3047,8 +3047,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 
 /* Brand mark beside every PMC wordmark */
-.pmc-brand{position:relative;padding-left:52px;min-height:42px;justify-content:center}
-.pmc-brand::before{content:"";position:absolute;left:0;top:50%;width:42px;height:42px;transform:translateY(-50%);background:url("./pmc-logo-mark.png") center/cover no-repeat;border-radius:9px}
+.pmc-brand{position:relative;padding-left:0!important;width:232px;min-height:42px;justify-content:center}
+.pmc-brand > span{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.pmc-brand::before{content:"";position:absolute;left:0;top:50%;width:232px;height:34px;transform:translateY(-50%);background:url("./pmc-wordmark-gold.png") left center/contain no-repeat;border-radius:0}
+@media (max-width:640px){.pmc-brand{width:172px}.pmc-brand::before{width:172px;height:26px}}
 .pmc-mobile-topbar .pmc-mob-brand{position:relative;padding-left:40px!important;min-height:32px;justify-content:center}
 .pmc-mobile-topbar .pmc-mob-brand::before{content:"";position:absolute;left:0;top:50%;width:32px;height:32px;transform:translateY(-50%);background:url("./pmc-logo-mark.png") center/cover no-repeat;border-radius:7px}
 .pmc-social-link{width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--chrome-line);border-radius:8px;color:var(--on-chrome)!important;transition:color .2s,border-color .2s,transform .2s}

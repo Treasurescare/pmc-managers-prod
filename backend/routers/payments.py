@@ -96,7 +96,7 @@ async def emd_statement_pdf(vendor=Depends(current_vendor)):
       .p-pending {{ background:#EFE9DA; color:#5B6B63; }}
       .foot {{ position:fixed; bottom:-14mm; left:0; right:0; font-size:9px; color:#7B8B83; text-align:center; }}
     </style></head><body>
-      <div class="brand">PMC Managers · Global Tender Board</div>
+      <div class="brand">PMC Managers · Global Tender Grid</div>
       <h1>EMD Statement</h1>
       <div class="meta">
         <div><b>Vendor</b>{company}<br/>{vendor_ref}</div>
@@ -175,7 +175,7 @@ async def emd_receipt_pdf(bid_id: str, vendor=Depends(current_vendor)):
       td.mono {{ font-family:'Courier New',monospace;font-size:11px; }}
       .foot {{ margin-top:28px;font-size:10px;color:#7B8B83;line-height:1.5; }}
     </style></head><body>
-      <div class='brand'>PMC Managers · Global Tender Board</div>
+      <div class='brand'>PMC Managers · Global Tender Grid</div>
       <h1>EMD Payment Receipt</h1>
       <div style='font-size:11px;color:#5B6B63'>Receipt generated {generated}</div>
       <div class='amt'>{currency} {amount:,.2f}<span class='pill'>PAID</span></div>

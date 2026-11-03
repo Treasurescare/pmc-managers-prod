@@ -313,7 +313,7 @@ export default function PmcMobileNav() {
           data-testid="pmc-mobile-brand"
         >
           <b>PMC Managers</b>
-          <span>Global Tender Board</span>
+          <span>Global Tender Grid</span>
         </Link>
         <button
           type="button"

@@ -49,7 +49,7 @@ def build_corrigendum_pdf(notice: dict, corrigendum: dict) -> bytes:
                            textColor=colors.HexColor("#8a6a1f"))
 
     story = [logo_flowable(), Spacer(1, 4)]
-    story.append(Paragraph("PMC MANAGERS · GLOBAL TENDER BOARD", label))
+    story.append(Paragraph("PMC MANAGERS · GLOBAL TENDER GRID", label))
     story.append(Paragraph(
         f"Corrigendum {corrigendum.get('corrigendum_no', '')} — {corrigendum.get('title', '')}",
         h1,

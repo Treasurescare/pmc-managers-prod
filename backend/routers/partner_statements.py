@@ -113,7 +113,7 @@ def render_statement_pdf(a: dict, month: str, d: dict) -> bytes:
       <h2>Supplier activity</h2><table><thead><tr><th>Company</th><th>Supplier ref</th><th>Status</th><th>Invited</th></tr></thead><tbody>{sup_rows}</tbody></table>
       <h2>Commissions earned</h2><table><thead><tr><th>Date</th><th>Type</th><th>Supplier</th><th>Basis</th><th class=r>Amount</th></tr></thead><tbody>{ent(d['earned'], 'created_at')}</tbody></table>
       <h2>Payouts received</h2><table><thead><tr><th>Date</th><th>Type</th><th>Supplier</th><th>Reference</th><th class=r>Amount</th></tr></thead><tbody>{ent(d['paid'], 'paid_on')}</tbody></table>
-      <div class=foot>Generated {h(now_iso()[:16].replace('T', ' '))} UTC · PMC Managers Limited · Global Tender Board · pmcmanagers.com<br/>
+      <div class=foot>Generated {h(now_iso()[:16].replace('T', ' '))} UTC · PMC Managers Limited · Global Tender Grid · pmcmanagers.com<br/>
         Commissions are paid by PMC directly from its own account. Contact PMC if anything here looks wrong.</div>
     </body></html>"""
     return HTML(string=brand_html(html)).write_pdf()

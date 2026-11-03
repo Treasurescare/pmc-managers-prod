@@ -95,7 +95,7 @@ def render_receipt_pdf(rec: dict, vendor: dict) -> bytes:
       <table><thead><tr><th>Item</th><th class="r">Amount</th></tr></thead>
         <tbody>{rows}<tr class="tot"><td>Total paid</td><td class="r">{cur} {float(rec.get('total') or 0):,.2f}</td></tr></tbody></table>
       <div class="foot">Payment reference: {h(str(rec.get('session_id', '')))}<br/>
-        Issued by PMC Managers Limited · Global Tender Board · pmcmanagers.com</div>
+        Issued by PMC Managers Limited · Global Tender Grid · pmcmanagers.com</div>
     </body></html>"""
     return HTML(string=brand_html(html)).write_pdf()
 

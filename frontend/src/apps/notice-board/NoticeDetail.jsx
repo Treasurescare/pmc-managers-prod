@@ -51,7 +51,7 @@ export default function NoticeDetail() {
 
   useEffect(() => {
     if (notice) document.title = `${notice.title} — PMC Managers`;
-    return () => { document.title = "PMC Managers · Global Tender Board"; };
+    return () => { document.title = "PMC Managers · Global Tender Grid"; };
   }, [notice]);
 
   const budget = notice?.budget_amount
