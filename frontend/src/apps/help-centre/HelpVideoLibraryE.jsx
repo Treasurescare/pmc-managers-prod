@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import PublicChrome from "@/apps/shared/PublicChrome";
 import { useSeo } from "@/lib/useSeo";
-import { useHelpVideos } from "@/apps/help-centre/HelpVideo";
+import { useHelpVideos, ShareRow } from "@/apps/help-centre/HelpVideo";
 
 const Card = ({ slug, v, onPlay }) => (
   <button type="button" onClick={() => onPlay(slug)} data-testid={`video-card-${slug}`}
@@ -31,6 +32,7 @@ const Player = ({ slug, v, onClose }) => (
         </span>
       </div>
       <video src={v.file} poster={v.file.replace(/\.mp4$/, ".jpg")} controls autoPlay playsInline style={{ width: "100%", borderRadius: 10, background: "#000" }} data-testid="video-modal-player" />
+      <div style={{ marginTop: 12 }}><ShareRow slug={slug} title={v.title} dark /></div>
     </div>
   </div>);
 
@@ -39,7 +41,12 @@ export default function HelpVideoLibraryE() {
   const vids = useHelpVideos();
   const [q, setQ] = useState("");
   const [group, setGroup] = useState("all");
-  const [playing, setPlaying] = useState(null);
+  const [params, setParams] = useSearchParams();
+  const playing = params.get("v");
+  const setPlaying = (s) => setParams(s ? { v: s } : {}, { replace: !s });
+  useEffect(() => {
+    if (playing && vids[playing]) { document.title = `${vids[playing].title} — how-to video | PMC Managers · Global Tender Grid`; }
+  }, [playing, vids]);
   const list = useMemo(() => Object.entries(vids)
     .filter(([s, v]) => (group === "all" || (group === "admin") === s.startsWith("admin-"))
       && `${v.title} ${s}`.toLowerCase().includes(q.trim().toLowerCase()))

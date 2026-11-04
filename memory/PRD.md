@@ -1206,4 +1206,8 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - /help/videos (HelpVideoLibraryE.jsx): grid of all 45 videos with search, All / Suppliers & portals / Admin filters, modal player with link to the written guide. Linked from Help Centre hero ("Watch the video library"); in sitemap.
 - Help Centre guide rows show a "▶ Video" badge (PlayBadge) when a video exists. useHelpVideos/loadManifest exported from HelpVideo.jsx.
 
+## 2026-11-04 — Video share links (v60a)
+- Deep link /help/videos?v=<slug> opens the video player directly (title updated). ShareRow (Copy link / WhatsApp / Email) in the library player and under every article video (HelpVideo.jsx).
+
+
 
