@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { useSeo } from "@/lib/useSeo";
 import { toast } from "sonner";
-import HelpVideo from "@/apps/help-centre/HelpVideo";
+import HelpVideo, { useHelpVideos, PlayBadge } from "@/apps/help-centre/HelpVideo";
 
 // v51l — the Help Centre was a static mockup: every card, tour, the search
 // box and "Raise a ticket" were <a href="#"> dead ends. Now wired to the
@@ -101,6 +101,7 @@ function TicketModal({ onClose }) {
 
 export default function HelpCentreE({ legacy: Legacy }) {
   useSeo({ page: "help" });
+  const videos = useHelpVideos();
   const { isE } = useUiTheme();
   const [modules, setModules] = useState({});
   const [loading, setLoading] = useState(true);
@@ -177,6 +178,7 @@ export default function HelpCentreE({ legacy: Legacy }) {
                    placeholder="Search, e.g. “bank guarantee”, “withdraw bid”, “corrigendum”"
                    style={{ color: "var(--ink)", fontSize: 16 }} />
           </label>
+          <a href="/help/videos" className="pmc-btn pmc-btn--brass" style={{ marginTop: 16 }} data-testid="help-video-library-link">▶ Watch the video library</a>
           <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 20 }}>
             <div className="hc-role" role="tablist">
               <button type="button" aria-selected={role === "supplier"} onClick={() => { setRole("supplier"); setTopic(null); }}
@@ -220,7 +222,7 @@ export default function HelpCentreE({ legacy: Legacy }) {
             {visibleModules.map(([code, m]) => (
               <details key={code} className="pmc-faq" data-testid={`help-article-${code}`}>
                 <summary>
-                  {m.title}
+                  <span>{m.title}{videos[code] && <PlayBadge testid={`help-video-badge-${code}`} />}</span>
                   <span className="pmc-muted" style={{ fontSize: 11, marginLeft: 8, textTransform: "uppercase", letterSpacing: "0.08em" }}>
                     {SURFACE_LABEL[m.surface] || m.surface}
                   </span>

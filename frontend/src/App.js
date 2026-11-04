@@ -98,6 +98,7 @@ import ForgotPasswordE from "@/apps/auth-e/ForgotPasswordE";
 import ResetPasswordE from "@/apps/auth-e/ResetPasswordE";
 import HelpCentreE from "@/apps/help-centre/HelpCentreE";
 import HelpArticleE from "@/apps/help-centre/HelpArticleE";
+import HelpVideoLibraryE from "@/apps/help-centre/HelpVideoLibraryE";
 import VendorHomeE from "@/apps/vendor-portal-e/VendorHomeE";
 import VendorMyBidsE from "@/apps/vendor-portal-e/VendorMyBidsE";
 import VendorBidDebriefE from "@/apps/vendor-portal-e/VendorBidDebriefE";
@@ -228,6 +229,7 @@ export default function App() {
             <Route path="/trust" element={<TrustSecurityE />} />
             <Route path="/pricing" element={<Navigate to="/contact" replace />} />
             <Route path="/help" element={<HelpCentreE />} />
+            <Route path="/help/videos" element={<HelpVideoLibraryE />} />
             <Route path="/help/:slug" element={<HelpArticleE />} />
             {/* v49b — new public Option-E pages */}
             <Route path="/suppliers" element={<ForSuppliersE />} />

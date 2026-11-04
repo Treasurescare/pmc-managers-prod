@@ -1202,3 +1202,8 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - Build note: if prerender fails with "Executable doesn't exist", run `python3 -m playwright install chromium`.
 
 
+## 2026-11-04 — Video library + badges (v59z)
+- /help/videos (HelpVideoLibraryE.jsx): grid of all 45 videos with search, All / Suppliers & portals / Admin filters, modal player with link to the written guide. Linked from Help Centre hero ("Watch the video library"); in sitemap.
+- Help Centre guide rows show a "▶ Video" badge (PlayBadge) when a video exists. useHelpVideos/loadManifest exported from HelpVideo.jsx.
+
+

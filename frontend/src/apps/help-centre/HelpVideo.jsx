@@ -1,10 +1,23 @@
 import { useEffect, useState } from "react";
 
 let cache;
-const loadManifest = () => {
+export const loadManifest = () => {
   cache = cache || fetch("/help-videos/manifest.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
   return cache;
 };
+
+export function useHelpVideos() {
+  const [m, setM] = useState({});
+  useEffect(() => { loadManifest().then(setM); }, []);
+  return m;
+}
+
+export const PlayBadge = ({ testid }) => (
+  <span title="Has a video walkthrough" data-testid={testid}
+    style={{ display: "inline-flex", alignItems: "center", gap: 4, marginLeft: 8, padding: "2px 8px", borderRadius: 999,
+      background: "#162921", color: "#d9bd72", fontSize: 11, fontWeight: 600, verticalAlign: "middle" }}>
+    <svg width="9" height="10" viewBox="0 0 9 10" aria-hidden="true"><path d="M0 0l9 5-9 5z" fill="currentColor" /></svg>Video
+  </span>);
 
 export default function HelpVideo({ slug, preload = "metadata" }) {
   const [v, setV] = useState(null);
