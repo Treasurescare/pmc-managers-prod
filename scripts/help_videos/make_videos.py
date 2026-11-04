@@ -166,6 +166,8 @@ def main():
                 audio = asyncio.run(tts_all(segs, d))
                 vid, starts = record(slug, m, segs, audio, d)
                 compose(vid, starts, audio, out)
+                subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-ss", "1.5", "-i", out, "-frames:v", "1",
+                                "-vf", "scale=960:-1", "-q:v", "5", out[:-4] + ".jpg"], check=True)
             except Exception as e:
                 print("FAILED", slug, e)
                 continue

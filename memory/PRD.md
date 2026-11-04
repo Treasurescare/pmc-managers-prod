@@ -1197,3 +1197,8 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - Note: admin Programme page shows sample figures (Kazakhstan, USD 12.4M) — not yet live data.
 
 
+## 2026-11-04 — Help videos inline in Help Centre (v59y)
+- Help Centre guide list (HelpCentreE accordion) now shows each module's video (preload none + poster jpg). Posters generated per video (make_videos.py now writes <slug>.jpg too).
+- Build note: if prerender fails with "Executable doesn't exist", run `python3 -m playwright install chromium`.
+
+

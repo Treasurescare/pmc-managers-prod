@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { useSeo } from "@/lib/useSeo";
 import { toast } from "sonner";
+import HelpVideo from "@/apps/help-centre/HelpVideo";
 
 // v51l — the Help Centre was a static mockup: every card, tour, the search
 // box and "Raise a ticket" were <a href="#"> dead ends. Now wired to the
@@ -226,6 +227,7 @@ export default function HelpCentreE({ legacy: Legacy }) {
                 </summary>
                 <div style={{ padding: "4px 0 8px" }}>
                   {m.purpose && <p>{m.purpose}</p>}
+                  <HelpVideo slug={code} preload="none" />
                   {(m.prerequisites || []).length > 0 && (
                     <p className="pmc-muted" style={{ fontSize: 13 }}>
                       <b>Before you start:</b> {m.prerequisites.join(" · ")}
