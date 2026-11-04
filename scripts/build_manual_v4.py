@@ -88,6 +88,11 @@ def chapter(title):
     return deco
 
 
+# Internal chapters kept in the source but left out of the published manual until go-live.
+# Publish them with MANUAL_SHOW_INTERNAL=1 python3 scripts/build_manual_v4.py
+HIDDEN_UNTIL_LIVE = {"13", "16", "17", "18"}
+
+
 @chapter("1 \u00b7 Platform overview & architecture")
 def c1():
     return [P("PMC Managers is a global e-procurement platform: buyers publish tenders, verified suppliers bid with sealed envelopes, an evaluation committee opens, checks and awards, and payments move through escrow \u2014 every step recorded in a tamper-evident audit ledger."),
@@ -349,8 +354,14 @@ def build():
              Paragraph("<font size='12'>Whole-site edition \u00b7 every portal, every screen, every process</font>", W), Spacer(1, 60 * mm),
              Paragraph(f"Issued {TODAY} \u00b7 replaces v3 (Sovereign Edition)", W), NextPageTemplate("body"), PageBreak(),
              Paragraph("<b>Contents</b>", ParagraphStyle("ch2", parent=H2, fontSize=16)), toc, PageBreak()]
+    hidden = set() if os.environ.get("MANUAL_SHOW_INTERNAL") == "1" else HIDDEN_UNTIL_LIVE
+    n = 0
     for title, fn in CHAPTERS:
-        story += [Paragraph(title, CH), Spacer(1, 2 * mm)] + fn() + [PageBreak()]
+        num, _, name = title.partition(" \u00b7 ")
+        if num in hidden:
+            continue
+        n += 1
+        story += [Paragraph(f"{n} \u00b7 {name}", CH), Spacer(1, 2 * mm)] + fn() + [PageBreak()]
     Doc(path).multiBuild(story)
     return path
 

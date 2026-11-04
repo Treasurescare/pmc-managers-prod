@@ -1210,4 +1210,9 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - Deep link /help/videos?v=<slug> opens the video player directly (title updated). ShareRow (Copy link / WhatsApp / Email) in the library player and under every article video (HelpVideo.jsx).
 
 
+## 2026-11-04 — Manual: internal chapters hidden until go-live (v60b)
+- scripts/build_manual_v4.py: HIDDEN_UNTIL_LIVE = {13 Deployment runbook, 16 API reference index, 17 Data model appendix, 18 Release history}; chapters renumbered on build. Content kept in source. Publish at go-live: `MANUAL_SHOW_INTERNAL=1 python3 scripts/build_manual_v4.py`, then copy to scripts/help_videos/manual_base.pdf and run manual_appendix.py.
+- Manual now 101 pages (83 body + video/module appendix).
+
+
 
