@@ -166,4 +166,18 @@ EXTRA_MODULES = {
          "Filter by creator or date to focus the board."],
         "The board and programme figures update immediately.",
         [("Import CSV", "Bulk-creates packages from a file."), ("Sample CSV", "Downloads the import template.")]),
+    "ask-pmc": {
+        "surface": "public", "title": "Ask PMC Assistant", "url_path": "/",
+        "purpose": "Ask PMC is the AI assistant in the bottom-right corner of every page. Visitors and suppliers can ask about registering, fees, open tenders and bidding. Inside the admin and staff portals it becomes Team help: ask how to do any task and it gives the screen, the steps and a matching video walkthrough.",
+        "prerequisites": ["None for visitors; sign in to the admin or staff portal for Team help"],
+        "actions": [{"id": "main", "label": "Ask a question and watch the video answer",
+                     "when": "You are not sure how to do something on the portal.",
+                     "steps": ["Click **Ask PMC** at the bottom-right of the screen.",
+                               "Type your question in plain words, for example how do I approve a registration.",
+                               "Click **Send** and read the steps in the reply.",
+                               "If a video card appears under the answer, press play to watch the walkthrough.",
+                               "Click the video title to open it in the Help Centre video library and share it."],
+                     "expected": "You get a short answer, a link to the full guide and, where available, a video.",
+                     "controls": [{"name": "Ask PMC", "desc": "Opens or closes the assistant."},
+                                  {"name": "Send", "desc": "Sends your question."}]}]},
 }

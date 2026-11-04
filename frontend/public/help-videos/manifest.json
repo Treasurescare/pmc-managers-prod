@@ -313,5 +313,12 @@
   "hash": "6e9218e8f4f17e7c",
   "seconds": 45,
   "updated": "2026-11-03"
+ },
+ "ask-pmc": {
+  "file": "/help-videos/ask-pmc.mp4",
+  "title": "Ask PMC Assistant",
+  "hash": "d89dd8d5368283cc",
+  "seconds": 65,
+  "updated": "2026-11-04"
  }
 }

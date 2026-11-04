@@ -1216,3 +1216,10 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 
 
 
+
+## 2026-11-04 — Ask PMC for admin & staff + video answers (v60c)
+- components/ChatWidget.jsx: now shown on /admin and /staff (hidden only on login, /escrow, /auth). Staff mode ("Team help") uses separate session key; answers render inline help-video cards (from /help-videos/manifest.json) + link to /help/videos?v=slug.
+- routers/assistant.py: `mode: public|staff`; staff mode requires admin access_token cookie, answers from help MODULES (all surfaces); public mode limited to public/vendor/registration guides. Response returns `videos` (guide named in reply first, then keyword matches).
+- New help module `ask-pmc` (help_content_extra.py) + video ask-pmc.mp4 (46 videos) + manual appendix rebuilt (102 pages, internal chapters still hidden).
+- Self-tested: curl public + staff, screenshot admin Registrations (2 video cards) and mobile public. Testing agent not run.
+
