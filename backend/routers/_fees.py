@@ -35,10 +35,26 @@ DEFAULT_FEE_TYPES = [
 ]
 
 
-def country_q(country: Optional[str]) -> dict:
-    """Match rules for a country plus 'ALL' (all-countries) rules."""
+def country_q(country: Optional[str], band: Optional[str] = None) -> dict:
+    """Match rules for a country, its pricing band, plus 'ALL' (all-countries) rules."""
     c = (country or "").upper()
-    return {"$or": [{"country": {"$in": [c, "ALL"]}}, {"countries": c}]}
+    ors = [{"country": {"$in": [c, "ALL"]}}, {"countries": c}]
+    if band:
+        ors.append({"bands": band})
+    return {"$or": ors}
+
+
+async def band_code(country: Optional[str]) -> Optional[str]:
+    if not country:
+        return None
+    b = await db.pricing_bands.find_one({"countries": country.upper(), "is_active": True}, {"code": 1})
+    return b["code"] if b else None
+
+
+def _scope(r: dict, c: str) -> int:
+    if c in (r.get("countries") or []) or r.get("country") == c:
+        return 3
+    return 2 if r.get("bands") else 1
 
 
 async def category_aliases(cat: Optional[str]) -> list:
@@ -57,17 +73,21 @@ async def category_aliases(cat: Optional[str]) -> list:
     return sorted(out)
 
 
-async def find_rule(kind: str, country: Optional[str], category: Optional[str] = None) -> Optional[dict]:
-    """Best active rule: country-specific beats ALL, category-specific beats all-categories."""
+async def find_rule(kind: str, country: Optional[str], category: Optional[str] = None,
+                    tier: Optional[str] = None) -> Optional[dict]:
+    """Best active rule: category > country > band > ALL; a tier-specific rule only applies to that tier."""
     if not country:
         return None
+    c = country.upper()
     names = await category_aliases(category) or [""]
     best, score = None, 0
-    async for r in db.emd_masters.find({"kind": kind, "is_active": True, **country_q(country)}):
-        s = max(_rule_matches_category(r, c) for c in names)
+    async for r in db.emd_masters.find({"kind": kind, "is_active": True, **country_q(c, await band_code(c))}):
+        if r.get("tier") and r["tier"] != tier:
+            continue
+        s = max(_rule_matches_category(r, x) for x in names)
         if not s:
             continue
-        s = s * 2 + (1 if r.get("country") != "ALL" else 0)
+        s = s * 8 + _scope(r, c) * 2 + (1 if r.get("tier") else 0)
         if s > score:
             best, score = r, s
     return best
@@ -134,11 +154,14 @@ def validate_rule_against_type(ft: dict, body: dict) -> None:
             raise HTTPException(status_code=422, detail="Percentages must be greater than 0.")
     cats = body.get("categories") or []
     cs = sorted({x.upper() for x in (body.get("countries") or [])})
-    if not cs and (body.get("country") or "ALL").upper() != "ALL":
+    bands = sorted({x.upper() for x in (body.get("bands") or [])})
+    if bands and cs:
+        raise HTTPException(status_code=422, detail="Choose either bands or individual countries for a rule, not both.")
+    if not cs and not bands and (body.get("country") or "ALL").upper() not in ("ALL", "BAND"):
         cs = [body["country"].upper()]
-    body["countries"] = cs
-    body["country"] = "ALL" if not cs else (cs[0] if len(cs) == 1 else "MULTI")
-    if ft.get("country_scope") == "selected":
+    body["countries"], body["bands"] = cs, bands
+    body["country"] = "BAND" if bands else "ALL" if not cs else (cs[0] if len(cs) == 1 else "MULTI")
+    if ft.get("country_scope") == "selected" and not bands:
         allowed = [x.upper() for x in ft.get("countries") or []]
         bad = [x for x in cs if x not in allowed]
         if not cs or bad:
@@ -165,6 +188,8 @@ def compute_amount(rule: dict, value: Optional[float]) -> Optional[float]:
     if value is None:
         return None
     v = float(value)
+    if rule.get("nil_below") and v < float(rule["nil_below"]):
+        return 0.0
     if rule.get("progressive"):
         total = 0.0
         for s in slabs:

@@ -16,6 +16,7 @@ import CategoryRequestsPanel from "./masters/CategoryRequestsPanel";
 import ProfileChangeRequestsPanel from "./masters/ProfileChangeRequestsPanel";
 import EmdMastersPanel from "./masters/EmdMastersPanel";
 import FeeTypesPanel from "./masters/FeeTypesPanel";
+import PricingBandsPanel from "./masters/PricingBandsPanel";
 import DataIntelAdminPanel from "./masters/DataIntelAdminPanel";
 import CountryLicensesTab from "./masters/CountryLicensesTab";
 import GeographyTab from "./masters/GeographyTab";
@@ -164,7 +165,7 @@ export default function MastersPanel() {
       {/* Tab bar as wrapping chips: every master is visible at once; the
           active chip is solid navy, the rest outlined. No horizontal scroll. */}
       <div className="flex flex-wrap gap-2 mb-4" data-testid="masters-tab-bar">
-        {[["staff", t("panels.masters.tab_staff")], ["companies", t("panels.masters.tab_companies")], ["tenants", t("panels.masters.tab_tenants")], ["matrix", t("panels.masters.tab_matrix")], ["hierarchy", t("panels.masters.tab_hierarchy")], ["rating", "Rating & Fees"], ["fees", "Charge Fee"], ["categories", "Categories"], ["sectors", "Sectors"], ["contract_types", "Contract types"], ["currencies", "Currencies"], ["country_currencies", "Country currencies"], ["legal_entities", "Legal entity types"], ["country_licenses", "Country licenses"], ["geography", "Geography"], ["cat_requests", "Vendor requests"], ["profile_requests", "Profile changes"], ["fee_types", "Fee types"], ["emd_rules", "Fee rules"], ["data_intel", "Data intel"], ["go_live", "Go-live"], ["demo", "Investor Demo"]].map(([k, l]) => (
+        {[["staff", t("panels.masters.tab_staff")], ["companies", t("panels.masters.tab_companies")], ["tenants", t("panels.masters.tab_tenants")], ["matrix", t("panels.masters.tab_matrix")], ["hierarchy", t("panels.masters.tab_hierarchy")], ["rating", "Rating & Fees"], ["fees", "Charge Fee"], ["categories", "Categories"], ["sectors", "Sectors"], ["contract_types", "Contract types"], ["currencies", "Currencies"], ["country_currencies", "Country currencies"], ["legal_entities", "Legal entity types"], ["country_licenses", "Country licenses"], ["geography", "Geography"], ["cat_requests", "Vendor requests"], ["profile_requests", "Profile changes"], ["fee_types", "Fee types"], ["pricing_bands", "Pricing bands"], ["emd_rules", "Fee rules"], ["data_intel", "Data intel"], ["go_live", "Go-live"], ["demo", "Investor Demo"]].map(([k, l]) => (
           <button key={k} onClick={() => { setTab(k); setSearch(""); }}
             className={`px-3 py-1.5 text-[11px] uppercase tracking-widest whitespace-nowrap border transition-colors ${tab === k ? "bg-brand-navy text-white border-brand-navy font-semibold" : "bg-white text-brand-navy/70 border-brand-navy/25 hover:border-brand-navy hover:text-brand-navy"}`}
             data-testid={`masters-tab-${k}`}>{l}</button>
@@ -251,6 +252,7 @@ export default function MastersPanel() {
       {tab === "cat_requests" && <CategoryRequestsPanel />}
       {tab === "profile_requests" && <ProfileChangeRequestsPanel />}
       {tab === "fee_types" && <FeeTypesPanel />}
+      {tab === "pricing_bands" && <PricingBandsPanel />}
       {tab === "data_intel" && <DataIntelAdminPanel />}
       {tab === "emd_rules" && <EmdMastersPanel />}
       {tab === "go_live" && <GoLiveTab />}

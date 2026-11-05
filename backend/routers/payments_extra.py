@@ -101,6 +101,9 @@ async def apply_extra_payment(session_id: str) -> None:
             f"<p>We received {tx['currency'].upper()} {tx['amount']:,.2f} for hosting tender "
             f"<b>{tx['notice_ref']}</b>. It is now published on PMC Managers.</p>"
             f"<p style='color:#666;font-size:12px'>Payment reference: {session_id}</p>", None, None)
+    elif p == "award_fee":
+        from routers.pricing import apply_award_fee_payment
+        await apply_award_fee_payment(tx)
     elif p == "data_intel":
         r = await db.data_intel_requests.find_one_and_update({"_id": ObjectId(tx["request_id"]), "status": "quoted"},
             {"$set": {"status": "paid", "paid_at": now_iso()}})
@@ -200,8 +203,15 @@ async def category_interest(notice_ref: str, vendor=Depends(current_vendor)):
 
 # ----------------------- tender document download fee -----------------------
 
-async def _doc_fee(notice: dict) -> Optional[dict]:
-    rule = await find_rule("tender_document_download", notice.get("delivery_country"), notice.get("category"))
+async def _doc_fee(notice: dict, vendor_id: Optional[str] = None) -> Optional[dict]:
+    from routers.pricing import plan_waives, vendor_waived
+    if plan_waives(notice, "tender_document_download"):
+        return None
+    if vendor_id and ObjectId.is_valid(vendor_id) and vendor_waived(
+            await db.vendors.find_one({"_id": ObjectId(vendor_id)}, {"fee_plan": 1}), "tender_document_download"):
+        return None
+    rule = await find_rule("tender_document_download", notice.get("delivery_country"), notice.get("category"),
+                           (notice.get("fee_plan") or {}).get("tier"))
     amt = compute_amount(rule, notice.get("budget_amount")) if rule else None
     if not amt:
         return None
@@ -221,7 +231,8 @@ async def assert_doc_fee_paid(request: Request, notice: dict) -> None:
         v = await current_vendor(request)
     except Exception:
         raise HTTPException(status_code=401, detail="Log in as a registered supplier to download tender documents.")
-    if not await db.doc_purchases.find_one({"vendor_id": v["id"], "notice_ref": notice["notice_ref"], "paid": True}):
+    fee = await _doc_fee(notice, v["id"])
+    if fee and not await db.doc_purchases.find_one({"vendor_id": v["id"], "notice_ref": notice["notice_ref"], "paid": True}):
         raise HTTPException(status_code=402, detail={"code": "doc_fee_required", **fee,
             "message": f"A document download fee of {fee['currency']} {fee['amount']:,.2f} applies to this tender. Pay once to download any number of times."})
 
@@ -231,7 +242,7 @@ async def doc_fee_quote(notice_ref: str, vendor=Depends(current_vendor)):
     n = await db.notices.find_one({"notice_ref": notice_ref, "is_published": True})
     if not n:
         raise HTTPException(status_code=404, detail="Notice not found")
-    fee = await _doc_fee(n)
+    fee = await _doc_fee(n, vendor["id"])
     paid = bool(await db.doc_purchases.find_one({"vendor_id": vendor["id"], "notice_ref": notice_ref, "paid": True}))
     return {"required": bool(fee), "paid": paid, **(fee or {})}
 
@@ -243,7 +254,7 @@ class OriginIn(BaseModel):
 @router.post("/api/v1/notices/{notice_ref}/doc-fee/checkout")
 async def doc_fee_checkout(notice_ref: str, payload: OriginIn, vendor=Depends(current_vendor)):
     n = await db.notices.find_one({"notice_ref": notice_ref, "is_published": True})
-    fee = await _doc_fee(n) if n else None
+    fee = await _doc_fee(n, vendor["id"]) if n else None
     if not fee:
         raise HTTPException(status_code=404, detail="No document fee applies")
     if await db.doc_purchases.find_one({"vendor_id": vendor["id"], "notice_ref": notice_ref, "paid": True}):
@@ -275,7 +286,9 @@ async def hosting_fee_quote(notice_ref: str, admin=Depends(require_role("admin")
     n = await db.notices.find_one({"notice_ref": notice_ref})
     if not n:
         raise HTTPException(status_code=404, detail="Notice not found")
-    rule = await find_rule("tender_hosting", n.get("delivery_country"), n.get("category"))
+    from routers.pricing import plan_waives
+    rule = None if plan_waives(n, "tender_hosting") else await find_rule(
+        "tender_hosting", n.get("delivery_country"), n.get("category"), (n.get("fee_plan") or {}).get("tier"))
     amt = compute_amount(rule, n.get("budget_amount")) if rule else None
     return {"required": bool(amt), "amount": amt, "currency": (rule or {}).get("currency"),
             "rule": (rule or {}).get("name"), "hosting_fee": n.get("hosting_fee")}

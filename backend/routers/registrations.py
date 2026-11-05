@@ -618,7 +618,11 @@ async def admin_decide(registration_id: str, payload: RegistrationDecisionIn,
                     "registration, or remove/merge the existing vendor first."
                 ),
             )
+        from routers.pricing import supplier_plan
+        plan = supplier_plan(payload.supplier_fees, payload.fee_reason, admin["email"]) if payload.supplier_fees else None
         updates.update(await approve_and_create_vendor(doc))
+        if plan and updates.get("vendor_ref"):
+            await db.vendors.update_one({"vendor_ref": updates["vendor_ref"]}, {"$set": {"fee_plan": plan}})
     elif payload.action == "reject":
         if not payload.notes:
             raise HTTPException(status_code=400, detail="Notes required when rejecting")

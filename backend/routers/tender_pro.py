@@ -887,6 +887,9 @@ class EmdMasterIn(BaseModel):
     name: str = Field(min_length=2, max_length=120)
     country: str = Field(default="ALL", min_length=2, max_length=5)
     countries: List[str] = Field(default_factory=list)
+    bands: List[str] = Field(default_factory=list)
+    tier: Optional[str] = Field(default=None, max_length=40)
+    nil_below: Optional[float] = Field(default=None, ge=0)
     extend_type: bool = False
     industry: Optional[str] = None
     # v50h — optional procurement category (matches masters.categories.name).
@@ -913,7 +916,9 @@ async def _check_fee_type(body: dict) -> Optional[tuple]:
     if bad:
         raise HTTPException(status_code=422, detail=f"Invalid country codes: {', '.join(map(str, bad))}")
     add = {}
-    if body.pop("extend_type", False):
+    body["tier"] = (body.get("tier") or "").strip() or None
+    extend = body.pop("extend_type", False)
+    if extend and not body.get("bands"):
         ft = dict(ft)
         if ft.get("country_scope") == "selected" and body.get("countries"):
             cs = [c.upper() for c in body["countries"]]

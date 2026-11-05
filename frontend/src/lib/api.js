@@ -333,8 +333,8 @@ export const adminApi = {
   registrationAdminUpdate: (rid, payload) =>
     api.patch(`/api/v1/registrations/admin/${rid}`, _stripRegExtras(payload)).then((r) => r.data),
   getRegistration: (id) => api.get(`/api/v1/registrations/${id}`).then((r) => r.data),
-  decideRegistration: (id, action, notes) =>
-    api.post(`/api/v1/registrations/${id}/decision`, { action, notes }).then((r) => r.data),
+  decideRegistration: (id, action, notes, extra = {}) =>
+    api.post(`/api/v1/registrations/${id}/decision`, { action, notes, ...extra }).then((r) => r.data),
   createNotice: (payload) => api.post("/api/v1/notices", payload).then((r) => r.data),
   updateNotice: (ref, payload) => api.patch(`/api/v1/notices/${ref}`, payload).then((r) => r.data),
   getNoticeAdmin: (ref) => api.get(`/api/v1/notices/${ref}/admin`).then((r) => r.data),
@@ -1315,6 +1315,21 @@ export const extraPayApi = {
   intelQuote: (id, p) => api.post(`/api/v1/data-intel/admin/${id}/quote`, p).then((r) => r.data),
   intelDeliver: (id, p) => api.post(`/api/v1/data-intel/admin/${id}/deliver`, p).then((r) => r.data),
   intelDecline: (id, notes) => api.post(`/api/v1/data-intel/admin/${id}/decline`, { notes }).then((r) => r.data),
+};
+
+export const pricingApi = {
+  bands: () => api.get("/api/v1/pricing/bands").then((r) => r.data),
+  createBand: (p) => api.post("/api/v1/pricing/bands", p).then((r) => r.data),
+  updateBand: (code, p) => api.put(`/api/v1/pricing/bands/${code}`, p).then((r) => r.data),
+  setTiers: (tiers) => api.put("/api/v1/pricing/tiers", { tiers }).then((r) => r.data),
+  feePlan: (ref, tier) => api.get(`/api/v1/pricing/notices/${ref}/fee-plan`, { params: tier ? { tier } : {} }).then((r) => r.data),
+  saveFeePlan: (ref, p) => api.put(`/api/v1/pricing/notices/${ref}/fee-plan`, p).then((r) => r.data),
+  awardFees: (status) => api.get("/api/v1/pricing/award-fees", { params: status ? { status } : {} }).then((r) => r.data),
+  resendAwardFee: (bidId) => api.post(`/api/v1/pricing/award-fees/${bidId}/resend`).then((r) => r.data),
+  waiveAwardFee: (bidId, reason) => api.post(`/api/v1/pricing/award-fees/${bidId}/waive`, { reason }).then((r) => r.data),
+  supplierDefaults: (country) => api.get("/api/v1/pricing/supplier-fees/defaults", { params: { country } }).then((r) => r.data),
+  vendorPlan: (ref) => api.get(`/api/v1/pricing/vendors/${ref}/fee-plan`).then((r) => r.data),
+  setVendorPlan: (ref, p) => api.put(`/api/v1/pricing/vendors/${ref}/fee-plan`, p).then((r) => r.data),
 };
 
 export const feeTypesApi = {

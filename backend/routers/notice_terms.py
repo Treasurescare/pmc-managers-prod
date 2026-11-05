@@ -21,11 +21,15 @@ async def is_public_tender(notice: dict) -> bool:
 async def terms(notice: dict) -> dict:
     public = await is_public_tender(notice)
     on = bool(notice.get("winner_fee_enabled")) and not public
-    return {"public_tender": public, "winner_fee_enabled": on, "winner_fee_pct": WINNER_FEE_PCT if on else 0}
+    return {"public_tender": public, "winner_fee_enabled": on, "winner_fee_pct": _pct(notice) if on else 0}
+
+
+def _pct(notice: dict) -> float:
+    return float(notice.get("winner_fee_pct") or WINNER_FEE_PCT)
 
 
 def winner_charge(notice: dict, price: float) -> float:
-    return round(float(price or 0) * WINNER_FEE_PCT / 100.0, 2) if notice.get("winner_fee_enabled") else 0.0
+    return round(float(price or 0) * _pct(notice) / 100.0, 2) if notice.get("winner_fee_enabled") else 0.0
 
 
 class WinnerFeeIn(BaseModel):

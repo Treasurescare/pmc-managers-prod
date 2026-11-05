@@ -467,6 +467,8 @@ async def update_notice(notice_ref: str, payload: NoticePatchIn,
             and (notice.get("hosting_fee") or {}).get("status") == "unpaid":
         raise HTTPException(status_code=409, detail="Hosting fee is unpaid — the notice publishes automatically once the buyer pays.")
     if updates.get("is_published") and not notice.get("is_published"):
+        if not notice.get("fee_plan"):
+            raise HTTPException(status_code=409, detail=FEE_PLAN_MSG)
         from routers.tender_criteria import has_must_pass
         if not has_must_pass(notice):
             raise HTTPException(status_code=409, detail="Add the tender criteria first — at least one pass/fail criterion is needed before publishing (Criteria button).")
@@ -620,9 +622,14 @@ async def admin_get_notice(notice_ref: str, admin=Depends(require_role("admin", 
     return _out(doc)
 
 
+FEE_PLAN_MSG = "Confirm the fees first: open Fees on this notice, tick Charge or Waive for each fee and save."
+
+
 @router.post("/{notice_ref}/publish")
 async def publish_notice(notice_ref: str, admin=Depends(require_role("admin"))):
-    n = await db.notices.find_one({"notice_ref": notice_ref}, {"hosting_fee": 1, "tender_criteria": 1})
+    n = await db.notices.find_one({"notice_ref": notice_ref}, {"hosting_fee": 1, "tender_criteria": 1, "fee_plan": 1})
+    if n and not n.get("fee_plan"):
+        raise HTTPException(status_code=409, detail=FEE_PLAN_MSG)
     if n and (n.get("hosting_fee") or {}).get("status") == "unpaid":
         raise HTTPException(status_code=409, detail="Hosting fee is unpaid — the notice publishes automatically once the buyer pays.")
     from routers.tender_criteria import has_must_pass

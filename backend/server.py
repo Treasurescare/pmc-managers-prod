@@ -353,6 +353,8 @@ from routers import linkedin as _linkedin  # noqa: E402
 app.include_router(_linkedin.router)
 from routers import assistant as _assistant  # noqa: E402
 app.include_router(_assistant.router)
+from routers import pricing as _pricing  # noqa: E402
+app.include_router(_pricing.router)
 
 
 @app.on_event("startup")
@@ -810,6 +812,7 @@ async def on_start() -> None:
         from routers.marketing import ensure_indexes as _mkt_idx
         await _mkt_idx()
         await _assistant.ensure_indexes()
+        await _pricing.seed_pricing()
         await _whatsapp.ensure_indexes()
         await db.opening_records.create_index("code", unique=True)
         await _agents.ensure_indexes()

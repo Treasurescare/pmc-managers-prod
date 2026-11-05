@@ -2,12 +2,14 @@ import AdminEShell from "./AdminEShell";
 import BillingTransactionsPanel from "@/apps/admin-console/BillingTransactionsPanel";
 import MoneyPanelWithFilter from "./MoneyPanelWithFilter";
 import { RefundAlerts } from "./RefundAlerts";
+import AwardFeesPanel from "./AwardFeesPanel";
 
 export default function AdminBillingE() {
   return (
     <div className="min-h-screen" style={{ background: "var(--brand-pale, #F3EFE4)" }}>
       <AdminEShell crumb={<>Money &amp; compliance / <b>Billing</b></>}>
         <RefundAlerts />
+        <AwardFeesPanel />
         <MoneyPanelWithFilter scope="[data-testid=billing-panel]"
                               testid="billing-filter"
                               presetScope="billing"

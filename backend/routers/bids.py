@@ -942,6 +942,12 @@ async def decide_bid(bid_id: str, payload: BidDecisionIn,
         except Exception as e:
             import logging
             logging.warning(f"Award document auto-generation failed for bid {bid_id}: {e}")
+        try:
+            from routers.pricing import raise_award_fee
+            await raise_award_fee(bid_id, admin.get("email"))
+        except Exception as e:
+            import logging
+            logging.warning(f"Award fee could not be raised for bid {bid_id}: {e}")
         # v46t — fan out a Web Push to the awarded vendor + any admins subscribed.
         try:
             from routers.push import fanout as _push_fanout

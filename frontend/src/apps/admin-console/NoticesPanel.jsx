@@ -859,7 +859,7 @@ export default function NoticesPanel() {
               </div>
             )}
             <TenderTracker refKey={n.notice_ref} t={trackers[n.notice_ref]} />
-            {!n.is_published && <PublishChecklist n={n} onCriteria={() => setCritRef(n.notice_ref)} onPublish={isMasterAdmin ? () => publish(n.notice_ref) : null} />}
+            {!n.is_published && <PublishChecklist n={n} onCriteria={() => setCritRef(n.notice_ref)} onPublish={isMasterAdmin ? () => publish(n.notice_ref) : null} onChanged={load} />}
           </div>
         ))}
         {noticeControls}

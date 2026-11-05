@@ -17,11 +17,13 @@ router = APIRouter(prefix="/api/v1/assistant", tags=["assistant"])
 ABOUT = (
     "PMC Managers (pmcmanagers.com) is a global e-tendering and procurement platform run by THE PMC MANAGERS LTD (UK). "
     "Buyers publish tender notices (tenders, RFQs, RFPs). Suppliers register (registration + KYC review by PMC), choose business "
-    "categories (the first category is free, each extra category has a fee), browse the Global Tender Grid, download tender "
+    "categories (the first category is free unless PMC waives extra-category fees for that supplier), browse the Global Tender Grid, download tender "
     "documents, pay EMD (bid security) where a tender requires it, and submit sealed bids online. Bids are opened and evaluated by "
     "the buyer's committee; awards create purchase orders and contracts. Every step is recorded on a tamper-evident audit ledger. "
-    "Fees (registration, extra categories, document downloads, tender hosting, subscriptions) are set per country and category and "
-    "paid securely by card through Stripe. Vendors have a portal with My bids, EMD & payments, Messages, Data intel and Refer & earn. "
+    "Fees (extra categories, document downloads, tender hosting, award fee) are set by PMC per pricing band or country, and for each "
+    "tender PMC decides before publishing whether each fee is charged or waived and who pays the award fee; a supplier-paid award fee "
+    "is shown on the tender. Prices are not published yet — ask PMC Managers for a quote. Payments are by card through Stripe. "
+    "Vendors have a portal with My bids, EMD & payments, Messages, Data intel and Refer & earn. "
     "Help pages: /register (supplier registration), /notices (open tenders), /buyers (for organisations issuing tenders), /login."
 )
 RULES = (

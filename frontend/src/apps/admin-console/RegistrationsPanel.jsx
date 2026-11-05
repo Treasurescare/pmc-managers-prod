@@ -4,6 +4,7 @@ import { adminApi, api, formatApiError, showApiError} from "@/lib/api";
 import { useI18n } from "@/context/I18nContext";
 import { InfoDot } from "@/components/InfoDot";
 import { useListPager } from "@/components/ListPager";
+import { SupplierFeeChoice } from "./SupplierFeeChoice";
 
 export default function RegistrationsPanel() {
   const { t } = useI18n();
@@ -13,6 +14,7 @@ export default function RegistrationsPanel() {
   const [notes, setNotes] = useState("");
   const [sendingReminders, setSendingReminders] = useState(false);
   const [deciding, setDeciding] = useState(false);
+  const [supFees, setSupFees] = useState(null);
   const [search, setSearch] = useState("");
   // v51t — same pattern as VendorsPanel: on narrow screens the two
   // columns stack and the review panel sits at the very bottom of the
@@ -69,7 +71,8 @@ export default function RegistrationsPanel() {
     }
     setDeciding(true);
     try {
-      const r = await adminApi.decideRegistration(selected.id, action, notes || null);
+      const extra = action === "approve" && supFees ? { supplier_fees: supFees.fees, fee_reason: supFees.reason || null } : {};
+      const r = await adminApi.decideRegistration(selected.id, action, notes || null, extra);
       // Bug #46 — proper verb (avoids "clarify recorded" typo)
       const verb = action === "clarify" ? "clarification"
                  : action === "approve"  ? "approval"
@@ -161,6 +164,7 @@ export default function RegistrationsPanel() {
           </div>
         ) : (
           <>
+        <SupplierFeeChoice country={selected.country} value={supFees} onChange={setSupFees} />
         <button type="button" onClick={() => decide("approve")} disabled={deciding} data-testid="reg-approve" className="px-6 py-3 text-[12px] font-semibold uppercase tracking-widest bg-brand-navy-soft text-white hover:bg-brand-navy-soft/90 disabled:opacity-50 disabled:cursor-not-allowed">
           {deciding ? t("panels.registrations.approve_working") : t("panels.registrations.approve")}
           <InfoDot tip="Grants vendor account access. Notes optional. Vendor receives welcome email with password-set link." />

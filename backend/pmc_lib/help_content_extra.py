@@ -29,6 +29,18 @@ EXTRA_MODULES = {
          "Save filters you use often with **Save view**."],
         "Each payment shows its current Stripe status; paid payments have receipts and update the linked bid or fee.",
         [("Resync pending", "Re-checks pending payments with Stripe."), ("Stripe webhook mode", "Shows whether test or live keys are active and warns if the webhook secret is missing.")]),
+    "admin-pricing-fees": _m(
+        "Pricing Bands, Fees & Award Fee", "/admin/e/masters",
+        "Countries are grouped into pricing bands (Global, Regional, Programme, India, China). Fee rules can apply to all countries, to one or more bands, or to individual countries, and optionally to one buyer tier, with a no-fee-below value and a maximum per package. Before a tender is published an admin or reviewer confirms each fee as Charge or Waive and chooses who pays the award fee. When the tender is awarded the award fee is calculated automatically and a Stripe payment link is emailed to the payer; admin and accounts are notified to follow up. Supplier fees (extra categories, document downloads) are set to Charge or Waive for each supplier at approval.",
+        "Set fees and confirm them for a tender", "You are setting prices or preparing a tender for publishing.",
+        ["Open **Masters → Pricing bands** to check which countries sit in each band, the default award-fee payer and the supplier-fee default.",
+         "Open **Masters → Fee rules**, click **New**, pick the fee type (e.g. **Award fee**), choose **All countries**, **Pricing bands** or **Specific countries**, and enter the rate, maximum and no-fee-below value.",
+         "On the notice, in the publish checklist click **Set now** next to Fees.",
+         "Tick **Charge** or **Waive** for each fee (a waiver needs a reason), pick the buyer tier, choose who pays the award fee and enter the buyer billing email.",
+         "Click **Confirm fees**, then **Publish**.",
+         "After award, follow up unpaid award fees in **Billing → Award fees** with **Resend link** or **Waive**."],
+        "Fees are fixed on the tender when published; the award fee link is sent automatically at award.",
+        [("Confirm fees", "Saves the charge/waive choice for every fee on this tender."), ("Resend link", "Sends a fresh 24-hour Stripe payment link."), ("Waive", "Cancels an unpaid award fee with a reason.")]),
     "admin-challenges": _m(
         "Bid Challenges", "/admin/e/challenges",
         "After an award, a standstill period (10 days unless changed by corrigendum) blocks contract signing. Bidders on the tender can lodge one challenge at a time; the committee votes, an upheld challenge suspends the award until a resolution meeting, and the supplier may appeal once to a senior officer.",

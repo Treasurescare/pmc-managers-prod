@@ -28,6 +28,9 @@ async def _category_fee(v: dict, category_name: str) -> dict:
     'registration' Fee rule for the vendor's country (category-specific wins)."""
     from routers._tender_access import vendor_country
     from routers._fees import compute_amount
+    from routers.pricing import vendor_waived
+    if vendor_waived(v, "registration"):
+        return {"amount": 0.0, "currency": None, "required": False, "reason": "waived"}
     approved = list((v or {}).get("business_categories") or [])
     open_paid = await db.vendor_category_requests.count_documents(
         {"vendor_ref": v.get("vendor_ref"), "status": {"$in": OPEN}})

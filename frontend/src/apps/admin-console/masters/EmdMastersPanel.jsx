@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { tenderProApi, mastersApi, publicApi, feeTypesApi, showApiError } from "@/lib/api";
+import { tenderProApi, mastersApi, publicApi, feeTypesApi, pricingApi, showApiError } from "@/lib/api";
 import { CategoryPicker, CheckPicker } from "./CategoryPicker";
 
 /**
@@ -15,7 +15,7 @@ const TIMING = { upfront: "paid at the beginning", on_completion: "paid at the e
 
 const EMPTY_SLAB = { tender_value_min: 0, tender_value_max: "", fee_type: "percentage",
                      fixed_amount: "", percentage: "", pct_min: "", pct_max: "" };
-const EMPTY = { name: "", country_mode: "all", countries: [], kind: "", categories: [], currency: "USD",
+const EMPTY = { name: "", country_mode: "all", countries: [], bands: [], tier: "", nil_below: "", kind: "", categories: [], currency: "USD",
     is_active: true, notes: "", progressive: false, slabs: [ { ...EMPTY_SLAB } ] };
 
 function slabLabel(s, currency) {
@@ -38,6 +38,7 @@ export default function EmdMastersPanel() {
   const [calc, setCalc] = useState({ master_id: "", tender_value: 100000 });
   const [calcOut, setCalcOut] = useState(null);
   const [feeTypes, setFeeTypes] = useState([]);
+  const [pricing, setPricing] = useState({ bands: [], tiers: [] });
   const ft = feeTypes.find((t) => t.code === form.kind);
   const ftName = (code) => feeTypes.find((t) => t.code === code)?.name || (code || "").replace(/_/g, " ");
   const pickType = (code) => {
@@ -52,12 +53,14 @@ export default function EmdMastersPanel() {
 
   const load = useCallback(async () => {
     try {
-      const [m, c, cats, fts] = await Promise.all([
+      const [m, c, cats, fts, pb] = await Promise.all([
         tenderProApi.listEmdMasters({}),
         publicApi.countries().catch(() => []),
         mastersApi.listCategories({ limit: 500 }).catch(() => []),
         feeTypesApi.list().catch(() => []),
+        pricingApi.bands().catch(() => ({ bands: [], tiers: [] })),
       ]);
+      setPricing(pb);
       setFeeTypes(fts.filter((t) => t.is_active !== false));
       setRows(Array.isArray(m) ? m : (m.items || []));
       const cl = Array.isArray(c) ? c : (c?.countries || []);
@@ -72,7 +75,8 @@ export default function EmdMastersPanel() {
     setForm({
       name: m.name, kind: m.kind,
       countries: m.countries?.length ? m.countries : (m.country && !["ALL", "MULTI"].includes(m.country) ? [m.country] : []),
-      country_mode: (m.countries?.length || (m.country && m.country !== "ALL") || feeTypes.find((t) => t.code === m.kind)?.country_scope === "selected") ? "some" : "all",
+      country_mode: m.bands?.length ? "band" : (m.countries?.length || (m.country && !["ALL", "BAND"].includes(m.country)) || feeTypes.find((t) => t.code === m.kind)?.country_scope === "selected") ? "some" : "all",
+      bands: m.bands || [], tier: m.tier || "", nil_below: m.nil_below ?? "",
       categories: m.categories?.length ? m.categories : (m.category ? [m.category] : []), currency: m.currency || "USD",
       is_active: m.is_active !== false, notes: m.notes || "", progressive: !!m.progressive,
       slabs: (m.slabs?.length ? m.slabs : [EMPTY_SLAB]).map((s) => ({
@@ -99,6 +103,7 @@ export default function EmdMastersPanel() {
     if (!ft) return toast.error("Pick a fee type.");
     if (ft.category_scope === "selected" && !form.categories.length) return toast.error("Tick at least one category.");
     if (form.country_mode === "some" && !form.countries.length) return toast.error("Tick at least one country.");
+    if (form.country_mode === "band" && !form.bands.length) return toast.error("Tick at least one pricing band.");
     if (!form.slabs.length) return toast.error("Add at least one slab.");
     for (const s of form.slabs) {
       if (s.fee_type === "fixed" && (s.fixed_amount === "" || s.fixed_amount == null))
@@ -110,6 +115,8 @@ export default function EmdMastersPanel() {
       name: form.name.trim(), kind: form.kind, extend_type: true,
       country: form.country_mode === "some" ? (form.countries[0] || "ALL") : "ALL",
       countries: form.country_mode === "some" ? form.countries : [],
+      bands: form.country_mode === "band" ? form.bands : [],
+      tier: form.tier || null, nil_below: form.nil_below === "" ? null : Number(form.nil_below),
       categories: ft.category_scope === "selected" ? form.categories : [], currency: form.currency,
       is_active: !!form.is_active, notes: form.notes || null, progressive: !!form.progressive,
       slabs: form.slabs.map((s) => ({
@@ -202,7 +209,15 @@ export default function EmdMastersPanel() {
               {ft?.country_scope !== "selected" && (
                 <div className="flex gap-4 text-sm mt-1 mb-1">
                   <label className="flex items-center gap-2"><input type="radio" checked={form.country_mode === "all"} onChange={() => setForm({ ...form, country_mode: "all", countries: [] })} data-testid="emd-country-mode-all" /> All countries</label>
-                  <label className="flex items-center gap-2"><input type="radio" checked={form.country_mode === "some"} onChange={() => setForm({ ...form, country_mode: "some" })} data-testid="emd-country-mode-some" /> Specific countries</label>
+                  <label className="flex items-center gap-2"><input type="radio" checked={form.country_mode === "band"} onChange={() => setForm({ ...form, country_mode: "band", countries: [] })} data-testid="emd-country-mode-band" /> Pricing bands</label>
+                  <label className="flex items-center gap-2"><input type="radio" checked={form.country_mode === "some"} onChange={() => setForm({ ...form, country_mode: "some", bands: [] })} data-testid="emd-country-mode-some" /> Specific countries</label>
+                </div>
+              )}
+              {form.country_mode === "band" && (
+                <div className="mt-1 flex flex-wrap gap-3 text-sm" data-testid="emd-band-picker">
+                  {pricing.bands.filter((b) => b.is_active).map((b) => (
+                    <label key={b.code} className="flex items-center gap-1"><input type="checkbox" checked={form.bands.includes(b.code)} data-testid={`emd-band-${b.code}`}
+                      onChange={(e) => setForm({ ...form, bands: e.target.checked ? [...form.bands, b.code] : form.bands.filter((x) => x !== b.code) })} />{b.name}</label>))}
                 </div>
               )}
               {form.country_mode === "some" && (
@@ -227,6 +242,15 @@ export default function EmdMastersPanel() {
                 data-testid="emd-currency" className="mt-1 w-full px-3 py-2 border border-brand-navy/20 bg-white">
                 {CURRENCIES.map((c) => <option key={c}>{c}</option>)}
               </select></label>
+            <label><span className="pmc-label">Buyer tier</span>
+              <select value={form.tier} onChange={(e) => setForm({ ...form, tier: e.target.value })}
+                data-testid="emd-tier" className="mt-1 w-full px-3 py-2 border border-brand-navy/20 bg-white">
+                <option value="">All tiers</option>
+                {pricing.tiers.map((t) => <option key={t}>{t}</option>)}
+              </select></label>
+            <label><span className="pmc-label">No fee below value</span>
+              <input type="number" value={form.nil_below} onChange={(e) => setForm({ ...form, nil_below: e.target.value })}
+                placeholder="e.g. 25000" data-testid="emd-nil-below" className="mt-1 w-full px-3 py-2 border border-brand-navy/20" /></label>
             <label className="flex items-end gap-2 pb-2">
               <input type="checkbox" checked={form.is_active}
                 onChange={(e) => setForm({ ...form, is_active: e.target.checked })}
@@ -324,7 +348,7 @@ export default function EmdMastersPanel() {
                   {m.name} <span className="font-normal text-brand-navy/50">· {ftName(m.kind)}</span>
                 </div>
                 <div className="text-xs text-brand-navy/60 mt-0.5">
-                  {m.countries?.length ? m.countries.map(countryName).join(", ") : countryName(m.country === "ALL" ? "All countries" : m.country)}{m.categories?.length ? ` · ${m.categories.join(", ")}` : m.category ? ` · ${m.category}` : " · all categories"} · {m.currency}
+                  {m.bands?.length ? `Bands: ${m.bands.map((c) => pricing.bands.find((b) => b.code === c)?.name || c).join(", ")}` : m.countries?.length ? m.countries.map(countryName).join(", ") : countryName(m.country === "ALL" ? "All countries" : m.country)}{m.tier ? ` · ${m.tier} tier` : ""}{m.nil_below ? ` · nil below ${Number(m.nil_below).toLocaleString()}` : ""}{m.categories?.length ? ` · ${m.categories.join(", ")}` : m.category ? ` · ${m.category}` : " · all categories"} · {m.currency}
                   {!m.is_active && <span className="ml-2 text-red-700 font-semibold">INACTIVE</span>}
                 </div>
                 <div className="text-xs text-brand-navy/70 mt-1 font-mono">

@@ -109,6 +109,8 @@ class RegistrationUpdateIn(BaseModel):
 class RegistrationDecisionIn(BaseModel):
     action: DecisionAction
     notes: Optional[str] = None
+    supplier_fees: Optional[dict] = None
+    fee_reason: Optional[str] = None
 
 
 class Registration(BaseModel):
