@@ -928,6 +928,10 @@ async def _check_fee_type(body: dict) -> Optional[tuple]:
             add["categories"] = {"$each": list(body["categories"])}
             ft["categories"] = list({*ft["categories"], *body["categories"]})
     validate_rule_against_type(ft, body)
+    if body.get("bands"):
+        known = {b["code"] async for b in db.pricing_bands.find({"code": {"$in": body["bands"]}}, {"code": 1})}
+        if set(body["bands"]) - known:
+            raise HTTPException(status_code=422, detail=f"Unknown pricing band: {', '.join(sorted(set(body['bands']) - known))}")
     return (ft["_id"], add) if add else None
 
 

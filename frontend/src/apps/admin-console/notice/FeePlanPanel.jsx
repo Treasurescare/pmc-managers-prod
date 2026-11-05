@@ -36,9 +36,16 @@ export const FeePlanPanel = ({ n, onSaved, onClose }) => {
   }, [n.notice_ref, tier]);
   if (!d) return <div className="text-xs p-3" data-testid={`fee-plan-loading-${n.notice_ref}`}>Loading fees…</div>;
   const award = vals.transaction?.charge;
-  const save = () => pricingApi.saveFeePlan(n.notice_ref, { tier: tier || null, award_payer: payer, payer_email: email || null,
-    items: Object.entries(vals).map(([code, v]) => ({ code, charge: v.charge, reason: v.reason || null })) })
-    .then(() => { toast.success("Fees confirmed for this tender"); onSaved?.(); }).catch(showApiError);
+  const emailBad = award && payer === "buyer" && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim());
+  const reasonMissing = d.items.some((i) => i.has_rule && vals[i.code] && !vals[i.code].charge && !(vals[i.code].reason || "").trim());
+  const save = () => {
+    if (emailBad) return toast.error("Enter the buyer's billing email — the award fee link is sent there.", { id: "fee-plan" });
+    if (reasonMissing) return toast.error("Give a reason for each waived fee.", { id: "fee-plan" });
+    toast.dismiss("fee-plan");
+    return pricingApi.saveFeePlan(n.notice_ref, { tier: tier || null, award_payer: payer, payer_email: email || null,
+      items: Object.entries(vals).map(([code, v]) => ({ code, charge: v.charge, reason: v.reason || null })) })
+      .then(() => { toast.success("Fees confirmed for this tender"); onSaved?.(); }).catch(showApiError);
+  };
   return (
     <div className="mt-2 border border-brand-navy/20 bg-white p-3 text-xs" data-testid={`fee-plan-${n.notice_ref}`}>
       <div className="flex flex-wrap gap-4 items-end mb-2">
@@ -56,7 +63,8 @@ export const FeePlanPanel = ({ n, onSaved, onClose }) => {
               <label className="flex items-center gap-1"><input type="radio" checked={payer === "supplier"} onChange={() => setPayer("supplier")} data-testid={`fee-plan-payer-supplier-${n.notice_ref}`} />Winning supplier (shown to bidders)</label>
             </div></div>
           {payer === "buyer" && <label><span className="pmc-label">Buyer billing email (payment link goes here)</span>
-            <input className={inp} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="accounts@buyer.com" data-testid={`fee-plan-email-${n.notice_ref}`} /></label>}
+            <input className={inp} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="accounts@buyer.com" data-testid={`fee-plan-email-${n.notice_ref}`} />
+            {emailBad && <span className="text-red-700" data-testid={`fee-plan-email-error-${n.notice_ref}`}>Billing email is required when the buyer pays.</span>}</label>}
         </div>)}
       <div className="flex justify-end gap-2 mt-2">
         {onClose && <button className="px-3 py-1 border border-brand-navy/30 uppercase tracking-widest text-[10px]" onClick={onClose} data-testid={`fee-plan-close-${n.notice_ref}`}>Close</button>}

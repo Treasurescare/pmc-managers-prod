@@ -1,0 +1,41 @@
+{
+  "summary": "Tested pricing bands, tiers, band-scoped fee rules, per-tender fee plan (charge/waive, payer), publish gates, award fee (raise/compute/cap/nil/waive/resend/list) and per-supplier fee plan, on both the backend and the frontend. Backend: 14/14 pytest tests passed. Frontend: every requested flow worked in the admin console (Masters > Pricing bands, Fee rules band scope, Notices publish checklist > FeePlanPanel, Billing > Award fees, Registrations > supplier fee choice, Ask PMC chat-toggle). Resend link created a real Stripe test checkout session from the backend, so the Stripe key works in this preview. Only the Resend email key is invalid, which is an existing environment issue.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST/PATCH /api/v1/tender-pro/emd-masters", "issue": "bands values are not checked against pricing_bands. bands:['NOSUCHBAND'] is accepted (200) and saves a rule that never matches. Reject unknown band codes with 422."},
+      {"endpoint": "routers.pricing.raise_award_fee", "issue": "For percentage rules, currency is taken from bid.price_currency, but pct_max and nil_below are in the rule's currency. If the bid currency differs from the rule currency, the cap and nil threshold are applied in the wrong currency."},
+      {"endpoint": "PUT /api/v1/pricing/notices/{ref}/fee-plan", "issue": "winner_fee_pct is set from the first percentage slab only. The cap and nil_below are not shown to bidders, so the displayed winner fee % can differ from the amount actually charged."},
+      {"endpoint": "Email (Resend)", "issue": "RESEND API key is invalid in preview (401), so award-fee payer emails and admin/accounting notification emails are not delivered. Existing environment issue."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Billing > Payment transactions", "issue": "Award-fee Stripe sessions show empty Buyer and Product / Fee columns (purpose 'award_fee' is not mapped to a label or buyer).", "affected_selectors": ["payment transactions table"]}
+    ],
+    "design_issues": [
+      {"screen": "Billing > Award fees", "issues": ["Waive uses the browser's window.prompt for the reason. Use a shadcn Dialog with a textarea and validation (min 3 chars) instead."]},
+      {"screen": "Notices > FeePlanPanel", "issues": ["Leaving the buyer email empty shows the generic toast 'Something went wrong · HTTP 422'. Validate on the client first and show an inline error on fee-plan-email.", "The 422 error toast stays on screen next to the success toast after a successful Confirm fees."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v168_pricing_bands_fees.py", "/app/test_reports/pytest/pytest_v168.xml"],
+  "action_items": [
+    "Validate emd-masters bands against existing pricing_bands codes (422 for unknown codes)",
+    "Award fee: use the rule currency, or convert, when applying pct_max / nil_below to a bid priced in another currency",
+    "Replace window.prompt in AwardFeesPanel waive with a shadcn Dialog",
+    "Validate the buyer billing email on the client in FeePlanPanel; avoid the generic 'Something went wrong' toast",
+    "Label award_fee transactions in Billing > Payment transactions (Buyer / Product columns)"
+  ],
+  "critical_code_review_comments": [
+    "In bids.py the call to raise_award_fee is wrapped in try/except. If Stripe fails, _send_award_link raises HTTPException(502); the award still completes and link_error is stored. Good. It also means the award API gives no signal to the admin beyond the notification.",
+    "raise_award_fee returns None for notices published before this release (no fee_plan), so legacy awards never raise an award fee. Confirm this is intended.",
+    "waive_award_fee only allows status 'unpaid'. A 'nil' record cannot be waived, which is fine, but resend on 'nil' also returns 409 'Only unpaid' (verified)."
+  ],
+  "updated_files": ["/app/backend/tests/test_v168_pricing_bands_fees.py"],
+  "success_rate": {"backend": "100% (14/14)", "frontend": "100% of requested flows"},
+  "seed_data_creation": "Temporary TEST data only: TEST-FEE-{SUF}-n notices, TEST-BID-* bids, award_fees, TEST-VEN-* vendor, TEST_ emd rules, TEST-FEE-UI01 notice, TESTUIAF* award fee, testreg000000000000fee01 registration, and 2 award_fee payment_transactions created by Resend. All removed. The main agent's data (TEST-FEE-001, TEST_ Global award fee rule, TEST-BID-FEE award fee) is unchanged. REGIONAL band and tiers were restored to their original values. GLOBAL band was saved once from the UI with unchanged values (only updated_at changed).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Admin UI login: POST /api/v1/admin/auth/login via fetch inside the page (the /admin/login page is a unified role picker with no admin-login testids), then go to /admin/e/{masters|notices|billing|registrations}. Run pytest with '-n 0' if needed. Stripe checkout creation works from the backend server (Resend link -> 200 'Payment link resent'); the Resend email API key is invalid. The award-fee tests call raise_award_fee in-process, where Stripe may fail with link_error; both outcomes are accepted."
+}

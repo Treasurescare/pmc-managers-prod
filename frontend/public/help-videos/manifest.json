@@ -320,5 +320,12 @@
   "hash": "d89dd8d5368283cc",
   "seconds": 65,
   "updated": "2026-11-04"
+ },
+ "admin-pricing-fees": {
+  "file": "/help-videos/admin-pricing-fees.mp4",
+  "title": "Pricing Bands, Fees & Award Fee",
+  "hash": "f2cf135a145d2118",
+  "seconds": 108,
+  "updated": "2026-11-05"
  }
 }

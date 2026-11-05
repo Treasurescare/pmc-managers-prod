@@ -1223,3 +1223,13 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - New help module `ask-pmc` (help_content_extra.py) + video ask-pmc.mp4 (46 videos) + manual appendix rebuilt (102 pages, internal chapters still hidden).
 - Self-tested: curl public + staff, screenshot admin Registrations (2 video cards) and mobile public. Testing agent not run.
 
+
+
+## 2026-11-04 — Pricing bands, per-tender fee plan, award fee, supplier fee plan (v60d)
+- routers/pricing.py: bands (GLOBAL/REGIONAL/PROGRAMME/INDIA/CHINA-inactive, seeded setOnInsert), tiers (Starter/Professional/Programme), notice fee plan (Charge/Waive + reason, tier, award payer, buyer billing email; frozen rule snapshots), award fee auto-raised at award (bids.py) with Stripe link emailed to payer + admin/accounting notified, Billing → Award fees (resend/waive), supplier fee plan per vendor (registration approval).
+- _fees.py: rules can target All / bands / countries (+tier, nil_below); priority category > country > band > ALL.
+- Publish blocked until fee plan confirmed (FEE_PLAN_MSG). Waivers: admin + reviewer roles.
+- Help module admin-pricing-fees + video (47 videos), manual 102 pages; Ask PMC ABOUT updated.
+- Pricing document: /downloads/PMC_Pricing_Matrix_8a0d8109.docx (scripts/build_pricing_matrix.py) — unlinked, draft.
+- Testing: iteration_168 backend 14/14, frontend all flows pass; follow-ups fixed (unknown band 422, currency mismatch note, waive inline form, client validation, billing labels, winner fee note).
+- Known: preview Resend key invalid (emails not delivered in preview).

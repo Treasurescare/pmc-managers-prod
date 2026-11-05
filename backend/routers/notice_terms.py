@@ -21,7 +21,8 @@ async def is_public_tender(notice: dict) -> bool:
 async def terms(notice: dict) -> dict:
     public = await is_public_tender(notice)
     on = bool(notice.get("winner_fee_enabled")) and not public
-    return {"public_tender": public, "winner_fee_enabled": on, "winner_fee_pct": _pct(notice) if on else 0}
+    return {"public_tender": public, "winner_fee_enabled": on, "winner_fee_pct": _pct(notice) if on else 0,
+            "winner_fee_note": notice.get("winner_fee_note") if on else None}
 
 
 def _pct(notice: dict) -> float:

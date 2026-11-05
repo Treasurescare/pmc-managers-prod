@@ -209,7 +209,8 @@ async def save_fee_plan(ref: str, body: FeePlanIn, admin=Depends(require_role(*W
     pct = next((s.get("percentage") for s in (award.get("rule_snapshot") or {}).get("slabs") or [] if s.get("fee_type") == "percentage"), None)
     supplier_pays = award["charge"] and body.award_payer == "supplier"
     await db.notices.update_one({"notice_ref": ref}, {"$set": {"fee_plan": plan, "winner_fee_enabled": supplier_pays,
-                                                               "winner_fee_pct": float(pct or 0) if supplier_pays else 0}})
+                                                               "winner_fee_pct": float(pct or 0) if supplier_pays else 0,
+                                                               "winner_fee_note": award.get("rate") if supplier_pays else None}})
     await audit_log("notice.fee_plan", admin, "notice", ref, {"tier": body.tier, "award_payer": body.award_payer,
                     "items": [{"code": i["code"], "charge": i["charge"], "reason": i["reason"]} for i in items]})
     return {"ok": True, "fee_plan": plan}
@@ -240,10 +241,16 @@ async def raise_award_fee(bid_id: str, by_email: str) -> Optional[dict]:
         await db.award_fees.insert_one(doc)
         return doc
     snap = it.get("rule_snapshot") or {}
-    amount = compute_amount(snap, price) or 0.0
     pct_rule = all(s.get("fee_type") == "percentage" for s in snap.get("slabs") or [])
-    currency = ((b.get("price_currency") if pct_rule else snap.get("currency")) or snap.get("currency") or "USD").upper()
+    rule_cur = (snap.get("currency") or "USD").upper()
+    bid_cur = (b.get("price_currency") or rule_cur).upper()
+    mismatch = pct_rule and bid_cur != rule_cur
+    if mismatch:
+        snap = {**snap, "nil_below": None, "slabs": [{**s, "pct_max": None} for s in snap.get("slabs") or []]}
+    amount = compute_amount(snap, price) or 0.0
+    currency = bid_cur if pct_rule else rule_cur
     doc = {**base, "amount": amount, "currency": currency, "rate": it.get("rate"),
+           "note": f"Bid in {bid_cur}, rule in {rule_cur}: cap and no-fee threshold not applied — check before chasing." if mismatch else None,
            "payer_email": plan.get("payer_email") if plan.get("award_payer") == "buyer" else (b.get("vendor_email") or "").lower(),
            "status": "nil" if amount <= 0 else "unpaid"}
     await db.award_fees.insert_one(doc)
@@ -258,7 +265,10 @@ async def _send_award_link(doc: dict) -> None:
     try:
         chk = await _checkout(doc["amount"], doc["currency"], "award_fee", "/pay/complete", "/pay/complete?cancel=1", _site(),
                               {"bid_ref": doc.get("bid_ref") or ""}, {"bid_id": doc["bid_id"], "notice_ref": doc.get("notice_ref"),
-                                                                     "payer_email": doc.get("payer_email"), "label": "Award fee"})
+                                                                     "payer_email": doc.get("payer_email"), "label": "Award fee",
+                                                                     "buyer_email": doc.get("payer_email"), "buyer_role": doc.get("payer"),
+                                                                     "product_code": "award_fee", "fee_kind": "transaction",
+                                                                     "context_ref": doc.get("notice_ref")})
     except Exception as e:
         await db.award_fees.update_one({"bid_id": doc["bid_id"]}, {"$set": {"link_error": str(e)[:300]}})
         for role in ("admin", "accounting"):
