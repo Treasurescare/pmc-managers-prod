@@ -71,8 +71,13 @@ async def translate(texts: list) -> None:
     await asyncio.gather(*jobs)
 
 
+def seo_texts() -> list:
+    src = open("/app/frontend/src/lib/useSeo.js", encoding="utf-8").read().split("export const SEO_PAGES")[1].split("};")[0]
+    return list(dict.fromkeys(re.findall(r'"([^"]{3,600})"', src)))
+
+
 async def main():
-    texts = await crawl()
+    texts = seo_texts() if "seo" in sys.argv[1:] else await crawl() + seo_texts()
     print("phrases", len(texts), "routes", len(ROUTES), flush=True)
     await translate(texts)
     rows = [{"lang": d["lang"], "src": d["src"], "out": d["out"]} async for d in db.i18n_cache.find({}, {"_id": 0, "lang": 1, "src": 1, "out": 1})]

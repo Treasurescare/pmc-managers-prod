@@ -5,10 +5,14 @@ import os
 import re
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, HTTPException, Request, Response
+from typing import Literal
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field
 
+from audit import audit_log
 from db import db
+from security import require_role
 
 router = APIRouter(prefix="/api/v1/i18n", tags=["i18n"])
 LANGS = {"ru": "Russian", "kk": "Kazakh", "zh-Hans": "Simplified Chinese (Mandarin)", "zh-Hant": "Traditional Chinese (Hong Kong, Cantonese readers)",
@@ -78,6 +82,63 @@ async def dictionary(lang: str, response: Response):
         raise HTTPException(status_code=422, detail="Unsupported language")
     response.headers["Cache-Control"] = "public, max-age=300"
     return {"map": {d["src"]: d["out"] async for d in db.i18n_cache.find({"lang": lang}, {"src": 1, "out": 1}).limit(30000)}}
+
+
+REVIEWERS = ("admin", "reviewer")
+
+
+class ReviewIn(BaseModel):
+    lang: str
+    src: str = Field(min_length=1, max_length=600)
+    out: str = Field(min_length=1, max_length=1200)
+
+
+def _check(lang: str) -> None:
+    if lang not in LANGS:
+        raise HTTPException(status_code=422, detail="Unsupported language")
+
+
+@router.get("/admin/stats")
+async def review_stats(admin=Depends(require_role(*REVIEWERS))):
+    rows = await db.i18n_cache.aggregate([{"$group": {"_id": "$lang", "total": {"$sum": 1},
+                                                       "reviewed": {"$sum": {"$cond": [{"$eq": ["$reviewed", True]}, 1, 0]}}}}]).to_list(50)
+    got = {r["_id"]: r for r in rows}
+    return {"items": [{"lang": k, "name": v, "total": got.get(k, {}).get("total", 0), "reviewed": got.get(k, {}).get("reviewed", 0)}
+                      for k, v in LANGS.items()]}
+
+
+@router.get("/admin/phrases")
+async def review_list(lang: str, q: str = "", status: Literal["all", "pending", "reviewed"] = "all",
+                      skip: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=200), admin=Depends(require_role(*REVIEWERS))):
+    _check(lang)
+    flt: dict = {"lang": lang}
+    if q.strip():
+        rx = {"$regex": re.escape(q.strip()[:100]), "$options": "i"}
+        flt["$or"] = [{"src": rx}, {"out": rx}]
+    if status == "reviewed":
+        flt["reviewed"] = True
+    elif status == "pending":
+        flt["reviewed"] = {"$ne": True}
+    total = await db.i18n_cache.count_documents(flt)
+    cur = db.i18n_cache.find(flt, {"_id": 0, "src": 1, "out": 1, "reviewed": 1, "reviewed_by": 1, "reviewed_at": 1}).sort("src", 1).skip(skip).limit(limit)
+    items = [{"src": d["src"], "out": d["out"], "reviewed": bool(d.get("reviewed")), "reviewed_by": d.get("reviewed_by"),
+              "reviewed_at": d.get("reviewed_at")} async for d in cur]
+    return {"total": total, "items": items}
+
+
+@router.put("/admin/phrases")
+async def review_save(body: ReviewIn, admin=Depends(require_role(*REVIEWERS))):
+    _check(body.lang)
+    src, out = body.src.strip(), body.out.strip()
+    if not src or not out:
+        raise HTTPException(status_code=422, detail="Original and translation are required")
+    prev = await db.i18n_cache.find_one({"lang": body.lang, "h": _h(src)}, {"out": 1})
+    at = datetime.now(timezone.utc).isoformat()
+    await db.i18n_cache.update_one({"lang": body.lang, "h": _h(src)}, {"$set": {
+        "src": src, "out": out, "reviewed": True, "reviewed_by": admin.get("email"), "reviewed_at": at, "at": at}}, upsert=True)
+    await audit_log("i18n.phrase_reviewed", admin, "i18n_cache", f"{body.lang}:{_h(src)[:12]}",
+                    {"lang": body.lang, "src": src[:200], "old": (prev or {}).get("out", "")[:200], "new": out[:200]})
+    return {"src": src, "out": out, "reviewed": True, "reviewed_by": admin.get("email"), "reviewed_at": at}
 
 
 async def ensure_indexes() -> None:

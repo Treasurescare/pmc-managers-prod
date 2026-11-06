@@ -20,6 +20,8 @@ STATIC_ROUTES = [("/", "daily", "1.0"), ("/tenders/live", "hourly", "0.9"), ("/t
                  ("/contact", "monthly", "0.5"), ("/help", "monthly", "0.4"), ("/help/videos", "monthly", "0.4"), ("/register", "monthly", "0.6"),
                  ("/tenders/global", "daily", "0.8"), ("/suppliers/directory", "weekly", "0.6"), ("/consultancy", "monthly", "0.5"),
                  ("/buyers/apply", "monthly", "0.6")]
+LANG_ROUTES = ["/", "/buyers", "/suppliers", "/trust", "/about", "/vision", "/contact", "/help", "/tenders/live", "/tenders/completed"]
+URL_LANGS = ["ru", "kk", "zh-Hans", "zh-Hant", "es", "fr", "de", "hi", "ms", "id", "ko", "ja", "ar"]
 TEST_TITLE = re.compile(r"\b(test|demo|dummy)\b|testraj", re.I)
 _URL = re.compile(r"^(https://[^\s<>\"']+|/[^\s<>\"']*)?$")
 
@@ -89,8 +91,16 @@ def _base() -> str:
 @router.get("/api/v1/seo/sitemap.xml")
 async def sitemap():
     base = _base()
-    rows = [f"<url><loc>{base}{p}</loc><changefreq>{f}</changefreq><priority>{pr}</priority></url>"
-            for p, f, pr in STATIC_ROUTES]
+    rows = []
+    for p, f, pr in STATIC_ROUTES:
+        if p not in LANG_ROUTES:
+            rows.append(f"<url><loc>{base}{p}</loc><changefreq>{f}</changefreq><priority>{pr}</priority></url>")
+            continue
+        alts = [("en", base + p), ("x-default", base + p)] + [(lg, f"{base}/{lg}{'' if p == '/' else p}") for lg in URL_LANGS]
+        links = "".join(f'<xhtml:link rel="alternate" hreflang="{lg}" href="{u}"/>' for lg, u in alts)
+        for lg, u in alts:
+            if lg != "x-default":
+                rows.append(f"<url><loc>{u}</loc>{links}<changefreq>{f}</changefreq><priority>{pr if lg == 'en' else '0.5'}</priority></url>")
     cur = db.notices.find({"is_published": True}, {"notice_ref": 1, "title": 1, "updated_at": 1, "published_at": 1})
     async for n in cur:
         if not n.get("notice_ref") or TEST_TITLE.search(n.get("title") or ""):
@@ -98,12 +108,13 @@ async def sitemap():
         mod = str(n.get("updated_at") or n.get("published_at") or "")[:10]
         lm = f"<lastmod>{h(mod)}</lastmod>" if mod else ""
         rows.append(f"<url><loc>{base}/notices/{h(n['notice_ref'])}</loc>{lm}<changefreq>daily</changefreq><priority>0.8</priority></url>")
-    xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' + "".join(rows) + "</urlset>"
+    xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">' + "".join(rows) + "</urlset>"
     return Response(content=xml, media_type="application/xml", headers={"Cache-Control": "public, max-age=3600"})
 
 
 @router.get("/api/v1/seo/robots.txt")
 async def robots():
     txt = (f"User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /staff\nDisallow: /vendor\nDisallow: /api/\n"
+           f"Disallow: /*/admin\nDisallow: /*/staff\nDisallow: /*/vendor\n"
            f"Allow: /api/v1/seo/sitemap.xml\n\nSitemap: {_base()}/api/v1/seo/sitemap.xml\n")
     return Response(content=txt, media_type="text/plain")

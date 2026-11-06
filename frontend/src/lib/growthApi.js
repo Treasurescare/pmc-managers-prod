@@ -7,6 +7,9 @@ const put = (u, b) => api.put(u, b).then((r) => r.data);
 export const growthApi = {
   aiSummary: (form) => api.post("/api/v1/supplier-ai/summary", form, { headers: { "Content-Type": "multipart/form-data" } }).then((r) => r.data),
   aiReadiness: (b) => p("/api/v1/supplier-ai/readiness", b),
+  i18nStats: () => g("/api/v1/i18n/admin/stats"),
+  i18nPhrases: (params) => g("/api/v1/i18n/admin/phrases", params),
+  saveI18nPhrase: (b) => put("/api/v1/i18n/admin/phrases", b),
   aiReports: () => g("/api/v1/supplier-ai/reports"),
   aiPrices: () => g("/api/v1/supplier-ai/prices"),
   alerts: () => g("/api/v1/vendor-alerts/saved"),

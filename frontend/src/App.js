@@ -185,6 +185,7 @@ import MobileSupplierE from "@/apps/mobile-e/MobileSupplierE";
 import RequireVendor from "@/components/RequireVendor";
 import RequireAdmin from "@/components/RequireAdmin";
 import MobilePublicE from "@/apps/mobile-e/MobilePublicE";
+import { BASENAME } from "@/lib/langPath";
 
 export default function App() {
   return (
@@ -192,7 +193,7 @@ export default function App() {
       <ErrorBoundary>
       <UiThemeProvider>
       <I18nProvider>
-        <BrowserRouter>
+        <BrowserRouter basename={BASENAME}>
           <UiThemeApplier />
           <ChatWidget />
           <LangFab />

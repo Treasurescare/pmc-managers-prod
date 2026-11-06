@@ -1,24 +1,27 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { STRINGS } from "@/lib/i18n-strings";
 import { setAutoLang } from "@/lib/autoTranslate";
+import { PATH_LANG, langUrl } from "@/lib/langPath";
 
 const I18nContext = createContext({ lang: "en", setLang: () => {}, t: (k) => k });
 
 export function I18nProvider({ children }) {
   const [lang, setLangState] = useState(() => {
     try {
-      return localStorage.getItem("pmc_lang") || "en";
+      if (PATH_LANG) localStorage.setItem("pmc_lang", PATH_LANG);
+      return PATH_LANG || localStorage.getItem("pmc_lang") || "en";
     } catch {
       return "en";
     }
   });
 
   const setLang = (v) => {
-    setLangState(v);
     try { localStorage.setItem("pmc_lang", v); }
     catch (err) {
       if (process.env.NODE_ENV !== "production") console.warn("Could not persist language preference:", err);
     }
+    if (PATH_LANG && v !== PATH_LANG) { window.location.assign(langUrl(v) + window.location.search); return; }
+    setLangState(v);
   };
 
   const [extra, setExtra] = useState({});

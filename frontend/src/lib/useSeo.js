@@ -1,4 +1,6 @@
 import { useEffect } from "react";
+import { refreshHead } from "@/lib/autoTranslate";
+import { URL_LANGS, barePath, langUrl } from "@/lib/langPath";
 
 const SITE = "PMC Managers · Global Tender Grid";
 const DEFAULT_IMG = "/downloads/pmc-logo-full.png";
@@ -47,6 +49,14 @@ export function useSeo({ page, title, description, image, jsonLd } = {}) {
     let can = document.head.querySelector('link[rel="canonical"]');
     if (!can) { can = document.createElement("link"); can.rel = "canonical"; document.head.appendChild(can); }
     can.href = url;
+    document.head.querySelectorAll("link[data-pmc-alt]").forEach((e) => e.remove());
+    const bare = barePath();
+    [["x-default", "en"], ["en", "en"], ...URL_LANGS.map((l) => [l, l])].forEach(([hl, lg]) => {
+      const a = document.createElement("link");
+      a.rel = "alternate"; a.hreflang = hl; a.href = window.location.origin + langUrl(lg, bare); a.setAttribute("data-pmc-alt", "");
+      document.head.appendChild(a);
+    });
+    refreshHead();
     let s = document.getElementById("pmc-page-ld");
     if (ld) {
       if (!s) { s = document.createElement("script"); s.type = "application/ld+json"; s.id = "pmc-page-ld"; document.head.appendChild(s); }

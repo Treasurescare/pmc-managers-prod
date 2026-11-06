@@ -53,6 +53,40 @@ function applyAttrs(el) {
   });
 }
 
+const trPipe = (src) => {
+  const [main, ...rest] = src.split(" | ");
+  const k = main.trim();
+  const tr = dicts[lang]?.[k];
+  if (tr) return [tr, ...rest].join(" | ");
+  if (worth(k) && want(k)) queue.add(k);
+  return null;
+};
+const HEAD_META = 'meta[name="description"],meta[property="og:title"],meta[property="og:description"],meta[name="twitter:title"],meta[name="twitter:description"]';
+let titleRec = null;
+
+// Page title and search/social descriptions follow the chosen language too.
+export function refreshHead() {
+  const cur = document.title;
+  if (!titleRec || (cur !== titleRec.out && cur !== titleRec.src)) titleRec = { src: cur, out: null };
+  if (lang === "en") { if (titleRec.out) document.title = titleRec.src; titleRec.out = null; }
+  else { const o = trPipe(titleRec.src); if (o) { titleRec.out = o; if (cur !== o) document.title = o; } }
+  document.head.querySelectorAll(HEAD_META).forEach((el) => {
+    const c = el.getAttribute("content") || "";
+    const rec = attrOrig.get(el) || {}; attrOrig.set(el, rec);
+    let r = rec.content;
+    if (!r || (c !== r.out && c !== r.src)) { r = { src: c, out: null }; rec.content = r; }
+    if (lang === "en") { if (r.out) el.setAttribute("content", r.src); r.out = null; return; }
+    const o = trPipe(r.src);
+    if (o) { r.out = o; if (c !== o) el.setAttribute("content", o); }
+  });
+  flushSoon();
+}
+
+export function patchDict(lg, src, out) {
+  dicts[lg] = { ...(dicts[lg] || {}), [src]: out };
+  if (lg === lang) { walk(document.body); refreshHead(); }
+}
+
 function walk(root) {
   if (!root) return;
   if (root.nodeType === 3) { if (root.parentElement && !skipEl(root.parentElement)) applyText(root); return; }
@@ -81,7 +115,7 @@ function flushSoon() {
       const j = r.ok ? await r.json() : { map: {} };
       dicts[forLang] = { ...(dicts[forLang] || {}), ...j.map };
       Object.keys(j.map || {}).forEach((t) => f.delete(t));
-      if (forLang === lang) walk(document.body);
+      if (forLang === lang) { walk(document.body); refreshHead(); }
     } catch { /* offline: keep original text */ }
     if (queue.size) flushSoon();
   }, 250);
@@ -95,6 +129,7 @@ export async function setAutoLang(next) {
   }
   if (lang !== next) return;
   walk(document.body);
+  refreshHead();
   if (!observer) {
     observer = new MutationObserver((muts) => {
       muts.forEach((m) => {
@@ -102,7 +137,7 @@ export async function setAutoLang(next) {
         else if (m.type === "attributes") { if (!skipEl(m.target)) applyAttrs(m.target); }
         else m.addedNodes.forEach((n) => walk(n));
       });
-      flushSoon();
+      refreshHead();
     });
     observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ATTRS });
   }
