@@ -960,3 +960,13 @@ summary notes.
 ## 2026-11-01 — v59m Key leak guard + bidder debrief page
 - scripts/secret_scan.py blocks bundles containing API keys (Resend, Stripe, sk-, AWS, Google, GOCSPX, GitHub, Slack), private key blocks, DB URLs with passwords, quoted secret assignments (value must contain a digit) and .env/.env.*/.pem/.key files; prints file + kind only. build_v59m.sh runs it and deletes bundles on failure.
 - GET /api/v1/bids/{id}/debrief + /vendor/bids/:id/debrief page (summary, rank, own vs awarded price, criteria with mandatory/optional, results, proof review outcome + rejection comments, EMD refund date). My bids: non_winner = "Not selected" with Debrief action; legacy patcher tab filter fixed. Loser email button opens the debrief. Tested iteration_162 + test_v79 26/26.
+
+## 2026-11-06 — v60g Translation review + language-specific public pages
+- Admin Growth > Translation review (/admin/e/growth?tab=translations): admin/reviewer pick language, filter reviewed/not, search, Approve or Save fix. Backend GET /api/v1/i18n/admin/stats, GET/PUT /api/v1/i18n/admin/phrases (reviewed, reviewed_by, reviewed_at, audit log i18n.phrase_reviewed). Reviewed fixes never overwritten by AI or seed; public dict cache 5 min.
+- Language URLs: /{lang}/... for 13 languages (BrowserRouter basename from lib/langPath.js), dropdown on prefixed URL navigates to the other prefix; raw hrefs auto-prefixed; title/meta translated (autoTranslate.refreshHead); hreflang x15 + canonical in useSeo; sitemap has language URLs with xhtml:link alternates; robots (static + API) disallow /*/admin,/*/staff,/*/vendor.
+- prerender.py now prerenders 10 public routes x 14 languages (140 pages) using backend/seed/i18n_cache.json offline. SEO title/description phrases prewarmed (prewarm_i18n.py seo).
+- RTL: letter-spacing 0 + IBM Plex Sans Arabic for Arabic pages.
+- Help module admin-translations + video; languages help/video updated (53 videos); manual 105 pages.
+- Tested iteration_171 (backend 22/22; frontend flows pass; href-prefix + robots + debounce issues fixed after).
+- Removed superseded release zips older than v60f from public/downloads (disk was full). Built pmc-backend-v60g.zip + pmc-frontend-v60g-prod-build.zip, secret scan passed.
+

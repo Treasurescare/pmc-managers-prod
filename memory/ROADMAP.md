@@ -18,6 +18,12 @@
 - PayPal live integration (currently mocked)
 - Kaspi Pay live integration (currently mocked)
 
+## 🟡 P1 · Languages (2026-11-06)
+- Deploy v60g and submit sitemap in Google Search Console
+- Native-speaker review of all 13 languages via Translation review screen
+- Translation rate limit uses spoofable X-Forwarded-For (global daily cap 30k in place)
+- Sentence fragments split by links/<em> translate awkwardly (e.g. About hero); consider whole-sentence translation
+
 ## 🟣 Future / Backlog
 - Multi-tenant portal template gallery expansion
 - Phase-2 vendor KPI: bid win-rate, avg turnaround, packages awarded (needs AWS + PostgreSQL migration per placeholder in `/api/v1/vendors/{ref}/kpi`)

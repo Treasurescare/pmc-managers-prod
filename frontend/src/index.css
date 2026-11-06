@@ -1163,3 +1163,8 @@
   [data-ui="e"] div[style*="grid-template-columns: 280px minmax(0,1fr) 300px"] { grid-template-columns: 1fr !important; }
   [data-ui="e"] div[style*="grid-template-columns: minmax(0,1fr) minmax(0,1fr)"] { grid-template-columns: 1fr !important; }
 }
+
+/* Arabic letters must join: no tracking in right-to-left pages */
+[dir="rtl"] body, [dir="rtl"] body * { letter-spacing: 0 !important; font-variant: normal !important; font-feature-settings: normal !important; }
+[dir="rtl"] body *:not(svg):not(path) { font-family: "IBM Plex Sans Arabic", "Noto Sans Arabic", "Segoe UI", Tahoma, sans-serif !important; }
+

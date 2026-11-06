@@ -4,6 +4,9 @@ Disallow: /admin
 Disallow: /staff
 Disallow: /vendor
 Disallow: /api/
+Disallow: /*/admin
+Disallow: /*/staff
+Disallow: /*/vendor
 Allow: /api/v1/seo/sitemap.xml
 
 Sitemap: https://www.pmcmanagers.com/api/v1/seo/sitemap.xml

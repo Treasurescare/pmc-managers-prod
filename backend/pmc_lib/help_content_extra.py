@@ -190,6 +190,18 @@ EXTRA_MODULES = {
          "In **Data API clients**, enter the client and click **Create key** — copy the key straight away, it is shown once."],
         "Each action is saved and audit-logged; prices for featured listings, AI tools and API plans are set in Masters → Fee rules.",
         [("Approve", "Creates the buyer organisation and emails the applicant."), ("Fetch now", "Collects the latest tenders from that source."), ("Create key", "Issues an API key for a data client.")]),
+    "admin-translations": _m(
+        "Translation Review", "/admin/e/growth?tab=translations",
+        "Native speakers check and correct the AI translations used across the whole portal. Each phrase shows the English original next to its translation. A saved fix or approval is marked Reviewed, is used on every page for every visitor within about 5 minutes, and is never overwritten by AI. Admins and reviewers can use this screen.",
+        "Review and correct translations", "A translation reads wrongly, or you are signing off a language.",
+        ["Open **Growth** in the admin menu and click **Translation review**.",
+         "Choose the **Language**; the list shows how many phrases are reviewed out of the total.",
+         "Keep **Show** on **Not reviewed yet**, or search for the English words or the translation.",
+         "If the translation is right, click **Approve**.",
+         "If not, edit the text in the box and click **Save fix**.",
+         "Use **Next** and **Previous** to move through the list."],
+        "The phrase is marked Reviewed and the progress count goes up; the change is audit-logged.",
+        [("Approve", "Confirms the AI translation is correct."), ("Save fix", "Saves your corrected translation."), ("Show", "Filters by reviewed or not reviewed.")]),
     "vendor-ai-tools": {
         "surface": "vendor", "title": "AI Tender Tools & Saved Alerts", "url_path": "/vendor/ai-tools",
         "purpose": "Suppliers upload any tender document or pick a PMC tender to get an AI summary of eligibility, turnover, experience, EMD, fees, key dates and required documents, then run a bid readiness check that compares the tender with the company profile and flags missing documents and disqualification risks. Saved alerts email matching PMC and global tenders instantly, daily or weekly. Suppliers can also list themselves in the public supplier directory and buy a featured listing.",
@@ -213,7 +225,7 @@ EXTRA_MODULES = {
                      "controls": [{"name": "Global tenders", "desc": "Opens the collected tender list."}]}]},
     "languages": {
         "surface": "public", "title": "Changing the Language", "url_path": "/",
-        "purpose": "Every page of the portal — public site, supplier portal and admin console — can be shown in 13 languages: English, Russian, Kazakh, Simplified Chinese (Mandarin), Traditional Chinese (Cantonese), Spanish, French, German, Hindi, Malay, Bahasa Indonesia, Korean and Japanese. All text on screen, including tender titles and descriptions, is translated by AI the first time it appears and then reused for everyone. Reference numbers, amounts, emails and company names stay as written. The choice is remembered on that browser.",
+        "purpose": "Every page of the portal — public site, supplier portal and admin console — can be shown in 14 languages: English, Russian, Kazakh, Simplified Chinese (Mandarin), Traditional Chinese (Cantonese), Spanish, French, German, Hindi, Malay, Bahasa Indonesia, Korean, Japanese and Arabic (right-to-left). Public pages also have their own web address per language, for example /fr/buyers or /ar/about, so search engines show the site in each language and links can be shared in that language. All text on screen, including tender titles and descriptions, is translated by AI the first time it appears and then reused for everyone. Reference numbers, amounts, emails and company names stay as written. The choice is remembered on that browser.",
         "prerequisites": ["None"],
         "actions": [{"id": "main", "label": "Switch language", "when": "You prefer to read the portal in another language.",
                      "steps": ["Click the **flag button** at the top right of any page.", "Pick your language from the list.",

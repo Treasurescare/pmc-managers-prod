@@ -1250,3 +1250,5 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - LangSwitcher with flags (/public/flags, US for English, SA for Arabic) on home, public pages, supplier portal, admin shell; LangFab bottom-left wherever no visible switcher (mobile, login, help, some admin pages). Arabic sets dir=rtl.
 - scripts/prewarm_i18n.py crawls 117 routes and pre-translates; re-run after big UI changes.
 - Help module "languages" + video; testing iteration_170 (backend 21/21; tester fixed RTL blank page and vendor switcher contrast).
+- 2026-11-06 v60g: Translation review screen (Admin > Growth > Translation review; admin/reviewer) and language URLs /{lang}/... with hreflang, translated titles/meta, sitemap alternates and 140 prerendered pages. See CHANGELOG.md.
+

@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { STRINGS } from "@/lib/i18n-strings";
 import { setAutoLang } from "@/lib/autoTranslate";
-import { PATH_LANG, langUrl } from "@/lib/langPath";
+import { PATH_LANG, langUrl, startLinkPrefixer } from "@/lib/langPath";
 
 const I18nContext = createContext({ lang: "en", setLang: () => {}, t: (k) => k });
 
@@ -25,6 +25,8 @@ export function I18nProvider({ children }) {
   };
 
   const [extra, setExtra] = useState({});
+
+  useEffect(() => { startLinkPrefixer(); }, []);
 
   useEffect(() => {
     document.documentElement.setAttribute("lang", lang);

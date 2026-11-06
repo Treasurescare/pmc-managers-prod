@@ -1,0 +1,40 @@
+{
+  "summary": "Tested the Translation Review screen (backend + admin UI) and the language-prefixed public pages (sitemap, robots, /fr /ar /ja pages, hreflang, canonical, switcher). Backend: 22/22 new pytest pass. Stats return 13 languages with total/reviewed counts, reviewer role allowed, unauthenticated and vendor get 401/403. Phrases endpoint paginates with no overlap; status pending + reviewed = all; search escapes regex; bad lang/en/status/limit/skip return 422. PUT without CSRF returns 403. PUT trims src, sets reviewed/reviewed_by/reviewed_at, the fix shows up in the public dict and in /translate (no AI overwrite), stats go up, and re-editing works. Sitemap has /fr/buyers, /ar, /ja etc. with 15 xhtml:link alternates and no duplicate locs. /api/v1/seo/robots.txt has the /*/admin, /*/staff and /*/vendor disallows. Frontend: admin (UI language set to FR) opened /admin/e/growth?tab=translations. The review panel stayed in English while the console chrome was French. 13 languages with (reviewed/total), defaults to Arabic + Not reviewed yet, 50 rows, Next/Previous work, search works. Approve and Save fix work: the label changes Approve -> Save fix -> Saved, the Reviewed badge shows with a reviewer/time tooltip, progress went 0 -> 1 -> 2 of 2535, the Reviewed filter shows the edited value, and a toast appears. /fr/buyers, /ar/about and /ja render translated (ar sets dir=rtl, html lang is set), title/description/og:title are translated, there are 15 hreflang links, and canonical is the current URL. Clicking nav links keeps the /fr prefix (/fr/suppliers, /fr/contact). Switcher on /fr/buyers -> DE goes to /de/buyers, -> EN goes to /buyers. Regression: plain /buyers is English; picking ES on /buyers stays on the bare URL and survives reload; the /ar home is not blank (scrollWidth 1920); the vendor portal and admin console load. No page errors.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/robots.txt (frontend/public/robots.txt)", "issue": "The static robots.txt at the site root (the file crawlers actually read) does NOT include the new 'Disallow: /*/admin', '/*/staff', '/*/vendor' lines. Only /api/v1/seo/robots.txt has them. Because the router basename makes /fr/admin, /de/vendor etc. valid SPA routes, they are crawlable. Fix: add the 3 lines to frontend/public/robots.txt."},
+      {"endpoint": "GET /api/v1/i18n/dict/{lang}", "issue": "Cache-Control public max-age=300, plus the frontend keeps the dict in memory per tab. Other visitors can see the old translation for up to 5 minutes (or until they reload), so 'live everywhere straight away' only holds for the reviewer's own tab. Acceptable, but consider wording the toast/help text accordingly."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Language-prefixed internal links (SEO)", "issue": "On /fr/buyers (and on /ja, /ar home) the desktop header and footer anchors have bare href attributes (/suppliers, /buyers, /trust, /tenders/all, /login, /register, /help, /privacy, /) with no /fr prefix. Root cause: lib/pmcEPublicNav.js wire() does el.setAttribute('href', path) with the bare path. Clicks still work because navigate() respects the basename. Plain JSX anchors like ForBuyersE href=\"/contact\" (buyers-contact-link) and the help drawer href=\"/help\" are also bare. Impact: the prerendered /fr pages link crawlers to the English URLs, and open-in-new-tab loses the language prefix. Only the mobile menu links (pmc-mobile-menu-link-*) are prefixed. Fix: in wire() use BASENAME + path (import from lib/langPath) and use <Link> or the BASENAME prefix for the remaining raw hrefs.", "affected_selectors": ["header nav.pmc-nav a", "footer .pmc-fcol a", "[data-testid='buyers-contact-link']", "a.pmc-brand"]}
+    ],
+    "design_issues": [
+      {"screen": "Arabic pages (/ar, /ar/about)", "issues": ["Display headings and some body text show letter-spacing gaps between Arabic letters (e.g. 'أ ر بعة ا لتزا مات'). The tracking/letter-spacing breaks the joined Arabic script. Set letter-spacing:0 under [dir=rtl] and load an Arabic webfont (carried over from iteration_170).", "The bottom-right Help button label is cut off at the viewport edge in RTL."]},
+      {"screen": "/ar/about, /es/about hero h1", "issues": ["Split text-node translation makes broken sentences: 'Procurement people can <em>trust</em>.' becomes 'El personal de adquisiciones puede confianza.' / 'يمكن لمسؤولي المشتريات ثقة.' Each fragment is translated alone. Reviewers can fix the fragments in the new screen, but similar headings with an <em> highlight will stay ungrammatical in every language until that's done."]},
+      {"screen": "Translations tab", "issues": ["The search input fires an API request on every keystroke with no debounce, and responses that arrive out of order can show stale results.", "The 'Saved' button stays enabled on reviewed rows that haven't changed, so clicking it re-saves for nothing.", "Many listed phrases are sentence fragments starting with punctuation (', enter your company details…', '. On the mobile app…'). Reviewers will find these confusing without context."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_i18n_review_seo_lang.py", "/app/test_reports/pytest/pytest_i18n_review.xml"],
+  "action_items": [
+    "Prefix wired public-nav hrefs with BASENAME in lib/pmcEPublicNav.js wire() (and fix the raw href='/contact' and '/help' anchors) so the /fr, /ar… pages link to their own language URLs.",
+    "Add 'Disallow: /*/admin', 'Disallow: /*/staff', 'Disallow: /*/vendor' to frontend/public/robots.txt.",
+    "Under [dir=rtl], reset letter-spacing to 0 on headings and eyebrows, and add an Arabic webfont.",
+    "Optional: debounce tr-search-input; disable the Saved button when there is nothing to save."
+  ],
+  "critical_code_review_comments": [
+    "i18n_auto.py review endpoints are fine: require_role includes the CSRF check, the regex is escaped, Literal status, bounded skip/limit, _id excluded, audit logged.",
+    "Reviewed phrases are safe from the AI because /translate only sends cache misses to the LLM, and _load_seed uses $setOnInsert.",
+    "PUT /admin/phrases upserts any src (even one that is not in the cache yet). That's fine for a pre-emptive fix, but an admin can create arbitrary dictionary entries.",
+    "useSeo only re-runs on [t,d,image,ld]. If two routes share the same title/description, canonical and hreflang will not update on SPA navigation (low risk today)."
+  ],
+  "updated_files": ["/app/backend/tests/test_i18n_review_seo_lang.py"],
+  "success_rate": {"backend": "100% (22/22)", "frontend": "95% (all requested flows pass; one SEO href-prefix gap)"},
+  "seed_data_creation": "Created TEST_ phrases only: fr 'TEST_ Review phrase <hex>' (pytest, deleted at teardown) and ar 'TEST_ UI review alpha' / 'TEST_ UI review beta' (inserted for the UI approve/save test, then deleted). No real phrase was modified. The reviewed count is back to 0 in every language. 3 older TEST_ ru docs (TEST_csrf_1792302333, TEST_Wv4_Matrix_*) were already there and were left untouched.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Admin login redirects /admin/login -> /login?role=admin; selectors signin-e-email / signin-e-password / signin-e-submit. Translation tab: /admin/e/growth?tab=translations. To UI-test approve/save without touching real data, insert TEST_ docs into i18n_cache with h=sha1(src). Lang switcher: lang-toggle, lang-<code>. Prerender (scripts/prerender.py) runs only in the build scripts; the preview serves the SPA shell with English <title>."
+}
