@@ -13,6 +13,7 @@ const NAV = [
   { to: "/vendor",            label: "Home",             icon: "i-home" },
   { to: "/vendor/tenders",    label: "Find tenders",     icon: "i-search" },
   { to: "/vendor/tender-builder", label: "Prepare tender", icon: "i-file" },
+  { to: "/vendor/ai-tools",  label: "AI tender tools",  icon: "i-spark" },
   { to: "/vendor/mybids",     label: "My bids",          icon: "i-gavel" },
   { to: "/vendor/consortia",  label: "Consortia",        icon: "i-users" },
   { to: "/vendor/auctions",   label: "Reverse auctions", icon: "i-gavel" },
@@ -22,6 +23,8 @@ const NAV = [
 const NAV_SECONDARY = [
   { to: "/vendor/company",    label: "Company & KYC",    icon: "i-shield" },
   { to: "/vendor/categories", label: "Categories",       icon: "i-tag" },
+  { to: "/vendor/saved-alerts", label: "Saved alerts",   icon: "i-bell" },
+  { to: "/vendor/listing",   label: "Directory listing", icon: "i-users" },
   { to: "/vendor/data-intel", label: "Data intel",       icon: "i-chart" },
   { to: "/vendor/messages",   label: "Messages",         icon: "i-mail" },
   { to: "/vendor/refer",      label: "Refer & earn",     icon: "i-users" },

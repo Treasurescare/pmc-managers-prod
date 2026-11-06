@@ -148,6 +148,14 @@ import ContactE from "@/apps/notice-board-e/ContactE";
 import PrivacyTermsE from "@/apps/notice-board-e/PrivacyTermsE";
 import VendorFindTendersE from "@/apps/vendor-portal-e/VendorFindTendersE";
 import VendorAlertsE from "@/apps/vendor-portal-e/VendorAlertsE";
+import VendorAiToolsE from "@/apps/vendor-portal-e/VendorAiToolsE";
+import VendorSavedAlertsE from "@/apps/vendor-portal-e/VendorSavedAlertsE";
+import VendorListingE from "@/apps/vendor-portal-e/VendorListingE";
+import GlobalTendersE from "@/apps/notice-board-e/GlobalTendersE";
+import SupplierDirectoryE from "@/apps/notice-board-e/SupplierDirectoryE";
+import ConsultingE from "@/apps/notice-board-e/ConsultingE";
+import BuyerApplyE from "@/apps/notice-board-e/BuyerApplyE";
+import AdminGrowthE from "@/apps/admin-console-e/AdminGrowthE";
 import VendorReviewsE from "@/apps/vendor-portal-e/VendorReviewsE";
 import AdminProgrammeE from "@/apps/admin-console-e/AdminProgrammeE";
 import AdminCorrigendaE from "@/apps/admin-console-e/AdminCorrigendaE";
@@ -224,6 +232,10 @@ export default function App() {
             <Route path="/vision" element={<AboutVisionE legacy={VisionMission} />} />
             <Route path="/tenders" element={<Navigate to="/tenders/live" replace />} />
             <Route path="/tenders/live" element={<TendersList />} />
+            <Route path="/tenders/global" element={<GlobalTendersE />} />
+            <Route path="/suppliers/directory" element={<SupplierDirectoryE />} />
+            <Route path="/services" element={<ConsultingE />} />
+            <Route path="/buyers/apply" element={<BuyerApplyE />} />
             <Route path="/tenders/completed" element={<AwardsPublicE legacy={TendersList} />} />
             <Route path="/tenders/:mode" element={<TendersList />} />
             <Route path="/trust" element={<TrustSecurityE />} />
@@ -299,6 +311,7 @@ export default function App() {
             <Route path="/admin/e/escrow" element={<AdminEscrowE />} />
             <Route path="/admin/e/escrow-institutions" element={<AdminEscrowInstitutionsE />} />
             <Route path="/admin/e/billing" element={<AdminBillingE />} />
+            <Route path="/admin/e/growth" element={<AdminGrowthE />} />
             <Route path="/admin/e/marketing" element={<AdminMarketingE />} />
             <Route path="/admin/e/agents" element={<AdminAgentsE />} />
             <Route path="/admin/e/partners" element={<AdminAgentsE />} />
@@ -338,6 +351,9 @@ export default function App() {
             <Route path="/vendor/emd" element={<RequireVendor><VendorEmdE /></RequireVendor>} />
             <Route path="/vendor/signatures" element={<RequireVendor><VendorSignaturesE /></RequireVendor>} />
             <Route path="/vendor/alerts" element={<RequireVendor><VendorAlertsE /></RequireVendor>} />
+            <Route path="/vendor/ai-tools" element={<RequireVendor><VendorAiToolsE /></RequireVendor>} />
+            <Route path="/vendor/saved-alerts" element={<RequireVendor><VendorSavedAlertsE /></RequireVendor>} />
+            <Route path="/vendor/listing" element={<RequireVendor><VendorListingE /></RequireVendor>} />
             <Route path="/vendor/reviews" element={<RequireVendor><VendorReviewsE /></RequireVendor>} />
             <Route path="/vendor/company" element={<RequireVendor><VendorCompanyKycE /></RequireVendor>} />
             <Route path="/vendor/account" element={<RequireVendor><VendorAccountE /></RequireVendor>} />

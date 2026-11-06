@@ -34,6 +34,7 @@ export default function AdminSideNavE({ active }) {
     ["Profile changes", "/admin/e/profile-changes", "i-settings"],
     ["Marketing", "/admin/e/marketing", "i-mail"],
     ["Partners", "/admin/e/partners", "i-user"],
+    ["Growth", "/admin/e/growth", "i-chart"],
     ["Money & compliance", null, null],
     ["Bidding ops", "/admin/e/bidding", "i-gavel"],
     ["Escrow / EMD", "/admin/e/escrow", "i-coin"],

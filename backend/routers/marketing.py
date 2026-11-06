@@ -414,6 +414,8 @@ async def send_tender_alert(notice_ref: str) -> int:
         log.exception("social post queue failed for %s", notice_ref)
     from routers.whatsapp import notify_tender
     asyncio.create_task(notify_tender(notice_ref))
+    from routers.growth import run_instant_alerts
+    asyncio.create_task(run_instant_alerts(notice_ref))
     s = await db.mkt_settings.find_one({"_id": "tender_alerts"}) or {}
     if not s.get("enabled") or s.get("mode", "instant") != "instant":
         return 0

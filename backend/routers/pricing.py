@@ -27,7 +27,9 @@ DEFAULT_BANDS = [
 DEFAULT_TIERS = ["Starter", "Professional", "Programme"]
 NOTICE_FEES = [("tender_hosting", "Tender hosting fee"), ("tender_document_download", "Tender document download (suppliers)"),
                ("transaction", "Award fee")]
-SUPPLIER_FEES = [("registration", "Extra business categories"), ("tender_document_download", "Tender document downloads")]
+SUPPLIER_FEES = [("registration", "Extra business categories"), ("tender_document_download", "Tender document downloads"),
+                 ("ai_tender_summary", "AI tender summary"), ("ai_bid_readiness", "AI bid readiness check"),
+                 ("featured_listing", "Featured directory listing")]
 
 
 async def seed_pricing() -> None:

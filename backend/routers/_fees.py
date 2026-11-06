@@ -32,6 +32,14 @@ DEFAULT_FEE_TYPES = [
      "amount_mode": "range", "category_scope": "all", "billing": "one_time", "used_in_tender_builder": True},
     {"code": "tender_document_download", "name": "Tender document download", "timing": "upfront", "calc": "fixed",
      "amount_mode": "range", "category_scope": "all", "billing": "one_time", "used_in_tender_builder": False},
+    {"code": "ai_tender_summary", "name": "AI tender summary (per use)", "timing": "upfront", "calc": "fixed",
+     "amount_mode": "single", "category_scope": "all", "billing": "one_time", "used_in_tender_builder": False},
+    {"code": "ai_bid_readiness", "name": "AI bid readiness check (per use)", "timing": "upfront", "calc": "fixed",
+     "amount_mode": "single", "category_scope": "all", "billing": "one_time", "used_in_tender_builder": False},
+    {"code": "featured_listing", "name": "Featured directory listing (30 days)", "timing": "upfront", "calc": "fixed",
+     "amount_mode": "single", "category_scope": "all", "billing": "one_time", "used_in_tender_builder": False},
+    {"code": "data_api", "name": "Tender data API plan", "timing": "upfront", "calc": "fixed",
+     "amount_mode": "single", "category_scope": "all", "billing": "yearly", "used_in_tender_builder": False},
 ]
 
 

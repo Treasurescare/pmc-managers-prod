@@ -5,6 +5,16 @@ const LANGS = [
   { code: "en", label: "English",  short: "EN" },
   { code: "ru", label: "Русский",  short: "RU" },
   { code: "kk", label: "Қазақша",  short: "KK" },
+  { code: "zh-Hans", label: "简体中文 (普通话)", short: "简" },
+  { code: "zh-Hant", label: "繁體中文 (粵語)", short: "繁" },
+  { code: "es", label: "Español", short: "ES" },
+  { code: "fr", label: "Français", short: "FR" },
+  { code: "de", label: "Deutsch", short: "DE" },
+  { code: "hi", label: "हिन्दी", short: "HI" },
+  { code: "ms", label: "Bahasa Melayu", short: "MS" },
+  { code: "id", label: "Bahasa Indonesia", short: "ID" },
+  { code: "ko", label: "한국어", short: "KO" },
+  { code: "ja", label: "日本語", short: "JA" },
 ];
 
 export default function LangSwitcher({ dark = false }) {
@@ -47,7 +57,7 @@ export default function LangSwitcher({ dark = false }) {
         <ul
           role="listbox"
           data-testid="lang-menu"
-          className="absolute right-0 top-full mt-1 min-w-[140px] bg-white border border-brand-navy/15 shadow-lg z-40"
+          className="absolute right-0 top-full mt-1 min-w-[180px] max-h-[70vh] overflow-y-auto bg-white border border-brand-navy/15 shadow-lg z-40"
         >
           {LANGS.map((l) => {
             const active = l.code === lang;

@@ -245,7 +245,7 @@ async def stripe_webhook(request: Request):
             elif (tx or {}).get("purpose") == "partner_fee":
                 from routers.agents import apply_partner_payment
                 await apply_partner_payment(event.session_id)
-            elif (tx or {}).get("purpose") in ("doc_fee", "hosting_fee", "data_intel", "award_fee"):
+            elif (tx or {}).get("purpose") in ("doc_fee", "hosting_fee", "data_intel", "award_fee", "paid_use", "consulting"):
                 from routers.payments_extra import apply_extra_payment
                 await apply_extra_payment(event.session_id)
     # v52ck — record every signature-verified event for the webhook-health

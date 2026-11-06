@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import LangSwitcher from "./LangSwitcher";
 
 /**
  * Shared public-site chrome (header + footer) matching the PMC Managers
@@ -13,6 +14,7 @@ export default function PublicChrome({ active, children, testid }) {
         <Link to="/" className="pmc-brand"><span className="pmc-brand__n">PMC Managers</span><span className="pmc-brand__s">Global Tender Grid</span></Link>
         <nav className="pmc-nav">
           <Link to="/tenders/all" className={is("tenders")}>Tenders</Link>
+          <Link to="/tenders/global" className={is("global")}>Global tenders</Link>
           <Link to="/auctions" className={is("auctions")}>Auctions</Link>
           <Link to="/suppliers">For suppliers</Link>
           <Link to="/buyers">For buyers</Link>
@@ -20,7 +22,7 @@ export default function PublicChrome({ active, children, testid }) {
           <Link to="/help">Help &amp; FAQs</Link>
         </nav>
         <div className="pmc-top__act">
-          <button className="pmc-btn pmc-btn--onchrome pmc-btn--sm"><svg className="pmc-ico" aria-hidden="true"><use href="#i-globe" /></svg> EN</button>
+          <LangSwitcher dark />
           <Link to="/login" className="pmc-btn pmc-btn--onchrome" data-testid="public-chrome-signin">Sign in</Link>
           <Link to="/register" className="pmc-btn pmc-btn--brass" data-testid="public-chrome-register">Register as supplier</Link>
         </div>

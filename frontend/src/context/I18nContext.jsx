@@ -20,12 +20,17 @@ export function I18nProvider({ children }) {
     }
   };
 
+  const [extra, setExtra] = useState({});
+
   useEffect(() => {
     document.documentElement.setAttribute("lang", lang);
-  }, [lang]);
+    if (STRINGS[lang] || extra[lang]) return;
+    fetch(`/i18n/${lang}.json`).then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (j) setExtra((x) => ({ ...x, [lang]: j })); }).catch(() => {});
+  }, [lang, extra]);
 
   const value = useMemo(() => {
-    const bundle = STRINGS[lang] || STRINGS.en;
+    const bundle = STRINGS[lang] || extra[lang] || STRINGS.en;
     return {
       lang, setLang,
       t: (key, fallback) => {
@@ -40,9 +45,7 @@ export function I18nProvider({ children }) {
     };
     // `STRINGS` is a module-level constant and `bundle`/`parts`/`cur` are
     // locals inside the memo — only `lang` needs to trigger a rebuild.
-  }, [lang]);
-
-  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
+  }, [lang, extra]); <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 
 export function useI18n() {

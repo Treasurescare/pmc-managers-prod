@@ -104,6 +104,12 @@ async def apply_extra_payment(session_id: str) -> None:
     elif p == "award_fee":
         from routers.pricing import apply_award_fee_payment
         await apply_award_fee_payment(tx)
+    elif p == "paid_use":
+        from routers.growth import apply_paid_use
+        await apply_paid_use(tx)
+    elif p == "consulting":
+        from routers.growth import apply_consulting_payment
+        await apply_consulting_payment(tx)
     elif p == "data_intel":
         r = await db.data_intel_requests.find_one_and_update({"_id": ObjectId(tx["request_id"]), "status": "quoted"},
             {"$set": {"status": "paid", "paid_at": now_iso()}})
