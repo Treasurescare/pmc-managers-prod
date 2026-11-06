@@ -61,6 +61,9 @@ def _h(s):
     return hashlib.sha1(s.encode()).hexdigest()
 
 
+PATHS = [s["path"] for s in M.SCREENS]
+
+
 class Collector:
     def __init__(self):
         self.texts = []
@@ -82,7 +85,9 @@ class Collector:
     def conv(self, f):
         if isinstance(f, Paragraph):
             cls = "sec" if f.style.name == "sec" else "sm" if f.style.fontSize < 9 else "b"
-            return f'<p class="{cls}">{self.t(f.text)}</p>'
+            mk = re.match(r"Screen: <font face='Courier'>(.+?)</font>", f.text or "")
+            tag = f'<span dir="ltr" style="font-size:1pt;color:#fefefe"> SCRMK{PATHS.index(mk.group(1))}KM </span>' if mk and mk.group(1) in PATHS else ""
+            return f'<p class="{cls}">{self.t(f.text)}{tag}</p>'
         if isinstance(f, KeepTogether):
             return '<div class="kt">' + "".join(self.conv(x) for x in f._content) + "</div>"
         if isinstance(f, Table):
@@ -185,14 +190,12 @@ def sections(lang, path):
     texts = [pg.get_text() for pg in d]
     pages = {}
     first = {}
-    for s in M.SCREENS:
-        if len(s["path"]) < 2:
-            continue
-        for i, t in enumerate(texts):
-            if i > 2 and s["path"] in t:
+    for i, t in enumerate(texts):
+        for m in re.finditer(r"SCRMK(\d+)KM", t):
+            s = M.SCREENS[int(m.group(1))]
+            if len(s["path"]) > 1:
                 pages.setdefault(s["path"], i + 1)
-                first.setdefault(s["section"], i + 1)
-                break
+            first.setdefault(s["section"], i + 1)
     for key, sec in (("public", "Public website"), ("supplier", "Supplier portal"), ("admin", "Admin console"),
                      ("partner", "Partner portal"), ("staff", "Staff portal")):
         if sec in first:

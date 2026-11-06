@@ -86,5 +86,69 @@
   "lang": "ms",
   "seconds": 40,
   "updated": "2026-11-06"
+ },
+ "admin-auctions": {
+  "file": "/help-videos/ms/admin-auctions.mp4",
+  "title": "Lelongan Terbalik",
+  "hash": "8de11fd822d8d48f",
+  "lang": "ms",
+  "seconds": 47,
+  "updated": "2026-11-06"
+ },
+ "admin-meetings": {
+  "file": "/help-videos/ms/admin-meetings.mp4",
+  "title": "Mesyuarat",
+  "hash": "830fe773767e6e05",
+  "lang": "ms",
+  "seconds": 41,
+  "updated": "2026-11-06"
+ },
+ "admin-l1": {
+  "file": "/help-videos/ms/admin-l1.mp4",
+  "title": "Perbandingan L1",
+  "hash": "112a1c7da554b02b",
+  "lang": "ms",
+  "seconds": 44,
+  "updated": "2026-11-06"
+ },
+ "admin-boq": {
+  "file": "/help-videos/ms/admin-boq.mp4",
+  "title": "BOQ & Kontrak",
+  "hash": "bb195fe376cf5e93",
+  "lang": "ms",
+  "seconds": 49,
+  "updated": "2026-11-06"
+ },
+ "admin-vintel": {
+  "file": "/help-videos/ms/admin-vintel.mp4",
+  "title": "Risikan Vendor",
+  "hash": "42923b5e7dded805",
+  "lang": "ms",
+  "seconds": 42,
+  "updated": "2026-11-06"
+ },
+ "admin-masters": {
+  "file": "/help-videos/ms/admin-masters.mp4",
+  "title": "Sarjana",
+  "hash": "5c990a9d8e3a8ac6",
+  "lang": "ms",
+  "seconds": 35,
+  "updated": "2026-11-06"
+ },
+ "admin-permissions": {
+  "file": "/help-videos/ms/admin-permissions.mp4",
+  "title": "Kebenaran",
+  "hash": "903384680845580b",
+  "lang": "ms",
+  "seconds": 39,
+  "updated": "2026-11-06"
+ },
+ "admin-packages": {
+  "file": "/help-videos/ms/admin-packages.mp4",
+  "title": "Pakej",
+  "hash": "3e760cfbedb924dc",
+  "lang": "ms",
+  "seconds": 42,
+  "updated": "2026-11-06"
  }
 }

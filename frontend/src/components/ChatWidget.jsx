@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { marketingApi } from "@/lib/api";
 import { useHelpVideos } from "@/apps/help-centre/HelpVideo";
 import { useI18n } from "@/context/I18nContext";
+import { BASENAME } from "@/lib/langPath";
 
 const key = (staff) => (staff ? "pmc_chat_sid_staff" : "pmc_chat_sid");
 const sid = (staff) => {
@@ -15,7 +16,7 @@ const sid = (staff) => {
 const resetSid = (staff) => { try { localStorage.removeItem(key(staff)); } catch { window.__pmcSid = null; } };
 const LINK = /(\/(?:register|notices|buyers|login|help(?:\/[a-z0-9-]+)?)\b)/g;
 const linkify = (t) => t.split(LINK).map((p, i) =>
-  /^\/(register|notices|buyers|login|help)/.test(p) ? <a key={i} href={p} style={{ textDecoration: "underline" }}>{p}</a> : p);
+  /^\/(register|notices|buyers|login|help)/.test(p) ? <a key={i} href={BASENAME + p} style={{ textDecoration: "underline" }}>{p}</a> : p);
 const HELLO = {
   public: "Hi, I'm PMC Assistant. Ask me about registering, fees, open tenders or how bidding works.",
   staff: "Hi, I'm PMC Assistant for the team. Ask how to do anything in the admin or staff portal — e.g. \"how do I approve a registration?\" — and I'll show the steps and a video.",
@@ -24,7 +25,7 @@ const HELLO = {
 const VideoAnswer = ({ v, slug }) => (
   <div style={{ justifySelf: "start", width: "85%", background: "#162921", padding: 8, borderRadius: 6 }} data-testid={`chat-video-${slug}`}>
     <video src={v.file} poster={v.file.replace(/\.mp4$/, ".jpg")} controls preload="none" playsInline style={{ width: "100%", borderRadius: 4 }} />
-    <a href={`/help/videos?v=${slug}`} style={{ color: "#d9bd72", fontSize: 12, fontWeight: 600 }} data-testid={`chat-video-link-${slug}`}>
+    <a href={`${BASENAME}/help/videos?v=${slug}`} style={{ color: "#d9bd72", fontSize: 12, fontWeight: 600 }} data-testid={`chat-video-link-${slug}`}>
       ▶ {v.title} · {Math.max(1, Math.round(v.seconds / 60))} min
     </a>
   </div>);

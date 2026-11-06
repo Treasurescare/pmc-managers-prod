@@ -118,5 +118,69 @@
   "lang": "zh-Hant",
   "seconds": 44,
   "updated": "2026-11-06"
+ },
+ "admin-vintel": {
+  "file": "/help-videos/zh-Hant/admin-vintel.mp4",
+  "title": "\u4f9b\u61c9\u5546\u60c5\u5831",
+  "hash": "b9972ee96b0a8f2f",
+  "lang": "zh-Hant",
+  "seconds": 49,
+  "updated": "2026-11-06"
+ },
+ "admin-masters": {
+  "file": "/help-videos/zh-Hant/admin-masters.mp4",
+  "title": "\u78a9\u58eb",
+  "hash": "c27c07c65fc428bc",
+  "lang": "zh-Hant",
+  "seconds": 38,
+  "updated": "2026-11-06"
+ },
+ "admin-permissions": {
+  "file": "/help-videos/zh-Hant/admin-permissions.mp4",
+  "title": "\u6b0a\u9650",
+  "hash": "6a3dbc7a7ab525c6",
+  "lang": "zh-Hant",
+  "seconds": 40,
+  "updated": "2026-11-06"
+ },
+ "admin-packages": {
+  "file": "/help-videos/zh-Hant/admin-packages.mp4",
+  "title": "\u5957\u9910",
+  "hash": "1cf3b890b1d1c5b5",
+  "lang": "zh-Hant",
+  "seconds": 54,
+  "updated": "2026-11-06"
+ },
+ "admin-audit": {
+  "file": "/help-videos/zh-Hant/admin-audit.mp4",
+  "title": "\u5be9\u8a08",
+  "hash": "889e15bf83ee45e4",
+  "lang": "zh-Hant",
+  "seconds": 50,
+  "updated": "2026-11-06"
+ },
+ "admin-catalog": {
+  "file": "/help-videos/zh-Hant/admin-catalog.mp4",
+  "title": "\u7522\u54c1\u76ee\u9304",
+  "hash": "fa9297478db4431b",
+  "lang": "zh-Hant",
+  "seconds": 51,
+  "updated": "2026-11-06"
+ },
+ "admin-engagements": {
+  "file": "/help-videos/zh-Hant/admin-engagements.mp4",
+  "title": "\u5408\u4f5c\u9805\u76ee",
+  "hash": "16e59babb8e3a700",
+  "lang": "zh-Hant",
+  "seconds": 54,
+  "updated": "2026-11-06"
+ },
+ "staff-portal": {
+  "file": "/help-videos/zh-Hant/staff-portal.mp4",
+  "title": "\u54e1\u5de5\u5165\u53e3",
+  "hash": "538a2313252f3c20",
+  "lang": "zh-Hant",
+  "seconds": 45,
+  "updated": "2026-11-06"
  }
 }

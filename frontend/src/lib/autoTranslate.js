@@ -12,7 +12,7 @@ let observer = null;
 let queue = new Set();
 let timer = null;
 
-const worth = (s) => s.length > 1 && s.length <= 600 && /\p{L}{2,}/u.test(s) && !/^[\w.+-]+@[\w-]+\.[\w.]+$/.test(s)
+const worth = (s) => s.length > 1 && s.length <= 2000 && /\p{L}{2,}/u.test(s) && !/^[\w.+-]+@[\w-]+\.[\w.]+$/.test(s)
   && !/^https?:\/\//.test(s) && !/^[A-Z0-9][A-Z0-9-/.]{4,}$/.test(s);
 const skipEl = (el) => {
   for (let e = el; e && e !== document.body; e = e.parentElement) {

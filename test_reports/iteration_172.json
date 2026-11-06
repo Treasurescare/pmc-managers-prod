@@ -1,0 +1,38 @@
+{
+  "summary": "Tested the help translation work: Ask PMC language replies, per-language help videos, translated help articles and help panel, manual links and downloads, and 14-language manual PDFs. Backend: 33 of 34 pytest pass. Ask PMC replies in Japanese for lang=ja and in Arabic for lang=ar, in English when lang is missing, and returns 422 when lang is longer than 10 characters (4 LLM calls in total). All 13 translated PDFs and the English PDF return 200, application/pdf and a %PDF header. The English PDF has 114 pages and contains the 'What's new' chapter. The fr manifest points to /help-videos/fr/languages.mp4. The one failure: sections_ar.json maps only 9 screens. UI: on /fr/buyers the Ask PMC greeting is French and the chat input placeholder is French. The request sends lang=fr and the reply is French. User and reply bubbles have translate=no; the greeting does not. /fr/help/languages plays /help-videos/fr/languages.mp4. /fr/help/vendor-portal and /fr/help/ask-pmc fall back to the English mp4. /de/help/admin-dashboard plays the de video. In a fresh browser, /help/languages plays /help-videos/languages.mp4. /fr/help/videos lists 52 videos with French titles and French posters where available. On /help the manual download links to the English v4 PDF; on /fr/help it is in French and links to _fr.pdf. The help panel links to _fr.pdf#page=11 on /fr/buyers, _fr.pdf#page=13 on /fr/register and _ja.pdf#page=9 on /ja/notices, and to the English PDF#page=8 in English. Regression: admin login and Growth > Translation review (13 languages, Approve rows) still work, and there are no page errors.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/downloads/manual/sections_ar.json", "issue": "Only 9 entries instead of 69, and the pages are wrong. For example /buyers maps to page 90 ('What's new' chapter) when it is really page 11, and /login and /staff map to 99. There are no admin or partner keys. Cause: in scripts/build_manual_i18n.py sections(), fitz text extraction on the RTL Arabic PDF reverses the screen paths ('/buyers' comes out as 'buyers/'), so `s['path'] in t` fails or matches a later page. As a result, Arabic 'Read the manual for this screen' opens the wrong page, and every admin screen falls back to page 1."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Help article lead paragraph (/fr/help/languages, also admin-pricing-fees)", "issue": "The article description stays in English on the French page because autoTranslate.js worth() skips strings longer than 600 characters. The 'languages' purpose is 734 characters and admin-pricing-fees is 660, and the backend /translate also drops strings over 600 characters. Fix: split long purposes into sentences or paragraphs, or raise the limit on both sides.", "selector": "h1 + p.lead", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Ask PMC links on language-prefixed pages", "issue": "Links in replies (/buyers, /help/...) and the chat video link /help/videos?v= have no language prefix. They still render in the stored language, but the /fr URL is lost. Minor.", "affected_selectors": ["[data-testid^=chat-video-link-]", "[data-testid=chat-msg-assistant] a"]}
+    ],
+    "design_issues": [
+      {"screen": "Help Centre hero (/help, /fr/help)", "issues": ["The 'Download the training manual (PDF)' ghost button (help-manual-download) uses dark green text on the dark green hero, so it is very low contrast and barely visible next to the brass video-library button. Use pmc-btn--onchrome or a light outline."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v62_help_i18n_manual.py", "/app/test_reports/pytest/v62_help_i18n.xml"],
+  "action_items": [
+    "Fix sections() in build_manual_i18n.py for Arabic: also match the reversed path form (path[1:] + '/') or use the HTML anchors or build-time page map, then regenerate sections_ar.json.",
+    "Translate help module purposes longer than 600 characters (languages, admin-pricing-fees): split them into smaller nodes or raise the 600-character limit in autoTranslate.js worth() and i18n_auto.",
+    "Improve the contrast of the help-manual-download button on the Help Centre hero.",
+    "Optional: add the language prefix to chat reply links and video links on /<lang> pages."
+  ],
+  "critical_code_review_comments": [
+    "Missing /help-videos/<lang>/manifest.json files (ru, zh-Hans, es, id, ja right now) are served as the SPA index.html with 200 text/html. loadManifest handles this only because r.json() throws into the catch. Consider checking content-type, or adding empty manifests.",
+    "loadManifest caches per language for the whole session, so newly generated videos only appear after a reload. This is fine while the generators run, but worth knowing.",
+    "Ask PMC lang is accepted as any string up to 10 characters; an unknown value is silently ignored and the reply is English. Acceptable."
+  ],
+  "updated_files": ["/app/backend/tests/test_v62_help_i18n_manual.py"],
+  "success_rate": {"backend": "97% (33/34)", "frontend": "92%"},
+  "seed_data_creation": "None. Created 4 TEST* assistant_sessions in pytest and 1 from the UI chat; all deleted by session_id.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Video generators (make_videos.py) are still running; the fr, de, ko, zh-Hant, ms, kk, ar and hi manifests exist. Do not touch help-videos or downloads/manual. Ask PMC is rate-limited to 40 per hour per IP; this run used 5 calls. Admin login: /login?role=admin with signin-e-* selectors. Help panel: pmc-help-fab then help-read-manual. The language choice persists in the browser, so bare URLs keep the last chosen language; use a fresh context to test English."
+}

@@ -70,5 +70,69 @@
   "lang": "kk",
   "seconds": 52,
   "updated": "2026-11-06"
+ },
+ "admin-awards": {
+  "file": "/help-videos/kk/admin-awards.mp4",
+  "title": "\u0416\u0435\u04a3\u0456\u043c\u043f\u0430\u0437\u0434\u0430\u0440 \u0436\u04d9\u043d\u0435 PO-\u043b\u0430\u0440",
+  "hash": "37e179ed934746ec",
+  "lang": "kk",
+  "seconds": 54,
+  "updated": "2026-11-06"
+ },
+ "admin-docusign": {
+  "file": "/help-videos/kk/admin-docusign.mp4",
+  "title": "DocuSign",
+  "hash": "08c2c21304e9c349",
+  "lang": "kk",
+  "seconds": 50,
+  "updated": "2026-11-06"
+ },
+ "admin-auctions": {
+  "file": "/help-videos/kk/admin-auctions.mp4",
+  "title": "\u041a\u0435\u0440\u0456 \u0430\u0443\u043a\u0446\u0438\u043e\u043d\u0434\u0430\u0440",
+  "hash": "7e5b8ae4038e3398",
+  "lang": "kk",
+  "seconds": 62,
+  "updated": "2026-11-06"
+ },
+ "admin-meetings": {
+  "file": "/help-videos/kk/admin-meetings.mp4",
+  "title": "\u041a\u0435\u0437\u0434\u0435\u0441\u0443\u043b\u0435\u0440",
+  "hash": "21a15a48b83b2c00",
+  "lang": "kk",
+  "seconds": 66,
+  "updated": "2026-11-06"
+ },
+ "admin-l1": {
+  "file": "/help-videos/kk/admin-l1.mp4",
+  "title": "L1 \u0441\u0430\u043b\u044b\u0441\u0442\u044b\u0440\u0443\u044b",
+  "hash": "434705f1cae6c80a",
+  "lang": "kk",
+  "seconds": 52,
+  "updated": "2026-11-06"
+ },
+ "admin-boq": {
+  "file": "/help-videos/kk/admin-boq.mp4",
+  "title": "BOQ \u0436\u04d9\u043d\u0435 \u043a\u0435\u043b\u0456\u0441\u0456\u043c\u0448\u0430\u0440\u0442\u0442\u0430\u0440",
+  "hash": "4ded6659736f0a20",
+  "lang": "kk",
+  "seconds": 60,
+  "updated": "2026-11-06"
+ },
+ "admin-vintel": {
+  "file": "/help-videos/kk/admin-vintel.mp4",
+  "title": "\u0416\u0435\u0442\u043a\u0456\u0437\u0443\u0448\u0456 \u0442\u0430\u043b\u0434\u0430\u0443\u044b",
+  "hash": "14ac4dfc5c3515cd",
+  "lang": "kk",
+  "seconds": 50,
+  "updated": "2026-11-06"
+ },
+ "admin-permissions": {
+  "file": "/help-videos/kk/admin-permissions.mp4",
+  "title": "\u0420\u04b1\u049b\u0441\u0430\u0442\u0442\u0430\u0440",
+  "hash": "2518fac79af5a8c1",
+  "lang": "kk",
+  "seconds": 48,
+  "updated": "2026-11-06"
  }
 }

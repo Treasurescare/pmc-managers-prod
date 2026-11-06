@@ -970,3 +970,12 @@ summary notes.
 - Tested iteration_171 (backend 22/22; frontend flows pass; href-prefix + robots + debounce issues fixed after).
 - Removed superseded release zips older than v60f from public/downloads (disk was full). Built pmc-backend-v60g.zip + pmc-frontend-v60g-prod-build.zip, secret scan passed.
 
+
+
+## 2026-11-06 — v60h Help in every language + new manuals
+- Ask PMC replies in chosen language (ChatIn.lang); reply bubbles notranslate; links keep /lang prefix.
+- Videos: make_videos.py --lang=xx -> public/help-videos/<lang>/ + manifest; HelpVideo falls back to English per slug. 139/689 localized videos done; stopped at LLM key daily spend limit. Resume with same command per language (skips finished).
+- Manual: new chapter 28a + 8 new screenshots -> English 114 pages; build_manual_i18n.py renders 13 translated manuals + sections_<lang>.json. Help Centre download button + help panel link per language.
+- Translate limit 600->2000 chars; craco devServer static watch off (inotify limit).
+- Tested iteration_172 (backend 33/34; ar page map, long text, chat links, button contrast fixed after).
+- Deleted old /app root zips v3-v20 and v60f zips (disk). Built v60h (frontend 259MB), secret scan passed.

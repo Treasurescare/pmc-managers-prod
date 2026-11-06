@@ -49,7 +49,7 @@ async def _llm(lang: str, texts: list) -> list:
 async def translate(body: TrIn, request: Request):
     if body.lang not in LANGS:
         raise HTTPException(status_code=422, detail="Unsupported language")
-    texts = list(dict.fromkeys(t.strip() for t in body.texts if t and t.strip() and len(t) <= 600))
+    texts = list(dict.fromkeys(t.strip() for t in body.texts if t and t.strip() and len(t) <= 2000))
     found = {d["src"]: d["out"] async for d in db.i18n_cache.find({"lang": body.lang, "h": {"$in": [_h(t) for t in texts]}})}
     missing = [t for t in texts if t not in found]
     if missing:

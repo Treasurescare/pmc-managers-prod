@@ -70,5 +70,69 @@
   "lang": "de",
   "seconds": 51,
   "updated": "2026-11-06"
+ },
+ "admin-awards": {
+  "file": "/help-videos/de/admin-awards.mp4",
+  "title": "Zuschl\u00e4ge & Bestellungen",
+  "hash": "37088cd4984e7f04",
+  "lang": "de",
+  "seconds": 57,
+  "updated": "2026-11-06"
+ },
+ "admin-docusign": {
+  "file": "/help-videos/de/admin-docusign.mp4",
+  "title": "DocuSign",
+  "hash": "fac8a29798819bb6",
+  "lang": "de",
+  "seconds": 49,
+  "updated": "2026-11-06"
+ },
+ "admin-auctions": {
+  "file": "/help-videos/de/admin-auctions.mp4",
+  "title": "Umgekehrte Auktionen",
+  "hash": "97700302e8fe6d88",
+  "lang": "de",
+  "seconds": 57,
+  "updated": "2026-11-06"
+ },
+ "admin-meetings": {
+  "file": "/help-videos/de/admin-meetings.mp4",
+  "title": "Besprechungen",
+  "hash": "10447104cda22b1f",
+  "lang": "de",
+  "seconds": 58,
+  "updated": "2026-11-06"
+ },
+ "admin-l1": {
+  "file": "/help-videos/de/admin-l1.mp4",
+  "title": "L1-Vergleich",
+  "hash": "dbb48b8a62332f1d",
+  "lang": "de",
+  "seconds": 47,
+  "updated": "2026-11-06"
+ },
+ "admin-boq": {
+  "file": "/help-videos/de/admin-boq.mp4",
+  "title": "BOQ & Vertr\u00e4ge",
+  "hash": "29ee8a8218f2e055",
+  "lang": "de",
+  "seconds": 60,
+  "updated": "2026-11-06"
+ },
+ "admin-vintel": {
+  "file": "/help-videos/de/admin-vintel.mp4",
+  "title": "Lieferanten-Intelligence",
+  "hash": "1682887d1df4c661",
+  "lang": "de",
+  "seconds": 52,
+  "updated": "2026-11-06"
+ },
+ "admin-masters": {
+  "file": "/help-videos/de/admin-masters.mp4",
+  "title": "Master",
+  "hash": "0fc98285d6a54b7c",
+  "lang": "de",
+  "seconds": 41,
+  "updated": "2026-11-06"
  }
 }

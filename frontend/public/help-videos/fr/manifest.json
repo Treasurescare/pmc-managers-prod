@@ -118,5 +118,61 @@
   "lang": "fr",
   "seconds": 48,
   "updated": "2026-11-06"
+ },
+ "admin-boq": {
+  "file": "/help-videos/fr/admin-boq.mp4",
+  "title": "BOQ et contrats",
+  "hash": "17780d731f8beeac",
+  "lang": "fr",
+  "seconds": 56,
+  "updated": "2026-11-06"
+ },
+ "admin-masters": {
+  "file": "/help-videos/fr/admin-masters.mp4",
+  "title": "Masters",
+  "hash": "94116d20b535b544",
+  "lang": "fr",
+  "seconds": 47,
+  "updated": "2026-11-06"
+ },
+ "admin-permissions": {
+  "file": "/help-videos/fr/admin-permissions.mp4",
+  "title": "Autorisations",
+  "hash": "8305654e3b0602b7",
+  "lang": "fr",
+  "seconds": 47,
+  "updated": "2026-11-06"
+ },
+ "admin-packages": {
+  "file": "/help-videos/fr/admin-packages.mp4",
+  "title": "Packages",
+  "hash": "cd341a80f3a7251d",
+  "lang": "fr",
+  "seconds": 50,
+  "updated": "2026-11-06"
+ },
+ "admin-catalog": {
+  "file": "/help-videos/fr/admin-catalog.mp4",
+  "title": "Catalogue de produits",
+  "hash": "e8966a7934e253e6",
+  "lang": "fr",
+  "seconds": 56,
+  "updated": "2026-11-06"
+ },
+ "admin-engagements": {
+  "file": "/help-videos/fr/admin-engagements.mp4",
+  "title": "Engagements",
+  "hash": "68a8cec07cddd4f9",
+  "lang": "fr",
+  "seconds": 58,
+  "updated": "2026-11-06"
+ },
+ "registration-portal": {
+  "file": "/help-videos/fr/registration-portal.mp4",
+  "title": "Portail d'inscription",
+  "hash": "14370f00c5dd0ec2",
+  "lang": "fr",
+  "seconds": 56,
+  "updated": "2026-11-06"
  }
 }

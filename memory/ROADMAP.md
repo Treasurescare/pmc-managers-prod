@@ -19,7 +19,8 @@
 - Kaspi Pay live integration (currently mocked)
 
 ## 🟡 P1 · Languages (2026-11-06)
-- Deploy v60g and submit sitemap in Google Search Console
+- Finish localized help videos (550 remaining) after LLM key top-up: PMC_BASE=... PMC_ADMIN_EMAIL/PW PMC_VENDOR_EMAIL/PW python3 scripts/help_videos/make_videos.py --lang=<l>; then re-run scripts/build_manual_i18n.py (cached) and rebuild
+- Deploy v60h and submit sitemap in Google Search Console
 - Native-speaker review of all 13 languages via Translation review screen
 - Translation rate limit uses spoofable X-Forwarded-For (global daily cap 30k in place)
 - Sentence fragments split by links/<em> translate awkwardly (e.g. About hero); consider whole-sentence translation

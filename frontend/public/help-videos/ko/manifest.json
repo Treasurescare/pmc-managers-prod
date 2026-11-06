@@ -110,5 +110,77 @@
   "lang": "ko",
   "seconds": 41,
   "updated": "2026-11-06"
+ },
+ "admin-boq": {
+  "file": "/help-videos/ko/admin-boq.mp4",
+  "title": "BOQ \ubc0f \uacc4\uc57d",
+  "hash": "492b080df50cc3e9",
+  "lang": "ko",
+  "seconds": 47,
+  "updated": "2026-11-06"
+ },
+ "admin-vintel": {
+  "file": "/help-videos/ko/admin-vintel.mp4",
+  "title": "\uacf5\uae09\uc5c5\uccb4 \uc778\ud154\ub9ac\uc804\uc2a4",
+  "hash": "5933bde5267ccfd9",
+  "lang": "ko",
+  "seconds": 47,
+  "updated": "2026-11-06"
+ },
+ "admin-masters": {
+  "file": "/help-videos/ko/admin-masters.mp4",
+  "title": "\uc11d\uc0ac",
+  "hash": "026d6e79c28669fb",
+  "lang": "ko",
+  "seconds": 41,
+  "updated": "2026-11-06"
+ },
+ "admin-permissions": {
+  "file": "/help-videos/ko/admin-permissions.mp4",
+  "title": "\uad8c\ud55c",
+  "hash": "6ffe2e35e0199335",
+  "lang": "ko",
+  "seconds": 44,
+  "updated": "2026-11-06"
+ },
+ "admin-packages": {
+  "file": "/help-videos/ko/admin-packages.mp4",
+  "title": "\ud328\ud0a4\uc9c0",
+  "hash": "f3b8deed20a1eaa3",
+  "lang": "ko",
+  "seconds": 49,
+  "updated": "2026-11-06"
+ },
+ "admin-audit": {
+  "file": "/help-videos/ko/admin-audit.mp4",
+  "title": "\uac10\uc0ac",
+  "hash": "19f975ec39e3e9b6",
+  "lang": "ko",
+  "seconds": 53,
+  "updated": "2026-11-06"
+ },
+ "admin-catalog": {
+  "file": "/help-videos/ko/admin-catalog.mp4",
+  "title": "\uc81c\ud488 \uce74\ud0c8\ub85c\uadf8",
+  "hash": "6350b184ed57e279",
+  "lang": "ko",
+  "seconds": 52,
+  "updated": "2026-11-06"
+ },
+ "admin-engagements": {
+  "file": "/help-videos/ko/admin-engagements.mp4",
+  "title": "\uacc4\uc57d \ucc38\uc5ec",
+  "hash": "1696982401aa716b",
+  "lang": "ko",
+  "seconds": 54,
+  "updated": "2026-11-06"
+ },
+ "vendor-portal": {
+  "file": "/help-videos/ko/vendor-portal.mp4",
+  "title": "\uacf5\uae09\uc5c5\uccb4 \ud3ec\ud138",
+  "hash": "b6bdf4880bb8544b",
+  "lang": "ko",
+  "seconds": 56,
+  "updated": "2026-11-06"
  }
 }

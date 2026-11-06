@@ -15,7 +15,7 @@ export const manualLink = (map, pathname) => {
 export const ManualDownload = ({ style }) => {
   const { lang } = useI18n();
   const href = lang === "en" ? "/downloads/manual/PMC_v4_Master_Training_Manual.pdf" : `/downloads/manual/PMC_Master_Training_Manual_${lang}.pdf`;
-  return <a href={href} target="_blank" rel="noreferrer" className="pmc-btn pmc-btn--ghost" style={style} data-testid="help-manual-download">Download the training manual (PDF)</a>;
+  return <a href={href} target="_blank" rel="noreferrer" className="pmc-btn" style={{ border: "1px solid #d9bd72", color: "#d9bd72", background: "transparent", ...style }} data-testid="help-manual-download">Download the training manual (PDF)</a>;
 };
 
 export const ManualLink = ({ pathname }) => {
