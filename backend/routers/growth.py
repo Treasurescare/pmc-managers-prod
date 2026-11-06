@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Literal, Optional
 
 from bson import ObjectId
-from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, Request, UploadFile
 from pydantic import BaseModel, EmailStr, Field
 
 from audit import audit_log
@@ -39,7 +39,7 @@ async def charge_or_pass(v: dict, code: str, ref: str, label: str) -> None:
     vd = await db.vendors.find_one({"_id": ObjectId(v["id"])}, {"fee_plan": 1})
     if vendor_waived(vd, code):
         return
-    rule = await find_rule(code, v.get("country"))
+    rule = await find_rule(code, v.get("country") or "ZZ")
     amt = compute_amount(rule, 0) if rule else None
     if not amt:
         return
@@ -176,7 +176,7 @@ async def ai_prices(v=Depends(current_vendor)):
     vd = await db.vendors.find_one({"_id": ObjectId(v["id"])}, {"fee_plan": 1})
     out = {}
     for code in ("ai_tender_summary", "ai_bid_readiness", "featured_listing"):
-        rule = None if vendor_waived(vd, code) else await find_rule(code, v.get("country"))
+        rule = None if vendor_waived(vd, code) else await find_rule(code, v.get("country") or "ZZ")
         amt = compute_amount(rule, 0) if rule else None
         out[code] = {"amount": amt or 0, "currency": (rule or {}).get("currency")}
     return out
@@ -329,7 +329,7 @@ def _listing(v: dict) -> dict:
 
 @router.get("/directory")
 async def public_directory(q: Optional[str] = None, country: Optional[str] = None, category: Optional[str] = None,
-                           limit: int = 60, offset: int = 0):
+                           limit: int = Query(60, ge=1, le=100), offset: int = Query(0, ge=0)):
     f = {**LIVE_VENDOR, "directory.listed": True}
     if country:
         f["country"] = country.upper()
@@ -341,7 +341,6 @@ async def public_directory(q: Optional[str] = None, country: Optional[str] = Non
     rows = [_listing(v) async for v in db.vendors.find(f, {"vendor_ref": 1, "company_name": 1, "country": 1, "business_categories": 1,
                                                            "kyc_status": 1, "directory": 1}).limit(1000)]
     rows.sort(key=lambda r: (not r["featured"], (r["company_name"] or "").lower()))
-    limit = max(1, min(limit, 100))
     return {"total": len(rows), "items": rows[offset:offset + limit]}
 
 
@@ -366,7 +365,7 @@ async def buy_feature(v=Depends(current_vendor)):
     if vendor_waived(vd, "featured_listing"):
         await _extend_featured(v["id"], 30)
         return {"ok": True, "featured": True}
-    rule = await find_rule("featured_listing", v.get("country"))
+    rule = await find_rule("featured_listing", v.get("country") or "ZZ")
     if not rule or not compute_amount(rule, 0):
         raise HTTPException(status_code=409, detail="Featured listings are not on sale right now. Contact PMC to be featured.")
     await charge_or_pass(v, "featured_listing", f"feature-{_now().strftime('%Y%m%d%H%M%S')}", "Featured listing (30 days)")
@@ -445,7 +444,9 @@ async def create_service(body: ServiceIn, admin=Depends(require_role("admin"))):
 async def update_service(sid: str, body: ServiceIn, admin=Depends(require_role("admin"))):
     if not ObjectId.is_valid(sid):
         raise HTTPException(status_code=404, detail="Service not found")
-    await db.consulting_services.update_one({"_id": ObjectId(sid)}, {"$set": {**body.model_dump(), "currency": body.currency.upper()}})
+    r = await db.consulting_services.update_one({"_id": ObjectId(sid)}, {"$set": {**body.model_dump(), "currency": body.currency.upper()}})
+    if not r.matched_count:
+        raise HTTPException(status_code=404, detail="Service not found")
     return _out(await db.consulting_services.find_one({"_id": ObjectId(sid)}))
 
 
@@ -636,21 +637,23 @@ async def _api_client(key: str) -> dict:
 @router.get("/data/tenders")
 async def data_tenders(x_api_key: str = Header(default=""), q: Optional[str] = None, country: Optional[str] = None,
                        source: Literal["all", "pmc", "global"] = "all", updated_since: Optional[str] = None,
-                       limit: int = 100, offset: int = 0):
+                       limit: int = Query(100, ge=1, le=500), offset: int = Query(0, ge=0)):
     await _api_client(x_api_key)
-    limit = max(1, min(limit, 500))
     rx = {"$regex": re.escape(q[:80]), "$options": "i"} if q else None
+    pf = {"is_published": True, **({"delivery_country": country.upper()} if country else {}), **({"title": rx} if rx else {})}
+    gf = {"duplicate_of": None, **({"country": country.upper()} if country else {}), **({"title": rx} if rx else {}),
+          **({"updated_at": {"$gte": updated_since}} if updated_since else {})}
+    pt = await db.notices.count_documents(pf) if source in ("all", "pmc") else 0
+    gt = await db.external_tenders.count_documents(gf) if source in ("all", "global") else 0
     items = []
-    if source in ("all", "pmc"):
-        f = {"is_published": True, **({"delivery_country": country.upper()} if country else {}), **({"title": rx} if rx else {})}
-        async for n in db.notices.find(f).sort("created_at", -1).skip(offset).limit(limit):
+    if offset < pt:
+        async for n in db.notices.find(pf).sort("created_at", -1).skip(offset).limit(limit):
             items.append({**_pmc_item(n), "status": n.get("status")})
-    if source in ("all", "global"):
-        f = {"duplicate_of": None, **({"country": country.upper()} if country else {}), **({"title": rx} if rx else {}),
-             **({"updated_at": {"$gte": updated_since}} if updated_since else {})}
-        async for t in db.external_tenders.find(f, {"_id": 0, "raw": 0, "dedupe_key": 0}).sort("first_seen_at", -1).skip(offset).limit(limit):
+    left = limit - len(items)
+    if left > 0 and gt:
+        async for t in db.external_tenders.find(gf, {"_id": 0, "raw": 0, "dedupe_key": 0}).sort("first_seen_at", -1).skip(max(0, offset - pt)).limit(left):
             items.append(t)
-    return {"count": len(items), "items": items[:limit]}
+    return {"total": pt + gt, "count": len(items), "offset": offset, "items": items}
 
 
 async def ensure_indexes() -> None:

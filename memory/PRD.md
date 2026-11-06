@@ -1233,3 +1233,12 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - Pricing document: /downloads/PMC_Pricing_Matrix_8a0d8109.docx (scripts/build_pricing_matrix.py) — unlinked, draft.
 - Testing: iteration_168 backend 14/14, frontend all flows pass; follow-ups fixed (unknown band 422, currency mismatch note, waive inline form, client validation, billing labels, winner fee note).
 - Known: preview Resend key invalid (emails not delivered in preview).
+
+
+## 2026-11-06 — Growth features 1–9 + 10 languages (v60e)
+- routers/growth.py: supplier AI summary (upload or notice ref) + bid readiness (Claude Sonnet 5.5 via Emergent key), pay-per-use via fee types ai_tender_summary / ai_bid_readiness (402 + Stripe checkout, per-supplier charge/waive); saved alerts (instant on publish, daily/weekly via POST /api/v1/cron/saved-alerts?freq=); public supplier directory (opt-in) + featured listing (fee featured_listing or admin 30 days); consultancy services (/consultancy) + requests; buyer applications (/buyers/apply) → approve creates tenant; data API (/api/v1/data/tenders, X-API-Key, daily limits, admin keys).
+- routers/tender_feeds.py: World Bank + EU TED open feeds, licensed provider pipe (URL, key name in secrets, mapping), dedupe, amendment history, /tenders/global page, cron POST /api/v1/cron/tender-feeds (Bearer WEBHOOK_CRON_SECRET; needs AWS EventBridge rules).
+- Admin → Growth page (5 tabs). Vendor nav: AI tender tools, Saved alerts, Directory listing.
+- i18n: AI-translated zh-Hans, zh-Hant, es, fr, de, hi, ms, id, ko, ja in frontend/public/i18n/*.json (loaded on demand); hardcoded page text not in the bundle stays English.
+- Help modules admin-growth, vendor-ai-tools, global-tenders + videos (50 total); manual 104 pages.
+- Testing iteration_169: backend 16/17 → fixed data API count/pagination, negative offsets, country-less vendor fee lookup, service 404, /services route clash (consultancy moved to /consultancy), 409 info toast, empty segments, TED placeholder values; I18nContext return fixed by tester.

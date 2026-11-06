@@ -180,7 +180,7 @@ EXTRA_MODULES = {
         [("Import CSV", "Bulk-creates packages from a file."), ("Sample CSV", "Downloads the import template.")]),
     "admin-growth": _m(
         "Growth: Buyers, Consultancy, Directory, Global Tenders & Data API", "/admin/e/growth",
-        "One screen for growth tools. Buyer applications from the public form /buyers/apply are approved here (an organisation code is created). Consultancy services listed on /services are created here and requests are assigned and tracked. Suppliers can be featured in the public directory. Global tender sources (World Bank, EU TED and a licensed provider pipe) are switched on, configured and fetched here. Data API clients get keys and daily limits.",
+        "One screen for growth tools. Buyer applications from the public form /buyers/apply are approved here (an organisation code is created). Consultancy services listed on /consultancy are created here and requests are assigned and tracked. Suppliers can be featured in the public directory. Global tender sources (World Bank, EU TED and a licensed provider pipe) are switched on, configured and fetched here. Data API clients get keys and daily limits.",
         "Run the growth tools", "You are onboarding a buyer, selling a service, featuring a supplier or managing tender data.",
         ["Open **Growth** in the admin menu.",
          "In **Buyer applications**, review the details and click **Approve** (optionally set the organisation code and tier) or **Reject**.",
@@ -203,7 +203,7 @@ EXTRA_MODULES = {
                      "controls": [{"name": "Summarise", "desc": "Creates the AI summary."}, {"name": "Check my bid readiness", "desc": "Scores your readiness."}]}]},
     "global-tenders": {
         "surface": "public", "title": "Global Tenders & Supplier Directory", "url_path": "/tenders/global",
-        "purpose": "The Global tenders page lists open international tenders collected from official open sources (World Bank, EU TED), each with its source, reference and a link to the original notice. The Supplier directory lists suppliers who chose to be listed, with featured suppliers first. Organisations can apply to issue tenders at /buyers/apply and request consultancy at /services.",
+        "purpose": "The Global tenders page lists open international tenders collected from official open sources (World Bank, EU TED), each with its source, reference and a link to the original notice. The Supplier directory lists suppliers who chose to be listed, with featured suppliers first. Organisations can apply to issue tenders at /buyers/apply and request consultancy at /consultancy.",
         "prerequisites": ["None"],
         "actions": [{"id": "main", "label": "Find global tenders and suppliers", "when": "You are looking for opportunities or suppliers.",
                      "steps": ["Click **Global tenders** in the top menu.", "Search by title, country code, category or source.",

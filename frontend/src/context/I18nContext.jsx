@@ -45,7 +45,8 @@ export function I18nProvider({ children }) {
     };
     // `STRINGS` is a module-level constant and `bundle`/`parts`/`cur` are
     // locals inside the memo — only `lang` needs to trigger a rebuild.
-  }, [lang, extra]); <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
+  }, [lang, extra]);
+  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 
 export function useI18n() {

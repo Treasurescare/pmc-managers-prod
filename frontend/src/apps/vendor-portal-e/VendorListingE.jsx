@@ -15,7 +15,9 @@ export default function VendorListingE() {
     .then((r) => { setF(r); toast.success("Directory listing saved"); }).catch(showApiError);
   const feature = () => growthApi.buyFeature().then(() => { toast.success("You are featured for 30 days"); load(); }).catch((e) => {
     const p = payNeeded(e);
-    if (p) window.location.href = p.checkout_url; else showApiError(e);
+    if (p) window.location.href = p.checkout_url;
+    else if (e?.response?.status === 409) toast.info(e.response.data?.detail || "Featured listings are not on sale right now.");
+    else showApiError(e);
   });
   return (
     <VendorPortalChrome active="/vendor/listing">

@@ -32,7 +32,7 @@ export default function SupplierDirectoryE() {
               {v.featured && <span className="text-[10px] uppercase tracking-widest font-semibold text-[#9A7B2F]" data-testid={`directory-featured-${v.vendor_ref}`}>Featured</span>}
               <div className="font-semibold">{v.company_name}</div>
               {v.headline && <div className="text-sm mt-1">{v.headline}</div>}
-              <div className="text-xs opacity-70 mt-1">{v.country || "—"} · {(v.categories || []).slice(0, 3).join(", ")}</div>
+              <div className="text-xs opacity-70 mt-1">{[v.country, (v.categories || []).slice(0, 3).join(", ")].filter(Boolean).join(" · ")}</div>
               {v.kyc_verified && <div className="text-xs text-emerald-700 mt-1">KYC verified</div>}
             </Link>))}
         </div>

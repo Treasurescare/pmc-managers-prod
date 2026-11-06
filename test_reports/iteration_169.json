@@ -1,0 +1,52 @@
+{
+  "summary": "Tested the growth features 1-9 end to end, both backend and frontend. CRITICAL REGRESSION FOUND AND FIXED: the latest commit to frontend/src/context/I18nContext.jsx dropped the `return` before <I18nContext.Provider>. I18nProvider returned undefined, so the WHOLE SPA was blank on every route (#root held 23 chars). I made a one-line fix and every page renders again. After the fix: Backend 16/17 pytest pass (the 1 failure is a real bug in the data API count). Frontend flows verified: global tenders (list, search, source, category, pagination, external source links); supplier directory (empty state, listing appears, featured first + badge, search); /services request form; /buyers/apply; all 5 admin Growth tabs (buyer approve creates tenant code, service create, request status update persists, directory feature/unfeature, sources run TED with dedupe = 250 same, provider settings fields, API client create shows key once, rotate, enable/disable); vendor listing save + 'not on sale' 409; saved alerts create/preview/edit/delete; AI summary from a .txt upload and from a PMC notice ref, bid readiness, history (real LLM calls, about 6s each); LangSwitcher with all 10 new languages loading /i18n/<code>.json and translating /register.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/v1/data/tenders", "issue": "`count` is len(items) BEFORE truncation. With source=all and limit=3, count=6 but items has 3. Pagination is also wrong: offset/limit are applied separately to notices and external_tenders, then the merged list is cut to limit, so page 2 skips or duplicates rows. Fix: compute count after slicing (or return separate totals), and paginate over one merged ordering."},
+      {"endpoint": "GET /api/v1/global-tenders?offset=-1", "issue": "Returns 500 (Mongo skip negative). Add Query(ge=0) on offset and Query(ge=1) on limit. The same pattern exists in /data/tenders."},
+      {"endpoint": "charge_or_pass / find_rule", "issue": "find_rule() returns None when the vendor has no country. Vendors without a country (e.g. testvendor) are therefore never charged for ai_tender_summary / ai_bid_readiness / featured_listing, even if an ALL-scope fee rule exists. The 402 checkout path was NOT exercised because no fee rule exists and the test vendor has no country."},
+      {"endpoint": "PUT /api/v1/consulting/admin/services/{sid}", "issue": "A valid but non-existent ObjectId returns _out(None) instead of a 404."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "I18nContext.jsx (I18nProvider)", "issue": "Missing `return` made the entire app render blank. FIXED by testing agent.", "selector": "#root", "priority": "CRITICAL"},
+      {"component": "App.js routes", "issue": "Duplicate <Route path=\"/services\">: ConsultingE (line ~237) and the older ClientPurchase (line ~390, 'Wave 36/37 purchase surfaces'). ConsultingE wins, so the ClientPurchase page is now unreachable. Rename one of the routes.", "selector": "/services", "priority": "MEDIUM"},
+      {"component": "PublicChrome nav", "issue": "On /tenders/global the 'Tenders' link gets the is-on active class and 'Global tenders' is not highlighted (the startsWith('/tenders') match takes precedence).", "selector": "header a", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Vendor listing -> Get featured (no fee rule)", "issue": "A 409 'not on sale' is shown as a red error toast 'Something went wrong · HTTP 409 ...'. It should be an informational message.", "affected_selectors": ["listing-feature-btn"]}
+    ],
+    "design_issues": [
+      {"screen": "Public directory / Admin directory tab", "issues": ["A vendor without a country renders '— ·' (public card) and 'Test Supplier Co · · listed' (admin row). Hide empty segments."]},
+      {"screen": "Global tenders", "issues": ["Some TED rows show 'EUR 1' as the value (a source placeholder). Consider hiding values <= 1."]},
+      {"screen": "Translated pages (/register in KO/JA etc.)", "issues": ["Some TopBar items stay in English ('Completed', 'About us', 'Vision', 'VIEW', 'Already registered? Sign in...'). Keys are missing from the bundles or the text is hardcoded."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v83_growth_features.py", "/app/backend/tests/test_v83_supplier_ai.py", "/app/test_reports/pytest/pytest_v83.xml"],
+  "action_items": [
+    "Keep the I18nContext `return` fix (do not re-introduce it). Check that the latest commit did not mangle other files the same way.",
+    "Fix /api/v1/data/tenders count/pagination when source=all.",
+    "Validate offset>=0 / limit>=1 on /global-tenders, /data/tenders and /directory.",
+    "Resolve the duplicate /services route (ConsultingE vs ClientPurchase).",
+    "Decide fee behaviour for vendors without a country (find_rule returns None, so AI tools and featured listing are always free).",
+    "Show the featured-listing 409 as an info toast instead of an error.",
+    "Highlight 'Global tenders' in the public nav on /tenders/global.",
+    "update_service: return 404 when the id is not found."
+  ],
+  "critical_code_review_comments": [
+    "growth.py is 661 lines (close to the 700-line limit) and covers 6 domains. Split it into supplier_ai, alerts, directory, consulting, buyer_apps and data_api modules.",
+    "_matches() loads up to 500 notices + 2000 external tenders and filters them in Python for every alert. run_digest_alerts loops over all alerts, which is O(alerts*2500). Push the keyword/country filters into the Mongo queries.",
+    "The api_usage counter keeps incrementing after the 429. That is harmless but inflates usage stats.",
+    "The consulting/buyer-application IP rate limit trusts the first X-Forwarded-For value, which a client can spoof.",
+    "I18nProvider useEffect depends on [lang, extra], and ja.json was fetched twice in the UI test. Guard against duplicate in-flight fetches."
+  ],
+  "updated_files": ["/app/frontend/src/context/I18nContext.jsx", "/app/backend/tests/test_v83_growth_features.py", "/app/backend/tests/test_v83_supplier_ai.py"],
+  "success_rate": {"backend": "94% (16/17)", "frontend": "~95% after I18n fix (0% before - app blank)"},
+  "seed_data_creation": "None persisted. All TEST_ buyer applications, tenants (TESTGRB*, TESTUIB), consulting services/requests, api_clients and api_usage, saved_alerts and ai_reports were deleted by id. testvendor directory field was restored (unset). The pre-existing 'TEST_ Org' application was left pending and untouched. The TED 'Fetch now' run upserted 0 new rows (250 same). external_tenders were not deleted.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && REACT_APP_BACKEND_URL=... pytest tests/test_v83_growth_features.py tests/test_v83_supplier_ai.py -n 0. Both files clean up after themselves. test_data_api_keys_limits fails until the data API count bug is fixed. UI login is via /login with signin-role-admin|supplier, signin-e-email, signin-e-password, signin-e-submit. Admin growth is /admin/e/growth. testvendor has no country, so AI tools are free. Testing the 402 path needs a fee rule plus a vendor with a country.",
+  "rca of the issue": "Blank app: commit 278e477 changed `return <I18nContext.Provider ...>` to `}, [lang, extra]); <I18nContext.Provider ...>;`. That is a valid expression statement, so webpack compiled with no error, but the component returned undefined and React rendered nothing under the provider, i.e. every route. Repro: open any URL; body empty; #root innerHTML length 23. Mitigation: restored the `return` on its own line; verified all pages render."
+}

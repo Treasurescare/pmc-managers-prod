@@ -17,7 +17,7 @@ export default function GlobalTendersE() {
   }, [f, page]);
   const up = (k) => (e) => { setPage(0); setF({ ...f, [k]: e.target.value }); };
   return (
-    <PublicChrome active="tenders" testid="global-tenders-page">
+    <PublicChrome active="global" testid="global-tenders-page">
       <div className="pmc-wrap py-10">
         <div className="pmc-eyebrow">Global Tender Grid</div>
         <h1 className="text-4xl sm:text-5xl font-semibold mt-1">Global tenders</h1>

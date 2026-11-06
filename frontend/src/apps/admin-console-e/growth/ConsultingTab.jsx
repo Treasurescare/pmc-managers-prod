@@ -49,7 +49,7 @@ export const ConsultingTab = () => {
   const [edit, setEdit] = useState(null);
   return (
     <div data-testid="consulting-tab">
-      <div className="flex justify-between mb-2"><div className="pmc-label">Services (public page: /services)</div>
+      <div className="flex justify-between mb-2"><div className="pmc-label">Services (public page: /consultancy)</div>
         <button className={btn} onClick={() => setEdit(BLANK)} data-testid="service-new-btn">New service</button></div>
       {edit && <ServiceForm init={edit} onDone={() => { setEdit(null); loadS(); }} />}
       <div className="bg-white border border-brand-navy/10 divide-y divide-brand-navy/10 mb-5">

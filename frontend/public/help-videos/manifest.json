@@ -327,5 +327,26 @@
   "hash": "f2cf135a145d2118",
   "seconds": 108,
   "updated": "2026-11-05"
+ },
+ "global-tenders": {
+  "file": "/help-videos/global-tenders.mp4",
+  "title": "Global Tenders & Supplier Directory",
+  "hash": "ea7b07cceb105ab2",
+  "seconds": 63,
+  "updated": "2026-11-06"
+ },
+ "admin-growth": {
+  "file": "/help-videos/admin-growth.mp4",
+  "title": "Growth: Buyers, Consultancy, Directory, Global Tenders & Data API",
+  "hash": "638c7f3c47463924",
+  "seconds": 95,
+  "updated": "2026-11-06"
+ },
+ "vendor-ai-tools": {
+  "file": "/help-videos/vendor-ai-tools.mp4",
+  "title": "AI Tender Tools & Saved Alerts",
+  "hash": "89f38305672c52d9",
+  "seconds": 85,
+  "updated": "2026-11-06"
  }
 }

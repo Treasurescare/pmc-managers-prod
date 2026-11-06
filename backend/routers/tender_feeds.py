@@ -10,7 +10,7 @@ from html import unescape
 from typing import Optional
 
 import httpx
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from audit import audit_log
@@ -112,6 +112,8 @@ async def _fetch_ted(src: dict) -> list:
         try:
             val = float(val) if val else None
         except ValueError:
+            val = None
+        if val is not None and val <= 1:
             val = None
         out.append({"ref": pn, "title": _clean(_first(n.get("notice-title")))[:300], "buyer": _clean(_first(n.get("buyer-name")))[:200],
                     "country": TED3.get(_first(n.get("buyer-country")) or ""), "deadline": _first(n.get("deadline-receipt-tender-date-lot")),
@@ -237,7 +239,8 @@ async def run_now(code: str, admin=Depends(require_role("admin"))):
 
 @router.get("/global-tenders")
 async def public_global(q: Optional[str] = None, country: Optional[str] = None, category: Optional[str] = None,
-                        source: Optional[str] = None, include_closed: bool = False, limit: int = 30, offset: int = 0):
+                        source: Optional[str] = None, include_closed: bool = False,
+                        limit: int = Query(30, ge=1, le=100), offset: int = Query(0, ge=0)):
     f = {"duplicate_of": None, "status": {"$ne": "cancelled"}}
     if not include_closed:
         f["$or"] = [{"deadline": None}, {"deadline": {"$gte": now_iso()[:10]}}]
@@ -249,7 +252,6 @@ async def public_global(q: Optional[str] = None, country: Optional[str] = None, 
         f["source"] = source.upper()
     if q:
         f["title"] = {"$regex": re.escape(q[:80]), "$options": "i"}
-    limit = max(1, min(limit, 100))
     total = await db.external_tenders.count_documents(f)
     items = [t async for t in db.external_tenders.find(f, {"_id": 0, "dedupe_key": 0}).sort("first_seen_at", -1).skip(offset).limit(limit)]
     return {"total": total, "items": items, "categories": list(CATS), "sources": [{"code": s["code"], "name": s["name"]} for s in SOURCES]}

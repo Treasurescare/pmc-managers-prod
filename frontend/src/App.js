@@ -234,7 +234,7 @@ export default function App() {
             <Route path="/tenders/live" element={<TendersList />} />
             <Route path="/tenders/global" element={<GlobalTendersE />} />
             <Route path="/suppliers/directory" element={<SupplierDirectoryE />} />
-            <Route path="/services" element={<ConsultingE />} />
+            <Route path="/consultancy" element={<ConsultingE />} />
             <Route path="/buyers/apply" element={<BuyerApplyE />} />
             <Route path="/tenders/completed" element={<AwardsPublicE legacy={TendersList} />} />
             <Route path="/tenders/:mode" element={<TendersList />} />

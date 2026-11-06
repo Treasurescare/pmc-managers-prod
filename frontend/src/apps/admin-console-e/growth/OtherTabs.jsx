@@ -11,7 +11,7 @@ export const DirectoryTab = () => {
     <div className="bg-white border border-brand-navy/10 divide-y divide-brand-navy/10" data-testid="directory-tab">
       {items.map((v) => (
         <div key={v.vendor_ref} className="p-3 text-sm flex flex-wrap gap-2 items-center" data-testid={`dir-row-${v.vendor_ref}`}>
-          <span className="flex-1"><b>{v.company_name}</b> · {v.country} · {v.listed ? "listed" : "not listed"}{v.featured ? ` · featured until ${String(v.featured_until).slice(0, 10)}` : ""}</span>
+          <span className="flex-1"><b>{v.company_name}</b> · {[v.country, v.listed ? "listed" : "not listed"].filter(Boolean).join(" · ")}{v.featured ? ` · featured until ${String(v.featured_until).slice(0, 10)}` : ""}</span>
           <button className={btn} onClick={() => feature(v.vendor_ref, 30)} data-testid={`dir-feature-${v.vendor_ref}`}>Feature 30 days</button>
           {v.featured && <button className={btn} onClick={() => feature(v.vendor_ref, 0)} data-testid={`dir-unfeature-${v.vendor_ref}`}>Remove feature</button>}
         </div>))}
