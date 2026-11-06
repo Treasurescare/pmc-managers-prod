@@ -11,7 +11,7 @@ export const LANGS = [
 
 const Flag = ({ c }) => <img src={`/flags/${c}.svg`} alt="" width={20} height={14} style={{ width: 20, height: 14, objectFit: "cover", borderRadius: 2, boxShadow: "0 0 0 1px rgba(0,0,0,.12)" }} />;
 
-export default function LangSwitcher({ dark = false }) {
+export default function LangSwitcher({ dark = false, up = false }) {
   const { lang, setLang } = useI18n();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -28,7 +28,7 @@ export default function LangSwitcher({ dark = false }) {
         <Flag c={cur.flag} /><span>{cur.code.split("-")[0].toUpperCase()}</span><span aria-hidden="true">▾</span>
       </button>
       {open && (
-        <ul className="absolute right-0 top-full mt-1 min-w-[210px] max-h-[70vh] overflow-y-auto bg-white border border-black/15 shadow-lg z-[80] text-left" role="listbox" data-testid="lang-menu">
+        <ul className={`absolute ${up ? "left-0 bottom-full mb-1" : "right-0 top-full mt-1"} min-w-[210px] max-h-[70vh] overflow-y-auto bg-white border border-black/15 shadow-lg z-[80] text-left`} role="listbox" data-testid="lang-menu">
           {LANGS.map((l) => (
             <li key={l.code}>
               <button type="button" onClick={() => { setLang(l.code); setOpen(false); }} data-testid={`lang-${l.code}`}

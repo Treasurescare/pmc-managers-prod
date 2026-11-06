@@ -15,6 +15,7 @@ LANGS = {"ru": "Russian", "kk": "Kazakh", "zh-Hans": "Simplified Chinese (Mandar
          "es": "Spanish", "fr": "French", "de": "German", "hi": "Hindi", "ms": "Malay (Bahasa Melayu)", "id": "Indonesian (Bahasa Indonesia)",
          "ko": "Korean", "ja": "Japanese", "ar": "Arabic (Modern Standard Arabic)"}
 PER_MIN = 600
+PER_DAY = 30000
 SYS = ("You translate short UI texts of a professional procurement / e-tendering web portal from English (or any language) into {lang}. "
        "Input is a JSON array of strings; reply with ONLY a JSON array of the same length and order. Keep numbers, dates, currency codes, "
        "emails, URLs, reference codes (e.g. PMC-NOT-2026-0001), placeholders like {{x}} and the brand names 'PMC Managers', "
@@ -53,7 +54,10 @@ async def translate(body: TrIn, request: Request):
         u = await db.i18n_usage.find_one_and_update({"ip": ip, "m": minute}, {"$inc": {"n": len(missing)},
                                                     "$setOnInsert": {"exp": datetime.now(timezone.utc) + timedelta(hours=1)}},
                                                     upsert=True, return_document=True)
-        if (u or {}).get("n", 0) <= PER_MIN:
+        day = await db.i18n_usage.find_one_and_update({"ip": "_global", "m": minute[:8]}, {"$inc": {"n": len(missing)},
+                                                      "$setOnInsert": {"exp": datetime.now(timezone.utc) + timedelta(days=2)}},
+                                                      upsert=True, return_document=True)
+        if (u or {}).get("n", 0) <= PER_MIN and (day or {}).get("n", 0) <= PER_DAY:
             for i in range(0, len(missing), 60):
                 part = missing[i:i + 60]
                 try:

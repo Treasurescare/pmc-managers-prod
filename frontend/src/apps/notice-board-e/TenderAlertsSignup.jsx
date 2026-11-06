@@ -34,7 +34,7 @@ export default function TenderAlertsSignup() {
         ) : (
           <form onSubmit={submit} style={{ display: "grid", gap: "12px" }}>
             <input className="pmc-input" type="email" required placeholder="Work email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} data-testid="signup-email" />
-            <input type="text" tabIndex={-1} autoComplete="off" value={f.website} onChange={(e) => setF({ ...f, website: e.target.value })} style={{ position: "absolute", left: "-9999px" }} aria-hidden="true" />
+            <input type="text" tabIndex={-1} autoComplete="off" value={f.website} onChange={(e) => setF({ ...f, website: e.target.value })} style={{ position: "absolute", width: 1, height: 1, opacity: 0, overflow: "hidden", pointerEvents: "none", clipPath: "inset(50%)" }} aria-hidden="true" />
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: "12px" }}>
               <select className="pmc-input" value={f.audience} onChange={(e) => setF({ ...f, audience: e.target.value })} data-testid="signup-audience">
                 <option value="vendor">I'm a supplier</option><option value="buyer">I issue tenders</option></select>

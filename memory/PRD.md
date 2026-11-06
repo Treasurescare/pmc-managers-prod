@@ -1242,3 +1242,11 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - i18n: AI-translated zh-Hans, zh-Hant, es, fr, de, hi, ms, id, ko, ja in frontend/public/i18n/*.json (loaded on demand); hardcoded page text not in the bundle stays English.
 - Help modules admin-growth, vendor-ai-tools, global-tenders + videos (50 total); manual 104 pages.
 - Testing iteration_169: backend 16/17 → fixed data API count/pagination, negative offsets, country-less vendor fee lookup, service 404, /services route clash (consultancy moved to /consultancy), 409 info toast, empty segments, TED placeholder values; I18nContext return fixed by tester.
+
+
+## 2026-11-06 — Whole-page translation, flag dropdown, Arabic (v60f)
+- frontend/src/lib/autoTranslate.js: DOM translator (text nodes + placeholder/title/aria-label) with MutationObserver; originals restored for English; skips .notranslate / translate="no".
+- backend/routers/i18n_auto.py: POST /api/v1/i18n/translate (cache in i18n_cache, Claude Sonnet 5.5, per-IP 600/min + global 30k/day new phrases), GET /api/v1/i18n/dict/{lang}; seed backend/seed/i18n_cache.json (~32k translations) auto-loaded on startup.
+- LangSwitcher with flags (/public/flags, US for English, SA for Arabic) on home, public pages, supplier portal, admin shell; LangFab bottom-left wherever no visible switcher (mobile, login, help, some admin pages). Arabic sets dir=rtl.
+- scripts/prewarm_i18n.py crawls 117 routes and pre-translates; re-run after big UI changes.
+- Help module "languages" + video; testing iteration_170 (backend 21/21; tester fixed RTL blank page and vendor switcher contrast).

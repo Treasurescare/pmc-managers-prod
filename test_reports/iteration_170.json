@@ -1,0 +1,52 @@
+{
+  "summary": "Tested whole-page auto-translation (LangSwitcher + autoTranslate + /api/v1/i18n). Backend 21/21 pytest pass (cached translate, live LLM translate ~2.6s then persisted to dict, 422 for unsupported/en lang and >120 texts, dict seeded >2000 phrases in all 13 langs). Frontend: home page switcher shows US flag + EN, menu has all 14 options with flags (all 14 SVGs serve 200); FR/ES/DE/RU/AR translate nav, hero, banner, live-board tender titles, selects and placeholders; switching back to EN restores body text byte-for-byte; rapid switching across 11 languages caused no crash; pmc_lang persists across reload and SPA navigation; /buyers /suppliers /about /contact /trust /tenders/all /tenders/global show the flag switcher (no old globe EN button). Arabic sets dir=rtl, other langs set ltr. Vendor portal and admin Masters page translate (uncached phrases arrive in ~5s), Masters tabs keep working in Russian, typed input values untouched, input values like matrix names untouched. FOUND + FIXED: Arabic home page rendered completely BLANK (honeypot input left:-9999px caused 11,919px RTL overflow); vendor top-bar switcher label invisible (dark header without dark prop). REMAINING: /help, 8 admin pages (incl. landing Dashboard), the mobile public header and the login pages have no switcher.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/v1/i18n/translate", "issue": "Anyone can call it without logging in, and it can trigger LLM calls. The per-IP limit (600/min) uses the first X-Forwarded-For value, which a client can fake, so the limit is easy to get around and LLM costs could be run up. Consider a per-IP limit at the ingress or a global daily cap."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "TenderAlertsSignup honeypot input (home page)", "issue": "FIXED by testing agent. With Arabic (dir=rtl) the home page rendered blank: the input's left:-9999px made documentElement.scrollWidth 11919px. Now hidden with width/height 1px, opacity 0 and clip-path. Verified scrollWidth is 1920 and the Arabic home page renders.", "selector": "TenderAlertsSignup.jsx website honeypot input", "priority": "CRITICAL (fixed)"},
+      {"component": "VendorPortalChrome top bar", "issue": "FIXED by testing agent. <LangSwitcher /> sat on the dark header without the dark prop, so the 'ES/DE' label was navy on navy and could not be seen. Changed to <LangSwitcher dark />. Label is now white.", "selector": "[data-testid=lang-toggle]", "priority": "MEDIUM (fixed)"},
+      {"component": "Help Centre /help (HelpCentreE)", "issue": "No LangSwitcher in the header. The page does translate from the saved choice, but the user cannot change the language here.", "selector": "[data-testid=lang-toggle] count=0 on /help", "priority": "MEDIUM"},
+      {"component": "Admin pages with their own top bars", "issue": "These pages build their own header (pmc-atop__r) instead of using AdminEShell, so they have no LangSwitcher: AdminDashboardE (the page admins land on after login), AdminBiddingOpsE, AdminEvaluationListE, AdminGovernanceE, AdminProgrammeE, AdminTenderBuilderE, AdminTenderReviewE, AdminVendorKycE.", "selector": "/admin/e/dashboard [data-testid=lang-toggle] count=0", "priority": "HIGH"},
+      {"component": "Public TopBar on mobile (390px)", "issue": "The switcher is wrapped in 'hidden sm:block' and the mobile menu drawer has no switcher, so mobile users cannot change the language at all.", "selector": "TopBar.jsx line ~117, pmc-mobile-menu-drawer", "priority": "HIGH"},
+      {"component": "/vendor/login, /admin/login", "issue": "No LangSwitcher on the sign-in pages (they do translate from the saved choice).", "selector": "[data-testid=lang-toggle] count=0", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Home/public header in FR/DE at 1920px", "issues": ["Longer translated nav labels push 'S'inscrire comme fournisseur' / 'Als Lieferant registrieren' about 250px past the content container's right edge (button right edge at 1826px vs 1600px). Consider a smaller gap or shorter CTA labels for long languages."]},
+      {"screen": "Arabic (all pages)", "issues": ["No Arabic webfont is loaded (Cormorant Garamond / Public Sans have no Arabic glyphs), so a system fallback is used. In the test container the Arabic letters showed up unjoined and widely spaced. Consider adding Noto Sans/Naskh Arabic for :lang(ar)."]},
+      {"screen": "Home hero (FR)", "issues": ["The headline is split across several text nodes that are translated separately, which breaks grammar ('scellé et prouvé' should agree in the plural). Same risk in other split headings."]},
+      {"screen": "Floating 'Ask PMC' button", "issues": ["Stays in English on public and vendor pages but is translated in admin ('Спросить PMC'). Inconsistent."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_i18n_auto.py", "/app/test_reports/pytest/pytest_i18n.xml"],
+  "action_items": [
+    "Add <LangSwitcher /> to the header of AdminDashboardE, AdminBiddingOpsE, AdminEvaluationListE, AdminGovernanceE, AdminProgrammeE, AdminTenderBuilderE, AdminTenderReviewE and AdminVendorKycE (or move them onto AdminEShell).",
+    "Add the LangSwitcher to the mobile public top bar and/or the mobile menu drawer (TopBar.jsx). Right now it is hidden below the sm breakpoint.",
+    "Add the LangSwitcher to the HelpCentreE header (/help) and, optionally, to /vendor/login and /admin/login.",
+    "Load an Arabic webfont for dir=rtl.",
+    "Fix the long-language header overflow on the public TopBar.",
+    "Harden the /i18n/translate rate limit (the X-Forwarded-For value can be faked)."
+  ],
+  "critical_code_review_comments": [
+    "autoTranslate.js wrap(): raw.replace(raw.trim(), tr) uses tr as a replacement pattern, so '$&', '$1' or '$$' inside a translation would be expanded. Use a function replacer instead: raw.replace(raw.trim(), () => tr).",
+    "autoTranslate.js: a failed phrase gets a 60s backoff, but nothing re-runs walk() after the backoff ends. The phrase only retries after an unrelated DOM change touches that node.",
+    "Positioning with physical left/right (e.g. left:-9999px) breaks RTL. Search for other off-screen tricks and use logical properties or clip-path.",
+    "Translating user-entered data such as staff names ('Сертификатор объекта') and tender titles matches the request, but admins may not recognise records. Consider adding translate='no' to identifiers and person-name columns.",
+    "The i18n_cache dict endpoint returns about 200KB per language (fine with Cache-Control 300s). Watch the size as the cache grows; the limit is 30,000 entries."
+  ],
+  "updated_files": [
+    "/app/frontend/src/apps/notice-board-e/TenderAlertsSignup.jsx (honeypot input no longer uses left:-9999px; fixes blank Arabic home page)",
+    "/app/frontend/src/apps/vendor-portal-e/VendorPortalChrome.jsx (LangSwitcher dark prop)",
+    "/app/backend/tests/test_i18n_auto.py (new)"
+  ],
+  "success_rate": {"backend": "100% (21/21)", "frontend": "80% - core translation, persistence, RTL and portals work; the switcher is missing on /help, 8 admin pages and mobile"},
+  "seed_data_creation": "One live-LLM cache row (lang=de, src 'TEST_ Please review the bid summary <hex>') was created by pytest and deleted by its exact src. The pytest test creates and removes one each run (cleanup is a manual step after the run). No other data was changed.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Language is stored in localStorage pmc_lang and was reset to 'en' at the end. Selectors: lang-toggle, lang-menu, lang-<code>. Vendor login: data-testid signin-e-email / signin-e-password on /vendor/login. Admin login: /admin/login lands on /admin/e/dashboard, which has no switcher; /admin/e/masters (AdminEShell) has one. Verify: the switcher is present on the 8 admin pages, the mobile TopBar and /help; the Arabic home page is not blank (scrollWidth == viewport width)."
+}

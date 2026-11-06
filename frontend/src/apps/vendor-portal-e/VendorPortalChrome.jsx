@@ -152,7 +152,7 @@ export default function VendorPortalChrome({ active, counts = {}, children }) {
           <button className="pmc-btn pmc-btn--onchrome" data-help-open="">
             <svg className="pmc-ico" aria-hidden="true"><use href="#i-help" /></svg> Help
           </button>
-          <LangSwitcher />
+          <LangSwitcher dark />
           <Link to="/vendor/alerts" className="pmc-iconbtn pmc-bell" aria-label="Alerts"
                 data-testid="vendor-alerts-link">
             <svg className="pmc-ico" aria-hidden="true"><use href="#i-bell" /></svg>
