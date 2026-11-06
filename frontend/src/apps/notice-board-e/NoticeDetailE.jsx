@@ -1,3 +1,5 @@
+import LangSwitcher from "@/apps/shared/LangSwitcher";
+
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -201,9 +203,7 @@ export default function NoticeDetailE({ legacy: Legacy }) {
     <Link to="/help">Help &amp; FAQs</Link>
   </nav>
   <div className="pmc-top__act">
-    <button className="pmc-btn pmc-btn--onchrome pmc-btn--sm">
-      <svg className="pmc-ico" aria-hidden="true"><use href="#i-globe" /></svg> EN
-    </button>
+    <LangSwitcher dark />
     {loading ? null : authed ? (
       <>
         <Link to={dashboardPath} className="pmc-btn pmc-btn--onchrome" data-testid="notice-topbar-dashboard"

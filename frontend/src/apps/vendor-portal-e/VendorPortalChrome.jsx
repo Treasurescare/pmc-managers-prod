@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import LangSwitcher from "@/apps/shared/LangSwitcher";
 import { vendorApi, bidApi, publicApi, docusignApi, vendorMessagesApi, showApiError } from "@/lib/api";
 
 /**
@@ -151,6 +152,7 @@ export default function VendorPortalChrome({ active, counts = {}, children }) {
           <button className="pmc-btn pmc-btn--onchrome" data-help-open="">
             <svg className="pmc-ico" aria-hidden="true"><use href="#i-help" /></svg> Help
           </button>
+          <LangSwitcher />
           <Link to="/vendor/alerts" className="pmc-iconbtn pmc-bell" aria-label="Alerts"
                 data-testid="vendor-alerts-link">
             <svg className="pmc-ico" aria-hidden="true"><use href="#i-bell" /></svg>

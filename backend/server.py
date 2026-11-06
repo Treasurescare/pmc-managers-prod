@@ -359,6 +359,8 @@ from routers import growth as _growth  # noqa: E402
 app.include_router(_growth.router)
 from routers import tender_feeds as _tender_feeds  # noqa: E402
 app.include_router(_tender_feeds.router)
+from routers import i18n_auto as _i18n_auto  # noqa: E402
+app.include_router(_i18n_auto.router)
 
 
 @app.on_event("startup")
@@ -819,6 +821,7 @@ async def on_start() -> None:
         await _pricing.seed_pricing()
         await _growth.ensure_indexes()
         await _tender_feeds.seed_sources()
+        await _i18n_auto.ensure_indexes()
         await _whatsapp.ensure_indexes()
         await db.opening_records.create_index("code", unique=True)
         await _agents.ensure_indexes()

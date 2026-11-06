@@ -1,5 +1,6 @@
 import AdminAvatarMenu from "./AdminAvatarMenu";
 import AdminShellE from "./AdminShellE";
+import LangSwitcher from "@/apps/shared/LangSwitcher";
 
 // Thin wrapper over the shared AdminShellE frame for pages that use the
 // standard top bar (search + Help/Alerts/avatar). The drawer/sidebar behaviour
@@ -12,6 +13,7 @@ export default function AdminEShell({ active, crumb, children }) {
         <div className="crumb">{crumb}</div>
         <label className="pmc-search"><svg className="pmc-ico" aria-hidden="true"><use href="#i-search" /></svg><input placeholder="Search tenders, bids, vendors, ledger events…" data-testid="shell-search-input" /><span className="pmc-kbd">Ctrl K</span></label>
         <div className="pmc-atop__r">
+          <LangSwitcher />
           <button className="pmc-btn pmc-btn--secondary" data-help-open="" data-testid="shell-help-btn"><svg className="pmc-ico" aria-hidden="true"><use href="#i-help" /></svg> Help</button>
           <button className="pmc-ib pmc-bell" aria-label="Alerts" data-testid="shell-bell-btn"><svg className="pmc-ico" aria-hidden="true"><use href="#i-bell" /></svg></button>
           <AdminAvatarMenu />

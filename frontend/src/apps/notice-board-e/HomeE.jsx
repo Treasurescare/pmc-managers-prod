@@ -5,6 +5,7 @@ import { usePublicNav } from "@/lib/pmcEPublicNav";
 import { api, reverseAuctionApi } from "@/lib/api";
 import { BUILD_VERSION } from "@/lib/buildStamp";
 import { HeroTaxonomySearch } from "@/apps/notice-board-e/HeroTaxonomySearch";
+import LangSwitcher from "@/apps/shared/LangSwitcher";
 import LiveAuctionsBand from "@/apps/notice-board-e/LiveAuctionsBand";
 import TenderAlertsSignup from "@/apps/notice-board-e/TenderAlertsSignup";
 import PmcSocialLinks from "@/components/PmcSocialLinks";
@@ -54,7 +55,7 @@ export default function HomeE({ legacy: Legacy }) {
   <div className="pmc-wrap pmc-top__in">
     <a href="#" className="pmc-brand"><span className="pmc-brand__n">PMC Managers</span><span className="pmc-brand__s">Global Tender Grid</span></a>
     <nav className="pmc-nav"><a href="#">Tenders</a><a href="#how">How it works</a><a href="#" className="is-on">For suppliers</a><a href="#">For buyers</a><a href="#trust">Trust &amp; security</a><a href="#help" data-help-open="">Help &amp; FAQs</a></nav>
-    <div className="pmc-top__act"><button className="pmc-btn pmc-btn--onchrome pmc-btn--sm"><svg className="pmc-ico" aria-hidden="true"><use href="#i-globe" /></svg> EN</button><a href="#" className="pmc-btn pmc-btn--onchrome">Sign in</a><a href="#" className="pmc-btn pmc-btn--brass">Register as supplier</a></div>
+    <div className="pmc-top__act"><LangSwitcher dark /><a href="#" className="pmc-btn pmc-btn--onchrome">Sign in</a><a href="#" className="pmc-btn pmc-btn--brass">Register as supplier</a></div>
   </div>
 </header>
 

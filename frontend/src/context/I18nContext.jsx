@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { STRINGS } from "@/lib/i18n-strings";
+import { setAutoLang } from "@/lib/autoTranslate";
 
 const I18nContext = createContext({ lang: "en", setLang: () => {}, t: (k) => k });
 
@@ -24,6 +25,8 @@ export function I18nProvider({ children }) {
 
   useEffect(() => {
     document.documentElement.setAttribute("lang", lang);
+    document.documentElement.setAttribute("dir", lang === "ar" ? "rtl" : "ltr");
+    setAutoLang(lang);
     if (STRINGS[lang] || extra[lang]) return;
     fetch(`/i18n/${lang}.json`).then((r) => (r.ok ? r.json() : null))
       .then((j) => { if (j) setExtra((x) => ({ ...x, [lang]: j })); }).catch(() => {});

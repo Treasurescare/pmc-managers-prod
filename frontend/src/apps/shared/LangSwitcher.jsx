@@ -1,87 +1,41 @@
 import { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/context/I18nContext";
 
-const LANGS = [
-  { code: "en", label: "English",  short: "EN" },
-  { code: "ru", label: "Русский",  short: "RU" },
-  { code: "kk", label: "Қазақша",  short: "KK" },
-  { code: "zh-Hans", label: "简体中文 (普通话)", short: "简" },
-  { code: "zh-Hant", label: "繁體中文 (粵語)", short: "繁" },
-  { code: "es", label: "Español", short: "ES" },
-  { code: "fr", label: "Français", short: "FR" },
-  { code: "de", label: "Deutsch", short: "DE" },
-  { code: "hi", label: "हिन्दी", short: "HI" },
-  { code: "ms", label: "Bahasa Melayu", short: "MS" },
-  { code: "id", label: "Bahasa Indonesia", short: "ID" },
-  { code: "ko", label: "한국어", short: "KO" },
-  { code: "ja", label: "日本語", short: "JA" },
+export const LANGS = [
+  { code: "en", label: "English", flag: "us" }, { code: "ru", label: "Русский", flag: "ru" }, { code: "kk", label: "Қазақша", flag: "kz" },
+  { code: "zh-Hans", label: "简体中文 (普通话)", flag: "cn" }, { code: "zh-Hant", label: "繁體中文 (粵語)", flag: "hk" },
+  { code: "es", label: "Español", flag: "es" }, { code: "fr", label: "Français", flag: "fr" }, { code: "de", label: "Deutsch", flag: "de" },
+  { code: "hi", label: "हिन्दी", flag: "in" }, { code: "ms", label: "Bahasa Melayu", flag: "my" }, { code: "id", label: "Bahasa Indonesia", flag: "id" },
+  { code: "ko", label: "한국어", flag: "kr" }, { code: "ja", label: "日本語", flag: "jp" }, { code: "ar", label: "العربية", flag: "sa" },
 ];
+
+const Flag = ({ c }) => <img src={`/flags/${c}.svg`} alt="" width={20} height={14} style={{ width: 20, height: 14, objectFit: "cover", borderRadius: 2, boxShadow: "0 0 0 1px rgba(0,0,0,.12)" }} />;
 
 export default function LangSwitcher({ dark = false }) {
   const { lang, setLang } = useI18n();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
-
+  const cur = LANGS.find((l) => l.code === lang) || LANGS[0];
   useEffect(() => {
-    const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
+    const close = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
   }, []);
-
-  const current = LANGS.find((l) => l.code === lang) || LANGS[0];
-  const btnBase = "inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest border transition-colors";
-  const btnColor = dark
-    ? "bg-transparent border-white/25 text-white hover:bg-white/10"
-    : "bg-white border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5";
-
   return (
-    <div ref={ref} className="relative" data-testid="lang-switcher">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        data-testid="lang-toggle"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        className={`${btnBase} ${btnColor}`}
-      >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
-          <path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18" stroke="currentColor" strokeWidth="1.5" />
-        </svg>
-        <span>{current.short}</span>
-        <svg width="8" height="6" viewBox="0 0 8 6" fill="none" aria-hidden="true">
-          <path d="M1 1l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" />
-        </svg>
+    <div className="relative notranslate" ref={ref} translate="no" data-testid="lang-switcher">
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-label="Change language" data-testid="lang-toggle"
+        className={`inline-flex items-center gap-2 px-2.5 py-1.5 text-xs font-semibold border ${dark ? "border-white/30 text-white hover:bg-white/10" : "border-brand-navy/20 text-brand-navy hover:bg-brand-navy/5"}`}>
+        <Flag c={cur.flag} /><span>{cur.code.split("-")[0].toUpperCase()}</span><span aria-hidden="true">▾</span>
       </button>
       {open && (
-        <ul
-          role="listbox"
-          data-testid="lang-menu"
-          className="absolute right-0 top-full mt-1 min-w-[180px] max-h-[70vh] overflow-y-auto bg-white border border-brand-navy/15 shadow-lg z-40"
-        >
-          {LANGS.map((l) => {
-            const active = l.code === lang;
-            return (
-              <li key={l.code} role="option" aria-selected={active}>
-                <button
-                  type="button"
-                  onClick={() => { setLang(l.code); setOpen(false); }}
-                  data-testid={`lang-${l.code}`}
-                  className={
-                    "w-full text-left px-3 py-2 text-sm flex items-center justify-between " +
-                    (active
-                      ? "bg-brand-navy text-white"
-                      : "text-brand-navy hover:bg-brand-navy/5")
-                  }
-                >
-                  <span>{l.label}</span>
-                  <span className="text-[10px] font-semibold tracking-widest opacity-70">{l.short}</span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </div>
-  );
+        <ul className="absolute right-0 top-full mt-1 min-w-[210px] max-h-[70vh] overflow-y-auto bg-white border border-black/15 shadow-lg z-[80] text-left" role="listbox" data-testid="lang-menu">
+          {LANGS.map((l) => (
+            <li key={l.code}>
+              <button type="button" onClick={() => { setLang(l.code); setOpen(false); }} data-testid={`lang-${l.code}`}
+                className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-[#162921] hover:bg-black/5 ${l.code === lang ? "font-semibold bg-black/5" : ""}`}>
+                <Flag c={l.flag} />{l.label}
+              </button>
+            </li>))}
+        </ul>)}
+    </div>);
 }

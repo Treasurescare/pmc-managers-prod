@@ -1,3 +1,5 @@
+import LangSwitcher from "@/apps/shared/LangSwitcher";
+
 import { useEffect, useState } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { usePublicNav } from "@/lib/pmcEPublicNav";
@@ -84,7 +86,7 @@ export default function TrustSecurityE({ legacy: Legacy }) {
 <header className="pmc-chrome pmc-top"><div className="pmc-wrap pmc-top__in">
   <a href="#" className="pmc-brand"><span className="pmc-brand__n">PMC Managers</span><span className="pmc-brand__s">Global Tender Grid</span></a>
   <nav className="pmc-nav"><a href="#">Tenders</a><a href="#">How it works</a><a href="#">For suppliers</a><a href="#">For buyers</a><a href="#" className="is-on">Trust &amp; security</a><a href="#" data-help-open="">Help &amp; FAQs</a></nav>
-  <div className="pmc-top__act"><button className="pmc-btn pmc-btn--onchrome pmc-btn--sm"><svg className="pmc-ico" aria-hidden="true"><use href="#i-globe" /></svg> EN</button><a href="#" className="pmc-btn pmc-btn--onchrome">Sign in</a><a href="#" className="pmc-btn pmc-btn--brass">Register as supplier</a></div>
+  <div className="pmc-top__act"><LangSwitcher dark /><a href="#" className="pmc-btn pmc-btn--onchrome">Sign in</a><a href="#" className="pmc-btn pmc-btn--brass">Register as supplier</a></div>
 </div></header>
 <section className="pmc-chrome" style={{ padding: "64px 0 72px" }}><div className="pmc-wrap" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "56px", alignItems: "center" }}>
   <div><div className="pmc-eyebrow">Trust &amp; security</div><h1 className="pmc-display" style={{ fontSize: "52px", lineHeight: "56px", margin: "10px 0 0px" }}>How we keep every tender honest</h1><p className="pmc-muted" style={{ fontSize: "18px", lineHeight: "30px", margin: "16px 0 24px" }}>Controls you can see, and a ledger anyone with audit rights can verify.</p>

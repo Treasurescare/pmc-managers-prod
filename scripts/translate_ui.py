@@ -14,7 +14,8 @@ from emergentintegrations.llm.chat import LlmChat, UserMessage  # noqa: E402
 
 LANGS = {"zh-Hans": "Simplified Chinese (Mandarin, mainland China/Malaysia/Singapore)",
          "zh-Hant": "Traditional Chinese as used in Hong Kong (Cantonese readers)", "es": "Spanish", "fr": "French", "de": "German",
-         "hi": "Hindi", "ms": "Malay (Bahasa Melayu)", "id": "Indonesian (Bahasa Indonesia)", "ko": "Korean", "ja": "Japanese"}
+         "hi": "Hindi", "ms": "Malay (Bahasa Melayu)", "id": "Indonesian (Bahasa Indonesia)", "ko": "Korean", "ja": "Japanese",
+         "ar": "Arabic (Modern Standard Arabic)"}
 OUT = "/app/frontend/public/i18n"
 EN = json.loads(subprocess.check_output(["node", "-e",
     "import('/app/frontend/src/lib/i18n-strings.js').then(m=>process.stdout.write(JSON.stringify(m.STRINGS.en)))"], text=True))

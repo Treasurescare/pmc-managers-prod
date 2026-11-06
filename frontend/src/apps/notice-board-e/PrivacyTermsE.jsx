@@ -1,3 +1,5 @@
+import LangSwitcher from "@/apps/shared/LangSwitcher";
+
 import { useEffect } from "react";
 import { useUiTheme } from "@/context/UiThemeContext";
 import { usePublicNav } from "@/lib/pmcEPublicNav";
@@ -25,7 +27,7 @@ export default function PrivacyTermsE({ legacy: Legacy }) {
 <header className="pmc-chrome pmc-top"><div className="pmc-wrap pmc-top__in">
   <a href="#" className="pmc-brand"><span className="pmc-brand__n">PMC Managers</span><span className="pmc-brand__s">Global Tender Grid</span></a>
   <nav className="pmc-nav"><a href="#">Tenders</a><a href="#">How it works</a><a href="#">For suppliers</a><a href="#">For buyers</a><a href="#">Trust &amp; security</a><a href="#" data-help-open="">Help &amp; FAQs</a></nav>
-  <div className="pmc-top__act"><button className="pmc-btn pmc-btn--onchrome pmc-btn--sm"><svg className="pmc-ico" aria-hidden="true"><use href="#i-globe" /></svg> EN</button><a href="#" className="pmc-btn pmc-btn--onchrome">Sign in</a><a href="#" className="pmc-btn pmc-btn--brass">Register as supplier</a></div>
+  <div className="pmc-top__act"><LangSwitcher dark /><a href="#" className="pmc-btn pmc-btn--onchrome">Sign in</a><a href="#" className="pmc-btn pmc-btn--brass">Register as supplier</a></div>
 </div></header><div className="pmc-wrap" style={{ display: "grid", gridTemplateColumns: "240px minmax(0,760px)", gap: "56px", padding: "48px 0 72px" }}>
 <nav style={{ position: "sticky", top: "96px", display: "grid", gap: "4px", alignContent: "start", fontSize: "14px" }} className="lg-nav"><a href="#" aria-current="page">Privacy notice</a><a href="#">Terms of use</a><a href="#">Supplier code of conduct</a><a href="#">Cookie notice</a><a href="#">Accessibility</a></nav>
 <article><div className="pmc-eyebrow">Legal</div><h1 className="pmc-display" style={{ fontSize: "52px", lineHeight: "56px", margin: "10px 0 8px" }}>Privacy notice</h1><div className="pmc-muted" style={{ fontSize: "14px", marginBottom: "24px" }}>Version 1.0 · effective 1 Oct 2026 · <a href="#">Download PDF</a> · <a href="#">Previous versions</a></div>

@@ -211,6 +211,16 @@ EXTRA_MODULES = {
                                "Buyers: open **/buyers/apply** and **Submit application** to run tenders on PMC."],
                      "expected": "You see matching tenders or suppliers.",
                      "controls": [{"name": "Global tenders", "desc": "Opens the collected tender list."}]}]},
+    "languages": {
+        "surface": "public", "title": "Changing the Language", "url_path": "/",
+        "purpose": "Every page of the portal — public site, supplier portal and admin console — can be shown in 13 languages: English, Russian, Kazakh, Simplified Chinese (Mandarin), Traditional Chinese (Cantonese), Spanish, French, German, Hindi, Malay, Bahasa Indonesia, Korean and Japanese. All text on screen, including tender titles and descriptions, is translated by AI the first time it appears and then reused for everyone. Reference numbers, amounts, emails and company names stay as written. The choice is remembered on that browser.",
+        "prerequisites": ["None"],
+        "actions": [{"id": "main", "label": "Switch language", "when": "You prefer to read the portal in another language.",
+                     "steps": ["Click the **flag button** at the top right of any page.", "Pick your language from the list.",
+                               "Wait a moment while new text is translated; the page switches without reloading.",
+                               "To go back, pick **English** with the US flag."],
+                     "expected": "All text on the page appears in the chosen language.",
+                     "controls": [{"name": "Flag button", "desc": "Opens the language list."}]}]},
     "ask-pmc": {
         "surface": "public", "title": "Ask PMC Assistant", "url_path": "/",
         "purpose": "Ask PMC is the AI assistant in the bottom-right corner of every page. Visitors and suppliers can ask about registering, fees, open tenders and bidding. Inside the admin and staff portals it becomes Team help: ask how to do any task and it gives the screen, the steps and a matching video walkthrough.",
