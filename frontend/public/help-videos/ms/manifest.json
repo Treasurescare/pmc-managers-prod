@@ -1,0 +1,90 @@
+{
+ "admin-dashboard": {
+  "file": "/help-videos/ms/admin-dashboard.mp4",
+  "title": "Papan Pemuka \u2014 Analitik",
+  "hash": "42b1569323ddd804",
+  "lang": "ms",
+  "seconds": 86,
+  "updated": "2026-11-06"
+ },
+ "admin-notices": {
+  "file": "/help-videos/ms/admin-notices.mp4",
+  "title": "Notis",
+  "hash": "3e9a001ed9e6fc6b",
+  "lang": "ms",
+  "seconds": 99,
+  "updated": "2026-11-06"
+ },
+ "admin-registrations": {
+  "file": "/help-videos/ms/admin-registrations.mp4",
+  "title": "Pendaftaran",
+  "hash": "61b4573a0d845536",
+  "lang": "ms",
+  "seconds": 80,
+  "updated": "2026-11-06"
+ },
+ "admin-vendors": {
+  "file": "/help-videos/ms/admin-vendors.mp4",
+  "title": "Vendor",
+  "hash": "5cfc7f1896786fae",
+  "lang": "ms",
+  "seconds": 48,
+  "updated": "2026-11-06"
+ },
+ "admin-bidding": {
+  "file": "/help-videos/ms/admin-bidding.mp4",
+  "title": "Operasi Pembidaan",
+  "hash": "99cf2c3b5e5a9e0e",
+  "lang": "ms",
+  "seconds": 50,
+  "updated": "2026-11-06"
+ },
+ "admin-escrow": {
+  "file": "/help-videos/ms/admin-escrow.mp4",
+  "title": "Eskrow (EMD)",
+  "hash": "27edfffc19168e97",
+  "lang": "ms",
+  "seconds": 53,
+  "updated": "2026-11-06"
+ },
+ "admin-evaluation": {
+  "file": "/help-videos/ms/admin-evaluation.mp4",
+  "title": "Penilaian",
+  "hash": "bd5a7a3c77b6f423",
+  "lang": "ms",
+  "seconds": 51,
+  "updated": "2026-11-06"
+ },
+ "admin-corrigenda": {
+  "file": "/help-videos/ms/admin-corrigenda.mp4",
+  "title": "Korigendum",
+  "hash": "9b46a85a39e4e343",
+  "lang": "ms",
+  "seconds": 44,
+  "updated": "2026-11-06"
+ },
+ "admin-tender-builder": {
+  "file": "/help-videos/ms/admin-tender-builder.mp4",
+  "title": "Pembina Tender",
+  "hash": "96d09ca801909c77",
+  "lang": "ms",
+  "seconds": 43,
+  "updated": "2026-11-06"
+ },
+ "admin-awards": {
+  "file": "/help-videos/ms/admin-awards.mp4",
+  "title": "Anugerah & PO",
+  "hash": "61e5a62f41857a0e",
+  "lang": "ms",
+  "seconds": 52,
+  "updated": "2026-11-06"
+ },
+ "admin-docusign": {
+  "file": "/help-videos/ms/admin-docusign.mp4",
+  "title": "DocuSign",
+  "hash": "f0d7a54b00891d9e",
+  "lang": "ms",
+  "seconds": 40,
+  "updated": "2026-11-06"
+ }
+}

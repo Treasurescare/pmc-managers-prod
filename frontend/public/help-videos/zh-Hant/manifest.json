@@ -1,0 +1,122 @@
+{
+ "admin-dashboard": {
+  "file": "/help-videos/zh-Hant/admin-dashboard.mp4",
+  "title": "\u5100\u8868\u677f \u2014 \u5206\u6790",
+  "hash": "41428e91c29983ad",
+  "lang": "zh-Hant",
+  "seconds": 83,
+  "updated": "2026-11-06"
+ },
+ "admin-notices": {
+  "file": "/help-videos/zh-Hant/admin-notices.mp4",
+  "title": "\u516c\u544a",
+  "hash": "23679038d79c94d3",
+  "lang": "zh-Hant",
+  "seconds": 85,
+  "updated": "2026-11-06"
+ },
+ "admin-registrations": {
+  "file": "/help-videos/zh-Hant/admin-registrations.mp4",
+  "title": "\u8a3b\u518a",
+  "hash": "98aed65aed49720b",
+  "lang": "zh-Hant",
+  "seconds": 82,
+  "updated": "2026-11-06"
+ },
+ "admin-vendors": {
+  "file": "/help-videos/zh-Hant/admin-vendors.mp4",
+  "title": "\u4f9b\u61c9\u5546",
+  "hash": "1592d5f08a781920",
+  "lang": "zh-Hant",
+  "seconds": 60,
+  "updated": "2026-11-06"
+ },
+ "admin-bidding": {
+  "file": "/help-videos/zh-Hant/admin-bidding.mp4",
+  "title": "\u6295\u6a19\u71df\u904b",
+  "hash": "4381ce18abd053d4",
+  "lang": "zh-Hant",
+  "seconds": 51,
+  "updated": "2026-11-06"
+ },
+ "admin-escrow": {
+  "file": "/help-videos/zh-Hant/admin-escrow.mp4",
+  "title": "\u8a17\u7ba1(EMD)",
+  "hash": "ad39eec0a5e925df",
+  "lang": "zh-Hant",
+  "seconds": 57,
+  "updated": "2026-11-06"
+ },
+ "admin-evaluation": {
+  "file": "/help-videos/zh-Hant/admin-evaluation.mp4",
+  "title": "\u8a55\u5be9",
+  "hash": "62832ac0527f6816",
+  "lang": "zh-Hant",
+  "seconds": 58,
+  "updated": "2026-11-06"
+ },
+ "admin-corrigenda": {
+  "file": "/help-videos/zh-Hant/admin-corrigenda.mp4",
+  "title": "\u88dc\u907a",
+  "hash": "e61cb6e7deeb8304",
+  "lang": "zh-Hant",
+  "seconds": 61,
+  "updated": "2026-11-06"
+ },
+ "admin-tender-builder": {
+  "file": "/help-videos/zh-Hant/admin-tender-builder.mp4",
+  "title": "\u62db\u6a19\u5efa\u7acb\u5de5\u5177",
+  "hash": "88a30150d3df283e",
+  "lang": "zh-Hant",
+  "seconds": 46,
+  "updated": "2026-11-06"
+ },
+ "admin-awards": {
+  "file": "/help-videos/zh-Hant/admin-awards.mp4",
+  "title": "\u6388\u6a19\u8207 PO",
+  "hash": "6a307f47a2913ad5",
+  "lang": "zh-Hant",
+  "seconds": 47,
+  "updated": "2026-11-06"
+ },
+ "admin-docusign": {
+  "file": "/help-videos/zh-Hant/admin-docusign.mp4",
+  "title": "DocuSign",
+  "hash": "37101bb3cf8d9d57",
+  "lang": "zh-Hant",
+  "seconds": 44,
+  "updated": "2026-11-06"
+ },
+ "admin-auctions": {
+  "file": "/help-videos/zh-Hant/admin-auctions.mp4",
+  "title": "\u53cd\u5411\u62cd\u8ce3",
+  "hash": "0f0b6cde93dac0fc",
+  "lang": "zh-Hant",
+  "seconds": 54,
+  "updated": "2026-11-06"
+ },
+ "admin-meetings": {
+  "file": "/help-videos/zh-Hant/admin-meetings.mp4",
+  "title": "\u6703\u8b70",
+  "hash": "668d4cf4a370bab6",
+  "lang": "zh-Hant",
+  "seconds": 51,
+  "updated": "2026-11-06"
+ },
+ "admin-l1": {
+  "file": "/help-videos/zh-Hant/admin-l1.mp4",
+  "title": "L1 \u6bd4\u8f03",
+  "hash": "3176ca6ef79f7f73",
+  "lang": "zh-Hant",
+  "seconds": 42,
+  "updated": "2026-11-06"
+ },
+ "admin-boq": {
+  "file": "/help-videos/zh-Hant/admin-boq.mp4",
+  "title": "BOQ \u8207\u5408\u7d04",
+  "hash": "d84c94ff12ac8108",
+  "lang": "zh-Hant",
+  "seconds": 44,
+  "updated": "2026-11-06"
+ }
+}

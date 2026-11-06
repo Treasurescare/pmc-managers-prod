@@ -1,0 +1,74 @@
+{
+ "admin-dashboard": {
+  "file": "/help-videos/ar/admin-dashboard.mp4",
+  "title": "\u0644\u0648\u062d\u0629 \u0627\u0644\u0645\u0639\u0644\u0648\u0645\u0627\u062a \u2014 \u0627\u0644\u062a\u062d\u0644\u064a\u0644\u0627\u062a",
+  "hash": "5a1d70e9f1cec003",
+  "lang": "ar",
+  "seconds": 113,
+  "updated": "2026-11-06"
+ },
+ "admin-notices": {
+  "file": "/help-videos/ar/admin-notices.mp4",
+  "title": "\u0627\u0644\u0625\u0634\u0639\u0627\u0631\u0627\u062a",
+  "hash": "e6a3fd869c22ffef",
+  "lang": "ar",
+  "seconds": 111,
+  "updated": "2026-11-06"
+ },
+ "admin-registrations": {
+  "file": "/help-videos/ar/admin-registrations.mp4",
+  "title": "\u0627\u0644\u062a\u0633\u062c\u064a\u0644\u0627\u062a",
+  "hash": "81856b06795182fd",
+  "lang": "ar",
+  "seconds": 96,
+  "updated": "2026-11-06"
+ },
+ "admin-vendors": {
+  "file": "/help-videos/ar/admin-vendors.mp4",
+  "title": "\u0627\u0644\u0645\u0648\u0631\u062f\u0648\u0646",
+  "hash": "9312c05cefd121f6",
+  "lang": "ar",
+  "seconds": 92,
+  "updated": "2026-11-06"
+ },
+ "admin-bidding": {
+  "file": "/help-videos/ar/admin-bidding.mp4",
+  "title": "\u0639\u0645\u0644\u064a\u0627\u062a \u0627\u0644\u0639\u0637\u0627\u0621\u0627\u062a",
+  "hash": "1ef61e7744edcea1",
+  "lang": "ar",
+  "seconds": 64,
+  "updated": "2026-11-06"
+ },
+ "admin-escrow": {
+  "file": "/help-videos/ar/admin-escrow.mp4",
+  "title": "\u0627\u0644\u0636\u0645\u0627\u0646 \u0627\u0644\u0645\u062d\u062a\u062c\u0632 (EMD)",
+  "hash": "9882a7c377e07e53",
+  "lang": "ar",
+  "seconds": 68,
+  "updated": "2026-11-06"
+ },
+ "admin-evaluation": {
+  "file": "/help-videos/ar/admin-evaluation.mp4",
+  "title": "\u0627\u0644\u062a\u0642\u064a\u064a\u0645",
+  "hash": "ad5544bbbd4cbc9f",
+  "lang": "ar",
+  "seconds": 64,
+  "updated": "2026-11-06"
+ },
+ "admin-corrigenda": {
+  "file": "/help-videos/ar/admin-corrigenda.mp4",
+  "title": "\u0627\u0644\u0645\u0644\u0627\u062d\u0642 \u0627\u0644\u062a\u0635\u062d\u064a\u062d\u064a\u0629",
+  "hash": "9b7be27c3da6c467",
+  "lang": "ar",
+  "seconds": 64,
+  "updated": "2026-11-06"
+ },
+ "admin-tender-builder": {
+  "file": "/help-videos/ar/admin-tender-builder.mp4",
+  "title": "\u0645\u0646\u0634\u0626 \u0627\u0644\u0645\u0646\u0627\u0642\u0635\u0627\u062a",
+  "hash": "038201dd37e69572",
+  "lang": "ar",
+  "seconds": 59,
+  "updated": "2026-11-06"
+ }
+}

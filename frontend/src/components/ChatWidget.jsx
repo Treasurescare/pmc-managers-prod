@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { marketingApi } from "@/lib/api";
 import { useHelpVideos } from "@/apps/help-centre/HelpVideo";
+import { useI18n } from "@/context/I18nContext";
 
 const key = (staff) => (staff ? "pmc_chat_sid_staff" : "pmc_chat_sid");
 const sid = (staff) => {
@@ -30,7 +31,7 @@ const VideoAnswer = ({ v, slug }) => (
 
 const Msg = ({ m, vids }) => (
   <>
-    <div data-testid={`chat-msg-${m.role}`} style={{ justifySelf: m.role === "user" ? "end" : "start", maxWidth: "85%",
+    <div data-testid={`chat-msg-${m.role}`} translate={m.hello ? undefined : "no"} className={m.hello ? undefined : "notranslate"} dir="auto" style={{ justifySelf: m.role === "user" ? "end" : "start", maxWidth: "85%",
       background: m.role === "user" ? "#0F3B2E" : "#F3EFE4", color: m.role === "user" ? "#fff" : "#1f3a2e",
       padding: "8px 11px", fontSize: "14px", lineHeight: "20px", whiteSpace: "pre-wrap" }}>{m.role === "assistant" ? linkify(m.text) : m.text}</div>
     {(m.videos || []).filter((x) => vids[x.slug]).map((x) => <VideoAnswer key={x.slug} slug={x.slug} v={vids[x.slug]} />)}
@@ -41,12 +42,13 @@ export default function ChatWidget() {
   const staff = /^\/(admin|staff)/.test(pathname);
   const mode = staff ? "staff" : "public";
   const vids = useHelpVideos();
+  const { lang } = useI18n();
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState({ public: [], staff: [] });
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const end = useRef(null);
-  const list = [{ role: "assistant", text: HELLO[mode] }, ...msgs[mode]];
+  const list = [{ role: "assistant", text: HELLO[mode], hello: true }, ...msgs[mode]];
   const push = (m) => setMsgs((x) => ({ ...x, [mode]: [...x[mode], m] }));
   useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs, open]);
   if (/^\/(escrow|auth)/.test(pathname) || /^\/(admin|staff)\/login/.test(pathname)) return null;
@@ -56,7 +58,7 @@ export default function ChatWidget() {
     if (!m || busy) return;
     setText(""); push({ role: "user", text: m }); setBusy(true);
     try {
-      const r = await marketingApi.assistantChat({ session_id: sid(staff), message: m, mode });
+      const r = await marketingApi.assistantChat({ session_id: sid(staff), message: m, mode, lang });
       push({ role: "assistant", text: r.reply, videos: r.videos });
     } catch (err) {
       const d = err?.response?.data?.detail;

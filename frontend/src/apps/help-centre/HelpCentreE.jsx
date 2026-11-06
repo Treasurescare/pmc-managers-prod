@@ -3,6 +3,7 @@ import { useUiTheme } from "@/context/UiThemeContext";
 import { useSeo } from "@/lib/useSeo";
 import { toast } from "sonner";
 import HelpVideo, { useHelpVideos, PlayBadge } from "@/apps/help-centre/HelpVideo";
+import { ManualDownload } from "@/components/ManualLink";
 
 // v51l — the Help Centre was a static mockup: every card, tour, the search
 // box and "Raise a ticket" were <a href="#"> dead ends. Now wired to the
@@ -179,6 +180,7 @@ export default function HelpCentreE({ legacy: Legacy }) {
                    style={{ color: "var(--ink)", fontSize: 16 }} />
           </label>
           <a href="/help/videos" className="pmc-btn pmc-btn--brass" style={{ marginTop: 16 }} data-testid="help-video-library-link">▶ Watch the video library</a>
+          <ManualDownload style={{ marginTop: 16, marginLeft: 8 }} />
           <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 20 }}>
             <div className="hc-role" role="tablist">
               <button type="button" aria-selected={role === "supplier"} onClick={() => { setRole("supplier"); setTopic(null); }}

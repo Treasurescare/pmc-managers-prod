@@ -17,7 +17,8 @@ from reportlab.lib.pagesizes import A4
 sys.path.insert(0, "/app/scripts")
 from build_manuals import B, D, GOLD, H2, H3, NAVY, SM, TODAY, shot, CREAM, ParagraphStyle, ss  # noqa: E402
 
-SCREENS = json.load(open("/app/scripts/manual_screens.json")) + json.load(open("/app/scripts/manual_screens_extra.json"))
+SCREENS = (json.load(open("/app/scripts/manual_screens.json")) + json.load(open("/app/scripts/manual_screens_extra.json"))
+           + json.load(open("/app/scripts/manual_screens_new.json")))
 ORDER = ["Public website", "Supplier portal", "Admin console", "Partner portal", "Staff portal"]
 CH = ParagraphStyle("ch", parent=ss["Title"], textColor=NAVY, fontSize=22, leading=26, alignment=0, spaceAfter=6)
 SEC = ParagraphStyle("sec", parent=H2, fontSize=13)
@@ -333,12 +334,53 @@ def p28():
                                                     ["Award after price opening", "10 working days"], ["EMD refund to losing bidders", "14 days after award"], ["Partner approval", "3 working days"]])
 
 
+@chapter("28a \u00b7 What's new: fees, growth tools & languages")
+def c28a():
+    return [P("This chapter covers the features added in the latest releases. Each one also has a help guide and a video in the Help Centre."),
+            Paragraph("Pricing bands & fee rules", SEC),
+            steps(["Countries are grouped into pricing bands. Band names, tier names and the fee for each band are edited in <b>Masters</b> \u2192 <b>Fee rules</b>; nothing is fixed in code.",
+                   "Before a tender is published, an admin opens <b>Fees</b> on the notice and ticks <b>Charge</b> or <b>Waive</b> for each fee. Publishing is blocked until the fees are confirmed.",
+                   "The award fee rate is set per band (for example 0.30% today, any other rate or waived tomorrow). At publishing the admin also chooses who pays it: the buyer or the supplier.",
+                   "When the award is completed, a Stripe payment link is sent automatically to the payer and is shown to admin accounts for follow-up.",
+                   "Supplier bid fees: for each new supplier the admin decides whether extra categories are charged or waived.",
+                   "Waivers can be approved by the Master Admin, an Admin or a Reviewer. Every decision is audit-logged."]),
+            Paragraph("Supplier AI tools & saved alerts", SEC),
+            steps(["<b>AI tender tools</b>: a supplier uploads any tender document (or picks a PMC tender) and gets a summary of eligibility, turnover, experience, EMD, fees, key dates and required documents.",
+                   "<b>Bid readiness check</b>: compares the tender with the company profile and lists missing documents and disqualification risks.",
+                   "Both are charged per use; the price, or a waiver, is set by the admin in Fee rules.",
+                   "<b>Saved alerts</b>: suppliers save keywords, countries, value range and buyers and get matching PMC and global tenders instantly, daily or weekly."]),
+            Paragraph("Growth tools (admin \u2192 Growth)", SEC),
+            tbl([["Tab", "What it does"], ["Buyer applications", "Organisations apply at /buyers/apply; approve to create the organisation code, or reject."],
+                 ["Consultancy services", "Create the services shown on /consultancy and track each request."],
+                 ["Supplier directory", "Feature a supplier for premium visibility in /suppliers/directory."],
+                 ["Global tender sources", "Turn sources on or off and fetch tenders (World Bank, EU TED, and a pipe ready for a licensed paid provider)."],
+                 ["Data API clients", "Issue API keys with daily limits so outside businesses can read tender data."],
+                 ["Translation review", "Native speakers approve or correct the AI translations."]], [45 * mm, 135 * mm]),
+            Paragraph("Languages", SEC),
+            steps(["The whole portal (public site, supplier portal, admin and staff portals) is available in 14 languages: English, Russian, Kazakh, Simplified Chinese, Traditional Chinese, Spanish, French, German, Hindi, Malay, Bahasa Indonesia, Korean, Japanese and Arabic (right-to-left).",
+                   "The flag button at the top of every page (bottom-left on phones) changes the language. Everything on screen is translated, including tender titles and descriptions.",
+                   "Public pages have their own address per language, for example /fr/buyers, so search engines show the site in each language.",
+                   "Ask PMC answers in the chosen language, help videos have a voice-over in each language, and this manual is published in all 14 languages.",
+                   "Translations are made by AI and checked by native speakers in <b>Growth</b> \u2192 <b>Translation review</b>. Reviewed phrases are never overwritten by AI."])]
+
+
 @chapter("29 \u00b7 Glossary")
 def c19():
     g = [("DPR", "Detailed project report used to draft a tender"), ("EMD", "Earnest money deposit held in escrow with a bid"), ("L1", "Lowest compliant price among qualified bids"),
          ("Mandatory criterion", "Must be met by every bidder"), ("Optional criterion", "Counts toward the minimum number the tender sets"), ("Proof review", "AI finding + unanimous committee decision on each proof"),
          ("Corrigendum", "Formal change to a live tender sent to every bidder"), ("Consortium", "Registered suppliers bidding together"), ("Sealed bid", "Encrypted until the committee signs the opening")]
     return [tbl([["Term", "Meaning"]] + [list(x) for x in g], [45 * mm, 135 * mm])]
+
+
+def body_story(hidden):
+    story, n = [], 0
+    for title, fn in CHAPTERS:
+        num, _, name = title.partition(" \u00b7 ")
+        if num in hidden:
+            continue
+        n += 1
+        story.append((f"{n} \u00b7 {name}", fn()))
+    return story
 
 
 def build():
@@ -355,13 +397,8 @@ def build():
              Paragraph(f"Issued {TODAY} \u00b7 replaces v3 (Sovereign Edition)", W), NextPageTemplate("body"), PageBreak(),
              Paragraph("<b>Contents</b>", ParagraphStyle("ch2", parent=H2, fontSize=16)), toc, PageBreak()]
     hidden = set() if os.environ.get("MANUAL_SHOW_INTERNAL") == "1" else HIDDEN_UNTIL_LIVE
-    n = 0
-    for title, fn in CHAPTERS:
-        num, _, name = title.partition(" \u00b7 ")
-        if num in hidden:
-            continue
-        n += 1
-        story += [Paragraph(f"{n} \u00b7 {name}", CH), Spacer(1, 2 * mm)] + fn() + [PageBreak()]
+    for title, fl in body_story(hidden):
+        story += [Paragraph(title, CH), Spacer(1, 2 * mm)] + fl + [PageBreak()]
     Doc(path).multiBuild(story)
     return path
 

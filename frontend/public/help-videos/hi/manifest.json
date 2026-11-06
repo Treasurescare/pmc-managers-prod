@@ -1,0 +1,26 @@
+{
+ "admin-dashboard": {
+  "file": "/help-videos/hi/admin-dashboard.mp4",
+  "title": "\u0921\u0948\u0936\u092c\u094b\u0930\u094d\u0921 \u2014 \u090f\u0928\u093e\u0932\u093f\u091f\u093f\u0915\u094d\u0938",
+  "hash": "664ec7d196320e05",
+  "lang": "hi",
+  "seconds": 89,
+  "updated": "2026-11-06"
+ },
+ "admin-notices": {
+  "file": "/help-videos/hi/admin-notices.mp4",
+  "title": "\u0938\u0942\u091a\u0928\u093e\u090f\u0901",
+  "hash": "f13b5e4e541ae45b",
+  "lang": "hi",
+  "seconds": 107,
+  "updated": "2026-11-06"
+ },
+ "admin-registrations": {
+  "file": "/help-videos/hi/admin-registrations.mp4",
+  "title": "\u092a\u0902\u091c\u0940\u0915\u0930\u0923",
+  "hash": "074f4a80fb792126",
+  "lang": "hi",
+  "seconds": 82,
+  "updated": "2026-11-06"
+ }
+}

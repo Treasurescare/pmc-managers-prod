@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useI18n } from "@/context/I18nContext";
 
 export const videoLink = (slug) => `${window.location.origin}/help/videos?v=${encodeURIComponent(slug)}`;
 
@@ -20,15 +21,19 @@ export const ShareRow = ({ slug, title, dark = false }) => {
     </span>);
 };
 
-let cache;
-export const loadManifest = () => {
-  cache = cache || fetch("/help-videos/manifest.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
-  return cache;
+const cache = {};
+const getJson = (u) => fetch(u, { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
+// Videos narrated in the chosen language replace the English ones where available.
+export const loadManifest = (lang = "en") => {
+  cache.en = cache.en || getJson("/help-videos/manifest.json");
+  if (lang !== "en" && !cache[lang]) cache[lang] = Promise.all([cache.en, getJson(`/help-videos/${lang}/manifest.json`)]).then(([a, b]) => ({ ...a, ...b }));
+  return cache[lang];
 };
 
 export function useHelpVideos() {
+  const { lang } = useI18n();
   const [m, setM] = useState({});
-  useEffect(() => { loadManifest().then(setM); }, []);
+  useEffect(() => { loadManifest(lang).then(setM); }, [lang]);
   return m;
 }
 
@@ -40,12 +45,12 @@ export const PlayBadge = ({ testid }) => (
   </span>);
 
 export default function HelpVideo({ slug, preload = "metadata" }) {
-  const [v, setV] = useState(null);
-  useEffect(() => { loadManifest().then((m) => setV(m[slug] || null)); }, [slug]);
+  const vids = useHelpVideos();
+  const v = vids[slug] || null;
   if (!v) return null;
   return (
     <figure style={{ margin: "20px 0 28px" }} data-testid="help-video">
-      <video src={v.file} poster={v.file.replace(/\.mp4$/, ".jpg")} controls preload={preload} playsInline
+      <video key={v.file} src={v.file} poster={v.file.replace(/\.mp4$/, ".jpg")} controls preload={preload} playsInline
         style={{ width: "100%", borderRadius: 10, background: "#162921", boxShadow: "0 10px 30px rgba(0,0,0,.18)" }}
         data-testid="help-video-player" />
       <figcaption className="pmc-muted" style={{ fontSize: 13, marginTop: 8, display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>

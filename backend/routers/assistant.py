@@ -47,6 +47,7 @@ class ChatIn(BaseModel):
     session_id: str = Field(min_length=8, max_length=64)
     message: str = Field(min_length=1, max_length=1000)
     mode: str = Field(default="public", pattern="^(public|staff)$")
+    lang: str = Field(default="en", max_length=10)
 
 
 async def _staff(request: Request):
@@ -142,6 +143,9 @@ async def chat(body: ChatIn, request: Request):
         system = f"{STAFF_RULES}\n\nUSER: {st.get('name') or 'team member'}, role {role}.\n\nABOUT PMC:\n{ABOUT}\n\nHELP GUIDES:\n{_guide_text(codes)}"
     else:
         system = f"{RULES}\n\nABOUT PMC:\n{ABOUT}\n\nHELP GUIDES:\n{_guide_text(codes)}\n\n{await _context(v)}"
+    from routers.i18n_auto import LANGS
+    if body.lang in LANGS:
+        system += f"\n\nThe user has chosen {LANGS[body.lang]} for the portal: ALWAYS reply in {LANGS[body.lang]}, keeping /help/... links and button names in English in brackets after the translation."
     reply = (await _llm_complete(system, f"{convo}\nUSER: {body.message}\nASSISTANT:") or "").strip()
     if not reply:
         raise HTTPException(status_code=502, detail="The assistant is busy. Please try again.")

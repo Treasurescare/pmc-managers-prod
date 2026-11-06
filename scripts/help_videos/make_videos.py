@@ -21,8 +21,11 @@ from emergentintegrations.llm.openai import OpenAITextToSpeech
 from playwright.sync_api import sync_playwright
 
 load_dotenv("/app/backend/.env")
+sys.path.insert(0, "/app/backend")
 BASE = os.environ["PMC_BASE"].rstrip("/")
-OUT = "/app/frontend/public/help-videos"
+LANG = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--lang=")), "en")
+OUT = "/app/frontend/public/help-videos" + ("" if LANG == "en" else f"/{LANG}")
+WEB = "/help-videos" + ("" if LANG == "en" else f"/{LANG}")
 MANIFEST = os.path.join(OUT, "manifest.json")
 VOICE, MODEL = "nova", "tts-1-hd"
 TAB_MAP = {"analytics": "dashboard", "l1": "l1-award", "vintel": "vendor-intel", "packages": "work-packages"}
@@ -46,12 +49,13 @@ OVERLAY_JS = """([kind, text, hl]) => {
     card.innerHTML = '<div style="color:#d9bd72;letter-spacing:.18em;font-size:16px;font-weight:600">PMC MANAGERS · HOW-TO</div>' +
       '<div style="font-size:54px;font-weight:700;margin:14px 0 0">' + hl + '</div>';
   } else if (card) { card.remove(); }
-  cap.textContent = text;
+    cap.textContent = text; cap.dir = 'auto';
   document.querySelectorAll('[data-pmc-hl]').forEach(e => { e.style.outline = ''; e.removeAttribute('data-pmc-hl'); });
   if (kind === 'step' && hl) {
-    const want = hl.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim();
+    const norm = (s) => (s || '').toLowerCase().replace(/[^\\p{L}\\p{N} ]/gu, '').trim();
+    const want = norm(hl);
     const els = [...document.querySelectorAll('button, a, [role=tab], label, th, h1, h2, h3, summary')]
-      .filter(e => e.offsetParent && (e.innerText || '').toLowerCase().replace(/[^a-z0-9 ]/g, '').trim().includes(want));
+      .filter(e => e.offsetParent && norm(e.innerText).includes(want));
     const el = els.sort((a, b) => a.innerText.length - b.innerText.length)[0];
     if (el) { el.setAttribute('data-pmc-hl', '1'); el.style.outline = '4px solid #d9bd72'; el.style.outlineOffset = '3px';
       el.scrollIntoView({block: 'center', behavior: 'smooth'}); return true; }
@@ -88,6 +92,30 @@ def target_url(slug, m):
     return u
 
 
+async def tr_segs(segs):
+    """Narration and highlight labels in LANG; labels prefer the reviewed on-screen translation."""
+    if LANG == "en":
+        return segs
+    from pymongo import MongoClient
+    from routers.i18n_auto import _h, _llm
+    mdb = MongoClient(os.environ["MONGO_URL"])[os.environ["DB_NAME"]]
+    hls = list(dict.fromkeys(hl for _, _, hl in segs if hl))
+    found = {d["src"]: d["out"] for d in mdb.i18n_cache.find({"lang": LANG, "h": {"$in": [_h(x) for x in hls]}})}
+    texts = [t for _, t, _ in segs] + [x for x in hls if x not in found]
+    out = []
+    for i in range(0, len(texts), 20):
+        part, res = texts[i:i + 20], []
+        for _ in range(3):
+            res = await _llm(LANG, part)
+            if res:
+                break
+        if not res:
+            raise RuntimeError("translation failed")
+        out += res
+    lab = {**dict(zip(texts[len(segs):], out[len(segs):])), **found}
+    return [(k, out[i], lab.get(hl, hl) if hl else "") for i, (k, _, hl) in enumerate(segs)]
+
+
 async def tts_all(segs, d):
     tts = OpenAITextToSpeech(api_key=os.environ["EMERGENT_LLM_KEY"])
     files = []
@@ -107,13 +135,14 @@ def record(slug, m, segs, audio, d):
         b = p.chromium.launch()
         ctx = b.new_context(viewport={"width": 1280, "height": 720}, record_video_dir=d,
                             record_video_size={"width": 1280, "height": 720})
+        ctx.add_init_script(f"try{{localStorage.setItem('pmc_lang','{LANG}')}}catch(e){{}}")
         login = LOGIN.get(m["surface"])
         if login:
             ctx.request.post(BASE + login[0], data={"email": os.environ[login[1]], "password": os.environ[login[2]]})
         t0 = time.monotonic()
         pg = ctx.new_page()
         pg.goto(BASE + target_url(slug, m), wait_until="networkidle", timeout=60000)
-        pg.wait_for_timeout(1500)
+        pg.wait_for_timeout(1500 if LANG == "en" else 4000)
         starts = []
         for (kind, text, hl), a in zip(segs, audio):
             try:
@@ -156,13 +185,14 @@ def main():
         if args and slug not in args:
             continue
         segs = script_for(slug, m)
-        h = hashlib.sha256(json.dumps([segs, target_url(slug, m), VOICE, MODEL]).encode()).hexdigest()[:16]
+        h = hashlib.sha256(json.dumps([segs, target_url(slug, m), VOICE, MODEL, LANG]).encode()).hexdigest()[:16]
         out = os.path.join(OUT, f"{slug}.mp4")
         if not force and man.get(slug, {}).get("hash") == h and os.path.exists(out):
             print("skip", slug)
             continue
         with tempfile.TemporaryDirectory() as d:
             try:
+                segs = asyncio.run(tr_segs(segs))
                 audio = asyncio.run(tts_all(segs, d))
                 vid, starts = record(slug, m, segs, audio, d)
                 compose(vid, starts, audio, out)
@@ -172,7 +202,7 @@ def main():
                 print("FAILED", slug, e)
                 continue
         man = json.load(open(MANIFEST)) if os.path.exists(MANIFEST) else {}
-        man[slug] = {"file": f"/help-videos/{slug}.mp4", "title": m["title"], "hash": h,
+        man[slug] = {"file": f"{WEB}/{slug}.mp4", "title": segs[0][2] or m["title"], "hash": h, "lang": LANG,
                      "seconds": round(dur(out)), "updated": datetime.now(timezone.utc).strftime("%Y-%m-%d")}
         json.dump(man, open(MANIFEST, "w"), indent=1)
         print("ok", slug, man[slug]["seconds"], "s", os.path.getsize(out) // 1024, "KB")

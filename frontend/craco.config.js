@@ -108,6 +108,10 @@ let webpackConfig = {
 };
 
 webpackConfig.devServer = (devServerConfig) => {
+  // public/ holds hundreds of help videos and manuals; watching them exhausts inotify watchers
+  if (devServerConfig.static && typeof devServerConfig.static === "object" && !Array.isArray(devServerConfig.static)) {
+    devServerConfig.static = { ...devServerConfig.static, watch: false };
+  }
   // Add health check endpoints if enabled
   if (config.enableHealthCheck && setupHealthEndpoints && healthPluginInstance) {
     const originalSetupMiddlewares = devServerConfig.setupMiddlewares;

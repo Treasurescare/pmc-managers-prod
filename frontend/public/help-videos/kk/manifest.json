@@ -1,0 +1,74 @@
+{
+ "admin-dashboard": {
+  "file": "/help-videos/kk/admin-dashboard.mp4",
+  "title": "\u0411\u0430\u0441\u049b\u0430\u0440\u0443 \u0442\u0430\u049b\u0442\u0430\u0441\u044b \u2014 \u0410\u043d\u0430\u043b\u0438\u0442\u0438\u043a\u0430",
+  "hash": "f9f06540a2893a8a",
+  "lang": "kk",
+  "seconds": 100,
+  "updated": "2026-11-06"
+ },
+ "admin-notices": {
+  "file": "/help-videos/kk/admin-notices.mp4",
+  "title": "\u0425\u0430\u0431\u0430\u0440\u043b\u0430\u043d\u0434\u044b\u0440\u0443\u043b\u0430\u0440",
+  "hash": "94ed0b00c408f7bf",
+  "lang": "kk",
+  "seconds": 128,
+  "updated": "2026-11-06"
+ },
+ "admin-registrations": {
+  "file": "/help-videos/kk/admin-registrations.mp4",
+  "title": "\u0422\u0456\u0440\u043a\u0435\u0443\u043b\u0435\u0440",
+  "hash": "997255e5e12b3f0f",
+  "lang": "kk",
+  "seconds": 91,
+  "updated": "2026-11-06"
+ },
+ "admin-vendors": {
+  "file": "/help-videos/kk/admin-vendors.mp4",
+  "title": "\u0416\u0435\u0442\u043a\u0456\u0437\u0443\u0448\u0456\u043b\u0435\u0440",
+  "hash": "048935ed7ea692ec",
+  "lang": "kk",
+  "seconds": 78,
+  "updated": "2026-11-06"
+ },
+ "admin-bidding": {
+  "file": "/help-videos/kk/admin-bidding.mp4",
+  "title": "\u0422\u0435\u043d\u0434\u0435\u0440\u043b\u0456\u043a \u043e\u043f\u0435\u0440\u0430\u0446\u0438\u044f\u043b\u0430\u0440",
+  "hash": "cf5f336237c53a98",
+  "lang": "kk",
+  "seconds": 62,
+  "updated": "2026-11-06"
+ },
+ "admin-escrow": {
+  "file": "/help-videos/kk/admin-escrow.mp4",
+  "title": "\u042d\u0441\u043a\u0440\u043e\u0443 (EMD)",
+  "hash": "801fb86ff39c658b",
+  "lang": "kk",
+  "seconds": 64,
+  "updated": "2026-11-06"
+ },
+ "admin-evaluation": {
+  "file": "/help-videos/kk/admin-evaluation.mp4",
+  "title": "\u0411\u0430\u0493\u0430\u043b\u0430\u0443",
+  "hash": "935929aae477cf3f",
+  "lang": "kk",
+  "seconds": 65,
+  "updated": "2026-11-06"
+ },
+ "admin-corrigenda": {
+  "file": "/help-videos/kk/admin-corrigenda.mp4",
+  "title": "\u0422\u04af\u0437\u0435\u0442\u0443\u043b\u0435\u0440",
+  "hash": "43dd93ed569f295a",
+  "lang": "kk",
+  "seconds": 61,
+  "updated": "2026-11-06"
+ },
+ "admin-tender-builder": {
+  "file": "/help-videos/kk/admin-tender-builder.mp4",
+  "title": "\u0422\u0435\u043d\u0434\u0435\u0440 \u049b\u04b1\u0440\u0430\u0441\u0442\u044b\u0440\u0443\u0448\u044b",
+  "hash": "af2fcd87ce4ad71e",
+  "lang": "kk",
+  "seconds": 52,
+  "updated": "2026-11-06"
+ }
+}

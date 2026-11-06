@@ -1,0 +1,122 @@
+{
+ "languages": {
+  "file": "/help-videos/fr/languages.mp4",
+  "title": "Changer de langue",
+  "hash": "803109895b397959",
+  "lang": "fr",
+  "seconds": 96,
+  "updated": "2026-11-06"
+ },
+ "admin-dashboard": {
+  "file": "/help-videos/fr/admin-dashboard.mp4",
+  "title": "Tableau de bord \u2014 Analyses",
+  "hash": "a58ff25814410ed5",
+  "lang": "fr",
+  "seconds": 93,
+  "updated": "2026-11-06"
+ },
+ "admin-notices": {
+  "file": "/help-videos/fr/admin-notices.mp4",
+  "title": "Avis",
+  "hash": "d103850601d5e547",
+  "lang": "fr",
+  "seconds": 97,
+  "updated": "2026-11-06"
+ },
+ "admin-registrations": {
+  "file": "/help-videos/fr/admin-registrations.mp4",
+  "title": "Inscriptions",
+  "hash": "cc82d4532e7da197",
+  "lang": "fr",
+  "seconds": 96,
+  "updated": "2026-11-06"
+ },
+ "admin-vendors": {
+  "file": "/help-videos/fr/admin-vendors.mp4",
+  "title": "Fournisseurs",
+  "hash": "b523f5e1c20e4dc6",
+  "lang": "fr",
+  "seconds": 73,
+  "updated": "2026-11-06"
+ },
+ "admin-bidding": {
+  "file": "/help-videos/fr/admin-bidding.mp4",
+  "title": "Op\u00e9rations de soumission",
+  "hash": "361d604194ae54e3",
+  "lang": "fr",
+  "seconds": 69,
+  "updated": "2026-11-06"
+ },
+ "admin-escrow": {
+  "file": "/help-videos/fr/admin-escrow.mp4",
+  "title": "S\u00e9questre (EMD)",
+  "hash": "0c82b6db56a648f5",
+  "lang": "fr",
+  "seconds": 55,
+  "updated": "2026-11-06"
+ },
+ "admin-evaluation": {
+  "file": "/help-videos/fr/admin-evaluation.mp4",
+  "title": "\u00c9valuation",
+  "hash": "a3b9b0ef8fe77fe6",
+  "lang": "fr",
+  "seconds": 63,
+  "updated": "2026-11-06"
+ },
+ "admin-corrigenda": {
+  "file": "/help-videos/fr/admin-corrigenda.mp4",
+  "title": "Corrigenda",
+  "hash": "ae2e0c349ab1beda",
+  "lang": "fr",
+  "seconds": 71,
+  "updated": "2026-11-06"
+ },
+ "admin-tender-builder": {
+  "file": "/help-videos/fr/admin-tender-builder.mp4",
+  "title": "G\u00e9n\u00e9rateur d'appels d'offres",
+  "hash": "f47793f533522d10",
+  "lang": "fr",
+  "seconds": 54,
+  "updated": "2026-11-06"
+ },
+ "admin-awards": {
+  "file": "/help-videos/fr/admin-awards.mp4",
+  "title": "Attributions et PO",
+  "hash": "529d3b7b428b41bd",
+  "lang": "fr",
+  "seconds": 57,
+  "updated": "2026-11-06"
+ },
+ "admin-docusign": {
+  "file": "/help-videos/fr/admin-docusign.mp4",
+  "title": "DocuSign",
+  "hash": "4101ae163edc50f6",
+  "lang": "fr",
+  "seconds": 47,
+  "updated": "2026-11-06"
+ },
+ "admin-auctions": {
+  "file": "/help-videos/fr/admin-auctions.mp4",
+  "title": "Ench\u00e8res invers\u00e9es",
+  "hash": "6db84821a410da7f",
+  "lang": "fr",
+  "seconds": 56,
+  "updated": "2026-11-06"
+ },
+ "admin-meetings": {
+  "file": "/help-videos/fr/admin-meetings.mp4",
+  "title": "R\u00e9unions",
+  "hash": "8dc68b073b9b6d1d",
+  "lang": "fr",
+  "seconds": 58,
+  "updated": "2026-11-06"
+ },
+ "admin-l1": {
+  "file": "/help-videos/fr/admin-l1.mp4",
+  "title": "Comparaison L1",
+  "hash": "e2f1db6fd150e1f3",
+  "lang": "fr",
+  "seconds": 48,
+  "updated": "2026-11-06"
+ }
+}

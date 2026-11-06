@@ -1,0 +1,74 @@
+{
+ "admin-dashboard": {
+  "file": "/help-videos/de/admin-dashboard.mp4",
+  "title": "Dashboard \u2014 Analysen",
+  "hash": "28762a137dae5be3",
+  "lang": "de",
+  "seconds": 100,
+  "updated": "2026-11-06"
+ },
+ "admin-notices": {
+  "file": "/help-videos/de/admin-notices.mp4",
+  "title": "Bekanntmachungen",
+  "hash": "d6725a784c962b26",
+  "lang": "de",
+  "seconds": 111,
+  "updated": "2026-11-06"
+ },
+ "admin-registrations": {
+  "file": "/help-videos/de/admin-registrations.mp4",
+  "title": "Registrierungen",
+  "hash": "921ab2e13a536ed7",
+  "lang": "de",
+  "seconds": 85,
+  "updated": "2026-11-06"
+ },
+ "admin-vendors": {
+  "file": "/help-videos/de/admin-vendors.mp4",
+  "title": "Lieferanten",
+  "hash": "a931da424b5fd4cb",
+  "lang": "de",
+  "seconds": 80,
+  "updated": "2026-11-06"
+ },
+ "admin-bidding": {
+  "file": "/help-videos/de/admin-bidding.mp4",
+  "title": "Bieterbetrieb",
+  "hash": "77e1b3b9c37b835b",
+  "lang": "de",
+  "seconds": 57,
+  "updated": "2026-11-06"
+ },
+ "admin-escrow": {
+  "file": "/help-videos/de/admin-escrow.mp4",
+  "title": "Treuhand (EMD)",
+  "hash": "1af6e37790e61053",
+  "lang": "de",
+  "seconds": 65,
+  "updated": "2026-11-06"
+ },
+ "admin-evaluation": {
+  "file": "/help-videos/de/admin-evaluation.mp4",
+  "title": "Bewertung",
+  "hash": "51b6d6182e37aa83",
+  "lang": "de",
+  "seconds": 61,
+  "updated": "2026-11-06"
+ },
+ "admin-corrigenda": {
+  "file": "/help-videos/de/admin-corrigenda.mp4",
+  "title": "Berichtigungen",
+  "hash": "052c56bddcaa1ec8",
+  "lang": "de",
+  "seconds": 60,
+  "updated": "2026-11-06"
+ },
+ "admin-tender-builder": {
+  "file": "/help-videos/de/admin-tender-builder.mp4",
+  "title": "Ausschreibungs-Builder",
+  "hash": "34576e51d7b1a9cc",
+  "lang": "de",
+  "seconds": 51,
+  "updated": "2026-11-06"
+ }
+}
