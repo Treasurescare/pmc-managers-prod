@@ -988,3 +988,6 @@ summary notes.
 - Vendor E account page: "Delete my account" panel (#delete) using existing GDPR self-forget (Apple 5.1.1(v)). PWA install banner hidden in native app.
 - Deliverables: downloads/PMC-Managers-iOS.zip (ios project + vendored plugin node_modules + guide + 6 App Store screenshots 1290x2796 + listing.txt), downloads/PMC-Managers-iPhone-App-Guide.pdf. Old PMC-Tenders-iOS-project.zip removed. v60i bundles built, secret scan passed. Not tested on a device (needs Mac/Xcode).
 
+
+## 2026-11-07 — iOS app submitted
+- PMC Managers 1.0.0 (1) uploaded from customer's Mac (Xcode 27.2) and submitted for App Review (Waiting for Review). China mainland excluded (no ICP). APNs key created (Team Q2J9548DSN); APNS_* env vars still to be added in EB.
