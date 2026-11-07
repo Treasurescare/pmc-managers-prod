@@ -1,0 +1,2 @@
+# Deployment learnings
+- NEVER regenerate backend/requirements.txt with `pip freeze` for release bundles: the pod has emergentintegrations (private index), a litellm URL wheel, playwright, unspsc-fr etc. that break the EB Docker build (v60i failed: "Instance deployment failed to build the Docker image"). Append only the new packages with pinned versions to the curated file, then check with `python3 -m venv /tmp/v && /tmp/v/bin/pip install --dry-run -r requirements.txt`.
