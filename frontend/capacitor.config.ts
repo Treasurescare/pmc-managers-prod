@@ -13,12 +13,12 @@ import type { CapacitorConfig } from '@capacitor/cli';
  */
 const config: CapacitorConfig = {
   appId: 'com.pmcmanagers.tenders',
-  appName: 'PMC Tenders',
-  webDir: 'build',
+  appName: 'PMC Managers',
+  webDir: 'mobile-shell',
   bundledWebRuntime: false,
   ios: {
     contentInset: 'always',
-    scheme: 'PMC Tenders',
+    scheme: 'pmcmanagers',
     limitsNavigationsToAppBoundDomains: true,
     backgroundColor: '#162921ff',
   },
@@ -29,7 +29,8 @@ const config: CapacitorConfig = {
   },
   server: {
     // The app opens the live site, so every website release reaches the app without a new install.
-    url: 'https://pmcmanagers.com',
+    url: 'https://www.pmcmanagers.com',
+    errorPath: 'offline.html',
     allowNavigation: ['pmcmanagers.com', '*.pmcmanagers.com'],
     cleartext: false,
     androidScheme: 'https',

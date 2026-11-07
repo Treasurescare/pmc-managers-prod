@@ -1,0 +1,58 @@
+APP NAME
+PMC Managers
+
+SUBTITLE (max 30)
+Global tenders, sealed & proven
+
+PROMOTIONAL TEXT (max 170)
+Find and bid on public and private tenders from around the world. Get an alert on your iPhone the moment a matching tender is published.
+
+DESCRIPTION
+PMC Managers – Global Tender Grid brings buyers and suppliers together on one audited procurement platform.
+
+FOR SUPPLIERS
+• Browse live tenders from PMC buyers and official public sources worldwide, with the original source and reference on each one
+• Save alerts by keyword, country, value and buyer, and get a push notification as soon as a matching tender is published
+• Register once, keep your company documents in one place and submit sealed bids securely
+• AI tender tools: summarise a tender document and check your bid readiness before you submit
+• Track clarifications, deadlines and award results
+
+FOR BUYERS
+• Publish tenders and receive sealed bids that nobody can open before the deadline
+• Every step is recorded in an audit trail
+
+ON YOUR IPHONE
+• New-tender alerts
+• Lock the app with Face ID
+• Share any tender with your team
+• Works in 14 languages, including Arabic, Chinese, Hindi, Japanese and Korean
+
+An account is free to create. Some services, such as publishing tenders or AI tools, may carry fees shown before you pay.
+
+KEYWORDS (max 100, comma separated, no spaces)
+tender,tenders,procurement,bid,bidding,RFP,RFQ,supplier,vendor,contracts,government,eprocurement
+
+SUPPORT URL
+https://www.pmcmanagers.com/contact
+
+MARKETING URL
+https://www.pmcmanagers.com
+
+PRIVACY POLICY URL
+https://www.pmcmanagers.com/privacy
+
+COPYRIGHT
+2026 THE PMC MANAGERS LIMITED
+
+CATEGORY
+Primary: Business   Secondary: Productivity
+
+NOTES FOR APP REVIEW (paste into App Review Information > Notes)
+PMC Managers is the official app of the PMC Managers Global Tender Grid (www.pmcmanagers.com), operated by THE PMC MANAGERS LIMITED.
+Native features in this app:
+1. Push notifications: after signing in as a supplier, open the gear button (bottom-left) > "Turn on new-tender alerts". Suppliers receive a push when a newly published tender matches one of their saved alerts (Supplier portal > Saved alerts).
+2. Face ID lock: gear button > "Lock the app with Face ID".
+3. Native share sheet: the share button (bottom-left) shares the current tender page.
+4. Offline screen when there is no connection.
+Account deletion: Supplier portal > Account > "Delete my account" (also linked from the gear button).
+Demo supplier account: [REVIEW_ACCOUNT_EMAIL] / [REVIEW_ACCOUNT_PASSWORD]

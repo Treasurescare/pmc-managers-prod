@@ -280,7 +280,7 @@ export default function HomeE({ legacy: Legacy }) {
       <div className="pmc-fcol"><b>Company</b><a href="#">About us</a><a href="#">Vision</a><a href="#">Trust &amp; security</a><a href="#">Contact</a></div>
       <div className="pmc-fcol"><b>Help</b><a href="#">Help Centre</a><a href="#">FAQs</a><a href="#">Raise a ticket</a><a href="#">Privacy</a></div>
     </div>
-    <div style={{ display: "flex", justifyContent: "space-between", paddingTop: "24px", fontSize: "13px" }} className="pmc-muted"><span data-testid="build-stamp">© 2026 PMC Managers Limited · <span style={{ fontFamily: "monospace" }}>Frontend {BUILD_VERSION} · Backend {beVer || "…"}</span></span><span>Install the app: add PMC Tenders to your home screen</span></div>
+    <div style={{ display: "flex", justifyContent: "space-between", paddingTop: "24px", fontSize: "13px" }} className="pmc-muted"><span data-testid="build-stamp">© 2026 PMC Managers Limited · <span style={{ fontFamily: "monospace" }}>Frontend {BUILD_VERSION} · Backend {beVer || "…"}</span></span><span>Install the app: add PMC Managers to your home screen</span></div>
   </div>
 </footer>
 </div>

@@ -71,7 +71,7 @@ def main(build, site):
     out = {}
     pages = [(r, None) for r in ROUTES] + [((f"/{lg}" if r == "/" else f"/{lg}{r}"), lg) for lg in URL_LANGS for r in ROUTES]
     with sync_playwright() as p:
-        b = p.chromium.launch()
+        b = p.chromium.launch(executable_path=os.environ.get("PLAYWRIGHT_CHROME_EXECUTABLE_PATH") or None)
         pg = b.new_page()
         pg.add_init_script("try{localStorage.removeItem('pmc_lang')}catch(e){}")
         pg.route("**/api/**", api_handler(load_dicts()))

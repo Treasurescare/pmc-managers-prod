@@ -5,6 +5,7 @@ import { useUiTheme } from "@/context/UiThemeContext";
 import { vendorApi, publicApi, mastersApi, showApiError } from "@/lib/api";
 import { COUNTRY_PHONE, phoneSpecFor, validatePhoneForCountry } from "@/lib/phoneCountries";
 import VendorPortalChrome from "./VendorPortalChrome";
+import VendorGdprButton from "@/apps/vendor-portal/VendorGdprButton";
 
 const FIELD_META = {
   company_name: { label: "Company name",      type: "text",     placeholder: "Registered legal name" },
@@ -599,6 +600,11 @@ export default function VendorAccountE({ legacy: Legacy }) {
               </button>
             </div>
           </div>
+        </section>
+        <section id="delete" className="pmc-panel" style={{ background: "#162921", color: "#fff" }} data-testid="vacc-delete-panel">
+          <div className="pmc-panel__head"><h2 style={{ color: "#fff" }}>Delete my account</h2></div>
+          <p style={{ color: "rgba(255,255,255,.8)", marginBottom: 8 }}>Permanently remove your company profile and personal data. Records the law requires us to keep, such as submitted bids and invoices, are anonymised.</p>
+          <VendorGdprButton onSuccess={() => { window.location.href = "/"; }} />
         </section>
       </VendorPortalChrome>
     </div>

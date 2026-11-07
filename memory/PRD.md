@@ -1254,3 +1254,5 @@ onboarding fixed fee + deal fee (fixed or % of PMC business earned); admin pays 
 - 2026-11-06 v60h: help in every language (Ask PMC, voice-over videos in progress 139/689, 14 manuals). See CHANGELOG.md.
 
 
+- 2026-11-07 v60i: iPhone app "PMC Managers" ready for Xcode upload (push alerts, Face ID lock, share, offline, account deletion). Guide downloads/PMC-Managers-iPhone-App-Guide.pdf. See CHANGELOG.md.
+

@@ -278,6 +278,10 @@ async def _send_alert(a: dict, items: list) -> None:
     await vendor_confirm(a["email"], f"{len(items)} new tenders match '{a['name']}'",
                          f"<p>New tenders matching your saved alert <b>{a['name']}</b>:</p><ul>{rows}</ul>",
                          "See tenders", f"{_site()}/vendor/saved-alerts")
+    from routers.apns import send_to_vendor
+    first = items[0]
+    await send_to_vendor(a.get("vendor_id"), f"{len(items)} new tender{'s' if len(items) > 1 else ''}: {a['name']}",
+                         f"{first['title']}" + (f" + {len(items) - 1} more" if len(items) > 1 else ""), "/vendor/saved-alerts")
     await db.saved_alerts.update_one({"_id": a["_id"]}, {"$set": {"last_sent_at": now_iso()}, "$inc": {"sent_count": 1}})
 
 

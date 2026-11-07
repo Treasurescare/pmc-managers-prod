@@ -26,7 +26,8 @@ const DISMISS_TTL_MS = 7 * 24 * 3600 * 1000;
 
 function isStandalone() {
   return window.matchMedia?.("(display-mode: standalone)").matches
-      || window.navigator.standalone === true;
+      || window.navigator.standalone === true
+      || !!window.Capacitor?.isNativePlatform?.();
 }
 
 function dismissedRecently() {
@@ -115,7 +116,7 @@ export default function PwaInstallPrompt() {
           <img src="/pmc-logo.png" alt="PMC" className="w-10 h-10 shrink-0" />
           <div className="min-w-0 flex-1">
             <div className="text-[10px] uppercase tracking-[0.2em] text-brand-gold font-semibold">
-              PMC Tenders App
+              PMC Managers App
             </div>
             <div className="text-sm font-semibold mt-0.5">Install on your phone</div>
             <div className="text-[12px] text-white/70 mt-1 leading-snug">

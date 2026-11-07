@@ -979,3 +979,12 @@ summary notes.
 - Translate limit 600->2000 chars; craco devServer static watch off (inotify limit).
 - Tested iteration_172 (backend 33/34; ar page map, long text, chat links, button contrast fixed after).
 - Deleted old /app root zips v3-v20 and v60f zips (disk). Built v60h (frontend 259MB), secret scan passed.
+
+## 2026-11-07 — v60i iPhone app (App Store prep)
+- App renamed PMC Managers (bundle com.pmcmanagers.tenders, v1.0.0 build 1, iPhone only, portrait). Capacitor webDir mobile-shell (index + offline.html errorPath), server.url https://www.pmcmanagers.com, scheme pmcmanagers.
+- Info.plist rewritten: Face ID/camera/photo usage strings, arm64, ITSAppUsesNonExemptEncryption=false, remote-notification. App.entitlements (aps-environment production) + CODE_SIGN_ENTITLEMENTS; AppDelegate forwards APNs token.
+- Native features (components/NativeFeatures.jsx, native only): push registration on /vendor pages -> POST /api/v1/push/ios/register; notification tap navigates; Face ID app lock (after 60s background); native share; settings sheet. @capacitor/share added.
+- Backend routers/apns.py: push_devices (soft deactivate), send_to_vendor via APNs HTTP/2 token auth (APNS_KEY_ID/TEAM_ID/BUNDLE_ID/KEY_P8/ENV; no-op if missing). Hooked into saved-alert _send_alert.
+- Vendor E account page: "Delete my account" panel (#delete) using existing GDPR self-forget (Apple 5.1.1(v)). PWA install banner hidden in native app.
+- Deliverables: downloads/PMC-Managers-iOS.zip (ios project + vendored plugin node_modules + guide + 6 App Store screenshots 1290x2796 + listing.txt), downloads/PMC-Managers-iPhone-App-Guide.pdf. Old PMC-Tenders-iOS-project.zip removed. v60i bundles built, secret scan passed. Not tested on a device (needs Mac/Xcode).
+

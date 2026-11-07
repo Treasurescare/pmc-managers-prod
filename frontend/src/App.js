@@ -120,6 +120,7 @@ import DataDeletionE from "@/apps/notice-board-e/DataDeletionE";
 import GoogleAuthCallback from "@/apps/auth-e/GoogleAuthCallback";
 import ChatWidget from "@/components/ChatWidget";
 import LangFab from "@/components/LangFab";
+import NativeFeatures from "@/components/NativeFeatures";
 import PayComplete from "@/apps/PayComplete";
 import VendorSignaturesE from "@/apps/vendor-portal-e/VendorSignaturesE";
 import VendorCompanyKycE from "@/apps/vendor-portal-e/VendorCompanyKycE";
@@ -197,6 +198,7 @@ export default function App() {
           <UiThemeApplier />
           <ChatWidget />
           <LangFab />
+          <NativeFeatures />
           <Toaster
             richColors
             expand
