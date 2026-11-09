@@ -173,7 +173,7 @@ def render(lang, doc, tr):
     open(src, "w", encoding="utf-8").write(page)
     out = f"{D}/PMC_Master_Training_Manual_{lang}.pdf"
     with sync_playwright() as p:
-        b = p.chromium.launch()
+        b = p.chromium.launch(executable_path=os.environ.get("PW_CHROME") or None)
         pg = b.new_page()
         pg.goto(f"file://{src}", wait_until="load", timeout=120000)
         pg.evaluate("document.fonts.ready")

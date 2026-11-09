@@ -1,0 +1,26 @@
+{
+ "vendor-marketplace": {
+  "file": "/help-videos/id/vendor-marketplace.mp4",
+  "title": "Jual Produk di Marketplace",
+  "hash": "2df698bf1e3f962a",
+  "lang": "id",
+  "seconds": 130,
+  "updated": "2026-11-09"
+ },
+ "public-marketplace": {
+  "file": "/help-videos/id/public-marketplace.mp4",
+  "title": "Membeli di Marketplace",
+  "hash": "ccb73dfa2100da48",
+  "lang": "id",
+  "seconds": 72,
+  "updated": "2026-11-09"
+ },
+ "admin-marketplace": {
+  "file": "/help-videos/id/admin-marketplace.mp4",
+  "title": "Marketplace: Persetujuan, Biaya Penjualan & Pembayaran ke Penjual",
+  "hash": "7eb8b0cf9f43e203",
+  "lang": "id",
+  "seconds": 95,
+  "updated": "2026-11-09"
+ }
+}

@@ -28,6 +28,7 @@ OUT = "/app/frontend/public/help-videos" + ("" if LANG == "en" else f"/{LANG}")
 WEB = "/help-videos" + ("" if LANG == "en" else f"/{LANG}")
 MANIFEST = os.path.join(OUT, "manifest.json")
 VOICE, MODEL = "nova", "tts-1-hd"
+FRAMES = os.environ.get("PW_FRAMES") == "1"
 TAB_MAP = {"analytics": "dashboard", "l1": "l1-award", "vintel": "vendor-intel", "packages": "work-packages"}
 LOGIN = {"admin": ("/api/v1/admin/auth/login", "PMC_ADMIN_EMAIL", "PMC_ADMIN_PW"),
          "vendor": ("/api/v1/vendor/auth/login", "PMC_VENDOR_EMAIL", "PMC_VENDOR_PW")}
@@ -130,11 +131,41 @@ def dur(f):
     return float(subprocess.check_output(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", f]).strip())
 
 
+def _hold(pg, ms, frames, t0, d):
+    """Wait ms while capturing frames (FRAMES mode) instead of relying on Playwright's video recorder."""
+    if not FRAMES:
+        pg.wait_for_timeout(ms)
+        return
+    end = time.monotonic() + ms / 1000
+    while True:
+        f = os.path.join(d, f"f{len(frames):05d}.jpg")
+        pg.screenshot(path=f, type="jpeg", quality=80)
+        frames.append((time.monotonic() - t0, f))
+        left = end - time.monotonic()
+        if left <= 0:
+            break
+        pg.wait_for_timeout(int(min(400, left * 1000)))
+
+
+def _frames_video(frames, d):
+    lst = os.path.join(d, "frames.txt")
+    with open(lst, "w") as fh:
+        for i, (t, f) in enumerate(frames):
+            nxt = frames[i + 1][0] if i + 1 < len(frames) else t + 0.5
+            fh.write(f"file '{f}'\nduration {max(nxt - t, 0.04):.3f}\n")
+        fh.write(f"file '{frames[-1][1]}'\n")
+    out = os.path.join(d, "frames.mp4")
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", lst, "-vsync", "cfr", "-r", "15",
+                    "-pix_fmt", "yuv420p", "-c:v", "libx264", "-preset", "veryfast", out], check=True)
+    return out, frames[0][0]
+
+
 def record(slug, m, segs, audio, d):
+    frames = []
     with sync_playwright() as p:
-        b = p.chromium.launch()
-        ctx = b.new_context(viewport={"width": 1280, "height": 720}, record_video_dir=d,
-                            record_video_size={"width": 1280, "height": 720})
+        b = p.chromium.launch(executable_path=os.environ.get("PW_CHROME") or None)
+        rec = {} if FRAMES else {"record_video_dir": d, "record_video_size": {"width": 1280, "height": 720}}
+        ctx = b.new_context(viewport={"width": 1280, "height": 720}, **rec)
         ctx.add_init_script(f"try{{localStorage.setItem('pmc_lang','{LANG}')}}catch(e){{}}")
         login = LOGIN.get(m["surface"])
         if login:
@@ -155,11 +186,14 @@ def record(slug, m, segs, audio, d):
             length = dur(a) + 0.6
             if kind == "info":
                 pg.mouse.wheel(0, 260)
-            pg.wait_for_timeout(int(length * 1000))
-        pg.wait_for_timeout(800)
-        vid = pg.video.path()
+            _hold(pg, int(length * 1000), frames, t0, d)
+        _hold(pg, 800, frames, t0, d)
+        vid = None if FRAMES else pg.video.path()
         ctx.close()
         b.close()
+    if FRAMES:
+        vid, first = _frames_video(frames, d)
+        starts = [s - first for s in starts]
     return vid, starts
 
 
@@ -168,7 +202,7 @@ def compose(vid, starts, audio, out):
     cmd = ["ffmpeg", "-y", "-loglevel", "error", "-ss", f"{lead:.2f}", "-i", vid]
     for a in audio:
         cmd += ["-i", a]
-    fil = "".join(f"[{i + 1}:a]adelay={int((s - lead) * 1000)}:all=1[a{i}];" for i, s in enumerate(starts))
+    fil = "".join(f"[{i + 1}:a]adelay={max(0, int((s - lead) * 1000))}:all=1[a{i}];" for i, s in enumerate(starts))
     fil += "".join(f"[a{i}]" for i in range(len(audio))) + f"amix=inputs={len(audio)}:normalize=0[aout]"
     cmd += ["-filter_complex", fil, "-map", "0:v", "-map", "[aout]", "-r", "15", "-c:v", "libx264", "-preset", "veryfast",
             "-crf", "30", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "96k", "-shortest", "-movflags", "+faststart", out]

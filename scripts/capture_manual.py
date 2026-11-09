@@ -35,7 +35,9 @@ async def main():
     done = {}
     async with async_playwright() as p:
         br = await p.chromium.launch(executable_path=CHROME)
-        page = await (await br.new_context(viewport={"width": 1440, "height": 900})).new_page()
+        ctx = await br.new_context(viewport={"width": 1440, "height": 900})
+        await ctx.add_init_script("try{if(!location.pathname.match(/^\\/(fr|de|es|ru|kk|ar|hi|ms|id|ko|ja|zh-Hans|zh-Hant)(\\/|$)/))localStorage.setItem('pmc_lang','en')}catch(e){}")
+        page = await ctx.new_page()
         current = None
         for s in SCREENS:
             if s["as"] != current:

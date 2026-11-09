@@ -364,6 +364,34 @@ def c28a():
                    "Translations are made by AI and checked by native speakers in <b>Growth</b> \u2192 <b>Translation review</b>. Reviewed phrases are never overwritten by AI."])]
 
 
+@chapter("28b \u00b7 What's new: Supplier Marketplace & AI catalogue import")
+def c28b():
+    return [P("Suppliers can now sell products directly to verified buyers without running a tender. Every listing is approved by PMC first. Each part below also has a help guide and a video in the Help Centre."),
+            Paragraph("Ways to sell", SEC),
+            tbl([["Sale method", "How it works"],
+                 ["Timed auction", "Starting price, optional hidden reserve, minimum bid step and closing time. The highest bid at closing wins."],
+                 ["Best offer", "Buyers send offers until a deadline; the supplier accepts the one they want."],
+                 ["Fixed price", "Buy now at the price the supplier sets."]], [40 * mm, 140 * mm]),
+            P("A supplier can switch on any mix of the three for each product and chooses whether only verified buyer organisations, or any verified account, may take part."),
+            Paragraph("Supplier: add products (Sell products)", SEC),
+            steps(["Open <b>Sell products</b> and click <b>Add a product</b>. Enter the details, click <b>Upload photos</b> (up to 12) and <b>Attach spec sheet</b> for PDF datasheets (up to 6).",
+                   "Tick the sale methods and prices, check what you will receive after the PMC fee, then click <b>Submit for approval</b>."]),
+            Paragraph("Supplier: import a catalogue with AI", SEC),
+            steps(["Click <b>Import from a catalogue with AI</b> and choose a PDF catalogue, brochure or a JPG/PNG photo of a page (up to 25 MB; the first 30 pages are read).",
+                   "AI reads the file in 1 to 3 minutes and lists every product with its photo, a description, category, unit and specifications. Photos are taken from the PDF, or cut out of the page when the page is a scan or photo.",
+                   "For each product the supplier decides: keep it or untick it; use the AI description (and edit it) or <b>Write my own</b>; add the specifications or not; which photos to keep, add or upload; and whether to attach the catalogue PDF as a spec sheet.",
+                   "<b>Create draft listing(s)</b> saves the chosen products as drafts marked <i>set price &amp; how to sell</i>. A draft cannot be submitted until the supplier opens <b>Edit</b> and sets the sale method and price.",
+                   "AI only uses facts in the document; it never adds prices or certifications. Reading a catalogue is free unless an admin sets a fee for <b>AI catalogue reading</b> in Pricing; a failed reading is never charged."]),
+            Paragraph("Admin: approvals, fees and payouts (Marketplace)", SEC),
+            steps(["Every listing waits in <b>Admin \u2192 Marketplace</b>. Check the photos, spec sheets and prices, then <b>Approve</b> or <b>Reject</b> with a note.",
+                   "The PMC <b>sale fee</b> is a percentage or a fixed amount, or switched off. It can be waived for one listing when approving it. The listing fee is set in <b>Pricing \u2192 fee rules \u2192 Marketplace product listing</b>.",
+                   "The buyer pays PMC through a secure Stripe link from <b>My bids &amp; purchases</b>. The order shows the PMC fee and the seller's bank details; the admin pays the balance and clicks <b>Mark seller paid</b> with the transfer reference. Automatic split payouts are not switched on."]),
+            Paragraph("Buyers: the public Marketplace", SEC),
+            steps(["<b>Marketplace</b> in the top menu lists approved products with photos, spec sheets, price or current bid and closing time.",
+                   "Verified buyers bid, send an offer or click <b>Buy now</b>; purchases are paid from <b>My bids &amp; purchases</b> by <b>Pay securely</b>.",
+                   "In the iPhone app the buy and pay buttons are hidden; buyers pay on the website."])]
+
+
 @chapter("29 \u00b7 Glossary")
 def c19():
     g = [("DPR", "Detailed project report used to draft a tender"), ("EMD", "Earnest money deposit held in escrow with a bid"), ("L1", "Lowest compliant price among qualified bids"),

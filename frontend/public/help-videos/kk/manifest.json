@@ -134,5 +134,29 @@
   "lang": "kk",
   "seconds": 48,
   "updated": "2026-11-06"
+ },
+ "vendor-marketplace": {
+  "file": "/help-videos/kk/vendor-marketplace.mp4",
+  "title": "\u041c\u0430\u0440\u043a\u0435\u0442\u043f\u043b\u0435\u0439\u0441\u0442\u0435 \u04e9\u043d\u0456\u043c\u0434\u0435\u0440\u0434\u0456 \u0441\u0430\u0442\u0443",
+  "hash": "7f14b03862d97ea2",
+  "lang": "kk",
+  "seconds": 158,
+  "updated": "2026-11-09"
+ },
+ "public-marketplace": {
+  "file": "/help-videos/kk/public-marketplace.mp4",
+  "title": "\u041c\u0430\u0440\u043a\u0435\u0442\u043f\u043b\u0435\u0439\u0441\u0442\u0435 \u0441\u0430\u0442\u044b\u043f \u0430\u043b\u0443",
+  "hash": "1404c664347ea553",
+  "lang": "kk",
+  "seconds": 86,
+  "updated": "2026-11-09"
+ },
+ "admin-marketplace": {
+  "file": "/help-videos/kk/admin-marketplace.mp4",
+  "title": "\u041c\u0430\u0440\u043a\u0435\u0442\u043f\u043b\u0435\u0439\u0441: \u0431\u0435\u043a\u0456\u0442\u0443\u043b\u0435\u0440, \u0441\u0430\u0442\u0443 \u043a\u043e\u043c\u0438\u0441\u0441\u0438\u044f\u0441\u044b \u0436\u04d9\u043d\u0435 \u0442\u04e9\u043b\u0435\u043c\u0434\u0435\u0440",
+  "hash": "6cbe0ffad6df5b7f",
+  "lang": "kk",
+  "seconds": 112,
+  "updated": "2026-11-09"
  }
 }

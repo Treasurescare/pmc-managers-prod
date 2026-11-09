@@ -1,0 +1,26 @@
+{
+ "vendor-marketplace": {
+  "file": "/help-videos/zh-Hans/vendor-marketplace.mp4",
+  "title": "\u5728\u5e02\u573a\u4e0a\u9500\u552e\u4ea7\u54c1",
+  "hash": "170d085d356ba7a8",
+  "lang": "zh-Hans",
+  "seconds": 135,
+  "updated": "2026-11-09"
+ },
+ "public-marketplace": {
+  "file": "/help-videos/zh-Hans/public-marketplace.mp4",
+  "title": "\u5728\u5e02\u573a\u8d2d\u4e70\u5546\u54c1",
+  "hash": "fd6d37a057415ad7",
+  "lang": "zh-Hans",
+  "seconds": 74,
+  "updated": "2026-11-09"
+ },
+ "admin-marketplace": {
+  "file": "/help-videos/zh-Hans/admin-marketplace.mp4",
+  "title": "\u5e02\u573a\uff1a\u5ba1\u6279\u3001\u9500\u552e\u8d39\u7528\u4e0e\u4ed8\u6b3e\u7ed3\u7b97",
+  "hash": "1a9931217376c6e3",
+  "lang": "zh-Hans",
+  "seconds": 100,
+  "updated": "2026-11-09"
+ }
+}

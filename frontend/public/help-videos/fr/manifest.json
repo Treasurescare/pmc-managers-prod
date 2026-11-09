@@ -174,5 +174,29 @@
   "lang": "fr",
   "seconds": 56,
   "updated": "2026-11-06"
+ },
+ "vendor-marketplace": {
+  "file": "/help-videos/fr/vendor-marketplace.mp4",
+  "title": "Vendre des produits sur la Place de march\u00e9",
+  "hash": "087a2c90409f6004",
+  "lang": "fr",
+  "seconds": 147,
+  "updated": "2026-11-09"
+ },
+ "public-marketplace": {
+  "file": "/help-videos/fr/public-marketplace.mp4",
+  "title": "Acheter sur la Marketplace",
+  "hash": "1bf4865beeb909f4",
+  "lang": "fr",
+  "seconds": 78,
+  "updated": "2026-11-09"
+ },
+ "admin-marketplace": {
+  "file": "/help-videos/fr/admin-marketplace.mp4",
+  "title": "Place de march\u00e9 : approbations, frais de vente et paiements aux vendeurs",
+  "hash": "03d7cd9f638db30b",
+  "lang": "fr",
+  "seconds": 109,
+  "updated": "2026-11-09"
  }
 }

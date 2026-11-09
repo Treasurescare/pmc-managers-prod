@@ -1,0 +1,26 @@
+{
+ "vendor-marketplace": {
+  "file": "/help-videos/es/vendor-marketplace.mp4",
+  "title": "Venda productos en el Marketplace",
+  "hash": "59897c78ea48e902",
+  "lang": "es",
+  "seconds": 136,
+  "updated": "2026-11-09"
+ },
+ "public-marketplace": {
+  "file": "/help-videos/es/public-marketplace.mp4",
+  "title": "Comprar en el Marketplace",
+  "hash": "34160b845ca38258",
+  "lang": "es",
+  "seconds": 70,
+  "updated": "2026-11-09"
+ },
+ "admin-marketplace": {
+  "file": "/help-videos/es/admin-marketplace.mp4",
+  "title": "Marketplace: Aprobaciones, comisi\u00f3n de venta y pagos a vendedores",
+  "hash": "8483519bba6451b6",
+  "lang": "es",
+  "seconds": 101,
+  "updated": "2026-11-09"
+ }
+}

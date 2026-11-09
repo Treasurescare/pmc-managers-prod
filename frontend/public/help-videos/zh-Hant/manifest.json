@@ -182,5 +182,29 @@
   "lang": "zh-Hant",
   "seconds": 45,
   "updated": "2026-11-06"
+ },
+ "vendor-marketplace": {
+  "file": "/help-videos/zh-Hant/vendor-marketplace.mp4",
+  "title": "\u5728\u5e02\u5834\u5e73\u53f0\u92b7\u552e\u7522\u54c1",
+  "hash": "b6dafc847a827516",
+  "lang": "zh-Hant",
+  "seconds": 130,
+  "updated": "2026-11-09"
+ },
+ "public-marketplace": {
+  "file": "/help-videos/zh-Hant/public-marketplace.mp4",
+  "title": "\u5728\u5e02\u96c6\u8cfc\u8cb7",
+  "hash": "35ac5e16ef6a8382",
+  "lang": "zh-Hant",
+  "seconds": 72,
+  "updated": "2026-11-09"
+ },
+ "admin-marketplace": {
+  "file": "/help-videos/zh-Hant/admin-marketplace.mp4",
+  "title": "\u5e02\u5834\uff1a\u5be9\u6279\u3001\u92b7\u552e\u8cbb\u7528\u53ca\u8ce3\u65b9\u4ed8\u6b3e",
+  "hash": "89f43529d8f7c89a",
+  "lang": "zh-Hant",
+  "seconds": 96,
+  "updated": "2026-11-09"
  }
 }

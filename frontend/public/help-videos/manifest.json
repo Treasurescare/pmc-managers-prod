@@ -362,5 +362,29 @@
   "hash": "d2f3da9004f5378c",
   "seconds": 70,
   "updated": "2026-11-06"
+ },
+ "vendor-marketplace": {
+  "file": "/help-videos/vendor-marketplace.mp4",
+  "title": "Sell Products on the Marketplace",
+  "hash": "24d668609dbd9622",
+  "lang": "en",
+  "seconds": 114,
+  "updated": "2026-11-09"
+ },
+ "public-marketplace": {
+  "file": "/help-videos/public-marketplace.mp4",
+  "title": "Buying on the Marketplace",
+  "hash": "4d57544690082ebf",
+  "lang": "en",
+  "seconds": 60,
+  "updated": "2026-11-09"
+ },
+ "admin-marketplace": {
+  "file": "/help-videos/admin-marketplace.mp4",
+  "title": "Marketplace: Approvals, Sale Fee & Payouts",
+  "hash": "fc6adde7dfb7984b",
+  "lang": "en",
+  "seconds": 81,
+  "updated": "2026-11-09"
  }
 }

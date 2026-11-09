@@ -8,6 +8,8 @@ import { ManualLink } from "./ManualLink";
  * Only mounts when Option E theme is active.
  */
 const FAQS = [
+  { q: "Can I sell products without a tender?", a: "Yes. Approved suppliers open Sell products, add a product with photos and spec sheets, and choose timed auction, best offer or fixed price. PMC approves every listing before buyers see it.", cat: "market" },
+  { q: "Can AI read my product catalogue?", a: "Yes. In Sell products click Import from a catalogue with AI and upload a PDF, brochure or photo of a page. AI lists each product with its photo and description; you choose what to keep, edit or write your own text, and pick the photos.", cat: "market" },
   { q: "Where do I find live tenders?", a: "Open the Tenders board or use search — filter by category, country, and budget.", cat: "tenders" },
   { q: "How do I register as a supplier?", a: "Use Register on the top bar. You'll complete KYC in 4 short steps.", cat: "kyc" },
   { q: "What does the seal on each notice mean?", a: "Every notice is sealed, time-stamped, and SHA-256 chained to the audit ledger.", cat: "trust" },

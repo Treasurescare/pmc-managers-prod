@@ -1047,3 +1047,9 @@ summary notes.
 - POST /listings/bulk (atomic) creates drafts with needs_details=true; submit blocked until supplier edits price/sale mode. Listings carry photos[] + documents[{id,name}] with owner+kind checks.
 - UI: VendorMarketE "Import from a catalogue with AI" (CatalogueImportE: tick products, AI text or write own, specs, choose/upload photos, attach catalogue PDF); Add-product form photo/spec uploads (MarketMediaPicker); public gallery + spec sheet links; admin thumbnails. Tested iteration_182 (bugs fixed after: stale-closure multi-photo upload, non-atomic bulk, kind check, to_thread CPU work).
 
+
+## 2026-11-09 — v61c: Marketplace help, videos & manual
+- Help modules vendor-marketplace, public-marketplace, admin-marketplace (pmc_lib/help_content_extra.py) -> Help Centre, help drawer search, Ask PMC; 2 FAQs in PmcHelpDrawer.
+- 42 narrated videos (3 topics x 14 languages) in public/help-videos/<lang>/. make_videos.py now supports PW_FRAMES=1 (frame capture + system ffmpeg) and PW_CHROME because the Playwright video recorder fails in this pod (ffmpeg-1010 mismatch); adelay clamped >=0.
+- Manual chapter 28b + 4 screenshots (n9–n12 in manual_screens_new.json; capture_manual.py forces English). Pipeline: build_manual_v4.py -> copy to scripts/help_videos/manual_base.pdf -> manual_appendix.py -> build_manual_i18n.py. English 121 pages; 13 translated PDFs rebuilt. Demo listings seeded/cleaned via backend/tests/seed_market_manual_demo.py.
+

@@ -22,5 +22,29 @@
   "lang": "hi",
   "seconds": 82,
   "updated": "2026-11-06"
+ },
+ "vendor-marketplace": {
+  "file": "/help-videos/hi/vendor-marketplace.mp4",
+  "title": "\u092e\u093e\u0930\u094d\u0915\u0947\u091f\u092a\u094d\u0932\u0947\u0938 \u092a\u0930 \u0909\u0924\u094d\u092a\u093e\u0926 \u092c\u0947\u091a\u0947\u0902",
+  "hash": "ba168c1f422eed97",
+  "lang": "hi",
+  "seconds": 151,
+  "updated": "2026-11-09"
+ },
+ "public-marketplace": {
+  "file": "/help-videos/hi/public-marketplace.mp4",
+  "title": "\u092e\u093e\u0930\u094d\u0915\u0947\u091f\u092a\u094d\u0932\u0947\u0938 \u092a\u0930 \u0916\u0930\u0940\u0926\u093e\u0930\u0940",
+  "hash": "6efaaa211a4f48ec",
+  "lang": "hi",
+  "seconds": 82,
+  "updated": "2026-11-09"
+ },
+ "admin-marketplace": {
+  "file": "/help-videos/hi/admin-marketplace.mp4",
+  "title": "\u092e\u093e\u0930\u094d\u0915\u0947\u091f\u092a\u094d\u0932\u0947\u0938: \u0905\u0928\u0941\u092e\u094b\u0926\u0928, \u092c\u093f\u0915\u094d\u0930\u0940 \u0936\u0941\u0932\u094d\u0915 \u0914\u0930 \u092d\u0941\u0917\u0924\u093e\u0928",
+  "hash": "074d42d0a2d0a130",
+  "lang": "hi",
+  "seconds": 109,
+  "updated": "2026-11-09"
  }
 }

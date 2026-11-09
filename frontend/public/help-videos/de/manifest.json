@@ -134,5 +134,29 @@
   "lang": "de",
   "seconds": 41,
   "updated": "2026-11-06"
+ },
+ "vendor-marketplace": {
+  "file": "/help-videos/de/vendor-marketplace.mp4",
+  "title": "Produkte auf dem Marktplatz verkaufen",
+  "hash": "bbe6a725f2731a49",
+  "lang": "de",
+  "seconds": 152,
+  "updated": "2026-11-09"
+ },
+ "public-marketplace": {
+  "file": "/help-videos/de/public-marketplace.mp4",
+  "title": "Einkaufen auf dem Marktplatz",
+  "hash": "021fe4484f594e51",
+  "lang": "de",
+  "seconds": 76,
+  "updated": "2026-11-09"
+ },
+ "admin-marketplace": {
+  "file": "/help-videos/de/admin-marketplace.mp4",
+  "title": "Marktplatz: Freigaben, Verkaufsgeb\u00fchr & Auszahlungen",
+  "hash": "d0ae3389eb49cccb",
+  "lang": "de",
+  "seconds": 107,
+  "updated": "2026-11-09"
  }
 }
