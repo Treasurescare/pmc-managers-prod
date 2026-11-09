@@ -372,6 +372,8 @@ from routers import marketplace_media as _market_media  # noqa: E402
 app.include_router(_market_media.router)
 from routers import market_showcase as _market_showcase  # noqa: E402
 app.include_router(_market_showcase.router)
+from routers import market_alerts as _market_alerts  # noqa: E402
+app.include_router(_market_alerts.router)
 from routers import tender_feeds as _tender_feeds  # noqa: E402
 app.include_router(_tender_feeds.router)
 from routers import i18n_auto as _i18n_auto  # noqa: E402
@@ -841,6 +843,7 @@ async def on_start() -> None:
         await _growth.ensure_indexes()
         await _market.ensure_indexes()
         await _market_media.ensure_indexes()
+        await _market_alerts.ensure_indexes()
         await _tender_feeds.seed_sources()
         await _i18n_auto.ensure_indexes()
         await _apns.ensure_indexes()

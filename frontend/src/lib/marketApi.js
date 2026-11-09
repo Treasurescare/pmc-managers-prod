@@ -36,6 +36,10 @@ export const marketApi = {
   removeAd: (id) => api.delete(`/api/v1/admin/home-adverts/${id}`).then((r) => r.data),
   catQueue: () => g("/api/v1/admin/category-review"),
   catReview: (id, b) => p(`/api/v1/admin/category-review/${id}`, b),
+  adEvent: (id, kind) => api.post("/api/v1/market/showcase/ad-event", { id, kind }).catch(() => {}),
+  adStatsCsv: (id) => `${BACKEND_URL || ""}/api/v1/admin/home-adverts/${id}/stats?format=csv`,
+  alerts: () => g("/api/v1/market/alerts"),
+  saveAlerts: (categories) => api.put("/api/v1/market/alerts", { categories }).then((r) => r.data),
 };
 
 export const mediaUrl = (id, download) => `${BACKEND_URL || ""}/api/v1/market/media/${id}${download ? "?download=true" : ""}`;

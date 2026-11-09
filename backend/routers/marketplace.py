@@ -395,6 +395,9 @@ async def admin_decide(lid: str, body: DecisionIn, admin=Depends(require_role(*S
            "sale_fee_waived": body.waive_sale_fee, "decided_by": admin["email"], "decided_at": now_iso()}
     await db.mkt_listings.update_one({"_id": d["_id"]}, {"$set": upd})
     await audit_log("market.listing.decide", admin, "mkt_listing", lid, upd)
+    if body.action == "approve":
+        from routers.market_alerts import notify_new_listing
+        notify_new_listing({**d, **upd})
     return {"ok": True, **upd}
 
 

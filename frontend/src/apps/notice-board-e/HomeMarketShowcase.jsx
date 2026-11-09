@@ -40,6 +40,17 @@ function AdvertSlot({ ads }) {
   }
   const a = ads[i % ads.length];
   const ext = /^https:/.test(a.link_url || "");
+  return <AdCard a={a} ext={ext} ads={ads} i={i} setI={setI} />;
+}
+
+const _seen = new Set();
+
+function AdCard({ a, ext, ads, i, setI }) {
+  useEffect(() => {
+    if (_seen.has(a.id)) return;
+    _seen.add(a.id);
+    marketApi.adEvent(a.id, "view");
+  }, [a.id]);
   return (
     <div className="pmc-card" style={{ height: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }} data-testid="home-ad-slot">
       <div style={{ aspectRatio: "4 / 3", background: "var(--surface-sunken)", position: "relative" }}>
@@ -50,7 +61,7 @@ function AdvertSlot({ ads }) {
         <h3 style={{ fontSize: "22px", margin: 0 }} data-testid="home-ad-title">{a.title}</h3>
         {a.subtitle && <p className="pmc-muted" style={{ margin: 0, fontSize: "14px" }}>{a.subtitle}</p>}
         <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "auto" }}>
-          {a.link_url && <a href={a.link_url} {...(ext ? { target: "_blank", rel: "noopener noreferrer sponsored" } : {})} className="pmc-btn pmc-btn--primary pmc-btn--sm" data-testid="home-ad-cta">{a.cta_label || "Learn more"}</a>}
+          {a.link_url && <a href={a.link_url} {...(ext ? { target: "_blank", rel: "noopener noreferrer sponsored" } : {})} className="pmc-btn pmc-btn--primary pmc-btn--sm" onClick={() => marketApi.adEvent(a.id, "click")} data-testid="home-ad-cta">{a.cta_label || "Learn more"}</a>}
           {ads.length > 1 && <div style={{ display: "flex", gap: "6px", marginLeft: "auto" }}>{ads.map((x, k) => (
             <button key={x.id} type="button" aria-label={`Advert ${k + 1}`} onClick={() => setI(k)} data-testid={`home-ad-dot-${k}`}
               style={{ width: "24px", height: "24px", border: "none", background: "transparent", display: "grid", placeItems: "center", cursor: "pointer" }}>

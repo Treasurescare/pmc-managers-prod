@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import PublicChrome from "@/apps/shared/PublicChrome";
 import { useSeo } from "@/lib/useSeo";
+import { CategoryAlerts } from "./CategoryAlerts";
 import { coverOf, marketApi, mediaUrl, MODE_LABEL, money } from "@/lib/marketApi";
 import { showApiError } from "@/lib/api";
 
@@ -98,6 +99,7 @@ function Purchases() {
         </div>))}
       <h2 className="font-semibold mt-4">Bids & offers</h2>
       {d.bids.map((b) => <div key={b.id} className="text-sm mt-1"><Link className="underline" to={`/market/${b.listing_id}`}>{b.kind === "bid" ? "Bid" : "Offer"} {Number(b.amount).toLocaleString()}</Link> · {b.status || "placed"}</div>)}
+      {d.me?.kind === "buyer" && <CategoryAlerts />}
     </div>);
 }
 
@@ -113,6 +115,7 @@ export default function MarketE() {
         {id === "purchases" ? <Purchases /> : id ? <Detail id={id} /> : <>
           <h1 className="text-3xl font-semibold">Supplier Marketplace</h1>
           <p className="opacity-80 mt-1 max-w-2xl">Products offered directly by verified suppliers — bid in a timed auction, make an offer, or buy at a fixed price. Every listing is approved by PMC.</p>
+          <Link to="/market/purchases" className="text-sm underline" data-testid="market-alerts-link">Buyers: get email alerts for your categories</Link>
           <input className="pmc-input mt-4 w-full max-w-md" placeholder="Search products" value={q} onChange={(e) => setQ(e.target.value)} data-testid="market-search" />
           <div className="grid gap-4 mt-4 sm:grid-cols-2 lg:grid-cols-3" data-testid="market-grid">
             {items && items.length === 0 && <p className="opacity-70">No products are listed right now.</p>}

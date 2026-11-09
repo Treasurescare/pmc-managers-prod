@@ -95,7 +95,10 @@ def _ad_state(a: dict) -> str:
 
 @router.get("/admin/home-adverts")
 async def list_ads(admin=Depends(require_role(*STAFF))):
-    return {"items": [{**_ad_out(a), "state": _ad_state(a)} async for a in db.home_adverts.find({"deleted": {"$ne": True}}).sort([("sort", 1), ("created_at", -1)])]}
+    from routers.market_alerts import ad_totals
+    items = [{**_ad_out(a), "state": _ad_state(a)} async for a in db.home_adverts.find({"deleted": {"$ne": True}}).sort([("sort", 1), ("created_at", -1)])]
+    tot = await ad_totals([a["id"] for a in items])
+    return {"items": [{**a, **tot.get(a["id"], {"views": 0, "clicks": 0})} for a in items]}
 
 
 @router.post("/admin/home-adverts/image")

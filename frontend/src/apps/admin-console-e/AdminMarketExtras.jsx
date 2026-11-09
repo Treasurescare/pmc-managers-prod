@@ -61,7 +61,9 @@ export function HomeAdverts() {
       {items.map((a) => (
         <div key={a.id} className="pmc-panel p-3 mt-2 flex flex-wrap items-center gap-3 text-sm" data-testid={`ad-row-${a.id}`}>
           {a.image_id && <img src={mediaUrl(a.image_id)} alt="" className="w-20 h-[60px] object-cover rounded" />}
-          <div className="flex-1 min-w-[200px]"><b>{a.title}</b> <span className="text-xs opacity-70" data-testid={`ad-state-${a.id}`}>· {a.state || (a.is_active ? "active" : "off")}{a.ends_at ? ` · until ${new Date(a.ends_at).toLocaleDateString()}` : ""}</span><div className="text-xs opacity-70">{a.link_url}</div></div>
+          <div className="flex-1 min-w-[200px]"><b>{a.title}</b> <span className="text-xs opacity-70" data-testid={`ad-state-${a.id}`}>· {a.state || (a.is_active ? "active" : "off")}{a.ends_at ? ` · until ${new Date(a.ends_at).toLocaleDateString()}` : ""}</span><div className="text-xs opacity-70">{a.link_url}</div>
+            <div className="text-xs mt-1" data-testid={`ad-stats-${a.id}`}><b>{a.views || 0}</b> saw it · <b>{a.clicks || 0}</b> clicked · {a.views ? ((100 * (a.clicks || 0)) / a.views).toFixed(1) : "0.0"}% click rate
+              {" · "}<a href={marketApi.adStatsCsv(a.id)} className="underline" data-testid={`ad-report-${a.id}`}>Daily report (CSV)</a></div></div>
           <button className="pmc-btn pmc-btn--secondary pmc-btn--sm" onClick={() => setEdit(a)} data-testid={`ad-edit-${a.id}`}>Edit</button>
           <button className="pmc-btn pmc-btn--secondary pmc-btn--sm" onClick={() => remove(a.id)} data-testid={`ad-remove-${a.id}`}>Remove</button>
         </div>))}
