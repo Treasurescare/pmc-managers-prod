@@ -29,6 +29,13 @@ export const marketApi = {
   getImport: (id) => g(`/api/v1/market/catalogue/import/${id}`),
   bulk: (items) => p("/api/v1/market/listings/bulk", { items }),
   addCategory: (name) => p("/api/v1/market/categories", { name }),
+  showcase: () => g("/api/v1/market/showcase"),
+  ads: () => g("/api/v1/admin/home-adverts"),
+  adImage: (file) => { const fd = new FormData(); fd.append("file", file); return api.post("/api/v1/admin/home-adverts/image", fd, { timeout: 180000 }).then((r) => r.data); },
+  saveAd: (id, b) => (id ? api.put(`/api/v1/admin/home-adverts/${id}`, b).then((r) => r.data) : p("/api/v1/admin/home-adverts", b)),
+  removeAd: (id) => api.delete(`/api/v1/admin/home-adverts/${id}`).then((r) => r.data),
+  catQueue: () => g("/api/v1/admin/category-review"),
+  catReview: (id, b) => p(`/api/v1/admin/category-review/${id}`, b),
 };
 
 export const mediaUrl = (id, download) => `${BACKEND_URL || ""}/api/v1/market/media/${id}${download ? "?download=true" : ""}`;

@@ -36,7 +36,7 @@ rows = [
      "photos": [pics[0]], "sale_modes": ["auction"], "start_price": 4000, "buy_now_price": None,
      "closes_at": (now + timedelta(days=14)).isoformat(), "status": "live"},
     {**base, "title": "Demo: Stainless piping skid", "description": "Demo listing for the training manual. Pre-assembled piping skid with valves.",
-     "photos": [pics[1]], "sale_modes": ["fixed", "offer"], "start_price": None, "buy_now_price": 12500,
+     "photos": [pics[1]], "sale_modes": ["fixed", "best_offer"], "start_price": None, "buy_now_price": 12500,
      "closes_at": (now + timedelta(days=10)).isoformat(), "status": "live"},
     {**base, "title": "Demo: Pump spare parts kit", "description": "Demo listing waiting for approval.", "photos": [pics[0]],
      "sale_modes": ["fixed"], "start_price": None, "buy_now_price": 900, "closes_at": None, "status": "pending"},

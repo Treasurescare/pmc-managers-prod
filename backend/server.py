@@ -370,6 +370,8 @@ from routers import marketplace as _market  # noqa: E402
 app.include_router(_market.router)
 from routers import marketplace_media as _market_media  # noqa: E402
 app.include_router(_market_media.router)
+from routers import market_showcase as _market_showcase  # noqa: E402
+app.include_router(_market_showcase.router)
 from routers import tender_feeds as _tender_feeds  # noqa: E402
 app.include_router(_tender_feeds.router)
 from routers import i18n_auto as _i18n_auto  # noqa: E402

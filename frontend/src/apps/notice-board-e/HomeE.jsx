@@ -14,6 +14,7 @@ import FeaturedProgramme, { useFeaturedProgramme } from "@/apps/notice-board-e/F
 import { useSeo } from "@/lib/useSeo";
 import GlobalPresence from "@/apps/notice-board-e/GlobalPresence";
 import LaunchBanner from "@/apps/notice-board-e/LaunchBanner";
+import HomeMarketShowcase from "@/apps/notice-board-e/HomeMarketShowcase";
 
 const ORG_LD = { "@context": "https://schema.org", "@graph": [
   { "@type": "Organization", name: "PMC Managers Limited", url: "https://www.pmcmanagers.com", logo: "https://www.pmcmanagers.com/pmc-logo.png", email: "tenders@pmcmanagers.com" },
@@ -129,6 +130,8 @@ export default function HomeE({ legacy: Legacy }) {
 </section>
 
 <TenderAlertsSignup />
+
+<HomeMarketShowcase />
 
 <section className="pmc-wrap" style={{ padding: "72px 0 8px" }} data-testid="home-two-paths">
   <div className="pmc-eyebrow">One grid, two sides</div>

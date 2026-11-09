@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import AdminEShell from "./AdminEShell";
 import { marketApi, mediaUrl, MODE_LABEL, money } from "@/lib/marketApi";
 import { showApiError } from "@/lib/api";
+import { CategoryReviewQueue, HomeAdverts } from "./AdminMarketExtras";
 
 function FeeSettings() {
   const [s, setS] = useState(null);
@@ -86,6 +87,8 @@ export default function AdminMarketE() {
         <h1 className="text-2xl font-semibold mb-3">Supplier marketplace</h1>
         <FeeSettings />
         <Approvals />
+        <CategoryReviewQueue />
+        <HomeAdverts />
         <Orders />
       </AdminEShell>
     </div>);

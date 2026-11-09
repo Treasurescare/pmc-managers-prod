@@ -8,6 +8,7 @@ import DemoModeTab from "./masters/DemoModeTab";
 import RatingCriteriaTab from "./masters/RatingCriteriaTab";
 import FeeCharger from "./masters/FeeCharger";
 import CategoriesTab from "./masters/CategoriesTab";
+import { CategoryReviewQueue } from "../admin-console-e/AdminMarketExtras";
 import TaxonomyTab from "./masters/TaxonomyTab";
 import CurrenciesTab from "./masters/CurrenciesTab";
 import CountryCurrenciesTab from "./masters/CountryCurrenciesTab";
@@ -240,7 +241,7 @@ export default function MastersPanel() {
 
       {tab === "fees" && <FeeCharger />}
 
-      {tab === "categories" && <CategoriesTab />}
+      {tab === "categories" && <><CategoryReviewQueue /><CategoriesTab /></>}
       {tab === "sectors" && <TaxonomyTab kind="sector" label="Sector" />}
       {tab === "contract_types" && <TaxonomyTab kind="contract_type" label="Contract type" />}
       {tab === "currencies" && <CurrenciesTab />}
