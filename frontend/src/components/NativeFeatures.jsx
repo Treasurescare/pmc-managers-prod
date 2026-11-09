@@ -29,7 +29,7 @@ async function faceId() {
 }
 
 const LockScreen = ({ onOpen }) => (
-  <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-6 bg-[#162921] text-white" data-testid="app-lock-screen">
+  <div className="fixed inset-0 z-[2000] flex flex-col items-center justify-center gap-6 bg-[#162921] text-white" data-testid="app-lock-screen">
     <img src="/pmc-logo-mark.png" alt="PMC Managers" className="w-20 h-20" />
     <div className="text-lg">PMC Managers is locked</div>
     <button className="pmc-btn pmc-btn--brass" onClick={onOpen} data-testid="app-unlock-btn">Unlock with Face ID</button>
@@ -87,9 +87,9 @@ export default function NativeFeatures() {
     <>
       {locked && <LockScreen onOpen={unlock} />}
       {open && <Settings lock={lock} setLock={setLock} onPush={onPush} onClose={() => setOpen(false)} />}
-      <div className="fixed z-[60] flex flex-col gap-2" style={{ left: 12, bottom: 70 }}>
+      {!/^\/(login|signin)/.test(pathname) && <div className="fixed z-[60] flex flex-col gap-2" style={{ left: 12, bottom: 70 }}>
         <button aria-label="Share this page" onClick={share} className="w-11 h-11 rounded-full bg-[#162921] text-[#d9bd72] shadow" data-testid="app-share-btn">⇪</button>
         <button aria-label="App settings" onClick={() => setOpen(true)} className="w-11 h-11 rounded-full bg-[#162921] text-[#d9bd72] shadow" data-testid="app-settings-btn">⚙</button>
-      </div>
+      </div>}
     </>);
 }

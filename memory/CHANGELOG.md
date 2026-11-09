@@ -1024,5 +1024,8 @@ summary notes.
 - Added global exception handler (JSON detail "Server error (Type): msg" + logged traceback) and NUL-byte strip before LLM. Next: customer retries on v60n and sends the new message.
 - AI tools "Your recent reports": clicking now scrolls to the opened report; each report has Download (.txt) and Print / Save as PDF.
 - ROOT CAUSE of prod AI 500: "ModuleNotFoundError: emergentintegrations" — tender_pro._llm_complete (AI summary, readiness, Ask PMC, tender drafting), i18n_auto (translations) and proof_ai imported emergentintegrations, which is not installed on AWS. Switched to vendored pmc_lib.llm.chat; pmc_lib now treats sk-emergent- keys as managed and routes to integrations.emergentagent.com when INTEGRATION_PROXY_URL is unset. Verified preview: summary 200, Ask PMC reply. Bundle pmc-backend-v60n2.zip (Dockerfile unchanged).
-- PdfStreamError on iPhone upload (truncated/iCloud placeholder PDF): _extract_text_from_upload now checks %PDF header, pypdf strict=False, per-page tolerance, friendly 400 messages. Bundle pmc-backend-v60n3.zip. Known: AI tool buttons would be hidden in-app if AI prices > 0 (currently free).
+- PdfStreamError on iPhone upload (truncated/iCloud placeholder PDF): _extract_text_from_upload now checks %PDF header, pypdf strict=False, per-page tolerance, friendly 400 messages. Bundle pmc-backend-v60n3.zip.
+
+## 2026-11-09 — v60o: dark screen after account deletion (native)
+- Cause: post-delete reload re-engaged Face ID lock screen (pref pmc.faceid=1). Fix: deletion removes pmc.faceid; lock never shown on /login|/signin; lock z-index 2000 (covers header); floating ⇪/⚙ hidden on sign-in pages. Tested iteration_177 (5/5). Known: AI tool buttons would be hidden in-app if AI prices > 0 (currently free).
 

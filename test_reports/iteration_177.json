@@ -1,0 +1,28 @@
+{
+  "summary": "Frontend-only test, 390x844, of the fix for the dark screen after account deletion in the native app (Face ID lock). All 5 requested items PASS. Native mode was simulated with an init script that sets window.Capacitor using accessor properties so @capacitor/core cannot overwrite them. The plain mock from the brief, window.Capacitor={isNativePlatform:()=>true,...}, gets overwritten by @capacitor/core 8.5 (createCapacitor reassigns cap.isNativePlatform), which makes native() false. Preferences still used the web/localStorage implementation, so the pref was the key CapacitorStorage.pmc.faceid. Results: (1) With the pref set to 1, a full reload of /vendor shows app-lock-screen ('PMC Managers is locked'), so there is no regression. (2) With the pref set to 1, /login and /login?deleted=1 show no lock screen, the sign-in-e page is visible, and on ?deleted=1 the toast 'Your account has been deleted' shows. (3) Full flow: a TEST_ vendor was inserted into the DB and logged in, the pref was set to 1, then /vendor/account > vendor-gdpr-open > password > ack > Delete permanently. This lands on /login?deleted=1 with the sign-in page and toast visible and no lock screen, and the localStorage key CapacitorStorage.pmc.faceid is removed (null). Logging in again with the same credentials shows 'Sign-in failed for the Supplier portal'. (4) app-share-btn and app-settings-btn render in native mode, both before and after deletion. (5) In web mode (no mock), /login?deleted=1 shows the toast, with no lock screen and no share/settings buttons.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "NativeFeatures LockScreen", "issue": "Existing issue, not a regression: the vendor portal top bar (logo, bell, avatar, 'Sign out') renders ABOVE the Face ID lock screen (z-[100]). The header has a higher z-index, so while the app is 'locked' the user can still see and tap the header controls. Raise the lock screen z-index (for example z-[2000]) so it covers everything.", "selector": "[data-testid='app-lock-screen']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/login in native mode (390x844)", "issues": ["The floating app-share-btn and app-settings-btn (fixed left:12px, bottom:70px) overlap the left edge of the password input and the Continue button on the sign-in form."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/seed_test_vendor_t177.py"],
+  "action_items": [
+    "Optional: raise the LockScreen z-index above the vendor portal header so the lock covers the whole screen",
+    "Optional: move or hide the native share/settings floating buttons on /login so they don't overlap the form fields"
+  ],
+  "critical_code_review_comments": [
+    "VendorAccountE onSuccess: Preferences.remove({key:'pmc.faceid'}) is not awaited before window.location.replace. It works today because the web implementation removes the key synchronously, but on native iOS the bridge call is async and may not finish before the reload. Add await. The /login signedOut guard covers this anyway.",
+    "NativeFeatures computes signedOut only once, on mount, from window.location.pathname. Correct for the post-delete reload. Note that after a password sign-in via SPA navigation the lock does not engage until the next reload or a background period over 60s, which is acceptable."
+  ],
+  "updated_files": ["/app/backend/tests/seed_test_vendor_t177.py (new helper to create and clean the TEST vendor)"],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "100%"},
+  "seed_data_creation": "Created TEST_ vendor test_gdpr_t177@example.com (VEN-TGDPR177, cloned from the testvendor doc) directly in db.vendors, deleted it via GDPR in the UI, then removed the anonymised doc by _id 6af182fed0dcf1d74ee4d785. No residual data. testvendor was not touched.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "To mock native Capacitor, use accessor props so @capacitor/core can't overwrite them: const c={};Object.defineProperty(c,'isNativePlatform',{get:()=>()=>true,set:()=>{},configurable:true});Object.defineProperty(c,'getPlatform',{get:()=>()=>'ios',set:()=>{},configurable:true});window.Capacitor=c; The Face ID pref is localStorage 'CapacitorStorage.pmc.faceid'. To reach /vendor/account while the lock is on, set the pref to '0', load the page, then set it back to '1'. TEST vendor helper: python /app/backend/tests/seed_test_vendor_t177.py create|clean <oid>."
+}
