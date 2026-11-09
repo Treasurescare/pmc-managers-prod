@@ -66,8 +66,10 @@ export default function VendorCategories() {
   const masterHits = master.filter((c) =>
     (!query || (c.name + " " + (c.unspsc_code || "")).toLowerCase().includes(query.toLowerCase()))
   );
-  const seen = new Set(masterHits.map((c) => c.name.toLowerCase()));
-  const available = [...masterHits, ...unspsc.filter((c) => c.name && !seen.has(c.name.toLowerCase()))]
+    const seen = new Set(masterHits.map((c) => c.name.toLowerCase()));
+    const seenCodes = new Set();
+    const uniqUnspsc = unspsc.filter((c) => c.name && !seen.has(c.name.toLowerCase()) && !seenCodes.has(c.code) && seenCodes.add(c.code));
+  const available = [...masterHits, ...uniqUnspsc]
     .filter((c) => !approvedSet.has(c.name.toLowerCase()) && !pendingCodes.has(c.code));
   useEffect(() => {
     const add = new URLSearchParams(window.location.search).get("add");

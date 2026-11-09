@@ -299,7 +299,7 @@ async def admin_update_vendor_full(vendor_ref: str, payload: "VendorProfilePatch
     vendor portal". Open to vendors in any status; the admin is authoritative.
     """
     v = await db.vendors.find_one({"vendor_ref": vendor_ref,
-                                     "tenant_id": admin["tenant_id"]})
+                                     "$or": [{"tenant_id": admin["tenant_id"]}, {"tenant_id": {"$exists": False}}]})
     if not v:
         raise HTTPException(status_code=404, detail="Vendor not found")
 
@@ -316,8 +316,10 @@ async def admin_update_vendor_full(vendor_ref: str, payload: "VendorProfilePatch
         updates["profile"] = current
         if payload.profile.get("business_categories") is not None:
             from routers._fees import category_names
-            updates["business_categories"] = category_names(
-                list(v.get("business_categories") or []) + list(payload.profile["business_categories"]))
+            new = category_names(payload.profile["business_categories"])
+            removed = {c.lower() for c in category_names((v.get("profile") or {}).get("business_categories"))} - {c.lower() for c in new}
+            updates["business_categories"] = [c for c in category_names(list(v.get("business_categories") or []) + new)
+                                               if c.lower() not in removed]
     # Extras pass-through for forward-compat fields the Admin UI may send.
     for k, val in (payload.model_extra or {}).items():
         if k in ("id", "_id", "password_hash", "magic_token", "tenant_id",

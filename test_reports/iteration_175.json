@@ -1,0 +1,38 @@
+{
+  "summary": "Tested the 'Wind generators' category bug fix end to end: backend pytest (13 tests) plus Playwright UI runs for admin Section D save, the vendor /vendor/categories picker, ?add= pre-fill, notice upsell panel, and the supplier dashboard. Both root-cause fixes work. (1) Admin edit full profile turns {code,title} into a title string and copies it to the top-level vendor.business_categories. After that, /categories/mine lists 'Wind generators' as approved, /me returns it, category-interest returns registered=true, and the POST /bids category gate no longer returns 403 category_not_registered. (2) The picker searches the UNSPSC master: 'wind' and 'wind generators' both show 26111603 Wind generators. The notice 'Add this category' link opens /vendor/categories?add=Wind%20generators with the search pre-filled and the row auto-selected. Request category creates a pending request (first one free), the row then disappears from the picker, and the notice shows 'with PMC for approval'. A duplicate request returns 409, an already-approved name (any case) returns 409, an unknown code or a code/title mismatch returns 400, and category master entries can still be requested. Admin approval adds the category and the bid gate then passes. Not done: a full sealed-envelope bid submission; the gate was checked with a price-0 POST that clears the category check and then fails price validation, so no bid is created.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "PATCH /api/v1/vendors/admin/{vendor_ref}/full", "issue": "business_categories is a union of the existing top-level list and the Section D list. A category the admin removes in Section D stays in vendor.business_categories, so the vendor can still bid in it. Test test_admin_removal_in_section_d_not_synced fails on purpose to show this. Decide whether this is intended; if not, replace the list on the admin path or remove the categories dropped from the profile."},
+      {"endpoint": "PATCH /api/v1/vendors/admin/{vendor_ref}/full", "issue": "Preview seed account testvendor@pmcmanagers.com (VEN-TEST01) has no tenant_id. The admin endpoint filters on tenant_id, so admin full edit returns 404 'Vendor not found' for testvendor, and the customer flow cannot be reproduced on that account in preview. This is a seed-data problem, but any production vendor without a tenant_id would hit the same 404."},
+      {"endpoint": "data backfill", "issue": "The sync only runs when an admin saves the profile. The customer's vendor must be saved again, or a one-off backfill run, before the fix applies to them. Preview has 0 unsynced vendors; production was not checked."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "VendorCategories picker", "issue": "The UNSPSC master has class-level and commodity-level rows with the same code (e.g. 26132000 'Onshore wind farm machinery and equipment'). The picker shows that row twice and React logs 'Encountered two children with the same key'. Both radios share code, so selecting one checks both. Remove duplicate codes from the unspsc list (or the public search) before merging.", "selector": "[data-testid='pick-26132000']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin > Vendors > Edit > Section D", "issues": ["Admins share SectionD's limit of one category (a toast blocks adding a second). To give a vendor 'Wind generators' when it already has a category, the admin has to remove the existing one first. It still counts because of the union merge, which is confusing. Consider lifting the limit for the admin console."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v175_vendor_category_sync.py", "/app/backend/tests/ui_v175_seed.py", "/app/test_reports/pytest/pytest_v175.xml"],
+  "action_items": [
+    "Decide what happens when an admin removes a category in Section D. Today the union merge keeps it in vendor.business_categories.",
+    "Remove duplicate UNSPSC codes from the VendorCategories picker (duplicate React key, double-checked radios).",
+    "Give the preview testvendor (VEN-TEST01) a tenant_id, or relax the tenant filter, so admin full edit works for it.",
+    "Run a one-off backfill so existing vendors' profile.business_categories reach top-level business_categories without an admin re-save (the customer's vendor in production)."
+  ],
+  "critical_code_review_comments": [
+    "bids.py checks categories with its own inline comprehension instead of _fees.category_names(); it ignores a 'code' fallback and could drift from my_categories and category_interest. Reuse category_names().",
+    "category_interest looks up a pending request by exact category_name; a request made under a master alias name would not be found and the upsell would fire again.",
+    "In VendorCategories, the pending filter is by code only. A master entry and a UNSPSC row for the same concept have different codes, so both can be requested."
+  ],
+  "updated_files": ["/app/backend/tests/test_v175_vendor_category_sync.py", "/app/backend/tests/ui_v175_seed.py"],
+  "success_rate": {"backend": "85% (11/13; 2 failures are the design and seed findings above, not regressions)", "frontend": "100% of requested flows"},
+  "seed_data_creation": "Temporary TEST-VCS-* and TEST-VCSUI-01 vendors, TEST-WIND-* and TEST-WINDUI-01 published notices, and their category requests, messages and notifications. All deleted afterwards. testvendor business_categories unchanged (HVAC).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && set -a && . ./.env && . /app/frontend/.env && set +a && python -m pytest tests/test_v175_vendor_category_sync.py -n 0. Login is unified (signin-role-supplier/admin, signin-e-email/password/submit). For UI, use tests/ui_v175_seed.py setup|reset|cleanup. Admin edit route: /admin/vendors/TEST-VCSUI-01/edit, then step d and f-categories-input."
+}

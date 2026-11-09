@@ -827,6 +827,12 @@ async def on_start() -> None:
         await _tender_feeds.seed_sources()
         await _i18n_auto.ensure_indexes()
         await _apns.ensure_indexes()
+        from routers._fees import category_names as _cat_names
+        async for _v in db.vendors.find({"profile.business_categories.0": {"$exists": True}},
+                                        {"business_categories": 1, "profile.business_categories": 1}):
+            _merged = _cat_names(list(_v.get("business_categories") or []) + list(_v["profile"]["business_categories"]))
+            if _merged != list(_v.get("business_categories") or []):
+                await db.vendors.update_one({"_id": _v["_id"]}, {"$set": {"business_categories": _merged}})
         await _whatsapp.ensure_indexes()
         await db.opening_records.create_index("code", unique=True)
         await _agents.ensure_indexes()

@@ -1005,5 +1005,10 @@ summary notes.
 - Root cause of prod 403: AWS WAF AWSManagedRulesCommonRuleSet#CrossSiteScripting_BODY on raw image bytes (CloudFront free plan; custom rules not allowed).
 - Fix: frontend api.js interceptor sends every FormData upload to own /api as base64 JSON (X-PMC-Upload: b64); backend b64_upload.py ASGI middleware rebuilds multipart (inside CORS). All UploadFile endpoints unchanged; legacy multipart still works. Tested iteration_174 (16/16 backend, md5-identical round trips).
 - Registration doc uploads: allow-list pdf/jpg/jpeg/png/doc/docx (client + server 400).
-- Customer deploys website via CloudShell one-liner (bucket pmc-managers-frontend-prod, CloudFront E2WZT1TMQ0EK9W); build stamp now v60k. Known: AI tool buttons would be hidden in-app if AI prices > 0 (currently free).
+- Customer deploys website via CloudShell one-liner (bucket pmc-managers-frontend-prod, CloudFront E2WZT1TMQ0EK9W); build stamp now v60k.
+
+## 2026-11-09 — v60l: vendor category bug ("Wind generators")
+- Root causes: admin Edit full profile saved Section D categories only into vendor.profile.business_categories (bid gate reads top-level business_categories); category_interest stringified dicts; vendor /vendor/categories picker only listed db.categories master (no UNSPSC commodities); request_category rejected non-master codes.
+- Fixes: _fees.category_names(); admin_update_vendor_full syncs profile -> top-level (removals honoured) and no longer 404s vendors without tenant_id; startup backfill; picker searches UNSPSC (deduped) + ?add= prefill/auto-select; request accepts UNSPSC code+title or a published tender's category; admin Section D no 1-category limit (adminMode). Tested iteration_175.
+- Main tender document label in Notice edit modal now says needed to publish. Known: AI tool buttons would be hidden in-app if AI prices > 0 (currently free).
 

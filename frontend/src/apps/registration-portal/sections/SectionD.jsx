@@ -23,7 +23,7 @@ import { contractTypeOptions } from "@/components/taxonomy";
  *  - Country-specific license uploads (CountryLicenseSlots) stay for the
  *    actual country the vendor registered under + every office country.
  */
-export default function SectionD({ reg, update, kzMeta, regId, token, onDocChange, ensureDraft }) {
+export default function SectionD({ reg, update, kzMeta, regId, token, onDocChange, ensureDraft, adminMode = false }) {
   const { t } = useI18n();
   const slots = [
     ["signed_declaration", { label: t("section_d.doc_signed_declaration"), required: false }],
@@ -112,7 +112,7 @@ export default function SectionD({ reg, update, kzMeta, regId, token, onDocChang
         <UnspscMultiPicker
           value={businessCategories}
           onChange={(next) => {
-            if ((next || []).length > 1) {
+            if (!adminMode && (next || []).length > 1) {
               toast.error("Registration is free for one category. For every additional category a payment needs to be made — add more after approval from My categories.");
               return;
             }

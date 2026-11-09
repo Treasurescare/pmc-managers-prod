@@ -193,7 +193,7 @@ export default function AdminVendorCreate() {
   ];
 
   const sectionProps = { reg, update, regId: draftId, token: draftToken,
-                          onDocChange, ensureDraft, countries };
+                          onDocChange, ensureDraft, countries, adminMode: true };
 
   return (
     <div className="min-h-screen bg-brand-pale flex flex-col" data-testid="admin-vendor-create">

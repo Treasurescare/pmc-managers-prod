@@ -123,7 +123,7 @@ export default function AdminVendorEdit() {
   ];
 
   const sectionProps = { reg, update, regId: null, token: null,
-                          onDocChange, ensureDraft, countries };
+                          onDocChange, ensureDraft, countries, adminMode: true };
 
   const statusBadge = () => {
     if (vendor.is_active && vendor.email_verified) return <span className="px-2 py-0.5 text-[10px] uppercase tracking-widest bg-emerald-100 text-emerald-800 border border-emerald-300">Active</span>;
