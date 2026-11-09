@@ -5,6 +5,7 @@ import { marketApi, mediaUrl } from "@/lib/marketApi";
 import { payNeeded } from "@/lib/growthApi";
 import { showApiError } from "@/lib/api";
 import { PhotoStrip } from "./MarketMediaPicker";
+import { CategoryPicker } from "./MarketFormPickers";
 
 const toItem = (p, i) => ({ key: i, include: true, title: p.title, aiText: p.description, description: p.description, ownText: false,
   category: p.category, unit: p.unit, specs: p.specs || [], addSpecs: (p.specs || []).length > 0, page: p.page, photos: p.photos || [], attachCat: true });
@@ -27,7 +28,7 @@ function ProductCard({ it, set, pageImages, hasCat }) {
         <input type="checkbox" checked={it.addSpecs} onChange={(e) => set({ addSpecs: e.target.checked })} data-testid={`cat-specs-${it.key}`} />
         <span>Add specifications: {it.specs.join(" · ")}</span></label>}
       <div className="grid grid-cols-2 gap-2">
-        <input className="pmc-input" placeholder="Category" value={it.category} onChange={(e) => set({ category: e.target.value })} data-testid={`cat-category-${it.key}`} />
+        <CategoryPicker value={it.category} onChange={(v) => set({ category: v })} testid={`cat-category-${it.key}`} />
         <input className="pmc-input" placeholder="Unit" value={it.unit} onChange={(e) => set({ unit: e.target.value })} data-testid={`cat-unit-${it.key}`} />
       </div>
       <div className="text-xs opacity-80">Photos for this listing (remove any you don't want, or upload your own)</div>

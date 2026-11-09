@@ -1,13 +1,17 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import VendorPortalChrome from "./VendorPortalChrome";
 import { marketApi, MODE_LABEL, money } from "@/lib/marketApi";
 import { payNeeded } from "@/lib/growthApi";
 import { showApiError } from "@/lib/api";
 import { DocList, PhotoStrip } from "./MarketMediaPicker";
+import { CategoryPicker, LocationPicker } from "./MarketFormPickers";
+import { AiFillButton } from "./AiFillButton";
+import { CurrencySelect } from "@/components/CurrencySelect";
 import CatalogueImportE from "./CatalogueImportE";
 
 const EMPTY = { title: "", description: "", category: "", quantity: 1, unit: "lot", currency: "USD", location: "", image_url: "", photos: [], documents: [],
+  country_code: "", state_code: "", state_name: "", city: "", zip: "",
   sale_modes: ["auction"], start_price: "", reserve_price: "", min_increment: 1, buy_now_price: "", closes_at: "", eligibility: "verified_buyers" };
 
 const toBody = (f) => ({ ...f, quantity: Number(f.quantity) || 1, min_increment: Number(f.min_increment) || 1,
@@ -23,6 +27,7 @@ function ListingForm({ initial, onSaved, onCancel }) {
   const [f, setF] = useState(initial || EMPTY);
   const set = (k, v) => setF((x) => ({ ...x, [k]: v }));
   const toggle = (m) => set("sale_modes", f.sale_modes.includes(m) ? f.sale_modes.filter((x) => x !== m) : [...f.sale_modes, m]);
+  const onCurrency = useCallback((v) => setF((x) => ({ ...x, currency: v })), []);
   const save = async () => {
     try {
       if (f.id) await marketApi.update(f.id, toBody(f)); else await marketApi.create(toBody(f));
@@ -31,16 +36,21 @@ function ListingForm({ initial, onSaved, onCancel }) {
     } catch (e) { showApiError(e); }
   };
   const inp = (k, type = "text", extra = {}) => <input type={type} className="pmc-input w-full" value={f[k] ?? ""} onChange={(e) => set(k, e.target.value)} data-testid={`mkt-f-${k}`} {...extra} />;
+  const aiFill = useCallback((p, doc) => setF((x) => ({ ...x, title: p.title || x.title, unit: p.unit || x.unit, category: p.category || x.category,
+    description: [p.description, (p.specs || []).length ? `Specifications:\n${p.specs.map((s) => `• ${s}`).join("\n")}` : ""].filter(Boolean).join("\n\n") || x.description,
+    photos: [...new Set([...(x.photos || []), ...(p.photos || [])])].slice(0, 12),
+    documents: doc && !(x.documents || []).some((d) => d.id === doc.id) ? [...(x.documents || []), doc].slice(0, 6) : x.documents })), []);
   return (
     <section className="pmc-panel p-4 mt-4 grid gap-3 md:grid-cols-2" data-testid="mkt-listing-form">
+      <AiFillButton onFill={aiFill} />
       <Field label="Product title *">{inp("title")}</Field>
-      <Field label="Category">{inp("category")}</Field>
+      <Field label="Category"><CategoryPicker value={f.category} onChange={(v) => set("category", v)} /></Field>
       <div className="md:col-span-2"><Field label="Description"><textarea className="pmc-input w-full" rows={4} value={f.description} onChange={(e) => set("description", e.target.value)} data-testid="mkt-f-description" /></Field></div>
       <Field label="Quantity">{inp("quantity", "number", { min: 0 })}</Field>
       <Field label="Unit (e.g. lot, unit, tonne)">{inp("unit")}</Field>
-      <Field label="Currency (3 letters)">{inp("currency")}</Field>
-      <Field label="Location">{inp("location")}</Field>
-      <div className="md:col-span-2"><Field label="Product photos (up to 12)"><PhotoStrip photos={f.photos || []} onChange={(fn) => setF((x) => ({ ...x, photos: fn(x.photos || []) }))} /></Field></div>
+      <Field label="Currency"><CurrencySelect country={f.country_code} value={f.currency} onChange={onCurrency} preserveInitial={!!f.id} testId="mkt-f-currency" className="pmc-input w-full" /></Field>
+      <div className="md:col-span-2"><Field label="Where is the product? (country → state → city → ZIP)"><LocationPicker f={f} setF={setF} /></Field></div>
+      <div className="md:col-span-2"><Field label="Product photos (up to 12 · framed to 4:3, 1200 × 900)"><PhotoStrip photos={f.photos || []} onChange={(fn) => setF((x) => ({ ...x, photos: fn(x.photos || []) }))} /></Field></div>
       <div className="md:col-span-2"><Field label="Spec sheets / brochures (PDF, up to 6)"><DocList docs={f.documents || []} onChange={(fn) => setF((x) => ({ ...x, documents: fn(x.documents || []) }))} /></Field></div>
       <div className="md:col-span-2"><Field label="Or a photo link (optional)">{inp("image_url", "url")}</Field></div>
       <div className="md:col-span-2">

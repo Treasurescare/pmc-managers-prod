@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { FileText, ImagePlus, Paperclip, X } from "lucide-react";
 import { marketApi, mediaUrl } from "@/lib/marketApi";
 import { showApiError } from "@/lib/api";
+import { PhotoCropDialog } from "./PhotoCropDialog";
 
 function useUpload(kind, onDone) {
   const [busy, setBusy] = useState(false);
@@ -15,17 +16,20 @@ function useUpload(kind, onDone) {
 
 export function PhotoStrip({ photos, onChange, testid = "mkt-photos" }) {
   const ref = useRef();
+  const [queue, setQueue] = useState([]);
   const [busy, upload] = useUpload("photo", (m) => onChange((p) => [...p, m.id].slice(0, 12)));
+  const next = (f) => { setQueue((q) => q.slice(1)); upload([f]); };
   return (
     <div className="flex flex-wrap gap-2 items-center" data-testid={testid}>
       {photos.map((id) => (
         <div key={id} className="relative">
-          <img src={mediaUrl(id)} alt="" className="w-20 h-20 object-cover rounded border border-white/20" />
+          <img src={mediaUrl(id)} alt="" className="w-24 h-[72px] object-cover rounded border border-white/20" />
           <button type="button" className="absolute -top-2 -right-2 bg-black/80 text-white rounded-full p-0.5" onClick={() => onChange((p) => p.filter((x) => x !== id))} aria-label="Remove photo" data-testid={`${testid}-remove-${id}`}><X size={14} /></button>
         </div>))}
       {photos.length < 12 && <button type="button" className="pmc-btn pmc-btn--secondary pmc-btn--sm" onClick={() => ref.current?.click()} disabled={busy} data-testid={`${testid}-add`}>
         <ImagePlus size={14} className="inline mr-1" />{busy ? "Uploading…" : "Upload photos"}</button>}
-      <input ref={ref} type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onChange={(e) => { upload([...e.target.files]); e.target.value = ""; }} data-testid={`${testid}-input`} />
+      <input ref={ref} type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onChange={(e) => { setQueue([...e.target.files].slice(0, 12 - photos.length)); e.target.value = ""; }} data-testid={`${testid}-input`} />
+      <PhotoCropDialog file={queue[0]} onDone={next} onSkip={() => next(queue[0])} />
     </div>);
 }
 

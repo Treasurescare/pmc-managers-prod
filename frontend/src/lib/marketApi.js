@@ -28,6 +28,7 @@ export const marketApi = {
   startImport: (file) => { const fd = new FormData(); fd.append("file", file); return api.post("/api/v1/market/catalogue/import", fd, { timeout: 300000 }).then((r) => r.data); },
   getImport: (id) => g(`/api/v1/market/catalogue/import/${id}`),
   bulk: (items) => p("/api/v1/market/listings/bulk", { items }),
+  addCategory: (name) => p("/api/v1/market/categories", { name }),
 };
 
 export const mediaUrl = (id, download) => `${BACKEND_URL || ""}/api/v1/market/media/${id}${download ? "?download=true" : ""}`;

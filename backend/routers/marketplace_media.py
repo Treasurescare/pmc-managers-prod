@@ -50,6 +50,19 @@ def _jpeg(data: bytes, max_side: int = 1600) -> bytes:
     return out.getvalue()
 
 
+CARD_W, CARD_H = 1200, 900
+
+
+def _card(data: bytes) -> bytes:
+    """Marketplace photo standard: centre-cropped to 4:3 and resized to 1200x900 JPEG."""
+    from PIL import Image, ImageOps
+    im = Image.open(io.BytesIO(_jpeg(data, 4000)))
+    im = ImageOps.fit(im.convert("RGB"), (CARD_W, CARD_H), Image.LANCZOS)
+    out = io.BytesIO()
+    im.save(out, "JPEG", quality=86)
+    return out.getvalue()
+
+
 async def _store(owner: str, kind: str, name: str, mime: str, data: bytes, **extra) -> dict:
     mid = secrets.token_urlsafe(18)
     await db.mkt_media.insert_one({"_id": mid, "owner": owner, "kind": kind, "name": name[:160], "mime": mime,
@@ -72,7 +85,7 @@ async def upload_media(file: UploadFile = File(...), kind: str = Form("photo"), 
         if len(body) > MAX_PHOTO:
             raise HTTPException(status_code=413, detail="Photo too large (max 8 MB)")
         try:
-            body = _jpeg(body)
+            body = _card(body)
         except Exception:
             raise HTTPException(status_code=400, detail="This image could not be opened — please try another file")
         return await _store(v["id"], "photo", file.filename, "image/jpeg", body)
@@ -121,7 +134,7 @@ def _embedded(doc, pages: int) -> list:
             try:
                 raw = doc.extract_image(x)["image"]
                 out.append({"page": p + 1, "bbox": (bb.x0 / page.rect.width, bb.y0 / page.rect.height,
-                                                    bb.x1 / page.rect.width, bb.y1 / page.rect.height), "data": _jpeg(raw)})
+                                                    bb.x1 / page.rect.width, bb.y1 / page.rect.height), "data": _card(raw)})
             except Exception:
                 continue
             if len(out) >= MAX_EMBEDDED:
@@ -144,8 +157,8 @@ def _crop(page_png: bytes, box) -> Optional[bytes]:
     if x1 - x0 < 40 or y1 - y0 < 40:
         return None
     out = io.BytesIO()
-    im.crop((x0, y0, x1, y1)).convert("RGB").save(out, "JPEG", quality=85)
-    return _jpeg(out.getvalue())
+    im.crop((x0, y0, x1, y1)).convert("RGB").save(out, "JPEG", quality=90)
+    return _card(out.getvalue())
 
 
 async def _ask_ai(path: str, mime: str, pages: int) -> list:
@@ -265,6 +278,24 @@ async def get_import(iid: str, v=Depends(current_vendor)):
         raise HTTPException(status_code=404, detail="Import not found")
     d["id"] = d.pop("_id")
     return d
+
+
+class CategoryNew(BaseModel):
+    name: str = Field(min_length=2, max_length=120)
+
+
+@router.post("/categories")
+async def add_category(body: CategoryNew, v=Depends(_seller)):
+    name = re.sub(r"\s+", " ", body.name).strip()
+    found = await db.categories.find_one({"name": {"$regex": f"^{re.escape(name)}$", "$options": "i"}})
+    if found:
+        if not found.get("is_active", True):
+            raise HTTPException(status_code=400, detail="This category has been switched off by PMC. Please choose another one.")
+        return {"id": str(found["_id"]), "name": found["name"], "created": False}
+    code = "mkt-" + (re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")[:30] or "cat") + "-" + secrets.token_hex(2)
+    r = await db.categories.insert_one({"code": code, "name": name, "source": "supplier", "is_active": True, "needs_review": True,
+                                        "created_by_vendor": v["id"], "created_at": now_iso()})
+    return {"id": str(r.inserted_id), "name": name, "created": True}
 
 
 class DraftIn(BaseModel):

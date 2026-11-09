@@ -4,6 +4,7 @@ Flow: supplier lists products (draft) -> submits (listing fee via fee rules) -> 
 the sale fee) -> live -> bids / offers / buy-now -> order -> buyer pays PMC by Stripe link ->
 PMC keeps its sale fee and pays the seller's net amount to the seller's bank account (payout ledger).
 """
+import re
 from datetime import datetime, timezone
 from typing import Literal, Optional
 
@@ -54,7 +55,12 @@ class ListingIn(BaseModel):
     quantity: float = Field(default=1, gt=0)
     unit: str = Field(default="lot", max_length=30)
     currency: str = Field(default="USD", min_length=3, max_length=3)
-    location: str = Field(default="", max_length=120)
+    location: str = Field(default="", max_length=200)
+    country_code: str = Field(default="", max_length=2)
+    state_code: str = Field(default="", max_length=20)
+    state_name: str = Field(default="", max_length=120)
+    city: str = Field(default="", max_length=120)
+    zip: str = Field(default="", max_length=20)
     image_url: str = Field(default="", max_length=600)
     photos: list[str] = Field(default_factory=list, max_length=12)
     documents: list[dict] = Field(default_factory=list, max_length=6)
@@ -166,6 +172,17 @@ async def _clean(body: ListingIn, v: dict) -> dict:
     d = body.model_dump()
     d["documents"] = [{"id": str(x.get("id")), "name": str(x.get("name") or "Spec sheet")[:160]} for x in body.documents]
     await check_media(v["id"], body.photos, d["documents"])
+    d["currency"] = body.currency.upper()
+    if not await db.currencies.find_one({"code": d["currency"], "is_active": True}):
+        raise HTTPException(status_code=400, detail="Please choose a currency from the list")
+    if body.country_code:
+        c = await db.masters_countries.find_one({"code": body.country_code.upper()})
+        if not c:
+            raise HTTPException(status_code=400, detail="Please choose a country from the list")
+        d["country_code"] = c["code"]
+        if body.zip and c.get("postal_code_regex") and not re.match(c["postal_code_regex"], body.zip.strip()):
+            raise HTTPException(status_code=400, detail=f"ZIP / postal code should look like {c.get('postal_code_format') or 'the local format'}")
+        d["location"] = ", ".join(x for x in (body.city, body.state_name, c["name"]) if x)
     return d
 
 
