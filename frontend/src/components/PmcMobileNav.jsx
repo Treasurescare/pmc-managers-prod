@@ -115,7 +115,7 @@ export default function PmcMobileNav() {
   const isAdmin = pathname.startsWith("/admin");
   const isStaff = pathname.startsWith("/staff");
   const isEscrow = pathname.startsWith("/escrow");
-  const isM = pathname.startsWith("/m");
+  const isM = pathname === "/m" || pathname.startsWith("/m/") || pathname.startsWith("/meet/");
 
   // Suppress mobile chrome on:
   //  - vendor/admin login pages (they already have their own centered form)

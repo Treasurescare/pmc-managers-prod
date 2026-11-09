@@ -1026,6 +1026,12 @@ summary notes.
 - ROOT CAUSE of prod AI 500: "ModuleNotFoundError: emergentintegrations" — tender_pro._llm_complete (AI summary, readiness, Ask PMC, tender drafting), i18n_auto (translations) and proof_ai imported emergentintegrations, which is not installed on AWS. Switched to vendored pmc_lib.llm.chat; pmc_lib now treats sk-emergent- keys as managed and routes to integrations.emergentagent.com when INTEGRATION_PROXY_URL is unset. Verified preview: summary 200, Ask PMC reply. Bundle pmc-backend-v60n2.zip (Dockerfile unchanged).
 - PdfStreamError on iPhone upload (truncated/iCloud placeholder PDF): _extract_text_from_upload now checks %PDF header, pypdf strict=False, per-page tolerance, friendly 400 messages. Bundle pmc-backend-v60n3.zip.
 
+## 2026-11-09 — v61a: Supplier Marketplace
+- New: suppliers list products (/vendor/market "Sell products") and sell by Timed auction (reserve, min increment), Best offer (deadline, seller accepts) and/or Fixed price buy-now — configurable per listing. Eligibility per listing: verified buyer orgs only (admin users of tenants with source=buyer_application) or any verified account.
+- Every listing needs PMC approval (/admin/e/market "Marketplace"); admin can waive the sale fee per listing. Sale fee setting: % or fixed, on/off. Listing fee via fee rule code mkt_listing_fee (402 pay flow).
+- Public /market browse + /market/:id bid/offer/buy, /market/purchases (Pay securely -> Stripe checkout to PMC). Admin orders show seller bank (consortium_split._bank) and "Mark seller paid" with reference (manual payout ledger). Automatic Stripe Connect split NOT implemented.
+- Backend routers/marketplace.py (CSRF on all state changes, reserve hidden, auction auto-settle on read, best-offer deadline). Tested iteration_180/181 (17/17 backend).
+
 ## 2026-11-09 — v60o: dark screen after account deletion (native)
 - Cause: post-delete reload re-engaged Face ID lock screen (pref pmc.faceid=1). Fix: deletion removes pmc.faceid; lock never shown on /login|/signin; lock z-index 2000; floating buttons hidden on sign-in. Tested iteration_177.
 

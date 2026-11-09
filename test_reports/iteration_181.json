@@ -1,0 +1,43 @@
+{
+  "summary": "Iteration 181: I re-tested the Supplier Marketplace (v61a) fixes made after iteration 180. Backend: 17/17 pytest pass in the new tests/test_t181_marketplace.py (the t180 regression set plus the new checks). (1) Best-offer deadline: an offer after closes_at returns 409 'The deadline for offers has passed'. A best-offer-only listing past its deadline is hidden from GET /listings. A best_offer+fixed listing stays visible and can still be bought. The seller can still accept an existing offer after the deadline (250 at 10% gives fee 25 and net 225). (2) The public list and detail no longer contain reserve_price, review_notes, sale_fee_waived, decided_by, decided_at or submitted_at. (3) Admin orders seller_bank: the vendor-doc bank is used when present (TEST-123), otherwise the latest registrations bank (TEST-REG-9), verified with a temporary TEST registration doc that I then deleted. (4) CSRF: bid, offer, buy and pay without X-CSRF-Token (or with a bogus token) return 403, for both a supplier session and a buyer-org session. With the token all of them work, and GET my-purchases works without the header. (5) A reserve below the start price returns 400 on POST and PUT; reserve equal to the start price is OK. Regression of the iteration 180 flows (create -> submit -> approve -> buy now -> order, accept offer fixed fee 30 -> net 420, waived/charge-off, auction close, pay -> Stripe URL, payout) passes. UI: /vendor/market edit in the Asia/Kolkata timezone shows 2026-12-20T16:00 for 10:30Z, and after saving the DB still has 10:30Z, so there is no shift. The auction row shows '1 bid' (singular). The PublicChrome header has nav-market and it navigates to /market. The UI bid works for a buyer-org user (Administrator login) and for a verified supplier ('Bid placed' toast, top bid updated). At 390px, the pb-14 padding lets the Accept button be scrolled clear of the Ask PMC FAB. I found and FIXED one bug: on /market at mobile width there was no mobile header or menu at all, because PmcMobileNav's isM used pathname.startsWith('/m'), which also matched /market. The mobile Marketplace link was unreachable on the marketplace itself. I changed it to '/m' or '/m/*' (and kept /meet/* suppressed, as before). After the fix, the mobile menu on /market shows the Marketplace link (pmc-mobile-menu-link-market), and /m/login is still suppressed.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /listings/{id}/bid|offer|buy (anonymous)", "issue": "require_csrf now runs before the auth check, so an anonymous bid gets 403 'CSRF token missing or invalid' instead of 401. In the UI, api.js CSRF recovery then 401s and redirects to /login?expired=1&next=/market/{id} with the 'page you opened is private' banner. The iteration 180 'Please sign in first' toast in MarketE.signInHint never shows. Fix: resolve the identity (401) before the CSRF check in _bidder, or treat a missing session as 401."},
+      {"endpoint": "_make_order (buy-now / auction win)", "issue": "When a listing sells by buy-now or auction, its open best-offer bids are not declined. /mine still lists them, and the seller sees an Accept button on a SOLD listing (seen on the TEST_csrf row). Clicking it gives 409. Decline the open offers in _make_order."},
+      {"endpoint": "POST /listings, PUT, submit, withdraw, /offers/{id}/accept (vendor)", "issue": "The seller-side state-changing endpoints use current_vendor only, with no require_csrf. Only the bidder endpoints are protected. Consider adding Depends(require_csrf) to them."},
+      {"endpoint": "_bidder", "issue": "Still carried over: a vendor with no kyc_status is treated as verified, and the vendor status/is_active is not checked."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PmcMobileNav", "issue": "isM = pathname.startsWith('/m') suppressed the mobile chrome on /market and /market/:id, so there was no header or menu on mobile. FIXED by the testing agent.", "selector": "[data-testid='pmc-mobile-menu-open']", "priority": "HIGH"},
+      {"component": "VendorMarketE ListingRow", "issue": "The Accept button shows for stale open offers on SOLD listings (see the backend _make_order item).", "selector": "[data-testid^='mkt-accept-']", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "Anonymous bid on /market/:id", "issue": "The user is redirected to /login?expired=1 (generic 'private page' banner) instead of getting the 'Please sign in first' toast.", "affected_selectors": ["[data-testid='market-bid-btn']"]}
+    ],
+    "design_issues": [
+      {"screen": "Home / (desktop)", "issues": ["The home page header (HomeE) does not use PublicChrome and has no Marketplace link. Only pages wrapped in PublicChrome show nav-market."]},
+      {"screen": "/market (desktop, signed in)", "issues": ["The PublicChrome header still shows 'Sign in' / 'Register as supplier' when a buyer or supplier is signed in."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_t181_marketplace.py", "/app/backend/tests/mkt_t180_seed.py", "/app/test_reports/pytest/t181.xml"],
+  "action_items": [
+    "In _bidder, return 401 (sign in) for anonymous users before the CSRF 403, so the MarketE 'Please sign in first' toast works again",
+    "In _make_order, decline open offers when a listing sells by buy-now or auction",
+    "Add require_csrf to the seller-side marketplace POST/PUT endpoints",
+    "Optionally add the Marketplace link to the home page (HomeE) header"
+  ],
+  "critical_code_review_comments": [
+    "marketplace.py _bidder: a 403 from current_vendor is re-raised, but the CSRF check runs first, which hides the auth state",
+    "closes_at is stored as the ISO string the client sends ('...000Z' from the UI, '+00:00' from the API). Lexicographic comparison with _now() still works for UTC, but a non-UTC offset string from an API client would compare incorrectly. Normalise to UTC on save.",
+    "Browse still loads up to 200 live docs and filters past-deadline listings in Python. Fine for now."
+  ],
+  "updated_files": ["/app/frontend/src/components/PmcMobileNav.jsx", "/app/backend/tests/test_t181_marketplace.py"],
+  "success_rate": {"backend": "100% (17/17)", "frontend": "90% (all requested fixes verified; mobile /market chrome bug fixed; anon sign-in hint regressed)"},
+  "seed_data_creation": "The TEST_ vendor2, TEST_ buyer tenant/user and TEST_ fee rule were created with tests/mkt_t180_seed.py create and removed with clean. All mkt_* docs are deleted (0 listings, orders and bids). mkt_settings is reset to percent/0/charge true. The temporary TEST registrations doc was deleted.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python tests/mkt_t180_seed.py create && pytest tests/test_t181_marketplace.py -p no:xdist -o addopts='' ; then python tests/mkt_t180_seed.py clean. Vendor sessions now need X-CSRF-Token (from the login response csrf_token) for bid/offer/buy/pay. UI login is the unified /login page: email [data-testid=signin-e-email], password input[type=password], 'Continue' button. Click the 'Administrator' card for buyer-org users. Use the CDP Emulation.setTimezoneOverride to test the tz shift."
+}

@@ -23,6 +23,12 @@ router = APIRouter(prefix="/api/v1/market", tags=["marketplace"])
 STAFF = ("super_admin", "admin", "reviewer")
 
 
+async def _seller(request: Request) -> dict:
+    v = await current_vendor(request)
+    await require_csrf(request)
+    return v
+
+
 def _oid(x: str) -> ObjectId:
     if not ObjectId.is_valid(x):
         raise HTTPException(status_code=404, detail="Not found")
@@ -61,6 +67,8 @@ class ListingIn(BaseModel):
 
 async def _bidder(request: Request) -> dict:
     """A verified supplier (vendor session) or a verified buyer organisation user (admin-console session)."""
+    if not (request.cookies or {}):
+        raise HTTPException(status_code=401, detail="Please sign in as a verified buyer or supplier to take part")
     await require_csrf(request)
     try:
         v = await current_vendor(request)
@@ -116,6 +124,7 @@ async def _make_order(lst: dict, bidder: dict, amount: float, via: str) -> dict:
            "status": "awaiting_payment", "payout_status": "not_due", "created_at": now_iso()}
     r = await db.mkt_orders.insert_one(doc)
     doc["_id"] = r.inserted_id
+    await db.mkt_bids.update_many({"listing_id": lst["_id"], "kind": "offer", "status": "open"}, {"$set": {"status": "declined"}})
     await audit_log("market.order", {"email": bidder.get("email"), "id": bidder["id"]}, "mkt_order", str(r.inserted_id),
                     {"amount": amount, "fee": fee, "via": via})
     return doc
@@ -151,7 +160,7 @@ async def my_listings(v=Depends(current_vendor)):
 
 
 @router.post("/listings")
-async def create_listing(body: ListingIn, v=Depends(current_vendor)):
+async def create_listing(body: ListingIn, v=Depends(_seller)):
     _validate(body)
     doc = {**body.model_dump(), "seller_id": v["id"], "seller_name": v.get("company_name") or v.get("email"),
            "status": "draft", "created_at": now_iso(), "updated_at": now_iso()}
@@ -180,7 +189,7 @@ async def _own(lid: str, v: dict) -> dict:
 
 
 @router.put("/listings/{lid}")
-async def update_listing(lid: str, body: ListingIn, v=Depends(current_vendor)):
+async def update_listing(lid: str, body: ListingIn, v=Depends(_seller)):
     d = await _own(lid, v)
     if d["status"] not in ("draft", "rejected"):
         raise HTTPException(status_code=409, detail="Only draft or rejected listings can be edited")
@@ -190,7 +199,7 @@ async def update_listing(lid: str, body: ListingIn, v=Depends(current_vendor)):
 
 
 @router.post("/listings/{lid}/submit")
-async def submit_listing(lid: str, v=Depends(current_vendor)):
+async def submit_listing(lid: str, v=Depends(_seller)):
     d = await _own(lid, v)
     if d["status"] not in ("draft", "rejected"):
         raise HTTPException(status_code=409, detail="Already submitted")
@@ -201,7 +210,7 @@ async def submit_listing(lid: str, v=Depends(current_vendor)):
 
 
 @router.post("/listings/{lid}/withdraw")
-async def withdraw_listing(lid: str, v=Depends(current_vendor)):
+async def withdraw_listing(lid: str, v=Depends(_seller)):
     d = await _own(lid, v)
     if d["status"] not in ("draft", "pending", "rejected", "live") or await db.mkt_bids.count_documents({"listing_id": d["_id"], "kind": "bid"}):
         raise HTTPException(status_code=409, detail="Listings with bids or sales cannot be withdrawn")
@@ -210,7 +219,7 @@ async def withdraw_listing(lid: str, v=Depends(current_vendor)):
 
 
 @router.post("/offers/{bid_id}/accept")
-async def accept_offer(bid_id: str, v=Depends(current_vendor)):
+async def accept_offer(bid_id: str, v=Depends(_seller)):
     b = await db.mkt_bids.find_one({"_id": _oid(bid_id), "kind": "offer", "status": "open"})
     lst = b and await db.mkt_listings.find_one({"_id": b["listing_id"], "seller_id": v["id"]})
     if not lst:
