@@ -1,0 +1,45 @@
+{
+  "summary": "v61e Home showcase + advert slot + supplier category review queue. Backend pytest 17/18 after one fix (new file tests/test_v61e_showcase_catreview.py). Found and FIXED a CRITICAL bug: GET /api/v1/admin/home-adverts returned 500 (ObjectId serialisation) whenever any advert existed, which made the admin advert list unusable. Frontend e2e passed: the home showcase sits after tender-alerts-signup, shows 2 live demo products with photos linking to /market/{id}, Browse all goes to /market, the placeholder shows Contact PMC when there are no adverts, and adverts rotate every 7s with clickable dots. Admin advert add/edit/deactivate/remove (confirm dialog) works and is reflected on the home page. A future-dated advert is hidden. The http:// link is rejected with a toast. The uploaded image is stored at 1200x900. Category review approve/rename (409 clash toast)/merge works on /admin/e/market and in the Masters -> Categories tab. Mobile 390px stacks with no horizontal overflow. Authorisation: anonymous and vendor get 401/403 on all admin endpoints.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/v1/admin/home-adverts", "issue": "FIXED by testing agent: 500 ValueError 'ObjectId object is not iterable'. In _ad_out, `{**d, 'id': str(d.pop('_id'))}` spreads d (still containing _id) before pop runs, so _id leaked into the response.", "priority": "CRITICAL"}
+    ],
+    "minor": [
+      {"endpoint": "GET /api/v1/market/showcase + PUT /api/v1/admin/home-adverts/{id}", "issue": "Showcase filters only is_active=True, not deleted!=True. PUT on a soft-deleted advert (body is_active defaults to true) brings it back onto the public home page while it stays hidden from the admin list (a 'zombie' advert). Can happen from a stale admin tab: open Edit, another admin removes it, then Save. Fix: add {'deleted': {'$ne': True}} to the showcase query, and make update_ad match deleted!=True (return 404 otherwise)."},
+      {"endpoint": "DELETE /api/v1/admin/home-adverts/{id}", "issue": "Returns 200 ok for a non-existent id (no matched_count check), unlike PUT, which returns 404."},
+      {"endpoint": "POST/PUT /api/v1/admin/home-adverts", "issue": "starts_at/ends_at are not validated as ISO dates or for ends_at > starts_at. Visibility uses a string comparison against now_iso(), so a malformed date silently hides or shows the advert. image_id is not checked against mkt_media, so any media id (e.g. a vendor's photo) is accepted."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CategoryReviewQueue merge dropdown", "issue": "The category list (cats) is fetched once on mount and not reloaded after Rename/Merge. After renaming a category, the Merge 'into' dropdown still shows the OLD name and lacks the new one until the page is refreshed. The dropdown also has ~109 options with no search.", "selector": "[data-testid^=catrev-target-]", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Home showcase (desktop)", "issues": ["With only 2 products, the left half is ~400px tall while the advert card (4:3 image at about 630px wide plus text) is ~490px, which leaves empty space under the products.", "Carousel dots are 8px buttons, a very small tap/click target."]},
+      {"screen": "Admin advert list", "issues": ["Future-scheduled and expired adverts are labelled 'active', with no 'scheduled'/'expired' status. Admins cannot see why an 'active' advert is missing from the home page."]},
+      {"screen": "Home (mobile 390)", "issues": ["Gap between the advert card and the next 'One grid, two sides' section is very tight (~8px)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v61e_showcase_catreview.py", "/app/test_reports/pytest/pytest_v61e.xml"],
+  "action_items": [
+    "Add deleted!=True to the /market/showcase advert query, and make PUT /admin/home-adverts/{id} 404 on soft-deleted adverts (test_deleted_advert_not_resurrected_by_put currently fails)",
+    "DELETE /admin/home-adverts/{id}: return 404 when matched_count == 0",
+    "Validate starts_at/ends_at (parseable ISO, ends_at > starts_at). Optionally verify image_id exists and has owner admin",
+    "Reload the categories list in CategoryReviewQueue after rename/merge so the merge target dropdown is current",
+    "Show scheduled/expired status in the admin advert rows"
+  ],
+  "critical_code_review_comments": [
+    "market_showcase._ad_out: dict-spread-then-pop ordering bug leaked ObjectId (fixed)",
+    "review_queue does N+1 queries (a vendor lookup plus count_documents per category). Fine for small queues; consider aggregation",
+    "Unreviewed supplier categories (needs_review) already appear in the public /masters/categories/public list used by vendor registration and notice-board filters. Confirm this is intended",
+    "Rename clash check also matches inactive (merged) categories. A rename to a previously merged-away name gives 409 'use Merge', but that target is not offered in the Merge list (inactive). Edge case"
+  ],
+  "updated_files": ["/app/backend/routers/market_showcase.py (_ad_out _id fix)", "/app/backend/tests/test_v61e_showcase_catreview.py (new)"],
+  "success_rate": {"backend": "94% (17/18)", "frontend": "100% of tested flows"},
+  "seed_data_creation": "None kept. TEST_ adverts, categories, listings and advert media created during testing were deleted by id. The 2 live 'Demo:' manual_demo listings were left untouched (only 2 of the 3 demo listings are live; the third 'Demo: Pump spare parts kit' is pending, so the showcase shows 2).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Admin UI login: POST /api/v1/admin/auth/login via page.request, then navigate (the /admin/login page has a role picker without the old testids). Run the regression with: cd /app/backend && python -m pytest tests/test_v61e_showcase_catreview.py -p no:xdist -o addopts=''. It self-cleans by id via Mongo. The vendor-side '+ Add a new category' UI picker was not exercised in the browser this round (the API POST /market/categories was).",
+  "rca of the issue": "Admin advert list 500: `{**d, 'id': str(d.pop('_id'))}`. Python evaluates **d (copying _id) before d.pop runs, so the returned dict still holds an ObjectId and FastAPI's jsonable_encoder fails. Repro: create any advert, then GET /api/v1/admin/home-adverts. Mitigation applied: copy the dict, then pop _id into id."
+}

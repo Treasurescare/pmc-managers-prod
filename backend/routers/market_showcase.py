@@ -24,7 +24,8 @@ def _oid(x: str) -> ObjectId:
 
 
 def _ad_out(d: dict) -> dict:
-    d = {**d, "id": str(d.pop("_id"))}
+    d = dict(d)
+    d["id"] = str(d.pop("_id"))
     return d
 
 
@@ -39,7 +40,7 @@ async def showcase():
         if len(products) >= 4:
             break
     ads = []
-    async for a in db.home_adverts.find({"is_active": True}).sort([("sort", 1), ("created_at", -1)]):
+    async for a in db.home_adverts.find({"is_active": True, "deleted": {"$ne": True}}).sort([("sort", 1), ("created_at", -1)]):
         if (a.get("starts_at") or "") <= now and (not a.get("ends_at") or a["ends_at"] > now):
             ads.append({k: a.get(k) for k in ("title", "subtitle", "image_id", "link_url", "cta_label")} | {"id": str(a["_id"])})
     return {"products": products, "adverts": ads[:6]}
@@ -58,15 +59,43 @@ class AdvertIn(BaseModel):
     is_active: bool = True
 
 
-def _check_ad(b: AdvertIn) -> dict:
+def _iso(v: Optional[str], label: str) -> Optional[str]:
+    if not v:
+        return None
+    from datetime import datetime, timezone
+    try:
+        d = datetime.fromisoformat(v.replace("Z", "+00:00"))
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"{label} is not a valid date")
+    return (d if d.tzinfo else d.replace(tzinfo=timezone.utc)).astimezone(timezone.utc).isoformat()
+
+
+async def _check_ad(b: AdvertIn) -> dict:
     if b.link_url and not re.match(r"^(https://|/)", b.link_url):
         raise HTTPException(status_code=400, detail="The link must start with https:// or / (a page on this site)")
-    return b.model_dump()
+    d = b.model_dump()
+    d["starts_at"], d["ends_at"] = _iso(b.starts_at, "Show from"), _iso(b.ends_at, "Show until")
+    if d["starts_at"] and d["ends_at"] and d["ends_at"] <= d["starts_at"]:
+        raise HTTPException(status_code=400, detail="'Show until' must be after 'Show from'")
+    if b.image_id and not await db.mkt_media.find_one({"_id": b.image_id, "owner": "admin"}, {"_id": 1}):
+        raise HTTPException(status_code=400, detail="Please upload the advert image again")
+    return d
+
+
+def _ad_state(a: dict) -> str:
+    now = now_iso()
+    if not a.get("is_active"):
+        return "off"
+    if a.get("starts_at") and a["starts_at"] > now:
+        return "scheduled"
+    if a.get("ends_at") and a["ends_at"] <= now:
+        return "expired"
+    return "showing"
 
 
 @router.get("/admin/home-adverts")
 async def list_ads(admin=Depends(require_role(*STAFF))):
-    return {"items": [_ad_out(a) async for a in db.home_adverts.find({"deleted": {"$ne": True}}).sort([("sort", 1), ("created_at", -1)])]}
+    return {"items": [{**_ad_out(a), "state": _ad_state(a)} async for a in db.home_adverts.find({"deleted": {"$ne": True}}).sort([("sort", 1), ("created_at", -1)])]}
 
 
 @router.post("/admin/home-adverts/image")
@@ -83,7 +112,7 @@ async def ad_image(file: UploadFile = File(...), admin=Depends(require_role(*STA
 
 @router.post("/admin/home-adverts")
 async def create_ad(b: AdvertIn, admin=Depends(require_role(*STAFF))):
-    doc = {**_check_ad(b), "created_at": now_iso(), "created_by": admin["email"]}
+    doc = {**(await _check_ad(b)), "created_at": now_iso(), "created_by": admin["email"]}
     r = await db.home_adverts.insert_one(doc)
     await audit_log("home.advert.create", admin, "home_advert", str(r.inserted_id), {"title": b.title})
     return {"id": str(r.inserted_id)}
@@ -91,7 +120,7 @@ async def create_ad(b: AdvertIn, admin=Depends(require_role(*STAFF))):
 
 @router.put("/admin/home-adverts/{aid}")
 async def update_ad(aid: str, b: AdvertIn, admin=Depends(require_role(*STAFF))):
-    r = await db.home_adverts.update_one({"_id": _oid(aid)}, {"$set": {**_check_ad(b), "updated_at": now_iso()}})
+    r = await db.home_adverts.update_one({"_id": _oid(aid), "deleted": {"$ne": True}}, {"$set": {**(await _check_ad(b)), "updated_at": now_iso()}})
     if not r.matched_count:
         raise HTTPException(status_code=404, detail="Advert not found")
     await audit_log("home.advert.update", admin, "home_advert", aid, {"title": b.title, "is_active": b.is_active})
@@ -100,7 +129,9 @@ async def update_ad(aid: str, b: AdvertIn, admin=Depends(require_role(*STAFF))):
 
 @router.delete("/admin/home-adverts/{aid}")
 async def remove_ad(aid: str, admin=Depends(require_role(*STAFF))):
-    await db.home_adverts.update_one({"_id": _oid(aid)}, {"$set": {"deleted": True, "is_active": False, "updated_at": now_iso()}})
+    r = await db.home_adverts.update_one({"_id": _oid(aid), "deleted": {"$ne": True}}, {"$set": {"deleted": True, "is_active": False, "updated_at": now_iso()}})
+    if not r.matched_count:
+        raise HTTPException(status_code=404, detail="Advert not found")
     await audit_log("home.advert.remove", admin, "home_advert", aid, {})
     return {"ok": True}
 

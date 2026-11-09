@@ -61,7 +61,7 @@ export function HomeAdverts() {
       {items.map((a) => (
         <div key={a.id} className="pmc-panel p-3 mt-2 flex flex-wrap items-center gap-3 text-sm" data-testid={`ad-row-${a.id}`}>
           {a.image_id && <img src={mediaUrl(a.image_id)} alt="" className="w-20 h-[60px] object-cover rounded" />}
-          <div className="flex-1 min-w-[200px]"><b>{a.title}</b> <span className="text-xs opacity-70">· {a.is_active ? "active" : "off"}{a.ends_at ? ` · until ${new Date(a.ends_at).toLocaleDateString()}` : ""}</span><div className="text-xs opacity-70">{a.link_url}</div></div>
+          <div className="flex-1 min-w-[200px]"><b>{a.title}</b> <span className="text-xs opacity-70" data-testid={`ad-state-${a.id}`}>· {a.state || (a.is_active ? "active" : "off")}{a.ends_at ? ` · until ${new Date(a.ends_at).toLocaleDateString()}` : ""}</span><div className="text-xs opacity-70">{a.link_url}</div></div>
           <button className="pmc-btn pmc-btn--secondary pmc-btn--sm" onClick={() => setEdit(a)} data-testid={`ad-edit-${a.id}`}>Edit</button>
           <button className="pmc-btn pmc-btn--secondary pmc-btn--sm" onClick={() => remove(a.id)} data-testid={`ad-remove-${a.id}`}>Remove</button>
         </div>))}
@@ -73,6 +73,8 @@ function ReviewRow({ c, cats, reload }) {
   const [name, setName] = useState(c.name);
   const [target, setTarget] = useState("");
   const go = (b) => marketApi.catReview(c.id, b).then((r) => { toast.success(`Done${r.listings_moved ? ` · ${r.listings_moved} listing(s) updated` : ""}`); reload(); }).catch(showApiError);
+  const [q, setQ] = useState("");
+  const shown = cats.filter((x) => x.id !== c.id && (!q || x.name.toLowerCase().includes(q.toLowerCase())));
   return (
     <div className="pmc-panel p-3 mt-2 text-sm" data-testid={`catrev-row-${c.id}`}>
       <div className="flex flex-wrap items-center gap-2">
@@ -86,10 +88,11 @@ function ReviewRow({ c, cats, reload }) {
         <input className="pmc-input w-full" value={name} onChange={(e) => setName(e.target.value)} data-testid={`catrev-name-${c.id}`} />
         <button className="pmc-btn pmc-btn--primary pmc-btn--sm" onClick={() => go({ action: "rename", name })} data-testid={`catrev-rename-save-${c.id}`}>Save name</button>
       </div>}
-      {mode === "merge" && <div className="flex gap-2 mt-2">
-        <select className="pmc-input w-full" value={target} onChange={(e) => setTarget(e.target.value)} data-testid={`catrev-target-${c.id}`}>
+      {mode === "merge" && <div className="flex flex-wrap gap-2 mt-2">
+        <input className="pmc-input" placeholder="Search categories" value={q} onChange={(e) => setQ(e.target.value)} data-testid={`catrev-search-${c.id}`} />
+        <select className="pmc-input flex-1 min-w-[200px]" value={target} onChange={(e) => setTarget(e.target.value)} data-testid={`catrev-target-${c.id}`}>
           <option value="">Merge into…</option>
-          {cats.filter((x) => x.id !== c.id).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+          {shown.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
         </select>
         <button className="pmc-btn pmc-btn--primary pmc-btn--sm" disabled={!target} onClick={() => go({ action: "merge", target_id: target })} data-testid={`catrev-merge-save-${c.id}`}>Merge</button>
       </div>}
@@ -99,11 +102,11 @@ function ReviewRow({ c, cats, reload }) {
 export function CategoryReviewQueue() {
   const [items, setItems] = useState(null);
   const [cats, setCats] = useState([]);
-  const load = () => marketApi.catQueue().then((r) => setItems(r.items)).catch(showApiError);
-  useEffect(() => {
-    load();
+  const load = () => {
+    marketApi.catQueue().then((r) => setItems(r.items)).catch(showApiError);
     api.get("/api/v1/masters/categories/public").then((r) => setCats(r.data || [])).catch(() => {});
-  }, []);
+  };
+  useEffect(() => { load(); }, []);
   return (
     <section className="mt-6" data-testid="category-review-queue">
       <b>New categories added by suppliers</b>

@@ -53,7 +53,8 @@ function AdvertSlot({ ads }) {
           {a.link_url && <a href={a.link_url} {...(ext ? { target: "_blank", rel: "noopener noreferrer sponsored" } : {})} className="pmc-btn pmc-btn--primary pmc-btn--sm" data-testid="home-ad-cta">{a.cta_label || "Learn more"}</a>}
           {ads.length > 1 && <div style={{ display: "flex", gap: "6px", marginLeft: "auto" }}>{ads.map((x, k) => (
             <button key={x.id} type="button" aria-label={`Advert ${k + 1}`} onClick={() => setI(k)} data-testid={`home-ad-dot-${k}`}
-              style={{ width: "8px", height: "8px", borderRadius: "50%", border: "none", background: k === i % ads.length ? "var(--ink)" : "var(--line)" }} />))}</div>}
+              style={{ width: "24px", height: "24px", border: "none", background: "transparent", display: "grid", placeItems: "center", cursor: "pointer" }}>
+              <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: k === i % ads.length ? "var(--ink)" : "var(--line)" }} /></button>))}</div>}
         </div>
       </div>
     </div>);
@@ -64,7 +65,7 @@ export default function HomeMarketShowcase() {
   useEffect(() => { marketApi.showcase().then(setD).catch(() => setD({ products: [], adverts: [] })); }, []);
   if (!d) return null;
   return (
-    <section className="pmc-wrap" style={{ padding: "72px 0 0" }} data-testid="home-market-showcase">
+    <section className="pmc-wrap" style={{ padding: "72px 0 24px" }} data-testid="home-market-showcase">
       <div className="pmc-split-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", alignItems: "stretch" }}>
         <div data-testid="home-mkt-products">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "end", marginBottom: "16px", gap: "12px" }}>

@@ -1060,3 +1060,9 @@ summary notes.
 - Photos: crop dialog (react-easy-crop, 4:3) before upload; backend _card() normalises every marketplace photo (uploads + AI-extracted) to 1200x900 JPEG — sized for the upcoming home-page marketplace half.
 - "Fill with AI from a file" inside Add product (AiFillButton, reuses catalogue import job). Tested iteration_183; fixed ZIP placeholder, textarea height, city needs state, crop cancel.
 
+
+## 2026-11-09 — v61e: Home marketplace showcase + advert slot, category review queue
+- routers/market_showcase.py: public GET /api/v1/market/showcase (4 live listings with photos + active/in-window adverts); admin CRUD /api/v1/admin/home-adverts (+ /image, 1200x900, owner "admin"; soft delete; https:// or / links; ISO dates validated; state showing/scheduled/expired/off).
+- Category review: GET /api/v1/admin/category-review, POST /{id} approve | rename (updates listings, 409 on clash) | merge (moves listings, deactivates duplicate). Shown in Admin → Marketplace and Masters → Categories.
+- HomeMarketShowcase.jsx after tender alerts: left half products (4:3 tiles), right half advert carousel (7s) or "Advertise here" placeholder. Tested iteration_184 (fixed _ad_out 500, zombie adverts, delete 404, dates/image checks, merge search + refresh).
+
