@@ -120,6 +120,7 @@ async def ai_summary(notice_ref: Optional[str] = Form(None), lang: str = Form("E
     if old:
         return _out(old)
     await charge_or_pass(v, "ai_tender_summary", ref, "AI tender summary")
+    text = text.replace("\x00", " ")
     data = _json(await _llm(SUMMARY_SYS, f"Language: {lang}\n\nTENDER TEXT:\n{text[:120000]}"))
     doc = {"vendor_id": v["id"], "kind": "summary", "ref": ref, "lang": lang, "title": title, "notice_ref": notice_ref,
            "result": data, "source_text": text[:40000], "created_at": now_iso()}

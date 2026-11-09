@@ -47,6 +47,15 @@ _boot_log.info(
 app = FastAPI(title="PMC Managers v2 — Tender & Registration API")
 
 
+@app.exception_handler(Exception)
+async def _unhandled_error(request, exc):
+    # v60n — readable JSON for unexpected errors (prod showed bare "status code 500").
+    from fastapi.responses import JSONResponse
+    logging.getLogger("pmc").exception("Unhandled error on %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=500, content={"detail": f"Server error ({type(exc).__name__}): {str(exc)[:200]}"})
+
+
+
 @app.middleware("http")
 async def _no_store_api(request, call_next):
     """Force API responses to be uncacheable. Production sits behind CloudFront;

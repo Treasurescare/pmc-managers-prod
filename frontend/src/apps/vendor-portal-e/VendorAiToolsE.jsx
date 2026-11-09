@@ -11,9 +11,43 @@ const List = ({ title, items }) => (items && items.length ? (
 
 const Field = ({ k, v }) => (v ? <div className="text-sm mt-2"><b>{k}:</b> {v}</div> : null);
 
+const reportText = (r) => {
+  const x = r.result || {};
+  const line = (i) => (typeof i === "string" ? i : i.label ? `${i.label}: ${i.date}` : `${i.item || ""} — ${i.severity || ""}${i.fix ? ` · Fix: ${i.fix}` : ""}`);
+  const sec = (t, items) => (items && items.length ? `\n${t}\n${items.map((i) => `  • ${line(i)}`).join("\n")}\n` : "");
+  const f = (k, v) => (v ? `${k}: ${v}\n` : "");
+  return `PMC Managers — AI ${r.kind === "readiness" ? "bid readiness" : "tender summary"}\n${r.title || ""}\n${String(r.created_at || "").slice(0, 10)}\n\n`
+    + (r.kind === "readiness" ? f("Score", x.score) + f("Verdict", x.verdict) + sec("Already met", x.met) + sec("Missing", x.missing) + sec("Risks", x.risks)
+      : `${x.summary || ""}\n\n` + f("Buyer", x.buyer) + f("Turnover", x.turnover) + f("Experience", x.experience) + f("EMD", x.emd) + f("Evaluation", x.evaluation)
+        + sec("Scope", x.scope) + sec("Eligibility", x.eligibility) + sec("Fees", x.fees) + sec("Key dates", x.key_dates) + sec("Documents required", x.documents_required) + sec("Risks", x.risks))
+    + "\nAI results can be wrong — always confirm against the official tender document.\n";
+};
+
+const ReportActions = ({ r }) => {
+  const download = () => {
+    const url = URL.createObjectURL(new Blob([reportText(r)], { type: "text/plain;charset=utf-8" }));
+    const a = Object.assign(document.createElement("a"), { href: url, download: `PMC-AI-${r.kind || "summary"}-${(r.title || "report").replace(/[^\w.-]+/g, "_").slice(0, 60)}.txt` });
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  const print = () => {
+    const w = window.open("", "_blank");
+    if (!w) return download();
+    const pre = w.document.createElement("pre");
+    pre.style.cssText = "font:14px/1.5 Georgia,serif;white-space:pre-wrap;padding:24px";
+    pre.textContent = reportText(r);
+    w.document.body.appendChild(pre); w.document.title = r.title || "AI report"; w.focus(); w.print();
+  };
+  return (
+    <div className="flex gap-2 mt-2">
+      <button type="button" className="pmc-btn pmc-btn--secondary pmc-btn--sm" onClick={download} data-testid="ai-report-download">Download</button>
+      <button type="button" className="pmc-btn pmc-btn--secondary pmc-btn--sm" onClick={print} data-testid="ai-report-print">Print / Save as PDF</button>
+    </div>);
+};
+
 export const SummaryView = ({ r }) => (
-  <div className="pmc-panel p-4 mt-4" data-testid="ai-summary-result">
+  <div className="pmc-panel p-4 mt-4" data-testid="ai-summary-result" id="ai-result">
     <h3 className="font-semibold">{r.title}</h3>
+    <ReportActions r={r} />
     <p className="text-sm mt-2">{r.result.summary}</p>
     <Field k="Buyer" v={r.result.buyer} /><Field k="Turnover" v={r.result.turnover} /><Field k="Experience" v={r.result.experience} />
     <Field k="EMD" v={r.result.emd} /><Field k="Evaluation" v={r.result.evaluation} />
@@ -23,7 +57,8 @@ export const SummaryView = ({ r }) => (
   </div>);
 
 const ReadyView = ({ r }) => (
-  <div className="pmc-panel p-4 mt-4" data-testid="ai-readiness-result">
+  <div className="pmc-panel p-4 mt-4" data-testid="ai-readiness-result" id="ai-result">
+    <ReportActions r={{ ...r, kind: "readiness" }} />
     <div className="flex items-center gap-3"><span className="text-3xl font-semibold" data-testid="ai-readiness-score">{r.result.score ?? "—"}</span>
       <span className="pmc-eyebrow">{({ ready: "Ready to bid", gaps: "Gaps to close", high_risk: "High disqualification risk" })[r.result.verdict] || r.result.verdict}</span></div>
     <List title="Already met" items={r.result.met} /><List title="Missing" items={r.result.missing} /><List title="Risks" items={r.result.risks} />
@@ -82,7 +117,10 @@ export default function VendorAiToolsE() {
       {!!hist.length && <section className="pmc-panel p-4 mt-4" data-testid="ai-history">
         <div className="pmc-eyebrow mb-2">Your recent reports</div>
         {hist.map((h) => <button key={h.id} className="block text-left text-sm underline py-0.5" data-testid={`ai-history-${h.id}`}
-          onClick={() => (h.kind === "summary" ? (setSum(h), setReady(null)) : setReady(h))}>{h.kind === "summary" ? "Summary" : "Readiness"} · {h.title} · {String(h.created_at).slice(0, 10)}</button>)}
+          onClick={() => {
+            if (h.kind === "summary") { setSum(h); setReady(null); } else { setReady(h); }
+            setTimeout(() => document.getElementById("ai-result")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+          }}>{h.kind === "summary" ? "Summary" : "Readiness"} · {h.title} · {String(h.created_at).slice(0, 10)}</button>)}
       </section>}
     </VendorPortalChrome>);
 }

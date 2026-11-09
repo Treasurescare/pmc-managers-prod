@@ -1017,5 +1017,10 @@ summary notes.
 - Mobile supplier menu (PmcMobileNav) now has AI tender tools, Saved alerts, Prepare tender, Consortia, Directory listing, Data intel, Messages, Refer & earn.
 - Tender share bar: new "Share" button (Capacitor Share / navigator.share / copy fallback).
 - After self-delete: vendor logout + redirect /login?deleted=1 with "Your account has been deleted" toast (was blank home). Tested iteration_176.
-- Known (not fixed): notice detail Indicative budget shows "$" for GBP tenders; saved-alert row layout on narrow mobile. Known: AI tool buttons would be hidden in-app if AI prices > 0 (currently free).
+- Known (not fixed): notice detail Indicative budget shows "$" for GBP tenders; saved-alert row layout on narrow mobile.
+
+## 2026-11-09 — v60n: AI summary prod 500 diagnostics
+- Prod /api/v1/supplier-ai/summary returned bare HTTP 500 for "DPR LW-20.04.22.pdf"; preview works (200) with 114-page PDF. Cause unknown (no prod logs).
+- Added global exception handler (JSON detail "Server error (Type): msg" + logged traceback) and NUL-byte strip before LLM. Next: customer retries on v60n and sends the new message.
+- AI tools "Your recent reports": clicking now scrolls to the opened report; each report has Download (.txt) and Print / Save as PDF. Known: AI tool buttons would be hidden in-app if AI prices > 0 (currently free).
 
