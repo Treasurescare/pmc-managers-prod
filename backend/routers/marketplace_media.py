@@ -58,12 +58,9 @@ async def _store(owner: str, kind: str, name: str, mime: str, data: bytes, **ext
 
 
 async def check_media(owner: str, photos: list, documents: list) -> None:
-    ids = list(photos) + [d.get("id") for d in documents]
-    if not ids:
-        return
-    n = await db.mkt_media.count_documents({"_id": {"$in": ids}, "owner": owner})
-    if n != len(set(ids)):
-        raise HTTPException(status_code=400, detail="One of the photos or documents could not be found — please upload it again")
+    for kind, ids in (("photo", list(photos)), ("document", [d.get("id") for d in documents])):
+        if ids and await db.mkt_media.count_documents({"_id": {"$in": ids}, "owner": owner, "kind": kind}) != len(set(ids)):
+            raise HTTPException(status_code=400, detail="One of the photos or documents could not be found — please upload it again")
 
 
 @router.post("/media")
@@ -172,20 +169,27 @@ def _box(p: dict):
     return (xmin, ymin, xmax, ymax) if xmax > xmin and ymax > ymin else None
 
 
-async def _run_import(iid: str, owner: str, name: str, body: bytes) -> None:
+def _prep(name: str, body: bytes):
+    import fitz
+    if _ext(name) == "pdf":
+        doc = fitz.open(stream=body, filetype="pdf")
+        pages = min(len(doc), MAX_PAGES)
+        sub = fitz.open()
+        sub.insert_pdf(doc, to_page=pages - 1)
+        return doc, pages, _embedded(doc, pages), sub.tobytes(garbage=3, deflate=True), "application/pdf"
+    return None, 1, [], _jpeg(body, 2400), "image/jpeg"
+
+
+def _page_crop(doc, send: bytes, page: int, pages: int, box, cache: dict) -> Optional[bytes]:
+    if page not in cache:
+        cache[page] = doc[page - 1].get_pixmap(dpi=150).tobytes("png") if doc and page <= pages else (None if doc else send)
+    return cache[page] and _crop(cache[page], box)
+
+
+async def _run_import(iid: str, owner: str, name: str, body: bytes, charge_ref: str) -> None:
     try:
-        import fitz
-        is_pdf = _ext(name) == "pdf"
-        if is_pdf:
-            doc = fitz.open(stream=body, filetype="pdf")
-            pages = min(len(doc), MAX_PAGES)
-            sub = fitz.open()
-            sub.insert_pdf(doc, to_page=pages - 1)
-            send, mime = sub.tobytes(garbage=3, deflate=True), "application/pdf"
-            embedded = _embedded(doc, pages)
-        else:
-            doc, pages, embedded = None, 1, []
-            send, mime = _jpeg(body, 2400), "image/jpeg"
+        doc, pages, embedded, send, mime = await asyncio.to_thread(_prep, name, body)
+        is_pdf = mime == "application/pdf"
         fd, path = tempfile.mkstemp(suffix=".pdf" if is_pdf else ".jpg")
         try:
             with os.fdopen(fd, "wb") as fh:
@@ -206,9 +210,7 @@ async def _run_import(iid: str, owner: str, name: str, body: bytes) -> None:
                 if best and _iou(best["bbox"], box) > 0.25:
                     photos.append(best["id"])
                 else:
-                    if page not in renders:
-                        renders[page] = doc[page - 1].get_pixmap(dpi=150).tobytes("png") if doc and page <= pages else (None if doc else send)
-                    crop = renders[page] and _crop(renders[page], box)
+                    crop = await asyncio.to_thread(_page_crop, doc, send, page, pages, box, renders)
                     if crop:
                         photos.append((await _store(owner, "photo", f"{str(p['title'])[:60]}.jpg", "image/jpeg", crop,
                                                     page=page, import_id=iid))["id"])
@@ -219,6 +221,8 @@ async def _run_import(iid: str, owner: str, name: str, body: bytes) -> None:
             "status": "done", "products": out, "pages": pages, "finished_at": now_iso(),
             "images": [{"id": s["id"], "page": s["page"]} for s in stored]}})
     except Exception:
+        await db.mkt_media.delete_many({"import_id": iid})
+        await db.paid_uses.update_one({"vendor_id": owner, "code": "mkt_catalogue_ai", "ref": charge_ref, "used": True}, {"$set": {"used": False}})
         await db.mkt_imports.update_one({"_id": iid}, {"$set": {
             "status": "failed", "finished_at": now_iso(),
             "error": "We could not read this catalogue. Please try a clearer copy, a smaller file, or add the products by hand."}})
@@ -238,16 +242,17 @@ async def start_import(file: UploadFile = File(...), v=Depends(_seller)):
                 raise ValueError
         except Exception:
             raise HTTPException(status_code=400, detail="This PDF looks damaged or only partly downloaded. Please try another copy.")
-    sha = hashlib.sha256(body).hexdigest()
+    charge_ref = f"cat-{hashlib.sha256(body).hexdigest()[:24]}"
     from routers.growth import charge_or_pass
-    await charge_or_pass(v, "mkt_catalogue_ai", f"cat-{sha[:24]}", "AI catalogue reading")
+    await charge_or_pass(v, "mkt_catalogue_ai", charge_ref, "AI catalogue reading")
     iid = secrets.token_urlsafe(12)
     doc_ref = None
     if ext == "pdf" and len(body) <= MAX_DOC:
-        doc_ref = {"id": (await _store(v["id"], "document", file.filename, "application/pdf", body))["id"], "name": file.filename[:160]}
+        doc_ref = {"id": (await _store(v["id"], "document", file.filename, "application/pdf", body, import_id=iid))["id"],
+                   "name": file.filename[:160]}
     await db.mkt_imports.insert_one({"_id": iid, "owner": v["id"], "file_name": file.filename, "status": "reading",
                                      "catalogue_doc": doc_ref, "created_at": now_iso()})
-    t = asyncio.create_task(_run_import(iid, v["id"], file.filename, body))
+    t = asyncio.create_task(_run_import(iid, v["id"], file.filename, body, charge_ref))
     _TASKS.add(t)
     t.add_done_callback(_TASKS.discard)
     return {"id": iid, "status": "reading"}
@@ -277,18 +282,18 @@ class BulkIn(BaseModel):
 
 @router.post("/listings/bulk")
 async def bulk_drafts(body: BulkIn, v=Depends(_seller)):
-    ids = []
+    rows = []
     for it in body.items:
         docs = [{"id": str(d.get("id")), "name": str(d.get("name") or "Spec sheet")[:160]} for d in it.documents]
         await check_media(v["id"], it.photos, docs)
-        r = await db.mkt_listings.insert_one({
+        rows.append({
             **it.model_dump(), "documents": docs, "quantity": 1, "currency": "USD", "location": "", "image_url": "",
             "sale_modes": ["fixed"], "start_price": None, "reserve_price": None, "min_increment": 1, "buy_now_price": None,
             "closes_at": None, "eligibility": "verified_buyers", "needs_details": True, "source": "catalogue_ai",
             "seller_id": v["id"], "seller_name": v.get("company_name") or v.get("email"),
             "status": "draft", "created_at": now_iso(), "updated_at": now_iso()})
-        ids.append(str(r.inserted_id))
-    return {"created": len(ids), "ids": ids}
+    r = await db.mkt_listings.insert_many(rows)
+    return {"created": len(r.inserted_ids), "ids": [str(i) for i in r.inserted_ids]}
 
 
 async def ensure_indexes():

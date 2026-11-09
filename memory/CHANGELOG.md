@@ -1040,3 +1040,10 @@ summary notes.
 - GDPR delete dialog: portal to body, z-3000, readable dark text on white via index.css overrides scoped to vendor-gdpr-modal (Option-E remap was making it cream-on-cream); confirm button white text. Tested iteration_178/179.
 - Truncated PDFs: structural pypdf check -> friendly 400; AI failures now 422 (Cloudflare masks 5xx bodies). (pref pmc.faceid=1). Fix: deletion removes pmc.faceid; lock never shown on /login|/signin; lock z-index 2000 (covers header); floating ⇪/⚙ hidden on sign-in pages. Tested iteration_177 (5/5). Known: AI tool buttons would be hidden in-app if AI prices > 0 (currently free).
 
+
+## 2026-11-09 — v61b: Marketplace photos, spec sheets, AI catalogue import
+- New routers/marketplace_media.py: POST /api/v1/market/media (photo JPG/PNG/WEBP ≤8MB re-encoded JPEG; PDF spec sheet ≤10MB) stored in db.mkt_media (random string _id), public GET /media/{id}.
+- AI catalogue import: POST /catalogue/import (PDF/JPG/PNG ≤25MB, first 30 pages) -> background task (Gemini 3.1 Pro reads file, returns products + photo_box); photos matched to embedded PDF images by IoU else cropped from rendered page; GET /catalogue/import/{id} polls. Fee code mkt_catalogue_ai (free unless a rule is added); credit + media released on failure.
+- POST /listings/bulk (atomic) creates drafts with needs_details=true; submit blocked until supplier edits price/sale mode. Listings carry photos[] + documents[{id,name}] with owner+kind checks.
+- UI: VendorMarketE "Import from a catalogue with AI" (CatalogueImportE: tick products, AI text or write own, specs, choose/upload photos, attach catalogue PDF); Add-product form photo/spec uploads (MarketMediaPicker); public gallery + spec sheet links; admin thumbnails. Tested iteration_182 (bugs fixed after: stale-closure multi-photo upload, non-atomic bulk, kind check, to_thread CPU work).
+

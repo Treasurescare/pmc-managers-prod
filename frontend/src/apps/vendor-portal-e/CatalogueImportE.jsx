@@ -22,7 +22,7 @@ function ProductCard({ it, set, pageImages, hasCat }) {
         <label className="flex items-center gap-1"><input type="radio" checked={!it.ownText} onChange={() => set({ ownText: false, description: it.aiText })} data-testid={`cat-ai-text-${it.key}`} /> Use the AI description (you can edit it)</label>
         <label className="flex items-center gap-1"><input type="radio" checked={it.ownText} onChange={() => set({ ownText: true, description: "" })} data-testid={`cat-own-text-${it.key}`} /> Write my own</label>
       </div>
-      <textarea className="pmc-input w-full" rows={3} placeholder="Describe the product" value={it.description} onChange={(e) => set({ description: e.target.value })} data-testid={`cat-desc-${it.key}`} />
+      <textarea className="pmc-input w-full" rows={5} placeholder="Describe the product" value={it.description} onChange={(e) => set({ description: e.target.value })} data-testid={`cat-desc-${it.key}`} />
       {it.specs.length > 0 && <label className="flex items-start gap-2 text-xs">
         <input type="checkbox" checked={it.addSpecs} onChange={(e) => set({ addSpecs: e.target.checked })} data-testid={`cat-specs-${it.key}`} />
         <span>Add specifications: {it.specs.join(" · ")}</span></label>}
@@ -31,7 +31,7 @@ function ProductCard({ it, set, pageImages, hasCat }) {
         <input className="pmc-input" placeholder="Unit" value={it.unit} onChange={(e) => set({ unit: e.target.value })} data-testid={`cat-unit-${it.key}`} />
       </div>
       <div className="text-xs opacity-80">Photos for this listing (remove any you don't want, or upload your own)</div>
-      <PhotoStrip photos={it.photos} onChange={(fn) => set({ photos: fn(it.photos) })} testid={`cat-photos-${it.key}`} />
+      <PhotoStrip photos={it.photos} onChange={(fn) => set((x) => ({ photos: fn(x.photos) }))} testid={`cat-photos-${it.key}`} />
       {others.length > 0 && <div>
         <div className="text-xs opacity-70">Other photos on this page — tap to add</div>
         <div className="flex flex-wrap gap-2 mt-1">{others.map((im) => (
@@ -79,14 +79,15 @@ export default function CatalogueImportE({ onDone, onCancel }) {
     } catch (e) { showApiError(e); }
     setSaving(false);
   };
-  const upd = (k) => (patch) => setItems((xs) => xs.map((x) => (x.key === k ? { ...x, ...patch } : x)));
+  const upd = (k) => (patch) => setItems((xs) => xs.map((x) => (x.key === k ? { ...x, ...(typeof patch === "function" ? patch(x) : patch) } : x)));
   return (
     <section className="pmc-panel p-4 mt-4 space-y-3" data-testid="cat-import">
       <div className="flex items-center gap-2 font-semibold"><Sparkles size={16} /> Import products from a catalogue</div>
       <p className="text-sm opacity-80">Upload a PDF catalogue, brochure or a photo of a page. AI finds each product, its photo and a description. You then choose what to keep, edit the text or write your own, and pick the photos.</p>
-      {!job && <div className="flex gap-2">
-        <button type="button" className="pmc-btn pmc-btn--primary" onClick={() => ref.current?.click()} data-testid="cat-upload-btn"><Upload size={14} className="inline mr-1" />Choose catalogue (PDF, JPG, PNG · max 25 MB)</button>
+      {!job && <div className="flex flex-wrap gap-2 items-center">
+        <button type="button" className="pmc-btn pmc-btn--primary" onClick={() => ref.current?.click()} data-testid="cat-upload-btn"><Upload size={14} className="inline mr-1" />Choose catalogue</button>
         <button type="button" className="pmc-btn pmc-btn--secondary" onClick={onCancel} data-testid="cat-cancel">Cancel</button>
+        <span className="text-xs opacity-70 w-full">PDF, JPG or PNG · max 25 MB · first 30 pages are read</span>
       </div>}
       <input ref={ref} type="file" accept="application/pdf,image/jpeg,image/png" hidden onChange={(e) => start(e.target.files[0])} data-testid="cat-file-input" />
       {job && ["uploading", "reading"].includes(job.status) && <p className="text-sm" data-testid="cat-progress">{job.status === "uploading" ? "Uploading" : "AI is reading"} <b>{job.file_name}</b>… this can take 1–3 minutes for a large catalogue. You can stay on this page.</p>}

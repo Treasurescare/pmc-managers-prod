@@ -1,0 +1,52 @@
+{
+  "summary": "v61b Marketplace photo/spec-sheet upload + AI catalogue import tested end-to-end (backend pytest 17/18 + full UI flows: vendor AI import -> edit cards -> bulk drafts -> Edit/price -> submit; manual Add product with photos+spec sheet; admin approval thumbnails; public /market card cover + detail gallery + spec sheet links). Real Gemini import of the 2-page sample PDF found 2 products with correct embedded photos (~20s) in both API and UI; PNG page import also produced a cropped photo. Two bugs found: (1) multi-file photo upload inside a catalogue product card keeps only the last file (stale closure); (2) POST /listings/bulk is not atomic — items before a foreign-id item are inserted even though the request returns 400.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/v1/market/listings/bulk", "issue": "Not atomic. check_media runs per item inside the insert loop, so with items=[ok, foreign-photo] the first draft is created and the response is still 400. Reproduced by test_partial_bulk_on_foreign_id. Fix: check the media for ALL items first, then insert_many."},
+      {"endpoint": "check_media (create/update/bulk)", "issue": "Ownership is checked but kind is not, so a 'document' media id can be put in photos[] (rendered as a broken <img>) and a photo id can be put in documents[]. Add kind filters."},
+      {"endpoint": "_run_import", "issue": "CPU-heavy sync work (fitz open/insert_pdf/tobytes, get_pixmap at 150dpi, PIL _jpeg for up to 80 embedded images) runs on the event loop inside the background task. On a 30-page catalogue this blocks every other request. Wrap it in asyncio.to_thread."},
+      {"endpoint": "POST /catalogue/import", "issue": "Every embedded image and the catalogue PDF are stored in mkt_media even when the import fails or the drafts are never created. Nothing cleans up these orphans, and they are publicly fetchable by id. The paid credit is also used up when the AI fails."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CatalogueImportE ProductCard PhotoStrip", "issue": "Picking 2 files at once in a product card's 'Upload photos' adds only 1: count went from 1 to 2 instead of 3. The cause is onChange={(fn) => set({ photos: fn(it.photos) })}. it.photos is a stale closure value, and useUpload calls onDone once per file, so each call overwrites the previous one. The manual Add-product form is fine because it uses a functional setF. Fix: use a functional update inside setItems, e.g. upd that accepts a function: setItems(xs => xs.map(x => x.key===k ? {...x, photos: fn(x.photos)} : x)).", "selector": "[data-testid=cat-photos-N-input]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Vendor catalogue import cards", "issues": ["The description textarea is rows=3 and cuts the AI text mid-line. Consider rows=4-5 or auto-grow.", "Clicking 'Write my own' clears the box with no warning (going back to the AI option restores the text, so this is acceptable)."]},
+      {"screen": "Vendor My listings", "issues": ["Submitting a needs_details draft shows the toast 'Something went wrong · HTTP 400' followed by the helpful message. The 'Something went wrong' prefix is misleading for an expected validation message."]}
+    ]
+  },
+  "passed_flows": [
+    "Media upload: PNG photo re-encoded and served as image/jpeg; PDF spec sheet served (inline and ?download=true attachment); GIF, fake PNG, fake PDF, .docx and unknown kind give 400; photo over 8MB gives 413; no auth gives 401/403; missing CSRF gives 403; unknown id gives 404; base64 X-PMC-Upload path works",
+    "Create/update listing with photos and documents is saved correctly; foreign photo or doc id gives 400 on create and on update",
+    "Bulk drafts: needs_details=true, source=catalogue_ai; foreign id gives 400; submit gives 400 'Open Edit...' until PUT with a price, after which needs_details=false and submit goes to pending",
+    "Catalogue import: txt or broken PDF gives 400; PDF import status reading -> done with 2 products (pump on page 1, skid on page 2), each with a photo, plus images[] and catalogue_doc; vendor #2 gets 404; PNG page import works with catalogue_doc=null and a cropped photo",
+    "UI: mkt-import -> cat-file-input -> cat-progress -> cat-found with 2 cards; photos load (800px); specs checkbox; attach-catalogue checkbox; own/AI radios; remove photo and re-add from 'other photos on this page'; 'Create 2 draft listing(s)' -> rows with 'set price & how to sell (Edit)'; Edit form pre-fills photos, catalogue PDF and description with specs; saving a price clears the label; submit -> PENDING",
+    "UI: Add a product -> upload 2 photos at once (both kept) + attach spec sheet -> save -> submit",
+    "Admin /admin/e/market shows mkt-admin-media-{id} thumbnails and the doc link; Approve -> live",
+    "Public /market cards show the first uploaded photo; /market/{id} market-gallery has 2 thumbnails and clicking one switches the main image; market-docs link returns 200 application/pdf"
+  ],
+  "test_report_links": ["/app/backend/tests/test_v61b_market_media.py", "/app/backend/tests/mkt_v61b_seed.py", "/app/test_reports/pytest/pytest_v61b.xml"],
+  "action_items": [
+    "Fix the stale closure in CatalogueImportE PhotoStrip onChange so multi-file uploads keep every photo (use a functional update over the current item state)",
+    "Make POST /listings/bulk atomic: validate all items' media before inserting anything",
+    "Optional: check media kind in check_media; run the fitz/PIL work in _run_import via asyncio.to_thread; clean up orphan import media"
+  ],
+  "critical_code_review_comments": [
+    "marketplace_media._run_import: blocking CPU work on the event loop (fitz, pixmap, PIL)",
+    "bulk_drafts: partial inserts on a validation failure",
+    "check_media ignores kind (photo vs document)",
+    "upload_media/start_import read the whole body before the size check (up to the proxy limit); acceptable but worth noting",
+    "_seller helper is duplicated in marketplace.py and marketplace_media.py (small DRY issue)"
+  ],
+  "updated_files": ["/app/backend/tests/test_v61b_market_media.py (new)", "/app/backend/tests/mkt_v61b_seed.py (new)"],
+  "success_rate": {"backend": "94% (17/18)", "frontend": "~95% (all flows work; multi-file upload in catalogue card loses files)"},
+  "seed_data_creation": "TEST_ vendor #2 test_mkt_v2_v61b@example.com created by mkt_v61b_seed.py and deleted afterwards. All TEST_ listings (9), mkt_media (16) and mkt_imports (3) created in this run were deleted by id. No seed or user data was changed. mkt_settings was not touched.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: python tests/make_test_catalogue.py && python tests/mkt_v61b_seed.py create; pytest tests/test_v61b_market_media.py -n 0; then python tests/mkt_v61b_seed.py clean (it reads /tmp/mkt_v61b_created.json written by the test module). The sign-in page at /vendor/login and /admin/login uses signin-e-email / signin-e-password / signin-e-submit. Retest: the catalogue card multi-photo upload (cat-photos-0-input with 2 files should add 2) and test_partial_bulk_on_foreign_id.",
+  "rca of the issue": "Multi-upload bug: in useUpload, run() loops over files and calls onDone(m) for each one. PhotoStrip's onDone calls onChange(p => [...p, m.id]). In CatalogueImportE, onChange is (fn) => set({photos: fn(it.photos)}), where it.photos is captured at render time, so each call computes from the same old array and the last write wins. Bulk atomicity: bulk_drafts calls await check_media(...) and then insert_one for each item in turn, so earlier inserts are already committed when a later item raises 400."
+}
