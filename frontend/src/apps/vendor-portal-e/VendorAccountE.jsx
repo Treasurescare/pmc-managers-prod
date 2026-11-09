@@ -604,7 +604,11 @@ export default function VendorAccountE({ legacy: Legacy }) {
         <section id="delete" className="pmc-panel" style={{ background: "#162921", color: "#fff" }} data-testid="vacc-delete-panel">
           <div className="pmc-panel__head"><h2 style={{ color: "#fff" }}>Delete my account</h2></div>
           <p style={{ color: "rgba(255,255,255,.8)", marginBottom: 8 }}>Permanently remove your company profile and personal data. Records the law requires us to keep, such as submitted bids and invoices, are anonymised.</p>
-          <VendorGdprButton onSuccess={() => { window.location.href = "/"; }} />
+          <VendorGdprButton onSuccess={async () => {
+            try { await vendorApi.logout(); } catch { /* session already revoked */ }
+            try { sessionStorage.clear(); } catch { /* ignore */ }
+            window.location.replace("/login?deleted=1");
+          }} />
         </section>
       </VendorPortalChrome>
     </div>

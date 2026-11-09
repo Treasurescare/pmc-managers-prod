@@ -217,6 +217,7 @@ export default function PmcMobileNav() {
           <nav aria-label="Supplier">
             <NavLink to="/vendor" end data-testid="pmc-mobile-menu-link-home">Home</NavLink>
             <NavLink to="/vendor/tenders" data-testid="pmc-mobile-menu-link-tenders">Find tenders</NavLink>
+            <NavLink to="/vendor/ai-tools" data-testid="pmc-mobile-menu-link-ai-tools">AI tender tools</NavLink>
             <NavLink to="/vendor/mybids" data-testid="pmc-mobile-menu-link-mybids">My bids</NavLink>
             <NavLink to="/vendor/auctions" data-testid="pmc-mobile-menu-link-auctions">Reverse auctions</NavLink>
             <NavLink to="/vendor/emd" data-testid="pmc-mobile-menu-link-emd">EMD &amp; payments</NavLink>
@@ -224,6 +225,7 @@ export default function PmcMobileNav() {
             <hr />
             <NavLink to="/vendor/company" data-testid="pmc-mobile-menu-link-company">Company &amp; KYC</NavLink>
             <NavLink to="/vendor/categories" data-testid="pmc-mobile-menu-link-categories">Categories</NavLink>
+            <NavLink to="/vendor/saved-alerts" data-testid="pmc-mobile-menu-link-saved-alerts">Saved alerts</NavLink>
             <NavLink to="/vendor/services" data-testid="pmc-mobile-menu-link-services">Services</NavLink>
             <NavLink to="/vendor/reviews" data-testid="pmc-mobile-menu-link-reviews">Reviews</NavLink>
             <NavLink to="/vendor/account" data-testid="pmc-mobile-menu-link-account">Account &amp; security</NavLink>

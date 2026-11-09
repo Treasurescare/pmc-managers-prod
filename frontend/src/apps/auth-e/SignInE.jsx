@@ -26,6 +26,11 @@ export default function SignInE({ legacy: Legacy }) {
   const [busy, setBusy] = useState(false);
   const [googleOn, setGoogleOn] = useState(false);
   useEffect(() => { marketingApi.googleConfig().then((c) => setGoogleOn(!!c.enabled)).catch(() => {}); }, []);
+  useEffect(() => {
+    if (params.get("deleted") === "1") {
+      toast.success("Your account has been deleted", { description: "Your profile has been anonymised and you have been signed out.", duration: 10000 });
+    }
+  }, [params]);
 
   if (!isE && Legacy) return <Legacy />;
   if (!isE) return null;
