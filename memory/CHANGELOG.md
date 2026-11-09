@@ -1031,5 +1031,6 @@ summary notes.
 
 ## 2026-11-09 — v60p: scanned PDF reading + readable delete dialog
 - Supplier AI summary reads scanned PDFs (no text layer) and photos (JPG/PNG) via Gemini vision (growth._vision_summary); proof_ai now uses _llm_key() (prod LLM_API_KEY).
-- GDPR delete dialog: portal to body, z-3000, dark readable text, white input, "Enter your password to permanently delete your account". (pref pmc.faceid=1). Fix: deletion removes pmc.faceid; lock never shown on /login|/signin; lock z-index 2000 (covers header); floating ⇪/⚙ hidden on sign-in pages. Tested iteration_177 (5/5). Known: AI tool buttons would be hidden in-app if AI prices > 0 (currently free).
+- GDPR delete dialog: portal to body, z-3000, readable dark text on white via index.css overrides scoped to vendor-gdpr-modal (Option-E remap was making it cream-on-cream); confirm button white text. Tested iteration_178/179.
+- Truncated PDFs: structural pypdf check -> friendly 400; AI failures now 422 (Cloudflare masks 5xx bodies). (pref pmc.faceid=1). Fix: deletion removes pmc.faceid; lock never shown on /login|/signin; lock z-index 2000 (covers header); floating ⇪/⚙ hidden on sign-in pages. Tested iteration_177 (5/5). Known: AI tool buttons would be hidden in-app if AI prices > 0 (currently free).
 

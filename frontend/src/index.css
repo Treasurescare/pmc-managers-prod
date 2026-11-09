@@ -915,6 +915,7 @@
 [data-ui="e"] [data-testid="vendor-gdpr-modal"] label { color: #0F172A !important; -webkit-text-fill-color: #0F172A !important; }
 [data-ui="e"] [data-testid="vendor-gdpr-modal"] input { background: #FFFFFF !important; }
 [data-ui="e"] [data-testid="vendor-gdpr-modal"] h3 { color: #B91C1C !important; -webkit-text-fill-color: #B91C1C !important; }
+[data-ui="e"] [data-testid="vendor-gdpr-confirm"] { color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; }
 
 
 /* The slate→cream remap above is meant for DARK themed pages. The bid-submit

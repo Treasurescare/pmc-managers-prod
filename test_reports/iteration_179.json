@@ -1,0 +1,28 @@
+{
+  "summary": "Iteration 179 re-tested the iteration_178 failures. (1) Truncated PDF in the AI summary: FIXED. The backend now gives a friendly JSON 400 for cuts at 300, 3000 and 20000 bytes and for a file missing its last 100 bytes. The UI toast shows 'This PDF looks damaged or only partly downloaded...' with no Cloudflare text or 502. Scanned PDFs and JPGs still summarise (200, all fields filled). Garbage PDFs give 400 and unauthenticated calls give 401. (2) The intro text on /vendor/ai-tools now mentions 'scan/photo as PDF, JPG or PNG': PASS. (3) GDPR modal at 390x844, on mobile web and on the accessor-based native mock (html.pmc-native, Capacitor.isNativePlatform()=true): MOSTLY FIXED. The card is #FFFFFF. The paragraph, the password label, the password input (color and -webkit-text-fill-color), the checkbox label and Cancel are all #0F172A on white. The heading is #B91C1C. The typed password dots show clearly. Nothing covers the modal (z-index 3000; elementFromPoint checks land inside it). Cancel closes it, and no deletion was done. ONE REMAINING DEFECT: the 'Delete permanently' button has color #FFFFFF, but its -webkit-text-fill-color is inherited from the card as #0F172A. Fill colour wins in WebKit and Chromium, so the button text shows dark navy on red #DC2626, about 3.7:1, below 4.5:1. This was confirmed in the screenshot.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "VendorGdprButton confirm button", "issue": "The 'Delete permanently' text shows #0F172A on red #DC2626 (about 3.7:1) instead of white. Cause: the new rule in index.css (~line 911) gives the card (.text-slate-900) -webkit-text-fill-color:#0F172A, and every child inherits it. The button's text-white only sets 'color', and the inherited fill colour overrides it. Same cause on iOS Safari.", "selector": "[data-testid=vendor-gdpr-confirm]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/vendor/ai-tools error toast", "issues": ["The toast title 'Something went wrong · HTTP 400' is technical. The message body is friendly. Optional: drop 'HTTP 400' for 4xx errors whose detail is already written for users."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_t179_truncated_pdf_ai_summary.py", "/app/backend/tests/test_t178_scanned_pdf_summary.py", "/app/test_reports/pytest/pytest_t179.xml"],
+  "action_items": [
+    "In index.css add: [data-ui=\"e\"] [data-testid=\"vendor-gdpr-confirm\"] { color:#FFFFFF !important; -webkit-text-fill-color:#FFFFFF !important; }. Alternatively, apply the fill colour only to p, label, span and input, not to the card's .text-slate-900."
+  ],
+  "critical_code_review_comments": [
+    "The -webkit-text-fill-color set on the card container is inherited. Any child that sets only 'color' (white buttons, the red heading) loses its colour unless it is overridden too. The h3 is overridden; the confirm button is not.",
+    "growth.py ai_summary: the PdfReader structural check runs only when the extracted text is under 80 characters, which is correct. pypdf with strict=False raises PdfStreamError (EOF marker not found) on every truncated cut tested, so the check is reliable."
+  ],
+  "updated_files": ["/app/backend/tests/test_t179_truncated_pdf_ai_summary.py"],
+  "success_rate": {"backend": "100% (8/8)", "frontend": "90% (all checks pass except the confirm button text colour)"},
+  "seed_data_creation": "None. ai_reports created by the scanned PDF/JPG tests are removed by id in the t178 vs fixture teardown. No account was deleted.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Log in at /login (signin-e-*). Native mock: accessor-defined window.Capacitor via add_init_script and localStorage CapacitorStorage.pmc.faceid='0'. Truncated fixture: PIL image saved as PDF, cut to the first 3000 bytes. To check the GDPR fix, read getComputedStyle color and webkitTextFillColor of the card children. Only the confirm button still needs a white fill colour.",
+  "rca of the issue": "The confirm button text is dark because the card has -webkit-text-fill-color:#0F172A !important, which every descendant inherits. text-white sets only 'color', and the fill colour takes priority when the text is drawn."
+}
