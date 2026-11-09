@@ -12,6 +12,7 @@ import SectionE from "@/apps/registration-portal/sections/SectionE";
 import VendorStepperNav from "./vendor/VendorStepperNav";
 import VendorActivationStep from "./vendor/VendorActivationStep";
 import { InfoDot } from "@/components/InfoDot";
+import { missingRequired } from "@/apps/registration-portal/requiredFields";
 
 /**
  * Admin creates a vendor + fills the FULL Sections A–E form on their behalf.
@@ -135,7 +136,15 @@ export default function AdminVendorCreate() {
 
   const submit = async () => {
     if (!reg.email) return toast.error(t("admin_vendor.email_required"));
-    if (!reg.company_name) return toast.error(t("admin_vendor.company_required"));
+    const gaps = missingRequired(reg);
+    if (gaps.length > 0) {
+      toast.error(`${gaps.length} mandatory item(s) still missing`, {
+        description: gaps.slice(0, 8).map((g) => `Section ${g.section.toUpperCase()}: ${g.label}`).join("\n") + (gaps.length > 8 ? "\n…" : ""),
+        duration: 12000,
+      });
+      setStep(gaps[0].section);
+      return;
+    }
     if (mode === "activate" && password.length < 8) return toast.error(t("admin_vendor.pwd_short"));
     // v50j · bug #120 — 6 Section-E (team's "Section K") declarations must
     // all be accepted before the admin can activate / invite the vendor.

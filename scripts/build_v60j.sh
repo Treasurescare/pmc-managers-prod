@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
-# PMC v60j — iPhone app is purchase-free (App Store 3.1.3(f)). Frontend only; backend stays v60i2.
+# PMC v60j — iPhone app purchase-free (App Store 3.1.3(f)) + admin vendor-create mandatory-field check.
 set -eu
 VER="v60j"; ROOT="/app"; DL="$ROOT/frontend/public/downloads"
-rm -f "$DL"/pmc-frontend-v60h*.zip
+rm -f "$DL"/pmc-frontend-v60h*.zip "$DL"/pmc-backend-v60h*.zip
+cd "$ROOT/backend"; rm -f "$DL/pmc-backend-${VER}.zip"
+zip -qr "$DL/pmc-backend-${VER}.zip" . -x '__pycache__/*' -x '**/__pycache__/*' -x '*.pyc' -x '**/*.pyc' \
+    -x '.env' -x 'venv/*' -x '.pytest_cache/*' -x '.ruff_cache/*' -x 'keys/*' -x 'tests/*'
+ls -lh "$DL/pmc-backend-${VER}.zip"
 cd "$ROOT/frontend"
 STASH=/tmp/pmc_dl_stash_${VER}; rm -rf "$STASH"
 if [ -d public/downloads ]; then mv public/downloads "$STASH"; fi
@@ -18,5 +22,5 @@ rm -rf /tmp/mz; mkdir -p /tmp/mz/downloads/manual
 cp public/downloads/manual/PMC_v4_Master_Training_Manual.pdf public/downloads/manual/PMC_Master_Training_Manual_*.pdf public/downloads/manual/sections*.json /tmp/mz/downloads/manual/
 ( cd /tmp/mz && zip -rq "$OUT" downloads ); rm -rf /tmp/mz
 echo "FRONTEND ZIP:"; ls -lh "$OUT"
-if ! python3 "$ROOT/scripts/secret_scan.py" "$OUT"; then rm -f "$OUT"; echo "BUNDLE DELETED: secret found"; exit 1; fi
+if ! python3 "$ROOT/scripts/secret_scan.py" "$DL/pmc-backend-${VER}.zip" "$OUT"; then rm -f "$OUT" "$DL/pmc-backend-${VER}.zip"; echo "BUNDLE DELETED: secret found"; exit 1; fi
 echo "ALL DONE ${VER}"

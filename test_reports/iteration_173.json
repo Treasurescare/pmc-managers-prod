@@ -1,0 +1,36 @@
+{
+  "summary": "Frontend-only test of the purchase-free iOS (Capacitor) mode at 390x800, logged in as testvendor. Native mode works: the html element gets class pmc-native. The only purchase button on real supplier pages (listing-feature-btn 'Get featured') is hidden with data-pmc-iap-hidden. 8 checkout-type POSTs (billing/checkout, billing/fee-checkout, doc-fee/checkout, /pay/x, payments/emd/checkout, vendor categories checkout, data-intel checkout, vendor-tenders subscription checkout) were blocked before any network request and showed the billing-managed message. A mocked 402 with a checkout_url showed the message, no 'Pay now' action and no navigation to Stripe or 'null'. A mocked priced consultancy service: 'Book & pay INR 5,000' (service-req-pay) hidden, 'Send request' and 'Cancel' visible. Free features stay visible and work: listing-save, saved alert create and delete, AI summary/readiness buttons (prices are currently 0, so labels read Free), app-share-btn, app-settings-btn, Delete my account link, sign out, lang-toggle, Ask PMC, Help, Start bid, Download pack, EMD statement, Sign out everywhere else, Delete my data. Web mode (no mock): 0 data-pmc-iap-hidden elements, no pmc-native class, listing-feature-btn visible, 402 shows the 'Pay now' toast, service-req-pay visible. Nothing changed on web. IMPORTANT test note: the mock from the brief (window.Capacitor={isNativePlatform:()=>true}) is OVERWRITTEN by the real @capacitor/core when the bundle loads. After that isNativeApp() returns false, so the guard install still runs but the axios blocking does not. Accurate simulation also needs window.CapacitorCustomPlatform={name:'ios',plugins:{}}. On a real iPhone this is not a problem because the native bridge exists.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "VendorAiToolsE (ai-summary-btn / ai-readiness-btn)", "issue": "When AI prices are above 0, the button labels contain the price (e.g. 'Summarise (INR 500)'). CUR_RE then hides BOTH buttons in native, so the AI tools page has no action button and no explanation. Today prices are 0 ('Free'), so this does not happen yet. Confirmed with a mocked /supplier-ai/prices.", "selector": "[data-testid=ai-summary-btn],[data-testid=ai-readiness-btn]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Native billing message toast", "issue": "The blocked-checkout message and the 402 message appear in showApiError's error style, with the title 'Something went wrong' (plus '· HTTP 402' on a 402). It reads like a failure rather than an informational note.", "affected_selectors": ["[data-sonner-toast]"]},
+      {"flow": "Payment calls not matched by isPaymentRequest", "issue": "POST /api/v1/payments/sandbox/confirm and POST /api/v1/consulting/requests with pay_now:true (ConsultingE redirects to r.checkout_url) are not blocked. Today they can only be reached through hidden buttons, so the risk is low. A defensive guard would help: skip window.location redirects to checkout_url when isNativeApp().", "affected_selectors": ["service-req-pay"]}
+    ],
+    "design_issues": [
+      {"screen": "/vendor/listing (native)", "issues": ["The 'PREMIUM VISIBILITY' panel still advertises featured listings ('Featured suppliers appear first... for 30 days') even though its button is hidden. Consider hiding the whole panel in native."]},
+      {"screen": "/consultancy (native, priced service)", "issues": ["The price text 'INR 5,000' stays visible on the service card (only buttons/links are scanned)."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "In native mode, do not hide the AI tool buttons when a price is set. Remove the price from the label (or show a 'managed by your organisation' note) instead of hiding the button, so the feature stays usable or is explained.",
+    "Optional: in native, show NATIVE_BILLING_MSG as an info toast instead of the 'Something went wrong · HTTP 402' error style.",
+    "Optional: hide the 'Premium visibility' panel on /vendor/listing and the service price text in native.",
+    "Optional defence in depth: guard window.location / window.open redirects to checkout_url (ConsultingE, BidSubmit, PurchaseGrid, etc.) with isNativeApp(), and add /payments/sandbox/ to isPaymentRequest."
+  ],
+  "critical_code_review_comments": [
+    "nativeBilling.js: isNativeApp() reads window.Capacitor on every call. That is correct on a real device but means a test mock must also set CapacitorCustomPlatform (see the summary).",
+    "isCta only scans button/a/[role=button] and skips text of 60+ characters. A long pay button label, or price text in a div/span, is not hidden.",
+    "The MutationObserver does not watch attribute changes. A data-testid or aria-label that changes without a child/text mutation is not re-evaluated (low risk).",
+    "ID_RE matches any testid segment '-feature-' (e.g. a future 'home-feature-card'), which could cause false positives; SAFE_RE does not cover that."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (skipped)", "frontend": "95%"},
+  "seed_data_creation": "Created and then deleted one saved alert 'TEST_native_alert' (id 6af11e768834ebe828935ac5) through the UI. Priced AI prices, the consultancy service and the 402 responses were mocked with page.route only, so no DB writes. No payments were made.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "To simulate native use add_init_script: window.Capacitor={isNativePlatform:()=>true,getPlatform:()=>'ios'}; window.CapacitorCustomPlatform={name:'ios',plugins:{}}. Without the second part, @capacitor/core overwrites the mock and the axios guard is inactive. Interceptors can be exercised in-page via window.webpackChunkfrontend.push([[Symbol()],{},r=>req=r]); req('./src/lib/api.js').api. Routes /vendor/my-bids and /vendor/settings do not exist (they redirect to /); the real ones are /vendor/mybids and /vendor/account."
+}

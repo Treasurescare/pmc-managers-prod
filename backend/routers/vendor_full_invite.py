@@ -46,6 +46,29 @@ def _fingerprint_registration(reg: dict) -> dict:
     return {k: reg.get(k) for k in keep if reg.get(k) is not None}
 
 
+REQUIRED_FIELDS = ["company_name", "registered_address", "country", "registration_number",
+                   "incorporation_date", "tax_id", "legal_entity_type", "contact_name",
+                   "contact_mobile", "contact_email", "signatory_name", "signatory_contact",
+                   "bank_name", "bank_account_number", "bank_swift"]
+
+
+async def _check_mandatory(payload: AdminVendorFullIn, email: str) -> None:
+    from bson import ObjectId as _OID
+    from routers.registrations import DOC_SLOTS
+    reg = payload.registration or {}
+    slots = dict(reg.get("document_slots") or {})
+    if payload.draft_registration_id:
+        try:
+            draft = await db.registrations.find_one({"_id": _OID(payload.draft_registration_id), "email": email})
+        except Exception:
+            draft = None
+        slots.update((draft or {}).get("document_slots") or {})
+    missing = [f for f in REQUIRED_FIELDS if not str(reg.get(f) or "").strip()]
+    missing += [s["label"] for k, s in DOC_SLOTS.items() if s.get("required") and not slots.get(k)]
+    if missing:
+        raise HTTPException(status_code=400, detail=f"{len(missing)} mandatory item(s) missing: {', '.join(missing)}")
+
+
 @router.post("/admin-create")
 async def admin_create_vendor(payload: AdminVendorFullIn,
                                 admin=Depends(require_role("admin"))):
@@ -64,6 +87,7 @@ async def admin_create_vendor(payload: AdminVendorFullIn,
                    f"not accepted: {', '.join(missing_decls)}",
         )
     email = payload.email.lower()
+    await _check_mandatory(payload, email)
     existing = await db.vendors.find_one({"email": email})
     if existing and existing.get("is_active"):
         raise HTTPException(status_code=409, detail="Vendor already active")

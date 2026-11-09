@@ -991,3 +991,12 @@ summary notes.
 
 ## 2026-11-07 — iOS app submitted
 - PMC Managers 1.0.0 (1) uploaded from customer's Mac (Xcode 27.2) and submitted for App Review (Waiting for Review). China mainland excluded (no ICP). APNs key created (Team Q2J9548DSN); APNS_* env vars still to be added in EB.
+
+
+## 2026-11-09 — v60j: purchase-free iPhone app + admin vendor mandatory fields
+- Apple 2.1 "Information Needed" reply drafted (notes, recording steps). APNs env set in EB by customer (APNS_KEY_P8 via SSM Parameter Store reference).
+- lib/nativeBilling.js: in Capacitor app only, hides buy/pay/subscribe/upgrade/featured/priced buttons (data-pmc-iap-hidden), blocks checkout/pay POSTs in api.js interceptor, rewrites 402 to neutral "Billing ... managed by your organisation's PMC account." (info toast). Web unchanged. Tested iteration_173.
+- Admin /admin/vendors/new: final create now blocked until all red-* fields + required documents are filled (frontend requiredFields.js + backend vendor_full_invite._check_mandatory, 400 listing missing items).
+- Prod 403 on hero-image upload: preview upload of 1.3 MB JPG works; prod 403 has no JSON body → AWS layer (likely WAF on CloudFront). Customer to check WAF sampled requests.
+- Bundles: pmc-backend-v60j.zip + pmc-frontend-v60j-prod-build.zip (secret scan passed). Known: AI tool buttons would be hidden in-app if AI prices > 0 (currently free).
+

@@ -2,9 +2,9 @@
 export const isNativeApp = () => !!window.Capacitor?.isNativePlatform?.();
 export const NATIVE_BILLING_MSG = "Billing for this feature is managed by your organisation's PMC account.";
 
-export const isPaymentRequest = (method, url = "") =>
+export const isPaymentRequest = (method, url = "", data = null) =>
   !["get", "head", "options"].includes((method || "get").toLowerCase()) &&
-  /\/checkout(\/|\?|$)|fee-checkout|\/pay(\/|\?|$)/i.test(url);
+  (/\/checkout(\/|\?|$)|fee-checkout|\/pay(\/|\?|$)|\/payments\/sandbox\//i.test(url) || !!(data && typeof data === "object" && data.pay_now));
 
 const ID_RE = /(^|[-_])(pay|paynow|buy|purchase|checkout|subscribe|upgrade|feature)([-_]|$)/i;
 const TEXT_RE = /\b(pay|buy|purchase|checkout|subscribe|upgrade|get featured|go premium)\b|(₹|\$|€|£)\s?\d/i;

@@ -88,7 +88,7 @@ function refreshCsrf() {
 
 api.interceptors.request.use((cfg) => {
   const method = (cfg.method || "get").toLowerCase();
-  if (isNativeApp() && isPaymentRequest(method, cfg.url)) {
+  if (isNativeApp() && isPaymentRequest(method, cfg.url, cfg.data)) {
     return Promise.reject({ response: { data: { detail: NATIVE_BILLING_MSG } }, config: cfg, __pmcNativeBilling: true });
   }
   if (method !== "get" && method !== "head" && method !== "options") {
@@ -207,6 +207,7 @@ export function showApiError(err, { fallbackTitle = "Something went wrong" } = {
   // rendered — the "silent dead button" root cause on 4xx/5xx failures).
   const status = err?.response?.status;
   const detail = formatApiError(err);
+  if (detail === NATIVE_BILLING_MSG) { toast.info(detail, { duration: 8000 }); return; }
   // Split on the first period+space (or newline) into headline + details.
   const [head, ...rest] = detail.split(/(?:\.\s+|\n)/);
   const description = rest.join(" ").trim();
