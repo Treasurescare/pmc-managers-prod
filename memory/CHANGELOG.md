@@ -1053,3 +1053,10 @@ summary notes.
 - 42 narrated videos (3 topics x 14 languages) in public/help-videos/<lang>/. make_videos.py now supports PW_FRAMES=1 (frame capture + system ffmpeg) and PW_CHROME because the Playwright video recorder fails in this pod (ffmpeg-1010 mismatch); adelay clamped >=0.
 - Manual chapter 28b + 4 screenshots (n9–n12 in manual_screens_new.json; capture_manual.py forces English). Pipeline: build_manual_v4.py -> copy to scripts/help_videos/manual_base.pdf -> manual_appendix.py -> build_manual_i18n.py. English 121 pages; 13 translated PDFs rebuilt. Demo listings seeded/cleaned via backend/tests/seed_market_manual_demo.py.
 
+
+## 2026-11-09 — v61d: Add-product form uses masters, photo framing, AI fill
+- Category picker from category master + "Add a new category" (POST /api/v1/market/categories, case-insensitive dedupe, stored source=supplier, needs_review=True). Same picker in catalogue import cards.
+- Currency from currency master (CurrencySelect, country default); location Country -> State -> City (masters) + ZIP validated against masters_countries.postal_code_regex; location string "City, State, Country".
+- Photos: crop dialog (react-easy-crop, 4:3) before upload; backend _card() normalises every marketplace photo (uploads + AI-extracted) to 1200x900 JPEG — sized for the upcoming home-page marketplace half.
+- "Fill with AI from a file" inside Add product (AiFillButton, reuses catalogue import job). Tested iteration_183; fixed ZIP placeholder, textarea height, city needs state, crop cancel.
+

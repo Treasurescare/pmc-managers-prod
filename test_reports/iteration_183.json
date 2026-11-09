@@ -1,0 +1,37 @@
+{
+  "summary": "Frontend E2E of the vendor 'Add a product' form at /vendor/market as testvendor. Working: category picker from the master with add-new and case-insensitive dedupe; currency select from the master that switches to the country default (IN -> INR); Country -> State -> City cascade (IN has 36 states, Tamil Nadu has 394 cities); wrong ZIP rejected and valid ZIP saved; crop dialog for 2 files in a row (zoom, Use this photo, Fit automatically), both stored at 1200x900; edit form refills every field; submit works; after admin approval the public /market/:id page shows 'Chennai, Tamil Nadu, India'; AI fill from a PDF (about 15s) fills title, description with specs, category (with the 'not in the list yet' hint and an add link), unit, a 1200x900 photo and the spec sheet; catalogue import cards use the cat-category-N picker and add-new works there. Two defects: the ZIP placeholder never shows the country format, and the Description textarea is squashed to one line.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "LocationPicker ZIP placeholder", "issue": "Placeholder always reads 'ZIP / postal code' and never shows the format (expected 'ZIP (######)' for IN). RCA: useCountries() calls /api/v1/meta/countries, and that endpoint does not return postal_code_format or postal_code_regex. The data exists in db.masters_countries (IN: format '######', regex '^\\d{6}$'). Save-time validation still works because the backend reads masters_countries.", "selector": "[data-testid='mkt-f-zip']", "priority": "MEDIUM"},
+      {"component": "ListingForm Description textarea", "issue": "The textarea is 40px tall (one line) even though it has rows={4}. Cause: '.pmc-input { height: 40px }' in pmc-theme-e.css. Text filled in by AI (description plus 'Specifications:' bullets) is mostly hidden unless the user scrolls inside the box. The catalogue import cards (cat-desc-N, rows=5) have the same problem.", "selector": "[data-testid='mkt-f-description']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Add product form", "issues": [
+        "The ZIP error toast reads 'Something went wrong · HTTP 400' followed by 'ZIP / postal code should look like ######'. The generic prefix is unhelpful, and '######' is unclear to non-technical users; something like '6 digits, e.g. 600001' would be clearer.",
+        "When a country is picked but no state, the city list loads only the first 500 cities of the whole country, because of limit=500 (India has about 4300). Consider disabling City until a state is chosen when the country has states.",
+        "Crop dialog with a very tall image (600x1400): with contain-fit the 4:3 crop box is sized to the narrow image width, so it looks small. This works, but consider objectFit='horizontal-cover' or a minimum crop size.",
+        "Closing the crop dialog with X or Esc calls onSkip, which still uploads the photo (auto-fit). There is no way to cancel one photo from the queue."
+      ]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Return postal_code_format (and optionally postal_code_regex) from /api/v1/meta/countries, or have LocationPicker read the masters countries endpoint, so the ZIP placeholder shows the country format",
+    "Give textareas that use .pmc-input auto height (e.g. 'textarea.pmc-input{height:auto;padding:8px 12px}' or className 'h-auto py-2') so rows={4} and rows={5} take effect",
+    "Optional: clearer ZIP hint text; require a state before loading cities; let the user cancel a queued photo in the crop dialog",
+    "Optional: CategoryPicker keeps its categories in per-instance state seeded from the module cache _cats. A category added in one catalogue-import card does not show up in the other cards' dropdowns until they remount. Share the list through a small store or event."
+  ],
+  "critical_code_review_comments": [
+    "MarketFormPickers.jsx: the module-level _cats cache never refreshes, so categories PMC switches off or adds stay stale until a full page reload.",
+    "PhotoCropDialog: onOpenChange(false) leads to onSkip, which uploads the photo, so the user has no way to discard it.",
+    "LocationPicker: state and city lists fail silently (catch sets []), so a network error looks the same as 'No states listed'."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend only)", "frontend": "92% (all requested flows work; 2 medium UI defects)"},
+  "seed_data_creation": "Created and then deleted by id/code: listing 6af1d98713f517ca61ac5a0f 'TEST_UI Location Listing' (approved through the admin decision API to check the public page, then deleted), and categories 'TEST_Crop Machines' and 'TEST_Import Category'. Not deleted: uploaded mkt_media photos and the AI import job records. 'TEST_ Solar inverters' (code mkt-test-solar-inverters-ca81) predates this run, so it was left in place.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Vendor login: /vendor/login with signin-e-email, signin-e-password, signin-e-submit. Admin approve: POST /api/v1/admin/auth/login, then POST /api/v1/market/admin/listings/{id}/decision {action:'approve'} with the X-CSRF-Token header. Listings are stored in db.mkt_listings (_id ObjectId). Test images: /tmp/tall.png and /tmp/wide.png; PDF: /tmp/test_catalogue.pdf. Retest the ZIP placeholder and textarea height after the fixes."
+}

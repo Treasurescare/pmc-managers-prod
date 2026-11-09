@@ -45,7 +45,7 @@ function ListingForm({ initial, onSaved, onCancel }) {
       <AiFillButton onFill={aiFill} />
       <Field label="Product title *">{inp("title")}</Field>
       <Field label="Category"><CategoryPicker value={f.category} onChange={(v) => set("category", v)} /></Field>
-      <div className="md:col-span-2"><Field label="Description"><textarea className="pmc-input w-full" rows={4} value={f.description} onChange={(e) => set("description", e.target.value)} data-testid="mkt-f-description" /></Field></div>
+      <div className="md:col-span-2"><Field label="Description"><textarea className="pmc-input w-full !h-auto" rows={6} value={f.description} onChange={(e) => set("description", e.target.value)} data-testid="mkt-f-description" /></Field></div>
       <Field label="Quantity">{inp("quantity", "number", { min: 0 })}</Field>
       <Field label="Unit (e.g. lot, unit, tonne)">{inp("unit")}</Field>
       <Field label="Currency"><CurrencySelect country={f.country_code} value={f.currency} onChange={onCurrency} preserveInitial={!!f.id} testId="mkt-f-currency" className="pmc-input w-full" /></Field>

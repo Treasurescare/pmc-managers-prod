@@ -29,7 +29,7 @@ export function PhotoStrip({ photos, onChange, testid = "mkt-photos" }) {
       {photos.length < 12 && <button type="button" className="pmc-btn pmc-btn--secondary pmc-btn--sm" onClick={() => ref.current?.click()} disabled={busy} data-testid={`${testid}-add`}>
         <ImagePlus size={14} className="inline mr-1" />{busy ? "Uploading…" : "Upload photos"}</button>}
       <input ref={ref} type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onChange={(e) => { setQueue([...e.target.files].slice(0, 12 - photos.length)); e.target.value = ""; }} data-testid={`${testid}-input`} />
-      <PhotoCropDialog file={queue[0]} onDone={next} onSkip={() => next(queue[0])} />
+      <PhotoCropDialog file={queue[0]} onDone={next} onSkip={() => next(queue[0])} onCancel={() => setQueue((q) => q.slice(1))} />
     </div>);
 }
 

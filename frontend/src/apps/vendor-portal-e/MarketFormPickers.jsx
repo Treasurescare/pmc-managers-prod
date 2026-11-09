@@ -54,9 +54,11 @@ function useList(url) {
 
 export function LocationPicker({ f, setF }) {
   const countries = useCountries();
+  const fmtRows = useList("/api/v1/masters/countries");
   const states = useList(f.country_code ? `/api/v1/masters/states?country_code=${f.country_code}` : null);
-  const cities = useList(f.country_code ? `/api/v1/masters/cities?country_code=${f.country_code}${f.state_code ? `&state_code=${encodeURIComponent(f.state_code)}` : ""}&limit=500` : null);
-  const meta = countries.find((c) => c.code === f.country_code);
+  const needState = states.length > 0 && !f.state_code;
+  const cities = useList(f.country_code && !needState ? `/api/v1/masters/cities?country_code=${f.country_code}${f.state_code ? `&state_code=${encodeURIComponent(f.state_code)}` : ""}&limit=500` : null);
+  const meta = fmtRows.find((c) => c.code === f.country_code);
   const patch = (p) => setF((x) => ({ ...x, ...p }));
   return (
     <div className="grid gap-2 grid-cols-2" data-testid="mkt-location">
@@ -69,10 +71,10 @@ export function LocationPicker({ f, setF }) {
         {states.map((s) => <option key={s.state_code} value={s.state_code}>{s.name}</option>)}
       </select>
       <select className="pmc-input" value={f.city || ""} disabled={!cities.length} onChange={(e) => patch({ city: e.target.value })} data-testid="mkt-f-city">
-        <option value="">{cities.length ? "City…" : "No cities listed"}</option>
+        <option value="">{needState ? "Choose a state first" : cities.length ? "City…" : "No cities listed"}</option>
         {f.city && !cities.some((c) => c.name === f.city) && <option value={f.city}>{f.city}</option>}
         {cities.map((c) => <option key={`${c.state_code}-${c.name}`} value={c.name}>{c.name}</option>)}
       </select>
-      <input className="pmc-input" placeholder={meta?.postal_code_format ? `ZIP (${meta.postal_code_format})` : "ZIP / postal code"} value={f.zip || ""} onChange={(e) => patch({ zip: e.target.value })} data-testid="mkt-f-zip" />
+      <input className="pmc-input" placeholder={meta?.postal_code_format ? `ZIP, e.g. ${meta.postal_code_format.replace(/#/g, "1").replace(/@/g, "A")}` : "ZIP / postal code"} value={f.zip || ""} onChange={(e) => patch({ zip: e.target.value })} data-testid="mkt-f-zip" />
     </div>);
 }

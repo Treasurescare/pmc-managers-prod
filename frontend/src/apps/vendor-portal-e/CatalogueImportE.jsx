@@ -23,7 +23,7 @@ function ProductCard({ it, set, pageImages, hasCat }) {
         <label className="flex items-center gap-1"><input type="radio" checked={!it.ownText} onChange={() => set({ ownText: false, description: it.aiText })} data-testid={`cat-ai-text-${it.key}`} /> Use the AI description (you can edit it)</label>
         <label className="flex items-center gap-1"><input type="radio" checked={it.ownText} onChange={() => set({ ownText: true, description: "" })} data-testid={`cat-own-text-${it.key}`} /> Write my own</label>
       </div>
-      <textarea className="pmc-input w-full" rows={5} placeholder="Describe the product" value={it.description} onChange={(e) => set({ description: e.target.value })} data-testid={`cat-desc-${it.key}`} />
+      <textarea className="pmc-input w-full !h-auto" rows={5} placeholder="Describe the product" value={it.description} onChange={(e) => set({ description: e.target.value })} data-testid={`cat-desc-${it.key}`} />
       {it.specs.length > 0 && <label className="flex items-start gap-2 text-xs">
         <input type="checkbox" checked={it.addSpecs} onChange={(e) => set({ addSpecs: e.target.checked })} data-testid={`cat-specs-${it.key}`} />
         <span>Add specifications: {it.specs.join(" · ")}</span></label>}

@@ -181,7 +181,9 @@ async def _clean(body: ListingIn, v: dict) -> dict:
             raise HTTPException(status_code=400, detail="Please choose a country from the list")
         d["country_code"] = c["code"]
         if body.zip and c.get("postal_code_regex") and not re.match(c["postal_code_regex"], body.zip.strip()):
-            raise HTTPException(status_code=400, detail=f"ZIP / postal code should look like {c.get('postal_code_format') or 'the local format'}")
+            raise HTTPException(status_code=400, detail="ZIP / postal code should look like "
+                                + (c.get("postal_code_format") or "").replace("#", "1").replace("@", "A")
+                                + f" ({len((c.get('postal_code_format') or '').replace(' ', '').replace('-', ''))} characters)")
         d["location"] = ", ".join(x for x in (body.city, body.state_name, c["name"]) if x)
     return d
 
