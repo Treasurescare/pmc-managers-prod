@@ -31,6 +31,7 @@ const PUBLIC_MENU = [
   { to: "/tenders/completed", label: "Awarded" },
   { to: "/about", label: "About PMC" },
   { to: "/vision", label: "Vision & mission" },
+  { to: "/market", label: "Marketplace" },
   { to: "/suppliers", label: "For suppliers" },
   { to: "/buyers", label: "For buyers" },
   { to: "/trust", label: "Trust & security" },

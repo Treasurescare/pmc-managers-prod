@@ -16,6 +16,7 @@ export default function PublicChrome({ active, children, testid }) {
           <Link to="/tenders/all" className={is("tenders")}>Tenders</Link>
           <Link to="/tenders/global" className={is("global")}>Global tenders</Link>
           <Link to="/auctions" className={is("auctions")}>Auctions</Link>
+          <Link to="/market" className={is("market")} data-testid="nav-market">Marketplace</Link>
           <Link to="/suppliers">For suppliers</Link>
           <Link to="/buyers">For buyers</Link>
           <Link to="/trust">Trust &amp; security</Link>

@@ -81,7 +81,7 @@ function ListingRow({ l, reload, onEdit }) {
         <div><b>{l.title}</b> <span className="text-xs opacity-70">· {l.sale_modes.map((m) => MODE_LABEL[m]).join(", ")}</span></div>
         <span className="text-xs uppercase tracking-wide" data-testid={`mkt-status-${l.id}`}>{l.status}</span>
       </div>
-      <div className="text-xs opacity-80 mt-1">Top bid {money(l.currency, l.top_bid)} · {l.bid_count} bids{l.closes_at ? ` · closes ${new Date(l.closes_at).toLocaleString()}` : ""}{l.review_notes ? ` · PMC note: ${l.review_notes}` : ""}</div>
+      <div className="text-xs opacity-80 mt-1">Top bid {money(l.currency, l.top_bid)} · {l.bid_count} {l.bid_count === 1 ? "bid" : "bids"}{l.closes_at ? ` · closes ${new Date(l.closes_at).toLocaleString()}` : ""}{l.review_notes ? ` · PMC note: ${l.review_notes}` : ""}</div>
       <div className="flex flex-wrap gap-2 mt-2">
         {["draft", "rejected"].includes(l.status) && <>
           <button className="pmc-btn pmc-btn--secondary pmc-btn--sm" onClick={() => onEdit(l)} data-testid={`mkt-edit-${l.id}`}>Edit</button>
@@ -90,7 +90,7 @@ function ListingRow({ l, reload, onEdit }) {
         {["draft", "pending", "rejected", "live"].includes(l.status) && !l.bid_count &&
           <button className="pmc-btn pmc-btn--secondary pmc-btn--sm" onClick={() => act(() => marketApi.withdraw(l.id), "Withdrawn")} data-testid={`mkt-withdraw-${l.id}`}>Withdraw</button>}
       </div>
-      {l.offers?.length > 0 && <div className="mt-2 text-sm" data-testid={`mkt-offers-${l.id}`}>
+      {l.offers?.length > 0 && <div className="mt-2 text-sm pb-14 md:pb-0" data-testid={`mkt-offers-${l.id}`}>
         <div className="font-medium">Offers</div>
         {l.offers.map((o) => (
           <div key={o.id} className="flex justify-between gap-2 py-1 border-t border-white/10">
@@ -106,7 +106,8 @@ export default function VendorMarketE() {
   const [form, setForm] = useState(null);
   const load = () => marketApi.mine().then(setData).catch(showApiError);
   useEffect(() => { load(); }, []);
-  const edit = (l) => setForm({ ...EMPTY, ...l, closes_at: l.closes_at ? l.closes_at.slice(0, 16) : "", start_price: l.start_price ?? "", reserve_price: l.reserve_price ?? "", buy_now_price: l.buy_now_price ?? "" });
+  const localDt = (iso) => { const d = new Date(iso); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
+  const edit = (l) => setForm({ ...EMPTY, ...l, closes_at: l.closes_at ? localDt(l.closes_at) : "", start_price: l.start_price ?? "", reserve_price: l.reserve_price ?? "", buy_now_price: l.buy_now_price ?? "" });
   const fee = data.fee;
   return (
     <VendorPortalChrome active="Sell products">

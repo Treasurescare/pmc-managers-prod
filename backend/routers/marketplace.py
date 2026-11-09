@@ -17,7 +17,7 @@ from models.base import now_iso
 from routers.growth import charge_or_pass
 from routers.payments_extra import _checkout, _site, _sync_status
 from routers.vendor_auth import current_vendor
-from security import current_admin, require_role
+from security import current_admin, require_csrf, require_role
 
 router = APIRouter(prefix="/api/v1/market", tags=["marketplace"])
 STAFF = ("super_admin", "admin", "reviewer")
@@ -32,6 +32,8 @@ def _oid(x: str) -> ObjectId:
 def _out(d: dict) -> dict:
     d = dict(d)
     d["id"] = str(d.pop("_id"))
+    if isinstance(d.get("listing_id"), ObjectId):
+        d["listing_id"] = str(d["listing_id"])
     return d
 
 
@@ -59,6 +61,7 @@ class ListingIn(BaseModel):
 
 async def _bidder(request: Request) -> dict:
     """A verified supplier (vendor session) or a verified buyer organisation user (admin-console session)."""
+    await require_csrf(request)
     try:
         v = await current_vendor(request)
         if (v.get("kyc_status") or "verified") != "verified":
@@ -120,7 +123,7 @@ async def _make_order(lst: dict, bidder: dict, amount: float, via: str) -> dict:
 
 def _public(lst: dict, top: Optional[float], n: int) -> dict:
     o = _out(lst)
-    for k in ("reserve_price", "review_notes", "sale_fee_waived"):
+    for k in ("reserve_price", "review_notes", "sale_fee_waived", "decided_by", "decided_at", "submitted_at"):
         o.pop(k, None)
     o["reserve_met"] = top is not None and top >= (lst.get("reserve_price") or 0)
     o.update({"top_bid": top, "bid_count": n})
@@ -163,6 +166,8 @@ def _validate(b: ListingIn) -> None:
         raise HTTPException(status_code=400, detail="Best offer needs a deadline (closing date/time)")
     if "fixed" in b.sale_modes and not b.buy_now_price:
         raise HTTPException(status_code=400, detail="Fixed price needs a buy-now price")
+    if "auction" in b.sale_modes and b.reserve_price is not None and b.start_price is not None and b.reserve_price < b.start_price:
+        raise HTTPException(status_code=400, detail="The reserve price cannot be lower than the starting price")
     if b.closes_at and b.closes_at <= _now():
         raise HTTPException(status_code=400, detail="The closing date/time must be in the future")
 
@@ -227,7 +232,7 @@ async def browse(q: str = "", category: str = ""):
     out = []
     async for d in db.mkt_listings.find(f).sort("closes_at", 1).limit(200):
         d = await _close_if_due(d)
-        if d["status"] == "live":
+        if d["status"] == "live" and not (d.get("closes_at") and d["closes_at"] <= _now() and "fixed" not in d["sale_modes"]):
             out.append(_public(d, *(await _top(d["_id"]))))
     return {"items": out}
 
@@ -253,6 +258,8 @@ async def _live_for(lid: str, who: dict, mode: str) -> dict:
         raise HTTPException(status_code=409, detail="This listing is not open")
     if mode not in d["sale_modes"]:
         raise HTTPException(status_code=400, detail="The seller has not enabled this way of buying")
+    if mode == "best_offer" and d.get("closes_at") and d["closes_at"] <= _now():
+        raise HTTPException(status_code=409, detail="The deadline for offers has passed")
     if d.get("eligibility") == "verified_buyers" and who["kind"] != "buyer":
         raise HTTPException(status_code=403, detail="The seller only accepts verified buyer organisations")
     if who["kind"] == "supplier" and who["id"] == d["seller_id"]:
@@ -370,13 +377,12 @@ async def put_settings(body: SettingsIn, admin=Depends(require_role("super_admin
 
 @router.get("/admin/orders")
 async def admin_orders(admin=Depends(require_role(*STAFF))):
+    from routers.consortium_split import _bank
     out = []
     for o in await db.mkt_orders.find({}).sort("created_at", -1).to_list(500):
-        v = await db.vendors.find_one({"_id": ObjectId(o["seller_id"])}) if ObjectId.is_valid(o["seller_id"]) else None
-        reg = (v or {}).get("registration") or (v or {}).get("profile") or {}
+        v = await db.vendors.find_one({"_id": ObjectId(o["seller_id"])}, {"email": 1}) if ObjectId.is_valid(o["seller_id"]) else None
         x = _out(o)
-        x["listing_id"] = str(x["listing_id"])
-        x["seller_bank"] = {k: (v or {}).get(k) or reg.get(k) for k in ("bank_name", "bank_account_number", "bank_swift", "bank_iban")}
+        x["seller_bank"] = await _bank(o["seller_id"], (v or {}).get("email"))
         out.append(x)
     return {"items": out}
 

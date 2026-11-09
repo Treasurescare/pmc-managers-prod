@@ -1,0 +1,52 @@
+{
+  "summary": "Iteration 180: Supplier Marketplace (v61a) tested end to end (API + UI). One CRITICAL bug was found and fixed: every order response (buy-now, accept offer) and GET /mine returned 500. The cause was the raw ObjectId listing_id in _out(), which FastAPI cannot serialise. The side effects still ran before the 500: the order was inserted and the listing was marked sold. After the fix, 14/14 pytest checks pass. They cover: validation (auction/best-offer/fixed, closing time in the future); draft -> edit -> submit -> pending -> withdraw; reject with a note -> edit -> resubmit; the 402 listing fee via a TEST_ emd_masters mkt_listing_fee rule (Stripe checkout URL, amount 7); fee settings persist, with 422 for bad values; public browse shows only live listings, search works, and reserve_price/review_notes are hidden; bid rules (401 with sign-in message, own listing 403, start-price floor, top + min_increment); verified_buyers rejects a supplier and a non-buyer PMC admin (403) and accepts a buyer_application tenant user; buy-now creates awaiting_payment, the listing becomes sold, and a second buy gives 409; a new offer replaces the bidder's previous one; accept gives the fixed fee (30 -> net 420), others are declined, and a non-seller gets 404; 5% of 1000 = 50 / 950; waived = 0; charge off = 0; auction close with bids under the reserve -> closed_unsold, above the reserve -> order to the top bidder; my-purchases; pay returns a checkout.stripe.com URL (it works in preview); payout only for paid+due, then sent + reference. UI: the vendor /vendor/market form, error toasts, draft, edit, submit, the rejected note shown, resubmit, the side-nav link and the mobile menu link all work. Admin /admin/e/market: fee save persists after reload, approve with waive, reject with note, status filter, and 'Mark seller paid' (empty reference -> 422 toast, valid -> 'sent (ref ...)'). Public /market search, detail, unauthenticated bid -> 'Please sign in first' toast; the buyer bid updates the top bid; /market/purchases 'Pay securely' redirects to Stripe Checkout. Regression: the vendor dashboard and /admin/e/catalog load (catalog is empty in the preview DB).",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /listings/{id}/buy, POST /offers/{bid}/accept, GET /mine", "issue": "500 'ObjectId object is not iterable': _out() did not convert the listing_id ObjectId on orders. The order was created and the listing set to sold before the 500, and the vendor market page was broken once any sale existed. FIXED by the testing agent in _out().", "priority": "CRITICAL"}
+    ],
+    "minor": [
+      {"endpoint": "POST /listings/{id}/offer + browse", "issue": "The best-offer deadline is not enforced. _close_if_due only handles auctions, so a best_offer-only listing past closes_at stays live, keeps showing in public browse and still accepts offers (verified: offer after deadline -> 200)."},
+      {"endpoint": "GET /listings, /listings/{id}", "issue": "The public payload exposes decided_by (the PMC admin email), decided_at and submitted_at. Strip these in _public()."},
+      {"endpoint": "GET /admin/orders", "issue": "seller_bank reads only vendors.* and vendors.registration/profile. Bank details usually live in db.registrations (see consortium_split._bank), so real sellers show 'Bank: —'. Reuse consortium_split._bank."},
+      {"endpoint": "POST /listings/{id}/buy, /bid, /offer", "issue": "Cookie-authenticated state-changing endpoints have no CSRF check (/buy has no body). With SameSite=None cookies in preview, a cross-site form POST could create an order for the victim. Consider require_csrf or a header check."},
+      {"endpoint": "_bidder", "issue": "A vendor with no kyc_status is treated as verified ('or \"verified\"'), and vendor status (suspended) / is_active is not checked for bidding."},
+      {"endpoint": "ListingIn", "issue": "No check that reserve_price >= start_price or that buy_now_price > start_price."},
+      {"endpoint": "db.mkt_settings", "issue": "The collection is shared with marketing (tender_alerts, whatsapp, linkedin docs). It works because of the 'default' _id, but the naming is ambiguous."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "VendorMarketE edit()", "issue": "closes_at is UTC ISO sliced to 16 chars, then re-parsed as LOCAL time in toBody. Every edit shifts the closing time by the user's UTC offset (for example -5:30 in IST). Convert UTC to a local datetime-local string when editing.", "selector": "[data-testid='mkt-f-closes_at']", "priority": "MEDIUM"},
+      {"component": "VendorMarketE ListingRow", "issue": "The Accept button still shows for offers on a best-offer listing whose deadline has passed (it is still LIVE).", "selector": "[data-testid^='mkt-accept-']", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/vendor/market mobile 390px", "issues": ["The floating 'Ask PMC' button overlaps the offer 'Accept' button on the listing row", "Pluralisation: '1 bids'"]},
+      {"screen": "/market/purchases", "issues": ["Bids on settled auctions still show 'placed' (no won/lost/outbid state)", "Bids list shows a bare number without currency or listing title"]},
+      {"screen": "Public header", "issues": ["/market is not linked from the public top nav, so buyers cannot discover the marketplace"]},
+      {"screen": "Error toasts", "issues": ["Validation errors show the prefix 'Something went wrong · HTTP 400' before the friendly message"]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_t180_marketplace.py", "/app/backend/tests/mkt_t180_seed.py", "/app/backend/tests/mkt_t180_probe.py", "/app/test_reports/pytest/t180_marketplace.xml"],
+  "action_items": [
+    "Review the testing agent's fix in marketplace._out() (listing_id ObjectId -> str)",
+    "Enforce the best-offer deadline: reject offers after closes_at and close or hide expired best-offer-only listings (status closed / closed_unsold)",
+    "Strip decided_by/decided_at/submitted_at from the public listing payload",
+    "Fix the closes_at timezone shift when editing a listing in VendorMarketE",
+    "Fetch seller bank details from db.registrations (reuse consortium_split._bank) in admin orders",
+    "Add CSRF protection to the buy/bid/offer/pay endpoints",
+    "Minor: reserve >= start validation, vendor status check in _bidder, a public nav link to /market, mobile FAB overlap"
+  ],
+  "critical_code_review_comments": [
+    "_make_order marks the listing sold before inserting the order. If the insert fails, the listing is stuck as sold with no order (no compensation).",
+    "_close_if_due runs during GET (browse/detail/mine), so read requests have write side effects. Acceptable for an MVP, but buy-now and auction close race only on the status=live guard (that part is OK).",
+    "The auction plus fixed-price combination lets buy-now close an auction that already has bids, with no notice to bidders.",
+    "The string comparison of closes_at with _now() assumes both are UTC ISO with the same format. A naive datetime sent via the API (no tz) compares inconsistently."
+  ],
+  "updated_files": ["/app/backend/routers/marketplace.py", "/app/backend/tests/test_t180_marketplace.py", "/app/backend/tests/mkt_t180_seed.py", "/app/backend/tests/mkt_t180_probe.py"],
+  "success_rate": {"backend": "100% after fix (14/14); 6/14 failed before the ObjectId fix", "frontend": "100% of requested flows pass; minor UX issues listed"},
+  "seed_data_creation": "Temporary seed data, all removed: TEST_ vendor test_mkt_v2_t180@example.com (country XQ), TEST_ tenant TESTMKT180 (source buyer_application), TEST_ admin user test_mkt_buyer_t180@example.com / Buyer@12345, TEST_ emd_masters mkt_listing_fee rule for XQ. Also removed: all TEST_ mkt_listings/bids/orders and the related payment_transactions. mkt_settings default reset to percent/0/charge true.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run `python tests/mkt_t180_seed.py create` first, then `pytest tests/test_t180_marketplace.py -n 0`, then `python tests/mkt_t180_seed.py clean`. The clean step deletes the seed actors and the TEST_ mkt docs and resets mkt_settings. Buyer-org bidders are admin_users whose tenant_id is a tenants.code with source='buyer_application'; they log in at /login?role=admin. Stripe test checkout works in preview. To retest the deadline, run mkt_t180_probe.py: after the fix it should print 'offer after deadline: 409/400' and 'still in public browse: False'."
+}
