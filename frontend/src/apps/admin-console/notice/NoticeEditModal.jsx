@@ -295,7 +295,7 @@ export default function NoticeEditModal({ noticeRef, onClose, onSaved, isMasterA
               <div className="pmc-label mb-2">Add more documents (keeps existing)</div>
               <div className="grid gap-3 md:grid-cols-2">
                 <label className="text-sm">
-                  <span className="text-brand-navy/70">Replace primary document (optional)</span>
+                  <span className="text-brand-navy/70">Main tender document — needed to publish (replaces any existing one)</span>
                   <input type="file" accept=".pdf,.doc,.docx"
                     onChange={(e) => setPrimaryFile(e.target.files?.[0] || null)}
                     data-testid="edit-primary-file" className="mt-1 w-full text-sm" />
