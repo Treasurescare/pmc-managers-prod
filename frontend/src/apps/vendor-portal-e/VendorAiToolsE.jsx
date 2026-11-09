@@ -99,7 +99,7 @@ export default function VendorAiToolsE() {
     <VendorPortalChrome active="/vendor/ai-tools">
       <div className="sp-head"><div><div className="pmc-eyebrow">AI tools</div><h1>Tender summary &amp; bid readiness</h1></div></div>
       <section className="pmc-panel p-4" data-testid="ai-tools-form">
-        <p className="text-sm">Upload a tender document (PDF, DOCX or TXT) or enter a PMC tender reference. The AI pulls out eligibility, turnover, experience, EMD, fees and key dates, then checks your company profile for missing documents and disqualification risks.</p>
+        <p className="text-sm">Upload a tender document (PDF, Word, text, or a scan/photo as PDF, JPG or PNG) or enter a PMC tender reference. The AI pulls out eligibility, turnover, experience, EMD, fees and key dates, then checks your company profile for missing documents and disqualification risks.</p>
         <div className="grid md:grid-cols-3 gap-3 mt-3">
           <label className="text-sm">Tender document<input type="file" accept=".pdf,.docx,.txt,.jpg,.jpeg,.png" onChange={(e) => setFile(e.target.files?.[0] || null)} className="pmc-input mt-1 w-full" data-testid="ai-file-input" />
             <span className="block text-xs opacity-70 mt-1" data-testid="ai-file-hint">PDF, Word, text, or a photo/scan of the tender (JPG, PNG). Scanned pages take a little longer.</span></label>

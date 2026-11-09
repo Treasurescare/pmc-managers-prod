@@ -907,6 +907,16 @@
 [data-ui="e"] .text-slate-800, [data-ui="e"] .text-slate-900 { color: #F3EFE4 !important; }
 [data-ui="e"] .bg-white { background: var(--e-bg-surface) !important; }
 
+/* Account-deletion dialog is a white card: keep real dark ink (was cream-on-cream on iPhone). */
+[data-ui="e"] [data-testid="vendor-gdpr-modal"] .bg-white { background: #FFFFFF !important; }
+[data-ui="e"] [data-testid="vendor-gdpr-modal"] .text-slate-800,
+[data-ui="e"] [data-testid="vendor-gdpr-modal"] .text-slate-900,
+[data-ui="e"] [data-testid="vendor-gdpr-modal"] input,
+[data-ui="e"] [data-testid="vendor-gdpr-modal"] label { color: #0F172A !important; -webkit-text-fill-color: #0F172A !important; }
+[data-ui="e"] [data-testid="vendor-gdpr-modal"] input { background: #FFFFFF !important; }
+[data-ui="e"] [data-testid="vendor-gdpr-modal"] h3 { color: #B91C1C !important; -webkit-text-fill-color: #B91C1C !important; }
+
+
 /* The slate→cream remap above is meant for DARK themed pages. The bid-submit
    page is a LIGHT page, so the remap made its headings and the uploaded-file
    rows cream-on-cream (user report: "unable to see what file I uploaded").

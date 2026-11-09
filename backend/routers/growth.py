@@ -84,7 +84,7 @@ def _json(text: str) -> dict:
     try:
         return json.loads(m.group(0)) if m else {}
     except Exception:
-        raise HTTPException(status_code=502, detail="The AI reply could not be read. Please try again.")
+        raise HTTPException(status_code=422, detail="The AI reply could not be read. Please try again.")
 
 
 def _notice_text(n: dict) -> str:
@@ -116,7 +116,7 @@ async def _vision_summary(name: str, mime: str, body: bytes, lang: str) -> str:
     except HTTPException:
         raise
     except Exception:
-        raise HTTPException(status_code=502, detail="We could not read this scanned document. Please try again, or upload a clearer copy.")
+        raise HTTPException(status_code=422, detail="We could not read this scanned document. Please try again, or upload a clearer copy.")
     finally:
         os.remove(path)
 
@@ -146,6 +146,14 @@ async def ai_summary(notice_ref: Optional[str] = Form(None), lang: str = Form("E
                     raise
                 text = ""
             if ext == ".pdf" and len(text.strip()) < 80:
+                try:
+                    from io import BytesIO
+                    from pypdf import PdfReader
+                    ok = len(PdfReader(BytesIO(body), strict=False).pages) > 0
+                except Exception:
+                    ok = False
+                if not ok:
+                    raise HTTPException(status_code=400, detail="This PDF looks damaged or only partly downloaded. Please try another copy, or enter the tender reference instead.")
                 scan = "application/pdf"
     elif notice_ref:
         n = await db.notices.find_one({"notice_ref": notice_ref, "is_published": True})

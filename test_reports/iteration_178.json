@@ -1,0 +1,44 @@
+{
+  "summary": "Iteration 178: tested (1) scanned PDF/photo reading in the supplier AI summary and (2) the iPhone account-deletion dialog being unreadable. Scanned PDF, JPG and PNG summaries work: the AI fills in scope, eligibility, EMD, key dates and documents, both through the API and in the UI. Text PDFs and tender-reference summaries still work, and a non-PDF file gives a friendly 400. FAIL 1: a truncated PDF (starts with %PDF but is broken) is sent to vision. The backend replies 502, Cloudflare swaps its friendly JSON for an HTML page, and the user sees a technical toast: 'HTTP 502 The origin web server returned an invalid or incomplete response to Cloudflare'. FAIL 2 (the reported bug is NOT fixed): the GDPR dialog is portalled to body with z-index 3000 and nothing covers it, but its text is cream (#F3EFE4) on a cream card (#FBF9F3), so it is almost invisible. This affects the heading paragraph, the password label, the typed password text, the checkbox label and Cancel, on mobile web and on the native mock. The deletion flow itself works: wrong password gives a 401 toast; correct password lands on /login?deleted=1.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/v1/supplier-ai/summary (truncated/corrupt PDF with %PDF header)", "issue": "Returns 502. pypdf finds no text, so the file is routed to vision, Gemini rejects it, and _vision_summary raises 502. Through the public URL, Cloudflare replaces 502 bodies with its own HTML, so the friendly detail never reaches the user. The review request requires a friendly 400.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/v1/supplier-ai/summary", "issue": "charge_or_pass() runs BEFORE the vision/LLM call. When pricing is active, a vision/LLM failure (502) uses up the paid credit and saves no report."},
+      {"endpoint": "growth._json", "issue": "Also raises 502 ('AI reply could not be read'). Cloudflare will mask this in the same way. Use a non-5xx code (e.g. 422 or 424) for AI failures that should be shown to the user."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "VendorGdprButton modal", "issue": "Text is unreadable: cream on cream. The global Option-E remap in index.css:907-908 ([data-ui=\"e\"] .text-slate-800/.text-slate-900 { color:#F3EFE4 !important } and [data-ui=\"e\"] .bg-white { background:#FBF9F3 !important }) overrides the modal's Tailwind classes. data-ui='e' is on <body>, so portalling to body does not escape it. Measured: card bg rgb(251,249,243); p, label span, password input color and -webkit-text-fill-color, ack label and Cancel all rgb(243,239,228). Only the h3 (red-700) and Delete permanently (white on red-600) are readable. Same at 390x844 with and without the native mock.", "selector": "[data-testid=vendor-gdpr-modal]", "priority": "CRITICAL"}
+    ],
+    "integration_issues": [
+      {"flow": "AI tools: upload truncated PDF", "issue": "Toast shows the Cloudflare 502 text instead of a friendly message.", "affected_selectors": ["[data-testid=ai-summary-btn]", "[data-sonner-toast]"]}
+    ],
+    "design_issues": [
+      {"screen": "/vendor/ai-tools", "issues": ["The intro text (line 102) still says 'Upload a tender document (PDF, DOCX or TXT)'. It should mention JPG/PNG scans to match the new hint."]},
+      {"screen": "GDPR modal", "issues": ["Cancel button has no data-testid (suggest vendor-gdpr-cancel)", "The PasswordInput eye toggle uses text-brand-navy/50. Check it is visible on the light card after the colour fix."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_t178_scanned_pdf_summary.py", "/app/test_reports/pytest/t178.xml"],
+  "action_items": [
+    "GDPR modal colours: add a unique wrapper class or data-testid scope override in index.css, as was done for bid-submit-page (line ~913), e.g. [data-ui=\"e\"] [data-testid=\"vendor-gdpr-modal\"] .text-slate-900, .text-slate-800 { color:#0F172A !important } and [data-ui=\"e\"] [data-testid=\"vendor-gdpr-modal\"] .bg-white { background:#FFFFFF !important }. Also set color and -webkit-text-fill-color on the password input. Or use inline styles / non-remapped classes such as text-[#0F172A] bg-[#fff]. Re-verify computed colours at 390x844.",
+    "ai_summary: for ext=='.pdf', check pypdf structurally first (PdfReader opens and len(pages)>0). If it fails, raise 400 with the friendly 'damaged or partly downloaded' message instead of sending it to vision. Also change the _vision_summary and _json error codes from 502 to a 4xx (e.g. 422), because Cloudflare masks 502 bodies.",
+    "Move charge_or_pass after a successful AI call, or refund on failure.",
+    "Update the intro copy on VendorAiToolsE line 102 to mention photos/scans."
+  ],
+  "critical_code_review_comments": [
+    "index.css global !important slate→cream remap under [data-ui=e] keeps breaking light modals and cards (bid-submit, reg-doc, now GDPR). Consider scoping the remap to dark containers only instead of adding per-page exceptions.",
+    "growth.ai_summary: a body that starts with %PDF but cannot be parsed is treated as 'scanned', so any broken PDF costs a slow vision call (and a paid credit) before failing.",
+    "_vision_summary uses tempfile and os.remove in finally. Fine, but the file read and write are sync I/O inside an async route (small files, minor)."
+  ],
+  "updated_files": ["/app/backend/tests/test_t178_scanned_pdf_summary.py"],
+  "success_rate": {"backend": "87.5% (7/8)", "frontend": "60% (AI tools UI scan flow OK, friendly-error for truncated PDF FAIL, GDPR modal readability FAIL, deletion flow OK)"},
+  "test_credentials": "testvendor@pmcmanagers.com / Vendor@12345 (unchanged, still active and verified). TEST vendor test_gdpr_t177@example.com was created with seed_test_vendor_t177.py, deleted through the UI, then its record was removed by oid.",
+  "seed_data_creation": "Created and removed TEST vendor 6af188792965e7daeb23c63a. Created 5 ai_reports for testvendor and deleted them (4 by id in the pytest teardown, 1 titled t178_scan.jpg from the UI run).",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Login via /login (signin-e-email, signin-e-password, signin-e-submit), not /vendor/login testids. Vendor cookie auth is secure-cookie, so use the public URL. Native mock: use accessor props for window.Capacitor via add_init_script and set localStorage CapacitorStorage.pmc.faceid='0'. To check the GDPR fix, read getComputedStyle of the modal p, label span and [data-testid=vendor-gdpr-password] color/-webkit-text-fill-color. They must not be rgb(243,239,228). Truncated-PDF fixture: PIL image saved as PDF, cut to the first 300 bytes.",
+  "rca of the issue": "GDPR unreadable: body[data-ui='e'] plus index.css:907-908 !important remap turn .text-slate-800/900 into #F3EFE4 and .bg-white into #FBF9F3. createPortal(document.body) stays inside body[data-ui=e], so the remap still applies. Repro: log in at 390x844, /vendor/account, Delete my data, inspect colours. Truncated PDF: _extract_text_from_upload raises 400, but the code catches it because the bytes start with %PDF; scan='application/pdf'; Gemini rejects it; HTTPException 502; Cloudflare replaces the body with HTML; the toast shows the Cloudflare text."
+}
