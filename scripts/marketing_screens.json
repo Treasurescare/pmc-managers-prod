@@ -1,0 +1,159 @@
+[
+ {
+  "id": "01-home-hero",
+  "as": "public",
+  "path": "/",
+  "section": "00:28 one grid",
+  "title": "Home: Global Tender Grid"
+ },
+ {
+  "id": "02-live-tenders",
+  "as": "public",
+  "path": "/tenders/live",
+  "section": "00:28 sealed tenders",
+  "title": "Live tender board"
+ },
+ {
+  "id": "03-global-tenders",
+  "as": "public",
+  "path": "/tenders/global",
+  "section": "00:28 New York to Tokyo",
+  "title": "Global tenders"
+ },
+ {
+  "id": "05-marketplace",
+  "as": "public",
+  "path": "/market",
+  "section": "00:28 catalogues & direct selling",
+  "title": "Marketplace"
+ },
+ {
+  "id": "06-register-kyc",
+  "as": "public",
+  "path": "/register",
+  "section": "01:08 KYC once",
+  "title": "Supplier registration & KYC"
+ },
+ {
+  "id": "10-supplier-dashboard",
+  "as": "supplier",
+  "path": "/vendor",
+  "section": "01:35 one verified profile",
+  "title": "Supplier dashboard"
+ },
+ {
+  "id": "11-company-kyc",
+  "as": "supplier",
+  "path": "/vendor/company",
+  "section": "01:08 KYC carries into every tender",
+  "title": "Company profile & KYC"
+ },
+ {
+  "id": "12-tenders-for-you",
+  "as": "supplier",
+  "path": "/vendor/tenders",
+  "section": "01:35 tenders",
+  "title": "Tenders matched to the supplier"
+ },
+ {
+  "id": "13-sealed-bid",
+  "as": "supplier",
+  "path": "/vendor/bid/new/DEMO-TND-001",
+  "section": "03:07 every bid sealed",
+  "title": "Sealed two-envelope bid"
+ },
+ {
+  "id": "14-bid-tracker",
+  "as": "supplier",
+  "path": "/vendor/mybids",
+  "section": "02:58 always live",
+  "title": "Bid tracker"
+ },
+ {
+  "id": "15-consortia",
+  "as": "supplier",
+  "path": "/vendor/consortia",
+  "section": "02:21 consortium bids",
+  "title": "Consortia"
+ },
+ {
+  "id": "16-sell-products",
+  "as": "supplier",
+  "path": "/vendor/market",
+  "section": "01:35 every catalogue listing",
+  "title": "Sell products"
+ },
+ {
+  "id": "17-ai-catalogue-import",
+  "as": "supplier",
+  "path": "/vendor/market",
+  "click": [
+   "[data-testid=mkt-import]"
+  ],
+  "section": "catalogues",
+  "title": "AI catalogue import"
+ },
+ {
+  "id": "20-admin-dashboard",
+  "as": "admin",
+  "path": "/admin/e/dashboard",
+  "section": "01:48 issuing a tender",
+  "title": "Admin dashboard"
+ },
+ {
+  "id": "22-vendor-vetting",
+  "as": "admin",
+  "path": "/admin/e/vendors",
+  "section": "00:58 vetted before a single bid",
+  "title": "Supplier vetting"
+ },
+ {
+  "id": "23-bidding-ops",
+  "as": "admin",
+  "path": "/admin/e/bidding",
+  "section": "01:58 deadlines on server time",
+  "title": "Bidding operations"
+ },
+ {
+  "id": "25-escrow",
+  "as": "admin",
+  "path": "/admin/e/escrow",
+  "section": "02:40 the same escrow",
+  "title": "EMD escrow"
+ },
+ {
+  "id": "26-docusign",
+  "as": "admin",
+  "path": "/admin/e/docusign",
+  "section": "02:06 contracts signed",
+  "title": "E-signature"
+ },
+ {
+  "id": "27-audit-ledger",
+  "as": "admin",
+  "path": "/admin/e/audit",
+  "section": "02:08 a record your auditors can verify",
+  "title": "Audit ledger"
+ },
+ {
+  "id": "28-marketplace-approvals",
+  "as": "admin",
+  "path": "/admin/e/market",
+  "section": "catalogues approved by PMC",
+  "title": "Marketplace approvals"
+ },
+ {
+  "id": "40-arabic",
+  "as": "public",
+  "path": "/ar",
+  "section": "every country",
+  "title": "Arabic"
+ },
+ {
+  "id": "41-japanese",
+  "as": "public",
+  "path": "/ja",
+  "section": "Tokyo",
+  "title": "Japanese"
+ }
+]

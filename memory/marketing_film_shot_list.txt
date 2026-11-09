@@ -1,0 +1,23 @@
+PMC Managers sales film - real platform screenshots (captured from the PMC platform test site, 9 Nov 2026)
+Desktop: 3840x2160 (4K, 16:9). Phone: 1170x2532 (iPhone size). Sample tenders, suppliers and products are demo data and say "Demo" on screen.
+
+TIME    | WHAT THE FILM SAYS                                   | SCREENSHOT TO CUT IN
+00:28   | "From New York to Tokyo" / one grid                  | desktop/01-home-hero.png, desktop/03-global-tenders.png
+00:40   | "Verified suppliers, sealed tenders, audit record"   | desktop/02-live-tenders.png
+00:50   | "Tendering, catalogues and direct selling"           | desktop/05-marketplace.png, desktop/16-sell-products.png
+00:58   | Lagos: "every supplier is vetted and verified"       | desktop/22-vendor-vetting.png
+01:08   | KL: "complete your KYC check once"                   | desktop/06-register-kyc.png, desktop/11-company-kyc.png
+01:20   | "carries into every tender, every catalogue listing" | desktop/12-tenders-for-you.png, desktop/17-ai-catalogue-import.png
+01:35   | "One verified profile, sells across borders"         | desktop/10-supplier-dashboard.png, desktop/28-marketplace-approvals.png
+01:48   | Dubai: "Issuing a tender used to mean spreadsheets"  | desktop/20-admin-dashboard.png
+01:58   | "deadlines fixed to server time"                     | desktop/23-bidding-ops.png
+02:06   | "Contracts signed on the platform"                   | desktop/26-docusign.png
+02:08   | "a record your auditors can verify"                  | desktop/27-audit-ledger.png
+02:21   | Shanghai: consortium bidding                         | desktop/15-consortia.png
+02:40   | "the same escrow, the same audit trail"              | desktop/25-escrow.png
+02:58   | In the car: "always live, right here on my phone"    | phone/m01-home.png, phone/m10-supplier-dashboard.png, phone/m11-bid-tracker.png
+03:05   | "Any time zone, any location"                        | desktop/40-arabic.png, desktop/41-japanese.png, phone/m02-tenders.png, phone/m03-marketplace.png
+03:07   | London: "Every bid sealed"                           | desktop/13-sealed-bid.png, desktop/14-bid-tracker.png
+
+Not included yet: AI tender builder draft, price comparison, committee scoring and anomaly check.
+Those screens had no finished sample tender on the test site. A full sample tender can be run to fill them.

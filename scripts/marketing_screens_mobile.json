@@ -1,0 +1,37 @@
+[
+ {
+  "id": "m01-home",
+  "as": "public",
+  "path": "/",
+  "section": "02:58 on the go",
+  "title": "Home on phone"
+ },
+ {
+  "id": "m02-tenders",
+  "as": "public",
+  "path": "/tenders/live",
+  "section": "02:58",
+  "title": "Tenders on phone"
+ },
+ {
+  "id": "m03-marketplace",
+  "as": "public",
+  "path": "/market",
+  "section": "02:58",
+  "title": "Marketplace on phone"
+ },
+ {
+  "id": "m10-supplier-dashboard",
+  "as": "supplier",
+  "path": "/vendor",
+  "section": "02:58 my business is always live",
+  "title": "Supplier dashboard on phone"
+ },
+ {
+  "id": "m11-bid-tracker",
+  "as": "supplier",
+  "path": "/vendor/mybids",
+  "section": "02:58",
+  "title": "Bid tracker on phone"
+ }
+]

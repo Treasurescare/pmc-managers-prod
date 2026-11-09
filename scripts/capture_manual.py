@@ -35,7 +35,8 @@ async def main():
     done = {}
     async with async_playwright() as p:
         br = await p.chromium.launch(executable_path=CHROME)
-        ctx = await br.new_context(viewport={"width": 1440, "height": 900})
+        vw, vh = [int(x) for x in os.environ.get("VIEW", "1440x900").split("x")]
+        ctx = await br.new_context(viewport={"width": vw, "height": vh}, device_scale_factor=float(os.environ.get("SCALE", "1")))
         await ctx.add_init_script("try{if(!location.pathname.match(/^\\/(fr|de|es|ru|kk|ar|hi|ms|id|ko|ja|zh-Hans|zh-Hant)(\\/|$)/))localStorage.setItem('pmc_lang','en')}catch(e){}")
         page = await ctx.new_page()
         current = None
@@ -48,7 +49,7 @@ async def main():
             try:
                 await page.goto(BASE + s["path"], wait_until="domcontentloaded", timeout=45000)
                 await page.wait_for_timeout(s.get("wait", 3500))
-                await page.add_style_tag(content="[data-testid*=help-fab],.pmc-help-fab,#help-fab{display:none!important}")
+                await page.add_style_tag(content="[data-testid*=help-fab],.pmc-help-fab,#help-fab,.pmc-helpfab,[data-testid=chat-toggle],[data-testid=lang-fab]{display:none!important}")
                 for sel in s.get("click", []):
                     await page.locator(sel).first.click(force=True)
                     await page.wait_for_timeout(1800)
@@ -57,6 +58,9 @@ async def main():
                 print("ok", s["id"], done[s["id"]])
             except Exception as e:
                 print("FAIL", s["id"], str(e)[:120])
+        if os.environ.get("SKIP_MOBILE"):
+            await br.close()
+            return
         mob = await (await br.new_context(viewport={"width": 390, "height": 844}, is_mobile=True)).new_page()
         await mob.goto(BASE + "/", wait_until="domcontentloaded")
         await mob.wait_for_timeout(3000)
