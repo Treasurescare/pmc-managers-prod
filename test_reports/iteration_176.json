@@ -1,0 +1,31 @@
+{
+  "summary": "Frontend-only test of the customer's iPhone-flow fixes on a 390x844 mobile viewport, plus a desktop regression check. All 5 requested items pass. (1) PmcMobileNav Supplier menu shows 'AI tender tools' (/vendor/ai-tools) and 'Saved alerts' (/vendor/saved-alerts). Both pages load with content and the drawer closes after navigation. (2) The /notices/DEMO-TND-001 share bar order is share-native, linkedin, whatsapp, image, copy. With navigator.share mocked, it is called with {title, text, url=/api/v1/share/notice/DEMO-TND-001}. Without it, the link is copied to the clipboard and the 'Share link copied' toast shows. (3) Saved alert TEST_T176 (keywords, GB, Medical Equipment) was created, appears in the list, preview matches renders, and delete removes it (0 left in DB). (4) A TEST_ vendor was inserted directly into the DB, logged in on mobile, and deleted via /vendor/account > Delete my data > password + ack > Delete permanently. It redirects to /login?deleted=1 with the sign-in form visible (not blank) and the toast 'Your account has been deleted'. Logging in again with the same credentials fails with the sign-in-failed toast. (5) The desktop vendor side nav is intact (now also lists AI tender tools and Saved alerts). Plain /login shows no toast on mobile or desktop.",
+  "backend_issues": {"critical": [], "minor": [
+    {"endpoint": "vendor GDPR self-forget", "issue": "After anonymisation the vendor doc keeps status='active' (email/company redacted, gdpr_forgotten_at set). Login fails only because the email was changed. Consider setting status to 'deleted' or 'anonymised' and clearing password_hash for defence in depth."}
+  ]},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Mobile Supplier menu (PmcMobileNav)", "issues": ["Missing several items that the desktop side nav has: Prepare tender, Consortia, Directory listing, Data intel, Messages, Refer & earn. Customers may report these as 'cannot find' too."]},
+      {"screen": "/vendor/saved-alerts mobile", "issues": ["The alert name wraps onto 2 lines, squeezed next to the inline Preview/Edit/Delete buttons. Stack the buttons below the name on narrow widths. Delete has no confirmation."]},
+      {"screen": "/notices/DEMO-TND-001", "issues": ["Indicative budget shows '$250,000' while the tender currency is GBP (EMD correctly shows £2,500). Currency symbol mismatch."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Optional: add the missing desktop nav items to the mobile Supplier menu",
+    "Optional: mark GDPR-forgotten vendors as non-active and null out password_hash",
+    "Optional: fix the budget currency symbol on the notice detail and the mobile layout of saved-alert rows"
+  ],
+  "critical_code_review_comments": [
+    "SignInE: `if (!isE) return null;` renders a blank page if the theme isn't E and no Legacy is passed. /login passes Legacy, so it is fine today.",
+    "NoticeShareBar: nativeShare swallows navigator.share errors (including user cancel), which is fine. copy() does nothing on clipboard failure; add an error toast or a fallback for older iOS/WebViews."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "skipped", "frontend": "100%"},
+  "seed_data_creation": "Created TEST_ vendor VEN-TGDPR176 (test_gdpr_t176@example.com) directly in the DB, deleted it via GDPR in the UI, then removed the anonymised doc by _id. Created and deleted the saved alert 'TEST_T176 alert' on testvendor. No residual data.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Mobile hamburger testid: pmc-mobile-menu-open. Use scroll_into_view for lower drawer links. Notice for the share test: DEMO-TND-001. A TEST vendor can be created by cloning the testvendor doc in db.vendors with a new email/vendor_ref and hash_password (PYTHONPATH=/app/backend)."
+}

@@ -1010,5 +1010,12 @@ summary notes.
 ## 2026-11-09 — v60l: vendor category bug ("Wind generators")
 - Root causes: admin Edit full profile saved Section D categories only into vendor.profile.business_categories (bid gate reads top-level business_categories); category_interest stringified dicts; vendor /vendor/categories picker only listed db.categories master (no UNSPSC commodities); request_category rejected non-master codes.
 - Fixes: _fees.category_names(); admin_update_vendor_full syncs profile -> top-level (removals honoured) and no longer 404s vendors without tenant_id; startup backfill; picker searches UNSPSC (deduped) + ?add= prefill/auto-select; request accepts UNSPSC code+title or a published tender's category; admin Section D no 1-category limit (adminMode). Tested iteration_175.
-- Main tender document label in Notice edit modal now says needed to publish. Known: AI tool buttons would be hidden in-app if AI prices > 0 (currently free).
+- Main tender document label in Notice edit modal now says needed to publish.
+
+## 2026-11-09 — v60m: iPhone recording fixes
+- Customer's recording used the home-screen web shortcut "PMC Tenders" (PWA), not the App Store app "PMC Managers" — native ⇪ share/⚙ only exist in the real app.
+- Mobile supplier menu (PmcMobileNav) now has AI tender tools, Saved alerts, Prepare tender, Consortia, Directory listing, Data intel, Messages, Refer & earn.
+- Tender share bar: new "Share" button (Capacitor Share / navigator.share / copy fallback).
+- After self-delete: vendor logout + redirect /login?deleted=1 with "Your account has been deleted" toast (was blank home). Tested iteration_176.
+- Known (not fixed): notice detail Indicative budget shows "$" for GBP tenders; saved-alert row layout on narrow mobile. Known: AI tool buttons would be hidden in-app if AI prices > 0 (currently free).
 
