@@ -152,6 +152,9 @@ import VendorFindTendersE from "@/apps/vendor-portal-e/VendorFindTendersE";
 import VendorAlertsE from "@/apps/vendor-portal-e/VendorAlertsE";
 import VendorAiToolsE from "@/apps/vendor-portal-e/VendorAiToolsE";
 import VendorSavedAlertsE from "@/apps/vendor-portal-e/VendorSavedAlertsE";
+import VendorMarketE from "@/apps/vendor-portal-e/VendorMarketE";
+import MarketE from "@/apps/notice-board-e/MarketE";
+import AdminMarketE from "@/apps/admin-console-e/AdminMarketE";
 import VendorListingE from "@/apps/vendor-portal-e/VendorListingE";
 import GlobalTendersE from "@/apps/notice-board-e/GlobalTendersE";
 import SupplierDirectoryE from "@/apps/notice-board-e/SupplierDirectoryE";
@@ -305,6 +308,7 @@ export default function App() {
             <Route path="/admin/e/corrigenda" element={<AdminCorrigendaE />} />
             <Route path="/admin/e/work-packages" element={<AdminWorkPackagesE />} />
             <Route path="/admin/e/catalog" element={<AdminCatalogE />} />
+            <Route path="/admin/e/market" element={<AdminMarketE />} />
             <Route path="/admin/e/boq" element={<AdminBoqContractsE />} />
             <Route path="/admin/e/boq-contracts" element={<AdminBoqContractsE />} />
             <Route path="/admin/e/vendors" element={<AdminVendorsE />} />
@@ -358,6 +362,9 @@ export default function App() {
             <Route path="/vendor/alerts" element={<RequireVendor><VendorAlertsE /></RequireVendor>} />
             <Route path="/vendor/ai-tools" element={<RequireVendor><VendorAiToolsE /></RequireVendor>} />
             <Route path="/vendor/saved-alerts" element={<RequireVendor><VendorSavedAlertsE /></RequireVendor>} />
+            <Route path="/vendor/market" element={<RequireVendor><VendorMarketE /></RequireVendor>} />
+            <Route path="/market" element={<MarketE />} />
+            <Route path="/market/:id" element={<MarketE />} />
             <Route path="/vendor/listing" element={<RequireVendor><VendorListingE /></RequireVendor>} />
             <Route path="/vendor/reviews" element={<RequireVendor><VendorReviewsE /></RequireVendor>} />
             <Route path="/vendor/company" element={<RequireVendor><VendorCompanyKycE /></RequireVendor>} />

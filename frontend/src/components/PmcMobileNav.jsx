@@ -222,6 +222,7 @@ export default function PmcMobileNav() {
             <NavLink to="/vendor/mybids" data-testid="pmc-mobile-menu-link-mybids">My bids</NavLink>
             <NavLink to="/vendor/auctions" data-testid="pmc-mobile-menu-link-auctions">Reverse auctions</NavLink>
             <NavLink to="/vendor/consortia" data-testid="pmc-mobile-menu-link-consortia">Consortia</NavLink>
+            <NavLink to="/vendor/market" data-testid="pmc-mobile-menu-link-market">Sell products</NavLink>
             <NavLink to="/vendor/emd" data-testid="pmc-mobile-menu-link-emd">EMD &amp; payments</NavLink>
             <NavLink to="/vendor/signatures" data-testid="pmc-mobile-menu-link-signatures">Signatures</NavLink>
             <hr />

@@ -26,6 +26,7 @@ export default function AdminSideNavE({ active }) {
     ["Work packages", "/admin/e/work-packages", "i-box"],
     ["Catalog", "/admin/e/catalog", "i-layers"],
     ["Market", null, null],
+    ["Marketplace", "/admin/e/market", "i-box"],
     ["Vendors", "/admin/e/vendors", "i-users"],
     ["Registrations", "/admin/e/registrations", "i-file"],
     ["Vendor intel", "/admin/e/vendor-intel", "i-eye"],
