@@ -385,9 +385,9 @@ else:
         "allow_origins": [o.strip() for o in config.CORS_ORIGINS.split(",") if o.strip()],
         "allow_credentials": True,
     }
-app.add_middleware(CORSMiddleware, allow_methods=["*"], allow_headers=["*"], **_cors)
 from b64_upload import B64UploadMiddleware  # noqa: E402
 app.add_middleware(B64UploadMiddleware)
+app.add_middleware(CORSMiddleware, allow_methods=["*"], allow_headers=["*"], **_cors)
 
 
 # ---------- Cache safety (v51a) ----------

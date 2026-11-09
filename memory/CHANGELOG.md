@@ -999,5 +999,11 @@ summary notes.
 - Admin /admin/vendors/new: final create now blocked until all red-* fields + required documents are filled (frontend requiredFields.js + backend vendor_full_invite._check_mandatory, 400 listing missing items).
 - Prod 403 on hero-image upload: preview upload of 1.3 MB JPG works; prod 403 has no JSON body → AWS layer (likely WAF on CloudFront). Customer to check WAF sampled requests.
 - Admin Add Vendor: live red "Required" under every empty mandatory field (ShowRequiredContext in FormPrimitives; admin form only, public form unchanged).
-- Bundles: pmc-backend-v60j.zip + pmc-frontend-v60j-prod-build.zip (rebuilt 02:37, secret scan passed). Known: AI tool buttons would be hidden in-app if AI prices > 0 (currently free).
+- Bundles: pmc-backend-v60j.zip + pmc-frontend-v60j-prod-build.zip (rebuilt 02:37, secret scan passed).
+
+## 2026-11-09 — v60k: WAF-safe uploads
+- Root cause of prod 403: AWS WAF AWSManagedRulesCommonRuleSet#CrossSiteScripting_BODY on raw image bytes (CloudFront free plan; custom rules not allowed).
+- Fix: frontend api.js interceptor sends every FormData upload to own /api as base64 JSON (X-PMC-Upload: b64); backend b64_upload.py ASGI middleware rebuilds multipart (inside CORS). All UploadFile endpoints unchanged; legacy multipart still works. Tested iteration_174 (16/16 backend, md5-identical round trips).
+- Registration doc uploads: allow-list pdf/jpg/jpeg/png/doc/docx (client + server 400).
+- Customer deploys website via CloudShell one-liner (bucket pmc-managers-frontend-prod, CloudFront E2WZT1TMQ0EK9W); build stamp now v60k. Known: AI tool buttons would be hidden in-app if AI prices > 0 (currently free).
 

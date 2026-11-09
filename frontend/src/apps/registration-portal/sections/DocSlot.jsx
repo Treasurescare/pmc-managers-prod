@@ -18,6 +18,9 @@ export default function DocSlot({ regId, token, slot, label, required, existing,
 
   const upload = async (file) => {
     if (!file) return;
+    if (!/\.(pdf|jpe?g|png|docx?)$/i.test(file.name || "")) {
+      return toast.error("Unsupported file type — please upload a PDF, JPG, PNG or Word document.");
+    }
     if (file.size > 5 * 1024 * 1024) {
       return toast.error(t("docs.too_big"));
     }

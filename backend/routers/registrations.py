@@ -120,6 +120,9 @@ async def upload_registration_doc(registration_id: str, slot: str,
     if reg["status"] not in ("draft", "needs_clarification"):
         raise HTTPException(status_code=400, detail=f"Cannot edit — status is {reg['status']}")
 
+    ext = (file.filename or "").rsplit(".", 1)[-1].lower() if "." in (file.filename or "") else ""
+    if ext not in ("pdf", "jpg", "jpeg", "png", "doc", "docx"):
+        raise HTTPException(status_code=400, detail="Unsupported file type — please upload a PDF, JPG, PNG or Word document")
     body = await file.read()
     if len(body) > config.MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="File exceeds pilot upload limit")
