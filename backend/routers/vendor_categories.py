@@ -68,7 +68,8 @@ class CategoryRequestIn(BaseModel):
 async def my_categories(vendor=Depends(current_vendor)):
     """Approved categories + any pending requests, for the signed-in vendor."""
     v = await db.vendors.find_one({"_id": ObjectId(vendor["id"])})
-    approved = list((v or {}).get("business_categories") or [])
+    from routers._fees import category_names
+    approved = category_names((v or {}).get("business_categories"))
     pending = [_out(r) async for r in db.vendor_category_requests.find(
         {"vendor_ref": vendor["vendor_ref"], "status": {"$in": OPEN}}
     ).sort("requested_at", -1)]
@@ -83,7 +84,8 @@ async def request_category(payload: CategoryRequestIn, vendor=Depends(current_ve
     """Vendor requests a new category. Dedupes by (vendor_ref, category_code)
     across pending/approved so the same category can't be queued twice."""
     v = await db.vendors.find_one({"_id": ObjectId(vendor["id"])})
-    if payload.category_name in ((v or {}).get("business_categories") or []):
+    from routers._fees import category_names
+    if payload.category_name.strip().lower() in {c.lower() for c in category_names((v or {}).get("business_categories"))}:
         raise HTTPException(status_code=409, detail="Category already in your approved list")
     dup = await db.vendor_category_requests.find_one({
         "vendor_ref": vendor["vendor_ref"],
@@ -99,8 +101,10 @@ async def request_category(payload: CategoryRequestIn, vendor=Depends(current_ve
         if n >= cap:
             raise HTTPException(status_code=429,
                 detail=f"You already have {n} category request(s) pending (limit {cap}). Wait for a decision first.")
-    # Verify the category exists in the master.
-    master = await db.categories.find_one({"code": payload.category_code, "is_active": True})
+    # Verify the category exists: category master, UNSPSC master, or a published tender's category.
+    master = (await db.categories.find_one({"code": payload.category_code, "is_active": True})
+              or await db.masters_unspsc.find_one({"code": payload.category_code, "title_en": payload.category_name})
+              or await db.notices.find_one({"category": payload.category_name, "is_published": True}, {"_id": 1}))
     if not master:
         raise HTTPException(status_code=400, detail="Unknown or inactive category")
     fee = await _category_fee(v or {}, payload.category_name)

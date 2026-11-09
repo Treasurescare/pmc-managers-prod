@@ -314,6 +314,10 @@ async def admin_update_vendor_full(vendor_ref: str, payload: "VendorProfilePatch
         current = dict(v.get("profile") or {})
         current.update({k: val for k, val in payload.profile.items() if val is not None})
         updates["profile"] = current
+        if payload.profile.get("business_categories") is not None:
+            from routers._fees import category_names
+            updates["business_categories"] = category_names(
+                list(v.get("business_categories") or []) + list(payload.profile["business_categories"]))
     # Extras pass-through for forward-compat fields the Admin UI may send.
     for k, val in (payload.model_extra or {}).items():
         if k in ("id", "_id", "password_hash", "magic_token", "tenant_id",

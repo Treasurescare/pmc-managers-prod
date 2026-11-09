@@ -198,8 +198,9 @@ async def category_interest(notice_ref: str, vendor=Depends(current_vendor)):
         raise HTTPException(status_code=404, detail="Notice not found")
     v = await db.vendors.find_one({"_id": ObjectId(vendor["id"])}) or {}
     cat = (n.get("category") or "").strip()
-    mine = {str(c).strip().lower() for c in (v.get("business_categories") or [])}
-    registered = not cat or cat.lower() in mine
+    from routers._fees import category_aliases, category_names
+    mine = {c.lower() for c in category_names(v.get("business_categories"))}
+    registered = not cat or bool(mine & {a.lower() for a in await category_aliases(cat)})
     pending = await db.vendor_category_requests.find_one(
         {"vendor_ref": v.get("vendor_ref"), "category_name": cat, "status": {"$in": ["pending", "payment_pending"]}})
     if not registered and not pending:

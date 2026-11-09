@@ -65,6 +65,16 @@ def _scope(r: dict, c: str) -> int:
     return 2 if r.get("bands") else 1
 
 
+def category_names(items) -> list:
+    """Vendor categories may be strings or {code,title} dicts — return clean title strings."""
+    out = []
+    for c in items or []:
+        name = (c.get("title") or c.get("name") or c.get("code")) if isinstance(c, dict) else c
+        if name and str(name).strip() and str(name).strip() not in out:
+            out.append(str(name).strip())
+    return out
+
+
 async def category_aliases(cat: Optional[str]) -> list:
     """A notice category (UNSPSC title or master name) plus the linked master names / UNSPSC titles."""
     if not cat:

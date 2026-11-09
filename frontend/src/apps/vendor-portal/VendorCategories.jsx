@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { vendorApi, mastersApi, publicApi, showApiError } from "@/lib/api";
+import { vendorApi, mastersApi, publicApi, taxonomyApi, showApiError } from "@/lib/api";
 import { contractTypeOptions } from "@/components/taxonomy";
 
 /**
@@ -17,7 +17,16 @@ export default function VendorCategories() {
   const [sectors, setSectors] = useState([]);
   const [contractTypes, setContractTypes] = useState([]);
   const [draft, setDraft] = useState({ code: "", name: "", rationale: "", sector_code: "", sector_name: "", contract_type_code: "", contract_type_name: "" });
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(() => new URLSearchParams(window.location.search).get("add") || "");
+  const [unspsc, setUnspsc] = useState([]);
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) { setUnspsc([]); return undefined; }
+    const t = setTimeout(() => {
+      taxonomyApi.search(q).then((r) => setUnspsc((r.items || []).map((x) => ({ code: x.code, name: x.title, unspsc_code: x.code })))).catch(() => setUnspsc([]));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [query]);
   const [busy, setBusy] = useState(false);
   const [quote, setQuote] = useState(null);
   useEffect(() => {
@@ -52,12 +61,19 @@ export default function VendorCategories() {
     publicApi.listContractTypesPublic().then((r) => setContractTypes(Array.isArray(r) ? r : [])).catch(() => setContractTypes([]));
   }, []);
 
-  const approvedSet = new Set(state.approved);
+  const approvedSet = new Set(state.approved.map((a) => String(a).toLowerCase()));
   const pendingCodes = new Set(state.pending.map((p) => p.category_code));
-  const available = master.filter((c) =>
-    !approvedSet.has(c.name) && !pendingCodes.has(c.code) &&
+  const masterHits = master.filter((c) =>
     (!query || (c.name + " " + (c.unspsc_code || "")).toLowerCase().includes(query.toLowerCase()))
   );
+  const seen = new Set(masterHits.map((c) => c.name.toLowerCase()));
+  const available = [...masterHits, ...unspsc.filter((c) => c.name && !seen.has(c.name.toLowerCase()))]
+    .filter((c) => !approvedSet.has(c.name.toLowerCase()) && !pendingCodes.has(c.code));
+  useEffect(() => {
+    const add = new URLSearchParams(window.location.search).get("add");
+    const hit = add && !draft.code && available.find((c) => c.name.toLowerCase() === add.toLowerCase());
+    if (hit) setDraft((d) => ({ ...d, code: hit.code, name: hit.name }));
+  }, [available.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const submit = async () => {
     if (!draft.code || !draft.name) {
@@ -145,7 +161,7 @@ export default function VendorCategories() {
       <section className="bg-white border border-brand-navy/10 p-5 mb-6">
         <div className="pmc-label">Request additional category</div>
         <p className="text-xs text-brand-navy/60 mt-1 mb-3">
-          Pick from the procurement category master. Admin approval is required before tender matching picks it up.
+          Search the procurement category master or any UNSPSC category (e.g. "Wind generators"). Admin approval is required before tender matching picks it up.
         </p>
         {/* v56s — Sector → Contract type taxonomy context (cascading). Optional. */}
         <div className="grid md:grid-cols-2 gap-3 mb-3">
