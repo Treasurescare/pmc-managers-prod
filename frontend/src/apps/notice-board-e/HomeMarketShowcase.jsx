@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { coverOf, marketApi, mediaUrl, MODE_LABEL, money } from "@/lib/marketApi";
 
@@ -46,13 +46,17 @@ function AdvertSlot({ ads }) {
 const _seen = new Set();
 
 function AdCard({ a, ext, ads, i, setI }) {
+  const ref = useRef(null);
   useEffect(() => {
-    if (_seen.has(a.id)) return;
-    _seen.add(a.id);
-    marketApi.adEvent(a.id, "view");
+    if (_seen.has(a.id) || !ref.current) return undefined;
+    const io = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting && !_seen.has(a.id)) { _seen.add(a.id); marketApi.adEvent(a.id, "view"); io.disconnect(); }
+    }, { threshold: 0.5 });
+    io.observe(ref.current);
+    return () => io.disconnect();
   }, [a.id]);
   return (
-    <div className="pmc-card" style={{ height: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }} data-testid="home-ad-slot">
+    <div ref={ref} className="pmc-card" style={{ height: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }} data-testid="home-ad-slot">
       <div style={{ aspectRatio: "4 / 3", background: "var(--surface-sunken)", position: "relative" }}>
         {a.image_id && <img src={mediaUrl(a.image_id)} alt={a.title} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} data-testid="home-ad-image" />}
         <span className="pmc-tag" style={{ position: "absolute", top: "12px", left: "12px" }}>Advertisement</span>

@@ -23,7 +23,7 @@ export function CategoryAlerts() {
       <div className="flex items-center gap-2 font-semibold"><Bell size={16} /> Category alerts</div>
       <p className="text-sm opacity-80 mt-1">Choose the categories you buy. We email <b>{email}</b> as soon as a new product in one of them is approved.</p>
       {mine.length > 0 && <div className="flex flex-wrap gap-2 mt-2" data-testid="alerts-selected">{mine.map((n) => (
-        <button key={n} type="button" className="pmc-tag" onClick={() => toggle(n)} data-testid={`alerts-remove-${n}`}>{n} ×</button>))}</div>}
+        <button key={n} type="button" className="pmc-tag" style={{ textTransform: "none" }} onClick={() => toggle(n)} data-testid={`alerts-remove-${n}`}>{n} ×</button>))}</div>}
       <input className="pmc-input w-full max-w-md mt-3" placeholder="Search categories" value={q} onChange={(e) => setQ(e.target.value)} data-testid="alerts-search" />
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-1 mt-2 max-h-64 overflow-auto text-sm">
         {shown.map((c) => (

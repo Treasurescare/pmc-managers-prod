@@ -1066,3 +1066,9 @@ summary notes.
 - Category review: GET /api/v1/admin/category-review, POST /{id} approve | rename (updates listings, 409 on clash) | merge (moves listings, deactivates duplicate). Shown in Admin → Marketplace and Masters → Categories.
 - HomeMarketShowcase.jsx after tender alerts: left half products (4:3 tiles), right half advert carousel (7s) or "Advertise here" placeholder. Tested iteration_184 (fixed _ad_out 500, zombie adverts, delete 404, dates/image checks, merge search + refresh).
 
+## 2026-11-09 — v61f: Advert view/click counts + marketplace category alerts
+- routers/market_alerts.py: POST /api/v1/market/showcase/ad-event (unique per IP-hash/advert/day/kind; home_ad_seen TTL 40d, home_ad_stats daily); admin list shows views/clicks/CTR; GET /admin/home-adverts/{id}/stats (?format=csv daily report).
+- Category alerts for verified buyer orgs: GET/PUT /api/v1/market/alerts (categories from master, max 30), panel on /market/purchases; on admin approve -> email each follower once (mkt_alert_log de-dupe, removed on failed send so it can retry; alerts_sent counts real sends); unsubscribe = GET confirm page + POST (safe from link scanners).
+- Front: view counted when ≥50% of advert visible (IntersectionObserver); CTA click counted. Tested iteration_185 (9/9) + fixes. Known: counts rely on first X-Forwarded-For IP; buyer-org admin users with global 'admin' role can see admin endpoints (pre-existing pattern).
+
+

@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# PMC v61f — Marketplace photos, spec sheets and AI catalogue import.
+set -eu
+VER="v61f"; ROOT="/app"; DL="$ROOT/frontend/public/downloads"
+rm -f "$DL"/pmc-frontend-v61e*.zip "$DL"/pmc-backend-v61e*.zip
+cd "$ROOT/backend"; rm -f "$DL/pmc-backend-${VER}.zip"
+zip -qr "$DL/pmc-backend-${VER}.zip" . -x '__pycache__/*' -x '**/__pycache__/*' -x '*.pyc' -x '**/*.pyc' \
+    -x '.env' -x 'venv/*' -x '.pytest_cache/*' -x '.ruff_cache/*' -x 'keys/*' -x 'tests/*'
+ls -lh "$DL/pmc-backend-${VER}.zip"
+cd "$ROOT/frontend"
+STASH=/tmp/pmc_dl_stash_${VER}; rm -rf "$STASH"
+if [ -d public/downloads ]; then mv public/downloads "$STASH"; fi
+restore() { if [ -d "$STASH" ]; then rm -rf public/downloads; mv "$STASH" public/downloads; fi; }
+trap restore EXIT
+REACT_APP_BACKEND_URL="" REACT_APP_PUBLIC_SITE_URL="https://www.pmcmanagers.com" GENERATE_SOURCEMAP=false yarn build 2>&1 | tail -3
+find "$ROOT/frontend/build" -name '*.map' -delete 2>/dev/null || true
+python3 "$ROOT/scripts/prerender.py" "$ROOT/frontend/build" "https://www.pmcmanagers.com" || echo "prerender warnings (non-fatal)"
+rm -rf public/downloads; mv "$STASH" public/downloads; trap - EXIT
+OUT="$DL/pmc-frontend-${VER}-prod-build.zip"; rm -f "$OUT"
+( cd build && zip -rq "$OUT" . -x 'downloads/*' -x 'downloads' )
+rm -rf /tmp/mz; mkdir -p /tmp/mz/downloads/manual
+cp public/downloads/manual/PMC_v4_Master_Training_Manual.pdf public/downloads/manual/PMC_Master_Training_Manual_*.pdf public/downloads/manual/sections*.json /tmp/mz/downloads/manual/
+( cd /tmp/mz && zip -rq "$OUT" downloads ); rm -rf /tmp/mz
+echo "FRONTEND ZIP:"; ls -lh "$OUT"
+if ! python3 "$ROOT/scripts/secret_scan.py" "$DL/pmc-backend-${VER}.zip" "$OUT"; then rm -f "$OUT" "$DL/pmc-backend-${VER}.zip"; echo "BUNDLE DELETED: secret found"; exit 1; fi
+echo "ALL DONE ${VER}"

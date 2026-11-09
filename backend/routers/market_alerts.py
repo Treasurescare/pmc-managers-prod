@@ -34,7 +34,7 @@ class AdEvent(BaseModel):
 
 def _visitor(request: Request, day: str) -> str:
     ip = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip() or (request.client.host if request.client else "")
-    raw = f"{SALT}|{day}|{ip}|{request.headers.get('user-agent', '')[:200]}"
+    raw = f"{SALT}|{day}|{ip}"
     return hashlib.sha256(raw.encode()).hexdigest()[:32]
 
 
@@ -116,7 +116,17 @@ async def put_alerts(body: AlertsIn, request: Request):
 
 
 @router.get("/market/alerts/unsubscribe", response_class=HTMLResponse)
-async def unsubscribe(t: str = ""):
+async def unsubscribe_page(t: str = ""):
+    tok = html.escape(t[:64])
+    return HTMLResponse("<html><body style='font-family:sans-serif;padding:40px'><h2>PMC Managers</h2>"
+                        "<p>Stop marketplace category alerts for your organisation?</p>"
+                        f"<form method='post'><input type='hidden' name='t' value='{tok}'>"
+                        "<button style='padding:10px 18px'>Yes, stop these alerts</button></form></body></html>")
+
+
+@router.post("/market/alerts/unsubscribe", response_class=HTMLResponse)
+async def unsubscribe(request: Request):
+    t = str((await request.form()).get("t") or "")
     r = await db.mkt_follows.update_one({"token": t}, {"$set": {"categories": []}}) if len(t) > 20 else None
     msg = "You will no longer receive marketplace category alerts." if r and r.matched_count else "This link is not valid any more."
     return HTMLResponse(f"<html><body style='font-family:sans-serif;padding:40px'><h2>PMC Managers</h2><p>{msg}</p></body></html>")
@@ -140,11 +150,15 @@ async def _notify(lst: dict) -> None:
                 f"<p style='font-size:12px;color:#5A5A57'>You get this because your organisation follows this category. "
                 f"<a href='{api_base}/api/v1/market/alerts/unsubscribe?t={f['token']}'>Stop these alerts</a></p>")
         try:
-            await send_email(f["email"], f"New on the PMC Marketplace: {lst['title'][:80]}",
-                             wrap("New product in a category you follow", body, "View the product", f"{base}/market/{lst['_id']}"))
-            sent += 1
+            ok = await send_email(f["email"], f"New on the PMC Marketplace: {lst['title'][:80]}",
+                                  wrap("New product in a category you follow", body, "View the product", f"{base}/market/{lst['_id']}"))
         except Exception:
             log.exception("category alert failed")
+            ok = False
+        if ok:
+            sent += 1
+        else:
+            await db.mkt_alert_log.delete_one({"_id": f"{lst['_id']}:{f['_id']}"})
     await db.mkt_listings.update_one({"_id": lst["_id"]}, {"$set": {"alerts_sent": sent}})
 
 

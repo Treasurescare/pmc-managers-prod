@@ -1,0 +1,39 @@
+{
+  "summary": "v61f: Advert view/click counts + admin stats (JSON/CSV) and Category Alerts for verified buyers. Backend pytest 9/9 PASS (tests/test_v61f_ad_stats_alerts.py). UI: home ad slot records 1 view on mount and 1 click on CTA (verified via network + admin row '1 saw it · 1 clicked · 100.0% click rate'); CSV download from ad-report link works (advert-TEST-UI-advert.csv with daily row + Total). Buyer (TEST_ buyer_application tenant) sees market-category-alerts on /market/purchases; search/tick/save/reload persistence/remove-all ('Category alerts turned off') work. Anonymous & supplier don't see the panel; market-alerts-link visible on /market. Approve of a listing in a followed TEST_ category writes exactly 1 mkt_alert_log row, listing.alerts_sent=1; unsubscribe link clears categories and shows confirmation; invalid token shows 'not valid'. One real bug: alerts_sent counts failed sends (Resend returned 401 in preview yet alerts_sent=1).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "market_alerts._notify (on POST /api/v1/market/admin/listings/{id}/decision approve)", "issue": "send_email() returns False on failure (never raises), but _notify does `sent += 1` unconditionally inside try. Preview logs show 'Resend failed 401: API key is invalid' while listing.alerts_sent == 1. Also the mkt_alert_log de-dupe row is inserted BEFORE sending, so a failed send is never retried. Fix: `if await send_email(...): sent += 1` else delete the log row (or store status:'failed')."},
+      {"endpoint": "POST /api/v1/market/showcase/ad-event", "issue": "Visitor identity = first X-Forwarded-For value + User-Agent, both client-controlled; a script can inflate 'saw it'/'clicked' counts arbitrarily by rotating the UA header (verified: changing UA gives counted:true again). No rate limit. Acceptable for MVP but advertiser reports can be gamed — consider per-IP rate limit and using the rightmost trusted XFF hop."},
+      {"endpoint": "GET /api/v1/market/alerts/unsubscribe", "issue": "One-click GET unsubscribe mutates state; corporate email link scanners (Outlook SafeLinks, Mimecast) prefetch links and can silently unsubscribe buyers. Consider a confirm button (POST) or List-Unsubscribe header."},
+      {"endpoint": "GET /api/v1/admin/home-adverts/{id}/stats", "issue": "Gated by require_role(admin/reviewer/super_admin) only; buyer-organisation users who are admin_users with role 'admin' (as in the seed) get 200. Same pre-existing pattern as other /admin endpoints — confirm buyer-org admin users are tenant-scoped/not given global admin role in real onboarding."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "HomeMarketShowcase AdCard", "issues": ["'view' is recorded on component mount, not when the slot is actually visible in the viewport (slot is below the fold) — 'saw it' really means 'page loaded'. Consider IntersectionObserver (≥50% visible)."]},
+      {"screen": "/market/purchases Category alerts", "issues": ["Selected chips render in ALL CAPS (pmc-tag style) while the checkbox list is sentence case — long names become hard to read.", "'Bids & offers' heading has no empty-state text when there are none (pre-existing)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v61f_ad_stats_alerts.py", "/app/test_reports/pytest/v61f.xml"],
+  "action_items": [
+    "market_alerts._notify: only count successful sends (`if await send_email(...)`), and don't permanently de-dupe a failed send (delete/flag mkt_alert_log row on failure)",
+    "Optional: rate-limit /market/showcase/ad-event and harden visitor key against UA rotation",
+    "Optional: record ad 'view' via IntersectionObserver instead of on mount",
+    "Optional: make unsubscribe a confirm-then-POST page to survive link scanners"
+  ],
+  "critical_code_review_comments": [
+    "_notify sends sequentially in a fire-and-forget asyncio task; if the backend restarts mid-loop the remaining followers are skipped but their log rows were never written, so OK, but alerts_sent then reflects partial count — acceptable.",
+    "_notify does not re-check that the follower's admin user / tenant is still active before emailing.",
+    "ad_stats CSV writes advert title into CSV unescaped for formula injection (title starting with '=' / '+'); low risk since admin-authored."
+  ],
+  "updated_files": ["/app/backend/tests/test_v61f_ad_stats_alerts.py"],
+  "success_rate": {"backend": "100% (9/9 tests; 1 minor logic bug found by log inspection)", "frontend": "100%"},
+  "seed_data_creation": "Ran tests/mkt_t180_seed.py create/clean; created TEST_alertcat_<tag> category, TEST_ adverts, TEST_alert listing — all deleted by id. Final DB check: home_adverts 0, home_ad_stats 0, home_ad_seen 0, mkt_follows 0, mkt_alert_log 0, TEST_ listings 0. Real pending listing 'Great Container' untouched. Used a TEST_ category so no real follower could be emailed.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run `python tests/mkt_t180_seed.py create` before tests/test_v61f_ad_stats_alerts.py and `clean` after. Resend key is invalid in preview (401) so emails never deliver — verify via mkt_alert_log/alerts_sent and backend.err.log. After the send-count fix, expected alerts_sent == 0 in preview (test currently asserts 1 — update the assertion to accept 0 when Resend fails).",
+  "rca of the issue": "alerts_sent overcount: emails.send_email swallows all errors and returns bool; market_alerts._notify wraps it in try/except expecting an exception, so `sent += 1` always runs. Reproduce: follow a category as buyer, approve a listing in it, observe 'Resend failed 401' in /var/log/supervisor/backend.err.log while mkt_listings.alerts_sent == 1."
+}
