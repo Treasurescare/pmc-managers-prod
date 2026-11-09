@@ -13,6 +13,7 @@ import VendorStepperNav from "./vendor/VendorStepperNav";
 import VendorActivationStep from "./vendor/VendorActivationStep";
 import { InfoDot } from "@/components/InfoDot";
 import { missingRequired } from "@/apps/registration-portal/requiredFields";
+import { ShowRequiredContext } from "@/apps/registration-portal/sections/FormPrimitives";
 
 /**
  * Admin creates a vendor + fills the FULL Sections A–E form on their behalf.
@@ -240,13 +241,13 @@ export default function AdminVendorCreate() {
                        data-testid="admin-vendor-email"
                        className="mt-1 w-full px-4 py-3 border border-brand-navy/20" />
               </label>
-              <SectionA {...sectionProps} />
+              <ShowRequiredContext.Provider value><SectionA {...sectionProps} /></ShowRequiredContext.Provider>
             </>
           )}
-          {step === "b" && <SectionB {...sectionProps} />}
-          {step === "c" && <SectionC {...sectionProps} />}
-          {step === "d" && <SectionD {...sectionProps} />}
-          {step === "e" && <SectionE {...sectionProps} />}
+          {step === "b" && <ShowRequiredContext.Provider value><SectionB {...sectionProps} /></ShowRequiredContext.Provider>}
+          {step === "c" && <ShowRequiredContext.Provider value><SectionC {...sectionProps} /></ShowRequiredContext.Provider>}
+          {step === "d" && <ShowRequiredContext.Provider value><SectionD {...sectionProps} /></ShowRequiredContext.Provider>}
+          {step === "e" && <ShowRequiredContext.Provider value><SectionE {...sectionProps} /></ShowRequiredContext.Provider>}
           {step !== "final" && (
             <div className="pt-4 mt-4 border-t border-brand-navy/10 flex items-center justify-between gap-3 flex-wrap"
                  data-testid={`admin-vendor-section-save-bar-${step}`}>

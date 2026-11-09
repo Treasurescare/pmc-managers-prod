@@ -998,5 +998,6 @@ summary notes.
 - lib/nativeBilling.js: in Capacitor app only, hides buy/pay/subscribe/upgrade/featured/priced buttons (data-pmc-iap-hidden), blocks checkout/pay POSTs in api.js interceptor, rewrites 402 to neutral "Billing ... managed by your organisation's PMC account." (info toast). Web unchanged. Tested iteration_173.
 - Admin /admin/vendors/new: final create now blocked until all red-* fields + required documents are filled (frontend requiredFields.js + backend vendor_full_invite._check_mandatory, 400 listing missing items).
 - Prod 403 on hero-image upload: preview upload of 1.3 MB JPG works; prod 403 has no JSON body → AWS layer (likely WAF on CloudFront). Customer to check WAF sampled requests.
-- Bundles: pmc-backend-v60j.zip + pmc-frontend-v60j-prod-build.zip (secret scan passed). Known: AI tool buttons would be hidden in-app if AI prices > 0 (currently free).
+- Admin Add Vendor: live red "Required" under every empty mandatory field (ShowRequiredContext in FormPrimitives; admin form only, public form unchanged).
+- Bundles: pmc-backend-v60j.zip + pmc-frontend-v60j-prod-build.zip (rebuilt 02:37, secret scan passed). Known: AI tool buttons would be hidden in-app if AI prices > 0 (currently free).
 

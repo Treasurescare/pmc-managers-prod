@@ -1,6 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { Children, createContext, useContext, useEffect, useMemo, useState } from "react";
+
+// When true (admin Add Vendor), empty mandatory fields show a live red "Required" note.
+export const ShowRequiredContext = createContext(false);
+
+const isEmptyValue = (children) => {
+  const v = Children.toArray(children)[0]?.props?.value;
+  return v === undefined || v === null || String(v).trim() === "";
+};
 
 export function Field({ label, children, hint, error, required }) {
+  const showRequired = useContext(ShowRequiredContext);
+  const missing = showRequired && required && !error && isEmptyValue(children);
   return (
     <label className="block">
       <span className="pmc-label flex items-center gap-1">
@@ -15,7 +25,8 @@ export function Field({ label, children, hint, error, required }) {
       </span>
       {children}
       {error && <span className="block text-[11px] text-red-600 mt-1">{error}</span>}
-      {!error && hint && <span className="block text-[11px] text-brand-navy/50 mt-1">{hint}</span>}
+      {missing && <span className="block text-[11px] text-red-600 mt-1" data-testid="field-required-warning">Required</span>}
+      {!error && !missing && hint && <span className="block text-[11px] text-brand-navy/50 mt-1">{hint}</span>}
     </label>
   );
 }
