@@ -2,6 +2,7 @@
 // Auth: httpOnly cookies set by /api/v1/{admin|staff|vendor}/auth/login.
 // CSRF: double-submit-cookie pattern (X-CSRF-Token header on non-GET).
 import axios from "axios";
+import { isNativeApp, isPaymentRequest, NATIVE_BILLING_MSG } from "@/lib/nativeBilling";
 import { toast } from "sonner";
 
 function resolveBackendUrl() {
@@ -87,6 +88,9 @@ function refreshCsrf() {
 
 api.interceptors.request.use((cfg) => {
   const method = (cfg.method || "get").toLowerCase();
+  if (isNativeApp() && isPaymentRequest(method, cfg.url)) {
+    return Promise.reject({ response: { data: { detail: NATIVE_BILLING_MSG } }, config: cfg, __pmcNativeBilling: true });
+  }
   if (method !== "get" && method !== "head" && method !== "options") {
     // v56h — a retried request already carries a FRESH session-bound token
     // (set by the 403-recovery handler). Never clobber it with a possibly
@@ -127,6 +131,7 @@ api.interceptors.response.use(
     return res;
   },
   async (err) => {
+    if (isNativeApp() && err?.response?.status === 402 && err.response.data) err.response.data.detail = NATIVE_BILLING_MSG;
     const status = err?.response?.status;
     const detail = err?.response?.data?.detail;
     const cfg = err?.config;

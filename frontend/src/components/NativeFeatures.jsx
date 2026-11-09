@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
+import { installPurchaseFreeGuard } from "@/lib/nativeBilling";
 
 // iPhone/Android app only: push alerts, Face ID lock, native share, app settings.
 const native = () => !!window.Capacitor?.isNativePlatform?.();
@@ -56,6 +57,7 @@ export default function NativeFeatures() {
 
   useEffect(() => {
     if (!on) return;
+    installPurchaseFreeGuard();
     prefGet("pmc.faceid").then((r) => { if (r.value === "1") { setLockState(true); setLocked(true); } }).catch(() => {});
     let hiddenAt = 0;
     const vis = () => { if (document.hidden) hiddenAt = Date.now(); else if (hiddenAt && Date.now() - hiddenAt > 60000) prefGet("pmc.faceid").then((r) => { if (r.value === "1") setLocked(true); }).catch(() => {}); };
