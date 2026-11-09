@@ -1027,5 +1027,9 @@ summary notes.
 - PdfStreamError on iPhone upload (truncated/iCloud placeholder PDF): _extract_text_from_upload now checks %PDF header, pypdf strict=False, per-page tolerance, friendly 400 messages. Bundle pmc-backend-v60n3.zip.
 
 ## 2026-11-09 — v60o: dark screen after account deletion (native)
-- Cause: post-delete reload re-engaged Face ID lock screen (pref pmc.faceid=1). Fix: deletion removes pmc.faceid; lock never shown on /login|/signin; lock z-index 2000 (covers header); floating ⇪/⚙ hidden on sign-in pages. Tested iteration_177 (5/5). Known: AI tool buttons would be hidden in-app if AI prices > 0 (currently free).
+- Cause: post-delete reload re-engaged Face ID lock screen (pref pmc.faceid=1). Fix: deletion removes pmc.faceid; lock never shown on /login|/signin; lock z-index 2000; floating buttons hidden on sign-in. Tested iteration_177.
+
+## 2026-11-09 — v60p: scanned PDF reading + readable delete dialog
+- Supplier AI summary reads scanned PDFs (no text layer) and photos (JPG/PNG) via Gemini vision (growth._vision_summary); proof_ai now uses _llm_key() (prod LLM_API_KEY).
+- GDPR delete dialog: portal to body, z-3000, dark readable text, white input, "Enter your password to permanently delete your account". (pref pmc.faceid=1). Fix: deletion removes pmc.faceid; lock never shown on /login|/signin; lock z-index 2000 (covers header); floating ⇪/⚙ hidden on sign-in pages. Tested iteration_177 (5/5). Known: AI tool buttons would be hidden in-app if AI prices > 0 (currently free).
 

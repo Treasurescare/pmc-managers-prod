@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { gdprApi, formatApiError, showApiError} from "@/lib/api";
 import PasswordInput from "@/components/PasswordInput";
@@ -35,33 +36,33 @@ export default function VendorGdprButton({ onSuccess }) {
         Delete my data
       </button>
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      {open && createPortal(
+        <div className="fixed inset-0 z-[3000] flex items-center justify-center bg-black/60 p-4"
              data-testid="vendor-gdpr-modal" onClick={() => !submitting && setOpen(false)}>
-          <div className="bg-white max-w-md w-full p-6 rounded-lg space-y-4"
+          <div className="bg-white text-slate-900 max-w-md w-full p-6 rounded-lg space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto"
                onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-serif text-lg text-red-700">Delete my account (GDPR)</h3>
-            <p className="text-sm text-slate-600">
+            <h3 className="font-serif text-lg font-semibold text-red-700">Delete my account (GDPR)</h3>
+            <p className="text-sm leading-relaxed text-slate-800">
               This will anonymise your profile and all linked registrations. This action
               is irreversible — your bids will remain (audit trail) but with your details
               redacted. You will be signed out immediately.
             </p>
             <label className="block text-sm">
-              <span className="text-slate-700">Confirm your password</span>
+              <span className="font-medium text-slate-900">Enter your password to permanently delete your account</span>
               <PasswordInput type="password" value={password}
                      onChange={(e) => setPassword(e.target.value)}
                      data-testid="vendor-gdpr-password"
-                     className="mt-1 w-full px-3 py-2 border rounded text-sm" />
+                     className="mt-1 w-full px-3 py-2 border border-slate-400 rounded text-base bg-white text-slate-900" />
             </label>
-            <label className="flex items-start gap-2 text-xs text-slate-700">
-              <input type="checkbox" checked={ack}
+            <label className="flex items-start gap-2 text-sm text-slate-900">
+              <input type="checkbox" checked={ack} className="mt-1 w-5 h-5 shrink-0"
                      onChange={(e) => setAck(e.target.checked)}
                      data-testid="vendor-gdpr-ack" />
               I understand this is permanent and cannot be undone.
             </label>
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={() => setOpen(false)} disabled={submitting}
-                      className="px-4 py-2 text-sm border rounded">Cancel</button>
+                      className="px-4 py-2 text-sm border border-slate-400 rounded text-slate-900 bg-white">Cancel</button>
               <button onClick={confirm} disabled={submitting}
                       data-testid="vendor-gdpr-confirm"
                       className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50">
@@ -69,7 +70,7 @@ export default function VendorGdprButton({ onSuccess }) {
               </button>
             </div>
           </div>
-        </div>
+        </div>, document.body
       )}
     </>
   );

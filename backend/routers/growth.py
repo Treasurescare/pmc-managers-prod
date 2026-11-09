@@ -98,15 +98,55 @@ async def _llm(system: str, user: str) -> str:
     return await _llm_complete(system, user)
 
 
+async def _vision_summary(name: str, mime: str, body: bytes, lang: str) -> str:
+    """Scanned PDFs / photos: let a vision model read the pages directly."""
+    import os
+    import tempfile
+    from pmc_lib.llm.chat import FileContentWithMimeType, LlmChat, UserMessage
+    from routers.tender_pro import _llm_key
+    fd, path = tempfile.mkstemp(suffix=os.path.splitext(name)[1] or ".pdf")
+    try:
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(body)
+        chat = LlmChat(api_key=_llm_key(), session_id=f"scan-{secrets.token_hex(6)}",
+                       system_message=SUMMARY_SYS).with_model("gemini", "gemini-3.1-pro-preview")
+        return await chat.send_message(UserMessage(
+            text=f"Language: {lang}\n\nThe attached file is a scanned or photographed tender document. Read every page and reply with the JSON object.",
+            file_contents=[FileContentWithMimeType(file_path=path, mime_type=mime)]))
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=502, detail="We could not read this scanned document. Please try again, or upload a clearer copy.")
+    finally:
+        os.remove(path)
+
+
+IMAGE_MIME = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png"}
+
+
 @router.post("/supplier-ai/summary")
 async def ai_summary(notice_ref: Optional[str] = Form(None), lang: str = Form("English"),
                      file: Optional[UploadFile] = File(None), v=Depends(current_vendor)):
+    scan = None
     if file:
         body = await file.read()
         if len(body) > 15 * 1024 * 1024:
             raise HTTPException(status_code=413, detail="File too large (max 15 MB)")
         from routers.tender_pro import _extract_text_from_upload
-        text, ref, title = _extract_text_from_upload(file.filename, body), "file-" + hashlib.sha256(body).hexdigest()[:20], file.filename
+        name = (file.filename or "").lower()
+        ext = "." + name.rsplit(".", 1)[-1] if "." in name else ""
+        ref, title = "file-" + hashlib.sha256(body).hexdigest()[:20], file.filename
+        if ext in IMAGE_MIME:
+            text, scan = "", IMAGE_MIME[ext]
+        else:
+            try:
+                text = _extract_text_from_upload(file.filename, body)
+            except HTTPException:
+                if ext != ".pdf" or not body.lstrip()[:5].startswith(b"%PDF"):
+                    raise
+                text = ""
+            if ext == ".pdf" and len(text.strip()) < 80:
+                scan = "application/pdf"
     elif notice_ref:
         n = await db.notices.find_one({"notice_ref": notice_ref, "is_published": True})
         if not n:
@@ -114,14 +154,18 @@ async def ai_summary(notice_ref: Optional[str] = Form(None), lang: str = Form("E
         text, ref, title = _notice_text(n), notice_ref, n.get("title")
     else:
         raise HTTPException(status_code=422, detail="Upload a tender document or choose a tender")
-    if len((text or "").strip()) < 80:
-        raise HTTPException(status_code=422, detail="Could not read enough text from this document (scanned images are not supported yet).")
+    if not scan and len((text or "").strip()) < 80:
+        raise HTTPException(status_code=422, detail="Could not read enough text from this document.")
     old = await db.ai_reports.find_one({"vendor_id": v["id"], "kind": "summary", "ref": ref, "lang": lang})
     if old:
         return _out(old)
     await charge_or_pass(v, "ai_tender_summary", ref, "AI tender summary")
-    text = text.replace("\x00", " ")
-    data = _json(await _llm(SUMMARY_SYS, f"Language: {lang}\n\nTENDER TEXT:\n{text[:120000]}"))
+    if scan:
+        data = _json(await _vision_summary(file.filename, scan, body, lang))
+        text = "[scanned document read by AI vision] " + json.dumps(data, default=str)
+    else:
+        text = text.replace("\x00", " ")
+        data = _json(await _llm(SUMMARY_SYS, f"Language: {lang}\n\nTENDER TEXT:\n{text[:120000]}"))
     doc = {"vendor_id": v["id"], "kind": "summary", "ref": ref, "lang": lang, "title": title, "notice_ref": notice_ref,
            "result": data, "source_text": text[:40000], "created_at": now_iso()}
     await db.ai_reports.insert_one(doc)

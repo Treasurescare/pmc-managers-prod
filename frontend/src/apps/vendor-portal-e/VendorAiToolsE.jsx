@@ -101,7 +101,8 @@ export default function VendorAiToolsE() {
       <section className="pmc-panel p-4" data-testid="ai-tools-form">
         <p className="text-sm">Upload a tender document (PDF, DOCX or TXT) or enter a PMC tender reference. The AI pulls out eligibility, turnover, experience, EMD, fees and key dates, then checks your company profile for missing documents and disqualification risks.</p>
         <div className="grid md:grid-cols-3 gap-3 mt-3">
-          <label className="text-sm">Tender document<input type="file" accept=".pdf,.docx,.txt" onChange={(e) => setFile(e.target.files?.[0] || null)} className="pmc-input mt-1 w-full" data-testid="ai-file-input" /></label>
+          <label className="text-sm">Tender document<input type="file" accept=".pdf,.docx,.txt,.jpg,.jpeg,.png" onChange={(e) => setFile(e.target.files?.[0] || null)} className="pmc-input mt-1 w-full" data-testid="ai-file-input" />
+            <span className="block text-xs opacity-70 mt-1" data-testid="ai-file-hint">PDF, Word, text, or a photo/scan of the tender (JPG, PNG). Scanned pages take a little longer.</span></label>
           <label className="text-sm">…or PMC tender reference<input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="PMC-NOT-2026-0001" className="pmc-input mt-1 w-full" data-testid="ai-ref-input" /></label>
           <label className="text-sm">Answer language<select value={lang} onChange={(e) => setLang(e.target.value)} className="pmc-input mt-1 w-full" data-testid="ai-lang-select">
             {["English", "Español", "Français", "Deutsch", "हिन्दी", "Bahasa Melayu", "Bahasa Indonesia", "简体中文", "繁體中文", "한국어", "日本語", "Русский"].map((l) => <option key={l}>{l}</option>)}</select></label>

@@ -75,7 +75,8 @@ async def _ask_ai(r: dict, crit: dict, files: list) -> dict:
             with os.fdopen(fd, "wb") as fh:
                 fh.write(body)
             paths.append((p, mime))
-        chat = LlmChat(api_key=os.environ["EMERGENT_LLM_KEY"], session_id=f"proof-{secrets.token_hex(6)}",
+        from routers.tender_pro import _llm_key
+        chat = LlmChat(api_key=_llm_key(), session_id=f"proof-{secrets.token_hex(6)}",
                        system_message="You are a careful procurement document checker. Never invent figures.").with_model("gemini", "gemini-3.1-pro-preview")
         raw = await chat.send_message(UserMessage(text=_PROMPT.format(title=r["title"], rule=r.get("rule"), proof=crit.get("proof_hint") or "supporting document",
                                                                       declared=f"{declared} {r.get('unit') or ''}".strip()),
