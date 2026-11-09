@@ -607,6 +607,9 @@ export default function VendorAccountE({ legacy: Legacy }) {
           <VendorGdprButton onSuccess={async () => {
             try { await vendorApi.logout(); } catch { /* session already revoked */ }
             try { sessionStorage.clear(); } catch { /* ignore */ }
+            if (window.Capacitor?.isNativePlatform?.()) {
+              try { (await import("@capacitor/preferences")).Preferences.remove({ key: "pmc.faceid" }); } catch { /* ignore */ }
+            }
             window.location.replace("/login?deleted=1");
           }} />
         </section>

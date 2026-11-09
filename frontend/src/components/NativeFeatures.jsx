@@ -58,7 +58,8 @@ export default function NativeFeatures() {
   useEffect(() => {
     if (!on) return;
     installPurchaseFreeGuard();
-    prefGet("pmc.faceid").then((r) => { if (r.value === "1") { setLockState(true); setLocked(true); } }).catch(() => {});
+    const signedOut = /^\/(login|signin)/.test(window.location.pathname);
+    prefGet("pmc.faceid").then((r) => { if (r.value === "1") { setLockState(true); if (!signedOut) setLocked(true); } }).catch(() => {});
     let hiddenAt = 0;
     const vis = () => { if (document.hidden) hiddenAt = Date.now(); else if (hiddenAt && Date.now() - hiddenAt > 60000) prefGet("pmc.faceid").then((r) => { if (r.value === "1") setLocked(true); }).catch(() => {}); };
     document.addEventListener("visibilitychange", vis);
