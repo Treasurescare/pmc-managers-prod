@@ -63,13 +63,24 @@ def _extract_text_from_upload(name: str, body: bytes) -> str:
     Falls back to raw utf-8 decode for txt."""
     name_lower = (name or "").lower()
     if name_lower.endswith(".pdf"):
+        if not body.lstrip()[:5].startswith(b"%PDF"):
+            raise HTTPException(status_code=400, detail="This file is not a readable PDF. If it is in iCloud, open it once in the Files app to download it, then try again.")
+        pages = []
         try:
             from pypdf import PdfReader
             from io import BytesIO
-            reader = PdfReader(BytesIO(body))
-            return "\n".join((page.extract_text() or "") for page in reader.pages)
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=f"PDF parse failed: {type(e).__name__}")
+            reader = PdfReader(BytesIO(body), strict=False)
+            for page in reader.pages:
+                try:
+                    pages.append(page.extract_text() or "")
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        text = "\n".join(pages)
+        if not text.strip():
+            raise HTTPException(status_code=400, detail="We could not read text from this PDF (it may be damaged, scanned or only partly downloaded). Try another copy, or enter the tender reference instead.")
+        return text
     if name_lower.endswith(".docx"):
         try:
             from docx import Document as _Doc
