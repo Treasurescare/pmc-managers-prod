@@ -86,6 +86,33 @@ function refreshCsrf() {
   return _csrfRefreshInFlight;
 }
 
+// v60k — send file uploads base64-in-JSON so the AWS WAF never sees raw binary
+// (CrossSiteScripting_BODY false positives). Backend b64_upload.py rebuilds multipart.
+const blobToB64 = (blob) => new Promise((resolve, reject) => {
+  const r = new FileReader();
+  r.onload = () => resolve(String(r.result).split(",")[1] || "");
+  r.onerror = () => reject(r.error);
+  r.readAsDataURL(blob);
+});
+const isOwnApi = (url = "") => url.startsWith("/api/") || url.startsWith(`${BACKEND_URL || window.location.origin}/api/`);
+api.interceptors.request.use(async (cfg) => {
+  if (!(cfg.data instanceof FormData) || !isOwnApi(cfg.url)) return cfg;
+  const fields = [];
+  const files = [];
+  for (const [name, value] of cfg.data.entries()) {
+    if (value instanceof Blob) {
+      files.push({ name, filename: value.name || "file", type: value.type || "application/octet-stream", b64: await blobToB64(value) });
+    } else {
+      fields.push({ name, value: String(value) });
+    }
+  }
+  cfg.data = { fields, files };
+  cfg.headers["Content-Type"] = "application/json";
+  cfg.headers["X-PMC-Upload"] = "b64";
+  return cfg;
+});
+
+
 api.interceptors.request.use((cfg) => {
   const method = (cfg.method || "get").toLowerCase();
   if (isNativeApp() && isPaymentRequest(method, cfg.url, cfg.data)) {

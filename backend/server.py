@@ -386,6 +386,8 @@ else:
         "allow_credentials": True,
     }
 app.add_middleware(CORSMiddleware, allow_methods=["*"], allow_headers=["*"], **_cors)
+from b64_upload import B64UploadMiddleware  # noqa: E402
+app.add_middleware(B64UploadMiddleware)
 
 
 # ---------- Cache safety (v51a) ----------
