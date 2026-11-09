@@ -4,8 +4,10 @@ import VendorPortalChrome from "./VendorPortalChrome";
 import { marketApi, MODE_LABEL, money } from "@/lib/marketApi";
 import { payNeeded } from "@/lib/growthApi";
 import { showApiError } from "@/lib/api";
+import { DocList, PhotoStrip } from "./MarketMediaPicker";
+import CatalogueImportE from "./CatalogueImportE";
 
-const EMPTY = { title: "", description: "", category: "", quantity: 1, unit: "lot", currency: "USD", location: "", image_url: "",
+const EMPTY = { title: "", description: "", category: "", quantity: 1, unit: "lot", currency: "USD", location: "", image_url: "", photos: [], documents: [],
   sale_modes: ["auction"], start_price: "", reserve_price: "", min_increment: 1, buy_now_price: "", closes_at: "", eligibility: "verified_buyers" };
 
 const toBody = (f) => ({ ...f, quantity: Number(f.quantity) || 1, min_increment: Number(f.min_increment) || 1,
@@ -38,7 +40,9 @@ function ListingForm({ initial, onSaved, onCancel }) {
       <Field label="Unit (e.g. lot, unit, tonne)">{inp("unit")}</Field>
       <Field label="Currency (3 letters)">{inp("currency")}</Field>
       <Field label="Location">{inp("location")}</Field>
-      <div className="md:col-span-2"><Field label="Photo link (optional)">{inp("image_url", "url")}</Field></div>
+      <div className="md:col-span-2"><Field label="Product photos (up to 12)"><PhotoStrip photos={f.photos || []} onChange={(fn) => setF((x) => ({ ...x, photos: fn(x.photos || []) }))} /></Field></div>
+      <div className="md:col-span-2"><Field label="Spec sheets / brochures (PDF, up to 6)"><DocList docs={f.documents || []} onChange={(fn) => setF((x) => ({ ...x, documents: fn(x.documents || []) }))} /></Field></div>
+      <div className="md:col-span-2"><Field label="Or a photo link (optional)">{inp("image_url", "url")}</Field></div>
       <div className="md:col-span-2">
         <div className="text-sm font-medium">How do you want to sell? (pick one or more)</div>
         <div className="flex flex-wrap gap-4 mt-1">
@@ -78,7 +82,7 @@ function ListingRow({ l, reload, onEdit }) {
   return (
     <div className="pmc-panel p-3" data-testid={`mkt-row-${l.id}`}>
       <div className="flex flex-wrap justify-between gap-2">
-        <div><b>{l.title}</b> <span className="text-xs opacity-70">· {l.sale_modes.map((m) => MODE_LABEL[m]).join(", ")}</span></div>
+        <div><b>{l.title}</b> <span className="text-xs opacity-70">· {l.sale_modes.map((m) => MODE_LABEL[m]).join(", ")}</span>{l.needs_details && <span className="text-xs ml-2 text-amber-400" data-testid={`mkt-needs-${l.id}`}>· set price & how to sell (Edit)</span>}</div>
         <span className="text-xs uppercase tracking-wide" data-testid={`mkt-status-${l.id}`}>{l.status}</span>
       </div>
       <div className="text-xs opacity-80 mt-1">Top bid {money(l.currency, l.top_bid)} · {l.bid_count} {l.bid_count === 1 ? "bid" : "bids"}{l.closes_at ? ` · closes ${new Date(l.closes_at).toLocaleString()}` : ""}{l.review_notes ? ` · PMC note: ${l.review_notes}` : ""}</div>
@@ -104,17 +108,22 @@ function ListingRow({ l, reload, onEdit }) {
 export default function VendorMarketE() {
   const [data, setData] = useState({ items: [], orders: [], fee: null });
   const [form, setForm] = useState(null);
+  const [importing, setImporting] = useState(false);
   const load = () => marketApi.mine().then(setData).catch(showApiError);
   useEffect(() => { load(); }, []);
   const localDt = (iso) => { const d = new Date(iso); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16); };
-  const edit = (l) => setForm({ ...EMPTY, ...l, closes_at: l.closes_at ? localDt(l.closes_at) : "", start_price: l.start_price ?? "", reserve_price: l.reserve_price ?? "", buy_now_price: l.buy_now_price ?? "" });
+  const edit = (l) => setForm({ ...EMPTY, ...l, photos: l.photos || [], documents: l.documents || [], closes_at: l.closes_at ? localDt(l.closes_at) : "", start_price: l.start_price ?? "", reserve_price: l.reserve_price ?? "", buy_now_price: l.buy_now_price ?? "" });
   const fee = data.fee;
   return (
     <VendorPortalChrome active="Sell products">
       <div data-testid="vendor-market-page">
         <h1 className="text-2xl font-semibold">Sell your products</h1>
         <p className="text-sm opacity-80 mt-1 max-w-3xl">List products from your catalogue and sell them by timed auction, best offer or fixed price — no tender needed. Every listing is checked by PMC before buyers can see it. Buyers pay through a secure PMC payment link; PMC deducts its sale fee{fee ? ` (${fee.charge ? (fee.fee_type === "percent" ? `${fee.fee_value}% of the sale` : `${fee.fee_value} per sale`) : "currently none"})` : ""} and pays the rest to your registered bank account.</p>
-        {!form && <button className="pmc-btn pmc-btn--primary mt-3" onClick={() => setForm(EMPTY)} data-testid="mkt-new">Add a product</button>}
+        {!form && !importing && <div className="flex flex-wrap gap-2 mt-3">
+          <button className="pmc-btn pmc-btn--primary" onClick={() => setForm(EMPTY)} data-testid="mkt-new">Add a product</button>
+          <button className="pmc-btn pmc-btn--secondary" onClick={() => setImporting(true)} data-testid="mkt-import">Import from a catalogue with AI</button>
+        </div>}
+        {importing && <CatalogueImportE onDone={() => { setImporting(false); load(); }} onCancel={() => setImporting(false)} />}
         {form && <ListingForm initial={form} onSaved={() => { setForm(null); load(); }} onCancel={() => setForm(null)} />}
         <h2 className="text-lg font-semibold mt-6">My listings</h2>
         <div className="grid gap-2 mt-2" data-testid="mkt-my-listings">

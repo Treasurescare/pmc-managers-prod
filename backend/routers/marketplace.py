@@ -56,6 +56,8 @@ class ListingIn(BaseModel):
     currency: str = Field(default="USD", min_length=3, max_length=3)
     location: str = Field(default="", max_length=120)
     image_url: str = Field(default="", max_length=600)
+    photos: list[str] = Field(default_factory=list, max_length=12)
+    documents: list[dict] = Field(default_factory=list, max_length=6)
     sale_modes: list[Literal["auction", "best_offer", "fixed"]] = Field(min_length=1)
     start_price: Optional[float] = Field(default=None, ge=0)
     reserve_price: Optional[float] = Field(default=None, ge=0)
@@ -159,10 +161,18 @@ async def my_listings(v=Depends(current_vendor)):
     return {"items": items, "orders": orders, "fee": await _settings()}
 
 
+async def _clean(body: ListingIn, v: dict) -> dict:
+    from routers.marketplace_media import check_media
+    d = body.model_dump()
+    d["documents"] = [{"id": str(x.get("id")), "name": str(x.get("name") or "Spec sheet")[:160]} for x in body.documents]
+    await check_media(v["id"], body.photos, d["documents"])
+    return d
+
+
 @router.post("/listings")
 async def create_listing(body: ListingIn, v=Depends(_seller)):
     _validate(body)
-    doc = {**body.model_dump(), "seller_id": v["id"], "seller_name": v.get("company_name") or v.get("email"),
+    doc = {**(await _clean(body, v)), "seller_id": v["id"], "seller_name": v.get("company_name") or v.get("email"),
            "status": "draft", "created_at": now_iso(), "updated_at": now_iso()}
     r = await db.mkt_listings.insert_one(doc)
     return {"id": str(r.inserted_id), "status": "draft"}
@@ -194,7 +204,8 @@ async def update_listing(lid: str, body: ListingIn, v=Depends(_seller)):
     if d["status"] not in ("draft", "rejected"):
         raise HTTPException(status_code=409, detail="Only draft or rejected listings can be edited")
     _validate(body)
-    await db.mkt_listings.update_one({"_id": d["_id"]}, {"$set": {**body.model_dump(), "status": "draft", "updated_at": now_iso()}})
+    await db.mkt_listings.update_one({"_id": d["_id"]}, {"$set": {**(await _clean(body, v)), "status": "draft",
+                                                                   "needs_details": False, "updated_at": now_iso()}})
     return {"ok": True}
 
 
@@ -203,6 +214,8 @@ async def submit_listing(lid: str, v=Depends(_seller)):
     d = await _own(lid, v)
     if d["status"] not in ("draft", "rejected"):
         raise HTTPException(status_code=409, detail="Already submitted")
+    if d.get("needs_details"):
+        raise HTTPException(status_code=400, detail="Open Edit to choose how to sell this product and set its price before submitting")
     vd = await db.vendors.find_one({"_id": ObjectId(v["id"])})
     await charge_or_pass({**v, **(vd or {}), "id": v["id"]}, "mkt_listing_fee", f"mkt-{lid}", f"Marketplace listing: {d['title'][:60]}")
     await db.mkt_listings.update_one({"_id": d["_id"]}, {"$set": {"status": "pending", "submitted_at": now_iso()}})

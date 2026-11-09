@@ -36,6 +36,8 @@ DEFAULT_FEE_TYPES = [
      "amount_mode": "single", "category_scope": "all", "billing": "one_time", "used_in_tender_builder": False},
     {"code": "mkt_listing_fee", "name": "Marketplace product listing (per listing)", "timing": "upfront", "calc": "fixed",
      "amount_mode": "single", "category_scope": "all", "billing": "one_time", "used_in_tender_builder": False},
+    {"code": "mkt_catalogue_ai", "name": "AI catalogue reading (per catalogue)", "timing": "upfront", "calc": "fixed",
+     "amount_mode": "single", "category_scope": "all", "billing": "one_time", "used_in_tender_builder": False},
     {"code": "ai_bid_readiness", "name": "AI bid readiness check (per use)", "timing": "upfront", "calc": "fixed",
      "amount_mode": "single", "category_scope": "all", "billing": "one_time", "used_in_tender_builder": False},
     {"code": "featured_listing", "name": "Featured directory listing (30 days)", "timing": "upfront", "calc": "fixed",

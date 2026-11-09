@@ -29,7 +29,8 @@ NOTICE_FEES = [("tender_hosting", "Tender hosting fee"), ("tender_document_downl
                ("transaction", "Award fee")]
 SUPPLIER_FEES = [("registration", "Extra business categories"), ("tender_document_download", "Tender document downloads"),
                  ("ai_tender_summary", "AI tender summary"), ("ai_bid_readiness", "AI bid readiness check"),
-                 ("featured_listing", "Featured directory listing"), ("mkt_listing_fee", "Marketplace product listing")]
+                 ("featured_listing", "Featured directory listing"), ("mkt_listing_fee", "Marketplace product listing"),
+                 ("mkt_catalogue_ai", "AI catalogue reading")]
 
 
 async def seed_pricing() -> None:

@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import PublicChrome from "@/apps/shared/PublicChrome";
 import { useSeo } from "@/lib/useSeo";
-import { marketApi, MODE_LABEL, money } from "@/lib/marketApi";
+import { coverOf, marketApi, mediaUrl, MODE_LABEL, money } from "@/lib/marketApi";
 import { showApiError } from "@/lib/api";
 
 const signInHint = (e) => {
@@ -15,7 +15,7 @@ const signInHint = (e) => {
 function Card({ l }) {
   return (
     <Link to={`/market/${l.id}`} className="pmc-panel p-4 block hover:opacity-90" data-testid={`market-card-${l.id}`}>
-      {l.image_url && <img src={l.image_url} alt="" className="w-full h-40 object-cover rounded mb-2" />}
+      {coverOf(l) && <img src={coverOf(l)} alt="" className="w-full h-40 object-cover rounded mb-2" />}
       <div className="font-semibold">{l.title}</div>
       <div className="text-xs opacity-75 mt-1">{l.seller_name} · {l.quantity} {l.unit}{l.location ? ` · ${l.location}` : ""}</div>
       <div className="text-sm mt-2">{l.sale_modes.map((m) => MODE_LABEL[m]).join(" · ")}</div>
@@ -25,6 +25,18 @@ function Card({ l }) {
       </div>
       {l.closes_at && <div className="text-xs opacity-75 mt-1">Closes {new Date(l.closes_at).toLocaleString()}</div>}
     </Link>);
+}
+
+function Gallery({ l }) {
+  const pics = l.photos?.length ? l.photos.map((p) => mediaUrl(p)) : l.image_url ? [l.image_url] : [];
+  const [i, setI] = useState(0);
+  if (!pics.length) return null;
+  return (
+    <div className="mb-3" data-testid="market-gallery">
+      <img src={pics[Math.min(i, pics.length - 1)]} alt="" className="w-full max-h-96 object-contain rounded bg-black/20" data-testid="market-gallery-main" />
+      {pics.length > 1 && <div className="flex flex-wrap gap-2 mt-2">{pics.map((u, k) => (
+        <button key={u} type="button" onClick={() => setI(k)} data-testid={`market-thumb-${k}`}><img src={u} alt="" className={`w-14 h-14 object-cover rounded ${k === i ? "ring-2 ring-white" : "opacity-70"}`} /></button>))}</div>}
+    </div>);
 }
 
 function Detail({ id }) {
@@ -39,10 +51,12 @@ function Detail({ id }) {
   return (
     <div className="grid gap-4 md:grid-cols-2" data-testid="market-detail">
       <div>
-        {l.image_url && <img src={l.image_url} alt="" className="w-full rounded mb-3" />}
+        <Gallery l={l} />
         <h1 className="text-2xl font-semibold" data-testid="market-detail-title">{l.title}</h1>
         <div className="text-sm opacity-80 mt-1">Sold by {l.seller_name} · {l.quantity} {l.unit}{l.location ? ` · ${l.location}` : ""}{l.category ? ` · ${l.category}` : ""}</div>
         <p className="mt-3 whitespace-pre-wrap text-sm">{l.description}</p>
+        {l.documents?.length > 0 && <div className="mt-3 text-sm" data-testid="market-docs"><b>Spec sheets</b>{l.documents.map((d) => (
+          <a key={d.id} href={mediaUrl(d.id)} target="_blank" rel="noreferrer" className="underline block" data-testid={`market-doc-${d.id}`}>{d.name}</a>))}</div>}
         <p className="text-xs opacity-70 mt-3">{l.eligibility === "verified_buyers" ? "Open to verified buyer organisations." : "Open to any verified buyer or supplier."} Payment is made to PMC by secure card link; PMC pays the seller.</p>
       </div>
       <div className="pmc-panel p-4 space-y-3">

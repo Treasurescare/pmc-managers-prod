@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import AdminEShell from "./AdminEShell";
-import { marketApi, MODE_LABEL, money } from "@/lib/marketApi";
+import { marketApi, mediaUrl, MODE_LABEL, money } from "@/lib/marketApi";
 import { showApiError } from "@/lib/api";
 
 function FeeSettings() {
@@ -42,6 +42,10 @@ function Approvals() {
         <div key={l.id} className="pmc-panel p-3 mt-2 text-sm" data-testid={`mkt-admin-row-${l.id}`}>
           <div><b>{l.title}</b> · {l.seller_name} · {l.sale_modes.map((m) => MODE_LABEL[m]).join(", ")} · {l.status}</div>
           <div className="opacity-80 mt-1">{l.description?.slice(0, 300)}</div>
+          {(l.photos?.length > 0 || l.documents?.length > 0) && <div className="flex flex-wrap gap-2 mt-2 items-center" data-testid={`mkt-admin-media-${l.id}`}>
+            {(l.photos || []).map((p) => <a key={p} href={mediaUrl(p)} target="_blank" rel="noreferrer"><img src={mediaUrl(p)} alt="" className="w-14 h-14 object-cover rounded" /></a>)}
+            {(l.documents || []).map((d) => <a key={d.id} href={mediaUrl(d.id)} target="_blank" rel="noreferrer" className="underline text-xs">{d.name}</a>)}
+          </div>}
           <div className="opacity-80 mt-1">Start {money(l.currency, l.start_price)} · reserve {money(l.currency, l.reserve_price)} · buy-now {money(l.currency, l.buy_now_price)}{l.closes_at ? ` · closes ${new Date(l.closes_at).toLocaleString()}` : ""} · {l.eligibility === "verified_buyers" ? "buyers only" : "any verified"}</div>
           {l.status === "pending" && <div className="flex flex-wrap gap-2 mt-2 items-center">
             <label><input type="checkbox" checked={!!waive[l.id]} onChange={(e) => setWaive({ ...waive, [l.id]: e.target.checked })} data-testid={`mkt-waive-${l.id}`} /> Waive sale fee</label>
