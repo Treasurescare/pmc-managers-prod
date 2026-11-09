@@ -1022,5 +1022,6 @@ summary notes.
 ## 2026-11-09 — v60n: AI summary prod 500 diagnostics
 - Prod /api/v1/supplier-ai/summary returned bare HTTP 500 for "DPR LW-20.04.22.pdf"; preview works (200) with 114-page PDF. Cause unknown (no prod logs).
 - Added global exception handler (JSON detail "Server error (Type): msg" + logged traceback) and NUL-byte strip before LLM. Next: customer retries on v60n and sends the new message.
-- AI tools "Your recent reports": clicking now scrolls to the opened report; each report has Download (.txt) and Print / Save as PDF. Known: AI tool buttons would be hidden in-app if AI prices > 0 (currently free).
+- AI tools "Your recent reports": clicking now scrolls to the opened report; each report has Download (.txt) and Print / Save as PDF.
+- ROOT CAUSE of prod AI 500: "ModuleNotFoundError: emergentintegrations" — tender_pro._llm_complete (AI summary, readiness, Ask PMC, tender drafting), i18n_auto (translations) and proof_ai imported emergentintegrations, which is not installed on AWS. Switched to vendored pmc_lib.llm.chat; pmc_lib now treats sk-emergent- keys as managed and routes to integrations.emergentagent.com when INTEGRATION_PROXY_URL is unset. Verified preview: summary 200, Ask PMC reply. Bundle pmc-backend-v60n2.zip (Dockerfile unchanged). Known: AI tool buttons would be hidden in-app if AI prices > 0 (currently free).
 

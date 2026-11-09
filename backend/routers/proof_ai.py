@@ -60,7 +60,7 @@ async def _files(b: dict, cid: str) -> list:
 
 
 async def _ask_ai(r: dict, crit: dict, files: list) -> dict:
-    from emergentintegrations.llm.chat import FileContentWithMimeType, LlmChat, UserMessage
+    from pmc_lib.llm.chat import FileContentWithMimeType, LlmChat, UserMessage
     readable = [f for f in files if f[1] in READABLE]
     if not readable:
         return {"ai_status": "unreadable", "ai": {"verdict": "unclear", "found_value": None,

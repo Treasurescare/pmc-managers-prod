@@ -36,7 +36,7 @@ class TrIn(BaseModel):
 
 
 async def _llm(lang: str, texts: list) -> list:
-    from emergentintegrations.llm.chat import LlmChat, UserMessage
+    from pmc_lib.llm.chat import LlmChat, UserMessage
     chat = LlmChat(api_key=os.environ["EMERGENT_LLM_KEY"], session_id=f"autotr-{lang}-{_h(''.join(texts))[:12]}",
                    system_message=SYS.format(lang=LANGS[lang])).with_model("anthropic", "claude-sonnet-5-5")
     txt = await chat.send_message(UserMessage(text=json.dumps(texts, ensure_ascii=False)))

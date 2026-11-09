@@ -583,7 +583,7 @@ async def _llm_complete(system: str, user: str) -> str:
     """Single-shot completion via Claude Sonnet 5.5 (Emergent LLM key).
     Used for DPR analysis, section drafting and Fill-All. Price data is never
     placed in these prompts (two-cover integrity)."""
-    from emergentintegrations.llm.chat import LlmChat, UserMessage
+    from pmc_lib.llm.chat import LlmChat, UserMessage
     key = _llm_key()
     chat = LlmChat(
         api_key=key,

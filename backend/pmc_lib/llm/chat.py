@@ -415,6 +415,8 @@ class LlmChat:
         }
         if self._is_managed_key(self.api_key):
             proxy_url = get_integration_proxy_url()
+            if self.api_key.startswith("sk-emergent-") and not (os.getenv("INTEGRATION_PROXY_URL") or os.getenv("integration_proxy_url")):
+                proxy_url = "https://integrations.emergentagent.com"
             params["api_base"] = proxy_url + "/llm"
             params["custom_llm_provider"] = "openai"
             params["model"] = (
@@ -571,7 +573,7 @@ class LlmChat:
             raise ChatError(f"Failed to extract response text: {str(e)}")
 
     def _is_managed_key(self, api_key):
-        return api_key.startswith("sk-managed-")
+        return api_key.startswith(("sk-managed-", "sk-emergent-"))
     
     async def send_message_multimodal_response(self, user_message: UserMessage) -> tuple[str, List[Dict[str, str]]]:
         """
