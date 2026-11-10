@@ -1,0 +1,33 @@
+{
+  "summary": "Retest of the iteration_187 fixes. All three fixes are verified. (1) SECURITY: the pmc_staff dependency gives the seeded buyer-org admin 403 'PMC staff only' on all 15 marketplace staff endpoints: admin/listings, the single and bulk decision, GET/PUT settings, orders, payout, home-adverts list/create/update/delete/image/stats, and category-review GET/POST. The listing stays pending in the DB. The PMC admin still gets 200 on every GET and on PUT settings, single decide and bulk decide. Payout got past the gate and returned 409, as expected for a fake order, and the advert stats/delete calls returned 404. The buyer can still Buy now (200, order placed), bid (200) and whoami returns kind=buyer. (2) Bulk bar: after approving with note 'TEST bulk ok' and waive on, both fields reset in the UI. The next bulk reject saved review_notes='' and sale_fee_waived=false (checked in the DB). Duplicate ids are not counted as skipped. (3) WhoCanBuy, checked for 5 viewer types on a buyers-only and an any_verified listing. Guest, staff, and supplier 2 on the buyers-only listing see the blocked panel, and Place bid, Send offer and Buy now are disabled. The owner sees market-who-own and the buttons are disabled. A guest on the any_verified listing sees market-who-supplier-signin (/vendor/login?next=/market/{id}) and market-who-register (/register). Supplier 2 on any_verified, and the buyer on buyers-only, see market-who-ok and the buttons are enabled. Pytest: 41 of 41 pass (29 new + 12 v61i), after updating one v61i assertion to the new skipped semantics.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/v1/market/admin/listings/bulk-decision", "issue": "skipped now counts only valid unique ObjectIds that are not pending. Malformed ids are dropped silently and are not counted as skipped. This is fine, but the old v61i test expected them to count; the test is now updated."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/admin/e/market as a buyer-org user", "issues": ["A buyer-org user (role admin) can sign in to the full PMC admin console and open Supplier marketplace. The page then shows 5 stacked 'Something went wrong · HTTP 403 PMC staff only' toasts and an active 'Add advert' button. Hide the Market nav for buyer-org users and redirect them, or show one friendly message. Other admin APIs I probed (/vendors, /staff, /registrations) are tenant-scoped and returned only the buyer tenant's data, so nothing leaked."]},
+      {"screen": "/market/{id} WhoCanBuy when blocked", "issues": ["The Amount and Note inputs stay editable while the action buttons are disabled. Optional: disable them too.", "On an any_verified listing, an unverified supplier gets the buyer-application steps instead of a 'your supplier account must be verified' message."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v61j_market_pmc_staff_gate.py", "/app/backend/tests/test_v61i_market_whoami_bulk_imports.py", "/app/backend/tests/v61j_ui_setup.py", "/app/test_reports/pytest/v61j.xml"],
+  "action_items": [
+    "Optional UX: in the admin console, hide or redirect the Marketplace section for buyer-org users (tenant source buyer_application) instead of firing 5 error toasts.",
+    "Optional: disable the amount and note inputs when WhoCanBuy is blocked; add an unverified-supplier message."
+  ],
+  "critical_code_review_comments": [
+    "pmc_staff does an extra tenant lookup on every staff request. That is fine, but the tenant lookup code is duplicated in market_whoami and _bidder. Extract a helper such as _is_buyer_org(admin).",
+    "pmc_staff allows the request through when the tenant is missing or tenant_id is None. That is correct for PMC staff, but it relies on every buyer-org user always having a valid tenant_id."
+  ],
+  "updated_files": ["/app/backend/tests/test_v61j_market_pmc_staff_gate.py", "/app/backend/tests/v61j_ui_setup.py", "/app/backend/tests/test_v61i_market_whoami_bulk_imports.py (skipped assertion updated 2 -> 1)"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "adminsupport@pmcmanagers.com/Admin@12345; testvendor@pmcmanagers.com/Vendor@12345; seed: test_mkt_buyer_t180@example.com/Buyer@12345 and test_mkt_v2_t180@example.com/Vendor@12345 (created via mkt_t180_seed.py create)",
+  "seed_data_creation": "mkt_t180_seed.py create + 6 TEST_J_ listings. All removed by id, then 'mkt_t180_seed.py clean' was run. The user's 'Great Container' pending listing was not touched.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run 'python tests/mkt_t180_seed.py create' first, then run test_v61j and test_v61i (do not pass -p no:xdist; pytest.ini uses xdist). For UI: run v61j_ui_setup.py (writes /tmp/v61j.json), then log in via page.request.post to /api/v1/{vendor|admin}/auth/login. Afterwards delete the listings by id and run 'mkt_t180_seed.py clean'."
+}

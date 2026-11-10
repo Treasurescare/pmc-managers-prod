@@ -1085,3 +1085,11 @@ summary notes.
 - LEARNING: any new cookie-auth role must be added to require_csrf's session-bound fallback, or it breaks only in prod behind CloudFront.
 
 
+## 2026-11-10 — v61i: who-can-buy guidance, bulk approve, reopen imports, staff-only guard
+- GET /api/v1/market/whoami + WhoCanBuy panel on product page (explains buyer-only listings, apply/sign-in links, own-listing note; buttons disabled when blocked).
+- POST /api/v1/market/admin/listings/bulk-decision + bulk bar in Admin → Marketplace (note/waive reset after use).
+- GET /api/v1/market/catalogue/imports + "reopen an earlier import" in catalogue import (no re-upload, no new AI call).
+- SECURITY: pmc_staff dependency — buyer-org admins (tenant source buyer_application, role admin) are blocked from all marketplace/advert/category-review staff endpoints. Tested iteration_187/188 (41/41).
+- Open (cosmetic): buyer-org admins can still open the admin console Marketplace page (gets 403 toasts); amount/note inputs stay editable when blocked.
+
+

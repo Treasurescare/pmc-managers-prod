@@ -112,7 +112,8 @@ class TestBulk:
         r = adm.post(f"{API}/admin/listings/bulk-decision",
                      json={"ids": [a, b, "bad", "000000000000000000000000"], "action": "approve", "waive_sale_fee": True, "notes": "TEST ok"})
         assert r.status_code == 200, r.text
-        assert r.json()["decided"] == 2 and r.json()["skipped"] == 2
+        # v61j: dupes + malformed ids are not counted; only the valid non-pending id is skipped
+        assert r.json()["decided"] == 2 and r.json()["skipped"] == 1
         for lid in (a, b):
             d = _mongo.mkt_listings.find_one({"_id": ObjectId(lid)})
             assert d["status"] == "live" and d["sale_fee_waived"] is True and d["review_notes"] == "TEST ok"
