@@ -1,0 +1,36 @@
+{
+  "summary": "Retested the v190 buyer-portal fixes. All 8 fixes are verified, on the backend and in the UI. Backend: the new tests/test_v191_buyer_fixes.py passes 6/6, and the regression suite tests/test_v190_buyer_portal.py passes 16/16 (22/22 in total). Verified: (1) XSS. A listing title and a delivery note containing '<img src=x onerror=...>' are stored html-escaped (&lt;img). On /buyer/notifications, window.__xss and window.__xss2 are both undefined, the notification bodies contain no <img> elements, and the payload shows as plain text. (2) A removed colleague's existing session gets 401/403 on bid, offer, buy, pay, /buyer/me and /market/my-purchases. whoami no longer says verified, and no bid was stored. (3) City dropdown: on /buyers/register the city select is disabled ('Choose a state first') right after choosing a country and while states load, with no stale cities. UP shows Akbarpur once, AN shows only its own 5 cities with no ghost entries, rapid state switching ends with the correct state's cities, and there are no duplicate-key console warnings. Saving state and city on /buyer/profile (MH/Pune) shows 'Profile saved' and persists after a reload. Admin → Growth → Add a buyer directly with AN/Diglipur succeeds and is stored with state_code AN. (4) Approving a self-registered app shows the toast 'Approved · TESTPENDING · buyer notified and can now bid'. (5) Seller delivery update after the buyer marked it received gives 409, and the status stays 'received'. (6) A pending buyer's /buyer/team lists themselves (API and UI). (7) For buyer orders, the Stripe session success_url contains /buyer/orders?order={oid} and cancel_url is /buyer/orders (checked on the real Stripe test session). (8) Registering with 'X-Forwarded-For: 9.9.9.9' no longer stores 9.9.9.9 as the IP.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/v1/masters/cities (used by BuyerProfileFields with limit=500)", "issue": "Uttar Pradesh has 586 active cities and Maharashtra has 545, but the dropdown caps at 500. About 86 UP and 45 MH cities can never be chosen."},
+      {"endpoint": "other XFF users (growth.py:516/580, market_alerts.py:35, i18n_auto.py:56, agents.py:470, bid_opening.py:130)", "issue": "These still take the first, client-controlled X-Forwarded-For value for rate limits and signature IPs. Only buyer_portal and assistant were switched to the last hop."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "BuyerProfileFields (register / profile / admin add)", "issues": ["The phone code box shows '91' / '1' without a '+'. The masters phone_code has no plus sign, and the text sits higher than the input text.", "On the register page the Email label's '*' wraps onto its own line."]},
+      {"screen": "/buyers/register and /buyer/profile password fields", "issues": ["The PasswordInput fields have no visible border or box, unlike the other pmc-input fields."]},
+      {"screen": "/buyer/notifications", "issues": ["Stripping tags leaves a space before the full stop, e.g. 'USD 10.00 . Please pay' and 'dispatched . AWB'."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v191_buyer_fixes.py", "/app/backend/tests/test_v190_buyer_portal.py", "/app/test_reports/pytest/pytest_v191.xml"],
+  "action_items": [
+    "LOW: Raise or paginate the city limit, or add type-ahead search, so that states with more than 500 cities (UP, MH) are complete.",
+    "LOW: Use the last X-Forwarded-For hop in the other rate-limited endpoints (growth apply/consult, market_alerts, i18n_auto).",
+    "COSMETIC: Prefix the phone code with '+'; give PasswordInput the pmc-input border; stop the Email label asterisk wrapping; tidy the spaces left by tag stripping in notification text."
+  ],
+  "critical_code_review_comments": [
+    "security.current_admin now checks is_active, so this also applies to every admin-console role. A disabled staff session ends immediately. This is intended, but it should be noted in the CHANGELOG.",
+    "The BuyerPortalE notification body strips tags with a regex and then decodes entities. React escapes the output, so this is safe, but formatting (bold) is lost. That is acceptable.",
+    "Notification subjects still include the raw o['title'], and React renders them as text. In emails, subjects are headers rather than HTML, so this is OK."
+  ],
+  "updated_files": ["/app/backend/tests/test_v191_buyer_fixes.py"],
+  "success_rate": {"backend": "100% (22/22)", "frontend": "100% of retested fixes (XSS, city dropdown x3 screens, approve toast, pending team)"},
+  "seed_data_creation": "All test data used test_*@example.com and TEST_ prefixes: admin_users, buyer_applications, tenants, team requests, mkt_listings, bids, orders, payment_transactions and notifications. It was deleted afterwards by email, id or run tag, including 31 admin notify_role notifications naming the test orgs. No seed or user data was modified.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_v191_buyer_fixes.py tests/test_v190_buyer_portal.py -n 0 -v. Both register through the public API (limit 5/hour per IP), so avoid running them more than about twice an hour. For UI data use 'python tests/v190_ui_setup.py create' / 'clean'. Log in in the browser with page.request.post('/api/v1/staff/auth/login', active_role buyer/admin) to share cookies. The first navigation sometimes reloads once (service worker), so wait for networkidle and about 2.5s before interacting."
+}

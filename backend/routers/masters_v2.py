@@ -199,7 +199,7 @@ async def list_cities(
     country_code: str = Query(..., min_length=2, max_length=3),
     state_code: Optional[str] = None,
     q: Optional[str] = None,
-    limit: int = Query(100, le=500),
+    limit: int = Query(100, le=2000),
 ):
     """v52cm — city list, filterable by state and/or free-text (for 150k rows)."""
     query: dict = {"country_code": country_code.upper(), "is_active": True}

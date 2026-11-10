@@ -14,9 +14,9 @@ function PasswordBox() {
   return (
     <div id="password" className="pmc-panel p-4 mt-6 grid gap-3 max-w-md" data-testid="buyer-password-box">
       <h2 className="font-semibold">Change password</h2>
-      <PasswordInput value={f.current_password} onChange={(e) => setF({ ...f, current_password: e.target.value })} placeholder="Current password" data-testid="buyer-pw-current" />
-      <PasswordInput value={f.new_password} onChange={(e) => setF({ ...f, new_password: e.target.value })} placeholder="New password (8+ characters)" data-testid="buyer-pw-new" />
-      <PasswordInput value={f.confirm} onChange={(e) => setF({ ...f, confirm: e.target.value })} placeholder="Repeat new password" data-testid="buyer-pw-confirm" />
+      <PasswordInput className="pmc-input w-full" value={f.current_password} onChange={(e) => setF({ ...f, current_password: e.target.value })} placeholder="Current password" data-testid="buyer-pw-current" />
+      <PasswordInput className="pmc-input w-full" value={f.new_password} onChange={(e) => setF({ ...f, new_password: e.target.value })} placeholder="New password (8+ characters)" data-testid="buyer-pw-new" />
+      <PasswordInput className="pmc-input w-full" value={f.confirm} onChange={(e) => setF({ ...f, confirm: e.target.value })} placeholder="Repeat new password" data-testid="buyer-pw-confirm" />
       {f.confirm && f.confirm !== f.new_password && <p className="text-xs text-red-700">The new passwords don't match.</p>}
       <button className="pmc-btn pmc-btn--primary" disabled={!ok} onClick={save} data-testid="buyer-pw-save">Change password</button>
       <a className="text-xs underline" href="/forgot-password?portal=buyer" data-testid="buyer-pw-forgot">Forgot your current password?</a>

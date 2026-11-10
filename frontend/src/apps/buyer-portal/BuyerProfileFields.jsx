@@ -25,33 +25,33 @@ export function BuyerProfileFields({ f, set, prefix = "buyer", withOrg = true })
   const statesRaw = useList(f.country_code ? `/api/v1/masters/states?country_code=${f.country_code}` : null);
   const states = statesRaw || [];
   const needState = states.length > 0 && !f.state_code;
-  const cities = uniq(useList(f.country_code && statesRaw && !needState ? `/api/v1/masters/cities?country_code=${f.country_code}${f.state_code ? `&state_code=${encodeURIComponent(f.state_code)}` : ""}&limit=500` : null));
+  const cities = uniq(useList(f.country_code && statesRaw && !needState ? `/api/v1/masters/cities?country_code=${f.country_code}${f.state_code ? `&state_code=${encodeURIComponent(f.state_code)}` : ""}&limit=2000` : null));
   const patch = (o) => set({ ...f, ...o });
   return (
     <div className="grid sm:grid-cols-2 gap-3">
-      <L t="Full name" req><input className="pmc-input" value={f.name || ""} onChange={(e) => patch({ name: e.target.value })} data-testid={`${prefix}-name`} /></L>
-      {withOrg && <L t="Organisation (optional)"><input className="pmc-input" value={f.org_name || ""} onChange={(e) => patch({ org_name: e.target.value })} data-testid={`${prefix}-org`} /></L>}
+      <L t="Full name" req><input className="pmc-input w-full min-w-0" value={f.name || ""} onChange={(e) => patch({ name: e.target.value })} data-testid={`${prefix}-name`} /></L>
+      {withOrg && <L t="Organisation (optional)"><input className="pmc-input w-full min-w-0" value={f.org_name || ""} onChange={(e) => patch({ org_name: e.target.value })} data-testid={`${prefix}-org`} /></L>}
       <L t="Country" req>
-        <select className="pmc-input" value={f.country_code || ""} onChange={(e) => patch({ country_code: e.target.value, state_code: "", city: "" })} data-testid={`${prefix}-country`}>
+        <select className="pmc-input w-full min-w-0" value={f.country_code || ""} onChange={(e) => patch({ country_code: e.target.value, state_code: "", city: "" })} data-testid={`${prefix}-country`}>
           <option value="">Choose a country…</option>
           {countries.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
         </select></L>
       <L t="Mobile number" req>
-        <div className="flex gap-2"><span className="pmc-input w-20 text-center" data-testid={`${prefix}-phone-code`}>{country?.phone_code || "+"}</span>
-          <input className="pmc-input flex-1" inputMode="tel" value={f.phone || ""} onChange={(e) => patch({ phone: e.target.value.replace(/[^0-9 -]/g, "") })} data-testid={`${prefix}-phone`} /></div></L>
+        <div className="flex gap-2"><span className="pmc-input w-20 shrink-0 flex items-center justify-center" data-testid={`${prefix}-phone-code`}>{country?.phone_code ? `+${String(country.phone_code).replace(/^\+/, "")}` : "+"}</span>
+          <input className="pmc-input flex-1 min-w-0" inputMode="tel" value={f.phone || ""} onChange={(e) => patch({ phone: e.target.value.replace(/[^0-9 -]/g, "") })} data-testid={`${prefix}-phone`} /></div></L>
       <L t="State / province">
-        <select className="pmc-input" value={f.state_code || ""} disabled={!states.length} onChange={(e) => patch({ state_code: e.target.value, city: "" })} data-testid={`${prefix}-state`}>
+        <select className="pmc-input w-full min-w-0" value={f.state_code || ""} disabled={!states.length} onChange={(e) => patch({ state_code: e.target.value, city: "" })} data-testid={`${prefix}-state`}>
           <option value="">{states.length ? "State / province…" : "No states listed"}</option>
           {states.map((s) => <option key={s.state_code} value={s.state_code}>{s.name}</option>)}
         </select></L>
       <L t="City" req>
-        <select className="pmc-input" value={f.city || ""} disabled={!cities.length} onChange={(e) => patch({ city: e.target.value })} data-testid={`${prefix}-city`}>
+        <select className="pmc-input w-full min-w-0" value={f.city || ""} disabled={!cities.length} onChange={(e) => patch({ city: e.target.value })} data-testid={`${prefix}-city`}>
           <option value="">{needState ? "Choose a state first" : cities.length ? "City…" : "Choose a country first"}</option>
           {f.city && !cities.some((c) => c.name === f.city) && <option value={f.city}>{f.city}</option>}
           {cities.map((c) => <option key={`${c.state_code}|${c.name}`} value={c.name}>{c.name}</option>)}
         </select></L>
-      <L t="Address (optional)"><input className="pmc-input" value={f.address || ""} onChange={(e) => patch({ address: e.target.value })} data-testid={`${prefix}-address`} /></L>
-      <L t="ZIP / postal code (optional)"><input className="pmc-input" value={f.zip || ""} placeholder={country?.postal_code_format || ""} onChange={(e) => patch({ zip: e.target.value })} data-testid={`${prefix}-zip`} /></L>
+      <L t="Address (optional)"><input className="pmc-input w-full min-w-0" value={f.address || ""} onChange={(e) => patch({ address: e.target.value })} data-testid={`${prefix}-address`} /></L>
+      <L t="ZIP / postal code (optional)"><input className="pmc-input w-full min-w-0" value={f.zip || ""} placeholder={country?.postal_code_format || ""} onChange={(e) => patch({ zip: e.target.value })} data-testid={`${prefix}-zip`} /></L>
     </div>);
 }
 

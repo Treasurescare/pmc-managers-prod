@@ -1100,3 +1100,14 @@ summary notes.
 - New "Buyer organisation" card on /login and /forgot-password; buyers land on /market. Buyer role is blocked from all PMC admin endpoints; legacy admin login now refuses non-admin/reviewer roles.
 - pmc_staff gate moved to growth.py and applied to buyer-application endpoints.
 - Tested iteration_189 (12/12 backend) + follow-up fixes verified by pytest (31 passed).
+
+## v61k — 2026-11-10 — Buyer portal
+- Free buyer self-registration /buyers/register (name, email, mobile, country, city required; state/address/ZIP/org optional; country, state, city and phone code from masters). Email confirmation link (3 days) required before sign-in; PMC approval required before bidding/buying.
+- Buyer portal /buyer with left sidebar, top header (bell with unread count, avatar menu: profile, photo, change password, sign out) and footer. Pages: Dashboard tiles, Bids & auctions (leading/outbid/won/lost), Purchases & deliveries (pay, delivery status, "I received it"), Payments & refunds, Notifications, My team, Profile & security.
+- Notifications (bell + email): outbid, auction won / offer accepted / order placed, payment received, dispatched/delivered, account verified.
+- Sellers mark paid orders dispatched/delivered from Sell products → Sales.
+- Team: verified main buyer invites colleagues → PMC approves (Admin → Growth → Buyer applications → Team invites) → sign-in emailed; main buyer can remove colleagues (access stops at once, all sessions).
+- Admin "Add a buyer directly" (sign-in emailed).
+- Login page: "Register as a buyer — free" for the Buyer organisation card; public header shows "Buyer? Join free" and a buyer name menu when signed in; forgot password has Buyer option.
+- Security: deactivated accounts are blocked on every session (current_admin), notification/email HTML escaped, rate-limit uses last X-Forwarded-For hop. Tested iteration_190/191 (22/22 backend + UI).
+- Not done: SMS code verification (needs an SMS provider such as Twilio).

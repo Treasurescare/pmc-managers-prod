@@ -1,0 +1,1 @@
+Buyer accounts (preview): none seeded. Create via /buyers/register (city must exist in masters, e.g. IN / Abhaneri), confirm email (token type buyer_verify signed with JWT_SECRET), then admin approves in Admin → Growth → Buyer applications. Sign in at /login with the "Buyer organisation" card (active_role "buyer").

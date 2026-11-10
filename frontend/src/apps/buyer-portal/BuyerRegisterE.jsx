@@ -32,9 +32,9 @@ export default function BuyerRegisterE() {
           <div className="pmc-panel p-5 grid gap-4">
             <BuyerProfileFields f={f} set={setF} prefix="buyer-reg" />
             <div className="grid sm:grid-cols-3 gap-3">
-              <label className="text-xs grid gap-1">Email<b className="text-red-700 inline"> *</b><input className="pmc-input" type="email" value={acc.email} onChange={(e) => setAcc({ ...acc, email: e.target.value })} data-testid="buyer-reg-email" /></label>
-              <label className="text-xs grid gap-1">Password (8+ characters) *<PasswordInput value={acc.password} onChange={(e) => setAcc({ ...acc, password: e.target.value })} data-testid="buyer-reg-password" /></label>
-              <label className="text-xs grid gap-1">Repeat password *<PasswordInput value={acc.confirm} onChange={(e) => setAcc({ ...acc, confirm: e.target.value })} data-testid="buyer-reg-confirm" /></label>
+              <label className="text-xs grid gap-1"><span>Email <b className="text-red-700">*</b></span><input className="pmc-input w-full min-w-0" type="email" value={acc.email} onChange={(e) => setAcc({ ...acc, email: e.target.value })} data-testid="buyer-reg-email" /></label>
+              <label className="text-xs grid gap-1">Password (8+ characters) *<PasswordInput className="pmc-input w-full" value={acc.password} onChange={(e) => setAcc({ ...acc, password: e.target.value })} data-testid="buyer-reg-password" /></label>
+              <label className="text-xs grid gap-1">Repeat password *<PasswordInput className="pmc-input w-full" value={acc.confirm} onChange={(e) => setAcc({ ...acc, confirm: e.target.value })} data-testid="buyer-reg-confirm" /></label>
             </div>
             <label className="text-sm flex gap-2 items-start"><input type="checkbox" checked={acc.terms} onChange={(e) => setAcc({ ...acc, terms: e.target.checked })} data-testid="buyer-reg-terms" />I agree to the <Link className="underline" to="/privacy">terms and privacy policy</Link>.</label>
             <button className="pmc-btn pmc-btn--primary pmc-btn--lg" disabled={!ok || busy} onClick={submit} data-testid="buyer-reg-submit">{busy ? "Creating your account…" : "Create my buyer account"}</button>

@@ -47,7 +47,7 @@ export default function PublicChrome({ active, children, testid }) {
           <LangSwitcher dark />
           {me?.kind === "buyer" ? <BuyerHeaderMenu me={me} /> : (<>
             <Link to="/login" className="pmc-btn pmc-btn--onchrome" data-testid="public-chrome-signin">Sign in</Link>
-            <Link to="/buyers/register" className="pmc-btn pmc-btn--onchrome" data-testid="public-chrome-register-buyer">Register as buyer</Link>
+            <Link to="/buyers/register" style={{ color: "inherit", fontSize: 13, textDecoration: "underline", whiteSpace: "nowrap" }} data-testid="public-chrome-register-buyer">Buyer? Join free</Link>
             <Link to="/register" className="pmc-btn pmc-btn--brass" data-testid="public-chrome-register">Register as supplier</Link></>)}
         </div>
       </div></header>
