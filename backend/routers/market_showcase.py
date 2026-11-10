@@ -9,9 +9,8 @@ from pydantic import BaseModel, Field
 from audit import audit_log
 from db import db
 from models.base import now_iso
-from routers.marketplace import STAFF, _public, _top
+from routers.marketplace import _public, _top, pmc_staff
 from routers.marketplace_media import IMG, MAX_PHOTO, _card, _ext, _store
-from security import require_role
 
 router = APIRouter(prefix="/api/v1", tags=["market-showcase"])
 
@@ -94,7 +93,7 @@ def _ad_state(a: dict) -> str:
 
 
 @router.get("/admin/home-adverts")
-async def list_ads(admin=Depends(require_role(*STAFF))):
+async def list_ads(admin=Depends(pmc_staff)):
     from routers.market_alerts import ad_totals
     items = [{**_ad_out(a), "state": _ad_state(a)} async for a in db.home_adverts.find({"deleted": {"$ne": True}}).sort([("sort", 1), ("created_at", -1)])]
     tot = await ad_totals([a["id"] for a in items])
@@ -102,7 +101,7 @@ async def list_ads(admin=Depends(require_role(*STAFF))):
 
 
 @router.post("/admin/home-adverts/image")
-async def ad_image(file: UploadFile = File(...), admin=Depends(require_role(*STAFF))):
+async def ad_image(file: UploadFile = File(...), admin=Depends(pmc_staff)):
     body = await file.read()
     if _ext(file.filename) not in IMG or len(body) > MAX_PHOTO:
         raise HTTPException(status_code=400, detail="Advert images must be JPG, PNG or WEBP, up to 8 MB")
@@ -114,7 +113,7 @@ async def ad_image(file: UploadFile = File(...), admin=Depends(require_role(*STA
 
 
 @router.post("/admin/home-adverts")
-async def create_ad(b: AdvertIn, admin=Depends(require_role(*STAFF))):
+async def create_ad(b: AdvertIn, admin=Depends(pmc_staff)):
     doc = {**(await _check_ad(b)), "created_at": now_iso(), "created_by": admin["email"]}
     r = await db.home_adverts.insert_one(doc)
     await audit_log("home.advert.create", admin, "home_advert", str(r.inserted_id), {"title": b.title})
@@ -122,7 +121,7 @@ async def create_ad(b: AdvertIn, admin=Depends(require_role(*STAFF))):
 
 
 @router.put("/admin/home-adverts/{aid}")
-async def update_ad(aid: str, b: AdvertIn, admin=Depends(require_role(*STAFF))):
+async def update_ad(aid: str, b: AdvertIn, admin=Depends(pmc_staff)):
     r = await db.home_adverts.update_one({"_id": _oid(aid), "deleted": {"$ne": True}}, {"$set": {**(await _check_ad(b)), "updated_at": now_iso()}})
     if not r.matched_count:
         raise HTTPException(status_code=404, detail="Advert not found")
@@ -131,7 +130,7 @@ async def update_ad(aid: str, b: AdvertIn, admin=Depends(require_role(*STAFF))):
 
 
 @router.delete("/admin/home-adverts/{aid}")
-async def remove_ad(aid: str, admin=Depends(require_role(*STAFF))):
+async def remove_ad(aid: str, admin=Depends(pmc_staff)):
     r = await db.home_adverts.update_one({"_id": _oid(aid), "deleted": {"$ne": True}}, {"$set": {"deleted": True, "is_active": False, "updated_at": now_iso()}})
     if not r.matched_count:
         raise HTTPException(status_code=404, detail="Advert not found")
@@ -141,7 +140,7 @@ async def remove_ad(aid: str, admin=Depends(require_role(*STAFF))):
 
 # ---------- supplier-added category review ----------
 @router.get("/admin/category-review")
-async def review_queue(admin=Depends(require_role(*STAFF))):
+async def review_queue(admin=Depends(pmc_staff)):
     out = []
     async for c in db.categories.find({"source": "supplier", "needs_review": True}).sort("created_at", -1):
         v = await db.vendors.find_one({"_id": ObjectId(c["created_by_vendor"])}, {"company_name": 1}) if ObjectId.is_valid(c.get("created_by_vendor") or "") else None
@@ -158,7 +157,7 @@ class ReviewIn(BaseModel):
 
 
 @router.post("/admin/category-review/{cid}")
-async def review(cid: str, b: ReviewIn, admin=Depends(require_role(*STAFF))):
+async def review(cid: str, b: ReviewIn, admin=Depends(pmc_staff)):
     c = await db.categories.find_one({"_id": _oid(cid), "source": "supplier"})
     if not c:
         raise HTTPException(status_code=404, detail="Category not found")

@@ -17,8 +17,7 @@ from pymongo.errors import DuplicateKeyError
 import config
 from db import db
 from emails import send_email, wrap
-from routers.marketplace import STAFF, _bidder
-from security import require_role
+from routers.marketplace import _bidder, pmc_staff
 
 router = APIRouter(prefix="/api/v1", tags=["market-alerts"])
 log = logging.getLogger("market_alerts")
@@ -61,7 +60,7 @@ async def ad_totals(ids: list) -> dict:
 
 
 @router.get("/admin/home-adverts/{aid}/stats")
-async def ad_stats(aid: str, format: str = "json", admin=Depends(require_role(*STAFF))):
+async def ad_stats(aid: str, format: str = "json", admin=Depends(pmc_staff)):
     a = await db.home_adverts.find_one({"_id": ObjectId(aid)}) if ObjectId.is_valid(aid) else None
     if not a:
         raise HTTPException(status_code=404, detail="Advert not found")

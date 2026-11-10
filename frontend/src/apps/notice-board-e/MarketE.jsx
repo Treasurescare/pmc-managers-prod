@@ -44,6 +44,7 @@ function Gallery({ l }) {
 function Detail({ id }) {
   const [l, setL] = useState(null);
   const [amt, setAmt] = useState("");
+  const [blocked, setBlocked] = useState(false);
   const [note, setNote] = useState("");
   const load = () => marketApi.detail(id).then(setL).catch(showApiError);
   useEffect(() => { load(); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -63,18 +64,18 @@ function Detail({ id }) {
       </div>
       <div className="pmc-panel p-4 space-y-3">
         <div className="text-sm">Status: <b data-testid="market-detail-status">{live ? "Open" : l.status === "sold" ? "Sold" : "Closed"}</b>{l.closes_at ? ` · closes ${new Date(l.closes_at).toLocaleString()}` : ""}</div>
-        {live && <WhoCanBuy l={l} />}
+        {live && <WhoCanBuy l={l} onBlocked={setBlocked} />}
         {l.sale_modes.includes("auction") && <div className="text-sm">Current bid <b data-testid="market-top-bid">{money(l.currency, l.top_bid)}</b> · {l.bid_count} bids · starting {money(l.currency, l.start_price)}{l.top_bid != null && !l.reserve_met ? " · reserve not yet met" : ""}</div>}
         {live && (l.sale_modes.includes("auction") || l.sale_modes.includes("best_offer")) &&
           <input type="number" min="0" className="pmc-input w-full" placeholder={`Amount in ${l.currency}`} value={amt} onChange={(e) => setAmt(e.target.value)} data-testid="market-amount" />}
         {live && l.sale_modes.includes("auction") &&
-          <button className="pmc-btn pmc-btn--primary w-full" onClick={() => run(() => marketApi.bid(id, Number(amt)), "Bid placed")} data-testid="market-bid-btn">Place bid</button>}
+          <button className="pmc-btn pmc-btn--primary w-full" disabled={blocked} onClick={() => run(() => marketApi.bid(id, Number(amt)), "Bid placed")} data-testid="market-bid-btn">Place bid</button>}
         {live && l.sale_modes.includes("best_offer") && <>
           <input className="pmc-input w-full" placeholder="Note to the seller (optional)" value={note} onChange={(e) => setNote(e.target.value)} data-testid="market-note" />
-          <button className="pmc-btn pmc-btn--secondary w-full" onClick={() => run(() => marketApi.offer(id, Number(amt), note), "Offer sent to the seller")} data-testid="market-offer-btn">Send offer</button>
+          <button className="pmc-btn pmc-btn--secondary w-full" disabled={blocked} onClick={() => run(() => marketApi.offer(id, Number(amt), note), "Offer sent to the seller")} data-testid="market-offer-btn">Send offer</button>
         </>}
         {live && l.sale_modes.includes("fixed") &&
-          <button className="pmc-btn pmc-btn--primary w-full" onClick={() => run(() => marketApi.buy(id), "Order placed — pay from My purchases")} data-testid="market-buy-btn">Buy now for {money(l.currency, l.buy_now_price)}</button>}
+          <button className="pmc-btn pmc-btn--primary w-full" disabled={blocked} onClick={() => run(() => marketApi.buy(id), "Order placed — pay from My purchases")} data-testid="market-buy-btn">Buy now for {money(l.currency, l.buy_now_price)}</button>}
         <Link to="/market/purchases" className="text-sm underline block" data-testid="market-my-purchases-link">My bids & purchases</Link>
       </div>
     </div>);

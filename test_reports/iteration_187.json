@@ -1,0 +1,44 @@
+{
+  "summary": "v61i: tested GET /market/whoami, the WhoCanBuy panel on /market/{id}, admin bulk approve/reject of listings (API and UI), and reopening earlier catalogue imports (API and UI). One real Gemini import was run once for setup. Backend pytest: 11 of 12 passed. The 1 failure is a security issue: a buyer-organisation user can bulk-approve listings. UI: every requested flow worked. whoami returned the right kind for guest, supplier, staff and buyer. The blocked panel and its links (/buyers/apply, /login?next=/market/{id}) showed correctly. A buyer's Buy now still returned 200 and placed the order. Admin bulk select-all, select-none, per-row select, approve and reject (with confirm) all worked and showed the toasts, and the bulk bar was hidden once only 1 listing was pending. Reopening an import sent only GET imports, GET import/{id} and POST listings/bulk, with no new upload and no AI call. The draft kept its photos and the catalogue PDF spec sheet.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/v1/market/admin/listings/bulk-decision (and /admin/listings/{id}/decision, /admin/listings, /admin/settings, /admin/orders)", "issue": "Buyer-organisation users can decide listings. The seeded buyer user (admin_users role 'admin', tenant source buyer_application) got 200 {decided:1}, and the listing went live. require_role(*STAFF) checks only the role. The platform admin also has role 'admin' (tenant PMC-KZ-01), so nothing separates PMC staff from buyer-org admins. Fix: deny staff marketplace endpoints when the user's tenant has source == 'buyer_application', or gate them on a platform-tenant or is_platform flag. Note: this depends on real buyer-org users being created with role 'admin', which is how the test seed creates them.", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /admin/listings/bulk-decision", "issue": "skipped = len(body.ids) - decided, so duplicate ids are counted as skipped. Only cosmetic."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AdminMarketE Approvals bulk bar", "issue": "After a bulk action, the bulk 'Waive sale fee' box and 'Note to suppliers' text are not reset, so they carry into the next batch. Verified: after approving with note 'TEST bulk ok' and waive on, the next bulk reject saved review_notes='TEST bulk ok' and sale_fee_waived=true, and the supplier sees that approval note on a rejected listing. Fix: reset waive.__bulk and notes.__bulk after a successful bulk call.", "selector": "[data-testid=mkt-bulk-note], [data-testid=mkt-bulk-waive]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/market/{id} WhoCanBuy", "issues": [
+        "The Buy now, bid and offer buttons stay enabled under the blocked panel, so a guest, staff user or supplier who clicks still gets the raw 403. Consider disabling them or hiding them when blocked.",
+        "A supplier viewing their OWN verified_buyers listing reads 'this seller only sells to buyer organisations'. It should say this is your listing.",
+        "On an any_verified listing, a guest only gets 'Sign in as a buyer' and 'Apply as buyer'. There is no 'sign in or register as a supplier' path, although suppliers can take part.",
+        "The public header still shows 'Sign in' / 'Register as supplier' when the user is signed in (existing behaviour)."
+      ]},
+      {"screen": "Admin marketplace", "issues": ["The thumbnail of the existing 'Great Container' listing is a broken image (this is user data, not test data)."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v61i_market_whoami_bulk_imports.py", "/app/backend/tests/v61i_ui_setup.py", "/app/test_reports/pytest/v61i.xml"],
+  "action_items": [
+    "HIGH: block buyer-organisation tenant users (tenant.source == 'buyer_application') from the staff marketplace admin endpoints, including bulk-decision, single decision, settings and orders/payout. Better: use a proper platform-staff check.",
+    "Reset the bulk waive and note state in AdminMarketE after a bulk approve or reject succeeds.",
+    "Optional: disable the buy/bid/offer controls when WhoCanBuy is blocked; add an own-listing message; add a supplier sign-in link on any_verified listings."
+  ],
+  "critical_code_review_comments": [
+    "market_whoami: the vendor cookie is checked first, so a browser that has both a vendor and an admin session is reported as supplier. This matches _bidder, so it is consistent.",
+    "list_imports: owner-scoped, done-only, limit 20, and the products.title projection is efficient. Verified that another vendor gets an empty list and 404 on GET import/{id}.",
+    "Reopening an import does not record that drafts were already created from it, so a supplier can create duplicate drafts of the same product. Consider marking products already drafted."
+  ],
+  "updated_files": ["/app/backend/tests/test_v61i_market_whoami_bulk_imports.py", "/app/backend/tests/v61i_ui_setup.py"],
+  "success_rate": {"backend": "92% (11/12; the 1 failure is the buyer-org authorization issue)", "frontend": "100% of requested flows"},
+  "test_credentials": "Vendor testvendor@pmcmanagers.com / Vendor@12345. Admin adminsupport@pmcmanagers.com / Admin@12345. Buyer test_mkt_buyer_t180@example.com / Buyer@12345 (from mkt_t180_seed.py; already cleaned).",
+  "seed_data_creation": "Ran mkt_t180_seed.py create, then clean. Removed by id: 5 TEST_ listings, 1 order, 1 mkt_imports record (CcBtKLhHvPRVCy-q) and its 3 mkt_media. The pytest fixtures remove their own TEST_ listings and imports. The user's pending 'Great Container' listing was not touched and is still pending.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: python tests/mkt_t180_seed.py create, then pytest tests/test_v61i_market_whoami_bulk_imports.py -n 0, then clean. Use testvendor (v1) for pending listings. Vendor #2 (country XQ) is charged a USD 7 listing fee (402). For UI: python tests/v61i_ui_setup.py writes /tmp/v61i.json (real Gemini import, about 30 s). Do not bulk 'select all' in admin, because the user's 'Great Container' pending listing would be included."
+}

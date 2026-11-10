@@ -24,6 +24,15 @@ router = APIRouter(prefix="/api/v1/market", tags=["marketplace"])
 STAFF = ("super_admin", "admin", "reviewer")
 
 
+async def pmc_staff(admin=Depends(require_role(*STAFF))) -> dict:
+    """PMC staff only: buyer-organisation admins (tenant source buyer_application) are not PMC staff."""
+    tid = admin.get("tenant_id")
+    t = await db.tenants.find_one({"_id": ObjectId(str(tid))}) if ObjectId.is_valid(str(tid)) else await db.tenants.find_one({"code": tid})
+    if t and t.get("source") == "buyer_application":
+        raise HTTPException(status_code=403, detail="PMC staff only")
+    return admin
+
+
 async def _seller(request: Request) -> dict:
     v = await current_vendor(request)
     await require_csrf(request)
@@ -375,7 +384,7 @@ async def order_status(oid: str, request: Request):
 
 # ---------- admin ----------
 @router.get("/admin/listings")
-async def admin_listings(status: str = "pending", admin=Depends(require_role(*STAFF))):
+async def admin_listings(status: str = "pending", admin=Depends(pmc_staff)):
     f = {} if status == "all" else {"status": status}
     return {"items": [_out(d) for d in await db.mkt_listings.find(f).sort("created_at", -1).to_list(500)]}
 
@@ -387,7 +396,7 @@ class DecisionIn(BaseModel):
 
 
 @router.post("/admin/listings/{lid}/decision")
-async def admin_decide(lid: str, body: DecisionIn, admin=Depends(require_role(*STAFF))):
+async def admin_decide(lid: str, body: DecisionIn, admin=Depends(pmc_staff)):
     d = await db.mkt_listings.find_one({"_id": _oid(lid), "status": "pending"})
     if not d:
         raise HTTPException(status_code=409, detail="Only pending listings can be decided")
@@ -411,13 +420,13 @@ class BulkDecisionIn(DecisionIn):
 
 
 @router.post("/admin/listings/bulk-decision")
-async def admin_bulk_decide(body: BulkDecisionIn, admin=Depends(require_role(*STAFF))):
+async def admin_bulk_decide(body: BulkDecisionIn, admin=Depends(pmc_staff)):
     oids = [ObjectId(i) for i in dict.fromkeys(body.ids) if ObjectId.is_valid(i)]
     done = 0
     async for d in db.mkt_listings.find({"_id": {"$in": oids}, "status": "pending"}):
         await _decide(d, body, admin)
         done += 1
-    return {"ok": True, "decided": done, "skipped": len(body.ids) - done}
+    return {"ok": True, "decided": done, "skipped": len(oids) - done}
 
 
 @router.get("/whoami")
@@ -425,7 +434,7 @@ async def market_whoami(request: Request):
     """Who is viewing (no side effects) so the product page can explain who may buy."""
     try:
         v = await current_vendor(request)
-        return {"kind": "supplier", "name": v.get("company_name"), "verified": (v.get("kyc_status") or "verified") == "verified"}
+        return {"kind": "supplier", "id": v["id"], "name": v.get("company_name"), "verified": (v.get("kyc_status") or "verified") == "verified"}
     except HTTPException:
         pass
     try:
@@ -446,19 +455,21 @@ class SettingsIn(BaseModel):
 
 
 @router.get("/admin/settings")
-async def get_settings(admin=Depends(require_role(*STAFF))):
+async def get_settings(admin=Depends(pmc_staff)):
     return await _settings()
 
 
 @router.put("/admin/settings")
-async def put_settings(body: SettingsIn, admin=Depends(require_role("super_admin", "admin"))):
+async def put_settings(body: SettingsIn, admin=Depends(pmc_staff)):
+    if admin.get("role") not in ("super_admin", "admin"):
+        raise HTTPException(status_code=403, detail="Admins only")
     await db.mkt_settings.update_one({"_id": "default"}, {"$set": {**body.model_dump(), "updated_by": admin["email"], "updated_at": now_iso()}}, upsert=True)
     await audit_log("market.settings", admin, "mkt_settings", "default", body.model_dump())
     return await _settings()
 
 
 @router.get("/admin/orders")
-async def admin_orders(admin=Depends(require_role(*STAFF))):
+async def admin_orders(admin=Depends(pmc_staff)):
     from routers.consortium_split import _bank
     out = []
     for o in await db.mkt_orders.find({}).sort("created_at", -1).to_list(500):
@@ -474,7 +485,9 @@ class PayoutIn(BaseModel):
 
 
 @router.post("/admin/orders/{oid}/payout")
-async def mark_payout(oid: str, body: PayoutIn, admin=Depends(require_role("super_admin", "admin"))):
+async def mark_payout(oid: str, body: PayoutIn, admin=Depends(pmc_staff)):
+    if admin.get("role") not in ("super_admin", "admin"):
+        raise HTTPException(status_code=403, detail="Admins only")
     r = await db.mkt_orders.update_one({"_id": _oid(oid), "status": "paid", "payout_status": "due"},
                                        {"$set": {"payout_status": "sent", "payout_reference": body.reference,
                                                  "payout_by": admin["email"], "payout_at": now_iso()}})

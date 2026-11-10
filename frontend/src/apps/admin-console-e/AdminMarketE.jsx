@@ -37,7 +37,7 @@ function Approvals() {
   const bulk = (action) => {
     if (action === "reject" && !window.confirm(`Reject ${sel.length} listing(s)?`)) return;
     marketApi.bulkDecide(sel, { action, waive_sale_fee: !!waive.__bulk, notes: notes.__bulk || "" })
-      .then((r) => { toast.success(`${r.decided} listing(s) ${action === "approve" ? "approved" : "rejected"}`); load(); }).catch(showApiError);
+      .then((r) => { toast.success(`${r.decided} listing(s) ${action === "approve" ? "approved" : "rejected"}`); setWaive((w) => ({ ...w, __bulk: false })); setNotes((n) => ({ ...n, __bulk: "" })); load(); }).catch(showApiError);
   };
   return (
     <section className="mt-4" data-testid="mkt-approvals">
