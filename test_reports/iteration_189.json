@@ -1,0 +1,40 @@
+{
+  "summary": "Tested buyer sign-in invites on the backend and in the UI. Backend: 12 of 12 new pytest checks pass. Approving creates the tenant and an admin_users doc (roles ['buyer'], tenant_id = code, must_change_password true, pwd_reset_jti set) and returns signin_status 'sent'. The 7-day buyer token passes verify (portal buyer) and confirm, and works only once. After that the buyer logs in with active_role buyer and whoami returns kind 'buyer'. The buyer gets 403 on GET /buyer-applications, GET /market/admin/settings and POST /signin, and staff login with active_role admin returns 403. POST /signin {} on an existing user changes the jti without making a duplicate user, and the existing password still works. On an old approval with no user, it creates the user. {email: other} creates a second buyer user for the same tenant and leaves the application's signin_email unchanged. An email that already belongs to adminsupport returns 409, and that admin's doc is not changed. Pending and rejected applications, and invalid ids, return 409. A bad email returns 422. Unauthenticated calls return 401/403. Approving an application whose email is already used gives signin_status 'email_in_use' and the approval still goes through. UI: the BuyerAppsTab status text, the email input and the Send/Resend button all work. The approve toast says 'sign-in emailed to ...', the send, other-email and 409 toasts all show, and the input clears after sending. /reset-password shows the '7 days' text and goes to /login?role=buyer. The WhoCanBuy link is /login?role=buyer&next=%2Fmarket%2F{id}, and the buyer card is preselected. A buyer login then returns to /market/{id} and shows market-who-ok. ONE BUG FOUND: if a buyer picks the Administrator card, sign-in succeeds through the legacy /api/v1/admin/auth/login fallback. The toast says 'Signed in · admin' and the buyer lands on the /staff portal. The backend still blocks the data (for example /api/v1/bids returns 403).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/v1/admin/auth/login", "issue": "The legacy admin login does not check the role. A buyer (role 'buyer') gets 200 with a session cookie. The data endpoints still return 403 for this session, but the login should be refused for non-admin, non-reviewer roles, or at least for 'buyer'."},
+      {"endpoint": "POST /api/v1/buyer-applications/{id}/signin", "issue": "If approval returned email_in_use and the admin then invites a different email, the application keeps signin_status 'email_in_use' with signin_email = the clashing address. This happens because signin fields are saved only when the email equals a['email']. The admin tab keeps showing the 'already has another PMC sign-in' warning even after the other email was invited."},
+      {"endpoint": "growth.py buyer-applications list/decision/signin", "issue": "These use require_role('admin','reviewer'), not the pmc_staff gate used in marketplace.py. A buyer-organisation admin with role 'admin' and a buyer_application tenant (the older model, like the mkt_t180_seed buyer) could list and approve buyer applications and send sign-ins. New buyers get role 'buyer', so they are blocked."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "SignInE Administrator card", "issue": "If the buyer's email and password are entered on the Administrator card, the staffApi admin attempt returns 403 and the code falls back to adminApi.login, which succeeds. The toast says 'Signed in · admin' and the page goes to /admin, which redirects to the /staff portal shell, where data calls return 403. The fallback should reject a response whose role is not admin or reviewer: log out and show the sign-in failed toast.", "selector": "[data-testid='signin-role-admin']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Public header after buyer sign-in on /market/{id}", "issues": ["The header still shows 'Sign in' and 'Register as supplier'. There is no signed-in state and no sign-out option for buyers."]},
+      {"screen": "Forgot password (/forgot-password)", "issues": ["There is no 'Buyer organisation' portal option. A buyer must pick Admin or Staff, and the reset then redirects to /login?role=admin or staff, not role=buyer. Consider adding a buyer portal value that maps to admin_users."]},
+      {"screen": "Admin BuyerAppsTab", "issues": ["Only the primary contact's sign-in status is shown. Extra users invited with 'Other email' are not listed anywhere."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_v189_buyer_signin.py", "/app/backend/tests/v189_ui_setup.py", "/app/test_reports/pytest/pytest_v189.xml"],
+  "action_items": [
+    "SignInE: in the Administrator-card legacy fallback (adminApi.login), check the role in the response and refuse anything except admin or reviewer. Alternatively, make /api/v1/admin/auth/login refuse role 'buyer'. Never show 'Signed in · admin' to a buyer.",
+    "send_buyer_signin: when the stored signin_status is 'email_in_use' and an invite to another email succeeds, update the application's signin_status and signin_email (or keep a list of invited users) so the warning goes away.",
+    "Consider using pmc_staff (which excludes buyer_application tenants) on the growth buyer-applications endpoints too.",
+    "Optional: add a Buyer option to Forgot password, and show a signed-in state and sign-out in the public header for buyers."
+  ],
+  "critical_code_review_comments": [
+    "_send_buyer_signin re-uses an existing user only when tenant_id matches, otherwise it returns email_in_use. Correct, and adminsupport is protected (verified in the DB).",
+    "When the user already exists, the jti is changed but must_change_password is not set again. This is fine because the user keeps the existing password.",
+    "admin_auth.login creates the token from user.role. For buyers this is 'buyer', so the require_role checks on the backend still hold."
+  ],
+  "updated_files": ["/app/backend/tests/test_v189_buyer_signin.py", "/app/backend/tests/v189_ui_setup.py"],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "~90% (all requested flows pass; Administrator-card buyer escape is a bug)"},
+  "seed_data_creation": "All test data was TEST_ prefixed and has been deleted (buyer_applications, tenants, admin_users and one TEST_189 mkt_listing). Afterwards the DB has 0 buyer_applications, 0 buyer_application tenants and 0 buyer_application admin_users. The adminsupport roles and tenant are unchanged.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend && python -m pytest tests/test_v189_buyer_signin.py -n 0 -v. It inserts TEST_ apps directly into Mongo (to avoid the 5/hour public limit) and cleans up after itself. For UI: 'python tests/v189_ui_setup.py create' writes /tmp/v189.json, 'token <email>' mints the buyer set-password JWT, and 'clean' deletes everything. Market listing sale_modes values are auction, best_offer and fixed. Retest the Administrator-card buyer login after the fix."
+}

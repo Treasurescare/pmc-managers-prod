@@ -15,22 +15,15 @@ from pydantic import BaseModel, Field
 from audit import audit_log
 from db import db
 from models.base import now_iso
-from routers.growth import charge_or_pass
+from routers.growth import charge_or_pass, pmc_staff
 from routers.payments_extra import _checkout, _site, _sync_status
 from routers.vendor_auth import current_vendor
-from security import current_admin, require_csrf, require_role
+from security import current_admin, require_csrf
 
 router = APIRouter(prefix="/api/v1/market", tags=["marketplace"])
 STAFF = ("super_admin", "admin", "reviewer")
 
 
-async def pmc_staff(admin=Depends(require_role(*STAFF))) -> dict:
-    """PMC staff only: buyer-organisation admins (tenant source buyer_application) are not PMC staff."""
-    tid = admin.get("tenant_id")
-    t = await db.tenants.find_one({"_id": ObjectId(str(tid))}) if ObjectId.is_valid(str(tid)) else await db.tenants.find_one({"code": tid})
-    if t and t.get("source") == "buyer_application":
-        raise HTTPException(status_code=403, detail="PMC staff only")
-    return admin
 
 
 async def _seller(request: Request) -> dict:

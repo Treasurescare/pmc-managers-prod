@@ -42,6 +42,8 @@ async def admin_login(payload: AdminLoginIn, response: Response, request: Reques
     user = await db.admin_users.find_one({"email": payload.email.lower()})
     if not user or not verify_password(payload.password, user.get("password_hash", "")):
         raise HTTPException(status_code=401, detail="Invalid email or password")
+    if not {"admin", "reviewer", "super_admin"} & set(user.get("roles") or [user.get("role") or "admin"]):
+        raise HTTPException(status_code=403, detail="This account cannot sign in to the admin console")
     token = create_admin_token(str(user["_id"]), user["email"], user.get("role", "admin"))
     csrf = _set_session_cookies(response, token, request)
     # v52bx — bug #34: a stale vendor_token on the same browser was leaking

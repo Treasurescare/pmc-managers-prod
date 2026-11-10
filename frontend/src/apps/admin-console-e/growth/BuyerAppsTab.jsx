@@ -40,7 +40,8 @@ const SignIn = ({ a, onDone }) => {
     : a.signin_status === "email_in_use" ? `${a.signin_email} already has another PMC sign-in — use a different email` : "No buyer sign-in sent yet";
   return (
     <div className="flex flex-wrap gap-2 mt-2 items-end" data-testid={`buyer-app-signin-${a.id}`}>
-      <span className="text-xs flex-1 min-w-[200px]" data-testid={`buyer-app-signin-status-${a.id}`}>{label}</span>
+      <span className="text-xs flex-1 min-w-[200px]" data-testid={`buyer-app-signin-status-${a.id}`}>{label}
+        {(a.signin_users || []).length > 0 && <span className="block opacity-70" data-testid={`buyer-app-signin-users-${a.id}`}>Buyer users: {a.signin_users.join(", ")}</span>}</span>
       <label className="text-xs">Other email (optional)<input className={inp} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={a.email} data-testid={`buyer-app-signin-email-${a.id}`} /></label>
       <button className={btn} disabled={busy} onClick={go} data-testid={`buyer-app-signin-send-${a.id}`}>{a.signin_status === "sent" && !email ? "Resend sign-in" : "Send sign-in"}</button>
     </div>);

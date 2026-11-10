@@ -78,7 +78,7 @@ def _rate_check(email: str, ip: str) -> Optional[str]:
 
 class RequestIn(BaseModel):
     email: EmailStr
-    portal: str = Field("vendor", pattern="^(vendor|admin|staff|partner)$")
+    portal: str = Field("vendor", pattern="^(vendor|admin|staff|partner|buyer)$")
 
 
 class VerifyIn(BaseModel):

@@ -8,7 +8,7 @@ import { authApi, api, showApiError } from "@/lib/api";
 export default function ForgotPasswordE() {
   const [email, setEmail] = useState("");
   const [qp] = useSearchParams();
-  const [portal, setPortal] = useState(["vendor", "admin", "staff", "escrow", "partner"].includes(qp.get("portal")) ? qp.get("portal") : "vendor");
+  const [portal, setPortal] = useState(["vendor", "admin", "staff", "escrow", "partner", "buyer"].includes(qp.get("portal")) ? qp.get("portal") : "vendor");
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
 
@@ -114,6 +114,7 @@ export default function ForgotPasswordE() {
                 <div style={{ display: "grid", gap: "8px", marginBottom: "18px" }}>
                   <Radio value="vendor" label="Supplier" sub="Vendor portal" icon="i-users" />
                   <Radio value="admin" label="Administrator" sub="Admin console (Owner, Master Admin, Support)" icon="i-shield" />
+                  <Radio value="buyer" label="Buyer organisation" sub="Marketplace buyer sign-in" icon="i-box" />
                   <Radio value="staff" label="PMC staff" sub="Tender desk, evaluation, escrow, committee" icon="i-briefcase" />
                   <Radio value="escrow" label="Escrow Institution" sub="Banks & trustees · owner accounts and signatories" icon="i-link" />
                   <Radio value="partner" label="Partner" sub="Partner portal" icon="i-flag" />

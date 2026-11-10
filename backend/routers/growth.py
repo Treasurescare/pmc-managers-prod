@@ -598,13 +598,22 @@ class BuyerDecisionIn(BaseModel):
     notes: Optional[str] = Field(default=None, max_length=1000)
 
 
+async def pmc_staff(admin=Depends(require_role("super_admin", "admin", "reviewer"))) -> dict:
+    """PMC staff only: buyer-organisation admins (tenant source buyer_application) are not PMC staff."""
+    tid = admin.get("tenant_id")
+    t = await db.tenants.find_one({"_id": ObjectId(str(tid))}) if ObjectId.is_valid(str(tid)) else await db.tenants.find_one({"code": tid})
+    if t and t.get("source") == "buyer_application":
+        raise HTTPException(status_code=403, detail="PMC staff only")
+    return admin
+
+
 @router.get("/buyer-applications")
-async def list_buyer_apps(admin=Depends(require_role(*STAFF))):
+async def list_buyer_apps(admin=Depends(pmc_staff)):
     return {"items": [_out(d) async for d in db.buyer_applications.find({}, {"ip": 0}).sort("created_at", -1).limit(500)]}
 
 
 @router.post("/buyer-applications/{aid}/decision")
-async def decide_buyer(aid: str, body: BuyerDecisionIn, admin=Depends(require_role(*STAFF))):
+async def decide_buyer(aid: str, body: BuyerDecisionIn, admin=Depends(pmc_staff)):
     a = await db.buyer_applications.find_one({"_id": ObjectId(aid)}) if ObjectId.is_valid(aid) else None
     if not a or a["status"] != "pending":
         raise HTTPException(status_code=409, detail="Only pending applications can be decided")
@@ -674,7 +683,7 @@ class BuyerSigninIn(BaseModel):
 
 
 @router.post("/buyer-applications/{aid}/signin")
-async def send_buyer_signin(aid: str, body: BuyerSigninIn, admin=Depends(require_role(*STAFF))):
+async def send_buyer_signin(aid: str, body: BuyerSigninIn, admin=Depends(pmc_staff)):
     """Already-approved buyer organisations: create the missing sign-in, add another user, or resend the link."""
     a = await db.buyer_applications.find_one({"_id": ObjectId(aid)}) if ObjectId.is_valid(aid) else None
     if not a or a["status"] != "approved" or not a.get("tenant_code"):
@@ -682,8 +691,9 @@ async def send_buyer_signin(aid: str, body: BuyerSigninIn, admin=Depends(require
     res = await _send_buyer_signin(a, str(body.email or a["email"]), body.name or a["contact_name"], admin)
     if res["signin_status"] == "email_in_use":
         raise HTTPException(status_code=409, detail="That email already has a different PMC sign-in. Use another email for this buyer.")
-    if not body.email or body.email.lower() == a["email"]:
+    if not body.email or body.email.lower() == a["email"] or a.get("signin_status") != "sent":
         await db.buyer_applications.update_one({"_id": a["_id"]}, {"$set": res})
+    await db.buyer_applications.update_one({"_id": a["_id"]}, {"$addToSet": {"signin_users": res["signin_email"]}})
     return {"ok": True, **res}
 
 

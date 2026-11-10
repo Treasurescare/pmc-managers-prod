@@ -1093,3 +1093,10 @@ summary notes.
 - Open (cosmetic): buyer-org admins can still open the admin console Marketplace page (gets 403 toasts); amount/note inputs stay editable when blocked.
 
 
+
+## v61j — 2026-11-10 — Buyer sign-in invites
+- Approving a buyer application now creates the buyer sign-in (admin_users, role "buyer", tenant_id = org code) and emails a 7-day "Set my password" link.
+- Already-approved buyers: Admin → Growth → Buyer applications → "Send sign-in" / "Resend sign-in" (POST /api/v1/buyer-applications/{id}/signin, optional other email for extra users; existing user in same org gets the buyer role added; email used by another PMC account → 409).
+- New "Buyer organisation" card on /login and /forgot-password; buyers land on /market. Buyer role is blocked from all PMC admin endpoints; legacy admin login now refuses non-admin/reviewer roles.
+- pmc_staff gate moved to growth.py and applied to buyer-application endpoints.
+- Tested iteration_189 (12/12 backend) + follow-up fixes verified by pytest (31 passed).
