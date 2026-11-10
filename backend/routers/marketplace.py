@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 from audit import audit_log
 from db import db
 from models.base import now_iso
+from routers.buyer_portal import notify_bidder
 from routers.growth import charge_or_pass, pmc_staff
 from routers.payments_extra import _checkout, _site, _sync_status
 from routers.vendor_auth import current_vendor
@@ -137,6 +138,9 @@ async def _make_order(lst: dict, bidder: dict, amount: float, via: str) -> dict:
     await db.mkt_bids.update_many({"listing_id": lst["_id"], "kind": "offer", "status": "open"}, {"$set": {"status": "declined"}})
     await audit_log("market.order", {"email": bidder.get("email"), "id": bidder["id"]}, "mkt_order", str(r.inserted_id),
                     {"amount": amount, "fee": fee, "via": via})
+    what = {"auction": "You won the auction", "best_offer": "Your offer was accepted", "fixed": "Order placed"}[via]
+    await notify_bidder(bidder, f"{what} — {lst['title']}",
+                        f"<p><b>{lst['title']}</b> for <b>{lst['currency']} {amount:,.2f}</b>. Please pay to complete the purchase.</p>", "/buyer/orders")
     return doc
 
 
@@ -265,6 +269,21 @@ async def accept_offer(bid_id: str, v=Depends(_seller)):
 
 
 # ---------- public browse + bidding ----------
+class DeliveryIn(BaseModel):
+    status: Literal["dispatched", "delivered"]
+    note: str = Field(default="", max_length=300)
+
+
+@router.post("/orders/{oid}/delivery")
+async def set_delivery(oid: str, body: DeliveryIn, v=Depends(_seller)):
+    o = await db.mkt_orders.find_one({"_id": _oid(oid), "seller_id": v["id"], "status": "paid"})
+    if not o:
+        raise HTTPException(status_code=404, detail="Paid order not found")
+    await db.mkt_orders.update_one({"_id": o["_id"]}, {"$set": {"delivery_status": body.status, "delivery_note": body.note, f"{body.status}_at": now_iso()}})
+    await notify_bidder(o["buyer"], f"Order {body.status} — {o['title']}", f"<p>The seller marked your order as <b>{body.status}</b>. {body.note}</p>", "/buyer/orders")
+    return {"ok": True}
+
+
 @router.get("/listings")
 async def browse(q: str = "", category: str = ""):
     f = {"status": "live"}
@@ -318,7 +337,11 @@ async def place_bid(lid: str, body: BidIn, request: Request):
     floor = (top + d.get("min_increment", 1)) if top is not None else (d.get("start_price") or 0)
     if body.amount < floor:
         raise HTTPException(status_code=400, detail=f"Your bid must be at least {d['currency']} {floor:,.2f}")
+    prev = await db.mkt_bids.find_one({"listing_id": d["_id"], "kind": "bid"}, sort=[("amount", -1)])
     await db.mkt_bids.insert_one({"listing_id": d["_id"], "kind": "bid", "amount": body.amount, "bidder": who, "created_at": now_iso()})
+    if prev and prev["bidder"].get("id") != who["id"]:
+        await notify_bidder(prev["bidder"], f"You have been outbid — {d['title']}",
+                            f"<p>A higher bid of <b>{d['currency']} {body.amount:,.2f}</b> was placed on <b>{d['title']}</b>.</p>", f"/market/{d['_id']}")
     return {"ok": True, "top_bid": body.amount}
 
 
@@ -371,7 +394,11 @@ async def order_status(oid: str, request: Request):
     if o.get("session_id") and o["status"] == "awaiting_payment":
         st = await _sync_status(o["session_id"])
         if st.get("payment_status") == "paid":
-            await db.mkt_orders.update_one({"_id": o["_id"]}, {"$set": {"status": "paid", "paid_at": now_iso(), "payout_status": "due"}})
+            r = await db.mkt_orders.update_one({"_id": o["_id"], "status": "awaiting_payment"},
+                                               {"$set": {"status": "paid", "paid_at": now_iso(), "payout_status": "due", "delivery_status": "awaiting_dispatch"}})
+            if r.modified_count:
+                await notify_bidder(o["buyer"], f"Payment received — {o['title']}",
+                                    f"<p>We received {o['currency']} {o['amount']:,.2f}. The seller will now arrange delivery.</p>", "/buyer/payments")
     return _out(await db.mkt_orders.find_one({"_id": o["_id"]}))
 
 
@@ -435,9 +462,11 @@ async def market_whoami(request: Request):
     except HTTPException:
         return {"kind": None}
     tid = a.get("tenant_id")
+    if str(tid).startswith("PENDING-"):
+        return {"kind": "buyer", "name": a.get("name") or a.get("email"), "verified": False, "pending": True}
     t = await db.tenants.find_one({"_id": ObjectId(str(tid))}) if ObjectId.is_valid(str(tid)) else await db.tenants.find_one({"code": tid})
     if t and t.get("is_active", True) and t.get("source") == "buyer_application":
-        return {"kind": "buyer", "name": t.get("name"), "verified": True}
+        return {"kind": "buyer", "name": t.get("name"), "user_name": a.get("name"), "verified": True}
     return {"kind": "staff", "name": a.get("email"), "verified": False}
 
 

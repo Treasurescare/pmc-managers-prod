@@ -127,6 +127,8 @@ async def staff_login(payload: StaffLoginIn, response: Response, request: Reques
         raise HTTPException(status_code=403, detail=f"You do not hold the {payload.active_role} role")
     if not user.get("is_active", True):
         raise HTTPException(status_code=403, detail="Account disabled")
+    if payload.active_role == "buyer" and user.get("email_verified") is False:
+        raise HTTPException(status_code=403, detail="Please confirm your email first — use the link we emailed you")
 
     # Wave 8 — Force MFA on high-risk roles (gated by config flag; OFF for
     # testing, re-enable before beta via REQUIRE_HIGH_RISK_MFA).

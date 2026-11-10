@@ -18,7 +18,7 @@ export default function SignInE({ legacy: Legacy }) {
   const [params] = useSearchParams();
   const rawNext = params.get("next") || "";
   const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "";
-  const nextRole = next.startsWith("/admin") ? "admin" : next.startsWith("/staff") ? "staff" : next.startsWith("/vendor") ? "supplier" : next.startsWith("/escrow") ? "escrow" : next.startsWith("/partner") ? "partner" : "supplier";
+  const nextRole = next.startsWith("/admin") ? "admin" : next.startsWith("/buyer") ? "buyer" : next.startsWith("/staff") ? "staff" : next.startsWith("/vendor") ? "supplier" : next.startsWith("/escrow") ? "escrow" : next.startsWith("/partner") ? "partner" : "supplier";
   const qRole = params.get("role");
   const [role, setRole] = useState(["supplier", "staff", "admin", "escrow", "partner", "buyer"].includes(qRole) ? qRole : nextRole); // supplier | staff | admin
   const [email, setEmail] = useState("");
@@ -133,7 +133,7 @@ export default function SignInE({ legacy: Legacy }) {
           if (isLoginJson && r.active_role) {
             toast.success(`Signed in · ${r.active_role}`);
             if (r.active_role === "admin") return nav(next.startsWith("/admin") ? next : "/admin");
-            if (r.active_role === "buyer") return nav(next.startsWith("/market") ? next : "/market");
+            if (r.active_role === "buyer") return nav(next.startsWith("/market") || next.startsWith("/buyer") ? next : "/buyer");
             return nav(next.startsWith("/staff") ? next : "/staff");
           }
           if (isLoginJson && r.mfa_required) {
@@ -145,7 +145,7 @@ export default function SignInE({ legacy: Legacy }) {
           lastErr = err;
           // Remember a high-risk-role MFA 403 even if later candidates overwrite lastErr.
           const d = err?.response?.data?.detail;
-          if (err?.response?.status === 403 && typeof d === "string" && /MFA/i.test(d)) mfaDetail = d;
+          if (err?.response?.status === 403 && typeof d === "string" && /MFA|confirm your email/i.test(d)) mfaDetail = d;
           // try next candidate
         }
       }
@@ -253,6 +253,8 @@ export default function SignInE({ legacy: Legacy }) {
                 <>New partner? <Link to="/partner/register" data-testid="signin-register-link">Apply to become a PMC partner</Link></>
               ) : role === "escrow" ? (
                 <>New escrow institution? <Link to="/escrow/register" data-testid="signin-register-link">Register your bank or trustee firm</Link></>
+              ) : role === "buyer" ? (
+                <>New buyer? <Link to="/buyers/register" data-testid="signin-register-link">Register as a buyer — free</Link></>
               ) : (
                 <>New supplier? <Link to="/register" data-testid="signin-register-link">Register in about 15 minutes</Link></>
               )}
@@ -322,11 +324,11 @@ export default function SignInE({ legacy: Legacy }) {
 
               <div style={{ display: "flex", alignItems: "center", gap: "12px", color: "var(--ink-muted, #5B6B63)", fontSize: "12px", textTransform: "uppercase", letterSpacing: "1.5px" }}>
                 <span style={{ flex: 1, height: "1px", background: "rgba(15,59,46,.15)" }} />
-                {role === "escrow" ? "New escrow institution?" : role === "partner" ? "New partner?" : "New supplier?"}
+                {role === "escrow" ? "New escrow institution?" : role === "partner" ? "New partner?" : role === "buyer" ? "New buyer?" : "New supplier?"}
                 <span style={{ flex: 1, height: "1px", background: "rgba(15,59,46,.15)" }} />
               </div>
               <Link
-                to={role === "escrow" ? "/escrow/register" : role === "partner" ? "/partner/register" : "/register"}
+                to={role === "escrow" ? "/escrow/register" : role === "partner" ? "/partner/register" : role === "buyer" ? "/buyers/register" : "/register"}
                 className="pmc-btn pmc-btn--lg"
                 style={{ width: "100%", textAlign: "center", display: "block", border: "1px solid var(--primary, #0F3B2E)", color: "var(--primary, #0F3B2E)", fontWeight: 600, textDecoration: "none", lineHeight: "44px" }}
                 data-testid="signin-register-btn"
@@ -335,7 +337,9 @@ export default function SignInE({ legacy: Legacy }) {
                   ? "Register as an escrow institution — bank / trustee onboarding"
                   : role === "partner"
                     ? "Register as a partner — onboard suppliers & earn commission"
-                    : "Register as a supplier — free, ~15 minutes"}
+                    : role === "buyer"
+                      ? "Register as a buyer — free"
+                      : "Register as a supplier — free, ~15 minutes"}
               </Link>
             </div>
 

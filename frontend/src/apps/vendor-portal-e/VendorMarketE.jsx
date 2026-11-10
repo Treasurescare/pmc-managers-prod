@@ -19,6 +19,22 @@ const toBody = (f) => ({ ...f, quantity: Number(f.quantity) || 1, min_increment:
   buy_now_price: f.buy_now_price === "" ? null : Number(f.buy_now_price),
   closes_at: f.closes_at ? new Date(f.closes_at).toISOString() : null, currency: (f.currency || "USD").toUpperCase() });
 
+
+function Delivery({ o, reload }) {
+  const [note, setNote] = useState("");
+  const set = (s) => marketApi.delivery(o.id, s, note).then(() => { toast.success(`Marked ${s}`); reload(); }).catch(showApiError);
+  const st = o.delivery_status || "awaiting_dispatch";
+  return (
+    <div className="flex flex-wrap gap-2 items-center mt-2" data-testid={`mkt-sale-delivery-${o.id}`}>
+      <span className="text-xs">Delivery: <b>{st.replace(/_/g, " ")}</b></span>
+      {st !== "received" && <>
+        <input className="pmc-input text-xs" placeholder="Tracking / note (optional)" value={note} onChange={(e) => setNote(e.target.value)} data-testid={`mkt-sale-note-${o.id}`} />
+        {st === "awaiting_dispatch" && <button className="pmc-btn pmc-btn--secondary pmc-btn--sm" onClick={() => set("dispatched")} data-testid={`mkt-sale-dispatched-${o.id}`}>Mark dispatched</button>}
+        {st !== "delivered" && <button className="pmc-btn pmc-btn--secondary pmc-btn--sm" onClick={() => set("delivered")} data-testid={`mkt-sale-delivered-${o.id}`}>Mark delivered</button>}
+      </>}
+    </div>);
+}
+
 function Field({ label, children }) {
   return <label className="text-sm block">{label}<div className="mt-1">{children}</div></label>;
 }
@@ -146,6 +162,7 @@ export default function VendorMarketE() {
           {data.orders.map((o) => (
             <div key={o.id} className="pmc-panel p-3 text-sm" data-testid={`mkt-sale-${o.id}`}>
               <b>{o.title}</b> — sold to {o.buyer?.name} for {money(o.currency, o.amount)} ({MODE_LABEL[o.via]}) · PMC fee {money(o.currency, o.pmc_fee)} · you receive <b>{money(o.currency, o.seller_net)}</b> · payment: {o.status.replace("_", " ")} · payout: {o.payout_status.replace("_", " ")}{o.payout_reference ? ` (ref ${o.payout_reference})` : ""}
+              {o.status === "paid" && <Delivery o={o} reload={load} />}
             </div>))}
         </div>
       </div>

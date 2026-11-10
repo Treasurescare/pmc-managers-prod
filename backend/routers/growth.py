@@ -621,15 +621,9 @@ async def decide_buyer(aid: str, body: BuyerDecisionIn, admin=Depends(pmc_staff)
     upd = {"status": "approved" if body.action == "approve" else "rejected", "decided_by": admin["email"], "decided_at": now_iso(),
            "notes": body.notes, "tier": body.tier}
     if body.action == "approve":
-        code = re.sub(r"[^A-Z0-9]+", "", (body.code or a["org_name"]).upper())[:16] or "ORG"
-        if len(code) < 3 or await db.tenants.find_one({"code": code}):
-            code = f"{code[:10]}{secrets.randbelow(9000) + 1000}"
-        await db.tenants.insert_one({"code": code, "name": a["org_name"], "kind": "government" if a["org_type"] in ("government", "psu") else "corporate",
-                                     "country": a["country"], "primary_contact_email": a["email"], "primary_contact_name": a["contact_name"],
-                                     "org_type": a["org_type"], "pricing_tier": body.tier, "is_active": True, "created_at": now_iso(),
-                                     "created_by": admin["id"], "source": "buyer_application"})
-        upd["tenant_code"] = code
-        upd.update(await _send_buyer_signin({**a, "tenant_code": code}, a["email"], a["contact_name"], admin, approved=True))
+        if a.get("source") == "self_register" and not a.get("email_verified"):
+            raise HTTPException(status_code=409, detail="This buyer has not confirmed their email yet")
+        upd.update(await approve_buyer_app(a, admin, body.code, body.tier))
     else:
         await vendor_confirm(a["email"], "Your PMC Managers application",
                              f"<p>Thank you for applying. We are unable to approve <b>{a['org_name']}</b> at this time."
@@ -637,6 +631,25 @@ async def decide_buyer(aid: str, body: BuyerDecisionIn, admin=Depends(pmc_staff)
     await db.buyer_applications.update_one({"_id": a["_id"]}, {"$set": upd})
     await audit_log("buyer_application.decide", admin, "buyer_application", aid, upd)
     return {"ok": True, **upd}
+
+
+async def approve_buyer_app(a: dict, admin: dict, code: Optional[str] = None, tier: Optional[str] = None) -> dict:
+    """Create the verified buyer organisation; link a self-registered user or email a new sign-in."""
+    from notify import notify_user
+    code = re.sub(r"[^A-Z0-9]+", "", (code or a["org_name"]).upper())[:16] or "ORG"
+    if len(code) < 3 or await db.tenants.find_one({"code": code}):
+        code = f"{code[:10]}{secrets.randbelow(9000) + 1000}"
+    await db.tenants.insert_one({"code": code, "name": a["org_name"], "kind": "government" if a["org_type"] in ("government", "psu") else "corporate",
+                                 "country": a["country"], "primary_contact_email": a["email"], "primary_contact_name": a["contact_name"],
+                                 "org_type": a["org_type"], "pricing_tier": tier, "is_active": True, "created_at": now_iso(),
+                                 "created_by": admin["id"], "source": "buyer_application"})
+    if a.get("user_id") and ObjectId.is_valid(a["user_id"]):
+        await db.admin_users.update_one({"_id": ObjectId(a["user_id"]), "tenant_id": f"PENDING-{a['_id']}"}, {"$set": {"tenant_id": code}})
+        await notify_user(a["user_id"], a["email"], "Your buyer account is verified",
+                          f"<p><b>{a['org_name']}</b> is now a verified buyer on the PMC marketplace (code <b>{code}</b>). "
+                          "You can now bid, make offers and buy.</p>", "/buyer")
+        return {"tenant_code": code, "signin_status": "self_registered", "signin_email": a["email"]}
+    return {"tenant_code": code, **(await _send_buyer_signin({**a, "tenant_code": code}, a["email"], a["contact_name"], admin, approved=True))}
 
 
 INVITE_DAYS = 7
@@ -660,7 +673,7 @@ async def _send_buyer_signin(a: dict, email: str, name: str, admin: dict, approv
         uid, new = u["_id"], False
     else:
         r = await db.admin_users.insert_one({
-            "email": email, "name": name, "password_hash": hash_password(secrets.token_urlsafe(32)), "roles": ["buyer"], "role": "buyer",
+            "email": email, "name": name, "email_verified": True, "is_org_admin": bool(a.get("org_admin", True)), "password_hash": hash_password(secrets.token_urlsafe(32)), "roles": ["buyer"], "role": "buyer",
             "account_type": "buyer", "tenant_id": code, "is_active": True, "must_change_password": True, "pwd_reset_jti": jti,
             "source": "buyer_application", "created_at": now_iso(), "created_by": admin["id"]})
         uid, new = r.inserted_id, True

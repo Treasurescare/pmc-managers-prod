@@ -154,6 +154,8 @@ import VendorAiToolsE from "@/apps/vendor-portal-e/VendorAiToolsE";
 import VendorSavedAlertsE from "@/apps/vendor-portal-e/VendorSavedAlertsE";
 import VendorMarketE from "@/apps/vendor-portal-e/VendorMarketE";
 import MarketE from "@/apps/notice-board-e/MarketE";
+import BuyerPortalE from "@/apps/buyer-portal/BuyerPortalE";
+import BuyerRegisterE, { BuyerVerifyEmailE } from "@/apps/buyer-portal/BuyerRegisterE";
 import AdminMarketE from "@/apps/admin-console-e/AdminMarketE";
 import VendorListingE from "@/apps/vendor-portal-e/VendorListingE";
 import GlobalTendersE from "@/apps/notice-board-e/GlobalTendersE";
@@ -244,6 +246,10 @@ export default function App() {
             <Route path="/suppliers/directory" element={<SupplierDirectoryE />} />
             <Route path="/consultancy" element={<ConsultingE />} />
             <Route path="/buyers/apply" element={<BuyerApplyE />} />
+            <Route path="/buyers/register" element={<BuyerRegisterE />} />
+            <Route path="/buyers/verify-email" element={<BuyerVerifyEmailE />} />
+            <Route path="/buyer" element={<BuyerPortalE />} />
+            <Route path="/buyer/*" element={<BuyerPortalE />} />
             <Route path="/tenders/completed" element={<AwardsPublicE legacy={TendersList} />} />
             <Route path="/tenders/:mode" element={<TendersList />} />
             <Route path="/trust" element={<TrustSecurityE />} />

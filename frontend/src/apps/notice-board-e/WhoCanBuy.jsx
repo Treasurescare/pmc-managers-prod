@@ -7,7 +7,7 @@ export function WhoCanBuy({ l, onBlocked }) {
   useEffect(() => { marketApi.whoami().then(setMe).catch(() => setMe({ kind: null })); }, []);
   const buyersOnly = l.eligibility === "verified_buyers";
   const own = me?.kind === "supplier" && me.id && me.id === l.seller_id;
-  const blocked = !!me && (own || !me.kind || me.kind === "staff" || (buyersOnly && me.kind !== "buyer") || (me.kind === "supplier" && !me.verified));
+  const blocked = !!me && (own || !me.kind || me.kind === "staff" || (me.kind === "buyer" && !me.verified) || (buyersOnly && me.kind !== "buyer") || (me.kind === "supplier" && !me.verified));
   useEffect(() => { if (me) onBlocked(blocked); }, [me, blocked, onBlocked]);
   if (!me) return null;
   if (own) return <p className="text-sm border border-black/10 rounded p-3" data-testid="market-who-own">This is your own listing. Buyers see the buttons below; you can manage it in <a className="underline" href="/vendor/market">Sell products</a>.</p>;
@@ -18,8 +18,9 @@ export function WhoCanBuy({ l, onBlocked }) {
       <b>{buyersOnly ? "Only verified buyer organisations can buy this product." : "Verified buyers and suppliers can take part."}</b>
       {me.kind === "supplier" && <p>You are signed in as the supplier <b>{me.name}</b>. This seller only sells to buyer organisations.</p>}
       {me.kind === "staff" && <p>You are signed in as PMC staff. Staff accounts cannot buy.</p>}
+      {me.kind === "buyer" && !me.verified && <p data-testid="market-who-pending">You are signed in as a buyer, but PMC has not verified your account yet. We'll notify you as soon as you can bid and buy.</p>}
       <ol className="list-decimal ml-5 space-y-1">
-        <li>Your organisation applies once as a buyer: <a className="underline" href="/buyers/apply" data-testid="market-who-apply">Apply as a buyer organisation</a>.</li>
+        <li>Register free as a buyer: <a className="underline" href="/buyers/register" data-testid="market-who-register-buyer">Register as a buyer</a> (or <a className="underline" href="/buyers/apply" data-testid="market-who-apply">apply as a buyer organisation</a>).</li>
         <li>PMC verifies the organisation and sends your buyer sign-in.</li>
         <li><a className="underline" href={`/login?role=buyer&next=${next}`} data-testid="market-who-signin">Sign in as a buyer</a>, come back to this page and bid, offer or buy.</li>
       </ol>

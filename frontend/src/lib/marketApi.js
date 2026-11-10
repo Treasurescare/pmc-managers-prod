@@ -29,6 +29,7 @@ export const marketApi = {
   getImport: (id) => g(`/api/v1/market/catalogue/import/${id}`),
   imports: () => g("/api/v1/market/catalogue/imports"),
   whoami: () => api.get("/api/v1/market/whoami", { _skipAuthRedirect: true }).then((r) => r.data),
+  delivery: (oid, status, note) => p(`/api/v1/market/orders/${oid}/delivery`, { status, note }),
   bulkDecide: (ids, b) => p("/api/v1/market/admin/listings/bulk-decision", { ids, ...b }),
   bulk: (items) => p("/api/v1/market/listings/bulk", { items }),
   addCategory: (name) => p("/api/v1/market/categories", { name }),

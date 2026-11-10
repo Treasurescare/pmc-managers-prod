@@ -133,6 +133,20 @@ async def vendor_confirm(vendor_email: str, subject: str, body_html: str,
         log.warning("vendor_confirm failed for %s: %s", vendor_email, e)
 
 
+async def notify_user(user_id: Optional[str], email: Optional[str], subject: str, body_html: str,
+                      link: Optional[str] = None, send_mail: bool = True) -> None:
+    """In-app bell entry (+ email) for one buyer or supplier. Never raises."""
+    try:
+        await db.notifications.insert_one({"user_id": user_id, "user_email": (email or "").lower() or None, "subject": subject,
+                                           "body": body_html, "link": link, "read": False, "created_at": now_iso()})
+        if send_mail and email:
+            url = f"{config.FRONTEND_URL.rstrip('/')}{link}" if link else None
+            asyncio.create_task(send_email(email, f"[PMC] {subject}", wrap(subject, body_html, "Open" if url else None, url)))
+    except Exception as e:
+        log.warning("notify_user failed for %s: %s", email, e)
+
+
+
 async def login_alert(email: str, name: Optional[str], portal: str,
                        ip: Optional[str] = None, user_agent: Optional[str] = None,
                        user_id: Optional[str] = None,
