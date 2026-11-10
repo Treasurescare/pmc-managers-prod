@@ -7,7 +7,7 @@ import jwt
 
 from db import db
 from models.vendor_user import VendorLoginIn, VendorPasswordChangeIn
-from security import verify_password, hash_password, new_csrf_token, require_csrf, set_csrf_cookie
+from security import verify_password, hash_password, new_csrf_token, require_csrf, set_csrf_cookie, csrf_for_session
 from audit import audit_log
 from models.base import now_iso
 import config
@@ -31,7 +31,9 @@ def _set_cookies(response: Response, token: str) -> str:
     if config.COOKIE_DOMAIN:
         ck["domain"] = config.COOKIE_DOMAIN
     response.set_cookie("vendor_token", token, **ck)
-    csrf = new_csrf_token()
+    # v61h — session-bound token so CSRF passes even when the CDN drops the csrf cookie.
+    sub = jwt.decode(token, config.JWT_SECRET, algorithms=[config.JWT_ALGORITHM]).get("sub")
+    csrf = csrf_for_session(f"vendor:{sub}") if sub else new_csrf_token()
     set_csrf_cookie(response, csrf, max_age)
     return csrf
 

@@ -75,7 +75,7 @@ let _csrfRefreshInFlight = null;
 function refreshCsrf() {
   if (!_csrfRefreshInFlight) {
     _csrfRefreshInFlight = api
-      .get("/api/v1/staff/auth/csrf", { _skipCsrfRecovery: true })
+      .get("/api/v1/staff/auth/csrf", { _skipCsrfRecovery: true, _skipAuthRedirect: true })
       .then((r) => {
         const token = r?.data?.csrf_token;
         if (token) cacheCsrf(token);

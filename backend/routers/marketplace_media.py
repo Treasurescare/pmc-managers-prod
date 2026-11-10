@@ -23,7 +23,8 @@ router = APIRouter(prefix="/api/v1/market", tags=["marketplace-media"])
 IMG = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "webp": "image/webp"}
 DOC = {"pdf": "application/pdf"}
 MAX_PHOTO, MAX_DOC, MAX_CATALOGUE = 8 * 1024 * 1024, 10 * 1024 * 1024, 25 * 1024 * 1024
-MAX_PAGES, MAX_PRODUCTS, MAX_EMBEDDED = 30, 60, 80
+MAX_PAGES, MAX_PRODUCTS, MAX_EMBEDDED, CHUNK = 200, 60, 60, 15
+MAX_TOTAL_PRODUCTS = 300
 MAX_PIXELS = 40_000_000
 _TASKS: set = set()
 _ONE_AT_A_TIME = asyncio.Semaphore(1)
@@ -125,10 +126,10 @@ CAT_SYS = (
     f"At most {MAX_PRODUCTS} products. Use only facts in the document; never invent prices, certifications or numbers.")
 
 
-def _embedded(doc, pages: int) -> list:
+def _embedded(doc, pages: int, start: int = 0) -> list:
     import fitz
     out, seen = [], set()
-    for p in range(pages):
+    for p in range(start, pages):
         page = doc[p]
         area = page.rect.width * page.rect.height
         for info in page.get_image_info(xrefs=True):
@@ -188,15 +189,30 @@ def _box(p: dict):
     return (xmin, ymin, xmax, ymax) if xmax > xmin and ymax > ymin else None
 
 
-def _prep(name: str, body: bytes):
+def _open(name: str, body: bytes):
     import fitz
     if _ext(name) == "pdf":
         doc = fitz.open(stream=body, filetype="pdf")
-        pages = min(len(doc), MAX_PAGES)
-        sub = fitz.open()
-        sub.insert_pdf(doc, to_page=pages - 1)
-        return doc, pages, _embedded(doc, pages), sub.tobytes(garbage=3, deflate=True), "application/pdf"
-    return None, 1, [], _jpeg(body, 2400), "image/jpeg"
+        return doc, min(len(doc), MAX_PAGES)
+    return None, 1
+
+
+def _chunk(doc, start: int, end: int):
+    """Pages [start, end) as a small PDF for the AI plus that range's embedded photos."""
+    import fitz
+    sub = fitz.open()
+    sub.insert_pdf(doc, from_page=start, to_page=end - 1)
+    return sub.tobytes(garbage=3, deflate=True), _embedded(doc, end, start)
+
+
+async def _read_part(send: bytes, mime: str, pages: int) -> list:
+    fd, path = tempfile.mkstemp(suffix=".pdf" if mime == "application/pdf" else ".jpg")
+    try:
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(send)
+        return await asyncio.to_thread(lambda: asyncio.run(_ask_ai(path, mime, pages)))
+    finally:
+        os.remove(path)
 
 
 def _page_crop(doc, send: bytes, page: int, pages: int, box, cache: dict) -> Optional[bytes]:
@@ -213,35 +229,39 @@ def _page_crop(doc, send: bytes, page: int, pages: int, box, cache: dict) -> Opt
 
 async def _run_import(iid: str, owner: str, name: str, body: bytes, charge_ref: str) -> None:
     try:
-        doc, pages, embedded, send, mime = await asyncio.to_thread(_prep, name, body)
-        is_pdf = mime == "application/pdf"
-        fd, path = tempfile.mkstemp(suffix=".pdf" if is_pdf else ".jpg")
-        try:
-            with os.fdopen(fd, "wb") as fh:
-                fh.write(send)
-            products = await asyncio.to_thread(lambda: asyncio.run(_ask_ai(path, mime, pages)))
-        finally:
-            os.remove(path)
-        stored = []
-        for e in embedded:
-            stored.append({**(await _store(owner, "photo", f"catalogue-p{e['page']}.jpg", "image/jpeg", e["data"],
-                                           page=e["page"], import_id=iid)), "bbox": e["bbox"]})
-        renders: dict = {}
-        out = []
-        for p in products:
-            page, box, photos = int(p.get("page") or 1), _box(p), []
-            if box:
-                best = max((s for s in stored if s["page"] == page), key=lambda s: _iou(s["bbox"], box), default=None)
-                if best and _iou(best["bbox"], box) > 0.25:
-                    photos.append(best["id"])
-                else:
-                    crop = await asyncio.to_thread(_page_crop, doc, send, page, pages, box, renders)
-                    if crop:
-                        photos.append((await _store(owner, "photo", f"{str(p['title'])[:60]}.jpg", "image/jpeg", crop,
-                                                    page=page, import_id=iid))["id"])
-            out.append({"title": str(p["title"])[:160], "description": str(p.get("description") or "")[:4000],
-                        "category": str(p.get("category") or "")[:120], "unit": str(p.get("unit") or "unit")[:30],
-                        "specs": [str(s)[:200] for s in (p.get("specs") or [])][:30], "page": page, "photos": photos})
+        doc, pages = await asyncio.to_thread(_open, name, body)
+        send = None if doc else await asyncio.to_thread(_jpeg, body, 2400)
+        await db.mkt_imports.update_one({"_id": iid}, {"$set": {"pages_total": pages, "pages_done": 0, "updated_at": now_iso()}})
+        stored, renders, out = [], {}, []
+        for start in range(0, pages, CHUNK):
+            end = min(start + CHUNK, pages)
+            if doc:
+                part, embedded = await asyncio.to_thread(_chunk, doc, start, end)
+                products = await _read_part(part, "application/pdf", end - start)
+            else:
+                embedded, products = [], await _read_part(send, "image/jpeg", 1)
+            new = []
+            for e in embedded:
+                new.append({**(await _store(owner, "photo", f"catalogue-p{e['page']}.jpg", "image/jpeg", e["data"],
+                                            page=e["page"], import_id=iid)), "bbox": e["bbox"]})
+            stored += new
+            for p in products:
+                page, box, photos = min(max(int(p.get("page") or 1), 1), end - start) + start, _box(p), []
+                if box:
+                    best = max((s for s in new if s["page"] == page), key=lambda s: _iou(s["bbox"], box), default=None)
+                    if best and _iou(best["bbox"], box) > 0.25:
+                        photos.append(best["id"])
+                    else:
+                        crop = await asyncio.to_thread(_page_crop, doc, send, page, pages, box, renders)
+                        if crop:
+                            photos.append((await _store(owner, "photo", f"{str(p['title'])[:60]}.jpg", "image/jpeg", crop,
+                                                        page=page, import_id=iid))["id"])
+                out.append({"title": str(p["title"])[:160], "description": str(p.get("description") or "")[:4000],
+                            "category": str(p.get("category") or "")[:120], "unit": str(p.get("unit") or "unit")[:30],
+                            "specs": [str(s)[:200] for s in (p.get("specs") or [])][:30], "page": page, "photos": photos})
+            renders.clear()
+            out = out[:MAX_TOTAL_PRODUCTS]
+            await db.mkt_imports.update_one({"_id": iid}, {"$set": {"pages_done": end, "found": len(out), "updated_at": now_iso()}})
         await db.mkt_imports.update_one({"_id": iid}, {"$set": {
             "status": "done", "products": out, "pages": pages, "finished_at": now_iso(),
             "images": [{"id": s["id"], "page": s["page"]} for s in stored]}})
@@ -294,7 +314,7 @@ async def get_import(iid: str, v=Depends(current_vendor)):
     if not d:
         raise HTTPException(status_code=404, detail="Import not found")
     from datetime import datetime, timedelta, timezone
-    if d.get("status") == "reading" and d.get("created_at", "") < (datetime.now(timezone.utc) - timedelta(minutes=8)).isoformat():
+    if d.get("status") == "reading" and (d.get("updated_at") or d.get("created_at", "")) < (datetime.now(timezone.utc) - timedelta(minutes=8)).isoformat():
         d["status"], d["error"] = "failed", "Reading took too long or the server restarted. Please try again, or try a smaller file (fewer pages)."
         await db.mkt_imports.update_one({"_id": iid}, {"$set": {"status": "failed", "error": d["error"]}})
     d["id"] = d.pop("_id")
@@ -329,7 +349,7 @@ class DraftIn(BaseModel):
 
 
 class BulkIn(BaseModel):
-    items: list[DraftIn] = Field(min_length=1, max_length=MAX_PRODUCTS)
+    items: list[DraftIn] = Field(min_length=1, max_length=MAX_TOTAL_PRODUCTS)
 
 
 @router.post("/listings/bulk")

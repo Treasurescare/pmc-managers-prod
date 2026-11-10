@@ -93,7 +93,14 @@ async def refresh_csrf_token(request: Request, response: Response):
         if h.startswith("Bearer "):
             token = h[7:]
     if not token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+        # v61h — suppliers: re-issue the session-bound CSRF token from the vendor session.
+        from security import _vendor_sub
+        vsub = _vendor_sub(request)
+        if not vsub:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        csrf = csrf_for_session(vsub)
+        set_csrf_cookie(response, csrf, config.ACCESS_TOKEN_TTL_MIN * 60, is_preview_request(request))
+        return {"csrf_token": csrf}
     try:
         payload = jwt.decode(token, config.JWT_SECRET, algorithms=[config.JWT_ALGORITHM])
         if payload.get("type") != "access":

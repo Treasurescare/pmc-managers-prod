@@ -68,6 +68,17 @@ def _session_sub(request) -> Optional[str]:
         return None
 
 
+def _vendor_sub(request) -> Optional[str]:
+    vt = request.cookies.get("vendor_token")
+    if not vt:
+        return None
+    try:
+        p = jwt.decode(vt, config.JWT_SECRET, algorithms=[config.JWT_ALGORITHM])
+        return f"vendor:{p['sub']}" if p.get("type") == "vendor_access" else None
+    except Exception:
+        return None
+
+
 def _agent_sub(request) -> Optional[str]:
     at = request.cookies.get("agent_token")
     if not at:
@@ -191,6 +202,9 @@ async def require_csrf(request: Request) -> None:
         return
     asub = _agent_sub(request)
     if asub and secrets.compare_digest(header_val, csrf_for_session(asub)):
+        return
+    vsub = _vendor_sub(request)
+    if vsub and secrets.compare_digest(header_val, csrf_for_session(vsub)):
         return
     raise HTTPException(status_code=403, detail="CSRF token missing or invalid")
 

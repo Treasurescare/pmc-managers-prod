@@ -44,6 +44,21 @@ function ProductCard({ it, set, pageImages, hasCat }) {
     </div>);
 }
 
+function ImportProgress({ job }) {
+  const total = job.pages_total || 0;
+  const done = job.pages_done || 0;
+  const pct = job.status === "uploading" ? 3 : total ? Math.max(6, Math.round((100 * done) / total)) : 6;
+  const next = total ? `pages ${done + 1}–${Math.min(done + 15, total)} of ${total}` : "the file";
+  return (
+    <div className="space-y-2" data-testid="cat-progress">
+      <p className="text-sm">{job.status === "uploading" ? <>Uploading <b>{job.file_name}</b>…</> : <>AI is reading {next} of <b>{job.file_name}</b>{job.found ? ` · ${job.found} product(s) found so far` : ""}</>}</p>
+      <div className="h-2 rounded bg-black/10 overflow-hidden" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+        <div className="h-full bg-emerald-700 transition-[width] duration-700" style={{ width: `${pct}%` }} data-testid="cat-progress-bar" />
+      </div>
+      <p className="text-xs opacity-70">Large catalogues are read 15 pages at a time (up to 200 pages). You can stay on this page.</p>
+    </div>);
+}
+
 export default function CatalogueImportE({ onDone, onCancel }) {
   const ref = useRef();
   const [job, setJob] = useState(null);
@@ -54,6 +69,7 @@ export default function CatalogueImportE({ onDone, onCancel }) {
     const t = setInterval(() => {
       marketApi.getImport(job.id).then((d) => {
         if (d.status !== "reading") { setJob(d); setItems((d.products || []).map(toItem)); if (d.status === "failed") toast.error(d.error); }
+        else setJob((j) => ({ ...j, pages_total: d.pages_total, pages_done: d.pages_done, found: d.found }));
       }).catch(() => {});
     }, 4000);
     return () => clearInterval(t);
@@ -88,10 +104,10 @@ export default function CatalogueImportE({ onDone, onCancel }) {
       {!job && <div className="flex flex-wrap gap-2 items-center">
         <button type="button" className="pmc-btn pmc-btn--primary" onClick={() => ref.current?.click()} data-testid="cat-upload-btn"><Upload size={14} className="inline mr-1" />Choose catalogue</button>
         <button type="button" className="pmc-btn pmc-btn--secondary" onClick={onCancel} data-testid="cat-cancel">Cancel</button>
-        <span className="text-xs opacity-70 w-full">PDF, JPG or PNG · max 25 MB · first 30 pages are read</span>
+        <span className="text-xs opacity-70 w-full">PDF, JPG or PNG · max 25 MB · up to 200 pages</span>
       </div>}
       <input ref={ref} type="file" accept="application/pdf,image/jpeg,image/png" hidden onChange={(e) => start(e.target.files[0])} data-testid="cat-file-input" />
-      {job && ["uploading", "reading"].includes(job.status) && <p className="text-sm" data-testid="cat-progress">{job.status === "uploading" ? "Uploading" : "AI is reading"} <b>{job.file_name}</b>… this can take 1–3 minutes for a large catalogue. You can stay on this page.</p>}
+      {job && ["uploading", "reading"].includes(job.status) && <ImportProgress job={job} />}
       {job?.status === "failed" && <div className="flex gap-2 items-center text-sm" data-testid="cat-failed">{job.error}<button className="pmc-btn pmc-btn--secondary pmc-btn--sm" onClick={() => setJob(null)} data-testid="cat-retry">Try another file</button></div>}
       {job?.status === "done" && <>
         <p className="text-sm" data-testid="cat-found">Found <b>{items.length}</b> product(s) in {job.pages} page(s). Untick any you don't want.</p>
