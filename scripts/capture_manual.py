@@ -16,6 +16,7 @@ ACCOUNTS = {
     "partner": ("partner", "partner@demo.pmcmanagers.com", DEMO_PW),
     "staff": ("staff", "committee1@demo.pmcmanagers.com", DEMO_PW),
     "loser": ("supplier", "kestrel@demo.pmcmanagers.com", DEMO_PW),
+    "buyer": ("buyer", "buyer@demo.pmcmanagers.com", DEMO_PW),
 }
 SCREENS = json.load(open(os.environ.get("SCREENS_FILE", "/app/scripts/manual_screens.json")))
 

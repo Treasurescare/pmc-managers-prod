@@ -44,7 +44,7 @@ function AvatarMenu({ me, setMe }) {
         <span className="pmc-who__t"><b data-testid="buyer-who-name">{me?.name || "Buyer"}</b><span>{me?.org?.name || "Awaiting verification"}</span></span>
       </button>
       {open && (
-        <div role="menu" className="pmc-avatar-menu" data-testid="buyer-avatar-menu" style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", width: 250, zIndex: 1200, background: "var(--surface)", border: "1px solid var(--line)", borderRadius: "var(--radius-md)", boxShadow: "var(--shadow-2)", padding: 8, display: "grid", gap: 2 }}>
+        <div role="menu" className="pmc-avatar-menu" data-testid="buyer-avatar-menu" style={{ position: "absolute", right: 0, top: "calc(100% + 8px)", width: 250, zIndex: 1200, background: "#fff", color: "#1a2b27", border: "1px solid var(--line)", borderRadius: "var(--radius-md)", boxShadow: "var(--shadow-2)", padding: 8, display: "grid", gap: 2 }}>
           <div style={{ padding: "8px 10px", borderBottom: "1px solid var(--line)" }}><b style={{ fontSize: 14 }}>{me?.name}</b><div className="pmc-muted" style={{ fontSize: 12 }}>{me?.email}</div></div>
           <input ref={file} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={onPhoto} data-testid="buyer-avatar-file" />
           <button type="button" className="pmc-btn pmc-btn--ghost pmc-btn--sm" style={{ justifyContent: "flex-start" }} onClick={() => go("/buyer/profile")} data-testid="buyer-menu-profile">Edit profile</button>

@@ -1116,3 +1116,8 @@ summary notes.
 - Buyers tap "♡ Save" on marketplace cards / product page (shown only to signed-in buyers). New Buyer portal → Watchlist page (remove, closing time, "reminder sent").
 - API: GET/POST/DELETE /api/v1/buyer/watchlist[/{listing_id}] (mkt_watch, unique per user+listing, max 300).
 - Reminder: POST /api/v1/cron/market-closing-reminders (Bearer WEBHOOK_CRON_SECRET) sends one bell + email per watcher when a live auction closes within 60 min; .emergent/crons.yml market-close-remind every 15 min (so reminders land 45–60 min before close). Self-hosted AWS needs an EventBridge schedule calling the same endpoint.
+
+## 2026-11-10 — v61 manual set (testing edition, English)
+- /downloads/manual/: PMC_Master_Training_Manual_v61 (121 pp), PMC_Staff_and_Admin_User_Manual_v61 (78 pp), PMC_External_Users_Manual_v61 (57 pp) — each PDF + editable DOCX; PMC_Process_and_Data_Flow_Diagrams.pdf (4 process flows, 3 data flows) + PNGs, also embedded as a chapter in every manual. Zip: /downloads/PMC_Manuals_v61.zip.
+- Scripts: scripts/seed_manual_v61.py (DEMO data, --clean), manual_screens_v61.json (15 new screens: buyer portal, admin buyer apps, bulk approvals, seller delivery), build_diagrams_v61.py, build_user_manuals_v61.py (uses build_manual_v4 chapters; new chapters 28c buyer portal, 28d diagrams).
+- Buyer avatar menu text colour fixed.

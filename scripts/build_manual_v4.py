@@ -18,8 +18,8 @@ sys.path.insert(0, "/app/scripts")
 from build_manuals import B, D, GOLD, H2, H3, NAVY, SM, TODAY, shot, CREAM, ParagraphStyle, ss  # noqa: E402
 
 SCREENS = (json.load(open("/app/scripts/manual_screens.json")) + json.load(open("/app/scripts/manual_screens_extra.json"))
-           + json.load(open("/app/scripts/manual_screens_new.json")))
-ORDER = ["Public website", "Supplier portal", "Admin console", "Partner portal", "Staff portal"]
+           + json.load(open("/app/scripts/manual_screens_new.json")) + json.load(open("/app/scripts/manual_screens_v61.json")))
+ORDER = ["Public website", "Supplier portal", "Buyer portal", "Admin console", "Partner portal", "Staff portal"]
 CH = ParagraphStyle("ch", parent=ss["Title"], textColor=NAVY, fontSize=22, leading=26, alignment=0, spaceAfter=6)
 SEC = ParagraphStyle("sec", parent=H2, fontSize=13)
 TIP = ParagraphStyle("tip", parent=B, backColor=colors.HexColor("#FFF7E0"), borderColor=GOLD, borderWidth=0.6, borderPadding=5, spaceBefore=4, spaceAfter=6)
@@ -27,9 +27,11 @@ MONO = ParagraphStyle("mono", parent=SM, fontName="Courier", fontSize=7, leading
 
 
 class Doc(BaseDocTemplate):
-    def __init__(self, path):
+    header = "PMC Managers \u00b7 Master Training Manual v4 \u00b7 Whole-site edition"
+
+    def __init__(self, path, title="PMC v4 Master Training Manual"):
         super().__init__(path, pagesize=A4, leftMargin=15 * mm, rightMargin=15 * mm, topMargin=16 * mm, bottomMargin=14 * mm,
-                         title="PMC v4 Master Training Manual", author="PMC Managers")
+                         title=title, author="PMC Managers")
         f = Frame(self.leftMargin, self.bottomMargin, self.width, self.height, id="f")
         self.addPageTemplates([PageTemplate(id="cover", frames=[f], onPage=self._cover), PageTemplate(id="body", frames=[f], onPage=self._body)])
 
@@ -47,7 +49,7 @@ class Doc(BaseDocTemplate):
         c.line(15 * mm, A4[1] - 11 * mm, A4[0] - 15 * mm, A4[1] - 11 * mm)
         c.setFont("Helvetica", 7.5)
         c.setFillColor(colors.grey)
-        c.drawString(15 * mm, A4[1] - 9.5 * mm, "PMC Managers \u00b7 Master Training Manual v4 \u00b7 Whole-site edition")
+        c.drawString(15 * mm, A4[1] - 9.5 * mm, self.header)
         c.drawString(15 * mm, 8 * mm, f"Issued {TODAY}")
         c.drawRightString(A4[0] - 15 * mm, 8 * mm, f"Page {d.page}")
         c.restoreState()
@@ -135,7 +137,7 @@ def screens_chapter(section):
 
 
 for n, sec in enumerate(ORDER, 4):
-    chapter(f"{n} \u00b7 {sec} \u2014 screen tour")(lambda sec=sec: screens_chapter(sec))
+    chapter(f"{n if n < 6 else str(n - 1) + 'b'} \u00b7 {sec} \u2014 screen tour")(lambda sec=sec: screens_chapter(sec))
 
 
 @chapter("9 \u00b7 Deep-dive: Tender builder & AI DPR")
@@ -392,6 +394,44 @@ def c28b():
                    "In the iPhone app the buy and pay buttons are hidden; buyers pay on the website."])]
 
 
+@chapter("28c \u00b7 What's new: Buyer portal, watchlist & buyer teams")
+def c28c():
+    return [P("Buyers now have their own portal at <b>/buyer</b>, laid out like the supplier portal: left sidebar, top header with a notification bell and avatar menu, and a footer. Only verified buyers can bid or buy."),
+            Paragraph("Becoming a buyer", SEC),
+            tbl([["Route", "Steps", "Who approves"],
+                 ["Register free", "Sign in page \u2192 Buyer organisation \u2192 Register as a buyer \u2014 free. Name, email, mobile, country and city are required (from the masters); state, address, ZIP and organisation are optional. Confirm the email link (3 days).", "PMC admin in Growth \u2192 Buyer applications (only after the email is confirmed)"],
+                 ["Apply as an organisation", "/buyers/apply form for tender-issuing organisations.", "PMC admin; approval emails a 7-day set-password link"],
+                 ["Added by PMC", "Admin \u2192 Growth \u2192 Buyer applications \u2192 + Add a buyer directly.", "Approved at once; sign-in emailed"]], [32 * mm, 98 * mm, 50 * mm]),
+            Paragraph("Buyer portal pages", SEC),
+            tbl([["Page", "What the buyer sees"], ["Dashboard", "Tiles: active bids & offers, to pay, in delivery, won, unread notifications; latest activity"],
+                 ["Watchlist", "Products saved with \u2661 Save; reminder about an hour before a watched auction closes"],
+                 ["Bids & auctions", "Status of every bid (Leading, Outbid, Won, Lost) and offer (Open, Accepted, Declined)"],
+                 ["Purchases & deliveries", "Pay securely, delivery status set by the seller, I received it"], ["Payments & refunds", "Payments made and any refunds or payouts back to the buyer"],
+                 ["Notifications", "Bell list; important events are also emailed"], ["My team", "Main buyer invites colleagues (PMC approves each) and removes them (immediate)"],
+                 ["Profile & security", "Masters-backed profile, photo, change password; forgot password via the sign-in page"]], [40 * mm, 140 * mm]),
+            Paragraph("Notifications sent to buyers", SEC),
+            steps(["Outbid on an auction.", "About an hour before a watched auction closes (scheduler every 15 minutes).", "Auction won, offer accepted or order placed \u2014 pay now.",
+                   "Payment received.", "Order dispatched / delivered (supplier marks it in Sell products \u2192 sales).", "Account verified by PMC."]),
+            Paragraph("Security rules", SEC),
+            steps(["Buyer sign-ins can never open PMC admin or staff pages; buyer-organisation admins are not PMC staff.", "A colleague only gets access after PMC approves the invite; removing a colleague ends every open session.",
+                   "A buyer sees only their own bids, orders, notifications and organisation members.", "Unconfirmed emails cannot sign in; unverified buyers can browse but not bid or buy."]),
+            Paragraph("Sample data in the screenshots is labelled DEMO and is not real business data.", TIP)]
+
+
+DIAGRAMS = [("pmc-flow-1-tender-process", "Process flow 1 \u2014 Tender lifecycle"), ("pmc-flow-2-supplier-onboarding", "Process flow 2 \u2014 Supplier onboarding"),
+            ("pmc-flow-3-buyer-onboarding", "Process flow 3 \u2014 Buyer onboarding & team"), ("pmc-flow-4-marketplace", "Process flow 4 \u2014 Supplier marketplace"),
+            ("pmc-dfd-0-context", "Data flow \u2014 Level 0 (context)"), ("pmc-dfd-1-tendering", "Data flow \u2014 Level 1: tendering"),
+            ("pmc-dfd-2-marketplace", "Data flow \u2014 Level 1: marketplace & buyer portal")]
+
+
+@chapter("28d \u00b7 Process flow & data flow diagrams")
+def c28d():
+    out = [P("The same diagrams are in the separate <b>PMC Process & Data Flow Diagrams</b> PDF. Process flows show who acts and in which order; data flows show what information moves between people, processes and data stores (grey).")]
+    for f, t in DIAGRAMS:
+        out += [KeepTogether([Paragraph(t, SEC), Image(f"{D}/{f}.png", width=180 * mm, height=180 * mm * 0.707)]), Spacer(1, 4 * mm)]
+    return out
+
+
 @chapter("29 \u00b7 Glossary")
 def c19():
     g = [("DPR", "Detailed project report used to draft a tender"), ("EMD", "Earnest money deposit held in escrow with a bid"), ("L1", "Lowest compliant price among qualified bids"),
@@ -400,19 +440,19 @@ def c19():
     return [tbl([["Term", "Meaning"]] + [list(x) for x in g], [45 * mm, 135 * mm])]
 
 
-def body_story(hidden):
+def body_story(hidden, only=None):
     story, n = [], 0
     for title, fn in CHAPTERS:
         num, _, name = title.partition(" \u00b7 ")
-        if num in hidden:
+        if num in hidden or (only is not None and num not in only):
             continue
         n += 1
         story.append((f"{n} \u00b7 {name}", fn()))
     return story
 
 
-def build():
-    path = f"{D}/PMC_v4_Master_Training_Manual.pdf"
+def build(path=None, title="Master Training Manual v4", sub="Whole-site edition \u00b7 every portal, every screen, every process", only=None, header=None):
+    path = path or f"{D}/PMC_v4_Master_Training_Manual.pdf"
     toc = TableOfContents()
     toc.levelStyles = [ParagraphStyle("t0", fontName="Helvetica-Bold", fontSize=10, leading=14), ParagraphStyle("t1", fontName="Helvetica", fontSize=8.5, leading=11, leftIndent=12)]
     W = ParagraphStyle("w", parent=B, textColor=colors.white)
@@ -420,15 +460,18 @@ def build():
     from reportlab.platypus import NextPageTemplate
     story = [Spacer(1, 45 * mm), Image(logo, width=34 * mm, height=34 * mm), Spacer(1, 14 * mm),
              Paragraph("<font color='#B8892B' size='11'>PMC MANAGERS</font>", W), Spacer(1, 3 * mm),
-             Paragraph("<font size='28'>Master Training Manual v4</font>", ParagraphStyle("ct", parent=W, leading=34)), Spacer(1, 4 * mm),
-             Paragraph("<font size='12'>Whole-site edition \u00b7 every portal, every screen, every process</font>", W), Spacer(1, 60 * mm),
-             Paragraph(f"Issued {TODAY} \u00b7 replaces v3 (Sovereign Edition)", W), NextPageTemplate("body"), PageBreak(),
+             Paragraph(f"<font size='28'>{title}</font>", ParagraphStyle("ct", parent=W, leading=34)), Spacer(1, 4 * mm),
+             Paragraph(f"<font size='12'>{sub}</font>", W), Spacer(1, 60 * mm),
+             Paragraph(f"Issued {TODAY} \u00b7 build v61 \u00b7 for testing", W), NextPageTemplate("body"), PageBreak(),
              Paragraph("<b>Contents</b>", ParagraphStyle("ch2", parent=H2, fontSize=16)), toc, PageBreak()]
     hidden = set() if os.environ.get("MANUAL_SHOW_INTERNAL") == "1" else HIDDEN_UNTIL_LIVE
-    for title, fl in body_story(hidden):
-        story += [Paragraph(title, CH), Spacer(1, 2 * mm)] + fl + [PageBreak()]
-    Doc(path).multiBuild(story)
-    return path
+    body = []
+    for t, fl in body_story(hidden, only):
+        body += [Paragraph(t, CH), Spacer(1, 2 * mm)] + fl + [PageBreak()]
+    doc = Doc(path, title=f"PMC {title}")
+    doc.header = header or f"PMC Managers \u00b7 {title}"
+    doc.multiBuild(story + body)
+    return path, body
 
 
 def section_pages(path):
@@ -446,6 +489,6 @@ def section_pages(path):
 
 
 if __name__ == "__main__":
-    p = build()
+    p, _ = build()
     n, pages = section_pages(p)
     print(n, "pages;", len(pages), "anchors")
