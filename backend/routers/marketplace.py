@@ -391,6 +391,11 @@ async def admin_decide(lid: str, body: DecisionIn, admin=Depends(require_role(*S
     d = await db.mkt_listings.find_one({"_id": _oid(lid), "status": "pending"})
     if not d:
         raise HTTPException(status_code=409, detail="Only pending listings can be decided")
+    return await _decide(d, body, admin)
+
+
+async def _decide(d: dict, body: DecisionIn, admin: dict) -> dict:
+    lid = str(d["_id"])
     upd = {"status": "live" if body.action == "approve" else "rejected", "review_notes": body.notes,
            "sale_fee_waived": body.waive_sale_fee, "decided_by": admin["email"], "decided_at": now_iso()}
     await db.mkt_listings.update_one({"_id": d["_id"]}, {"$set": upd})
@@ -399,6 +404,39 @@ async def admin_decide(lid: str, body: DecisionIn, admin=Depends(require_role(*S
         from routers.market_alerts import notify_new_listing
         notify_new_listing({**d, **upd})
     return {"ok": True, **upd}
+
+
+class BulkDecisionIn(DecisionIn):
+    ids: list[str] = Field(min_length=1, max_length=200)
+
+
+@router.post("/admin/listings/bulk-decision")
+async def admin_bulk_decide(body: BulkDecisionIn, admin=Depends(require_role(*STAFF))):
+    oids = [ObjectId(i) for i in dict.fromkeys(body.ids) if ObjectId.is_valid(i)]
+    done = 0
+    async for d in db.mkt_listings.find({"_id": {"$in": oids}, "status": "pending"}):
+        await _decide(d, body, admin)
+        done += 1
+    return {"ok": True, "decided": done, "skipped": len(body.ids) - done}
+
+
+@router.get("/whoami")
+async def market_whoami(request: Request):
+    """Who is viewing (no side effects) so the product page can explain who may buy."""
+    try:
+        v = await current_vendor(request)
+        return {"kind": "supplier", "name": v.get("company_name"), "verified": (v.get("kyc_status") or "verified") == "verified"}
+    except HTTPException:
+        pass
+    try:
+        a = await current_admin(request)
+    except HTTPException:
+        return {"kind": None}
+    tid = a.get("tenant_id")
+    t = await db.tenants.find_one({"_id": ObjectId(str(tid))}) if ObjectId.is_valid(str(tid)) else await db.tenants.find_one({"code": tid})
+    if t and t.get("is_active", True) and t.get("source") == "buyer_application":
+        return {"kind": "buyer", "name": t.get("name"), "verified": True}
+    return {"kind": "staff", "name": a.get("email"), "verified": False}
 
 
 class SettingsIn(BaseModel):

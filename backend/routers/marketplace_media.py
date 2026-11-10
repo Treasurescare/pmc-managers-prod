@@ -308,6 +308,15 @@ async def start_import(file: UploadFile = File(...), v=Depends(_seller)):
     return {"id": iid, "status": "reading"}
 
 
+@router.get("/catalogue/imports")
+async def list_imports(v=Depends(current_vendor)):
+    out = []
+    async for d in db.mkt_imports.find({"owner": v["id"], "status": "done"}, {"file_name": 1, "created_at": 1, "pages": 1, "products.title": 1}).sort("created_at", -1).limit(20):
+        out.append({"id": d["_id"], "file_name": d.get("file_name"), "created_at": d.get("created_at"), "pages": d.get("pages"),
+                    "products": len(d.get("products") or [])})
+    return {"items": out}
+
+
 @router.get("/catalogue/import/{iid}")
 async def get_import(iid: str, v=Depends(current_vendor)):
     d = await db.mkt_imports.find_one({"_id": iid, "owner": v["id"]})

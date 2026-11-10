@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import PublicChrome from "@/apps/shared/PublicChrome";
 import { useSeo } from "@/lib/useSeo";
 import { CategoryAlerts } from "./CategoryAlerts";
+import { WhoCanBuy } from "./WhoCanBuy";
 import { coverOf, marketApi, mediaUrl, MODE_LABEL, money } from "@/lib/marketApi";
 import { showApiError } from "@/lib/api";
 
@@ -62,6 +63,7 @@ function Detail({ id }) {
       </div>
       <div className="pmc-panel p-4 space-y-3">
         <div className="text-sm">Status: <b data-testid="market-detail-status">{live ? "Open" : l.status === "sold" ? "Sold" : "Closed"}</b>{l.closes_at ? ` · closes ${new Date(l.closes_at).toLocaleString()}` : ""}</div>
+        {live && <WhoCanBuy l={l} />}
         {l.sale_modes.includes("auction") && <div className="text-sm">Current bid <b data-testid="market-top-bid">{money(l.currency, l.top_bid)}</b> · {l.bid_count} bids · starting {money(l.currency, l.start_price)}{l.top_bid != null && !l.reserve_met ? " · reserve not yet met" : ""}</div>}
         {live && (l.sale_modes.includes("auction") || l.sale_modes.includes("best_offer")) &&
           <input type="number" min="0" className="pmc-input w-full" placeholder={`Amount in ${l.currency}`} value={amt} onChange={(e) => setAmt(e.target.value)} data-testid="market-amount" />}

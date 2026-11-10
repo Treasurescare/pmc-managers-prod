@@ -28,10 +28,17 @@ function Approvals() {
   const [status, setStatus] = useState("pending");
   const [waive, setWaive] = useState({});
   const [notes, setNotes] = useState({});
-  const load = () => marketApi.adminListings(status).then((r) => setItems(r.items)).catch(showApiError);
+  const [sel, setSel] = useState([]);
+  const load = () => marketApi.adminListings(status).then((r) => { setItems(r.items); setSel([]); }).catch(showApiError);
   useEffect(() => { load(); }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
   const decide = (id, action) => marketApi.decide(id, { action, waive_sale_fee: !!waive[id], notes: notes[id] || "" })
     .then(() => { toast.success(action === "approve" ? "Approved — now live" : "Rejected"); load(); }).catch(showApiError);
+  const pending = items.filter((l) => l.status === "pending");
+  const bulk = (action) => {
+    if (action === "reject" && !window.confirm(`Reject ${sel.length} listing(s)?`)) return;
+    marketApi.bulkDecide(sel, { action, waive_sale_fee: !!waive.__bulk, notes: notes.__bulk || "" })
+      .then((r) => { toast.success(`${r.decided} listing(s) ${action === "approve" ? "approved" : "rejected"}`); load(); }).catch(showApiError);
+  };
   return (
     <section className="mt-4" data-testid="mkt-approvals">
       <div className="flex gap-2 items-center"><b>Listings</b>
@@ -39,9 +46,17 @@ function Approvals() {
           {["pending", "live", "sold", "rejected", "closed_unsold", "all"].map((x) => <option key={x} value={x}>{x}</option>)}
         </select></div>
       {items.length === 0 && <p className="text-sm opacity-70 mt-2">Nothing here.</p>}
+      {pending.length > 1 && <div className="pmc-panel p-3 mt-2 flex flex-wrap gap-2 items-center text-sm" data-testid="mkt-bulk-bar">
+        <label><input type="checkbox" checked={sel.length === pending.length} onChange={(e) => setSel(e.target.checked ? pending.map((l) => l.id) : [])} data-testid="mkt-bulk-all" /> Select all pending ({pending.length})</label>
+        <span className="opacity-70">{sel.length} selected</span>
+        <label><input type="checkbox" checked={!!waive.__bulk} onChange={(e) => setWaive({ ...waive, __bulk: e.target.checked })} data-testid="mkt-bulk-waive" /> Waive sale fee</label>
+        <input className="pmc-input" placeholder="Note to suppliers" value={notes.__bulk || ""} onChange={(e) => setNotes({ ...notes, __bulk: e.target.value })} data-testid="mkt-bulk-note" />
+        <button className="pmc-btn pmc-btn--primary pmc-btn--sm" disabled={!sel.length} onClick={() => bulk("approve")} data-testid="mkt-bulk-approve">Approve selected</button>
+        <button className="pmc-btn pmc-btn--secondary pmc-btn--sm" disabled={!sel.length} onClick={() => bulk("reject")} data-testid="mkt-bulk-reject">Reject selected</button>
+      </div>}
       {items.map((l) => (
         <div key={l.id} className="pmc-panel p-3 mt-2 text-sm" data-testid={`mkt-admin-row-${l.id}`}>
-          <div><b>{l.title}</b> · {l.seller_name} · {l.sale_modes.map((m) => MODE_LABEL[m]).join(", ")} · {l.status}</div>
+          <div>{l.status === "pending" && pending.length > 1 && <input type="checkbox" className="mr-2" checked={sel.includes(l.id)} onChange={(e) => setSel((s) => (e.target.checked ? [...s, l.id] : s.filter((x) => x !== l.id)))} data-testid={`mkt-sel-${l.id}`} />}<b>{l.title}</b> · {l.seller_name} · {l.sale_modes.map((m) => MODE_LABEL[m]).join(", ")} · {l.status}</div>
           <div className="opacity-80 mt-1">{l.description?.slice(0, 300)}</div>
           {(l.photos?.length > 0 || l.documents?.length > 0) && <div className="flex flex-wrap gap-2 mt-2 items-center" data-testid={`mkt-admin-media-${l.id}`}>
             {(l.photos || []).map((p) => <a key={p} href={mediaUrl(p)} target="_blank" rel="noreferrer"><img src={mediaUrl(p)} alt="" className="w-14 h-14 object-cover rounded" /></a>)}

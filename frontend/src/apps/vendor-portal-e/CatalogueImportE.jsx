@@ -58,6 +58,20 @@ function ImportProgress({ job }) {
     </div>);
 }
 
+function EarlierImports({ onOpen }) {
+  const [rows, setRows] = useState([]);
+  useEffect(() => { marketApi.imports().then((r) => setRows(r.items)).catch(() => {}); }, []);
+  if (!rows.length) return null;
+  const open = (id) => marketApi.getImport(id).then(onOpen).catch(showApiError);
+  return (
+    <div className="text-sm" data-testid="cat-earlier">
+      <div className="font-medium mt-2">Or reopen an earlier import (no new upload, no new AI reading)</div>
+      {rows.map((r) => (
+        <button key={r.id} type="button" className="block underline text-left mt-1" onClick={() => open(r.id)} data-testid={`cat-earlier-${r.id}`}>
+          {r.file_name} · {r.products} product(s) · {new Date(r.created_at).toLocaleDateString()}</button>))}
+    </div>);
+}
+
 export default function CatalogueImportE({ onDone, onCancel }) {
   const ref = useRef();
   const [job, setJob] = useState(null);
@@ -105,6 +119,7 @@ export default function CatalogueImportE({ onDone, onCancel }) {
         <button type="button" className="pmc-btn pmc-btn--secondary" onClick={onCancel} data-testid="cat-cancel">Cancel</button>
         <span className="text-xs opacity-70 w-full">PDF, JPG or PNG · max 25 MB · up to 200 pages</span>
       </div>}
+      {!job && <EarlierImports onOpen={(d) => { setJob(d); setItems((d.products || []).map(toItem)); }} />}
       <input ref={ref} type="file" accept="application/pdf,image/jpeg,image/png" hidden onChange={(e) => start(e.target.files[0])} data-testid="cat-file-input" />
       {job && ["uploading", "reading"].includes(job.status) && <ImportProgress job={job} />}
       {job?.status === "failed" && <div className="flex gap-2 items-center text-sm" data-testid="cat-failed">{job.error}<button className="pmc-btn pmc-btn--secondary pmc-btn--sm" onClick={() => setJob(null)} data-testid="cat-retry">Try another file</button></div>}
