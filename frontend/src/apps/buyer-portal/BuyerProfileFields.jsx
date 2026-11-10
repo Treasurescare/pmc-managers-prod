@@ -3,13 +3,17 @@ import { api } from "@/lib/api";
 import { useCountries } from "@/components/CountryPicker";
 
 function useList(url) {
-  const [rows, setRows] = useState([]);
+  const [rows, setRows] = useState(null);
   useEffect(() => {
-    if (!url) { setRows([]); return; }
-    api.get(url).then((r) => setRows(r.data || [])).catch(() => setRows([]));
+    let live = true;
+    setRows(null);
+    if (url) api.get(url).then((r) => { if (live) setRows(r.data || []); }).catch(() => { if (live) setRows([]); });
+    return () => { live = false; };
   }, [url]);
   return rows;
 }
+
+const uniq = (rows) => [...new Map((rows || []).map((c) => [`${c.state_code}|${c.name}`, c])).values()];
 
 const L = ({ t, req, children }) => (
   <label className="text-xs grid gap-1"><span>{t}{req && <b className="text-red-700"> *</b>}</span>{children}</label>);
@@ -18,9 +22,10 @@ const L = ({ t, req, children }) => (
 export function BuyerProfileFields({ f, set, prefix = "buyer", withOrg = true }) {
   const countries = useCountries();
   const country = countries.find((c) => c.code === f.country_code);
-  const states = useList(f.country_code ? `/api/v1/masters/states?country_code=${f.country_code}` : null);
+  const statesRaw = useList(f.country_code ? `/api/v1/masters/states?country_code=${f.country_code}` : null);
+  const states = statesRaw || [];
   const needState = states.length > 0 && !f.state_code;
-  const cities = useList(f.country_code && !needState ? `/api/v1/masters/cities?country_code=${f.country_code}${f.state_code ? `&state_code=${encodeURIComponent(f.state_code)}` : ""}&limit=500` : null);
+  const cities = uniq(useList(f.country_code && statesRaw && !needState ? `/api/v1/masters/cities?country_code=${f.country_code}${f.state_code ? `&state_code=${encodeURIComponent(f.state_code)}` : ""}&limit=500` : null));
   const patch = (o) => set({ ...f, ...o });
   return (
     <div className="grid sm:grid-cols-2 gap-3">
@@ -43,7 +48,7 @@ export function BuyerProfileFields({ f, set, prefix = "buyer", withOrg = true })
         <select className="pmc-input" value={f.city || ""} disabled={!cities.length} onChange={(e) => patch({ city: e.target.value })} data-testid={`${prefix}-city`}>
           <option value="">{needState ? "Choose a state first" : cities.length ? "City…" : "Choose a country first"}</option>
           {f.city && !cities.some((c) => c.name === f.city) && <option value={f.city}>{f.city}</option>}
-          {cities.map((c) => <option key={`${c.state_code}-${c.name}`} value={c.name}>{c.name}</option>)}
+          {cities.map((c) => <option key={`${c.state_code}|${c.name}`} value={c.name}>{c.name}</option>)}
         </select></L>
       <L t="Address (optional)"><input className="pmc-input" value={f.address || ""} onChange={(e) => patch({ address: e.target.value })} data-testid={`${prefix}-address`} /></L>
       <L t="ZIP / postal code (optional)"><input className="pmc-input" value={f.zip || ""} placeholder={country?.postal_code_format || ""} onChange={(e) => patch({ zip: e.target.value })} data-testid={`${prefix}-zip`} /></L>

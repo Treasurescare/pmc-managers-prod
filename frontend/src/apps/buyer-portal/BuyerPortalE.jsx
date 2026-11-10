@@ -115,7 +115,7 @@ function Notifications() {
       <div className="grid gap-2">{items.map((n) => (
         <div key={n.id} className={`pmc-panel p-3 text-sm ${n.read ? "opacity-60" : "border-l-4 border-emerald-700"}`} data-testid={`buyer-notif-${n.id}`}>
           <div className="flex gap-2"><b className="flex-1">{n.subject}</b><span className="text-xs opacity-60">{day(n.created_at)}</span></div>
-          <div className="text-xs mt-1" dangerouslySetInnerHTML={{ __html: n.body }} />
+          <div className="text-xs mt-1 whitespace-pre-line" data-testid={`buyer-notif-body-${n.id}`}>{String(n.body || "").replace(/<[^>]*>/g, " ").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, "\"").replace(/&#x27;/g, "'").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim()}</div>
           <div className="flex gap-3 mt-1 text-xs">{n.link && <Link className="underline" to={n.link} onClick={() => read(n.id)}>Open</Link>}
             {!n.read && <button className="underline" onClick={() => read(n.id)} data-testid={`buyer-notif-read-${n.id}`}>Mark read</button>}</div>
         </div>))}</div>

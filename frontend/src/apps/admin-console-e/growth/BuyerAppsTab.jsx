@@ -20,6 +20,7 @@ const Decide = ({ a, onDone }) => {
     .then((r) => {
       if (action !== "approve") toast.success("Rejected");
       else if (r.signin_status === "sent") toast.success(`Approved · ${r.tenant_code} · sign-in emailed to ${r.signin_email}`);
+      else if (r.signin_status === "self_registered") toast.success(`Approved · ${r.tenant_code} · buyer notified and can now bid`);
       else toast.warning(`Approved · ${r.tenant_code}. ${r.signin_email} already has another PMC sign-in — send the buyer sign-in to a different email.`, { duration: 10000 });
       onDone();
     }).catch(showApiError);

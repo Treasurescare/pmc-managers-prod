@@ -106,6 +106,8 @@ async def current_admin(request: Request) -> dict:
         user = await db.admin_users.find_one({"_id": ObjectId(payload["sub"])})
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
+        if not user.get("is_active", True):
+            raise HTTPException(status_code=403, detail="Account disabled")
         # Return the active role from the JWT (multi-role support), and
         # ALL roles the user actually holds — useful for role-switching UIs.
         active_role = payload.get("role") or user.get("role") or "admin"

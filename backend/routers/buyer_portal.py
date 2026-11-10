@@ -3,6 +3,7 @@ in-app notifications, and PMC-approved team invites. Buyers are admin_users with
 tenant (source buyer_application) is created when PMC approves them."""
 import re
 from datetime import timedelta
+from html import escape as E
 from typing import Literal, Optional
 
 import jwt
@@ -93,7 +94,7 @@ def _verify_token(uid: str, email: str) -> str:
 
 @router.post("/register")
 async def register(body: RegisterIn, request: Request):
-    ip = (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "")).split(",")[0]
+    ip = (request.headers.get("x-forwarded-for") or (request.client.host if request.client else "")).split(",")[-1].strip()
     if await db.buyer_applications.count_documents({"ip": ip, "created_at": {"$gte": (_now() - timedelta(hours=1)).isoformat()}}) >= 5:
         raise HTTPException(status_code=429, detail="Too many registrations. Please try again later.")
     email = body.email.lower()
@@ -111,7 +112,7 @@ async def register(body: RegisterIn, request: Request):
     await db.buyer_applications.update_one({"_id": r.inserted_id}, {"$set": {"user_id": str(u.inserted_id)}})
     url = f"{config.FRONTEND_URL.rstrip('/')}/buyers/verify-email?token={_verify_token(str(u.inserted_id), email)}"
     await vendor_confirm(email, "Confirm your email — PMC Managers buyer account",
-                         f"<p>Hello {prof['name']},</p><p>Thanks for registering as a buyer. Please confirm your email address "
+                         f"<p>Hello {E(prof['name'])},</p><p>Thanks for registering as a buyer. Please confirm your email address "
                          "(the link works for 3 days). After that, PMC verifies your account and you can bid and buy.</p>", "Confirm my email", url)
     return {"ok": True}
 
@@ -136,7 +137,7 @@ async def verify_email(body: TokenIn):
         a = await db.buyer_applications.find_one_and_update({"user_id": str(u["_id"])}, {"$set": {"email_verified": True}})
         if a:
             await notify_role("admin", f"New buyer registration — {a['org_name']}",
-                              f"<p>{a['contact_name']} &lt;{a['email']}&gt; ({a['country']}) registered as a buyer and confirmed their email.</p>"
+                              f"<p>{E(a['contact_name'])} &lt;{E(a['email'])}&gt; ({a['country']}) registered as a buyer and confirmed their email.</p>"
                               "<p>Review in Admin → Growth → Buyer applications.</p>", "buyer_application", str(a["_id"]))
     return {"ok": True, "email": u["email"]}
 
@@ -271,7 +272,9 @@ def _org_admin(b: dict) -> dict:
 @router.get("/team")
 async def team(b=Depends(current_buyer)):
     if not b["tenant"]:
-        return {"members": [], "requests": []}
+        u = b["user"]
+        return {"members": [{"id": b["id"], "name": u.get("name"), "email": u["email"], "is_org_admin": bool(u.get("is_org_admin")),
+                             "is_active": True, "me": True}], "requests": []}
     code = b["tenant"]["code"]
     members = [{"id": str(u["_id"]), "name": u.get("name"), "email": u["email"], "is_org_admin": bool(u.get("is_org_admin")),
                 "is_active": u.get("is_active", True), "me": str(u["_id"]) == b["id"]}
@@ -293,7 +296,7 @@ async def invite(body: InviteIn, b=Depends(buyer_write)):
     r = await db.buyer_team_requests.insert_one(doc)
     await audit_log("buyer.team_invite", {"id": b["id"], "email": b["email"]}, "buyer_team_request", str(r.inserted_id), {"email": email})
     await notify_role("admin", f"Buyer team invite to approve — {doc['org_name']}",
-                      f"<p>{b['email']} wants to add {doc['name']} &lt;{email}&gt; to {doc['org_name']}.</p>"
+                      f"<p>{E(b['email'])} wants to add {E(doc['name'])} &lt;{E(email)}&gt; to {E(doc['org_name'])}.</p>"
                       "<p>Review in Admin → Growth → Buyer applications → Team invites.</p>", "buyer_team_request", str(r.inserted_id))
     return {"ok": True, "id": str(r.inserted_id)}
 

@@ -4,6 +4,7 @@ import hashlib
 import json
 import re
 import secrets
+from html import escape
 from datetime import datetime, timedelta, timezone
 from typing import Literal, Optional
 
@@ -646,7 +647,7 @@ async def approve_buyer_app(a: dict, admin: dict, code: Optional[str] = None, ti
     if a.get("user_id") and ObjectId.is_valid(a["user_id"]):
         await db.admin_users.update_one({"_id": ObjectId(a["user_id"]), "tenant_id": f"PENDING-{a['_id']}"}, {"$set": {"tenant_id": code}})
         await notify_user(a["user_id"], a["email"], "Your buyer account is verified",
-                          f"<p><b>{a['org_name']}</b> is now a verified buyer on the PMC marketplace (code <b>{code}</b>). "
+                          f"<p><b>{escape(a['org_name'])}</b> is now a verified buyer on the PMC marketplace (code <b>{code}</b>). "
                           "You can now bid, make offers and buy.</p>", "/buyer")
         return {"tenant_code": code, "signin_status": "self_registered", "signin_email": a["email"]}
     return {"tenant_code": code, **(await _send_buyer_signin({**a, "tenant_code": code}, a["email"], a["contact_name"], admin, approved=True))}
@@ -680,10 +681,11 @@ async def _send_buyer_signin(a: dict, email: str, name: str, admin: dict, approv
     token = jwt.encode({"sub": str(uid), "email": email, "portal": "buyer", "jti": jti, "type": "pwd_reset", "iat": _now(),
                         "exp": _now() + timedelta(days=INVITE_DAYS)}, config.JWT_SECRET, algorithm=config.JWT_ALGORITHM)
     url = f"{config.FRONTEND_URL.rstrip('/')}/reset-password?token={token}"
-    intro = (f"Good news — <b>{a['org_name']}</b> is approved as a verified buyer organisation on the Global Tender Grid. "
-             f"Your organisation code is <b>{code}</b>." if approved else f"Here is your buyer sign-in for <b>{a['org_name']}</b> ({code}).")
+    org = escape(a["org_name"])
+    intro = (f"Good news — <b>{org}</b> is approved as a verified buyer organisation on the Global Tender Grid. "
+             f"Your organisation code is <b>{code}</b>." if approved else f"Here is your buyer sign-in for <b>{org}</b> ({code}).")
     await vendor_confirm(email, "Your PMC Managers buyer sign-in",
-                         f"<p>Hello {name},</p><p>{intro}</p><p>Your sign-in email is <b>{email}</b>. Use the button below to choose your password "
+                         f"<p>Hello {escape(name)},</p><p>{intro}</p><p>Your sign-in email is <b>{escape(email)}</b>. Use the button below to choose your password "
                          f"(the link works for {INVITE_DAYS} days). Then sign in at the Sign in page, pick <b>Buyer organisation</b>, and you can bid, "
                          "make offers or buy on the marketplace.</p>", "Set my password", url)
     await audit_log("buyer.signin_sent", admin, "admin_user", str(uid), {"email": email, "tenant": code, "new": new})

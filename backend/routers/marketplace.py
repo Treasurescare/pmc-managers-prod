@@ -5,6 +5,7 @@ the sale fee) -> live -> bids / offers / buy-now -> order -> buyer pays PMC by S
 PMC keeps its sale fee and pays the seller's net amount to the seller's bank account (payout ledger).
 """
 import re
+from html import escape as E
 from datetime import datetime, timezone
 from typing import Literal, Optional
 
@@ -140,7 +141,7 @@ async def _make_order(lst: dict, bidder: dict, amount: float, via: str) -> dict:
                     {"amount": amount, "fee": fee, "via": via})
     what = {"auction": "You won the auction", "best_offer": "Your offer was accepted", "fixed": "Order placed"}[via]
     await notify_bidder(bidder, f"{what} — {lst['title']}",
-                        f"<p><b>{lst['title']}</b> for <b>{lst['currency']} {amount:,.2f}</b>. Please pay to complete the purchase.</p>", "/buyer/orders")
+                        f"<p><b>{E(lst['title'])}</b> for <b>{lst['currency']} {amount:,.2f}</b>. Please pay to complete the purchase.</p>", "/buyer/orders")
     return doc
 
 
@@ -279,8 +280,10 @@ async def set_delivery(oid: str, body: DeliveryIn, v=Depends(_seller)):
     o = await db.mkt_orders.find_one({"_id": _oid(oid), "seller_id": v["id"], "status": "paid"})
     if not o:
         raise HTTPException(status_code=404, detail="Paid order not found")
+    if o.get("delivery_status") == "received":
+        raise HTTPException(status_code=409, detail="The buyer has already confirmed receipt")
     await db.mkt_orders.update_one({"_id": o["_id"]}, {"$set": {"delivery_status": body.status, "delivery_note": body.note, f"{body.status}_at": now_iso()}})
-    await notify_bidder(o["buyer"], f"Order {body.status} — {o['title']}", f"<p>The seller marked your order as <b>{body.status}</b>. {body.note}</p>", "/buyer/orders")
+    await notify_bidder(o["buyer"], f"Order {body.status} — {o['title']}", f"<p>The seller marked your order as <b>{body.status}</b>. {E(body.note)}</p>", "/buyer/orders")
     return {"ok": True}
 
 
@@ -341,7 +344,7 @@ async def place_bid(lid: str, body: BidIn, request: Request):
     await db.mkt_bids.insert_one({"listing_id": d["_id"], "kind": "bid", "amount": body.amount, "bidder": who, "created_at": now_iso()})
     if prev and prev["bidder"].get("id") != who["id"]:
         await notify_bidder(prev["bidder"], f"You have been outbid — {d['title']}",
-                            f"<p>A higher bid of <b>{d['currency']} {body.amount:,.2f}</b> was placed on <b>{d['title']}</b>.</p>", f"/market/{d['_id']}")
+                            f"<p>A higher bid of <b>{d['currency']} {body.amount:,.2f}</b> was placed on <b>{E(d['title'])}</b>.</p>", f"/market/{d['_id']}")
     return {"ok": True, "top_bid": body.amount}
 
 
@@ -379,7 +382,9 @@ async def pay_order(oid: str, request: Request):
     if not o or o["status"] != "awaiting_payment":
         raise HTTPException(status_code=409, detail="This order is not awaiting payment")
     origin = request.headers.get("origin") or _site()
-    link = await _checkout(o["amount"], o["currency"], "marketplace_order", f"/market/purchases?order={oid}", "/market/purchases",
+    link = await _checkout(o["amount"], o["currency"], "marketplace_order",
+                           f"/buyer/orders?order={oid}" if who["kind"] == "buyer" else f"/market/purchases?order={oid}",
+                           "/buyer/orders" if who["kind"] == "buyer" else "/market/purchases",
                            origin, {"order_id": oid}, {"order_id": oid, "buyer": who["email"]})
     await db.mkt_orders.update_one({"_id": o["_id"]}, {"$set": {"session_id": link["session_id"]}})
     return link
