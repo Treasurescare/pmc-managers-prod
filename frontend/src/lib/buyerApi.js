@@ -21,6 +21,9 @@ export const buyerApi = {
   adminTeamRequests: () => g("/api/v1/buyer/admin/team-requests"),
   adminTeamDecide: (id, action) => p(`/api/v1/buyer/admin/team-requests/${id}/decision`, { action }),
   adminAddBuyer: (b) => p("/api/v1/buyer/admin/buyers", b),
+  watchlist: () => g("/api/v1/buyer/watchlist"),
+  watch: (lid) => p(`/api/v1/buyer/watchlist/${lid}`),
+  unwatch: (lid) => api.delete(`/api/v1/buyer/watchlist/${lid}`).then((r) => r.data),
   logout: () => p("/api/v1/staff/auth/logout"),
 };
 

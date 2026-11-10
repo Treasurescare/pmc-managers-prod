@@ -6,7 +6,7 @@ import { buyerApi } from "@/lib/buyerApi";
 import { showApiError } from "@/lib/api";
 
 const NAV = [
-  ["/buyer", "Dashboard", "i-home"], ["/buyer/bids", "Bids & auctions", "i-gavel"], ["/buyer/orders", "Purchases & deliveries", "i-box"],
+  ["/buyer", "Dashboard", "i-home"], ["/buyer/watchlist", "Watchlist", "i-eye"], ["/buyer/bids", "Bids & auctions", "i-gavel"], ["/buyer/orders", "Purchases & deliveries", "i-box"],
   ["/buyer/payments", "Payments & refunds", "i-coin"], ["/market", "Browse marketplace", "i-search"],
 ];
 const NAV2 = [["/buyer/notifications", "Notifications", "i-bell"], ["/buyer/team", "My team", "i-users"], ["/buyer/profile", "Profile & security", "i-settings"]];
@@ -97,7 +97,7 @@ export default function BuyerChrome({ children }) {
       </div>
       <footer className="pmc-chrome" style={{ padding: "20px 0" }} data-testid="buyer-footer"><div className="pmc-wrap" style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12, fontSize: 13 }}>
         <span>PMC Managers · Buyer portal</span>
-        <span style={{ display: "flex", gap: 16 }}><Link to="/market">Marketplace</Link><Link to="/help">Help Centre</Link><Link to="/privacy">Privacy</Link><span className="pmc-muted">© 2026 PMC Managers Limited</span></span>
+        <span style={{ display: "flex", gap: 16, flexWrap: "wrap", whiteSpace: "nowrap" }}><Link to="/market">Marketplace</Link><Link to="/help">Help Centre</Link><Link to="/privacy">Privacy</Link><span className="pmc-muted">© 2026 PMC Managers Limited</span></span>
       </div></footer>
     </Ctx.Provider>);
 }

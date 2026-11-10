@@ -5,6 +5,7 @@ import PublicChrome from "@/apps/shared/PublicChrome";
 import { useSeo } from "@/lib/useSeo";
 import { CategoryAlerts } from "./CategoryAlerts";
 import { WhoCanBuy } from "./WhoCanBuy";
+import { SaveButton } from "./SaveButton";
 import { coverOf, marketApi, mediaUrl, MODE_LABEL, money } from "@/lib/marketApi";
 import { showApiError } from "@/lib/api";
 
@@ -16,7 +17,8 @@ const signInHint = (e) => {
 
 function Card({ l }) {
   return (
-    <Link to={`/market/${l.id}`} className="pmc-panel p-4 block hover:opacity-90" data-testid={`market-card-${l.id}`}>
+    <Link to={`/market/${l.id}`} className="pmc-panel p-4 block hover:opacity-90 relative" data-testid={`market-card-${l.id}`}>
+      <SaveButton id={l.id} compact />
       {coverOf(l) && <img src={coverOf(l)} alt="" className="w-full h-40 object-cover rounded mb-2" />}
       <div className="font-semibold">{l.title}</div>
       <div className="text-xs opacity-75 mt-1">{l.seller_name} · {l.quantity} {l.unit}{l.location ? ` · ${l.location}` : ""}</div>
@@ -55,7 +57,7 @@ function Detail({ id }) {
     <div className="grid gap-4 md:grid-cols-2" data-testid="market-detail">
       <div>
         <Gallery l={l} />
-        <h1 className="text-2xl font-semibold" data-testid="market-detail-title">{l.title}</h1>
+        <div className="flex items-start gap-3"><h1 className="text-2xl font-semibold flex-1" data-testid="market-detail-title">{l.title}</h1><SaveButton id={l.id} /></div>
         <div className="text-sm opacity-80 mt-1">Sold by {l.seller_name} · {l.quantity} {l.unit}{l.location ? ` · ${l.location}` : ""}{l.category ? ` · ${l.category}` : ""}</div>
         <p className="mt-3 whitespace-pre-wrap text-sm">{l.description}</p>
         {l.documents?.length > 0 && <div className="mt-3 text-sm" data-testid="market-docs"><b>Spec sheets</b>{l.documents.map((d) => (

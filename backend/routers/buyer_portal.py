@@ -1,14 +1,15 @@
 """Buyer portal: free self-registration, profile (masters-backed), dashboard of bids/orders/payments,
 in-app notifications, and PMC-approved team invites. Buyers are admin_users with role "buyer" whose
 tenant (source buyer_application) is created when PMC approves them."""
+import asyncio
 import re
-from datetime import timedelta
+from datetime import datetime, timedelta
 from html import escape as E
 from typing import Literal, Optional
 
 import jwt
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
 
 import config
@@ -372,3 +373,74 @@ async def admin_add_buyer(body: AdminBuyerIn, request: Request, admin=Depends(pm
 async def notify_bidder(who: dict, subject: str, body: str, link: str) -> None:
     """Marketplace event to a buyer (bell by user id) or supplier (bell by email)."""
     await notify_user(who.get("id") if who.get("kind") == "buyer" else None, who.get("email"), subject, body, link)
+
+
+# ---------- watchlist + closing reminders ----------
+@router.get("/watchlist")
+async def watchlist(b=Depends(current_buyer)):
+    rows = await db.mkt_watch.find({"user_id": b["id"]}).sort("created_at", -1).to_list(300)
+    ls = {x["_id"]: x async for x in db.mkt_listings.find({"_id": {"$in": [r["listing_id"] for r in rows]}},
+                                                         {"title": 1, "status": 1, "currency": 1, "closes_at": 1, "sale_modes": 1, "photos": 1})}
+    out = []
+    for r in rows:
+        lst = ls.get(r["listing_id"])
+        if lst:
+            out.append({"listing_id": str(lst["_id"]), "title": lst["title"], "status": lst["status"], "currency": lst.get("currency"),
+                        "closes_at": lst.get("closes_at"), "sale_modes": lst.get("sale_modes", []), "photo": (lst.get("photos") or [None])[0],
+                        "saved_at": r["created_at"], "reminded": bool(r.get("reminded_at"))})
+    return {"items": out, "ids": [o["listing_id"] for o in out]}
+
+
+@router.post("/watchlist/{lid}")
+async def watch(lid: str, b=Depends(buyer_write)):
+    lst = await db.mkt_listings.find_one({"_id": ObjectId(lid), "status": {"$in": ["live", "sold", "closed"]}}) if ObjectId.is_valid(lid) else None
+    if not lst:
+        raise HTTPException(status_code=404, detail="Product not found")
+    if await db.mkt_watch.count_documents({"user_id": b["id"]}) >= 300:
+        raise HTTPException(status_code=429, detail="Your watchlist is full (300 products)")
+    await db.mkt_watch.update_one({"user_id": b["id"], "listing_id": lst["_id"]},
+                                  {"$setOnInsert": {"email": b["user"]["email"], "created_at": now_iso()}}, upsert=True)
+    return {"ok": True, "saved": True}
+
+
+@router.delete("/watchlist/{lid}")
+async def unwatch(lid: str, b=Depends(buyer_write)):
+    if ObjectId.is_valid(lid):
+        await db.mkt_watch.delete_one({"user_id": b["id"], "listing_id": ObjectId(lid)})
+    return {"ok": True, "saved": False}
+
+
+REMIND_MINUTES = 60
+cron_router = APIRouter(prefix="/api/v1/cron", tags=["cron"])
+
+
+@cron_router.post("/market-closing-reminders")
+async def market_closing_reminders(authorization: str = Header(default=""), x_webhook_id: str = Header(default="")):
+    # Cron endpoints must ack 2xx immediately; enqueue/background the actual work.
+    from routers.cron_escrow import _verify_bearer
+    _verify_bearer(authorization)
+    run_id = x_webhook_id or now_iso()
+    if await db.cron_runs.find_one({"run_id": run_id, "name": "market-closing-reminders"}):
+        return {"ok": True, "duplicate": True}
+    await db.cron_runs.insert_one({"run_id": run_id, "name": "market-closing-reminders", "started_at": now_iso()})
+    asyncio.create_task(send_closing_reminders(run_id))
+    return {"ok": True, "run_id": run_id, "status": "queued"}
+
+
+async def send_closing_reminders(run_id: Optional[str] = None) -> int:
+    """Remind watchers once when a live auction closes within the next hour."""
+    now = _now()
+    soon = (now + timedelta(minutes=REMIND_MINUTES)).isoformat()
+    sent = 0
+    async for lst in db.mkt_listings.find({"status": "live", "sale_modes": "auction", "closes_at": {"$gt": now.isoformat(), "$lte": soon}}):
+        mins = max(1, int((datetime.fromisoformat(str(lst["closes_at"]).replace("Z", "+00:00")) - now).total_seconds() // 60))
+        async for w in db.mkt_watch.find({"listing_id": lst["_id"], "reminded_at": None}):
+            r = await db.mkt_watch.update_one({"_id": w["_id"], "reminded_at": None}, {"$set": {"reminded_at": now_iso()}})
+            if r.modified_count:
+                await notify_user(w["user_id"], w.get("email"), f"Closing in {mins} minutes \u2014 {lst['title']}",
+                                  f"<p>The auction for <b>{E(lst['title'])}</b>, on your watchlist, closes in about {mins} minutes. "
+                                  "Place or raise your bid before it ends.</p>", f"/market/{lst['_id']}")
+                sent += 1
+    if run_id:
+        await db.cron_runs.update_one({"run_id": run_id, "name": "market-closing-reminders"}, {"$set": {"finished_at": now_iso(), "sent": sent}})
+    return sent

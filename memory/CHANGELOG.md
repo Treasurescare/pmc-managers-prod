@@ -1111,3 +1111,8 @@ summary notes.
 - Login page: "Register as a buyer — free" for the Buyer organisation card; public header shows "Buyer? Join free" and a buyer name menu when signed in; forgot password has Buyer option.
 - Security: deactivated accounts are blocked on every session (current_admin), notification/email HTML escaped, rate-limit uses last X-Forwarded-For hop. Tested iteration_190/191 (22/22 backend + UI).
 - Not done: SMS code verification (needs an SMS provider such as Twilio).
+
+## v61l — 2026-11-10 — Buyer watchlist
+- Buyers tap "♡ Save" on marketplace cards / product page (shown only to signed-in buyers). New Buyer portal → Watchlist page (remove, closing time, "reminder sent").
+- API: GET/POST/DELETE /api/v1/buyer/watchlist[/{listing_id}] (mkt_watch, unique per user+listing, max 300).
+- Reminder: POST /api/v1/cron/market-closing-reminders (Bearer WEBHOOK_CRON_SECRET) sends one bell + email per watcher when a live auction closes within 60 min; .emergent/crons.yml market-close-remind every 15 min (so reminders land 45–60 min before close). Self-hosted AWS needs an EventBridge schedule calling the same endpoint.

@@ -530,3 +530,5 @@ async def ensure_indexes():
     await db.mkt_bids.create_index([("listing_id", 1), ("kind", 1), ("amount", -1)])
     await db.mkt_orders.create_index("seller_id")
     await db.mkt_orders.create_index("buyer.id")
+    await db.mkt_watch.create_index([("user_id", 1), ("listing_id", 1)], unique=True)
+    await db.mkt_watch.create_index([("listing_id", 1), ("reminded_at", 1)])

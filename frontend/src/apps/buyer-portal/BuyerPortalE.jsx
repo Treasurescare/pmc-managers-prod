@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import BuyerChrome, { useBuyer } from "./BuyerChrome";
 import { BuyerTeam, BuyerProfile } from "./BuyerAccount";
 import { buyerApi, money, day } from "@/lib/buyerApi";
-import { marketApi } from "@/lib/marketApi";
+import { marketApi, mediaUrl } from "@/lib/marketApi";
 import { showApiError } from "@/lib/api";
 
 const BADGE = { leading: "bg-emerald-100 text-emerald-900", won: "bg-emerald-200 text-emerald-950", outbid: "bg-amber-100 text-amber-900",
@@ -122,7 +122,26 @@ function Notifications() {
     </div>);
 }
 
-const PAGES = { "": Home, bids: Bids, orders: Orders, payments: Payments, notifications: Notifications, team: BuyerTeam, profile: BuyerProfile };
+function Watchlist() {
+  const [d, setD] = useState(null);
+  const load = useCallback(() => buyerApi.watchlist().then(setD).catch(showApiError), []);
+  useEffect(() => { load(); }, [load]);
+  const rm = (id) => buyerApi.unwatch(id).then(() => { toast.success("Removed from your watchlist"); load(); }).catch(showApiError);
+  if (!d) return null;
+  return (
+    <div data-testid="buyer-watchlist"><H t="Watchlist" sub="Products you saved. For auctions we remind you (bell + email) about an hour before they close." />
+      {!d.items.length && <Empty t="Nothing saved yet. Tap ♡ Save on any marketplace product." id="buyer-watch-empty" />}
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">{d.items.map((w) => (
+        <div key={w.listing_id} className="pmc-panel p-3 text-sm grid gap-1" data-testid={`buyer-watch-${w.listing_id}`}>
+          {w.photo && <img src={mediaUrl(w.photo)} alt="" className="w-full h-32 object-cover rounded" />}
+          <Link className="font-semibold underline" to={`/market/${w.listing_id}`}>{w.title}</Link>
+          <div className="text-xs opacity-70">{w.status === "live" ? (w.closes_at ? `Closes ${new Date(w.closes_at).toLocaleString()}` : "Open") : w.status}{w.reminded ? " · reminder sent" : ""}</div>
+          <button className="pmc-btn pmc-btn--secondary pmc-btn--sm justify-self-start" onClick={() => rm(w.listing_id)} data-testid={`buyer-watch-remove-${w.listing_id}`}>Remove</button>
+        </div>))}</div>
+    </div>);
+}
+
+const PAGES = { "": Home, watchlist: Watchlist, bids: Bids, orders: Orders, payments: Payments, notifications: Notifications, team: BuyerTeam, profile: BuyerProfile };
 
 export default function BuyerPortalE() {
   const loc = useLocation();
