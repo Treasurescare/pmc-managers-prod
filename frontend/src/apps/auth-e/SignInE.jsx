@@ -20,7 +20,7 @@ export default function SignInE({ legacy: Legacy }) {
   const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "";
   const nextRole = next.startsWith("/admin") ? "admin" : next.startsWith("/staff") ? "staff" : next.startsWith("/vendor") ? "supplier" : next.startsWith("/escrow") ? "escrow" : next.startsWith("/partner") ? "partner" : "supplier";
   const qRole = params.get("role");
-  const [role, setRole] = useState(["supplier", "staff", "admin", "escrow", "partner"].includes(qRole) ? qRole : nextRole); // supplier | staff | admin
+  const [role, setRole] = useState(["supplier", "staff", "admin", "escrow", "partner", "buyer"].includes(qRole) ? qRole : nextRole); // supplier | staff | admin
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -120,7 +120,7 @@ export default function SignInE({ legacy: Legacy }) {
       // The "PMC staff" card must NEVER sign a user in as admin — that would
       // let an escrow/specialist account escalate to the admin console. Admin
       // sign-in is only via the "Administrator" card (roleCandidates=["admin"]).
-      const roleCandidates = role === "admin" ? ["admin"] : allStaffRoles;
+      const roleCandidates = role === "admin" ? ["admin"] : role === "buyer" ? ["buyer"] : allStaffRoles;
       let lastErr = null;
       let mfaDetail = null;
       for (const rc of roleCandidates) {
@@ -133,6 +133,7 @@ export default function SignInE({ legacy: Legacy }) {
           if (isLoginJson && r.active_role) {
             toast.success(`Signed in · ${r.active_role}`);
             if (r.active_role === "admin") return nav(next.startsWith("/admin") ? next : "/admin");
+            if (r.active_role === "buyer") return nav(next.startsWith("/market") ? next : "/market");
             return nav(next.startsWith("/staff") ? next : "/staff");
           }
           if (isLoginJson && r.mfa_required) {
@@ -169,7 +170,7 @@ export default function SignInE({ legacy: Legacy }) {
       }
       // v50g bug #124 — show a clear role-aware error toast (duration 8s) so
       // testers never think a wrong-credentials sign-in silently succeeded.
-      const roleLabel = role === "admin" ? "Administrator" : "PMC staff";
+      const roleLabel = role === "admin" ? "Administrator" : role === "buyer" ? "Buyer organisation" : "PMC staff";
       toast.error(
         `Sign-in failed for the ${roleLabel} portal. Check your email, password, and that you picked the right role.`,
         { duration: 8000 }
@@ -259,6 +260,7 @@ export default function SignInE({ legacy: Legacy }) {
 
             <div style={{ display: "grid", gap: "8px", marginBottom: "20px" }}>
               <RoleRadio value="supplier" label="Supplier" sub="Bid, pay EMD, sign contracts" icon="i-users" />
+              <RoleRadio value="buyer" label="Buyer organisation" sub="Bid, offer and buy on the marketplace" icon="i-box" />
               <RoleRadio value="staff" label="PMC staff" sub="Tender desk, evaluation, escrow" icon="i-file" />
               <RoleRadio value="admin" label="Administrator" sub="Configuration and audit" icon="i-shield" />
               <RoleRadio value="escrow" label="Escrow Institution" sub="Banks & trustees · dual-signature sign-off" icon="i-link" />

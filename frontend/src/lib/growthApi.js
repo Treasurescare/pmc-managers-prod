@@ -33,6 +33,7 @@ export const growthApi = {
   applyBuyer: (b) => p("/api/v1/buyer-applications", b),
   buyerApps: () => g("/api/v1/buyer-applications"),
   decideBuyer: (id, b) => p(`/api/v1/buyer-applications/${id}/decision`, b),
+  buyerSignin: (id, b) => p(`/api/v1/buyer-applications/${id}/signin`, b),
   apiClients: () => g("/api/v1/data-api/clients"),
   createApiClient: (b) => p("/api/v1/data-api/clients", b),
   updateApiClient: (id, b) => put(`/api/v1/data-api/clients/${id}`, b),

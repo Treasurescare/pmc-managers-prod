@@ -48,7 +48,7 @@ export default function ResetPasswordE() {
       await authApi.confirmPasswordReset(token, pw);
       setStatus("done");
       toast.success("Password updated. You can sign in with your new password.");
-      setTimeout(() => nav(`/login?role=${{ vendor: "supplier", admin: "admin", staff: "staff", partner: "partner" }[meta.portal] || "supplier"}`), 1500);
+      setTimeout(() => nav(`/login?role=${{ vendor: "supplier", admin: "admin", staff: "staff", partner: "partner", buyer: "buyer" }[meta.portal] || "supplier"}`), 1500);
     } catch (err) {
       showApiError(err);
     } finally {
@@ -112,7 +112,7 @@ export default function ResetPasswordE() {
                 <div className="pmc-eyebrow">All set</div>
                 <h2 style={{ fontSize: "24px", lineHeight: "30px", margin: "6px 0 12px" }}>Password updated</h2>
                 <p className="pmc-muted" style={{ margin: "0 0 20px" }}>Redirecting you to sign in…</p>
-                <Link to={`/login?role=${{ vendor: "supplier", admin: "admin", staff: "staff", partner: "partner" }[meta.portal] || "supplier"}`} className="pmc-btn pmc-btn--primary" data-testid="reset-go-signin">
+                <Link to={`/login?role=${{ vendor: "supplier", admin: "admin", staff: "staff", partner: "partner", buyer: "buyer" }[meta.portal] || "supplier"}`} className="pmc-btn pmc-btn--primary" data-testid="reset-go-signin">
                   Sign in now
                 </Link>
               </div>
@@ -122,7 +122,7 @@ export default function ResetPasswordE() {
               <form onSubmit={submit} data-testid="reset-form">
                 <h2 style={{ fontSize: "28px", lineHeight: "34px", margin: "0 0 6px" }}>Choose a new password</h2>
                 <p className="pmc-muted" style={{ margin: "0 0 24px" }}>
-                  For <b>{meta.email}</b>. Link expires 30 minutes after it was sent.
+                  For <b>{meta.email}</b>. {meta.portal === "buyer" ? "Buyer sign-in links expire 7 days after they were sent." : "Link expires 30 minutes after it was sent."}
                 </p>
 
                 <div className="pmc-field">

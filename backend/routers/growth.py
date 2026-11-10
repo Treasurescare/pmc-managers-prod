@@ -620,9 +620,7 @@ async def decide_buyer(aid: str, body: BuyerDecisionIn, admin=Depends(require_ro
                                      "org_type": a["org_type"], "pricing_tier": body.tier, "is_active": True, "created_at": now_iso(),
                                      "created_by": admin["id"], "source": "buyer_application"})
         upd["tenant_code"] = code
-        await vendor_confirm(a["email"], "Your PMC Managers buyer account is approved",
-                             f"<p>Good news — <b>{a['org_name']}</b> is approved to issue tenders on the Global Tender Grid. Your organisation code is "
-                             f"<b>{code}</b>. Our onboarding team will send your administrator sign-in and walk you through your first tender.</p>", None, None)
+        upd.update(await _send_buyer_signin({**a, "tenant_code": code}, a["email"], a["contact_name"], admin, approved=True))
     else:
         await vendor_confirm(a["email"], "Your PMC Managers application",
                              f"<p>Thank you for applying. We are unable to approve <b>{a['org_name']}</b> at this time."
@@ -630,6 +628,63 @@ async def decide_buyer(aid: str, body: BuyerDecisionIn, admin=Depends(require_ro
     await db.buyer_applications.update_one({"_id": a["_id"]}, {"$set": upd})
     await audit_log("buyer_application.decide", admin, "buyer_application", aid, upd)
     return {"ok": True, **upd}
+
+
+INVITE_DAYS = 7
+
+
+async def _send_buyer_signin(a: dict, email: str, name: str, admin: dict, approved: bool = False) -> dict:
+    """Create (or reuse) the buyer-organisation sign-in and email a 7-day set-password link."""
+    import jwt
+    from uuid import uuid4
+    import config
+    from notify import vendor_confirm
+    from security import hash_password
+    code, email = a["tenant_code"], email.lower()
+    u = await db.admin_users.find_one({"email": email})
+    if u and u.get("tenant_id") != code:
+        return {"signin_status": "email_in_use", "signin_email": email}
+    jti = uuid4().hex
+    if u:
+        roles = list(dict.fromkeys([*(u.get("roles") or [u.get("role") or "buyer"]), "buyer"]))
+        await db.admin_users.update_one({"_id": u["_id"]}, {"$set": {"roles": roles, "is_active": True, "pwd_reset_jti": jti}})
+        uid, new = u["_id"], False
+    else:
+        r = await db.admin_users.insert_one({
+            "email": email, "name": name, "password_hash": hash_password(secrets.token_urlsafe(32)), "roles": ["buyer"], "role": "buyer",
+            "account_type": "buyer", "tenant_id": code, "is_active": True, "must_change_password": True, "pwd_reset_jti": jti,
+            "source": "buyer_application", "created_at": now_iso(), "created_by": admin["id"]})
+        uid, new = r.inserted_id, True
+    token = jwt.encode({"sub": str(uid), "email": email, "portal": "buyer", "jti": jti, "type": "pwd_reset", "iat": _now(),
+                        "exp": _now() + timedelta(days=INVITE_DAYS)}, config.JWT_SECRET, algorithm=config.JWT_ALGORITHM)
+    url = f"{config.FRONTEND_URL.rstrip('/')}/reset-password?token={token}"
+    intro = (f"Good news — <b>{a['org_name']}</b> is approved as a verified buyer organisation on the Global Tender Grid. "
+             f"Your organisation code is <b>{code}</b>." if approved else f"Here is your buyer sign-in for <b>{a['org_name']}</b> ({code}).")
+    await vendor_confirm(email, "Your PMC Managers buyer sign-in",
+                         f"<p>Hello {name},</p><p>{intro}</p><p>Your sign-in email is <b>{email}</b>. Use the button below to choose your password "
+                         f"(the link works for {INVITE_DAYS} days). Then sign in at the Sign in page, pick <b>Buyer organisation</b>, and you can bid, "
+                         "make offers or buy on the marketplace.</p>", "Set my password", url)
+    await audit_log("buyer.signin_sent", admin, "admin_user", str(uid), {"email": email, "tenant": code, "new": new})
+    return {"signin_status": "sent", "signin_email": email, "signin_sent_at": now_iso()}
+
+
+class BuyerSigninIn(BaseModel):
+    email: Optional[EmailStr] = None
+    name: Optional[str] = Field(default=None, max_length=120)
+
+
+@router.post("/buyer-applications/{aid}/signin")
+async def send_buyer_signin(aid: str, body: BuyerSigninIn, admin=Depends(require_role(*STAFF))):
+    """Already-approved buyer organisations: create the missing sign-in, add another user, or resend the link."""
+    a = await db.buyer_applications.find_one({"_id": ObjectId(aid)}) if ObjectId.is_valid(aid) else None
+    if not a or a["status"] != "approved" or not a.get("tenant_code"):
+        raise HTTPException(status_code=409, detail="Only approved buyer organisations can get a sign-in")
+    res = await _send_buyer_signin(a, str(body.email or a["email"]), body.name or a["contact_name"], admin)
+    if res["signin_status"] == "email_in_use":
+        raise HTTPException(status_code=409, detail="That email already has a different PMC sign-in. Use another email for this buyer.")
+    if not body.email or body.email.lower() == a["email"]:
+        await db.buyer_applications.update_one({"_id": a["_id"]}, {"$set": res})
+    return {"ok": True, **res}
 
 
 # ----------------------------- 7: tender data API -----------------------------

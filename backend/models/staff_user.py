@@ -11,7 +11,7 @@ StaffRole = Literal[
     "admin", "reviewer",
     "escrow_agent", "certifier", "legal_counsel", "accounting",
     "committee_member", "auditor", "support",
-    "management", "partner", "agent",
+    "management", "partner", "agent", "buyer",
 ]
 
 ALL_STAFF_ROLES: List[str] = [

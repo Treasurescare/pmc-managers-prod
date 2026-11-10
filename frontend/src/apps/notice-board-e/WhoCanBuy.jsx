@@ -21,7 +21,7 @@ export function WhoCanBuy({ l, onBlocked }) {
       <ol className="list-decimal ml-5 space-y-1">
         <li>Your organisation applies once as a buyer: <a className="underline" href="/buyers/apply" data-testid="market-who-apply">Apply as a buyer organisation</a>.</li>
         <li>PMC verifies the organisation and sends your buyer sign-in.</li>
-        <li><a className="underline" href={`/login?next=${next}`} data-testid="market-who-signin">Sign in as a buyer</a>, come back to this page and bid, offer or buy.</li>
+        <li><a className="underline" href={`/login?role=buyer&next=${next}`} data-testid="market-who-signin">Sign in as a buyer</a>, come back to this page and bid, offer or buy.</li>
       </ol>
       {!buyersOnly && !me.kind && <p>Suppliers: <a className="underline" href={`/vendor/login?next=${next}`} data-testid="market-who-supplier-signin">sign in to the supplier portal</a> or <a className="underline" href="/register" data-testid="market-who-register">register as a supplier</a>.</p>}
     </div>);
