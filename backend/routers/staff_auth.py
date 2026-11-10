@@ -92,25 +92,25 @@ async def refresh_csrf_token(request: Request, response: Response):
         h = request.headers.get("Authorization", "")
         if h.startswith("Bearer "):
             token = h[7:]
-    if not token:
-        # v61h — suppliers: re-issue the session-bound CSRF token from the vendor session.
-        from security import _vendor_sub
-        vsub = _vendor_sub(request)
-        if not vsub:
-            raise HTTPException(status_code=401, detail="Not authenticated")
-        csrf = csrf_for_session(vsub)
-        set_csrf_cookie(response, csrf, config.ACCESS_TOKEN_TTL_MIN * 60, is_preview_request(request))
-        return {"csrf_token": csrf}
-    try:
-        payload = jwt.decode(token, config.JWT_SECRET, algorithms=[config.JWT_ALGORITHM])
-        if payload.get("type") != "access":
-            raise HTTPException(status_code=401, detail="Invalid token")
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+    payload = None
+    if token:
+        try:
+            payload = jwt.decode(token, config.JWT_SECRET, algorithms=[config.JWT_ALGORITHM])
+            if payload.get("type") != "access":
+                payload = None
+        except jwt.InvalidTokenError:
+            payload = None
     max_age = config.ACCESS_TOKEN_TTL_MIN * 60
     cross_site = is_preview_request(request)
+    if not payload:
+        # v61h — suppliers / agents: re-issue the session-bound CSRF token from their own session.
+        from security import _agent_sub, _vendor_sub
+        sub = _vendor_sub(request) or _agent_sub(request)
+        if not sub:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        csrf = csrf_for_session(sub)
+        set_csrf_cookie(response, csrf, max_age, cross_site)
+        return {"csrf_token": csrf}
     csrf = csrf_for_session(payload["sub"]) if payload.get("sub") else new_csrf_token()
     set_csrf_cookie(response, csrf, max_age, cross_site)
     return {"csrf_token": csrf}

@@ -1078,3 +1078,10 @@ summary notes.
 - Import: Gemini call runs in its own thread/event loop (cannot block worker heartbeat); one import at a time (semaphore); JPEG draft decode + pixel caps (skip >40 MP embedded images); page renders capped at 2000 px; stale "reading" jobs (>8 min, e.g. after restart) become failed with a clear message.
 
 
+## 2026-11-10 — v61h: ROOT CAUSE of supplier "crash + logout" on upload (prod) + progress + big catalogues
+- Root cause: CloudFront doesn't deliver csrf_token cookie to origin. Session-bound CSRF fallback (HMAC) covered admin/agent only -> supplier POST 403 -> frontend refreshCsrf hit /staff/auth/csrf (admin-only) -> 401 "Not authenticated" -> global redirect to /login. AI tender builder unaffected (no CSRF on that path).
+- Fix: security._vendor_sub + require_csrf accepts HMAC("csrf:vendor:<id>"); vendor login issues session-bound csrf; /staff/auth/csrf re-issues for vendor/agent sessions (also when admin token invalid); refreshCsrf uses _skipAuthRedirect.
+- Catalogue import reads 15 pages per AI call, up to 200 pages / 300 products; progress fields pages_total/pages_done/found + progress bar UI; stale check uses updated_at heartbeat. Tested iteration_186 (15/15 backend, frontend 100%).
+- LEARNING: any new cookie-auth role must be added to require_csrf's session-bound fallback, or it breaks only in prod behind CloudFront.
+
+

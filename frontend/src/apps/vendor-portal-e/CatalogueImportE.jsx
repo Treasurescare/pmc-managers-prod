@@ -48,10 +48,9 @@ function ImportProgress({ job }) {
   const total = job.pages_total || 0;
   const done = job.pages_done || 0;
   const pct = job.status === "uploading" ? 3 : total ? Math.max(6, Math.round((100 * done) / total)) : 6;
-  const next = total ? `pages ${done + 1}–${Math.min(done + 15, total)} of ${total}` : "the file";
   return (
     <div className="space-y-2" data-testid="cat-progress">
-      <p className="text-sm">{job.status === "uploading" ? <>Uploading <b>{job.file_name}</b>…</> : <>AI is reading {next} of <b>{job.file_name}</b>{job.found ? ` · ${job.found} product(s) found so far` : ""}</>}</p>
+      <p className="text-sm">{job.status === "uploading" ? <>Uploading <b>{job.file_name}</b>…</> : total ? <>AI is reading pages {done + 1}–{Math.min(done + 15, total)} of {total} in <b>{job.file_name}</b>{job.found ? ` · ${job.found} product(s) found so far` : ""}</> : <>AI is reading <b>{job.file_name}</b>…</>}</p>
       <div className="h-2 rounded bg-black/10 overflow-hidden" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
         <div className="h-full bg-emerald-700 transition-[width] duration-700" style={{ width: `${pct}%` }} data-testid="cat-progress-bar" />
       </div>
