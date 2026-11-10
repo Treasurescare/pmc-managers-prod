@@ -24,7 +24,9 @@ IMG = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "webp": "i
 DOC = {"pdf": "application/pdf"}
 MAX_PHOTO, MAX_DOC, MAX_CATALOGUE = 8 * 1024 * 1024, 10 * 1024 * 1024, 25 * 1024 * 1024
 MAX_PAGES, MAX_PRODUCTS, MAX_EMBEDDED = 30, 60, 80
+MAX_PIXELS = 40_000_000
 _TASKS: set = set()
+_ONE_AT_A_TIME = asyncio.Semaphore(1)
 
 
 async def _seller(request: Request) -> dict:
@@ -40,6 +42,9 @@ def _ext(name: str) -> str:
 def _jpeg(data: bytes, max_side: int = 1600) -> bytes:
     from PIL import Image
     im = Image.open(io.BytesIO(data))
+    if im.width * im.height > MAX_PIXELS * 4:
+        raise ValueError("image too large")
+    im.draft("RGB", (max_side, max_side))
     im.thumbnail((max_side, max_side))
     if im.mode not in ("RGB", "L"):
         bg = Image.new("RGB", im.size, "white")
@@ -128,7 +133,8 @@ def _embedded(doc, pages: int) -> list:
         area = page.rect.width * page.rect.height
         for info in page.get_image_info(xrefs=True):
             x, bb = info.get("xref"), fitz.Rect(info["bbox"])
-            if not x or x in seen or info.get("width", 0) < 120 or info.get("height", 0) < 120 or bb.get_area() < area * 0.01:
+            if not x or x in seen or info.get("width", 0) < 120 or info.get("height", 0) < 120 or bb.get_area() < area * 0.01 \
+                    or info.get("width", 0) * info.get("height", 0) > MAX_PIXELS:
                 continue
             seen.add(x)
             try:
@@ -195,7 +201,13 @@ def _prep(name: str, body: bytes):
 
 def _page_crop(doc, send: bytes, page: int, pages: int, box, cache: dict) -> Optional[bytes]:
     if page not in cache:
-        cache[page] = doc[page - 1].get_pixmap(dpi=150).tobytes("png") if doc and page <= pages else (None if doc else send)
+        pg = doc[page - 1] if doc and page <= pages else None
+        if pg is not None:
+            import fitz
+            zoom = min(150 / 72, 2000 / max(pg.rect.width, pg.rect.height, 1))
+            cache[page] = pg.get_pixmap(matrix=fitz.Matrix(zoom, zoom)).tobytes("png")
+        else:
+            cache[page] = None if doc else send
     return cache[page] and _crop(cache[page], box)
 
 
@@ -207,7 +219,7 @@ async def _run_import(iid: str, owner: str, name: str, body: bytes, charge_ref: 
         try:
             with os.fdopen(fd, "wb") as fh:
                 fh.write(send)
-            products = await _ask_ai(path, mime, pages)
+            products = await asyncio.to_thread(lambda: asyncio.run(_ask_ai(path, mime, pages)))
         finally:
             os.remove(path)
         stored = []
@@ -241,6 +253,11 @@ async def _run_import(iid: str, owner: str, name: str, body: bytes, charge_ref: 
             "error": "We could not read this catalogue. Please try a clearer copy, a smaller file, or add the products by hand."}})
 
 
+async def _queued(*args) -> None:
+    async with _ONE_AT_A_TIME:
+        await _run_import(*args)
+
+
 @router.post("/catalogue/import")
 async def start_import(file: UploadFile = File(...), v=Depends(_seller)):
     ext, body = _ext(file.filename), await file.read()
@@ -265,7 +282,7 @@ async def start_import(file: UploadFile = File(...), v=Depends(_seller)):
                    "name": file.filename[:160]}
     await db.mkt_imports.insert_one({"_id": iid, "owner": v["id"], "file_name": file.filename, "status": "reading",
                                      "catalogue_doc": doc_ref, "created_at": now_iso()})
-    t = asyncio.create_task(_run_import(iid, v["id"], file.filename, body, charge_ref))
+    t = asyncio.create_task(_queued(iid, v["id"], file.filename, body, charge_ref))
     _TASKS.add(t)
     t.add_done_callback(_TASKS.discard)
     return {"id": iid, "status": "reading"}
@@ -276,6 +293,10 @@ async def get_import(iid: str, v=Depends(current_vendor)):
     d = await db.mkt_imports.find_one({"_id": iid, "owner": v["id"]})
     if not d:
         raise HTTPException(status_code=404, detail="Import not found")
+    from datetime import datetime, timedelta, timezone
+    if d.get("status") == "reading" and d.get("created_at", "") < (datetime.now(timezone.utc) - timedelta(minutes=8)).isoformat():
+        d["status"], d["error"] = "failed", "Reading took too long or the server restarted. Please try again, or try a smaller file (fewer pages)."
+        await db.mkt_imports.update_one({"_id": iid}, {"$set": {"status": "failed", "error": d["error"]}})
     d["id"] = d.pop("_id")
     return d
 

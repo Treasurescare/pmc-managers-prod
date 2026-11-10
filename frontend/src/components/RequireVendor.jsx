@@ -19,12 +19,19 @@ export default function RequireVendor({ children }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      try {
-        await vendorApi.me();
-        if (!cancelled) setState("authed");
-      } catch (e) {
-        if (!cancelled) setState("guest");
+      // Only a real 401 means signed out; a brief server hiccup (502/504/network) is retried, not treated as logout.
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        try {
+          await vendorApi.me();
+          if (!cancelled) setState("authed");
+          return;
+        } catch (e) {
+          if (e?.response?.status === 401) { if (!cancelled) setState("guest"); return; }
+          await new Promise((r) => setTimeout(r, 2500 * (attempt + 1)));
+          if (cancelled) return;
+        }
       }
+      if (!cancelled) setState("authed");
     })();
     return () => { cancelled = true; };
   }, [location.pathname]);

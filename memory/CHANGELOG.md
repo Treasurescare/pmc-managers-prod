@@ -1072,3 +1072,9 @@ summary notes.
 - Front: view counted when ≥50% of advert visible (IntersectionObserver); CTA click counted. Tested iteration_185 (9/9) + fixes. Known: counts rely on first X-Forwarded-For IP; buyer-org admin users with global 'admin' role can see admin endpoints (pre-existing pattern).
 
 
+## 2026-11-10 — v61g: catalogue AI "crash + logout" hardening (prod, unverified root cause)
+- Prod symptom: AI catalogue import -> app "crashes" -> login screen. Self-hosted AWS, logs not reachable. Likely: gunicorn worker killed (120 s timeout or memory) on single EB instance -> RequireVendor treated any /me failure as signed-out.
+- RequireVendor now logs out only on real 401; retries 502/504/network 6x with backoff.
+- Import: Gemini call runs in its own thread/event loop (cannot block worker heartbeat); one import at a time (semaphore); JPEG draft decode + pixel caps (skip >40 MP embedded images); page renders capped at 2000 px; stale "reading" jobs (>8 min, e.g. after restart) become failed with a clear message.
+
+
